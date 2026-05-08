@@ -332,3 +332,12 @@ graph.example.json    — template for graph file structure
 ## Known Limitations
 
 **`chunks_out/` cleanup** uses filename pattern matching (`base__chunk*.md`). If you manually create a directory with a name matching that pattern, `rmSync` will fail. This only affects hand-crafted edge cases in the output folder and does not impact indexing or Qdrant.
+
+## Acknowledgements
+
+Built with AI assistance throughout development:
+
+- **[OpenAI Codex](https://openai.com/blog/openai-codex)** — code review
+- **[Claude](https://claude.ai) (Anthropic)** — code generation, documentation
+
+Pipeline design, core mechanics, concept, and testing — by the author.
