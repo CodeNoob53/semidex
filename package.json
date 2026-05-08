@@ -1,0 +1,12 @@
+{
+  "name": "indexer",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "index": "node src/index.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.0.0",
+    "pdf-parse": "^1.1.1"
+  }
+}
