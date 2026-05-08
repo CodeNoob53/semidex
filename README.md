@@ -71,18 +71,25 @@ chunks_out/        — Markdown files written after linking, so Obsidian review
 
 | Format | Method |
 |--------|--------|
-| `.md` | Native parser |
+| `.md` | Native parser (heading-aware, frontmatter, wikilinks) |
 | `.txt` | Native parser |
-| `.docx` | pandoc (must be installed) |
+| `.pdf` | pdf-parse (npm dependency, no system tools required) |
+| `.docx` | pandoc |
+| `.odt` | pandoc |
+| `.rtf` | pandoc |
+| `.epub` | pandoc |
+| `.html` / `.htm` | pandoc |
 
-> **Note:** pandoc is a system dependency. On Linux/macOS: `apt install pandoc` / `brew install pandoc`. On Windows: [pandoc.org/installing](https://pandoc.org/installing.html).
+> **Note:** pandoc is required for `.docx`, `.odt`, `.rtf`, `.epub`, `.html` formats.
+> Install: Linux — `apt install pandoc`, macOS — `brew install pandoc`, Windows — [pandoc.org/installing](https://pandoc.org/installing.html).
+> `.pdf` and plain text formats work without pandoc.
 
 ## Requirements
 
 - Node.js 18+
 - [Ollama](https://ollama.com) running locally
 - Qdrant instance (local or [Qdrant Cloud](https://cloud.qdrant.io) free tier)
-- pandoc (for `.docx` support)
+- pandoc (for `.docx`, `.odt`, `.rtf`, `.epub`, `.html` support)
 
 ## Embedding Model Guide
 
@@ -253,7 +260,7 @@ src/
     index.js      — CLI entry point
     batch.js      — parallel batch runner
     phases/
-      chunk.js    — structure-aware parser, pandoc for .docx
+      chunk.js    — structure-aware parser, pdf-parse + pandoc-backed formats
       context.js  — LLM contextualization + boundary merging
       tag.js      — batch tag generation with multi-format JSON parser
       link.js     — semantic linking across collections

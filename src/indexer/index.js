@@ -121,7 +121,7 @@ ${chunk.text}
   });
 }
 
-const SUPPORTED_EXTENSIONS = new Set(['.md', '.txt', '.docx']);
+const SUPPORTED_EXTENSIONS = new Set(['.md', '.txt', '.docx', '.odt', '.rtf', '.epub', '.html', '.htm', '.pdf']);
 
 function collectFiles(targetPath) {
   const stat = statSync(targetPath);

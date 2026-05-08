@@ -2,6 +2,7 @@ import { readFileSync } from 'fs';
 import { extname } from 'path';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
+import pdfParse from 'pdf-parse';
 
 const execFileAsync = promisify(execFile);
 
@@ -130,10 +131,18 @@ export function chunkFile(filePath, text, sourceFile) {
   return chunks.map((c, i) => ({ ...c, chunkIndex: i, totalChunks: chunks.length }));
 }
 
+const PANDOC_FORMATS = new Set(['.docx', '.odt', '.rtf', '.epub', '.html', '.htm']);
+
 export async function chunkFileFromPath(filePath, sourceFile) {
   const ext = extname(filePath).toLowerCase();
 
-  if (ext === '.docx') {
+  if (ext === '.pdf') {
+    const buf = readFileSync(filePath);
+    const { text } = await pdfParse(buf);
+    return chunkFile(filePath, text, sourceFile);
+  }
+
+  if (PANDOC_FORMATS.has(ext)) {
     const { stdout } = await execFileAsync('pandoc', [filePath, '-t', 'markdown', '--wrap=none']);
     return chunkFile(filePath, stdout, sourceFile);
   }
