@@ -1,6 +1,15 @@
-# Indexer
+# semidex
 
-Automated pipeline for indexing document collections into a vector database, enabling AI assistants to navigate large knowledge bases without reading entire files.
+![semidex](assets/avif/banner_logo.avif)
+
+![Node.js](https://img.shields.io/badge/node-%3E%3D18-brightgreen?logo=node.js&logoColor=white)
+![npm](https://img.shields.io/badge/npm-2.0.0-blue?logo=npm&logoColor=white)
+![License](https://img.shields.io/badge/license-MIT-green)
+![Ollama](https://img.shields.io/badge/Ollama-local%20LLM-black?logo=ollama&logoColor=white)
+![Qdrant](https://img.shields.io/badge/Qdrant-vector%20DB-red?logo=qdrant&logoColor=white)
+![MCP](https://img.shields.io/badge/MCP-compatible-purple)
+
+Semantic indexing and retrieval toolkit: processes document collections into a vector database and exposes them to AI assistants via MCP. Built for large knowledge bases that don't fit in an LLM context window.
 
 ## The Problem
 
@@ -8,7 +17,39 @@ Large documentation sets (100–150+ pages) don't fit in an LLM context window. 
 
 ## The Solution
 
-Indexer processes your documents into semantically structured chunks stored in [Qdrant](https://qdrant.tech/). An AI with MCP access to the database can retrieve only the relevant chunks for a given task — getting precise, context-aware answers without touching the rest of the collection.
+semidex processes your documents into semantically structured chunks stored in [Qdrant](https://qdrant.tech/). An AI with MCP access can retrieve only the relevant chunks for a given task — getting precise, context-aware answers without touching the rest of the collection.
+
+## How It Works
+
+When you run `npm run index`, semidex processes each document through five sequential phases. Two local LLM models from Ollama drive the intelligence at different stages — one for language understanding, one for meaning representation.
+
+**Phase 1 — Chunk**
+The document is split into meaningful pieces. semidex first tries to split by headings and sections (structure-aware). If a section is too large, it falls back to sentence splitting with an LLM boundary check to avoid cutting mid-thought. The result is a set of self-contained chunks — each covering one idea or topic.
+
+**Phase 2 — Contextualize** *(uses `gemma3:4b`)*
+Each chunk is sent to the local LLM with a prompt that asks it to write a 1–2 sentence summary describing what the chunk is about *in the context of the full document*. This summary is stored alongside the chunk text. It solves a key problem: a chunk like *"It must not exceed 512 bytes"* is meaningless without context — after contextualization it becomes *"The session token in the auth module must not exceed 512 bytes."*
+
+**Phase 3 — Tag** *(uses `gemma3:4b`)*
+The same local LLM generates 3–7 semantic tags per chunk (e.g. `["authentication", "session", "security"]`). Tags are batched — N chunks per LLM call — for speed. They enable precise filtered search later: find all chunks tagged `database-schema` across an entire collection.
+
+**Phase 4 — Embed + Upsert** *(uses `bge-m3` or `snowflake-arctic-embed2`)*
+The embedding model converts `context + text` into a 1024-dimensional vector — a numerical representation of meaning. Similar content produces similar vectors regardless of exact wording. The vector, tags, context, and full text are stored together as a point in Qdrant.
+
+**Phase 5 — Link**
+semidex runs a semantic search across all indexed collections and finds the top-N most similar chunks to each newly indexed chunk. Bidirectional links and backlinks are written to both Qdrant payload and a local `graph.<collection>.json` file. This creates a navigable knowledge graph: if the AI finds one relevant chunk, it can follow links to related content without another search.
+
+### Why local models?
+
+semidex uses Ollama specifically because your documents stay on your machine. No text is sent to external APIs during indexing — relevant for proprietary codebases, internal documentation, client specifications, or any content you can't share with a third-party service.
+
+The two models serve distinct roles:
+
+| Model | Role | Used in |
+|-------|------|---------|
+| `gemma3:4b` | Language understanding — reads text, writes summaries and tags | Phases 2 & 3 |
+| `bge-m3` | Semantic encoding — converts text to vectors for similarity search | Phase 4 & MCP retrieval |
+
+At query time (via MCP), the same embedding model converts the AI's search query into a vector and Qdrant returns the closest matches — no LLM involved in retrieval, just vector math.
 
 ## Use Cases
 
@@ -26,33 +67,7 @@ Re-run on a folder after editing files. Only changed files are reprocessed (SHA-
 
 ## Pipeline
 
-```
-File(s)
-  │
-  ▼
-[1] Chunk          — structure-first split (headings → sections),
-                     fallback to sentence splitting with LLM boundary check
-  │
-  ▼
-[2] Contextualize  — LLM writes 1-2 sentence summary per chunk,
-                     stored alongside the text for richer embeddings
-  │
-  ▼
-[3] Tag            — LLM generates 3-7 semantic tags per chunk,
-                     batched (N chunks per LLM call) for speed
-  │
-  ▼
-[4] Embed + Upsert — embed(context + text) → vector,
-                     stored in Qdrant with full metadata payload
-  │
-  ▼
-[5] Link           — semantic search across all collections,
-                     bidirectional links + backlinks written to Qdrant + graph.<collection>.json
-  │
-  ▼
-chunks_out/        — Markdown files written after linking, so Obsidian review
-                     shows both tags and all semantic links per chunk
-```
+![Pipeline diagram](assets/avif/soft_structure.avif)
 
 ## Features
 
@@ -63,7 +78,7 @@ chunks_out/        — Markdown files written after linking, so Obsidian review
 - **Bidirectional graph** — links and backlinks between documents maintained in both Qdrant payload and `graph.<collection>.json`; stale edges removed on reindex
 - **Stable document identity** — `source_file` stored as a path relative to a configurable `SOURCE_ROOT`; validated against escaping the root on all platforms including different Windows drives
 - **Obsidian-compatible output** — `chunks_out/` written after linking so review files include semantic links; stale chunk files from previous runs are cleaned up automatically
-- **Folder indexing** — point at a directory, all `.md`, `.txt`, `.docx` files are processed recursively, hidden entries skipped
+- **Folder indexing** — point at a directory, all supported file types are processed recursively, hidden entries skipped
 - **Cross-collection linking** — linker searches a configurable collection allowlist; incompatible collections are skipped with a warning rather than crashing
 - **MCP retrieval layer** — 6 tools expose the indexed knowledge to any MCP-compatible AI client
 
@@ -84,16 +99,60 @@ chunks_out/        — Markdown files written after linking, so Obsidian review
 > Install: Linux — `apt install pandoc`, macOS — `brew install pandoc`, Windows — [pandoc.org/installing](https://pandoc.org/installing.html).
 > `.pdf` and plain text formats work without pandoc.
 
-## Requirements
+## Dependencies
 
-- Node.js 18+
-- [Ollama](https://ollama.com) running locally
-- Qdrant instance (local or [Qdrant Cloud](https://cloud.qdrant.io) free tier)
-- pandoc (for `.docx`, `.odt`, `.rtf`, `.epub`, `.html` support)
+### Node.js
+
+Requires Node.js 18+. Install via [nvm](https://github.com/nvm-sh/nvm) (Linux/macOS) or [nvm-windows](https://github.com/coreybutler/nvm-windows):
+
+```bash
+nvm install 20
+nvm use 20
+```
+
+### Ollama
+
+Local LLM runtime for contextualization, tagging, and embeddings. Install from [ollama.com](https://ollama.com), then pull the required models:
+
+```bash
+# embedding model (required)
+ollama pull bge-m3
+
+# LLM for context + tags (required)
+ollama pull gemma3:4b
+
+# alternative embedding model (English-only collections)
+ollama pull snowflake-arctic-embed2
+```
+
+### Qdrant
+
+Vector database. Use [Qdrant Cloud](https://cloud.qdrant.io) free tier (no local setup), or run locally via Docker:
+
+```bash
+docker run -d --name qdrant -p 6333:6333 qdrant/qdrant
+```
+
+For Qdrant Cloud: create a free cluster, copy the URL and API key into `.env`.
+
+### pandoc
+
+Required only for `.docx`, `.odt`, `.rtf`, `.epub`, `.html` formats:
+
+```bash
+# Linux (Debian/Ubuntu)
+apt install pandoc
+
+# macOS
+brew install pandoc
+
+# Windows
+winget install JohnMacFarlane.Pandoc
+```
 
 ## Embedding Model Guide
 
-Both indexer and MCP server use the same model — the collection must be indexed and queried with the same model. Set per-collection in `config.json` after running `npm run sync`.
+Both indexer and MCP server use the same model — a collection must be indexed and queried with the same model. Set per-collection in `config.json` after running `npm run sync`.
 
 | Model | Size | Best for |
 |-------|------|----------|
@@ -101,11 +160,6 @@ Both indexer and MCP server use the same model — the collection must be indexe
 | `snowflake-arctic-embed2` | 1.2 GB | English-only collections |
 
 Both produce 1024-dimensional vectors.
-
-```bash
-ollama pull bge-m3
-ollama pull snowflake-arctic-embed2  # optional alternative
-```
 
 ## Setup
 
@@ -146,7 +200,7 @@ After sync, set the correct `embedModel` per collection and add a description:
 ### 4. Register MCP server in Claude Code
 
 ```bash
-claude mcp add --scope user qdrant-indexer -- node /absolute/path/to/indexer/src/mcp/server.js
+claude mcp add --scope user semidex -- node /absolute/path/to/semidex/src/mcp/server.js
 ```
 
 `--scope user` makes the server available across all projects. Restart VS Code after registering.

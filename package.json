@@ -1,6 +1,7 @@
 {
-  "name": "indexer",
+  "name": "semidex",
   "version": "2.0.0",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "index": "node src/indexer/index.js",
