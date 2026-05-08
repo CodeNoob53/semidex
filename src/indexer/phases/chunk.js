@@ -5,8 +5,8 @@ import { promisify } from 'util';
 
 const execFileAsync = promisify(execFile);
 
-const MAX_TOKENS = parseInt(process.env.MAX_CHUNK_TOKENS || '500');
-const MIN_TOKENS = parseInt(process.env.MIN_CHUNK_TOKENS || '50');
+const MAX_TOKENS = parseInt(process.env.MAX_CHUNK_TOKENS || '400');
+const MIN_TOKENS = parseInt(process.env.MIN_CHUNK_TOKENS || '30');
 const OVERLAP_SENTENCES = parseInt(process.env.OVERLAP_SENTENCES || '2');
 
 const countTokens = (text) => Math.ceil(text.length / 4);
@@ -59,7 +59,6 @@ function isStructuralHeading(text) {
   return true;
 }
 
-// parse markdown into sections by headings, applying structural heading heuristic
 function parseMarkdown(text) {
   const { meta, body } = parseFrontmatter(text);
   const lines = body.split('\n');
@@ -78,7 +77,6 @@ function parseMarkdown(text) {
         currentHeading = headingText;
         currentLines = [];
       } else {
-        // styled body text — keep as content
         currentLines.push(line);
       }
     } else {
@@ -98,7 +96,7 @@ function chunkSections(sections, sourceFile, meta = {}, links = []) {
 
   for (const section of sections) {
     if (!section.heading && (!section.text || countTokens(section.text) < MIN_TOKENS)) continue;
-    const text = section.text || `(розділ без вмісту: ${section.heading})`;
+    const text = section.text || `(empty section: ${section.heading})`;
 
     if (countTokens(text) <= MAX_TOKENS) {
       chunks.push({ text, section: section.heading, source_file: sourceFile, meta, links, needsBoundaryCheck: false });

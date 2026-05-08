@@ -1,0 +1,14 @@
+{
+  "docs/getting-started.md": {
+    "links": ["docs/configuration.md", "docs/api-reference.md"],
+    "backlinks": []
+  },
+  "docs/configuration.md": {
+    "links": ["docs/api-reference.md"],
+    "backlinks": ["docs/getting-started.md"]
+  },
+  "docs/api-reference.md": {
+    "links": [],
+    "backlinks": ["docs/getting-started.md", "docs/configuration.md"]
+  }
+}

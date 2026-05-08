@@ -1,4 +1,8 @@
 node_modules/
 chunks_out/
+.tmp/
 .env
 graph.json
+graph.*.json
+!graph.example.json
+config.json

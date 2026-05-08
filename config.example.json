@@ -1,0 +1,9 @@
+{
+  "collections": {
+    "my-docs": {
+      "embedModel": "bge-m3",
+      "vectorSize": 1024,
+      "description": "Project architecture documentation"
+    }
+  }
+}

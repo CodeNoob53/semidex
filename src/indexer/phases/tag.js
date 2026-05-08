@@ -1,4 +1,4 @@
-import { generate } from '../lib/ollama.js';
+import { generate } from '../../core/ollama.js';
 
 const MODEL = process.env.TAG_MODEL || 'gemma3';
 
@@ -14,7 +14,6 @@ function existingTags(chunk) {
   return Array.isArray(t) ? t : t ? [t] : [];
 }
 
-// single chunk tagging (fallback)
 export async function addTags(chunk) {
   const prompt = `You are a document tagger. Generate 3-7 concise tags for this text chunk. Tags should describe the topic, technology, or concept. Use lowercase, hyphens for spaces (e.g. "node-js", "sql-join", "normalization"). Output only a comma-separated list of tags, nothing else.
 
@@ -30,26 +29,23 @@ ${chunk.text.slice(0, 800)}`;
   return { ...chunk, tags };
 }
 
-// try to extract a JSON array-of-arrays from raw LLM output
 function extractJsonArray(raw, expectedLength) {
   const isValid = (parsed) =>
     Array.isArray(parsed) && parsed.length === expectedLength && parsed.every(Array.isArray);
 
-  // try full trimmed response first (handles clean model output)
   try {
     const parsed = JSON.parse(raw.trim());
     if (isValid(parsed)) return parsed;
   } catch { /* try extraction */ }
 
-  // collect all [...] array literals (handles one-per-line model output like [["a"]] [["b"]])
   const allArrays = [];
   for (const m of raw.matchAll(/\[(?:[^\[\]]|\[(?:[^\[\]]|\[[^\[\]]*\])*\])*\]/g)) {
     try {
       const parsed = JSON.parse(m[0]);
       if (Array.isArray(parsed)) {
-        if (isValid(parsed)) return parsed; // outer array matches
-        if (parsed.every(Array.isArray)) allArrays.push(...parsed); // unwrap [[tags]] → [tags]
-        else if (parsed.every(s => typeof s === 'string')) allArrays.push(parsed); // flat [tags]
+        if (isValid(parsed)) return parsed;
+        if (parsed.every(Array.isArray)) allArrays.push(...parsed);
+        else if (parsed.every(s => typeof s === 'string')) allArrays.push(parsed);
       }
     } catch { /* skip */ }
   }
@@ -57,16 +53,12 @@ function extractJsonArray(raw, expectedLength) {
   return null;
 }
 
-// batch tagging — one LLM call for multiple chunks
 export async function addTagsBatch(chunks) {
   if (chunks.length === 1) return [await addTags(chunks[0])];
 
   const n = chunks.length;
   const example = Array.from({ length: n }, (_, i) => [`tag${i}a`, `tag${i}b`]);
-
-  const items = chunks.map((c, i) =>
-    `CHUNK ${i}:\n${c.text.slice(0, 400)}`
-  ).join('\n\n');
+  const items = chunks.map((c, i) => `CHUNK ${i}:\n${c.text.slice(0, 400)}`).join('\n\n');
 
   const prompt = `You are a document tagger. Generate 3-7 lowercase hyphenated tags for each chunk.
 IMPORTANT: Output ONLY a JSON array of ${n} arrays, nothing else. No explanation, no markdown.
