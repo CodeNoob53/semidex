@@ -126,18 +126,23 @@ export function rerankResults(results, query, { finalLimit, collection } = {}) {
   });
 
   // Phase 2: greedy selection with diversity penalty applied to each pick's effective score.
+
+  // Capture original RRF rank-0 by identity BEFORE sort, so protection targets the
+  // actual Qdrant top result, not whoever won the rerank scoring pass.
+  const originalTop = scored.find(s => s.rank === 0);
+
   scored.sort((a, b) => b.baseScore - a.baseScore);
 
-  // Top-1 protection: if the reranker would displace rank-0, only allow it when the
-  // challenger's baseScore advantage exceeds PROTECT_TOP1_DELTA. This prevents small
-  // token-noise boosts from overturning a high-confidence RRF top result.
-  const rank0Score = scored[0]?.baseScore ?? 0;
-  const rank0Sf    = scored[0]?.result.payload?.source_file;
-  const challenger = scored.find(s => s.result.payload?.source_file !== rank0Sf);
+  // Top-1 protection: only allow displacing the original RRF rank-0 result when the
+  // rerank challenger's advantage exceeds PROTECT_TOP1_DELTA. Compared by object
+  // identity (not source_file) so a different chunk from the same file doesn't
+  // accidentally satisfy the protection.
+  const challenger = scored.find(s => s !== originalTop);
   const top1Protected =
     PROTECT_TOP1_DELTA > 0 &&
+    originalTop !== undefined &&
     challenger !== undefined &&
-    challenger.baseScore - rank0Score < PROTECT_TOP1_DELTA;
+    challenger.baseScore - originalTop.baseScore < PROTECT_TOP1_DELTA;
 
   const selected = [];
   const pickedFileCounts = new Map(); // source_file → count selected so far
@@ -153,8 +158,8 @@ export function rerankResults(results, query, { finalLimit, collection } = {}) {
       const alreadyPicked = pickedFileCounts.get(sf) ?? 0;
       const penaltyIdx = Math.min(alreadyPicked, DIVERSITY_PENALTIES.length) - 1;
       const penalty = alreadyPicked > 0 ? DIVERSITY_PENALTIES[penaltyIdx] : 0;
-      // When top-1 is protected and we haven't placed rank-0's file yet, force it first.
-      const forcedPenalty = (top1Protected && selected.length === 0 && sf !== rank0Sf) ? 1e9 : 0;
+      // Force the original RRF #1 result into position 0 when protection is active.
+      const forcedPenalty = (top1Protected && selected.length === 0 && remaining[i] !== originalTop) ? 1e9 : 0;
       const effective = baseScore - penalty - forcedPenalty;
       if (effective > bestEffective) { bestEffective = effective; bestIdx = i; }
     }
