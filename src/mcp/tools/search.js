@@ -1,5 +1,6 @@
-import { search } from '../../core/qdrant.js';
+import { hybridSearch } from '../../core/qdrant.js';
 import { embed } from '../../core/ollama.js';
+import { encode as bm25Encode } from '../../core/bm25.js';
 import { getEmbedModel } from '../../core/config.js';
 
 export const schema = {
@@ -20,7 +21,10 @@ export const schema = {
 
 export async function handle({ query, collection, top = 5, tags, source_file }) {
   const model = getEmbedModel(collection);
-  const vector = await embed(query, model);
+  const [denseVector, sparseVector] = await Promise.all([
+    embed(query, model),
+    Promise.resolve(bm25Encode(query)),
+  ]);
 
   let filter = null;
   if (source_file || tags?.length) {
@@ -30,7 +34,7 @@ export async function handle({ query, collection, top = 5, tags, source_file }) 
     filter = { must };
   }
 
-  const results = await search(collection, vector, top, filter);
+  const results = await hybridSearch(collection, denseVector, sparseVector, top, filter);
   if (!results.length) return 'No results found.';
 
   return results.map(r => {

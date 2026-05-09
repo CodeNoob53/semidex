@@ -81,6 +81,7 @@ Re-run on a folder after editing files. Only changed files are reprocessed (SHA-
 - **Folder indexing** — point at a directory, all supported file types are processed recursively, hidden entries skipped
 - **Cross-collection linking** — linker searches a configurable collection allowlist; incompatible collections are skipped with a warning rather than crashing
 - **MCP retrieval layer** — 6 tools expose the indexed knowledge to any MCP-compatible AI client
+- **Hybrid search (BM25 + dense)** — every search combines dense semantic vectors with BM25 sparse vectors fused via Reciprocal Rank Fusion (RRF); falls back to dense-only on collections without sparse support
 
 ## Supported Formats
 
@@ -306,6 +307,21 @@ The following keyword indexes must exist on every collection for filters and has
 | `tags` | keyword | `qdrant_search` tag filter, `qdrant_find_by_tag` |
 
 `npm run index` creates these automatically for new collections. For existing collections run `npm run sync` — idempotent, safe to re-run.
+
+## Vector Architecture
+
+Each indexed chunk is stored with two vector representations:
+
+| Vector | Type | Algorithm | Used by |
+|--------|------|-----------|---------|
+| `dense` | 1024-dim float | Ollama embedding model (`bge-m3` etc.) | semantic similarity, linking |
+| `sparse` | variable-dim | BM25 (local, no model required) | keyword matching |
+
+At query time, `qdrant_search` runs both vectors in parallel via Qdrant's Query API and merges results with **Reciprocal Rank Fusion (RRF)**. This improves recall for queries that mix natural language with specific terms (function names, variable names, technical jargon).
+
+`npm run sync` adds sparse vector support to existing collections. New collections created by `npm run index` include it automatically.
+
+> **Planned:** SPLADE sparse encoder for higher-quality sparse vectors (currently BM25).
 
 ## MCP Tools
 

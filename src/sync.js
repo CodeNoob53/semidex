@@ -4,7 +4,7 @@
 
 import 'dotenv/config';
 import { loadConfig, saveConfig } from './core/config.js';
-import { listCollections, getCollectionInfo, createPayloadIndex } from './core/qdrant.js';
+import { listCollections, getCollectionInfo, createPayloadIndex, addSparseVectorSupport } from './core/qdrant.js';
 
 // Required indexes for MCP filters and hash-based skip to work correctly.
 const REQUIRED_INDEXES = ['source_file', 'tags'];
@@ -28,6 +28,13 @@ for (const name of remote) {
   for (const field of REQUIRED_INDEXES) {
     await createPayloadIndex(name, field);
     console.log(`  ✓ index "${field}" on ${name}`);
+  }
+
+  try {
+    await addSparseVectorSupport(name);
+    console.log(`  ✓ sparse vector support on ${name}`);
+  } catch (e) {
+    console.log(`  ~ sparse vector already exists on ${name}`);
   }
 }
 

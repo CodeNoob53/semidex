@@ -38,7 +38,10 @@ export async function updatePayload(collection, id, payload) {
 }
 
 export async function search(collection, vector, limit = 5, filter = null) {
-  const body = { vector, limit, with_payload: true };
+  // named vector: { name: 'dense', vector: [...] }
+  const body = Array.isArray(vector)
+    ? { vector, limit, with_payload: true }
+    : { vector: { name: vector.name, vector: vector.vector ?? vector }, limit, with_payload: true };
   if (filter) body.filter = filter;
   const r = await fetch(`${URL}/collections/${collection}/points/search`, {
     method: 'POST',
@@ -48,6 +51,27 @@ export async function search(collection, vector, limit = 5, filter = null) {
   if (!r.ok) throw new Error(`Qdrant search failed (${collection}): ${await r.text()}`);
   const data = await r.json();
   return data.result ?? [];
+}
+
+export async function hybridSearch(collection, denseVector, sparseVector, limit = 5, filter = null) {
+  const prefetch = [
+    { query: sparseVector, using: 'sparse', limit: limit * 2, ...(filter && { filter }) },
+    { query: denseVector,  using: 'dense',  limit: limit * 2, ...(filter && { filter }) },
+  ];
+  const body = { prefetch, query: { fusion: 'rrf' }, limit, with_payload: true };
+  const r = await fetch(`${URL}/collections/${collection}/points/query`, {
+    method: 'POST',
+    headers: headers(),
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) {
+    // fall back to dense-only search if collection has no sparse vectors yet
+    const err = await r.text();
+    if (err.includes('sparse') || err.includes('Wrong input')) return search(collection, denseVector, limit, filter);
+    throw new Error(`Qdrant hybridSearch failed (${collection}): ${err}`);
+  }
+  const data = await r.json();
+  return data.result?.points ?? [];
 }
 
 export async function scroll(collection, filter, limit = 100, withPayload = true) {
@@ -95,9 +119,23 @@ export async function createCollection(name, size = 1024) {
   const r = await fetch(`${URL}/collections/${name}`, {
     method: 'PUT',
     headers: headers(),
-    body: JSON.stringify({ vectors: { size, distance: 'Cosine' } }),
+    body: JSON.stringify({
+      vectors: { dense: { size, distance: 'Cosine' } },
+      sparse_vectors: { sparse: { index: { on_disk: false } } },
+    }),
   });
   if (!r.ok) throw new Error(`Create collection failed: ${await r.text()}`);
   await createPayloadIndex(name, 'source_file');
   await createPayloadIndex(name, 'tags');
+}
+
+export async function addSparseVectorSupport(name) {
+  const r = await fetch(`${URL}/collections/${name}`, {
+    method: 'PATCH',
+    headers: headers(),
+    body: JSON.stringify({
+      sparse_vectors: { sparse: { index: { on_disk: false } } },
+    }),
+  });
+  if (!r.ok) throw new Error(`addSparseVectorSupport failed: ${await r.text()}`);
 }

@@ -2,7 +2,10 @@ import { readFileSync } from 'fs';
 import { extname } from 'path';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
-import pdfParse from 'pdf-parse';
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
+const pdfParse = require('pdf-parse');
 
 const execFileAsync = promisify(execFile);
 
