@@ -90,10 +90,14 @@ export async function getStoredMeta(collection, sourceFile) {
     collection,
     { must: [{ key: 'source_file', match: { value: sourceFile } }] },
     1,
-    ['file_hash', 'sparse_provider']
+    ['file_hash', 'sparse_provider', 'dense_model']
   );
   const p = points[0]?.payload;
-  return p ? { hash: p.file_hash ?? null, sparseProvider: p.sparse_provider ?? 'hashed-tf' } : null;
+  return p ? {
+    hash:          p.file_hash      ?? null,
+    sparseProvider: p.sparse_provider ?? 'hashed-tf',
+    denseModel:    p.dense_model    ?? null,
+  } : null;
 }
 
 export async function deleteBySourceFile(collection, sourceFile) {

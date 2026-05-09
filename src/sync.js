@@ -17,13 +17,17 @@ const remote = await listCollections();
 for (const name of remote) {
   if (!config.collections[name]) {
     const info = await getCollectionInfo(name);
+    const newSparse = process.env.ONNX_EMBED === '1' ? 'bge-m3-onnx' : 'hashed-tf';
     config.collections[name] = {
       embedModel:    process.env.EMBED_MODEL ?? 'bge-m3',
-      sparseProvider: process.env.ONNX_EMBED === '1' ? 'bge-m3-onnx' : 'hashed-tf',
+      sparseProvider: newSparse,
       vectorSize:    info.config.params.vectors.size,
       description:   '',
     };
-    console.log(`+ added: ${name}`);
+    console.log(`+ added: ${name} (sparseProvider: ${newSparse})`);
+  } else if (!config.collections[name].sparseProvider) {
+    config.collections[name].sparseProvider = process.env.ONNX_EMBED === '1' ? 'bge-m3-onnx' : 'hashed-tf';
+    console.log(`  ~ backfilled sparseProvider for "${name}": ${config.collections[name].sparseProvider}`);
   }
 
   for (const field of REQUIRED_INDEXES) {

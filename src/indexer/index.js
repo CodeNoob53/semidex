@@ -12,7 +12,7 @@ import { embed } from '../core/ollama.js';
 import { encode as sparseEncode } from '../core/sparse.js';
 import { upsertPoints, updatePayload, listCollections, createCollection, getStoredMeta, deleteBySourceFile } from '../core/qdrant.js';
 import { loadGraph, saveGraph, removeFile } from '../core/graph.js';
-import { loadConfig, saveConfig, getEmbedModel, getSparseProvider } from '../core/config.js';
+import { loadConfig, saveConfig, getSparseProvider } from '../core/config.js';
 
 const BATCH_SIZE = parseInt(process.env.LLM_BATCH_SIZE || '3');
 const EMBED_MODEL = process.env.EMBED_MODEL || 'bge-m3';
@@ -39,6 +39,7 @@ async function indexFile(filePath, rootPath, collection, allCollections, graph) 
 
   const SPARSE_PROVIDER = getSparseProvider(collection);
   const USE_ONNX        = SPARSE_PROVIDER === 'bge-m3-onnx';
+  const DENSE_MODEL     = USE_ONNX ? 'aapot/bge-m3-onnx' : EMBED_MODEL;
   const embedOnnx       = USE_ONNX
     ? (await import('../core/onnx-embed.js')).embedOnnx
     : null;
@@ -46,16 +47,18 @@ async function indexFile(filePath, rootPath, collection, allCollections, graph) 
   const fileHash   = await hashFile(filePath);
   const storedMeta = await getStoredMeta(collection, sourceFile);
   const storedHash = storedMeta?.hash ?? null;
-  const storedProvider = storedMeta?.sparseProvider ?? null;
+  const storedSparse = storedMeta?.sparseProvider ?? null;
+  const storedDense  = storedMeta?.denseModel ?? null;
 
-  if (storedHash === fileHash && storedProvider === SPARSE_PROVIDER) {
+  if (storedHash === fileHash && storedSparse === SPARSE_PROVIDER && storedDense === DENSE_MODEL) {
     console.log('  ✓ unchanged, skipping');
     return 'skipped';
   }
   if (storedHash) {
-    const reason = storedProvider !== SPARSE_PROVIDER
-      ? `sparse provider changed (${storedProvider} → ${SPARSE_PROVIDER})`
-      : 'content changed';
+    const reasons = [];
+    if (storedSparse !== SPARSE_PROVIDER) reasons.push(`sparse: ${storedSparse} → ${SPARSE_PROVIDER}`);
+    if (storedDense  !== DENSE_MODEL)     reasons.push(`dense: ${storedDense} → ${DENSE_MODEL}`);
+    const reason = reasons.length ? reasons.join(', ') : 'content changed';
     console.log(`  ~ ${reason}, reindexing...`);
     await deleteBySourceFile(collection, sourceFile);
     removeFile(graph, sourceFile);
@@ -99,6 +102,7 @@ async function indexFile(filePath, rootPath, collection, allCollections, graph) 
         chunk_index: chunk.chunkIndex,
         total_chunks: chunk.totalChunks,
         file_hash: fileHash,
+        dense_model: DENSE_MODEL,
         sparse_provider: SPARSE_PROVIDER,
       },
     };
@@ -173,14 +177,16 @@ async function main() {
     const cfg = loadConfig();
     if (!cfg.collections) cfg.collections = {};
     if (!cfg.collections[COLLECTION]) {
+      const newSparse = process.env.ONNX_EMBED === '1' ? 'bge-m3-onnx' : 'hashed-tf';
+      const newDense  = process.env.ONNX_EMBED === '1' ? 'aapot/bge-m3-onnx' : EMBED_MODEL;
       cfg.collections[COLLECTION] = {
-        embedModel:    EMBED_MODEL,
-        sparseProvider: process.env.ONNX_EMBED === '1' ? 'bge-m3-onnx' : 'hashed-tf',
+        embedModel:    newDense,
+        sparseProvider: newSparse,
         vectorSize:    VECTOR_SIZE,
         description:   '',
       };
       saveConfig(cfg);
-      console.log(`  saved config for "${COLLECTION}" (sparseProvider: ${cfg.collections[COLLECTION].sparseProvider})`);
+      console.log(`  saved config for "${COLLECTION}" (dense: ${newDense}, sparse: ${newSparse})`);
     }
   }
 

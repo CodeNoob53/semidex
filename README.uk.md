@@ -81,7 +81,7 @@ semidex використовує Ollama саме тому, що ваші док�
 - **Індексація папок** — вкажіть на директорію, всі підтримувані типи файлів обробляються рекурсивно, приховані записи пропускаються
 - **Лінкування між колекціями** — лінкер шукає по налаштовуваному списку колекцій; несумісні колекції пропускаються з попередженням, а не призводять до збою
 - **Шар отримання MCP** — 6 інструментів надають доступ до проіндексованих знань будь-якому MCP-сумісному AI-клієнту
-- **Гібридний пошук (BM25 + dense)** — кожен пошук комбінує dense семантичні вектори з BM25 sparse векторами, злитими через Reciprocal Rank Fusion (RRF); автоматично переходить на dense-only для колекцій без sparse підтримки
+- **Гібридний пошук (dense + sparse)** — кожен пошук комбінує dense семантичні вектори зі sparse лексичними векторами, злитими через Reciprocal Rank Fusion (RRF); автоматично переходить на dense-only для колекцій без sparse підтримки. Sparse encoder обирається per-collection: hashed TF (за замовчуванням) або BGE-M3 ONNX лексичне зважування (`ONNX_EMBED=1`)
 
 ## Підтримувані формати
 
@@ -189,6 +189,7 @@ npm run sync
   "collections": {
     "my-docs": {
       "embedModel": "bge-m3",
+      "sparseProvider": "hashed-tf",
       "vectorSize": 1024,
       "description": "Документація архітектури проєкту"
     }
@@ -314,14 +315,14 @@ npm run mcp
 
 | Вектор | Тип | Алгоритм | Використовується |
 |--------|-----|-----------|-----------------|
-| `dense` | 1024-вим. float | Модель ембедінгів Ollama (`bge-m3` тощо) | семантична схожість, лінкування |
-| `sparse` | змінна розмірність | BM25 (локально, без моделі) | keyword-matching |
+| `dense` | 1024-вим. float | Модель ембедінгів (`bge-m3` через Ollama або `aapot/bge-m3-onnx` через ONNX) | семантична схожість, лінкування |
+| `sparse` | змінна розмірність | Hashed TF (за замовчуванням) або BGE-M3 ONNX лексичне зважування | keyword-matching |
 
 Під час запиту `qdrant_search` запускає обидва вектори паралельно через Query API Qdrant і об'єднує результати через **Reciprocal Rank Fusion (RRF)**. Це покращує recall для запитів, що поєднують природну мову зі специфічними термінами (назви функцій, змінних, технічний жаргон).
 
 `npm run sync` додає sparse vector підтримку до існуючих колекцій. Нові колекції, створені `npm run index`, включають її автоматично.
 
-> **Заплановано:** SPLADE sparse encoder для якісніших sparse векторів (зараз BM25).
+**Sparse encoder обирається per-collection** і зберігається в `config.json`. Встановіть `ONNX_EMBED=1` перед індексацією, щоб використовувати BGE-M3 ONNX лексичні ваги (~2.3 ГБ, завантажується один раз). Колекції з різними encoder-ами можуть співіснувати — MCP search обирає encoder автоматично на основі метаданих колекції.
 
 ## MCP-інструменти
 
@@ -342,7 +343,7 @@ src/
     qdrant.js     — REST-клієнт Qdrant (upsert, search, scroll, filter, index)
     ollama.js     — REST-клієнт Ollama (embed + generate)
     graph.js      — per-collection graph.<collection>.json з повним очищенням ребер
-    config.js     — допоміжні функції config.json + getEmbedModel(collection)
+    config.js     — допоміжні функції config.json + getEmbedModel, getSparseProvider (per-collection)
   indexer/
     index.js      — точка входу CLI
     batch.js      — паралельний пакетний runner
