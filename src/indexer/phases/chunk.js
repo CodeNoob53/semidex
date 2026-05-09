@@ -26,12 +26,9 @@ const OVERLAP_SENTENCES = envInt('OVERLAP_SENTENCES',  2, 0, 100);
 const countTokens = (text) => Math.ceil(text.length / 4);
 
 function splitSentences(text) {
-  const terminated = text.match(/[^.!?\n]+[.!?\n]+/g)?.map(s => s.trim()).filter(Boolean) ?? [];
-  // Preserve any trailing text that lacks a sentence-ending punctuation.
-  const joined = terminated.join('');
-  const tail = text.slice(joined.length).trim();
-  if (tail) terminated.push(tail);
-  return terminated.length ? terminated : [text];
+  const parts = text.match(/[^.!?\n]+[.!?\n]+|[^.!?\n]+$/g) ?? [];
+  const result = parts.map(s => s.trim()).filter(Boolean);
+  return result.length ? result : [text];
 }
 
 function parseFrontmatter(text) {
@@ -60,20 +57,18 @@ function chunkBySentences(text, prevSentences = []) {
   const chunks = [];
   const overlap = OVERLAP_SENTENCES > 0 ? prevSentences.slice(-OVERLAP_SENTENCES) : [];
   let current = [...overlap];
+  let pending = 0;
 
   for (const sentence of sentences) {
     current.push(sentence);
+    pending++;
     if (countTokens(current.join(' ')) >= MAX_TOKENS) {
       chunks.push(current.join(' '));
       current = OVERLAP_SENTENCES > 0 ? current.slice(-OVERLAP_SENTENCES) : [];
+      pending = 0;
     }
   }
-  // Always flush the remaining sentences, even if <= OVERLAP_SENTENCES in count.
-  // Only skip if current is identical to the last emitted chunk's tail (OVERLAP_SENTENCES=0 guard).
-  if (current.length > 0) {
-    const candidate = current.join(' ');
-    if (chunks.length === 0 || candidate !== chunks.at(-1)) chunks.push(candidate);
-  }
+  if (pending > 0) chunks.push(current.join(' '));
   return chunks;
 }
 

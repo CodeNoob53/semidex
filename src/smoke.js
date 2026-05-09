@@ -186,7 +186,8 @@ console.log('\n[6] Chunking edge cases');
 
   const short2 = 'First sentence. Second sentence.';
   const r2 = chunkFile('x.txt', short2, 'x.txt');
-  ok('2-sentence .txt → 1 chunk',   r2.length === 1);
+  ok('2-sentence .txt → 1 chunk',       r2.length === 1);
+  ok('2-sentence chunk text unchanged', r2[0]?.text === 'First sentence. Second sentence.');
 
   // 6b. Trailing text without sentence terminator must not be dropped.
   const withTail = 'Complete sentence. trailing without dot';
@@ -199,16 +200,20 @@ console.log('\n[6] Chunking edge cases');
   const sectionBChunks = r4.filter(c => c.section === 'Section B');
   ok('section B has no text from section A', sectionBChunks.every(c => !c.text.includes('sentence in A')));
 
-  // 6d. OVERLAP_SENTENCES=0: long text must not produce duplicate chunks.
-  // We can't change the module-level constant after import, so we test the
-  // duplicate-guard via the flush logic: if chunkBySentences ever emits
-  // the same string twice consecutively, it is a bug. We approximate with a
-  // medium-length text that fits in one chunk and check no duplication.
-  const medText = 'Alpha sentence. Beta sentence. Gamma sentence.';
-  const r5 = chunkFile('x.txt', medText, 'x.txt');
-  ok('no consecutive duplicate chunks', r5.every((c, i) => i === 0 || c.text !== r5[i - 1].text));
+  // 6d. No overlap-only final chunk: after a full chunk is emitted the overlap
+  // sentences must not re-appear as a standalone chunk if no new sentences follow.
+  // default MAX_TOKENS=400, countTokens = ceil(len/4), so 1596 chars ≈ 399 tokens.
+  const bigSentence = 'A'.repeat(1596) + '.'; // just under one chunk by itself
+  const r5 = chunkFile('x.txt', `${bigSentence} Final.`, 'x.txt');
+  // Should be exactly 2 chunks (big + "Final."), not 3 (big + "Final." + overlap-only).
+  ok('no overlap-only final chunk after full emit', r5.length <= 2);
 
-  // 6e. chunkIndex / totalChunks metadata is correct.
+  // 6e. No consecutive duplicate chunks.
+  const medText = 'Alpha sentence. Beta sentence. Gamma sentence.';
+  const r6 = chunkFile('x.txt', medText, 'x.txt');
+  ok('no consecutive duplicate chunks', r6.every((c, i) => i === 0 || c.text !== r6[i - 1].text));
+
+  // 6f. chunkIndex / totalChunks metadata is correct.
   ok('chunkIndex + totalChunks set correctly',
     r1[0].chunkIndex === 0 && r1[0].totalChunks === 1);
 }
