@@ -1,30 +1,19 @@
 import { search, updatePayload } from '../../core/qdrant.js';
-import { embed } from '../../core/ollama.js';
 import { addLink, addBacklink } from '../../core/graph.js';
-import { getSparseProvider } from '../../core/config.js';
+import { embedForSearch } from '../../core/embeddings.js';
 
-const EMBED_MODEL  = process.env.EMBED_MODEL || 'bge-m3';
-const LINK_TOP     = parseInt(process.env.LINK_TOP || '5');
+const LINK_TOP       = parseInt(process.env.LINK_TOP || '5');
 const LINK_MIN_SCORE = parseFloat(process.env.LINK_MIN_SCORE || '0.75');
 const LINK_ALLOWLIST = process.env.LINK_COLLECTIONS
   ? new Set(process.env.LINK_COLLECTIONS.split(',').map(s => s.trim()))
   : null;
 
-let embedOnnx = null;
-async function getEmbedOnnx() {
-  if (!embedOnnx) embedOnnx = (await import('../../core/onnx-embed.js')).embedOnnx;
-  return embedOnnx;
-}
-
 // graph is mutated in place — caller owns load/save to avoid race conditions.
-// sourceCollection is the collection being indexed (used to pick encoder).
+// sourceCollection determines which embedding provider to use for the query.
 export async function buildLinks(chunk, collections, graph, sourceCollection) {
-  const useOnnx = getSparseProvider(sourceCollection) === 'bge-m3-onnx';
-  const rawVector = useOnnx
-    ? (await (await getEmbedOnnx())(chunk.context + '\n' + chunk.text)).dense
-    : await embed(chunk.context + '\n' + chunk.text, EMBED_MODEL);
-  const vector = { name: 'dense', vector: rawVector };
-  const links = [...(chunk.links || [])];
+  const { dense } = await embedForSearch(sourceCollection, chunk.context + '\n' + chunk.text);
+  const vector    = { name: 'dense', vector: dense };
+  const links     = [...(chunk.links || [])];
 
   const targets = LINK_ALLOWLIST
     ? collections.filter(c => LINK_ALLOWLIST.has(c))

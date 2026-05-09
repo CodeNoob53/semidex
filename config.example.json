@@ -1,10 +1,20 @@
 {
   "collections": {
     "my-docs": {
-      "embedModel": "bge-m3",
+      "denseProvider": "ollama",
+      "denseModel": "bge-m3",
       "sparseProvider": "hashed-tf",
+      "embeddingSchemaVersion": 2,
       "vectorSize": 1024,
       "description": "Project architecture documentation"
+    },
+    "my-docs-onnx": {
+      "denseProvider": "bge-m3-onnx",
+      "denseModel": "aapot/bge-m3-onnx",
+      "sparseProvider": "bge-m3-onnx",
+      "embeddingSchemaVersion": 2,
+      "vectorSize": 1024,
+      "description": "ONNX-indexed collection (multilingual, no Ollama needed for embedding)"
     }
   }
 }

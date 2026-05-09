@@ -81,7 +81,7 @@ Re-run on a folder after editing files. Only changed files are reprocessed (SHA-
 - **Folder indexing** — point at a directory, all supported file types are processed recursively, hidden entries skipped
 - **Cross-collection linking** — linker searches a configurable collection allowlist; incompatible collections are skipped with a warning rather than crashing
 - **MCP retrieval layer** — 6 tools expose the indexed knowledge to any MCP-compatible AI client
-- **Hybrid search (BM25 + dense)** — every search combines dense semantic vectors with BM25 sparse vectors fused via Reciprocal Rank Fusion (RRF); falls back to dense-only on collections without sparse support
+- **Hybrid search (dense + sparse)** — every search combines dense semantic vectors with sparse lexical vectors fused via Reciprocal Rank Fusion (RRF); falls back to dense-only on collections without sparse support. Sparse encoder is per-collection: hashed TF (default, zero-dependency) or BGE-M3 ONNX lexical weights (`ONNX_EMBED=1`)
 
 ## Supported Formats
 
@@ -151,16 +151,18 @@ brew install pandoc
 winget install JohnMacFarlane.Pandoc
 ```
 
-## Embedding Model Guide
+## Embedding Provider Guide
 
-Both indexer and MCP server use the same model — a collection must be indexed and queried with the same model. Set per-collection in `config.json` after running `npm run sync`.
+Each collection stores its provider config in `config.json`. The indexer and MCP server always use the same provider — mismatches cause automatic reindexing.
 
-| Model | Size | Best for |
-|-------|------|----------|
-| `bge-m3` | 1.2 GB | Ukrainian / multilingual text, technical docs |
-| `snowflake-arctic-embed2` | 1.2 GB | English-only collections |
+| `denseProvider` | `sparseProvider` | Dense model | Notes |
+|-----------------|-----------------|-------------|-------|
+| `ollama` | `hashed-tf` | `bge-m3`, `snowflake-arctic-embed2`, … | Default. Requires Ollama running. Sparse is zero-dependency hashed TF. |
+| `bge-m3-onnx` | `bge-m3-onnx` | `aapot/bge-m3-onnx` | Set `ONNX_EMBED=1`. Downloads ~2.3 GB once. No Ollama needed for embedding. Best for Ukrainian / multilingual text. |
 
-Both produce 1024-dimensional vectors.
+Mixed combinations (e.g. `ollama`+`bge-m3-onnx`) are rejected at runtime.
+
+All currently supported models produce 1024-dimensional dense vectors.
 
 ## Setup
 
@@ -182,13 +184,16 @@ Generates/updates `config.json` from your actual Qdrant collections and ensures 
 
 ### 3. Edit config.json (optional)
 
-After sync, set the correct `embedModel` per collection and add a description:
+After sync, adjust provider settings per collection and add a description. See `config.example.json` for all variants.
 
 ```json
 {
   "collections": {
     "my-docs": {
-      "embedModel": "bge-m3",
+      "denseProvider": "ollama",
+      "denseModel": "bge-m3",
+      "sparseProvider": "hashed-tf",
+      "embeddingSchemaVersion": 2,
       "vectorSize": 1024,
       "description": "Project architecture documentation"
     }
@@ -283,7 +288,7 @@ The server runs over stdio and is managed by Claude Code. Once registered, the t
 | `QDRANT_KEY` | — | Qdrant API key |
 | `OLLAMA_URL` | `http://localhost:11434` | Ollama base URL |
 | `COLLECTION` | — | Target collection (passed per run, not in `.env`) |
-| `EMBED_MODEL` | `bge-m3` | Default embedding model |
+| `EMBED_MODEL` | `bge-m3` | Dense model for Ollama provider (used when `DENSE_PROVIDER` is unset) |
 | `CONTEXT_MODEL` | `gemma3:4b` | Model for chunk contextualization |
 | `TAG_MODEL` | `gemma3:4b` | Model for tag generation |
 | `VECTOR_SIZE` | `1024` | Must match embedding model output |
@@ -296,7 +301,10 @@ The server runs over stdio and is managed by Claude Code. Once registered, the t
 | `CHUNKS_OUT_DIR` | `./chunks_out` | Output directory for Obsidian-compatible `.md` files |
 | `SOURCE_ROOT` | *(target path)* | Absolute path used as root for `source_file` IDs. Set once per vault so IDs remain stable regardless of which subfolder you index. Files outside this root cause an explicit error. |
 | `LINK_COLLECTIONS` | *(all collections)* | Comma-separated allowlist of Qdrant collections to search during linking. Recommended when your Qdrant instance has collections with different embedding models or vector sizes. |
-| `ONNX_EMBED` | `0` | Set to `1` to use local ONNX bge-m3 for both dense and sparse embedding instead of Ollama. Downloads ~2.3 GB model on first run, cached in `./models/`. Produces dense + sparse vectors in a single inference call — no Ollama required for embedding. |
+| `ONNX_EMBED` | `0` | Shorthand: set to `1` to select `denseProvider=bge-m3-onnx, sparseProvider=bge-m3-onnx`. Downloads ~2.3 GB model on first run, cached in `./models/`. No Ollama required for embedding. |
+| `DENSE_PROVIDER` | — | Explicit provider override: `ollama` or `bge-m3-onnx`. Takes precedence over `ONNX_EMBED`. |
+| `SPARSE_PROVIDER` | — | Explicit sparse override. Must form a valid combination with `DENSE_PROVIDER`. |
+| `DENSE_MODEL` | — | Override dense model name when `DENSE_PROVIDER=ollama`. Alias for `EMBED_MODEL`. |
 
 ## Required Qdrant Payload Indexes
 
@@ -313,24 +321,26 @@ The following keyword indexes must exist on every collection for filters and has
 
 Each indexed chunk is stored with two vector representations:
 
-| Vector | Type | Algorithm | Used by |
-|--------|------|-----------|---------|
-| `dense` | 1024-dim float | Ollama embedding model (`bge-m3` etc.) | semantic similarity, linking |
-| `sparse` | variable-dim | Hashed TF (default) or BGE-M3 lexical weights (`ONNX_EMBED=1`) | keyword matching |
+| Vector | Type | Provider | Used by |
+|--------|------|----------|---------|
+| `dense` | 1024-dim float | `ollama` (`bge-m3`, etc.) or `bge-m3-onnx` | semantic similarity, linking |
+| `sparse` | variable-dim | `hashed-tf` (default) or `bge-m3-onnx` lexical weights | keyword matching |
 
-At query time, `qdrant_search` runs both vectors in parallel via Qdrant's Query API and merges results with **Reciprocal Rank Fusion (RRF)**. This improves recall for queries that mix natural language with specific terms (function names, variable names, technical jargon).
+Provider is stored per-collection in `config.json` and in every point's payload (`dense_provider`, `sparse_provider`). Changing a provider triggers automatic reindexing of affected files.
+
+At query time, `qdrant_search` runs both vectors in parallel via Qdrant's Query API and merges results with **Reciprocal Rank Fusion (RRF)**. This improves recall for queries mixing natural language with specific terms (function names, variable names, technical jargon).
 
 `npm run sync` adds sparse vector support to existing collections. New collections created by `npm run index` include it automatically.
 
-> **Alternative:** Set `ONNX_EMBED=1` to use local bge-m3 ONNX for both dense and sparse in one call — no Ollama needed for embedding. Sparse output is BGE-M3 lexical token weighting (not SPLADE vocabulary expansion).
-> **Planned:** SPLADE sparse encoder for higher-quality sparse vectors (currently hashed TF).
+> `hashed-tf` is a hashed TF encoder (IDF=1, no corpus stats). Not true BM25, but zero-dependency and fast.
+> `bge-m3-onnx` sparse output is BGE-M3 lexical token weighting — not SPLADE vocabulary expansion, but neural and multilingual.
 
 ## MCP Tools
 
 | Tool | Arguments | Description |
 |------|-----------|-------------|
 | `qdrant_search` | `query`, `collection`, `top?`, `tags?[]`, `source_file?` | Semantic search; tag filter uses OR, combined with source_file via AND |
-| `qdrant_collection_info` | — | List all collections with point counts, embed model, description |
+| `qdrant_collection_info` | — | List all collections with point counts, dense/sparse provider, description |
 | `qdrant_get_chunk` | `collection`, `source_file`, `chunk_index`, `window?` | Retrieve a specific chunk with optional surrounding context window |
 | `qdrant_related` | `collection`, `source_file` | Outgoing semantic links for a file (from graph) |
 | `qdrant_backlinks` | `collection`, `source_file` | Incoming links for a file (from graph) |
@@ -345,7 +355,8 @@ src/
     ollama.js     — Ollama REST client (embed + generate)
     sparse.js     — hashed sparse TF encoder (Qdrant-compatible, no external deps)
     graph.js      — per-collection graph.<collection>.json with full edge cleanup
-    config.js     — config.json helpers + getEmbedModel(collection)
+    config.js     — config.json helpers + getDenseProvider/getDenseModel/getSparseProvider (per-collection)
+    embeddings.js — unified provider layer: embedForIndex, embedForSearch, getEmbeddingConfig
   indexer/
     index.js      — CLI entry point
     batch.js      — parallel batch runner

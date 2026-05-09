@@ -8,14 +8,12 @@ import { processChunks } from './phases/context.js';
 import { addTagsBatch } from './phases/tag.js';
 import { buildLinks } from './phases/link.js';
 import { runBatched } from './batch.js';
-import { embed } from '../core/ollama.js';
-import { encode as sparseEncode } from '../core/sparse.js';
 import { upsertPoints, updatePayload, listCollections, createCollection, getStoredMeta, deleteBySourceFile } from '../core/qdrant.js';
 import { loadGraph, saveGraph, removeFile } from '../core/graph.js';
-import { loadConfig, saveConfig, getSparseProvider } from '../core/config.js';
+import { loadConfig, saveConfig, resolveEnvProviders } from '../core/config.js';
+import { embedForIndex, getEmbeddingConfig, SCHEMA_VERSION } from '../core/embeddings.js';
 
 const BATCH_SIZE = parseInt(process.env.LLM_BATCH_SIZE || '3');
-const EMBED_MODEL = process.env.EMBED_MODEL || 'bge-m3';
 const CHUNKS_OUT_DIR = process.env.CHUNKS_OUT_DIR || './chunks_out';
 const COLLECTION = process.env.COLLECTION;
 const VECTOR_SIZE = parseInt(process.env.VECTOR_SIZE || '1024');
@@ -37,27 +35,28 @@ async function indexFile(filePath, rootPath, collection, allCollections, graph) 
     throw new Error(`File "${filePath}" is outside SOURCE_ROOT "${SOURCE_ROOT}". Fix SOURCE_ROOT or remove it.`);
   }
 
-  const SPARSE_PROVIDER = getSparseProvider(collection);
-  const USE_ONNX        = SPARSE_PROVIDER === 'bge-m3-onnx';
-  const DENSE_MODEL     = USE_ONNX ? 'aapot/bge-m3-onnx' : EMBED_MODEL;
-  const embedOnnx       = USE_ONNX
-    ? (await import('../core/onnx-embed.js')).embedOnnx
-    : null;
+  const embedCfg = getEmbeddingConfig(collection);
 
   const fileHash   = await hashFile(filePath);
   const storedMeta = await getStoredMeta(collection, sourceFile);
   const storedHash = storedMeta?.hash ?? null;
-  const storedSparse = storedMeta?.sparseProvider ?? null;
-  const storedDense  = storedMeta?.denseModel ?? null;
 
-  if (storedHash === fileHash && storedSparse === SPARSE_PROVIDER && storedDense === DENSE_MODEL) {
+  if (
+    storedHash === fileHash &&
+    storedMeta?.denseProvider         === embedCfg.denseProvider &&
+    storedMeta?.denseModel            === embedCfg.denseModel &&
+    storedMeta?.sparseProvider        === embedCfg.sparseProvider &&
+    storedMeta?.embeddingSchemaVersion === embedCfg.schemaVersion
+  ) {
     console.log('  ✓ unchanged, skipping');
     return 'skipped';
   }
   if (storedHash) {
     const reasons = [];
-    if (storedSparse !== SPARSE_PROVIDER) reasons.push(`sparse: ${storedSparse} → ${SPARSE_PROVIDER}`);
-    if (storedDense  !== DENSE_MODEL)     reasons.push(`dense: ${storedDense} → ${DENSE_MODEL}`);
+    if (storedMeta?.denseProvider  !== embedCfg.denseProvider)  reasons.push(`denseProvider: ${storedMeta?.denseProvider} → ${embedCfg.denseProvider}`);
+    if (storedMeta?.denseModel     !== embedCfg.denseModel)     reasons.push(`denseModel: ${storedMeta?.denseModel} → ${embedCfg.denseModel}`);
+    if (storedMeta?.sparseProvider !== embedCfg.sparseProvider) reasons.push(`sparseProvider: ${storedMeta?.sparseProvider} → ${embedCfg.sparseProvider}`);
+    if (storedMeta?.embeddingSchemaVersion !== embedCfg.schemaVersion) reasons.push(`schemaVersion: ${storedMeta?.embeddingSchemaVersion} → ${embedCfg.schemaVersion}`);
     const reason = reasons.length ? reasons.join(', ') : 'content changed';
     console.log(`  ~ ${reason}, reindexing...`);
     await deleteBySourceFile(collection, sourceFile);
@@ -81,16 +80,10 @@ async function indexFile(filePath, rootPath, collection, allCollections, graph) 
   console.log('  [4/5] embedding + upserting...');
   const points = await runBatched(taggedChunks, BATCH_SIZE, async (chunk) => {
     const embedText = `${chunk.context}\n\n${chunk.text}`;
-    let denseVector, sparseVector;
-    if (USE_ONNX) {
-      ({ dense: denseVector, sparse: sparseVector } = await embedOnnx(embedText));
-    } else {
-      denseVector  = await embed(embedText, EMBED_MODEL);
-      sparseVector = sparseEncode(embedText);
-    }
+    const { dense, sparse, meta } = await embedForIndex(collection, embedText);
     return {
       id: randomUUID(),
-      vector: { dense: denseVector, sparse: sparseVector },
+      vector: { dense, sparse },
       payload: {
         text: chunk.text,
         context: chunk.context,
@@ -102,8 +95,7 @@ async function indexFile(filePath, rootPath, collection, allCollections, graph) 
         chunk_index: chunk.chunkIndex,
         total_chunks: chunk.totalChunks,
         file_hash: fileHash,
-        dense_model: DENSE_MODEL,
-        sparse_provider: SPARSE_PROVIDER,
+        ...meta,
       },
     };
   });
@@ -177,16 +169,17 @@ async function main() {
     const cfg = loadConfig();
     if (!cfg.collections) cfg.collections = {};
     if (!cfg.collections[COLLECTION]) {
-      const newSparse = process.env.ONNX_EMBED === '1' ? 'bge-m3-onnx' : 'hashed-tf';
-      const newDense  = process.env.ONNX_EMBED === '1' ? 'aapot/bge-m3-onnx' : EMBED_MODEL;
+      const { denseProvider, denseModel, sparseProvider } = resolveEnvProviders();
       cfg.collections[COLLECTION] = {
-        embedModel:    newDense,
-        sparseProvider: newSparse,
-        vectorSize:    VECTOR_SIZE,
-        description:   '',
+        denseProvider,
+        denseModel,
+        sparseProvider,
+        embeddingSchemaVersion: SCHEMA_VERSION,
+        vectorSize:  VECTOR_SIZE,
+        description: '',
       };
       saveConfig(cfg);
-      console.log(`  saved config for "${COLLECTION}" (dense: ${newDense}, sparse: ${newSparse})`);
+      console.log(`  saved config for "${COLLECTION}" (dense: ${denseProvider}/${denseModel}, sparse: ${sparseProvider})`);
     }
   }
 

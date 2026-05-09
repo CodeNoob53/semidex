@@ -1,13 +1,5 @@
 import { hybridSearch } from '../../core/qdrant.js';
-import { embed } from '../../core/ollama.js';
-import { encode as sparseEncode } from '../../core/sparse.js';
-import { getEmbedModel, getSparseProvider } from '../../core/config.js';
-
-let embedOnnx = null;
-async function getEmbedOnnx() {
-  if (!embedOnnx) embedOnnx = (await import('../../core/onnx-embed.js')).embedOnnx;
-  return embedOnnx;
-}
+import { embedForSearch } from '../../core/embeddings.js';
 
 export const schema = {
   name: 'qdrant_search',
@@ -26,18 +18,7 @@ export const schema = {
 };
 
 export async function handle({ query, collection, top = 5, tags, source_file }) {
-  let denseVector, sparseVector;
-
-  const sparseProvider = getSparseProvider(collection);
-  if (sparseProvider === 'bge-m3-onnx') {
-    ({ dense: denseVector, sparse: sparseVector } = await (await getEmbedOnnx())(query));
-  } else {
-    const model = getEmbedModel(collection);
-    [denseVector, sparseVector] = await Promise.all([
-      embed(query, model),
-      Promise.resolve(sparseEncode(query)),
-    ]);
-  }
+  const { dense, sparse } = await embedForSearch(collection, query);
 
   let filter = null;
   if (source_file || tags?.length) {
@@ -47,7 +28,7 @@ export async function handle({ query, collection, top = 5, tags, source_file }) 
     filter = { must };
   }
 
-  const results = await hybridSearch(collection, denseVector, sparseVector, top, filter);
+  const results = await hybridSearch(collection, dense, sparse, top, filter);
   if (!results.length) return 'No results found.';
 
   return results.map(r => {

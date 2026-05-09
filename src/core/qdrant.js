@@ -90,13 +90,15 @@ export async function getStoredMeta(collection, sourceFile) {
     collection,
     { must: [{ key: 'source_file', match: { value: sourceFile } }] },
     1,
-    ['file_hash', 'sparse_provider', 'dense_model']
+    ['file_hash', 'dense_provider', 'dense_model', 'sparse_provider', 'embedding_schema_version']
   );
   const p = points[0]?.payload;
   return p ? {
-    hash:          p.file_hash      ?? null,
-    sparseProvider: p.sparse_provider ?? 'hashed-tf',
-    denseModel:    p.dense_model    ?? null,
+    hash:                  p.file_hash                ?? null,
+    denseProvider:         p.dense_provider           ?? null,
+    denseModel:            p.dense_model              ?? null,
+    sparseProvider:        p.sparse_provider          ?? null,
+    embeddingSchemaVersion: p.embedding_schema_version ?? null,
   } : null;
 }
 

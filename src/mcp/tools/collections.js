@@ -1,5 +1,5 @@
 import { listCollections, getCollectionInfo } from '../../core/qdrant.js';
-import { loadConfig, getSparseProvider } from '../../core/config.js';
+import { loadConfig, getDenseProvider, getDenseModel, getSparseProvider } from '../../core/config.js';
 
 export const schema = {
   name: 'qdrant_collection_info',
@@ -8,14 +8,15 @@ export const schema = {
 };
 
 export async function handle() {
-  const names = await listCollections();
+  const names  = await listCollections();
   const config = loadConfig();
-  const lines = await Promise.all(names.map(async (name) => {
-    const info = await getCollectionInfo(name);
-    const desc = config.collections?.[name]?.description;
-    const model    = config.collections?.[name]?.embedModel ?? process.env.EMBED_MODEL ?? 'bge-m3';
-    const provider = getSparseProvider(name);
-    return `- **${name}** — ${info.points_count} points, model: ${model}, sparse: ${provider}${desc ? `, ${desc}` : ''}`;
+  const lines  = await Promise.all(names.map(async (name) => {
+    const info          = await getCollectionInfo(name);
+    const desc          = config.collections?.[name]?.description;
+    const denseProvider = getDenseProvider(name);
+    const denseModel    = getDenseModel(name);
+    const sparse        = getSparseProvider(name);
+    return `- **${name}** — ${info.points_count} points, dense: ${denseProvider}/${denseModel}, sparse: ${sparse}${desc ? `, ${desc}` : ''}`;
   }));
   return '## Collections\n\n' + lines.join('\n');
 }

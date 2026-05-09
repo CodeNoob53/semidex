@@ -3,8 +3,9 @@
 // Usage: npm run sync
 
 import 'dotenv/config';
-import { loadConfig, saveConfig } from './core/config.js';
+import { loadConfig, saveConfig, resolveEnvProviders } from './core/config.js';
 import { listCollections, getCollectionInfo, createPayloadIndex, addSparseVectorSupport, hasSparseVectors } from './core/qdrant.js';
+import { SCHEMA_VERSION } from './core/embeddings.js';
 
 // Required indexes for MCP filters and hash-based skip to work correctly.
 const REQUIRED_INDEXES = ['source_file', 'tags'];
@@ -13,25 +14,45 @@ const config = loadConfig();
 if (!config.collections) config.collections = {};
 
 const remote = await listCollections();
+const { denseProvider, denseModel, sparseProvider } = resolveEnvProviders();
 
 for (const name of remote) {
   if (!config.collections[name]) {
     const info = await getCollectionInfo(name);
-    const newSparse = process.env.ONNX_EMBED === '1' ? 'bge-m3-onnx' : 'hashed-tf';
-    const newDense  = newSparse === 'bge-m3-onnx' ? 'aapot/bge-m3-onnx' : (process.env.EMBED_MODEL ?? 'bge-m3');
     config.collections[name] = {
-      embedModel:    newDense,
-      sparseProvider: newSparse,
-      vectorSize:    info.config.params.vectors.size,
-      description:   '',
+      denseProvider,
+      denseModel,
+      sparseProvider,
+      embeddingSchemaVersion: SCHEMA_VERSION,
+      vectorSize:  info.config.params.vectors.size,
+      description: '',
     };
-    console.log(`+ added: ${name} (embedModel: ${newDense}, sparseProvider: ${newSparse})`);
-  } else if (!config.collections[name].sparseProvider) {
-    const newSparse = process.env.ONNX_EMBED === '1' ? 'bge-m3-onnx' : 'hashed-tf';
-    const newDense  = newSparse === 'bge-m3-onnx' ? 'aapot/bge-m3-onnx' : (process.env.EMBED_MODEL ?? 'bge-m3');
-    config.collections[name].sparseProvider = newSparse;
-    config.collections[name].embedModel     = newDense;
-    console.log(`  ~ backfilled "${name}": embedModel=${newDense}, sparseProvider=${newSparse}`);
+    console.log(`+ added: ${name} (dense: ${denseProvider}/${denseModel}, sparse: ${sparseProvider})`);
+  } else {
+    // Backfill any missing provider fields on existing entries.
+    const col = config.collections[name];
+    let changed = false;
+
+    if (!col.denseProvider) {
+      // Infer from legacy sparseProvider field if present, otherwise use env.
+      col.denseProvider = col.sparseProvider === 'bge-m3-onnx' ? 'bge-m3-onnx' : denseProvider;
+      changed = true;
+    }
+    if (!col.denseModel) {
+      col.denseModel = col.denseProvider === 'bge-m3-onnx' ? 'aapot/bge-m3-onnx' : (col.embedModel ?? denseModel);
+      changed = true;
+    }
+    if (!col.sparseProvider) {
+      col.sparseProvider = col.denseProvider === 'bge-m3-onnx' ? 'bge-m3-onnx' : sparseProvider;
+      changed = true;
+    }
+    if (!col.embeddingSchemaVersion) {
+      col.embeddingSchemaVersion = SCHEMA_VERSION;
+      changed = true;
+    }
+    if (changed) {
+      console.log(`  ~ backfilled "${name}": dense=${col.denseProvider}/${col.denseModel}, sparse=${col.sparseProvider}`);
+    }
   }
 
   for (const field of REQUIRED_INDEXES) {
