@@ -2,6 +2,7 @@
   "collections": {
     "my-docs": {
       "embedModel": "bge-m3",
+      "sparseProvider": "hashed-tf",
       "vectorSize": 1024,
       "description": "Project architecture documentation"
     }

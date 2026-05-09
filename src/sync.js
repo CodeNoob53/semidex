@@ -18,16 +18,20 @@ for (const name of remote) {
   if (!config.collections[name]) {
     const info = await getCollectionInfo(name);
     const newSparse = process.env.ONNX_EMBED === '1' ? 'bge-m3-onnx' : 'hashed-tf';
+    const newDense  = newSparse === 'bge-m3-onnx' ? 'aapot/bge-m3-onnx' : (process.env.EMBED_MODEL ?? 'bge-m3');
     config.collections[name] = {
-      embedModel:    process.env.EMBED_MODEL ?? 'bge-m3',
+      embedModel:    newDense,
       sparseProvider: newSparse,
       vectorSize:    info.config.params.vectors.size,
       description:   '',
     };
-    console.log(`+ added: ${name} (sparseProvider: ${newSparse})`);
+    console.log(`+ added: ${name} (embedModel: ${newDense}, sparseProvider: ${newSparse})`);
   } else if (!config.collections[name].sparseProvider) {
-    config.collections[name].sparseProvider = process.env.ONNX_EMBED === '1' ? 'bge-m3-onnx' : 'hashed-tf';
-    console.log(`  ~ backfilled sparseProvider for "${name}": ${config.collections[name].sparseProvider}`);
+    const newSparse = process.env.ONNX_EMBED === '1' ? 'bge-m3-onnx' : 'hashed-tf';
+    const newDense  = newSparse === 'bge-m3-onnx' ? 'aapot/bge-m3-onnx' : (process.env.EMBED_MODEL ?? 'bge-m3');
+    config.collections[name].sparseProvider = newSparse;
+    config.collections[name].embedModel     = newDense;
+    console.log(`  ~ backfilled "${name}": embedModel=${newDense}, sparseProvider=${newSparse}`);
   }
 
   for (const field of REQUIRED_INDEXES) {
