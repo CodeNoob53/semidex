@@ -1,0 +1,50 @@
+[
+  {
+    "id": "q1",
+    "query": "де налаштовується sparseProvider",
+    "expected": ["providers.md"],
+    "note": "sparseProvider config field, resolveEnvProviders"
+  },
+  {
+    "id": "q2",
+    "query": "як перемкнутися на ONNX без Ollama",
+    "expected": ["providers.md"],
+    "note": "ONNX_EMBED=1 shorthand, bge-m3-onnx provider"
+  },
+  {
+    "id": "q3",
+    "query": "як працює RRF k параметр у гібридному пошуку",
+    "expected": ["qdrant.md"],
+    "note": "RRF_K env var, smoothing constant"
+  },
+  {
+    "id": "q4",
+    "query": "чому hybridSearch падає на старих колекціях без sparse векторів",
+    "expected": ["qdrant.md"],
+    "note": "fallback to dense-only when sparse missing"
+  },
+  {
+    "id": "q5",
+    "query": "чому overlap не має переходити між секціями",
+    "expected": ["chunking.md"],
+    "note": "cross-section overlap contaminates embeddings"
+  },
+  {
+    "id": "q6",
+    "query": "чому фінальний чанк може губитися у коротких документах",
+    "expected": ["chunking.md"],
+    "note": "flush bug, pending counter, OVERLAP_SENTENCES guard"
+  },
+  {
+    "id": "q7",
+    "query": "що робить npm run sync з наявними колекціями",
+    "expected": ["sync.md"],
+    "note": "backfill of denseProvider/sparseProvider fields"
+  },
+  {
+    "id": "q8",
+    "query": "коли треба запускати sync після апгрейду semidex",
+    "expected": ["sync.md"],
+    "note": "schema upgrade, new config fields"
+  }
+]
