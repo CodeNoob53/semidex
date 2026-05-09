@@ -14,7 +14,7 @@ const queries = JSON.parse(readFileSync(QUERIES_PATH, 'utf8'));
 function pad(s, n)  { return String(s).padEnd(n); }
 function lpad(s, n) { return String(s).padStart(n); }
 function pct(v)     { return `${(v * 100).toFixed(1)}%`; }
-function sign(v)    { return v > 0 ? `+${v.toFixed(1)}` : v.toFixed(1); }
+function sign(v, decimals = 1) { return v > 0 ? `+${v.toFixed(decimals)}` : v.toFixed(decimals); }
 
 // Run one provider and capture JSON output from run.js --json mode.
 function runProvider(provider) {
@@ -25,11 +25,9 @@ function runProvider(provider) {
     env.ONNX_EMBED = '1';
     delete env.DENSE_PROVIDER;
     delete env.SPARSE_PROVIDER;
-  } else {
-    delete env.ONNX_EMBED;
-    delete env.DENSE_PROVIDER;
-    delete env.SPARSE_PROVIDER;
   }
+  // For 'env': leave ONNX_EMBED/DENSE_PROVIDER/SPARSE_PROVIDER untouched so the
+  // run reflects whatever provider is configured in .env, not a forced default.
   env.BENCH_PROVIDER = provider;
   env.BENCH_JSON = '1'; // signals run.js to emit JSON summary on stdout
 
@@ -92,7 +90,7 @@ function printDelta(a, b) {
   console.log(`${'─'.repeat(50)}`);
   console.log(`Recall@1         : ${pad(pct(a.metrics.recall1), 22)}  ${pct(b.metrics.recall1)}  (Δ ${sign(dr1 * 100)}pp)`);
   console.log(`Recall@${a.topK}         : ${pad(pct(a.metrics.recallK), 22)}  ${pct(b.metrics.recallK)}  (Δ ${sign(drK * 100)}pp)`);
-  console.log(`MRR              : ${pad(a.metrics.mrr.toFixed(3), 22)}  ${b.metrics.mrr.toFixed(3)}  (Δ ${sign(dmrr)})`);
+  console.log(`MRR              : ${pad(a.metrics.mrr.toFixed(3), 22)}  ${b.metrics.mrr.toFixed(3)}  (Δ ${sign(dmrr, 3)})`);
   console.log(`Avg ms           : ${pad(Math.round(a.metrics.avgLatency), 22)}  ${Math.round(b.metrics.avgLatency)}  (Δ ${sign(dms)}ms)`);
   console.log(`${'─'.repeat(50)}`);
 }

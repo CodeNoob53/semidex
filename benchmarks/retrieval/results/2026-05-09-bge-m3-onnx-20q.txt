@@ -1,0 +1,64 @@
+=== semidex retrieval benchmark ===
+Provider  : onnx  (bge-m3-onnx/bge-m3-onnx)
+Top-K     : 5
+Queries   : 20
+Date      : 2026-05-09
+
+[Indexing]
+  indexed providers.md (6 chunks)
+  indexed qdrant.md (8 chunks)
+  indexed chunking.md (9 chunks)
+  indexed sync.md (6 chunks)
+
+[Per-query]
+  q1:  де налаштовується sparseProvider              ✓ (119ms)
+  q2:  як перемкнутися на ONNX без Ollама            ✗ rank #2 (87ms)
+  q3:  як працює RRF k параметр у гібридному по      ✓ (86ms)
+  q4:  чому hybridSearch падає на старих колекц      ✓ (90ms)
+  q5:  чому overlap не має переходити між секці      ✓ (83ms)
+  q6:  чому фінальний чанк може губитися у коро      ✓ (88ms)
+  q7:  що робить npm run sync з наявними колекц      ✓ (85ms)
+  q8:  коли треба запускати sync після апгрейду      ✓ (87ms)
+  q9:  what are the valid provider combinations      ✓ (82ms)
+  q10: reindex discriminators provider change d      ✓ (79ms)
+  q11: HYBRID_PREFETCH_LIMIT RRF prefetch leg s      ✓ (92ms)
+  q12: як Qdrant зберігає named vectors dense s      ✓ (84ms)
+  q13: OVERLAP_SENTENCES default value and effe      ✓ (82ms)
+  q14: як pandoc конвертує docx epub перед інде      ✓ (84ms)
+  q15: embedding_schema_version що зберігається      ✓ (85ms)
+  q16: sync backfill logic for missing densePro      ✓ (83ms)
+  q17: коли sync перезаписує provider у config.      ✓ (88ms)
+  q18: getStoredMeta які поля читає з Qdrant pa      ✓ (89ms)
+  q19: splitSentences trailing text без крапки       ✓ (85ms)
+  q20: ONNX_EMBED bge-m3-onnx model download ca      ✓ (93ms)
+
+───────────────────────────────────────────────────────────────────────────────────────────
+ID    Query                                       Expected          Rank    @1   @5      ms
+───────────────────────────────────────────────────────────────────────────────────────────
+q1    де налаштовується sparseProvider            providers.md        #1     ✓    ✓     119
+q2    як перемкнутися на ONNX без Ollama          providers.md        #2     ✗    ✓      87
+q3    як працює RRF k параметр у гібридному пош   qdrant.md           #1     ✓    ✓      86
+q4    чому hybridSearch падає на старих колекці   qdrant.md           #1     ✓    ✓      90
+q5    чому overlap не має переходити між секція   chunking.md         #1     ✓    ✓      83
+q6    чому фінальний чанк може губитися у корот   chunking.md         #1     ✓    ✓      88
+q7    що робить npm run sync з наявними колекці   sync.md             #1     ✓    ✓      85
+q8    коли треба запускати sync після апгрейду    sync.md             #1     ✓    ✓      87
+q9    what are the valid provider combinations    providers.md        #1     ✓    ✓      82
+q10   reindex discriminators provider change de   providers.md        #1     ✓    ✓      79
+q11   HYBRID_PREFETCH_LIMIT RRF prefetch leg si   qdrant.md           #1     ✓    ✓      92
+q12   як Qdrant зберігає named vectors dense sp   qdrant.md           #1     ✓    ✓      84
+q13   OVERLAP_SENTENCES default value and effec   chunking.md         #1     ✓    ✓      82
+q14   як pandoc конвертує docx epub перед індек   chunking.md         #1     ✓    ✓      84
+q15   embedding_schema_version що зберігається    providers.md        #1     ✓    ✓      85
+q16   sync backfill logic for missing denseProv   sync.md             #1     ✓    ✓      83
+q17   коли sync перезаписує provider у config.j   sync.md             #1     ✓    ✓      88
+q18   getStoredMeta які поля читає з Qdrant pay   qdrant.md           #1     ✓    ✓      89
+q19   splitSentences trailing text без крапки     chunking.md         #1     ✓    ✓      85
+q20   ONNX_EMBED bge-m3-onnx model download cac   providers.md        #1     ✓    ✓      93
+───────────────────────────────────────────────────────────────────────────────────────────
+
+Provider   : onnx
+Recall@1   : 95%  (19/20)
+Recall@5   : 100% (20/20)
+MRR        : 0.975
+Avg ms     : 88
