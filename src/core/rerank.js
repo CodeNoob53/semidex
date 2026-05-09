@@ -11,27 +11,64 @@ function envFloat(name, defaultVal, min, max) {
   return v;
 }
 
-// Tokenize query into lowercase terms for exact-token matching (Unicode-aware).
-function queryTokens(query) {
-  return new Set(query.toLowerCase().match(/[\p{L}\p{N}_]+/gu) ?? []);
+// Common function words that carry no discriminative signal across documents.
+const STOPWORDS = new Set([
+  // Ukrainian
+  'як', 'що', 'чому', 'коли', 'де', 'без', 'на', 'у', 'в', 'з', 'для', 'про',
+  'це', 'та', 'і', 'або', 'але', 'якщо', 'то', 'не', 'по', 'до', 'від', 'при',
+  // English
+  'how', 'what', 'why', 'when', 'where', 'without', 'with', 'in', 'on', 'for',
+  'to', 'the', 'a', 'an', 'of', 'and', 'or', 'but', 'if', 'is', 'are', 'was',
+  'be', 'by', 'at', 'from', 'not', 'no', 'it', 'its', 'as', 'this', 'that',
+]);
+
+// A token is "technical" if it looks like an identifier rather than a prose word.
+// Technical tokens get higher weight in text/section/tags boosts.
+function isTechnical(token) {
+  return (
+    token.includes('_') ||           // snake_case: ONNX_EMBED, source_file
+    /[A-Z]{2,}/.test(token) ||       // uppercase acronym: RRF, MRR, ONNX
+    /[a-z][A-Z]/.test(token) ||      // camelCase: denseProvider, splitSentences
+    token.length >= 8                 // long tokens are rarely stop-words
+  );
 }
 
-// Count how many query tokens appear in a string (case-insensitive, Unicode-aware).
+// Tokenize query: Unicode-aware, stopwords removed, each token tagged as technical or not.
+function queryTokens(query) {
+  const raw = query.match(/[\p{L}\p{N}_]+/gu) ?? [];
+  const result = new Map(); // token → isTechnical
+  for (const t of raw) {
+    const lower = t.toLowerCase();
+    if (!STOPWORDS.has(lower)) result.set(lower, isTechnical(t));
+  }
+  return result;
+}
+
+// Count weighted token hits in a string: technical tokens score TECH_MULT times more.
+const TECH_MULT = 3;
+
 function tokenHits(str, tokens) {
-  if (!str) return 0;
+  if (!str || !tokens.size) return 0;
   const words = str.toLowerCase().match(/[\p{L}\p{N}_]+/gu) ?? [];
-  return words.filter(w => tokens.has(w)).length;
+  let score = 0;
+  for (const w of words) {
+    const tech = tokens.get(w);
+    if (tech !== undefined) score += tech ? TECH_MULT : 1;
+  }
+  return score;
 }
 
 // Diversity penalty applied during greedy selection: 1st reuse, 2nd reuse, 3rd+ reuse.
 const DIVERSITY_PENALTIES = [0.05, 0.10, 0.15];
 
-const BOOST_SOURCE_FILE = envFloat('RERANK_BOOST_SOURCE_FILE', 0.08, 0, 10);
-const BOOST_SECTION     = envFloat('RERANK_BOOST_SECTION',     0.06, 0, 10);
-const BOOST_TAGS        = envFloat('RERANK_BOOST_TAGS',        0.05, 0, 10);
-const BOOST_TEXT        = envFloat('RERANK_BOOST_TEXT',        0.03, 0, 10);
-const BOOST_BACKLINK    = envFloat('RERANK_BOOST_BACKLINK',    0.04, 0, 10);
-const DEBUG             = process.env.RERANK_DEBUG === '1';
+const BOOST_SOURCE_FILE  = envFloat('RERANK_BOOST_SOURCE_FILE', 0.08, 0, 10);
+const BOOST_SECTION      = envFloat('RERANK_BOOST_SECTION',     0.06, 0, 10);
+const BOOST_TAGS         = envFloat('RERANK_BOOST_TAGS',        0.05, 0, 10);
+const BOOST_TEXT         = envFloat('RERANK_BOOST_TEXT',        0.01, 0, 10);
+const BOOST_BACKLINK     = envFloat('RERANK_BOOST_BACKLINK',    0.04, 0, 10);
+// Minimum score advantage rerank must gain over rank-1 to displace it.
+const PROTECT_TOP1_DELTA = envFloat('RERANK_PROTECT_TOP1_DELTA', 0.05, 0, 10);
+const DEBUG              = process.env.RERANK_DEBUG === '1';
 
 /**
  * Rerank results using deterministic signals on top of Qdrant RRF.
@@ -46,7 +83,7 @@ const DEBUG             = process.env.RERANK_DEBUG === '1';
 export function rerankResults(results, query, { finalLimit, collection } = {}) {
   if (!results.length) return results;
   const limit = finalLimit ?? results.length;
-  const tokens = queryTokens(query);
+  const tokens = queryTokens(query); // Map<lowerToken, isTechnical>
 
   // Load backlink graph once.
   let graph = {};
@@ -89,9 +126,19 @@ export function rerankResults(results, query, { finalLimit, collection } = {}) {
   });
 
   // Phase 2: greedy selection with diversity penalty applied to each pick's effective score.
-  // At each step we pick the candidate with the highest (baseScore - diversityPenalty),
-  // where the penalty depends on how many chunks from that file are already selected.
   scored.sort((a, b) => b.baseScore - a.baseScore);
+
+  // Top-1 protection: if the reranker would displace rank-0, only allow it when the
+  // challenger's baseScore advantage exceeds PROTECT_TOP1_DELTA. This prevents small
+  // token-noise boosts from overturning a high-confidence RRF top result.
+  const rank0Score = scored[0]?.baseScore ?? 0;
+  const rank0Sf    = scored[0]?.result.payload?.source_file;
+  const challenger = scored.find(s => s.result.payload?.source_file !== rank0Sf);
+  const top1Protected =
+    PROTECT_TOP1_DELTA > 0 &&
+    challenger !== undefined &&
+    challenger.baseScore - rank0Score < PROTECT_TOP1_DELTA;
+
   const selected = [];
   const pickedFileCounts = new Map(); // source_file → count selected so far
   const remaining = [...scored];
@@ -106,7 +153,9 @@ export function rerankResults(results, query, { finalLimit, collection } = {}) {
       const alreadyPicked = pickedFileCounts.get(sf) ?? 0;
       const penaltyIdx = Math.min(alreadyPicked, DIVERSITY_PENALTIES.length) - 1;
       const penalty = alreadyPicked > 0 ? DIVERSITY_PENALTIES[penaltyIdx] : 0;
-      const effective = baseScore - penalty;
+      // When top-1 is protected and we haven't placed rank-0's file yet, force it first.
+      const forcedPenalty = (top1Protected && selected.length === 0 && sf !== rank0Sf) ? 1e9 : 0;
+      const effective = baseScore - penalty - forcedPenalty;
       if (effective > bestEffective) { bestEffective = effective; bestIdx = i; }
     }
 
