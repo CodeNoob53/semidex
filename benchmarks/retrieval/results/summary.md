@@ -17,8 +17,9 @@ the summary line here and save a full result file in `results/YYYY-MM-DD-<provid
 
 ## Baseline interpretation
 
-The 2026-05-09 runs are the founding baseline on 8 queries / 4 fixture docs.
+The 2026-05-09 20-query runs are the active baseline (4 fixture docs, 5 queries each).
+The earlier 8-query rows are kept for historical reference only.
 
-- bge-m3-onnx is the recommended provider: +12.5pp Recall@1, +0.062 MRR, 1.8× faster warmed query latency.
-- Any future run showing Recall@1 < 88% (ollama) or < 100% (onnx) is a regression.
+- bge-m3-onnx is the recommended provider: +5.0pp Recall@1, +0.037 MRR, ~1.8× faster warmed query latency.
+- Any future run showing Recall@1 < 90% (ollama) or < 95% (onnx) is a regression.
 - MRR drop ≥ 0.05 warrants investigation before merging.

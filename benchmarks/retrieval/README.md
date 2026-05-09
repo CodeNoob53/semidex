@@ -118,8 +118,8 @@ scientific corpus evaluation. Treat results as directional signals.*
 
 ## Interpreting results
 
-- **Recall@1 < 100%** on the default provider but **Recall@1 = 100%** on ONNX suggests
-  ONNX sparse vectors genuinely improve retrieval for this content type.
+- **Higher Recall@1 and MRR on ONNX** than the default provider suggests ONNX neural
+  sparse vectors genuinely improve retrieval for this content type.
 - **MRR drop after a code change** is a regression signal — investigate before merging.
 - **Latency spike** after switching providers is expected for ONNX (first run downloads
   the model; subsequent runs use the cache in `./models/`).
