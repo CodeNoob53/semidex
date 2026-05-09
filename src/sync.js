@@ -4,7 +4,7 @@
 
 import 'dotenv/config';
 import { loadConfig, saveConfig } from './core/config.js';
-import { listCollections, getCollectionInfo, createPayloadIndex, addSparseVectorSupport } from './core/qdrant.js';
+import { listCollections, getCollectionInfo, createPayloadIndex, addSparseVectorSupport, hasSparseVectors } from './core/qdrant.js';
 
 // Required indexes for MCP filters and hash-based skip to work correctly.
 const REQUIRED_INDEXES = ['source_file', 'tags'];
@@ -35,6 +35,13 @@ for (const name of remote) {
     console.log(`  ✓ sparse vector support on ${name}`);
   } catch (e) {
     console.log(`  ~ sparse vector already exists on ${name}`);
+  }
+
+  const hasSparsePts = await hasSparseVectors(name);
+  if (!hasSparsePts) {
+    console.log(`  ⚠ WARNING: "${name}" has no sparse vectors on existing points.`);
+    console.log(`    Hybrid search will behave as dense-only until you re-index:`);
+    console.log(`    COLLECTION=${name} npm run index <path>`);
   }
 }
 

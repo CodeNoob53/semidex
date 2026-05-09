@@ -9,7 +9,7 @@ import { addTagsBatch } from './phases/tag.js';
 import { buildLinks } from './phases/link.js';
 import { runBatched } from './batch.js';
 import { embed } from '../core/ollama.js';
-import { encode as bm25Encode } from '../core/bm25.js';
+import { encode as sparseEncode } from '../core/sparse.js';
 import { upsertPoints, updatePayload, listCollections, createCollection, getStoredHash, deleteBySourceFile } from '../core/qdrant.js';
 import { loadGraph, saveGraph, removeFile } from '../core/graph.js';
 
@@ -65,7 +65,7 @@ async function indexFile(filePath, rootPath, collection, allCollections, graph) 
   console.log('  [4/5] embedding + upserting...');
   const points = await runBatched(taggedChunks, BATCH_SIZE, async (chunk) => {
     const denseVector = await embed(`${chunk.context}\n\n${chunk.text}`, EMBED_MODEL);
-    const sparseVector = bm25Encode(`${chunk.context}\n\n${chunk.text}`);
+    const sparseVector = sparseEncode(`${chunk.context}\n\n${chunk.text}`);
     return {
       id: randomUUID(),
       vector: { dense: denseVector, sparse: sparseVector },

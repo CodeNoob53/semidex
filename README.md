@@ -341,6 +341,7 @@ src/
   core/
     qdrant.js     — Qdrant REST client (upsert, search, scroll, filter, index)
     ollama.js     — Ollama REST client (embed + generate)
+    sparse.js     — hashed sparse TF encoder (Qdrant-compatible, no external deps)
     graph.js      — per-collection graph.<collection>.json with full edge cleanup
     config.js     — config.json helpers + getEmbedModel(collection)
   indexer/

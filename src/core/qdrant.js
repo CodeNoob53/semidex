@@ -67,7 +67,7 @@ export async function hybridSearch(collection, denseVector, sparseVector, limit 
   if (!r.ok) {
     // fall back to dense-only search if collection has no sparse vectors yet
     const err = await r.text();
-    if (err.includes('sparse') || err.includes('Wrong input')) return search(collection, denseVector, limit, filter);
+    if (err.includes('sparse') || err.includes('Wrong input')) return search(collection, { name: 'dense', vector: denseVector }, limit, filter);
     throw new Error(`Qdrant hybridSearch failed (${collection}): ${err}`);
   }
   const data = await r.json();
@@ -127,6 +127,20 @@ export async function createCollection(name, size = 1024) {
   if (!r.ok) throw new Error(`Create collection failed: ${await r.text()}`);
   await createPayloadIndex(name, 'source_file');
   await createPayloadIndex(name, 'tags');
+}
+
+export async function hasSparseVectors(collection) {
+  const r = await fetch(`${URL}/collections/${collection}/points/scroll`, {
+    method: 'POST',
+    headers: headers(),
+    body: JSON.stringify({ limit: 1, with_vectors: ['sparse'] }),
+  });
+  if (!r.ok) return false;
+  const data = await r.json();
+  const point = data.result?.points?.[0];
+  if (!point) return true; // empty collection, assume fine
+  const sv = point.vectors?.sparse;
+  return sv && Array.isArray(sv.indices) && sv.indices.length > 0;
 }
 
 export async function addSparseVectorSupport(name) {

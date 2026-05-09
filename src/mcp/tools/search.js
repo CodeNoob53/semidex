@@ -1,11 +1,11 @@
 import { hybridSearch } from '../../core/qdrant.js';
 import { embed } from '../../core/ollama.js';
-import { encode as bm25Encode } from '../../core/bm25.js';
+import { encode as sparseEncode } from '../../core/sparse.js';
 import { getEmbedModel } from '../../core/config.js';
 
 export const schema = {
   name: 'qdrant_search',
-  description: 'Semantic search over a collection. Optionally filter by tags or source file.',
+  description: 'Hybrid search over a collection (dense semantic + sparse keyword, fused via RRF). Optionally filter by tags or source file.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -23,7 +23,7 @@ export async function handle({ query, collection, top = 5, tags, source_file }) 
   const model = getEmbedModel(collection);
   const [denseVector, sparseVector] = await Promise.all([
     embed(query, model),
-    Promise.resolve(bm25Encode(query)),
+    Promise.resolve(sparseEncode(query)),
   ]);
 
   let filter = null;

@@ -1,6 +1,9 @@
-// BM25 sparse vector encoder.
-// Produces {indices, values} compatible with Qdrant sparse vector format.
-// Vocabulary is built on-the-fly per call — no persistent state needed.
+// Hashed sparse TF encoder — produces Qdrant-compatible {indices, values}.
+// Each token maps to a bucket index via djb2 hash (2^20 space).
+// Score uses the BM25 TF saturation formula with IDF=1 (no corpus stats at
+// encode time). This means common terms are NOT downweighted across documents —
+// ranking is weaker than true BM25 but zero-dependency and fast.
+// Upgrade path: replace with SPLADE for corpus-aware sparse encoding.
 
 const K1 = 1.5;
 const B  = 0.75;
@@ -22,7 +25,7 @@ function tokenize(text) {
     .filter(t => t.length > 1 && !STOP_WORDS.has(t));
 }
 
-// Stable integer index for a token via djb2 hash, capped to 2^20 bucket space.
+// Stable integer bucket index for a token via djb2 hash.
 function tokenIndex(token) {
   let h = 5381;
   for (let i = 0; i < token.length; i++) h = ((h << 5) + h) ^ token.charCodeAt(i);
@@ -30,9 +33,8 @@ function tokenIndex(token) {
 }
 
 /**
- * Encode a single text into a Qdrant-compatible sparse vector.
- * avgDocLen is optional — pass the corpus average for better BM25 scores,
- * or omit to use the document length itself (equivalent to b=0 effect).
+ * Encode text into a Qdrant-compatible sparse vector.
+ * avgDocLen is optional — omitting it sets dl=docLen (length normalization off).
  *
  * @param {string} text
  * @param {number} [avgDocLen]
@@ -51,7 +53,6 @@ export function encode(text, avgDocLen) {
   const buckets = new Map();
   for (const [token, freq] of tf) {
     const idx = tokenIndex(token);
-    // BM25 TF component (IDF=1 since we have no corpus stats at encode time)
     const score = (freq * (K1 + 1)) / (freq + K1 * (1 - B + B * (docLen / dl)));
     buckets.set(idx, (buckets.get(idx) ?? 0) + score);
   }

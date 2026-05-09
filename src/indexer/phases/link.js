@@ -11,7 +11,8 @@ const LINK_ALLOWLIST = process.env.LINK_COLLECTIONS
 
 // graph is mutated in place — caller owns load/save to avoid race conditions.
 export async function buildLinks(chunk, collections, graph) {
-  const vector = await embed(chunk.context + '\n' + chunk.text, EMBED_MODEL);
+  const rawVector = await embed(chunk.context + '\n' + chunk.text, EMBED_MODEL);
+  const vector = { name: 'dense', vector: rawVector };
   const links = [...(chunk.links || [])];
 
   const targets = LINK_ALLOWLIST
