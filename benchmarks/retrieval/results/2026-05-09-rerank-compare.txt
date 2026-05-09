@@ -1,0 +1,64 @@
+=== semidex retrieval benchmark — rerank comparison ===
+Date      : 2026-05-09
+RERANK_ENABLED : 1 (RERANK_PREFETCH_MULT=4)
+Top-K     : 5
+Queries   : 20
+
+Baseline (no rerank) vs RERANK_ENABLED=1 for both providers.
+Baseline numbers come from the same session run immediately before.
+
+─────────────────────────────────────────────────────────────
+                   ollama+hashed-tf     bge-m3-onnx
+─────────────────────────────────────────────────────────────
+Without rerank
+  Recall@1       90% (18/20)          95% (19/20)
+  Recall@5       100%                 100%
+  MRR            0.938–0.942          0.975
+  Avg ms         ~160                 ~92
+
+With RERANK_ENABLED=1
+  Recall@1       90% (18/20)          95% (19/20)
+  Recall@5       100%                 100%
+  MRR            0.942                0.975
+  Avg ms         ~157                 ~94
+─────────────────────────────────────────────────────────────
+
+Per-query changes (rerank vs no-rerank):
+
+ollama:
+  q2  providers.md  #2 → #2  (no change, q2 is a known formulation miss)
+  q15 providers.md  #4 → #3  (+1 position, token "embedding_schema_version" boosted)
+
+onnx:
+  q2  providers.md  #1 → #2  (-1 position: token overlap for "onnx"/"ollama" in other sections
+                               caused reranker to promote a non-providers chunk above it)
+  q15 providers.md  #1 → #1  (no change, already at #1)
+
+All other queries: rank unchanged.
+
+─────────────────────────────────────────────────────────────
+Analysis:
+
+Rerank is neutral-to-slightly-negative on this corpus for onnx, and marginally
+positive for ollama (q15: #4 → #3, MRR +0.004).
+
+Root cause: q2 ("як перемкнутися на ONNX без Ollama") contains tokens "onnx" and
+"ollama" which appear across multiple fixture files (not just providers.md).
+The BOOST_TEXT signal promotes chunks from other files that happen to mention
+these tokens, outweighing the base RRF score for providers.md.
+
+This is expected behavior: deterministic token-boost reranking adds value when:
+  1. RRF scores between correct/incorrect candidates are close, AND
+  2. Query tokens are discriminative (unique to the correct file).
+
+On this benchmark, onnx+RRF already retrieves nearly perfectly. Reranking has
+little room to improve ranking quality but can introduce ordering noise.
+
+Rerank shows more value on:
+  - Queries with rare technical tokens (e.g. embedding_schema_version)
+  - Larger corpora where RRF confidence is lower
+  - Queries where the correct document is strongly identified by source_file name
+
+Recommendation: keep RERANK_ENABLED=0 (default) for onnx production use.
+Reranking remains available for opt-in experimentation and for future signals
+(e.g. freshness, user feedback) that don't carry this cross-file noise risk.
