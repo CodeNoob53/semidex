@@ -199,11 +199,28 @@ npm run sync
 
 ### 4. Реєстрація MCP-сервера в Claude Code
 
+**Linux / macOS**
+
 ```bash
 claude mcp add --scope user semidex -- node /absolute/path/to/semidex/src/mcp/server.js
 ```
 
-`--scope user` робить сервер доступним у всіх проєктах. Перезапустіть VS Code після реєстрації.
+**Windows (розширення VS Code)**
+
+Запустіть у терміналі (PowerShell або CMD):
+
+```bash
+claude mcp add --scope user semidex -- node C:\absolute\path\to\semidex\src\mcp\server.js
+```
+
+Потім натисніть **Reconnect** у панелі MCP (`Claude Code → MCP servers → semidex`). Перезапуск VS Code не потрібен.
+
+Після підключення запустіть `/mcp` у чаті Claude Code для перевірки — сервер відображається як `qdrant` і всі 6 інструментів мають бути доступні:
+
+<table><tr>
+<td><img src="assets/avif/mcp_connected.avif" alt="MCP підключено"/></td>
+<td><img src="assets/avif/mcp_status.avif" alt="Статус MCP інструментів"/></td>
+</tr></table>
 
 ## Використання
 
@@ -328,6 +345,11 @@ config.example.json   — шаблон структури config.json
 graph.<collection>.json — згенерований семантичний граф, ігнорується git
 graph.example.json    — шаблон структури файлу графу
 ```
+
+## Вирішення проблем
+
+**`fetch failed` під час пошуку**
+Ollama має бути запущена, коли MCP-сервер обробляє пошукові запити — вона перетворює запит у вектор перед зверненням до Qdrant. Запустіть Ollama і перепідключіть MCP-сервер.
 
 ## Відомі обмеження
 

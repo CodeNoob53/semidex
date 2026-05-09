@@ -346,6 +346,11 @@ graph.<collection>.json — generated semantic graph, git-ignored
 graph.example.json    — template for graph file structure
 ```
 
+## Troubleshooting
+
+**`fetch failed` on search**
+Ollama must be running when the MCP server handles search queries — it embeds the query into a vector before hitting Qdrant. Start Ollama and reconnect the MCP server.
+
 ## Known Limitations
 
 **`chunks_out/` cleanup** uses filename pattern matching (`base__chunk*.md`). If you manually create a directory with a name matching that pattern, `rmSync` will fail. This only affects hand-crafted edge cases in the output folder and does not impact indexing or Qdrant.
