@@ -25,6 +25,7 @@ import {
 } from '../../src/core/qdrant.js';
 import { embedForIndex, embedForSearch, SCHEMA_VERSION } from '../../src/core/embeddings.js';
 import { loadConfig, saveConfig, resolveEnvProviders } from '../../src/core/config.js';
+import { rerankResults } from '../../src/core/rerank.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const FIXTURES_DIR = resolve(__dirname, 'fixtures/docs');
@@ -35,6 +36,8 @@ const TOP_K          = envInt('BENCH_TOP_K', 5, 1, 1000);
 const SKIP_INDEX     = process.env.BENCH_SKIP_INDEX === '1';
 const BENCH_PROVIDER = process.env.BENCH_PROVIDER ?? 'env'; // 'env' | 'onnx'
 const JSON_MODE      = process.env.BENCH_JSON === '1';
+const RERANK_ENABLED = process.env.RERANK_ENABLED === '1';
+const RERANK_PREFETCH_MULT = envInt('RERANK_PREFETCH_MULT', 4, 1, 100);
 
 // In JSON mode all human-readable output goes to stderr so stdout stays clean JSON.
 const log  = (...a) => JSON_MODE ? process.stderr.write(a.join(' ') + '\n') : console.log(...a);
@@ -127,7 +130,16 @@ async function indexFixtures() {
 async function runQuery(query) {
   const t0 = Date.now();
   const { dense, sparse } = await embedForSearch(COLLECTION, query);
-  const results = await hybridSearch(COLLECTION, dense, sparse, TOP_K);
+
+  let results;
+  if (RERANK_ENABLED) {
+    const candidateLimit = Math.max(TOP_K * RERANK_PREFETCH_MULT, TOP_K + 5);
+    const candidates = await hybridSearch(COLLECTION, dense, sparse, candidateLimit);
+    results = rerankResults(candidates, query, { finalLimit: TOP_K, collection: COLLECTION });
+  } else {
+    results = await hybridSearch(COLLECTION, dense, sparse, TOP_K);
+  }
+
   const latency = Date.now() - t0;
   // Deduplicate by source_file, preserve rank order.
   const seen   = new Set();

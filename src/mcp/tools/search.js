@@ -1,5 +1,15 @@
 import { hybridSearch } from '../../core/qdrant.js';
 import { embedForSearch } from '../../core/embeddings.js';
+import { rerankResults } from '../../core/rerank.js';
+
+function envInt(name, defaultVal, min, max) {
+  const v = parseInt(process.env[name] ?? '');
+  if (!Number.isFinite(v) || v < min || v > max) return defaultVal;
+  return v;
+}
+
+const RERANK_ENABLED = process.env.RERANK_ENABLED === '1';
+const RERANK_PREFETCH_MULT = envInt('RERANK_PREFETCH_MULT', 4, 1, 100);
 
 export const schema = {
   name: 'qdrant_search',
@@ -28,7 +38,14 @@ export async function handle({ query, collection, top = 5, tags, source_file }) 
     filter = { must };
   }
 
-  const results = await hybridSearch(collection, dense, sparse, top, filter);
+  let results;
+  if (RERANK_ENABLED) {
+    const candidateLimit = Math.max(top * RERANK_PREFETCH_MULT, top + 5);
+    const candidates = await hybridSearch(collection, dense, sparse, candidateLimit, filter);
+    results = rerankResults(candidates, query, { finalLimit: top, collection });
+  } else {
+    results = await hybridSearch(collection, dense, sparse, top, filter);
+  }
   if (!results.length) return 'No results found.';
 
   return results.map(r => {
