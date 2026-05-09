@@ -20,3 +20,9 @@ export function getEmbedModel(collection) {
     ?? process.env.EMBED_MODEL
     ?? 'bge-m3';
 }
+
+// per-collection sparse encoder, falls back to ONNX_EMBED env
+export function getSparseProvider(collection) {
+  return loadConfig().collections?.[collection]?.sparseProvider
+    ?? (process.env.ONNX_EMBED === '1' ? 'bge-m3-onnx' : 'hashed-tf');
+}

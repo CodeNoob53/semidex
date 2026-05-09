@@ -18,9 +18,10 @@ for (const name of remote) {
   if (!config.collections[name]) {
     const info = await getCollectionInfo(name);
     config.collections[name] = {
-      embedModel:  process.env.EMBED_MODEL ?? 'bge-m3',
-      vectorSize:  info.config.params.vectors.size,
-      description: '',
+      embedModel:    process.env.EMBED_MODEL ?? 'bge-m3',
+      sparseProvider: process.env.ONNX_EMBED === '1' ? 'bge-m3-onnx' : 'hashed-tf',
+      vectorSize:    info.config.params.vectors.size,
+      description:   '',
     };
     console.log(`+ added: ${name}`);
   }

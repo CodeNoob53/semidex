@@ -1,12 +1,13 @@
 import { hybridSearch } from '../../core/qdrant.js';
 import { embed } from '../../core/ollama.js';
 import { encode as sparseEncode } from '../../core/sparse.js';
-import { getEmbedModel } from '../../core/config.js';
+import { getEmbedModel, getSparseProvider } from '../../core/config.js';
 
-const USE_ONNX  = process.env.ONNX_EMBED === '1';
-const embedOnnx = USE_ONNX
-  ? (await import('../../core/onnx-embed.js')).embedOnnx
-  : null;
+let embedOnnx = null;
+async function getEmbedOnnx() {
+  if (!embedOnnx) embedOnnx = (await import('../../core/onnx-embed.js')).embedOnnx;
+  return embedOnnx;
+}
 
 export const schema = {
   name: 'qdrant_search',
@@ -27,8 +28,9 @@ export const schema = {
 export async function handle({ query, collection, top = 5, tags, source_file }) {
   let denseVector, sparseVector;
 
-  if (USE_ONNX) {
-    ({ dense: denseVector, sparse: sparseVector } = await embedOnnx(query));
+  const sparseProvider = getSparseProvider(collection);
+  if (sparseProvider === 'bge-m3-onnx') {
+    ({ dense: denseVector, sparse: sparseVector } = await (await getEmbedOnnx())(query));
   } else {
     const model = getEmbedModel(collection);
     [denseVector, sparseVector] = await Promise.all([

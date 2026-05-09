@@ -11,15 +11,8 @@ import { runBatched } from './batch.js';
 import { embed } from '../core/ollama.js';
 import { encode as sparseEncode } from '../core/sparse.js';
 import { upsertPoints, updatePayload, listCollections, createCollection, getStoredMeta, deleteBySourceFile } from '../core/qdrant.js';
-
-const USE_ONNX       = process.env.ONNX_EMBED === '1';
-const SPARSE_PROVIDER = USE_ONNX ? 'bge-m3-onnx' : 'hashed-tf';
-
-// Dynamic import — avoids loading 2.3 GB ONNX runtime when ONNX_EMBED=0
-const embedOnnx = USE_ONNX
-  ? (await import('../core/onnx-embed.js')).embedOnnx
-  : null;
 import { loadGraph, saveGraph, removeFile } from '../core/graph.js';
+import { loadConfig, saveConfig, getEmbedModel, getSparseProvider } from '../core/config.js';
 
 const BATCH_SIZE = parseInt(process.env.LLM_BATCH_SIZE || '3');
 const EMBED_MODEL = process.env.EMBED_MODEL || 'bge-m3';
@@ -43,6 +36,12 @@ async function indexFile(filePath, rootPath, collection, allCollections, graph) 
   if (SOURCE_ROOT && (sourceFile.startsWith('../') || sourceFile === '..' || isAbsolute(sourceFile))) {
     throw new Error(`File "${filePath}" is outside SOURCE_ROOT "${SOURCE_ROOT}". Fix SOURCE_ROOT or remove it.`);
   }
+
+  const SPARSE_PROVIDER = getSparseProvider(collection);
+  const USE_ONNX        = SPARSE_PROVIDER === 'bge-m3-onnx';
+  const embedOnnx       = USE_ONNX
+    ? (await import('../core/onnx-embed.js')).embedOnnx
+    : null;
 
   const fileHash   = await hashFile(filePath);
   const storedMeta = await getStoredMeta(collection, sourceFile);
@@ -108,7 +107,7 @@ async function indexFile(filePath, rootPath, collection, allCollections, graph) 
   console.log(`        upserted ${points.length} points`);
 
   console.log('  [5/5] linking...');
-  const linkedChunks = await runBatched(taggedChunks, BATCH_SIZE, chunk => buildLinks(chunk, allCollections, graph));
+  const linkedChunks = await runBatched(taggedChunks, BATCH_SIZE, chunk => buildLinks(chunk, allCollections, graph, collection));
 
   await Promise.all(linkedChunks.map((chunk, i) => {
     const newLinks = chunk.links ?? [];
@@ -171,6 +170,18 @@ async function main() {
     console.log(`Collection "${COLLECTION}" not found, creating...`);
     await createCollection(COLLECTION, VECTOR_SIZE);
     allCollections = [...allCollections, COLLECTION];
+    const cfg = loadConfig();
+    if (!cfg.collections) cfg.collections = {};
+    if (!cfg.collections[COLLECTION]) {
+      cfg.collections[COLLECTION] = {
+        embedModel:    EMBED_MODEL,
+        sparseProvider: process.env.ONNX_EMBED === '1' ? 'bge-m3-onnx' : 'hashed-tf',
+        vectorSize:    VECTOR_SIZE,
+        description:   '',
+      };
+      saveConfig(cfg);
+      console.log(`  saved config for "${COLLECTION}" (sparseProvider: ${cfg.collections[COLLECTION].sparseProvider})`);
+    }
   }
 
   const absTarget = resolve(targetPath);
