@@ -36,8 +36,9 @@ ollama:
                                boost < 0.05 delta → original RRF rank-0 protected)
 
 onnx:
-  q2  providers.md  #2 → #1  FIXED — stopwords removed "як"/"без"/"onnx" noise;
-                               technical weighting correctly upweights the discriminative tokens
+  q2  providers.md  #2 → #1  FIXED — stopwords removed prose noise ("як", "без", "на");
+                               "onnx"/"ollama" are technical tokens (not stopwords) and now
+                               correctly upweight providers.md via source_file/section boost
   q15 providers.md  #1 → #1  (no change)
 
 All other queries: rank unchanged (no regressions).

@@ -247,7 +247,10 @@ console.log('\n[7] Reranker top-1 protection');
   const result = await rerankResults(input, 'boostme', { finalLimit: 2, collection: null });
   ok('top-1 protection keeps original RRF rank-0 when advantage < delta', result[0].payload.source_file === 'original');
 
-  // Cleanup env.
+  // Note: these env vars are deleted for hygiene, but rerank.js constants are fixed at
+  // module load time (envFloat runs once). Any additional rerank tests added below this
+  // block must set their own env vars BEFORE importing rerank.js in a fresh worker,
+  // or test only behaviour that doesn't depend on these constants.
   for (const k of ['RERANK_BOOST_SOURCE_FILE', 'RERANK_PROTECT_TOP1_DELTA',
                     'RERANK_BOOST_SECTION', 'RERANK_BOOST_TAGS',
                     'RERANK_BOOST_TEXT', 'RERANK_BOOST_BACKLINK']) {
