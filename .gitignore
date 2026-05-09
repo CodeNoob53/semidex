@@ -7,3 +7,4 @@ graph.json
 graph.*.json
 !graph.example.json
 config.json
+models/

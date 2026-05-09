@@ -10,7 +10,15 @@ import { buildLinks } from './phases/link.js';
 import { runBatched } from './batch.js';
 import { embed } from '../core/ollama.js';
 import { encode as sparseEncode } from '../core/sparse.js';
-import { upsertPoints, updatePayload, listCollections, createCollection, getStoredHash, deleteBySourceFile } from '../core/qdrant.js';
+import { upsertPoints, updatePayload, listCollections, createCollection, getStoredMeta, deleteBySourceFile } from '../core/qdrant.js';
+
+const USE_ONNX       = process.env.ONNX_EMBED === '1';
+const SPARSE_PROVIDER = USE_ONNX ? 'bge-m3-onnx' : 'hashed-tf';
+
+// Dynamic import — avoids loading 2.3 GB ONNX runtime when ONNX_EMBED=0
+const embedOnnx = USE_ONNX
+  ? (await import('../core/onnx-embed.js')).embedOnnx
+  : null;
 import { loadGraph, saveGraph, removeFile } from '../core/graph.js';
 
 const BATCH_SIZE = parseInt(process.env.LLM_BATCH_SIZE || '3');
@@ -36,14 +44,20 @@ async function indexFile(filePath, rootPath, collection, allCollections, graph) 
     throw new Error(`File "${filePath}" is outside SOURCE_ROOT "${SOURCE_ROOT}". Fix SOURCE_ROOT or remove it.`);
   }
 
-  const fileHash = await hashFile(filePath);
-  const storedHash = await getStoredHash(collection, sourceFile);
-  if (storedHash === fileHash) {
+  const fileHash   = await hashFile(filePath);
+  const storedMeta = await getStoredMeta(collection, sourceFile);
+  const storedHash = storedMeta?.hash ?? null;
+  const storedProvider = storedMeta?.sparseProvider ?? null;
+
+  if (storedHash === fileHash && storedProvider === SPARSE_PROVIDER) {
     console.log('  ✓ unchanged, skipping');
     return 'skipped';
   }
   if (storedHash) {
-    console.log('  ~ changed, reindexing...');
+    const reason = storedProvider !== SPARSE_PROVIDER
+      ? `sparse provider changed (${storedProvider} → ${SPARSE_PROVIDER})`
+      : 'content changed';
+    console.log(`  ~ ${reason}, reindexing...`);
     await deleteBySourceFile(collection, sourceFile);
     removeFile(graph, sourceFile);
   }
@@ -64,8 +78,14 @@ async function indexFile(filePath, rootPath, collection, allCollections, graph) 
 
   console.log('  [4/5] embedding + upserting...');
   const points = await runBatched(taggedChunks, BATCH_SIZE, async (chunk) => {
-    const denseVector = await embed(`${chunk.context}\n\n${chunk.text}`, EMBED_MODEL);
-    const sparseVector = sparseEncode(`${chunk.context}\n\n${chunk.text}`);
+    const embedText = `${chunk.context}\n\n${chunk.text}`;
+    let denseVector, sparseVector;
+    if (USE_ONNX) {
+      ({ dense: denseVector, sparse: sparseVector } = await embedOnnx(embedText));
+    } else {
+      denseVector  = await embed(embedText, EMBED_MODEL);
+      sparseVector = sparseEncode(embedText);
+    }
     return {
       id: randomUUID(),
       vector: { dense: denseVector, sparse: sparseVector },
@@ -80,6 +100,7 @@ async function indexFile(filePath, rootPath, collection, allCollections, graph) 
         chunk_index: chunk.chunkIndex,
         total_chunks: chunk.totalChunks,
         file_hash: fileHash,
+        sparse_provider: SPARSE_PROVIDER,
       },
     };
   });

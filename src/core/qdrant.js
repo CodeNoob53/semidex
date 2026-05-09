@@ -85,14 +85,15 @@ export async function scroll(collection, filter, limit = 100, withPayload = true
   return data.result?.points ?? [];
 }
 
-export async function getStoredHash(collection, sourceFile) {
+export async function getStoredMeta(collection, sourceFile) {
   const points = await scroll(
     collection,
     { must: [{ key: 'source_file', match: { value: sourceFile } }] },
     1,
-    ['file_hash']
+    ['file_hash', 'sparse_provider']
   );
-  return points[0]?.payload?.file_hash ?? null;
+  const p = points[0]?.payload;
+  return p ? { hash: p.file_hash ?? null, sparseProvider: p.sparse_provider ?? 'hashed-tf' } : null;
 }
 
 export async function deleteBySourceFile(collection, sourceFile) {

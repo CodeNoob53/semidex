@@ -296,6 +296,7 @@ The server runs over stdio and is managed by Claude Code. Once registered, the t
 | `CHUNKS_OUT_DIR` | `./chunks_out` | Output directory for Obsidian-compatible `.md` files |
 | `SOURCE_ROOT` | *(target path)* | Absolute path used as root for `source_file` IDs. Set once per vault so IDs remain stable regardless of which subfolder you index. Files outside this root cause an explicit error. |
 | `LINK_COLLECTIONS` | *(all collections)* | Comma-separated allowlist of Qdrant collections to search during linking. Recommended when your Qdrant instance has collections with different embedding models or vector sizes. |
+| `ONNX_EMBED` | `0` | Set to `1` to use local ONNX bge-m3 for both dense and sparse embedding instead of Ollama. Downloads ~2.3 GB model on first run, cached in `./models/`. Produces dense + sparse vectors in a single inference call — no Ollama required for embedding. |
 
 ## Required Qdrant Payload Indexes
 
@@ -315,13 +316,14 @@ Each indexed chunk is stored with two vector representations:
 | Vector | Type | Algorithm | Used by |
 |--------|------|-----------|---------|
 | `dense` | 1024-dim float | Ollama embedding model (`bge-m3` etc.) | semantic similarity, linking |
-| `sparse` | variable-dim | BM25 (local, no model required) | keyword matching |
+| `sparse` | variable-dim | Hashed TF (default) or BGE-M3 lexical weights (`ONNX_EMBED=1`) | keyword matching |
 
 At query time, `qdrant_search` runs both vectors in parallel via Qdrant's Query API and merges results with **Reciprocal Rank Fusion (RRF)**. This improves recall for queries that mix natural language with specific terms (function names, variable names, technical jargon).
 
 `npm run sync` adds sparse vector support to existing collections. New collections created by `npm run index` include it automatically.
 
-> **Planned:** SPLADE sparse encoder for higher-quality sparse vectors (currently BM25).
+> **Alternative:** Set `ONNX_EMBED=1` to use local bge-m3 ONNX for both dense and sparse in one call — no Ollama needed for embedding. Sparse output is BGE-M3 lexical token weighting (not SPLADE vocabulary expansion).
+> **Planned:** SPLADE sparse encoder for higher-quality sparse vectors (currently hashed TF).
 
 ## MCP Tools
 

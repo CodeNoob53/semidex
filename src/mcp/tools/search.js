@@ -3,6 +3,11 @@ import { embed } from '../../core/ollama.js';
 import { encode as sparseEncode } from '../../core/sparse.js';
 import { getEmbedModel } from '../../core/config.js';
 
+const USE_ONNX  = process.env.ONNX_EMBED === '1';
+const embedOnnx = USE_ONNX
+  ? (await import('../../core/onnx-embed.js')).embedOnnx
+  : null;
+
 export const schema = {
   name: 'qdrant_search',
   description: 'Hybrid search over a collection (dense semantic + sparse keyword, fused via RRF). Optionally filter by tags or source file.',
@@ -20,11 +25,17 @@ export const schema = {
 };
 
 export async function handle({ query, collection, top = 5, tags, source_file }) {
-  const model = getEmbedModel(collection);
-  const [denseVector, sparseVector] = await Promise.all([
-    embed(query, model),
-    Promise.resolve(sparseEncode(query)),
-  ]);
+  let denseVector, sparseVector;
+
+  if (USE_ONNX) {
+    ({ dense: denseVector, sparse: sparseVector } = await embedOnnx(query));
+  } else {
+    const model = getEmbedModel(collection);
+    [denseVector, sparseVector] = await Promise.all([
+      embed(query, model),
+      Promise.resolve(sparseEncode(query)),
+    ]);
+  }
 
   let filter = null;
   if (source_file || tags?.length) {
