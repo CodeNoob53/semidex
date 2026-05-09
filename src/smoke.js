@@ -221,194 +221,38 @@ console.log('\n[6] Chunking edge cases');
 // ── 7. Reranker: top-1 protection uses original RRF rank, not rerank score ───
 console.log('\n[7] Reranker top-1 protection');
 {
-  // Test the fix directly: originalTop must be found by rank===0 BEFORE sort.
-  // We replicate the scoring + selection logic inline with a forced scenario where
-  // sort() flips rank-0 and rank-1, and verify the protection still pins rank-0.
-  //
-  // Setup: rank-0 result has no token match (baseScore = 1.0).
-  //        rank-1 result has huge source_file boost that flips it above rank-0.
-  //        Protection delta = 0.9 (very high), so any advantage < 0.9 → protection fires.
-  //        With the BUG (originalTop read after sort): protection targets rank-1 (new sort[0]).
-  //          → rank-0 stays first only if rank-1 can't beat 1e9 penalty... actually it can't.
-  //          Wait: the forcedPenalty applies to NON-rank0Sf. With the bug rank0Sf = rank-1's file.
-  //          So rank-0's file gets the 1e9 penalty and rank-1 wins. rank-0 displaced. BUG confirmed.
-  //        With the FIX: originalTop = rank-0 item. forcedPenalty on rank-1 → rank-0 stays. ✓
+  // Set env vars before the first import of rerank.js so envFloat() picks them up.
+  // Scenario: rank-1 source_file has 1 token match with BOOST=1.3 → baseScore 0.5+1.3=1.8,
+  // which flips past rank-0's baseScore of 1.0. Gap=0.8 < PROTECT_TOP1_DELTA=0.9, so
+  // protection must fire and keep rank-0 (x.md) first.
+  process.env.RERANK_BOOST_SOURCE_FILE      = '1.3';
+  process.env.RERANK_PROTECT_TOP1_DELTA     = '0.9';
+  // Zero out other boost signals so only source_file matters.
+  process.env.RERANK_BOOST_SECTION          = '0';
+  process.env.RERANK_BOOST_TAGS             = '0';
+  process.env.RERANK_BOOST_TEXT             = '0';
+  process.env.RERANK_BOOST_BACKLINK         = '0';
 
-  // Inline simulation (no env reload needed).
-  const DIVERSITY_PENALTIES_T = [0.05, 0.10, 0.15];
-  const TECH_MULT_T = 3;
-  const BOOST_SOURCE_FILE_T = 2.0; // exaggerated to flip rank-0
-  const PROTECT_DELTA_T = 0.9;     // high enough to engage on any flip
+  const { rerankResults } = await import('./core/rerank.js');
 
-  function tokenHitsT(str, tokens) {
-    if (!str || !tokens.size) return 0;
-    const words = str.toLowerCase().match(/[\p{L}\p{N}_]+/gu) ?? [];
-    let score = 0;
-    for (const w of words) { if (tokens.has(w)) score += 1; }
-    return score;
-  }
-
-  function rerankFixed(results, query) {
-    const tokens = new Map(
-      (query.toLowerCase().match(/[\p{L}\p{N}_]+/gu) ?? []).map(t => [t, false])
-    );
-    const scored = results.map((r, rank) => {
-      const p = r.payload;
-      const base = 1 / (rank + 1);
-      const srcHits = tokenHitsT(p.source_file, tokens);
-      const boostSrc = Math.min(srcHits * BOOST_SOURCE_FILE_T, BOOST_SOURCE_FILE_T * 3);
-      return { result: r, baseScore: base + boostSrc, rank };
-    });
-
-    // FIX: capture before sort
-    const originalTop = scored.find(s => s.rank === 0);
-    scored.sort((a, b) => b.baseScore - a.baseScore);
-    const challenger = scored.find(s => s !== originalTop);
-    const protected_ = PROTECT_DELTA_T > 0 && originalTop && challenger &&
-      challenger.baseScore - originalTop.baseScore < PROTECT_DELTA_T;
-
-    const selected = [];
-    const remaining = [...scored];
-    while (selected.length < results.length && remaining.length > 0) {
-      let bestIdx = 0, bestEff = -Infinity;
-      for (let i = 0; i < remaining.length; i++) {
-        const forced = (protected_ && selected.length === 0 && remaining[i] !== originalTop) ? 1e9 : 0;
-        const eff = remaining[i].baseScore - forced;
-        if (eff > bestEff) { bestEff = eff; bestIdx = i; }
-      }
-      selected.push(remaining[bestIdx]);
-      remaining.splice(bestIdx, 1);
-    }
-    return selected.map(s => s.result);
-  }
-
-  function rerankBuggy(results, query) {
-    const tokens = new Map(
-      (query.toLowerCase().match(/[\p{L}\p{N}_]+/gu) ?? []).map(t => [t, false])
-    );
-    const scored = results.map((r, rank) => {
-      const p = r.payload;
-      const base = 1 / (rank + 1);
-      const srcHits = tokenHitsT(p.source_file, tokens);
-      const boostSrc = Math.min(srcHits * BOOST_SOURCE_FILE_T, BOOST_SOURCE_FILE_T * 3);
-      return { result: r, baseScore: base + boostSrc, rank };
-    });
-
-    // BUG: sort first, then read scored[0]
-    scored.sort((a, b) => b.baseScore - a.baseScore);
-    const rank0Score = scored[0]?.baseScore ?? 0;
-    const rank0Sf    = scored[0]?.result.payload?.source_file;
-    const challenger = scored.find(s => s.result.payload?.source_file !== rank0Sf);
-    const protected_ = PROTECT_DELTA_T > 0 && challenger !== undefined &&
-      challenger.baseScore - rank0Score < PROTECT_DELTA_T;
-
-    const selected = [];
-    const remaining = [...scored];
-    while (selected.length < results.length && remaining.length > 0) {
-      let bestIdx = 0, bestEff = -Infinity;
-      for (let i = 0; i < remaining.length; i++) {
-        const sf = remaining[i].result.payload?.source_file;
-        const forced = (protected_ && selected.length === 0 && sf !== rank0Sf) ? 1e9 : 0;
-        const eff = remaining[i].baseScore - forced;
-        if (eff > bestEff) { bestEff = eff; bestIdx = i; }
-      }
-      selected.push(remaining[bestIdx]);
-      remaining.splice(bestIdx, 1);
-    }
-    return selected.map(s => s.result);
-  }
-
-  // rank-0: source_file='x.md', query has no match → boostSrc=0, baseScore=1.0
-  // rank-1: source_file='query_token.md', query='query token' → 2 hits, boostSrc=min(2*2,6)=4.0, baseScore=0.5+4=4.5
-  // sort() → rank-1 is now scored[0]. gap=4.5-1.0=3.5 > delta(0.9) → protection does NOT engage.
-  // Need gap < delta: use source_file with 0 hits for rank-1 but rank-1 just barely beats rank-0.
-  // rank-1: source_file='z.md', 0 token hits, baseScore=0.5 < 1.0 → doesn't flip. Need different approach.
-  // Actually to flip: rank-1 must have baseScore > rank-0 baseScore.
-  // rank-0 baseScore = 1.0 + boostSrc_0. rank-1 baseScore = 0.5 + boostSrc_1.
-  // For rank-1 > rank-0: 0.5 + boostSrc_1 > 1.0 + boostSrc_0 → boostSrc_1 - boostSrc_0 > 0.5.
-  // Give rank-0 0 hits, rank-1 1 hit with BOOST=2.0: boostSrc_1 = min(1*2,6)=2.0. 0.5+2.0=2.5 > 1.0. ✓
-  // gap = 2.5 - 1.0 = 1.5 > PROTECT_DELTA_T(0.9) → protection does NOT engage even with fix.
-  // Need gap < 0.9: boostSrc_1 = 0.5 + 0.89 = 1.39. With BOOST=2.0: 1 hit → 2.0. Too big.
-  // Use BOOST=1.3: 1 hit → 1.3. rank-1 baseScore = 0.5+1.3=1.8. gap=1.8-1.0=0.8 < 0.9. ✓
-
-  const BOOST_SMALL = 1.3;
-  function rerankFixedSmall(results, query) {
-    const tokens = new Map(
-      (query.toLowerCase().match(/[\p{L}\p{N}_]+/gu) ?? []).map(t => [t, false])
-    );
-    const scored = results.map((r, rank) => {
-      const p = r.payload;
-      const base = 1 / (rank + 1);
-      const srcHits = tokenHitsT(p.source_file, tokens);
-      const boostSrc = Math.min(srcHits * BOOST_SMALL, BOOST_SMALL * 3);
-      return { result: r, baseScore: base + boostSrc, rank };
-    });
-    const originalTop = scored.find(s => s.rank === 0); // FIX: before sort
-    scored.sort((a, b) => b.baseScore - a.baseScore);
-    const challenger = scored.find(s => s !== originalTop);
-    const protected_ = PROTECT_DELTA_T > 0 && originalTop && challenger &&
-      challenger.baseScore - originalTop.baseScore < PROTECT_DELTA_T;
-    const selected = [];
-    const remaining = [...scored];
-    while (selected.length < results.length && remaining.length > 0) {
-      let bestIdx = 0, bestEff = -Infinity;
-      for (let i = 0; i < remaining.length; i++) {
-        const forced = (protected_ && selected.length === 0 && remaining[i] !== originalTop) ? 1e9 : 0;
-        const eff = remaining[i].baseScore - forced;
-        if (eff > bestEff) { bestEff = eff; bestIdx = i; }
-      }
-      selected.push(remaining[bestIdx]);
-      remaining.splice(bestIdx, 1);
-    }
-    return selected.map(s => s.result);
-  }
-
-  function rerankBuggySmall(results, query) {
-    const tokens = new Map(
-      (query.toLowerCase().match(/[\p{L}\p{N}_]+/gu) ?? []).map(t => [t, false])
-    );
-    const scored = results.map((r, rank) => {
-      const p = r.payload;
-      const base = 1 / (rank + 1);
-      const srcHits = tokenHitsT(p.source_file, tokens);
-      const boostSrc = Math.min(srcHits * BOOST_SMALL, BOOST_SMALL * 3);
-      return { result: r, baseScore: base + boostSrc, rank };
-    });
-    // BUG: sort first
-    scored.sort((a, b) => b.baseScore - a.baseScore);
-    const rank0Sf = scored[0]?.result.payload?.source_file;
-    const challenger = scored.find(s => s.result.payload?.source_file !== rank0Sf);
-    const rank0Score = scored[0]?.baseScore ?? 0;
-    const protected_ = PROTECT_DELTA_T > 0 && challenger !== undefined &&
-      challenger.baseScore - rank0Score < PROTECT_DELTA_T;
-    const selected = [];
-    const remaining = [...scored];
-    while (selected.length < results.length && remaining.length > 0) {
-      let bestIdx = 0, bestEff = -Infinity;
-      for (let i = 0; i < remaining.length; i++) {
-        const sf = remaining[i].result.payload?.source_file;
-        const forced = (protected_ && selected.length === 0 && sf !== rank0Sf) ? 1e9 : 0;
-        const eff = remaining[i].baseScore - forced;
-        if (eff > bestEff) { bestEff = eff; bestIdx = i; }
-      }
-      selected.push(remaining[bestIdx]);
-      remaining.splice(bestIdx, 1);
-    }
-    return selected.map(s => s.result);
-  }
-
-  // rank-0: source_file='x.md', 0 query token hits → baseScore=1.0
-  // rank-1: source_file='query_word.md', 1 hit with BOOST=1.3 → baseScore=0.5+1.3=1.8
-  // gap = 0.8 < PROTECT_DELTA_T(0.9) → protection must engage when reading rank-0 correctly.
-  const input2 = [
-    { score: 0.9, payload: { source_file: 'x.md',          section: '', tags: [], text: '' } },
-    { score: 0.5, payload: { source_file: 'query_word.md',  section: '', tags: [], text: '' } },
+  // rank-0: 'original' — no match for query 'boostme' → baseScore = 1/(0+1) = 1.0
+  // rank-1: 'boostme'  — 1 hit (source_file token) → baseScore = 0.5 + 1.3 = 1.8
+  // After scoring sort: rank-1 is first (1.8 > 1.0). Gap = 0.8 < delta 0.9 → protection fires.
+  // Expected: 'original' stays at position 0 (original RRF rank-0 protected).
+  // Extension-free names used to avoid '.md' adding a spurious extra token hit.
+  const input = [
+    { score: 0.9, payload: { source_file: 'original', section: '', tags: [], text: '' } },
+    { score: 0.5, payload: { source_file: 'boostme',  section: '', tags: [], text: '' } },
   ];
-  const fixedResult  = rerankFixedSmall(input2,  'query_word');
-  const buggyResult  = rerankBuggySmall(input2,  'query_word');
+  const result = await rerankResults(input, 'boostme', { finalLimit: 2, collection: null });
+  ok('top-1 protection keeps original RRF rank-0 when advantage < delta', result[0].payload.source_file === 'original');
 
-  ok('top-1 protection (fixed): original RRF rank-0 stays first', fixedResult[0].payload.source_file === 'x.md');
-  ok('top-1 bug reproduced: without fix rank-0 is displaced',      buggyResult[0].payload.source_file !== 'x.md');
+  // Cleanup env.
+  for (const k of ['RERANK_BOOST_SOURCE_FILE', 'RERANK_PROTECT_TOP1_DELTA',
+                    'RERANK_BOOST_SECTION', 'RERANK_BOOST_TAGS',
+                    'RERANK_BOOST_TEXT', 'RERANK_BOOST_BACKLINK']) {
+    delete process.env[k];
+  }
 }
 
 // ── Summary ──────────────────────────────────────────────────────────────────

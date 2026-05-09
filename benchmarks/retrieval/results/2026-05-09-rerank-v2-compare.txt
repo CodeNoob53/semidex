@@ -1,0 +1,67 @@
+=== semidex retrieval benchmark — rerank v2 comparison ===
+Date      : 2026-05-09
+RERANK_ENABLED : 1 (RERANK_PREFETCH_MULT=4)
+Rerank version : v2 (stopwords + technical token weighting + top-1 protection)
+Top-K     : 5
+Queries   : 20
+
+Changes from v1:
+  - Stopwords (UA + EN) excluded from all boosts
+  - Technical token detection: _, uppercase, camelCase, length>=8 → weight ×3
+  - BOOST_TEXT 0.03 → 0.01 (text overlap is noisy across documents)
+  - PROTECT_TOP1_DELTA=0.05: reranker only displaces original RRF rank-0 when
+    baseScore advantage > 0.05; protection uses object identity (not source_file)
+
+─────────────────────────────────────────────────────────────
+                   ollama+hashed-tf     bge-m3-onnx
+─────────────────────────────────────────────────────────────
+Without rerank (baseline)
+  Recall@1       90% (18/20)          95% (19/20)
+  Recall@5       100%                 100%
+  MRR            0.938                0.975
+  Avg ms         ~160                 ~92
+
+With RERANK_ENABLED=1 (v2)
+  Recall@1       90% (18/20)          100% (20/20)
+  Recall@5       100%                 100%
+  MRR            0.938                1.000
+  Avg ms         ~159                 ~89
+─────────────────────────────────────────────────────────────
+
+Per-query changes vs no-rerank baseline:
+
+ollama:
+  q2  providers.md  #2 → #2  (unchanged — RRF formulation miss, not a rerank issue)
+  q15 providers.md  #4 → #4  (top-1 protection holds: advantage of technical token
+                               boost < 0.05 delta → original RRF rank-0 protected)
+
+onnx:
+  q2  providers.md  #2 → #1  FIXED — stopwords removed "як"/"без"/"onnx" noise;
+                               technical weighting correctly upweights the discriminative tokens
+  q15 providers.md  #1 → #1  (no change)
+
+All other queries: rank unchanged (no regressions).
+
+─────────────────────────────────────────────────────────────
+Comparison to rerank v1 (see 2026-05-09-rerank-v1-compare.txt):
+
+v1 problem: q2 regressed onnx #1→#2. Tokens "onnx" and "ollama" in the query
+appeared across multiple fixture files with uniform weight, causing BOOST_TEXT
+to promote non-providers.md chunks.
+
+v2 fix:
+  - "onnx" and "ollama" are not stopwords (they're technical), but all other
+    prose tokens in q2 ("як", "без", "на") are UA stopwords → eliminated.
+  - Remaining technical tokens ("onnx", "ollama") now match correctly against
+    providers.md's source_file/section, giving it the right boost.
+
+─────────────────────────────────────────────────────────────
+Recommendation:
+
+RERANK_ENABLED=1 is recommended for bge-m3-onnx:
+  +5.0pp Recall@1 vs no-rerank (100% vs 95%), MRR 1.000 vs 0.975.
+
+RERANK_ENABLED=0 (default) for ollama+hashed-tf:
+  No Recall@1 improvement on this corpus; top-1 protection prevents regressions
+  but also limits upside. The benefit would likely appear on a larger corpus
+  where RRF confidence is lower.
