@@ -1,0 +1,40 @@
+=== semidex retrieval benchmark ===
+Provider  : onnx  (bge-m3-onnx/bge-m3-onnx)
+Top-K     : 5
+Queries   : 8
+Date      : 2026-05-09
+
+[Indexing]
+  indexed providers.md (6 chunks)
+  indexed qdrant.md (8 chunks)
+  indexed chunking.md (9 chunks)
+  indexed sync.md (6 chunks)
+
+[Per-query]
+  q1: де налаштовується sparseProvider              ✓ (122ms)
+  q2: як перемкнутися на ONNX без Ollama            ✓ (88ms)
+  q3: як працює RRF k параметр у гібридному по      ✓ (88ms)
+  q4: чому hybridSearch падає на старих колекц      ✓ (93ms)
+  q5: чому overlap не має переходити між секці      ✓ (84ms)
+  q6: чому фінальний чанк може губитися у коро      ✓ (90ms)
+  q7: що робить npm run sync з наявними колекц      ✓ (85ms)
+  q8: коли треба запускати sync після апгрейду      ✓ (87ms)
+
+───────────────────────────────────────────────────────────────────────────────────────────
+ID    Query                                       Expected          Rank    @1   @5      ms
+───────────────────────────────────────────────────────────────────────────────────────────
+q1    де налаштовується sparseProvider            providers.md        #1     ✓    ✓     122
+q2    як перемкнутися на ONNX без Ollama          providers.md        #1     ✓    ✓      88
+q3    як працює RRF k параметр у гібридному пош   qdrant.md           #1     ✓    ✓      88
+q4    чому hybridSearch падає на старих колекці   qdrant.md           #1     ✓    ✓      93
+q5    чому overlap не має переходити між секція   chunking.md         #1     ✓    ✓      84
+q6    чому фінальний чанк може губитися у корот   chunking.md         #1     ✓    ✓      90
+q7    що робить npm run sync з наявними колекці   sync.md             #1     ✓    ✓      85
+q8    коли треба запускати sync після апгрейду    sync.md             #1     ✓    ✓      87
+───────────────────────────────────────────────────────────────────────────────────────────
+
+Provider   : onnx
+Recall@1   : 100% (8/8)
+Recall@5   : 100% (8/8)
+MRR        : 1.000
+Avg ms     : 92

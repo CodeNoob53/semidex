@@ -34,6 +34,11 @@ const COLLECTION     = 'bench-retrieval';
 const TOP_K          = envInt('BENCH_TOP_K', 5, 1, 1000);
 const SKIP_INDEX     = process.env.BENCH_SKIP_INDEX === '1';
 const BENCH_PROVIDER = process.env.BENCH_PROVIDER ?? 'env'; // 'env' | 'onnx'
+const JSON_MODE      = process.env.BENCH_JSON === '1';
+
+// In JSON mode all human-readable output goes to stderr so stdout stays clean JSON.
+const log  = (...a) => JSON_MODE ? process.stderr.write(a.join(' ') + '\n') : console.log(...a);
+const logw = (s)    => JSON_MODE ? process.stderr.write(s) : process.stdout.write(s);
 
 function envInt(name, def, min, max) {
   const v = parseInt(process.env[name] ?? '');
@@ -113,7 +118,7 @@ async function indexFixtures() {
       });
     }
     await upsertPoints(COLLECTION, points);
-    process.stdout.write(`  indexed ${name} (${points.length} chunks)\n`);
+    logw(`  indexed ${name} (${points.length} chunks)\n`);
   }
 }
 
@@ -176,9 +181,9 @@ function printResults(queryResults, queries) {
     lpad('ms',      W.ms),
   ].join('  ');
 
-  console.log('\n' + '─'.repeat(header.length));
-  console.log(header);
-  console.log('─'.repeat(header.length));
+  log('\n' + '─'.repeat(header.length));
+  log(header);
+  log('─'.repeat(header.length));
 
   for (const { id, ranked, latency, expected } of queryResults) {
     const q       = queries.find(x => x.id === id);
@@ -186,7 +191,7 @@ function printResults(queryResults, queries) {
     const rankStr = rankIdx >= 0 ? `#${rankIdx + 1}` : 'miss';
     const hit1    = ranked.slice(0, 1).some(f    => expected.includes(f)) ? '✓' : '✗';
     const hitK    = ranked.slice(0, TOP_K).some(f => expected.includes(f)) ? '✓' : '✗';
-    console.log([
+    log([
       pad(id,                           W.id),
       pad(q.query.slice(0, W.query - 1), W.query),
       pad(expected[0],                  W.expected),
@@ -197,15 +202,15 @@ function printResults(queryResults, queries) {
     ].join('  '));
   }
 
-  console.log('─'.repeat(header.length));
+  log('─'.repeat(header.length));
 }
 
 function printSummary(metrics, provider) {
-  console.log(`\nProvider   : ${provider}`);
-  console.log(`Recall@1   : ${pct(metrics.recall1)}`);
-  console.log(`Recall@${TOP_K}   : ${pct(metrics.recallK)}`);
-  console.log(`MRR        : ${metrics.mrr.toFixed(3)}`);
-  console.log(`Avg ms     : ${Math.round(metrics.avgLatency)}`);
+  log(`\nProvider   : ${provider}`);
+  log(`Recall@1   : ${pct(metrics.recall1)}`);
+  log(`Recall@${TOP_K}   : ${pct(metrics.recallK)}`);
+  log(`MRR        : ${metrics.mrr.toFixed(3)}`);
+  log(`Avg ms     : ${Math.round(metrics.avgLatency)}`);
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
@@ -214,51 +219,69 @@ async function main() {
   const queries = JSON.parse(readFileSync(QUERIES_PATH, 'utf8'));
   const { denseProvider, sparseProvider } = resolveEnvProviders();
 
-  console.log(`\n=== semidex retrieval benchmark ===`);
-  console.log(`Provider  : ${BENCH_PROVIDER}  (${denseProvider}/${sparseProvider})`);
-  console.log(`Top-K     : ${TOP_K}`);
-  console.log(`Queries   : ${queries.length}`);
+  log(`\n=== semidex retrieval benchmark ===`);
+  log(`Provider  : ${BENCH_PROVIDER}  (${denseProvider}/${sparseProvider})`);
+  log(`Top-K     : ${TOP_K}`);
+  log(`Queries   : ${queries.length}`);
 
-  console.log('\n[1/2] Setup collection...');
+  log('\n[1/2] Setup collection...');
   await ensureCollection();
 
   if (SKIP_INDEX) {
     // Guard: empty collection or provider mismatch both produce meaningless results.
     const stored = await fetchStoredProvider();
     if (!stored) {
-      console.error(
+      process.stderr.write(
         `\nError: BENCH_SKIP_INDEX=1 but no indexed points found in "${COLLECTION}".\n` +
-        `Re-run without BENCH_SKIP_INDEX=1 to index fixtures first.`
+        `Re-run without BENCH_SKIP_INDEX=1 to index fixtures first.\n`
       );
       process.exit(1);
     }
     if (stored.denseProvider !== denseProvider || stored.sparseProvider !== sparseProvider) {
-      console.error(
+      process.stderr.write(
         `\nError: BENCH_SKIP_INDEX=1 but stored provider (${stored.denseProvider}/${stored.sparseProvider}) ` +
         `differs from current (${denseProvider}/${sparseProvider}).\n` +
-        `Re-run without BENCH_SKIP_INDEX=1 to reindex fixtures with the new provider.`
+        `Re-run without BENCH_SKIP_INDEX=1 to reindex fixtures with the new provider.\n`
       );
       process.exit(1);
     }
-    console.log('[2/2] Skipping index (BENCH_SKIP_INDEX=1)');
+    log('[2/2] Skipping index (BENCH_SKIP_INDEX=1)');
   } else {
-    console.log('[2/2] Indexing fixtures...');
+    log('[2/2] Indexing fixtures...');
     await indexFixtures();
   }
 
-  console.log('\nRunning queries...');
+  log('\nRunning queries...');
   const queryResults = [];
   for (const q of queries) {
-    process.stdout.write(`  ${q.id}: ${q.query.slice(0, 40)}... `);
+    logw(`  ${q.id}: ${q.query.slice(0, 40)}... `);
     const { ranked, latency } = await runQuery(q.query);
-    queryResults.push({ id: q.id, ranked, latency, expected: q.expected });
+    const rankIdx = ranked.findIndex(f => q.expected.includes(f));
+    queryResults.push({ id: q.id, ranked, latency, expected: q.expected, rank: rankIdx });
     const hit = ranked.slice(0, TOP_K).some(f => q.expected.includes(f));
-    console.log(hit ? `✓ (${latency}ms)` : `✗ top-${TOP_K}: [${ranked.slice(0, TOP_K).join(', ')}] (${latency}ms)`);
+    log(hit ? `✓ (${latency}ms)` : `✗ top-${TOP_K}: [${ranked.slice(0, TOP_K).join(', ')}] (${latency}ms)`);
   }
 
+  const metrics = computeMetrics(queryResults);
   printResults(queryResults, queries);
-  printSummary(computeMetrics(queryResults), BENCH_PROVIDER);
-  console.log('');
+  printSummary(metrics, BENCH_PROVIDER);
+  log('');
+
+  if (JSON_MODE) {
+    process.stdout.write(JSON.stringify({
+      provider: BENCH_PROVIDER,
+      denseProvider,
+      sparseProvider,
+      topK:    TOP_K,
+      metrics,
+      queryResults: queryResults.map(r => ({
+        id:       r.id,
+        expected: r.expected,
+        rank:     r.rank,
+        latency:  r.latency,
+      })),
+    }) + '\n');
+  }
 }
 
 main().catch(err => { console.error(err); process.exit(1); });

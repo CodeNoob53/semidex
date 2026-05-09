@@ -46,5 +46,77 @@
     "query": "коли треба запускати sync після апгрейду semidex",
     "expected": ["sync.md"],
     "note": "schema upgrade, new config fields"
+  },
+  {
+    "id": "q9",
+    "query": "what are the valid provider combinations for embedding",
+    "expected": ["providers.md"],
+    "note": "EN: valid combos, ollama+hashed-tf, bge-m3-onnx+bge-m3-onnx"
+  },
+  {
+    "id": "q10",
+    "query": "reindex discriminators provider change detection",
+    "expected": ["providers.md"],
+    "note": "EN: 6 discriminator fields, skip logic"
+  },
+  {
+    "id": "q11",
+    "query": "HYBRID_PREFETCH_LIMIT RRF prefetch leg size",
+    "expected": ["qdrant.md"],
+    "note": "EN exact token: HYBRID_PREFETCH_LIMIT env var"
+  },
+  {
+    "id": "q12",
+    "query": "як Qdrant зберігає named vectors dense sparse",
+    "expected": ["qdrant.md"],
+    "note": "UA: named vectors structure, collection schema"
+  },
+  {
+    "id": "q13",
+    "query": "OVERLAP_SENTENCES default value and effect",
+    "expected": ["chunking.md"],
+    "note": "EN exact token: OVERLAP_SENTENCES parameter"
+  },
+  {
+    "id": "q14",
+    "query": "як pandoc конвертує docx epub перед індексацією",
+    "expected": ["chunking.md"],
+    "note": "UA: pandoc formats, synthetic .md path"
+  },
+  {
+    "id": "q15",
+    "query": "embedding_schema_version що зберігається у payload",
+    "expected": ["providers.md"],
+    "note": "mixed: embedding_schema_version exact token"
+  },
+  {
+    "id": "q16",
+    "query": "sync backfill logic for missing denseProvider field",
+    "expected": ["sync.md"],
+    "note": "EN: backfill inference from existing sparseProvider"
+  },
+  {
+    "id": "q17",
+    "query": "коли sync перезаписує provider у config.json",
+    "expected": ["sync.md"],
+    "note": "UA: sync reflects env at run time, not historical record"
+  },
+  {
+    "id": "q18",
+    "query": "getStoredMeta які поля читає з Qdrant payload",
+    "expected": ["qdrant.md"],
+    "note": "mixed: getStoredMeta function, 6 payload fields"
+  },
+  {
+    "id": "q19",
+    "query": "splitSentences trailing text без крапки",
+    "expected": ["chunking.md"],
+    "note": "mixed: splitSentences regex, unterminated fragment"
+  },
+  {
+    "id": "q20",
+    "query": "ONNX_EMBED bge-m3-onnx model download cache location",
+    "expected": ["providers.md"],
+    "note": "EN exact tokens: ONNX_EMBED, bge-m3-onnx, ./models/"
   }
 ]

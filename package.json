@@ -8,7 +8,8 @@
     "mcp": "node src/mcp/server.js",
     "sync": "node src/sync.js",
     "smoke": "node src/smoke.js",
-    "bench:retrieval": "node benchmarks/retrieval/run.js"
+    "bench:retrieval": "node benchmarks/retrieval/run.js",
+    "bench:retrieval:compare": "node benchmarks/retrieval/compare.js"
   },
   "dependencies": {
     "@huggingface/transformers": "^4.2.0",
