@@ -53,12 +53,26 @@ export async function search(collection, vector, limit = 5, filter = null) {
   return data.result ?? [];
 }
 
+function envInt(name, defaultVal, min, max) {
+  const v = parseInt(process.env[name] ?? '');
+  if (!Number.isFinite(v) || v < min || v > max) {
+    if (process.env[name] !== undefined)
+      console.warn(`[qdrant] ${name}="${process.env[name]}" is invalid — using default ${defaultVal}`);
+    return defaultVal;
+  }
+  return v;
+}
+
+const PREFETCH_MULT = envInt('HYBRID_PREFETCH_LIMIT', 2, 1, 100);
+const RRF_K        = envInt('RRF_K', 60, 1, 10000);
+
 export async function hybridSearch(collection, denseVector, sparseVector, limit = 5, filter = null) {
+  const prefetchLimit = Math.max(limit * PREFETCH_MULT, limit + 1);
   const prefetch = [
-    { query: sparseVector, using: 'sparse', limit: limit * 2, ...(filter && { filter }) },
-    { query: denseVector,  using: 'dense',  limit: limit * 2, ...(filter && { filter }) },
+    { query: sparseVector, using: 'sparse', limit: prefetchLimit, ...(filter && { filter }) },
+    { query: denseVector,  using: 'dense',  limit: prefetchLimit, ...(filter && { filter }) },
   ];
-  const body = { prefetch, query: { fusion: 'rrf' }, limit, with_payload: true };
+  const body = { prefetch, query: { rrf: { k: RRF_K } }, limit, with_payload: true };
   const r = await fetch(`${URL}/collections/${collection}/points/query`, {
     method: 'POST',
     headers: headers(),
@@ -90,15 +104,16 @@ export async function getStoredMeta(collection, sourceFile) {
     collection,
     { must: [{ key: 'source_file', match: { value: sourceFile } }] },
     1,
-    ['file_hash', 'dense_provider', 'dense_model', 'sparse_provider', 'embedding_schema_version']
+    ['file_hash', 'dense_provider', 'dense_model', 'sparse_provider', 'embedding_schema_version', 'vector_size']
   );
   const p = points[0]?.payload;
   return p ? {
-    hash:                  p.file_hash                ?? null,
-    denseProvider:         p.dense_provider           ?? null,
-    denseModel:            p.dense_model              ?? null,
-    sparseProvider:        p.sparse_provider          ?? null,
+    hash:                   p.file_hash                ?? null,
+    denseProvider:          p.dense_provider           ?? null,
+    denseModel:             p.dense_model              ?? null,
+    sparseProvider:         p.sparse_provider          ?? null,
     embeddingSchemaVersion: p.embedding_schema_version ?? null,
+    vectorSize:             p.vector_size              ?? null,
   } : null;
 }
 

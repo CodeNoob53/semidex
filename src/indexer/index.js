@@ -13,11 +13,11 @@ import { loadGraph, saveGraph, removeFile } from '../core/graph.js';
 import { loadConfig, saveConfig, resolveEnvProviders } from '../core/config.js';
 import { embedForIndex, getEmbeddingConfig, SCHEMA_VERSION } from '../core/embeddings.js';
 
-const BATCH_SIZE = parseInt(process.env.LLM_BATCH_SIZE || '3');
+const BATCH_SIZE   = parseInt(process.env.LLM_BATCH_SIZE || '3');
 const CHUNKS_OUT_DIR = process.env.CHUNKS_OUT_DIR || './chunks_out';
-const COLLECTION = process.env.COLLECTION;
-const VECTOR_SIZE = parseInt(process.env.VECTOR_SIZE || '1024');
-const SOURCE_ROOT = process.env.SOURCE_ROOT ? resolve(process.env.SOURCE_ROOT) : null;
+const COLLECTION   = process.env.COLLECTION;
+const VECTOR_SIZE  = parseInt(process.env.VECTOR_SIZE || '1024');
+const SOURCE_ROOT  = process.env.SOURCE_ROOT ? resolve(process.env.SOURCE_ROOT) : null;
 
 function hashFile(filePath) {
   return new Promise((resolve, reject) => {
@@ -35,7 +35,8 @@ async function indexFile(filePath, rootPath, collection, allCollections, graph) 
     throw new Error(`File "${filePath}" is outside SOURCE_ROOT "${SOURCE_ROOT}". Fix SOURCE_ROOT or remove it.`);
   }
 
-  const embedCfg = getEmbeddingConfig(collection);
+  const embedCfg       = getEmbeddingConfig(collection);
+  const configVectorSize = loadConfig().collections?.[collection]?.vectorSize ?? VECTOR_SIZE;
 
   const fileHash   = await hashFile(filePath);
   const storedMeta = await getStoredMeta(collection, sourceFile);
@@ -43,20 +44,22 @@ async function indexFile(filePath, rootPath, collection, allCollections, graph) 
 
   if (
     storedHash === fileHash &&
-    storedMeta?.denseProvider         === embedCfg.denseProvider &&
-    storedMeta?.denseModel            === embedCfg.denseModel &&
-    storedMeta?.sparseProvider        === embedCfg.sparseProvider &&
-    storedMeta?.embeddingSchemaVersion === embedCfg.schemaVersion
+    storedMeta?.denseProvider          === embedCfg.denseProvider &&
+    storedMeta?.denseModel             === embedCfg.denseModel &&
+    storedMeta?.sparseProvider         === embedCfg.sparseProvider &&
+    storedMeta?.embeddingSchemaVersion === embedCfg.schemaVersion &&
+    (storedMeta?.vectorSize ?? configVectorSize) === configVectorSize
   ) {
     console.log('  ✓ unchanged, skipping');
     return 'skipped';
   }
   if (storedHash) {
     const reasons = [];
-    if (storedMeta?.denseProvider  !== embedCfg.denseProvider)  reasons.push(`denseProvider: ${storedMeta?.denseProvider} → ${embedCfg.denseProvider}`);
-    if (storedMeta?.denseModel     !== embedCfg.denseModel)     reasons.push(`denseModel: ${storedMeta?.denseModel} → ${embedCfg.denseModel}`);
-    if (storedMeta?.sparseProvider !== embedCfg.sparseProvider) reasons.push(`sparseProvider: ${storedMeta?.sparseProvider} → ${embedCfg.sparseProvider}`);
-    if (storedMeta?.embeddingSchemaVersion !== embedCfg.schemaVersion) reasons.push(`schemaVersion: ${storedMeta?.embeddingSchemaVersion} → ${embedCfg.schemaVersion}`);
+    if (storedMeta?.denseProvider          !== embedCfg.denseProvider)  reasons.push(`denseProvider: ${storedMeta?.denseProvider} → ${embedCfg.denseProvider}`);
+    if (storedMeta?.denseModel             !== embedCfg.denseModel)     reasons.push(`denseModel: ${storedMeta?.denseModel} → ${embedCfg.denseModel}`);
+    if (storedMeta?.sparseProvider         !== embedCfg.sparseProvider) reasons.push(`sparseProvider: ${storedMeta?.sparseProvider} → ${embedCfg.sparseProvider}`);
+    if (storedMeta?.embeddingSchemaVersion !== embedCfg.schemaVersion)  reasons.push(`schemaVersion: ${storedMeta?.embeddingSchemaVersion} → ${embedCfg.schemaVersion}`);
+    if ((storedMeta?.vectorSize ?? configVectorSize) !== configVectorSize) reasons.push(`vectorSize: ${storedMeta?.vectorSize} → ${configVectorSize}`);
     const reason = reasons.length ? reasons.join(', ') : 'content changed';
     console.log(`  ~ ${reason}, reindexing...`);
     await deleteBySourceFile(collection, sourceFile);
@@ -95,6 +98,7 @@ async function indexFile(filePath, rootPath, collection, allCollections, graph) 
         chunk_index: chunk.chunkIndex,
         total_chunks: chunk.totalChunks,
         file_hash: fileHash,
+        vector_size: configVectorSize,
         ...meta,
       },
     };
