@@ -199,11 +199,28 @@ After sync, set the correct `embedModel` per collection and add a description:
 
 ### 4. Register MCP server in Claude Code
 
+**Linux / macOS**
+
 ```bash
 claude mcp add --scope user semidex -- node /absolute/path/to/semidex/src/mcp/server.js
 ```
 
-`--scope user` makes the server available across all projects. Restart VS Code after registering.
+**Windows (VS Code extension)**
+
+Run in terminal (PowerShell or CMD):
+
+```bash
+claude mcp add --scope user semidex -- node C:\absolute\path\to\semidex\src\mcp\server.js
+```
+
+Then click **Reconnect** in the MCP panel (`Claude Code → MCP servers → semidex`). No VS Code restart needed.
+
+Once connected, run `/mcp` in Claude Code chat to verify — the server appears as `qdrant` and all 6 tools should show as available:
+
+<table><tr>
+<td><img src="assets/avif/mcp_connected.avif" alt="MCP connected"/></td>
+<td><img src="assets/avif/mcp_status.avif" alt="MCP tools status"/></td>
+</tr></table>
 
 ## Usage
 
