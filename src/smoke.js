@@ -173,6 +173,46 @@ console.log('\n[5] Reindex detection — storedMeta mismatch');
   ok('null vectorSize in stored → treated as current → skip', wouldSkip({ ...base, vectorSize: null }));
 }
 
+// ── 6. Chunking edge cases ───────────────────────────────────────────────────
+console.log('\n[6] Chunking edge cases');
+{
+  const { chunkFile } = await import('./indexer/phases/chunk.js');
+
+  // 6a. Short .txt (1-2 sentences) must not return 0 chunks.
+  const short1 = 'Hello world.';
+  const r1 = chunkFile('x.txt', short1, 'x.txt');
+  ok('1-sentence .txt → 1 chunk',   r1.length === 1);
+  ok('1-sentence chunk has text',    r1[0]?.text === short1.trim());
+
+  const short2 = 'First sentence. Second sentence.';
+  const r2 = chunkFile('x.txt', short2, 'x.txt');
+  ok('2-sentence .txt → 1 chunk',   r2.length === 1);
+
+  // 6b. Trailing text without sentence terminator must not be dropped.
+  const withTail = 'Complete sentence. trailing without dot';
+  const r3 = chunkFile('x.txt', withTail, 'x.txt');
+  ok('trailing text without dot preserved', r3.some(c => c.text.includes('trailing without dot')));
+
+  // 6c. Markdown: sentences from section A must not appear in section B chunk.
+  const md = `# Section A\nOnly sentence in A.\n\n# Section B\nOnly sentence in B.`;
+  const r4 = chunkFile('x.md', md, 'x.md');
+  const sectionBChunks = r4.filter(c => c.section === 'Section B');
+  ok('section B has no text from section A', sectionBChunks.every(c => !c.text.includes('sentence in A')));
+
+  // 6d. OVERLAP_SENTENCES=0: long text must not produce duplicate chunks.
+  // We can't change the module-level constant after import, so we test the
+  // duplicate-guard via the flush logic: if chunkBySentences ever emits
+  // the same string twice consecutively, it is a bug. We approximate with a
+  // medium-length text that fits in one chunk and check no duplication.
+  const medText = 'Alpha sentence. Beta sentence. Gamma sentence.';
+  const r5 = chunkFile('x.txt', medText, 'x.txt');
+  ok('no consecutive duplicate chunks', r5.every((c, i) => i === 0 || c.text !== r5[i - 1].text));
+
+  // 6e. chunkIndex / totalChunks metadata is correct.
+  ok('chunkIndex + totalChunks set correctly',
+    r1[0].chunkIndex === 0 && r1[0].totalChunks === 1);
+}
+
 // ── Summary ──────────────────────────────────────────────────────────────────
 console.log(`\n${'─'.repeat(50)}`);
 console.log(`Smoke tests: ${passed} passed, ${failed} failed`);

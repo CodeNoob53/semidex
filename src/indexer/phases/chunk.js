@@ -9,14 +9,30 @@ const pdfParse = require('pdf-parse');
 
 const execFileAsync = promisify(execFile);
 
-const MAX_TOKENS = parseInt(process.env.MAX_CHUNK_TOKENS || '400');
-const MIN_TOKENS = parseInt(process.env.MIN_CHUNK_TOKENS || '30');
-const OVERLAP_SENTENCES = parseInt(process.env.OVERLAP_SENTENCES || '2');
+function envInt(name, defaultVal, min, max) {
+  const v = parseInt(process.env[name] ?? '');
+  if (!Number.isFinite(v) || v < min || v > max) {
+    if (process.env[name] !== undefined)
+      console.warn(`[chunk] ${name}="${process.env[name]}" is invalid — using default ${defaultVal}`);
+    return defaultVal;
+  }
+  return v;
+}
+
+const MAX_TOKENS       = envInt('MAX_CHUNK_TOKENS',  400, 1, 100000);
+const MIN_TOKENS       = envInt('MIN_CHUNK_TOKENS',   30, 0, 100000);
+const OVERLAP_SENTENCES = envInt('OVERLAP_SENTENCES',  2, 0, 100);
 
 const countTokens = (text) => Math.ceil(text.length / 4);
 
-const splitSentences = (text) =>
-  text.match(/[^.!?\n]+[.!?\n]+/g)?.map(s => s.trim()).filter(Boolean) ?? [text];
+function splitSentences(text) {
+  const terminated = text.match(/[^.!?\n]+[.!?\n]+/g)?.map(s => s.trim()).filter(Boolean) ?? [];
+  // Preserve any trailing text that lacks a sentence-ending punctuation.
+  const joined = terminated.join('');
+  const tail = text.slice(joined.length).trim();
+  if (tail) terminated.push(tail);
+  return terminated.length ? terminated : [text];
+}
 
 function parseFrontmatter(text) {
   const match = text.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
@@ -42,16 +58,22 @@ function parseWikilinks(text) {
 function chunkBySentences(text, prevSentences = []) {
   const sentences = splitSentences(text);
   const chunks = [];
-  let current = [...prevSentences.slice(-OVERLAP_SENTENCES)];
+  const overlap = OVERLAP_SENTENCES > 0 ? prevSentences.slice(-OVERLAP_SENTENCES) : [];
+  let current = [...overlap];
 
   for (const sentence of sentences) {
     current.push(sentence);
     if (countTokens(current.join(' ')) >= MAX_TOKENS) {
       chunks.push(current.join(' '));
-      current = current.slice(-OVERLAP_SENTENCES);
+      current = OVERLAP_SENTENCES > 0 ? current.slice(-OVERLAP_SENTENCES) : [];
     }
   }
-  if (current.length > OVERLAP_SENTENCES) chunks.push(current.join(' '));
+  // Always flush the remaining sentences, even if <= OVERLAP_SENTENCES in count.
+  // Only skip if current is identical to the last emitted chunk's tail (OVERLAP_SENTENCES=0 guard).
+  if (current.length > 0) {
+    const candidate = current.join(' ');
+    if (chunks.length === 0 || candidate !== chunks.at(-1)) chunks.push(candidate);
+  }
   return chunks;
 }
 
@@ -96,21 +118,19 @@ function parseMarkdown(text) {
 
 function chunkSections(sections, sourceFile, meta = {}, links = []) {
   const chunks = [];
-  let prevSentences = [];
 
   for (const section of sections) {
     if (!section.heading && (!section.text || countTokens(section.text) < MIN_TOKENS)) continue;
     const text = section.text || `(empty section: ${section.heading})`;
 
+    // prevSentences resets per section so overlap never crosses heading boundaries.
     if (countTokens(text) <= MAX_TOKENS) {
       chunks.push({ text, section: section.heading, source_file: sourceFile, meta, links, needsBoundaryCheck: false });
-      prevSentences = splitSentences(text);
     } else {
-      const subChunks = chunkBySentences(text, prevSentences);
+      const subChunks = chunkBySentences(text, []);
       subChunks.forEach((t, i) => {
         chunks.push({ text: t, section: section.heading, source_file: sourceFile, meta, links, needsBoundaryCheck: i > 0 });
       });
-      prevSentences = splitSentences(subChunks.at(-1) || '');
     }
   }
   return chunks;
@@ -147,7 +167,8 @@ export async function chunkFileFromPath(filePath, sourceFile) {
 
   if (PANDOC_FORMATS.has(ext)) {
     const { stdout } = await execFileAsync('pandoc', [filePath, '-t', 'markdown', '--wrap=none']);
-    return chunkFile(filePath, stdout, sourceFile);
+    // Pass a synthetic .md path so chunkFile runs parseMarkdown on the pandoc output.
+    return chunkFile(filePath.replace(/\.[^.]+$/, '.md'), stdout, sourceFile);
   }
 
   const text = readFileSync(filePath, 'utf8');
