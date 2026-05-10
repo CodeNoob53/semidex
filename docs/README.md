@@ -20,7 +20,7 @@ docs/
     configuration.md
     benchmarking.md
     operations.md
+    project-structure.md
   ua/
     README.md
 ```
-

@@ -117,7 +117,8 @@ English deep dives:
 | [docs/en/mcp-tools.md](docs/en/mcp-tools.md) | MCP tool reference and agent workflow |
 | [docs/en/configuration.md](docs/en/configuration.md) | Environment variables, provider modes, formats, Qdrant indexes |
 | [docs/en/benchmarking.md](docs/en/benchmarking.md) | Smoke tests, retrieval benchmark, metrics, regression workflow |
-| [docs/en/operations.md](docs/en/operations.md) | Usage examples, project structure, limitations, troubleshooting |
+| [docs/en/project-structure.md](docs/en/project-structure.md) | Source tree, runtime entry points, generated files |
+| [docs/en/operations.md](docs/en/operations.md) | Usage examples, limitations, troubleshooting |
 
 ## How It Fits Together
 

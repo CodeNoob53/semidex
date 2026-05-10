@@ -12,4 +12,5 @@ Other languages: [Українська](../ua/README.md)
 | [mcp-tools.md](mcp-tools.md) | MCP tool reference and agent workflows |
 | [configuration.md](configuration.md) | Environment variables, formats, provider config, indexes |
 | [benchmarking.md](benchmarking.md) | Smoke tests, retrieval benchmark, metrics, regression workflow |
-| [operations.md](operations.md) | Usage examples, project structure, limitations, troubleshooting |
+| [project-structure.md](project-structure.md) | Source tree, runtime entry points, generated files |
+| [operations.md](operations.md) | Usage examples, limitations, troubleshooting |

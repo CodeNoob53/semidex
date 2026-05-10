@@ -427,26 +427,28 @@ npm run sync
 ```
 src/
   core/
-    qdrant.js     — REST-клієнт Qdrant (upsert, search, scroll, filter, index)
-    ollama.js     — REST-клієнт Ollama (embed + generate)
-    sparse.js     — hashed sparse TF encoder (Qdrant-compatible, без зовнішніх залежностей)
-    graph.js      — per-collection graph.<collection>.json з повним очищенням ребер
-    config.js     — допоміжні функції config.json + getDenseProvider/getDenseModel/getSparseProvider
-    embeddings.js — уніфікований шар провайдерів: embedForIndex, embedForSearch, getEmbeddingConfig
-    rerank.js     — локальний детермінований рерankер: токен-бусти, різноманітність, захист top-1
+    qdrant.js      — REST-клієнт Qdrant (upsert, search, scroll, filter, index)
+    ollama.js      — REST-клієнт Ollama (embed + generate)
+    onnx-embed.js  — BGE-M3 ONNX токенізатор/сесія/векторна екстракція
+    sparse.js      — hashed sparse TF encoder (Qdrant-compatible, без зовнішніх залежностей)
+    graph.js       — per-collection graph.<collection>.json з повним очищенням ребер
+    config.js      — допоміжні функції config.json + розв'язання провайдерів
+    embeddings.js  — уніфікований шар провайдерів: embedForIndex, embedForSearch, getEmbeddingConfig
+    rerank.js      — локальний детермінований рерankер: токен-бусти, різноманітність, захист top-1
   indexer/
-    index.js      — точка входу CLI
-    batch.js      — паралельний пакетний runner
+    index.js       — точка входу CLI
+    batch.js       — паралельний пакетний runner
     phases/
-      chunk.js    — структурно-усвідомлений парсер, формати pdf-parse + pandoc
-      context.js  — LLM-контекстуалізація + злиття меж
-      tag.js      — пакетна генерація теґів з багатоформатним JSON-парсером
-      link.js     — семантичне лінкування між колекціями
+      chunk.js     — структурно-усвідомлений парсер, формати pdf-parse + pandoc
+      context.js   — LLM-контекстуалізація + злиття меж
+      tag.js       — пакетна генерація теґів з багатоформатним JSON-парсером
+      link.js      — семантичне лінкування між колекціями
   mcp/
-    server.js     — точка входу MCP
+    server.js      — точка входу MCP
     tools/
       search.js, collections.js, getChunk.js, related.js, backlinks.js, findByTag.js
-  sync.js         — синхронізація config.json + забезпечення необхідних індексів
+  smoke.js         — офлайн smoke-тести
+  sync.js          — синхронізація config.json + забезпечення необхідних індексів
 config.json           — автогенерується npm run sync, ігнорується git
 config.example.json   — шаблон структури config.json
 graph.<collection>.json — згенерований семантичний граф, ігнорується git

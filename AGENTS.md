@@ -52,7 +52,8 @@ English deep-dive files:
 | `docs/en/mcp-tools.md` | MCP tool reference and agent workflow |
 | `docs/en/configuration.md` | All env vars grouped by concern |
 | `docs/en/benchmarking.md` | Smoke tests, metrics, regression workflow |
-| `docs/en/operations.md` | Usage, project structure, troubleshooting |
+| `docs/en/project-structure.md` | Source tree, runtime entry points, generated files |
+| `docs/en/operations.md` | Usage, limitations, troubleshooting |
 
 Prefer English docs for implementation details unless the user explicitly asks
 for Ukrainian text or wording.
