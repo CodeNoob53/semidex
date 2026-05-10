@@ -98,17 +98,27 @@ component-level docs; Ukrainian currently has the main README.
 ```text
 benchmarks/
   retrieval/
-    run.js             - single-provider retrieval benchmark
-    compare.js         - default provider vs ONNX comparison
-    rerank-matrix.js   - ollama/onnx with and without rerank
-    mmr-matrix.js      - hybrid RRF vs dense MMR diversity evaluation
-    queries.json       - v2 benchmark query schema
-    fixtures/docs/     - fixture documents indexed by the benchmark
-    results/           - saved benchmark baselines and summaries
+    run.js               - 21-query regression benchmark (v1/v2 schema)
+    compare.js           - default provider vs ONNX side-by-side
+    rerank-matrix.js     - 4-variant rerank matrix (ollama/onnx × ±rerank)
+    mmr-matrix.js        - hybrid RRF vs dense MMR diversity evaluation
+    queries.json         - 21 queries, v2 schema (stable regression set)
+    fixtures/docs/       - 4 shared fixture docs (providers, qdrant, chunking, sync)
+    results/             - saved baselines and comparison summaries
+    custom-50/
+      run-v3.js          - 50-query quality benchmark (v3 schema, graded qrels)
+      queries.json       - 50 queries with relevantChunks and graded relevance
+      fixtures/docs/     - 6 additional fixture docs (mcp, obsidian, structure, etc.)
+      README.md          - custom-50 benchmark docs
 ```
 
-The retrieval benchmark is a regression suite for the semidex pipeline. It
-measures file hits, section hits, token hits, MRR, nDCG, diversity, and latency.
+Two benchmark tiers:
+
+- **Regression** (`run.js`, collection `bench-retrieval`): file-level recall, fast,
+  run before merges.
+- **Quality** (`custom-50/run-v3.js`, collection `bench-retrieval-custom-50`):
+  chunk-level graded recall (`chunkRecall@3/5`, `nDCG@K`, `MRR@10`), deeper
+  evaluation for provider or schema changes.
 
 ## Runtime And Generated Files
 

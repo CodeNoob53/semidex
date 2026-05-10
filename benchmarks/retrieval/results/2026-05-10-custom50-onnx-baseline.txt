@@ -1,0 +1,41 @@
+# semidex custom-50 quality benchmark — ONNX baseline
+
+Date: 2026-05-10
+Provider: bge-m3-onnx + bge-m3-onnx (ONNX_EMBED=1)
+Search: hybrid RRF
+Top-K: 10
+Fixtures: 10 docs (4 shared + 6 new)
+Queries: 49 positive, 1 negative
+
+## Summary
+
+| Metric           | Value  |
+|------------------|--------|
+| chunkRecall@5    | 67.3%  |
+| supportRecall@10 | 83.7%  |
+| nDCG@10 (graded) | 0.578  |
+| MRR@10           | 0.514  |
+| fileRecall@10    | 100%   |
+| negativePassRate | 100%   |
+
+## Notes
+
+- chunkRecall@5 = 67.3%: a strict baseline — exact answer chunk must appear in top-5.
+  Misses are chunk-level ranking gaps, not broken qrels (validateQrels() confirms all
+  chunkIds are present in the index). Inspect failed queries before changing providers
+  or adjusting qrels.
+- supportRecall@10 = 83.7%: supporting context (rel≥2) is retrieved well.
+- fileRecall@10 = 100%: every positive query finds the correct file somewhere in top-10.
+  File-level retrieval is not a bottleneck; chunk-level precision is the current gap.
+- nDCG@10 = 0.578, MRR@10 = 0.514: moderate chunk-level ranking quality.
+  Room to improve via qrel refinement and provider tuning.
+
+## Interpretation
+
+This is the first run of the custom-50 harness. It establishes the graded chunk-level
+baseline for future comparisons. Priority next steps:
+
+1. Verify qrel chunkIds against actual index after fresh run (validateQrels will flag
+   any mismatches automatically).
+2. Re-run with adjusted qrels if chunk boundaries differ from expectations.
+3. Compare ollama baseline against this ONNX baseline.

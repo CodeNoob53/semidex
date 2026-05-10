@@ -155,7 +155,8 @@ Mixed provider combinations, such as `ollama` dense + `bge-m3-onnx` sparse, are 
 | `npm run mcp` | Start the MCP server over stdio |
 | `npm run sync` | Sync `config.json` and Qdrant payload indexes |
 | `npm run smoke` | Fast offline smoke tests |
-| `npm run bench:retrieval` | Retrieval benchmark against live Qdrant |
+| `npm run bench:retrieval` | 21-query regression benchmark (file-level) |
+| `npm run bench:custom50` | 50-query quality benchmark (chunk-level, graded) |
 | `npm run bench:retrieval:compare` | Compare default provider vs ONNX |
 | `npm run bench:retrieval:rerank` | Rerank matrix benchmark |
 | `npm run bench:retrieval:mmr` | MMR diversity matrix benchmark |

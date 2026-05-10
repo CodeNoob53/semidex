@@ -10,6 +10,7 @@ npm run bench:retrieval
 npm run bench:retrieval:compare
 npm run bench:retrieval:rerank
 npm run bench:retrieval:mmr
+npm run bench:custom50
 ```
 
 ## Smoke Tests
@@ -24,33 +25,36 @@ It covers:
 - chunking edge cases
 - reranker top-1 protection
 
-## Retrieval Benchmark
+## Two Benchmark Tiers
 
-The retrieval benchmark uses a dedicated Qdrant collection:
+semidex has two benchmark tiers with different purposes:
 
-```text
-bench-retrieval
-```
+### 21-query regression benchmark
 
-It indexes fixture documents from:
+Collection: `bench-retrieval`
 
-```text
-benchmarks/retrieval/fixtures/docs/
-```
+Fixtures: `benchmarks/retrieval/fixtures/docs/` (4 docs)
+Queries: `benchmarks/retrieval/queries.json` (21 queries, v2 schema)
+Docs: `benchmarks/retrieval/README.md`
 
-and runs queries from:
+Fast file-level smoke. Run before merges to catch regressions in chunking,
+providers, RRF settings, or reranking.
 
-```text
-benchmarks/retrieval/queries.json
-```
+### custom-50 quality benchmark
 
-Detailed benchmark implementation docs live in:
+Collection: `bench-retrieval-custom-50`
 
-```text
-benchmarks/retrieval/README.md
-```
+Fixtures: `benchmarks/retrieval/fixtures/docs/` (shared 4) +
+`benchmarks/retrieval/custom-50/fixtures/docs/` (6 new)
+Queries: `benchmarks/retrieval/custom-50/queries.json` (50 queries, v3 schema)
+Docs: `benchmarks/retrieval/custom-50/README.md`
+
+Chunk-level evaluation with graded relevance (`relevantChunks`, `relevance: 1/2/3`).
+Run when evaluating retrieval quality beyond file-level recall.
 
 ## Metrics
+
+### Regression benchmark (v2 schema)
 
 | Metric | Meaning |
 |--------|---------|
@@ -64,6 +68,27 @@ benchmarks/retrieval/README.md
 | `dupSourceRate` | Duplicate source-file rate in top K |
 | `sourceDiversity` | Average unique source files in top K |
 | `p50/p95 latency` | Query latency percentiles |
+
+### Quality benchmark (v3 schema)
+
+| Metric | Meaning |
+|--------|---------|
+| `chunkRecall@3` | Exact answer chunk (rel≥3) in top-3 |
+| `chunkRecall@5` | Exact answer chunk (rel≥3) in top-5 |
+| `supportRecall@K` | Supporting chunk (rel≥2) in top-K |
+| `nDCG@K (graded)` | Gain = 2^relevance − 1, normalised |
+| `MRR@10` | Reciprocal rank of first rel≥3 chunk |
+| `fileRecall@1/K` | File-level recall (secondary) |
+| `negativePassRate` | Negative queries do not return strong hits |
+| `p50/p95 latency` | Query latency percentiles |
+
+### Relevance scale (v3)
+
+| Score | Meaning |
+|-------|---------|
+| 3 | Exact answer — chunk directly answers the query |
+| 2 | Supporting context — useful neighboring or related chunk |
+| 1 | Same-topic, not sufficient alone |
 
 ## Provider Compare
 
@@ -119,12 +144,23 @@ Judge MMR by both relevance and diversity:
 
 ## Current Role
 
-The bundled benchmark is a regression suite, not a scientific corpus evaluation. It is designed to catch quality regressions when changing:
+The regression benchmark catches quality regressions when changing chunking,
+providers, sparse vectors, Qdrant schema, RRF settings, reranking, or MCP search
+behavior. It is not a scientific corpus evaluation.
 
-- chunking
-- provider config
-- sparse vectors
-- Qdrant schema
-- RRF settings
-- reranking
-- MCP search behavior
+The custom-50 quality benchmark is a more demanding evaluation harness. Use it
+when making changes that could affect chunk-level retrieval precision — provider
+switches, embedding schema changes, or RRF/MMR parameter tuning.
+
+The first ONNX baseline on custom-50 (2026-05-10, bge-m3-onnx, hybrid RRF, top-10):
+
+| Metric | Value |
+|--------|-------|
+| chunkRecall@3 | — |
+| chunkRecall@5 | 67.3% |
+| supportRecall@10 | 83.7% |
+| nDCG@10 (graded) | 0.578 |
+| MRR@10 | 0.514 |
+| fileRecall@10 | 100% |
+
+Raw result: `benchmarks/retrieval/results/2026-05-10-custom50-onnx-baseline.txt`

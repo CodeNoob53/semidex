@@ -247,16 +247,27 @@ Reranking є **opt-in і нейтральним** на цьому корпусі
 
 ## Бенчмарк / Якість
 
-semidex постачається з регресійним бенчмарком з 21 запитом по 4 fixture-документах:
+semidex має два рівні бенчмаркингу:
+
+**Регресійний** — 21 запит, file-level recall, швидкий smoke перед мержем:
 
 ```bash
 npm run smoke                     # швидкі офлайн тести — Qdrant/Ollama не потрібні
-npm run bench:retrieval           # повний бенчмарк пошуку на живому Qdrant
+npm run bench:retrieval           # регресійний бенчмарк (21 запит, 4 fixture-документи)
 npm run bench:retrieval:compare   # порівняння поряд: ollama vs onnx
 npm run bench:retrieval:rerank    # матриця 4 варіантів: ollama±rerank vs onnx±rerank
+npm run bench:retrieval:mmr       # матриця MMR diversity (hybrid RRF vs dense MMR)
 ```
 
-Метрики: `fileRecall@1`, `fileRecall@K`, `MRR`, `nDCG@K`, `sectionHit@K`, `tokenHit@K`, `negativePassRate`, `dupSourceRate`, `sourceDiversity`, `p50`/`p95` latency.
+**Quality** — 50 запитів, chunk-level graded relevance (v3 schema):
+
+```bash
+npm run bench:custom50            # 50 запитів, chunkRecall@3/5, nDCG@10, MRR@10
+```
+
+Метрики регресійного: `fileRecall@1/K`, `MRR`, `nDCG@K`, `sectionHit@K`, `tokenHit@K`, `negativePassRate`, `dupSourceRate`, `sourceDiversity`, `p50`/`p95` latency.
+
+Метрики quality: `chunkRecall@3/5`, `supportRecall@K`, `nDCG@K (graded)`, `MRR@10`, `fileRecall@K` (вторинна).
 
 `BENCH_TOP_K=10` змінює глибину пошуку; `BENCH_PROVIDER=onnx` примусово задає провайдер незалежно від `.env`.
 
