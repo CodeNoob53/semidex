@@ -1,41 +1,138 @@
-# semidex custom-50 quality benchmark — ONNX baseline
 
-Date: 2026-05-10
-Provider: bge-m3-onnx + bge-m3-onnx (ONNX_EMBED=1)
-Search: hybrid RRF
-Top-K: 10
-Fixtures: 10 docs (4 shared + 6 new)
-Queries: 49 positive, 1 negative
+> semidex@2.0.0 bench:custom50
+> node benchmarks/retrieval/custom-50/run-v3.js
 
-## Summary
 
-| Metric           | Value  |
-|------------------|--------|
-| chunkRecall@5    | 67.3%  |
-| supportRecall@10 | 83.7%  |
-| nDCG@10 (graded) | 0.578  |
-| MRR@10           | 0.514  |
-| fileRecall@10    | 100%   |
-| negativePassRate | 100%   |
+=== semidex custom-50 quality benchmark ===
+Provider  : onnx  (bge-m3-onnx/bge-m3-onnx)
+Search    : hybrid
+Top-K     : 10
+Queries   : 50 (49 positive, 1 negative)
 
-## Notes
+[1/2] Setup collection...
+[2/2] Skipping index (BENCH_SKIP_INDEX=1) — fetching chunk IDs for qrel validation...
+Validating qrels...
 
-- chunkRecall@5 = 67.3%: a strict baseline — exact answer chunk must appear in top-5.
-  Misses are chunk-level ranking gaps, not broken qrels (validateQrels() confirms all
-  chunkIds are present in the index). Inspect failed queries before changing providers
-  or adjusting qrels.
-- supportRecall@10 = 83.7%: supporting context (rel≥2) is retrieved well.
-- fileRecall@10 = 100%: every positive query finds the correct file somewhere in top-10.
-  File-level retrieval is not a bottleneck; chunk-level precision is the current gap.
-- nDCG@10 = 0.578, MRR@10 = 0.514: moderate chunk-level ranking quality.
-  Room to improve via qrel refinement and provider tuning.
+Running queries...
+  c01: де налаштовується sparseProvider... ✓ (1523ms)
+  c02: які є валідні комбінації провайдерів embed... ✗ (90ms)
+  c03: як увімкнути bge-m3-onnx без Ollama... ✓ (86ms)
+  c04: embedding_schema_version reindex discrimin... ✓ (87ms)
+  c05: що станеться якщо змінити denseModel у con... ✓ (87ms)
+  c06: resolveEnvProviders single source of truth... ✓ (87ms)
+  c07: Invalid provider combination error mixed o... ✓ (87ms)
+  c08: як працює RRF k параметр у гібридному пошу... ✓ (83ms)
+  c09: HYBRID_PREFETCH_LIMIT prefetch per RRF leg... ✓ (84ms)
+  c10: чому hybridSearch падає коли нема sparse в... ✓ (83ms)
+  c11: getStoredMeta які поля читає з Qdrant payl... ✓ (86ms)
+  c12: як Qdrant зберігає named vectors dense spa... ✗ (83ms)
+  c13: source_file payload index efficient filter... ✓ (84ms)
+  c14: Qdrant Query API body shape for RRF fusion... ✓ (80ms)
+  c15: OVERLAP_SENTENCES default value sentence o... ✓ (83ms)
+  c16: чому фінальний чанк може губитись при малі... ✓ (86ms)
+  c17: чому overlap не переноситься між markdown ... ✓ (85ms)
+  c18: splitSentences regex trailing text without... ✓ (79ms)
+  c19: як pandoc конвертує docx epub rtf у markdo... ✓ (81ms)
+  c20: MAX_CHUNK_TOKENS MIN_CHUNK_TOKENS chunking... ✓ (94ms)
+  c21: що робить npm run sync з config.json... ✓ (82ms)
+  c22: sync backfill logic for missing denseProvi... ✓ (83ms)
+  c23: коли потрібно запускати sync після апгрейд... ✓ (82ms)
+  c24: sync записує поточний провайдер а не той щ... ✓ (84ms)
+  c25: відмінність між sync та indexer стосовно c... ✓ (85ms)
+  c26: як зареєструвати MCP сервер semidex у Clau... ✓ (84ms)
+  c27: qdrant_get_chunk window parameter context ... ✓ (84ms)
+  c28: qdrant_find_by_tag groups results by sourc... ✓ (88ms)
+  c29: як агент повинен починати сесію з semidex ... ✗ (80ms)
+  c30: qdrant_related backlinks file-level semant... ✓ (86ms)
+  c31: CHUNKS_OUT_DIR Obsidian export directory c... ✓ (88ms)
+  c32: LINK_MIN_SCORE LINK_TOP wikilink threshold... ✓ (94ms)
+  c33: що міститься у frontmatter кожного Obsidia... ✗ (90ms)
+  c34: use cases for reviewing chunk quality and ... ✓ (87ms)
+  c35: де знаходиться src/core/qdrant.js і що він... ✓ (87ms)
+  c36: chunkFile splitSentences parseMarkdown loc... ✓ (84ms)
+  c37: npm run bench:custom50 entry point run-v3.... ✗ (97ms)
+  c38: SCHEMA_VERSION constant embeddings.js rein... ✓ (92ms)
+  c39: chunkRecall nDCG graded relevance benchmar... ✓ (87ms)
+  c40: relevantChunks chunkId format source_file#... ✓ (93ms)
+  c41: яка різниця між 21-query regression і cust... ✓ (80ms)
+  c42: BENCH_SKIP_INDEX validates stored provider... ✓ (94ms)
+  c43: QDRANT_URL QDRANT_KEY required environment... ✓ (83ms)
+  c44: RERANK_PROTECT_TOP1_DELTA minimum advantag... ✓ (97ms)
+  c45: config.json six reindex discriminators den... ✓ (94ms)
+  c46: що таке SOURCE_ROOT і навіщо він потрібен ... ✓ (89ms)
+  c47: bge-m3-onnx neural sparse weights for rare... ✓ (92ms)
+  c48: cross-lingual retrieval Ukrainian query En... ✗ (92ms)
+  c49: ONNX_EMBED=1 recommended provider for mult... ✓ (89ms)
+  c50: semidex підключення до PostgreSQL бази дан... (neg) (82ms)
 
-## Interpretation
+─────────────────────────────────────────────────────────────────────────────────────────────
+ID    Query                                          cr3   cr5   sup     nDCG     MRR      ms
+─────────────────────────────────────────────────────────────────────────────────────────────
+c01   де налаштовується sparseProvider                 ✓     ✓     ✓    1.000   1.000    1523
+c02   які є валідні комбінації провайдерів embedd      ✗     ✗     ✓    0.213   0.000      90
+c03   як увімкнути bge-m3-onnx без Ollama              ✓     ✓     ✓    0.598   0.500      86
+c04   embedding_schema_version reindex discrimina      ✓     ✓     ✓    0.539   0.333      87
+c05   що станеться якщо змінити denseModel у conf      ✓     ✓     ✓    0.787   1.000      87
+c06   resolveEnvProviders single source of truth       ✓     ✓     ✓    0.631   0.500      87
+c07   Invalid provider combination error mixed ol      ✓     ✓     ✓    0.631   0.500      87
+c08   як працює RRF k параметр у гібридному пошук      ✓     ✓     ✓    0.787   1.000      83
+c09   HYBRID_PREFETCH_LIMIT prefetch per RRF leg       ✗     ✓     ✓    0.339   0.250      84
+c10   чому hybridSearch падає коли нема sparse ве      ✓     ✓     ✓    1.000   1.000      83
+c11   getStoredMeta які поля читає з Qdrant paylo      ✓     ✓     ✓    1.000   1.000      86
+c12   як Qdrant зберігає named vectors dense spar      ✗     ✗     ✓    0.280   0.167      83
+c13   source_file payload index efficient filteri      ✓     ✓     ✓    0.787   1.000      84
+c14   Qdrant Query API body shape for RRF fusion       ✓     ✓     ✓    0.631   0.500      80
+c15   OVERLAP_SENTENCES default value sentence ov      ✗     ✓     ✓    0.552   0.250      83
+c16   чому фінальний чанк може губитись при малій      ✓     ✓     ✓    0.900   1.000      86
+c17   чому overlap не переноситься між markdown с      ✓     ✓     ✓    0.787   1.000      85
+c18   splitSentences regex trailing text without       ✓     ✓     ✓    1.000   1.000      79
+c19   як pandoc конвертує docx epub rtf у markdow      ✓     ✓     ✓    1.000   1.000      81
+c20   MAX_CHUNK_TOKENS MIN_CHUNK_TOKENS chunking       ✓     ✓     ✓    0.631   0.500      94
+c21   що робить npm run sync з config.json             ✓     ✓     ✓    0.787   1.000      82
+c22   sync backfill logic for missing denseProvid      ✓     ✓     ✓    0.889   1.000      83
+c23   коли потрібно запускати sync після апгрейду      ✓     ✓     ✓    0.787   1.000      82
+c24   sync записує поточний провайдер а не той що      ✓     ✓     ✓    1.000   1.000      84
+c25   відмінність між sync та indexer стосовно co      ✓     ✓     ✓    0.834   0.500      85
+c26   як зареєструвати MCP сервер semidex у Claud      ✓     ✓     ✓    0.834   0.500      84
+c27   qdrant_get_chunk window parameter context n      ✓     ✓     ✓    0.956   1.000      84
+c28   qdrant_find_by_tag groups results by source      ✓     ✓     ✓    1.000   1.000      88
+c29   як агент повинен починати сесію з semidex M      ✗     ✗     ✗    0.000   0.000      80
+c30   qdrant_related backlinks file-level semanti      ✓     ✓     ✓    1.000   1.000      86
+c31   CHUNKS_OUT_DIR Obsidian export directory ch      ✗     ✓     ✓    0.517   0.200      88
+c32   LINK_MIN_SCORE LINK_TOP wikilink threshold       ✓     ✓     ✓    0.932   1.000      94
+c33   що міститься у frontmatter кожного Obsidian      ✗     ✗     ✓    0.337   0.000      90
+c34   use cases for reviewing chunk quality and t      ✓     ✓     ✓    1.000   1.000      87
+c35   де знаходиться src/core/qdrant.js і що він       ✗     ✓     ✓    0.402   0.200      87
+c36   chunkFile splitSentences parseMarkdown loca      ✓     ✓     ✓    0.497   0.500      84
+c37   npm run bench:custom50 entry point run-v3.j      ✗     ✗     ✓    0.383   0.143      97
+c38   SCHEMA_VERSION constant embeddings.js reind      ✓     ✓     ✓    0.787   1.000      92
+c39   chunkRecall nDCG graded relevance benchmark      ✓     ✓     ✓    0.665   0.500      87
+c40   relevantChunks chunkId format source_file#c      ✓     ✓     ✓    0.787   1.000      93
+c41   яка різниця між 21-query regression і custo      ✗     ✓     ✓    0.450   0.200      80
+c42   BENCH_SKIP_INDEX validates stored provider       ✓     ✓     ✓    1.000   1.000      94
+c43   QDRANT_URL QDRANT_KEY required environment       ✓     ✓     ✓    0.834   0.500      83
+c44   RERANK_PROTECT_TOP1_DELTA minimum advantage      ✓     ✓     ✓    1.000   1.000      97
+c45   config.json six reindex discriminators dens      ✓     ✓     ✓    0.497   0.500      94
+c46   що таке SOURCE_ROOT і навіщо він потрібен п      ✓     ✓     ✓    1.000   1.000      89
+c47   bge-m3-onnx neural sparse weights for rare       ✓     ✓     ✓    0.500   0.333      92
+c48   cross-lingual retrieval Ukrainian query Eng      ✗     ✗     ✓    0.493   0.167      92
+c49   ONNX_EMBED=1 recommended provider for multi      ✓     ✓     ✓    0.514   0.333      89
+c50   semidex підключення до PostgreSQL бази дани    neg   neg   neg        ✓       –      82
+─────────────────────────────────────────────────────────────────────────────────────────────
 
-This is the first run of the custom-50 harness. It establishes the graded chunk-level
-baseline for future comparisons. Priority next steps:
+Provider          : onnx
+Queries           : 49 positive, 1 negative
+chunkRecall@3     : 77.6%
+chunkRecall@5     : 87.8%
+chunkRecall@10    : 93.9%
+windowRecall@5    : 95.9%  (±1 window)
+windowRecall@10   : 98.0%  (±1 window)
+supportRecall@10  : 98.0%
+nDCG@10 (graded)  : 0.710
+MRR@10            : 0.655
+fileRecall@1      : 73.5%
+fileRecall@10     : 100.0%
+negativePass      : 100.0%
+Latency p50/p95   : 86ms / 97ms
+Avg ms            : 115
 
-1. Verify qrel chunkIds against actual index after fresh run (validateQrels will flag
-   any mismatches automatically).
-2. Re-run with adjusted qrels if chunk boundaries differ from expectations.
-3. Compare ollama baseline against this ONNX baseline.

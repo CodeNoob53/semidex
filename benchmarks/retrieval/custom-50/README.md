@@ -14,12 +14,18 @@ Complements the stable 21-query regression benchmark in `benchmarks/retrieval/`.
 |--------|-------------|
 | `chunkRecall@3` | Fraction of queries with a rel≥3 chunk in top-3 |
 | `chunkRecall@5` | Fraction of queries with a rel≥3 chunk in top-5 |
+| `chunkRecall@10` | Fraction of queries with a rel≥3 chunk in top-10 |
+| `windowRecall@5` | Fraction of queries where exact chunk or its ±1 neighbor is in top-5 |
+| `windowRecall@10` | Same with top-10; `1 − windowRecall@10` = true retrieval failures |
 | `supportRecall@K` | Fraction of queries with a rel≥2 chunk in top-K |
 | `nDCG@K (graded)` | Normalised DCG with gain = 2^relevance − 1 |
 | `MRR@10` | Reciprocal rank of first rel≥3 chunk in top-10 |
 | `fileRecall@1/K` | File-level recall (secondary, backward-compat) |
 | `negativePassRate` | Fraction of negative queries with no strong hit in top-1 |
 | `p50 / p95 latency` | Median and 95th-percentile query latency |
+
+`windowRecall` matters for the MCP workflow: if the exact chunk is not in top-K but a
+neighbor is, an agent can still recover the answer via `qdrant_get_chunk(window=1)`.
 
 ## Relevance Scale
 
@@ -69,6 +75,9 @@ BENCH_SKIP_INDEX=1 npm run bench:custom50
 
 # Dense MMR instead of hybrid RRF
 BENCH_SEARCH_MODE=dense-mmr MMR_DIVERSITY=0.5 npm run bench:custom50
+
+# Change windowRecall adjacency window (default: 1)
+BENCH_WINDOW=2 npm run bench:custom50
 
 # Emit JSON for scripting
 BENCH_JSON=1 npm run bench:custom50

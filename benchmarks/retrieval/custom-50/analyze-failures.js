@@ -2,9 +2,10 @@
 //
 // Reads BENCH_JSON=1 output from run-v3.js and, for each chunkRecall@5 miss,
 // fetches the expected chunk(s) from Qdrant and shows:
+//   - failure category summary (rank 6-10 / window hit / support-only / total miss)
 //   - expected chunks: chunkId, relevance, section, text snippet
-//   - top-10 returned chunks: rank, chunkId, relevance, score, source_file, section
-//   - ±1 window check: whether expected chunk is adjacent to any returned chunk
+//   - top-K returned chunks: rank, chunkId, relevance, score
+//   - ±window check: whether expected chunk is adjacent to any returned chunk
 //
 // Usage:
 //   BENCH_JSON=1 BENCH_PROVIDER=onnx BENCH_SKIP_INDEX=1 npm run bench:custom50 \
@@ -32,7 +33,13 @@ Options (env vars):
   FAIL_SNIPPET=<n>   Max chars of chunk text to show (default: 200)
   FAIL_TOP_K=<n>     How many returned chunks to show per query (default: 10)
 
-Output: human-readable failure report to stdout.
+Failure categories:
+  rank6-10      Expected chunk found at rank 6-10 (just outside top-5)
+  window        Expected chunk not in top-K but a ±window neighbor is
+  support-only  No exact (rel≥3) hit but a supporting (rel≥2) chunk was found
+  total-miss    No exact, no window, no support hit in top-K
+
+Output: category summary then detailed per-query analysis.
 Prerequisites: QDRANT_URL and QDRANT_KEY in .env or environment.
 `);
   process.exit(0);
@@ -156,10 +163,12 @@ async function main() {
     rawQueries.queries.map(q => [q.id, q.relevantChunks ?? []])
   );
 
-  // Identify failures: positive queries where chunkRecall5 is false or null.
-  const failures = queryResults.filter(r =>
-    !r.isNegative && r.chunkRecall5 !== true
-  );
+  // Identify failures: positive queries where chunkRecall@5 is false or null.
+  // Analyzing from chunkRecall@5 (not @10) keeps rank6-10 cases visible — those
+  // are queries where the exact chunk appeared at rank 6-topK and would be missed
+  // by a top-5 agent call but not by a wider search.
+  const positives = queryResults.filter(r => !r.isNegative);
+  const failures = positives.filter(r => r.chunkRecall5 !== true);
 
   const sep  = '═'.repeat(80);
   const sep2 = '─'.repeat(80);
@@ -168,14 +177,70 @@ async function main() {
   process.stdout.write(`  custom-50 failure analysis\n`);
   process.stdout.write(`  Provider : ${provider}  (${denseProvider}/${sparseProvider})\n`);
   process.stdout.write(`  Search   : ${searchMode}   Top-K: ${topK}\n`);
-  process.stdout.write(`  Failures : ${failures.length} / ${queryResults.filter(r => !r.isNegative).length} positive queries\n`);
+  process.stdout.write(`  Failures : ${failures.length} / ${positives.length} positive queries (chunkRecall@5)\n`);
   process.stdout.write(`  Window   : ±${WINDOW} chunk positions\n`);
   process.stdout.write(`${sep}\n\n`);
 
   if (failures.length === 0) {
-    process.stdout.write('No chunkRecall@5 failures. All exact-answer chunks found in top-5.\n\n');
+    process.stdout.write(`No chunkRecall@5 failures. All exact-answer chunks found in top-5.\n\n`);
     return;
   }
+
+  // ── Category summary ─────────────────────────────────────────────────────────
+
+  // For each failure, classify into the most specific category:
+  //   rank6-10    : exact chunk at rank 6–topK (found but below top-5)
+  //   window      : exact chunk not in top-K but ±WINDOW neighbor is
+  //   support-only: no exact hit, no window hit, but a rel≥2 chunk found in top-K
+  //   total-miss  : nothing useful in top-K
+
+  function classifyFailure(qr) {
+    const relevantChunks = qrelMap.get(qr.id) ?? [];
+    const exactIds = new Set(relevantChunks.filter(rc => rc.relevance >= 3).map(rc => rc.chunkId));
+    const returnedChunks = qr.topChunks ?? [];
+
+    // rank6-10: exact chunk in returned list but rank > 5
+    const rank6to10 = returnedChunks.slice(5).some(c => exactIds.has(c.chunkId));
+    if (rank6to10) return 'rank6-10';
+
+    // window hit (±WINDOW neighbor in top-K)
+    const windowHit = [...exactIds].some(exactId => {
+      const ep = parseChunkIdLocal(exactId);
+      if (!ep) return false;
+      return returnedChunks.some(c => {
+        const rp = parseChunkIdLocal(c.chunkId);
+        if (!rp) return false;
+        return rp.sourceFile === ep.sourceFile && Math.abs(rp.chunkIndex - ep.chunkIndex) <= WINDOW;
+      });
+    });
+    if (windowHit) return 'window';
+
+    // support-only: rel≥2 chunk in top-K
+    const supportIds = new Set(relevantChunks.filter(rc => rc.relevance >= 2).map(rc => rc.chunkId));
+    const supportHit = returnedChunks.some(c => supportIds.has(c.chunkId));
+    if (supportHit) return 'support-only';
+
+    return 'total-miss';
+  }
+
+  function parseChunkIdLocal(chunkId) {
+    if (!chunkId) return null;
+    const hash = chunkId.lastIndexOf('#');
+    if (hash < 0) return null;
+    return { sourceFile: chunkId.slice(0, hash), chunkIndex: parseInt(chunkId.slice(hash + 1), 10) };
+  }
+
+  const categories = { 'rank6-10': [], 'window': [], 'support-only': [], 'total-miss': [] };
+  for (const qr of failures) {
+    categories[classifyFailure(qr)].push(qr.id);
+  }
+
+  process.stdout.write(`Category summary (${failures.length} failures):\n`);
+  process.stdout.write(`  rank6-10     : ${categories['rank6-10'].length}  ${categories['rank6-10'].join(', ')}\n`);
+  process.stdout.write(`  window (±${WINDOW})  : ${categories['window'].length}  ${categories['window'].join(', ')}\n`);
+  process.stdout.write(`  support-only : ${categories['support-only'].length}  ${categories['support-only'].join(', ')}\n`);
+  process.stdout.write(`  total-miss   : ${categories['total-miss'].length}  ${categories['total-miss'].join(', ')}\n`);
+  process.stdout.write(`\n`);
 
   for (const qr of failures) {
     const relevantChunks = qrelMap.get(qr.id) ?? [];
@@ -184,10 +249,12 @@ async function main() {
     // Find query text from rawQueries.
     const rawQ = rawQueries.queries.find(q => q.id === qr.id);
 
+    const cat = classifyFailure(qr);
     process.stdout.write(`${sep2}\n`);
-    process.stdout.write(`Query  : [${qr.id}] ${rawQ?.query ?? '?'}\n`);
-    process.stdout.write(`Type   : ${qr.type ?? '?'}    Note: ${rawQ?.note ?? ''}\n`);
-    process.stdout.write(`nDCG   : ${qr.ndcg?.toFixed(3) ?? 'n/a'}    MRR: ${qr.mrr10?.toFixed(3) ?? 'n/a'}    supportRecall: ${qr.supportRecall ? '✓' : '✗'}\n`);
+    process.stdout.write(`Query    : [${qr.id}] ${rawQ?.query ?? '?'}\n`);
+    process.stdout.write(`Type     : ${qr.type ?? '?'}    Note: ${rawQ?.note ?? ''}\n`);
+    process.stdout.write(`Category : ${cat}\n`);
+    process.stdout.write(`nDCG     : ${qr.ndcg?.toFixed(3) ?? 'n/a'}    MRR: ${qr.mrr10?.toFixed(3) ?? 'n/a'}    supportRecall: ${qr.supportRecall ? '✓' : '✗'}\n`);
     process.stdout.write(`\n`);
 
     // ── Expected chunks (rel≥3) ──────────────────────────────────────────────
@@ -277,33 +344,14 @@ async function main() {
 
   // Summary table.
   process.stdout.write(`\nSummary:\n`);
-  process.stdout.write(`  ${pad('ID', 5)}  ${pad('Query (truncated)', 44)}  inWindow  suppRecall  nDCG\n`);
-  process.stdout.write(`  ${'-'.repeat(75)}\n`);
+  process.stdout.write(`  ${pad('ID', 5)}  ${pad('Query (truncated)', 44)}  ${pad('Category', 12)}  suppRecall  nDCG\n`);
+  process.stdout.write(`  ${'-'.repeat(84)}\n`);
   for (const qr of failures) {
     const rawQ = rawQueries.queries.find(q => q.id === qr.id);
-    const relevantChunks = qrelMap.get(qr.id) ?? [];
-    const exactChunks    = relevantChunks.filter(rc => rc.relevance >= 3);
-    const returnedChunks = qr.topChunks ?? [];
-
-    const anyInWindow = exactChunks.some(rc => {
-      const parsed = parseChunkId(rc.chunkId);
-      if (!parsed) return false;
-      return isInWindow(
-        returnedChunks.map(c => ({
-          payload: {
-            source_file: c.chunkId?.slice(0, c.chunkId.lastIndexOf('#')),
-            chunk_index: parseInt(c.chunkId?.slice(c.chunkId.lastIndexOf('#') + 1), 10),
-          },
-        })),
-        parsed.sourceFile,
-        parsed.chunkIndex,
-        WINDOW
-      );
-    });
-
+    const cat = classifyFailure(qr);
     process.stdout.write(
       `  ${pad(qr.id, 5)}  ${pad((rawQ?.query ?? '').slice(0, 43), 44)}  ` +
-      `${pad(anyInWindow ? 'YES' : 'no', 9)} ` +
+      `${pad(cat, 12)}  ` +
       `${pad(qr.supportRecall ? '✓' : '✗', 11)} ` +
       `${qr.ndcg?.toFixed(3) ?? 'n/a'}\n`
     );

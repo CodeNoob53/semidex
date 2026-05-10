@@ -10,6 +10,7 @@
 //   BENCH_SKIP_INDEX=1 npm run bench:custom50
 //   BENCH_TOP_K=10 npm run bench:custom50
 //   BENCH_SEARCH_MODE=dense-mmr npm run bench:custom50
+//   BENCH_WINDOW=1 npm run bench:custom50   # windowRecall adjacency window (default: 1)
 
 if (process.argv.includes('--help')) {
   process.stdout.write(`semidex custom-50 quality benchmark (v3 schema)
@@ -26,6 +27,7 @@ Options (env vars):
   MMR_DIVERSITY=<0..1>         Dense MMR diversity balance (default: 0.5)
   MMR_CANDIDATES_LIMIT=<n>     Dense MMR preselect candidate count (default: 100)
   BENCH_JSON=1                 Emit JSON summary on stdout (human output to stderr)
+  BENCH_WINDOW=<n>             Adjacency window for windowRecall (default: 1)
 
 Query schema (queries.json): v3
   { schemaVersion: 3, queries: [{
@@ -38,12 +40,13 @@ Query schema (queries.json): v3
   chunkRecall@K counts relevance >= 3; supportRecall@K counts >= 2
 
 Metrics:
-  chunkRecall@3/5    Exact answer chunk in top-3/top-5
-  supportRecall@K    Supporting or exact chunk in top-K
-  nDCG@K (graded)    Gain = 2^relevance - 1, normalised
-  MRR@10             Reciprocal rank of first rel>=3 chunk in top-10
-  fileRecall@1/K     Expected file-level recall (secondary)
-  negativePassRate   Fraction of negative queries with no strong hit in top-1
+  chunkRecall@3/5/10   Exact answer chunk in top-3/5/10
+  windowRecall@5/10    Exact chunk or ±window neighbor in top-5/10
+  supportRecall@K      Supporting or exact chunk in top-K
+  nDCG@K (graded)      Gain = 2^relevance - 1, normalised
+  MRR@10               Reciprocal rank of first rel>=3 chunk in top-10
+  fileRecall@1/K       Expected file-level recall (secondary)
+  negativePassRate     Fraction of negative queries with no strong hit in top-1
 
 Prerequisites: QDRANT_URL and QDRANT_KEY in .env or environment.
 `);
@@ -79,6 +82,7 @@ const BENCH_PROVIDER       = process.env.BENCH_PROVIDER ?? 'env';
 const JSON_MODE            = process.env.BENCH_JSON === '1';
 const MMR_DIVERSITY        = envFloat('MMR_DIVERSITY', 0.5, 0, 1);
 const MMR_CANDIDATES_LIMIT = envInt('MMR_CANDIDATES_LIMIT', 100, 1, 10000);
+const BENCH_WINDOW         = envInt('BENCH_WINDOW', 1, 0, 10);
 
 // Fixture files with their source directories.
 // Shared: taken from benchmarks/retrieval/fixtures/docs/ (stable regression corpus).
@@ -187,9 +191,17 @@ async function fetchStoredProvider() {
   return { denseProvider: p.dense_provider ?? null, sparseProvider: p.sparse_provider ?? null };
 }
 
-// Returns Set of all indexed chunkIds ("file.md#N") produced during indexing.
+// Returns { indexedIds, emptyChunkIds } after indexing.
+// emptyChunkIds: chunk IDs whose text is empty or a heading-only placeholder
+// (e.g. "(empty section: …)"). Used by emptyExpectedChunkCount guardrail.
+function isEmptyChunkText(text) {
+  if (!text || !text.trim()) return true;
+  return /^\(empty section:/i.test(text.trim());
+}
+
 async function indexFixtures() {
-  const indexedIds = new Set();
+  const indexedIds  = new Set();
+  const emptyChunkIds = new Set();
   for (const { name, dir } of FIXTURE_FILES) {
     const filePath   = resolve(dir, name);
     const text       = readFileSync(filePath, 'utf8');
@@ -200,7 +212,9 @@ async function indexFixtures() {
     const chunks = chunkFile(filePath, text, sourceFile);
     const points = [];
     for (const chunk of chunks) {
-      indexedIds.add(`${sourceFile}#${chunk.chunkIndex}`);
+      const cid = `${sourceFile}#${chunk.chunkIndex}`;
+      indexedIds.add(cid);
+      if (isEmptyChunkText(chunk.text)) emptyChunkIds.add(cid);
       const { dense, sparse, meta } = await embedForIndex(COLLECTION, chunk.text);
       points.push({
         id: randomUUID(),
@@ -220,20 +234,26 @@ async function indexFixtures() {
     await upsertPoints(COLLECTION, points);
     logw(`  indexed ${name} (${points.length} chunks)\n`);
   }
-  return indexedIds;
+  return { indexedIds, emptyChunkIds };
 }
 
 // Collect chunk IDs from Qdrant (used when BENCH_SKIP_INDEX=1).
 // Scrolls up to 2000 points; sufficient for bench-scale fixture sets.
+// Returns { indexedIds, emptyChunkIds } matching the shape of indexFixtures().
 async function fetchIndexedChunkIds() {
-  const points = await scroll(COLLECTION, undefined, 2000, ['source_file', 'chunk_index']);
-  const ids = new Set();
+  const points = await scroll(COLLECTION, undefined, 2000, ['source_file', 'chunk_index', 'text']);
+  const indexedIds   = new Set();
+  const emptyChunkIds = new Set();
   for (const p of points) {
     const sf = p.payload?.source_file;
     const ci = p.payload?.chunk_index;
-    if (sf != null && ci != null) ids.add(`${sf}#${ci}`);
+    if (sf != null && ci != null) {
+      const cid = `${sf}#${ci}`;
+      indexedIds.add(cid);
+      if (isEmptyChunkText(p.payload?.text)) emptyChunkIds.add(cid);
+    }
   }
-  return ids;
+  return { indexedIds, emptyChunkIds };
 }
 
 // Fail-fast validation: check every chunkId in relevantChunks exists in the index.
@@ -332,6 +352,45 @@ function mrr(results, qrels, k, minRel = 3) {
   return 0;
 }
 
+// Parse "source_file#chunk_index" → { sourceFile, chunkIndex } or null.
+function parseChunkId(chunkId) {
+  if (!chunkId) return null;
+  const hash = chunkId.lastIndexOf('#');
+  if (hash < 0) return null;
+  const sourceFile  = chunkId.slice(0, hash);
+  const chunkIndex  = parseInt(chunkId.slice(hash + 1), 10);
+  if (!sourceFile || !Number.isFinite(chunkIndex)) return null;
+  return { sourceFile, chunkIndex };
+}
+
+// windowRecall@k: fraction where a rel>=3 chunk OR an adjacent chunk (within ±BENCH_WINDOW)
+// appears in top-k. This captures near-misses where the retriever found a neighbor chunk
+// that an MCP agent could expand via qdrant_get_chunk(window=N).
+function windowRecallHit(results, qrels, k, window) {
+  if (!qrels.size) return null;
+  const exactIds = [...qrels.entries()].filter(([, r]) => r >= 3).map(([id]) => id);
+  if (!exactIds.length) return null;
+  const topK = results.slice(0, k);
+  // Direct hit.
+  const directHit = topK.some(r => {
+    const cid = resultChunkId(r);
+    return cid && qrels.get(cid) >= 3;
+  });
+  if (directHit) return true;
+  // Window hit: returned chunk is a sibling (same file, index within ±window).
+  for (const exactId of exactIds) {
+    const ep = parseChunkId(exactId);
+    if (!ep) continue;
+    const windowHit = topK.some(r => {
+      const rp = parseChunkId(resultChunkId(r));
+      if (!rp) return false;
+      return rp.sourceFile === ep.sourceFile && Math.abs(rp.chunkIndex - ep.chunkIndex) <= window;
+    });
+    if (windowHit) return true;
+  }
+  return false;
+}
+
 // File-level: build ranked file list (dedup, preserve order).
 function rankedFileList(results) {
   const seen = new Set();
@@ -351,11 +410,11 @@ function percentile(sorted, p) {
 
 // ── Aggregate metrics ─────────────────────────────────────────────────────────
 
-function computeMetrics(queryResults) {
+function computeMetrics(queryResults, emptyChunkIds = new Set()) {
   const positives = queryResults.filter(r => !r.query.shouldHaveNoStrongHit);
   const negatives = queryResults.filter(r =>  r.query.shouldHaveNoStrongHit);
 
-  let cr3 = 0, cr5 = 0, supp = 0, ndcgSum = 0, mrrSum = 0;
+  let cr3 = 0, cr5 = 0, cr10 = 0, wr5 = 0, wr10 = 0, supp = 0, ndcgSum = 0, mrrSum = 0;
   let mrrCount = 0;
   let fRecall1 = 0, fRecallK = 0;
   let negPass = 0;
@@ -364,14 +423,20 @@ function computeMetrics(queryResults) {
   for (const r of positives) {
     const { results, query } = r;
 
-    const cr3Hit  = chunkRecallHit(results, query.qrels, 3, 3);
-    const cr5Hit  = chunkRecallHit(results, query.qrels, 5, 3);
-    const suppHit = chunkRecallHit(results, query.qrels, TOP_K, 2);
+    const cr3Hit  = chunkRecallHit(results, query.qrels, 3,      3);
+    const cr5Hit  = chunkRecallHit(results, query.qrels, 5,      3);
+    const cr10Hit = chunkRecallHit(results, query.qrels, TOP_K,  3);
+    const wr5Hit  = windowRecallHit(results, query.qrels, 5,  BENCH_WINDOW);
+    const wr10Hit = windowRecallHit(results, query.qrels, TOP_K, BENCH_WINDOW);
+    const suppHit = chunkRecallHit(results, query.qrels, TOP_K,  2);
     const ndcgVal = gradedNDCG(results, query.qrels, TOP_K);
     const mrrVal  = mrr(results, query.qrels, 10, 3);
 
     if (cr3Hit  !== null) cr3  += cr3Hit  ? 1 : 0;
     if (cr5Hit  !== null) cr5  += cr5Hit  ? 1 : 0;
+    if (cr10Hit !== null) cr10 += cr10Hit ? 1 : 0;
+    if (wr5Hit  !== null) wr5  += wr5Hit  ? 1 : 0;
+    if (wr10Hit !== null) wr10 += wr10Hit ? 1 : 0;
     if (suppHit !== null) supp += suppHit ? 1 : 0;
     if (ndcgVal !== null) ndcgSum += ndcgVal;
     if (mrrVal  !== null) { mrrSum += mrrVal; mrrCount++; }
@@ -401,9 +466,20 @@ function computeMetrics(queryResults) {
   // Queries that have any qrels
   const hasAnyQrels = positives.filter(r => r.query.qrels.size > 0).length;
 
+  // Guardrail: queries where every rel>=3 qrel points to an empty/heading-only chunk.
+  // A non-zero value means qrels need review — the benchmark is measuring against
+  // chunks with no retrievable content.
+  const emptyExpectedChunkCount = positives.filter(r => {
+    const exactIds = [...r.query.qrels.entries()].filter(([, v]) => v >= 3).map(([id]) => id);
+    return exactIds.length > 0 && exactIds.every(id => emptyChunkIds.has(id));
+  }).length;
+
   return {
-    chunkRecall3:    hasExact > 0     ? cr3 / hasExact : null,
-    chunkRecall5:    hasExact > 0     ? cr5 / hasExact : null,
+    chunkRecall3:     hasExact > 0    ? cr3  / hasExact : null,
+    chunkRecall5:     hasExact > 0    ? cr5  / hasExact : null,
+    chunkRecall10:    hasExact > 0    ? cr10 / hasExact : null,
+    windowRecall5:    hasExact > 0    ? wr5  / hasExact : null,
+    windowRecall10:   hasExact > 0    ? wr10 / hasExact : null,
     supportRecallK:  hasAnyQrels > 0  ? supp / hasAnyQrels : null,
     ndcgK:           hasAnyQrels > 0  ? ndcgSum / hasAnyQrels : null,
     mrr10:           mrrCount > 0     ? mrrSum / mrrCount : null,
@@ -416,6 +492,8 @@ function computeMetrics(queryResults) {
     nPositive: n,
     nNegative: negatives.length,
     topK: TOP_K,
+    window: BENCH_WINDOW,
+    emptyExpectedChunkCount,
   };
 }
 
@@ -485,19 +563,24 @@ function printResults(queryResults) {
 }
 
 function printSummary(metrics, provider) {
-  log(`\nProvider        : ${provider}`);
-  log(`Queries         : ${metrics.nPositive} positive, ${metrics.nNegative} negative`);
-  log(`chunkRecall@3   : ${pct(metrics.chunkRecall3)}`);
-  log(`chunkRecall@5   : ${pct(metrics.chunkRecall5)}`);
-  log(`supportRecall@${TOP_K} : ${pct(metrics.supportRecallK)}`);
-  log(`nDCG@${TOP_K} (graded): ${metrics.ndcgK?.toFixed(3) ?? 'n/a'}`);
-  log(`MRR@10          : ${metrics.mrr10?.toFixed(3) ?? 'n/a'}`);
-  log(`fileRecall@1    : ${pct(metrics.fileRecall1)}`);
-  log(`fileRecall@${TOP_K}   : ${pct(metrics.fileRecallK)}`);
+  log(`\nProvider          : ${provider}`);
+  log(`Queries           : ${metrics.nPositive} positive, ${metrics.nNegative} negative`);
+  log(`chunkRecall@3     : ${pct(metrics.chunkRecall3)}`);
+  log(`chunkRecall@5     : ${pct(metrics.chunkRecall5)}`);
+  log(`chunkRecall@${TOP_K}    : ${pct(metrics.chunkRecall10)}`);
+  log(`windowRecall@5    : ${pct(metrics.windowRecall5)}  (±${BENCH_WINDOW} window)`);
+  log(`windowRecall@${TOP_K}   : ${pct(metrics.windowRecall10)}  (±${BENCH_WINDOW} window)`);
+  log(`supportRecall@${TOP_K}  : ${pct(metrics.supportRecallK)}`);
+  log(`nDCG@${TOP_K} (graded)  : ${metrics.ndcgK?.toFixed(3) ?? 'n/a'}`);
+  log(`MRR@10            : ${metrics.mrr10?.toFixed(3) ?? 'n/a'}`);
+  log(`fileRecall@1      : ${pct(metrics.fileRecall1)}`);
+  log(`fileRecall@${TOP_K}     : ${pct(metrics.fileRecallK)}`);
   if (metrics.negativePassRate !== null)
-    log(`negativePass    : ${pct(metrics.negativePassRate)}`);
-  log(`Latency p50/p95 : ${metrics.p50Latency}ms / ${metrics.p95Latency}ms`);
-  log(`Avg ms          : ${Math.round(metrics.avgLatency)}`);
+    log(`negativePass      : ${pct(metrics.negativePassRate)}`);
+  if (metrics.emptyExpectedChunkCount > 0)
+    log(`⚠ emptyExpected   : ${metrics.emptyExpectedChunkCount} queries point to empty/heading-only qrel chunks — review qrels`);
+  log(`Latency p50/p95   : ${metrics.p50Latency}ms / ${metrics.p95Latency}ms`);
+  log(`Avg ms            : ${Math.round(metrics.avgLatency)}`);
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
@@ -516,7 +599,7 @@ async function main() {
   log('\n[1/2] Setup collection...');
   await ensureCollection();
 
-  let indexedIds;
+  let indexedIds, emptyChunkIds;
   if (SKIP_INDEX) {
     const stored = await fetchStoredProvider();
     if (!stored) {
@@ -535,10 +618,10 @@ async function main() {
       process.exit(1);
     }
     log('[2/2] Skipping index (BENCH_SKIP_INDEX=1) — fetching chunk IDs for qrel validation...');
-    indexedIds = await fetchIndexedChunkIds();
+    ({ indexedIds, emptyChunkIds } = await fetchIndexedChunkIds());
   } else {
     log(`[2/2] Indexing ${FIXTURE_FILES.length} fixture docs...`);
-    indexedIds = await indexFixtures();
+    ({ indexedIds, emptyChunkIds } = await indexFixtures());
   }
 
   log('Validating qrels...');
@@ -560,7 +643,7 @@ async function main() {
     }
   }
 
-  const metrics = computeMetrics(queryResults);
+  const metrics = computeMetrics(queryResults, emptyChunkIds);
   printResults(queryResults);
   printSummary(metrics, BENCH_PROVIDER);
   log('');
@@ -575,19 +658,22 @@ async function main() {
       topK:          TOP_K,
       metrics,
       queryResults: queryResults.map(r => ({
-        id:          r.query.id,
-        type:        r.query.type,
-        isNegative:  r.query.shouldHaveNoStrongHit,
-        chunkRecall3: chunkRecallHit(r.results, r.query.qrels, 3, 3),
-        chunkRecall5: chunkRecallHit(r.results, r.query.qrels, 5, 3),
-        supportRecall: chunkRecallHit(r.results, r.query.qrels, TOP_K, 2),
-        ndcg:         gradedNDCG(r.results, r.query.qrels, TOP_K),
-        mrr10:        mrr(r.results, r.query.qrels, 10, 3),
-        latency:      r.latency,
-        topChunks:    r.results.slice(0, TOP_K).map(x => ({
-          chunkId:  resultChunkId(x),
+        id:           r.query.id,
+        type:         r.query.type,
+        isNegative:   r.query.shouldHaveNoStrongHit,
+        chunkRecall3:  chunkRecallHit(r.results, r.query.qrels, 3,      3),
+        chunkRecall5:  chunkRecallHit(r.results, r.query.qrels, 5,      3),
+        chunkRecall10: chunkRecallHit(r.results, r.query.qrels, TOP_K,  3),
+        windowRecall5: windowRecallHit(r.results, r.query.qrels, 5,     BENCH_WINDOW),
+        windowRecall10: windowRecallHit(r.results, r.query.qrels, TOP_K, BENCH_WINDOW),
+        supportRecall: chunkRecallHit(r.results, r.query.qrels, TOP_K,  2),
+        ndcg:          gradedNDCG(r.results, r.query.qrels, TOP_K),
+        mrr10:         mrr(r.results, r.query.qrels, 10, 3),
+        latency:       r.latency,
+        topChunks:     r.results.slice(0, TOP_K).map(x => ({
+          chunkId:   resultChunkId(x),
           relevance: r.query.qrels.get(resultChunkId(x)) ?? 0,
-          score:    x.score,
+          score:     x.score,
         })),
       })),
     }) + '\n');

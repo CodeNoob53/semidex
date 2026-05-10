@@ -113,7 +113,7 @@
       "query": "чому hybridSearch падає коли нема sparse векторів",
       "expectedFiles": ["qdrant.md"],
       "relevantChunks": [
-        { "chunkId": "qdrant.md#3", "relevance": 3 },
+        { "chunkId": "qdrant.md#4", "relevance": 3 },
         { "chunkId": "qdrant.md#2", "relevance": 2 }
       ],
       "expectedTokens": ["fallback"],
@@ -148,8 +148,8 @@
       "query": "source_file payload index efficient filtering deleteBySourceFile",
       "expectedFiles": ["qdrant.md"],
       "relevantChunks": [
-        { "chunkId": "qdrant.md#4", "relevance": 3 },
-        { "chunkId": "qdrant.md#5", "relevance": 2 }
+        { "chunkId": "qdrant.md#5", "relevance": 3 },
+        { "chunkId": "qdrant.md#4", "relevance": 2 }
       ],
       "expectedTokens": ["source_file"],
       "note": "payload index and delete by source"
@@ -405,7 +405,7 @@
       "query": "де знаходиться src/core/qdrant.js і що він експортує",
       "expectedFiles": ["project-structure.md"],
       "relevantChunks": [
-        { "chunkId": "project-structure.md#2", "relevance": 3 },
+        { "chunkId": "project-structure.md#6", "relevance": 3 },
         { "chunkId": "project-structure.md#1", "relevance": 2 }
       ],
       "expectedTokens": ["qdrant"],
@@ -417,7 +417,7 @@
       "query": "chunkFile splitSentences parseMarkdown location in source",
       "expectedFiles": ["project-structure.md"],
       "relevantChunks": [
-        { "chunkId": "project-structure.md#5", "relevance": 3 },
+        { "chunkId": "project-structure.md#7", "relevance": 3 },
         { "chunkId": "project-structure.md#1", "relevance": 2 }
       ],
       "expectedTokens": ["chunkFile"],
@@ -429,8 +429,8 @@
       "query": "npm run bench:custom50 entry point run-v3.js",
       "expectedFiles": ["project-structure.md"],
       "relevantChunks": [
-        { "chunkId": "project-structure.md#7", "relevance": 3 },
-        { "chunkId": "project-structure.md#1", "relevance": 2 }
+        { "chunkId": "project-structure.md#9", "relevance": 3 },
+        { "chunkId": "project-structure.md#2", "relevance": 2 }
       ],
       "expectedTokens": ["bench"],
       "note": "custom-50 entry point in project structure"
@@ -441,7 +441,8 @@
       "query": "SCHEMA_VERSION constant embeddings.js reindex discriminator",
       "expectedFiles": ["project-structure.md"],
       "relevantChunks": [
-        { "chunkId": "project-structure.md#3", "relevance": 3 }
+        { "chunkId": "project-structure.md#5", "relevance": 3 },
+        { "chunkId": "project-structure.md#4", "relevance": 2 }
       ],
       "expectedTokens": ["SCHEMA_VERSION"],
       "note": "SCHEMA_VERSION in embeddings.js"
@@ -452,8 +453,8 @@
       "query": "chunkRecall nDCG graded relevance benchmark v3 schema",
       "expectedFiles": ["benchmarking.md"],
       "relevantChunks": [
-        { "chunkId": "benchmarking.md#4", "relevance": 3 },
-        { "chunkId": "benchmarking.md#3", "relevance": 2 }
+        { "chunkId": "benchmarking.md#10", "relevance": 3 },
+        { "chunkId": "benchmarking.md#8", "relevance": 2 }
       ],
       "expectedTokens": ["chunkRecall"],
       "note": "v3 chunk-level metrics definition"
@@ -464,7 +465,8 @@
       "query": "relevantChunks chunkId format source_file#chunk_index",
       "expectedFiles": ["benchmarking.md"],
       "relevantChunks": [
-        { "chunkId": "benchmarking.md#2", "relevance": 3 }
+        { "chunkId": "benchmarking.md#7", "relevance": 3 },
+        { "chunkId": "benchmarking.md#3", "relevance": 2 }
       ],
       "expectedTokens": ["chunkId"],
       "note": "chunkId format in v3 schema"
@@ -475,8 +477,8 @@
       "query": "яка різниця між 21-query regression і custom-50 quality benchmark",
       "expectedFiles": ["benchmarking.md"],
       "relevantChunks": [
-        { "chunkId": "benchmarking.md#1", "relevance": 3 },
-        { "chunkId": "benchmarking.md#6", "relevance": 2 }
+        { "chunkId": "benchmarking.md#2", "relevance": 3 },
+        { "chunkId": "benchmarking.md#3", "relevance": 2 }
       ],
       "expectedTokens": ["regression"],
       "note": "two benchmark tiers comparison, UA paraphrase"
@@ -487,7 +489,8 @@
       "query": "BENCH_SKIP_INDEX validates stored provider matches current env",
       "expectedFiles": ["benchmarking.md"],
       "relevantChunks": [
-        { "chunkId": "benchmarking.md#7", "relevance": 3 }
+        { "chunkId": "benchmarking.md#23", "relevance": 3 },
+        { "chunkId": "benchmarking.md#17", "relevance": 2 }
       ],
       "expectedTokens": ["BENCH_SKIP_INDEX"],
       "note": "BENCH_SKIP_INDEX provider validation"
@@ -568,8 +571,8 @@
       "query": "ONNX_EMBED=1 recommended provider for multilingual Ukrainian content",
       "expectedFiles": ["multilingual.md"],
       "relevantChunks": [
-        { "chunkId": "multilingual.md#6", "relevance": 3 },
-        { "chunkId": "multilingual.md#1", "relevance": 2 }
+        { "chunkId": "multilingual.md#9", "relevance": 3 },
+        { "chunkId": "multilingual.md#2", "relevance": 2 }
       ],
       "expectedTokens": ["ONNX_EMBED"],
       "note": "ONNX recommended for multilingual"

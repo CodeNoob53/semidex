@@ -11,6 +11,7 @@ npm run bench:retrieval:compare
 npm run bench:retrieval:rerank
 npm run bench:retrieval:mmr
 npm run bench:custom50
+BENCH_JSON=1 BENCH_SKIP_INDEX=1 npm run bench:custom50 | npm run bench:custom50:failures
 ```
 
 ## Smoke Tests
@@ -75,12 +76,20 @@ Run when evaluating retrieval quality beyond file-level recall.
 |--------|---------|
 | `chunkRecall@3` | Exact answer chunk (rel≥3) in top-3 |
 | `chunkRecall@5` | Exact answer chunk (rel≥3) in top-5 |
+| `chunkRecall@10` | Exact answer chunk (rel≥3) in top-10 |
+| `windowRecall@5` | Exact chunk or ±1 neighbor in top-5 |
+| `windowRecall@10` | Exact chunk or ±1 neighbor in top-10 |
 | `supportRecall@K` | Supporting chunk (rel≥2) in top-K |
 | `nDCG@K (graded)` | Gain = 2^relevance − 1, normalised |
 | `MRR@10` | Reciprocal rank of first rel≥3 chunk |
 | `fileRecall@1/K` | File-level recall (secondary) |
 | `negativePassRate` | Negative queries do not return strong hits |
 | `p50/p95 latency` | Query latency percentiles |
+
+`windowRecall` measures whether the correct answer is reachable via
+`qdrant_get_chunk(window=N)` — the gap between `windowRecall` and `chunkRecall` at
+the same depth shows how many misses are chunk-boundary effects rather than true
+retrieval failures. Control the adjacency window with `BENCH_WINDOW` (default: 1).
 
 ### Relevance scale (v3)
 
@@ -152,15 +161,22 @@ The custom-50 quality benchmark is a more demanding evaluation harness. Use it
 when making changes that could affect chunk-level retrieval precision — provider
 switches, embedding schema changes, or RRF/MMR parameter tuning.
 
-The first ONNX baseline on custom-50 (2026-05-10, bge-m3-onnx, hybrid RRF, top-10):
+ONNX baseline on custom-50 (2026-05-10, bge-m3-onnx, hybrid RRF, top-10, corrected qrels):
 
 | Metric | Value |
 |--------|-------|
-| chunkRecall@3 | — |
-| chunkRecall@5 | 67.3% |
-| supportRecall@10 | 83.7% |
-| nDCG@10 (graded) | 0.578 |
-| MRR@10 | 0.514 |
+| chunkRecall@3 | 77.6% |
+| chunkRecall@5 | 87.8% |
+| chunkRecall@10 | 93.9% |
+| windowRecall@5 | 95.9% |
+| windowRecall@10 | 98.0% |
+| supportRecall@10 | 98.0% |
+| nDCG@10 (graded) | 0.710 |
+| MRR@10 | 0.655 |
 | fileRecall@10 | 100% |
+
+Remaining failures: 3 chunkRecall@10 misses — 2 window hits (c02, c33) and 1 genuine
+total-miss (c29: collection-discovery session-start query). Inspect with
+`benchmarks/retrieval/results/2026-05-10-custom50-failure-analysis.txt`.
 
 Raw result: `benchmarks/retrieval/results/2026-05-10-custom50-onnx-baseline.txt`
