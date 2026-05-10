@@ -19,6 +19,7 @@
     "expectedSections": ["bge-m3-onnx + bge-m3-onnx"],
     "expectedAllTokens": ["onnx"],
     "expectedAnyTokens": ["ONNX_EMBED", "ollama"],
+    "expectedAnyTokenGroups": ["bge-m3-onnx"],
     "note": "ONNX_EMBED=1 shorthand, bge-m3-onnx provider"
   },
   {
@@ -217,6 +218,18 @@
     "expectedSections": ["bge-m3-onnx + bge-m3-onnx"],
     "expectedAllTokens": ["ONNX_EMBED"],
     "expectedAnyTokens": ["download", "cache", "models"],
+    "expectedAnyTokenGroups": ["bge-m3-onnx"],
     "note": "EN exact tokens: ONNX_EMBED, bge-m3-onnx, ./models/"
+  },
+  {
+    "id": "q21",
+    "type": "exact-token",
+    "query": "ONNX_EMBED enables bge-m3-onnx provider without Ollama",
+    "expected": ["providers.md"],
+    "expectedFiles": ["providers.md"],
+    "expectedSections": ["bge-m3-onnx + bge-m3-onnx"],
+    "expectedAllTokens": ["ONNX_EMBED"],
+    "expectedAnyTokenGroups": ["bge-m3-onnx"],
+    "note": "strict group test: bge-m3-onnx as unit — all three sub-tokens must appear in correct-file chunk"
   }
 ]

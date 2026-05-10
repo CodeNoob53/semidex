@@ -83,6 +83,7 @@ Four Markdown files in `fixtures/docs/`, each covering one semidex subsystem:
   "expectedSections": ["Section heading as chunked"],
   "expectedAllTokens": ["token_must_exist"],
   "expectedAnyTokens": ["config.json", "hashed-tf"],
+  "expectedAnyTokenGroups": ["bge-m3-onnx"],
   "note": "what concept this tests"
 }
 ```
@@ -96,7 +97,8 @@ Four Markdown files in `fixtures/docs/`, each covering one semidex subsystem:
 | `expectedFiles` | no | File names that must appear in top-K results |
 | `expectedSections` | no | Section headings (exact match as indexed) — enables `sectionHit@K` |
 | `expectedAllTokens` | no | Tokens that ALL must appear in a matching chunk — enables `tokenHit@K`. Multi-part values like `"config.json"` are split automatically: `["config","json"]` |
-| `expectedAnyTokens` | no | At least ONE of these tokens must appear alongside `expectedAllTokens` |
+| `expectedAnyTokens` | no | **Loose:** at least ONE sub-token from any entry must appear. `"bge-m3-onnx"` → `["bge","m3","onnx"]`; hit if `"onnx"` alone is found |
+| `expectedAnyTokenGroups` | no | **Strict:** at least ONE entry must fully match — ALL its sub-tokens present in the same chunk. `"bge-m3-onnx"` → `["bge","m3","onnx"]`; hit only when all three are found. Use for exact technical terms |
 | `shouldHaveNoStrongHit` | no | `true` for negative queries — excluded from Recall/MRR, counted as `negativePassRate` |
 
 **sectionHit@K** and **tokenHit@K** are scoped to chunks from `expectedFiles` only — a tok ✓ means the token appeared in a chunk from the correct file, not any chunk in top-K.

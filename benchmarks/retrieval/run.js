@@ -1,7 +1,8 @@
 // Retrieval benchmark for semidex.
 //
 // Supports v1 queries (expected: [...]) and v2 queries (expectedFiles,
-// expectedSections, expectedAllTokens, expectedAnyTokens, type).
+// expectedSections, expectedAllTokens, expectedAnyTokens,
+// expectedAnyTokenGroups, type).
 // v1 fields are accepted as-is; missing v2 fields produce n/a for those metrics.
 //
 // Usage:
@@ -9,8 +10,39 @@
 //   BENCH_PROVIDER=onnx node benchmarks/...       # force bge-m3-onnx regardless of .env
 //   BENCH_SKIP_INDEX=1 node benchmarks/...        # skip re-indexing (must match stored provider)
 //   BENCH_TOP_K=10 node benchmarks/...            # change search depth (default 5)
+//   node benchmarks/retrieval/run.js --help       # show this help
 //
 // Prerequisites: QDRANT_URL + QDRANT_KEY must be set in .env or the environment.
+
+if (process.argv.includes('--help')) {
+  process.stdout.write(`semidex retrieval benchmark
+
+Usage:
+  node benchmarks/retrieval/run.js [options]
+  npm run bench:retrieval
+
+Options (env vars):
+  BENCH_PROVIDER=onnx          Force bge-m3-onnx regardless of .env
+  BENCH_SKIP_INDEX=1           Skip re-indexing; reuse existing bench-retrieval collection
+  BENCH_TOP_K=<n>              Search depth (default: 5)
+  BENCH_JSON=1                 Emit JSON summary on stdout (human output → stderr)
+  RERANK_ENABLED=1             Enable reranking (RERANK_PREFETCH_MULT=4 default)
+  RERANK_PREFETCH_MULT=<n>     Candidate multiplier for rerank prefetch
+
+Query schema (queries.json):
+  v1: { id, query, expected, note }
+  v2: { id, type, query, expectedFiles, expectedSections,
+        expectedAllTokens, expectedAnyTokens, expectedAnyTokenGroups,
+        shouldHaveNoStrongHit, note }
+
+  expectedAnyTokens    — flattened: "bge-m3-onnx" → ["bge","m3","onnx"], hit on any one
+  expectedAnyTokenGroups — strict: each group entry must match ALL its sub-tokens
+                           e.g. ["bge-m3-onnx"] → hit only when "bge","m3","onnx" ALL present
+
+Prerequisites: QDRANT_URL and QDRANT_KEY in .env or environment.
+`);
+  process.exit(0);
+}
 
 import 'dotenv/config';
 import { readFileSync } from 'fs';
@@ -65,27 +97,37 @@ if (BENCH_PROVIDER === 'onnx') {
 // Normalise a raw query entry to a consistent internal shape.
 // v1: { id, query, expected, note }
 // v2: { id, type, query, expectedFiles, expectedSections,
-//       expectedAllTokens, expectedAnyTokens, shouldHaveNoStrongHit, note }
-// Flatten token list: each entry is split by the same regex as tokenise() so that
-// multi-part values like "config.json" → ["config","json"] match correctly.
+//       expectedAllTokens, expectedAnyTokens, expectedAnyTokenGroups,
+//       shouldHaveNoStrongHit, note }
+
+// Flatten: "config.json" → ["config","json"]. Used for expectedAllTokens/expectedAnyTokens.
+// anyOk fires if ANY single sub-token matches — loose, good for prose keywords.
 function flattenTokenList(arr) {
   if (!arr?.length) return null;
   return arr.flatMap(t => tokenise(t)).filter(Boolean);
 }
 
+// Token groups: each entry is kept as a sub-array of tokens.
+// "bge-m3-onnx" → [["bge","m3","onnx"]]. anyOk fires only when ALL sub-tokens of a
+// group are present in the same chunk — strict, for exact technical terms.
+function buildTokenGroups(arr) {
+  if (!arr?.length) return null;
+  return arr.map(t => tokenise(t)).filter(g => g.length);
+}
+
 function normaliseQuery(q) {
   return {
-    id:                   q.id,
-    type:                 q.type ?? 'file-level',
-    query:                q.query,
-    expectedFiles:        q.expectedFiles ?? q.expected ?? [],
-    expectedSections:     q.expectedSections ?? null,
-    // Normalise token lists through tokenise() so "config.json" → ["config","json"]
-    expectedAllTokens:    flattenTokenList(q.expectedAllTokens),
-    expectedAnyTokens:    flattenTokenList(q.expectedAnyTokens),
+    id:                    q.id,
+    type:                  q.type ?? 'file-level',
+    query:                 q.query,
+    expectedFiles:         q.expectedFiles ?? q.expected ?? [],
+    expectedSections:      q.expectedSections ?? null,
+    expectedAllTokens:     flattenTokenList(q.expectedAllTokens),
+    expectedAnyTokens:     flattenTokenList(q.expectedAnyTokens),
+    expectedAnyTokenGroups: buildTokenGroups(q.expectedAnyTokenGroups),
     shouldHaveNoStrongHit: q.shouldHaveNoStrongHit ?? false,
-    note:                 q.note ?? '',
-    expected:             q.expected ?? q.expectedFiles ?? [],
+    note:                  q.note ?? '',
+    expected:              q.expected ?? q.expectedFiles ?? [],
   };
 }
 
@@ -190,19 +232,25 @@ function sectionHit(results, expectedSections) {
   return results.some(r => expectedSections.includes(r.payload?.section));
 }
 
-// Does any chunk in results contain ALL allTokens and at least ONE of anyTokens?
-// Tokens are already normalised through tokenise() by normaliseQuery.
+// Does any chunk in results satisfy the token constraints?
+// - allTokens: ALL must be present (flat list, each token independent)
+// - anyTokens: at least ONE must be present (flat, loose — any single sub-token counts)
+// - anyTokenGroups: at least ONE group must fully match (all sub-tokens of that group present)
+// Tokens already normalised through tokenise() by normaliseQuery.
 // Pass results pre-filtered to expectedFiles for the primary (scoped) metric.
-function tokenHit(results, allTokens, anyTokens) {
-  if (!allTokens?.length && !anyTokens?.length) return null; // n/a
+function tokenHit(results, allTokens, anyTokens, anyTokenGroups) {
+  if (!allTokens?.length && !anyTokens?.length && !anyTokenGroups?.length) return null; // n/a
   return results.some(r => {
     const words = new Set([
       ...tokenise(r.payload?.text    ?? ''),
       ...tokenise(r.payload?.section ?? ''),
     ]);
-    const allOk = !allTokens?.length || allTokens.every(t => words.has(t));
-    const anyOk = !anyTokens?.length || anyTokens.some(t  => words.has(t));
-    return allOk && anyOk;
+    const allOk    = !allTokens?.length       || allTokens.every(t => words.has(t));
+    const anyOk    = !anyTokens?.length       || anyTokens.some(t  => words.has(t));
+    const groupsOk = !anyTokenGroups?.length  || anyTokenGroups.some(g => g.every(t => words.has(t)));
+    // anyTokens and anyTokenGroups are alternatives: either satisfies the "any" requirement.
+    const anyPass  = (!anyTokens?.length && !anyTokenGroups?.length) || anyOk || groupsOk;
+    return allOk && anyPass;
   });
 }
 
@@ -256,7 +304,7 @@ function computeMetrics(queryResults) {
     const sh = sectionHit(expectedResults, query.expectedSections);
     if (sh !== null) { sectionTotal++; if (sh) sectionHits++; }
 
-    const th = tokenHit(expectedResults, query.expectedAllTokens, query.expectedAnyTokens);
+    const th = tokenHit(expectedResults, query.expectedAllTokens, query.expectedAnyTokens, query.expectedAnyTokenGroups);
     if (th !== null) { tokenTotal++; if (th) tokenHits++; }
 
     // Duplicate source rate: fraction of top-K results sharing the same source_file.
@@ -334,7 +382,7 @@ function printResults(queryResults, queries) {
     const hitK    = !q.shouldHaveNoStrongHit && r.rankedFiles.slice(0, TOP_K).some(f => ef.includes(f)) ? '✓' : (q.shouldHaveNoStrongHit ? '–' : '✗');
     const expRes  = filterToExpected(r.results, ef);
     const sh      = sectionHit(expRes, q.expectedSections);
-    const th      = tokenHit(expRes, q.expectedAllTokens, q.expectedAnyTokens);
+    const th      = tokenHit(expRes, q.expectedAllTokens, q.expectedAnyTokens, q.expectedAnyTokenGroups);
     const shStr   = sh === null ? '–' : (sh ? '✓' : '✗');
     const thStr   = th === null ? '–' : (th ? '✓' : '✗');
     log([
@@ -452,7 +500,7 @@ async function main() {
         rank:     r.query.shouldHaveNoStrongHit ? -2 : r.rankedFiles.findIndex(f => r.query.expectedFiles.includes(f)),
         latency:  r.latency,
         sectionHit: sectionHit(filterToExpected(r.results, r.query.expectedFiles), r.query.expectedSections),
-        tokenHit:   tokenHit(filterToExpected(r.results, r.query.expectedFiles), r.query.expectedAllTokens, r.query.expectedAnyTokens),
+        tokenHit:   tokenHit(filterToExpected(r.results, r.query.expectedFiles), r.query.expectedAllTokens, r.query.expectedAnyTokens, r.query.expectedAnyTokenGroups),
       })),
     }) + '\n');
   }
