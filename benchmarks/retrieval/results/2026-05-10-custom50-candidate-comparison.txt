@@ -1,0 +1,171 @@
+════════════════════════════════════════════════════════════════════════════════════════
+  custom-50 candidate comparison
+  Candidates : baseline, prefetch-20, rerank, prefetch-20+rerank
+  Provider   : onnx (bge-m3-onnx/bge-m3-onnx), hybrid RRF, top-10
+════════════════════════════════════════════════════════════════════════════════════════
+
+Aggregate metrics:
+------------------------------------------------------------------------------------------------------
+                                  baseline         prefetch-20              rerank  prefetch-20+rerank
+------------------------------------------------------------------------------------------------------
+chunkRecall@5                        87.8%               87.8%               87.8%               87.8%
+chunkRecall@10                       93.9%               93.9%               98.0%               98.0%
+windowRecall@5                       95.9%               95.9%               98.0%               98.0%
+windowRecall@10                      98.0%               98.0%              100.0%              100.0%
+supportRecall@10                     98.0%               98.0%              100.0%              100.0%
+nDCG@10                              0.718               0.712               0.717               0.709
+MRR@10                               0.665               0.665               0.668               0.651
+fileRecall@10                       100.0%              100.0%              100.0%              100.0%
+p50 ms                                90ms                89ms                92ms                93ms
+p95 ms                               104ms               100ms               127ms               104ms
+------------------------------------------------------------------------------------------------------
+
+Per-query best rank of rel≥3 chunk (— = not found in top-K):
+------------------------------------------------------------------------------------------------------
+ID     Query (truncated)                                 baseline         prefetch-20              rerank  prefetch-20+rerank
+------------------------------------------------------------------------------------------------------
+c01    де налаштовується sparseProvider                        #1                  #1                  #1                  #1
+c02    які є валідні комбінації провайдерів                     —                   —                   —                   —
+c03    як увімкнути bge-m3-onnx без Ollama                     #2                  #2                  #2                  #2
+c04    embedding_schema_version reindex disc                   #3                  #3                  #3                  #3
+c05    що станеться якщо змінити denseModel                    #1                  #1                  #1                  #1
+c06    resolveEnvProviders single source of                    #2                  #2                  #3                  #3
+c07    Invalid provider combination error mi                   #2                  #2                  #3                  #3
+c08    як працює RRF k параметр у гібридному                   #1                  #1                  #1                  #1
+c09    HYBRID_PREFETCH_LIMIT prefetch per RR                   #4                  #4                  #4                  #4
+c10    чому hybridSearch падає коли нема spa                   #1                  #1                  #1                  #1
+c11    getStoredMeta які поля читає з Qdrant                   #1                  #1                  #1                  #1
+c12    як Qdrant зберігає named vectors dens                   #6                  #6                  #6                  #6
+c13    source_file payload index efficient f                   #1                  #1                  #1                  #1
+c14    Qdrant Query API body shape for RRF f                   #2                  #2                  #2                  #2
+c15    OVERLAP_SENTENCES default value sente                   #4                  #4                  #6                  #6
+c16    чому фінальний чанк може губитись при                   #1                  #1                  #1                  #1
+c17    чому overlap не переноситься між mark                   #1                  #1                  #1                  #1
+c18    splitSentences regex trailing text wi                   #1                  #1                  #1                  #1
+c19    як pandoc конвертує docx epub rtf у m                   #1                  #1                  #1                  #1
+c20    MAX_CHUNK_TOKENS MIN_CHUNK_TOKENS chu                   #2                  #2                  #2                  #2
+c21    що робить npm run sync з config.json                    #1                  #1                  #1                  #1
+c22    sync backfill logic for missing dense                   #1                  #1                  #1                  #1
+c23    коли потрібно запускати sync після ап                   #1                  #1                  #1                  #1
+c24    sync записує поточний провайдер а не                    #1                  #1                  #1                  #1
+c25    відмінність між sync та indexer стосо                   #2                  #2                  #2                  #2
+c26    як зареєструвати MCP сервер semidex у                   #2                  #1                  #2                  #2
+c27    qdrant_get_chunk window parameter con                   #1                  #1                  #1                  #1
+c28    qdrant_find_by_tag groups results by                    #1                  #1                  #1                  #1
+c29    як агент повинен починати сесію з sem                    —                   —                  #6                  #7
+c30    qdrant_related backlinks file-level s                   #1                  #1                  #1                  #1
+c31    CHUNKS_OUT_DIR Obsidian export direct                   #5                  #5                  #3                  #3
+c32    LINK_MIN_SCORE LINK_TOP wikilink thre                   #1                  #1                  #1                  #1
+c33    що міститься у frontmatter кожного Ob                    —                   —                  #6                  #6
+c34    use cases for reviewing chunk quality                   #1                  #1                  #1                  #1
+c35    де знаходиться src/core/qdrant.js і щ                   #5                  #5                  #3                  #3
+c36    chunkFile splitSentences parseMarkdow                   #2                  #2                  #2                  #2
+c37    npm run bench:custom50 entry point ru                   #7                  #7                  #4                  #4
+c38    SCHEMA_VERSION constant embeddings.js                   #1                  #2                  #1                  #2
+c39    chunkRecall nDCG graded relevance ben                   #1                  #1                  #1                  #2
+c40    relevantChunks chunkId format source_                   #1                  #1                  #1                  #1
+c41    яка різниця між 21-query regression і                   #5                  #5                  #6                  #6
+c42    BENCH_SKIP_INDEX validates stored pro                   #1                  #1                  #1                  #1
+c43    QDRANT_URL QDRANT_KEY required enviro                   #2                  #2                  #2                  #2
+c44    RERANK_PROTECT_TOP1_DELTA minimum adv                   #1                  #1                  #1                  #1
+c45    config.json six reindex discriminator                   #2                  #2                  #2                  #2
+c46    що таке SOURCE_ROOT і навіщо він потр                   #1                  #1                  #1                  #1
+c47    bge-m3-onnx neural sparse weights for                   #3                  #3                  #5                  #5
+c48    cross-lingual retrieval Ukrainian que                   #6                  #6                  #5                  #5
+c49    ONNX_EMBED=1 recommended provider for                   #3                  #3                  #3                  #2
+------------------------------------------------------------------------------------------------------
+
+────────────────────────────────────────────────────────────────────────────────────────
+prefetch-20 vs baseline:
+────────────────────────────────────────────────────────────────────────────────────────
+  Improved (1):
+    c26    #2 → #1  як зареєструвати MCP сервер semidex у Claude Code
+
+  Regressed (1):
+    c38    #1 → #2  SCHEMA_VERSION constant embeddings.js reindex discrimin
+
+────────────────────────────────────────────────────────────────────────────────────────
+rerank vs baseline:
+────────────────────────────────────────────────────────────────────────────────────────
+  Improved (6):
+    c29    miss → #6  як агент повинен починати сесію з semidex MCP
+    c31    #5 → #3  CHUNKS_OUT_DIR Obsidian export directory chunks output
+    c33    miss → #6  що міститься у frontmatter кожного Obsidian файлу chunk
+    c35    #5 → #3  де знаходиться src/core/qdrant.js і що він експортує
+    c37    #7 → #4  npm run bench:custom50 entry point run-v3.js
+    c48    #6 → #5  cross-lingual retrieval Ukrainian query English documen
+
+  Regressed (5):
+    c06    #2 → #3  resolveEnvProviders single source of truth provider map
+    c07    #2 → #3  Invalid provider combination error mixed ollama onnx
+    c15    #4 → #6  OVERLAP_SENTENCES default value sentence overlap chunki
+    c41    #5 → #6  яка різниця між 21-query regression і custom-50 quality
+    c47    #3 → #5  bge-m3-onnx neural sparse weights for rare Ukrainian te
+
+────────────────────────────────────────────────────────────────────────────────────────
+prefetch-20+rerank vs baseline:
+────────────────────────────────────────────────────────────────────────────────────────
+  Improved (7):
+    c29    miss → #7  як агент повинен починати сесію з semidex MCP
+    c31    #5 → #3  CHUNKS_OUT_DIR Obsidian export directory chunks output
+    c33    miss → #6  що міститься у frontmatter кожного Obsidian файлу chunk
+    c35    #5 → #3  де знаходиться src/core/qdrant.js і що він експортує
+    c37    #7 → #4  npm run bench:custom50 entry point run-v3.js
+    c48    #6 → #5  cross-lingual retrieval Ukrainian query English documen
+    c49    #3 → #2  ONNX_EMBED=1 recommended provider for multilingual Ukra
+
+  Regressed (7):
+    c06    #2 → #3  resolveEnvProviders single source of truth provider map
+    c07    #2 → #3  Invalid provider combination error mixed ollama onnx
+    c15    #4 → #6  OVERLAP_SENTENCES default value sentence overlap chunki
+    c38    #1 → #2  SCHEMA_VERSION constant embeddings.js reindex discrimin
+    c39    #1 → #2  chunkRecall nDCG graded relevance benchmark v3 schema
+    c41    #5 → #6  яка різниця між 21-query regression і custom-50 quality
+    c47    #3 → #5  bge-m3-onnx neural sparse weights for rare Ukrainian te
+
+════════════════════════════════════════════════════════════════════════════════════════
+Remaining failures (chunkRecall@5) per candidate:
+
+  baseline  (6 failures):
+    rank6-10     : 3  c12, c37, c48
+    window (±1)  : 2  c02, c33
+    support-only : 0  
+    total-miss   : 1  c29
+
+  prefetch-20  (6 failures):
+    rank6-10     : 3  c12, c37, c48
+    window (±1)  : 2  c02, c33
+    support-only : 0  
+    total-miss   : 1  c29
+
+  rerank  (6 failures):
+    rank6-10     : 5  c12, c15, c29, c33, c41
+    window (±1)  : 1  c02
+    support-only : 0  
+    total-miss   : 0  
+
+  prefetch-20+rerank  (6 failures):
+    rank6-10     : 5  c12, c15, c29, c33, c41
+    window (±1)  : 1  c02
+    support-only : 0  
+    total-miss   : 0  
+
+════════════════════════════════════════════════════════════════════════════════════════
+Recommendation (based on this run only — cross-validate before changing defaults):
+
+  prefetch-20:
+    CR@5 0.0pp, CR@10 0.0pp | nDCG -0.006, MRR 0.000 | p95 -4.0ms
+    Neutral — no meaningful recall or ranking change.
+
+  rerank:
+    CR@5 0.0pp, CR@10 +4.1pp | nDCG -0.001, MRR +0.003 | p95 +23.0ms
+    Neutral — no meaningful recall or ranking change.
+
+  prefetch-20+rerank:
+    CR@5 0.0pp, CR@10 +4.1pp | nDCG -0.009, MRR -0.014 | p95 0.0ms
+    Neutral — no meaningful recall or ranking change.
+
+  Production defaults should not be changed from a single run.
+  Cross-validate across multiple runs and inspect per-query regressions before promoting.
+
+════════════════════════════════════════════════════════════════════════════════════════

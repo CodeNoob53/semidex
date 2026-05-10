@@ -13,6 +13,7 @@ npm run bench:retrieval:mmr
 npm run bench:custom50
 BENCH_JSON=1 BENCH_SKIP_INDEX=1 npm run bench:custom50 | npm run bench:custom50:failures
 npm run bench:custom50:tune
+npm run bench:custom50:compare
 ```
 
 ## Smoke Tests
@@ -155,6 +156,27 @@ The "Best candidates" block at the end of the output summarises per-metric winne
 the lowest p95 among variants that do not reduce `chunkRecall@5` vs baseline. A single
 run is not sufficient to change production defaults — cross-validate across multiple
 runs before adjusting `RRF_K`, `HYBRID_PREFETCH_LIMIT`, or `RERANK_ENABLED`.
+
+## Candidate Comparison
+
+```bash
+npm run bench:custom50:compare
+```
+
+Runs 4 fixed candidate presets (baseline, prefetch-20, rerank, prefetch-20+rerank)
+and produces a failure-level diff rather than just aggregate metrics. Use this after
+the tuning matrix to understand *which specific queries* improve or regress between
+configurations before promoting a preset.
+
+Output includes:
+
+- aggregate metrics per candidate (same metrics as the tuning matrix)
+- per-query best rank of the rel≥3 chunk across all candidates
+- improved and regressed queries per candidate vs baseline (with rank deltas)
+- remaining failure categories (rank6-10 / window / support-only / total-miss)
+- auto-derived recommendation block (does not change production defaults)
+
+Output is saved to `benchmarks/retrieval/results/YYYY-MM-DD-custom50-candidate-comparison.txt`.
 
 ## MMR Diversity Matrix
 
