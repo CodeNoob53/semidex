@@ -18,7 +18,8 @@
     "bench:custom50:compare": "node benchmarks/retrieval/custom-50/compare-candidates.js",
     "bench:custom50:agent": "node benchmarks/retrieval/custom-50/agent-policy.js",
     "bench:custom50:diagnostics": "node benchmarks/retrieval/custom-50/diagnostics.js",
-    "bench:custom50:sweep": "node benchmarks/retrieval/custom-50/threshold-sweep.js"
+    "bench:custom50:sweep": "node benchmarks/retrieval/custom-50/threshold-sweep.js",
+    "bench:custom-large": "node benchmarks/retrieval/custom-large/run.js"
   },
   "dependencies": {
     "@huggingface/transformers": "^4.2.0",

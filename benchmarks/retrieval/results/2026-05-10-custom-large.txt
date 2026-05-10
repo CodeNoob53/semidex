@@ -1,0 +1,89 @@
+=== semidex custom-large benchmark — 2026-05-10 ===
+Provider: bge-m3-onnx/bge-m3-onnx
+Top-K: 10  Window: +-1
+
+--- Retrieval Metrics ---
+chunkRecall@3     : 77.8%
+chunkRecall@5     : 80.0%
+chunkRecall@10    : 82.2%
+windowRecall@5    : 100.0%
+windowRecall@10   : 100.0%
+supportRecall@10  : 88.9%
+nDCG@5            : 0.727
+nDCG@10           : 0.741
+MRR@10            : 0.735
+negativePass      : 100.0%
+Latency p50/p95   : 94ms / 106ms
+
+--- Chunking Guardrails ---
+totalChunks       : 87
+zeroChunkFiles    : none
+anchorCoverage    : 100.0%
+missingAnchors    : none
+duplicateAnchors  : none
+oversizedChunks   : 0 (>400 approx tokens)
+maxChunkTokens    : 300 approx
+sectionlessRate   : 0.0%
+anchorsPerChunk   : p50=1  p95=2
+
+--- Anchor Map ---
+  API_AUTH_TOKEN                      -> api-reference-large.md#1
+  API_BATCH_INDEX                     -> api-reference-large.md#7
+  API_ERROR_SCHEMA                    -> api-reference-large.md#14
+  API_FILTER_TAGS                     -> api-reference-large.md#12
+  API_GET_CHUNK_WINDOW                -> api-reference-large.md#17
+  API_GRAPH_RELATED                   -> api-reference-large.md#5
+  API_HEALTH_CHECK                    -> api-reference-large.md#10
+  API_RERANK_FLAG                     -> api-reference-large.md#15
+  API_SEARCH_REQUEST                  -> api-reference-large.md#2
+  API_SOURCE_FILE_FILTER              -> api-reference-large.md#13
+  API_STREAMING_STATUS                -> api-reference-large.md#11
+  API_VECTOR_UPSERT                   -> api-reference-large.md#8
+  CFG_BACKFILL_SYNC                   -> configuration-manual.md#16
+  CFG_CHUNK_BOUNDARY                  -> configuration-manual.md#8
+  CFG_ENV_RETRY_POLICY                -> configuration-manual.md#20
+  CFG_LOCAL_LLM                       -> configuration-manual.md#11
+  CFG_MODEL_CACHE                     -> configuration-manual.md#10
+  CFG_OBSIDIAN_EXPORT                 -> configuration-manual.md#21
+  CFG_PROVIDER_MISMATCH               -> configuration-manual.md#5
+  CFG_RATE_LIMIT                      -> configuration-manual.md#19
+  CFG_REINDEX_TRIGGER                 -> configuration-manual.md#17
+  CFG_SPARSE_PROVIDER                 -> configuration-manual.md#14
+  CFG_UA_MIXED_CONTENT                -> configuration-manual.md#22
+  CFG_VECTOR_STORAGE                  -> configuration-manual.md#13
+  MIG_CHUNK_INDEX_CHANGE              -> migration-guide-v1-v2.md#5
+  MIG_CONFIG_REWRITE                  -> migration-guide-v1-v2.md#7
+  MIG_DRY_RUN                         -> migration-guide-v1-v2.md#10
+  MIG_ENV_COMPAT                      -> migration-guide-v1-v2.md#6
+  MIG_OBSIDIAN_REVIEW                 -> migration-guide-v1-v2.md#8
+  MIG_PROVIDER_META                   -> migration-guide-v1-v2.md#4
+  MIG_QDRANT_COLLECTION               -> migration-guide-v1-v2.md#3
+  MIG_REINDEX_REQUIRED                -> migration-guide-v1-v2.md#9
+  MIG_ROLLBACK_PLAN                   -> migration-guide-v1-v2.md#13
+  MIG_SCHEMA_VERSION                  -> migration-guide-v1-v2.md#2
+  MIG_SYNC_BACKFILL                   -> migration-guide-v1-v2.md#11
+  MIG_VALIDATION                      -> migration-guide-v1-v2.md#12
+  MLG_AGENT_WAKEUP                    -> mixed-language-agent-guide.md#14
+  MLG_BACKLINK_FLOW                   -> mixed-language-agent-guide.md#10
+  MLG_CODE_PROSE                      -> mixed-language-agent-guide.md#9
+  MLG_CONTEXT_WINDOW                  -> mixed-language-agent-guide.md#8
+  MLG_DECISION_LOG                    -> mixed-language-agent-guide.md#12
+  MLG_EXACT_TOKEN                     -> mixed-language-agent-guide.md#13
+  MLG_HYBRID_SEARCH                   -> mixed-language-agent-guide.md#5
+  MLG_LOCAL_PRIVACY                   -> mixed-language-agent-guide.md#2
+  MLG_OBSIDIAN_QA                     -> mixed-language-agent-guide.md#10
+  MLG_SECTION_BOUNDARY                -> mixed-language-agent-guide.md#6
+  MLG_TAG_FILTER                      -> mixed-language-agent-guide.md#6
+  MLG_UA_QUERY_EN_DOC                 -> mixed-language-agent-guide.md#4
+  TRB_DUPLICATE_RESULTS               -> troubleshooting-runbook.md#7
+  TRB_EMPTY_CHUNKS                    -> troubleshooting-runbook.md#6
+  TRB_GRAPH_STALE                     -> troubleshooting-runbook.md#6
+  TRB_LOW_RECALL                      -> troubleshooting-runbook.md#7
+  TRB_MCP_NO_TOOLS                    -> troubleshooting-runbook.md#8
+  TRB_MISSING_SPARSE                  -> troubleshooting-runbook.md#4
+  TRB_ONNX_CACHE_CORRUPT              -> troubleshooting-runbook.md#10
+  TRB_PANDOC_FAILURE                  -> troubleshooting-runbook.md#8
+  TRB_PROVIDER_MISMATCH               -> troubleshooting-runbook.md#4
+  TRB_QDRANT_TIMEOUT                  -> troubleshooting-runbook.md#4
+  TRB_RATE_LIMIT                      -> troubleshooting-runbook.md#9
+  TRB_REINDEX_LOOP                    -> troubleshooting-runbook.md#9

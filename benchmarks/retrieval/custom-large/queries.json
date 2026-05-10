@@ -1,0 +1,448 @@
+{
+  "schemaVersion": 4,
+  "description": "Large-document stress benchmark. Qrels use expectedAnchors resolved at runtime — no hardcoded chunk indices.",
+  "queries": [
+    {
+      "id": "lg-api-search-request",
+      "type": "exact-token",
+      "query": "POST /v1/search request body tag_filter source_file top_k",
+      "expectedAnchors": [
+        { "anchor": "API_SEARCH_REQUEST", "relevance": 3 },
+        { "anchor": "API_FILTER_TAGS",    "relevance": 2 },
+        { "anchor": "API_SOURCE_FILE_FILTER", "relevance": 2 }
+      ],
+      "expectedTokens": ["POST /v1/search", "tag_filter", "source_file", "top_k"]
+    },
+    {
+      "id": "lg-api-auth",
+      "type": "exact-token",
+      "query": "X-Semidex-API-Token authentication header required",
+      "expectedAnchors": [
+        { "anchor": "API_AUTH_TOKEN", "relevance": 3 }
+      ],
+      "expectedTokens": ["X-Semidex-API-Token"]
+    },
+    {
+      "id": "lg-api-graph-related",
+      "type": "paraphrase",
+      "query": "traverse the knowledge graph from a seed chunk to find related documents",
+      "expectedAnchors": [
+        { "anchor": "API_GRAPH_RELATED", "relevance": 3 }
+      ],
+      "expectedTokens": []
+    },
+    {
+      "id": "lg-api-batch-index",
+      "type": "exact-token",
+      "query": "POST /v1/index/batch batch_size chunks array indexing endpoint",
+      "expectedAnchors": [
+        { "anchor": "API_BATCH_INDEX",   "relevance": 3 },
+        { "anchor": "API_VECTOR_UPSERT", "relevance": 2 }
+      ],
+      "expectedTokens": ["POST /v1/index/batch", "batch_size"]
+    },
+    {
+      "id": "lg-api-rerank",
+      "type": "paraphrase",
+      "query": "enable cross-encoder reranking to improve search relevance over vector similarity",
+      "expectedAnchors": [
+        { "anchor": "API_RERANK_FLAG",     "relevance": 3 },
+        { "anchor": "API_SEARCH_REQUEST",  "relevance": 2 }
+      ],
+      "expectedTokens": []
+    },
+    {
+      "id": "lg-api-chunk-window",
+      "type": "exact-token",
+      "query": "GET /v1/chunks/window source_file chunk_index surrounding context",
+      "expectedAnchors": [
+        { "anchor": "API_GET_CHUNK_WINDOW", "relevance": 3 }
+      ],
+      "expectedTokens": ["/v1/chunks/window"]
+    },
+    {
+      "id": "lg-api-health",
+      "type": "exact-token",
+      "query": "GET /v1/health OPERATIONAL status uptime_seconds",
+      "expectedAnchors": [
+        { "anchor": "API_HEALTH_CHECK", "relevance": 3 },
+        { "anchor": "API_STREAMING_STATUS", "relevance": 2 }
+      ],
+      "expectedTokens": ["/v1/health", "OPERATIONAL", "uptime_seconds"]
+    },
+    {
+      "id": "lg-api-error-schema",
+      "type": "exact-token",
+      "query": "SemidexApiError INVALID_ARGUMENT error_code http_status 400",
+      "expectedAnchors": [
+        { "anchor": "API_ERROR_SCHEMA", "relevance": 3 }
+      ],
+      "expectedTokens": ["SemidexApiError", "INVALID_ARGUMENT", "error_code", "http_status"]
+    },
+    {
+      "id": "lg-api-filter-tags",
+      "type": "exact-token",
+      "query": "GET /v1/filter/tags query parameter tags security compliance",
+      "expectedAnchors": [
+        { "anchor": "API_FILTER_TAGS",        "relevance": 3 },
+        { "anchor": "API_SOURCE_FILE_FILTER", "relevance": 2 }
+      ],
+      "expectedTokens": ["/v1/filter/tags", "tags"]
+    },
+    {
+      "id": "lg-api-streaming-status",
+      "type": "paraphrase",
+      "query": "monitor progress of a long-running indexing job with estimated remaining time",
+      "expectedAnchors": [
+        { "anchor": "API_STREAMING_STATUS", "relevance": 3 }
+      ],
+      "expectedTokens": []
+    },
+    {
+      "id": "lg-cfg-provider-mismatch",
+      "type": "exact-token",
+      "query": "provider mismatch error reindex collection DENSE_PROVIDER configuration",
+      "expectedAnchors": [
+        { "anchor": "CFG_PROVIDER_MISMATCH", "relevance": 3 },
+        { "anchor": "CFG_SPARSE_PROVIDER",   "relevance": 2 }
+      ],
+      "expectedTokens": ["mismatch", "DENSE_PROVIDER"]
+    },
+    {
+      "id": "lg-cfg-chunk-boundary",
+      "type": "paraphrase",
+      "query": "how to control granularity of document splitting with token size parameters",
+      "expectedAnchors": [
+        { "anchor": "CFG_CHUNK_BOUNDARY", "relevance": 3 }
+      ],
+      "expectedTokens": []
+    },
+    {
+      "id": "lg-cfg-model-cache",
+      "type": "exact-token",
+      "query": "MODEL_CACHE_DIR ONNX BGE-M3 model weights download path",
+      "expectedAnchors": [
+        { "anchor": "CFG_MODEL_CACHE", "relevance": 3 }
+      ],
+      "expectedTokens": ["MODEL_CACHE_DIR", "ONNX_EMBED"]
+    },
+    {
+      "id": "lg-cfg-local-llm",
+      "type": "exact-token",
+      "query": "OLLAMA_URL LLM_MODEL gemma3 local LLM context summaries tag generation",
+      "expectedAnchors": [
+        { "anchor": "CFG_LOCAL_LLM", "relevance": 3 }
+      ],
+      "expectedTokens": ["OLLAMA_URL", "LLM_MODEL", "gemma3"]
+    },
+    {
+      "id": "lg-cfg-vector-storage",
+      "type": "exact-token",
+      "query": "QDRANT_URL QDRANT_KEY vector database connection cloud",
+      "expectedAnchors": [
+        { "anchor": "CFG_VECTOR_STORAGE", "relevance": 3 },
+        { "anchor": "CFG_SPARSE_PROVIDER", "relevance": 2 }
+      ],
+      "expectedTokens": ["QDRANT_URL", "QDRANT_KEY"]
+    },
+    {
+      "id": "lg-cfg-backfill-sync",
+      "type": "exact-token",
+      "query": "npm run sync config.json payload indexes synchronization",
+      "expectedAnchors": [
+        { "anchor": "CFG_BACKFILL_SYNC",   "relevance": 3 },
+        { "anchor": "CFG_REINDEX_TRIGGER", "relevance": 2 }
+      ],
+      "expectedTokens": ["npm run sync", "config.json"]
+    },
+    {
+      "id": "lg-cfg-retry-policy",
+      "type": "exact-token",
+      "query": "RETRY_MAX_ATTEMPTS RETRY_DELAY_MS retry policy transient errors RETRY_POLICY none",
+      "expectedAnchors": [
+        { "anchor": "CFG_ENV_RETRY_POLICY", "relevance": 3 },
+        { "anchor": "CFG_RATE_LIMIT",        "relevance": 2 }
+      ],
+      "expectedTokens": ["RETRY_MAX_ATTEMPTS", "RETRY_DELAY_MS"]
+    },
+    {
+      "id": "lg-cfg-obsidian-export",
+      "type": "paraphrase",
+      "query": "generate Markdown review notes per document for Obsidian quality inspection",
+      "expectedAnchors": [
+        { "anchor": "CFG_OBSIDIAN_EXPORT", "relevance": 3 }
+      ],
+      "expectedTokens": []
+    },
+    {
+      "id": "lg-cfg-ua-mixed-content",
+      "type": "mixed-lang",
+      "query": "UTF-8 encoding налаштування мультимовний BGE-M3 Ukrainian English mixed",
+      "expectedAnchors": [
+        { "anchor": "CFG_UA_MIXED_CONTENT", "relevance": 3 }
+      ],
+      "expectedTokens": ["UTF-8"]
+    },
+    {
+      "id": "lg-mig-schema-version",
+      "type": "exact-token",
+      "query": "embedding_schema_version config.json metadata_fields schema update migration",
+      "expectedAnchors": [
+        { "anchor": "MIG_SCHEMA_VERSION", "relevance": 3 },
+        { "anchor": "MIG_CONFIG_REWRITE", "relevance": 2 }
+      ],
+      "expectedTokens": ["embedding_schema_version", "schema_version"]
+    },
+    {
+      "id": "lg-mig-qdrant-collection",
+      "type": "exact-token",
+      "query": "Qdrant collection named vectors dense sparse graph.json link map before backfill",
+      "expectedAnchors": [
+        { "anchor": "MIG_QDRANT_COLLECTION", "relevance": 3 },
+        { "anchor": "MIG_PROVIDER_META",     "relevance": 2 }
+      ],
+      "expectedTokens": ["named vectors", "dense", "sparse", "graph"]
+    },
+    {
+      "id": "lg-mig-chunk-index-change",
+      "type": "paraphrase",
+      "query": "v1 to v2 chunking strategy change from fixed token count to heading section boundaries",
+      "expectedAnchors": [
+        { "anchor": "MIG_CHUNK_INDEX_CHANGE", "relevance": 3 }
+      ],
+      "expectedTokens": []
+    },
+    {
+      "id": "lg-mig-dry-run",
+      "type": "paraphrase",
+      "query": "test migration connectivity without writing production data smoke test first",
+      "expectedAnchors": [
+        { "anchor": "MIG_DRY_RUN",       "relevance": 3 },
+        { "anchor": "MIG_ENV_COMPAT",    "relevance": 2 }
+      ],
+      "expectedTokens": []
+    },
+    {
+      "id": "lg-mig-env-compat",
+      "type": "exact-token",
+      "query": "Node.js 18 npm run smoke environment compatibility check before migration",
+      "expectedAnchors": [
+        { "anchor": "MIG_ENV_COMPAT",    "relevance": 3 },
+        { "anchor": "MIG_CONFIG_REWRITE", "relevance": 2 }
+      ],
+      "expectedTokens": ["Node.js", "npm run smoke"]
+    },
+    {
+      "id": "lg-mig-obsidian-review",
+      "type": "paraphrase",
+      "query": "inspect chunks_out after reindexing to verify section boundaries are respected",
+      "expectedAnchors": [
+        { "anchor": "MIG_OBSIDIAN_REVIEW", "relevance": 3 },
+        { "anchor": "MIG_VALIDATION",       "relevance": 2 }
+      ],
+      "expectedTokens": []
+    },
+    {
+      "id": "lg-mig-sync-backfill",
+      "type": "exact-token",
+      "query": "npm run sync backfill provider records payload field indexes schema version",
+      "expectedAnchors": [
+        { "anchor": "MIG_SYNC_BACKFILL", "relevance": 3 },
+        { "anchor": "MIG_VALIDATION",    "relevance": 2 }
+      ],
+      "expectedTokens": ["npm run sync", "schema"]
+    },
+    {
+      "id": "lg-mig-rollback",
+      "type": "paraphrase",
+      "query": "what to do if v2 deployment fails and how to restore the previous configuration",
+      "expectedAnchors": [
+        { "anchor": "MIG_ROLLBACK_PLAN", "relevance": 3 }
+      ],
+      "expectedTokens": []
+    },
+    {
+      "id": "lg-mig-reindex-required",
+      "type": "paraphrase",
+      "query": "why a full reindex is mandatory when switching from dense-only to hybrid retrieval",
+      "expectedAnchors": [
+        { "anchor": "MIG_REINDEX_REQUIRED", "relevance": 3 },
+        { "anchor": "MIG_CHUNK_INDEX_CHANGE", "relevance": 2 }
+      ],
+      "expectedTokens": []
+    },
+    {
+      "id": "lg-mlg-local-privacy",
+      "type": "paraphrase",
+      "query": "local-first indexing never sends raw documents to external services privacy guarantee",
+      "expectedAnchors": [
+        { "anchor": "MLG_LOCAL_PRIVACY", "relevance": 3 }
+      ],
+      "expectedTokens": []
+    },
+    {
+      "id": "lg-mlg-hybrid-search",
+      "type": "exact-token",
+      "query": "hybrid RRF dense sparse vectors RRF_K reciprocal rank fusion",
+      "expectedAnchors": [
+        { "anchor": "MLG_HYBRID_SEARCH",   "relevance": 3 },
+        { "anchor": "MLG_UA_QUERY_EN_DOC", "relevance": 2 }
+      ],
+      "expectedTokens": ["RRF", "RRF_K", "dense", "sparse"]
+    },
+    {
+      "id": "lg-mlg-context-window",
+      "type": "paraphrase",
+      "query": "how to handle retrieved chunks that exceed the LLM token limit",
+      "expectedAnchors": [
+        { "anchor": "MLG_CONTEXT_WINDOW",  "relevance": 3 },
+        { "anchor": "MLG_CODE_PROSE",      "relevance": 2 }
+      ],
+      "expectedTokens": []
+    },
+    {
+      "id": "lg-mlg-tag-filter",
+      "type": "exact-token",
+      "query": "tag_filter AgentDesign metadata filter restrict results tagged documents",
+      "expectedAnchors": [
+        { "anchor": "MLG_TAG_FILTER",       "relevance": 3 },
+        { "anchor": "MLG_SECTION_BOUNDARY", "relevance": 2 }
+      ],
+      "expectedTokens": ["tag_filter", "AgentDesign"]
+    },
+    {
+      "id": "lg-mlg-agent-wakeup",
+      "type": "paraphrase",
+      "query": "agent signals synthesis complete with source chunk IDs relevance scores provenance",
+      "expectedAnchors": [
+        { "anchor": "MLG_AGENT_WAKEUP",  "relevance": 3 },
+        { "anchor": "MLG_DECISION_LOG",  "relevance": 2 }
+      ],
+      "expectedTokens": []
+    },
+    {
+      "id": "lg-mlg-exact-token",
+      "type": "paraphrase",
+      "query": "force exact match for specific environment variable or function name alongside semantic search",
+      "expectedAnchors": [
+        { "anchor": "MLG_EXACT_TOKEN",    "relevance": 3 },
+        { "anchor": "MLG_DECISION_LOG",   "relevance": 2 }
+      ],
+      "expectedTokens": []
+    },
+    {
+      "id": "lg-mlg-backlinks",
+      "type": "exact-token",
+      "query": "qdrant_backlinks graph view related concepts vault knowledge graph MCP tool",
+      "expectedAnchors": [
+        { "anchor": "MLG_BACKLINK_FLOW", "relevance": 3 },
+        { "anchor": "MLG_OBSIDIAN_QA",  "relevance": 2 }
+      ],
+      "expectedTokens": ["qdrant_backlinks", "backlinks"]
+    },
+    {
+      "id": "lg-mlg-ua-query",
+      "type": "mixed-lang",
+      "query": "Ukrainian query targeting English documentation BGE-M3 ONNX cross-lingual",
+      "expectedAnchors": [
+        { "anchor": "MLG_UA_QUERY_EN_DOC", "relevance": 3 },
+        { "anchor": "MLG_HYBRID_SEARCH",   "relevance": 2 }
+      ],
+      "expectedTokens": ["BGE-M3"]
+    },
+    {
+      "id": "lg-trb-qdrant-timeout",
+      "type": "exact-token",
+      "query": "QDRANT_TIMEOUT_MS connection timeout Qdrant service network latency",
+      "expectedAnchors": [
+        { "anchor": "TRB_QDRANT_TIMEOUT", "relevance": 3 }
+      ],
+      "expectedTokens": ["QDRANT_TIMEOUT_MS", "timeout"]
+    },
+    {
+      "id": "lg-trb-provider-mismatch",
+      "type": "paraphrase",
+      "query": "embedding model used for indexing differs from model used for querying causes error",
+      "expectedAnchors": [
+        { "anchor": "TRB_PROVIDER_MISMATCH", "relevance": 3 },
+        { "anchor": "TRB_MISSING_SPARSE",    "relevance": 2 }
+      ],
+      "expectedTokens": []
+    },
+    {
+      "id": "lg-trb-empty-chunks",
+      "type": "exact-token",
+      "query": "emptyChunkIds heading-only section no body text chunks_out review",
+      "expectedAnchors": [
+        { "anchor": "TRB_EMPTY_CHUNKS", "relevance": 3 },
+        { "anchor": "TRB_GRAPH_STALE",  "relevance": 2 }
+      ],
+      "expectedTokens": ["emptyChunkIds", "chunks_out"]
+    },
+    {
+      "id": "lg-trb-low-recall",
+      "type": "paraphrase",
+      "query": "chunkRecall is low relevant documents consistently missed what to do",
+      "expectedAnchors": [
+        { "anchor": "TRB_LOW_RECALL",         "relevance": 3 },
+        { "anchor": "TRB_DUPLICATE_RESULTS",  "relevance": 2 }
+      ],
+      "expectedTokens": []
+    },
+    {
+      "id": "lg-trb-reindex-loop",
+      "type": "exact-token",
+      "query": "reindex loop SHA-256 hash check file_hash partial index run infinite cycle",
+      "expectedAnchors": [
+        { "anchor": "TRB_REINDEX_LOOP", "relevance": 3 }
+      ],
+      "expectedTokens": ["SHA-256", "file_hash"]
+    },
+    {
+      "id": "lg-trb-mcp-no-tools",
+      "type": "exact-token",
+      "query": "MCP tools not available qdrant_collection_info reconnect Claude Code /mcp",
+      "expectedAnchors": [
+        { "anchor": "TRB_MCP_NO_TOOLS", "relevance": 3 }
+      ],
+      "expectedTokens": ["qdrant_collection_info", "/mcp"]
+    },
+    {
+      "id": "lg-trb-pandoc",
+      "type": "exact-token",
+      "query": "pandoc exit code non-zero PDF DOCX parsing failure document format",
+      "expectedAnchors": [
+        { "anchor": "TRB_PANDOC_FAILURE", "relevance": 3 }
+      ],
+      "expectedTokens": ["pandoc", "exit code"]
+    },
+    {
+      "id": "lg-trb-onnx-cache",
+      "type": "paraphrase",
+      "query": "ONNX model fails to load after interrupted download corrupted cache how to recover",
+      "expectedAnchors": [
+        { "anchor": "TRB_ONNX_CACHE_CORRUPT", "relevance": 3 },
+        { "anchor": "TRB_RATE_LIMIT",          "relevance": 1 }
+      ],
+      "expectedTokens": []
+    },
+    {
+      "id": "lg-trb-low-recall-negative",
+      "type": "paraphrase",
+      "query": "rate limiting exponential backoff Ollama shared instance throughput",
+      "shouldHaveNoStrongHit": false,
+      "expectedAnchors": [
+        { "anchor": "TRB_RATE_LIMIT", "relevance": 3 }
+      ],
+      "expectedTokens": []
+    },
+    {
+      "id": "lg-neg-nonexistent-feature",
+      "type": "negative",
+      "query": "ColBERT late-interaction retrieval token-level scoring semidex production",
+      "shouldHaveNoStrongHit": true,
+      "expectedAnchors": [],
+      "expectedTokens": ["ColBERT"]
+    }
+  ]
+}

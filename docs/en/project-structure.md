@@ -110,15 +110,23 @@ benchmarks/
       queries.json       - 50 queries with relevantChunks and graded relevance
       fixtures/docs/     - 6 additional fixture docs (mcp, obsidian, structure, etc.)
       README.md          - custom-50 benchmark docs
+    custom-large/
+      run.js             - 46-query large-document stress benchmark (v4 schema, anchor-based qrels)
+      queries.json       - 46 queries using expectedAnchors resolved at runtime
+      fixtures/docs/     - 5 large fixture docs with BENCH_ANCHOR markers
+      README.md          - custom-large benchmark docs
 ```
 
-Two benchmark tiers:
+Three benchmark tiers:
 
 - **Regression** (`run.js`, collection `bench-retrieval`): file-level recall, fast,
   run before merges.
 - **Quality** (`custom-50/run-v3.js`, collection `bench-retrieval-custom-50`):
   chunk-level graded recall (`chunkRecall@3/5`, `nDCG@K`, `MRR@10`), deeper
   evaluation for provider or schema changes.
+- **Stress** (`custom-large/run.js`, collection `bench-retrieval-custom-large`):
+  anchor-based qrels on large structured documents; also reports chunking
+  guardrails (anchor coverage, oversized chunks, sectionless rate).
 
 ## Runtime And Generated Files
 

@@ -18,6 +18,9 @@ npm run bench:custom50:agent
 BENCH_SKIP_INDEX=1 npm run bench:custom50:agent
 npm run bench:custom50:diagnostics
 BENCH_SKIP_INDEX=1 npm run bench:custom50:diagnostics
+npm run bench:custom-large
+BENCH_SKIP_INDEX=1 npm run bench:custom-large
+ONNX_EMBED=1 npm run bench:custom-large
 ```
 
 ## Smoke Tests
@@ -32,9 +35,9 @@ It covers:
 - chunking edge cases
 - reranker top-1 protection
 
-## Two Benchmark Tiers
+## Three Benchmark Tiers
 
-semidex has two benchmark tiers with different purposes:
+semidex has three benchmark tiers with different purposes:
 
 ### 21-query regression benchmark
 
@@ -58,6 +61,24 @@ Docs: `benchmarks/retrieval/custom-50/README.md`
 
 Chunk-level evaluation with graded relevance (`relevantChunks`, `relevance: 1/2/3`).
 Run when evaluating retrieval quality beyond file-level recall.
+
+### custom-large stress benchmark
+
+Collection: `bench-retrieval-custom-large`
+
+Fixtures: `benchmarks/retrieval/custom-large/fixtures/docs/` (5 large docs)
+Queries: `benchmarks/retrieval/custom-large/queries.json` (46 queries, v4 schema)
+Docs: `benchmarks/retrieval/custom-large/README.md`
+
+Large-document chunking and retrieval stress test. Fixture docs contain
+`[[BENCH_ANCHOR: NAME]]` markers; qrels are derived at runtime by scanning
+chunk text — no hardcoded chunk indices. Run when evaluating chunking quality
+on large structured documents, after changing `MIN_CHUNK_TOKENS`, `MAX_CHUNK_TOKENS`,
+or the section-aware splitting logic.
+
+custom-50 = controlled chunk-level retrieval quality on short, well-structured docs.
+custom-large = large structured document stress benchmark (API references, migration
+guides, multilingual workflows, runbooks).
 
 ## Metrics
 
@@ -375,3 +396,35 @@ threshold. Cross-validate across multiple runs before using any
 threshold as a non-oracle trigger gate.
 
 Output is saved to `benchmarks/retrieval/results/YYYY-MM-DD-custom50-threshold-sweep.txt`.
+
+## custom-large Benchmark
+
+```bash
+npm run bench:custom-large
+BENCH_SKIP_INDEX=1 npm run bench:custom-large
+ONNX_EMBED=1 npm run bench:custom-large
+```
+
+Stress-tests chunking quality on five large fixture documents. Fixture docs contain
+`[[BENCH_ANCHOR: NAME]]` comments. After indexing, the runner scans chunk text
+to build an anchor→chunkId map. `queries.json` uses `expectedAnchors` (anchor names
+with relevance scores) instead of hardcoded chunk indices; the runner resolves them
+at runtime and fails loudly if any anchor is missing.
+
+### Chunking Guardrails
+
+Reported in addition to retrieval metrics. Do not fail the run; they diagnose
+whether the fixture docs are chunked appropriately.
+
+| Guardrail | Meaning |
+|-----------|---------|
+| `zeroChunkFiles` | Files that produced 0 chunks |
+| `anchorCoverage` | Fraction of queried anchors found in indexed chunks (should be 100%) |
+| `missingAnchors` | Anchor names not found in any chunk (fail-fast for qrels) |
+| `duplicateAnchors` | Anchors found in more than one chunk |
+| `oversizedChunkCount` | Chunks exceeding `MAX_CHUNK_TOKENS` threshold |
+| `maxChunkTokensObserved` | Largest chunk seen |
+| `sectionlessRate` | Fraction of chunks with no section heading |
+| `anchorsPerChunk p50/p95` | Distribution of anchor count per chunk |
+
+Output is saved to `benchmarks/retrieval/results/YYYY-MM-DD-custom-large.txt`.

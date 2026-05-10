@@ -29,10 +29,10 @@ semidex `chunkFile()` provides the following guarantees for Markdown input:
 
 ### Section-aware splitting
 
-Chunks do not span Markdown section boundaries (headings). When a section is
-shorter than `MIN_CHUNK_TOKENS`, it may be merged with adjacent sections in the
-same file — but it is never merged across a heading that would change the semantic
-scope of the chunk.
+Chunks do not span Markdown section boundaries (headings). Each headed section
+is kept as its own chunk regardless of size. An unheaded preface at the start
+of a file that falls below `MIN_CHUNK_TOKENS` may be omitted, but headed
+sections are never merged across heading boundaries.
 
 ### No overlap leakage across sections
 
@@ -98,9 +98,9 @@ A heading-only section, a single-sentence note, or an `(empty section: …)`
 placeholder produces a chunk that carries no answer content. It may still rank
 highly due to lexical overlap with the query.
 
-**Detection:** `chunkFile()` flags empty-text chunks during indexing (logged as
-`emptyChunkIds`). The custom-50 benchmark includes a guardrail that warns when
-an expected chunk ID resolves to an empty-text chunk.
+**Detection:** The custom-50 benchmark flags empty-text or heading-only expected
+chunks (logged as `emptyChunkIds`) and warns when a qrel chunk ID resolves to
+one. Production indexing does not apply this guardrail.
 
 ### Chunk too large and noisy
 
