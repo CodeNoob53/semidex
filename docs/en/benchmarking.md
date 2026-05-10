@@ -14,6 +14,8 @@ npm run bench:custom50
 BENCH_JSON=1 BENCH_SKIP_INDEX=1 npm run bench:custom50 | npm run bench:custom50:failures
 npm run bench:custom50:tune
 npm run bench:custom50:compare
+npm run bench:custom50:agent
+BENCH_SKIP_INDEX=1 npm run bench:custom50:agent
 ```
 
 ## Smoke Tests
@@ -236,3 +238,42 @@ total-miss (c29: collection-discovery session-start query). Inspect with
 `benchmarks/retrieval/results/2026-05-10-custom50-failure-analysis.txt`.
 
 Raw result: `benchmarks/retrieval/results/2026-05-10-custom50-onnx-baseline.txt`
+
+## Agent Policy
+
+```bash
+npm run bench:custom50:agent
+BENCH_SKIP_INDEX=1 npm run bench:custom50:agent
+```
+
+Models semidex as a two-step agentic retrieval system. Evaluates 5 policies:
+
+| Policy | Description |
+|--------|-------------|
+| `baseline-top5` | Single hybrid search, top-5 |
+| `baseline-top10` | Single hybrid search, top-10 |
+| `top5→top10-on-miss` | top-5 first; on miss, widen to top-10 |
+| `top5→rerank-on-miss` | top-5 first; on miss, fetch top-40 + rerank |
+| `top5→window-on-miss` | top-5 first; on miss, if a ±1 neighbor of the exact chunk is in top-5, fetch via `qdrant_get_chunk` |
+
+Metrics per policy:
+
+| Metric | Meaning |
+|--------|---------|
+| `singleShotRecall@5` | Fraction of queries where baseline-top5 finds the rel≥3 chunk |
+| `agentSuccess@1step` | Fraction found without a recovery step |
+| `agentSuccess@2steps` | Fraction found after any steps (including recovery) |
+| `avgSearchCalls` | Average number of Qdrant calls per query |
+| `avgLatency ms` | Average end-to-end latency including embedding |
+| `remainingMisses` | Queries where no step succeeded |
+
+**Important — oracle upper bounds:** Policies 3–5 use qrels to detect misses and
+decide whether to fire a recovery step. A real agent cannot inspect qrels. Therefore
+`agentSuccess@2steps`, `avgSearchCalls`, and `avgLatency` are **oracle upper bounds**,
+not realistic estimates. Treat them as the theoretical ceiling for each policy's
+recovery approach.
+
+Always uses ONNX provider (bge-m3-onnx, hybrid RRF, default RRF_K=60). Provider
+and RRF parameters cannot be overridden in-process.
+
+Output is saved to `benchmarks/retrieval/results/YYYY-MM-DD-custom50-agent-policy.txt`.

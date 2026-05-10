@@ -1,0 +1,123 @@
+══════════════════════════════════════════════════════════════════════════════════════════
+  custom-50 agent-policy evaluation
+  Provider : onnx (bge-m3-onnx/bge-m3-onnx), hybrid RRF
+  Queries  : 49 positive with rel≥3 qrels
+  Window   : ±1 (policy 5 expansion)
+══════════════════════════════════════════════════════════════════════════════════════════
+
+Aggregate metrics:
+------------------------------------------------------------------------------------------------------------------------------------------------
+                                   baseline-top5          baseline-top10      top5→top10-on-miss     top5→rerank-on-miss     top5→window-on-miss
+------------------------------------------------------------------------------------------------------------------------------------------------
+singleShotRecall@5                         83.7%           (n/a — top10)           (n/a — top10)           (n/a — top10)           (n/a — top10)
+agentSuccess@1step                         83.7%                   93.9%                   83.7%                   83.7%                   83.7%
+agentSuccess@2steps                        83.7%                   93.9%                   93.9%                   98.0%                   93.9%
+avgSearchCalls                              1.00                    1.00                    1.16                    1.16                    1.10
+avgLatency ms                              123ms                   131ms                   145ms                   187ms                   143ms
+remainingMisses                                8                       3                       3                       1                       3
+------------------------------------------------------------------------------------------------------------------------------------------------
+
+Remaining misses per policy:
+------------------------------------------------------------------------------------------------------------------------------------------------
+  baseline-top5          : c02, c12, c29, c33, c35, c37, c41, c48
+  baseline-top10         : c02, c29, c33
+  top5→top10-on-miss     : c02, c29, c33
+  top5→rerank-on-miss    : c02
+  top5→window-on-miss    : c29, c35, c37
+
+Per-query outcome (✓=found, ✗=miss, 2=found at step 2):
+──────────────────────────────────────────────────────────────────────────────────────────
+ID     Query (truncated)                                  baseline-top5          baseline-top10      top5→top10-on-miss     top5→rerank-on-miss     top5→window-on-miss
+──────────────────────────────────────────────────────────────────────────────────────────
+c01    де налаштовується sparseProvider                               ✓                       ✓                       ✓                       ✓                       ✓
+c02    які є валідні комбінації провайдерів em                        ✗                       ✗                       ✗                       ✗                       2
+c03    як увімкнути bge-m3-onnx без Ollama                            ✓                       ✓                       ✓                       ✓                       ✓
+c04    embedding_schema_version reindex discri                        ✓                       ✓                       ✓                       ✓                       ✓
+c05    що станеться якщо змінити denseModel у                         ✓                       ✓                       ✓                       ✓                       ✓
+c06    resolveEnvProviders single source of tr                        ✓                       ✓                       ✓                       ✓                       ✓
+c07    Invalid provider combination error mixe                        ✓                       ✓                       ✓                       ✓                       ✓
+c08    як працює RRF k параметр у гібридному п                        ✓                       ✓                       ✓                       ✓                       ✓
+c09    HYBRID_PREFETCH_LIMIT prefetch per RRF                         ✓                       ✓                       ✓                       ✓                       ✓
+c10    чому hybridSearch падає коли нема spars                        ✓                       ✓                       ✓                       ✓                       ✓
+c11    getStoredMeta які поля читає з Qdrant p                        ✓                       ✓                       ✓                       ✓                       ✓
+c12    як Qdrant зберігає named vectors dense                         ✗                       ✓                       2                       2                       2
+c13    source_file payload index efficient fil                        ✓                       ✓                       ✓                       ✓                       ✓
+c14    Qdrant Query API body shape for RRF fus                        ✓                       ✓                       ✓                       ✓                       ✓
+c15    OVERLAP_SENTENCES default value sentenc                        ✓                       ✓                       ✓                       ✓                       ✓
+c16    чому фінальний чанк може губитись при м                        ✓                       ✓                       ✓                       ✓                       ✓
+c17    чому overlap не переноситься між markdo                        ✓                       ✓                       ✓                       ✓                       ✓
+c18    splitSentences regex trailing text with                        ✓                       ✓                       ✓                       ✓                       ✓
+c19    як pandoc конвертує docx epub rtf у mar                        ✓                       ✓                       ✓                       ✓                       ✓
+c20    MAX_CHUNK_TOKENS MIN_CHUNK_TOKENS chunk                        ✓                       ✓                       ✓                       ✓                       ✓
+c21    що робить npm run sync з config.json                           ✓                       ✓                       ✓                       ✓                       ✓
+c22    sync backfill logic for missing densePr                        ✓                       ✓                       ✓                       ✓                       ✓
+c23    коли потрібно запускати sync після апгр                        ✓                       ✓                       ✓                       ✓                       ✓
+c24    sync записує поточний провайдер а не то                        ✓                       ✓                       ✓                       ✓                       ✓
+c25    відмінність між sync та indexer стосовн                        ✓                       ✓                       ✓                       ✓                       ✓
+c26    як зареєструвати MCP сервер semidex у C                        ✓                       ✓                       ✓                       ✓                       ✓
+c27    qdrant_get_chunk window parameter conte                        ✓                       ✓                       ✓                       ✓                       ✓
+c28    qdrant_find_by_tag groups results by so                        ✓                       ✓                       ✓                       ✓                       ✓
+c29    як агент повинен починати сесію з semid                        ✗                       ✗                       ✗                       2                       ✗
+c30    qdrant_related backlinks file-level sem                        ✓                       ✓                       ✓                       ✓                       ✓
+c31    CHUNKS_OUT_DIR Obsidian export director                        ✓                       ✓                       ✓                       ✓                       ✓
+c32    LINK_MIN_SCORE LINK_TOP wikilink thresh                        ✓                       ✓                       ✓                       ✓                       ✓
+c33    що міститься у frontmatter кожного Obsi                        ✗                       ✗                       ✗                       2                       2
+c34    use cases for reviewing chunk quality a                        ✓                       ✓                       ✓                       ✓                       ✓
+c35    де знаходиться src/core/qdrant.js і що                         ✗                       ✓                       2                       2                       ✗
+c36    chunkFile splitSentences parseMarkdown                         ✓                       ✓                       ✓                       ✓                       ✓
+c37    npm run bench:custom50 entry point run-                        ✗                       ✓                       2                       2                       ✗
+c38    SCHEMA_VERSION constant embeddings.js r                        ✓                       ✓                       ✓                       ✓                       ✓
+c39    chunkRecall nDCG graded relevance bench                        ✓                       ✓                       ✓                       ✓                       ✓
+c40    relevantChunks chunkId format source_fi                        ✓                       ✓                       ✓                       ✓                       ✓
+c41    яка різниця між 21-query regression і c                        ✗                       ✓                       2                       2                       2
+c42    BENCH_SKIP_INDEX validates stored provi                        ✓                       ✓                       ✓                       ✓                       ✓
+c43    QDRANT_URL QDRANT_KEY required environm                        ✓                       ✓                       ✓                       ✓                       ✓
+c44    RERANK_PROTECT_TOP1_DELTA minimum advan                        ✓                       ✓                       ✓                       ✓                       ✓
+c45    config.json six reindex discriminators                         ✓                       ✓                       ✓                       ✓                       ✓
+c46    що таке SOURCE_ROOT і навіщо він потріб                        ✓                       ✓                       ✓                       ✓                       ✓
+c47    bge-m3-onnx neural sparse weights for r                        ✓                       ✓                       ✓                       ✓                       ✓
+c48    cross-lingual retrieval Ukrainian query                        ✗                       ✓                       2                       2                       2
+c49    ONNX_EMBED=1 recommended provider for m                        ✓                       ✓                       ✓                       ✓                       ✓
+──────────────────────────────────────────────────────────────────────────────────────────
+
+Changes vs baseline-top5:
+
+  baseline-top10:
+    Improved  (5): c12 [step 1], c35 [step 1], c37 [step 1], c41 [step 1], c48 [step 1]
+    Regressed (0): —
+
+  top5→top10-on-miss:
+    Improved  (5): c12 [step 2], c35 [step 2], c37 [step 2], c41 [step 2], c48 [step 2]
+    Regressed (0): —
+
+  top5→rerank-on-miss:
+    Improved  (7): c12 [step 2], c29 [step 2], c33 [step 2], c35 [step 2], c37 [step 2], c41 [step 2], c48 [step 2]
+    Regressed (0): —
+
+  top5→window-on-miss:
+    Improved  (5): c02 [step 2], c12 [step 2], c33 [step 2], c41 [step 2], c48 [step 2]
+    Regressed (0): —
+
+══════════════════════════════════════════════════════════════════════════════════════════
+Recommendation (based on this run only — do not change production defaults):
+
+  baseline-top10:
+    agentSuccess@2steps +10.2pp  avgCalls 0.00  avgLatency +8.2ms
+    Promising — improves success rate at acceptable call overhead.
+
+  top5→top10-on-miss:
+    agentSuccess@2steps +10.2pp  avgCalls +0.16  avgLatency +22.2ms
+    Promising — improves success rate at acceptable call overhead.
+
+  top5→rerank-on-miss:
+    agentSuccess@2steps +14.3pp  avgCalls +0.16  avgLatency +64.1ms
+    Promising — improves success rate at acceptable call overhead.
+
+  top5→window-on-miss:
+    agentSuccess@2steps +10.2pp  avgCalls +0.10  avgLatency +19.8ms
+    Promising — improves success rate at acceptable call overhead.
+
+  Production defaults should not be changed from a single run.
+  Re-run after indexing changes to validate policy stability.
+
+══════════════════════════════════════════════════════════════════════════════════════════
