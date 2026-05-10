@@ -279,6 +279,10 @@ The server runs over stdio and is managed by Claude Code. Once registered, the t
 | `npm run index` | Index files: `COLLECTION=x npm run index <path>` |
 | `npm run mcp` | Start MCP server |
 | `npm run sync` | Sync config.json + ensure payload indexes on all collections |
+| `npm run smoke` | Fast offline smoke tests (no Qdrant/Ollama needed) |
+| `npm run bench:retrieval` | Retrieval benchmark against live Qdrant (requires `.env`) |
+| `npm run bench:retrieval:compare` | Side-by-side provider comparison (ollama vs onnx) |
+| `npm run bench:retrieval:rerank` | 4-variant rerank matrix: ollama±rerank vs onnx±rerank |
 
 ## Configuration
 
@@ -335,6 +339,64 @@ At query time, `qdrant_search` runs both vectors in parallel via Qdrant's Query 
 > `hashed-tf` is a hashed TF encoder (IDF=1, no corpus stats). Not true BM25, but zero-dependency and fast.
 > `bge-m3-onnx` sparse output is BGE-M3 lexical token weighting — not SPLADE vocabulary expansion, but neural and multilingual.
 
+## Reranking (experimental)
+
+semidex includes a local deterministic reranker that post-processes Qdrant RRF results before returning them to the caller. It is **off by default** and adds no latency overhead when disabled.
+
+### How it works
+
+When `RERANK_ENABLED=1`, the MCP server fetches `top × RERANK_PREFETCH_MULT` candidates from Qdrant (default: 4× more than requested), scores them locally, then returns the best `top` results.
+
+Scoring is two-phase:
+
+1. **Base score** — `1 / (rank + 1)` from the original RRF rank. Provider-agnostic; doesn't mix scales with raw Qdrant scores.
+2. **Boosts** — deterministic signals layered on top of the base score:
+
+| Signal | Default boost | Description |
+|--------|--------------|-------------|
+| `source_file` token match | 0.08 | Query tokens found in the chunk's file name |
+| `section` token match | 0.06 | Query tokens found in the chunk's section heading |
+| `tags` token match | 0.05 | Query tokens found in any tag |
+| `text` token match | 0.01 | Query tokens found in the chunk body (noisy — kept low) |
+| backlink count | 0.04/link | Files with more incoming links rank higher |
+
+Technical tokens (`snake_case`, `ACRONYM`, `camelCase`, length ≥ 8) score **3× higher** than prose words. Common Ukrainian and English stopwords are excluded from all boosts.
+
+A **greedy diversity pass** applies a penalty when multiple chunks from the same file are selected consecutively, encouraging varied results.
+
+**Top-1 protection** (`RERANK_PROTECT_TOP1_DELTA=0.05`): the reranker only displaces the original RRF rank-0 result when the challenger's score advantage exceeds this threshold — preventing aggressive reranking from degrading the highest-confidence RRF hit.
+
+### Benchmark results
+
+| Provider | Recall@1 (no rerank) | Recall@1 (rerank v2) | MRR |
+|----------|---------------------|---------------------|-----|
+| `ollama + hashed-tf` | 90% | 90% | 0.938 |
+| `bge-m3-onnx` | 95% | **100%** | **1.000** |
+
+Reranking is recommended for `bge-m3-onnx`. For `ollama+hashed-tf`, it provides no Recall@1 gain on the test corpus (top-1 protection prevents regressions).
+
+### Configuration
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `RERANK_ENABLED` | `0` | Set to `1` to enable reranking in the MCP search tool |
+| `RERANK_PREFETCH_MULT` | `4` | Candidate multiplier: fetch `top × N` from Qdrant before reranking |
+| `RERANK_DEBUG` | `0` | Set to `1` to print per-result scoring details to stderr |
+| `RERANK_BOOST_SOURCE_FILE` | `0.08` | Boost per token hit in `source_file` |
+| `RERANK_BOOST_SECTION` | `0.06` | Boost per token hit in `section` |
+| `RERANK_BOOST_TAGS` | `0.05` | Boost per token hit in `tags` |
+| `RERANK_BOOST_TEXT` | `0.01` | Boost per token hit in `text` |
+| `RERANK_BOOST_BACKLINK` | `0.04` | Boost per incoming backlink |
+| `RERANK_PROTECT_TOP1_DELTA` | `0.05` | Minimum score advantage required to displace original RRF rank-0 |
+
+### Recommended setup (bge-m3-onnx)
+
+```bash
+ONNX_EMBED=1
+RERANK_ENABLED=1
+RERANK_PREFETCH_MULT=4   # default
+```
+
 ## MCP Tools
 
 | Tool | Arguments | Description |
@@ -357,6 +419,7 @@ src/
     graph.js      — per-collection graph.<collection>.json with full edge cleanup
     config.js     — config.json helpers + getDenseProvider/getDenseModel/getSparseProvider (per-collection)
     embeddings.js — unified provider layer: embedForIndex, embedForSearch, getEmbeddingConfig
+    rerank.js     — local deterministic reranker: token boosts, diversity, top-1 protection
   indexer/
     index.js      — CLI entry point
     batch.js      — parallel batch runner

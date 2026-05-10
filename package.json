@@ -9,7 +9,8 @@
     "sync": "node src/sync.js",
     "smoke": "node src/smoke.js",
     "bench:retrieval": "node benchmarks/retrieval/run.js",
-    "bench:retrieval:compare": "node benchmarks/retrieval/compare.js"
+    "bench:retrieval:compare": "node benchmarks/retrieval/compare.js",
+    "bench:retrieval:rerank": "node benchmarks/retrieval/rerank-matrix.js"
   },
   "dependencies": {
     "@huggingface/transformers": "^4.2.0",

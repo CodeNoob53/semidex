@@ -27,6 +27,14 @@ BENCH_SKIP_INDEX=1 npm run bench:retrieval
 
 # Change search depth (default 5). Recall@K label matches actual TOP_K.
 BENCH_TOP_K=10 npm run bench:retrieval
+
+# Side-by-side comparison: ollama vs onnx (two runs, no rerank).
+npm run bench:retrieval:compare
+
+# Rerank matrix: all 4 combinations (ollama±rerank, onnx±rerank).
+# Explicitly forces provider env vars so .env overrides can't bleed in.
+npm run bench:retrieval:rerank
+RERANK_PREFETCH_MULT=8 npm run bench:retrieval:rerank
 ```
 
 Prerequisites: `QDRANT_URL` and `QDRANT_KEY` must be set in `.env` or the environment.
