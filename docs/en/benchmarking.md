@@ -16,6 +16,8 @@ npm run bench:custom50:tune
 npm run bench:custom50:compare
 npm run bench:custom50:agent
 BENCH_SKIP_INDEX=1 npm run bench:custom50:agent
+npm run bench:custom50:diagnostics
+BENCH_SKIP_INDEX=1 npm run bench:custom50:diagnostics
 ```
 
 ## Smoke Tests
@@ -279,3 +281,64 @@ exits with an error if either is set to a non-default value, because `qdrant.js`
 reads them at module load time and they cannot be reset in-process.
 
 Output is saved to `benchmarks/retrieval/results/YYYY-MM-DD-custom50-agent-policy.txt`.
+
+## Search Diagnostics
+
+```bash
+npm run bench:custom50:diagnostics
+BENCH_SKIP_INDEX=1 npm run bench:custom50:diagnostics
+SPREAD_THRESHOLD=0.03 BENCH_SKIP_INDEX=1 npm run bench:custom50:diagnostics
+```
+
+**Experiment — does not change runtime or MCP behavior.**
+
+Computes per-query signal features from a baseline top-5 hybrid search and
+tests simple trigger rules that could predict when top-5 is weak and a recovery
+step should fire. Qrels are used **only** to evaluate whether triggers correctly
+predict misses — never to compute signals or fire triggers.
+
+Observable signals (no qrel access, safe to use as triggers):
+
+| Signal | Description |
+|--------|-------------|
+| `topScoreSpread` | score(rank1) − score(rank5) |
+| `topScoreRatio` | score(rank1) / score(rank5), guarded for zero |
+| `sourceDiversity` | unique `source_file` count in top-5 |
+| `duplicateSourceRate` | fraction of top-5 results sharing the top-1 source |
+| `exactQueryTokenHits` | fraction of query tokens found in top-5 text/section/source |
+| `technicalTokenHits` | fraction of semidex technical tokens found in top-5 text |
+| `top1SourceRepeated` | top-1 source appears ≥3 times in top-5 |
+
+Eval-only signals (qrel-dependent — not usable in triggers):
+
+| Signal | Description |
+|--------|-------------|
+| `hasNeighborCandidate` | a ±`BENCH_WINDOW` neighbor of any rel≥3 chunk is in top-5 |
+| `top5ContainsExpectedFile` | a result from any expected file is in top-5 |
+| `isMiss` | no rel≥3 chunk in top-5 |
+
+Trigger rules tested:
+
+| Rule | Condition |
+|------|-----------|
+| `low-diversity` | `sourceDiversity < 2` |
+| `low-spread` | `topScoreSpread < SPREAD_THRESHOLD` (default 0.05) |
+| `no-tech-token` | `technicalTokenHits === 0` (exact-token queries only) |
+| `combined` | any of the above |
+
+Trigger evaluation metrics per rule:
+
+| Metric | Meaning |
+|--------|---------|
+| `triggerRate` | % of positive queries where trigger fires |
+| `missRecall` | % of real misses caught by trigger |
+| `falsePositiveRate` | % of non-misses incorrectly triggered |
+| `recoveryPotential@10` | % of triggered queries recovered by widening to top-10 |
+| `recoveryPotential@rerank` | % of triggered queries recovered by top-40 + rerank |
+| `recoveryPotential@window` | % of triggered queries recovered by window expansion |
+
+`SPREAD_THRESHOLD` tunes the `low-spread` rule (default 0.05). Always uses ONNX
+provider; `RRF_K` and `HYBRID_PREFETCH_LIMIT` must be at defaults (exits with error
+otherwise).
+
+Output is saved to `benchmarks/retrieval/results/YYYY-MM-DD-custom50-diagnostics.txt`.
