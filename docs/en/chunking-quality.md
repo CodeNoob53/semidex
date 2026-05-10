@@ -1,0 +1,197 @@
+# Chunking Quality
+
+Chunking is not a pre-processing step. It is a retrieval-grade concern: the
+boundaries and content of each chunk determine whether an AI agent can find,
+read, and correctly use an answer. A perfect embedding model cannot recover an
+answer that was split across two chunks, diluted by unrelated content, or indexed
+as a heading-only stub.
+
+## Role of Chunking in Retrieval Quality
+
+semidex indexes chunks, not documents. At query time, the agent retrieves a small
+number of chunks — typically top-5 or top-10 — and uses them directly as context.
+This means the chunk is the unit of retrieval success.
+
+Three things must be true for a chunk to be useful:
+
+1. **It contains the answer**, or enough context to reach it via `qdrant_get_chunk(window=1)`.
+2. **It does not contain unrelated content** that dilutes the signal or confuses the model.
+3. **Its boundaries are predictable enough** that `window=N` expansion reliably
+   recovers the neighboring chunk when the exact answer sits at a boundary.
+
+These properties are not guaranteed by token-count splits alone. They require
+structure-aware splitting with explicit guarantees about section boundaries,
+overlap handling, and edge cases.
+
+## Current Chunking Guarantees
+
+semidex `chunkFile()` provides the following guarantees for Markdown input:
+
+### Section-aware splitting
+
+Chunks do not span Markdown section boundaries (headings). When a section is
+shorter than `MIN_CHUNK_TOKENS`, it may be merged with adjacent sections in the
+same file — but it is never merged across a heading that would change the semantic
+scope of the chunk.
+
+### No overlap leakage across sections
+
+Sentence overlap (`OVERLAP_SENTENCES`) carries forward contextual continuity
+within a section only. Overlap does not copy content from one heading section
+into the next, preventing a chunk from appearing to cover a topic it does not
+actually address.
+
+### Final chunk preservation
+
+The final chunk of a file is never dropped due to being below `MIN_CHUNK_TOKENS`.
+This prevents the last section of a document — often a conclusion, summary, or
+configuration reference — from being silently lost.
+
+### Stable `chunk_index` / `total_chunks`
+
+Every chunk carries a zero-based `chunk_index` and a `total_chunks` field in its
+Qdrant payload. These are stable across re-indexing of the same file if the
+content is unchanged, making `qdrant_get_chunk(window=N)` deterministic.
+
+### Obsidian review output
+
+The `chunks_out/` directory contains one Markdown file per indexed document, with
+each chunk rendered as a fenced block including its `chunk_index`, section path,
+and text. This allows human review of chunk boundaries, empty chunks, and heading
+topology before a benchmark run.
+
+### Window recovery through `qdrant_get_chunk`
+
+The MCP `qdrant_get_chunk` tool accepts a `window` parameter. It fetches the
+requested chunk and its `±window` neighbors by `chunk_index` within the same
+`source_file`. The `windowRecall@K` benchmark metric measures how often the
+correct answer is reachable via window expansion even when `chunkRecall@K` misses —
+the gap between these two metrics quantifies chunk-boundary effects vs. true
+ranking failures.
+
+## Failure Modes
+
+The following failure modes have been observed or are structurally possible
+in the current chunking implementation.
+
+### Answer split across chunks
+
+A long technical explanation spans a section boundary. Half is in chunk N, half
+in chunk N+1. Neither chunk alone is sufficient. `chunkRecall@K` fails; only
+`windowRecall@K` can recover via `±1` expansion.
+
+**Detection:** `windowRecall@K − chunkRecall@K` gap in the benchmark. A wide gap
+on specific query types (paraphrase, multi-step) suggests boundary effects.
+
+### Unrelated topics merged
+
+Two adjacent short sections are merged because each is below `MIN_CHUNK_TOKENS`.
+The resulting chunk contains content from both topics, increasing false-positive
+retrieval rate and diluting the dense embedding.
+
+**Detection:** high `duplicateSourceRate` on queries where only one subtopic is
+relevant; manual inspection via `chunks_out/`.
+
+### Chunk too small to be useful
+
+A heading-only section, a single-sentence note, or an `(empty section: …)`
+placeholder produces a chunk that carries no answer content. It may still rank
+highly due to lexical overlap with the query.
+
+**Detection:** `chunkFile()` flags empty-text chunks during indexing (logged as
+`emptyChunkIds`). The custom-50 benchmark includes a guardrail that warns when
+an expected chunk ID resolves to an empty-text chunk.
+
+### Chunk too large and noisy
+
+A section with no sub-headings spans many topics. The resulting chunk is long
+enough that the relevant answer is diluted by surrounding content, hurting both
+dense embedding quality and reranker signal.
+
+**Detection:** high `total_chunks` per file combined with low per-chunk
+`chunkRecall` on specific queries; tunable via `MAX_CHUNK_TOKENS`.
+
+### Code block separated from explanation
+
+A code example and its preceding or following prose explanation fall into
+different chunks due to a section boundary or token limit. The agent retrieves
+the code without context, or the explanation without the example.
+
+**Detection:** manual inspection of `chunks_out/` for code-heavy files; a future
+`codeExplanationPairRate` metric on fixture files with paired code+explanation blocks.
+
+### Heading-only or overlap-only chunks
+
+A chunk contains only a Markdown heading line, or consists entirely of overlap
+sentences copied from the previous chunk with no new content. Neither is useful
+as a standalone retrieval unit.
+
+**Detection:** empty-text guardrail catches heading-only cases. Overlap-only
+chunks are structurally prevented by the no-overlap-leakage-across-sections
+guarantee, but can occur within a long single section.
+
+## Proposed Quality Metrics
+
+These metrics are not yet computed by the benchmark pipeline. They are defined
+here as targets for a future chunk-quality evaluation pass.
+
+| Metric | Definition |
+|--------|------------|
+| `selfContainedChunkRate` | Fraction of rel≥3 chunks that alone contain enough context for an agent to answer the query without window expansion |
+| `boundaryErrorRate` | Fraction of benchmark misses attributable to chunk-boundary placement rather than embedding or ranking failure (`windowRecall@1 − chunkRecall@1` as a proxy) |
+| `windowRecoveryRate` | Fraction of misses recovered by `qdrant_get_chunk(window=1)` (already measured as `windowRecall@K − chunkRecall@K`) |
+| `answerSplitRate` | Fraction of queries where the exact answer spans two adjacent chunks (measured on large-doc fixtures with annotated answer spans) |
+| `codeExplanationPairRate` | Fraction of code+explanation pairs in fixture docs that are co-located in the same chunk or in adjacent chunks |
+
+`windowRecoveryRate` is the only metric currently computed end-to-end (as
+`windowRecall@K`). The others require either annotated answer spans or fixture
+documents with explicit code+explanation pair qrels.
+
+## Connection to Custom-50 and Future Large-Doc Benchmark
+
+The custom-50 quality benchmark evaluates chunk-level retrieval on 10 fixture
+documents (4 shared, 6 extended) covering semidex's own documentation. It measures
+chunk recall, window recall, graded nDCG, and MRR at multiple depths.
+
+Custom-50 reveals boundary effects and merge failures on short, well-structured
+docs. It does not stress-test chunking under conditions that are common in real
+technical corpora:
+
+- long files with many sections (>30)
+- large flat sections without sub-headings
+- files mixing prose, code blocks, and config tables
+- files with dense cross-references between sections
+- non-English or mixed-language technical content
+
+### Planned large-document stress benchmark
+
+The next benchmarking phase will add fixture documents that stress chunking
+beyond what custom-50 covers. Candidate fixture types:
+
+| Fixture type | What it tests |
+|--------------|---------------|
+| Long API reference (>500 lines) | Final-chunk preservation, large-section splitting |
+| Config reference with many small sections | Merge policy, heading-only chunk prevention |
+| Tutorial with interleaved code+prose | Code/explanation co-location |
+| Migration guide with numbered steps | Step boundary respect, no step-merging |
+| Multilingual mixed doc | Section-boundary behavior across Unicode heading levels |
+
+Qrel annotation for these fixtures will use the same v3 schema as custom-50:
+`relevantChunks` with `relevance: 1|2|3` and `chunkId: "file.md#N"`.
+
+The primary evaluation signal will remain `chunkRecall@5` and `windowRecall@5`.
+New metrics (`answerSplitRate`, `codeExplanationPairRate`) will be introduced
+only after fixture annotation is complete and at least one benchmark run has been
+committed to `benchmarks/retrieval/results/`.
+
+### When to act on chunking quality findings
+
+Do not change chunking parameters based on a single diagnostic run. The threshold
+sweep and failure analysis tools exist to build evidence across runs. A chunking
+change is ready to promote when:
+
+1. A failure mode is reproducible across at least two benchmark runs.
+2. A proposed fix improves `chunkRecall@5` or `windowRecall@5` without regressing
+   the other.
+3. The `npm run smoke` suite passes with the new parameters.
+4. The 21-query regression benchmark shows no regressions.

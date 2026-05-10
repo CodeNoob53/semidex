@@ -11,6 +11,7 @@ Other languages: [Українська](../ua/README.md)
 | [obsidian.md](obsidian.md) | Obsidian-compatible review output in `chunks_out/` |
 | [mcp-tools.md](mcp-tools.md) | MCP tool reference and agent workflows |
 | [configuration.md](configuration.md) | Environment variables, formats, provider config, indexes |
+| [chunking-quality.md](chunking-quality.md) | Chunking guarantees, failure modes, quality metrics, large-doc benchmark plan |
 | [benchmarking.md](benchmarking.md) | Smoke tests, retrieval benchmark, metrics, regression workflow |
 | [roadmap.md](roadmap.md) | Product direction, near-term priorities, and non-goals |
 | [project-structure.md](project-structure.md) | Source tree, runtime entry points, generated files |

@@ -117,6 +117,7 @@ English deep dives:
 | [docs/en/obsidian.md](docs/en/obsidian.md) | Obsidian-compatible `chunks_out/` review console |
 | [docs/en/mcp-tools.md](docs/en/mcp-tools.md) | MCP tool reference and agent workflow |
 | [docs/en/configuration.md](docs/en/configuration.md) | Environment variables, provider modes, formats, Qdrant indexes |
+| [docs/en/chunking-quality.md](docs/en/chunking-quality.md) | Chunking guarantees, failure modes, quality metrics, large-doc benchmark plan |
 | [docs/en/benchmarking.md](docs/en/benchmarking.md) | Smoke tests, retrieval benchmark, metrics, regression workflow |
 | [docs/en/roadmap.md](docs/en/roadmap.md) | Product direction, near-term priorities, and non-goals |
 | [docs/en/project-structure.md](docs/en/project-structure.md) | Source tree, runtime entry points, generated files |
@@ -184,6 +185,10 @@ focuses on strengthening the existing agent-grade RAG index:
 - better diagnostics and local observability
 - agent wake-up workflows for MCP clients
 - careful experiments with MMR, full-text filtering, and future ColBERT reranking
+
+Chunking quality is treated as a first-class retrieval concern — see
+[docs/en/chunking-quality.md](docs/en/chunking-quality.md) for the design
+document and large-document stress benchmark plan.
 
 See [docs/en/roadmap.md](docs/en/roadmap.md) for the full roadmap, priorities,
 and explicit non-goals.
