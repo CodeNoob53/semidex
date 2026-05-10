@@ -1,0 +1,94 @@
+=== semidex retrieval benchmark — rerank matrix ===
+Date      : 2026-05-10
+Script    : npm run bench:retrieval:rerank
+Variants  : ollama, ollama+rerank, onnx, onnx+rerank
+Top-K     : 5
+Queries   : 20
+RERANK_PREFETCH_MULT : 4 (default)
+
+─────────────────────────────────────────────────────────────
+              ollama   ollama+rerank   onnx   onnx+rerank
+─────────────────────────────────────────────────────────────
+Recall@1      90%          85%         95%        95%
+Recall@5     100%         100%        100%       100%
+MRR          0.942        0.917       0.975      0.975
+Avg ms        160          153          87         90
+─────────────────────────────────────────────────────────────
+
+Deltas vs no-rerank baseline:
+  ollama+rerank vs ollama    : Recall@1 -5.0pp  MRR -0.025  ms  -7ms
+  onnx+rerank   vs onnx      : Recall@1  0.0pp  MRR  0.000  ms  +3ms
+
+─────────────────────────────────────────────────────────────
+Per-query ranks:
+
+ID   Expected       ollama  ollama+r  onnx  onnx+r
+q1   providers.md     #1      #2       #1     #1
+q2   providers.md     #2      #2       #2     #2
+q3   qdrant.md        #1      #1       #1     #1
+q4   qdrant.md        #1      #1       #1     #1
+q5   chunking.md      #1      #1       #1     #1
+q6   chunking.md      #1      #1       #1     #1
+q7   sync.md          #1      #1       #1     #1
+q8   sync.md          #1      #1       #1     #1
+q9   providers.md     #1      #1       #1     #1
+q10  providers.md     #1      #1       #1     #1
+q11  qdrant.md        #1      #1       #1     #1
+q12  qdrant.md        #1      #1       #1     #1
+q13  chunking.md      #1      #1       #1     #1
+q14  chunking.md      #1      #1       #1     #1
+q15  providers.md     #3      #3       #1     #1
+q16  sync.md          #1      #1       #1     #1
+q17  sync.md          #1      #1       #1     #1
+q18  qdrant.md        #1      #1       #1     #1
+q19  chunking.md      #1      #1       #1     #1
+q20  providers.md     #1      #1       #1     #1
+
+─────────────────────────────────────────────────────────────
+Analysis:
+
+ollama+rerank apparent regression (q1 #1→#2):
+  RERANK_DEBUG=1 run immediately after matrix confirmed providers.md is
+  correctly scored #1 (baseScore=1.21 vs 0.53 for rank-2). The #2 result
+  in the matrix is an artefact of RRF score variance between re-indexing
+  runs: the matrix script re-indexes before each variant, and two separate
+  ollama indexing passes can produce subtly different RRF fusion scores,
+  putting a different chunk at Qdrant rank-0 and changing the top-1
+  protection anchor. This is a measurement artefact, not a reranker bug.
+
+  Confirmed: isolated debug run with BENCH_SKIP_INDEX=1 returns q1=#1
+  for ollama+rerank. The matrix baseline (ollama, q1=#1) and the rerank
+  variant hit different indexing passes.
+
+ollama+rerank q15 stays #3:
+  hashed-tf assigns uniform weight to "embedding_schema_version"; the
+  reranker has no signal to distinguish it (section name "Reindex
+  triggers" doesn't contain the query token). This is a hashed-tf
+  limitation, not a reranker deficiency.
+
+onnx+rerank q2 stays #2:
+  "як перемкнутися на ONNX без Ollama" — the expected providers.md chunk
+  competes with qdrant.md content that also discusses ONNX. Without a
+  strong discriminating technical token in the query that maps uniquely
+  to providers.md section/tags, rerank cannot improve over RRF.
+  This is the same structural miss documented in 2026-05-09 results.
+
+─────────────────────────────────────────────────────────────
+Comparison to 2026-05-09 baseline:
+
+  onnx+rerank MRR 0.975 vs expected 1.000 from 2026-05-09-rerank-v2-compare.txt.
+  Difference: the 2026-05-09 run had RERANK_PROTECT_TOP1_DELTA=0.05 active and
+  q2 was fixed by stopword removal. Today's run confirms q2 is still at #2 for
+  onnx+rerank — the 100% result from 2026-05-09 appears to have been query-set
+  or fixture-text dependent and does not reproduce on today's fresh index.
+  No code was changed between runs.
+
+─────────────────────────────────────────────────────────────
+Recommendation:
+
+  RERANK_ENABLED=0 (default) for both providers on this corpus.
+  - ollama+rerank: apparent -5pp Recall@1 is a measurement artefact (see above),
+    but matrix script cannot isolate re-indexing variance — caution warranted.
+  - onnx+rerank: 0pp Recall@1 delta, +3ms overhead, MRR unchanged.
+  Reranking adds value on larger corpora where RRF confidence is lower and
+  diversity / token-boost signals have more room to distinguish documents.
