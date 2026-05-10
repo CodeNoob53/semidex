@@ -9,6 +9,7 @@ npm run smoke
 npm run bench:retrieval
 npm run bench:retrieval:compare
 npm run bench:retrieval:rerank
+npm run bench:retrieval:mmr
 ```
 
 ## Smoke Tests
@@ -87,6 +88,35 @@ Runs:
 
 Rerank variants reuse the same index where possible to avoid measuring reindex variance as ranking quality.
 
+## MMR Diversity Matrix
+
+```bash
+npm run bench:retrieval:mmr
+```
+
+Runs hybrid RRF baselines and dense MMR variants for both providers. MMR is
+evaluated as a dense-nearest Qdrant query mode, not as a production replacement
+for hybrid dense+sparse RRF.
+
+Default diversity values:
+
+```bash
+MMR_DIVERSITIES=0.3,0.5,0.7
+```
+
+Useful overrides:
+
+```bash
+MMR_DIVERSITIES=0.2,0.5,0.8 npm run bench:retrieval:mmr
+MMR_CANDIDATES_LIMIT=200 npm run bench:retrieval:mmr
+```
+
+Judge MMR by both relevance and diversity:
+
+- `Recall@1`, `MRR`, `nDCG@K` should not regress too much.
+- `dupSourceRate` should go down.
+- `sourceDiversity` should go up.
+
 ## Current Role
 
 The bundled benchmark is a regression suite, not a scientific corpus evaluation. It is designed to catch quality regressions when changing:
@@ -98,4 +128,3 @@ The bundled benchmark is a regression suite, not a scientific corpus evaluation.
 - RRF settings
 - reranking
 - MCP search behavior
-

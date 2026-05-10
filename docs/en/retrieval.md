@@ -96,6 +96,33 @@ The reranker also applies:
 
 Current benchmark result: reranking is neutral on the bundled 21-query corpus. Keep it disabled unless it helps on your own data.
 
+## MMR Diversity Evaluation
+
+Qdrant MMR is available for nearest-neighbor queries and improves result
+diversity when many candidates are redundant. In semidex it is currently exposed
+as a benchmark search mode, not as the default MCP retrieval path:
+
+```bash
+BENCH_SEARCH_MODE=dense-mmr npm run bench:retrieval
+npm run bench:retrieval:mmr
+```
+
+This is intentionally dense-only evaluation. The production default remains
+hybrid dense+sparse RRF because sparse vectors are important for exact technical
+tokens such as env vars, function names, and schema fields.
+
+Useful MMR knobs:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `MMR_DIVERSITY` | `0.5` | Balance between relevance (`0.0`) and diversity (`1.0`) |
+| `MMR_CANDIDATES_LIMIT` | `100` | Candidate pool size before MMR selection |
+| `MMR_DIVERSITIES` | `0.3,0.5,0.7` | Matrix values for `bench:retrieval:mmr` |
+
+Evaluate MMR by checking whether `dupSourceRate` decreases and
+`sourceDiversity` increases without unacceptable drops in `Recall@1`, `MRR`, or
+`nDCG@K`.
+
 ## Relevant Environment Variables
 
 | Variable | Default | Description |
@@ -109,10 +136,11 @@ Current benchmark result: reranking is neutral on the bundled 21-query corpus. K
 | `RERANK_ENABLED` | `0` | Enable local reranker |
 | `RERANK_PREFETCH_MULT` | `4` | Candidate multiplier before reranking |
 | `RERANK_DEBUG` | `0` | Print reranker scoring details |
+| `MMR_DIVERSITY` | `0.5` | Dense MMR diversity balance for benchmark mode |
+| `MMR_CANDIDATES_LIMIT` | `100` | Dense MMR candidate pool size |
 
 ## Limitations
 
 - `hashed-tf` is not BM25. It has no corpus statistics or IDF.
 - BGE-M3 ONNX sparse output is neural lexical weighting, not SPLADE vocabulary expansion.
 - ColBERT / late-interaction retrieval is not implemented yet.
-

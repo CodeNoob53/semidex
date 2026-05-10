@@ -18,6 +18,7 @@ npm run smoke                                    # offline smoke tests
 npm run bench:retrieval                          # live retrieval benchmark
 npm run bench:retrieval:compare                  # side-by-side provider comparison
 npm run bench:retrieval:rerank                   # 4-variant rerank matrix
+npm run bench:retrieval:mmr                      # RRF vs dense MMR diversity matrix
 ```
 
 Do not run `npm run index` without `COLLECTION` set. The indexer will exit with

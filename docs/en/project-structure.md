@@ -101,6 +101,7 @@ benchmarks/
     run.js             - single-provider retrieval benchmark
     compare.js         - default provider vs ONNX comparison
     rerank-matrix.js   - ollama/onnx with and without rerank
+    mmr-matrix.js      - hybrid RRF vs dense MMR diversity evaluation
     queries.json       - v2 benchmark query schema
     fixtures/docs/     - fixture documents indexed by the benchmark
     results/           - saved benchmark baselines and summaries

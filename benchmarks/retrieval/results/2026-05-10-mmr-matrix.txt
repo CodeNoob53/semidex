@@ -1,0 +1,65 @@
+# semidex retrieval benchmark - MMR diversity matrix
+
+Date: 2026-05-10
+Fixtures: 4 docs, 29 chunks
+Queries: 21 positive, 0 negative
+Top-K: 5
+MMR candidates_limit: 100
+
+MMR mode is dense-only Qdrant nearest search with MMR. It is evaluated against
+the production default hybrid dense+sparse RRF path.
+
+## Summary
+
+| Variant | Recall@1 | Recall@5 | MRR | nDCG@5 | dupSourceRate | sourceDiversity | Avg ms |
+|---------|----------|----------|-----|--------|---------------|-----------------|--------|
+| ollama-rrf | 90.5% | 100.0% | 0.940 | 0.955 | 61.9% | 1.90 | 159 |
+| ollama-mmr0.3 | 90.5% | 100.0% | 0.952 | 0.965 | 50.5% | 2.48 | 158 |
+| ollama-mmr0.5 | 90.5% | 100.0% | 0.933 | 0.949 | 34.3% | 3.29 | 161 |
+| ollama-mmr0.7 | 90.5% | 90.5% | 0.905 | 0.905 | 33.3% | 3.33 | 158 |
+| onnx-rrf | 95.2% | 100.0% | 0.976 | 0.982 | 54.3% | 2.29 | 92 |
+| onnx-mmr0.3 | 90.5% | 100.0% | 0.952 | 0.965 | 50.5% | 2.48 | 168 |
+| onnx-mmr0.5 | 90.5% | 100.0% | 0.933 | 0.949 | 34.3% | 3.29 | 160 |
+| onnx-mmr0.7 | 90.5% | 90.5% | 0.905 | 0.905 | 33.3% | 3.33 | 172 |
+
+## Per-query rank changes
+
+| ID | Expected | ollama-rrf | ollama-mmr0.3 | ollama-mmr0.5 | ollama-mmr0.7 | onnx-rrf | onnx-mmr0.3 | onnx-mmr0.5 | onnx-mmr0.7 |
+|----|----------|------------|---------------|---------------|---------------|----------|-------------|-------------|-------------|
+| q1 | providers.md | #1 | #1 | #1 | #1 | #1 | #1 | #1 | #1 |
+| q2 | providers.md | #2 | #2 | #3 | miss | #1 | #2 | #3 | miss |
+| q3 | qdrant.md | #1 | #1 | #1 | #1 | #1 | #1 | #1 | #1 |
+| q4 | qdrant.md | #1 | #1 | #1 | #1 | #1 | #1 | #1 | #1 |
+| q5 | chunking.md | #1 | #1 | #1 | #1 | #1 | #1 | #1 | #1 |
+| q6 | chunking.md | #1 | #1 | #1 | #1 | #1 | #1 | #1 | #1 |
+| q7 | sync.md | #1 | #1 | #1 | #1 | #1 | #1 | #1 | #1 |
+| q8 | sync.md | #1 | #1 | #1 | #1 | #1 | #1 | #1 | #1 |
+| q9 | providers.md | #1 | #1 | #1 | #1 | #1 | #1 | #1 | #1 |
+| q10 | providers.md | #1 | #1 | #1 | #1 | #1 | #1 | #1 | #1 |
+| q11 | qdrant.md | #1 | #1 | #1 | #1 | #1 | #1 | #1 | #1 |
+| q12 | qdrant.md | #1 | #1 | #1 | #1 | #1 | #1 | #1 | #1 |
+| q13 | chunking.md | #1 | #1 | #1 | #1 | #1 | #1 | #1 | #1 |
+| q14 | chunking.md | #1 | #1 | #1 | #1 | #1 | #1 | #1 | #1 |
+| q15 | providers.md | #4 | #2 | #4 | miss | #1 | #2 | #4 | miss |
+| q16 | sync.md | #1 | #1 | #1 | #1 | #1 | #1 | #1 | #1 |
+| q17 | sync.md | #1 | #1 | #1 | #1 | #1 | #1 | #1 | #1 |
+| q18 | qdrant.md | #1 | #1 | #1 | #1 | #1 | #1 | #1 | #1 |
+| q19 | chunking.md | #1 | #1 | #1 | #1 | #1 | #1 | #1 | #1 |
+| q20 | providers.md | #1 | #1 | #1 | #1 | #1 | #1 | #1 | #1 |
+| q21 | providers.md | #1 | #1 | #1 | #1 | #2 | #1 | #1 | #1 |
+
+## Interpretation
+
+- `ollama-mmr0.3` is the best tradeoff in this run: same Recall@1 as RRF,
+  slightly higher MRR, and lower duplicate source rate.
+- `onnx-rrf` remains the strongest relevance baseline: best Recall@1, MRR, and
+  nDCG@5.
+- Higher MMR diversity values (`0.5`, `0.7`) improve diversity but start
+  pushing exact provider queries (`q2`, `q15`) down or out of top-5.
+- For semidex production search, this supports keeping hybrid RRF as default.
+  MMR is useful as an evaluation target and possible opt-in mode only after
+  defining an acceptable relevance regression budget.
+
+Note: ONNX MMR average latency includes cold-start cost in separate benchmark
+subprocesses. Warm per-query latency is closer to the individual non-first query
+times.

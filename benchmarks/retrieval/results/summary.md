@@ -17,6 +17,10 @@ change to chunking, embedding, search, or reranking logic.
 | 2026-05-10 | 20      | ollama+rerank      | 90% (18/20)   | 100%     | 0.942 | 156    | same index as ollama; 0pp delta, no regressions |
 | 2026-05-10 | 20      | onnx               | **100% (20/20)**| 100%   | 1.000 | 91     | matrix run (same-index); q2 #1 this pass     |
 | 2026-05-10 | 20      | onnx+rerank        | **100% (20/20)**| 100%   | 1.000 | ~91†  | same index as onnx; 0pp delta, no regressions |
+| 2026-05-10 | 21      | ollama-rrf         | 90.5% (19/21)   | 100%   | 0.940 | 159    | MMR matrix baseline; dupSourceRate 61.9%     |
+| 2026-05-10 | 21      | ollama-mmr0.3      | 90.5% (19/21)   | 100%   | 0.952 | 158    | best MMR tradeoff; dup 50.5%, diversity 2.48 |
+| 2026-05-10 | 21      | onnx-rrf           | **95.2% (20/21)**| 100%  | 0.976 | 92     | MMR matrix baseline; best relevance          |
+| 2026-05-10 | 21      | onnx-mmr0.3        | 90.5% (19/21)   | 100%   | 0.952 | 168    | lower dup, but -4.8pp Recall@1 vs onnx RRF   |
 
 ## How to update
 
@@ -35,3 +39,4 @@ The earlier 8-query rows are kept for historical reference only.
 - rerank v1 (2026-05-09): onnx q2 regressed #1→#2 due to cross-file token noise. See 2026-05-09-rerank-v1-compare.txt.
 - rerank v2 (2026-05-09): stopwords + technical token weighting (TECH_MULT=3) + top-1 protection (delta=0.05). onnx: 100% Recall@1 / MRR 1.000 — q2 fixed, no regressions. ollama: unchanged (q15 stays #4). Historical result; superseded by controlled same-index matrix (2026-05-10). See 2026-05-09-rerank-v2-compare.txt.
 - rerank matrix (2026-05-10): controlled same-index run (`BENCH_SKIP_INDEX=1` for +rerank variants). Both providers: 0pp Recall@1 delta, 0 MRR delta from reranking. ollama: q2 #2, q15 #3 (unchanged). onnx: 100%/1.000 this pass (q2 hit #1 — RRF variance vs 2026-05-09 #2; both are valid). †onnx+rerank Avg ms=161 inflated by ONNX cold-start in subprocess; real overhead ~0ms. RERANK_ENABLED=0 remains default. See 2026-05-10-rerank-matrix.txt.
+- MMR matrix (2026-05-10): dense-only Qdrant MMR improves diversity but can hurt exact technical/provider queries. `ollama-mmr0.3` kept Recall@1 and improved dupSourceRate (61.9% -> 50.5%). `onnx-rrf` stayed best overall relevance; onnx MMR lost 4.8pp Recall@1 at all tested diversity values. Keep hybrid RRF as default. See 2026-05-10-mmr-matrix.txt.

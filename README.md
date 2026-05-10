@@ -158,6 +158,7 @@ Mixed provider combinations, such as `ollama` dense + `bge-m3-onnx` sparse, are 
 | `npm run bench:retrieval` | Retrieval benchmark against live Qdrant |
 | `npm run bench:retrieval:compare` | Compare default provider vs ONNX |
 | `npm run bench:retrieval:rerank` | Rerank matrix benchmark |
+| `npm run bench:retrieval:mmr` | MMR diversity matrix benchmark |
 
 ## Supported Formats
 

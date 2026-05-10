@@ -34,6 +34,9 @@ BENCH_SKIP_INDEX=1 npm run bench:retrieval
 # Change search depth (default 5). Recall@K label matches actual TOP_K.
 BENCH_TOP_K=10 npm run bench:retrieval
 
+# Single-provider dense MMR run instead of hybrid RRF.
+BENCH_SEARCH_MODE=dense-mmr MMR_DIVERSITY=0.5 npm run bench:retrieval
+
 # Side-by-side comparison: ollama vs onnx (two runs, no rerank).
 npm run bench:retrieval:compare
 
@@ -41,6 +44,11 @@ npm run bench:retrieval:compare
 # Explicitly forces provider env vars so .env overrides can't bleed in.
 npm run bench:retrieval:rerank
 RERANK_PREFETCH_MULT=8 npm run bench:retrieval:rerank
+
+# MMR diversity matrix: hybrid RRF baseline vs dense MMR diversity values.
+npm run bench:retrieval:mmr
+MMR_DIVERSITIES=0.2,0.5,0.8 npm run bench:retrieval:mmr
+MMR_CANDIDATES_LIMIT=200 npm run bench:retrieval:mmr
 ```
 
 Prerequisites: `QDRANT_URL` and `QDRANT_KEY` must be set in `.env` or the environment.
@@ -183,6 +191,9 @@ scientific corpus evaluation. Treat results as directional signals.*
 - **MRR drop after a code change** is a regression signal — investigate before merging.
 - **Latency spike** after switching providers is expected for ONNX (first run downloads
   the model; subsequent runs use the cache in `./models/`).
+- **MMR improvement** should show up as lower `dupSourceRate` and higher
+  `sourceDiversity`. Treat it as useful only if `Recall@1`, `MRR`, and `nDCG@K`
+  stay within an acceptable regression budget.
 
 ## Collection
 
