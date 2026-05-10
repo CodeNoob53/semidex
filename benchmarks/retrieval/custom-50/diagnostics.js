@@ -306,7 +306,9 @@ function computeSignals(top5, queryTokens, queryText, evalCtx) {
 // Compute recovery outcomes for a triggered query.
 // Returns { recoversAtTop10, recoversAtRerank, recoversAtWindow }.
 // All require qrels — called only during evaluation, not at runtime.
-async function computeRecovery(vectors, queryText, exactIds) {
+// top5: the baseline top-5 results (needed to simulate window expansion from a
+//       returned chunk, not from the oracle exact chunk).
+async function computeRecovery(vectors, queryText, exactIds, top5) {
   // top-10
   const top10 = await hybridSearch(COLLECTION, vectors.dense, vectors.sparse, 10);
   const recoversAtTop10 = top10.some(r => exactIds.has(resultChunkId(r)));
@@ -316,22 +318,39 @@ async function computeRecovery(vectors, queryText, exactIds) {
   const reranked = rerankResults(candidates, queryText, { finalLimit: 10, collection: COLLECTION });
   const recoversAtRerank = reranked.some(r => exactIds.has(resultChunkId(r)));
 
-  // window expansion: fetch all chunks for each exact chunk's file, check ±BENCH_WINDOW
+  // window expansion: simulates qdrant_get_chunk(window=N) called on a top-5 result.
+  // For each chunk in top-5 that is a ±BENCH_WINDOW neighbor of any exact chunk,
+  // fetch the window [returnedIdx-N, returnedIdx+N] and check if the exact chunk
+  // falls inside it. This models the real agent scenario: the agent sees a top-5
+  // result, expands its window, and discovers the exact chunk as a neighbor.
+  // (Expanding around the exact chunk itself would trivially recover in every case.)
   let recoversAtWindow = false;
-  for (const exactId of exactIds) {
-    const ep = parseChunkId(exactId);
-    if (!ep) continue;
+  for (const r5 of top5) {
+    const rp = parseChunkId(resultChunkId(r5));
+    if (!rp) continue;
+    // Is this returned chunk a neighbor of any exact chunk?
+    let neighborExactId = null;
+    for (const exactId of exactIds) {
+      const ep = parseChunkId(exactId);
+      if (!ep) continue;
+      if (ep.sourceFile === rp.sourceFile && Math.abs(ep.chunkIndex - rp.chunkIndex) <= BENCH_WINDOW) {
+        neighborExactId = exactId;
+        break;
+      }
+    }
+    if (!neighborExactId) continue;
+    // Simulate qdrant_get_chunk: fetch window around the returned chunk.
     const allChunks = await scroll(
       COLLECTION,
-      { must: [{ key: 'source_file', match: { value: ep.sourceFile } }] },
+      { must: [{ key: 'source_file', match: { value: rp.sourceFile } }] },
       500
     );
-    const from = Math.max(0, ep.chunkIndex - BENCH_WINDOW);
-    const to   = ep.chunkIndex + BENCH_WINDOW;
+    const from = Math.max(0, rp.chunkIndex - BENCH_WINDOW);
+    const to   = rp.chunkIndex + BENCH_WINDOW;
     const windowHasExact = allChunks.some(p => {
       const ci = p.payload?.chunk_index;
       const sf = p.payload?.source_file;
-      return sf === ep.sourceFile && ci != null && ci >= from && ci <= to &&
+      return sf === rp.sourceFile && ci != null && ci >= from && ci <= to &&
              exactIds.has(`${sf}#${ci}`);
     });
     if (windowHasExact) { recoversAtWindow = true; break; }
@@ -397,7 +416,7 @@ async function evalQuery(q) {
   // to avoid inflating Qdrant call count. Individual rule recovery uses same gate.
   let recovery = null;
   if (triggers.combined && exactIds.size > 0) {
-    recovery = await computeRecovery(vectors, q.query, exactIds);
+    recovery = await computeRecovery(vectors, q.query, exactIds, top5);
   }
 
   return {
@@ -515,9 +534,10 @@ function buildReport(queryResults, spreadThreshold) {
     const fpTriggered   = hits.filter(r => r.triggers[rule.key]).length;
     const fpr           = hits.length > 0 ? fpTriggered / hits.length : null;
 
-    // Recovery potential: only queries triggered AND recoverable (have exactIds)
-    // Uses recovery data from the combined-trigger pass (same gate).
-    const triggeredWithRecovery = triggered.filter(r => r.recovery !== null);
+    // Recovery potential: only triggered MISSES with recovery data.
+    // Filtering to isMiss ensures we measure "does recovery help real failures",
+    // not "do successful top-5 hits re-confirm themselves in top-10".
+    const triggeredWithRecovery = triggered.filter(r => r.signals.isMiss && r.recovery !== null);
     const recov10     = triggeredWithRecovery.length > 0
       ? triggeredWithRecovery.filter(r => r.recovery.recoversAtTop10).length / triggeredWithRecovery.length
       : null;
@@ -540,8 +560,9 @@ function buildReport(queryResults, spreadThreshold) {
   }
   lines.push(SEP2);
   lines.push('');
-  lines.push('  recoveryPotential is computed for queries triggered by "combined" (all recovery');
-  lines.push('  data reuses the same combined-trigger pass to avoid extra Qdrant calls).');
+  lines.push('  recoveryPotential is computed for triggered MISSES only (isMiss=true).');
+  lines.push('  Recovery data is collected via the "combined" trigger pass; individual rules');
+  lines.push('  reuse it to avoid extra Qdrant calls. "—" means no triggered misses for that rule.');
   lines.push('');
 
   // ── Per-query signal table ────────────────────────────────────────────────

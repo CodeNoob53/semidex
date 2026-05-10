@@ -1,0 +1,131 @@
+════════════════════════════════════════════════════════════════════════════════════════════════════
+  custom-50 search diagnostics v1
+  EXPERIMENT — does not change runtime or MCP behavior
+  Provider : onnx (bge-m3-onnx/bge-m3-onnx), hybrid RRF
+  Queries  : 49 positive (rel≥3) + 1 negative
+  Window   : ±1
+  SPREAD_THRESHOLD : 0.05
+
+  NOTE: triggers use only query-time signals. Qrels are only used
+  to evaluate whether triggers correctly predict misses.
+════════════════════════════════════════════════════════════════════════════════════════════════════
+
+Signal distribution (positive queries, n=49):
+────────────────────────────────────────────────────────────────────────────────────────────────────
+  topScoreSpread                mean=0.004  p25=0.002  p50=0.002  p75=0.003  min=0.001  max=0.017
+  topScoreRatio                 mean=1.216  p25=1.066  p50=1.075  p75=1.092  min=1.040  max=2.100
+  sourceDiversity               mean=2.816  p25=2.000  p50=3.000  p75=3.000  min=1.000  max=5.000
+  duplicateSourceRate           mean=0.527  p25=0.400  p50=0.600  p75=0.800  min=0.200  max=1.000
+  exactQueryTokenHits           mean=0.703  p25=0.400  p50=0.857  p75=1.000  min=0.000  max=1.000
+  technicalTokenHits (exact-tok)  mean=1.000  p25=1.000  p50=1.000  p75=1.000  min=1.000  max=1.000
+
+  top1SourceRepeated (≥3)  : 27/49 (55.1%)
+
+Miss vs non-miss signal comparison  (misses=8, hits=41):
+────────────────────────────────────────────────────────────────────────────────────────────────────
+  topScoreSpread                misses=0.004  hits=0.004
+  topScoreRatio                 misses=1.198  hits=1.219
+  sourceDiversity               misses=2.625  hits=2.854
+  duplicateSourceRate           misses=0.600  hits=0.512
+  exactQueryTokenHits           misses=0.494  hits=0.744
+
+Eval-only signal prevalence (qrel-based — not usable in triggers):
+────────────────────────────────────────────────────────────────────────────────────────────────────
+  hasNeighborCandidate  misses: 5/8  hits: 41/41
+  top5ContainsExpFile   misses: 7/8
+
+Trigger rule evaluation:
+────────────────────────────────────────────────────────────────────────────────────────────────────
+Rule                                                  trigRate  missRecall     FPR  recov@10  recov@rerank  recov@win
+────────────────────────────────────────────────────────────────────────────────────────────────────
+low-diversity (sourceDiversity < 2)                       4.1%       25.0%    0.0%    100.0%        100.0%      50.0%
+low-spread (topScoreSpread < 0.05)                      100.0%      100.0%  100.0%     62.5%         87.5%      62.5%
+no-tech-token-hit (technicalTokenHits === 0, exact-token queries only)      0.0%        0.0%    0.0%         —             —          —
+combined (any of: low-diversity OR low-spread OR no-tech-token)    100.0%      100.0%  100.0%     62.5%         87.5%      62.5%
+────────────────────────────────────────────────────────────────────────────────────────────────────
+
+  recoveryPotential is computed for triggered MISSES only (isMiss=true).
+  Recovery data is collected via the "combined" trigger pass; individual rules
+  reuse it to avoid extra Qdrant calls. "—" means no triggered misses for that rule.
+
+Per-query signals and trigger outcomes:
+────────────────────────────────────────────────────────────────────────────────────────────────────
+ID    type           spread   ratio  srcDiv  dupRate   qTok%  techTok%  t1Rep    low-dive low-spre no-tech- combined   isMiss  hasNbr
+────────────────────────────────────────────────────────────────────────────────────────────────────
+c01   exact-token     0.002   1.058       2      80%     33%       n/a      Y           .        !        .        !      hit       Y
+c02   exact-token     0.002   1.081       3      60%     17%       n/a      Y           .        !        .        !     MISS       Y
+c03   exact-token     0.003   1.083       3      40%     57%      100%      n           .        !        .        !      hit       Y
+c04   exact-token     0.002   1.064       4      20%    100%      100%      n           .        !        .        !      hit       Y
+c05   paraphrase      0.002   1.055       3      60%     38%       n/a      Y           .        !        .        !      hit       Y
+c06   exact-token     0.002   1.066       3      40%    100%       n/a      n           .        !        .        !      hit       Y
+c07   exact-token     0.003   1.116       3      20%    100%       n/a      n           .        !        .        !      hit       Y
+c08   exact-token     0.002   1.058       3      60%     25%       n/a      Y           .        !        .        !      hit       Y
+c09   exact-token     0.002   1.066       2      60%    100%      100%      Y           .        !        .        !      hit       Y
+c10   exact-token     0.017   2.033       4      20%     29%       n/a      n           .        !        .        !      hit       Y
+c11   exact-token     0.002   1.074       3      40%     43%       n/a      n           .        !        .        !      hit       Y
+c12   exact-token     0.002   1.080       3      40%     57%       n/a      n           .        !        .        !     MISS       Y
+c13   exact-token     0.002   1.067       3      60%    100%      100%      Y           .        !        .        !      hit       Y
+c14   paraphrase      0.002   1.075       3      60%    100%       n/a      Y           .        !        .        !      hit       Y
+c15   exact-token     0.002   1.058       2      20%    100%       n/a      n           .        !        .        !      hit       Y
+c16   paraphrase      0.001   1.067       3      60%      0%       n/a      Y           .        !        .        !      hit       Y
+c17   exact-token     0.017   2.067       2      80%     29%       n/a      Y           .        !        .        !      hit       Y
+c18   exact-token     0.017   2.100       2      80%    100%       n/a      Y           .        !        .        !      hit       Y
+c19   exact-token     0.017   2.067       3      60%     63%       n/a      Y           .        !        .        !      hit       Y
+c20   exact-token     0.003   1.100       4      40%    100%       n/a      n           .        !        .        !      hit       Y
+c21   exact-token     0.003   1.083       3      40%     63%       n/a      n           .        !        .        !      hit       Y
+c22   exact-token     0.002   1.079       3      20%    100%       n/a      n           .        !        .        !      hit       Y
+c23   paraphrase      0.002   1.067       4      20%     29%       n/a      n           .        !        .        !      hit       Y
+c24   exact-token     0.003   1.108       2      80%      9%       n/a      Y           .        !        .        !      hit       Y
+c25   paraphrase      0.002   1.074       2      80%     50%       n/a      Y           .        !        .        !      hit       Y
+c26   exact-token     0.002   1.074       3      40%     50%       n/a      n           .        !        .        !      hit       Y
+c27   exact-token     0.003   1.108       3      60%    100%       n/a      Y           .        !        .        !      hit       Y
+c28   exact-token     0.002   1.058       2      80%     86%      100%      Y           .        !        .        !      hit       Y
+c29   paraphrase      0.002   1.075       3      20%     25%       n/a      n           .        !        .        !     MISS       n
+c30   exact-token     0.002   1.081       2      80%     86%       n/a      Y           .        !        .        !      hit       Y
+c31   exact-token     0.002   1.066       2      20%    100%       n/a      n           .        !        .        !      hit       Y
+c32   exact-token     0.003   1.082       3      40%    100%       n/a      n           .        !        .        !      hit       Y
+c33   paraphrase      0.002   1.067       2      80%     38%       n/a      Y           .        !        .        !     MISS       Y
+c34   paraphrase      0.002   1.058       2      80%    100%       n/a      Y           .        !        .        !      hit       Y
+c35   exact-token     0.003   1.092       5      20%     40%       n/a      n           .        !        .        !     MISS       n
+c36   exact-token     0.002   1.065       3      60%     67%       n/a      Y           .        !        .        !      hit       Y
+c37   exact-token     0.002   1.074       1     100%     56%       n/a      Y           !        !        .        !     MISS       n
+c38   exact-token     0.002   1.058       4      20%    100%      100%      n           .        !        .        !      hit       Y
+c39   exact-token     0.002   1.066       2      60%    100%       n/a      Y           .        !        .        !      hit       Y
+c40   exact-token     0.002   1.075       4      20%    100%      100%      n           .        !        .        !      hit       Y
+c41   paraphrase      0.017   2.033       3      60%     64%       n/a      Y           .        !        .        !     MISS       Y
+c42   exact-token     0.002   1.066       4      40%     86%       n/a      n           .        !        .        !      hit       Y
+c43   exact-token     0.017   2.083       3      60%    100%      100%      Y           .        !        .        !      hit       Y
+c44   exact-token     0.002   1.074       2      60%    100%       n/a      Y           .        !        .        !      hit       Y
+c45   exact-token     0.003   1.108       4      40%    100%       n/a      n           .        !        .        !      hit       Y
+c46   paraphrase      0.017   2.067       4      40%     11%       n/a      n           .        !        .        !      hit       Y
+c47   exact-token     0.003   1.083       2      80%    100%      100%      Y           .        !        .        !      hit       Y
+c48   paraphrase      0.003   1.083       1     100%    100%      100%      Y           !        !        .        !     MISS       Y
+c49   exact-token     0.001   1.040       2      80%    100%      100%      Y           .        !        .        !      hit       Y
+────────────────────────────────────────────────────────────────────────────────────────────────────
+
+════════════════════════════════════════════════════════════════════════════════════════════════════
+Summary:
+
+  Positive queries : 49
+  Misses (top-5)   : 8  (16.3% of positive)
+  Window-reachable : 5/8 misses have a neighbor in top-5
+
+  Trigger rule summary:
+    low-diversity    : fires on 2/49  catches 2/8 misses  FP=0/41
+    low-spread       : fires on 49/49  catches 8/8 misses  FP=41/41
+    no-tech-token    : fires on 0/49  catches 0/8 misses  FP=0/41
+    combined         : fires on 49/49  catches 8/8 misses  FP=41/41
+
+  Interpretation guide:
+    Good trigger: high missRecall, low FPR, high recoveryPotential.
+    A trigger with high FPR fires too often on successful queries and
+    wastes recovery calls. A trigger with low missRecall lets real misses
+    through without triggering recovery.
+
+  Next steps if a trigger looks promising:
+    - Cross-validate on a second run (stochastic reranker variance).
+    - Test whether the trigger adds value in agent-policy.js as a
+      non-oracle step-2 gate (replacing qrel-based miss detection).
+    - Do not change MCP runtime behavior until validated.
+
+════════════════════════════════════════════════════════════════════════════════════════════════════
