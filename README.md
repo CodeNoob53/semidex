@@ -9,7 +9,7 @@
 ![Qdrant](https://img.shields.io/badge/Qdrant-vector%20DB-red?logo=qdrant&logoColor=white)
 ![MCP](https://img.shields.io/badge/MCP-compatible-purple)
 
-**semidex is a local-first RAG memory system for AI agents.**
+**semidex is an experimental local-first RAG memory system for AI agents**
 
 It turns your documents, notes, specs, and code knowledge into a searchable memory layer that an AI assistant can query through MCP. Instead of pasting huge files into chat or hoping the model remembers your project, semidex stores your knowledge in Qdrant, splits it into useful chunks, enriches it with summaries, tags, and semantic links, then retrieves only the pieces that matter for the current task.
 
