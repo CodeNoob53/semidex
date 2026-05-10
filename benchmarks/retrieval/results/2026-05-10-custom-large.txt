@@ -8,12 +8,14 @@ chunkRecall@5     : 80.0%
 chunkRecall@10    : 82.2%
 windowRecall@5    : 100.0%
 windowRecall@10   : 100.0%
+contextRecall@5   : 100.0%
+contextRecall@10  : 100.0%
 supportRecall@10  : 88.9%
 nDCG@5            : 0.727
-nDCG@10           : 0.741
+nDCG@10           : 0.740
 MRR@10            : 0.735
 negativePass      : 100.0%
-Latency p50/p95   : 94ms / 106ms
+Latency p50/p95   : 101ms / 131ms
 
 --- Chunking Guardrails ---
 totalChunks       : 87

@@ -1,8 +1,8 @@
 --- Aggregate Summary ---
-Counts by class: {"exact@5":36,"exact@10":1,"window@5":8,"window@10":0,"supportOnly@10":0,"fileOnly@10":0,"miss":0}
+Counts by class: {"exact@5":37,"exact@10":0,"window@5":8,"window@10":0,"supportOnly@10":0,"fileOnly@10":0,"miss":0}
 Counts by type: {"exact-token":25,"paraphrase":18,"mixed-lang":2}
-Failure causes: {"boundary-neighbor":8,"exact-ranked-low":1}
-Avg exact rank: 1.41
+Failure causes: {"boundary-neighbor":8}
+Avg exact rank: 1.35
 Hardest file by non-exact failures: migration-guide-v1-v2.md
 window@5 queries: lg-api-search-request, lg-api-rerank, lg-mig-qdrant-collection, lg-mig-chunk-index-change, lg-mig-dry-run, lg-mig-env-compat, lg-mig-obsidian-review, lg-mig-rollback
 
@@ -39,12 +39,12 @@ Top 10 Results:
   2. [0.0321] api-reference-large.md#12 | support
      Section: Filtering by Tags
      Snippet: Retrieves metadata or chunks matching specific tags across the index.  [[BENCH_A...
-  3. [0.0320] api-reference-large.md#13 | support
-     Section: Filtering by Source File
-     Snippet: Retrieves all indexed chunks originating from a specific file path.  [[BENCH_ANC...
-  4. [0.0320] api-reference-large.md#18 | fileOnly
+  3. [0.0320] api-reference-large.md#18 | fileOnly
      Section: Search Parameters Summary
      Snippet: | Parameter | Type | Description | Required | | :--- | :--- | :--- | :--- | | `q...
+  4. [0.0320] api-reference-large.md#13 | support
+     Section: Filtering by Source File
+     Snippet: Retrieves all indexed chunks originating from a specific file path.  [[BENCH_ANC...
   5. [0.0315] api-reference-large.md#4 | fileOnly
      Section: Retrieve Specific Chunk
      Snippet: Retrieves a chunk directly using its source file and index.  **Endpoint:** `GET ...
@@ -63,6 +63,11 @@ Top 10 Results:
   10. [0.0276] api-reference-large.md#1 | window
      Section: Authentication
      Snippet: All requests must be authenticated using the `X-Semidex-API-Token` header.  [[BE...
+
+Closest Neighbor Candidate (top-5):
+  Returned: api-reference-large.md#3 (Section: Search Documents)
+  Expected: api-reference-large.md#2 (Section: Search Endpoints)
+  Distance: +1
 
 --------------------------------------------------
 [lg-api-rerank] (paraphrase) enable cross-encoder reranking to improve search relevance over vector similarity
@@ -111,6 +116,11 @@ Top 10 Results:
      Section: 3. Provider Configuration Update
      Snippet: The connection details for vector stores must be updated to support hybrid index...
 
+Closest Neighbor Candidate (top-5):
+  Returned: api-reference-large.md#16 (Section: Reranking Control)
+  Expected: api-reference-large.md#15 (Section: Advanced Usage Notes)
+  Distance: +1
+
 --------------------------------------------------
 [lg-mig-qdrant-collection] (exact-token) Qdrant collection named vectors dense sparse graph.json link map before backfill
 Class: window@5
@@ -158,6 +168,11 @@ Top 10 Results:
      Section: 3.2 Provider-Specific Settings
      Snippet: For dense vector storage, configure `DENSE_PROVIDER`. For sparse indexing, confi...
 
+Closest Neighbor Candidate (top-5):
+  Returned: migration-guide-v1-v2.md#4 (Section: Qdrant Collection Preparation)
+  Expected: migration-guide-v1-v2.md#3 (Section: 2. Schema Versioning and Metadata Handling)
+  Distance: +1
+
 --------------------------------------------------
 [lg-mig-chunk-index-change] (paraphrase) v1 to v2 chunking strategy change from fixed token count to heading section boundaries
 Class: window@5
@@ -200,6 +215,11 @@ Top 10 Results:
   10. [0.0267] api-reference-large.md#17 | 
      Section: Chunk Retrieval Window
      Snippet: To fetch a chunk and its surrounding context (preceding and succeeding chunks), ...
+
+Closest Neighbor Candidate (top-5):
+  Returned: migration-guide-v1-v2.md#6 (Section: 4. Chunking Strategy Evolution)
+  Expected: migration-guide-v1-v2.md#5 (Section: 3. Provider Configuration Update)
+  Distance: +1
 
 --------------------------------------------------
 [lg-mig-dry-run] (paraphrase) test migration connectivity without writing production data smoke test first
@@ -248,6 +268,11 @@ Top 10 Results:
      Section: 7. Sync, Backfill, and Reindex Triggers
      Snippet: Managing the state synchronization of the index....
 
+Closest Neighbor Candidate (top-5):
+  Returned: migration-guide-v1-v2.md#11 (Section: 9. Initial Dry Run Execution)
+  Expected: migration-guide-v1-v2.md#10 (Section: 8. Reindexing Strategy)
+  Distance: +1
+
 --------------------------------------------------
 [lg-mig-env-compat] (exact-token) Node.js 18 npm run smoke environment compatibility check before migration
 Class: window@5
@@ -294,6 +319,11 @@ Top 10 Results:
   10. [0.0290] migration-guide-v1-v2.md#8 | fileOnly
      Section: 6. Configuration File Rewriting
      Snippet: The core configuration file, `config.json`, must undergo a mandatory rewrite. Th...
+
+Closest Neighbor Candidate (top-5):
+  Returned: migration-guide-v1-v2.md#7 (Section: 5. Environment Compatibility Checks)
+  Expected: migration-guide-v1-v2.md#6 (Section: 4. Chunking Strategy Evolution)
+  Distance: +1
 
 --------------------------------------------------
 [lg-mig-obsidian-review] (paraphrase) inspect chunks_out after reindexing to verify section boundaries are respected
@@ -342,52 +372,10 @@ Top 10 Results:
      Section: 7.2 Reindexing Triggers
      Snippet: [[BENCH_ANCHOR: CFG_REINDEX_TRIGGER]] If the embedding provider changes, manual ...
 
---------------------------------------------------
-[lg-mig-sync-backfill] (exact-token) npm run sync backfill provider records payload field indexes schema version
-Class: exact@10
-Cause: exact-ranked-low
-
-Expected Anchors:
-  - Anchor: MIG_SYNC_BACKFILL (max-rel: 3)
-    ChunkId: migration-guide-v1-v2.md#11
-    Section: 9. Initial Dry Run Execution
-    Snippet: Always verify connectivity before a full reindex. Run `npm run sync` first to ensure `config.json` a...
-  - Anchor: MIG_VALIDATION (max-rel: 2)
-    ChunkId: migration-guide-v1-v2.md#12
-    Section: 10. Data Synchronization Backfill
-    Snippet: After the initial reindex, run `npm run sync` again to reconcile collection metadata and ensure payl...
-
-Top 10 Results:
-  1. [0.0333] migration-guide-v1-v2.md#12 | support
-     Section: 10. Data Synchronization Backfill
-     Snippet: After the initial reindex, run `npm run sync` again to reconcile collection meta...
-  2. [0.0325] configuration-manual.md#16 | 
-     Section: 7.1 Initial Synchronization
-     Snippet: [[BENCH_ANCHOR: CFG_BACKFILL_SYNC]] To perform initial synchronization of `confi...
-  3. [0.0320] migration-guide-v1-v2.md#14 | fileOnly
-     Section: 12. Rollback Plan
-     Snippet: If critical failures occur during the v2 deployment, execute the following steps...
-  4. [0.0318] migration-guide-v1-v2.md#0 | fileOnly
-     Section: semidex Migration Guide: v1 to v2
-     Snippet: **Domain:** Migration from dense-only indexing to hybrid dense+sparse retrieval ...
-  5. [0.0308] migration-guide-v1-v2.md#4 | fileOnly
-     Section: Qdrant Collection Preparation
-     Snippet: Before enabling v2 search, create or verify the target Qdrant collection with na...
-  6. [0.0308] migration-guide-v1-v2.md#11 | exact
-     Section: 9. Initial Dry Run Execution
-     Snippet: Always verify connectivity before a full reindex. Run `npm run sync` first to en...
-  7. [0.0296] api-reference-large.md#7 | 
-     Section: Batch Indexing
-     Snippet: Indexes multiple documents or chunks in a single transaction.  [[BENCH_ANCHOR: A...
-  8. [0.0294] migration-guide-v1-v2.md#10 | window
-     Section: 8. Reindexing Strategy
-     Snippet: Due to the fundamental change in indexing structure (dense-only to hybrid), a si...
-  9. [0.0292] migration-guide-v1-v2.md#8 | fileOnly
-     Section: 6. Configuration File Rewriting
-     Snippet: The core configuration file, `config.json`, must undergo a mandatory rewrite. Th...
-  10. [0.0291] migration-guide-v1-v2.md#13 | fileOnly
-     Section: 11. Post-Migration Validation
-     Snippet: Once the backfill is complete, perform comprehensive validation checks.  1. **Ve...
+Closest Neighbor Candidate (top-5):
+  Returned: migration-guide-v1-v2.md#9 (Section: 7. Content Review and Validation)
+  Expected: migration-guide-v1-v2.md#8 (Section: 6. Configuration File Rewriting)
+  Distance: +1
 
 --------------------------------------------------
 [lg-mig-rollback] (paraphrase) what to do if v2 deployment fails and how to restore the previous configuration
@@ -431,3 +419,8 @@ Top 10 Results:
   10. [0.0164] api-reference-large.md#3 | 
      Section: Search Documents
      Snippet: Performs a hybrid dense+sparse search across all indexed chunks. Supports tag fi...
+
+Closest Neighbor Candidate (top-5):
+  Returned: migration-guide-v1-v2.md#14 (Section: 12. Rollback Plan)
+  Expected: migration-guide-v1-v2.md#13 (Section: 11. Post-Migration Validation)
+  Distance: +1

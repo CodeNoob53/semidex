@@ -89,6 +89,7 @@ const COLLECTION  = 'bench-retrieval-custom-large';
 const TOP_K       = envInt('BENCH_TOP_K', 10, 1, 1000);
 const SKIP_INDEX  = process.env.BENCH_SKIP_INDEX === '1';
 const BENCH_WINDOW = envInt('BENCH_WINDOW', 1, 0, 10);
+const BENCH_CONTEXT_WINDOW = envInt('BENCH_CONTEXT_WINDOW', 0, 0, 10);
 
 // Approximate token count threshold for oversized-chunk guardrail.
 // Default matches production MAX_CHUNK_TOKENS (chunk.js line 22) so the
@@ -473,6 +474,7 @@ function computeMetrics(queryResults) {
   const negatives = queryResults.filter(r =>  r.query.shouldHaveNoStrongHit);
 
   let cr3 = 0, cr5 = 0, cr10 = 0, wr5 = 0, wr10 = 0;
+  let ctx5 = 0, ctx10 = 0;
   let supp = 0, ndcg5Sum = 0, ndcg10Sum = 0, mrrSum = 0, mrrCount = 0;
   let fRecall1 = 0, fRecallK = 0;
   let negPass = 0;
@@ -490,6 +492,8 @@ function computeMetrics(queryResults) {
     const cr10Hit = chunkRecallHit(results, query.qrels, TOP_K, 3);
     const wr5Hit  = windowRecallHit(results, query.qrels, 5, BENCH_WINDOW);
     const wr10Hit = windowRecallHit(results, query.qrels, TOP_K, BENCH_WINDOW);
+    const ctx5Hit  = BENCH_CONTEXT_WINDOW > 0 ? windowRecallHit(results, query.qrels, 5, BENCH_CONTEXT_WINDOW) : null;
+    const ctx10Hit = BENCH_CONTEXT_WINDOW > 0 ? windowRecallHit(results, query.qrels, TOP_K, BENCH_CONTEXT_WINDOW) : null;
     const suppHit = chunkRecallHit(results, query.qrels, TOP_K, 2);
     const n5      = gradedNDCG(results, query.qrels, 5);
     const n10     = gradedNDCG(results, query.qrels, TOP_K);
@@ -500,6 +504,8 @@ function computeMetrics(queryResults) {
     if (cr10Hit !== null) cr10 += cr10Hit ? 1 : 0;
     if (wr5Hit  !== null) wr5  += wr5Hit  ? 1 : 0;
     if (wr10Hit !== null) wr10 += wr10Hit ? 1 : 0;
+    if (ctx5Hit !== null) ctx5 += ctx5Hit ? 1 : 0;
+    if (ctx10Hit !== null) ctx10 += ctx10Hit ? 1 : 0;
     if (suppHit !== null) supp += suppHit ? 1 : 0;
     if (n5      !== null) ndcg5Sum  += n5;
     if (n10     !== null) ndcg10Sum += n10;
@@ -530,6 +536,8 @@ function computeMetrics(queryResults) {
     chunkRecall10:    hasExact > 0     ? cr10 / hasExact : null,
     windowRecall5:    hasExact > 0     ? wr5  / hasExact : null,
     windowRecall10:   hasExact > 0     ? wr10 / hasExact : null,
+    contextRecall5:   BENCH_CONTEXT_WINDOW > 0 && hasExact > 0 ? ctx5 / hasExact : null,
+    contextRecall10:  BENCH_CONTEXT_WINDOW > 0 && hasExact > 0 ? ctx10 / hasExact : null,
     supportRecallK:   hasAnyQrels > 0  ? supp / hasAnyQrels : null,
     ndcg5:            hasAnyQrels > 0  ? ndcg5Sum  / hasAnyQrels : null,
     ndcg10:           hasAnyQrels > 0  ? ndcg10Sum / hasAnyQrels : null,
@@ -615,6 +623,10 @@ function printSummary(metrics, chunkingGuardrails, provider) {
   console.log(`chunkRecall@${TOP_K}    : ${pct(metrics.chunkRecall10)}`);
   console.log(`windowRecall@5    : ${pct(metrics.windowRecall5)}  (+-${BENCH_WINDOW} window)`);
   console.log(`windowRecall@${TOP_K}   : ${pct(metrics.windowRecall10)}  (+-${BENCH_WINDOW} window)`);
+  if (BENCH_CONTEXT_WINDOW > 0) {
+    console.log(`contextRecall@5   : ${pct(metrics.contextRecall5)}  (+-${BENCH_CONTEXT_WINDOW} context)`);
+    console.log(`contextRecall@${TOP_K}  : ${pct(metrics.contextRecall10)}  (+-${BENCH_CONTEXT_WINDOW} context)`);
+  }
   console.log(`supportRecall@${TOP_K}  : ${pct(metrics.supportRecallK)}`);
   console.log(`nDCG@5 (graded)   : ${metrics.ndcg5?.toFixed(3)   ?? 'n/a'}`);
   console.log(`nDCG@${TOP_K} (graded)  : ${metrics.ndcg10?.toFixed(3)  ?? 'n/a'}`);
@@ -659,6 +671,10 @@ function saveResult(metrics, chunkingGuardrails, provider, anchorMap) {
     `chunkRecall@${TOP_K}    : ${pct(metrics.chunkRecall10)}`,
     `windowRecall@5    : ${pct(metrics.windowRecall5)}`,
     `windowRecall@${TOP_K}   : ${pct(metrics.windowRecall10)}`,
+    ...(BENCH_CONTEXT_WINDOW > 0 ? [
+      `contextRecall@5   : ${pct(metrics.contextRecall5)}`,
+      `contextRecall@${TOP_K}  : ${pct(metrics.contextRecall10)}`,
+    ] : []),
     `supportRecall@${TOP_K}  : ${pct(metrics.supportRecallK)}`,
     `nDCG@5            : ${metrics.ndcg5?.toFixed(3)  ?? 'n/a'}`,
     `nDCG@${TOP_K}           : ${metrics.ndcg10?.toFixed(3) ?? 'n/a'}`,

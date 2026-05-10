@@ -283,6 +283,40 @@ async function main() {
         reportLines.push(`     Section: ${section}`);
         reportLines.push(`     Snippet: ${snippet}...`);
       });
+
+      if (cls === 'window@5') {
+        reportLines.push(`\nClosest Neighbor Candidate (top-5):`);
+        let bestCandidate = null;
+        let minDistance = Infinity;
+        for (const cid of top5Ids) {
+          const p = parseChunkId(cid);
+          if (!p) continue;
+          for (const eid of exactIds) {
+            const ep = parseChunkId(eid);
+            if (ep && ep.sourceFile === p.sourceFile) {
+              const dist = p.chunkIndex - ep.chunkIndex;
+              if (Math.abs(dist) <= BENCH_WINDOW && Math.abs(dist) < minDistance) {
+                minDistance = Math.abs(dist);
+                bestCandidate = {
+                  returnedId: cid,
+                  expectedId: eid,
+                  distance: dist > 0 ? `+${dist}` : `${dist}`,
+                  returnedSection: results.find(r => getChunkId(r.payload) === cid)?.payload?.section ?? '',
+                  expectedSection: expectedDetails.find(ed => ed.chunkId === eid)?.section ?? ''
+                };
+              }
+            }
+          }
+        }
+        if (bestCandidate) {
+          reportLines.push(`  Returned: ${bestCandidate.returnedId} (Section: ${bestCandidate.returnedSection})`);
+          reportLines.push(`  Expected: ${bestCandidate.expectedId} (Section: ${bestCandidate.expectedSection})`);
+          reportLines.push(`  Distance: ${bestCandidate.distance}`);
+        } else {
+          reportLines.push(`  (None found within window in top-5)`);
+        }
+      }
+
       reportLines.push('');
     }
   }
