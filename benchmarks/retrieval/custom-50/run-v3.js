@@ -66,6 +66,7 @@ import {
 } from '../../../src/core/qdrant.js';
 import { embedForIndex, embedForSearch, SCHEMA_VERSION } from '../../../src/core/embeddings.js';
 import { loadConfig, saveConfig, resolveEnvProviders } from '../../../src/core/config.js';
+import { rerankResults } from '../../../src/core/rerank.js';
 
 const __dirname  = dirname(fileURLToPath(import.meta.url));
 // Existing 4 fixture docs live in the parent benchmark's fixtures directory.
@@ -83,6 +84,8 @@ const JSON_MODE            = process.env.BENCH_JSON === '1';
 const MMR_DIVERSITY        = envFloat('MMR_DIVERSITY', 0.5, 0, 1);
 const MMR_CANDIDATES_LIMIT = envInt('MMR_CANDIDATES_LIMIT', 100, 1, 10000);
 const BENCH_WINDOW         = envInt('BENCH_WINDOW', 1, 0, 10);
+const RERANK_ENABLED       = process.env.RERANK_ENABLED === '1';
+const RERANK_PREFETCH_MULT = envInt('RERANK_PREFETCH_MULT', 4, 1, 100);
 
 // Fixture files with their source directories.
 // Shared: taken from benchmarks/retrieval/fixtures/docs/ (stable regression corpus).
@@ -291,6 +294,10 @@ async function runQuery(queryText) {
       diversity: MMR_DIVERSITY,
       candidatesLimit: MMR_CANDIDATES_LIMIT,
     });
+  } else if (RERANK_ENABLED) {
+    const candidateLimit = Math.max(TOP_K * RERANK_PREFETCH_MULT, TOP_K + 5);
+    const candidates = await hybridSearch(COLLECTION, dense, sparse, candidateLimit);
+    results = rerankResults(candidates, queryText, { finalLimit: TOP_K, collection: COLLECTION });
   } else {
     results = await hybridSearch(COLLECTION, dense, sparse, TOP_K);
   }
@@ -592,7 +599,7 @@ async function main() {
 
   log(`\n=== semidex custom-50 quality benchmark ===`);
   log(`Provider  : ${BENCH_PROVIDER}  (${denseProvider}/${sparseProvider})`);
-  log(`Search    : ${SEARCH_MODE}${SEARCH_MODE === 'dense-mmr' ? `  (diversity=${MMR_DIVERSITY}, candidates=${MMR_CANDIDATES_LIMIT})` : ''}`);
+  log(`Search    : ${SEARCH_MODE}${SEARCH_MODE === 'dense-mmr' ? `  (diversity=${MMR_DIVERSITY}, candidates=${MMR_CANDIDATES_LIMIT})` : RERANK_ENABLED ? `  +rerank(prefetch×${RERANK_PREFETCH_MULT})` : ''}`);
   log(`Top-K     : ${TOP_K}`);
   log(`Queries   : ${queries.length} (${queries.filter(q => !q.shouldHaveNoStrongHit).length} positive, ${queries.filter(q => q.shouldHaveNoStrongHit).length} negative)`);
 
@@ -655,6 +662,7 @@ async function main() {
       sparseProvider,
       searchMode:    SEARCH_MODE,
       mmr: SEARCH_MODE === 'dense-mmr' ? { diversity: MMR_DIVERSITY, candidatesLimit: MMR_CANDIDATES_LIMIT } : null,
+      rerankApplied: SEARCH_MODE !== 'dense-mmr' && RERANK_ENABLED,
       topK:          TOP_K,
       metrics,
       queryResults: queryResults.map(r => ({
