@@ -362,7 +362,7 @@ Scoring is two-phase:
 
 Technical tokens (`snake_case`, `ACRONYM`, `camelCase`, length ≥ 8) score **3× higher** than prose words. Common Ukrainian and English stopwords are excluded from all boosts.
 
-A **greedy diversity pass** applies a penalty when multiple chunks from the same file are selected consecutively, encouraging varied results.
+A **greedy diversity pass** applies a penalty each time a chunk from an already-selected file is picked again (anywhere in the result list, not just adjacent positions), encouraging varied results.
 
 **Top-1 protection** (`RERANK_PROTECT_TOP1_DELTA=0.05`): the reranker only displaces the original RRF rank-0 result when the challenger's score advantage exceeds this threshold — preventing aggressive reranking from degrading the highest-confidence RRF hit.
 
