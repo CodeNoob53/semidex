@@ -50,8 +50,11 @@ export async function handle({ query, collection, top = 5, tags, source_file }) 
 
   return results.map(r => {
     const p = r.payload;
+    const chunkIndex = Number.isInteger(p.chunk_index) ? p.chunk_index : '?';
+    const totalChunks = Number.isInteger(p.total_chunks) ? p.total_chunks : '?';
+    const chunkDisplay = Number.isInteger(p.chunk_index) ? p.chunk_index + 1 : '?';
     return [
-      `### ${p.source_file} › ${p.section || 'intro'} (score: ${r.score.toFixed(3)})`,
+      `### ${p.source_file} > ${p.section || 'intro'} (chunk_index: ${chunkIndex}, chunk: ${chunkDisplay}/${totalChunks}, score: ${r.score.toFixed(3)})`,
       `**Tags:** ${(p.tags || []).join(', ')}`,
       `**Context:** ${p.context || ''}`,
       '',

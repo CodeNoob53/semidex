@@ -28,7 +28,7 @@ qdrant_collection_info
   -> qdrant_find_by_tag when narrowing by topic
 ```
 
-Search results return the matched chunk. If implementation requires full context, follow up with `qdrant_get_chunk` and a surrounding window.
+Search results return the matched chunk plus `source_file` and `chunk_index`. If implementation requires full context, follow up with `qdrant_get_chunk` and a surrounding window.
 
 ## Tool Reference
 
@@ -55,4 +55,3 @@ Required Qdrant payload indexes:
 - `tags`
 
 `npm run index` creates these for new collections. `npm run sync` ensures them for existing collections.
-
