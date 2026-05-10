@@ -1,122 +1,222 @@
 [
   {
     "id": "q1",
+    "type": "exact-token",
     "query": "де налаштовується sparseProvider",
     "expected": ["providers.md"],
+    "expectedFiles": ["providers.md"],
+    "expectedSections": ["sparseProvider configuration"],
+    "expectedAllTokens": ["sparseProvider"],
+    "expectedAnyTokens": ["config.json", "hashed-tf", "bge-m3-onnx"],
     "note": "sparseProvider config field, resolveEnvProviders"
   },
   {
     "id": "q2",
+    "type": "paraphrase",
     "query": "як перемкнутися на ONNX без Ollama",
     "expected": ["providers.md"],
+    "expectedFiles": ["providers.md"],
+    "expectedSections": ["bge-m3-onnx + bge-m3-onnx"],
+    "expectedAllTokens": ["onnx"],
+    "expectedAnyTokens": ["ONNX_EMBED", "ollama"],
     "note": "ONNX_EMBED=1 shorthand, bge-m3-onnx provider"
   },
   {
     "id": "q3",
+    "type": "exact-token",
     "query": "як працює RRF k параметр у гібридному пошуку",
     "expected": ["qdrant.md"],
+    "expectedFiles": ["qdrant.md"],
+    "expectedSections": ["RRF k parameter"],
+    "expectedAllTokens": ["rrf"],
+    "expectedAnyTokens": ["k", "smoothing", "prefetch"],
     "note": "RRF_K env var, smoothing constant"
   },
   {
     "id": "q4",
+    "type": "paraphrase",
     "query": "чому hybridSearch падає на старих колекціях без sparse векторів",
     "expected": ["qdrant.md"],
+    "expectedFiles": ["qdrant.md"],
+    "expectedSections": ["Fallback to dense-only"],
+    "expectedAllTokens": ["sparse"],
+    "expectedAnyTokens": ["dense", "fallback", "hybrid"],
     "note": "fallback to dense-only when sparse missing"
   },
   {
     "id": "q5",
+    "type": "paraphrase",
     "query": "чому overlap не має переходити між секціями",
     "expected": ["chunking.md"],
+    "expectedFiles": ["chunking.md"],
+    "expectedSections": ["Why overlap must not cross section boundaries"],
+    "expectedAllTokens": ["overlap"],
+    "expectedAnyTokens": ["section", "boundary", "cross"],
     "note": "cross-section overlap contaminates embeddings"
   },
   {
     "id": "q6",
+    "type": "paraphrase",
     "query": "чому фінальний чанк може губитися у коротких документах",
     "expected": ["chunking.md"],
+    "expectedFiles": ["chunking.md"],
+    "expectedSections": ["Flushing the final chunk"],
+    "expectedAllTokens": ["chunk"],
+    "expectedAnyTokens": ["flush", "final", "pending", "overlap"],
     "note": "flush bug, pending counter, OVERLAP_SENTENCES guard"
   },
   {
     "id": "q7",
+    "type": "paraphrase",
     "query": "що робить npm run sync з наявними колекціями",
     "expected": ["sync.md"],
+    "expectedFiles": ["sync.md"],
+    "expectedSections": ["What sync does"],
+    "expectedAllTokens": ["sync"],
+    "expectedAnyTokens": ["collection", "config", "provider", "backfill"],
     "note": "backfill of denseProvider/sparseProvider fields"
   },
   {
     "id": "q8",
+    "type": "paraphrase",
     "query": "коли треба запускати sync після апгрейду semidex",
     "expected": ["sync.md"],
+    "expectedFiles": ["sync.md"],
+    "expectedSections": ["When to run sync"],
+    "expectedAllTokens": ["sync"],
+    "expectedAnyTokens": ["upgrade", "schema", "new", "after"],
     "note": "schema upgrade, new config fields"
   },
   {
     "id": "q9",
+    "type": "paraphrase",
     "query": "what are the valid provider combinations for embedding",
     "expected": ["providers.md"],
+    "expectedFiles": ["providers.md"],
+    "expectedSections": ["Provider validation"],
+    "expectedAllTokens": ["provider"],
+    "expectedAnyTokens": ["ollama", "onnx", "combination", "valid"],
     "note": "EN: valid combos, ollama+hashed-tf, bge-m3-onnx+bge-m3-onnx"
   },
   {
     "id": "q10",
+    "type": "exact-token",
     "query": "reindex discriminators provider change detection",
     "expected": ["providers.md"],
+    "expectedFiles": ["providers.md"],
+    "expectedSections": ["Reindex triggers"],
+    "expectedAllTokens": ["reindex"],
+    "expectedAnyTokens": ["discriminator", "provider", "denseProvider", "sparseProvider"],
     "note": "EN: 6 discriminator fields, skip logic"
   },
   {
     "id": "q11",
+    "type": "exact-token",
     "query": "HYBRID_PREFETCH_LIMIT RRF prefetch leg size",
     "expected": ["qdrant.md"],
+    "expectedFiles": ["qdrant.md"],
+    "expectedSections": ["Env tuning"],
+    "expectedAllTokens": ["HYBRID_PREFETCH_LIMIT"],
+    "expectedAnyTokens": ["prefetch", "rrf", "leg"],
     "note": "EN exact token: HYBRID_PREFETCH_LIMIT env var"
   },
   {
     "id": "q12",
+    "type": "paraphrase",
     "query": "як Qdrant зберігає named vectors dense sparse",
     "expected": ["qdrant.md"],
+    "expectedFiles": ["qdrant.md"],
+    "expectedSections": ["Collections"],
+    "expectedAllTokens": ["dense", "sparse"],
+    "expectedAnyTokens": ["named", "vector", "collection"],
     "note": "UA: named vectors structure, collection schema"
   },
   {
     "id": "q13",
+    "type": "exact-token",
     "query": "OVERLAP_SENTENCES default value and effect",
     "expected": ["chunking.md"],
+    "expectedFiles": ["chunking.md"],
+    "expectedSections": ["Overlap"],
+    "expectedAllTokens": ["OVERLAP_SENTENCES"],
+    "expectedAnyTokens": ["default", "overlap", "sentences"],
     "note": "EN exact token: OVERLAP_SENTENCES parameter"
   },
   {
     "id": "q14",
+    "type": "paraphrase",
     "query": "як pandoc конвертує docx epub перед індексацією",
     "expected": ["chunking.md"],
+    "expectedFiles": ["chunking.md"],
+    "expectedSections": ["Pandoc formats"],
+    "expectedAllTokens": ["pandoc"],
+    "expectedAnyTokens": ["docx", "epub", "convert", "markdown"],
     "note": "UA: pandoc formats, synthetic .md path"
   },
   {
     "id": "q15",
+    "type": "exact-token",
     "query": "embedding_schema_version що зберігається у payload",
     "expected": ["providers.md"],
+    "expectedFiles": ["providers.md"],
+    "expectedSections": ["Reindex triggers"],
+    "expectedAllTokens": ["embedding_schema_version"],
+    "expectedAnyTokens": ["payload", "reindex", "version"],
     "note": "mixed: embedding_schema_version exact token"
   },
   {
     "id": "q16",
+    "type": "exact-token",
     "query": "sync backfill logic for missing denseProvider field",
     "expected": ["sync.md"],
+    "expectedFiles": ["sync.md"],
+    "expectedSections": ["Backfill logic"],
+    "expectedAllTokens": ["denseProvider", "backfill"],
+    "expectedAnyTokens": ["sparseProvider", "missing", "infer"],
     "note": "EN: backfill inference from existing sparseProvider"
   },
   {
     "id": "q17",
+    "type": "paraphrase",
     "query": "коли sync перезаписує provider у config.json",
     "expected": ["sync.md"],
+    "expectedFiles": ["sync.md"],
+    "expectedSections": ["Provider recorded by sync"],
+    "expectedAllTokens": ["sync", "provider"],
+    "expectedAnyTokens": ["config", "overwrite", "env"],
     "note": "UA: sync reflects env at run time, not historical record"
   },
   {
     "id": "q18",
+    "type": "exact-token",
     "query": "getStoredMeta які поля читає з Qdrant payload",
     "expected": ["qdrant.md"],
+    "expectedFiles": ["qdrant.md"],
+    "expectedSections": ["getStoredMeta"],
+    "expectedAllTokens": ["getStoredMeta"],
+    "expectedAnyTokens": ["payload", "field", "hash", "provider"],
     "note": "mixed: getStoredMeta function, 6 payload fields"
   },
   {
     "id": "q19",
+    "type": "exact-token",
     "query": "splitSentences trailing text без крапки",
     "expected": ["chunking.md"],
+    "expectedFiles": ["chunking.md"],
+    "expectedSections": ["Sentence splitting"],
+    "expectedAllTokens": ["splitSentences"],
+    "expectedAnyTokens": ["trailing", "fragment", "dot", "terminator"],
     "note": "mixed: splitSentences regex, unterminated fragment"
   },
   {
     "id": "q20",
+    "type": "exact-token",
     "query": "ONNX_EMBED bge-m3-onnx model download cache location",
     "expected": ["providers.md"],
+    "expectedFiles": ["providers.md"],
+    "expectedSections": ["bge-m3-onnx + bge-m3-onnx"],
+    "expectedAllTokens": ["ONNX_EMBED"],
+    "expectedAnyTokens": ["download", "cache", "models"],
     "note": "EN exact tokens: ONNX_EMBED, bge-m3-onnx, ./models/"
   }
 ]

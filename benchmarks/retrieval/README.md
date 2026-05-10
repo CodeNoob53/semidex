@@ -5,12 +5,18 @@ Runs against a live Qdrant instance; no mocking.
 
 ## Metrics
 
-| Metric    | Meaning                                                  |
-|-----------|----------------------------------------------------------|
-| Recall@1  | Fraction of queries where the correct file is rank #1   |
-| Recall@K  | Fraction of queries where the correct file is in top-K (default K=5) |
-| MRR       | Mean Reciprocal Rank — average of 1/rank across queries  |
-| Avg ms    | Average end-to-end query latency (embed + search)        |
+| Metric | Meaning |
+|--------|---------|
+| fileRecall@1 | Fraction of positive queries where the correct file is rank #1 |
+| fileRecall@K | Fraction of positive queries where the correct file is in top-K |
+| MRR | Mean Reciprocal Rank — average of 1/rank across positive queries |
+| nDCG@K | Normalised Discounted Cumulative Gain at K (binary relevance per file) |
+| sectionHit@K | Fraction of queries where the expected section appears in top-K chunks *from expectedFiles* |
+| tokenHit@K | Fraction of queries where expectedAllTokens + any of expectedAnyTokens appear in a top-K chunk *from expectedFiles* |
+| negativePassRate | Fraction of negative queries where expectedAllTokens do NOT appear in top-1 result |
+| dupSourceRate | Average fraction of top-K results that share a source_file with another result |
+| sourceDiversity | Average count of unique source_file values in top-K results |
+| p50 / p95 latency | Median and 95th-percentile end-to-end query latency |
 
 ## Usage
 
@@ -52,24 +58,68 @@ Four Markdown files in `fixtures/docs/`, each covering one semidex subsystem:
 
 ## Queries
 
-20 queries in `queries.json` — 5 per fixture file. Each query has an `expected` list of
-source file names that must appear in top-K results for the query to count as a hit.
+`queries.json` supports **v1** (minimal) and **v2** (full) schema. All existing fields remain valid; v2 fields are optional and enable additional metrics when present.
 
-## Adding queries
-
-Add an entry to `queries.json`:
+### v1 schema (backward compatible)
 
 ```json
 {
-  "id": "q9",
+  "id": "q1",
   "query": "your query here",
   "expected": ["filename.md"],
   "note": "what concept this tests"
 }
 ```
 
-The `id` field is used in output; keep it unique. `expected` is a list — a query counts
-as a hit if any expected file appears in the ranked results.
+### v2 schema
+
+```json
+{
+  "id": "q21",
+  "type": "exact-token",
+  "query": "your query here",
+  "expected": ["filename.md"],
+  "expectedFiles": ["filename.md"],
+  "expectedSections": ["Section heading as chunked"],
+  "expectedAllTokens": ["token_must_exist"],
+  "expectedAnyTokens": ["config.json", "hashed-tf"],
+  "note": "what concept this tests"
+}
+```
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `id` | yes | Unique identifier shown in output |
+| `type` | no | Query category: `exact-token`, `paraphrase`, `mixed-lang`, `chunk-level`, `negative` |
+| `query` | yes | The search query text |
+| `expected` | yes (v1) | File names — v1 backward-compat field; used if `expectedFiles` absent |
+| `expectedFiles` | no | File names that must appear in top-K results |
+| `expectedSections` | no | Section headings (exact match as indexed) — enables `sectionHit@K` |
+| `expectedAllTokens` | no | Tokens that ALL must appear in a matching chunk — enables `tokenHit@K`. Multi-part values like `"config.json"` are split automatically: `["config","json"]` |
+| `expectedAnyTokens` | no | At least ONE of these tokens must appear alongside `expectedAllTokens` |
+| `shouldHaveNoStrongHit` | no | `true` for negative queries — excluded from Recall/MRR, counted as `negativePassRate` |
+
+**sectionHit@K** and **tokenHit@K** are scoped to chunks from `expectedFiles` only — a tok ✓ means the token appeared in a chunk from the correct file, not any chunk in top-K.
+
+## Adding queries
+
+Preferred: use v2 schema with `expectedSections` and `expectedAllTokens` filled in. Keep `expected` for v1 compat. Tokens in `expectedAllTokens`/`expectedAnyTokens` are normalised through the same tokeniser as the reranker — `"config.json"` → `["config","json"]`, so write multi-word terms as single strings and they will be split automatically.
+
+For **negative queries** (queries that should return no strong hit):
+
+```json
+{
+  "id": "q47",
+  "type": "negative",
+  "query": "де semidex налаштовує postgres connection pool",
+  "expectedFiles": [],
+  "expectedAllTokens": ["postgres"],
+  "shouldHaveNoStrongHit": true,
+  "note": "semidex has no postgres; should not return a confident hit"
+}
+```
+
+Negative queries are evaluated separately as `negativePassRate`. A negative query passes if `expectedAllTokens` do not appear in the top-1 result's text/section.
 
 ## Latest results
 
