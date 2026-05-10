@@ -184,6 +184,7 @@ focuses on strengthening the existing agent-grade RAG index:
 - benchmark-driven tuning before changing defaults
 - better diagnostics and local observability
 - agent wake-up workflows for MCP clients
+- future incremental codebase memory that refreshes only changed project files
 - careful experiments with MMR, full-text filtering, and future ColBERT reranking
 
 Chunking quality is treated as a first-class retrieval concern — see
@@ -214,6 +215,7 @@ Not implemented yet:
 - ColBERT / late-interaction retrieval
 - Full external dataset evaluation
 - True BM25/SPLADE fallback for Node-only sparse retrieval
+- Incremental project/codebase sync for changed, deleted, and renamed files
 
 ## Acknowledgements
 

@@ -185,6 +185,56 @@ Success signals:
 - clear caveats for every published number
 - no comparison between incompatible metrics
 
+## Phase 6 - Incremental Codebase Memory
+
+Goal: make semidex useful as a live memory layer for large software projects,
+where the index follows source changes without requiring a full reindex after
+every edit.
+
+This is a future concept, not immediate implementation work. The intended shape
+is closer to an incremental project index than a one-shot document import:
+
+- index a whole repository with stable include/exclude rules
+- store a per-collection manifest of source files, hashes, provider metadata,
+  chunking settings, and source root
+- detect changed, new, deleted, and renamed files
+- delete and reindex only affected `source_file` payloads in Qdrant
+- force a full reindex only when provider, schema, vector size, or chunking
+  settings change
+- optionally use `git status --porcelain` as a fast change signal when the
+  source root is a Git repository
+- keep a scan-based fallback for non-Git folders
+
+This should not try to replace Git. Git can provide useful change information,
+but semidex's responsibility is keeping the retrieval index aligned with the
+current working tree.
+
+Possible command shape:
+
+```bash
+COLLECTION=my-project SOURCE_ROOT=. npm run index:project
+COLLECTION=my-project SOURCE_ROOT=. npm run sync:project
+COLLECTION=my-project SOURCE_ROOT=. npm run watch:project
+```
+
+Later extensions:
+
+- code-aware chunking for JavaScript, TypeScript, Python, and backend service
+  files
+- chunking by functions, classes, exports, route handlers, config blocks, and
+  module boundaries instead of sentence-only splitting
+- branch or commit metadata for agent awareness
+- MCP guidance that tells agents whether the index is fresh or stale relative
+  to the working tree
+
+Success signals:
+
+- large repositories can be refreshed without full reindexing
+- changed files become searchable quickly
+- deleted files disappear from search results
+- agents search current codebase state instead of stale snapshots
+- indexing cost scales with the size of the change, not the size of the repo
+
 ## Not Planned Right Now
 
 These may be useful later, but they are not the current priority:
@@ -196,6 +246,7 @@ These may be useful later, but they are not the current priority:
 - making LLM extraction the source of truth
 - enabling write-capable agent memory by default
 - making ColBERT a default path before benchmark evidence supports it
+- building a full Git replacement or source-control workflow
 
 ## Near-Term Task Queue
 
@@ -205,5 +256,5 @@ Recommended next tasks:
 2. Summarize custom-50 diagnostics conclusions in the benchmarking docs.
 3. Draft the agent wake-up workflow before implementing any new MCP tool.
 4. Design a diagnostic bundle command with redaction rules.
-5. Revisit MMR and ColBERT only after chunk/window diagnostics are stable.
-
+5. Capture the incremental codebase memory concept as a future design note.
+6. Revisit MMR and ColBERT only after chunk/window diagnostics are stable.
