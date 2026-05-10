@@ -1,0 +1,130 @@
+══════════════════════════════════════════════════════════════════════════════════════════════════════════════
+  custom-50 threshold sweep — low-spread and combined trigger
+  EXPERIMENT — does not change runtime or MCP behavior
+  Provider : onnx (bge-m3-onnx/bge-m3-onnx), hybrid RRF
+  Queries  : 49 positive (rel≥3) + 1 negative
+  Misses   : 8 (top-5 baseline)
+  Window   : ±1
+
+  Thresholds swept: 0.001, 0.002, 0.003, 0.005, 0.008, 0.01, 0.015, 0.02
+
+  SPREAD_THRESHOLD=0.05 (diagnostics v1 default) fired on 100% of queries because
+  topScoreSpread max is ~0.017 for this corpus. Thresholds must be set below the
+  observed spread distribution to be discriminative.
+══════════════════════════════════════════════════════════════════════════════════════════════════════════════
+
+topScoreSpread distribution (positive queries):
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  n=49  mean=0.0044  min=0.0010  p10=0.0018  p25=0.0021  p50=0.0023  p75=0.0028  p90=0.0172  max=0.0175
+
+  miss spread  : mean=0.0042  min=0.0021  max=0.0169
+  hit  spread  : mean=0.0044  min=0.0010  max=0.0175
+
+sourceDiversity distribution (positive queries):
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  counts: 1:2  2:16  3:21  4:9  5:1   (sourceDiversity<2: 2/49)
+
+Section 1 — low-spread sweep (sourceDiversity unrestricted):
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  thresh    trigRate    missRecall   precision       FPR    recov@10    recov@rerank    recov@win       triggered        caught        falsePos
+─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  0.0010        0.0%          0.0%         n/a      0.0%           —               —            —               0             0               0
+  0.0020       20.4%          0.0%        0.0%     24.4%           —               —            —              10             0              10
+  0.0030       75.5%         87.5%       18.9%     73.2%       57.1%           85.7%        57.1%              37             7              30
+  0.0050       85.7%         87.5%       16.7%     85.4%       57.1%           85.7%        57.1%              42             7              35
+  0.0080       85.7%         87.5%       16.7%     85.4%       57.1%           85.7%        57.1%              42             7              35
+  0.0100       85.7%         87.5%       16.7%     85.4%       57.1%           85.7%        57.1%              42             7              35
+  0.0150       85.7%         87.5%       16.7%     85.4%       57.1%           85.7%        57.1%              42             7              35
+  0.0200      100.0%        100.0%       16.3%    100.0%       62.5%           87.5%        62.5%              49             8              41
+─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+Section 2 — combined sweep (low-diversity OR low-spread):
+  "low-diversity" = sourceDiversity < 2 (fixed conservative threshold)
+  "low-spread"    = topScoreSpread < threshold (swept)
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  thresh    trigRate    missRecall   precision       FPR    recov@10    recov@rerank    recov@win       triggered        caught        falsePos
+─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  0.0010        4.1%         25.0%      100.0%      0.0%      100.0%          100.0%        50.0%               2             2               0
+  0.0020       24.5%         25.0%       16.7%     24.4%      100.0%          100.0%        50.0%              12             2              10
+  0.0030       75.5%         87.5%       18.9%     73.2%       57.1%           85.7%        57.1%              37             7              30
+  0.0050       85.7%         87.5%       16.7%     85.4%       57.1%           85.7%        57.1%              42             7              35
+  0.0080       85.7%         87.5%       16.7%     85.4%       57.1%           85.7%        57.1%              42             7              35
+  0.0100       85.7%         87.5%       16.7%     85.4%       57.1%           85.7%        57.1%              42             7              35
+  0.0150       85.7%         87.5%       16.7%     85.4%       57.1%           85.7%        57.1%              42             7              35
+  0.0200      100.0%        100.0%       16.3%    100.0%       62.5%           87.5%        62.5%              49             8              41
+─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+Section 3 — low-diversity alone (sourceDiversity < 2, no threshold):
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  triggerRate=4.1%  missRecall=25.0%  precision=100.0%  FPR=0.0%
+  recov@10=100.0%  recov@rerank=100.0%  recov@window=50.0%
+  triggered=2  caught=2  falsePos=0  totalMisses=8
+
+Per-query topScoreSpread (sorted ascending, eval labels shown):
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ID       spread  srcDiv  isMiss  hasNbr
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────
+c16      0.0010       3     hit       Y
+c49      0.0013       2     hit       Y
+c05      0.0017       3     hit       Y
+c15      0.0018       2     hit       Y
+c38      0.0018       4     hit       Y
+c01      0.0018       2     hit       Y
+c08      0.0018       3     hit       Y
+c34      0.0018       2     hit       Y
+c28      0.0018       2     hit       Y
+c04      0.0020       4     hit       Y
+c36      0.0020       3     hit       Y
+c31      0.0020       2     hit       Y
+c06      0.0021       3     hit       Y
+c09      0.0021       2     hit       Y
+c39      0.0021       2     hit       Y
+c42      0.0021       4     hit       Y
+c13      0.0021       3     hit       Y
+c23      0.0021       4     hit       Y
+c33      0.0021       2    MISS       Y
+c25      0.0023       2     hit       Y
+c37      0.0023       1    MISS       n
+c26      0.0023       3     hit       Y
+c11      0.0023       3     hit       Y
+c44      0.0023       2     hit       Y
+c14      0.0023       3     hit       Y
+c29      0.0023       3    MISS       n
+c40      0.0023       4     hit       Y
+c12      0.0024       3    MISS       Y
+c22      0.0024       3     hit       Y
+c02      0.0024       3    MISS       Y
+c30      0.0025       2     hit       Y
+c32      0.0025       3     hit       Y
+c47      0.0025       2     hit       Y
+c21      0.0026       3     hit       Y
+c03      0.0026       3     hit       Y
+c48      0.0026       1    MISS       Y
+c35      0.0028       5    MISS       n
+c20      0.0030       4     hit       Y
+c45      0.0032       4     hit       Y
+c24      0.0033       2     hit       Y
+c27      0.0033       3     hit       Y
+c07      0.0035       3     hit       Y
+c10      0.0169       4     hit       Y
+c41      0.0169       3    MISS       Y
+c43      0.0172       3     hit       Y
+c17      0.0172       2     hit       Y
+c19      0.0172       3     hit       Y
+c46      0.0172       4     hit       Y
+c18      0.0175       2     hit       Y
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+══════════════════════════════════════════════════════════════════════════════════════════════════════════════
+Recommendation (based on this run only — do not change production defaults):
+
+  No low-spread threshold achieves FPR<50% with missRecall>0 in this run.
+  The topScoreSpread signal may not be discriminative enough for this corpus.
+
+  Best combined threshold (FPR<50%, missRecall>0): 0.0020
+    missRecall=25.0%  FPR=24.4%  precision=16.7%  triggered=12/49
+
+  Cross-validate across multiple runs before adjusting any trigger threshold.
+  A single run is insufficient due to query ordering and reranker variance.
+
+══════════════════════════════════════════════════════════════════════════════════════════════════════════════

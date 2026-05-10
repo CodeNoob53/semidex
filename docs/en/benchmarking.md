@@ -337,8 +337,40 @@ Trigger evaluation metrics per rule:
 | `recoveryPotential@rerank` | % of triggered queries recovered by top-40 + rerank |
 | `recoveryPotential@window` | % of triggered queries recovered by window expansion |
 
-`SPREAD_THRESHOLD` tunes the `low-spread` rule (default 0.05). Always uses ONNX
-provider; `RRF_K` and `HYBRID_PREFETCH_LIMIT` must be at defaults (exits with error
-otherwise).
+`SPREAD_THRESHOLD` tunes the `low-spread` rule (default 0.05). **Do not rely on
+this default** — see Threshold Sweep below. Always uses ONNX provider; `RRF_K` and
+`HYBRID_PREFETCH_LIMIT` must be at defaults (exits with error otherwise).
 
 Output is saved to `benchmarks/retrieval/results/YYYY-MM-DD-custom50-diagnostics.txt`.
+
+## Threshold Sweep
+
+```bash
+npm run bench:custom50:sweep
+BENCH_SKIP_INDEX=1 npm run bench:custom50:sweep
+```
+
+**Experiment — does not change runtime or MCP behavior.**
+
+Finds a realistic `SPREAD_THRESHOLD` for the `low-spread` trigger by sweeping
+`[0.001, 0.002, 0.003, 0.005, 0.008, 0.01, 0.015, 0.02]` and evaluating
+`triggerRate`, `missRecall`, `FPR`, and `recoveryPotential` at each level.
+
+Why `SPREAD_THRESHOLD=0.05` cannot be the default: the `topScoreSpread` for
+custom-50 ranges from ~0.001 to ~0.017. A threshold of 0.05 fires on 100% of
+queries (FPR=100%), making it useless as a trigger. The sweep identifies the
+narrow band where the signal becomes discriminative.
+
+Three sections in the output:
+
+| Section | What it sweeps |
+|---------|----------------|
+| 1. low-spread | `topScoreSpread < threshold` only |
+| 2. combined | `sourceDiversity < 2 OR topScoreSpread < threshold` |
+| 3. low-diversity (fixed) | `sourceDiversity < 2` alone, no sweep |
+
+The recommendation block auto-selects the highest threshold where FPR < 50%
+and missRecall > 0. Cross-validate across multiple runs before using any
+threshold as a non-oracle trigger gate.
+
+Output is saved to `benchmarks/retrieval/results/YYYY-MM-DD-custom50-threshold-sweep.txt`.
