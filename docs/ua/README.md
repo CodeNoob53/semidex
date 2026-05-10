@@ -1,6 +1,8 @@
 # semidex
 
-![semidex](assets/avif/banner_logo.avif)
+Other languages: [English](../en/README.md)
+
+![semidex](../../assets/avif/banner_logo.avif)
 
 ![Node.js](https://img.shields.io/badge/node-%3E%3D18-brightgreen?logo=node.js&logoColor=white)
 ![npm](https://img.shields.io/badge/npm-2.0.0-blue?logo=npm&logoColor=white)
@@ -113,8 +115,8 @@ claude mcp add --scope user semidex -- node C:\absolute\path\to\semidex\src\mcp\
 Потім натисніть **Reconnect** у `Claude Code → MCP servers → semidex`. Запустіть `/mcp` у чаті для перевірки — сервер відображається як `qdrant` із 6 доступними інструментами:
 
 <table><tr>
-<td><img src="assets/avif/mcp_connected.avif" alt="MCP підключено"/></td>
-<td><img src="assets/avif/mcp_status.avif" alt="Статус MCP інструментів"/></td>
+<td><img src="../../assets/avif/mcp_connected.avif" alt="MCP підключено"/></td>
+<td><img src="../../assets/avif/mcp_status.avif" alt="Статус MCP інструментів"/></td>
 </tr></table>
 
 ## Рекомендовані режими
