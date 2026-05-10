@@ -273,7 +273,9 @@ decide whether to fire a recovery step. A real agent cannot inspect qrels. There
 not realistic estimates. Treat them as the theoretical ceiling for each policy's
 recovery approach.
 
-Always uses ONNX provider (bge-m3-onnx, hybrid RRF, default RRF_K=60). Provider
-and RRF parameters cannot be overridden in-process.
+Always uses ONNX provider (bge-m3-onnx, hybrid RRF). `RRF_K` and
+`HYBRID_PREFETCH_LIMIT` must be unset or at their defaults (60/2) — the script
+exits with an error if either is set to a non-default value, because `qdrant.js`
+reads them at module load time and they cannot be reset in-process.
 
 Output is saved to `benchmarks/retrieval/results/YYYY-MM-DD-custom50-agent-policy.txt`.

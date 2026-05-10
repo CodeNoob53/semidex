@@ -30,8 +30,8 @@
 // IMPORTANT — provider / parameter isolation:
 //   This script runs in-process. qdrant.js reads RRF_K and HYBRID_PREFETCH_LIMIT
 //   at module load time (ESM hoisting), so those values cannot be overridden here.
-//   The script always uses the default values (RRF_K=60, HYBRID_PREFETCH_LIMIT=2).
-//   If your shell has these set to non-default values, they will affect results.
+//   The script requires default values (RRF_K=60, HYBRID_PREFETCH_LIMIT=2) and will
+//   exit with an error if either is set to a non-default value in the environment.
 //   ONNX_EMBED is forced unconditionally — see the env setup block below.
 //
 // Usage:
@@ -57,8 +57,9 @@ Options (env vars):
   BENCH_WINDOW=1       Adjacency window for window-expansion policy (default: 1)
 
 Note: ONNX provider (bge-m3-onnx) is forced unconditionally. BENCH_PROVIDER is
-ignored. This script always uses default RRF_K=60 and HYBRID_PREFETCH_LIMIT=2 because
-qdrant.js reads those at module load time and cannot be overridden in-process.
+ignored. RRF_K and HYBRID_PREFETCH_LIMIT must be unset or at their defaults (60/2) —
+qdrant.js reads them at module load time; the script exits with an error if they
+are set to non-default values.
 
 Output: benchmarks/retrieval/results/YYYY-MM-DD-custom50-agent-policy.txt
 Prerequisites: QDRANT_URL and QDRANT_KEY in .env or environment.
@@ -91,10 +92,26 @@ const COLLECTION  = 'bench-retrieval-custom-50';
 const SKIP_INDEX  = process.env.BENCH_SKIP_INDEX === '1';
 const BENCH_WINDOW = parseInt(process.env.BENCH_WINDOW ?? '1');
 
+// Fail fast if RRF_K or HYBRID_PREFETCH_LIMIT are set to non-default values.
+// qdrant.js reads these at module load time (ESM hoisting), before this code runs,
+// so they cannot be reset here. Running with stale values would silently produce
+// results that don't match what the docs describe.
+const _rrfK = process.env.RRF_K;
+const _prefetch = process.env.HYBRID_PREFETCH_LIMIT;
+if ((_rrfK !== undefined && _rrfK !== '60') || (_prefetch !== undefined && _prefetch !== '2')) {
+  process.stderr.write(
+    `\nError: RRF_K=${_rrfK ?? '(unset)'} HYBRID_PREFETCH_LIMIT=${_prefetch ?? '(unset)'}\n` +
+    `agent-policy.js always requires default values (RRF_K=60, HYBRID_PREFETCH_LIMIT=2).\n` +
+    `qdrant.js reads these at module load time and they cannot be reset in-process.\n` +
+    `Unset the variables before running:\n` +
+    `  Remove-Item Env:RRF_K, Env:HYBRID_PREFETCH_LIMIT   # PowerShell\n` +
+    `  unset RRF_K HYBRID_PREFETCH_LIMIT                  # bash\n`
+  );
+  process.exit(1);
+}
+
 // Force ONNX unconditionally. embeddings.js checks ONNX_EMBED at call time (not
-// import time), so setting it here is sufficient. qdrant.js reads RRF_K and
-// HYBRID_PREFETCH_LIMIT at import time via ESM hoisting — those cannot be reset
-// here. This script always runs with their defaults (60 / 2). See file header.
+// import time), so setting it here is sufficient.
 process.env.ONNX_EMBED = '1';
 delete process.env.DENSE_PROVIDER;
 delete process.env.SPARSE_PROVIDER;
