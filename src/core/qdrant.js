@@ -88,6 +88,33 @@ export async function hybridSearch(collection, denseVector, sparseVector, limit 
   return data.result?.points ?? [];
 }
 
+export async function mmrSearch(collection, denseVector, limit = 5, filter = null, opts = {}) {
+  const diversity = opts.diversity ?? 0.5;
+  const candidatesLimit = Math.max(opts.candidatesLimit ?? 100, limit);
+  const body = {
+    query: {
+      nearest: denseVector,
+      mmr: {
+        diversity,
+        candidates_limit: candidatesLimit,
+      },
+    },
+    using: 'dense',
+    limit,
+    with_payload: true,
+  };
+  if (filter) body.filter = filter;
+
+  const r = await fetch(`${URL}/collections/${collection}/points/query`, {
+    method: 'POST',
+    headers: headers(),
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) throw new Error(`Qdrant mmrSearch failed (${collection}): ${await r.text()}`);
+  const data = await r.json();
+  return data.result?.points ?? [];
+}
+
 export async function scroll(collection, filter, limit = 100, withPayload = true) {
   const r = await fetch(`${URL}/collections/${collection}/points/scroll`, {
     method: 'POST',

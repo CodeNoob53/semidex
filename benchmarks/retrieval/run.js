@@ -10,6 +10,7 @@
 //   BENCH_PROVIDER=onnx node benchmarks/...       # force bge-m3-onnx regardless of .env
 //   BENCH_SKIP_INDEX=1 node benchmarks/...        # skip re-indexing (must match stored provider)
 //   BENCH_TOP_K=10 node benchmarks/...            # change search depth (default 5)
+//   BENCH_SEARCH_MODE=dense-mmr node benchmarks/... # dense MMR instead of hybrid RRF
 //   node benchmarks/retrieval/run.js --help       # show this help
 //
 // Prerequisites: QDRANT_URL + QDRANT_KEY must be set in .env or the environment.
@@ -25,6 +26,9 @@ Options (env vars):
   BENCH_PROVIDER=onnx          Force bge-m3-onnx regardless of .env
   BENCH_SKIP_INDEX=1           Skip re-indexing; reuse existing bench-retrieval collection
   BENCH_TOP_K=<n>              Search depth (default: 5)
+  BENCH_SEARCH_MODE=<mode>     hybrid (default) or dense-mmr
+  MMR_DIVERSITY=<0..1>         Dense MMR diversity balance (default: 0.5)
+  MMR_CANDIDATES_LIMIT=<n>     Dense MMR preselect candidate count (default: 100)
   BENCH_JSON=1                 Emit JSON summary on stdout (human output → stderr)
   RERANK_ENABLED=1             Enable reranking (RERANK_PREFETCH_MULT=4 default)
   RERANK_PREFETCH_MULT=<n>     Candidate multiplier for rerank prefetch
@@ -53,7 +57,7 @@ import { randomUUID } from 'crypto';
 import { chunkFile } from '../../src/indexer/phases/chunk.js';
 import {
   listCollections, createCollection, deleteBySourceFile,
-  upsertPoints, hybridSearch, scroll,
+  upsertPoints, hybridSearch, mmrSearch, scroll,
 } from '../../src/core/qdrant.js';
 import { embedForIndex, embedForSearch, SCHEMA_VERSION } from '../../src/core/embeddings.js';
 import { loadConfig, saveConfig, resolveEnvProviders } from '../../src/core/config.js';
@@ -65,11 +69,14 @@ const QUERIES_PATH = resolve(__dirname, 'queries.json');
 
 const COLLECTION           = 'bench-retrieval';
 const TOP_K                = envInt('BENCH_TOP_K', 5, 1, 1000);
+const SEARCH_MODE          = process.env.BENCH_SEARCH_MODE ?? 'hybrid'; // 'hybrid' | 'dense-mmr'
 const SKIP_INDEX           = process.env.BENCH_SKIP_INDEX === '1';
 const BENCH_PROVIDER       = process.env.BENCH_PROVIDER ?? 'env'; // 'env' | 'onnx'
 const JSON_MODE            = process.env.BENCH_JSON === '1';
 const RERANK_ENABLED       = process.env.RERANK_ENABLED === '1';
 const RERANK_PREFETCH_MULT = envInt('RERANK_PREFETCH_MULT', 4, 1, 100);
+const MMR_DIVERSITY        = envFloat('MMR_DIVERSITY', 0.5, 0, 1);
+const MMR_CANDIDATES_LIMIT = envInt('MMR_CANDIDATES_LIMIT', 100, 1, 10000);
 
 // In JSON mode all human-readable output goes to stderr so stdout stays clean JSON.
 const log  = (...a) => JSON_MODE ? process.stderr.write(a.join(' ') + '\n') : console.log(...a);
@@ -83,6 +90,21 @@ function envInt(name, def, min, max) {
     return def;
   }
   return v;
+}
+
+function envFloat(name, def, min, max) {
+  const v = Number.parseFloat(process.env[name] ?? '');
+  if (!Number.isFinite(v) || v < min || v > max) {
+    if (process.env[name] !== undefined)
+      console.warn(`[bench] ${name}="${process.env[name]}" is invalid - using default ${def}`);
+    return def;
+  }
+  return v;
+}
+
+if (!['hybrid', 'dense-mmr'].includes(SEARCH_MODE)) {
+  process.stderr.write(`Error: BENCH_SEARCH_MODE="${SEARCH_MODE}" is invalid. Use "hybrid" or "dense-mmr".\n`);
+  process.exit(1);
 }
 
 // Apply provider override before any config reads.
@@ -200,7 +222,16 @@ async function runQuery(queryText) {
   const { dense, sparse } = await embedForSearch(COLLECTION, queryText);
 
   let results;
-  if (RERANK_ENABLED) {
+  if (SEARCH_MODE === 'dense-mmr') {
+    const candidateLimit = RERANK_ENABLED ? Math.max(TOP_K * RERANK_PREFETCH_MULT, TOP_K + 5) : TOP_K;
+    const candidates = await mmrSearch(COLLECTION, dense, candidateLimit, null, {
+      diversity: MMR_DIVERSITY,
+      candidatesLimit: MMR_CANDIDATES_LIMIT,
+    });
+    results = RERANK_ENABLED
+      ? rerankResults(candidates, queryText, { finalLimit: TOP_K, collection: COLLECTION })
+      : candidates;
+  } else if (RERANK_ENABLED) {
     const candidateLimit = Math.max(TOP_K * RERANK_PREFETCH_MULT, TOP_K + 5);
     const candidates = await hybridSearch(COLLECTION, dense, sparse, candidateLimit);
     results = rerankResults(candidates, queryText, { finalLimit: TOP_K, collection: COLLECTION });
@@ -426,6 +457,7 @@ async function main() {
 
   log(`\n=== semidex retrieval benchmark ===`);
   log(`Provider  : ${BENCH_PROVIDER}  (${denseProvider}/${sparseProvider})`);
+  log(`Search    : ${SEARCH_MODE}${SEARCH_MODE === 'dense-mmr' ? `  (diversity=${MMR_DIVERSITY}, candidates=${MMR_CANDIDATES_LIMIT})` : ''}`);
   log(`Top-K     : ${TOP_K}`);
   log(`Queries   : ${queries.length} (${queries.filter(q => !q.shouldHaveNoStrongHit).length} positive, ${queries.filter(q => q.shouldHaveNoStrongHit).length} negative)`);
 
@@ -490,6 +522,11 @@ async function main() {
       provider:      BENCH_PROVIDER,
       denseProvider,
       sparseProvider,
+      searchMode:    SEARCH_MODE,
+      mmr: SEARCH_MODE === 'dense-mmr' ? {
+        diversity: MMR_DIVERSITY,
+        candidatesLimit: MMR_CANDIDATES_LIMIT,
+      } : null,
       topK:          TOP_K,
       metrics,
       queryResults:  queryResults.map(r => ({

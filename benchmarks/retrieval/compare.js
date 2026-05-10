@@ -30,6 +30,8 @@ function runProvider(provider) {
   // run reflects whatever provider is configured in .env, not a forced default.
   env.BENCH_PROVIDER = provider;
   env.BENCH_JSON = '1'; // signals run.js to emit JSON summary on stdout
+  env.BENCH_SEARCH_MODE = 'hybrid';
+  env.RERANK_ENABLED = '0';
 
   const out = execFileSync(
     process.execPath,

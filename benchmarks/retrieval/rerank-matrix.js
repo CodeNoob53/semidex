@@ -59,6 +59,7 @@ function runVariant({ label, provider, rerank, skipIndex }) {
   }
   env.BENCH_PROVIDER = provider;
   env.BENCH_JSON     = '1';
+  env.BENCH_SEARCH_MODE = 'hybrid';
   env.RERANK_ENABLED = rerank ? '1' : '0';
 
   const out = execFileSync(
