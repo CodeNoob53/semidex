@@ -121,8 +121,8 @@ Recommendation (based on this run only — do not change production defaults):
   No low-spread threshold achieves FPR<50% with missRecall>0 in this run.
   The topScoreSpread signal may not be discriminative enough for this corpus.
 
-  Best combined threshold (FPR<50%, missRecall>0): 0.0020
-    missRecall=25.0%  FPR=24.4%  precision=16.7%  triggered=12/49
+  Best combined threshold (highest precision, FPR<50%, missRecall>0): 0.0010
+    missRecall=25.0%  FPR=0.0%  precision=100.0%  triggered=2/49
 
   Cross-validate across multiple runs before adjusting any trigger threshold.
   A single run is insufficient due to query ordering and reranker variance.

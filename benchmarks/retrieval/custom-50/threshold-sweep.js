@@ -479,17 +479,25 @@ function buildReport(queryData) {
   lines.push('Recommendation (based on this run only — do not change production defaults):');
   lines.push('');
 
-  // Find the highest spread threshold where FPR < 50% and missRecall > 0
-  let bestSpread = null;
-  for (const t of [...SPREAD_THRESHOLDS].reverse()) {
-    const m = evalTrigger(sig => sig.topScoreSpread < t, positive);
-    if (m.fpr != null && m.fpr < 0.50 && m.missRecall != null && m.missRecall > 0) {
-      bestSpread = { t, m };
-      break;
-    }
+  // Best threshold selection: among candidates with FPR<50% and missRecall>0,
+  // prefer highest precision (fewest false positives), break ties by highest
+  // missRecall, then by highest threshold (least conservative).
+  function pickBest(trigFn) {
+    const candidates = SPREAD_THRESHOLDS
+      .map(t => ({ t, m: evalTrigger(sig => trigFn(sig, t), positive) }))
+      .filter(({ m }) => m.fpr != null && m.fpr < 0.50 && m.missRecall != null && m.missRecall > 0);
+    if (!candidates.length) return null;
+    candidates.sort((a, b) =>
+      (b.m.precision ?? 0) - (a.m.precision ?? 0) ||
+      (b.m.missRecall ?? 0) - (a.m.missRecall ?? 0) ||
+      b.t - a.t
+    );
+    return candidates[0];
   }
+
+  const bestSpread = pickBest((sig, t) => sig.topScoreSpread < t);
   if (bestSpread) {
-    lines.push(`  Best low-spread threshold (FPR<50%, missRecall>0): ${f4(bestSpread.t)}`);
+    lines.push(`  Best low-spread threshold (highest precision, FPR<50%, missRecall>0): ${f4(bestSpread.t)}`);
     lines.push(`    missRecall=${pct(bestSpread.m.missRecall)}  FPR=${pct(bestSpread.m.fpr)}  precision=${pct(bestSpread.m.precision)}  triggered=${bestSpread.m.triggeredCount}/${positive.length}`);
   } else {
     lines.push('  No low-spread threshold achieves FPR<50% with missRecall>0 in this run.');
@@ -497,17 +505,9 @@ function buildReport(queryData) {
   }
   lines.push('');
 
-  // Find best combined threshold
-  let bestCombined = null;
-  for (const t of [...SPREAD_THRESHOLDS].reverse()) {
-    const m = evalTrigger(sig => sig.sourceDiversity < 2 || sig.topScoreSpread < t, positive);
-    if (m.fpr != null && m.fpr < 0.50 && m.missRecall != null && m.missRecall > 0) {
-      bestCombined = { t, m };
-      break;
-    }
-  }
+  const bestCombined = pickBest((sig, t) => sig.sourceDiversity < 2 || sig.topScoreSpread < t);
   if (bestCombined) {
-    lines.push(`  Best combined threshold (FPR<50%, missRecall>0): ${f4(bestCombined.t)}`);
+    lines.push(`  Best combined threshold (highest precision, FPR<50%, missRecall>0): ${f4(bestCombined.t)}`);
     lines.push(`    missRecall=${pct(bestCombined.m.missRecall)}  FPR=${pct(bestCombined.m.fpr)}  precision=${pct(bestCombined.m.precision)}  triggered=${bestCombined.m.triggeredCount}/${positive.length}`);
   } else {
     lines.push('  No combined threshold achieves FPR<50% with missRecall>0 in this run.');
