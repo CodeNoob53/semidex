@@ -584,7 +584,7 @@ async function main() {
         ndcg:         gradedNDCG(r.results, r.query.qrels, TOP_K),
         mrr10:        mrr(r.results, r.query.qrels, 10, 3),
         latency:      r.latency,
-        topChunks:    r.results.slice(0, 5).map(x => ({
+        topChunks:    r.results.slice(0, TOP_K).map(x => ({
           chunkId:  resultChunkId(x),
           relevance: r.query.qrels.get(resultChunkId(x)) ?? 0,
           score:    x.score,

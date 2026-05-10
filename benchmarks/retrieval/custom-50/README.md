@@ -72,6 +72,18 @@ BENCH_SEARCH_MODE=dense-mmr MMR_DIVERSITY=0.5 npm run bench:custom50
 
 # Emit JSON for scripting
 BENCH_JSON=1 npm run bench:custom50
+
+# Failure analysis: pipe JSON output into the analyzer
+BENCH_JSON=1 BENCH_PROVIDER=onnx BENCH_SKIP_INDEX=1 npm run bench:custom50 \
+  | npm run bench:custom50:failures
+
+# Save failure analysis to file
+BENCH_JSON=1 BENCH_PROVIDER=onnx BENCH_SKIP_INDEX=1 npm run bench:custom50 \
+  | node benchmarks/retrieval/custom-50/analyze-failures.js \
+  > benchmarks/retrieval/results/$(date +%F)-custom50-failure-analysis.txt
+
+# Adjust failure analysis window and snippet length
+FAIL_WINDOW=2 FAIL_SNIPPET=400 FAIL_TOP_K=10 ... | npm run bench:custom50:failures
 ```
 
 Prerequisites: `QDRANT_URL` and `QDRANT_KEY` in `.env` or environment.

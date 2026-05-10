@@ -1,0 +1,416 @@
+
+════════════════════════════════════════════════════════════════════════════════
+  custom-50 failure analysis
+  Provider : onnx  (bge-m3-onnx/bge-m3-onnx)
+  Search   : hybrid   Top-K: 10
+  Failures : 16 / 49 positive queries
+  Window   : ±1 chunk positions
+════════════════════════════════════════════════════════════════════════════════
+
+────────────────────────────────────────────────────────────────────────────────
+Query  : [c02] які є валідні комбінації провайдерів embeddings
+Type   : exact-token    Note: valid provider combinations, UA paraphrase
+nDCG   : 0.213    MRR: 0.000    supportRecall: ✓
+
+Expected chunks (rel≥3):
+  providers.md#3  [rel=3]  section: "sparseProvider configuration"
+  text: The `sparseProvider` field in config.json controls which sparse encoder is used for a collection. Valid values are `hashed-tf` (default, no external dependency) and `bge-m3-onnx` (requires ONNX model)…
+
+Top-10 returned chunks:
+  # 1  providers.md#0                [irrel ]  score=0.0325
+  # 2  providers.md#4                [rel=2 ]  score=0.0325 ~
+  # 3  multilingual.md#2             [irrel ]  score=0.0318
+  # 4  providers.md#1                [irrel ]  score=0.0318
+  # 5  multilingual.md#3             [irrel ]  score=0.0303
+  # 6  project-structure.md#1        [irrel ]  score=0.0301
+  # 7  sync.md#2                     [irrel ]  score=0.0295
+  # 8  multilingual.md#6             [irrel ]  score=0.0292
+  # 9  multilingual.md#0             [irrel ]  score=0.0286
+  #10  project-structure.md#5        [irrel ]  score=0.0285
+
+±1 window analysis:
+  providers.md#3: IN WINDOW (rank #2, neighbor providers.md#4 [+1])
+
+────────────────────────────────────────────────────────────────────────────────
+Query  : [c10] чому hybridSearch падає коли нема sparse векторів
+Type   : exact-token    Note: hybridSearch sparse fallback, UA query
+nDCG   : 0.213    MRR: 0.000    supportRecall: ✓
+
+Expected chunks (rel≥3):
+  qdrant.md#3  [rel=3]  section: "RRF k parameter"
+  text: The `k` parameter in RRF controls rank sensitivity. It is configured via the `RRF_K` environment variable (default: 60, range: 1–10000). Lower values give more weight to top-ranked results from each l…
+
+Top-10 returned chunks:
+  # 1  qdrant.md#4                   [irrel ]  score=0.0333
+  # 2  qdrant.md#2                   [rel=2 ]  score=0.0307 ~
+  # 3  providers.md#1                [irrel ]  score=0.0306
+  # 4  config-env.md#2               [irrel ]  score=0.0303
+  # 5  providers.md#3                [irrel ]  score=0.0303
+  # 6  project-structure.md#6        [irrel ]  score=0.0303
+  # 7  project-structure.md#5        [irrel ]  score=0.0302
+  # 8  providers.md#5                [irrel ]  score=0.0295
+  # 9  multilingual.md#9             [irrel ]  score=0.0290
+  #10  multilingual.md#2             [irrel ]  score=0.0285
+
+±1 window analysis:
+  qdrant.md#3: IN WINDOW (rank #1, neighbor qdrant.md#4 [+1])
+
+────────────────────────────────────────────────────────────────────────────────
+Query  : [c12] як Qdrant зберігає named vectors dense sparse
+Type   : exact-token    Note: named vectors in collection, UA query
+nDCG   : 0.280    MRR: 0.167    supportRecall: ✓
+
+Expected chunks (rel≥3):
+  qdrant.md#1  [rel=3]  section: "Collections"
+  text: Each collection stores named vectors: a `dense` vector (cosine distance) and a `sparse` vector. Collections are created via `createCollection(name, size)` which also creates payload indexes on `source…
+
+Top-10 returned chunks:
+  # 1  project-structure.md#6        [irrel ]  score=0.0331
+  # 2  qdrant.md#4                   [irrel ]  score=0.0325
+  # 3  project-structure.md#5        [irrel ]  score=0.0323
+  # 4  providers.md#2                [irrel ]  score=0.0317
+  # 5  qdrant.md#2                   [irrel ]  score=0.0306
+  # 6  qdrant.md#1                   [rel=3 ]  score=0.0303 ✓
+  # 7  providers.md#4                [irrel ]  score=0.0301
+  # 8  qdrant.md#5                   [irrel ]  score=0.0294
+  # 9  config-env.md#11              [irrel ]  score=0.0291
+  #10  providers.md#1                [irrel ]  score=0.0287
+
+±1 window analysis:
+  qdrant.md#1: IN WINDOW (rank #5, neighbor qdrant.md#2 [+1])
+
+────────────────────────────────────────────────────────────────────────────────
+Query  : [c13] source_file payload index efficient filtering deleteBySourceFile
+Type   : exact-token    Note: payload index and delete by source
+nDCG   : 0.337    MRR: 0.000    supportRecall: ✓
+
+Expected chunks (rel≥3):
+  qdrant.md#4  [rel=3]  section: "Fallback to dense-only"
+  text: If a collection has no sparse vectors yet (e.g. old index before sparse support was added), `hybridSearch` falls back to `search` (dense-only) automatically. The fallback is triggered when the Qdrant …
+
+Top-10 returned chunks:
+  # 1  qdrant.md#5                   [rel=2 ]  score=0.0333 ~
+  # 2  mcp-workflow.md#4             [irrel ]  score=0.0325
+  # 3  qdrant.md#6                   [irrel ]  score=0.0325
+  # 4  obsidian.md#4                 [irrel ]  score=0.0317
+  # 5  qdrant.md#1                   [irrel ]  score=0.0313
+  # 6  benchmarking.md#7             [irrel ]  score=0.0305
+  # 7  project-structure.md#7        [irrel ]  score=0.0303
+  # 8  mcp-workflow.md#7             [irrel ]  score=0.0286
+  # 9  mcp-workflow.md#3             [irrel ]  score=0.0286
+  #10  project-structure.md#6        [irrel ]  score=0.0284
+
+±1 window analysis:
+  qdrant.md#4: IN WINDOW (rank #1, neighbor qdrant.md#5 [+1])
+
+────────────────────────────────────────────────────────────────────────────────
+Query  : [c29] як агент повинен починати сесію з semidex MCP
+Type   : paraphrase    Note: recommended agent workflow start, UA paraphrase
+nDCG   : 0.000    MRR: 0.000    supportRecall: ✗
+
+Expected chunks (rel≥3):
+  mcp-workflow.md#8  [rel=3]  section: "Collection Discovery"
+  text: Run `qdrant_collection_info` at the start of a session to discover available collections, their point counts, the embedding provider used, and any description set in `config.json`. This avoids guessin…
+
+Top-10 returned chunks:
+  # 1  mcp-workflow.md#0             [irrel ]  score=0.0333
+  # 2  project-structure.md#0        [irrel ]  score=0.0323
+  # 3  project-structure.md#8        [irrel ]  score=0.0323
+  # 4  config-env.md#0               [irrel ]  score=0.0310
+  # 5  project-structure.md#1        [irrel ]  score=0.0310
+  # 6  chunking.md#0                 [irrel ]  score=0.0302
+  # 7  qdrant.md#0                   [irrel ]  score=0.0301
+  # 8  mcp-workflow.md#1             [irrel ]  score=0.0297
+  # 9  providers.md#0                [irrel ]  score=0.0296
+  #10  obsidian.md#0                 [irrel ]  score=0.0280
+
+±1 window analysis:
+  mcp-workflow.md#8: NOT in window — adjacent IDs: [mcp-workflow.md#8, mcp-workflow.md#7]
+
+────────────────────────────────────────────────────────────────────────────────
+Query  : [c33] що міститься у frontmatter кожного Obsidian файлу chunk
+Type   : paraphrase    Note: Obsidian frontmatter fields, UA paraphrase
+nDCG   : 0.337    MRR: 0.000    supportRecall: ✓
+
+Expected chunks (rel≥3):
+  obsidian.md#4  [rel=3]  section: "Frontmatter Fields"
+  text: | Field | Source | Description | |-------|--------|-------------| | `source_file` | payload | Stable file identifier relative to `SOURCE_ROOT` | | `chunk_index` | payload | Zero-based position within …
+
+Top-10 returned chunks:
+  # 1  obsidian.md#1                 [rel=2 ]  score=0.0333 ~
+  # 2  config-env.md#8               [irrel ]  score=0.0328
+  # 3  obsidian.md#3                 [irrel ]  score=0.0323
+  # 4  obsidian.md#5                 [irrel ]  score=0.0313
+  # 5  obsidian.md#0                 [irrel ]  score=0.0313
+  # 6  obsidian.md#6                 [irrel ]  score=0.0310
+  # 7  config-env.md#5               [irrel ]  score=0.0289
+  # 8  project-structure.md#2        [irrel ]  score=0.0284
+  # 9  mcp-workflow.md#5             [irrel ]  score=0.0274
+  #10  chunking.md#0                 [irrel ]  score=0.0154
+
+±1 window analysis:
+  obsidian.md#4: IN WINDOW (rank #3, neighbor obsidian.md#3 [-1])
+
+────────────────────────────────────────────────────────────────────────────────
+Query  : [c35] де знаходиться src/core/qdrant.js і що він експортує
+Type   : exact-token    Note: project structure module location, UA
+nDCG   : 0.098    MRR: 0.000    supportRecall: ✓
+
+Expected chunks (rel≥3):
+  project-structure.md#2  [rel=3]  section: "Source Tree"
+  text: │ ├── run-v3. js # Quality benchmark runner (v3 schema, graded qrels) │ ├── queries. json # 50-query evaluation set │ └── fixtures/docs/ # 8-10 fixture docs covering all semidex subsystems ├── docs/ │…
+
+Top-10 returned chunks:
+  # 1  qdrant.md#0                   [irrel ]  score=0.0333
+  # 2  sync.md#0                     [irrel ]  score=0.0320
+  # 3  project-structure.md#9        [irrel ]  score=0.0315
+  # 4  providers.md#4                [irrel ]  score=0.0311
+  # 5  project-structure.md#6        [irrel ]  score=0.0307
+  # 6  config-env.md#1               [irrel ]  score=0.0305
+  # 7  mcp-workflow.md#6             [irrel ]  score=0.0299
+  # 8  mcp-workflow.md#2             [irrel ]  score=0.0288
+  # 9  project-structure.md#8        [irrel ]  score=0.0288
+  #10  project-structure.md#1        [rel=2 ]  score=0.0286 ~
+
+±1 window analysis:
+  project-structure.md#2: IN WINDOW (rank #10, neighbor project-structure.md#1 [-1])
+
+────────────────────────────────────────────────────────────────────────────────
+Query  : [c36] chunkFile splitSentences parseMarkdown location in source
+Type   : exact-token    Note: chunkFile module location in project structure
+nDCG   : 0.000    MRR: 0.000    supportRecall: ✗
+
+Expected chunks (rel≥3):
+  project-structure.md#5  [rel=3]  section: "src/core/embeddings.js"
+  text: Exports `embedForIndex(collection, text)` and `embedForSearch(collection, text)`. Both return `{ dense, sparse, meta }`. `SCHEMA_VERSION` is a constant incremented when the embedding schema changes; i…
+
+Top-10 returned chunks:
+  # 1  chunking.md#6                 [irrel ]  score=0.0328
+  # 2  project-structure.md#7        [irrel ]  score=0.0325
+  # 3  chunking.md#7                 [irrel ]  score=0.0323
+  # 4  chunking.md#0                 [irrel ]  score=0.0318
+  # 5  multilingual.md#5             [irrel ]  score=0.0308
+  # 6  obsidian.md#4                 [irrel ]  score=0.0308
+  # 7  obsidian.md#0                 [irrel ]  score=0.0303
+  # 8  chunking.md#2                 [irrel ]  score=0.0294
+  # 9  qdrant.md#6                   [irrel ]  score=0.0292
+  #10  mcp-workflow.md#3             [irrel ]  score=0.0292
+
+±1 window analysis:
+  project-structure.md#5: NOT in window — adjacent IDs: [project-structure.md#4, project-structure.md#6, project-structure.md#5]
+
+────────────────────────────────────────────────────────────────────────────────
+Query  : [c37] npm run bench:custom50 entry point run-v3.js
+Type   : exact-token    Note: custom-50 entry point in project structure
+nDCG   : 0.000    MRR: 0.000    supportRecall: ✗
+
+Expected chunks (rel≥3):
+  project-structure.md#7  [rel=3]  section: "src/indexer/phases/chunk.js"
+  text: Exports `chunkFile(filePath, text, sourceFile)`. Returns an array of chunk objects with `text`, `section`, `chunkIndex`, `totalChunks`. Controlled by `MAX_CHUNK_TOKENS`, `MIN_CHUNK_TOKENS`, and `OVERL…
+
+Top-10 returned chunks:
+  # 1  benchmarking.md#17            [irrel ]  score=0.0331
+  # 2  benchmarking.md#15            [irrel ]  score=0.0325
+  # 3  benchmarking.md#18            [irrel ]  score=0.0323
+  # 4  benchmarking.md#16            [irrel ]  score=0.0323
+  # 5  benchmarking.md#14            [irrel ]  score=0.0308
+  # 6  project-structure.md#2        [irrel ]  score=0.0301
+  # 7  project-structure.md#9        [irrel ]  score=0.0299
+  # 8  benchmarking.md#19            [irrel ]  score=0.0299
+  # 9  benchmarking.md#20            [irrel ]  score=0.0299
+  #10  benchmarking.md#21            [irrel ]  score=0.0299
+
+±1 window analysis:
+  project-structure.md#7: NOT in window — adjacent IDs: [project-structure.md#8, project-structure.md#6, project-structure.md#7]
+
+────────────────────────────────────────────────────────────────────────────────
+Query  : [c38] SCHEMA_VERSION constant embeddings.js reindex discriminator
+Type   : exact-token    Note: SCHEMA_VERSION in embeddings.js
+nDCG   : 0.000    MRR: 0.000    supportRecall: ✗
+
+Expected chunks (rel≥3):
+  project-structure.md#3  [rel=3]  section: "Key Modules"
+  text: (empty section: Key Modules)
+
+Top-10 returned chunks:
+  # 1  providers.md#5                [irrel ]  score=0.0331
+  # 2  project-structure.md#5        [irrel ]  score=0.0331
+  # 3  qdrant.md#6                   [irrel ]  score=0.0323
+  # 4  providers.md#4                [irrel ]  score=0.0313
+  # 5  config-env.md#11              [irrel ]  score=0.0313
+  # 6  benchmarking.md#23            [irrel ]  score=0.0304
+  # 7  providers.md#0                [irrel ]  score=0.0303
+  # 8  chunking.md#0                 [irrel ]  score=0.0291
+  # 9  project-structure.md#1        [irrel ]  score=0.0290
+  #10  sync.md#2                     [irrel ]  score=0.0290
+
+±1 window analysis:
+  project-structure.md#3: NOT in window — adjacent IDs: [project-structure.md#4, project-structure.md#2, project-structure.md#3]
+
+────────────────────────────────────────────────────────────────────────────────
+Query  : [c39] chunkRecall nDCG graded relevance benchmark v3 schema
+Type   : exact-token    Note: v3 chunk-level metrics definition
+nDCG   : 0.337    MRR: 0.000    supportRecall: ✓
+
+Expected chunks (rel≥3):
+  benchmarking.md#4  [rel=3]  section: "Query Schema Versions"
+  text: (empty section: Query Schema Versions)
+
+Top-10 returned chunks:
+  # 1  benchmarking.md#3             [rel=2 ]  score=0.0331 ~
+  # 2  benchmarking.md#10            [irrel ]  score=0.0331
+  # 3  benchmarking.md#8             [irrel ]  score=0.0320
+  # 4  project-structure.md#2        [irrel ]  score=0.0311
+  # 5  project-structure.md#1        [irrel ]  score=0.0310
+  # 6  benchmarking.md#2             [irrel ]  score=0.0303
+  # 7  config-env.md#5               [irrel ]  score=0.0292
+  # 8  config-env.md#3               [irrel ]  score=0.0267
+  # 9  config-env.md#10              [irrel ]  score=0.0267
+  #10  benchmarking.md#19            [irrel ]  score=0.0159
+
+±1 window analysis:
+  benchmarking.md#4: IN WINDOW (rank #1, neighbor benchmarking.md#3 [-1])
+
+────────────────────────────────────────────────────────────────────────────────
+Query  : [c40] relevantChunks chunkId format source_file#chunk_index
+Type   : exact-token    Note: chunkId format in v3 schema
+nDCG   : 0.000    MRR: 0.000    supportRecall: ✗
+
+Expected chunks (rel≥3):
+  benchmarking.md#2  [rel=3]  section: "21-query regression benchmark (`benchmarks/retrieval/`)"
+  text: The stable regression smoke benchmark. It uses 4 fixture docs and 21 queries in v1/v2 schema. It is run before merges to detect retrieval regressions. The collection name is `bench-retrieval`.
+
+Top-10 returned chunks:
+  # 1  benchmarking.md#7             [irrel ]  score=0.0333
+  # 2  project-structure.md#7        [irrel ]  score=0.0325
+  # 3  mcp-workflow.md#3             [irrel ]  score=0.0323
+  # 4  obsidian.md#1                 [irrel ]  score=0.0320
+  # 5  mcp-workflow.md#5             [irrel ]  score=0.0310
+  # 6  obsidian.md#4                 [irrel ]  score=0.0310
+  # 7  mcp-workflow.md#2             [irrel ]  score=0.0299
+  # 8  config-env.md#8               [irrel ]  score=0.0294
+  # 9  benchmarking.md#8             [irrel ]  score=0.0288
+  #10  chunking.md#7                 [irrel ]  score=0.0286
+
+±1 window analysis:
+  benchmarking.md#2: NOT in window — adjacent IDs: [benchmarking.md#1, benchmarking.md#2, benchmarking.md#3]
+
+────────────────────────────────────────────────────────────────────────────────
+Query  : [c41] яка різниця між 21-query regression і custom-50 quality benchmark
+Type   : paraphrase    Note: two benchmark tiers comparison, UA paraphrase
+nDCG   : 0.000    MRR: 0.000    supportRecall: ✗
+
+Expected chunks (rel≥3):
+  benchmarking.md#1  [rel=3]  section: "Benchmark Tiers"
+  text: (empty section: Benchmark Tiers)
+
+Top-10 returned chunks:
+  # 1  benchmarking.md#22            [irrel ]  score=0.0333
+  # 2  multilingual.md#7             [irrel ]  score=0.0325
+  # 3  project-structure.md#1        [irrel ]  score=0.0313
+  # 4  benchmarking.md#3             [irrel ]  score=0.0306
+  # 5  benchmarking.md#2             [irrel ]  score=0.0297
+  # 6  project-structure.md#9        [irrel ]  score=0.0295
+  # 7  benchmarking.md#0             [irrel ]  score=0.0293
+  # 8  config-env.md#10              [irrel ]  score=0.0292
+  # 9  project-structure.md#2        [irrel ]  score=0.0281
+  #10  qdrant.md#3                   [irrel ]  score=0.0273
+
+±1 window analysis:
+  benchmarking.md#1: IN WINDOW (rank #5, neighbor benchmarking.md#2 [+1])
+
+────────────────────────────────────────────────────────────────────────────────
+Query  : [c42] BENCH_SKIP_INDEX validates stored provider matches current env
+Type   : exact-token    Note: BENCH_SKIP_INDEX provider validation
+nDCG   : 0.000    MRR: 0.000    supportRecall: ✗
+
+Expected chunks (rel≥3):
+  benchmarking.md#7  [rel=3]  section: "v3 (graded chunk-level)"
+  text: ```json { "schemaVersion": 3, "queries": [{ "id": "c01", "type": "exact-token", "query": "...", "expectedFiles": ["file.md"], "relevantChunks": [ { "chunkId": "file.md#2", "relevance": 3 }, { "chunkId…
+
+Top-10 returned chunks:
+  # 1  benchmarking.md#23            [irrel ]  score=0.0333
+  # 2  benchmarking.md#17            [irrel ]  score=0.0323
+  # 3  providers.md#4                [irrel ]  score=0.0320
+  # 4  config-env.md#10              [irrel ]  score=0.0315
+  # 5  sync.md#2                     [irrel ]  score=0.0313
+  # 6  providers.md#3                [irrel ]  score=0.0292
+  # 7  sync.md#5                     [irrel ]  score=0.0288
+  # 8  providers.md#0                [irrel ]  score=0.0286
+  # 9  project-structure.md#4        [irrel ]  score=0.0280
+  #10  benchmarking.md#16            [irrel ]  score=0.0275
+
+±1 window analysis:
+  benchmarking.md#7: NOT in window — adjacent IDs: [benchmarking.md#6, benchmarking.md#7, benchmarking.md#8]
+
+────────────────────────────────────────────────────────────────────────────────
+Query  : [c48] cross-lingual retrieval Ukrainian query English document BGE-M3
+Type   : paraphrase    Note: cross-lingual retrieval with BGE-M3
+nDCG   : 0.493    MRR: 0.167    supportRecall: ✓
+
+Expected chunks (rel≥3):
+  multilingual.md#3  [rel=3]  section: "bge-m3-onnx + bge-m3-onnx"
+  text: Both dense and sparse embeddings are produced by the BGE-M3 ONNX model. The sparse embeddings are neural sparse — the model learns token importance, not just frequency. For Ukrainian and mixed-languag…
+
+Top-10 returned chunks:
+  # 1  multilingual.md#4             [irrel ]  score=0.0333
+  # 2  multilingual.md#0             [rel=2 ]  score=0.0325 ~
+  # 3  multilingual.md#6             [irrel ]  score=0.0325
+  # 4  multilingual.md#2             [irrel ]  score=0.0315
+  # 5  multilingual.md#7             [irrel ]  score=0.0308
+  # 6  multilingual.md#3             [rel=3 ]  score=0.0306 ✓
+  # 7  multilingual.md#9             [irrel ]  score=0.0304
+  # 8  multilingual.md#8             [irrel ]  score=0.0301
+  # 9  project-structure.md#2        [irrel ]  score=0.0286
+  #10  benchmarking.md#10            [irrel ]  score=0.0286
+
+±1 window analysis:
+  multilingual.md#3: IN WINDOW (rank #1, neighbor multilingual.md#4 [+1])
+
+────────────────────────────────────────────────────────────────────────────────
+Query  : [c49] ONNX_EMBED=1 recommended provider for multilingual Ukrainian content
+Type   : exact-token    Note: ONNX recommended for multilingual
+nDCG   : 0.000    MRR: 0.000    supportRecall: ✗
+
+Expected chunks (rel≥3):
+  multilingual.md#6  [rel=3]  section: "Mixed-Language Documents"
+  text: Documents that mix Ukrainian and English (e.g., technical documentation with English code blocks and Ukrainian prose) are chunked as a single document. The embedding covers both languages within each …
+
+Top-10 returned chunks:
+  # 1  multilingual.md#0             [irrel ]  score=0.0325
+  # 2  multilingual.md#3             [irrel ]  score=0.0325
+  # 3  multilingual.md#9             [irrel ]  score=0.0325
+  # 4  multilingual.md#7             [irrel ]  score=0.0318
+  # 5  config-env.md#2               [irrel ]  score=0.0313
+  # 6  multilingual.md#2             [irrel ]  score=0.0301
+  # 7  project-structure.md#4        [irrel ]  score=0.0296
+  # 8  multilingual.md#4             [irrel ]  score=0.0295
+  # 9  multilingual.md#8             [irrel ]  score=0.0284
+  #10  sync.md#5                     [irrel ]  score=0.0283
+
+±1 window analysis:
+  multilingual.md#6: IN WINDOW (rank #4, neighbor multilingual.md#7 [+1])
+
+════════════════════════════════════════════════════════════════════════════════
+Total failures analysed: 16
+
+Summary:
+  ID     Query (truncated)                             inWindow  suppRecall  nDCG
+  ---------------------------------------------------------------------------
+  c02    які є валідні комбінації провайдерів embedd   YES       ✓           0.213
+  c10    чому hybridSearch падає коли нема sparse ве   YES       ✓           0.213
+  c12    як Qdrant зберігає named vectors dense spar   YES       ✓           0.280
+  c13    source_file payload index efficient filteri   YES       ✓           0.337
+  c29    як агент повинен починати сесію з semidex M   no        ✗           0.000
+  c33    що міститься у frontmatter кожного Obsidian   YES       ✓           0.337
+  c35    де знаходиться src/core/qdrant.js і що він    YES       ✓           0.098
+  c36    chunkFile splitSentences parseMarkdown loca   no        ✗           0.000
+  c37    npm run bench:custom50 entry point run-v3.j   no        ✗           0.000
+  c38    SCHEMA_VERSION constant embeddings.js reind   no        ✗           0.000
+  c39    chunkRecall nDCG graded relevance benchmark   YES       ✓           0.337
+  c40    relevantChunks chunkId format source_file#c   no        ✗           0.000
+  c41    яка різниця між 21-query regression і custo   YES       ✗           0.000
+  c42    BENCH_SKIP_INDEX validates stored provider    no        ✗           0.000
+  c48    cross-lingual retrieval Ukrainian query Eng   YES       ✓           0.493
+  c49    ONNX_EMBED=1 recommended provider for multi   YES       ✗           0.000
+
