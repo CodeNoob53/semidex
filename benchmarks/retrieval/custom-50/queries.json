@@ -1,0 +1,588 @@
+{
+  "schemaVersion": 3,
+  "queries": [
+    {
+      "id": "c01",
+      "type": "exact-token",
+      "query": "де налаштовується sparseProvider",
+      "expectedFiles": ["providers.md"],
+      "relevantChunks": [
+        { "chunkId": "providers.md#3", "relevance": 3 },
+        { "chunkId": "providers.md#1", "relevance": 2 }
+      ],
+      "expectedTokens": ["sparseProvider"],
+      "note": "sparseProvider config field, UA query"
+    },
+    {
+      "id": "c02",
+      "type": "exact-token",
+      "query": "які є валідні комбінації провайдерів embeddings",
+      "expectedFiles": ["providers.md"],
+      "relevantChunks": [
+        { "chunkId": "providers.md#3", "relevance": 3 },
+        { "chunkId": "providers.md#4", "relevance": 2 }
+      ],
+      "expectedTokens": ["provider"],
+      "note": "valid provider combinations, UA paraphrase"
+    },
+    {
+      "id": "c03",
+      "type": "exact-token",
+      "query": "як увімкнути bge-m3-onnx без Ollama",
+      "expectedFiles": ["providers.md"],
+      "relevantChunks": [
+        { "chunkId": "providers.md#2", "relevance": 3 },
+        { "chunkId": "providers.md#3", "relevance": 2 }
+      ],
+      "expectedTokens": ["ONNX_EMBED"],
+      "note": "ONNX provider switch, UA query"
+    },
+    {
+      "id": "c04",
+      "type": "exact-token",
+      "query": "embedding_schema_version reindex discriminator payload field",
+      "expectedFiles": ["providers.md"],
+      "relevantChunks": [
+        { "chunkId": "providers.md#5", "relevance": 3 },
+        { "chunkId": "providers.md#4", "relevance": 2 }
+      ],
+      "expectedTokens": ["embedding_schema_version"],
+      "note": "exact technical token in reindex triggers section"
+    },
+    {
+      "id": "c05",
+      "type": "paraphrase",
+      "query": "що станеться якщо змінити denseModel у config.json",
+      "expectedFiles": ["providers.md"],
+      "relevantChunks": [
+        { "chunkId": "providers.md#5", "relevance": 3 },
+        { "chunkId": "providers.md#4", "relevance": 2 }
+      ],
+      "expectedTokens": ["reindex"],
+      "note": "reindex trigger on denseModel change, UA paraphrase"
+    },
+    {
+      "id": "c06",
+      "type": "exact-token",
+      "query": "resolveEnvProviders single source of truth provider mapping",
+      "expectedFiles": ["providers.md"],
+      "relevantChunks": [
+        { "chunkId": "providers.md#3", "relevance": 3 }
+      ],
+      "expectedTokens": ["resolveEnvProviders"],
+      "note": "resolveEnvProviders function name"
+    },
+    {
+      "id": "c07",
+      "type": "exact-token",
+      "query": "Invalid provider combination error mixed ollama onnx",
+      "expectedFiles": ["providers.md"],
+      "relevantChunks": [
+        { "chunkId": "providers.md#3", "relevance": 3 }
+      ],
+      "expectedTokens": ["Invalid"],
+      "note": "mixed provider combination rejection"
+    },
+    {
+      "id": "c08",
+      "type": "exact-token",
+      "query": "як працює RRF k параметр у гібридному пошуку",
+      "expectedFiles": ["qdrant.md"],
+      "relevantChunks": [
+        { "chunkId": "qdrant.md#2", "relevance": 3 },
+        { "chunkId": "qdrant.md#0", "relevance": 2 }
+      ],
+      "expectedTokens": ["RRF_K"],
+      "note": "RRF k parameter, UA query"
+    },
+    {
+      "id": "c09",
+      "type": "exact-token",
+      "query": "HYBRID_PREFETCH_LIMIT prefetch per RRF leg",
+      "expectedFiles": ["qdrant.md"],
+      "relevantChunks": [
+        { "chunkId": "qdrant.md#2", "relevance": 3 },
+        { "chunkId": "qdrant.md#6", "relevance": 2 }
+      ],
+      "expectedTokens": ["HYBRID_PREFETCH_LIMIT"],
+      "note": "prefetch limit env var"
+    },
+    {
+      "id": "c10",
+      "type": "exact-token",
+      "query": "чому hybridSearch падає коли нема sparse векторів",
+      "expectedFiles": ["qdrant.md"],
+      "relevantChunks": [
+        { "chunkId": "qdrant.md#3", "relevance": 3 },
+        { "chunkId": "qdrant.md#2", "relevance": 2 }
+      ],
+      "expectedTokens": ["fallback"],
+      "note": "hybridSearch sparse fallback, UA query"
+    },
+    {
+      "id": "c11",
+      "type": "exact-token",
+      "query": "getStoredMeta які поля читає з Qdrant payload",
+      "expectedFiles": ["qdrant.md"],
+      "relevantChunks": [
+        { "chunkId": "qdrant.md#5", "relevance": 3 }
+      ],
+      "expectedTokens": ["getStoredMeta"],
+      "note": "getStoredMeta fields, mixed query"
+    },
+    {
+      "id": "c12",
+      "type": "exact-token",
+      "query": "як Qdrant зберігає named vectors dense sparse",
+      "expectedFiles": ["qdrant.md"],
+      "relevantChunks": [
+        { "chunkId": "qdrant.md#1", "relevance": 3 },
+        { "chunkId": "qdrant.md#0", "relevance": 2 }
+      ],
+      "expectedTokens": ["dense"],
+      "note": "named vectors in collection, UA query"
+    },
+    {
+      "id": "c13",
+      "type": "exact-token",
+      "query": "source_file payload index efficient filtering deleteBySourceFile",
+      "expectedFiles": ["qdrant.md"],
+      "relevantChunks": [
+        { "chunkId": "qdrant.md#4", "relevance": 3 },
+        { "chunkId": "qdrant.md#5", "relevance": 2 }
+      ],
+      "expectedTokens": ["source_file"],
+      "note": "payload index and delete by source"
+    },
+    {
+      "id": "c14",
+      "type": "paraphrase",
+      "query": "Qdrant Query API body shape for RRF fusion with prefetch",
+      "expectedFiles": ["qdrant.md"],
+      "relevantChunks": [
+        { "chunkId": "qdrant.md#2", "relevance": 3 }
+      ],
+      "expectedTokens": ["prefetch"],
+      "note": "Qdrant query API JSON shape for RRF"
+    },
+    {
+      "id": "c15",
+      "type": "exact-token",
+      "query": "OVERLAP_SENTENCES default value sentence overlap chunking",
+      "expectedFiles": ["chunking.md"],
+      "relevantChunks": [
+        { "chunkId": "chunking.md#1", "relevance": 3 },
+        { "chunkId": "chunking.md#3", "relevance": 2 }
+      ],
+      "expectedTokens": ["OVERLAP_SENTENCES"],
+      "note": "OVERLAP_SENTENCES default"
+    },
+    {
+      "id": "c16",
+      "type": "paraphrase",
+      "query": "чому фінальний чанк може губитись при малій кількості речень",
+      "expectedFiles": ["chunking.md"],
+      "relevantChunks": [
+        { "chunkId": "chunking.md#5", "relevance": 3 },
+        { "chunkId": "chunking.md#3", "relevance": 2 }
+      ],
+      "expectedTokens": ["pending"],
+      "note": "flush final chunk bug, UA paraphrase"
+    },
+    {
+      "id": "c17",
+      "type": "exact-token",
+      "query": "чому overlap не переноситься між markdown секціями",
+      "expectedFiles": ["chunking.md"],
+      "relevantChunks": [
+        { "chunkId": "chunking.md#4", "relevance": 3 },
+        { "chunkId": "chunking.md#3", "relevance": 2 }
+      ],
+      "expectedTokens": ["section"],
+      "note": "overlap boundary reset at section heading, UA"
+    },
+    {
+      "id": "c18",
+      "type": "exact-token",
+      "query": "splitSentences regex trailing text without period",
+      "expectedFiles": ["chunking.md"],
+      "relevantChunks": [
+        { "chunkId": "chunking.md#2", "relevance": 3 }
+      ],
+      "expectedTokens": ["splitSentences"],
+      "note": "sentence splitting with trailing fragment"
+    },
+    {
+      "id": "c19",
+      "type": "exact-token",
+      "query": "як pandoc конвертує docx epub rtf у markdown",
+      "expectedFiles": ["chunking.md"],
+      "relevantChunks": [
+        { "chunkId": "chunking.md#7", "relevance": 3 }
+      ],
+      "expectedTokens": ["pandoc"],
+      "note": "pandoc file format conversion, UA query"
+    },
+    {
+      "id": "c20",
+      "type": "exact-token",
+      "query": "MAX_CHUNK_TOKENS MIN_CHUNK_TOKENS chunking parameters range",
+      "expectedFiles": ["chunking.md"],
+      "relevantChunks": [
+        { "chunkId": "chunking.md#1", "relevance": 3 }
+      ],
+      "expectedTokens": ["MAX_CHUNK_TOKENS"],
+      "note": "chunk size parameters table"
+    },
+    {
+      "id": "c21",
+      "type": "exact-token",
+      "query": "що робить npm run sync з config.json",
+      "expectedFiles": ["sync.md"],
+      "relevantChunks": [
+        { "chunkId": "sync.md#0", "relevance": 3 },
+        { "chunkId": "sync.md#1", "relevance": 2 }
+      ],
+      "expectedTokens": ["sync"],
+      "note": "sync command purpose, UA query"
+    },
+    {
+      "id": "c22",
+      "type": "exact-token",
+      "query": "sync backfill logic for missing denseProvider field",
+      "expectedFiles": ["sync.md"],
+      "relevantChunks": [
+        { "chunkId": "sync.md#2", "relevance": 3 },
+        { "chunkId": "sync.md#1", "relevance": 2 }
+      ],
+      "expectedTokens": ["backfill"],
+      "note": "backfill missing provider field"
+    },
+    {
+      "id": "c23",
+      "type": "paraphrase",
+      "query": "коли потрібно запускати sync після апгрейду semidex",
+      "expectedFiles": ["sync.md"],
+      "relevantChunks": [
+        { "chunkId": "sync.md#3", "relevance": 3 },
+        { "chunkId": "sync.md#4", "relevance": 2 }
+      ],
+      "expectedTokens": ["sync"],
+      "note": "when to run sync after upgrade, UA paraphrase"
+    },
+    {
+      "id": "c24",
+      "type": "exact-token",
+      "query": "sync записує поточний провайдер а не той що був при індексації",
+      "expectedFiles": ["sync.md"],
+      "relevantChunks": [
+        { "chunkId": "sync.md#5", "relevance": 3 }
+      ],
+      "expectedTokens": ["provider"],
+      "note": "sync records current env provider, UA"
+    },
+    {
+      "id": "c25",
+      "type": "paraphrase",
+      "query": "відмінність між sync та indexer стосовно config.json",
+      "expectedFiles": ["sync.md"],
+      "relevantChunks": [
+        { "chunkId": "sync.md#4", "relevance": 3 },
+        { "chunkId": "sync.md#0", "relevance": 2 }
+      ],
+      "expectedTokens": ["indexer"],
+      "note": "sync vs indexer config.json relationship, UA"
+    },
+    {
+      "id": "c26",
+      "type": "exact-token",
+      "query": "як зареєструвати MCP сервер semidex у Claude Code",
+      "expectedFiles": ["mcp-workflow.md"],
+      "relevantChunks": [
+        { "chunkId": "mcp-workflow.md#1", "relevance": 3 },
+        { "chunkId": "mcp-workflow.md#0", "relevance": 2 }
+      ],
+      "expectedTokens": ["claude"],
+      "note": "MCP server registration command, UA query"
+    },
+    {
+      "id": "c27",
+      "type": "exact-token",
+      "query": "qdrant_get_chunk window parameter context neighbors",
+      "expectedFiles": ["mcp-workflow.md"],
+      "relevantChunks": [
+        { "chunkId": "mcp-workflow.md#5", "relevance": 3 },
+        { "chunkId": "mcp-workflow.md#2", "relevance": 2 }
+      ],
+      "expectedTokens": ["window"],
+      "note": "get_chunk window for adjacent context"
+    },
+    {
+      "id": "c28",
+      "type": "exact-token",
+      "query": "qdrant_find_by_tag groups results by source_file tags filter",
+      "expectedFiles": ["mcp-workflow.md"],
+      "relevantChunks": [
+        { "chunkId": "mcp-workflow.md#7", "relevance": 3 },
+        { "chunkId": "mcp-workflow.md#4", "relevance": 2 }
+      ],
+      "expectedTokens": ["tag"],
+      "note": "find_by_tag tool usage"
+    },
+    {
+      "id": "c29",
+      "type": "paraphrase",
+      "query": "як агент повинен починати сесію з semidex MCP",
+      "expectedFiles": ["mcp-workflow.md"],
+      "relevantChunks": [
+        { "chunkId": "mcp-workflow.md#8", "relevance": 3 },
+        { "chunkId": "mcp-workflow.md#3", "relevance": 2 }
+      ],
+      "expectedTokens": ["collection"],
+      "note": "recommended agent workflow start, UA paraphrase"
+    },
+    {
+      "id": "c30",
+      "type": "exact-token",
+      "query": "qdrant_related backlinks file-level semantic graph navigation",
+      "expectedFiles": ["mcp-workflow.md"],
+      "relevantChunks": [
+        { "chunkId": "mcp-workflow.md#6", "relevance": 3 }
+      ],
+      "expectedTokens": ["backlinks"],
+      "note": "related and backlinks for graph navigation"
+    },
+    {
+      "id": "c31",
+      "type": "exact-token",
+      "query": "CHUNKS_OUT_DIR Obsidian export directory chunks output",
+      "expectedFiles": ["obsidian.md"],
+      "relevantChunks": [
+        { "chunkId": "obsidian.md#2", "relevance": 3 },
+        { "chunkId": "obsidian.md#0", "relevance": 2 }
+      ],
+      "expectedTokens": ["CHUNKS_OUT_DIR"],
+      "note": "CHUNKS_OUT_DIR env var for export"
+    },
+    {
+      "id": "c32",
+      "type": "exact-token",
+      "query": "LINK_MIN_SCORE LINK_TOP wikilink threshold semantic neighbors",
+      "expectedFiles": ["obsidian.md"],
+      "relevantChunks": [
+        { "chunkId": "obsidian.md#3", "relevance": 3 },
+        { "chunkId": "obsidian.md#4", "relevance": 2 }
+      ],
+      "expectedTokens": ["LINK_MIN_SCORE"],
+      "note": "link threshold for Obsidian wikilinks"
+    },
+    {
+      "id": "c33",
+      "type": "paraphrase",
+      "query": "що міститься у frontmatter кожного Obsidian файлу chunk",
+      "expectedFiles": ["obsidian.md"],
+      "relevantChunks": [
+        { "chunkId": "obsidian.md#4", "relevance": 3 },
+        { "chunkId": "obsidian.md#1", "relevance": 2 }
+      ],
+      "expectedTokens": ["frontmatter"],
+      "note": "Obsidian frontmatter fields, UA paraphrase"
+    },
+    {
+      "id": "c34",
+      "type": "paraphrase",
+      "query": "use cases for reviewing chunk quality and tag audit in Obsidian",
+      "expectedFiles": ["obsidian.md"],
+      "relevantChunks": [
+        { "chunkId": "obsidian.md#6", "relevance": 3 }
+      ],
+      "expectedTokens": ["audit"],
+      "note": "Obsidian use cases list"
+    },
+    {
+      "id": "c35",
+      "type": "exact-token",
+      "query": "де знаходиться src/core/qdrant.js і що він експортує",
+      "expectedFiles": ["project-structure.md"],
+      "relevantChunks": [
+        { "chunkId": "project-structure.md#2", "relevance": 3 },
+        { "chunkId": "project-structure.md#1", "relevance": 2 }
+      ],
+      "expectedTokens": ["qdrant"],
+      "note": "project structure module location, UA"
+    },
+    {
+      "id": "c36",
+      "type": "exact-token",
+      "query": "chunkFile splitSentences parseMarkdown location in source",
+      "expectedFiles": ["project-structure.md"],
+      "relevantChunks": [
+        { "chunkId": "project-structure.md#5", "relevance": 3 },
+        { "chunkId": "project-structure.md#1", "relevance": 2 }
+      ],
+      "expectedTokens": ["chunkFile"],
+      "note": "chunkFile module location in project structure"
+    },
+    {
+      "id": "c37",
+      "type": "exact-token",
+      "query": "npm run bench:custom50 entry point run-v3.js",
+      "expectedFiles": ["project-structure.md"],
+      "relevantChunks": [
+        { "chunkId": "project-structure.md#7", "relevance": 3 },
+        { "chunkId": "project-structure.md#1", "relevance": 2 }
+      ],
+      "expectedTokens": ["bench"],
+      "note": "custom-50 entry point in project structure"
+    },
+    {
+      "id": "c38",
+      "type": "exact-token",
+      "query": "SCHEMA_VERSION constant embeddings.js reindex discriminator",
+      "expectedFiles": ["project-structure.md"],
+      "relevantChunks": [
+        { "chunkId": "project-structure.md#3", "relevance": 3 }
+      ],
+      "expectedTokens": ["SCHEMA_VERSION"],
+      "note": "SCHEMA_VERSION in embeddings.js"
+    },
+    {
+      "id": "c39",
+      "type": "exact-token",
+      "query": "chunkRecall nDCG graded relevance benchmark v3 schema",
+      "expectedFiles": ["benchmarking.md"],
+      "relevantChunks": [
+        { "chunkId": "benchmarking.md#4", "relevance": 3 },
+        { "chunkId": "benchmarking.md#3", "relevance": 2 }
+      ],
+      "expectedTokens": ["chunkRecall"],
+      "note": "v3 chunk-level metrics definition"
+    },
+    {
+      "id": "c40",
+      "type": "exact-token",
+      "query": "relevantChunks chunkId format source_file#chunk_index",
+      "expectedFiles": ["benchmarking.md"],
+      "relevantChunks": [
+        { "chunkId": "benchmarking.md#2", "relevance": 3 }
+      ],
+      "expectedTokens": ["chunkId"],
+      "note": "chunkId format in v3 schema"
+    },
+    {
+      "id": "c41",
+      "type": "paraphrase",
+      "query": "яка різниця між 21-query regression і custom-50 quality benchmark",
+      "expectedFiles": ["benchmarking.md"],
+      "relevantChunks": [
+        { "chunkId": "benchmarking.md#1", "relevance": 3 },
+        { "chunkId": "benchmarking.md#6", "relevance": 2 }
+      ],
+      "expectedTokens": ["regression"],
+      "note": "two benchmark tiers comparison, UA paraphrase"
+    },
+    {
+      "id": "c42",
+      "type": "exact-token",
+      "query": "BENCH_SKIP_INDEX validates stored provider matches current env",
+      "expectedFiles": ["benchmarking.md"],
+      "relevantChunks": [
+        { "chunkId": "benchmarking.md#7", "relevance": 3 }
+      ],
+      "expectedTokens": ["BENCH_SKIP_INDEX"],
+      "note": "BENCH_SKIP_INDEX provider validation"
+    },
+    {
+      "id": "c43",
+      "type": "exact-token",
+      "query": "QDRANT_URL QDRANT_KEY required environment variables",
+      "expectedFiles": ["config-env.md"],
+      "relevantChunks": [
+        { "chunkId": "config-env.md#1", "relevance": 3 },
+        { "chunkId": "config-env.md#0", "relevance": 2 }
+      ],
+      "expectedTokens": ["QDRANT_URL"],
+      "note": "required env vars"
+    },
+    {
+      "id": "c44",
+      "type": "exact-token",
+      "query": "RERANK_PROTECT_TOP1_DELTA minimum advantage to displace rank-0",
+      "expectedFiles": ["config-env.md"],
+      "relevantChunks": [
+        { "chunkId": "config-env.md#9", "relevance": 3 }
+      ],
+      "expectedTokens": ["RERANK_PROTECT_TOP1_DELTA"],
+      "note": "rerank protection constant"
+    },
+    {
+      "id": "c45",
+      "type": "exact-token",
+      "query": "config.json six reindex discriminators denseProvider denseModel sparseProvider",
+      "expectedFiles": ["config-env.md"],
+      "relevantChunks": [
+        { "chunkId": "config-env.md#11", "relevance": 3 },
+        { "chunkId": "config-env.md#2", "relevance": 2 }
+      ],
+      "expectedTokens": ["discriminator"],
+      "note": "six reindex discriminators in config.json section"
+    },
+    {
+      "id": "c46",
+      "type": "paraphrase",
+      "query": "що таке SOURCE_ROOT і навіщо він потрібен при індексації",
+      "expectedFiles": ["config-env.md"],
+      "relevantChunks": [
+        { "chunkId": "config-env.md#4", "relevance": 3 }
+      ],
+      "expectedTokens": ["SOURCE_ROOT"],
+      "note": "SOURCE_ROOT purpose for stable IDs, UA paraphrase"
+    },
+    {
+      "id": "c47",
+      "type": "exact-token",
+      "query": "bge-m3-onnx neural sparse weights for rare Ukrainian terms",
+      "expectedFiles": ["multilingual.md"],
+      "relevantChunks": [
+        { "chunkId": "multilingual.md#2", "relevance": 3 },
+        { "chunkId": "multilingual.md#0", "relevance": 2 }
+      ],
+      "expectedTokens": ["neural"],
+      "note": "ONNX neural sparse advantage for Ukrainian"
+    },
+    {
+      "id": "c48",
+      "type": "paraphrase",
+      "query": "cross-lingual retrieval Ukrainian query English document BGE-M3",
+      "expectedFiles": ["multilingual.md"],
+      "relevantChunks": [
+        { "chunkId": "multilingual.md#3", "relevance": 3 },
+        { "chunkId": "multilingual.md#0", "relevance": 2 }
+      ],
+      "expectedTokens": ["cross"],
+      "note": "cross-lingual retrieval with BGE-M3"
+    },
+    {
+      "id": "c49",
+      "type": "exact-token",
+      "query": "ONNX_EMBED=1 recommended provider for multilingual Ukrainian content",
+      "expectedFiles": ["multilingual.md"],
+      "relevantChunks": [
+        { "chunkId": "multilingual.md#6", "relevance": 3 },
+        { "chunkId": "multilingual.md#1", "relevance": 2 }
+      ],
+      "expectedTokens": ["ONNX_EMBED"],
+      "note": "ONNX recommended for multilingual"
+    },
+    {
+      "id": "c50",
+      "type": "negative",
+      "query": "semidex підключення до PostgreSQL бази даних connection pool",
+      "expectedFiles": [],
+      "relevantChunks": [],
+      "expectedTokens": ["postgres"],
+      "shouldHaveNoStrongHit": true,
+      "note": "semidex has no postgres support; should not hit"
+    }
+  ]
+}

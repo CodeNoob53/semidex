@@ -39,7 +39,7 @@ async function downloadFile(filename) {
 
   // If file exists and is within 1% of expected size — trust the cache, no network needed.
   if (expectedSize > 0 && existingSize >= expectedSize * 0.99) {
-    console.log(`[onnx] cached: ${filename} (${(existingSize / 1e6).toFixed(0)} MB)`);
+    process.stderr.write(`[onnx] cached: ${filename} (${(existingSize / 1e6).toFixed(0)} MB)\n`);
     return;
   }
 
@@ -51,21 +51,21 @@ async function downloadFile(filename) {
     total = parseInt(head.headers.get('content-length') ?? '0') || expectedSize;
   } catch (_) {
     if (existingSize > 0) {
-      console.log(`[onnx] offline, trusting cache: ${filename} (${(existingSize / 1e6).toFixed(0)} MB)`);
+      process.stderr.write(`[onnx] offline, trusting cache: ${filename} (${(existingSize / 1e6).toFixed(0)} MB)\n`);
       return;
     }
     throw new Error(`[onnx] network unavailable and ${filename} not cached`);
   }
 
   if (existingSize >= total) {
-    console.log(`[onnx] cached: ${filename} (${(total / 1e6).toFixed(0)} MB)`);
+    process.stderr.write(`[onnx] cached: ${filename} (${(total / 1e6).toFixed(0)} MB)\n`);
     return;
   }
 
   if (existingSize > 0) {
-    console.log(`[onnx] resuming ${filename} (${(existingSize / 1e6).toFixed(0)} / ${(total / 1e6).toFixed(0)} MB)...`);
+    process.stderr.write(`[onnx] resuming ${filename} (${(existingSize / 1e6).toFixed(0)} / ${(total / 1e6).toFixed(0)} MB)...\n`);
   } else {
-    console.log(`[onnx] downloading ${filename} (${(total / 1e6).toFixed(0)} MB)...`);
+    process.stderr.write(`[onnx] downloading ${filename} (${(total / 1e6).toFixed(0)} MB)...\n`);
   }
   await fetchRange(filename, dest, existingSize, total);
 }
@@ -86,27 +86,27 @@ async function fetchRange(filename, dest, from, total) {
     if (done) break;
     await write(value);
     downloaded += value.length;
-    if (total) process.stdout.write(`\r  ${(downloaded / 1e6).toFixed(0)} / ${(total / 1e6).toFixed(0)} MB`);
+    if (total) process.stderr.write(`\r  ${(downloaded / 1e6).toFixed(0)} / ${(total / 1e6).toFixed(0)} MB`);
   }
   await new Promise((ok, fail) => writer.end(e => e ? fail(e) : ok()));
-  console.log(`\n[onnx] saved: ${filename}`);
+  process.stderr.write(`\n[onnx] saved: ${filename}\n`);
 }
 
 async function load() {
   if (tokenizer && session) return;
 
-  console.log('[onnx] loading tokenizer...');
+  process.stderr.write('[onnx] loading tokenizer...\n');
   tokenizer = await AutoTokenizer.from_pretrained(MODEL_ID);
 
   for (const file of ['model.onnx', 'model.onnx.data']) await downloadFile(file);
 
   const modelPath = join(MODEL_DIR, 'model.onnx');
-  console.log('[onnx] creating inference session...');
+  process.stderr.write('[onnx] creating inference session...\n');
   session = await ort.InferenceSession.create(modelPath, {
     executionProviders: ['cpu'],
     graphOptimizationLevel: 'all',
   });
-  console.log('[onnx] ready. outputs:', session.outputNames);
+  process.stderr.write(`[onnx] ready. outputs: ${session.outputNames}\n`);
 }
 
 /**

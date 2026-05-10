@@ -11,7 +11,8 @@
     "bench:retrieval": "node benchmarks/retrieval/run.js",
     "bench:retrieval:compare": "node benchmarks/retrieval/compare.js",
     "bench:retrieval:rerank": "node benchmarks/retrieval/rerank-matrix.js",
-    "bench:retrieval:mmr": "node benchmarks/retrieval/mmr-matrix.js"
+    "bench:retrieval:mmr": "node benchmarks/retrieval/mmr-matrix.js",
+    "bench:custom50": "node benchmarks/retrieval/custom-50/run-v3.js"
   },
   "dependencies": {
     "@huggingface/transformers": "^4.2.0",
