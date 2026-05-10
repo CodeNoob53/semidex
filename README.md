@@ -24,6 +24,7 @@ In simple terms: semidex helps an AI find the right paragraph, section, command,
 - [Recommended Modes](#recommended-modes)
 - [Core Commands](#core-commands)
 - [Supported Formats](#supported-formats)
+- [Roadmap](#roadmap)
 - [Project Status](#project-status)
 - [Acknowledgements](#acknowledgements)
 
@@ -117,6 +118,7 @@ English deep dives:
 | [docs/en/mcp-tools.md](docs/en/mcp-tools.md) | MCP tool reference and agent workflow |
 | [docs/en/configuration.md](docs/en/configuration.md) | Environment variables, provider modes, formats, Qdrant indexes |
 | [docs/en/benchmarking.md](docs/en/benchmarking.md) | Smoke tests, retrieval benchmark, metrics, regression workflow |
+| [docs/en/roadmap.md](docs/en/roadmap.md) | Product direction, near-term priorities, and non-goals |
 | [docs/en/project-structure.md](docs/en/project-structure.md) | Source tree, runtime entry points, generated files |
 | [docs/en/operations.md](docs/en/operations.md) | Usage examples, limitations, troubleshooting |
 
@@ -171,6 +173,20 @@ Mixed provider combinations, such as `ollama` dense + `bge-m3-onnx` sparse, are 
 | `.docx`, `.odt`, `.rtf`, `.epub`, `.html`, `.htm` | `pandoc` conversion to Markdown |
 
 Pandoc is required only for `.docx`, `.odt`, `.rtf`, `.epub`, `.html`, and `.htm`.
+
+## Roadmap
+
+semidex is not trying to become a broad AI memory platform. The current roadmap
+focuses on strengthening the existing agent-grade RAG index:
+
+- retrieval-grade chunking for large technical documents
+- benchmark-driven tuning before changing defaults
+- better diagnostics and local observability
+- agent wake-up workflows for MCP clients
+- careful experiments with MMR, full-text filtering, and future ColBERT reranking
+
+See [docs/en/roadmap.md](docs/en/roadmap.md) for the full roadmap, priorities,
+and explicit non-goals.
 
 ## Project Status
 
