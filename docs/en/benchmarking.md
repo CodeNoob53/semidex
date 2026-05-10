@@ -369,8 +369,9 @@ Three sections in the output:
 | 2. combined | `sourceDiversity < 2 OR topScoreSpread < threshold` |
 | 3. low-diversity (fixed) | `sourceDiversity < 2` alone, no sweep |
 
-The recommendation block auto-selects the highest threshold where FPR < 50%
-and missRecall > 0. Cross-validate across multiple runs before using any
+The recommendation block selects the threshold with the highest precision among
+candidates where FPR < 50% and missRecall > 0, breaking ties by missRecall then
+threshold. Cross-validate across multiple runs before using any
 threshold as a non-oracle trigger gate.
 
 Output is saved to `benchmarks/retrieval/results/YYYY-MM-DD-custom50-threshold-sweep.txt`.
