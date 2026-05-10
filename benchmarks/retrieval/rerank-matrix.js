@@ -25,17 +25,24 @@ function lpad(s, n) { return String(s).padStart(n); }
 function pct(v)     { return `${(v * 100).toFixed(1)}%`; }
 function sign(v, decimals = 1) { return v > 0 ? `+${v.toFixed(decimals)}` : v.toFixed(decimals); }
 
+// rerank=false → fresh index; rerank=true → BENCH_SKIP_INDEX=1 on the same index.
+// This ensures no-rerank and +rerank variants run against identical vectors,
+// making the delta meaningful.
 const VARIANTS = [
-  { label: 'ollama',        provider: 'env',  rerank: false },
-  { label: 'ollama+rerank', provider: 'env',  rerank: true  },
-  { label: 'onnx',          provider: 'onnx', rerank: false },
-  { label: 'onnx+rerank',   provider: 'onnx', rerank: true  },
+  { label: 'ollama',        provider: 'env',  rerank: false, skipIndex: false },
+  { label: 'ollama+rerank', provider: 'env',  rerank: true,  skipIndex: true  },
+  { label: 'onnx',          provider: 'onnx', rerank: false, skipIndex: false },
+  { label: 'onnx+rerank',   provider: 'onnx', rerank: true,  skipIndex: true  },
 ];
 
-function runVariant({ label, provider, rerank }) {
+function runVariant({ label, provider, rerank, skipIndex }) {
   process.stderr.write(`\nRunning: ${label}...\n`);
   const env = { ...process.env };
-  delete env.BENCH_SKIP_INDEX; // always reindex so provider switches are clean
+  if (skipIndex) {
+    env.BENCH_SKIP_INDEX = '1';
+  } else {
+    delete env.BENCH_SKIP_INDEX;
+  }
   if (provider === 'onnx') {
     env.ONNX_EMBED      = '1';
     env.DENSE_PROVIDER  = 'bge-m3-onnx';

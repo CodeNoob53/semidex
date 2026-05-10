@@ -373,7 +373,7 @@ A **greedy diversity pass** applies a penalty each time a chunk from an already-
 | `ollama + hashed-tf` | 90% | 90% | 0.938 |
 | `bge-m3-onnx` | 95% | **100%** | **1.000** |
 
-Reranking is recommended for `bge-m3-onnx`. For `ollama+hashed-tf`, it provides no Recall@1 gain on the test corpus (top-1 protection prevents regressions).
+Reranking is **opt-in and neutral** on the current benchmark corpus (20 queries, 4 fixtures): 0pp Recall@1 and 0 MRR delta for both providers when measured on the same index. It is a useful candidate for larger or more ambiguous corpora where RRF confidence is lower. `RERANK_ENABLED=0` is the correct default.
 
 ### Configuration
 
@@ -389,13 +389,17 @@ Reranking is recommended for `bge-m3-onnx`. For `ollama+hashed-tf`, it provides 
 | `RERANK_BOOST_BACKLINK` | `0.04` | Boost per incoming backlink |
 | `RERANK_PROTECT_TOP1_DELTA` | `0.05` | Minimum score advantage required to displace original RRF rank-0 |
 
-### Recommended setup (bge-m3-onnx)
+### Example opt-in setup
+
+To try reranking on your own corpus:
 
 ```bash
 ONNX_EMBED=1
 RERANK_ENABLED=1
 RERANK_PREFETCH_MULT=4   # default
 ```
+
+Run `npm run bench:retrieval:rerank` after enabling to verify it helps on your data before keeping it on.
 
 ## MCP Tools
 

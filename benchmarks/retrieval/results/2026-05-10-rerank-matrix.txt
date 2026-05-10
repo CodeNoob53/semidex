@@ -6,25 +6,34 @@ Top-K     : 5
 Queries   : 20
 RERANK_PREFETCH_MULT : 4 (default)
 
+Methodology: no-rerank variants perform a fresh index; +rerank variants reuse
+the same index via BENCH_SKIP_INDEX=1. Each provider pair (ollama / onnx) runs
+against identical vectors, making the rerank delta meaningful.
+
 ─────────────────────────────────────────────────────────────
               ollama   ollama+rerank   onnx   onnx+rerank
 ─────────────────────────────────────────────────────────────
-Recall@1      90%          85%         95%        95%
+Recall@1      90%          90%        100%       100%
 Recall@5     100%         100%        100%       100%
-MRR          0.942        0.917       0.975      0.975
-Avg ms        160          153          87         90
+MRR          0.942        0.942       1.000      1.000
+Avg ms        156          156          91        161*
 ─────────────────────────────────────────────────────────────
 
-Deltas vs no-rerank baseline:
-  ollama+rerank vs ollama    : Recall@1 -5.0pp  MRR -0.025  ms  -7ms
-  onnx+rerank   vs onnx      : Recall@1  0.0pp  MRR  0.000  ms  +3ms
+* onnx+rerank Avg ms inflated by q1=1590ms ONNX tokenizer cold-start in child
+  process (rerank variant runs in a fresh subprocess after onnx, causing model
+  reload). Excluding q1: ~86ms, consistent with onnx baseline. Not a real
+  reranker overhead.
+
+Deltas vs no-rerank baseline (same index):
+  ollama+rerank vs ollama    : Recall@1  0.0pp  MRR 0.000  ms  ~0ms
+  onnx+rerank   vs onnx      : Recall@1  0.0pp  MRR 0.000  ms  ~0ms (excl. cold-start)
 
 ─────────────────────────────────────────────────────────────
 Per-query ranks:
 
 ID   Expected       ollama  ollama+r  onnx  onnx+r
-q1   providers.md     #1      #2       #1     #1
-q2   providers.md     #2      #2       #2     #2
+q1   providers.md     #1      #1       #1     #1
+q2   providers.md     #2      #2       #1     #1
 q3   qdrant.md        #1      #1       #1     #1
 q4   qdrant.md        #1      #1       #1     #1
 q5   chunking.md      #1      #1       #1     #1
@@ -47,48 +56,35 @@ q20  providers.md     #1      #1       #1     #1
 ─────────────────────────────────────────────────────────────
 Analysis:
 
-ollama+rerank apparent regression (q1 #1→#2):
-  RERANK_DEBUG=1 run immediately after matrix confirmed providers.md is
-  correctly scored #1 (baseScore=1.21 vs 0.53 for rank-2). The #2 result
-  in the matrix is an artefact of RRF score variance between re-indexing
-  runs: the matrix script re-indexes before each variant, and two separate
-  ollama indexing passes can produce subtly different RRF fusion scores,
-  putting a different chunk at Qdrant rank-0 and changing the top-1
-  protection anchor. This is a measurement artefact, not a reranker bug.
+ollama+rerank: 0pp Recall@1 delta, MRR unchanged.
+  q2 stays #2 (structural miss — query competes across files for RRF).
+  q15 stays #3 (hashed-tf gives uniform weight to "embedding_schema_version";
+  reranker has no section/tag signal to discriminate). Reranking has no negative
+  effect on ollama on this corpus; top-1 protection prevents regressions.
 
-  Confirmed: isolated debug run with BENCH_SKIP_INDEX=1 returns q1=#1
-  for ollama+rerank. The matrix baseline (ollama, q1=#1) and the rerank
-  variant hit different indexing passes.
+onnx+rerank: 0pp Recall@1 delta, MRR unchanged.
+  onnx baseline this run achieved 100% (q2 #1) — RRF variance between index
+  passes; 2026-05-09 baseline had q2 at #2. Reranker correctly preserves all
+  #1 results; no regressions introduced.
 
-ollama+rerank q15 stays #3:
-  hashed-tf assigns uniform weight to "embedding_schema_version"; the
-  reranker has no signal to distinguish it (section name "Reindex
-  triggers" doesn't contain the query token). This is a hashed-tf
-  limitation, not a reranker deficiency.
-
-onnx+rerank q2 stays #2:
-  "як перемкнутися на ONNX без Ollama" — the expected providers.md chunk
-  competes with qdrant.md content that also discusses ONNX. Without a
-  strong discriminating technical token in the query that maps uniquely
-  to providers.md section/tags, rerank cannot improve over RRF.
-  This is the same structural miss documented in 2026-05-09 results.
+onnx baseline q2 variance:
+  q2 was #2 on 2026-05-09, #1 today. ONNX neural sparse weights are deterministic
+  per text, but RRF fusion scores depend on the full candidate set. Minor chunk
+  score differences between index passes (different upsert timing, Qdrant internals)
+  can flip borderline RRF ranks. This is expected for a corpus where two files
+  compete closely for q2.
 
 ─────────────────────────────────────────────────────────────
-Comparison to 2026-05-09 baseline:
+Conclusion:
 
-  onnx+rerank MRR 0.975 vs expected 1.000 from 2026-05-09-rerank-v2-compare.txt.
-  Difference: the 2026-05-09 run had RERANK_PROTECT_TOP1_DELTA=0.05 active and
-  q2 was fixed by stopword removal. Today's run confirms q2 is still at #2 for
-  onnx+rerank — the 100% result from 2026-05-09 appears to have been query-set
-  or fixture-text dependent and does not reproduce on today's fresh index.
-  No code was changed between runs.
+Reranking is neutral on this 20-query / 4-fixture corpus for both providers:
+0pp Recall@1, 0 MRR delta, negligible latency overhead (~0ms real; cold-start
+artefact excluded).
 
-─────────────────────────────────────────────────────────────
-Recommendation:
+The 2026-05-09 rerank-v2 result (onnx 100% with rerank, 95% without) was likely
+a favourable onnx baseline run where q2 was already at #2 without rerank, and
+the reranker moved it to #1. Today's onnx baseline already hits 100% without
+rerank, so the reranker has no room to improve further.
 
-  RERANK_ENABLED=0 (default) for both providers on this corpus.
-  - ollama+rerank: apparent -5pp Recall@1 is a measurement artefact (see above),
-    but matrix script cannot isolate re-indexing variance — caution warranted.
-  - onnx+rerank: 0pp Recall@1 delta, +3ms overhead, MRR unchanged.
-  Reranking adds value on larger corpora where RRF confidence is lower and
-  diversity / token-boost signals have more room to distinguish documents.
+RERANK_ENABLED=0 remains the correct default. Reranking benefit would appear
+on a larger or more ambiguous corpus where RRF confidence is lower.
