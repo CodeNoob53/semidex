@@ -13,15 +13,24 @@
 if (process.argv.includes('--help')) {
   process.stdout.write(`semidex custom-50 tuning matrix
 
-Variants (all using bge-m3-onnx, hybrid RRF, top-10):
-  1. baseline           — default RRF_K=60, HYBRID_PREFETCH_LIMIT=2
-  2. rrf-k30            — RRF_K=30
-  3. rrf-k20            — RRF_K=20
-  4. prefetch-40        — HYBRID_PREFETCH_LIMIT=40
-  5. prefetch-80        — HYBRID_PREFETCH_LIMIT=80
-  6. rerank             — RERANK_ENABLED=1
-  7. rerank+protect     — RERANK_ENABLED=1 + RERANK_PROTECT_TOP1_DELTA=0.05 (default)
-  8. dense-mmr          — BENCH_SEARCH_MODE=dense-mmr (control, no RRF)
+Variants (all using bge-m3-onnx, hybrid RRF, top-10 unless noted):
+  1.  baseline              — default RRF_K=60, HYBRID_PREFETCH_LIMIT=2
+  2.  rrf-k30               — RRF_K=30
+  3.  rrf-k20               — RRF_K=20
+  4.  prefetch-4            — HYBRID_PREFETCH_LIMIT=4
+  5.  prefetch-8            — HYBRID_PREFETCH_LIMIT=8
+  6.  prefetch-20           — HYBRID_PREFETCH_LIMIT=20
+  7.  prefetch-40           — HYBRID_PREFETCH_LIMIT=40
+  8.  prefetch-80           — HYBRID_PREFETCH_LIMIT=80
+  9.  rerank                — RERANK_ENABLED=1, no top-1 protection
+  10. rerank+protect        — RERANK_ENABLED=1, default RERANK_PROTECT_TOP1_DELTA=0.05
+  11. prefetch-20+rerank    — HYBRID_PREFETCH_LIMIT=20 + RERANK_ENABLED=1
+  12. prefetch-40+rerank    — HYBRID_PREFETCH_LIMIT=40 + RERANK_ENABLED=1
+  13. prefetch-80+rerank    — HYBRID_PREFETCH_LIMIT=80 + RERANK_ENABLED=1
+  14. prefetch-20+rerank+p  — HYBRID_PREFETCH_LIMIT=20 + rerank with protection
+  15. prefetch-40+rerank+p  — HYBRID_PREFETCH_LIMIT=40 + rerank with protection
+  16. prefetch-80+rerank+p  — HYBRID_PREFETCH_LIMIT=80 + rerank with protection
+  17. dense-mmr             — BENCH_SEARCH_MODE=dense-mmr (control, no RRF)
 
 Usage:
   npm run bench:custom50:tune
@@ -54,55 +63,40 @@ function signF(v, d = 3) {
   return (v > 0 ? '+' : '') + v.toFixed(d);
 }
 
+// rerank env: no top-1 protection (isolates pure rerank effect).
+const RERANK_PLAIN   = { RERANK_ENABLED: '1', RERANK_PROTECT_TOP1_DELTA: '0' };
+// rerank+protect env: uses default RERANK_PROTECT_TOP1_DELTA=0.05.
+const RERANK_PROTECT = { RERANK_ENABLED: '1' };
+
 const VARIANTS = [
-  {
-    label:   'baseline',
-    env:     {},
-    skipIndex: false,
-    searchMode: 'hybrid',
-  },
-  {
-    label:   'rrf-k30',
-    env:     { RRF_K: '30' },
-    skipIndex: true,
-    searchMode: 'hybrid',
-  },
-  {
-    label:   'rrf-k20',
-    env:     { RRF_K: '20' },
-    skipIndex: true,
-    searchMode: 'hybrid',
-  },
-  {
-    label:   'prefetch-40',
-    env:     { HYBRID_PREFETCH_LIMIT: '40' },
-    skipIndex: true,
-    searchMode: 'hybrid',
-  },
-  {
-    label:   'prefetch-80',
-    env:     { HYBRID_PREFETCH_LIMIT: '80' },
-    skipIndex: true,
-    searchMode: 'hybrid',
-  },
-  {
-    label:   'rerank',
-    env:     { RERANK_ENABLED: '1', RERANK_PROTECT_TOP1_DELTA: '0' },
-    skipIndex: true,
-    searchMode: 'hybrid',
-  },
-  {
-    label:   'rerank+protect',
-    env:     { RERANK_ENABLED: '1' },
-    skipIndex: true,
-    searchMode: 'hybrid',
-  },
-  {
-    label:   'dense-mmr',
-    env:     { MMR_DIVERSITY: '0.5' },
-    skipIndex: true,
-    searchMode: 'dense-mmr',
-  },
+  // ── RRF_K variants ───────────────────────────────────────────────────────
+  { label: 'baseline',    env: {},                                            skipIndex: false, searchMode: 'hybrid' },
+  { label: 'rrf-k30',     env: { RRF_K: '30' },                              skipIndex: true,  searchMode: 'hybrid' },
+  { label: 'rrf-k20',     env: { RRF_K: '20' },                              skipIndex: true,  searchMode: 'hybrid' },
+
+  // ── Prefetch-only variants ────────────────────────────────────────────────
+  { label: 'prefetch-4',  env: { HYBRID_PREFETCH_LIMIT: '4' },               skipIndex: true,  searchMode: 'hybrid' },
+  { label: 'prefetch-8',  env: { HYBRID_PREFETCH_LIMIT: '8' },               skipIndex: true,  searchMode: 'hybrid' },
+  { label: 'prefetch-20', env: { HYBRID_PREFETCH_LIMIT: '20' },              skipIndex: true,  searchMode: 'hybrid' },
+  { label: 'prefetch-40', env: { HYBRID_PREFETCH_LIMIT: '40' },              skipIndex: true,  searchMode: 'hybrid' },
+  { label: 'prefetch-80', env: { HYBRID_PREFETCH_LIMIT: '80' },              skipIndex: true,  searchMode: 'hybrid' },
+
+  // ── Rerank-only variants (default prefetch) ───────────────────────────────
+  { label: 'rerank',         env: { ...RERANK_PLAIN },                        skipIndex: true,  searchMode: 'hybrid' },
+  { label: 'rerank+protect', env: { ...RERANK_PROTECT },                      skipIndex: true,  searchMode: 'hybrid' },
+
+  // ── Combined prefetch + rerank (no protection) ────────────────────────────
+  { label: 'prefetch-20+rerank', env: { HYBRID_PREFETCH_LIMIT: '20', ...RERANK_PLAIN },   skipIndex: true, searchMode: 'hybrid' },
+  { label: 'prefetch-40+rerank', env: { HYBRID_PREFETCH_LIMIT: '40', ...RERANK_PLAIN },   skipIndex: true, searchMode: 'hybrid' },
+  { label: 'prefetch-80+rerank', env: { HYBRID_PREFETCH_LIMIT: '80', ...RERANK_PLAIN },   skipIndex: true, searchMode: 'hybrid' },
+
+  // ── Combined prefetch + rerank + top-1 protection ─────────────────────────
+  { label: 'prefetch-20+rerank+p', env: { HYBRID_PREFETCH_LIMIT: '20', ...RERANK_PROTECT }, skipIndex: true, searchMode: 'hybrid' },
+  { label: 'prefetch-40+rerank+p', env: { HYBRID_PREFETCH_LIMIT: '40', ...RERANK_PROTECT }, skipIndex: true, searchMode: 'hybrid' },
+  { label: 'prefetch-80+rerank+p', env: { HYBRID_PREFETCH_LIMIT: '80', ...RERANK_PROTECT }, skipIndex: true, searchMode: 'hybrid' },
+
+  // ── Control: dense MMR (no RRF, no rerank) ────────────────────────────────
+  { label: 'dense-mmr', env: { MMR_DIVERSITY: '0.5' },                        skipIndex: true,  searchMode: 'dense-mmr' },
 ];
 
 function runVariant(v) {
@@ -110,8 +104,8 @@ function runVariant(v) {
   const env = { ...process.env };
 
   // Force ONNX provider.
-  env.ONNX_EMBED       = '1';
-  env.BENCH_PROVIDER   = 'onnx';
+  env.ONNX_EMBED     = '1';
+  env.BENCH_PROVIDER = 'onnx';
   delete env.DENSE_PROVIDER;
   delete env.SPARSE_PROVIDER;
 
@@ -152,7 +146,7 @@ function buildTable(results) {
   lines.push('=== custom-50 TUNING MATRIX ===');
   lines.push('');
 
-  // Header
+  // ── Main metrics table ────────────────────────────────────────────────────
   lines.push(sep);
   let hdr = pad('', LW);
   for (const l of labels) hdr += '  ' + lpad(l.slice(0, COL), COL);
@@ -165,33 +159,34 @@ function buildTable(results) {
     lines.push(line);
   }
 
-  row('chunkRecall@5',     m => pct(m.chunkRecall5));
-  row('chunkRecall@10',    m => pct(m.chunkRecall10));
-  row('windowRecall@5',    m => pct(m.windowRecall5));
-  row('windowRecall@10',   m => pct(m.windowRecall10));
-  row('supportRecall@10',  m => pct(m.supportRecallK));
-  row('nDCG@10',           m => f3(m.ndcgK));
-  row('MRR@10',            m => f3(m.mrr10));
-  row('fileRecall@10',     m => pct(m.fileRecallK));
-  row('p50 ms',            m => `${m.p50Latency}ms`);
-  row('p95 ms',            m => `${m.p95Latency}ms`);
+  row('chunkRecall@5',    m => pct(m.chunkRecall5));
+  row('chunkRecall@10',   m => pct(m.chunkRecall10));
+  row('windowRecall@5',   m => pct(m.windowRecall5));
+  row('windowRecall@10',  m => pct(m.windowRecall10));
+  row('supportRecall@10', m => pct(m.supportRecallK));
+  row('nDCG@10',          m => f3(m.ndcgK));
+  row('MRR@10',           m => f3(m.mrr10));
+  row('fileRecall@10',    m => pct(m.fileRecallK));
+  row('p50 ms',           m => `${m.p50Latency}ms`);
+  row('p95 ms',           m => `${m.p95Latency}ms`);
 
   lines.push(sep);
   lines.push('');
 
-  // Delta table vs baseline.
+  // ── Delta table vs baseline ───────────────────────────────────────────────
   const base = results.find(r => r.label === 'baseline');
   if (base) {
+    const nonBase = results.filter(r => r.label !== 'baseline');
+    const dsep = '-'.repeat(LW + nonBase.length * (COL + 2));
+
     lines.push('Deltas vs baseline:');
-    lines.push(sep);
+    lines.push(dsep);
     let dhdr = pad('', LW);
-    for (const l of labels.filter(l => l !== 'baseline'))
-      dhdr += '  ' + lpad(l.slice(0, COL), COL);
+    for (const r of nonBase) dhdr += '  ' + lpad(r.label.slice(0, COL), COL);
     lines.push(dhdr);
-    lines.push(sep);
+    lines.push(dsep);
 
     function deltaRow(name, fn, fmt) {
-      const nonBase = results.filter(r => r.label !== 'baseline');
       let line = pad(name, LW);
       for (const r of nonBase) {
         const bv = fn(base.metrics);
@@ -202,16 +197,44 @@ function buildTable(results) {
       lines.push(line);
     }
 
-    deltaRow('chunkRecall@5',    m => m.chunkRecall5,   sign);
-    deltaRow('chunkRecall@10',   m => m.chunkRecall10,  sign);
-    deltaRow('windowRecall@5',   m => m.windowRecall5,  sign);
-    deltaRow('windowRecall@10',  m => m.windowRecall10, sign);
-    deltaRow('nDCG@10',          m => m.ndcgK,          signF);
-    deltaRow('MRR@10',           m => m.mrr10,          signF);
+    deltaRow('chunkRecall@5',   m => m.chunkRecall5,   sign);
+    deltaRow('chunkRecall@10',  m => m.chunkRecall10,  sign);
+    deltaRow('windowRecall@5',  m => m.windowRecall5,  sign);
+    deltaRow('windowRecall@10', m => m.windowRecall10, sign);
+    deltaRow('nDCG@10',         m => m.ndcgK,          signF);
+    deltaRow('MRR@10',          m => m.mrr10,          signF);
 
-    lines.push(sep);
+    lines.push(dsep);
     lines.push('');
   }
+
+  // ── Best candidates block ─────────────────────────────────────────────────
+  const baseCR5 = base?.metrics?.chunkRecall5 ?? 0;
+
+  // "No regression" = chunkRecall@5 >= baseline.
+  const noReg = results.filter(r => (r.metrics?.chunkRecall5 ?? 0) >= baseCR5);
+
+  function bestMetric(pool, fn, fmt, higher = true) {
+    let winner = null;
+    let winVal = higher ? -Infinity : Infinity;
+    for (const r of pool) {
+      const v = fn(r.metrics);
+      if (v == null) continue;
+      if (higher ? v > winVal : v < winVal) { winVal = v; winner = r.label; }
+    }
+    return winner ? `${winner} (${fmt(winVal)})` : 'n/a';
+  }
+
+  lines.push('Best candidates:');
+  lines.push(`  best chunkRecall@5    : ${bestMetric(results, m => m.chunkRecall5,   pct)}`);
+  lines.push(`  best windowRecall@5   : ${bestMetric(results, m => m.windowRecall5,  pct)}`);
+  lines.push(`  best nDCG@10          : ${bestMetric(results, m => m.ndcgK,          f3)}`);
+  lines.push(`  best MRR@10           : ${bestMetric(results, m => m.mrr10,          f3)}`);
+  lines.push(`  lowest p95 (no-regr.) : ${bestMetric(noReg,   m => m.p95Latency,     v => `${v}ms`, false)}`);
+  lines.push('');
+  lines.push('  "no-regr." = chunkRecall@5 >= baseline. Do not change production');
+  lines.push('  defaults from a single run; cross-validate across multiple runs.');
+  lines.push('');
 
   return lines.join('\n');
 }
@@ -232,7 +255,6 @@ for (const v of VARIANTS) {
 const table = buildTable(results);
 process.stdout.write(table + '\n');
 
-// Save to results directory.
 mkdirSync(RESULTS, { recursive: true });
 const outPath = resolve(RESULTS, `${today()}-custom50-tuning-matrix.txt`);
 writeFileSync(outPath, table + '\n', 'utf8');

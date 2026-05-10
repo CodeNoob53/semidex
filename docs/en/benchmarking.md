@@ -12,6 +12,7 @@ npm run bench:retrieval:rerank
 npm run bench:retrieval:mmr
 npm run bench:custom50
 BENCH_JSON=1 BENCH_SKIP_INDEX=1 npm run bench:custom50 | npm run bench:custom50:failures
+npm run bench:custom50:tune
 ```
 
 ## Smoke Tests
@@ -121,6 +122,39 @@ Runs:
 - ONNX with rerank
 
 Rerank variants reuse the same index where possible to avoid measuring reindex variance as ranking quality.
+
+## Tuning Matrix
+
+```bash
+npm run bench:custom50:tune
+```
+
+Tests combinations of `RRF_K`, `HYBRID_PREFETCH_LIMIT`, and `RERANK_ENABLED` against
+the ONNX baseline on the custom-50 corpus. This is for retrieval parameter exploration,
+not regression testing — it does not catch bugs, it informs default selection.
+
+All variants use `bge-m3-onnx`. The first variant indexes fresh; all others reuse the
+collection with `BENCH_SKIP_INDEX=1` to avoid measuring reindex variance.
+
+Output is saved to `benchmarks/retrieval/results/YYYY-MM-DD-custom50-tuning-matrix.txt`.
+
+### How to interpret the tuning matrix
+
+- **`chunkRecall@5`** — primary recall signal; higher is better. A variant that reduces
+  this vs baseline should not be promoted.
+- **`windowRecall@5`** — includes ±1 chunk neighbors; the gap between this and
+  `chunkRecall@5` shows boundary effects vs true ranking improvements.
+- **`nDCG@10`** — weighted ranking quality; favours variants that push exact-answer
+  chunks to rank 1–3 rather than rank 8–10.
+- **`MRR@10`** — reciprocal rank of the first hit; particularly sensitive to the
+  top-3 position, useful for evaluating rerank benefit.
+- **`p95 latency`** — tail latency; rerank and large prefetch add overhead, check this
+  before committing to a configuration.
+
+The "Best candidates" block at the end of the output summarises per-metric winners and
+the lowest p95 among variants that do not reduce `chunkRecall@5` vs baseline. A single
+run is not sufficient to change production defaults — cross-validate across multiple
+runs before adjusting `RRF_K`, `HYBRID_PREFETCH_LIMIT`, or `RERANK_ENABLED`.
 
 ## MMR Diversity Matrix
 
