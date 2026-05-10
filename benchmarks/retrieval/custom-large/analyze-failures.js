@@ -14,6 +14,10 @@ const RESULTS_DIR = resolve(__dirname, '../results');
 const COLLECTION = 'bench-retrieval-custom-large';
 const TOP_K = 10;
 const BENCH_WINDOW = parseInt(process.env.BENCH_WINDOW ?? '1', 10);
+if (isNaN(BENCH_WINDOW) || BENCH_WINDOW < 0) {
+  console.error(`Error: BENCH_WINDOW must be a non-negative integer`);
+  process.exit(1);
+}
 const ANCHOR_RE = /\[\[BENCH_ANCHOR:\s*(\w+)\]\]/g;
 
 function parseChunkId(chunkId) {
@@ -46,7 +50,14 @@ async function main() {
   console.log(`Provider: ${providerLabel}`);
 
   console.log(`[1/4] Fetching chunks from ${COLLECTION}...`);
-  const points = await scroll(COLLECTION, undefined, 5000, ['source_file', 'chunk_index', 'text', 'section']);
+  const points = await scroll(COLLECTION, undefined, 5000, ['source_file', 'chunk_index', 'text', 'section', 'dense_provider', 'sparse_provider']);
+  if (points.length > 0) {
+    const p0 = points[0].payload;
+    if (p0.dense_provider !== denseProvider || p0.sparse_provider !== sparseProvider) {
+      console.error(`Error: Collection was indexed with ${p0.dense_provider}/${p0.sparse_provider}, but env is ${denseProvider}/${sparseProvider}`);
+      process.exit(1);
+    }
+  }
   const chunkData = [];
   for (const p of points) {
     const chunkId = getChunkId(p.payload);
@@ -69,12 +80,24 @@ async function main() {
   console.log(`[2/4] Building anchor map...`);
   const anchorMap = new Map();
   const chunkMap = new Map();
+  const duplicateAnchors = new Set();
   for (const c of chunkData) {
     chunkMap.set(c.chunkId, c);
     const matches = [...c.text.matchAll(ANCHOR_RE)];
     for (const m of matches) {
-      anchorMap.set(m[1], c.chunkId);
+      if (anchorMap.has(m[1])) {
+        duplicateAnchors.add(m[1]);
+      } else {
+        anchorMap.set(m[1], c.chunkId);
+      }
     }
+  }
+
+  if (duplicateAnchors.size > 0) {
+    console.error(`\nError: ${duplicateAnchors.size} duplicate anchor(s) found in indexed chunks.`);
+    console.error(`Each BENCH_ANCHOR name must appear in exactly one chunk.`);
+    console.error(`Duplicates: ${[...duplicateAnchors].join(', ')}\n`);
+    process.exit(1);
   }
 
   const raw = JSON.parse(readFileSync(QUERIES_PATH, 'utf8'));
@@ -85,11 +108,16 @@ async function main() {
 
   console.log(`[3/4] Running searches...`);
   const positives = [];
+  const anchorErrors = [];
+  
   for (const q of raw.queries) {
     if (q.shouldHaveNoStrongHit) continue;
+    if (!q.expectedAnchors || q.expectedAnchors.length === 0) {
+      anchorErrors.push(`  [${q.id}] positive query has no expectedAnchors`);
+      continue;
+    }
     
-    // Resolve expected anchors
-    const qrels = new Map(); // chunkId -> max relevance
+    const qrels = new Map();
     const expectedDetails = [];
     for (const ea of (q.expectedAnchors ?? [])) {
       const chunkId = anchorMap.get(ea.anchor);
@@ -106,18 +134,23 @@ async function main() {
           textSnippet: (c?.text ?? '').slice(0, 100).replace(/\n/g, ' ')
         });
       } else {
-        console.warn(`Warning: anchor "${ea.anchor}" not found in indexed chunks for query [${q.id}]`);
+        anchorErrors.push(`  [${q.id}] anchor "${ea.anchor}" not found in any indexed chunk`);
       }
     }
     
-    if (qrels.size === 0) continue; // Skip if no valid anchors
+    if (qrels.size > 0) positives.push({ q, qrels, expectedDetails });
+  }
 
-    process.stdout.write(`  ${q.id}... `);
-    const { dense, sparse } = await embedForSearch(COLLECTION, q.query);
-    const results = await hybridSearch(COLLECTION, dense, sparse, TOP_K);
+  if (anchorErrors.length > 0) {
+    console.error(`\nError: ${anchorErrors.length} anchor(s) not found in indexed chunks:\n` + anchorErrors.join('\n') + '\n');
+    process.exit(1);
+  }
+
+  for (const item of positives) {
+    process.stdout.write(`  ${item.q.id}... `);
+    const { dense, sparse } = await embedForSearch(COLLECTION, item.q.query);
+    item.results = await hybridSearch(COLLECTION, dense, sparse, TOP_K);
     process.stdout.write(`done\n`);
-    
-    positives.push({ q, qrels, expectedDetails, results });
   }
 
   console.log(`[4/4] Classifying failures...`);
@@ -127,7 +160,7 @@ async function main() {
     'supportOnly@10': 0, 'fileOnly@10': 0, 'miss': 0
   };
   const typeStats = {};
-  const missByFile = {};
+  const nonExactByFile = {};
   const heuristicsStats = {};
   let exactRankSum = 0;
   let exactRankCount = 0;
@@ -189,11 +222,12 @@ async function main() {
     
     if (cls !== 'exact@5') {
       for (const ef of exactFiles) {
-        missByFile[ef] = (missByFile[ef] || 0) + 1;
+        nonExactByFile[ef] = (nonExactByFile[ef] || 0) + 1;
       }
       
       let heuristic = null;
-      if (cls.startsWith('window')) heuristic = 'boundary-neighbor';
+      if (cls === 'exact@10') heuristic = 'exact-ranked-low';
+      else if (cls.startsWith('window')) heuristic = 'boundary-neighbor';
       else if (cls === 'supportOnly@10') heuristic = 'support-ranked-above-exact';
       else if (cls === 'fileOnly@10') {
         const files = results.map(r => r.payload?.source_file).filter(Boolean);
@@ -254,7 +288,7 @@ async function main() {
   }
   
   const avgExactRank = exactRankCount > 0 ? (exactRankSum / exactRankCount).toFixed(2) : 'n/a';
-  const hardestFile = Object.entries(missByFile).sort((a, b) => b[1] - a[1])[0];
+  const hardestFile = Object.entries(nonExactByFile).sort((a, b) => b[1] - a[1])[0];
   
   // Console aggregate output
   console.log(`\n--- Aggregate Summary ---`);
@@ -269,7 +303,7 @@ async function main() {
   }
   
   if (hardestFile) {
-    console.log(`\nHardest fixture file (by miss count): ${hardestFile[0]} (${hardestFile[1]} misses)`);
+    console.log(`\nHardest fixture file (by non-exact failures): ${hardestFile[0]} (${hardestFile[1]} failures)`);
   }
   
   console.log(`\nTop repeated failure causes:`);
@@ -291,10 +325,12 @@ async function main() {
   reportLines.unshift(
     `--- Aggregate Summary ---`,
     `Counts by class: ${JSON.stringify(stats)}`,
+    `Counts by type: ${JSON.stringify(typeStats)}`,
+    `Failure causes: ${JSON.stringify(heuristicsStats)}`,
     `Avg exact rank: ${avgExactRank}`,
-    `Hardest file: ${hardestFile ? hardestFile[0] : 'n/a'}`,
+    `Hardest file by non-exact failures: ${hardestFile ? hardestFile[0] : 'n/a'}`,
     `window@5 queries: ${window5MissExact5.join(', ')}`,
-    `\n--- Detailed Misses ---\n`
+    `\n--- Detailed Non-Exact Results ---\n`
   );
   
   writeFileSync(outPath, reportLines.join('\n'), 'utf8');

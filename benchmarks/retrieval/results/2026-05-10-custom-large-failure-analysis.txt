@@ -1,10 +1,12 @@
 --- Aggregate Summary ---
 Counts by class: {"exact@5":36,"exact@10":1,"window@5":8,"window@10":0,"supportOnly@10":0,"fileOnly@10":0,"miss":0}
-Avg exact rank: 1.38
-Hardest file: migration-guide-v1-v2.md
+Counts by type: {"exact-token":25,"paraphrase":18,"mixed-lang":2}
+Failure causes: {"boundary-neighbor":8,"exact-ranked-low":1}
+Avg exact rank: 1.41
+Hardest file by non-exact failures: migration-guide-v1-v2.md
 window@5 queries: lg-api-search-request, lg-api-rerank, lg-mig-qdrant-collection, lg-mig-chunk-index-change, lg-mig-dry-run, lg-mig-env-compat, lg-mig-obsidian-review, lg-mig-rollback
 
---- Detailed Misses ---
+--- Detailed Non-Exact Results ---
 
 === semidex custom-large failure analysis ===
 Date: 2026-05-10
@@ -81,12 +83,12 @@ Top 10 Results:
   1. [0.0333] api-reference-large.md#16 | window
      Section: Reranking Control
      Snippet: When searching, setting `rerank=true` triggers the cross-encoder model, signific...
-  2. [0.0325] api-reference-large.md#18 | fileOnly
-     Section: Search Parameters Summary
-     Snippet: | Parameter | Type | Description | Required | | :--- | :--- | :--- | :--- | | `q...
-  3. [0.0325] api-reference-large.md#3 | fileOnly
+  2. [0.0325] api-reference-large.md#3 | fileOnly
      Section: Search Documents
      Snippet: Performs a hybrid dense+sparse search across all indexed chunks. Supports tag fi...
+  3. [0.0325] api-reference-large.md#18 | fileOnly
+     Section: Search Parameters Summary
+     Snippet: | Parameter | Type | Description | Required | | :--- | :--- | :--- | :--- | | `q...
   4. [0.0313] mixed-language-agent-guide.md#5 | 
      Section: 2.2 Indexing and Search Strategy
      Snippet: semidex employs a hybrid search mechanism combining multiple retrieval vectors. ...
@@ -343,6 +345,7 @@ Top 10 Results:
 --------------------------------------------------
 [lg-mig-sync-backfill] (exact-token) npm run sync backfill provider records payload field indexes schema version
 Class: exact@10
+Cause: exact-ranked-low
 
 Expected Anchors:
   - Anchor: MIG_SYNC_BACKFILL (max-rel: 3)
