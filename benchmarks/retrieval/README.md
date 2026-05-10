@@ -12,7 +12,7 @@ Runs against a live Qdrant instance; no mocking.
 | MRR | Mean Reciprocal Rank — average of 1/rank across positive queries |
 | nDCG@K | Normalised Discounted Cumulative Gain at K (binary relevance per file) |
 | sectionHit@K | Fraction of queries where the expected section appears in top-K chunks *from expectedFiles* |
-| tokenHit@K | Fraction of queries where expectedAllTokens + any of expectedAnyTokens appear in a top-K chunk *from expectedFiles* |
+| tokenHit@K | Fraction of queries where expectedAllTokens + (any of expectedAnyTokens OR a full expectedAnyTokenGroups match) appear in a top-K chunk *from expectedFiles* |
 | negativePassRate | Fraction of negative queries where expectedAllTokens do NOT appear in top-1 result |
 | dupSourceRate | Average fraction of top-K results that share a source_file with another result |
 | sourceDiversity | Average count of unique source_file values in top-K results |
