@@ -199,18 +199,18 @@ where the index follows source changes without requiring a full reindex after
 every edit.
 
 This is a future concept, not immediate implementation work. The intended shape
-is closer to an incremental project index than a one-shot document import:
+is closer to an incremental project index than a one-shot document import.
 
-- index a whole repository with stable include/exclude rules
-- store a per-collection manifest of source files, hashes, provider metadata,
-  chunking settings, and source root
-- detect changed, new, deleted, and renamed files
-- delete and reindex only affected `source_file` payloads in Qdrant
-- force a full reindex only when provider, schema, vector size, or chunking
-  settings change
-- optionally use `git status --porcelain` as a fast change signal when the
-  source root is a Git repository
-- keep a scan-based fallback for non-Git folders
+### Git-like incremental indexing
+
+- index a whole repository with stable include/exclude rules and `SOURCE_ROOT`
+- store a per-collection manifest of source files, hashes, provider metadata, chunking settings, and source root
+- detect changed, new, deleted, and renamed files (e.g. optionally use `git status --porcelain` as a fast change signal, with a scan-based fallback)
+- use stable point IDs for deterministic upsert
+- use Qdrant batch update/delete operations
+- only re-embed changed files; delete points for removed files
+- force a full reindex only when provider, schema, vector size, or chunking settings change
+- goal: large codebase/project indexing without full rebuild
 
 This should not try to replace Git. Git can provide useful change information,
 but semidex's responsibility is keeping the retrieval index aligned with the

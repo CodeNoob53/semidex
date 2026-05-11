@@ -31,6 +31,19 @@ Documents (md, pdf, docx, epub, txt, ...)
   AI agent retrieves precise context
 ```
 
+## Qdrant Data Model
+
+semidex uses Qdrant as its primary retrieval index and storage backend.
+
+- **Collection**: Represents a single semidex knowledge base.
+- **Point**: Represents exactly one indexed chunk from a document.
+- **Named Vectors**: Each point stores two distinct vectors:
+  - `dense`: Captures semantic meaning for paraphrase and conceptual search.
+  - `sparse`: Captures exact lexical tokens for keyword matching.
+- **Payload Schema**: In addition to vectors, Qdrant stores a JSON payload for each point (containing the raw `text`, LLM `context`, `section`, `source_file`, `tags`, graph `links`, `backlinks`, `chunk_index`, `total_chunks`, `file_hash`, and provider metadata). This payload is crucial because it provides all the text and metadata the MCP server needs to answer queries without reading files from disk.
+- **Payload Indexes**: To efficiently filter searches by specific attributes, Qdrant relies on payload indexes. semidex requires indexes on `source_file` (keyword), `tags` (keyword), and `chunk_index` (integer) to support accurate context windows and agent MCP tools.
+- **Reindexing**: Changing the embedding providers (`denseProvider`, `sparseProvider`), embedding models (`denseModel`), embedding schema version, or `vectorSize` fundamentally alters the vector schema. Because query vectors must perfectly match stored point vectors, any such change requires a full collection reindex. Conversely, changes to a `file_hash` trigger an automatic reindex of only the affected file.
+
 ## Phase 1 - Chunk
 
 The parser tries to preserve document structure:

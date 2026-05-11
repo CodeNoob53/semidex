@@ -34,13 +34,13 @@ This keeps `source_file` IDs stable regardless of which subfolder is passed to t
 
 Files outside `SOURCE_ROOT` cause an explicit error.
 
-## Sync
+## Qdrant indexes and sync
 
 ```bash
 npm run sync
 ```
 
-`sync`:
+The `sync` command ensures that the Qdrant collection is correctly configured for semidex. It:
 
 - generates/updates `config.json`
 - discovers Qdrant collections
@@ -48,7 +48,11 @@ npm run sync
 - ensures required payload indexes
 - checks sparse vector support
 
-Safe to re-run.
+**Operational Note:**
+
+- **When to run**: Always run `npm run sync` after upgrading semidex.
+- **Required indexes**: It ensures existing or older collections have payload indexes on `source_file`, `tags`, and `chunk_index`. These are strictly necessary for search filters, context window chunks, and agent MCP tools.
+- **Safety**: Do not manually mutate the Qdrant schema unless you know exactly what you are doing. `npm run sync` is safe to re-run.
 
 ## Scripts
 
