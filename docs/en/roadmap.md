@@ -151,10 +151,52 @@ Candidate experiments:
 - stronger lexical fallback than hashed-TF
 - ColBERT / late-interaction rerank prototype
 - query expansion only when diagnostics indicate a likely miss
+- graph-aware retrieval expansion through existing file links and backlinks
+- separate wide candidate retrieval from compact agent-facing output
 
 ColBERT remains a roadmap item, not an immediate default. It should be tested
 only after benchmarks show that the correct chunk is often present in a wider
 candidate pool but ranked too low by hybrid RRF.
+
+### Candidate pool vs output context
+
+Hybrid-search examples commonly retrieve a wider dense/sparse candidate pool
+before returning a much smaller final context to the language model. semidex
+should keep this distinction explicit:
+
+- retrieval may prefetch more candidates than are shown to the agent
+- dense and sparse candidate limits can be tuned independently in benchmarks
+- MCP output should stay compact, provenance-rich, and suitable for agent use
+- `top=3`, `window=1`, and `window_format="compact"` remain agent-facing output
+  policy candidates, not limits on internal retrieval
+- negative/distractor diagnostics should evaluate whether the final compact
+  context contains enough evidence for an agent to refuse unsupported answers
+
+### Graph-aware retrieval expansion
+
+Qdrant GraphRAG examples show a useful pattern: run vector search first, then
+use stable IDs from the vector results to retrieve related graph context. semidex
+should explore the same idea with its existing lightweight file graph before
+introducing external graph databases.
+
+Possible shape:
+
+- use `source_file` and `chunk_index` as stable cross-reference IDs
+- after top results are found, optionally show related files and backlinks near
+  the result
+- prefer file-level graph metadata, tags, and provenance before LLM-generated
+  ontology extraction
+- evaluate multi-hop agent tasks where one search result points to supporting
+  context in a linked file
+- avoid Neo4j or full Knowledge Graph dependencies until benchmarks show a clear
+  need
+
+Success criteria:
+
+- graph expansion improves multi-hop task success without hurting direct lookup
+- agents can explain why related context was included
+- added graph context remains compact enough for MCP use
+- raw text and Qdrant payloads remain the source of truth
 
 Success signals:
 
