@@ -1,0 +1,54 @@
+=== Agent Window Evaluation (2026-05-11) ===
+Collection: bench-retrieval-custom-large
+Top-K: 3  Window: 1
+
+--- Aggregate Summary ---
+Queries run: 5
+Avg output length: 7338 chars
+Total window chunks retrieved: 44
+Duplicate chunks across top results observed: No
+
+--- Per-query Details ---
+Query: exact-token
+  Window Chunks block exists: Yes
+  Window chunks per result: [3, 3, 3]
+  Exactly one is_match=true per block: Yes
+  Output char count: ~7073
+  Expected hint found anywhere in output: Yes
+
+Query: paraphrase
+  Window Chunks block exists: Yes
+  Window chunks per result: [3, 2, 3]
+  Exactly one is_match=true per block: Yes
+  Output char count: ~6848
+  Expected hint found anywhere in output: Yes
+
+Query: mixed-language
+  Window Chunks block exists: Yes
+  Window chunks per result: [3, 3, 3]
+  Exactly one is_match=true per block: Yes
+  Output char count: ~5462
+  Expected hint found anywhere in output: Yes
+
+Query: boundary-neighbor
+  Window Chunks block exists: Yes
+  Window chunks per result: [3, 3, 3]
+  Exactly one is_match=true per block: Yes
+  Output char count: ~6639
+  Expected hint found anywhere in output: Yes
+
+Query: troubleshooting
+  Window Chunks block exists: Yes
+  Window chunks per result: [3, 3, 3]
+  Exactly one is_match=true per block: Yes
+  Output char count: ~10667
+  Expected hint found anywhere in output: Yes
+
+--- Observations ---
+- Is output too large? At ~7338 chars, it is manageable for Claude 3.5/3.7 context windows, but might be bulky if multiple queries are made sequentially.
+- Are window chunks useful? Yes, hint_found was highly successful, indicating neighboring context successfully supplements exact matches.
+- Are there duplicate chunks across top results? No.
+- Is matched chunk clearly identifiable? Yes, the `is_match: true` flag allows agents to pinpoint exactly which chunk triggered the search hit.
+
+--- Final recommendation ---
+add deduplication before any default change

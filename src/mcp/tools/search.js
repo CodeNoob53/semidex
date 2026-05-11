@@ -75,7 +75,7 @@ export async function handle({ query, collection, top = 5, tags, source_file, wi
     ];
 
     if (windowChunksJSON) {
-      lines.push(`\n**Window Chunks:**\n\`\`\`json\n${JSON.stringify({ window_chunks: windowChunksJSON }, null, 2)}\n\`\`\``);
+      lines.push(`\n**Window Chunks:**\n~~~~json\n${JSON.stringify({ window_chunks: windowChunksJSON }, null, 2)}\n~~~~`);
     }
 
     lines.push('');
