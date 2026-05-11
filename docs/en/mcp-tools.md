@@ -41,7 +41,7 @@ For tasks where the agent must implement, explain, or decide based on the contex
 
 - **Deduplication**: In windowed search, the matched chunk (`is_match: true`) is always preserved in its own window. Duplicate neighbor chunks across results are safely omitted.
 
-If implementation requires even broader context, follow up with `qdrant_get_chunk(window>1)`.
+If implementation requires even broader context, follow up with `qdrant_get_chunk(..., window=1 or 2)`.
 
 ## Tool Reference
 

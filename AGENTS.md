@@ -92,9 +92,10 @@ Search returns the matched chunk text plus `source_file` and `chunk_index`. The 
 | Goal | Tool |
 |------|------|
 | List collections and provider metadata | `qdrant_collection_info()` |
-| Find chunks by topic | `qdrant_search(query, collection, window=1, window_format="compact", top=3)` |
-| Search inside one file | `qdrant_search(query, collection, source_file=..., window=1, window_format="compact")` |
-| Filter by tags | `qdrant_search(query, collection, tags=[...], window=1, window_format="compact")` |
+| Find chunks by topic | `qdrant_search(query, collection)` |
+| Find actionable context | `qdrant_search(query, collection, top=3, window=1, window_format="compact")` |
+| Search inside one file | `qdrant_search(query, collection, source_file=...)` |
+| Filter by tags | `qdrant_search(query, collection, tags=[...])` |
 | Read a chunk with neighbors | `qdrant_get_chunk(collection, source_file, chunk_index, window=1)` |
 | Find chunks with a tag | `qdrant_find_by_tag(collection, tag)` |
 | See outgoing semantic links | `qdrant_related(collection, source_file)` |
