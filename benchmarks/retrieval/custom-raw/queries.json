@@ -10,7 +10,8 @@
         { "anchor": "INCIDENT_START", "relevance": 3 },
         { "anchor": "UA_OOM_GRAPH", "relevance": 2 }
       ],
-      "expectedTokens": ["OOM killed", "/src/indexer.js:42"]
+      "expectedTokens": ["OOM killed", "/src/indexer.js:42"],
+      "expectedFiles": ["raw-mixed-incident-log.txt"]
     },
     {
       "id": "raw-exact-02",
@@ -19,7 +20,8 @@
       "expectedAnchors": [
         { "anchor": "QDRANT_TIMEOUT_LOG", "relevance": 3 }
       ],
-      "expectedTokens": ["Qdrant timeout", "5000ms"]
+      "expectedTokens": ["Qdrant timeout", "5000ms"],
+      "expectedFiles": ["raw-mixed-incident-log.txt"]
     },
     {
       "id": "raw-exact-03",
@@ -28,7 +30,8 @@
       "expectedAnchors": [
         { "anchor": "CFG_ONNX_EMBED", "relevance": 3 }
       ],
-      "expectedTokens": ["ONNX_EMBED=1"]
+      "expectedTokens": ["ONNX_EMBED=1"],
+      "expectedFiles": ["raw-config-dump.txt"]
     },
     {
       "id": "raw-exact-04",
@@ -37,7 +40,8 @@
       "expectedAnchors": [
         { "anchor": "CFG_OVERLAP_SENTENCES", "relevance": 3 }
       ],
-      "expectedTokens": ["OVERLAP_SENTENCES=2"]
+      "expectedTokens": ["OVERLAP_SENTENCES=2"],
+      "expectedFiles": ["raw-config-dump.txt"]
     },
     {
       "id": "raw-exact-05",
@@ -46,7 +50,8 @@
       "expectedAnchors": [
         { "anchor": "CFG_LLM_MODEL", "relevance": 3 }
       ],
-      "expectedTokens": ["LLM_MODEL=gemma3:4b"]
+      "expectedTokens": ["LLM_MODEL=gemma3:4b"],
+      "expectedFiles": ["raw-config-dump.txt"]
     },
     {
       "id": "raw-exact-06",
@@ -55,7 +60,8 @@
       "expectedAnchors": [
         { "anchor": "CFG_HYBRID_MODE", "relevance": 3 }
       ],
-      "expectedTokens": ["retrieval_mode", "hybrid"]
+      "expectedTokens": ["retrieval_mode", "hybrid"],
+      "expectedFiles": ["raw-config-dump.txt"]
     },
     {
       "id": "raw-exact-07",
@@ -64,7 +70,8 @@
       "expectedAnchors": [
         { "anchor": "CFG_SPARSE_PROVIDER", "relevance": 3 }
       ],
-      "expectedTokens": ["sparse_provider", "bge-m3-onnx"]
+      "expectedTokens": ["sparse_provider", "bge-m3-onnx"],
+      "expectedFiles": ["raw-config-dump.txt"]
     },
     {
       "id": "raw-para-01",
@@ -74,7 +81,8 @@
         { "anchor": "INCIDENT_START", "relevance": 3 },
         { "anchor": "UA_OOM_GRAPH", "relevance": 2 }
       ],
-      "expectedTokens": []
+      "expectedTokens": [],
+      "expectedFiles": ["raw-mixed-incident-log.txt"]
     },
     {
       "id": "raw-para-02",
@@ -83,7 +91,8 @@
       "expectedAnchors": [
         { "anchor": "WRONG_BRANCH", "relevance": 3 }
       ],
-      "expectedTokens": []
+      "expectedTokens": [],
+      "expectedFiles": ["raw-mixed-incident-log.txt"]
     },
     {
       "id": "raw-para-03",
@@ -93,7 +102,8 @@
         { "anchor": "COMPACT_SNIPPET_RATIONALE", "relevance": 3 },
         { "anchor": "NOTES_WINDOW_APPROACH", "relevance": 2 }
       ],
-      "expectedTokens": []
+      "expectedTokens": [],
+      "expectedFiles": ["raw-agent-notes.txt"]
     },
     {
       "id": "raw-para-04",
@@ -102,7 +112,8 @@
       "expectedAnchors": [
         { "anchor": "BOUNDARY_FIX", "relevance": 3 }
       ],
-      "expectedTokens": []
+      "expectedTokens": [],
+      "expectedFiles": ["raw-agent-notes.txt"]
     },
     {
       "id": "raw-para-05",
@@ -111,7 +122,8 @@
       "expectedAnchors": [
         { "anchor": "MODEL_ALIGNMENT_NOTE", "relevance": 3 }
       ],
-      "expectedTokens": []
+      "expectedTokens": [],
+      "expectedFiles": ["raw-agent-notes.txt"]
     },
     {
       "id": "raw-para-06",
@@ -120,7 +132,8 @@
       "expectedAnchors": [
         { "anchor": "COMPACT_SNIPPET_RATIONALE", "relevance": 3 }
       ],
-      "expectedTokens": []
+      "expectedTokens": [],
+      "expectedFiles": ["raw-agent-notes.txt"]
     },
     {
       "id": "raw-mixed-01",
@@ -130,7 +143,8 @@
         { "anchor": "UA_OOM_GRAPH", "relevance": 3 },
         { "anchor": "INCIDENT_START", "relevance": 2 }
       ],
-      "expectedTokens": ["критична помилка"]
+      "expectedTokens": ["критична помилка"],
+      "expectedFiles": ["raw-mixed-incident-log.txt"]
     },
     {
       "id": "raw-mixed-02",
@@ -139,7 +153,8 @@
       "expectedAnchors": [
         { "anchor": "INCIDENT_RESOLVED", "relevance": 3 }
       ],
-      "expectedTokens": ["відновлення роботи"]
+      "expectedTokens": ["відновлення роботи"],
+      "expectedFiles": ["raw-mixed-incident-log.txt"]
     },
     {
       "id": "raw-mixed-03",
@@ -148,7 +163,8 @@
       "expectedAnchors": [
         { "anchor": "UA_OOM_GRAPH", "relevance": 3 }
       ],
-      "expectedTokens": ["Граф"]
+      "expectedTokens": ["Граф"],
+      "expectedFiles": ["raw-mixed-incident-log.txt"]
     },
     {
       "id": "raw-bound-01",
@@ -157,7 +173,8 @@
       "expectedAnchors": [
         { "anchor": "BOUNDARY_FIX", "relevance": 3 }
       ],
-      "expectedTokens": ["parser", "backtrack"]
+      "expectedTokens": ["parser", "backtrack"],
+      "expectedFiles": ["raw-agent-notes.txt"]
     },
     {
       "id": "raw-bound-02",
@@ -166,7 +183,8 @@
       "expectedAnchors": [
         { "anchor": "BOUNDARY_FIX", "relevance": 3 }
       ],
-      "expectedTokens": ["append", "first sentence"]
+      "expectedTokens": ["append", "first sentence"],
+      "expectedFiles": ["raw-agent-notes.txt"]
     },
     {
       "id": "raw-noise-01",
@@ -175,7 +193,8 @@
       "expectedAnchors": [
         { "anchor": "INCIDENT_START", "relevance": 3 }
       ],
-      "expectedTokens": ["indexing pod"]
+      "expectedTokens": ["indexing pod"],
+      "expectedFiles": ["raw-mixed-incident-log.txt"]
     },
     {
       "id": "raw-noise-02",
@@ -184,7 +203,8 @@
       "expectedAnchors": [
         { "anchor": "QDRANT_TIMEOUT_LOG", "relevance": 3 }
       ],
-      "expectedTokens": ["5000ms"]
+      "expectedTokens": ["5000ms"],
+      "expectedFiles": ["raw-mixed-incident-log.txt"]
     },
     {
       "id": "raw-noise-03",
@@ -193,7 +213,8 @@
       "expectedAnchors": [
         { "anchor": "COMPACT_SNIPPET_RATIONALE", "relevance": 3 }
       ],
-      "expectedTokens": ["extremely tight"]
+      "expectedTokens": ["extremely tight"],
+      "expectedFiles": ["raw-agent-notes.txt"]
     },
     {
       "id": "raw-noise-04",
@@ -202,7 +223,8 @@
       "expectedAnchors": [
         { "anchor": "COMPACT_SNIPPET_RATIONALE", "relevance": 3 }
       ],
-      "expectedTokens": ["compact snippets"]
+      "expectedTokens": ["compact snippets"],
+      "expectedFiles": ["raw-agent-notes.txt"]
     },
     {
       "id": "raw-noise-05",
@@ -211,7 +233,8 @@
       "expectedAnchors": [
         { "anchor": "CFG_ONNX_EMBED", "relevance": 3 }
       ],
-      "expectedTokens": ["ONNX_EMBED"]
+      "expectedTokens": ["ONNX_EMBED"],
+      "expectedFiles": ["raw-config-dump.txt"]
     },
     {
       "id": "raw-noise-06",
@@ -220,7 +243,8 @@
       "expectedAnchors": [
         { "anchor": "CFG_LLM_MODEL", "relevance": 3 }
       ],
-      "expectedTokens": ["LLM_MODEL"]
+      "expectedTokens": ["LLM_MODEL"],
+      "expectedFiles": ["raw-config-dump.txt"]
     },
     {
       "id": "raw-neg-01",
@@ -229,7 +253,8 @@
       "shouldHaveNoStrongHit": true,
       "expectedAnchors": [],
       "expectedTokens": [],
-      "forbiddenTokens": ["5000ms", "Qdrant timeout after"]
+      "expectedFiles": [],
+      "forbiddenTokens": ["5000ms", "qdrant timeout after"]
     },
     {
       "id": "raw-neg-02",
@@ -238,7 +263,8 @@
       "shouldHaveNoStrongHit": true,
       "expectedAnchors": [],
       "expectedTokens": [],
-      "forbiddenTokens": ["ColBERT"]
+      "expectedFiles": [],
+      "forbiddenTokens": ["colbert"]
     },
     {
       "id": "raw-neg-03",
@@ -247,6 +273,7 @@
       "shouldHaveNoStrongHit": true,
       "expectedAnchors": [],
       "expectedTokens": [],
+      "expectedFiles": [],
       "forbiddenTokens": ["будови графа"]
     },
     {
@@ -256,6 +283,7 @@
       "shouldHaveNoStrongHit": true,
       "expectedAnchors": [],
       "expectedTokens": [],
+      "expectedFiles": [],
       "forbiddenTokens": ["8k", "token limit"]
     },
     {
@@ -265,7 +293,8 @@
       "shouldHaveNoStrongHit": true,
       "expectedAnchors": [],
       "expectedTokens": [],
-      "forbiddenTokens": []
+      "expectedFiles": [],
+      "forbiddenTokens": ["git", "status", "reindex"]
     },
     {
       "id": "raw-neg-06",
@@ -274,7 +303,8 @@
       "shouldHaveNoStrongHit": true,
       "expectedAnchors": [],
       "expectedTokens": [],
-      "forbiddenTokens": []
+      "expectedFiles": [],
+      "forbiddenTokens": ["metrics", "metrics.internal"]
     }
   ]
 }

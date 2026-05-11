@@ -1,3 +1,16 @@
+[2026-05-10T08:00:00Z] INFO System boot sequence initiated.
+[2026-05-10T08:00:15Z] DEBUG Loading configuration from /etc/semidex/config.json
+[2026-05-10T08:01:22Z] INFO Connecting to Qdrant cluster at qdrant-prod-svc:6333...
+[2026-05-10T08:01:25Z] INFO Connected successfully. Vector dimension: 1024.
+[2026-05-10T08:05:00Z] INFO Starting background sync process.
+[2026-05-10T08:15:33Z] DEBUG Indexed 45 files in 12s.
+[2026-05-10T09:00:00Z] INFO Hourly snapshot completed.
+[2026-05-10T10:00:00Z] INFO Memory usage: 1.2GB. CPU load: 15%.
+[2026-05-10T11:00:00Z] INFO Incoming traffic spike detected from internal agents.
+[2026-05-10T11:30:00Z] WARN High memory pressure. GC running frequently.
+[2026-05-10T11:45:00Z] ERROR Failed to allocate buffer for batch upsert.
+[2026-05-10T11:55:00Z] FATAL Unhandled exception in worker thread 4.
+
 2026-05-10T12:00:00Z INCIDENT START
 The cluster went down. Crash loop in indexing pod. [[BENCH_ANCHOR: INCIDENT_START]]
 Traceback:
@@ -7,6 +20,153 @@ Error: OOM killed
 Спроба перезапуску...
 2026-05-10T12:05:00Z WARN: Qdrant timeout after 5000ms. [[BENCH_ANCHOR: QDRANT_TIMEOUT_LOG]]
 We tried restarting it again but the container image tag was stale. Someone pushed the wrong branch to prod. [[BENCH_ANCHOR: WRONG_BRANCH]]
+
 Distractor: OOM killed at /src/other.js
 Distractor: Qdrant timeout after 100ms.
+
+[2026-05-10T12:10:00Z] INFO Rollback initiated to previous stable image v1.9.4.
+[2026-05-10T12:12:00Z] INFO Pods scaling up. Readiness probes passing.
+[2026-05-10T12:14:00Z] INFO Verifying graph integrity...
 Відновлення роботи о 12:15. Все ок. [[BENCH_ANCHOR: INCIDENT_RESOLVED]]
+[2026-05-10T12:20:00Z] INFO Incident post-mortem document created in Notion.
+[2026-05-10T13:00:00Z] INFO Normal operations resumed. Metrics stable.
+
+[2026-05-10T12:00:10Z] ERROR java.lang.OutOfMemoryError: Java heap space
+	at com.example.service.Worker.process(Worker.java:100)
+	at java.base/java.lang.Thread.run(Thread.java:833)
+WARN Connection timeout 0 to database backend.
+DEBUG Heartbeat 0 received from pod-worker-0
+INFO Reconnecting to broker 0...
+
+[2026-05-10T12:01:11Z] ERROR java.lang.OutOfMemoryError: Java heap space
+	at com.example.service.Worker.process(Worker.java:101)
+	at java.base/java.lang.Thread.run(Thread.java:833)
+WARN Connection timeout 1 to database backend.
+DEBUG Heartbeat 1 received from pod-worker-1
+INFO Reconnecting to broker 1...
+
+[2026-05-10T12:02:12Z] ERROR java.lang.OutOfMemoryError: Java heap space
+	at com.example.service.Worker.process(Worker.java:102)
+	at java.base/java.lang.Thread.run(Thread.java:833)
+WARN Connection timeout 2 to database backend.
+DEBUG Heartbeat 2 received from pod-worker-2
+INFO Reconnecting to broker 2...
+
+[2026-05-10T12:03:13Z] ERROR java.lang.OutOfMemoryError: Java heap space
+	at com.example.service.Worker.process(Worker.java:103)
+	at java.base/java.lang.Thread.run(Thread.java:833)
+WARN Connection timeout 3 to database backend.
+DEBUG Heartbeat 3 received from pod-worker-3
+INFO Reconnecting to broker 0...
+
+[2026-05-10T12:04:14Z] ERROR java.lang.OutOfMemoryError: Java heap space
+	at com.example.service.Worker.process(Worker.java:104)
+	at java.base/java.lang.Thread.run(Thread.java:833)
+WARN Connection timeout 4 to database backend.
+DEBUG Heartbeat 4 received from pod-worker-4
+INFO Reconnecting to broker 1...
+
+[2026-05-10T12:05:15Z] ERROR java.lang.OutOfMemoryError: Java heap space
+	at com.example.service.Worker.process(Worker.java:105)
+	at java.base/java.lang.Thread.run(Thread.java:833)
+WARN Connection timeout 5 to database backend.
+DEBUG Heartbeat 5 received from pod-worker-5
+INFO Reconnecting to broker 2...
+
+[2026-05-10T12:06:16Z] ERROR java.lang.OutOfMemoryError: Java heap space
+	at com.example.service.Worker.process(Worker.java:106)
+	at java.base/java.lang.Thread.run(Thread.java:833)
+WARN Connection timeout 6 to database backend.
+DEBUG Heartbeat 6 received from pod-worker-6
+INFO Reconnecting to broker 0...
+
+[2026-05-10T12:07:17Z] ERROR java.lang.OutOfMemoryError: Java heap space
+	at com.example.service.Worker.process(Worker.java:107)
+	at java.base/java.lang.Thread.run(Thread.java:833)
+WARN Connection timeout 7 to database backend.
+DEBUG Heartbeat 7 received from pod-worker-7
+INFO Reconnecting to broker 1...
+
+[2026-05-10T12:08:18Z] ERROR java.lang.OutOfMemoryError: Java heap space
+	at com.example.service.Worker.process(Worker.java:108)
+	at java.base/java.lang.Thread.run(Thread.java:833)
+WARN Connection timeout 8 to database backend.
+DEBUG Heartbeat 8 received from pod-worker-8
+INFO Reconnecting to broker 2...
+
+[2026-05-10T12:09:19Z] ERROR java.lang.OutOfMemoryError: Java heap space
+	at com.example.service.Worker.process(Worker.java:109)
+	at java.base/java.lang.Thread.run(Thread.java:833)
+WARN Connection timeout 9 to database backend.
+DEBUG Heartbeat 9 received from pod-worker-9
+INFO Reconnecting to broker 0...
+
+[2026-05-10T12:00:20Z] ERROR java.lang.OutOfMemoryError: Java heap space
+	at com.example.service.Worker.process(Worker.java:110)
+	at java.base/java.lang.Thread.run(Thread.java:833)
+WARN Connection timeout 10 to database backend.
+DEBUG Heartbeat 10 received from pod-worker-10
+INFO Reconnecting to broker 1...
+
+[2026-05-10T12:01:21Z] ERROR java.lang.OutOfMemoryError: Java heap space
+	at com.example.service.Worker.process(Worker.java:111)
+	at java.base/java.lang.Thread.run(Thread.java:833)
+WARN Connection timeout 11 to database backend.
+DEBUG Heartbeat 11 received from pod-worker-11
+INFO Reconnecting to broker 2...
+
+[2026-05-10T12:02:22Z] ERROR java.lang.OutOfMemoryError: Java heap space
+	at com.example.service.Worker.process(Worker.java:112)
+	at java.base/java.lang.Thread.run(Thread.java:833)
+WARN Connection timeout 12 to database backend.
+DEBUG Heartbeat 12 received from pod-worker-12
+INFO Reconnecting to broker 0...
+
+[2026-05-10T12:03:23Z] ERROR java.lang.OutOfMemoryError: Java heap space
+	at com.example.service.Worker.process(Worker.java:113)
+	at java.base/java.lang.Thread.run(Thread.java:833)
+WARN Connection timeout 13 to database backend.
+DEBUG Heartbeat 13 received from pod-worker-13
+INFO Reconnecting to broker 1...
+
+[2026-05-10T12:04:24Z] ERROR java.lang.OutOfMemoryError: Java heap space
+	at com.example.service.Worker.process(Worker.java:114)
+	at java.base/java.lang.Thread.run(Thread.java:833)
+WARN Connection timeout 14 to database backend.
+DEBUG Heartbeat 14 received from pod-worker-14
+INFO Reconnecting to broker 2...
+
+[2026-05-10T12:05:25Z] ERROR java.lang.OutOfMemoryError: Java heap space
+	at com.example.service.Worker.process(Worker.java:115)
+	at java.base/java.lang.Thread.run(Thread.java:833)
+WARN Connection timeout 15 to database backend.
+DEBUG Heartbeat 15 received from pod-worker-15
+INFO Reconnecting to broker 0...
+
+[2026-05-10T12:06:26Z] ERROR java.lang.OutOfMemoryError: Java heap space
+	at com.example.service.Worker.process(Worker.java:116)
+	at java.base/java.lang.Thread.run(Thread.java:833)
+WARN Connection timeout 16 to database backend.
+DEBUG Heartbeat 16 received from pod-worker-16
+INFO Reconnecting to broker 1...
+
+[2026-05-10T12:07:27Z] ERROR java.lang.OutOfMemoryError: Java heap space
+	at com.example.service.Worker.process(Worker.java:117)
+	at java.base/java.lang.Thread.run(Thread.java:833)
+WARN Connection timeout 17 to database backend.
+DEBUG Heartbeat 17 received from pod-worker-17
+INFO Reconnecting to broker 2...
+
+[2026-05-10T12:08:28Z] ERROR java.lang.OutOfMemoryError: Java heap space
+	at com.example.service.Worker.process(Worker.java:118)
+	at java.base/java.lang.Thread.run(Thread.java:833)
+WARN Connection timeout 18 to database backend.
+DEBUG Heartbeat 18 received from pod-worker-18
+INFO Reconnecting to broker 0...
+
+[2026-05-10T12:09:29Z] ERROR java.lang.OutOfMemoryError: Java heap space
+	at com.example.service.Worker.process(Worker.java:119)
+	at java.base/java.lang.Thread.run(Thread.java:833)
+WARN Connection timeout 19 to database backend.
+DEBUG Heartbeat 19 received from pod-worker-19
+INFO Reconnecting to broker 1...

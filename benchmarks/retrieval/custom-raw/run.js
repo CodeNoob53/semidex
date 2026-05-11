@@ -133,6 +133,7 @@ async function fetchChunkData() {
         sourceFile: p.payload.source_file,
         chunkIndex: p.payload.chunk_index,
         text: p.payload.text ?? '',
+        section: p.payload.section ?? '',
       });
     }
   }
@@ -215,9 +216,9 @@ function tokenise(str) {
 async function main() {
   const raw = JSON.parse(readFileSync(QUERIES_PATH, 'utf8'));
   const { denseProvider, sparseProvider } = resolveEnvProviders();
-  
+
   await ensureCollection();
-  
+
   let chunkData, lengths = [], sectionlessCount = 0, oversizedChunkCount = 0;
   if (SKIP_INDEX) {
     chunkData = await fetchChunkData();
@@ -225,6 +226,7 @@ async function main() {
       const toks = approxTokens(c.text);
       lengths.push(toks);
       if (toks > 400) oversizedChunkCount++;
+      if (!c.section || c.section.trim() === '') sectionlessCount++;
     }
   } else {
     const res = await indexFixtures();
@@ -250,9 +252,9 @@ async function main() {
   }
 
   // Metrics
-  let fileRecall5 = 0, fRecallCount = 0;
-  let contextRecall5 = 0, ctxRecallCount = 0;
-  let tokenHit5 = 0, tokenHitCount = 0;
+  let fileRecallK = 0, fRecallCount = 0;
+  let contextRecallK = 0, ctxRecallCount = 0;
+  let tokenHitK = 0, tokenHitCount = 0;
   let negPass = 0, negCount = 0;
 
   const typeStats = {};
@@ -269,35 +271,43 @@ async function main() {
       negCount++;
       const topK = results.slice(0, TOP_K);
       const forbidden = query.forbiddenTokens?.map(t => t.toLowerCase()) || [];
-      let hasForbidden = false;
-      for (const res of topK) {
-        const text = (res.payload?.text || '').toLowerCase();
-        for (const ft of forbidden) {
-          if (text.includes(ft)) hasForbidden = true;
+        let hasForbidden = false;
+        let matchedForbidden = [];
+        let topMatchedText = '';
+        for (const res of topK) {
+          const text = (res.payload?.text || '').toLowerCase();
+          for (const ft of forbidden) {
+            if (text.includes(ft)) {
+              hasForbidden = true;
+              matchedForbidden.push(ft);
+              if (!topMatchedText) topMatchedText = text.substring(0, 100).replace(/\n/g, ' ') + '...';
+            }
+          }
         }
-      }
-      
-      if (!hasForbidden) {
-        negPass++;
-        passed = true;
-      }
+
+        if (!hasForbidden) {
+          negPass++;
+          passed = true;
+        } else {
+          r.failureReason = `Found forbidden tokens: [${[...new Set(matchedForbidden)].join(', ')}] in chunk: "${topMatchedText}"`;
+        }
     } else {
       ctxRecallCount++;
-      if (windowRecallHit(results, query.qrels, 5, BENCH_CONTEXT_WINDOW)) {
-        contextRecall5++;
+      if (windowRecallHit(results, query.qrels, TOP_K, BENCH_CONTEXT_WINDOW)) {
+        contextRecallK++;
         passed = true;
       }
-      
+
       if (query.expectedFiles?.length) {
         fRecallCount++;
-        const files = new Set(results.slice(0, 5).map(x => x.payload?.source_file));
-        if (query.expectedFiles.some(f => files.has(f))) fileRecall5++;
+        const files = new Set(results.slice(0, TOP_K).map(x => x.payload?.source_file));
+        if (query.expectedFiles.some(f => files.has(f))) fileRecallK++;
       }
-      
+
       if (query.expectedTokens?.length) {
         tokenHitCount++;
-        const top5Text = results.slice(0, 5).map(x => x.payload?.text).join(' ').toLowerCase();
-        if (query.expectedTokens.some(t => top5Text.includes(t.toLowerCase()))) tokenHit5++;
+        const topText = results.slice(0, TOP_K).map(x => x.payload?.text).join(' ').toLowerCase();
+        if (query.expectedTokens.some(t => topText.includes(t.toLowerCase()))) tokenHitK++;
       }
     }
 
@@ -310,11 +320,17 @@ async function main() {
 
   const p50Lat = percentile(latencies.sort((a,b)=>a-b), 50);
   const p95Lat = percentile(latencies.sort((a,b)=>a-b), 95);
-  
+
   const pct = (num, den) => den === 0 ? 'n/a' : (num / den * 100).toFixed(1) + '%';
 
   const date = new Date().toISOString().slice(0, 10);
-  const outPath = resolve(RESULTS_DIR, `${date}-custom-raw-baseline.txt`);
+  const isDefault = TOP_K === 5 && BENCH_CONTEXT_WINDOW === 1 && !SKIP_INDEX;
+  const suffix = isDefault ? '-baseline' : `-k${TOP_K}-w${BENCH_CONTEXT_WINDOW}${SKIP_INDEX ? '-skip' : ''}`;
+  const outPath = resolve(RESULTS_DIR, `${date}-custom-raw${suffix}.txt`);
+
+  if (!isDefault) {
+    console.log(`\nWARN: Non-default parameters used. Saving to ${outPath}\n`);
+  }
 
   const lines = [
     `=== semidex custom-raw benchmark — ${date} ===`,
@@ -322,14 +338,14 @@ async function main() {
     `Top-K: ${TOP_K}  Context Window: +-${BENCH_CONTEXT_WINDOW}`,
     '',
     '--- Retrieval Metrics ---',
-    `contextRecall@5   : ${pct(contextRecall5, ctxRecallCount)}`,
-    `tokenHit@5        : ${pct(tokenHit5, tokenHitCount)}`,
-    `fileRecall@5      : ${pct(fileRecall5, fRecallCount)}`,
+    `contextRecall@${TOP_K}   : ${pct(contextRecallK, ctxRecallCount)}`,
+    `tokenHit@${TOP_K}        : ${pct(tokenHitK, tokenHitCount)}`,
+    `fileRecall@${TOP_K}      : ${pct(fileRecallK, fRecallCount)}`,
     `negativePassRate  : ${pct(negPass, negCount)}`,
     `Latency p50/p95   : ${p50Lat}ms / ${p95Lat}ms`,
     '',
     '--- Per-Type Breakdown ---',
-    ...Object.entries(typeStats).map(([t, s]) => 
+    ...Object.entries(typeStats).map(([t, s]) =>
       `${t.padEnd(20)}: ${pct(s.pass, s.total)} (${s.pass}/${s.total})`
     ),
     '',
@@ -341,6 +357,15 @@ async function main() {
     `p50ChunkTokens    : ${p50Chunk} approx`,
     `p95ChunkTokens    : ${p95Chunk} approx`,
   ];
+
+  const failedNegatives = queryResults.filter(r => r.query.shouldHaveNoStrongHit && r.failureReason);
+  if (failedNegatives.length > 0) {
+    lines.push(
+      '',
+      '--- Failed Negative Queries ---',
+      ...failedNegatives.map(r => `[${r.query.id}] ${r.failureReason}`)
+    );
+  }
 
   writeFileSync(outPath, lines.join('\n') + '\n', 'utf8');
   console.log(lines.join('\n'));

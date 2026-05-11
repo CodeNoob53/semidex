@@ -1,10 +1,154 @@
 Meeting Notes: Tuesday
 Project Semidex
 
+Attendees: Alice, Bob, Charlie
+
+Agenda:
+1. Review UI updates
+2. Discuss context window constraints
+3. Hiring plan
+
+Notes on UI:
+We need to make the search bar larger and more prominent. Users are missing it.
+Also, the dark mode colors are a bit too harsh on the contrast. Let's tone down the absolute blacks to a softer #1A1A1A dark grey.
+Alice will handle the CSS updates by Thursday.
+
+Notes on Context Windows:
 We discussed the context window approach. [[BENCH_ANCHOR: NOTES_WINDOW_APPROACH]]
 The agent context budget is extremely tight, so sending 10 full chunks is impossible. We must use compact snippets for neighbor chunks to ensure we don't hit the 8k token limit of the local LLM. [[BENCH_ANCHOR: COMPACT_SNIPPET_RATIONALE]]
 Also, we need to handle boundary neighbor issues carefully.
 If a chunk ends in the middle of a sentence, the parser needs to backtrack, but right now it doesn't, so we just append the next chunk's first sentence. [[BENCH_ANCHOR: BOUNDARY_FIX]]
+
+Notes on Model Architecture:
 It is very important that we do not mix dense and sparse models from different families because Qdrant requires the query vector to perfectly align with the indexed named vectors. [[BENCH_ANCHOR: MODEL_ALIGNMENT_NOTE]]
+
 Distractor: The agent context budget is unlimited. (False statement)
 Distractor: We must use full snippets. (False statement)
+
+Hiring Plan:
+We are opening two new roles for data engineers. Focus on candidates with vector database experience, specifically Qdrant or Milvus.
+Interviews start next week. Bob will prepare the technical screening questions.
+Make sure to emphasize local-first AI development in the job posting.
+
+
+Transcription of the rest of the meeting:
+Alice: I think we need to reconsider the padding on the main container. It looks too tight on mobile.
+Bob: Agreed. But what about the sidebar? If we increase padding, the sidebar might overlap.
+Charlie: We can use a media query to collapse the sidebar on mobile. That solves the padding issue.
+Alice: Let's test it on iOS Safari first. Last time we had a z-index issue there.
+Alice: I think we need to reconsider the padding on the main container. It looks too tight on mobile.
+Bob: Agreed. But what about the sidebar? If we increase padding, the sidebar might overlap.
+Charlie: We can use a media query to collapse the sidebar on mobile. That solves the padding issue.
+Alice: Let's test it on iOS Safari first. Last time we had a z-index issue there.
+Alice: I think we need to reconsider the padding on the main container. It looks too tight on mobile.
+Bob: Agreed. But what about the sidebar? If we increase padding, the sidebar might overlap.
+Charlie: We can use a media query to collapse the sidebar on mobile. That solves the padding issue.
+Alice: Let's test it on iOS Safari first. Last time we had a z-index issue there.
+Alice: I think we need to reconsider the padding on the main container. It looks too tight on mobile.
+Bob: Agreed. But what about the sidebar? If we increase padding, the sidebar might overlap.
+Charlie: We can use a media query to collapse the sidebar on mobile. That solves the padding issue.
+Alice: Let's test it on iOS Safari first. Last time we had a z-index issue there.
+Alice: I think we need to reconsider the padding on the main container. It looks too tight on mobile.
+Bob: Agreed. But what about the sidebar? If we increase padding, the sidebar might overlap.
+Charlie: We can use a media query to collapse the sidebar on mobile. That solves the padding issue.
+Alice: Let's test it on iOS Safari first. Last time we had a z-index issue there.
+Alice: I think we need to reconsider the padding on the main container. It looks too tight on mobile.
+Bob: Agreed. But what about the sidebar? If we increase padding, the sidebar might overlap.
+Charlie: We can use a media query to collapse the sidebar on mobile. That solves the padding issue.
+Alice: Let's test it on iOS Safari first. Last time we had a z-index issue there.
+Alice: I think we need to reconsider the padding on the main container. It looks too tight on mobile.
+Bob: Agreed. But what about the sidebar? If we increase padding, the sidebar might overlap.
+Charlie: We can use a media query to collapse the sidebar on mobile. That solves the padding issue.
+Alice: Let's test it on iOS Safari first. Last time we had a z-index issue there.
+Alice: I think we need to reconsider the padding on the main container. It looks too tight on mobile.
+Bob: Agreed. But what about the sidebar? If we increase padding, the sidebar might overlap.
+Charlie: We can use a media query to collapse the sidebar on mobile. That solves the padding issue.
+Alice: Let's test it on iOS Safari first. Last time we had a z-index issue there.
+Alice: I think we need to reconsider the padding on the main container. It looks too tight on mobile.
+Bob: Agreed. But what about the sidebar? If we increase padding, the sidebar might overlap.
+Charlie: We can use a media query to collapse the sidebar on mobile. That solves the padding issue.
+Alice: Let's test it on iOS Safari first. Last time we had a z-index issue there.
+Alice: I think we need to reconsider the padding on the main container. It looks too tight on mobile.
+Bob: Agreed. But what about the sidebar? If we increase padding, the sidebar might overlap.
+Charlie: We can use a media query to collapse the sidebar on mobile. That solves the padding issue.
+Alice: Let's test it on iOS Safari first. Last time we had a z-index issue there.
+Alice: I think we need to reconsider the padding on the main container. It looks too tight on mobile.
+Bob: Agreed. But what about the sidebar? If we increase padding, the sidebar might overlap.
+Charlie: We can use a media query to collapse the sidebar on mobile. That solves the padding issue.
+Alice: Let's test it on iOS Safari first. Last time we had a z-index issue there.
+Alice: I think we need to reconsider the padding on the main container. It looks too tight on mobile.
+Bob: Agreed. But what about the sidebar? If we increase padding, the sidebar might overlap.
+Charlie: We can use a media query to collapse the sidebar on mobile. That solves the padding issue.
+Alice: Let's test it on iOS Safari first. Last time we had a z-index issue there.
+Alice: I think we need to reconsider the padding on the main container. It looks too tight on mobile.
+Bob: Agreed. But what about the sidebar? If we increase padding, the sidebar might overlap.
+Charlie: We can use a media query to collapse the sidebar on mobile. That solves the padding issue.
+Alice: Let's test it on iOS Safari first. Last time we had a z-index issue there.
+Alice: I think we need to reconsider the padding on the main container. It looks too tight on mobile.
+Bob: Agreed. But what about the sidebar? If we increase padding, the sidebar might overlap.
+Charlie: We can use a media query to collapse the sidebar on mobile. That solves the padding issue.
+Alice: Let's test it on iOS Safari first. Last time we had a z-index issue there.
+Alice: I think we need to reconsider the padding on the main container. It looks too tight on mobile.
+Bob: Agreed. But what about the sidebar? If we increase padding, the sidebar might overlap.
+Charlie: We can use a media query to collapse the sidebar on mobile. That solves the padding issue.
+Alice: Let's test it on iOS Safari first. Last time we had a z-index issue there.
+Alice: I think we need to reconsider the padding on the main container. It looks too tight on mobile.
+Bob: Agreed. But what about the sidebar? If we increase padding, the sidebar might overlap.
+Charlie: We can use a media query to collapse the sidebar on mobile. That solves the padding issue.
+Alice: Let's test it on iOS Safari first. Last time we had a z-index issue there.
+Alice: I think we need to reconsider the padding on the main container. It looks too tight on mobile.
+Bob: Agreed. But what about the sidebar? If we increase padding, the sidebar might overlap.
+Charlie: We can use a media query to collapse the sidebar on mobile. That solves the padding issue.
+Alice: Let's test it on iOS Safari first. Last time we had a z-index issue there.
+Alice: I think we need to reconsider the padding on the main container. It looks too tight on mobile.
+Bob: Agreed. But what about the sidebar? If we increase padding, the sidebar might overlap.
+Charlie: We can use a media query to collapse the sidebar on mobile. That solves the padding issue.
+Alice: Let's test it on iOS Safari first. Last time we had a z-index issue there.
+Alice: I think we need to reconsider the padding on the main container. It looks too tight on mobile.
+Bob: Agreed. But what about the sidebar? If we increase padding, the sidebar might overlap.
+Charlie: We can use a media query to collapse the sidebar on mobile. That solves the padding issue.
+Alice: Let's test it on iOS Safari first. Last time we had a z-index issue there.
+Alice: I think we need to reconsider the padding on the main container. It looks too tight on mobile.
+Bob: Agreed. But what about the sidebar? If we increase padding, the sidebar might overlap.
+Charlie: We can use a media query to collapse the sidebar on mobile. That solves the padding issue.
+Alice: Let's test it on iOS Safari first. Last time we had a z-index issue there.
+Alice: I think we need to reconsider the padding on the main container. It looks too tight on mobile.
+Bob: Agreed. But what about the sidebar? If we increase padding, the sidebar might overlap.
+Charlie: We can use a media query to collapse the sidebar on mobile. That solves the padding issue.
+Alice: Let's test it on iOS Safari first. Last time we had a z-index issue there.
+Alice: I think we need to reconsider the padding on the main container. It looks too tight on mobile.
+Bob: Agreed. But what about the sidebar? If we increase padding, the sidebar might overlap.
+Charlie: We can use a media query to collapse the sidebar on mobile. That solves the padding issue.
+Alice: Let's test it on iOS Safari first. Last time we had a z-index issue there.
+Alice: I think we need to reconsider the padding on the main container. It looks too tight on mobile.
+Bob: Agreed. But what about the sidebar? If we increase padding, the sidebar might overlap.
+Charlie: We can use a media query to collapse the sidebar on mobile. That solves the padding issue.
+Alice: Let's test it on iOS Safari first. Last time we had a z-index issue there.
+Alice: I think we need to reconsider the padding on the main container. It looks too tight on mobile.
+Bob: Agreed. But what about the sidebar? If we increase padding, the sidebar might overlap.
+Charlie: We can use a media query to collapse the sidebar on mobile. That solves the padding issue.
+Alice: Let's test it on iOS Safari first. Last time we had a z-index issue there.
+Alice: I think we need to reconsider the padding on the main container. It looks too tight on mobile.
+Bob: Agreed. But what about the sidebar? If we increase padding, the sidebar might overlap.
+Charlie: We can use a media query to collapse the sidebar on mobile. That solves the padding issue.
+Alice: Let's test it on iOS Safari first. Last time we had a z-index issue there.
+Alice: I think we need to reconsider the padding on the main container. It looks too tight on mobile.
+Bob: Agreed. But what about the sidebar? If we increase padding, the sidebar might overlap.
+Charlie: We can use a media query to collapse the sidebar on mobile. That solves the padding issue.
+Alice: Let's test it on iOS Safari first. Last time we had a z-index issue there.
+Alice: I think we need to reconsider the padding on the main container. It looks too tight on mobile.
+Bob: Agreed. But what about the sidebar? If we increase padding, the sidebar might overlap.
+Charlie: We can use a media query to collapse the sidebar on mobile. That solves the padding issue.
+Alice: Let's test it on iOS Safari first. Last time we had a z-index issue there.
+Alice: I think we need to reconsider the padding on the main container. It looks too tight on mobile.
+Bob: Agreed. But what about the sidebar? If we increase padding, the sidebar might overlap.
+Charlie: We can use a media query to collapse the sidebar on mobile. That solves the padding issue.
+Alice: Let's test it on iOS Safari first. Last time we had a z-index issue there.
+Alice: I think we need to reconsider the padding on the main container. It looks too tight on mobile.
+Bob: Agreed. But what about the sidebar? If we increase padding, the sidebar might overlap.
+Charlie: We can use a media query to collapse the sidebar on mobile. That solves the padding issue.
+Alice: Let's test it on iOS Safari first. Last time we had a z-index issue there.
+Alice: I think we need to reconsider the padding on the main container. It looks too tight on mobile.
+Bob: Agreed. But what about the sidebar? If we increase padding, the sidebar might overlap.
+Charlie: We can use a media query to collapse the sidebar on mobile. That solves the padding issue.
+Alice: Let's test it on iOS Safari first. Last time we had a z-index issue there.

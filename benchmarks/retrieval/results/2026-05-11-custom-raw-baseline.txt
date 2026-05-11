@@ -5,9 +5,9 @@ Top-K: 5  Context Window: +-1
 --- Retrieval Metrics ---
 contextRecall@5   : 100.0%
 tokenHit@5        : 100.0%
-fileRecall@5      : n/a
+fileRecall@5      : 100.0%
 negativePassRate  : 50.0%
-Latency p50/p95   : 85ms / 100ms
+Latency p50/p95   : 87ms / 103ms
 
 --- Per-Type Breakdown ---
 exact-token         : 100.0% (7/7)
@@ -18,9 +18,14 @@ noise-distractor    : 100.0% (6/6)
 negative            : 50.0% (3/6)
 
 --- Chunking Metrics ---
-totalChunks       : 3
+totalChunks       : 21
 oversizedChunks   : 0
 sectionlessRate   : 100.0%
-avgChunkTokens    : 114 approx
-p50ChunkTokens    : 104 approx
-p95ChunkTokens    : 181 approx
+avgChunkTokens    : 279 approx
+p50ChunkTokens    : 269 approx
+p95ChunkTokens    : 377 approx
+
+--- Failed Negative Queries ---
+[raw-neg-01] Found forbidden tokens: [5000ms, qdrant timeout after] in chunk: "[2026-05-10t08:00:00z] info system boot sequence initiated. [2026-05-10t08:00:15z] debug loading con..."
+[raw-neg-03] Found forbidden tokens: [будови графа] in chunk: "[2026-05-10t08:00:00z] info system boot sequence initiated. [2026-05-10t08:00:15z] debug loading con..."
+[raw-neg-06] Found forbidden tokens: [metrics] in chunk: "env dump from prod server --- # core platform vars node_env=production log_level=info port=8080 enab..."

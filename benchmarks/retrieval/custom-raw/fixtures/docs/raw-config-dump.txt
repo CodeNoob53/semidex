@@ -1,19 +1,705 @@
 env dump from prod server
 ---
+# core platform vars
+NODE_ENV=production
+LOG_LEVEL=info
+PORT=8080
+ENABLE_TELEMETRY=false
+TELEMETRY_ENDPOINT=https://metrics.internal/api
+
+# semidex specific vars
 ONNX_EMBED=1 [[BENCH_ANCHOR: CFG_ONNX_EMBED]]
 MAX_CHUNK_TOKENS=800
 MIN_CHUNK_TOKENS=100
 OVERLAP_SENTENCES=2 [[BENCH_ANCHOR: CFG_OVERLAP_SENTENCES]]
-QDRANT_URL=http://localhost:6333
-QDRANT_KEY=secret
+QDRANT_URL=http://qdrant-prod.internal:6333
+QDRANT_KEY=super-secret-key-do-not-share
 LLM_MODEL=gemma3:4b [[BENCH_ANCHOR: CFG_LLM_MODEL]]
 
 # random unformatted config map values
-"retrieval_mode": "hybrid" [[BENCH_ANCHOR: CFG_HYBRID_MODE]]
-"rrf_k": 60
-"dense_provider": "bge-m3-onnx"
-"sparse_provider": "bge-m3-onnx" [[BENCH_ANCHOR: CFG_SPARSE_PROVIDER]]
+{
+  "api_version": "v1",
+  "features": {
+    "beta_ui": false,
+    "experimental_rerank": true
+  },
+  "retrieval_mode": "hybrid" [[BENCH_ANCHOR: CFG_HYBRID_MODE]],
+  "rrf_k": 60,
+  "providers": {
+    "dense_provider": "bge-m3-onnx",
+    "sparse_provider": "bge-m3-onnx" [[BENCH_ANCHOR: CFG_SPARSE_PROVIDER]]
+  },
+  "timeouts": {
+    "qdrant_timeout_ms": 10000,
+    "llm_timeout_ms": 60000
+  }
+}
 
 Distractor: ONNX_EMBED=0
 Distractor: MAX_CHUNK_TOKENS=10
 Distractor: LLM_MODEL=llama2
+
+# infrastructure vars
+KUBERNETES_CLUSTER=prod-us-east-1
+NAMESPACE=semidex-prod
+POD_IP=10.0.1.42
+NODE_NAME=ip-10-0-1-100.ec2.internal
+
+
+# Kube config dump
+KUBECONFIG_DUMP=true
+ENV_VAR_MOCK_0='value_0'
+ENV_VAR_MOCK_1='value_1'
+ENV_VAR_MOCK_2='value_2'
+ENV_VAR_MOCK_3='value_3'
+ENV_VAR_MOCK_4='value_4'
+ENV_VAR_MOCK_5='value_5'
+ENV_VAR_MOCK_6='value_6'
+ENV_VAR_MOCK_7='value_7'
+ENV_VAR_MOCK_8='value_8'
+ENV_VAR_MOCK_9='value_9'
+ENV_VAR_MOCK_10='value_10'
+ENV_VAR_MOCK_11='value_11'
+ENV_VAR_MOCK_12='value_12'
+ENV_VAR_MOCK_13='value_13'
+ENV_VAR_MOCK_14='value_14'
+ENV_VAR_MOCK_15='value_15'
+ENV_VAR_MOCK_16='value_16'
+ENV_VAR_MOCK_17='value_17'
+ENV_VAR_MOCK_18='value_18'
+ENV_VAR_MOCK_19='value_19'
+ENV_VAR_MOCK_20='value_20'
+ENV_VAR_MOCK_21='value_21'
+ENV_VAR_MOCK_22='value_22'
+ENV_VAR_MOCK_23='value_23'
+ENV_VAR_MOCK_24='value_24'
+ENV_VAR_MOCK_25='value_25'
+ENV_VAR_MOCK_26='value_26'
+ENV_VAR_MOCK_27='value_27'
+ENV_VAR_MOCK_28='value_28'
+ENV_VAR_MOCK_29='value_29'
+ENV_VAR_MOCK_30='value_30'
+ENV_VAR_MOCK_31='value_31'
+ENV_VAR_MOCK_32='value_32'
+ENV_VAR_MOCK_33='value_33'
+ENV_VAR_MOCK_34='value_34'
+ENV_VAR_MOCK_35='value_35'
+ENV_VAR_MOCK_36='value_36'
+ENV_VAR_MOCK_37='value_37'
+ENV_VAR_MOCK_38='value_38'
+ENV_VAR_MOCK_39='value_39'
+ENV_VAR_MOCK_40='value_40'
+ENV_VAR_MOCK_41='value_41'
+ENV_VAR_MOCK_42='value_42'
+ENV_VAR_MOCK_43='value_43'
+ENV_VAR_MOCK_44='value_44'
+ENV_VAR_MOCK_45='value_45'
+ENV_VAR_MOCK_46='value_46'
+ENV_VAR_MOCK_47='value_47'
+ENV_VAR_MOCK_48='value_48'
+ENV_VAR_MOCK_49='value_49'
+ENV_VAR_MOCK_50='value_50'
+ENV_VAR_MOCK_51='value_51'
+ENV_VAR_MOCK_52='value_52'
+ENV_VAR_MOCK_53='value_53'
+ENV_VAR_MOCK_54='value_54'
+ENV_VAR_MOCK_55='value_55'
+ENV_VAR_MOCK_56='value_56'
+ENV_VAR_MOCK_57='value_57'
+ENV_VAR_MOCK_58='value_58'
+ENV_VAR_MOCK_59='value_59'
+ENV_VAR_MOCK_60='value_60'
+ENV_VAR_MOCK_61='value_61'
+ENV_VAR_MOCK_62='value_62'
+ENV_VAR_MOCK_63='value_63'
+ENV_VAR_MOCK_64='value_64'
+ENV_VAR_MOCK_65='value_65'
+ENV_VAR_MOCK_66='value_66'
+ENV_VAR_MOCK_67='value_67'
+ENV_VAR_MOCK_68='value_68'
+ENV_VAR_MOCK_69='value_69'
+ENV_VAR_MOCK_70='value_70'
+ENV_VAR_MOCK_71='value_71'
+ENV_VAR_MOCK_72='value_72'
+ENV_VAR_MOCK_73='value_73'
+ENV_VAR_MOCK_74='value_74'
+ENV_VAR_MOCK_75='value_75'
+ENV_VAR_MOCK_76='value_76'
+ENV_VAR_MOCK_77='value_77'
+ENV_VAR_MOCK_78='value_78'
+ENV_VAR_MOCK_79='value_79'
+ENV_VAR_MOCK_80='value_80'
+ENV_VAR_MOCK_81='value_81'
+ENV_VAR_MOCK_82='value_82'
+ENV_VAR_MOCK_83='value_83'
+ENV_VAR_MOCK_84='value_84'
+ENV_VAR_MOCK_85='value_85'
+ENV_VAR_MOCK_86='value_86'
+ENV_VAR_MOCK_87='value_87'
+ENV_VAR_MOCK_88='value_88'
+ENV_VAR_MOCK_89='value_89'
+ENV_VAR_MOCK_90='value_90'
+ENV_VAR_MOCK_91='value_91'
+ENV_VAR_MOCK_92='value_92'
+ENV_VAR_MOCK_93='value_93'
+ENV_VAR_MOCK_94='value_94'
+ENV_VAR_MOCK_95='value_95'
+ENV_VAR_MOCK_96='value_96'
+ENV_VAR_MOCK_97='value_97'
+ENV_VAR_MOCK_98='value_98'
+ENV_VAR_MOCK_99='value_99'
+
+
+# Huge JSON dump
+[
+  {
+    "id": 0,
+    "name": "service-0",
+    "status": "running",
+    "ports": [
+      80,
+      443,
+      8080
+    ],
+    "replicas": 3
+  },
+  {
+    "id": 1,
+    "name": "service-1",
+    "status": "running",
+    "ports": [
+      80,
+      443,
+      8080
+    ],
+    "replicas": 3
+  },
+  {
+    "id": 2,
+    "name": "service-2",
+    "status": "running",
+    "ports": [
+      80,
+      443,
+      8080
+    ],
+    "replicas": 3
+  },
+  {
+    "id": 3,
+    "name": "service-3",
+    "status": "running",
+    "ports": [
+      80,
+      443,
+      8080
+    ],
+    "replicas": 3
+  },
+  {
+    "id": 4,
+    "name": "service-4",
+    "status": "running",
+    "ports": [
+      80,
+      443,
+      8080
+    ],
+    "replicas": 3
+  },
+  {
+    "id": 5,
+    "name": "service-5",
+    "status": "running",
+    "ports": [
+      80,
+      443,
+      8080
+    ],
+    "replicas": 3
+  },
+  {
+    "id": 6,
+    "name": "service-6",
+    "status": "running",
+    "ports": [
+      80,
+      443,
+      8080
+    ],
+    "replicas": 3
+  },
+  {
+    "id": 7,
+    "name": "service-7",
+    "status": "running",
+    "ports": [
+      80,
+      443,
+      8080
+    ],
+    "replicas": 3
+  },
+  {
+    "id": 8,
+    "name": "service-8",
+    "status": "running",
+    "ports": [
+      80,
+      443,
+      8080
+    ],
+    "replicas": 3
+  },
+  {
+    "id": 9,
+    "name": "service-9",
+    "status": "running",
+    "ports": [
+      80,
+      443,
+      8080
+    ],
+    "replicas": 3
+  },
+  {
+    "id": 10,
+    "name": "service-10",
+    "status": "running",
+    "ports": [
+      80,
+      443,
+      8080
+    ],
+    "replicas": 3
+  },
+  {
+    "id": 11,
+    "name": "service-11",
+    "status": "running",
+    "ports": [
+      80,
+      443,
+      8080
+    ],
+    "replicas": 3
+  },
+  {
+    "id": 12,
+    "name": "service-12",
+    "status": "running",
+    "ports": [
+      80,
+      443,
+      8080
+    ],
+    "replicas": 3
+  },
+  {
+    "id": 13,
+    "name": "service-13",
+    "status": "running",
+    "ports": [
+      80,
+      443,
+      8080
+    ],
+    "replicas": 3
+  },
+  {
+    "id": 14,
+    "name": "service-14",
+    "status": "running",
+    "ports": [
+      80,
+      443,
+      8080
+    ],
+    "replicas": 3
+  },
+  {
+    "id": 15,
+    "name": "service-15",
+    "status": "running",
+    "ports": [
+      80,
+      443,
+      8080
+    ],
+    "replicas": 3
+  },
+  {
+    "id": 16,
+    "name": "service-16",
+    "status": "running",
+    "ports": [
+      80,
+      443,
+      8080
+    ],
+    "replicas": 3
+  },
+  {
+    "id": 17,
+    "name": "service-17",
+    "status": "running",
+    "ports": [
+      80,
+      443,
+      8080
+    ],
+    "replicas": 3
+  },
+  {
+    "id": 18,
+    "name": "service-18",
+    "status": "running",
+    "ports": [
+      80,
+      443,
+      8080
+    ],
+    "replicas": 3
+  },
+  {
+    "id": 19,
+    "name": "service-19",
+    "status": "running",
+    "ports": [
+      80,
+      443,
+      8080
+    ],
+    "replicas": 3
+  },
+  {
+    "id": 20,
+    "name": "service-20",
+    "status": "running",
+    "ports": [
+      80,
+      443,
+      8080
+    ],
+    "replicas": 3
+  },
+  {
+    "id": 21,
+    "name": "service-21",
+    "status": "running",
+    "ports": [
+      80,
+      443,
+      8080
+    ],
+    "replicas": 3
+  },
+  {
+    "id": 22,
+    "name": "service-22",
+    "status": "running",
+    "ports": [
+      80,
+      443,
+      8080
+    ],
+    "replicas": 3
+  },
+  {
+    "id": 23,
+    "name": "service-23",
+    "status": "running",
+    "ports": [
+      80,
+      443,
+      8080
+    ],
+    "replicas": 3
+  },
+  {
+    "id": 24,
+    "name": "service-24",
+    "status": "running",
+    "ports": [
+      80,
+      443,
+      8080
+    ],
+    "replicas": 3
+  },
+  {
+    "id": 25,
+    "name": "service-25",
+    "status": "running",
+    "ports": [
+      80,
+      443,
+      8080
+    ],
+    "replicas": 3
+  },
+  {
+    "id": 26,
+    "name": "service-26",
+    "status": "running",
+    "ports": [
+      80,
+      443,
+      8080
+    ],
+    "replicas": 3
+  },
+  {
+    "id": 27,
+    "name": "service-27",
+    "status": "running",
+    "ports": [
+      80,
+      443,
+      8080
+    ],
+    "replicas": 3
+  },
+  {
+    "id": 28,
+    "name": "service-28",
+    "status": "running",
+    "ports": [
+      80,
+      443,
+      8080
+    ],
+    "replicas": 3
+  },
+  {
+    "id": 29,
+    "name": "service-29",
+    "status": "running",
+    "ports": [
+      80,
+      443,
+      8080
+    ],
+    "replicas": 3
+  },
+  {
+    "id": 30,
+    "name": "service-30",
+    "status": "running",
+    "ports": [
+      80,
+      443,
+      8080
+    ],
+    "replicas": 3
+  },
+  {
+    "id": 31,
+    "name": "service-31",
+    "status": "running",
+    "ports": [
+      80,
+      443,
+      8080
+    ],
+    "replicas": 3
+  },
+  {
+    "id": 32,
+    "name": "service-32",
+    "status": "running",
+    "ports": [
+      80,
+      443,
+      8080
+    ],
+    "replicas": 3
+  },
+  {
+    "id": 33,
+    "name": "service-33",
+    "status": "running",
+    "ports": [
+      80,
+      443,
+      8080
+    ],
+    "replicas": 3
+  },
+  {
+    "id": 34,
+    "name": "service-34",
+    "status": "running",
+    "ports": [
+      80,
+      443,
+      8080
+    ],
+    "replicas": 3
+  },
+  {
+    "id": 35,
+    "name": "service-35",
+    "status": "running",
+    "ports": [
+      80,
+      443,
+      8080
+    ],
+    "replicas": 3
+  },
+  {
+    "id": 36,
+    "name": "service-36",
+    "status": "running",
+    "ports": [
+      80,
+      443,
+      8080
+    ],
+    "replicas": 3
+  },
+  {
+    "id": 37,
+    "name": "service-37",
+    "status": "running",
+    "ports": [
+      80,
+      443,
+      8080
+    ],
+    "replicas": 3
+  },
+  {
+    "id": 38,
+    "name": "service-38",
+    "status": "running",
+    "ports": [
+      80,
+      443,
+      8080
+    ],
+    "replicas": 3
+  },
+  {
+    "id": 39,
+    "name": "service-39",
+    "status": "running",
+    "ports": [
+      80,
+      443,
+      8080
+    ],
+    "replicas": 3
+  },
+  {
+    "id": 40,
+    "name": "service-40",
+    "status": "running",
+    "ports": [
+      80,
+      443,
+      8080
+    ],
+    "replicas": 3
+  },
+  {
+    "id": 41,
+    "name": "service-41",
+    "status": "running",
+    "ports": [
+      80,
+      443,
+      8080
+    ],
+    "replicas": 3
+  },
+  {
+    "id": 42,
+    "name": "service-42",
+    "status": "running",
+    "ports": [
+      80,
+      443,
+      8080
+    ],
+    "replicas": 3
+  },
+  {
+    "id": 43,
+    "name": "service-43",
+    "status": "running",
+    "ports": [
+      80,
+      443,
+      8080
+    ],
+    "replicas": 3
+  },
+  {
+    "id": 44,
+    "name": "service-44",
+    "status": "running",
+    "ports": [
+      80,
+      443,
+      8080
+    ],
+    "replicas": 3
+  },
+  {
+    "id": 45,
+    "name": "service-45",
+    "status": "running",
+    "ports": [
+      80,
+      443,
+      8080
+    ],
+    "replicas": 3
+  },
+  {
+    "id": 46,
+    "name": "service-46",
+    "status": "running",
+    "ports": [
+      80,
+      443,
+      8080
+    ],
+    "replicas": 3
+  },
+  {
+    "id": 47,
+    "name": "service-47",
+    "status": "running",
+    "ports": [
+      80,
+      443,
+      8080
+    ],
+    "replicas": 3
+  },
+  {
+    "id": 48,
+    "name": "service-48",
+    "status": "running",
+    "ports": [
+      80,
+      443,
+      8080
+    ],
+    "replicas": 3
+  },
+  {
+    "id": 49,
+    "name": "service-49",
+    "status": "running",
+    "ports": [
+      80,
+      443,
+      8080
+    ],
+    "replicas": 3
+  }
+]
