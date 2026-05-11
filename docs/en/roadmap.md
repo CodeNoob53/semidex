@@ -46,6 +46,7 @@ Implemented and usable today:
 - Ollama + hashed-TF fallback provider
 - MCP reader tools
 - MCP search context window (window=1)
+- compact deduplicated window output
 - semantic graph links and backlinks
 - Obsidian-compatible `chunks_out/` review artifacts
 - deterministic optional reranker
@@ -67,9 +68,10 @@ Planned work:
   - chunk is self-contained enough for an agent
   - section boundaries do not leak unrelated context
 
-Recent Results:
-- `agent-window-eval`: 5/5 expected hints found for context window
-- Avg output ~7.3k chars at `top=3`/`window=1`
+Recent Results (`agent-window-eval` at `top=3`/`window=1`):
+- `full` mode avg ~7.7k chars
+- `compact` mode avg ~5.2k chars (~32% reduction)
+- `compact` mode preserved expected hints 5/5
 - Default remains `window=0`
 - keep tuning policies out of production until they improve metrics across runs
 - define clear pass/fail expectations for regression and quality benchmarks
@@ -257,7 +259,7 @@ These may be useful later, but they are not the current priority:
 
 Recommended next tasks:
 
-1. Compact/deduplicate window output before considering default window=1.
+1. Evaluate whether `qdrant_search(window=1, window_format="compact")` can become the recommended agent default (do not make it actual default yet).
 2. Add a chunking-quality design document and large-document stress fixture plan.
 3. Summarize custom-50 diagnostics conclusions in the benchmarking docs.
 4. Draft the agent wake-up workflow before implementing any new MCP tool.

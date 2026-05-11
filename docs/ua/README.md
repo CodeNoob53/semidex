@@ -135,7 +135,7 @@ claude mcp add --scope user semidex -- node C:\absolute\path\to\semidex\src\mcp\
 
 | Інструмент | Аргументи | Опис |
 |------------|-----------|------|
-| `qdrant_search` | `query`, `collection`, `top?`, `tags?[]`, `source_file?`, `window?` | Гібридний пошук (dense + sparse + RRF); теґ-фільтр через OR, поєднаний з source_file через AND. Може одразу повертати сусідні чанки (window=1..2). |
+| `qdrant_search` | `query`, `collection`, `top?`, `tags?[]`, `source_file?`, `window?`, `window_format?` | Гібридний пошук (dense + sparse + RRF); теґ-фільтр через OR, поєднаний з source_file через AND. Може одразу повертати сусідні чанки (window=1..2), формат вікна регулюється через `window_format` (full/compact). |
 | `qdrant_collection_info` | — | Список усіх колекцій з кількістю точок, провайдером ембедінгів, описом |
 | `qdrant_get_chunk` | `collection`, `source_file`, `chunk_index`, `window?` | Отримати конкретний чанк з опціональним контекстним вікном |
 | `qdrant_related` | `collection`, `source_file` | Вихідні семантичні посилання для файлу (з графу) |

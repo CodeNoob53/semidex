@@ -437,7 +437,8 @@ ONNX_EMBED=1 node benchmarks/retrieval/custom-large/agent-window-eval.js
 
 Agent-facing manual evaluation of `qdrant_search(window=1)`. This is not a ranking benchmark; it evaluates the shape, size, and utility of context windows appended to search results.
 
-Latest Result:
-- 5/5 expected hints found
-- Avg output ~7.3k chars at `top=3`/`window=1`
-- Output is manageable for Claude 3.5/3.7 context windows, but may contain duplicate chunks on clustered results; deduplication should be evaluated before making it the default.
+Latest Results (`top=3`/`window=1`):
+- `full` mode avg ~7.7k chars
+- `compact` mode avg ~5.2k chars (~32% reduction)
+- `compact` mode preserved expected hints 5/5
+- Duplicate neighbor chunks safely reduced to 0
