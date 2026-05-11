@@ -428,3 +428,16 @@ whether the fixture docs are chunked appropriately.
 | `anchorsPerChunk p50/p95` | Distribution of anchor count per chunk |
 
 Output is saved to `benchmarks/retrieval/results/YYYY-MM-DD-custom-large.txt`.
+
+## Agent Window Evaluation
+
+```bash
+ONNX_EMBED=1 node benchmarks/retrieval/custom-large/agent-window-eval.js
+```
+
+Agent-facing manual evaluation of `qdrant_search(window=1)`. This is not a ranking benchmark; it evaluates the shape, size, and utility of context windows appended to search results.
+
+Latest Result:
+- 5/5 expected hints found
+- Avg output ~7.3k chars at `top=3`/`window=1`
+- Output is manageable for Claude 3.5/3.7 context windows, but may contain duplicate chunks on clustered results; deduplication should be evaluated before making it the default.

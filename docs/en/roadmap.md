@@ -45,6 +45,7 @@ Implemented and usable today:
 - BGE-M3 ONNX multilingual provider
 - Ollama + hashed-TF fallback provider
 - MCP reader tools
+- MCP search context window (window=1)
 - semantic graph links and backlinks
 - Obsidian-compatible `chunks_out/` review artifacts
 - deterministic optional reranker
@@ -65,7 +66,11 @@ Planned work:
   - answer not split across unrelated chunks
   - chunk is self-contained enough for an agent
   - section boundaries do not leak unrelated context
-  - `window=1` recovers useful neighboring context
+
+Recent Results:
+- `agent-window-eval`: 5/5 expected hints found for context window
+- Avg output ~7.3k chars at `top=3`/`window=1`
+- Default remains `window=0`
 - keep tuning policies out of production until they improve metrics across runs
 - define clear pass/fail expectations for regression and quality benchmarks
 
@@ -252,9 +257,10 @@ These may be useful later, but they are not the current priority:
 
 Recommended next tasks:
 
-1. Add a chunking-quality design document and large-document stress fixture plan.
-2. Summarize custom-50 diagnostics conclusions in the benchmarking docs.
-3. Draft the agent wake-up workflow before implementing any new MCP tool.
-4. Design a diagnostic bundle command with redaction rules.
-5. Capture the incremental codebase memory concept as a future design note.
-6. Revisit MMR and ColBERT only after chunk/window diagnostics are stable.
+1. Compact/deduplicate window output before considering default window=1.
+2. Add a chunking-quality design document and large-document stress fixture plan.
+3. Summarize custom-50 diagnostics conclusions in the benchmarking docs.
+4. Draft the agent wake-up workflow before implementing any new MCP tool.
+5. Design a diagnostic bundle command with redaction rules.
+6. Capture the incremental codebase memory concept as a future design note.
+7. Revisit MMR and ColBERT only after chunk/window diagnostics are stable.

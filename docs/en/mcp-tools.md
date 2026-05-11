@@ -28,7 +28,7 @@ qdrant_collection_info
   -> qdrant_find_by_tag when narrowing by topic
 ```
 
-Search results return the matched chunk plus `source_file` and `chunk_index`. Setting `window=1` in `qdrant_search` is highly recommended to immediately see neighboring chunks. If implementation requires even broader context, follow up with `qdrant_get_chunk`.
+Search results return the matched chunk plus `source_file` and `chunk_index`. Setting `window=1` in `qdrant_search` is highly recommended for agent workflows to immediately see neighboring chunks. If implementation requires even broader context, follow up with `qdrant_get_chunk(window>1)`. Keep `top` modest when using `window=1` as the output can become quite large.
 
 ## Tool Reference
 
