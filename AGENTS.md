@@ -71,22 +71,30 @@ Use it to see available collections, point counts, descriptions, and provider
 metadata. Then follow this workflow:
 
 ```text
-qdrant_search(window=1)
+qdrant_search(window=1, window_format="compact", top=3)
   -> qdrant_get_chunk (if broader context is needed)
   -> qdrant_related / qdrant_backlinks
   -> qdrant_find_by_tag when narrowing by topic
 ```
 
-Search returns the matched chunk text plus `source_file` and `chunk_index`. By setting `window=1`, search will immediately include neighboring context chunks. If the result will be used for an implementation decision and you need broader context, retrieve it with `qdrant_get_chunk`.
+Search returns the matched chunk text plus `source_file` and `chunk_index`. The programmatic default is `window=0` (no neighbors), but for AI agents, the following patterns are recommended:
+
+- **Simple lookup / fact-checking:**
+  `qdrant_search(query, collection)`
+- **Implementation, explanation, or decision tasks:**
+  `qdrant_search(query, collection, top=3, window=1, window_format="compact")`
+  This is the recommended agent pattern. It provides the setup and continuation around the matched chunk without bloating the context window, which often eliminates the need for follow-up chunk retrieval.
+- **Deep context diving:**
+  If you need the full section after finding a hit, use `qdrant_get_chunk(collection, source_file, chunk_index, window=1)` (or `window=2`).
 
 ## MCP Tools
 
 | Goal | Tool |
 |------|------|
 | List collections and provider metadata | `qdrant_collection_info()` |
-| Find chunks by topic | `qdrant_search(query, collection, window=1)` |
-| Search inside one file | `qdrant_search(query, collection, source_file=..., window=1)` |
-| Filter by tags | `qdrant_search(query, collection, tags=[...], window=1)` |
+| Find chunks by topic | `qdrant_search(query, collection, window=1, window_format="compact", top=3)` |
+| Search inside one file | `qdrant_search(query, collection, source_file=..., window=1, window_format="compact")` |
+| Filter by tags | `qdrant_search(query, collection, tags=[...], window=1, window_format="compact")` |
 | Read a chunk with neighbors | `qdrant_get_chunk(collection, source_file, chunk_index, window=1)` |
 | Find chunks with a tag | `qdrant_find_by_tag(collection, tag)` |
 | See outgoing semantic links | `qdrant_related(collection, source_file)` |

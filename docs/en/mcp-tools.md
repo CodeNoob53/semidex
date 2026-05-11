@@ -22,19 +22,24 @@ After registering, reconnect the MCP server in Claude Code and run `/mcp`.
 
 ```text
 qdrant_collection_info
-  -> qdrant_search(window=1)
+  -> qdrant_search(window=1, window_format="compact", top=3)
   -> qdrant_get_chunk (if broader context is needed)
   -> qdrant_related / qdrant_backlinks
   -> qdrant_find_by_tag when narrowing by topic
 ```
 
-Search results return the matched chunk plus `source_file` and `chunk_index`. Setting `window=1` in `qdrant_search` is highly recommended for agent workflows to immediately see neighboring chunks.
+Search results return the matched chunk plus `source_file` and `chunk_index`.
 
-The optional `window_format` argument controls context verbosity:
-- `"full"` (default): Returns the complete `text` of neighbor chunks.
+### `qdrant_search` Window Modes
+
+The tool defaults to `window=0` (backward-compatible, shortest output). When `window > 0`, the optional `window_format` argument controls context verbosity:
+- `"full"` (default if format omitted): Returns the complete `text` of neighbor chunks. Only use when full neighboring text is needed.
 - `"compact"`: Returns a truncated `text_snippet` (up to 150 chars).
-- **Deduplication**: The matched chunk (`is_match: true`) is always preserved in its own window. Duplicate neighbor chunks across results are safely omitted.
-- **Tip**: Use `compact` when `top` > 3 or when the agent's context budget is constrained.
+
+**Recommended Agent Pattern:** `qdrant_search(window=1, window_format="compact", top=3)`
+For tasks where the agent must implement, explain, or decide based on the context, this pattern provides necessary neighboring setup/continuation without bloating the context budget.
+
+- **Deduplication**: In windowed search, the matched chunk (`is_match: true`) is always preserved in its own window. Duplicate neighbor chunks across results are safely omitted.
 
 If implementation requires even broader context, follow up with `qdrant_get_chunk(window>1)`.
 

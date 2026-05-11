@@ -441,3 +441,6 @@ Latest Results (`top=3`/`window=1`):
 - `full` mode avg ~7.7k chars
 - `compact` mode avg ~5.2k chars (~32% reduction)
 - `compact` mode preserved expected hints 5/5
+- The programmatic tool default remains `window=0`
+- The recommended agent pattern is `qdrant_search(window=1, window_format="compact", top=3)`
+- Note: The baseline follow-up metric is a heuristic assumption based on missing context, not a strict ranking metric.
