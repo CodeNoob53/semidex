@@ -1,0 +1,280 @@
+{
+  "schemaVersion": 5,
+  "description": "Custom raw benchmark. Tests semidex on messy inputs, distractors, and mixed-language logs.",
+  "queries": [
+    {
+      "id": "raw-exact-01",
+      "type": "exact-token",
+      "query": "Error: OOM killed at /src/indexer.js:42",
+      "expectedAnchors": [
+        { "anchor": "INCIDENT_START", "relevance": 3 },
+        { "anchor": "UA_OOM_GRAPH", "relevance": 2 }
+      ],
+      "expectedTokens": ["OOM killed", "/src/indexer.js:42"]
+    },
+    {
+      "id": "raw-exact-02",
+      "type": "exact-token",
+      "query": "WARN: Qdrant timeout after 5000ms",
+      "expectedAnchors": [
+        { "anchor": "QDRANT_TIMEOUT_LOG", "relevance": 3 }
+      ],
+      "expectedTokens": ["Qdrant timeout", "5000ms"]
+    },
+    {
+      "id": "raw-exact-03",
+      "type": "exact-token",
+      "query": "ONNX_EMBED=1",
+      "expectedAnchors": [
+        { "anchor": "CFG_ONNX_EMBED", "relevance": 3 }
+      ],
+      "expectedTokens": ["ONNX_EMBED=1"]
+    },
+    {
+      "id": "raw-exact-04",
+      "type": "exact-token",
+      "query": "OVERLAP_SENTENCES=2",
+      "expectedAnchors": [
+        { "anchor": "CFG_OVERLAP_SENTENCES", "relevance": 3 }
+      ],
+      "expectedTokens": ["OVERLAP_SENTENCES=2"]
+    },
+    {
+      "id": "raw-exact-05",
+      "type": "exact-token",
+      "query": "LLM_MODEL=gemma3:4b",
+      "expectedAnchors": [
+        { "anchor": "CFG_LLM_MODEL", "relevance": 3 }
+      ],
+      "expectedTokens": ["LLM_MODEL=gemma3:4b"]
+    },
+    {
+      "id": "raw-exact-06",
+      "type": "exact-token",
+      "query": "retrieval_mode hybrid",
+      "expectedAnchors": [
+        { "anchor": "CFG_HYBRID_MODE", "relevance": 3 }
+      ],
+      "expectedTokens": ["retrieval_mode", "hybrid"]
+    },
+    {
+      "id": "raw-exact-07",
+      "type": "exact-token",
+      "query": "sparse_provider bge-m3-onnx",
+      "expectedAnchors": [
+        { "anchor": "CFG_SPARSE_PROVIDER", "relevance": 3 }
+      ],
+      "expectedTokens": ["sparse_provider", "bge-m3-onnx"]
+    },
+    {
+      "id": "raw-para-01",
+      "type": "paraphrase",
+      "query": "What caused the crash loop in the indexing pod during the May 10th outage?",
+      "expectedAnchors": [
+        { "anchor": "INCIDENT_START", "relevance": 3 },
+        { "anchor": "UA_OOM_GRAPH", "relevance": 2 }
+      ],
+      "expectedTokens": []
+    },
+    {
+      "id": "raw-para-02",
+      "type": "paraphrase",
+      "query": "How did the team resolve the stale image tag issue in production?",
+      "expectedAnchors": [
+        { "anchor": "WRONG_BRANCH", "relevance": 3 }
+      ],
+      "expectedTokens": []
+    },
+    {
+      "id": "raw-para-03",
+      "type": "paraphrase",
+      "query": "Why do we truncate neighbors in the context window?",
+      "expectedAnchors": [
+        { "anchor": "COMPACT_SNIPPET_RATIONALE", "relevance": 3 },
+        { "anchor": "NOTES_WINDOW_APPROACH", "relevance": 2 }
+      ],
+      "expectedTokens": []
+    },
+    {
+      "id": "raw-para-04",
+      "type": "paraphrase",
+      "query": "How is sentence backtracking handled across chunks?",
+      "expectedAnchors": [
+        { "anchor": "BOUNDARY_FIX", "relevance": 3 }
+      ],
+      "expectedTokens": []
+    },
+    {
+      "id": "raw-para-05",
+      "type": "paraphrase",
+      "query": "Why must the dense and sparse vectors use the same family?",
+      "expectedAnchors": [
+        { "anchor": "MODEL_ALIGNMENT_NOTE", "relevance": 3 }
+      ],
+      "expectedTokens": []
+    },
+    {
+      "id": "raw-para-06",
+      "type": "paraphrase",
+      "query": "What is the token limit of our local language model?",
+      "expectedAnchors": [
+        { "anchor": "COMPACT_SNIPPET_RATIONALE", "relevance": 3 }
+      ],
+      "expectedTokens": []
+    },
+    {
+      "id": "raw-mixed-01",
+      "type": "mixed-language",
+      "query": "Why was there a критична помилка memory issue?",
+      "expectedAnchors": [
+        { "anchor": "UA_OOM_GRAPH", "relevance": 3 },
+        { "anchor": "INCIDENT_START", "relevance": 2 }
+      ],
+      "expectedTokens": ["критична помилка"]
+    },
+    {
+      "id": "raw-mixed-02",
+      "type": "mixed-language",
+      "query": "When was the incident відновлення роботи completed?",
+      "expectedAnchors": [
+        { "anchor": "INCIDENT_RESOLVED", "relevance": 3 }
+      ],
+      "expectedTokens": ["відновлення роботи"]
+    },
+    {
+      "id": "raw-mixed-03",
+      "type": "mixed-language",
+      "query": "Граф failed to build because of OOM error",
+      "expectedAnchors": [
+        { "anchor": "UA_OOM_GRAPH", "relevance": 3 }
+      ],
+      "expectedTokens": ["Граф"]
+    },
+    {
+      "id": "raw-bound-01",
+      "type": "boundary-neighbor",
+      "query": "chunk ends in the middle of a sentence parser backtrack",
+      "expectedAnchors": [
+        { "anchor": "BOUNDARY_FIX", "relevance": 3 }
+      ],
+      "expectedTokens": ["parser", "backtrack"]
+    },
+    {
+      "id": "raw-bound-02",
+      "type": "boundary-neighbor",
+      "query": "append the next chunk's first sentence",
+      "expectedAnchors": [
+        { "anchor": "BOUNDARY_FIX", "relevance": 3 }
+      ],
+      "expectedTokens": ["append", "first sentence"]
+    },
+    {
+      "id": "raw-noise-01",
+      "type": "noise-distractor",
+      "query": "OOM killed in indexing pod",
+      "expectedAnchors": [
+        { "anchor": "INCIDENT_START", "relevance": 3 }
+      ],
+      "expectedTokens": ["indexing pod"]
+    },
+    {
+      "id": "raw-noise-02",
+      "type": "noise-distractor",
+      "query": "Qdrant timeout 5000ms",
+      "expectedAnchors": [
+        { "anchor": "QDRANT_TIMEOUT_LOG", "relevance": 3 }
+      ],
+      "expectedTokens": ["5000ms"]
+    },
+    {
+      "id": "raw-noise-03",
+      "type": "noise-distractor",
+      "query": "agent context budget extremely tight",
+      "expectedAnchors": [
+        { "anchor": "COMPACT_SNIPPET_RATIONALE", "relevance": 3 }
+      ],
+      "expectedTokens": ["extremely tight"]
+    },
+    {
+      "id": "raw-noise-04",
+      "type": "noise-distractor",
+      "query": "use compact snippets",
+      "expectedAnchors": [
+        { "anchor": "COMPACT_SNIPPET_RATIONALE", "relevance": 3 }
+      ],
+      "expectedTokens": ["compact snippets"]
+    },
+    {
+      "id": "raw-noise-05",
+      "type": "noise-distractor",
+      "query": "ONNX_EMBED value in prod",
+      "expectedAnchors": [
+        { "anchor": "CFG_ONNX_EMBED", "relevance": 3 }
+      ],
+      "expectedTokens": ["ONNX_EMBED"]
+    },
+    {
+      "id": "raw-noise-06",
+      "type": "noise-distractor",
+      "query": "LLM_MODEL for context generation",
+      "expectedAnchors": [
+        { "anchor": "CFG_LLM_MODEL", "relevance": 3 }
+      ],
+      "expectedTokens": ["LLM_MODEL"]
+    },
+    {
+      "id": "raw-neg-01",
+      "type": "negative",
+      "query": "What is the Qdrant timeout for the staging cluster?",
+      "shouldHaveNoStrongHit": true,
+      "expectedAnchors": [],
+      "expectedTokens": [],
+      "forbiddenTokens": ["5000ms", "Qdrant timeout after"]
+    },
+    {
+      "id": "raw-neg-02",
+      "type": "negative",
+      "query": "How to configure ColBERT late interaction?",
+      "shouldHaveNoStrongHit": true,
+      "expectedAnchors": [],
+      "expectedTokens": [],
+      "forbiddenTokens": ["ColBERT"]
+    },
+    {
+      "id": "raw-neg-03",
+      "type": "negative",
+      "query": "How to build a graph in production?",
+      "shouldHaveNoStrongHit": true,
+      "expectedAnchors": [],
+      "expectedTokens": [],
+      "forbiddenTokens": ["будови графа"]
+    },
+    {
+      "id": "raw-neg-04",
+      "type": "negative",
+      "query": "What is the token limit of OpenAI GPT-4?",
+      "shouldHaveNoStrongHit": true,
+      "expectedAnchors": [],
+      "expectedTokens": [],
+      "forbiddenTokens": ["8k", "token limit"]
+    },
+    {
+      "id": "raw-neg-05",
+      "type": "negative",
+      "query": "How to reindex using git status?",
+      "shouldHaveNoStrongHit": true,
+      "expectedAnchors": [],
+      "expectedTokens": [],
+      "forbiddenTokens": []
+    },
+    {
+      "id": "raw-neg-06",
+      "type": "negative",
+      "query": "Where are the metrics stored?",
+      "shouldHaveNoStrongHit": true,
+      "expectedAnchors": [],
+      "expectedTokens": [],
+      "forbiddenTokens": []
+    }
+  ]
+}

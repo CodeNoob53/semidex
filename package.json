@@ -21,7 +21,8 @@
     "bench:custom50:sweep": "node benchmarks/retrieval/custom-50/threshold-sweep.js",
     "bench:custom-large": "node benchmarks/retrieval/custom-large/run.js",
     "bench:custom-large:analyze": "node benchmarks/retrieval/custom-large/analyze-failures.js",
-    "bench:custom-large:agent-default": "node benchmarks/retrieval/custom-large/agent-default-eval.js"
+    "bench:custom-large:agent-default": "node benchmarks/retrieval/custom-large/agent-default-eval.js",
+    "bench:custom-raw": "node benchmarks/retrieval/custom-raw/run.js"
   },
   "dependencies": {
     "@huggingface/transformers": "^4.2.0",

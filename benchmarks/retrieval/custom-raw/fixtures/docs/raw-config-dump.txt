@@ -1,0 +1,19 @@
+env dump from prod server
+---
+ONNX_EMBED=1 [[BENCH_ANCHOR: CFG_ONNX_EMBED]]
+MAX_CHUNK_TOKENS=800
+MIN_CHUNK_TOKENS=100
+OVERLAP_SENTENCES=2 [[BENCH_ANCHOR: CFG_OVERLAP_SENTENCES]]
+QDRANT_URL=http://localhost:6333
+QDRANT_KEY=secret
+LLM_MODEL=gemma3:4b [[BENCH_ANCHOR: CFG_LLM_MODEL]]
+
+# random unformatted config map values
+"retrieval_mode": "hybrid" [[BENCH_ANCHOR: CFG_HYBRID_MODE]]
+"rrf_k": 60
+"dense_provider": "bge-m3-onnx"
+"sparse_provider": "bge-m3-onnx" [[BENCH_ANCHOR: CFG_SPARSE_PROVIDER]]
+
+Distractor: ONNX_EMBED=0
+Distractor: MAX_CHUNK_TOKENS=10
+Distractor: LLM_MODEL=llama2

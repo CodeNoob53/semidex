@@ -1,0 +1,12 @@
+2026-05-10T12:00:00Z INCIDENT START
+The cluster went down. Crash loop in indexing pod. [[BENCH_ANCHOR: INCIDENT_START]]
+Traceback:
+Error: OOM killed
+  at /src/indexer.js:42
+Критична помилка: бракує пам'яті для побудови графа [[BENCH_ANCHOR: UA_OOM_GRAPH]]
+Спроба перезапуску...
+2026-05-10T12:05:00Z WARN: Qdrant timeout after 5000ms. [[BENCH_ANCHOR: QDRANT_TIMEOUT_LOG]]
+We tried restarting it again but the container image tag was stale. Someone pushed the wrong branch to prod. [[BENCH_ANCHOR: WRONG_BRANCH]]
+Distractor: OOM killed at /src/other.js
+Distractor: Qdrant timeout after 100ms.
+Відновлення роботи о 12:15. Все ок. [[BENCH_ANCHOR: INCIDENT_RESOLVED]]
