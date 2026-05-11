@@ -1,4 +1,4 @@
-import { hybridSearch } from '../../core/qdrant.js';
+import { hybridSearch, fetchWindowChunks } from '../../core/qdrant.js';
 import { embedForSearch } from '../../core/embeddings.js';
 import { rerankResults } from '../../core/rerank.js';
 
@@ -22,12 +22,15 @@ export const schema = {
       top:         { type: 'integer', description: 'Number of results (default 5)', default: 5 },
       tags:        { type: 'array', items: { type: 'string' }, description: 'Filter by tags (any match)' },
       source_file: { type: 'string',  description: 'Filter to a specific source file' },
+      window:      { type: 'integer', description: 'Extra chunks before/after to include (default 0, max 2)', default: 0, minimum: 0, maximum: 2 },
     },
     required: ['query', 'collection'],
   },
 };
 
-export async function handle({ query, collection, top = 5, tags, source_file }) {
+export async function handle({ query, collection, top = 5, tags, source_file, window = 0 }) {
+  window = Math.max(0, Math.min(2, parseInt(window) || 0));
+
   const { dense, sparse } = await embedForSearch(collection, query);
 
   let filter = null;
@@ -48,17 +51,38 @@ export async function handle({ query, collection, top = 5, tags, source_file }) 
   }
   if (!results.length) return 'No results found.';
 
-  return results.map(r => {
+  const formattedResults = await Promise.all(results.map(async r => {
     const p = r.payload;
     const chunkIndex = Number.isInteger(p.chunk_index) ? p.chunk_index : '?';
     const totalChunks = Number.isInteger(p.total_chunks) ? p.total_chunks : '?';
     const chunkDisplay = Number.isInteger(p.chunk_index) ? p.chunk_index + 1 : '?';
-    return [
+
+    let windowChunksJSON = null;
+    if (window > 0 && chunkIndex !== '?') {
+      const wPoints = await fetchWindowChunks(collection, p.source_file, chunkIndex, window);
+      windowChunksJSON = wPoints.map(wp => ({
+        chunk_index: wp.payload.chunk_index,
+        text: wp.payload.text,
+        section: wp.payload.section || '',
+        is_match: wp.payload.chunk_index === chunkIndex
+      }));
+    }
+
+    const lines = [
       `### ${p.source_file} > ${p.section || 'intro'} (chunk_index: ${chunkIndex}, chunk: ${chunkDisplay}/${totalChunks}, score: ${r.score.toFixed(3)})`,
       `**Tags:** ${(p.tags || []).join(', ')}`,
       `**Context:** ${p.context || ''}`,
-      '',
-      p.text,
-    ].join('\n');
-  }).join('\n\n---\n\n');
+    ];
+
+    if (windowChunksJSON) {
+      lines.push(`\n**Window Chunks:**\n\`\`\`json\n${JSON.stringify({ window_chunks: windowChunksJSON }, null, 2)}\n\`\`\``);
+    }
+
+    lines.push('');
+    lines.push(p.text);
+
+    return lines.join('\n');
+  }));
+
+  return formattedResults.join('\n\n---\n\n');
 }

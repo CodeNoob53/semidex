@@ -8,7 +8,11 @@ import { listCollections, getCollectionInfo, createPayloadIndex, addSparseVector
 import { SCHEMA_VERSION } from './core/embeddings.js';
 
 // Required indexes for MCP filters and hash-based skip to work correctly.
-const REQUIRED_INDEXES = ['source_file', 'tags'];
+const REQUIRED_INDEXES = {
+  'source_file': 'keyword',
+  'tags': 'keyword',
+  'chunk_index': 'integer'
+};
 
 const config = loadConfig();
 if (!config.collections) config.collections = {};
@@ -55,9 +59,9 @@ for (const name of remote) {
     }
   }
 
-  for (const field of REQUIRED_INDEXES) {
-    await createPayloadIndex(name, field);
-    console.log(`  ✓ index "${field}" on ${name}`);
+  for (const [field, schema] of Object.entries(REQUIRED_INDEXES)) {
+    await createPayloadIndex(name, field, schema);
+    console.log(`  ✓ index "${field}" (${schema}) on ${name}`);
   }
 
   try {

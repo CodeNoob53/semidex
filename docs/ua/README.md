@@ -131,11 +131,11 @@ claude mcp add --scope user semidex -- node C:\absolute\path\to\semidex\src\mcp\
 
 ## MCP-інструменти
 
-Типовий робочий процес агента: **search → get chunk з вікном → follow related / backlinks → filter by tag**.
+Типовий робочий процес агента: **search (window=1) → get chunk (для ширшого контексту) → follow related / backlinks → filter by tag**.
 
 | Інструмент | Аргументи | Опис |
 |------------|-----------|------|
-| `qdrant_search` | `query`, `collection`, `top?`, `tags?[]`, `source_file?` | Гібридний пошук (dense + sparse + RRF); теґ-фільтр через OR, поєднаний з source_file через AND |
+| `qdrant_search` | `query`, `collection`, `top?`, `tags?[]`, `source_file?`, `window?` | Гібридний пошук (dense + sparse + RRF); теґ-фільтр через OR, поєднаний з source_file через AND. Може одразу повертати сусідні чанки (window=1..2). |
 | `qdrant_collection_info` | — | Список усіх колекцій з кількістю точок, провайдером ембедінгів, описом |
 | `qdrant_get_chunk` | `collection`, `source_file`, `chunk_index`, `window?` | Отримати конкретний чанк з опціональним контекстним вікном |
 | `qdrant_related` | `collection`, `source_file` | Вихідні семантичні посилання для файлу (з графу) |
@@ -430,6 +430,7 @@ npm run sync
 |------|-----|-----------------|
 | `source_file` | keyword | перевірка хешу, переіндексація, видалення, фільтр `qdrant_search` |
 | `tags` | keyword | теґ-фільтр `qdrant_search`, `qdrant_find_by_tag` |
+| `chunk_index` | integer | контекстні вікна `qdrant_search(window)`, `qdrant_get_chunk` |
 
 `npm run index` створює їх автоматично для нових колекцій. Для існуючих колекцій запустіть `npm run sync`.
 

@@ -71,24 +71,22 @@ Use it to see available collections, point counts, descriptions, and provider
 metadata. Then follow this workflow:
 
 ```text
-qdrant_search
-  -> qdrant_get_chunk(window=1 or 2)
+qdrant_search(window=1)
+  -> qdrant_get_chunk (if broader context is needed)
   -> qdrant_related / qdrant_backlinks
   -> qdrant_find_by_tag when narrowing by topic
 ```
 
-Search returns the matched chunk text plus `source_file` and `chunk_index`. If
-the result will be used for an implementation decision, always retrieve
-surrounding context with `qdrant_get_chunk(..., window=1)` or `window=2`.
+Search returns the matched chunk text plus `source_file` and `chunk_index`. By setting `window=1`, search will immediately include neighboring context chunks. If the result will be used for an implementation decision and you need broader context, retrieve it with `qdrant_get_chunk`.
 
 ## MCP Tools
 
 | Goal | Tool |
 |------|------|
 | List collections and provider metadata | `qdrant_collection_info()` |
-| Find chunks by topic | `qdrant_search(query, collection)` |
-| Search inside one file | `qdrant_search(query, collection, source_file=...)` |
-| Filter by tags | `qdrant_search(query, collection, tags=[...])` |
+| Find chunks by topic | `qdrant_search(query, collection, window=1)` |
+| Search inside one file | `qdrant_search(query, collection, source_file=..., window=1)` |
+| Filter by tags | `qdrant_search(query, collection, tags=[...], window=1)` |
 | Read a chunk with neighbors | `qdrant_get_chunk(collection, source_file, chunk_index, window=1)` |
 | Find chunks with a tag | `qdrant_find_by_tag(collection, tag)` |
 | See outgoing semantic links | `qdrant_related(collection, source_file)` |
@@ -224,6 +222,7 @@ These payload indexes are required for filters:
 |-------|------|
 | `source_file` | keyword |
 | `tags` | keyword |
+| `chunk_index` | integer |
 
 New collections create them automatically. For existing or remote collections,
 run:

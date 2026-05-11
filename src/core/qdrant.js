@@ -155,11 +155,11 @@ export async function deleteBySourceFile(collection, sourceFile) {
   if (!r.ok) throw new Error(`Qdrant delete failed: ${await r.text()}`);
 }
 
-export async function createPayloadIndex(collection, field) {
+export async function createPayloadIndex(collection, field, type = 'keyword') {
   const r = await fetch(`${URL}/collections/${collection}/index`, {
     method: 'PUT',
     headers: headers(),
-    body: JSON.stringify({ field_name: field, field_schema: 'keyword' }),
+    body: JSON.stringify({ field_name: field, field_schema: type }),
   });
   if (!r.ok) throw new Error(`Create index failed: ${await r.text()}`);
 }
@@ -174,8 +174,9 @@ export async function createCollection(name, size = 1024) {
     }),
   });
   if (!r.ok) throw new Error(`Create collection failed: ${await r.text()}`);
-  await createPayloadIndex(name, 'source_file');
-  await createPayloadIndex(name, 'tags');
+  await createPayloadIndex(name, 'source_file', 'keyword');
+  await createPayloadIndex(name, 'tags', 'keyword');
+  await createPayloadIndex(name, 'chunk_index', 'integer');
 }
 
 export async function hasSparseVectors(collection) {
@@ -201,4 +202,22 @@ export async function addSparseVectorSupport(name) {
     }),
   });
   if (!r.ok) throw new Error(`addSparseVectorSupport failed: ${await r.text()}`);
+}
+
+export async function fetchWindowChunks(collection, source_file, chunk_index, window) {
+  const idx = parseInt(chunk_index, 10);
+  if (!Number.isFinite(idx) || idx < 0) return [];
+  window = Math.max(0, parseInt(window) || 0);
+  const from = Math.max(0, idx - window);
+  const to = idx + window;
+
+  const points = await scroll(collection, {
+    must: [
+      { key: 'source_file', match: { value: source_file } },
+      { key: 'chunk_index', range: { gte: from, lte: to } },
+    ],
+  }, to - from + 1);
+
+  points.sort((a, b) => a.payload.chunk_index - b.payload.chunk_index);
+  return points;
 }

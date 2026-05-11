@@ -22,19 +22,19 @@ After registering, reconnect the MCP server in Claude Code and run `/mcp`.
 
 ```text
 qdrant_collection_info
-  -> qdrant_search
-  -> qdrant_get_chunk(window=1 or 2)
+  -> qdrant_search(window=1)
+  -> qdrant_get_chunk (if broader context is needed)
   -> qdrant_related / qdrant_backlinks
   -> qdrant_find_by_tag when narrowing by topic
 ```
 
-Search results return the matched chunk plus `source_file` and `chunk_index`. If implementation requires full context, follow up with `qdrant_get_chunk` and a surrounding window.
+Search results return the matched chunk plus `source_file` and `chunk_index`. Setting `window=1` in `qdrant_search` is highly recommended to immediately see neighboring chunks. If implementation requires even broader context, follow up with `qdrant_get_chunk`.
 
 ## Tool Reference
 
 | Tool | Arguments | Description |
 |------|-----------|-------------|
-| `qdrant_search` | `query`, `collection`, `top?`, `tags?[]`, `source_file?` | Hybrid search with optional tag/source filters |
+| `qdrant_search` | `query`, `collection`, `top?`, `tags?[]`, `source_file?`, `window?` | Hybrid search with optional tag/source filters and context window |
 | `qdrant_collection_info` | none | Lists collections with point counts, provider metadata, descriptions |
 | `qdrant_get_chunk` | `collection`, `source_file`, `chunk_index`, `window?` | Retrieves one chunk and optional neighbors |
 | `qdrant_related` | `collection`, `source_file` | Shows outgoing file-level semantic links |
@@ -51,7 +51,8 @@ Search results return the matched chunk plus `source_file` and `chunk_index`. If
 
 Required Qdrant payload indexes:
 
-- `source_file`
-- `tags`
+- `source_file` (keyword)
+- `tags` (keyword)
+- `chunk_index` (integer)
 
 `npm run index` creates these for new collections. `npm run sync` ensures them for existing collections.
