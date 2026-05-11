@@ -23,12 +23,13 @@ export const schema = {
       tags:        { type: 'array', items: { type: 'string' }, description: 'Filter by tags (any match)' },
       source_file: { type: 'string',  description: 'Filter to a specific source file' },
       window:      { type: 'integer', description: 'Extra chunks before/after to include (default 0, max 2)', default: 0, minimum: 0, maximum: 2 },
+      window_format: { type: 'string', enum: ['full', 'compact'], description: 'Format of window chunks', default: 'full' },
     },
     required: ['query', 'collection'],
   },
 };
 
-export async function handle({ query, collection, top = 5, tags, source_file, window = 0 }) {
+export async function handle({ query, collection, top = 5, tags, source_file, window = 0, window_format = 'full' }) {
   window = Math.max(0, Math.min(2, parseInt(window) || 0));
 
   const { dense, sparse } = await embedForSearch(collection, query);
@@ -51,7 +52,10 @@ export async function handle({ query, collection, top = 5, tags, source_file, wi
   }
   if (!results.length) return 'No results found.';
 
-  const formattedResults = await Promise.all(results.map(async r => {
+  const formattedResults = [];
+  const seenChunks = new Set();
+
+  for (const r of results) {
     const p = r.payload;
     const chunkIndex = Number.isInteger(p.chunk_index) ? p.chunk_index : '?';
     const totalChunks = Number.isInteger(p.total_chunks) ? p.total_chunks : '?';
@@ -60,12 +64,26 @@ export async function handle({ query, collection, top = 5, tags, source_file, wi
     let windowChunksJSON = null;
     if (window > 0 && chunkIndex !== '?') {
       const wPoints = await fetchWindowChunks(collection, p.source_file, chunkIndex, window);
-      windowChunksJSON = wPoints.map(wp => ({
-        chunk_index: wp.payload.chunk_index,
-        text: wp.payload.text,
-        section: wp.payload.section || '',
-        is_match: wp.payload.chunk_index === chunkIndex
-      }));
+      windowChunksJSON = [];
+      for (const wp of wPoints) {
+        const is_match = wp.payload.chunk_index === chunkIndex;
+        const sig = `${wp.payload.source_file}_${wp.payload.chunk_index}`;
+
+        if (!is_match && seenChunks.has(sig)) continue;
+        seenChunks.add(sig);
+
+        const text_snippet = window_format === 'compact' && wp.payload.text
+          ? wp.payload.text.slice(0, 150) + (wp.payload.text.length > 150 ? '...' : '')
+          : undefined;
+
+        windowChunksJSON.push({
+          source_file: wp.payload.source_file,
+          chunk_index: wp.payload.chunk_index,
+          section: wp.payload.section || '',
+          is_match,
+          ...(window_format === 'compact' ? { text_snippet } : { text: wp.payload.text })
+        });
+      }
     }
 
     const lines = [
@@ -81,8 +99,8 @@ export async function handle({ query, collection, top = 5, tags, source_file, wi
     lines.push('');
     lines.push(p.text);
 
-    return lines.join('\n');
-  }));
+    formattedResults.push(lines.join('\n'));
+  }
 
   return formattedResults.join('\n\n---\n\n');
 }

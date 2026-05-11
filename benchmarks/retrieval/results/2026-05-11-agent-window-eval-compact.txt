@@ -1,0 +1,103 @@
+=== Agent Window Evaluation (2026-05-11) ===
+Collection: bench-retrieval-custom-large
+Top-K: 3  Window: 1
+
+
+============================
+MODE: FULL
+============================
+
+--- Aggregate Summary (full) ---
+Queries run: 5
+Avg output length: 7671 chars
+Total window chunks retrieved: 43
+Duplicate neighbor chunks (should be 0): 0
+Duplicate matched chunks (allowed): 1
+
+--- Per-query Details (full) ---
+Query: exact-token
+  Window Chunks block exists: Yes
+  Window chunks per result: [3, 3, 2]
+  Exactly one is_match=true per block: Yes
+  Output char count: ~7008
+  Expected hint found anywhere in output: Yes
+
+Query: paraphrase
+  Window Chunks block exists: Yes
+  Window chunks per result: [3, 2, 3]
+  Exactly one is_match=true per block: Yes
+  Output char count: ~7240
+  Expected hint found anywhere in output: Yes
+
+Query: mixed-language
+  Window Chunks block exists: Yes
+  Window chunks per result: [3, 3, 3]
+  Exactly one is_match=true per block: Yes
+  Output char count: ~5912
+  Expected hint found anywhere in output: Yes
+
+Query: boundary-neighbor
+  Window Chunks block exists: Yes
+  Window chunks per result: [3, 3, 3]
+  Exactly one is_match=true per block: Yes
+  Output char count: ~7077
+  Expected hint found anywhere in output: Yes
+
+Query: troubleshooting
+  Window Chunks block exists: Yes
+  Window chunks per result: [3, 3, 3]
+  Exactly one is_match=true per block: Yes
+  Output char count: ~11117
+  Expected hint found anywhere in output: Yes
+
+
+============================
+MODE: COMPACT
+============================
+
+--- Aggregate Summary (compact) ---
+Queries run: 5
+Avg output length: 5217 chars
+Total window chunks retrieved: 44
+Duplicate neighbor chunks (should be 0): 0
+Duplicate matched chunks (allowed): 0
+
+--- Per-query Details (compact) ---
+Query: exact-token
+  Window Chunks block exists: Yes
+  Window chunks per result: [3, 3, 3]
+  Exactly one is_match=true per block: Yes
+  Output char count: ~5474
+  Expected hint found anywhere in output: Yes
+
+Query: paraphrase
+  Window Chunks block exists: Yes
+  Window chunks per result: [3, 2, 3]
+  Exactly one is_match=true per block: Yes
+  Output char count: ~4752
+  Expected hint found anywhere in output: Yes
+
+Query: mixed-language
+  Window Chunks block exists: Yes
+  Window chunks per result: [3, 3, 3]
+  Exactly one is_match=true per block: Yes
+  Output char count: ~4524
+  Expected hint found anywhere in output: Yes
+
+Query: boundary-neighbor
+  Window Chunks block exists: Yes
+  Window chunks per result: [3, 3, 3]
+  Exactly one is_match=true per block: Yes
+  Output char count: ~4924
+  Expected hint found anywhere in output: Yes
+
+Query: troubleshooting
+  Window Chunks block exists: Yes
+  Window chunks per result: [3, 3, 3]
+  Exactly one is_match=true per block: Yes
+  Output char count: ~6410
+  Expected hint found anywhere in output: Yes
+
+--- Observations ---
+- Neighbor deduplication reduces overlap; matched chunks are intentionally preserved.
+- Compact mode significantly reduces character count while retaining expected hints.
