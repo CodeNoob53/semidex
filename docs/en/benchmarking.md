@@ -432,13 +432,12 @@ Output is saved to `benchmarks/retrieval/results/YYYY-MM-DD-custom-large.txt`.
 ## Agent Window Evaluation
 
 ```bash
-ONNX_EMBED=1 node benchmarks/retrieval/custom-large/agent-window-eval.js
+ONNX_EMBED=1 npm run bench:custom-large:agent-default
 ```
 
-Agent-facing manual evaluation of `qdrant_search(window=1)`. This is not a ranking benchmark; it evaluates the shape, size, and utility of context windows appended to search results.
+Agent-facing manual evaluation of `qdrant_search(window=1, window_format="compact", top=3)` vs baseline. This is not a ranking benchmark; it evaluates the shape, size, and utility of context windows appended to search results.
 
 Latest Results (`top=3`/`window=1`):
 - `full` mode avg ~7.7k chars
 - `compact` mode avg ~5.2k chars (~32% reduction)
 - `compact` mode preserved expected hints 5/5
-- Duplicate neighbor chunks safely reduced to 0

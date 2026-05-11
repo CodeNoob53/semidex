@@ -1,0 +1,169 @@
+=== Agent Default Pattern Evaluation (2026-05-11) ===
+Collection: bench-retrieval-custom-large
+
+
+============================
+MODE: BASELINE
+PARAMS: {"top":3,"window":0}
+============================
+
+--- Aggregate Summary (baseline) ---
+Queries run: 5
+Avg output length: 2200 chars
+Avg window blocks: 0.0
+Hints found: 5 / 5
+Assumed follow-up (no-window/missing): 5 / 5
+
+--- Per-query Details (baseline) ---
+Query: exact-token
+  Output char count: ~2437
+  Expected hint found: Yes
+  Window blocks count: 0
+  is_match count: 0
+  Has provenance: Yes
+  Assumed follow-up: Yes
+
+Query: paraphrase
+  Output char count: ~1876
+  Expected hint found: Yes
+  Window blocks count: 0
+  is_match count: 0
+  Has provenance: Yes
+  Assumed follow-up: Yes
+
+Query: mixed-language
+  Output char count: ~1598
+  Expected hint found: Yes
+  Window blocks count: 0
+  is_match count: 0
+  Has provenance: Yes
+  Assumed follow-up: Yes
+
+Query: boundary-neighbor
+  Output char count: ~1838
+  Expected hint found: Yes
+  Window blocks count: 0
+  is_match count: 0
+  Has provenance: Yes
+  Assumed follow-up: Yes
+
+Query: troubleshooting
+  Output char count: ~3251
+  Expected hint found: Yes
+  Window blocks count: 0
+  is_match count: 0
+  Has provenance: Yes
+  Assumed follow-up: Yes
+
+
+============================
+MODE: FULL
+PARAMS: {"top":3,"window":1,"window_format":"full"}
+============================
+
+--- Aggregate Summary (full) ---
+Queries run: 5
+Avg output length: 7768 chars
+Avg window blocks: 3.0
+Hints found: 5 / 5
+Assumed follow-up (no-window/missing): 0 / 5
+
+--- Per-query Details (full) ---
+Query: exact-token
+  Output char count: ~7496
+  Expected hint found: Yes
+  Window blocks count: 3
+  is_match count: 3
+  Has provenance: Yes
+  Assumed follow-up: No
+
+Query: paraphrase
+  Output char count: ~7240
+  Expected hint found: Yes
+  Window blocks count: 3
+  is_match count: 3
+  Has provenance: Yes
+  Assumed follow-up: No
+
+Query: mixed-language
+  Output char count: ~5912
+  Expected hint found: Yes
+  Window blocks count: 3
+  is_match count: 3
+  Has provenance: Yes
+  Assumed follow-up: No
+
+Query: boundary-neighbor
+  Output char count: ~7077
+  Expected hint found: Yes
+  Window blocks count: 3
+  is_match count: 3
+  Has provenance: Yes
+  Assumed follow-up: No
+
+Query: troubleshooting
+  Output char count: ~11117
+  Expected hint found: Yes
+  Window blocks count: 3
+  is_match count: 3
+  Has provenance: Yes
+  Assumed follow-up: No
+
+
+============================
+MODE: COMPACT
+PARAMS: {"top":3,"window":1,"window_format":"compact"}
+============================
+
+--- Aggregate Summary (compact) ---
+Queries run: 5
+Avg output length: 5116 chars
+Avg window blocks: 3.0
+Hints found: 5 / 5
+Assumed follow-up (no-window/missing): 0 / 5
+
+--- Per-query Details (compact) ---
+Query: exact-token
+  Output char count: ~4972
+  Expected hint found: Yes
+  Window blocks count: 3
+  is_match count: 3
+  Has provenance: Yes
+  Assumed follow-up: No
+
+Query: paraphrase
+  Output char count: ~4752
+  Expected hint found: Yes
+  Window blocks count: 3
+  is_match count: 3
+  Has provenance: Yes
+  Assumed follow-up: No
+
+Query: mixed-language
+  Output char count: ~4524
+  Expected hint found: Yes
+  Window blocks count: 3
+  is_match count: 3
+  Has provenance: Yes
+  Assumed follow-up: No
+
+Query: boundary-neighbor
+  Output char count: ~4924
+  Expected hint found: Yes
+  Window blocks count: 3
+  is_match count: 3
+  Has provenance: Yes
+  Assumed follow-up: No
+
+Query: troubleshooting
+  Output char count: ~6410
+  Expected hint found: Yes
+  Window blocks count: 3
+  is_match count: 3
+  Has provenance: Yes
+  Assumed follow-up: No
+
+--- Final Recommendation ---
+Recommended agent pattern: qdrant_search(window=1, window_format="compact", top=3)
+Update AGENTS.md: Yes, it is highly recommended to update AGENTS.md to suggest this pattern. While the baseline "needs follow-up" metric is a heuristic assumption due to lack of window context, manual agent-window evaluation suggests that window=0 frequently requires qdrant_get_chunk.
+Note: Do not change the actual programmatic tool defaults (window=0, top=5) yet. They should remain for standard backward compatibility.
