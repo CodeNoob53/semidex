@@ -14,7 +14,8 @@ They share the same core provider, config, graph, chunking, and Qdrant helpers.
 COLLECTION=my-docs npm run index <file|folder>  # index documents
 npm run mcp                                      # start MCP server (stdio)
 npm run sync                                     # sync config.json + Qdrant indexes
-npm run smoke                                    # offline smoke tests
+npm run smoke                                    # offline smoke tests (no Qdrant)
+npm run smoke:retrieval-live                     # optional live smoke suite (requires Qdrant)
 npm run bench:retrieval                          # live retrieval benchmark
 npm run bench:retrieval:compare                  # side-by-side provider comparison
 npm run bench:retrieval:rerank                   # 4-variant rerank matrix
@@ -139,7 +140,9 @@ Raw/unstructured chunks may contain distractors, stale values, commented-out val
 - For ambiguous tasks, gather at least two supporting hits or one hit plus its
   surrounding chunks before making a claim.
 - Prefer `source_file` filters once a likely file is known. This reduces noise
-  and makes follow-up chunk reads deterministic.
+  and makes follow-up chunk reads deterministic. Do not invent a `source_file`
+  filter when no scope is given — if retrieved evidence contains multiple valid
+  contexts, surface both and ask for clarification.
 - For "why did search return this?" questions, inspect provider metadata,
   section, tags, and exact token overlap before changing ranking logic.
 

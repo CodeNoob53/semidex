@@ -23,6 +23,15 @@ BENCH_SKIP_INDEX=1 npm run bench:custom-large
 ONNX_EMBED=1 npm run bench:custom-large
 ```
 
+Optional live retrieval smokes (require Qdrant, not default CI):
+
+```bash
+npm run smoke:retrieval-live          # aggregate: runs all three below sequentially
+npm run smoke:window-live             # compact window utility (bench-retrieval-custom-50)
+npm run smoke:source-filter-live      # source_file disambiguation (bench-retrieval-custom-raw)
+npm run smoke:answer-policy-live      # answer-policy evidence contracts (bench-retrieval-custom-raw)
+```
+
 ## Smoke Tests
 
 `npm run smoke` is fast and does not require Qdrant or Ollama.
