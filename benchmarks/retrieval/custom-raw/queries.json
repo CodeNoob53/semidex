@@ -254,7 +254,9 @@
       "expectedAnchors": [],
       "expectedTokens": [],
       "expectedFiles": [],
-      "forbiddenTokens": ["5000ms", "qdrant timeout after"]
+      "forbiddenTokens": ["5000ms", "qdrant timeout after"],
+      "scopeTerms": ["staging"],
+      "corpusScopeTerms": ["prod", "qdrant-prod"]
     },
     {
       "id": "raw-neg-02",
@@ -264,7 +266,9 @@
       "expectedAnchors": [],
       "expectedTokens": [],
       "expectedFiles": [],
-      "forbiddenTokens": ["colbert"]
+      "forbiddenTokens": ["colbert"],
+      "scopeTerms": ["colbert"],
+      "corpusScopeTerms": ["bge-m3", "sparse_provider", "dense_provider"]
     },
     {
       "id": "raw-neg-03",
@@ -274,7 +278,9 @@
       "expectedAnchors": [],
       "expectedTokens": [],
       "expectedFiles": [],
-      "forbiddenTokens": ["будови графа"]
+      "forbiddenTokens": ["будови графа"],
+      "scopeTerms": ["production", "prod"],
+      "corpusScopeTerms": ["графа", "incident", "crash"]
     },
     {
       "id": "raw-neg-04",
@@ -284,7 +290,9 @@
       "expectedAnchors": [],
       "expectedTokens": [],
       "expectedFiles": [],
-      "forbiddenTokens": ["8k", "token limit"]
+      "forbiddenTokens": ["8k", "token limit"],
+      "scopeTerms": ["openai", "gpt-4"],
+      "corpusScopeTerms": ["gemma3", "local", "llm_model"]
     },
     {
       "id": "raw-neg-05",
@@ -294,7 +302,9 @@
       "expectedAnchors": [],
       "expectedTokens": [],
       "expectedFiles": [],
-      "forbiddenTokens": ["git", "status", "reindex"]
+      "forbiddenTokens": ["git", "status", "reindex"],
+      "scopeTerms": ["git", "reindex"],
+      "corpusScopeTerms": ["indexer", "sync", "upsert"]
     },
     {
       "id": "raw-neg-06",
@@ -304,7 +314,9 @@
       "expectedAnchors": [],
       "expectedTokens": [],
       "expectedFiles": [],
-      "forbiddenTokens": ["metrics", "metrics.internal"]
+      "forbiddenTokens": ["metrics", "metrics.internal"],
+      "scopeTerms": ["metrics", "metrics.internal"],
+      "corpusScopeTerms": ["qdrant", "config", "incident"]
     }
   ]
 }

@@ -1,0 +1,63 @@
+=== semidex custom-raw benchmark — 2026-05-12 ===
+Provider: bge-m3-onnx/bge-m3-onnx
+Top-K: 5  Context Window: +-1
+
+--- Retrieval Metrics ---
+contextRecall@5   : 100.0%
+tokenHit@5        : 100.0%
+fileRecall@5      : 100.0%
+negativePassRate  : 50.0%
+Latency p50/p95   : 89ms / 104ms
+
+--- Per-Type Breakdown ---
+exact-token         : 100.0% (7/7)
+paraphrase          : 100.0% (6/6)
+mixed-language      : 100.0% (3/3)
+boundary-neighbor   : 100.0% (2/2)
+noise-distractor    : 100.0% (6/6)
+negative            : 50.0% (3/6)
+
+--- Chunking Metrics ---
+totalChunks       : 21
+oversizedChunks   : 0
+sectionlessRate   : 100.0%
+avgChunkTokens    : 279 approx
+p50ChunkTokens    : 269 approx
+p95ChunkTokens    : 377 approx
+
+--- Failed Negative Queries ---
+[raw-neg-01] What is the Qdrant timeout for the staging cluster?
+  matched forbidden: 5000ms, qdrant timeout after
+  offending result:
+    rank: #1
+    source_file: raw-mixed-incident-log.txt
+    chunk_index: 0
+    score: 0.0333
+    snippet: "...10T12:05:00Z WARN: Qdrant timeout after 5000ms. [[BENCH_ANCHOR: QDRANT_TIMEOUT_LOG]] We tried restarting i..."
+    match_in_chunk: true
+  interpretation: query asks staging, retrieved evidence contains prod/qdrant-prod
+[raw-neg-03] How to build a graph in production?
+  matched forbidden: будови графа
+  offending result:
+    rank: #1
+    source_file: raw-mixed-incident-log.txt
+    chunk_index: 0
+    score: 0.0331
+    snippet: "... Критична помилка: бракує пам'яті для побудови графа [[BENCH_ANCHOR: UA_OOM_GRAPH]] Спроба перезапуску... 2026-0..."
+    match_in_chunk: true
+[raw-neg-06] Where are the metrics stored?
+  matched forbidden: metrics
+  offending result:
+    rank: #1
+    source_file: raw-config-dump.txt
+    chunk_index: 0
+    score: 0.0333
+    snippet: "...EMETRY=false TELEMETRY_ENDPOINT=https://metrics. internal/api # semidex specific vars ONNX_EMBED=1 [[BENCH_..."
+    match_in_chunk: true
+  offending result:
+    rank: #4
+    source_file: raw-mixed-incident-log.txt
+    chunk_index: 1
+    score: 0.0304
+    snippet: "...00:00Z] INFO Normal operations resumed. Metrics stable. [2026-05-10T12:00:10Z] ERROR java. lang. OutOfMemor..."
+    match_in_chunk: true

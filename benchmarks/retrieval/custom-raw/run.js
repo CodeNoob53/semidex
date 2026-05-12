@@ -31,6 +31,7 @@ const COLLECTION  = 'bench-retrieval-custom-raw';
 const TOP_K       = parseInt(process.env.BENCH_TOP_K || '5', 10);
 const BENCH_CONTEXT_WINDOW = parseInt(process.env.BENCH_CONTEXT_WINDOW || '1', 10);
 const SKIP_INDEX  = process.env.BENCH_SKIP_INDEX === '1';
+const NEGATIVE_WINDOW = process.env.BENCH_NEGATIVE_WINDOW === '1';
 
 const FIXTURE_FILES = [
   'raw-mixed-incident-log.txt',
@@ -271,26 +272,74 @@ async function main() {
       negCount++;
       const topK = results.slice(0, TOP_K);
       const forbidden = query.forbiddenTokens?.map(t => t.toLowerCase()) || [];
-        let hasForbidden = false;
-        let matchedForbidden = [];
-        let topMatchedText = '';
-        for (const res of topK) {
-          const text = (res.payload?.text || '').toLowerCase();
-          for (const ft of forbidden) {
-            if (text.includes(ft)) {
-              hasForbidden = true;
-              matchedForbidden.push(ft);
-              if (!topMatchedText) topMatchedText = text.substring(0, 100).replace(/\n/g, ' ') + '...';
-            }
+
+      let hasForbidden = false;
+      const negDetail = {
+        matchedForbidden: [],
+        offendingResults: [],
+      };
+
+      for (let rank = 0; rank < topK.length; rank++) {
+        const res = topK[rank];
+        const rawText = res.payload?.text || '';
+        const lowerText = rawText.toLowerCase();
+        const matchedHere = [];
+
+        for (const ft of forbidden) {
+          if (lowerText.includes(ft)) {
+            hasForbidden = true;
+            if (!negDetail.matchedForbidden.includes(ft)) negDetail.matchedForbidden.push(ft);
+            matchedHere.push(ft);
           }
         }
 
-        if (!hasForbidden) {
-          negPass++;
-          passed = true;
-        } else {
-          r.failureReason = `Found forbidden tokens: [${[...new Set(matchedForbidden)].join(', ')}] in chunk: "${topMatchedText}"`;
+        if (matchedHere.length > 0) {
+          // Build a snippet centred on the first forbidden token match
+          const firstFt = matchedHere[0];
+          const idx = lowerText.indexOf(firstFt);
+          const snippetStart = Math.max(0, idx - 40);
+          const snippetEnd   = Math.min(rawText.length, idx + firstFt.length + 60);
+          const snippet = rawText.slice(snippetStart, snippetEnd).replace(/\n/g, ' ');
+          const ellL = snippetStart > 0 ? '...' : '';
+          const ellR = snippetEnd < rawText.length ? '...' : '';
+
+          negDetail.offendingResults.push({
+            rank: rank + 1,
+            source_file: res.payload?.source_file ?? '?',
+            chunk_index: res.payload?.chunk_index ?? '?',
+            score: typeof res.score === 'number' ? res.score.toFixed(4) : '?',
+            matchedForbidden: matchedHere,
+            snippet: `${ellL}${snippet}${ellR}`,
+            fromChunkText: true,
+          });
         }
+      }
+
+      // Scope mismatch analysis
+      const scopeMismatch = (() => {
+        if (!query.scopeTerms?.length || !query.corpusScopeTerms?.length) return null;
+        const hasScope = query.scopeTerms.some(t =>
+          topK.some(r => (r.payload?.text || '').toLowerCase().includes(t.toLowerCase()))
+        );
+        const hasCorpus = query.corpusScopeTerms.some(t =>
+          topK.some(r => (r.payload?.text || '').toLowerCase().includes(t.toLowerCase()))
+        );
+        if (!hasScope && hasCorpus) {
+          return `query asks ${query.scopeTerms.join('/')}, retrieved evidence contains ${query.corpusScopeTerms.join('/')}`;
+        }
+        return null;
+      })();
+
+      if (negDetail.offendingResults.length > 0 && scopeMismatch) {
+        negDetail.offendingResults[0].interpretation = scopeMismatch;
+      }
+
+      if (!hasForbidden) {
+        negPass++;
+        passed = true;
+      } else {
+        r.negDetail = negDetail;
+      }
     } else {
       ctxRecallCount++;
       if (windowRecallHit(results, query.qrels, TOP_K, BENCH_CONTEXT_WINDOW)) {
@@ -324,8 +373,10 @@ async function main() {
   const pct = (num, den) => den === 0 ? 'n/a' : (num / den * 100).toFixed(1) + '%';
 
   const date = new Date().toISOString().slice(0, 10);
-  const isDefault = TOP_K === 5 && BENCH_CONTEXT_WINDOW === 1 && !SKIP_INDEX;
-  const suffix = isDefault ? '-baseline' : `-k${TOP_K}-w${BENCH_CONTEXT_WINDOW}${SKIP_INDEX ? '-skip' : ''}`;
+  const isDefault = TOP_K === 5 && BENCH_CONTEXT_WINDOW === 1 && !SKIP_INDEX && !NEGATIVE_WINDOW;
+  const suffix = isDefault
+    ? '-baseline'
+    : `-k${TOP_K}-w${BENCH_CONTEXT_WINDOW}${SKIP_INDEX ? '-skip' : ''}${NEGATIVE_WINDOW ? '-negative-window' : ''}`;
   const outPath = resolve(RESULTS_DIR, `${date}-custom-raw${suffix}.txt`);
 
   if (!isDefault) {
@@ -358,13 +409,50 @@ async function main() {
     `p95ChunkTokens    : ${p95Chunk} approx`,
   ];
 
-  const failedNegatives = queryResults.filter(r => r.query.shouldHaveNoStrongHit && r.failureReason);
+  const failedNegatives = queryResults.filter(r => r.query.shouldHaveNoStrongHit && r.negDetail);
   if (failedNegatives.length > 0) {
-    lines.push(
-      '',
-      '--- Failed Negative Queries ---',
-      ...failedNegatives.map(r => `[${r.query.id}] ${r.failureReason}`)
-    );
+    lines.push('', '--- Failed Negative Queries ---');
+    for (const r of failedNegatives) {
+      const d = r.negDetail;
+      lines.push(`[${r.query.id}] ${r.query.query}`);
+      lines.push(`  matched forbidden: ${d.matchedForbidden.join(', ')}`);
+      for (const o of d.offendingResults) {
+        lines.push(`  offending result:`);
+        lines.push(`    rank: #${o.rank}`);
+        lines.push(`    source_file: ${o.source_file}`);
+        lines.push(`    chunk_index: ${o.chunk_index}`);
+        lines.push(`    score: ${o.score}`);
+        lines.push(`    snippet: "${o.snippet}"`);
+        lines.push(`    match_in_chunk: ${o.fromChunkText}`);
+        if (o.interpretation) {
+          lines.push(`  interpretation: ${o.interpretation}`);
+        }
+      }
+    }
+  }
+
+  if (NEGATIVE_WINDOW) {
+    const allNegatives = queryResults.filter(r => r.query.shouldHaveNoStrongHit);
+    lines.push('', '--- Negative Top-K Diagnostic ---');
+    for (const r of allNegatives) {
+      const status = r.negDetail ? 'FAIL' : 'PASS';
+      lines.push(`[${r.query.id}] ${status}  "${r.query.query}"`);
+      if (r.query.scopeTerms?.length) {
+        lines.push(`  scopeTerms: ${r.query.scopeTerms.join(', ')}`);
+      }
+      if (r.query.corpusScopeTerms?.length) {
+        lines.push(`  corpusScopeTerms: ${r.query.corpusScopeTerms.join(', ')}`);
+      }
+      const topK = r.results.slice(0, TOP_K);
+      for (let rank = 0; rank < topK.length; rank++) {
+        const res = topK[rank];
+        const score = typeof res.score === 'number' ? res.score.toFixed(4) : '?';
+        const src = res.payload?.source_file ?? '?';
+        const ci  = res.payload?.chunk_index ?? '?';
+        const preview = (res.payload?.text || '').replace(/\n/g, ' ').slice(0, 80);
+        lines.push(`  #${rank + 1} [${score}] ${src}#${ci}  "${preview}..."`);
+      }
+    }
   }
 
   writeFileSync(outPath, lines.join('\n') + '\n', 'utf8');
