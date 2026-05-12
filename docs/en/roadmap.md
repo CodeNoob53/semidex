@@ -245,12 +245,24 @@ is closer to an incremental project index than a one-shot document import.
 
 ### Git-like incremental indexing
 
+Stage 1 — partial incremental sync (implemented):
+
+- deleted-file cleanup: implemented via `PRUNE_STALE=1`; after the indexing loop,
+  points whose `source_file` is absent from the current directory scan are removed
+  from Qdrant (opt-in, directory-scope only — see configuration docs)
+- changed-file skip: implemented via hash/provider metadata; files already indexed
+  with the same content hash and provider are skipped without re-embedding
+- rename behavior: documented — the old `source_file` persists in Qdrant until
+  `PRUNE_STALE=1` is run over the full source root; the new path is indexed as a
+  fresh file
+
+Stage 2 — full incremental sync (planned):
+
 - index a whole repository with stable include/exclude rules and `SOURCE_ROOT`
 - store a per-collection manifest of source files, hashes, provider metadata, chunking settings, and source root
 - detect changed, new, deleted, and renamed files (e.g. optionally use `git status --porcelain` as a fast change signal, with a scan-based fallback)
 - use stable point IDs for deterministic upsert
 - use Qdrant batch update/delete operations
-- only re-embed changed files; delete points for removed files
 - force a full reindex only when provider, schema, vector size, or chunking settings change
 - goal: large codebase/project indexing without full rebuild
 
@@ -278,9 +290,10 @@ Later extensions:
 
 Success signals:
 
+- deleted files disappear from search results (opt-in via `PRUNE_STALE=1` — implemented)
+- unchanged files are skipped during re-index runs (implemented via hash/provider metadata)
 - large repositories can be refreshed without full reindexing
 - changed files become searchable quickly
-- deleted files disappear from search results
 - agents search current codebase state instead of stale snapshots
 - indexing cost scales with the size of the change, not the size of the repo
 
