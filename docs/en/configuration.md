@@ -81,6 +81,19 @@ Safety constraints:
 
 For safest pruning, run against the same full directory root used for indexing. Use `SOURCE_ROOT` for stable `source_file` scope across machines or moved working directories.
 
+Examples:
+
+```bash
+# Safe: full root prune — target matches the root used for indexing
+PRUNE_STALE=1 COLLECTION=my-docs npm run index ./docs
+
+# Skipped with warning: single-file target cannot represent full collection scope
+PRUNE_STALE=1 COLLECTION=my-docs npm run index ./docs/config.md
+
+# Skipped with warning: target is a subset of SOURCE_ROOT
+PRUNE_STALE=1 SOURCE_ROOT=./docs COLLECTION=my-docs npm run index ./docs/guides
+```
+
 ## Chunking
 
 | Variable | Default | Description |

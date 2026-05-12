@@ -155,6 +155,7 @@ Mixed provider combinations, such as `ollama` dense + `bge-m3-onnx` sparse, are 
 | Command | Description |
 |---------|-------------|
 | `COLLECTION=my-docs npm run index ./docs` | Index a file or folder |
+| `PRUNE_STALE=1 COLLECTION=my-docs npm run index ./docs` | Index and remove Qdrant points for files no longer on disk |
 | `npm run mcp` | Start the MCP server over stdio |
 | `npm run sync` | Sync `config.json` and Qdrant payload indexes |
 | `npm run smoke` | Fast offline smoke tests — runs in CI on every push/PR |
@@ -164,6 +165,8 @@ Mixed provider combinations, such as `ollama` dense + `bge-m3-onnx` sparse, are 
 | `npm run bench:retrieval:compare` | Compare default provider vs ONNX |
 | `npm run bench:retrieval:rerank` | Rerank matrix benchmark |
 | `npm run bench:retrieval:mmr` | MMR diversity matrix benchmark |
+
+`PRUNE_STALE=1` compares the files found on disk against all `source_file` values stored in Qdrant and deletes any points whose source file is no longer present. Run only against the full directory root used for indexing. When `SOURCE_ROOT` is set, subset directory targets are rejected with a warning.
 
 ## Supported Formats
 
@@ -216,7 +219,7 @@ Not implemented yet:
 - ColBERT / late-interaction retrieval
 - Full external dataset evaluation
 - True BM25/SPLADE fallback for Node-only sparse retrieval
-- Incremental project/codebase sync for changed, deleted, and renamed files
+- Incremental project/codebase sync for changed and renamed files (deleted files are handled via `PRUNE_STALE=1`)
 
 ## Acknowledgements
 

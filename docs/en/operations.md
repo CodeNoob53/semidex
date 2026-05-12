@@ -34,6 +34,20 @@ This keeps `source_file` IDs stable regardless of which subfolder is passed to t
 
 Files outside `SOURCE_ROOT` cause an explicit error.
 
+## Stale file cleanup
+
+When files are deleted or renamed, their Qdrant points remain until explicitly pruned. Use `PRUNE_STALE=1` to remove them after the indexing loop:
+
+```bash
+PRUNE_STALE=1 COLLECTION=my-docs npm run index ./docs
+```
+
+After indexing completes, semidex compares the files found on disk against all `source_file` values stored in Qdrant. Any file present in Qdrant but absent from the current scan is deleted from Qdrant and removed from the graph.
+
+Run only against the **full directory root** used for indexing. Single-file targets are rejected with a warning. When `SOURCE_ROOT` is set, subdirectory targets are also rejected because they cannot safely represent the full collection scope.
+
+Renamed files: the old `source_file` persists in Qdrant until `PRUNE_STALE=1` is run over the full directory. The new path is indexed as a fresh file.
+
 ## Qdrant indexes and sync
 
 ```bash
