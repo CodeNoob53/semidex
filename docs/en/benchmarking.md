@@ -40,6 +40,8 @@ It covers:
 
 `npm run smoke:source-filter-live` is an optional live regression for `source_file` disambiguation behavior against `bench-retrieval-custom-raw`. Sets `ONNX_EMBED=1` internally. Runs three searches on "What is the Qdrant timeout?" — unfiltered (both sources must appear), config-filtered (resolves to `qdrant_timeout_ms: 10000`, incident content absent), incident-filtered (resolves to `Qdrant timeout after 5000ms`, config content absent). Not part of default CI.
 
+`npm run smoke:answer-policy-live` is an optional live regression for agent answer-policy evidence contracts against `bench-retrieval-custom-raw`. Sets `ONNX_EMBED=1` internally. Validates five deterministic cases: ambiguous unfiltered query (both valid contexts present → `CLARIFICATION_REQUIRED`), config-scoped query (`ANSWER_CONFIG_VALUE`), incident-scoped query (`ANSWER_INCIDENT_VALUE`), staging scope sentinel where no staging evidence exists (`SCOPE_MISMATCH_REFUSAL_REQUIRED`), and prod-service query (`ANSWER_OBSERVED_PROD_SERVICE_VALUE`). No LLM calls — asserts evidence conditions only. Not part of default CI.
+
 ## Three Benchmark Tiers
 
 semidex has three benchmark tiers with different purposes:
