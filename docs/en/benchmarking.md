@@ -34,7 +34,7 @@ npm run smoke:answer-policy-live      # answer-policy evidence contracts (bench-
 
 ## Smoke Tests
 
-`npm run smoke` is fast and does not require Qdrant or Ollama.
+`npm run smoke` is fast and does not require Qdrant or Ollama. It runs in CI on every push and pull request (`.github/workflows/smoke.yml`).
 
 It covers:
 
