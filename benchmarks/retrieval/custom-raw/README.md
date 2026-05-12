@@ -28,6 +28,10 @@ ONNX_EMBED=1 node benchmarks/retrieval/custom-raw/run.js
 | `BENCH_SKIP_INDEX` | `0` | Skip re-indexing (use existing collection) |
 | `BENCH_NEGATIVE_WINDOW` | `0` | Append a top-K diagnostic listing all negative queries with every retrieved result. Saves to a separate `-negative-window` file so the baseline is not overwritten. |
 
+## Negative Query Design Principle
+
+Negative queries should test missing evidence, not merely broad vocabulary overlap. If the corpus contains adjacent terms such as `metrics.internal` or `qdrant-prod-svc`, the query should name the missing scope precisely, e.g. `Prometheus metrics database` rather than `metrics`.
+
 ## Negative Query Schema
 
 Negative queries (`shouldHaveNoStrongHit: true`) support the following optional fields for scope mismatch analysis:

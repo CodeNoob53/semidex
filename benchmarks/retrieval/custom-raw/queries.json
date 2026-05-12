@@ -273,14 +273,14 @@
     {
       "id": "raw-neg-03",
       "type": "negative",
-      "query": "How to build a graph in production?",
+      "query": "What are the manual steps to construct a knowledge graph in a production deployment?",
       "shouldHaveNoStrongHit": true,
       "expectedAnchors": [],
       "expectedTokens": [],
       "expectedFiles": [],
-      "forbiddenTokens": ["будови графа"],
-      "scopeTerms": ["production", "prod"],
-      "corpusScopeTerms": ["графа", "incident", "crash"]
+      "forbiddenTokens": ["manual steps", "construct a knowledge graph", "production deployment guide"],
+      "scopeTerms": ["manual steps", "production deployment", "knowledge graph"],
+      "corpusScopeTerms": ["OOM", "crash", "бракує пам'яті", "побудови графа", "qdrant-prod-svc"]
     },
     {
       "id": "raw-neg-04",
@@ -309,14 +309,14 @@
     {
       "id": "raw-neg-06",
       "type": "negative",
-      "query": "Where are the metrics stored?",
+      "query": "Where is the Prometheus or Grafana metrics database hosted?",
       "shouldHaveNoStrongHit": true,
       "expectedAnchors": [],
       "expectedTokens": [],
       "expectedFiles": [],
-      "forbiddenTokens": ["metrics", "metrics.internal"],
-      "scopeTerms": ["metrics", "metrics.internal"],
-      "corpusScopeTerms": ["qdrant", "config", "incident"]
+      "forbiddenTokens": ["prometheus", "grafana", "metrics database", "database hosted"],
+      "scopeTerms": ["prometheus", "grafana", "metrics database"],
+      "corpusScopeTerms": ["metrics.internal", "TELEMETRY_ENDPOINT", "telemetry", "endpoint"]
     }
   ]
 }

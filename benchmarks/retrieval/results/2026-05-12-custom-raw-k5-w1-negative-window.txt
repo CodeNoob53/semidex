@@ -6,8 +6,8 @@ Top-K: 5  Context Window: +-1
 contextRecall@5   : 100.0%
 tokenHit@5        : 100.0%
 fileRecall@5      : 100.0%
-negativePassRate  : 50.0%
-Latency p50/p95   : 90ms / 105ms
+negativePassRate  : 83.3%
+Latency p50/p95   : 92ms / 106ms
 
 --- Per-Type Breakdown ---
 exact-token         : 100.0% (7/7)
@@ -15,7 +15,7 @@ paraphrase          : 100.0% (6/6)
 mixed-language      : 100.0% (3/3)
 boundary-neighbor   : 100.0% (2/2)
 noise-distractor    : 100.0% (6/6)
-negative            : 50.0% (3/6)
+negative            : 83.3% (5/6)
 
 --- Chunking Metrics ---
 totalChunks       : 21
@@ -36,31 +36,6 @@ p95ChunkTokens    : 377 approx
     snippet: "...10T12:05:00Z WARN: Qdrant timeout after 5000ms. [[BENCH_ANCHOR: QDRANT_TIMEOUT_LOG]] We tried restarting i..."
     match_in_chunk: true
   interpretation: query asks staging, retrieved evidence contains prod/qdrant-prod
-[raw-neg-03] How to build a graph in production?
-  matched forbidden: будови графа
-  offending result:
-    rank: #1
-    source_file: raw-mixed-incident-log.txt
-    chunk_index: 0
-    score: 0.0331
-    snippet: "... Критична помилка: бракує пам'яті для побудови графа [[BENCH_ANCHOR: UA_OOM_GRAPH]] Спроба перезапуску... 2026-0..."
-    match_in_chunk: true
-[raw-neg-06] Where are the metrics stored?
-  matched forbidden: metrics
-  offending result:
-    rank: #1
-    source_file: raw-config-dump.txt
-    chunk_index: 0
-    score: 0.0333
-    snippet: "...EMETRY=false TELEMETRY_ENDPOINT=https://metrics. internal/api # semidex specific vars ONNX_EMBED=1 [[BENCH_..."
-    match_in_chunk: true
-  offending result:
-    rank: #4
-    source_file: raw-mixed-incident-log.txt
-    chunk_index: 1
-    score: 0.0304
-    snippet: "...00:00Z] INFO Normal operations resumed. Metrics stable. [2026-05-10T12:00:10Z] ERROR java. lang. OutOfMemor..."
-    match_in_chunk: true
 
 --- Negative Top-K Diagnostic ---
 [raw-neg-01] FAIL  "What is the Qdrant timeout for the staging cluster?"
@@ -77,16 +52,16 @@ p95ChunkTokens    : 377 approx
   #1 [0.0325] raw-config-dump.txt#0  "env dump from prod server --- # core platform vars NODE_ENV=production LOG_LEVEL..."
   #2 [0.0320] raw-mixed-incident-log.txt#0  "[2026-05-10T08:00:00Z] INFO System boot sequence initiated. [2026-05-10T08:00:15..."
   #3 [0.0318] raw-agent-notes.txt#0  "Meeting Notes: Tuesday Project Semidex Attendees: Alice, Bob, Charlie Agenda: 1...."
-  #4 [0.0306] raw-agent-notes.txt#5  "Charlie: We can use a media query to collapse the sidebar on mobile. That solves..."
-  #5 [0.0296] raw-agent-notes.txt#2  "Charlie: We can use a media query to collapse the sidebar on mobile. That solves..."
-[raw-neg-03] FAIL  "How to build a graph in production?"
-  scopeTerms: production, prod
-  corpusScopeTerms: графа, incident, crash
-  #1 [0.0331] raw-mixed-incident-log.txt#0  "[2026-05-10T08:00:00Z] INFO System boot sequence initiated. [2026-05-10T08:00:15..."
-  #2 [0.0325] raw-mixed-incident-log.txt#1  "Readiness probes passing. [2026-05-10T12:14:00Z] INFO Verifying graph integrity...."
-  #3 [0.0308] raw-mixed-incident-log.txt#2  "INFO Reconnecting to broker 0... [2026-05-10T12:04:14Z] ERROR java. lang. OutOfM..."
-  #4 [0.0304] raw-config-dump.txt#3  "], "replicas": 3 }, { "id": 9, "name": "service-9", "status": "running", "ports"..."
-  #5 [0.0299] raw-mixed-incident-log.txt#3  "DEBUG Heartbeat 8 received from pod-worker-8 INFO Reconnecting to broker 2... [2..."
+  #4 [0.0306] raw-agent-notes.txt#4  "Charlie: We can use a media query to collapse the sidebar on mobile. That solves..."
+  #5 [0.0294] raw-agent-notes.txt#3  "Charlie: We can use a media query to collapse the sidebar on mobile. That solves..."
+[raw-neg-03] PASS  "What are the manual steps to construct a knowledge graph in a production deployment?"
+  scopeTerms: manual steps, production deployment, knowledge graph
+  corpusScopeTerms: OOM, crash, бракує пам'яті, побудови графа, qdrant-prod-svc
+  #1 [0.0331] raw-mixed-incident-log.txt#1  "Readiness probes passing. [2026-05-10T12:14:00Z] INFO Verifying graph integrity...."
+  #2 [0.0331] raw-mixed-incident-log.txt#0  "[2026-05-10T08:00:00Z] INFO System boot sequence initiated. [2026-05-10T08:00:15..."
+  #3 [0.0317] raw-mixed-incident-log.txt#2  "INFO Reconnecting to broker 0... [2026-05-10T12:04:14Z] ERROR java. lang. OutOfM..."
+  #4 [0.0305] raw-mixed-incident-log.txt#4  "WARN Connection timeout 13 to database backend. DEBUG Heartbeat 13 received from..."
+  #5 [0.0301] raw-mixed-incident-log.txt#3  "DEBUG Heartbeat 8 received from pod-worker-8 INFO Reconnecting to broker 2... [2..."
 [raw-neg-04] PASS  "What is the token limit of OpenAI GPT-4?"
   scopeTerms: openai, gpt-4
   corpusScopeTerms: gemma3, local, llm_model
@@ -99,15 +74,15 @@ p95ChunkTokens    : 377 approx
   scopeTerms: git, reindex
   corpusScopeTerms: indexer, sync, upsert
   #1 [0.0333] raw-agent-notes.txt#1  "Interviews start next week. Bob will prepare the technical screening questions. ..."
-  #2 [0.0318] raw-agent-notes.txt#3  "Charlie: We can use a media query to collapse the sidebar on mobile. That solves..."
-  #3 [0.0315] raw-agent-notes.txt#6  "Charlie: We can use a media query to collapse the sidebar on mobile. That solves..."
-  #4 [0.0311] raw-mixed-incident-log.txt#0  "[2026-05-10T08:00:00Z] INFO System boot sequence initiated. [2026-05-10T08:00:15..."
-  #5 [0.0308] raw-agent-notes.txt#7  "Charlie: We can use a media query to collapse the sidebar on mobile. That solves..."
-[raw-neg-06] FAIL  "Where are the metrics stored?"
-  scopeTerms: metrics, metrics.internal
-  corpusScopeTerms: qdrant, config, incident
-  #1 [0.0333] raw-config-dump.txt#0  "env dump from prod server --- # core platform vars NODE_ENV=production LOG_LEVEL..."
-  #2 [0.0315] raw-mixed-incident-log.txt#0  "[2026-05-10T08:00:00Z] INFO System boot sequence initiated. [2026-05-10T08:00:15..."
-  #3 [0.0311] raw-agent-notes.txt#0  "Meeting Notes: Tuesday Project Semidex Attendees: Alice, Bob, Charlie Agenda: 1...."
-  #4 [0.0304] raw-mixed-incident-log.txt#1  "Readiness probes passing. [2026-05-10T12:14:00Z] INFO Verifying graph integrity...."
-  #5 [0.0164] raw-config-dump.txt#1  "ENV_VAR_MOCK_16='value_16' ENV_VAR_MOCK_17='value_17' ENV_VAR_MOCK_18='value_18'..."
+  #2 [0.0315] raw-agent-notes.txt#5  "Charlie: We can use a media query to collapse the sidebar on mobile. That solves..."
+  #3 [0.0311] raw-mixed-incident-log.txt#0  "[2026-05-10T08:00:00Z] INFO System boot sequence initiated. [2026-05-10T08:00:15..."
+  #4 [0.0311] raw-agent-notes.txt#2  "Charlie: We can use a media query to collapse the sidebar on mobile. That solves..."
+  #5 [0.0310] raw-agent-notes.txt#7  "Charlie: We can use a media query to collapse the sidebar on mobile. That solves..."
+[raw-neg-06] PASS  "Where is the Prometheus or Grafana metrics database hosted?"
+  scopeTerms: prometheus, grafana, metrics database
+  corpusScopeTerms: metrics.internal, TELEMETRY_ENDPOINT, telemetry, endpoint
+  #1 [0.0318] raw-config-dump.txt#0  "env dump from prod server --- # core platform vars NODE_ENV=production LOG_LEVEL..."
+  #2 [0.0315] raw-mixed-incident-log.txt#1  "Readiness probes passing. [2026-05-10T12:14:00Z] INFO Verifying graph integrity...."
+  #3 [0.0314] raw-mixed-incident-log.txt#4  "WARN Connection timeout 13 to database backend. DEBUG Heartbeat 13 received from..."
+  #4 [0.0311] raw-mixed-incident-log.txt#5  "java:833) WARN Connection timeout 18 to database backend. DEBUG Heartbeat 18 rec..."
+  #5 [0.0308] raw-mixed-incident-log.txt#0  "[2026-05-10T08:00:00Z] INFO System boot sequence initiated. [2026-05-10T08:00:15..."
