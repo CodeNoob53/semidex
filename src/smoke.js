@@ -258,6 +258,72 @@ console.log('\n[7] Reranker top-1 protection');
   }
 }
 
+// ── 8. Compact window chunk formatting ──────────────────────────────────────
+// Imports and tests the production assembleWindowChunks helper from
+// src/mcp/tools/search.js without live Qdrant. Mirrors the getStoredMeta
+// load-bearing case: rank-1 is qdrant.md#5 (Payload Indexes), the next
+// neighbor qdrant.md#6 carries the six reindex discriminator fields.
+console.log('\n[8] Compact window chunk formatting (no Qdrant)');
+{
+  const { assembleWindowChunks } = await import('./mcp/tools/search.js');
+
+  // Synthetic points for the getStoredMeta case (window=1 around chunk_index=5).
+  // Neighbor text front-loads all six field names so they survive the 150-char slice.
+  const MATCH_IDX = 5;
+  const matchText = 'Payload Indexes: source_file is indexed as keyword for fast filter lookups. getStoredMeta is the primary caller.';
+  const neighborText = 'Fields: file_hash, dense_provider, dense_model, sparse_provider, embedding_schema_version, vector_size. getStoredMeta scrolls one point matching source_file and returns these six reindex discriminator fields from its payload.';
+
+  const syntheticPoints = [
+    { payload: { source_file: 'qdrant.md', chunk_index: MATCH_IDX,     section: 'Payload Indexes', text: matchText    } },
+    { payload: { source_file: 'qdrant.md', chunk_index: MATCH_IDX + 1, section: 'getStoredMeta',   text: neighborText } },
+  ];
+
+  // ── 8a: compact mode ──
+  const compact = assembleWindowChunks(syntheticPoints, MATCH_IDX, 'compact');
+
+  ok('compact: two window chunks returned',             compact.length === 2);
+  ok('compact: matched chunk is_match=true',            compact[0].is_match === true);
+  ok('compact: neighbor chunk is_match=false',          compact[1].is_match === false);
+  ok('compact: matched chunk has text_snippet',         typeof compact[0].text_snippet === 'string');
+  ok('compact: neighbor chunk has text_snippet',        typeof compact[1].text_snippet === 'string');
+  ok('compact: matched chunk has no .text field',       !Object.prototype.hasOwnProperty.call(compact[0], 'text'));
+  ok('compact: neighbor has no .text field',            !Object.prototype.hasOwnProperty.call(compact[1], 'text'));
+
+  // Neighbor is >150 chars — must be truncated with "..."
+  ok('compact: neighbor snippet ≤ 153 chars (150 + "...")', compact[1].text_snippet.length <= 153);
+  ok('compact: neighbor snippet ends with "..."',            compact[1].text_snippet.endsWith('...'));
+
+  // The 150-char slice must contain all six discriminator field names
+  const snippet = compact[1].text_snippet;
+  ok('compact: neighbor snippet contains file_hash',                 snippet.includes('file_hash'));
+  ok('compact: neighbor snippet contains dense_provider',            snippet.includes('dense_provider'));
+  ok('compact: neighbor snippet contains dense_model',               snippet.includes('dense_model'));
+  ok('compact: neighbor snippet contains sparse_provider',           snippet.includes('sparse_provider'));
+  ok('compact: neighbor snippet contains embedding_schema_version',  snippet.includes('embedding_schema_version'));
+  ok('compact: neighbor snippet contains vector_size',               snippet.includes('vector_size'));
+
+  // ── 8b: full mode ──
+  const full = assembleWindowChunks(syntheticPoints, MATCH_IDX, 'full');
+
+  ok('full: neighbor has .text field',             Object.prototype.hasOwnProperty.call(full[1], 'text'));
+  ok('full: neighbor .text is untruncated',        full[1].text === neighborText);
+  ok('full: neighbor has no text_snippet field',   !Object.prototype.hasOwnProperty.call(full[1], 'text_snippet'));
+
+  // ── 8c: assembleWindowChunks with empty input returns empty array ──
+  // (production window=0 guard is in handle() — it never calls assembleWindowChunks;
+  // this tests the helper's own empty-input invariant)
+  const noPoints = assembleWindowChunks([], MATCH_IDX, 'compact');
+  ok('assembleWindowChunks: empty input → empty array', noPoints.length === 0);
+
+  // ── 8d: deduplication — same neighbor appearing twice must be emitted once ──
+  const dup = assembleWindowChunks([
+    { payload: { source_file: 'qdrant.md', chunk_index: MATCH_IDX,     section: 'Payload Indexes', text: matchText    } },
+    { payload: { source_file: 'qdrant.md', chunk_index: MATCH_IDX + 1, section: 'getStoredMeta',   text: neighborText } },
+    { payload: { source_file: 'qdrant.md', chunk_index: MATCH_IDX + 1, section: 'getStoredMeta',   text: neighborText } }, // duplicate
+  ], MATCH_IDX, 'compact');
+  ok('deduplication: duplicate non-match neighbor emitted once', dup.length === 2);
+}
+
 // ── Summary ──────────────────────────────────────────────────────────────────
 console.log(`\n${'─'.repeat(50)}`);
 console.log(`Smoke tests: ${passed} passed, ${failed} failed`);
