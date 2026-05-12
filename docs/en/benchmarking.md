@@ -496,3 +496,6 @@ Seven qualitative live-agent simulations over `bench-retrieval-custom-raw`, most
 
 - **Negative answer regression** — `benchmarks/retrieval/results/2026-05-12-custom-raw-negative-answer-regression.md`
   All 6 negative queries pass at agent-answer level (6/6, up from 3/6 before query cleanup). raw-neg-01 and raw-neg-04 are scope sentinel cases — forbidden tokens present in retrieved text but correctly withheld. raw-neg-03 and raw-neg-06 fixed by query rewrite. raw-neg-01 remains the intentional corpus-level scope sentinel.
+
+- **Positive compact-window smoke** — `benchmarks/retrieval/results/2026-05-12-positive-compact-window-smoke.md`
+  8 positive queries across bench-retrieval and bench-retrieval-custom-50; 8/8 PASS. `window=1 compact` is load-bearing in 3/8 cases (delivers the answer or a key detail not in rank 1). Window filler is harmless. `top=3, window=1, window_format="compact"` confirmed safe as the recommended agent search pattern for normal positive queries.
