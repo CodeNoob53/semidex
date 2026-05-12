@@ -34,6 +34,9 @@ It covers:
 - reindex detection
 - chunking edge cases
 - reranker top-1 protection
+- compact window chunk formatting (`assembleWindowChunks` — `is_match`, dedup, truncation)
+
+`npm run smoke:window-live` is an optional live regression that requires Qdrant. Sets `ONNX_EMBED=1` internally — no env prefix needed. It verifies that the `bench-retrieval-custom-50` corpus still exposes the `getStoredMeta` discriminator fields through `window=1, window_format="compact"`. Not part of default CI.
 
 ## Three Benchmark Tiers
 
