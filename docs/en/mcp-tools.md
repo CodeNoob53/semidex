@@ -38,6 +38,7 @@ The tool defaults to `window=0` (backward-compatible, shortest output). When `wi
 
 **Recommended Agent Pattern:** `qdrant_search(window=1, window_format="compact", top=3)`
 For tasks where the agent must implement, explain, or decide based on the context, this pattern provides necessary neighboring setup/continuation without bloating the context budget.
+Use `top=5` for ambiguous, negative, or scope-sensitive queries where the answer may not be at rank 1.
 
 - **Deduplication**: In windowed search, the matched chunk (`is_match: true`) is always preserved in its own window. Duplicate neighbor chunks across results are safely omitted.
 
@@ -76,6 +77,10 @@ Raw/unstructured corpus chunks may contain distractor values, stale config, or c
 - `tags` filter: OR across requested tags
 - `source_file` filter: restricts search to one file
 - combined tag + file filtering
+
+**`source_file` filter decision rules:**
+- If the user names a file, source, document type, or clear context ("in the config", "in the incident log"), apply `source_file` when the matching file is known.
+- If no scope is given, do not invent a filter. If retrieved evidence contains multiple valid contexts (e.g., a configured timeout in one file and an observed timeout in another), surface both and ask for clarification.
 
 Required Qdrant payload indexes:
 

@@ -38,6 +38,8 @@ It covers:
 
 `npm run smoke:window-live` is an optional live regression that requires Qdrant. Sets `ONNX_EMBED=1` internally — no env prefix needed. It verifies that the `bench-retrieval-custom-50` corpus still exposes the `getStoredMeta` discriminator fields through `window=1, window_format="compact"`. Not part of default CI.
 
+`npm run smoke:source-filter-live` is an optional live regression for `source_file` disambiguation behavior against `bench-retrieval-custom-raw`. Sets `ONNX_EMBED=1` internally. Runs three searches on "What is the Qdrant timeout?" — unfiltered (both sources must appear), config-filtered (resolves to `qdrant_timeout_ms: 10000`, incident content absent), incident-filtered (resolves to `Qdrant timeout after 5000ms`, config content absent). Not part of default CI.
+
 ## Three Benchmark Tiers
 
 semidex has three benchmark tiers with different purposes:
