@@ -25,7 +25,8 @@
     "bench:custom-raw": "node benchmarks/retrieval/custom-raw/run.js",
     "smoke:window-live": "node benchmarks/retrieval/custom-50/smoke-live-window.js",
     "smoke:source-filter-live": "node benchmarks/retrieval/custom-raw/smoke-live-source-filter.js",
-    "smoke:answer-policy-live": "node benchmarks/retrieval/custom-raw/smoke-live-answer-policy.js"
+    "smoke:answer-policy-live": "node benchmarks/retrieval/custom-raw/smoke-live-answer-policy.js",
+    "smoke:retrieval-live": "node benchmarks/retrieval/smoke-live.js"
   },
   "dependencies": {
     "@huggingface/transformers": "^4.2.0",
