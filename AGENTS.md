@@ -104,6 +104,23 @@ Search returns the matched chunk text plus `source_file` and `chunk_index`. The 
 Tag filters are OR across tags. Combining `tags` with `source_file` narrows to
 chunks in that file matching any requested tag.
 
+## Agent Retrieval Safety Rules
+
+Use `qdrant_search(..., window=1, window_format="compact", top=3)` as the recommended agent search pattern when enough context is needed to answer safely. Use `top=5` for ambiguous, negative, or scope-sensitive queries.
+
+Do not treat absolute RRF score values as confidence. RRF scores are useful for ranking within one result set, but not as a calibrated relevance signal.
+
+Before answering, verify scope:
+- environment: staging vs prod
+- model/provider: OpenAI/GPT-4 vs local Gemma/Ollama/BGE-M3
+- database/system: PostgreSQL vs Qdrant
+- feature: ColBERT vs BGE-M3 sparse
+- storage vs endpoint/config references
+
+If the query asks about one scope but retrieved evidence clearly refers to another, state the mismatch and do not answer as if the evidence matched.
+
+Raw/unstructured chunks may contain distractors, stale values, commented-out values, or explicit false examples. Prefer values that are current, non-distractor, and directly tied to the query.
+
 ## Search Tactics For Agents
 
 - Use both natural-language and exact-token queries when needed. Example:

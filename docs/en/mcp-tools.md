@@ -43,6 +43,21 @@ For tasks where the agent must implement, explain, or decide based on the contex
 
 If implementation requires even broader context, follow up with `qdrant_get_chunk(..., window=1 or 2)`.
 
+### Retrieval Safety
+
+Before answering from retrieved evidence, verify that the evidence matches the query's scope:
+
+- **Environment:** staging vs prod — do not answer a staging query from prod evidence.
+- **Model/provider:** OpenAI/GPT-4 vs local Gemma/Ollama/BGE-M3.
+- **System:** PostgreSQL vs Qdrant; Prometheus/Grafana vs telemetry endpoints.
+- **Feature:** ColBERT vs BGE-M3 sparse.
+
+If retrieved evidence refers to a different scope than the query, state the mismatch explicitly and decline to answer.
+
+Do not use absolute RRF score as a confidence threshold. All RRF scores in a result set fall in a narrow range (~0.016–0.033); ranking within the set is meaningful, but the absolute value is not.
+
+Raw/unstructured corpus chunks may contain distractor values, stale config, or commented-out examples adjacent to correct values. Use `is_match: true` to identify the retrieved chunk; read it critically before forming an answer.
+
 ## Tool Reference
 
 | Tool | Arguments | Description |

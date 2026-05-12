@@ -444,3 +444,30 @@ Latest Results (`top=3`/`window=1`):
 - The programmatic tool default remains `window=0`
 - The recommended agent pattern is `qdrant_search(window=1, window_format="compact", top=3)`
 - Note: The baseline follow-up metric is a heuristic assumption based on missing context, not a strict ranking metric.
+
+## Live Agent Review Findings
+
+Source: `benchmarks/retrieval/results/2026-05-12-clean-live-agent-review.md`
+
+Qualitative live-agent review across all four bge-m3-onnx benchmark collections (bench-retrieval, custom-50, custom-large, custom-raw). Not a statistically complete benchmark.
+
+**Key findings:**
+
+- For structured documentation collections (bench-retrieval, custom-50, custom-large), most answerable queries return the correct evidence at rank 1 or 2 with no false positives.
+- The confirmed recommended agent call pattern is `qdrant_search(query, collection, top=3, window=1, window_format="compact")`. Use `top=5` for ambiguous, negative, or scope-sensitive queries.
+- window=1 compact rescued one silent wrong-answer case (q6 in bench-retrieval) with no observed regressions across 40 tested queries.
+- RRF scores fall uniformly in 0.016–0.033 across all collections. Do not use absolute score as confidence.
+- The one confirmed FAIL_FALSE_POSITIVE (raw-neg-01: staging Qdrant timeout) is a corpus-level scope-absence issue, not a retrieval algorithm failure. It requires agent-side scope verification to mitigate.
+- Ukrainian and mixed-language queries are correctly handled by the neural sparse component of bge-m3-onnx.
+
+**custom-raw negative query cleanup (2026-05-12):**
+
+Source: `benchmarks/retrieval/results/2026-05-12-custom-raw-negative-query-cleanup.md`
+
+Rewrote raw-neg-03 and raw-neg-06 to test missing evidence rather than vocabulary overlap. `negativePassRate` improved from 50% to 83.3%. The remaining 16.7% failure (raw-neg-01) is intentional — it is the corpus-level scope-absence sentinel for the agent scope-check instruction.
+
+**custom-raw scope policy simulation (2026-05-12):**
+
+Source: `benchmarks/retrieval/results/2026-05-12-custom-raw-scope-policy-simulation.md`
+
+Tested whether a simple agent scope-verification rule ("if evidence refers to a different scope than the query, state mismatch and decline") prevents the false positive confirmed above. Result: 4/6 PASS, 2/6 FAIL. The policy fully resolves raw-neg-01 (staging vs prod — the only confirmed FAIL_FALSE_POSITIVE). It has no effect on clean negatives (raw-neg-02, 04, 05). It does not resolve raw-neg-03 and raw-neg-06 because both had vocabulary overlap in the corpus — those were query-design problems, resolved by the query rewrites above.
