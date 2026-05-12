@@ -471,3 +471,28 @@ Rewrote raw-neg-03 and raw-neg-06 to test missing evidence rather than vocabular
 Source: `benchmarks/retrieval/results/2026-05-12-custom-raw-scope-policy-simulation.md`
 
 Tested whether a simple agent scope-verification rule ("if evidence refers to a different scope than the query, state mismatch and decline") prevents the false positive confirmed above. Result: 4/6 PASS, 2/6 FAIL. The policy fully resolves raw-neg-01 (staging vs prod — the only confirmed FAIL_FALSE_POSITIVE). It has no effect on clean negatives (raw-neg-02, 04, 05). It does not resolve raw-neg-03 and raw-neg-06 because both had vocabulary overlap in the corpus — those were query-design problems, resolved by the query rewrites above.
+
+**custom-raw agent behavior reports (2026-05-12):**
+
+Seven qualitative live-agent simulations over `bench-retrieval-custom-raw`, mostly using `qdrant_search(top=5, window=1, window_format="compact")` — except distractor discipline, which used `top=3`.
+
+- **Distractor discipline** — `benchmarks/retrieval/results/2026-05-12-custom-raw-distractor-discipline.md`
+  5/6 PASS_WITH_DISTRACTOR, 1 AMBIGUOUS. All distractors in current fixtures use the `Distractor:` prefix label; a careful agent handles them. The raw-noise-04 case (compact vs full snippets — direct opposites, same syntax) is the highest-risk instance. Unlabelled stale values in real-world corpora remain the next stress test.
+
+- **Timeout ambiguity** — `benchmarks/retrieval/results/2026-05-12-custom-raw-timeout-ambiguity.md`
+  Two legitimate Qdrant timeout values coexist: `qdrant_timeout_ms: 10000` (configured client timeout, config dump) and `Qdrant timeout after 5000ms` (observed incident timeout, incident log). Both rank at 0.033 for the bare query "What is the Qdrant timeout?" — no score signal resolves the tie. Queries that name the source context ("prod config", "incident log") are answerable; bare scopeless queries require clarification.
+
+- **Timeout answer discipline** — `benchmarks/retrieval/results/2026-05-12-custom-raw-timeout-answer-discipline.md`
+  All 3 queries PASS: specific queries answered correctly from rank 1; bare scopeless query surfaces both values and asks for clarification rather than picking rank 1 blindly.
+
+- **Source filter disambiguation** — `benchmarks/retrieval/results/2026-05-12-custom-raw-timeout-source-filter.md`
+  Applying `source_file` filter when the user names a document fully resolves cross-file ambiguity (FILTER_CONFIG_CLEAR, FILTER_INCIDENT_CLEAR). Unfiltered search returns both values at equal rank (UNFILTERED_AMBIGUOUS). When no scope is given, do not invent a filter — surface both values and ask.
+
+- **Agent filter decision** — `benchmarks/retrieval/results/2026-05-12-custom-raw-agent-filter-decision.md`
+  5 prompts, all PASS. Exact filename → apply `source_file` (certain). Domain alias ("prod config", "incident log") → apply `source_file` (high confidence). No scope → no filter; ask for clarification.
+
+- **Staging/prod scope sentinel** — `benchmarks/retrieval/results/2026-05-12-custom-raw-staging-prod-scope-sentinel.md`
+  4 prompts. Staging queries (P1, P4) correctly refuse — "staging" and "qdrant-staging-svc" are absent from the entire corpus, but the retriever still returns prod evidence at equal rank. Scope mismatch detection is entirely agent-side; scores and rank do not suppress cross-scope chunks.
+
+- **Negative answer regression** — `benchmarks/retrieval/results/2026-05-12-custom-raw-negative-answer-regression.md`
+  All 6 negative queries pass at agent-answer level (6/6, up from 3/6 before query cleanup). raw-neg-01 and raw-neg-04 are scope sentinel cases — forbidden tokens present in retrieved text but correctly withheld. raw-neg-03 and raw-neg-06 fixed by query rewrite. raw-neg-01 remains the intentional corpus-level scope sentinel.
