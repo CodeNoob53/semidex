@@ -498,4 +498,13 @@ Seven qualitative live-agent simulations over `bench-retrieval-custom-raw`, most
   All 6 negative queries pass at agent-answer level (6/6, up from 3/6 before query cleanup). raw-neg-01 and raw-neg-04 are scope sentinel cases — forbidden tokens present in retrieved text but correctly withheld. raw-neg-03 and raw-neg-06 fixed by query rewrite. raw-neg-01 remains the intentional corpus-level scope sentinel.
 
 - **Positive compact-window smoke** — `benchmarks/retrieval/results/2026-05-12-positive-compact-window-smoke.md`
-  8 positive queries across bench-retrieval and bench-retrieval-custom-50; 8/8 PASS. `window=1 compact` is load-bearing in 3/8 cases (delivers the answer or a key detail not in rank 1). Window filler is harmless. `top=3, window=1, window_format="compact"` confirmed safe as the recommended agent search pattern for normal positive queries.
+  8 positive queries across bench-retrieval and bench-retrieval-custom-50; 8/8 PASS. `window=1 compact` is strictly load-bearing in 1/8 (Q6 getStoredMeta — rank 1 alone does not list the six reindex fields; the next-chunk window does). Q4 (Ukrainian, score 0.017) is still rank-1 correct, confirming RRF scores must not be used as confidence thresholds. Window filler is harmless.
+
+- **Expanded window utility audit** — `benchmarks/retrieval/results/2026-05-12-expanded-window-utility-audit.md`
+  24 positive queries across bench-retrieval (8), custom-50 (8), and custom-large (8); 24/24 PASS. Window RISKY_CONTEXT: 0. Window USEFUL_CONTEXT: 13/24 (54%). Window HARMLESS_FILLER: 9/24 (38%, higher in custom-large due to anchor-only chunks and empty section headers). Window strictly LOAD_BEARING: 0/24 — rare but real (~3% across 32 total positive queries combining smoke + expanded). Custom-large filler is a fixture-design artifact; production collections are expected lower.
+
+**Window pattern recommendation (2026-05-12):**
+
+- Use `qdrant_search(top=3, window=1, window_format="compact")` for normal positive agent queries — confirmed across 32 positive queries with 0 risky windows.
+- Use `top=5` for scope-sensitive, negative, or ambiguous queries.
+- Defer a dedicated window-behavior fixture; create one only if a RISKY_CONTEXT case or unexpected window failure is observed in live use.
