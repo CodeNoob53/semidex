@@ -69,6 +69,17 @@ These are passed on the command line, not in `.env`:
 |----------|-------------|
 | `COLLECTION` | Target Qdrant collection name |
 | `SOURCE_ROOT` | Root path for stable `source_file` IDs across runs |
+| `PRUNE_STALE` | Set to `1` to remove Qdrant points for source files no longer on disk |
+
+`PRUNE_STALE=1` is opt-in and **directory-scope only**. After the indexing loop completes, it compares source files found on disk against all `source_file` values stored in Qdrant. Any file present in Qdrant but absent from the current directory scan is deleted from Qdrant and removed from the graph.
+
+Safety constraints:
+- If the target path is a single file (not a directory), `PRUNE_STALE=1` is ignored with a warning. A single-file run cannot safely represent the full collection scope.
+- If `SOURCE_ROOT` is set and the target directory is a subset of it, `PRUNE_STALE=1` is ignored with a warning. The prune step requires the target to cover the full collection scope.
+- If Qdrant is unreachable during the stale check, the prune step is skipped with a warning — the main indexing run is not affected.
+- Rename behavior: a renamed file leaves its old `source_file` in Qdrant until `PRUNE_STALE=1` is run over the full directory. The new path is indexed as a fresh file.
+
+For safest pruning, run against the same full directory root used for indexing. Use `SOURCE_ROOT` for stable `source_file` scope across machines or moved working directories.
 
 ## Chunking
 

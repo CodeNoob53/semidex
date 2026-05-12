@@ -8,7 +8,7 @@ import { processChunks } from './phases/context.js';
 import { addTagsBatch } from './phases/tag.js';
 import { buildLinks } from './phases/link.js';
 import { runBatched } from './batch.js';
-import { upsertPoints, updatePayload, listCollections, createCollection, getStoredMeta, deleteBySourceFile } from '../core/qdrant.js';
+import { upsertPoints, updatePayload, listCollections, createCollection, getStoredMeta, deleteBySourceFile, listSourceFiles } from '../core/qdrant.js';
 import { loadGraph, saveGraph, removeFile } from '../core/graph.js';
 import { loadConfig, saveConfig, resolveEnvProviders } from '../core/config.js';
 import { embedForIndex, getEmbeddingConfig, SCHEMA_VERSION } from '../core/embeddings.js';
@@ -143,6 +143,11 @@ ${chunk.text}
   });
 }
 
+export function computeStaleSourceFiles(indexedSourceFiles, storedSourceFiles) {
+  const indexed = new Set(indexedSourceFiles);
+  return storedSourceFiles.filter(sf => !indexed.has(sf));
+}
+
 const SUPPORTED_EXTENSIONS = new Set(['.md', '.txt', '.docx', '.odt', '.rtf', '.epub', '.html', '.htm', '.pdf']);
 
 function collectFiles(targetPath) {
@@ -187,12 +192,33 @@ async function main() {
     }
   }
 
+  const PRUNE_STALE = process.env.PRUNE_STALE === '1';
   const absTarget = resolve(targetPath);
-  const rootPath = statSync(absTarget).isDirectory() ? absTarget : dirname(absTarget);
+  const isDirectory = statSync(absTarget).isDirectory();
+  const rootPath = isDirectory ? absTarget : dirname(absTarget);
+  const effectiveRoot = SOURCE_ROOT ?? rootPath;
   const files = collectFiles(absTarget);
-  if (!files.length) { console.log('No supported files found.'); process.exit(0); }
 
-  console.log(`Found ${files.length} file(s) to process`);
+  // Without PRUNE_STALE an empty directory is a no-op; exit early.
+  // With PRUNE_STALE we still need to run the stale check even if no files
+  // are on disk (e.g. the last file in a collection was deleted).
+  if (!files.length && !PRUNE_STALE) { console.log('No supported files found.'); process.exit(0); }
+  if (!files.length && PRUNE_STALE)  { console.log('No supported files found on disk — continuing to stale check.'); }
+
+  // PRUNE_STALE safety: single-file target cannot represent full collection scope.
+  if (PRUNE_STALE && !isDirectory) {
+    console.warn('\nWARN: PRUNE_STALE=1 ignored — stale cleanup requires a directory target, not a single file.');
+  }
+
+  // PRUNE_STALE safety: subset directory. If SOURCE_ROOT is set, prune is only
+  // safe when the target covers the entire root. Indexing a subdirectory would
+  // incorrectly treat files outside it as stale.
+  const pruneAllowed = PRUNE_STALE && isDirectory && absTarget === effectiveRoot;
+  if (PRUNE_STALE && isDirectory && !pruneAllowed) {
+    console.warn(`\nWARN: PRUNE_STALE=1 ignored — target "${absTarget}" is a subset of SOURCE_ROOT "${effectiveRoot}". Run against the full root to prune safely.`);
+  }
+
+  if (files.length) console.log(`Found ${files.length} file(s) to process`);
   let indexed = 0, skipped = 0;
 
   const graph = loadGraph(COLLECTION);
@@ -202,7 +228,36 @@ async function main() {
   }
   saveGraph(graph, COLLECTION);
 
+  if (pruneAllowed) {
+    const indexedSourceFiles = files.map(f => relative(effectiveRoot, f).replace(/\\/g, '/'));
+    let storedSourceFiles;
+    let pruneSkipped = false;
+    try {
+      storedSourceFiles = await listSourceFiles(COLLECTION);
+    } catch (e) {
+      console.warn(`\nWARN: PRUNE_STALE=1 skipped — could not list source files from Qdrant: ${e.message}`);
+      pruneSkipped = true;
+    }
+    if (!pruneSkipped) {
+      const stale = computeStaleSourceFiles(indexedSourceFiles, storedSourceFiles);
+      if (stale.length === 0) {
+        console.log('\nPRUNE_STALE: no stale source files found.');
+      } else {
+        console.log(`\nPRUNE_STALE: pruning ${stale.length} stale source file(s)...`);
+        for (const sf of stale) {
+          await deleteBySourceFile(COLLECTION, sf);
+          removeFile(graph, sf);
+          console.log(`  - removed: ${sf}`);
+        }
+        saveGraph(graph, COLLECTION);
+      }
+    }
+  }
+
   console.log(`\nDone. ${files.length} file(s): ${indexed} indexed, ${skipped} skipped.`);
 }
 
-main().catch(err => { console.error(err); process.exit(1); });
+// Run only when executed directly, not when imported for testing.
+if (process.argv[1] && (process.argv[1].endsWith('index.js') || process.argv[1].endsWith('index'))) {
+  main().catch(err => { console.error(err); process.exit(1); });
+}

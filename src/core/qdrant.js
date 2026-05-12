@@ -155,6 +155,30 @@ export async function deleteBySourceFile(collection, sourceFile) {
   if (!r.ok) throw new Error(`Qdrant delete failed: ${await r.text()}`);
 }
 
+export async function listSourceFiles(collection) {
+  const seen = new Set();
+  let offset = null;
+  const limit = 250;
+  while (true) {
+    const body = { limit, with_payload: ['source_file'] };
+    if (offset !== null) body.offset = offset;
+    const r = await fetch(`${URL}/collections/${collection}/points/scroll`, {
+      method: 'POST',
+      headers: headers(),
+      body: JSON.stringify(body),
+    });
+    if (!r.ok) throw new Error(`Qdrant scroll (listSourceFiles) failed: ${await r.text()}`);
+    const data = await r.json();
+    const points = data.result?.points ?? [];
+    for (const p of points) {
+      if (p.payload?.source_file) seen.add(p.payload.source_file);
+    }
+    offset = data.result?.next_page_offset ?? null;
+    if (!points.length || offset === null) break;
+  }
+  return [...seen];
+}
+
 export async function createPayloadIndex(collection, field, type = 'keyword') {
   const r = await fetch(`${URL}/collections/${collection}/index`, {
     method: 'PUT',
