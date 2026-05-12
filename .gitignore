@@ -1,6 +1,7 @@
 node_modules/
 package-lock.json
 chunks_out/
+.claude/
 .tmp/
 .tmp-gemma-fixtures/
 .env
