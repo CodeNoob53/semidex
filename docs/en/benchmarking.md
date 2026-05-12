@@ -30,6 +30,7 @@ npm run smoke:retrieval-live          # aggregate: runs all three below sequenti
 npm run smoke:window-live             # compact window utility (bench-retrieval-custom-50)
 npm run smoke:source-filter-live      # source_file disambiguation (bench-retrieval-custom-raw)
 npm run smoke:answer-policy-live      # answer-policy evidence contracts (bench-retrieval-custom-raw)
+npm run smoke:prune-live              # destructive-isolated: creates and deletes a temp collection
 ```
 
 ## Smoke Tests
@@ -52,6 +53,8 @@ It covers:
 `npm run smoke:answer-policy-live` is an optional live regression for agent answer-policy evidence contracts against `bench-retrieval-custom-raw`. Sets `ONNX_EMBED=1` internally. Validates five deterministic cases: ambiguous unfiltered query (both valid contexts present → `CLARIFICATION_REQUIRED`), config-scoped query (`ANSWER_CONFIG_VALUE`), incident-scoped query (`ANSWER_INCIDENT_VALUE`), staging scope sentinel where no staging evidence exists (`SCOPE_MISMATCH_REFUSAL_REQUIRED`), and prod-service query (`ANSWER_OBSERVED_PROD_SERVICE_VALUE`). No LLM calls — asserts evidence conditions only. Not part of default CI.
 
 `npm run smoke:retrieval-live` aggregates all three live smokes above (`smoke:window-live`, `smoke:source-filter-live`, `smoke:answer-policy-live`) into a single command. Runs them sequentially and stops on first failure, propagating the exit code. Optional, live-Qdrant-dependent, not part of default CI.
+
+`npm run smoke:prune-live` is a destructive-isolated live integration smoke for `PRUNE_STALE=1`. It creates a uniquely named temporary Qdrant collection (`smoke-prune-<timestamp>`), indexes two small fixture files, deletes one from disk, re-runs the indexer with `PRUNE_STALE=1`, and asserts the deleted file's `source_file` is absent from Qdrant and the graph. Cleans up the temp collection, graph file, and temp directory on exit. Not included in `smoke:retrieval-live` — it is more expensive (two indexer runs, collection create/delete) and destructive in scope.
 
 ## Three Benchmark Tiers
 

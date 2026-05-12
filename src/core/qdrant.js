@@ -203,6 +203,14 @@ export async function createCollection(name, size = 1024) {
   await createPayloadIndex(name, 'chunk_index', 'integer');
 }
 
+export async function deleteCollection(name) {
+  const r = await fetch(`${URL}/collections/${name}`, {
+    method: 'DELETE',
+    headers: headers(),
+  });
+  if (!r.ok) throw new Error(`Delete collection failed: ${await r.text()}`);
+}
+
 export async function hasSparseVectors(collection) {
   const r = await fetch(`${URL}/collections/${collection}/points/scroll`, {
     method: 'POST',
