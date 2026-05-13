@@ -207,4 +207,5 @@ LINK_COLLECTIONS=my-docs,my-notes COLLECTION=my-docs npm run index ./docs
 | Provider mismatch triggers unexpected full reindex | Changed `ONNX_EMBED`, `DENSE_PROVIDER`, `SPARSE_PROVIDER`, schema version, or `vectorSize` | Expected behavior — let reindex complete; do not interrupt |
 | `pandoc: Unknown input format pdf` | Pandoc cannot read PDFs | PDFs are handled by `pdf-parse`; pandoc is only used for `.docx`, `.odt`, `.rtf`, `.epub`, `.html`, `.htm` |
 | First ONNX indexing run is very slow | Model download and cache warmup (~2.3 GB) | Wait for download to complete; all subsequent runs use `./models/` cache |
+| `ONNX_EXECUTION_PROVIDER=cuda` falls back to CPU | CUDA not bundled in `onnxruntime-node` | Expected — semidex retries with CPU automatically and logs a warning; use `dml` on Windows for GPU acceleration without extra packages |
 | Wrong search results after re-indexing | `config.json` still has old provider metadata | Check `config.json` entry for the collection, run `npm run sync`, verify provider fields match the current indexing env |

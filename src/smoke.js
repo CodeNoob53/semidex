@@ -518,6 +518,52 @@ console.log('\n[11] recursiveChunkText (no Qdrant)');
   }
 }
 
+// ── 12. resolveOnnxExecutionProviders (no model load) ───────────────────────
+console.log('\n[12] resolveOnnxExecutionProviders (no model load)');
+{
+  // Save and clear env so tests control it explicitly.
+  const saved = process.env.ONNX_EXECUTION_PROVIDER;
+  delete process.env.ONNX_EXECUTION_PROVIDER;
+
+  const { resolveOnnxExecutionProviders } = await import('./core/onnx-embed.js');
+
+  // 12a. Unset → ['cpu']
+  ok('unset → [cpu]',
+    resolveOnnxExecutionProviders(undefined).join(',') === 'cpu');
+
+  // 12b. Empty string → ['cpu']
+  ok('empty string → [cpu]',
+    resolveOnnxExecutionProviders('').join(',') === 'cpu');
+
+  // 12c. 'cpu' → ['cpu']
+  ok("'cpu' → [cpu]",
+    resolveOnnxExecutionProviders('cpu').join(',') === 'cpu');
+
+  // 12d. 'dml' → ['dml', 'cpu'] (DirectML with CPU fallback)
+  {
+    const r = resolveOnnxExecutionProviders('dml');
+    ok("'dml' → includes dml",  r[0] === 'dml');
+    ok("'dml' → includes cpu fallback", r.includes('cpu'));
+  }
+
+  // 12e. 'cuda' → ['cuda'] (no auto-fallback in provider list; retry is in load())
+  {
+    const r = resolveOnnxExecutionProviders('cuda');
+    ok("'cuda' → [cuda]", r.length === 1 && r[0] === 'cuda');
+  }
+
+  // 12f. Invalid value → ['cpu']
+  ok("invalid value → [cpu]",
+    resolveOnnxExecutionProviders('webgpu').join(',') === 'cpu');
+
+  // 12g. Case-insensitive ('DML' treated as 'dml')
+  ok("'DML' uppercase → includes dml",
+    resolveOnnxExecutionProviders('DML')[0] === 'dml');
+
+  // Restore env.
+  if (saved !== undefined) process.env.ONNX_EXECUTION_PROVIDER = saved;
+}
+
 // ── Summary ──────────────────────────────────────────────────────────────────
 console.log(`\n${'─'.repeat(50)}`);
 console.log(`Smoke tests: ${passed} passed, ${failed} failed`);

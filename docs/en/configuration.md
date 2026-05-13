@@ -64,6 +64,21 @@ The light/fallback mode uses `ollama` + `hashed-tf`. It requires Ollama running 
 | `DENSE_PROVIDER` | unset | Explicit provider override: `ollama` or `bge-m3-onnx` |
 | `SPARSE_PROVIDER` | unset | Explicit sparse provider override |
 | `DENSE_MODEL` | unset | Dense model override for Ollama |
+| `ONNX_EXECUTION_PROVIDER` | `cpu` | ONNX Runtime execution provider: `cpu`, `dml`, or `cuda` |
+
+### ONNX_EXECUTION_PROVIDER
+
+Controls which hardware backend ONNX Runtime uses for inference. Only relevant when `ONNX_EMBED=1`.
+
+| Value | Backend | Notes |
+|-------|---------|-------|
+| `cpu` (default) | CPU | Portable, no extra setup required |
+| `dml` | DirectML | Windows GPU acceleration (NVIDIA, AMD, Intel). Falls back to CPU if DirectML is unavailable. No extra package needed — `onnxruntime-node` includes DirectML support on Windows. |
+| `cuda` | NVIDIA CUDA | Requires a CUDA-capable GPU. If the current `onnxruntime-node` build does not include CUDA support, semidex warns and retries with CPU. |
+
+GPU providers are **performance-only** — they do not change the embedding model or provider metadata and should not require reindexing; minor numeric differences between execution providers are possible.
+
+Invalid values produce a warning and fall back to `cpu`.
 
 ## Indexing (per-run)
 

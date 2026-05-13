@@ -92,6 +92,26 @@ async function fetchRange(filename, dest, from, total) {
   process.stderr.write(`\n[onnx] saved: ${filename}\n`);
 }
 
+const VALID_PROVIDERS = new Set(['cpu', 'dml', 'cuda']);
+
+// Resolve ONNX execution provider list from env value.
+// Returns an array suitable for onnxruntime executionProviders option.
+// - unset / 'cpu'  → ['cpu']
+// - 'dml'          → ['dml', 'cpu']  (DirectML with CPU fallback)
+// - 'cuda'         → ['cuda']        (caller handles retry on failure)
+// - anything else  → ['cpu'] + stderr warning
+export function resolveOnnxExecutionProviders(envValue) {
+  const val = (envValue ?? '').trim().toLowerCase();
+  if (!val || val === 'cpu') return ['cpu'];
+  if (!VALID_PROVIDERS.has(val)) {
+    process.stderr.write(`[onnx] ONNX_EXECUTION_PROVIDER="${envValue}" is not recognised — falling back to cpu\n`);
+    return ['cpu'];
+  }
+  if (val === 'dml') return ['dml', 'cpu'];
+  if (val === 'cuda') return ['cuda'];
+  return ['cpu'];
+}
+
 async function load() {
   if (tokenizer && session) return;
 
@@ -101,11 +121,28 @@ async function load() {
   for (const file of ['model.onnx', 'model.onnx.data']) await downloadFile(file);
 
   const modelPath = join(MODEL_DIR, 'model.onnx');
-  process.stderr.write('[onnx] creating inference session...\n');
-  session = await ort.InferenceSession.create(modelPath, {
-    executionProviders: ['cpu'],
-    graphOptimizationLevel: 'all',
-  });
+  const providers = resolveOnnxExecutionProviders(process.env.ONNX_EXECUTION_PROVIDER);
+  process.stderr.write(`[onnx] creating inference session (providers: ${providers.join(', ')})...\n`);
+
+  try {
+    session = await ort.InferenceSession.create(modelPath, {
+      executionProviders: providers,
+      graphOptimizationLevel: 'all',
+    });
+  } catch (err) {
+    // CUDA is not bundled in onnxruntime-node — retry with CPU only.
+    if (providers[0] === 'cuda') {
+      process.stderr.write(`[onnx] CUDA provider unavailable (${err.message}) — retrying with cpu\n`);
+      session = await ort.InferenceSession.create(modelPath, {
+        executionProviders: ['cpu'],
+        graphOptimizationLevel: 'all',
+      });
+      process.stderr.write('[onnx] session created with cpu fallback\n');
+    } else {
+      throw err;
+    }
+  }
+
   process.stderr.write(`[onnx] ready. outputs: ${session.outputNames}\n`);
 }
 
