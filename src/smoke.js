@@ -404,6 +404,120 @@ console.log('\n[10] resolveLinkCollections (no Qdrant)');
   }
 }
 
+// ── 11. recursiveChunkText ───────────────────────────────────────────────────
+console.log('\n[11] recursiveChunkText (no Qdrant)');
+{
+  const { recursiveChunkText } = await import('./indexer/phases/chunk.js');
+
+  // Read MAX from env the same way chunk.js does, so tests stay valid under any MAX_CHUNK_TOKENS.
+  const TOKEN_CHARS = 4;
+  const MAX = (() => { const v = parseInt(process.env.MAX_CHUNK_TOKENS ?? ''); return Number.isFinite(v) && v >= 1 ? v : 400; })();
+  const bigWord = 'A'.repeat(MAX * TOKEN_CHARS + 4); // single unsplittable word > MAX_TOKENS
+
+  // 11a. PDF page markers are stripped.
+  {
+    const text = 'First paragraph.\n\n-- 1 of 50 --\n\nSecond paragraph.';
+    const chunks = recursiveChunkText(text, { stripPageMarkers: true });
+    ok('page markers stripped — no chunk contains "of 50"',
+      chunks.every(c => !c.includes('of 50')));
+    ok('page markers stripped — both paragraphs present',
+      chunks.some(c => c.includes('First')) && chunks.some(c => c.includes('Second')));
+  }
+
+  // 11b. Paragraphs are packed without crossing MAX_TOKENS.
+  {
+    // Each paragraph = floor(MAX/2) tokens. Two fit (≈MAX + join overhead), three don't.
+    // Allow +1 token of join overhead (\n\n = 2 chars) per packed chunk.
+    const paraTokens = Math.floor(MAX / 2);
+    const para = 'B'.repeat(paraTokens * TOKEN_CHARS);
+    const text = `${para}\n\n${para}\n\n${para}`;
+    const chunks = recursiveChunkText(text);
+    ok('three half-MAX paragraphs → at least 2 chunks', chunks.length >= 2);
+    ok('no chunk exceeds MAX_TOKENS + join overhead', chunks.every(c => Math.ceil(c.length / TOKEN_CHARS) <= MAX + 1));
+  }
+
+  // 11c. Oversized paragraph falls back to sentence splitting.
+  {
+    // Each sentence = floor(MAX/2) tokens — fits alone but two together exceed MAX.
+    // Three sentences with no \n\n form one paragraph that is 1.5×MAX > MAX.
+    const sentTokens = Math.floor(MAX / 2);
+    const sent = 'C'.repeat(sentTokens * TOKEN_CHARS) + '.';
+    const text = `${sent} ${sent} ${sent}`; // no \n\n — single paragraph > MAX
+    const chunks = recursiveChunkText(text);
+    ok('oversized paragraph split by sentences → ≥ 2 chunks', chunks.length >= 2);
+    ok('sentence-split chunks within MAX_TOKENS', chunks.every(c => Math.ceil(c.length / TOKEN_CHARS) <= MAX));
+  }
+
+  // 11d. Oversized single sentence (no punctuation boundary) falls back to word splitting.
+  {
+    // Words totalling MAX * 1.2 tokens — no sentence boundary, guaranteed > MAX.
+    const targetChars = Math.ceil(MAX * 1.2) * TOKEN_CHARS;
+    const wordCount = Math.ceil(targetChars / 6); // avg word ~5 chars + space
+    const words = Array.from({ length: wordCount }, (_, i) => `word${i}`).join(' ');
+    const chunks = recursiveChunkText(words);
+    ok('oversized no-sentence text split by words → ≥ 2 chunks', chunks.length >= 2);
+    ok('word-split chunks within MAX_TOKENS', chunks.every(c => Math.ceil(c.length / TOKEN_CHARS) <= MAX));
+  }
+
+  // 11e. Tiny final chunk is preserved (not dropped).
+  {
+    const big = 'D'.repeat(MAX * TOKEN_CHARS - 4); // just under MAX_TOKENS as one paragraph
+    const tiny = 'tiny final';
+    const text = `${big}\n\n${tiny}`;
+    const chunks = recursiveChunkText(text);
+    ok('tiny final chunk preserved', chunks.some(c => c.includes('tiny final')));
+  }
+
+  // 11f. Empty input returns [].
+  {
+    ok('empty string → []', recursiveChunkText('').length === 0);
+    ok('whitespace-only → []', recursiveChunkText('   \n\n  ').length === 0);
+  }
+
+  // 11g. Text within MAX_TOKENS returned as single chunk.
+  {
+    const short = 'Short text that fits in one chunk.';
+    const chunks = recursiveChunkText(short);
+    ok('short text → exactly 1 chunk', chunks.length === 1);
+    ok('short text chunk content preserved', chunks[0] === short);
+  }
+
+  // 11h. stripPageMarkers=false (default) — markers not stripped.
+  {
+    const text = 'Para one.\n\n-- 3 of 10 --\n\nPara two.';
+    const chunks = recursiveChunkText(text); // default: no stripping
+    ok('stripPageMarkers=false — marker text preserved',
+      chunks.some(c => c.includes('3 of 10')));
+  }
+
+  // 11i. Unsplittable single word exceeding MAX_TOKENS is returned as-is (not dropped).
+  {
+    const chunks = recursiveChunkText(bigWord);
+    ok('unsplittable oversized word returned as-is (not dropped)', chunks.length === 1);
+    ok('unsplittable word content intact', chunks[0] === bigWord);
+  }
+
+  // 11j. Markdown chunking still uses chunkBySentences (chunkFile .md path unchanged).
+  {
+    const { chunkFile } = await import('./indexer/phases/chunk.js');
+    const md = `# Section A\nSentence one. Sentence two.\n\n# Section B\nSentence three.`;
+    const result = chunkFile('doc.md', md, 'doc.md');
+    ok('markdown: section A chunk exists', result.some(c => c.section === 'Section A'));
+    ok('markdown: section B chunk exists', result.some(c => c.section === 'Section B'));
+    ok('markdown: no cross-section bleed',
+      result.filter(c => c.section === 'Section B').every(c => !c.text.includes('Sentence one')));
+  }
+
+  // 11k. .txt does not use the PDF recursive path — page markers must NOT be stripped.
+  {
+    const { chunkFile } = await import('./indexer/phases/chunk.js');
+    const txtWithMarker = 'Some text.\n\n-- 7 of 100 --\n\nMore text.';
+    const result = chunkFile('notes.txt', txtWithMarker, 'notes.txt');
+    ok('.txt: PDF page marker preserved (not on recursive PDF path)',
+      result.some(c => c.text.includes('7 of 100')));
+  }
+}
+
 // ── Summary ──────────────────────────────────────────────────────────────────
 console.log(`\n${'─'.repeat(50)}`);
 console.log(`Smoke tests: ${passed} passed, ${failed} failed`);

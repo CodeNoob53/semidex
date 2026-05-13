@@ -52,34 +52,59 @@ function parseWikilinks(text) {
     .map(m => m[1].trim());
 }
 
-// Split PDF text (or any paragraph-structured plain text) by blank lines.
-// Page markers like "-- N of 288 --" are stripped before splitting.
-// Paragraphs are accumulated into chunks up to MAX_TOKENS; oversized single
-// paragraphs fall back to sentence splitting.
-function chunkByParagraphs(text) {
-  const cleaned = text.replace(/--\s*\d+\s*of\s*\d+\s*--/g, '').replace(/\n{3,}/g, '\n\n');
-  const paragraphs = cleaned.split(/\n\n+/).map(p => p.trim()).filter(p => p.length > 0);
+// Recursive text chunker: paragraph → sentence → word.
+// Each level tries to pack units up to MAX_TOKENS before falling to the next level.
+// No overlap — overlap is the responsibility of chunkBySentences used by chunkSections.
+// stripPageMarkers: strip "-- N of M --" markers emitted by pdf-parse.
+export function recursiveChunkText(text, { stripPageMarkers = false } = {}) {
+  let src = text;
+  if (stripPageMarkers) src = src.replace(/--\s*\d+\s*of\s*\d+\s*--/g, '');
+  src = src.replace(/\n{3,}/g, '\n\n').trim();
+  if (!src) return [];
+  return _splitLevel(src, LEVELS);
+}
+
+// Splitting levels in priority order.
+const LEVELS = [
+  { split: t => t.split(/\n\n+/).map(p => p.trim()).filter(Boolean), join: '\n\n' },
+  { split: t => splitSentences(t),                                   join: ' '   },
+  { split: t => t.split(/\s+/).filter(Boolean),                      join: ' '   },
+];
+
+function _splitLevel(text, levels) {
+  if (countTokens(text) <= MAX_TOKENS) return [text];
+  if (levels.length === 0) return [text]; // can't split further — return as-is
+
+  const [level, ...rest] = levels;
+  const units = level.split(text);
+
+  // If this level can't actually split the text, fall to next level immediately.
+  if (units.length <= 1) return _splitLevel(text, rest);
+
   const chunks = [];
   let current = [];
   let currentTokens = 0;
 
-  for (const para of paragraphs) {
-    const pt = countTokens(para);
-    if (currentTokens + pt > MAX_TOKENS && current.length > 0) {
-      chunks.push(current.join('\n\n'));
-      current = [];
-      currentTokens = 0;
-    }
-    if (pt > MAX_TOKENS) {
-      // oversized paragraph — fall back to sentence splitting
-      if (current.length > 0) { chunks.push(current.join('\n\n')); current = []; currentTokens = 0; }
-      chunks.push(...chunkBySentences(para));
+  for (const unit of units) {
+    const ut = countTokens(unit);
+    if (ut > MAX_TOKENS) {
+      // Unit is itself oversized — flush current accumulator then recurse deeper.
+      if (current.length > 0) {
+        chunks.push(current.join(level.join));
+        current = [];
+        currentTokens = 0;
+      }
+      chunks.push(..._splitLevel(unit, rest));
+    } else if (currentTokens + ut > MAX_TOKENS && current.length > 0) {
+      chunks.push(current.join(level.join));
+      current = [unit];
+      currentTokens = ut;
     } else {
-      current.push(para);
-      currentTokens += pt;
+      current.push(unit);
+      currentTokens += ut;
     }
   }
-  if (current.length > 0) chunks.push(current.join('\n\n'));
+  if (current.length > 0) chunks.push(current.join(level.join));
   return chunks;
 }
 
@@ -171,7 +196,7 @@ export function chunkFile(filePath, text, sourceFile) {
     const links = parseWikilinks(text);
     chunks.push(...chunkSections(sections, sourceFile, meta, links));
   } else if (ext === '.pdf') {
-    const subChunks = chunkByParagraphs(text);
+    const subChunks = recursiveChunkText(text, { stripPageMarkers: true });
     subChunks.forEach((t, i) => {
       chunks.push({ text: t, section: '', source_file: sourceFile, meta: {}, links: [], needsBoundaryCheck: i > 0 });
     });
