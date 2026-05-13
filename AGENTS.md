@@ -167,10 +167,10 @@ config in both `config.json` and Qdrant payload.
 
 Valid provider combinations:
 
-| Dense provider | Sparse provider | Notes |
-|----------------|-----------------|-------|
-| `ollama` | `hashed-tf` | Default, light setup |
-| `bge-m3-onnx` | `bge-m3-onnx` | Multilingual dense + neural sparse, `ONNX_EMBED=1` |
+| Dense provider | Sparse provider | Mode | Notes |
+|----------------|-----------------|------|-------|
+| `bge-m3-onnx` | `bge-m3-onnx` | `ONNX_EMBED=1` | **Recommended** — better retrieval quality, multilingual, neural sparse |
+| `ollama` | `hashed-tf` | default (no env) | Light fallback — requires Ollama running; `hashed-tf` has no corpus statistics |
 
 Mixed combinations are rejected at runtime.
 
@@ -259,6 +259,60 @@ run:
 ```bash
 npm run sync
 ```
+
+## Indexing Guide for Agents
+
+When asked to index documents, choose the mode based on the goal:
+
+### Recommended: ONNX (production quality)
+
+```bash
+ONNX_EMBED=1 COLLECTION=my-docs npm run index ./docs
+```
+
+Use for any serious indexing task — books, multilingual docs, benchmark collections.
+Downloads the ONNX model (~2.3 GB) once into `./models/`.
+
+### Light fallback
+
+```bash
+COLLECTION=my-docs npm run index ./docs
+```
+
+Use only when ONNX is unavailable or the user explicitly wants minimal setup.
+Requires Ollama running with `bge-m3` pulled.
+
+### Full-root cleanup after deletes/renames
+
+```bash
+PRUNE_STALE=1 ONNX_EMBED=1 COLLECTION=my-docs npm run index ./docs
+```
+
+Only safe when the target is the full source root. Removes Qdrant points for files
+no longer on disk. Never run against a single file or a subdirectory subset.
+
+### PDF / book indexing
+
+```bash
+ONNX_EMBED=1 MAX_CHUNK_TOKENS=800 COLLECTION=my-book npm run index ./book.pdf
+```
+
+PDFs are parsed by `pdf-parse` (not pandoc). Heading structure is typically lost;
+all chunks get `section: ""`. Chunking uses paragraph → sentence → word recursive
+splitting. `MAX_CHUNK_TOKENS=800` is a good starting point for dense prose.
+
+### Troubleshooting quick reference
+
+| Symptom | Action |
+|---------|--------|
+| `fetch failed` during indexing | Start Ollama; verify `bge-m3` and the configured `CONTEXT_MODEL` / `TAG_MODEL` are pulled (`gemma3:4b` in `.env.example`) |
+| Qdrant connection refused | Start Qdrant; verify `QDRANT_URL`; run `npm run sync` |
+| `Invalid provider combination` | Use default or `ONNX_EMBED=1` — do not mix providers |
+| `Not existing vector name: dense` warning in link phase | Run `npm run sync`; foreign (non-semidex) collections are ignored automatically |
+| Stale results after delete/rename | Run full-root `PRUNE_STALE=1 ... npm run index ./root` |
+| Unexpected full reindex after env change | Expected — provider/schema change forces reindex; let it complete |
+| `pandoc: Unknown input format pdf` | Not a bug — use `pdf-parse` path (`.pdf` extension is handled automatically) |
+| First ONNX run very slow | Model downloading (~2.3 GB); wait; cache used on next run |
 
 ## What Not To Do
 

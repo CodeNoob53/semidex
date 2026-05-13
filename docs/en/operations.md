@@ -1,5 +1,66 @@
 # Operations
 
+## Indexing Mode Guide
+
+### Recommended: production / multilingual
+
+Use for serious indexing — books, multilingual docs, benchmark collections, any corpus where retrieval quality matters:
+
+```bash
+ONNX_EMBED=1 COLLECTION=my-docs npm run index ./docs
+```
+
+- Dense + sparse: `bge-m3-onnx` + `bge-m3-onnx`
+- Downloads the ONNX model (~2.3 GB) on first use into `./models/`; subsequent runs use local cache
+- Best retrieval quality for current semidex work
+
+### Light / local fallback
+
+Use when ONNX model is unavailable or for quick early exploration:
+
+```bash
+COLLECTION=my-docs npm run index ./docs
+```
+
+- Dense + sparse: `ollama` + `hashed-tf`
+- Requires Ollama running locally with `bge-m3` pulled
+- `hashed-tf` has no corpus statistics — not recommended for production-quality retrieval
+
+### Full-root cleanup indexing
+
+Use after file deletes or renames, only when the target is the complete source root:
+
+```bash
+PRUNE_STALE=1 ONNX_EMBED=1 COLLECTION=my-docs npm run index ./docs
+```
+
+- Removes Qdrant points for files no longer on disk after the indexing loop
+- **Only safe for full root** — single files and subdirectory subsets are rejected with a warning
+- Rename = old `source_file` pruned + new path indexed as fresh file
+
+### PDF / book indexing
+
+```bash
+ONNX_EMBED=1 MAX_CHUNK_TOKENS=800 COLLECTION=my-book npm run index ./book.pdf
+```
+
+- PDFs are parsed by `pdf-parse`, not pandoc — pandoc cannot read PDFs
+- Heading structure is usually unavailable after extraction; all chunks get `section: ""`
+- Chunking uses a recursive paragraph → sentence → word splitter with page-marker cleanup
+- `MAX_CHUNK_TOKENS=800` is a reasonable starting point for dense book text; tune based on benchmark results
+- `chunks_out/` is a human review artifact only — Qdrant is the source of truth
+
+### Large corpus
+
+```bash
+SOURCE_ROOT=/path/to/vault ONNX_EMBED=1 COLLECTION=my-docs npm run index /path/to/vault
+```
+
+- Use `SOURCE_ROOT` for stable `source_file` paths when indexing from different working directories or machines
+- `PRUNE_STALE=1` is only safe when the target path equals `SOURCE_ROOT`
+- If Ollama/ONNX shows memory pressure under concurrent load, reduce `LLM_BATCH_SIZE`
+- Do not manually edit `vectorSize` in `config.json`
+
 ## Indexing
 
 Index one file:
@@ -135,17 +196,15 @@ LINK_COLLECTIONS=my-docs,my-notes COLLECTION=my-docs npm run index ./docs
 
 ## Troubleshooting
 
-### `fetch failed` on search
-
-Ollama must be running when the MCP server embeds queries with the Ollama provider.
-
-With `ONNX_EMBED=1`, Ollama is not required for search embeddings, but it is still used for context/tag generation during indexing unless those phases are changed.
-
-### Wrong search results
-
-Check that:
-
-- `config.json` provider metadata matches how the collection was indexed
-- `npm run sync` has been run
-- the collection has sparse vector support if hybrid search is expected
-- the source file was reindexed after provider/schema changes
+| Symptom | Likely cause | Action |
+|---------|-------------|--------|
+| `fetch failed` or `ECONNREFUSED` during context/tag generation | Ollama not running or wrong `OLLAMA_URL` | Start Ollama, verify `ollama pull bge-m3` and that the configured `CONTEXT_MODEL` / `TAG_MODEL` are pulled (`gemma3:4b` in `.env.example`), retry |
+| `fetch failed` on search with ollama provider | Ollama not running | Same as above; with `ONNX_EMBED=1`, Ollama is not needed for search but still used for context/tag during indexing |
+| Qdrant connection refused or timeout | Qdrant not running or wrong `QDRANT_URL` | Start Qdrant, verify `QDRANT_URL` in `.env`, run `npm run sync` |
+| `Invalid provider combination` | Mixed dense/sparse providers | Use either the default (no extra env) or `ONNX_EMBED=1` — mixed combos are rejected at runtime |
+| Search/link warning: `Not existing vector name: dense` | Old or foreign Qdrant collection without semidex named vectors | Run `npm run sync` for semidex-managed collections; foreign (non-semidex) collections are automatically excluded from link targets |
+| Stale search results after file delete or rename | Old Qdrant points remain | Run full-root `PRUNE_STALE=1 COLLECTION=... npm run index ./root` |
+| Provider mismatch triggers unexpected full reindex | Changed `ONNX_EMBED`, `DENSE_PROVIDER`, `SPARSE_PROVIDER`, schema version, or `vectorSize` | Expected behavior — let reindex complete; do not interrupt |
+| `pandoc: Unknown input format pdf` | Pandoc cannot read PDFs | PDFs are handled by `pdf-parse`; pandoc is only used for `.docx`, `.odt`, `.rtf`, `.epub`, `.html`, `.htm` |
+| First ONNX indexing run is very slow | Model download and cache warmup (~2.3 GB) | Wait for download to complete; all subsequent runs use `./models/` cache |
+| Wrong search results after re-indexing | `config.json` still has old provider metadata | Check `config.json` entry for the collection, run `npm run sync`, verify provider fields match the current indexing env |

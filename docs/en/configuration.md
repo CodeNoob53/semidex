@@ -14,9 +14,13 @@ It is git-ignored because it reflects your local Qdrant collections.
 
 | Mode | Config | Best for |
 |------|--------|----------|
-| Default / light | `DENSE_PROVIDER=ollama`, `SPARSE_PROVIDER=hashed-tf` | Fast setup, low memory, Ollama embeddings |
-| Quality / multilingual | `ONNX_EMBED=1` | Ukrainian, mixed-language, neural sparse lexical weights |
+| Quality / multilingual (recommended) | `ONNX_EMBED=1` | Serious indexing, books, multilingual docs, neural sparse lexical weights — **use this by default** |
+| Light / local fallback | default (no extra env) | Minimal setup, early exploration, when ONNX model is unavailable |
 | Rerank | `RERANK_ENABLED=1` | Experimental opt-in after benchmarking |
+
+`ONNX_EMBED=1` sets `bge-m3-onnx` for both dense and sparse. It downloads the model (~2.3 GB) on first use into `./models/`. Subsequent runs use the local cache.
+
+The light/fallback mode uses `ollama` + `hashed-tf`. It requires Ollama running locally with `bge-m3` pulled. `hashed-tf` is not BM25 — it provides sparse coverage but without corpus statistics. Use it when ONNX is unavailable, not as a production default.
 
 ## Example config.json
 
