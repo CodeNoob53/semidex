@@ -5,6 +5,7 @@ semidex includes both offline smoke tests and a live retrieval benchmark.
 ## Commands
 
 ```bash
+npm run bench:onnx-provider
 npm run smoke
 npm run bench:retrieval
 npm run bench:retrieval:compare
@@ -32,6 +33,23 @@ npm run smoke:source-filter-live      # source_file disambiguation (bench-retrie
 npm run smoke:answer-policy-live      # answer-policy evidence contracts (bench-retrieval-custom-raw)
 npm run smoke:prune-live              # destructive-isolated: creates and deletes a temp collection
 ```
+
+## ONNX Provider Speed Benchmark
+
+```bash
+npm run bench:onnx-provider
+PROVIDERS=cpu,dml npm run bench:onnx-provider
+```
+
+A local hardware benchmark — not a retrieval quality benchmark. Measures ONNX session init time and embedding throughput for each execution provider (`cpu`, `dml`, `cuda`) against a fixed set of 20 mixed short/medium/multilingual texts.
+
+Does not use Qdrant. Requires the ONNX model to be cached in `./models/` (run any `ONNX_EMBED=1` indexing task first to trigger the download).
+
+Outputs a plain-text table with init time, total time, avg ms/text, and speedup vs CPU baseline.
+
+`PROVIDERS` env var selects which providers to test (default: `cpu,dml,cuda`). `cuda` is expected to fall back to CPU on most setups since it is not bundled in `onnxruntime-node`.
+
+**Important:** GPU providers are performance-only. Switching `ONNX_EXECUTION_PROVIDER` does not change embedding model or provider metadata and does not require reindexing. Minor numeric differences between providers are possible but do not affect retrieval quality in practice.
 
 ## Smoke Tests
 
