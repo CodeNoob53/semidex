@@ -148,6 +148,24 @@ export function computeStaleSourceFiles(indexedSourceFiles, storedSourceFiles) {
   return storedSourceFiles.filter(sf => !indexed.has(sf));
 }
 
+// Returns the set of collections eligible as link targets.
+// Only Qdrant collections that are also known in config.json are included.
+// The current collection is always included (intra-collection cross-file links).
+// If LINK_COLLECTIONS env allowlist is set, it is applied on top of this filtered set
+// (same semantics as before: allowlist narrows, never expands beyond config-known).
+export function resolveLinkCollections(qdrantCollections, configCollections, currentCollection, envAllowlist) {
+  const configKnown = new Set(configCollections);
+  configKnown.add(currentCollection); // always include current, even if missing from config
+
+  const base = qdrantCollections.filter(c => configKnown.has(c));
+  // Ensure current collection is present even if not yet in qdrantCollections
+  // (e.g. just created and not yet returned by a fresh listCollections call).
+  if (!base.includes(currentCollection)) base.push(currentCollection);
+
+  if (!envAllowlist) return base;
+  return base.filter(c => envAllowlist.has(c));
+}
+
 const SUPPORTED_EXTENSIONS = new Set(['.md', '.txt', '.docx', '.odt', '.rtf', '.epub', '.html', '.htm', '.pdf']);
 
 function collectFiles(targetPath) {
@@ -192,6 +210,19 @@ async function main() {
     }
   }
 
+  // Limit link targets to config-known semidex collections (Stage 1 filter).
+  // LINK_COLLECTIONS env allowlist, if set, narrows further (existing semantics).
+  const linkCfg = loadConfig();
+  const linkEnvAllowlist = process.env.LINK_COLLECTIONS
+    ? new Set(process.env.LINK_COLLECTIONS.split(',').map(s => s.trim()))
+    : null;
+  const linkTargetCollections = resolveLinkCollections(
+    allCollections,
+    Object.keys(linkCfg.collections ?? {}),
+    COLLECTION,
+    linkEnvAllowlist,
+  );
+
   const PRUNE_STALE = process.env.PRUNE_STALE === '1';
   const absTarget = resolve(targetPath);
   const isDirectory = statSync(absTarget).isDirectory();
@@ -223,7 +254,7 @@ async function main() {
 
   const graph = loadGraph(COLLECTION);
   for (const filePath of files) {
-    const status = await indexFile(filePath, rootPath, COLLECTION, allCollections, graph);
+    const status = await indexFile(filePath, rootPath, COLLECTION, linkTargetCollections, graph);
     if (status === 'skipped') skipped++; else indexed++;
   }
   saveGraph(graph, COLLECTION);

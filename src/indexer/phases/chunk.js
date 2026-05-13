@@ -5,7 +5,7 @@ import { promisify } from 'util';
 import { createRequire } from 'module';
 
 const require = createRequire(import.meta.url);
-const pdfParse = require('pdf-parse');
+const { PDFParse } = require('pdf-parse');
 
 const execFileAsync = promisify(execFile);
 
@@ -50,6 +50,37 @@ function parseFrontmatter(text) {
 function parseWikilinks(text) {
   return [...text.matchAll(/\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/g)]
     .map(m => m[1].trim());
+}
+
+// Split PDF text (or any paragraph-structured plain text) by blank lines.
+// Page markers like "-- N of 288 --" are stripped before splitting.
+// Paragraphs are accumulated into chunks up to MAX_TOKENS; oversized single
+// paragraphs fall back to sentence splitting.
+function chunkByParagraphs(text) {
+  const cleaned = text.replace(/--\s*\d+\s*of\s*\d+\s*--/g, '').replace(/\n{3,}/g, '\n\n');
+  const paragraphs = cleaned.split(/\n\n+/).map(p => p.trim()).filter(p => p.length > 0);
+  const chunks = [];
+  let current = [];
+  let currentTokens = 0;
+
+  for (const para of paragraphs) {
+    const pt = countTokens(para);
+    if (currentTokens + pt > MAX_TOKENS && current.length > 0) {
+      chunks.push(current.join('\n\n'));
+      current = [];
+      currentTokens = 0;
+    }
+    if (pt > MAX_TOKENS) {
+      // oversized paragraph — fall back to sentence splitting
+      if (current.length > 0) { chunks.push(current.join('\n\n')); current = []; currentTokens = 0; }
+      chunks.push(...chunkBySentences(para));
+    } else {
+      current.push(para);
+      currentTokens += pt;
+    }
+  }
+  if (current.length > 0) chunks.push(current.join('\n\n'));
+  return chunks;
 }
 
 function chunkBySentences(text, prevSentences = []) {
@@ -139,6 +170,11 @@ export function chunkFile(filePath, text, sourceFile) {
     const { meta, sections } = parseMarkdown(text);
     const links = parseWikilinks(text);
     chunks.push(...chunkSections(sections, sourceFile, meta, links));
+  } else if (ext === '.pdf') {
+    const subChunks = chunkByParagraphs(text);
+    subChunks.forEach((t, i) => {
+      chunks.push({ text: t, section: '', source_file: sourceFile, meta: {}, links: [], needsBoundaryCheck: i > 0 });
+    });
   } else {
     const subChunks = chunkBySentences(text);
     subChunks.forEach((t, i) => {
@@ -155,9 +191,13 @@ export async function chunkFileFromPath(filePath, sourceFile) {
   const ext = extname(filePath).toLowerCase();
 
   if (ext === '.pdf') {
-    const buf = readFileSync(filePath);
-    const { text } = await pdfParse(buf);
-    return chunkFile(filePath, text, sourceFile);
+    const parser = new PDFParse({ url: filePath });
+    try {
+      const { text } = await parser.getText();
+      return chunkFile(filePath, text, sourceFile);
+    } finally {
+      await parser.destroy();
+    }
   }
 
   if (PANDOC_FORMATS.has(ext)) {

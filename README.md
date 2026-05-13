@@ -36,7 +36,7 @@ In simple terms: semidex helps an AI find the right paragraph, section, command,
 | AI agents guess when context is missing | MCP tools give the agent precise, on-demand access to project knowledge |
 | Semantic search misses exact terms | Sparse lexical vectors catch `ONNX_EMBED`, `embedding_schema_version`, env vars, function names |
 | Keyword search misses meaning | Dense vectors match paraphrases, related concepts, and mixed-language queries |
-| Chunks lose context | Every chunk stores an LLM-generated summary in the context of the full document |
+| Chunks lose context when isolated | Before embedding, a local LLM generates a summary of what each chunk means in its document — the vector is computed from summary + text combined, so even a bare code snippet is findable by natural language |
 | Related docs are hard to discover | Semantic links and backlinks create a navigable knowledge graph |
 | Re-indexing is expensive | SHA-256 hash checks skip unchanged files |
 | Provider mismatch breaks search quality | Provider metadata is stored per collection; mismatches force reindexing |
@@ -139,6 +139,30 @@ Side output:
 ```
 
 At query time, semidex embeds the search query with the same provider used during indexing, runs hybrid search in Qdrant, fuses dense and sparse results with RRF, optionally reranks locally, and returns the best chunks to the AI client.
+
+Each indexed chunk becomes a single Qdrant point:
+
+```
+Qdrant point
+├── id: "550e8400-..."                           ← UUID
+├── vectors:
+│   ├── dense:  [0.023, -0.14, 0.87, ...]       ← 1024 floats (context + text)
+│   └── sparse: {indices: [42, 1337, ...], values: [0.8, 0.3, ...]}
+└── payload:
+    ├── text:         "super(name, salary)..."   ← raw chunk text
+    ├── context:      "calls the superclass..."  ← LLM summary
+    ├── section:      "4.10. Subclass constructor"
+    ├── source_file:  "docs/guide.md"
+    ├── tags:         ["inheritance", "class"]
+    ├── links:        ["other_file.md"]
+    ├── backlinks:    []
+    ├── chunk_index:  99
+    ├── total_chunks: 285
+    ├── file_hash:    "abc123..."
+    └── dense_provider / dense_model / sparse_provider / ...
+```
+
+Vectors are used for search and ranking only. The payload is what gets returned to the agent. The dense vector is computed from `context + text` combined — so even a sparse code snippet like `super(name, salary)` is findable by natural language queries, because its LLM-generated context summary ("calls the superclass constructor") is baked into the vector.
 
 ## Recommended Modes
 

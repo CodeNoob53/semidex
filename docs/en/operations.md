@@ -85,6 +85,44 @@ The `sync` command ensures that the Qdrant collection is correctly configured fo
 See [project-structure.md](project-structure.md) for the source tree, runtime
 entry points, benchmark layout, and generated files.
 
+## Semantic Link Building
+
+During indexing, each chunk is searched against one or more collections to build
+cross-file semantic links and backlinks. By default, link building searches only
+collections that are **known to semidex** — i.e. listed in `config.json`. Qdrant
+collections created by other tools or applications are never included as link targets.
+
+By default, the current collection being indexed is always included (intra-collection
+cross-file links are the primary use case).
+
+### LINK_COLLECTIONS — narrow the target set further
+
+Set `LINK_COLLECTIONS` to a comma-separated list of collection names to restrict link
+building to that explicit subset:
+
+```bash
+LINK_COLLECTIONS=my-docs,my-notes COLLECTION=my-docs npm run index ./docs
+```
+
+The allowlist is applied on top of the config-known filter. A collection not in
+`config.json` cannot be added via `LINK_COLLECTIONS`.
+
+When `LINK_COLLECTIONS` is set, the current collection is **not** automatically added.
+Include it explicitly if you want intra-collection links to be built:
+
+```bash
+LINK_COLLECTIONS=my-docs,my-notes COLLECTION=my-docs npm run index ./docs
+#                 ^^^^^^^^ include current collection for intra-collection links
+```
+
+### Tuning thresholds
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `LINK_TOP` | `5` | Top-N semantic neighbors to consider per chunk |
+| `LINK_MIN_SCORE` | `0.75` | Minimum cosine similarity to create a link |
+| `LINK_COLLECTIONS` | all config-known | Comma-separated allowlist to narrow link targets |
+
 ## Known Limitations
 
 - BGE-M3 ONNX downloads about 2.3 GB on first use.

@@ -355,6 +355,55 @@ console.log('\n[9] computeStaleSourceFiles (no Qdrant)');
     inp1.length === 1 && inp2.length === 2);
 }
 
+// ── 10. resolveLinkCollections ──────────────────────────────────────────────
+console.log('\n[10] resolveLinkCollections (no Qdrant)');
+{
+  const { resolveLinkCollections } = await import('./indexer/index.js');
+
+  // 10a. Standard: qdrant has foreign; config knows a,b; current=a → {a,b}
+  {
+    const result = resolveLinkCollections(['a', 'b', 'foreign'], ['a', 'b'], 'a', null);
+    ok('qdrant {a,b,foreign}, config {a,b}, current a → {a,b}',
+      result.length === 2 && result.includes('a') && result.includes('b') && !result.includes('foreign'));
+  }
+
+  // 10b. Config empty, current a → {a} (current always included)
+  {
+    const result = resolveLinkCollections(['a', 'b'], [], 'a', null);
+    ok('config empty, current a → includes a',  result.includes('a'));
+    ok('config empty → no b',                   !result.includes('b'));
+  }
+
+  // 10c. Current collection missing from config → still included
+  {
+    const result = resolveLinkCollections(['a', 'b', 'c'], ['b', 'c'], 'a', null);
+    ok('current a missing from config → includes a',  result.includes('a'));
+    ok('config-known b,c also included',              result.includes('b') && result.includes('c'));
+    ok('no foreign beyond a,b,c',                     result.length === 3);
+  }
+
+  // 10d. LINK_COLLECTIONS=b with config {a,b,c}, current a → narrows to {b}
+  // (allowlist does NOT auto-add current collection — existing LINK_COLLECTIONS semantics)
+  {
+    const result = resolveLinkCollections(['a', 'b', 'c'], ['a', 'b', 'c'], 'a', new Set(['b']));
+    ok('LINK_COLLECTIONS=b, config {a,b,c}, current a → only b',
+      result.length === 1 && result[0] === 'b');
+  }
+
+  // 10e. No Qdrant-only foreign collection ever included
+  {
+    const result = resolveLinkCollections(['a', 'external-1', 'external-2'], ['a'], 'a', null);
+    ok('foreign Qdrant-only collections excluded',
+      !result.includes('external-1') && !result.includes('external-2'));
+  }
+
+  // 10f. Current collection not yet in Qdrant list (just created) → still included
+  {
+    const result = resolveLinkCollections(['b', 'c'], ['a', 'b', 'c'], 'a', null);
+    ok('current a not yet in qdrant list → still included', result.includes('a'));
+  }
+}
+
 // ── Summary ──────────────────────────────────────────────────────────────────
 console.log(`\n${'─'.repeat(50)}`);
 console.log(`Smoke tests: ${passed} passed, ${failed} failed`);

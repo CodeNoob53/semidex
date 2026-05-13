@@ -62,19 +62,33 @@ Important environment variables:
 
 ## Phase 2 - Contextualize
 
-The local LLM writes a short context summary for every chunk. This is stored in the `context` payload field and embedded together with the raw text.
+A chunk extracted from a document is often meaningless without its surroundings —
+a code snippet, a rule, or a number that makes sense on the page but loses its
+meaning when isolated. The vector computed from such a fragment is just as
+meaningless, and no amount of search tuning can recover what was never encoded.
 
-Example problem it solves:
+The fix: before embedding, the local LLM reads the chunk and writes a 1-2 sentence
+summary of what it means in the document. That summary is prepended to the raw text
+before the embedding is computed, so the vector represents the chunk's meaning, not
+just its surface tokens. The summary is also stored separately in the `context`
+payload field and returned to the agent alongside the raw text.
+
+Example:
 
 ```text
 It must not exceed 512 bytes.
 ```
 
-Without context, this is ambiguous. With contextualization it can become:
+Without context, this is ambiguous. With contextualization it becomes:
 
 ```text
 The session token in the auth module must not exceed 512 bytes.
 ```
+
+This approach was developed independently as part of semidex's core design.
+Anthropic published a similar technique under the name "Contextual Retrieval" in
+September 2024, reporting a ~49% reduction in retrieval failures — which validates
+the direction without being the source of it.
 
 ## Phase 3 - Tag
 
@@ -119,7 +133,53 @@ The graph powers:
 - reranker backlink boost
 - Obsidian review frontmatter
 
-## Source of Truth
+## What Is Stored vs What the Agent Sees
+
+`chunks_out/` Markdown files are a **human review artifact only** — they are never
+read by the retrieval pipeline or sent to an AI agent. They are written to disk so
+you can open them in Obsidian and inspect chunk boundaries, context summaries, tags,
+and links visually.
+
+What actually lives in Qdrant for each point:
+
+| Field | Stored in | Used for |
+|-------|-----------|----------|
+| `dense` vector | named vector | semantic similarity search |
+| `sparse` vector | named vector | lexical keyword search |
+| `text` | payload | returned to agent as the raw chunk text |
+| `context` | payload | returned to agent as the LLM summary of this chunk |
+| `section`, `source_file`, `tags` | payload | filtering, reranking, agent display |
+| `links`, `backlinks` | payload | graph traversal via `qdrant_related` / `qdrant_backlinks` |
+| `chunk_index`, `total_chunks` | payload | context window expansion |
+| `file_hash`, provider metadata | payload | skip-unchanged detection, reindex guard |
+
+### Why context + text are embedded together
+
+At index time, the embedding input is:
+
+```
+context + "\n\n" + text
+```
+
+The LLM-generated `context` is a 1-2 sentence summary of what the chunk means in
+the larger document. Embedding it together with the raw `text` means the vector
+represents the chunk's **meaning**, not just its surface words.
+
+This matters for sparse or ambiguous chunks. A code snippet like:
+
+```js
+super(name, salary)
+```
+
+has almost no searchable words on its own. Its context summary — "calls the
+superclass constructor in a Manager subclass" — makes the dense vector findable
+by natural language queries like "how to call a parent class constructor".
+
+At query time, the search query is embedded with the same provider and matched
+against these combined vectors. The agent receives both `context` and `text` as
+separate payload fields, so it can read the summary and the raw content together.
+
+### Source of Truth
 
 Qdrant is the live retrieval source of truth. `chunks_out/` is a generated review artifact for humans.
 
