@@ -420,3 +420,6 @@ Remaining general tasks:
 10. Design a diagnostic bundle command with redaction rules.
 11. Revisit MMR Stage 2 only after broad-query duplicate pressure is measured live.
 12. Revisit full-text search only after a confirmed hybrid exact-token regression.
+13. Update `SKILL.md` MCP setup instructions for npm package install path (`npx semidex` or `semidex mcp`) once the package is published — current instructions assume a cloned repo.
+14. Add pre-flight Ollama diagnostics before indexing starts: verify `OLLAMA_URL` is reachable, check that `CONTEXT_MODEL` and `TAG_MODEL` are pulled, print a clear actionable error instead of `fetch failed` mid-run. Node.js `fetch` on Windows may route `localhost` through system proxy — consider using `127.0.0.1` explicitly or setting `NO_PROXY=localhost,127.0.0.1`.
+15. Investigate persistent `[tag] batch parse failed` on PDF chunks despite `format:json` fix — Gemma3 may ignore `format:json` for certain prompt lengths or chunk content patterns. Consider logging the raw response on failure to diagnose.
