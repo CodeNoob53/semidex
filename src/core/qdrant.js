@@ -225,6 +225,45 @@ export async function hasSparseVectors(collection) {
   return sv && Array.isArray(sv.indices) && sv.indices.length > 0;
 }
 
+// Discriminator fields that every semidex-indexed point carries in its payload.
+// Used by sync to distinguish semidex-managed collections from foreign ones.
+const SEMIDEX_PAYLOAD_FIELDS = [
+  'source_file', 'chunk_index', 'file_hash',
+  'dense_provider', 'dense_model', 'sparse_provider',
+  'embedding_schema_version', 'vector_size',
+];
+
+// Pure helper — returns true when the given payload object contains all
+// semidex discriminator fields. Safe to call with null/undefined.
+export function isSemidexPayload(payload) {
+  if (!payload || typeof payload !== 'object') return false;
+  return SEMIDEX_PAYLOAD_FIELDS.every(f => f in payload);
+}
+
+// Fetches one point payload from the collection without pulling vectors or text.
+// Return value contract (important — sync.js relies on this distinction):
+//   null  → collection is empty (no points); caller should NOT mark linkDisabled
+//   {}    → point exists but Qdrant returned no payload or an empty payload object;
+//           isSemidexPayload({}) = false → caller should mark linkDisabled
+//   {...} → normal payload; caller checks isSemidexPayload to decide
+// Throws on Qdrant errors so the caller can handle failures conservatively.
+export async function getCollectionSamplePayload(collection) {
+  const r = await fetch(`${URL}/collections/${collection}/points/scroll`, {
+    method: 'POST',
+    headers: headers(),
+    body: JSON.stringify({
+      limit: 1,
+      with_payload: SEMIDEX_PAYLOAD_FIELDS,
+      with_vectors: false,
+    }),
+  });
+  if (!r.ok) throw new Error(`Qdrant samplePayload failed (${collection}): ${await r.text()}`);
+  const data = await r.json();
+  const point = data.result?.points?.[0];
+  if (!point) return null;          // empty collection → do not disable
+  return point.payload ?? {};       // non-empty but missing payload → {} → disabled
+}
+
 export async function addSparseVectorSupport(name) {
   const r = await fetch(`${URL}/collections/${name}`, {
     method: 'PATCH',

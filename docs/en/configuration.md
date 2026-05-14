@@ -187,9 +187,9 @@ The following fields are written automatically by `npm run sync` and should not 
 
 | Field | Type | Written by | Meaning |
 |-------|------|------------|---------|
-| `linkDisabled` | boolean | `sync` | `true` when the collection has an incompatible vector schema (flat schema or no named `dense` vector). Collections marked `linkDisabled` are excluded from link-building target lists. The current collection being indexed is always included regardless of this flag. |
+| `linkDisabled` | boolean | `sync` | `true` when the collection has an incompatible vector schema (flat schema or no named `dense` vector), or when the collection is non-empty and its sampled point payload lacks semidex discriminator fields (`source_file`, `chunk_index`, `file_hash`, `dense_provider`, etc.). Collections marked `linkDisabled` are excluded from link-building target lists. The current collection being indexed is always included regardless of this flag. |
 
-`linkDisabled` is removed automatically if the collection is dropped and reindexed with a compatible schema, then sync is re-run.
+`linkDisabled` is cleared automatically when sync re-runs after the collection has been dropped, reindexed with a compatible schema, and contains at least one semidex-indexed point.
 
 ## Required Qdrant Vector Schema
 

@@ -610,6 +610,56 @@ console.log('\n[12] resolveOnnxExecutionProviders (no model load)');
   if (saved !== undefined) process.env.ONNX_EXECUTION_PROVIDER = saved;
 }
 
+// ── 13. isSemidexPayload ─────────────────────────────────────────────────────
+console.log('\n[13] isSemidexPayload (pure, no Qdrant)');
+{
+  const { isSemidexPayload } = await import('./core/qdrant.js');
+
+  const FULL = {
+    source_file: 'docs/readme.md',
+    chunk_index: 0,
+    file_hash: 'abc123',
+    dense_provider: 'bge-m3-onnx',
+    dense_model: 'aapot/bge-m3-onnx',
+    sparse_provider: 'bge-m3-onnx',
+    embedding_schema_version: 2,
+    vector_size: 1024,
+  };
+
+  // 13a. Full semidex payload → true
+  ok('full semidex payload → true', isSemidexPayload(FULL));
+
+  // 13b–13i. Each discriminator field missing → false
+  const FIELDS = Object.keys(FULL);
+  for (const field of FIELDS) {
+    const partial = { ...FULL };
+    delete partial[field];
+    ok(`missing ${field} → false`, !isSemidexPayload(partial));
+  }
+
+  // 13j. null → false (empty collection case: null payload is handled at call site,
+  //      not by isSemidexPayload — but the function must not throw)
+  ok('null → false', !isSemidexPayload(null));
+
+  // 13k. undefined → false
+  ok('undefined → false', !isSemidexPayload(undefined));
+
+  // 13l. Foreign payload with text but no semidex fields → false
+  ok('foreign payload without semidex fields → false',
+    !isSemidexPayload({ text: 'hello', embedding: [0.1, 0.2] }));
+
+  // 13m. Empty object → false
+  ok('empty object → false', !isSemidexPayload({}));
+
+  // 13n. getCollectionSamplePayload contract — isSemidexPayload correctly handles
+  //      the two non-null return values from that helper:
+  //      {} (point exists, no payload returned) → false → sync marks linkDisabled
+  ok('empty-payload sentinel {} → false (non-empty foreign with no payload)',
+    !isSemidexPayload({}));
+  //      full semidex payload → true → sync does not disable
+  ok('full payload still true after fixing return contract', isSemidexPayload(FULL));
+}
+
 // ── Summary ──────────────────────────────────────────────────────────────────
 console.log(`\n${'─'.repeat(50)}`);
 console.log(`Smoke tests: ${passed} passed, ${failed} failed`);

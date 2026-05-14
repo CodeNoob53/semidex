@@ -124,7 +124,14 @@ The `sync` command ensures that the Qdrant collection is correctly configured fo
 - checks sparse vector support
 - marks schema-incompatible collections as `linkDisabled: true` in `config.json` (flat schema or no named `dense` vector)
 
-**Link target filtering:** `sync` adds every remote Qdrant collection to `config.json`, including collections created by other tools. Collections with a flat vector schema or without a named `dense` vector are marked `linkDisabled: true` — link-building skips them. Foreign collections that happen to have a compatible named-vector schema are not filtered at this stage (Stage 1). The current collection being indexed is always included regardless of this flag.
+**Link target filtering:** `sync` adds every remote Qdrant collection to `config.json`, including collections created by other tools. Collections are marked `linkDisabled: true` and excluded from link-building when any of the following is true:
+
+- flat vector schema (no named `dense` vector) — Stage 1
+- no named `dense` vector at all — Stage 1
+- non-empty collection whose sampled point payload lacks semidex discriminator fields (`source_file`, `chunk_index`, `file_hash`, `dense_provider`, etc.) — Stage 2
+- payload scroll fails during sync (conservative: unknown → disabled) — Stage 2
+
+Empty collections with a compatible schema are not disabled — a newly created semidex collection has no points yet. The current collection being indexed is always included regardless of `linkDisabled`.
 
 **Operational Note:**
 

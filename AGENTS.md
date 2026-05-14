@@ -207,7 +207,7 @@ Safe manual edits:
 Do not hand-edit `vectorSize` to make errors disappear. It must match the actual
 Qdrant vector schema.
 
-`linkDisabled: true` is written automatically by `npm run sync` for collections with an incompatible vector schema (flat schema or no named `dense` vector). Do not remove it manually — drop the collection and reindex to clear it legitimately.
+`linkDisabled: true` is written automatically by `npm run sync` for collections that are schema-incompatible (flat schema or no named `dense` vector) or whose sampled payload does not contain semidex discriminator fields. Do not remove it manually — drop the collection and reindex to clear it legitimately.
 
 ## Qdrant Payload Schema
 
