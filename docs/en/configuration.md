@@ -136,7 +136,7 @@ PRUNE_STALE=1 SOURCE_ROOT=./docs COLLECTION=my-docs npm run index ./docs/guides
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `RRF_K` | `60` | RRF smoothing constant |
-| `HYBRID_PREFETCH_LIMIT` | `20` | Candidate count per dense/sparse leg |
+| `HYBRID_PREFETCH_LIMIT` | `2` | Per-leg candidate multiplier: prefetch = max(top × mult, top + 1) |
 
 ## Reranking
 

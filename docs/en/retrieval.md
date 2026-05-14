@@ -39,7 +39,42 @@ Relevant environment variables:
 | Variable | Default | Effect |
 |----------|---------|--------|
 | `RRF_K` | `60` | RRF smoothing constant |
-| `HYBRID_PREFETCH_LIMIT` | `20` | Candidate count per leg before fusion |
+| `HYBRID_PREFETCH_LIMIT` | `2` | Per-leg candidate multiplier: prefetch = max(top × mult, top + 1) |
+
+## Interpreting Scores
+
+`qdrant_search` returns RRF scores for each result. These scores are **not confidence percentages** and should not be compared against a fixed threshold.
+
+Typical hybrid RRF score range: **0.016–0.033**. A result at `0.033` is the top-ranked hit; a result at `0.016` may still be the only chunk in the corpus that answers the question. Both can be correct answers.
+
+**What causes this range:**
+
+RRF works by rank position, not by raw vector similarity:
+
+```text
+rrf(d) = 1/(k + rank_dense) + 1/(k + rank_sparse)
+```
+
+With `RRF_K=60`, rank 1 contributes `1/(60+1) ≈ 0.0164` per retrieval leg. If
+dense and sparse both rank the same chunk first, the combined score is about
+`0.033`. All returned scores fall inside this narrow band regardless of how well
+the query matched.
+
+**What to compare instead of absolute scores:**
+
+- **Rank order within the result set** — rank 1 is better than rank 3, even if
+  both scores look "low"
+- **`source_file` and `section`** — does the hit come from the expected file?
+- **Exact-token overlap** — does the matched chunk contain the query identifiers?
+- **`context` field** — does the LLM-generated summary confirm the chunk is on topic?
+- **`window=1` neighbors** — is the surrounding context consistent with the query?
+
+**Debugging apparent misses:** if results look wrong despite reasonable scores,
+check provider metadata (`qdrant_collection_info`), section scope, and exact token
+overlap before assuming the retrieval system is broken. A provider mismatch
+(dense/sparse indexed with a different model than the query embedding) will cause
+silent quality degradation that looks like "low scores" but is actually a schema
+mismatch. Run `npm run sync` to verify.
 
 ## Providers
 
@@ -198,7 +233,7 @@ Evaluate MMR by checking whether `dupSourceRate` decreases and
 | `SPARSE_PROVIDER` | unset | Explicit sparse provider |
 | `DENSE_MODEL` | unset | Dense model override for Ollama |
 | `RRF_K` | `60` | RRF smoothing |
-| `HYBRID_PREFETCH_LIMIT` | `20` | Candidate count per vector leg |
+| `HYBRID_PREFETCH_LIMIT` | `2` | Per-leg candidate multiplier: prefetch = max(top × mult, top + 1) |
 | `RERANK_ENABLED` | `0` | Enable local reranker |
 | `RERANK_PREFETCH_MULT` | `4` | Candidate multiplier before reranking |
 | `RERANK_DEBUG` | `0` | Print reranker scoring details |

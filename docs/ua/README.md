@@ -196,7 +196,7 @@ claude mcp add --scope user semidex -- node C:\absolute\path\to\semidex\src\mcp\
 | Змінна | За замовч. | Ефект |
 |--------|-----------|-------|
 | `RRF_K` | `60` | Константа згладжування RRF — вищі значення знижують чутливість до позиції в ранжуванні |
-| `HYBRID_PREFETCH_LIMIT` | `20` | Кількість кандидатів на кожен leg перед fusion |
+| `HYBRID_PREFETCH_LIMIT` | `2` | Множник кандидатів на кожен leg: prefetch = max(top × mult, top + 1) |
 
 ## Ранжування результатів (експериментально)
 
@@ -398,7 +398,7 @@ npm run sync
 | Змінна | За замовч. | Опис |
 |--------|-----------|------|
 | `RRF_K` | `60` | Константа згладжування RRF |
-| `HYBRID_PREFETCH_LIMIT` | `20` | Кількість кандидатів на кожен leg перед RRF fusion |
+| `HYBRID_PREFETCH_LIMIT` | `2` | Множник кандидатів на кожен leg: prefetch = max(top × mult, top + 1) |
 
 ### Ранжування
 

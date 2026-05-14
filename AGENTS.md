@@ -109,7 +109,12 @@ chunks in that file matching any requested tag.
 
 Use `qdrant_search(..., window=1, window_format="compact", top=3)` as the recommended agent search pattern when enough context is needed to answer safely. Use `top=5` for ambiguous, negative, or scope-sensitive queries.
 
-Do not treat absolute RRF score values as confidence. RRF scores are useful for ranking within one result set, but not as a calibrated relevance signal.
+Do not treat absolute RRF score values as confidence. Typical hybrid RRF scores
+fall in **0.016–0.033** — this is the normal range for Qdrant hybrid search, not
+an indication of weak retrieval. A result at `0.017` can still be the correct and
+only relevant chunk. Compare rank order, `source_file`, section, exact-token
+overlap, and the `context` field instead of using a score threshold. For details
+see `docs/en/retrieval.md` § Interpreting Scores.
 
 Before answering, verify scope:
 - environment: staging vs prod
