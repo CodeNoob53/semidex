@@ -13,6 +13,7 @@ import { upsertPoints, updatePayload, listCollections, createCollection, getStor
 import { loadGraph, saveGraph, removeFile } from '../core/graph.js';
 import { loadConfig, saveConfig, resolveEnvProviders } from '../core/config.js';
 import { embedForIndex, getEmbeddingConfig, SCHEMA_VERSION } from '../core/embeddings.js';
+import { ensureOllamaPreflight } from './preflight.js';
 
 const BATCH_SIZE   = parseInt(process.env.LLM_BATCH_SIZE || '3');
 const CHUNKS_OUT_DIR = process.env.CHUNKS_OUT_DIR || './chunks_out';
@@ -56,6 +57,13 @@ async function indexFile(filePath, rootPath, collection, allCollections, graph) 
     console.log('  ✓ unchanged, skipping');
     return 'skipped';
   }
+
+  // Preflight runs once per process, on the first file that actually needs indexing.
+  // Skipped files and PRUNE_STALE-only runs never trigger it.
+  const ollamaUrl    = process.env.OLLAMA_URL    || 'http://localhost:11434';
+  const contextModel = process.env.CONTEXT_MODEL || 'gemma3:4b';
+  const tagModel     = process.env.TAG_MODEL     || 'gemma3:4b';
+  await ensureOllamaPreflight(ollamaUrl, contextModel, tagModel);
   if (storedHash) {
     const reasons = [];
     if (storedMeta?.denseProvider          !== embedCfg.denseProvider)  reasons.push(`denseProvider: ${storedMeta?.denseProvider} → ${embedCfg.denseProvider}`);

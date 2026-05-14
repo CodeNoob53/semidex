@@ -302,8 +302,9 @@ Do not hand-edit `vectorSize` or other config fields to make the error disappear
 
 | Symptom | Likely cause | Action |
 |---------|-------------|--------|
-| `fetch failed` or `ECONNREFUSED` during context/tag generation | Ollama not running or wrong `OLLAMA_URL` | Start Ollama, verify `ollama pull bge-m3` and that the configured `CONTEXT_MODEL` / `TAG_MODEL` are pulled (`gemma3:4b` in `.env.example`), retry |
-| `fetch failed` on search with ollama provider | Ollama not running | Same as above; with `ONNX_EMBED=1`, Ollama is not needed for search but still used for context/tag during indexing |
+| `[preflight] Ollama unreachable at ...` | Ollama not running or wrong `OLLAMA_URL` | Indexer fails fast before chunking. Start Ollama (`ollama serve`); on Windows try `OLLAMA_URL=http://127.0.0.1:11434` if localhost is proxied |
+| `[preflight] Required Ollama model(s) not pulled` | `CONTEXT_MODEL` or `TAG_MODEL` not pulled | Run `ollama pull <model>` as shown in the error message, then retry |
+| `fetch failed` on search with ollama provider | Ollama not running | `ONNX_EMBED=1` makes search use ONNX, but Ollama is still needed for context/tag during indexing — preflight will catch this before the loop |
 | Qdrant connection refused or timeout | Qdrant not running or wrong `QDRANT_URL` | Start Qdrant, verify `QDRANT_URL` in `.env`, run `npm run sync` |
 | `Invalid provider combination` | Mixed dense/sparse providers | Use either the default (no extra env) or `ONNX_EMBED=1` — mixed combos are rejected at runtime |
 | Search/link error: `Not existing vector name: dense` | Legacy flat vector schema (`{ size, distance }` instead of named `{ dense, sparse }`) or collection without a named `dense` vector | Run `npm run sync` — if it reports `LEGACY SCHEMA`, the collection must be dropped and reindexed (see below); collections without named `dense` are marked `linkDisabled` automatically |

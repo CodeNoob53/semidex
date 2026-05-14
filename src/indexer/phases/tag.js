@@ -1,6 +1,6 @@
 import { generate } from '../../core/ollama.js';
 
-const MODEL = process.env.TAG_MODEL || 'gemma3';
+const MODEL = process.env.TAG_MODEL || 'gemma3:4b';
 
 function parseTags(raw) {
   return raw

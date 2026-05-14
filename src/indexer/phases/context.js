@@ -1,7 +1,7 @@
 import { generate } from '../../core/ollama.js';
 import { runBatched } from '../batch.js';
 
-const MODEL = process.env.CONTEXT_MODEL || 'gemma3';
+const MODEL = process.env.CONTEXT_MODEL || 'gemma3:4b';
 const BATCH_SIZE = parseInt(process.env.LLM_BATCH_SIZE || '3');
 
 export async function addContext(chunk) {

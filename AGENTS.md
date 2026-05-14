@@ -328,7 +328,8 @@ PDFs are converted to Markdown by `@opendocsg/pdf2md` (not pandoc — pandoc can
 
 | Symptom | Action |
 |---------|--------|
-| `fetch failed` during indexing | Start Ollama; verify `bge-m3` and the configured `CONTEXT_MODEL` / `TAG_MODEL` are pulled (`gemma3:4b` in `.env.example`) |
+| `[preflight] Ollama unreachable` | Indexer now fails fast before chunking. Start Ollama (`ollama serve`); on Windows try `OLLAMA_URL=http://127.0.0.1:11434` if localhost is proxied |
+| `[preflight] Required Ollama model(s) not pulled` | Run the `ollama pull <model>` command shown in the error, then retry |
 | Qdrant connection refused | Start Qdrant; verify `QDRANT_URL`; run `npm run sync` |
 | `Invalid provider combination` | Use default or `ONNX_EMBED=1` — do not mix providers |
 | `Not existing vector name: dense` | Run `npm run sync` — if it reports `LEGACY SCHEMA`, drop that collection and reindex (see operations.md); collections without a named `dense` vector are marked `linkDisabled` and skipped by link-building |
