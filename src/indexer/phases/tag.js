@@ -29,7 +29,7 @@ ${chunk.text.slice(0, 800)}`;
   return { ...chunk, tags };
 }
 
-function extractJsonArray(raw, expectedLength) {
+export function extractJsonArray(raw, expectedLength) {
   const isValid = (parsed) =>
     Array.isArray(parsed) && parsed.length === expectedLength && parsed.every(Array.isArray);
 
@@ -40,6 +40,16 @@ function extractJsonArray(raw, expectedLength) {
     try {
       const parsed = JSON.parse(candidate);
       if (isValid(parsed)) return parsed;
+      // Gemma wraps in {"tags":[[...]],"tags2":[[...]],...} — collect all array values
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        const vals = Object.values(parsed).filter(Array.isArray);
+        const flat = [];
+        for (const v of vals) {
+          if (v.every(Array.isArray)) flat.push(...v);
+          else if (v.every(s => typeof s === 'string')) flat.push(v);
+        }
+        if (flat.length === expectedLength) return flat;
+      }
     } catch { /* try extraction */ }
   }
 
@@ -74,8 +84,9 @@ ${items}
 Output:`;
 
   let result = null;
+  let raw = null;
   try {
-    const raw = await generate(MODEL, prompt, { format: 'json' });
+    raw = await generate(MODEL, prompt, { format: 'json' });
     result = extractJsonArray(raw, n);
   } catch { /* fall through */ }
 
