@@ -33,13 +33,18 @@ function extractJsonArray(raw, expectedLength) {
   const isValid = (parsed) =>
     Array.isArray(parsed) && parsed.length === expectedLength && parsed.every(Array.isArray);
 
-  try {
-    const parsed = JSON.parse(raw.trim());
-    if (isValid(parsed)) return parsed;
-  } catch { /* try extraction */ }
+  // Strip markdown code fences before parsing (Gemma often wraps output in ```json ... ```)
+  const stripped = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
+
+  for (const candidate of [stripped, raw.trim()]) {
+    try {
+      const parsed = JSON.parse(candidate);
+      if (isValid(parsed)) return parsed;
+    } catch { /* try extraction */ }
+  }
 
   const allArrays = [];
-  for (const m of raw.matchAll(/\[(?:[^\[\]]|\[(?:[^\[\]]|\[[^\[\]]*\])*\])*\]/g)) {
+  for (const m of stripped.matchAll(/\[(?:[^\[\]]|\[(?:[^\[\]]|\[[^\[\]]*\])*\])*\]/g)) {
     try {
       const parsed = JSON.parse(m[0]);
       if (Array.isArray(parsed)) {
@@ -70,7 +75,7 @@ Output:`;
 
   let result = null;
   try {
-    const raw = await generate(MODEL, prompt);
+    const raw = await generate(MODEL, prompt, { format: 'json' });
     result = extractJsonArray(raw, n);
   } catch { /* fall through */ }
 

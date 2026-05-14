@@ -13,11 +13,13 @@ export async function embed(text, model) {
   return data.embeddings[0];
 }
 
-export async function generate(model, prompt) {
+export async function generate(model, prompt, { format } = {}) {
+  const body = { model, prompt, stream: false };
+  if (format) body.format = format;
   const r = await fetch(`${OLLAMA_URL}/api/generate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model, prompt, stream: false }),
+    body: JSON.stringify(body),
   });
   if (!r.ok) throw new Error(`Ollama generate failed: ${await r.text()}`);
   const data = await r.json();
