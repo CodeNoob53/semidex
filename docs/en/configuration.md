@@ -181,3 +181,16 @@ Pandoc is required only for `.docx`, `.odt`, `.rtf`, `.epub`, `.html`, and `.htm
 
 `npm run index` creates these for new collections. `npm run sync` ensures them on existing collections.
 
+## Required Qdrant Vector Schema
+
+semidex requires **named vectors**. Every collection must use Qdrant's named-vector format:
+
+```json
+{
+  "vectors": { "dense": { "size": 1024, "distance": "Cosine" } },
+  "sparse_vectors": { "sparse": { } }
+}
+```
+
+Collections that use the old flat schema (`{ "size": 1024, "distance": "Cosine" }` directly under `vectors`, without a named `dense` key) are not compatible with semidex hybrid search. `npm run sync` detects these and prints a `⚠ LEGACY SCHEMA` warning. The fix requires dropping the collection and reindexing — sync cannot repair vector schema in-place. See [operations.md](operations.md) for the full recovery procedure.
+

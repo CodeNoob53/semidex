@@ -308,7 +308,7 @@ PDFs are parsed by `pdf-parse` (not pandoc). `pdf-parse` returns plain text — 
 | `fetch failed` during indexing | Start Ollama; verify `bge-m3` and the configured `CONTEXT_MODEL` / `TAG_MODEL` are pulled (`gemma3:4b` in `.env.example`) |
 | Qdrant connection refused | Start Qdrant; verify `QDRANT_URL`; run `npm run sync` |
 | `Invalid provider combination` | Use default or `ONNX_EMBED=1` — do not mix providers |
-| `Not existing vector name: dense` warning in link phase | Run `npm run sync`; foreign (non-semidex) collections are ignored automatically |
+| `Not existing vector name: dense` | Run `npm run sync` — if it reports `LEGACY SCHEMA`, drop that collection and reindex (see operations.md); foreign collections are ignored automatically |
 | Stale results after delete/rename | Run full-root `PRUNE_STALE=1 ... npm run index ./root` |
 | Unexpected full reindex after env change | Expected — provider/schema change forces reindex; let it complete |
 | `pandoc: Unknown input format pdf` | Not a bug — pandoc cannot read PDFs; `.pdf` extension is handled automatically by `pdf-parse` |

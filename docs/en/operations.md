@@ -199,6 +199,32 @@ PDF files are extracted by `pdf-parse`, which returns plain text. The resulting 
 
 **If heading structure is critical:** convert the PDF to Markdown externally (e.g. with a specialized OCR tool or PDF-to-MD converter) before indexing. Pass the `.md` file to the indexer instead.
 
+## Legacy Flat Vector Schema Recovery
+
+semidex requires **named vectors**: every Qdrant point must have a `dense` vector and a `sparse` vector stored under those exact names. Search and link building both target `dense` by name; hybrid search also requires `sparse`.
+
+Collections created before semidex adopted named vectors (or created by other tools) may use a **flat schema** — Qdrant stores `{ size, distance }` directly instead of `{ dense: { size, distance } }`. This breaks hybrid search with:
+
+```
+Not existing vector name: dense
+```
+
+`npm run sync` detects flat-schema collections and prints a `⚠ LEGACY SCHEMA` warning with the affected collection name. Sync can add payload indexes and backfill config metadata, but **cannot rename or recreate vector schema in-place** — Qdrant does not support this operation.
+
+**Recovery steps:**
+
+1. Run `npm run sync` to identify which collections have the legacy schema.
+2. Delete the collection via the Qdrant dashboard or API:
+   ```
+   DELETE /collections/<name>
+   ```
+3. Reindex from the original source:
+   ```bash
+   COLLECTION=<name> npm run index <original-source-path>
+   ```
+
+Do not hand-edit `vectorSize` or other config fields to make the error disappear — the vector schema mismatch is in Qdrant, not in config.
+
 ## Known Limitations
 
 - BGE-M3 ONNX downloads about 2.3 GB on first use.
@@ -218,7 +244,7 @@ PDF files are extracted by `pdf-parse`, which returns plain text. The resulting 
 | `fetch failed` on search with ollama provider | Ollama not running | Same as above; with `ONNX_EMBED=1`, Ollama is not needed for search but still used for context/tag during indexing |
 | Qdrant connection refused or timeout | Qdrant not running or wrong `QDRANT_URL` | Start Qdrant, verify `QDRANT_URL` in `.env`, run `npm run sync` |
 | `Invalid provider combination` | Mixed dense/sparse providers | Use either the default (no extra env) or `ONNX_EMBED=1` — mixed combos are rejected at runtime |
-| Search/link warning: `Not existing vector name: dense` | Old or foreign Qdrant collection without semidex named vectors | Run `npm run sync` for semidex-managed collections; foreign (non-semidex) collections are automatically excluded from link targets |
+| Search/link error: `Not existing vector name: dense` | Legacy flat vector schema (`{ size, distance }` instead of named `{ dense, sparse }`) or foreign collection | Run `npm run sync` — if it reports `LEGACY SCHEMA`, the collection must be dropped and reindexed (see below); foreign collections are excluded automatically |
 | Stale search results after file delete or rename | Old Qdrant points remain | Run full-root `PRUNE_STALE=1 COLLECTION=... npm run index ./root` |
 | Provider mismatch triggers unexpected full reindex | Changed `ONNX_EMBED`, `DENSE_PROVIDER`, `SPARSE_PROVIDER`, schema version, or `vectorSize` | Expected behavior — let reindex complete; do not interrupt |
 | `pandoc: Unknown input format pdf` | Pandoc cannot read PDFs | PDFs are handled by `pdf-parse`; pandoc is only used for `.docx`, `.odt`, `.rtf`, `.epub`, `.html`, `.htm` |
