@@ -201,7 +201,9 @@ profiler.mark('embed+upsert');
 // after runBatched buildLinks + Promise.all payload updates:
 profiler.mark('link');
 
-// before saveChunksMd:
+saveChunksMd(filePath, linkedChunks);
+profiler.mark('chunks_out');
+
 const tokensEst = taggedChunks.reduce((s, c) => s + Math.ceil(c.text.length / 4), 0);
 profiler.report({ chunksIn: rawChunks.length, chunksOut: taggedChunks.length, tokensEst });
 ```
@@ -225,7 +227,8 @@ profiler.report({ chunksIn: rawChunks.length, chunksOut: taggedChunks.length, to
     tag           2140 ms
     embed+upsert  3180 ms
     link          2950 ms
-    total        12520 ms  (1.4 chunks/s)
+    chunks_out       4 ms
+    total        12524 ms  (1.4 chunks/s)
   ✓ done
 ```
 
