@@ -297,6 +297,27 @@ Success signals:
 - agents search current codebase state instead of stale snapshots
 - indexing cost scales with the size of the change, not the size of the repo
 
+## Phase 7 - Structured PDF Ingestion
+
+Goal: recover heading structure and section metadata from PDF files without requiring external pre-processing steps.
+
+Current limitation: `pdf-parse` returns plain text only. All chunks from a PDF have `section: ""` or `"intro"`. Pandoc cannot read PDFs as an input format.
+
+Possible approaches (not yet evaluated):
+
+- integrate a Markdown-aware PDF extractor (e.g. `pdf2md`, `pymupdf`-based tooling, or a document layout model)
+- OCR pipeline for scanned PDFs
+- accept a companion `.md` sidecar file that provides the structure, with the PDF used only for page-marker alignment
+- structured extraction using an LLM with vision input (e.g. page-image → heading detection)
+
+Any approach must be benchmarked against the existing plain-text path before becoming a default, since extraction errors could degrade chunk quality compared to the current clean paragraph-based fallback.
+
+Success signals:
+
+- PDF chunks have correct `section` values matching document headings
+- no regression in retrieval quality on clean-text PDFs
+- external tool dependency is clearly documented and optional
+
 ## Not Planned Right Now
 
 These may be useful later, but they are not the current priority:

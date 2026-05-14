@@ -54,6 +54,17 @@ The parser tries to preserve document structure:
 - Sentence overlap is reset at section boundaries, so overlap does not leak content from one heading into another.
 - Very short `.txt` files are preserved instead of being dropped.
 
+### Format-specific behavior
+
+| Format | Parser | Section headings | Notes |
+|--------|--------|-----------------|-------|
+| `.md` | Native | Preserved | Wikilinks, frontmatter, heading hierarchy |
+| `.txt` | Native (sentence-based) | None | Plain sentence splitting with overlap |
+| `.pdf` | `pdf-parse` | **Not preserved** | See below |
+| `.docx`, `.odt`, `.epub`, `.html`, `.htm`, `.rtf` | pandoc → Markdown | Preserved if pandoc can extract them | pandoc converts to Markdown first |
+
+**PDF ingestion limitation:** `pdf-parse` returns plain text with no Markdown structure. All chunks from a PDF file will have `section: ""` or `section: "intro"`. The recursive paragraph → sentence → word chunker produces clean boundaries, but heading structure cannot be recovered from the extracted text. Pandoc does not support PDF as an input format and cannot be used as a substitute. If heading structure is essential, convert the PDF to Markdown externally (OCR or specialized converter) before indexing.
+
 Important environment variables:
 
 - `MAX_CHUNK_TOKENS`

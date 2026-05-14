@@ -184,6 +184,21 @@ LINK_COLLECTIONS=my-docs,my-notes COLLECTION=my-docs npm run index ./docs
 | `LINK_MIN_SCORE` | `0.75` | Minimum cosine similarity to create a link |
 | `LINK_COLLECTIONS` | all config-known | Comma-separated allowlist to narrow link targets |
 
+## PDF Ingestion
+
+PDF files are extracted by `pdf-parse`, which returns plain text. The resulting text has no Markdown structure.
+
+**What this means in practice:**
+
+- `section` is set to `"intro"` or `""` for every chunk from a PDF — there are no recoverable headings.
+- Chunking uses a recursive paragraph → sentence → word splitter. This produces well-bounded chunks, but it does not reconstruct heading structure.
+- Tags and LLM context summaries still run normally, so chunks remain semantically meaningful for retrieval.
+- `chunks_out/` shows the extracted chunks for review, but Qdrant is the source of truth.
+
+**Pandoc cannot read PDFs.** Pandoc is used only for `.docx`, `.odt`, `.rtf`, `.epub`, `.html`, and `.htm`. Passing a `.pdf` to pandoc produces `Unknown input format pdf` or `Unknown reader pdf`. PDF-to-Markdown conversion, OCR, and structure recovery are not part of the current pipeline.
+
+**If heading structure is critical:** convert the PDF to Markdown externally (e.g. with a specialized OCR tool or PDF-to-MD converter) before indexing. Pass the `.md` file to the indexer instead.
+
 ## Known Limitations
 
 - BGE-M3 ONNX downloads about 2.3 GB on first use.
@@ -191,6 +206,7 @@ LINK_COLLECTIONS=my-docs,my-notes COLLECTION=my-docs npm run index ./docs
 - Reranker is off by default because current bundled benchmark shows neutral effect.
 - ColBERT / late-interaction retrieval is not implemented yet.
 - Bundled benchmark is a regression suite, not a scientific evaluation.
+- PDF files lose all heading structure during extraction; all chunks have empty or generic `section`.
 - `chunks_out/` is a review layer and can have path collisions for files with the same parent-folder and basename.
 - `chunks_out/` cleanup uses filename pattern matching (`base__chunk*.md`).
 
@@ -209,3 +225,4 @@ LINK_COLLECTIONS=my-docs,my-notes COLLECTION=my-docs npm run index ./docs
 | First ONNX indexing run is very slow | Model download and cache warmup (~2.3 GB) | Wait for download to complete; all subsequent runs use `./models/` cache |
 | `ONNX_EXECUTION_PROVIDER=cuda` falls back to CPU | CUDA not bundled in `onnxruntime-node` | Expected — semidex retries with CPU automatically and logs a warning; use `dml` on Windows for GPU acceleration without extra packages |
 | Wrong search results after re-indexing | `config.json` still has old provider metadata | Check `config.json` entry for the collection, run `npm run sync`, verify provider fields match the current indexing env |
+| All PDF chunks have empty or `"intro"` section | PDF extracted as plain text — heading structure is not preserved | Acceptable fallback; navigate chunks via `source_file` + `chunk_index`. If heading structure is required, convert the PDF to Markdown externally before indexing |

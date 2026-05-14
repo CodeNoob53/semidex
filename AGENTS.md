@@ -299,9 +299,7 @@ no longer on disk. Never run against a single file or a subdirectory subset.
 ONNX_EMBED=1 MAX_CHUNK_TOKENS=800 COLLECTION=my-book npm run index ./book.pdf
 ```
 
-PDFs are parsed by `pdf-parse` (not pandoc). Heading structure is typically lost;
-all chunks get `section: ""`. Chunking uses paragraph → sentence → word recursive
-splitting. `MAX_CHUNK_TOKENS=800` is a good starting point for dense prose.
+PDFs are parsed by `pdf-parse` (not pandoc). `pdf-parse` returns plain text — heading structure is not recovered. All chunks will have `section: ""` or `"intro"`. Chunking uses paragraph → sentence → word recursive splitting. `MAX_CHUNK_TOKENS=800` is a good starting point for dense prose. Navigate PDF chunks by `source_file` + `chunk_index` rather than by section. If heading structure is required, convert the PDF to Markdown externally before indexing.
 
 ### Troubleshooting quick reference
 
@@ -313,7 +311,8 @@ splitting. `MAX_CHUNK_TOKENS=800` is a good starting point for dense prose.
 | `Not existing vector name: dense` warning in link phase | Run `npm run sync`; foreign (non-semidex) collections are ignored automatically |
 | Stale results after delete/rename | Run full-root `PRUNE_STALE=1 ... npm run index ./root` |
 | Unexpected full reindex after env change | Expected — provider/schema change forces reindex; let it complete |
-| `pandoc: Unknown input format pdf` | Not a bug — use `pdf-parse` path (`.pdf` extension is handled automatically) |
+| `pandoc: Unknown input format pdf` | Not a bug — pandoc cannot read PDFs; `.pdf` extension is handled automatically by `pdf-parse` |
+| All PDF chunks have empty or `"intro"` section | PDF extracted as plain text — heading structure is not preserved; navigate via `source_file` + `chunk_index` |
 | First ONNX run very slow | Model downloading (~2.3 GB); wait; cache used on next run |
 
 ## What Not To Do
