@@ -28,7 +28,8 @@
     "smoke:answer-policy-live": "node benchmarks/retrieval/custom-raw/smoke-live-answer-policy.js",
     "smoke:retrieval-live": "node benchmarks/retrieval/smoke-live.js",
     "smoke:prune-live": "node benchmarks/retrieval/smoke-live-prune-stale.js",
-    "bench:onnx-provider": "node benchmarks/onnx-provider-bench.js"
+    "bench:onnx-provider": "node benchmarks/onnx-provider-bench.js",
+    "bootstrap:docs": "node src/bootstrap-docs.js"
   },
   "dependencies": {
     "@huggingface/transformers": "^4.2.0",

@@ -139,6 +139,58 @@ Empty collections with a compatible schema are not disabled — a newly created 
 - **Required indexes**: It ensures existing or older collections have payload indexes on `source_file`, `tags`, and `chunk_index`. These are strictly necessary for search filters, context window chunks, and agent MCP tools.
 - **Safety**: Do not manually mutate the Qdrant schema unless you know exactly what you are doing. `npm run sync` is safe to re-run.
 
+## Documentation Self-Index
+
+semidex can index its own documentation into a reserved `semidex-docs` collection so
+that AI agents can query semidex usage, configuration, and troubleshooting through MCP
+instead of reading repo files directly.
+
+```bash
+npm run bootstrap:docs
+```
+
+Run once after initial setup, and again whenever the docs change significantly.
+
+**What gets indexed:**
+
+- `README.md`
+- `AGENTS.md`
+- `docs/en/` (all `.md` files)
+
+**Provider:** Uses `ONNX_EMBED=1` (bge-m3-onnx) by default for embeddings. On first
+run this downloads the ONNX model (~2.3 GB) into `./models/`. Set `ONNX_EMBED=0`
+in the shell or `.env` to use the Ollama/hashed-tf embedding fallback instead.
+Context and tag generation still use Ollama during indexing, so keep Ollama running
+with the configured `CONTEXT_MODEL` / `TAG_MODEL` available.
+
+**Re-run safety:** Unchanged files are skipped by the file-hash check. Re-running after
+a docs update only reindexes the files that changed.
+
+**Config fields written automatically:**
+
+```json
+"semidex-docs": {
+  "semidexManaged": true,
+  "linkDisabled": true,
+  "description": "semidex usage docs: providers, indexing, retrieval, MCP tools, troubleshooting, architecture"
+}
+```
+
+`linkDisabled: true` prevents `semidex-docs` from appearing as a cross-file link target
+when user project collections are indexed. Agents can still search it directly.
+
+**Agent usage:**
+
+```text
+qdrant_search("how do I index docs?", "semidex-docs", window=1, window_format="compact")
+qdrant_search("what env vars control chunk size?", "semidex-docs")
+qdrant_search("why is search returning low scores?", "semidex-docs")
+```
+
+**Collision guard:** If a collection named `semidex-docs` already exists in Qdrant but
+was not created by `bootstrap:docs` (no `semidexManaged` flag in `config.json`), the
+command exits with a warning rather than overwriting it.
+
 ## Scripts
 
 | Command | Description |
@@ -147,6 +199,7 @@ Empty collections with a compatible schema are not disabled — a newly created 
 | `npm run mcp` | Start MCP server |
 | `npm run sync` | Sync config and Qdrant indexes |
 | `npm run smoke` | Offline smoke tests |
+| `npm run bootstrap:docs` | Index semidex's own docs into `semidex-docs` |
 | `npm run bench:retrieval` | Live retrieval benchmark |
 | `npm run bench:retrieval:compare` | Provider comparison |
 | `npm run bench:retrieval:rerank` | Rerank matrix |
