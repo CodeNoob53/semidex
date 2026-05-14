@@ -334,8 +334,8 @@ PDFs are converted to Markdown by `@opendocsg/pdf2md` (not pandoc — pandoc can
 | `Not existing vector name: dense` | Run `npm run sync` — if it reports `LEGACY SCHEMA`, drop that collection and reindex (see operations.md); collections without a named `dense` vector are marked `linkDisabled` and skipped by link-building |
 | Stale results after delete/rename | Run full-root `PRUNE_STALE=1 ... npm run index ./root` |
 | Unexpected full reindex after env change | Expected — provider/schema change forces reindex; let it complete |
-| `pandoc: Unknown input format pdf` | Not a bug — pandoc cannot read PDFs; `.pdf` extension is handled automatically by `pdf-parse` |
-| All PDF chunks have empty or `"intro"` section | PDF extracted as plain text — heading structure is not preserved; navigate via `source_file` + `chunk_index` |
+| `pandoc: Unknown input format pdf` | Not a bug — pandoc cannot read PDFs; `.pdf` is handled by `@opendocsg/pdf2md` |
+| All PDF chunks have empty section | Likely a scanned/image-only PDF — `pdf2md` found no heading structure; navigate via `source_file` + `chunk_index` |
 | First ONNX run very slow | Model downloading (~2.3 GB); wait; cache used on next run |
 
 ## What Not To Do

@@ -358,13 +358,13 @@ Success signals:
 
 Goal: recover heading structure and section metadata from PDF files without requiring external pre-processing steps.
 
-**Current status (Stage 1 — implemented):** `pdf-parse` extracts plain text. Chunking uses recursive paragraph → sentence → word splitting. All chunks have `section: ""` or `"intro"`. Navigate PDF content via `source_file + chunk_index`, not section headings. Pandoc cannot read PDFs as an input format.
+**Current status (Stage 1 — implemented):** `@opendocsg/pdf2md` converts PDF to Markdown; chunking uses the same heading-aware `parseMarkdown` path as `.md` files. H1–H6 headings are recovered as `section` values. Scanned/image-only PDFs with fewer than 3 detected headings fall back to `pdf-parse` plain-text extraction with `section: ""`. Pandoc cannot read PDFs as an input format.
 
-Remaining work (Stage 2+): heading/section recovery from PDF structure.
+Remaining work (Stage 2+): improve structure recovery for edge cases (scanned PDFs, complex layouts, tables).
 
 Possible approaches (not yet evaluated):
 
-- integrate a Markdown-aware PDF extractor (e.g. `pdf2md`, `pymupdf`-based tooling, or a document layout model)
+- OCR pipeline for scanned PDFs (e.g. `pymupdf`-based tooling or a document layout model)
 - OCR pipeline for scanned PDFs
 - accept a companion `.md` sidecar file that provides the structure, with the PDF used only for page-marker alignment
 - structured extraction using an LLM with vision input (e.g. page-image → heading detection)

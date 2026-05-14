@@ -219,7 +219,7 @@ export async function chunkFileFromPath(filePath, sourceFile) {
     } catch { /* fall through to plain-text */ }
 
     // Usable if pdf2md produced at least 3 heading lines; otherwise fall back to pdf-parse plain text.
-    const hasStructure = md && (md.match(/^#{1,6} /m) || []).length >= 3;
+    const hasStructure = md && (md.match(/^#{1,6} /gm) || []).length >= 3;
     if (hasStructure) {
       const clean = md.replace(/<!-- PAGE_BREAK -->/g, '\n').replace(/\n{3,}/g, '\n\n');
       return chunkFile(filePath.replace(/\.pdf$/i, '.md'), clean, sourceFile);

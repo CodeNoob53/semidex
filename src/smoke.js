@@ -590,6 +590,35 @@ console.log('\n[11] recursiveChunkText (no Qdrant)');
     ok('H2 still works after #{1,6} expansion', rMixed.some(c => c.section === 'Mid'));
     ok('H3 still works after #{1,6} expansion', rMixed.some(c => c.section === 'Sub'));
   }
+
+  // 11m. PDF routing: hasStructure threshold uses /gm so multiple headings are counted.
+  // Without the g flag, match() returns at most 1 result — threshold of 3 is never reached.
+  {
+    const mdWith3Headings = `# Title\nbody\n\n## Section A\ncontent A\n\n## Section B\ncontent B`;
+    const mdWith2Headings = `# Title\nbody\n\n## Section A\ncontent A`;
+    const mdNoHeadings    = `Just plain text with no headings at all.`;
+
+    // The exact regex used in chunkFileFromPath PDF routing.
+    const countHeadings = s => (s.match(/^#{1,6} /gm) || []).length;
+
+    ok('3 headings → count=3 (≥3, structured path taken)',   countHeadings(mdWith3Headings) >= 3);
+    ok('2 headings → count=2 (<3, fallback path taken)',      countHeadings(mdWith2Headings) < 3);
+    ok('no headings → count=0 (<3, fallback path taken)',     countHeadings(mdNoHeadings) === 0);
+
+    // Without g flag the match stops at 1 — this is what the bug looked like.
+    const buggyCount = s => (s.match(/^#{1,6} /m) || []).length;
+    ok('regression: without g flag, 3-heading doc still counts as 1 (bug reproduced)',
+      buggyCount(mdWith3Headings) === 1);
+
+    // pdf2md PAGE_BREAK stripping before routing: headings must survive cleanup.
+    const { chunkFile } = await import('./indexer/phases/chunk.js');
+    const pdf2mdOutput = `<!-- PAGE_BREAK -->\n## Chapter 1\nContent here.\n\n<!-- PAGE_BREAK -->\n## Chapter 2\nMore content.\n\n<!-- PAGE_BREAK -->\n## Chapter 3\nEven more.`;
+    const cleaned = pdf2mdOutput.replace(/<!-- PAGE_BREAK -->/g, '\n').replace(/\n{3,}/g, '\n\n');
+    ok('pdf2md PAGE_BREAK cleanup preserves headings', countHeadings(cleaned) >= 3);
+    const chunks = chunkFile('book.md', cleaned, 'book.pdf');
+    ok('cleaned pdf2md output → sections assigned', chunks.some(c => c.section === 'Chapter 1'));
+    ok('cleaned pdf2md output → multiple distinct sections', new Set(chunks.map(c => c.section)).size >= 3);
+  }
 }
 
 // ── 12. resolveOnnxExecutionProviders (no model load) ───────────────────────

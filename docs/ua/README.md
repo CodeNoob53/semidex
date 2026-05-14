@@ -451,7 +451,7 @@ src/
     index.js       — точка входу CLI
     batch.js       — паралельний пакетний runner
     phases/
-      chunk.js     — структурно-усвідомлений парсер, формати pdf-parse + pandoc
+      chunk.js     — структурно-усвідомлений парсер, формати pdf2md + pandoc + plain-text fallback
       context.js   — LLM-контекстуалізація + злиття меж
       tag.js       — пакетна генерація теґів з багатоформатним JSON-парсером
       link.js      — семантичне лінкування між колекціями

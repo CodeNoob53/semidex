@@ -250,18 +250,16 @@ LINK_COLLECTIONS=my-docs,my-notes COLLECTION=my-docs npm run index ./docs
 
 ## PDF Ingestion
 
-PDF files are extracted by `pdf-parse`, which returns plain text. The resulting text has no Markdown structure.
+PDF files are converted to Markdown by `@opendocsg/pdf2md`, then chunked through the same heading-aware `parseMarkdown` path used for `.md` files.
 
 **What this means in practice:**
 
-- `section` is set to `"intro"` or `""` for every chunk from a PDF — there are no recoverable headings.
-- Chunking uses a recursive paragraph → sentence → word splitter. This produces well-bounded chunks, but it does not reconstruct heading structure.
-- Tags and LLM context summaries still run normally, so chunks remain semantically meaningful for retrieval.
+- Digitally-created PDFs with an embedded text layer typically yield real `section` values from H1–H6 headings found in the Markdown output.
+- Scanned or image-only PDFs may produce weak or no structure. If fewer than 3 heading lines are detected, the indexer falls back to `pdf-parse` plain-text extraction with recursive paragraph → sentence → word splitting, and chunks get `section: ""`.
+- Tags and LLM context summaries run normally in both paths, so chunks remain semantically meaningful for retrieval.
 - `chunks_out/` shows the extracted chunks for review, but Qdrant is the source of truth.
 
-**Pandoc cannot read PDFs.** Pandoc is used only for `.docx`, `.odt`, `.rtf`, `.epub`, `.html`, and `.htm`. Passing a `.pdf` to pandoc produces `Unknown input format pdf` or `Unknown reader pdf`. PDF-to-Markdown conversion, OCR, and structure recovery are not part of the current pipeline.
-
-**If heading structure is critical:** convert the PDF to Markdown externally (e.g. with a specialized OCR tool or PDF-to-MD converter) before indexing. Pass the `.md` file to the indexer instead.
+**Pandoc cannot read PDFs.** Pandoc is used only for `.docx`, `.odt`, `.rtf`, `.epub`, `.html`, and `.htm`. Passing a `.pdf` to pandoc produces `Unknown input format pdf`.
 
 ## Legacy Flat Vector Schema Recovery
 
