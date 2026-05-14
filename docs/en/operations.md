@@ -122,6 +122,9 @@ The `sync` command ensures that the Qdrant collection is correctly configured fo
 - backfills provider metadata for older config entries
 - ensures required payload indexes
 - checks sparse vector support
+- marks schema-incompatible collections as `linkDisabled: true` in `config.json` (flat schema or no named `dense` vector)
+
+**Link target filtering:** `sync` adds every remote Qdrant collection to `config.json`, including collections created by other tools. Collections with a flat vector schema or without a named `dense` vector are marked `linkDisabled: true` — link-building skips them. Foreign collections that happen to have a compatible named-vector schema are not filtered at this stage (Stage 1). The current collection being indexed is always included regardless of this flag.
 
 **Operational Note:**
 
@@ -244,7 +247,7 @@ Do not hand-edit `vectorSize` or other config fields to make the error disappear
 | `fetch failed` on search with ollama provider | Ollama not running | Same as above; with `ONNX_EMBED=1`, Ollama is not needed for search but still used for context/tag during indexing |
 | Qdrant connection refused or timeout | Qdrant not running or wrong `QDRANT_URL` | Start Qdrant, verify `QDRANT_URL` in `.env`, run `npm run sync` |
 | `Invalid provider combination` | Mixed dense/sparse providers | Use either the default (no extra env) or `ONNX_EMBED=1` — mixed combos are rejected at runtime |
-| Search/link error: `Not existing vector name: dense` | Legacy flat vector schema (`{ size, distance }` instead of named `{ dense, sparse }`) or foreign collection | Run `npm run sync` — if it reports `LEGACY SCHEMA`, the collection must be dropped and reindexed (see below); foreign collections are excluded automatically |
+| Search/link error: `Not existing vector name: dense` | Legacy flat vector schema (`{ size, distance }` instead of named `{ dense, sparse }`) or collection without a named `dense` vector | Run `npm run sync` — if it reports `LEGACY SCHEMA`, the collection must be dropped and reindexed (see below); collections without named `dense` are marked `linkDisabled` automatically |
 | Stale search results after file delete or rename | Old Qdrant points remain | Run full-root `PRUNE_STALE=1 COLLECTION=... npm run index ./root` |
 | Provider mismatch triggers unexpected full reindex | Changed `ONNX_EMBED`, `DENSE_PROVIDER`, `SPARSE_PROVIDER`, schema version, or `vectorSize` | Expected behavior — let reindex complete; do not interrupt |
 | `pandoc: Unknown input format pdf` | Pandoc cannot read PDFs | PDFs are handled by `pdf-parse`; pandoc is only used for `.docx`, `.odt`, `.rtf`, `.epub`, `.html`, `.htm` |

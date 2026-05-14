@@ -30,6 +30,13 @@ for (const name of remote) {
   // { dense: { size, distance } }. Named vectors are required for hybrid search.
   // This cannot be repaired in-place — the collection must be recreated and reindexed.
   const isFlatSchema = typeof vectorsCfg.size === 'number';
+
+  // semidex-compatible = has a named 'dense' vector (and is not flat-schema).
+  // Non-compatible collections (foreign tools, pre-semidex collections) are kept
+  // in config for sync bookkeeping but marked linkDisabled so link-building skips them.
+  const hasDenseNamed = !isFlatSchema && typeof vectorsCfg.dense === 'object' && vectorsCfg.dense !== null;
+  const isLinkDisabled = isFlatSchema || !hasDenseNamed;
+
   if (isFlatSchema) {
     flatSchemaCollections.push(name);
     console.log(`  ⚠ LEGACY SCHEMA: "${name}" uses a flat (unnamed) vector — hybrid search unavailable.`);
@@ -37,6 +44,8 @@ for (const name of remote) {
     console.log(`    1. Delete via Qdrant dashboard or API: DELETE /collections/${name}`);
     console.log(`    2. COLLECTION=${name} npm run index <original-source-path>`);
     // Still update payload indexes so MCP filters work if someone queries this collection.
+  } else if (!hasDenseNamed) {
+    console.log(`  ⚠ FOREIGN SCHEMA: "${name}" has no named 'dense' vector — excluded from link targets.`);
   }
 
   if (!config.collections[name]) {
@@ -47,8 +56,9 @@ for (const name of remote) {
       embeddingSchemaVersion: SCHEMA_VERSION,
       vectorSize:  isFlatSchema ? vectorsCfg.size : (vectorsCfg.dense?.size ?? 1024),
       description: '',
+      ...(isLinkDisabled ? { linkDisabled: true } : {}),
     };
-    console.log(`+ added: ${name} (dense: ${denseProvider}/${denseModel}, sparse: ${sparseProvider})`);
+    console.log(`+ added: ${name} (dense: ${denseProvider}/${denseModel}, sparse: ${sparseProvider}${isLinkDisabled ? ', linkDisabled' : ''})`);
   } else {
     // Backfill any missing provider fields on existing entries.
     const col = config.collections[name];
@@ -71,8 +81,16 @@ for (const name of remote) {
       col.embeddingSchemaVersion = SCHEMA_VERSION;
       changed = true;
     }
+    // Sync linkDisabled with current schema compatibility — idempotent.
+    if (isLinkDisabled && !col.linkDisabled) {
+      col.linkDisabled = true;
+      changed = true;
+    } else if (!isLinkDisabled && col.linkDisabled) {
+      delete col.linkDisabled;
+      changed = true;
+    }
     if (changed) {
-      console.log(`  ~ backfilled "${name}": dense=${col.denseProvider}/${col.denseModel}, sparse=${col.sparseProvider}`);
+      console.log(`  ~ backfilled "${name}": dense=${col.denseProvider}/${col.denseModel}, sparse=${col.sparseProvider}${col.linkDisabled ? ', linkDisabled' : ''}`);
     }
   }
 

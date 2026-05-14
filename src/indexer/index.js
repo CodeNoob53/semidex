@@ -149,15 +149,25 @@ export function computeStaleSourceFiles(indexedSourceFiles, storedSourceFiles) {
 }
 
 // Returns the set of collections eligible as link targets.
-// Only Qdrant collections that are also known in config.json are included.
-// The current collection is always included (intra-collection cross-file links).
-// If LINK_COLLECTIONS env allowlist is set, it is applied on top of this filtered set
-// (same semantics as before: allowlist narrows, never expands beyond config-known).
-export function resolveLinkCollections(qdrantCollections, configCollections, currentCollection, envAllowlist) {
-  const configKnown = new Set(configCollections);
+// configCollectionsMap: the full config.collections object (name → entry).
+// Only Qdrant collections present in configCollectionsMap are eligible, unless
+// they carry linkDisabled: true — those are excluded (incompatible/foreign schema).
+// The current collection is always included regardless of linkDisabled, because
+// intra-collection links must work even when the collection was just created and
+// sync has not yet run (linkDisabled would be wrong for a fresh semidex collection).
+// If LINK_COLLECTIONS env allowlist is set, it narrows the result and does NOT
+// auto-add the current collection (existing semantics).
+export function resolveLinkCollections(qdrantCollections, configCollectionsMap, currentCollection, envAllowlist) {
+  const configMap = configCollectionsMap ?? {};
+  const configKnown = new Set(Object.keys(configMap));
   configKnown.add(currentCollection); // always include current, even if missing from config
 
-  const base = qdrantCollections.filter(c => configKnown.has(c));
+  const base = qdrantCollections.filter(c => {
+    if (!configKnown.has(c)) return false;
+    // Exclude linkDisabled entries, but never exclude the current collection.
+    if (c !== currentCollection && configMap[c]?.linkDisabled === true) return false;
+    return true;
+  });
   // Ensure current collection is present even if not yet in qdrantCollections
   // (e.g. just created and not yet returned by a fresh listCollections call).
   if (!base.includes(currentCollection)) base.push(currentCollection);
@@ -218,7 +228,7 @@ async function main() {
     : null;
   const linkTargetCollections = resolveLinkCollections(
     allCollections,
-    Object.keys(linkCfg.collections ?? {}),
+    linkCfg.collections ?? {},
     COLLECTION,
     linkEnvAllowlist,
   );

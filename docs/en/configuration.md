@@ -181,6 +181,16 @@ Pandoc is required only for `.docx`, `.odt`, `.rtf`, `.epub`, `.html`, and `.htm
 
 `npm run index` creates these for new collections. `npm run sync` ensures them on existing collections.
 
+## config.json — Internal Fields Written by sync
+
+The following fields are written automatically by `npm run sync` and should not be edited manually:
+
+| Field | Type | Written by | Meaning |
+|-------|------|------------|---------|
+| `linkDisabled` | boolean | `sync` | `true` when the collection has an incompatible vector schema (flat schema or no named `dense` vector). Collections marked `linkDisabled` are excluded from link-building target lists. The current collection being indexed is always included regardless of this flag. |
+
+`linkDisabled` is removed automatically if the collection is dropped and reindexed with a compatible schema, then sync is re-run.
+
 ## Required Qdrant Vector Schema
 
 semidex requires **named vectors**. Every collection must use Qdrant's named-vector format:
