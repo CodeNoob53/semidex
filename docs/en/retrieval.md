@@ -96,6 +96,27 @@ The reranker also applies:
 
 Current benchmark result: reranking is neutral on the bundled 21-query corpus. Keep it disabled unless it helps on your own data.
 
+## Literal and Exact-Token Queries
+
+For exact-token queries — error strings, env var key=value pairs, function
+names, config identifiers, log line fragments — use the standard hybrid
+`qdrant_search` with verbatim terms in the query string.
+
+BGE-M3 sparse (`bge-m3-onnx` provider) encodes technical tokens as neural
+lexical units and retrieves them reliably. Benchmark evidence
+(`bench-retrieval-custom-raw`, 2026-05-12, bge-m3-onnx): **100% tokenHit@5**
+on all 7 exact-token queries including `ONNX_EMBED=1`,
+`Error: OOM killed at /src/indexer.js:42`, and `WARN: Qdrant timeout after 5000ms`.
+
+**hashed-TF (ollama default) is weaker on rare tokens.** For raw-log or
+config-dump corpora where literal recall matters, use `ONNX_EMBED=1`.
+
+**No separate literal search mode is implemented.** Full-text / literal search
+is deferred — hybrid sparse covers all confirmed exact-token use cases and
+Qdrant payload `match: { text: "..." }` filters are still tokenized, not true
+verbatim substring search. See audit and trigger criteria in
+`benchmarks/retrieval/results/2026-05-14-full-text-literal-search-audit.md`.
+
 ## MMR Diversity Evaluation
 
 Qdrant MMR is available for nearest-neighbor queries and improves result
@@ -139,19 +160,22 @@ For ONNX, hybrid RRF wins at every tested diversity level. For ollama,
 - Config lookups, error message matching, code search.
 - Any query where the answer is a specific value rather than a broad topic.
 
-**Planned MCP opt-in (Stage 2, not yet implemented):**
+**MCP opt-in (Stage 2) — deferred:**
 
 ```json
 "search_mode": "hybrid"        // default — hybrid dense+sparse RRF
-"search_mode": "dense_mmr"     // opt-in — dense-only MMR, diversity trading recall
+"search_mode": "dense_mmr"     // planned opt-in — dense-only MMR, diversity trading recall
 "mmr_diversity": 0.3           // recommended starting value (0.0–1.0)
 "mmr_candidates_limit": 100    // candidate pool size before MMR selection
 ```
 
-The `"hybrid"` default is permanent. `"dense_mmr"` will require explicit
-opt-in. Implementing it requires a live benchmark confirmation before merging
-(see [benchmarking.md](benchmarking.md) and the audit report
-`benchmarks/retrieval/results/2026-05-14-mmr-mcp-opt-in-audit.md`).
+The `"hybrid"` default is permanent. Stage 2 requires: (a) live broad-query
+`dupSourceRate` ≥ 60% for ≥ 3 exploratory queries, (b) confirmed agent answer
+quality degradation, (c) smoke tests for argument routing. The 61.9% baseline
+`dupSourceRate` comes from exact/technical queries — not from broad queries
+where the problem is hypothesised to occur. See
+`benchmarks/retrieval/results/2026-05-14-duplicate-source-pressure-audit.md`
+and `benchmarks/retrieval/results/2026-05-14-mmr-mcp-opt-in-audit.md`.
 
 Useful MMR knobs (benchmark mode only):
 

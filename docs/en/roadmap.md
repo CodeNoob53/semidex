@@ -36,24 +36,34 @@ RAG layer for larger technical corpora.
 
 ## Current Baseline
 
-Implemented and usable today:
+### Implemented and default
 
 - structure-aware document indexing
 - LLM context summaries and tags
 - dense + sparse named vectors in Qdrant
-- hybrid search with RRF fusion
+- **hybrid dense+sparse RRF** — production default for `qdrant_search`; covers exact technical tokens, paraphrases, and multilingual queries
 - BGE-M3 ONNX multilingual provider
 - Ollama + hashed-TF fallback provider
 - MCP reader tools
-- MCP search context window (window=1)
+- MCP search context window (`window=1`)
 - compact deduplicated window output
 - semantic graph links and backlinks
 - Obsidian-compatible `chunks_out/` review artifacts
-- deterministic optional reranker
-- MMR benchmark mode
+- PDF fallback chunking — `pdf-parse` plain-text extraction with recursive paragraph → sentence → word splitting (Stage 1)
 - 21-query regression benchmark
 - custom-50 chunk-level quality benchmark
 - diagnostics, failure analysis, candidate comparison, and threshold sweep tooling
+
+### Implemented, opt-in, default off
+
+- **Local reranker** (`RERANK_ENABLED=1`) — neutral on the 21-query benchmark; keep disabled unless it improves on your own data
+- **MMR benchmark mode** (`BENCH_SEARCH_MODE=dense-mmr`, `npm run bench:retrieval:mmr`) — dense-only evaluation, not a production MCP mode
+- **PRUNE_STALE=1** — opt-in stale-file cleanup after indexing
+
+### Audited and deferred
+
+- **MMR runtime opt-in (`search_mode="dense_mmr"`)** — deferred; see criteria below
+- **Full-text / literal payload search** — deferred; see criteria below
 
 ## Phase 1 - Stabilize Retrieval Quality
 
@@ -144,17 +154,52 @@ Success signals:
 
 Goal: test more advanced retrieval ideas without destabilizing the default path.
 
-Candidate experiments:
+### Deferred: MMR runtime opt-in (`search_mode="dense_mmr"`)
 
-- **MCP search mode opt-in: `dense_mmr`** — add `search_mode: "hybrid" | "dense_mmr"`
-  parameter to `qdrant_search`. Default stays `"hybrid"` permanently. `"dense_mmr"`
-  is dense-only Qdrant MMR (no sparse leg, no RRF). Requires: (a) live benchmark
-  confirmation that hybrid baseline is not regressed, (b) smoke tests for argument
-  routing in `src/mcp/tools/search.js`. Implementation plan:
-  `benchmarks/retrieval/results/2026-05-14-mmr-mcp-opt-in-audit.md`.
-  Agent guidance in AGENTS.md and mcp-tools.md already documented (Stage 1).
+Implementation plan: `benchmarks/retrieval/results/2026-05-14-mmr-mcp-opt-in-audit.md`
+
+Duplicate pressure audit: `benchmarks/retrieval/results/2026-05-14-duplicate-source-pressure-audit.md`
+
+Stage 1 (docs-only guidance) is complete. Stage 2 (runtime `search_mode` parameter) is
+deferred until **all** of the following criteria are met:
+
+- Live broad-query `dupSourceRate` ≥ 60% for ≥ 3 of the 12 defined exploratory queries
+  (see audit for query set)
+- Agent answer quality is confirmed to degrade (not just a statistical metric)
+- onnx Recall@1 regression budget is defined (e.g. ≤ −2pp acceptable)
+- Smoke tests for argument routing pass (5 cases defined in the audit)
+
+Background: the 61.9% `dupSourceRate` from the 21-query benchmark comes from
+exact/technical queries with single-file dominance — not broad exploratory queries.
+Broad queries naturally pull 3–4 distinct files. MMR penalises the ONNX provider
+by 4.8pp Recall@1 at all tested diversity values; for ollama the tradeoff is neutral
+at diversity=0.3. Until the broad-query duplicate pressure is measured live, the
+hypothesis that hybrid RRF harms exploratory search is unconfirmed.
+
+### Deferred: Full-text / literal payload search
+
+Audit: `benchmarks/retrieval/results/2026-05-14-full-text-literal-search-audit.md`
+
+The custom-raw benchmark (bge-m3-onnx, 2026-05-12) achieved 100% tokenHit@5 on all
+7 exact-token queries including error strings, env var assignments, and log line
+fragments. Hybrid sparse already covers the use cases attributed to literal search.
+
+Deferred until **one** of the following:
+
+- `tokenHit@5` < 90% on custom-raw exact-token queries after a provider or chunking change
+- A reproducible user case where hybrid returns the wrong chunk despite the exact string
+  being present in the corpus
+- hashed-TF gap confirmed: exact-token recall < 70% on raw-log corpora with hashed-TF,
+  confirming the problem is not just "use ONNX_EMBED=1"
+
+Note: Qdrant `match: { text: "..." }` is still tokenized, not true verbatim substring
+search. The claimed advantage over hybrid sparse (exact substring) does not exist in the
+Qdrant filter API. The right lever for improving literal recall on raw-log corpora is
+switching from hashed-TF to bge-m3-onnx, not adding a payload text index.
+
+### Remaining experiments
+
 - MMR policy evaluation beyond dense-only benchmark mode
-- full-text filtering over Qdrant payload fields
 - stronger lexical fallback than hashed-TF
 - ColBERT / late-interaction rerank prototype
 - query expansion only when diagnostics indicate a likely miss
@@ -308,7 +353,9 @@ Success signals:
 
 Goal: recover heading structure and section metadata from PDF files without requiring external pre-processing steps.
 
-Current limitation: `pdf-parse` returns plain text only. All chunks from a PDF have `section: ""` or `"intro"`. Pandoc cannot read PDFs as an input format.
+**Current status (Stage 1 — implemented):** `pdf-parse` extracts plain text. Chunking uses recursive paragraph → sentence → word splitting. All chunks have `section: ""` or `"intro"`. Navigate PDF content via `source_file + chunk_index`, not section headings. Pandoc cannot read PDFs as an input format.
+
+Remaining work (Stage 2+): heading/section recovery from PDF structure.
 
 Possible approaches (not yet evaluated):
 
@@ -340,12 +387,30 @@ These may be useful later, but they are not the current priority:
 
 ## Near-Term Task Queue
 
-Recommended next tasks:
+Retrieval and chunking decision closure (done):
 
-1. Evaluate whether `qdrant_search(window=1, window_format="compact")` can become the recommended agent default (do not make it actual default yet).
-2. Add a chunking-quality design document and large-document stress fixture plan.
-3. Summarize custom-50 diagnostics conclusions in the benchmarking docs.
-4. Draft the agent wake-up workflow before implementing any new MCP tool.
-5. Design a diagnostic bundle command with redaction rules.
-6. Capture the incremental codebase memory concept as a future design note.
-7. Revisit MMR and ColBERT only after chunk/window diagnostics are stable.
+- Hybrid dense+sparse RRF confirmed as production default — no change needed.
+- Reranker confirmed neutral on benchmark — stays off by default.
+- MMR runtime opt-in deferred — criteria documented, broad-query live eval pending.
+- Full-text literal search deferred — hybrid sparse covers all confirmed use cases.
+- PDF chunking Stage 1 documented — structured heading recovery is future Phase 7 work.
+
+**Next planned block: indexing/chunking performance baseline.**
+
+Before any optimization work (faster indexing, incremental sync, code-aware chunking),
+establish a baseline:
+
+1. Measure indexing throughput on a realistic corpus (tokens/sec, chunks/sec, wall time).
+2. Profile per-phase cost: pandoc conversion, chunking, LLM context/tag generation, embedding, Qdrant upsert.
+3. Identify the dominant cost phase before choosing where to optimize.
+4. Run `js-modern-book` benchmark to assess retrieval quality on a large real-world document.
+
+Remaining general tasks:
+
+5. Evaluate whether to change the programmatic tool default from `window=0` to `window=1, window_format="compact"` — the recommended agent pattern is already documented in AGENTS.md, but the code default has not changed.
+6. Add a chunking-quality design document and large-document stress fixture plan.
+7. Summarize custom-50 diagnostics conclusions in the benchmarking docs.
+8. Draft the agent wake-up workflow before implementing any new MCP tool.
+9. Design a diagnostic bundle command with redaction rules.
+10. Revisit MMR Stage 2 only after broad-query duplicate pressure is measured live.
+11. Revisit full-text search only after a confirmed hybrid exact-token regression.

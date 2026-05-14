@@ -146,10 +146,21 @@ Raw/unstructured chunks may contain distractors, stale values, commented-out val
 - For "why did search return this?" questions, inspect provider metadata,
   section, tags, and exact token overlap before changing ranking logic.
 - `qdrant_search` always uses hybrid dense+sparse RRF — this is the only
-  available mode. A `search_mode="dense_mmr"` opt-in is planned but not yet
-  implemented. When it ships: use it only for broad exploratory queries where
-  source diversity matters more than exact recall. Never use dense MMR for
-  technical, config, or exact-identifier queries — it skips the sparse leg.
+  available MCP mode. Do not ask for `search_mode="dense_mmr"` or
+  `search_mode="literal"` — neither is implemented. Dense MMR exists as a
+  benchmark-only mode (`npm run bench:retrieval:mmr`); literal/full-text
+  payload search is deferred. Both decisions are documented in
+  `benchmarks/retrieval/results/`.
+- For exact-token queries — error strings, env vars, function names, config
+  keys, log line fragments — use verbatim terms in the `query` field. BGE-M3
+  sparse encodes them as lexical units and retrieves them reliably (100%
+  tokenHit@5 on custom-raw exact-token queries). If using `ollama + hashed-tf`
+  and literal recall matters on raw-log or config-dump corpora, switch to
+  `ONNX_EMBED=1` for that collection.
+- PDF-indexed documents have no section headings — all chunks have
+  `section: ""` or `"intro"`. Navigate PDF content via `source_file +
+  chunk_index`, not section filters. Structured PDF heading recovery is future
+  work.
 
 ## Retrieval Model
 

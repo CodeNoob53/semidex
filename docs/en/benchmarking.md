@@ -284,8 +284,28 @@ Judge MMR by both relevance and diversity:
 Full audit: `benchmarks/retrieval/results/2026-05-14-mmr-mcp-opt-in-audit.md`
 
 **MCP opt-in status:** `qdrant_search` does not yet expose a `search_mode`
-parameter. Runtime opt-in requires a live benchmark confirmation run before
-merging (see roadmap).
+parameter. Stage 2 runtime opt-in is deferred — see criteria in
+`benchmarks/retrieval/results/2026-05-14-duplicate-source-pressure-audit.md`
+and in the roadmap.
+
+**`dupSourceRate` is query-class dependent.** The 61.9% baseline comes from
+exact/technical queries where single-file dominance is structural (each query
+has one correct source file). This is not evidence of harmful duplication:
+
+- For exact-token and config queries, multiple chunks from the same file
+  are often adjacent context that helps the agent — not redundancy.
+- For broad/exploratory queries, hybrid RRF naturally pulls from 3–4 distinct
+  files without any diversity mechanism. Predicted `dupSourceRate` for
+  exploratory queries: ~30–50%, below the technical baseline.
+- HIGH_PRESSURE (≤ 2 unique sources in top-5) is only harmful when it blocks
+  the agent from seeing cross-file context needed to answer. This failure mode
+  is not confirmed for the current benchmark corpora.
+
+Duplicate source audits:
+- `benchmarks/retrieval/results/2026-05-14-duplicate-source-pressure-audit.md`
+
+Full-text / literal search audit:
+- `benchmarks/retrieval/results/2026-05-14-full-text-literal-search-audit.md`
 
 ## Current Role
 
