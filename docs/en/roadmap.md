@@ -146,6 +146,13 @@ Goal: test more advanced retrieval ideas without destabilizing the default path.
 
 Candidate experiments:
 
+- **MCP search mode opt-in: `dense_mmr`** — add `search_mode: "hybrid" | "dense_mmr"`
+  parameter to `qdrant_search`. Default stays `"hybrid"` permanently. `"dense_mmr"`
+  is dense-only Qdrant MMR (no sparse leg, no RRF). Requires: (a) live benchmark
+  confirmation that hybrid baseline is not regressed, (b) smoke tests for argument
+  routing in `src/mcp/tools/search.js`. Implementation plan:
+  `benchmarks/retrieval/results/2026-05-14-mmr-mcp-opt-in-audit.md`.
+  Agent guidance in AGENTS.md and mcp-tools.md already documented (Stage 1).
 - MMR policy evaluation beyond dense-only benchmark mode
 - full-text filtering over Qdrant payload fields
 - stronger lexical fallback than hashed-TF

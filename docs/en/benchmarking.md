@@ -271,6 +271,22 @@ Judge MMR by both relevance and diversity:
 - `dupSourceRate` should go down.
 - `sourceDiversity` should go up.
 
+**Benchmark conclusions (2026-05-10, 21 queries):**
+
+- `ollama-mmr0.3`: same Recall@1 as RRF baseline (90.5%), dupSourceRate −11.4pp.
+  Best tradeoff found across all tested diversity values.
+- `onnx-mmr0.3`: Recall@1 −4.8pp vs onnx-rrf at all tested diversity values.
+  Hybrid RRF dominates for ONNX; MMR is not a net win.
+- Conclusion: hybrid RRF remains the best default for recall. Dense MMR is a
+  niche opt-in for exploratory/diversity-first queries on ollama. For ONNX,
+  only use MMR if dupSourceRate reduction is more important than Recall@1.
+
+Full audit: `benchmarks/retrieval/results/2026-05-14-mmr-mcp-opt-in-audit.md`
+
+**MCP opt-in status:** `qdrant_search` does not yet expose a `search_mode`
+parameter. Runtime opt-in requires a live benchmark confirmation run before
+merging (see roadmap).
+
 ## Current Role
 
 The regression benchmark catches quality regressions when changing chunking,

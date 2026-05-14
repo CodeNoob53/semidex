@@ -100,18 +100,60 @@ Current benchmark result: reranking is neutral on the bundled 21-query corpus. K
 
 Qdrant MMR is available for nearest-neighbor queries and improves result
 diversity when many candidates are redundant. In semidex it is currently exposed
-as a benchmark search mode, not as the default MCP retrieval path:
+as a benchmark search mode, not as an MCP retrieval option:
 
 ```bash
 BENCH_SEARCH_MODE=dense-mmr npm run bench:retrieval
 npm run bench:retrieval:mmr
 ```
 
-This is intentionally dense-only evaluation. The production default remains
-hybrid dense+sparse RRF because sparse vectors are important for exact technical
-tokens such as env vars, function names, and schema fields.
+**MMR is dense-only.** It uses Qdrant's `nearest + mmr` query on the `dense`
+vector. There is no sparse leg and no RRF fusion. This is a fundamental property
+of the Qdrant MMR query, not a configuration choice.
 
-Useful MMR knobs:
+The production default remains hybrid dense+sparse RRF because the sparse leg is
+critical for exact technical tokens — env vars, function names, config keys,
+schema field names. Dense-only retrieval misses these when they are not
+paraphrase-reachable.
+
+**Benchmark conclusions (2026-05-10, 21 queries):**
+
+| Variant | Recall@1 | dupSourceRate | Notes |
+|---------|----------|---------------|-------|
+| ollama-rrf | 90.5% | 61.9% | RRF baseline |
+| ollama-mmr0.3 | 90.5% | 50.5% | Best tradeoff: same recall, −11.4pp duplicates |
+| onnx-rrf | **95.2%** | — | RRF dominates |
+| onnx-mmr0.3 | 90.5% | — | −4.8pp Recall@1 at all tested diversity values |
+
+For ONNX, hybrid RRF wins at every tested diversity level. For ollama,
+`diversity=0.3` preserves recall while reducing duplicate sources.
+
+**When MMR is appropriate (exploratory/broad queries):**
+- "Find me a variety of documents about topic X" — source diversity matters more
+  than exact recall.
+- Exploratory overview queries where results from the same file are redundant.
+
+**When to stay on hybrid RRF (all other cases):**
+- Any query involving exact identifiers: env vars, function names, field names,
+  model names, provider strings.
+- Config lookups, error message matching, code search.
+- Any query where the answer is a specific value rather than a broad topic.
+
+**Planned MCP opt-in (Stage 2, not yet implemented):**
+
+```json
+"search_mode": "hybrid"        // default — hybrid dense+sparse RRF
+"search_mode": "dense_mmr"     // opt-in — dense-only MMR, diversity trading recall
+"mmr_diversity": 0.3           // recommended starting value (0.0–1.0)
+"mmr_candidates_limit": 100    // candidate pool size before MMR selection
+```
+
+The `"hybrid"` default is permanent. `"dense_mmr"` will require explicit
+opt-in. Implementing it requires a live benchmark confirmation before merging
+(see [benchmarking.md](benchmarking.md) and the audit report
+`benchmarks/retrieval/results/2026-05-14-mmr-mcp-opt-in-audit.md`).
+
+Useful MMR knobs (benchmark mode only):
 
 | Variable | Default | Description |
 |----------|---------|-------------|

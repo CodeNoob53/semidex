@@ -145,6 +145,11 @@ Raw/unstructured chunks may contain distractors, stale values, commented-out val
   contexts, surface both and ask for clarification.
 - For "why did search return this?" questions, inspect provider metadata,
   section, tags, and exact token overlap before changing ranking logic.
+- `qdrant_search` always uses hybrid dense+sparse RRF — this is the only
+  available mode. A `search_mode="dense_mmr"` opt-in is planned but not yet
+  implemented. When it ships: use it only for broad exploratory queries where
+  source diversity matters more than exact recall. Never use dense MMR for
+  technical, config, or exact-identifier queries — it skips the sparse leg.
 
 ## Retrieval Model
 

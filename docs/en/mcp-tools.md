@@ -70,6 +70,25 @@ Raw/unstructured corpus chunks may contain distractor values, stale config, or c
 | `qdrant_backlinks` | `collection`, `source_file` | Shows incoming file-level links |
 | `qdrant_find_by_tag` | `collection`, `tag`, `limit?` | Lists chunks matching a tag, grouped by file |
 
+## Search Mode
+
+`qdrant_search` always uses **hybrid dense+sparse RRF** — both dense semantic
+and sparse lexical vectors are queried and fused by Reciprocal Rank Fusion. This
+is the only available mode today.
+
+A `search_mode` opt-in parameter is planned (Stage 2) but not yet implemented:
+
+| Value | Behavior | When to use |
+|-------|----------|-------------|
+| `"hybrid"` (default) | Dense + sparse RRF fusion | Everything: technical, config, exact-token, multilingual queries |
+| `"dense_mmr"` (planned) | Dense-only Qdrant MMR, no sparse | Exploratory queries needing source diversity; not for exact recall |
+
+**Do not use `dense_mmr` for technical or config queries.** Dense-only retrieval
+skips the sparse leg entirely — env var names, function names, field names, and
+other exact identifiers are not reliably matched without lexical weighting.
+Benchmark results show `dense_mmr` reduces duplicate source rate but trades off
+Recall@1 (−4.8pp for ONNX at all tested diversity values).
+
 ## Search Filters
 
 `qdrant_search` supports:
