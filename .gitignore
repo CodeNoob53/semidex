@@ -1,4 +1,5 @@
 node_modules/
+diagnostics/
 package-lock.json
 chunks_out/
 .claude/

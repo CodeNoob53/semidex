@@ -14,6 +14,7 @@ They share the same core provider, config, graph, chunking, and Qdrant helpers.
 COLLECTION=my-docs npm run index <file|folder>  # index documents
 npm run mcp                                      # start MCP server (stdio)
 npm run sync                                     # sync config.json + Qdrant indexes
+npm run doctor                                   # read-only environment health check
 npm run smoke                                    # offline smoke tests (no Qdrant)
 npm run smoke:retrieval-live                     # optional live smoke suite (requires Qdrant)
 npm run bench:retrieval                          # live retrieval benchmark
@@ -328,6 +329,7 @@ PDFs are converted to Markdown by `@opendocsg/pdf2md` (not pandoc — pandoc can
 
 | Symptom | Action |
 |---------|--------|
+| Unclear environment failures | Run `npm run doctor` first — it checks Qdrant, Ollama, schema, models, and local files in one read-only pass |
 | `[preflight] Ollama unreachable` | Indexer now fails fast before chunking. Start Ollama (`ollama serve`); on Windows try `OLLAMA_URL=http://127.0.0.1:11434` if localhost is proxied |
 | `[preflight] Required Ollama model(s) not pulled` | Run the `ollama pull <model>` command shown in the error, then retry |
 | Qdrant connection refused | Start Qdrant; verify `QDRANT_URL`; run `npm run sync` |

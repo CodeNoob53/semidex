@@ -298,6 +298,21 @@ Do not hand-edit `vectorSize` or other config fields to make the error disappear
 - `chunks_out/` is a review layer and can have path collisions for files with the same parent-folder and basename.
 - `chunks_out/` cleanup uses filename pattern matching (`base__chunk*.md`).
 
+## Diagnostics
+
+Run `npm run doctor` for a read-only environment health check. It verifies:
+
+- Node.js version, `.env` presence, required env vars
+- Qdrant reachability and API key validity
+- Per-collection: vector schema, point count, payload indexes, provider agreement, schema version
+- Ollama reachability and required model presence
+- ONNX model cache and local generated files
+
+Output is printed to the console and written to `diagnostics/<timestamp>-doctor.md` (gitignored, safe to share).
+Exit code 0 = no failures; exit code 1 = at least one FAIL check.
+
+Doctor never mutates. Use `npm run sync` to repair any schema or index issues it reports.
+
 ## Troubleshooting
 
 | Symptom | Likely cause | Action |

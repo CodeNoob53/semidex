@@ -19,6 +19,7 @@ import section15 from './sections/15-bootstrap-docs.js';
 import section16 from './sections/16-extract-json-array.js';
 import section17 from './sections/17-pdf-fixture.js';
 import section18 from './sections/18-validate-ollama-models.js';
+import section19 from './sections/19-doctor-checks.js';
 
 let passed = 0;
 let failed = 0;
@@ -62,7 +63,7 @@ const sections = [
   section01, section02, section03, section04, section05,
   section06, section07, section08, section09, section10,
   section11, section12, section13, section14, section15,
-  section16, section17, section18,
+  section16, section17, section18, section19,
 ];
 
 for (const section of sections) {
