@@ -8,6 +8,7 @@ import { processChunks } from './phases/context.js';
 import { addTagsBatch } from './phases/tag.js';
 import { buildLinks } from './phases/link.js';
 import { runBatched } from './batch.js';
+import { Profiler } from './profiler.js';
 import { upsertPoints, updatePayload, listCollections, createCollection, getStoredMeta, deleteBySourceFile, listSourceFiles } from '../core/qdrant.js';
 import { loadGraph, saveGraph, removeFile } from '../core/graph.js';
 import { loadConfig, saveConfig, resolveEnvProviders } from '../core/config.js';
@@ -28,6 +29,8 @@ function hashFile(filePath) {
 
 async function indexFile(filePath, rootPath, collection, allCollections, graph) {
   console.log(`\n→ ${filePath}`);
+
+  const profiler = new Profiler();
 
   const effectiveRoot = SOURCE_ROOT ?? rootPath;
   const sourceFile = relative(effectiveRoot, filePath).replace(/\\/g, '/');
@@ -65,20 +68,24 @@ async function indexFile(filePath, rootPath, collection, allCollections, graph) 
     await deleteBySourceFile(collection, sourceFile);
     removeFile(graph, sourceFile);
   }
+  profiler.mark('pre');
 
   console.log('  [1/5] chunking...');
   const rawChunks = await chunkFileFromPath(filePath, sourceFile);
   console.log(`        ${rawChunks.length} chunks`);
+  profiler.mark('chunk');
 
   console.log('  [2/5] contextualizing...');
   const contextChunks = await processChunks(rawChunks);
   console.log(`        ${contextChunks.length} chunks after merge`);
+  profiler.mark('context');
 
   console.log('  [3/5] tagging...');
   const taggedChunks = [];
   for (let i = 0; i < contextChunks.length; i += BATCH_SIZE) {
     taggedChunks.push(...await addTagsBatch(contextChunks.slice(i, i + BATCH_SIZE)));
   }
+  profiler.mark('tag');
 
   console.log('  [4/5] embedding + upserting...');
   const points = await runBatched(taggedChunks, BATCH_SIZE, async (chunk) => {
@@ -105,6 +112,7 @@ async function indexFile(filePath, rootPath, collection, allCollections, graph) 
   });
   await upsertPoints(collection, points);
   console.log(`        upserted ${points.length} points`);
+  profiler.mark('embed+upsert');
 
   console.log('  [5/5] linking...');
   const linkedChunks = await runBatched(taggedChunks, BATCH_SIZE, chunk => buildLinks(chunk, allCollections, graph, collection));
@@ -116,8 +124,14 @@ async function indexFile(filePath, rootPath, collection, allCollections, graph) 
     if (!changed) return Promise.resolve();
     return updatePayload(collection, points[i].id, { links: newLinks });
   }));
+  profiler.mark('link');
 
   saveChunksMd(filePath, linkedChunks);
+  profiler.mark('chunks_out');
+
+  const tokensEst = taggedChunks.reduce((s, c) => s + Math.ceil(c.text.length / 4), 0);
+  profiler.report({ chunksIn: rawChunks.length, chunksOut: taggedChunks.length, tokensEst });
+
   console.log(`  ✓ done`);
 }
 

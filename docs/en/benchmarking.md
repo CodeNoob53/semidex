@@ -34,6 +34,42 @@ npm run smoke:answer-policy-live      # answer-policy evidence contracts (bench-
 npm run smoke:prune-live              # destructive-isolated: creates and deletes a temp collection
 ```
 
+## Indexing Phase Profiler
+
+```bash
+INDEX_PROFILE=1 COLLECTION=my-docs npm run index ./docs
+```
+
+Prints a per-file timing table for each indexing phase without changing any
+behavior. Intended for local profiling before optimization work — not for CI.
+
+Sample output:
+
+```
+→ docs/en/architecture.md
+  [1/5] chunking...
+        18 chunks
+  ...
+  [profile] 18→17 chunks, ~4210 tokens
+    pre                12 ms
+    chunk               8 ms
+    context          4230 ms
+    tag              2140 ms
+    embed+upsert     3180 ms
+    link             2950 ms
+    chunks_out          4 ms
+    total           12524 ms  (1.4 chunks/s)
+  ✓ done
+```
+
+Phase labels: `pre` (hash + stored-meta lookup), `chunk` (parse + split),
+`context` (LLM context summaries), `tag` (LLM tags), `embed+upsert` (ONNX/Ollama
+embeddings + Qdrant upsert), `link` (semantic link search + backlink updates),
+`chunks_out` (Obsidian review file write).
+
+`tokensEst` is a rough estimate: `sum(chunk.text.length / 4)`. Not a precise
+token count — use it to normalise throughput across files of different sizes.
+
 ## ONNX Provider Speed Benchmark
 
 ```bash

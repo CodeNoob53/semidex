@@ -106,6 +106,11 @@ Planned work:
   - important docs
   - recent decisions if available
   - suggested follow-up searches
+- design first-run documentation self-indexing:
+  - create or update a reserved local docs collection such as `semidex-docs`
+  - index `README.md`, `AGENTS.md`, and `docs/` so agents can query semidex usage, architecture, and troubleshooting through MCP
+  - make first-run cost visible, especially provider setup and model downloads
+  - mark the collection as internal/semidex-managed so it does not pollute user project link targets by default
 - document recommended MCP search patterns:
   - search first
   - expand with `qdrant_get_chunk(window=1)`
@@ -410,7 +415,8 @@ Remaining general tasks:
 5. Evaluate whether to change the programmatic tool default from `window=0` to `window=1, window_format="compact"` — the recommended agent pattern is already documented in AGENTS.md, but the code default has not changed.
 6. Add a chunking-quality design document and large-document stress fixture plan.
 7. Summarize custom-50 diagnostics conclusions in the benchmarking docs.
-8. Draft the agent wake-up workflow before implementing any new MCP tool.
-9. Design a diagnostic bundle command with redaction rules.
-10. Revisit MMR Stage 2 only after broad-query duplicate pressure is measured live.
-11. Revisit full-text search only after a confirmed hybrid exact-token regression.
+8. Design first-run semidex documentation self-indexing (`semidex-docs`) for agent onboarding.
+9. Draft the agent wake-up workflow before implementing any new MCP tool.
+10. Design a diagnostic bundle command with redaction rules.
+11. Revisit MMR Stage 2 only after broad-query duplicate pressure is measured live.
+12. Revisit full-text search only after a confirmed hybrid exact-token regression.
