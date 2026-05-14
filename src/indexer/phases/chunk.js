@@ -208,6 +208,11 @@ export function chunkFile(filePath, text, sourceFile) {
 
 const PANDOC_FORMATS = new Set(['.docx', '.odt', '.rtf', '.epub', '.html', '.htm']);
 
+// Returns true if the pdf2md Markdown output has enough heading lines to use the structured path.
+export function hasPdfStructure(md) {
+  return Boolean(md && (md.match(/^#{1,6} /gm) || []).length >= 3);
+}
+
 export async function chunkFileFromPath(filePath, sourceFile) {
   const ext = extname(filePath).toLowerCase();
 
@@ -218,8 +223,7 @@ export async function chunkFileFromPath(filePath, sourceFile) {
       md = await pdf2md(data);
     } catch { /* fall through to plain-text */ }
 
-    // Usable if pdf2md produced at least 3 heading lines; otherwise fall back to pdf-parse plain text.
-    const hasStructure = md && (md.match(/^#{1,6} /gm) || []).length >= 3;
+    const hasStructure = hasPdfStructure(md);
     if (hasStructure) {
       const clean = md.replace(/<!-- PAGE_BREAK -->/g, '\n').replace(/\n{3,}/g, '\n\n');
       return chunkFile(filePath.replace(/\.pdf$/i, '.md'), clean, sourceFile);

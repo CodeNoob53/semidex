@@ -365,8 +365,7 @@ Remaining work (Stage 2+): improve structure recovery for edge cases (scanned PD
 Possible approaches (not yet evaluated):
 
 - OCR pipeline for scanned PDFs (e.g. `pymupdf`-based tooling or a document layout model)
-- OCR pipeline for scanned PDFs
-- accept a companion `.md` sidecar file that provides the structure, with the PDF used only for page-marker alignment
+- companion `.md` sidecar file that provides structure, with the PDF used only for page-marker alignment
 - structured extraction using an LLM with vision input (e.g. page-image → heading detection)
 
 Any approach must be benchmarked against the existing plain-text path before becoming a default, since extraction errors could degrade chunk quality compared to the current clean paragraph-based fallback.
@@ -398,7 +397,7 @@ Retrieval and chunking decision closure (done):
 - Reranker confirmed neutral on benchmark — stays off by default.
 - MMR runtime opt-in deferred — criteria documented, broad-query live eval pending.
 - Full-text literal search deferred — hybrid sparse covers all confirmed use cases.
-- PDF chunking Stage 1 documented — structured heading recovery is future Phase 7 work.
+- PDF chunking Stage 1 implemented — `@opendocsg/pdf2md` Markdown conversion with H1–H6 heading recovery; scanned PDFs fall back to plain-text.
 
 **Next planned block: indexing/chunking performance baseline.**
 

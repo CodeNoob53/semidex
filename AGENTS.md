@@ -162,10 +162,10 @@ Raw/unstructured chunks may contain distractors, stale values, commented-out val
   tokenHit@5 on custom-raw exact-token queries). If using `ollama + hashed-tf`
   and literal recall matters on raw-log or config-dump corpora, switch to
   `ONNX_EMBED=1` for that collection.
-- PDF-indexed documents have no section headings — all chunks have
-  `section: ""` or `"intro"`. Navigate PDF content via `source_file +
-  chunk_index`, not section filters. Structured PDF heading recovery is future
-  work.
+- PDF chunks from digitally-created files typically carry real `section` values
+  recovered by `@opendocsg/pdf2md`. Scanned or image-only PDFs fall back to
+  plain-text extraction and will have `section: ""`. When `section` is empty,
+  navigate via `source_file + chunk_index`; otherwise section filters work.
 
 ## Retrieval Model
 

@@ -591,30 +591,29 @@ console.log('\n[11] recursiveChunkText (no Qdrant)');
     ok('H3 still works after #{1,6} expansion', rMixed.some(c => c.section === 'Sub'));
   }
 
-  // 11m. PDF routing: hasStructure threshold uses /gm so multiple headings are counted.
-  // Without the g flag, match() returns at most 1 result — threshold of 3 is never reached.
+  // 11m. PDF routing: hasPdfStructure (exported from chunk.js) drives the pdf2md vs fallback decision.
+  // Tests call the real helper so any future change to the threshold is automatically caught.
   {
+    const { hasPdfStructure, chunkFile } = await import('./indexer/phases/chunk.js');
+
     const mdWith3Headings = `# Title\nbody\n\n## Section A\ncontent A\n\n## Section B\ncontent B`;
     const mdWith2Headings = `# Title\nbody\n\n## Section A\ncontent A`;
     const mdNoHeadings    = `Just plain text with no headings at all.`;
 
-    // The exact regex used in chunkFileFromPath PDF routing.
-    const countHeadings = s => (s.match(/^#{1,6} /gm) || []).length;
+    ok('3 headings → hasPdfStructure true (structured path taken)',   hasPdfStructure(mdWith3Headings));
+    ok('2 headings → hasPdfStructure false (fallback path taken)',     !hasPdfStructure(mdWith2Headings));
+    ok('no headings → hasPdfStructure false',                         !hasPdfStructure(mdNoHeadings));
+    ok('null input → hasPdfStructure false',                          !hasPdfStructure(null));
 
-    ok('3 headings → count=3 (≥3, structured path taken)',   countHeadings(mdWith3Headings) >= 3);
-    ok('2 headings → count=2 (<3, fallback path taken)',      countHeadings(mdWith2Headings) < 3);
-    ok('no headings → count=0 (<3, fallback path taken)',     countHeadings(mdNoHeadings) === 0);
-
-    // Without g flag the match stops at 1 — this is what the bug looked like.
-    const buggyCount = s => (s.match(/^#{1,6} /m) || []).length;
-    ok('regression: without g flag, 3-heading doc still counts as 1 (bug reproduced)',
-      buggyCount(mdWith3Headings) === 1);
+    // Regression: the pre-fix /m (no g) would return false for 3-heading input.
+    // Verify the helper now correctly returns true (i.e. the bug is fixed).
+    ok('regression guard: hasPdfStructure true for 3 headings (was false before /gm fix)',
+      hasPdfStructure(mdWith3Headings) === true);
 
     // pdf2md PAGE_BREAK stripping before routing: headings must survive cleanup.
-    const { chunkFile } = await import('./indexer/phases/chunk.js');
     const pdf2mdOutput = `<!-- PAGE_BREAK -->\n## Chapter 1\nContent here.\n\n<!-- PAGE_BREAK -->\n## Chapter 2\nMore content.\n\n<!-- PAGE_BREAK -->\n## Chapter 3\nEven more.`;
     const cleaned = pdf2mdOutput.replace(/<!-- PAGE_BREAK -->/g, '\n').replace(/\n{3,}/g, '\n\n');
-    ok('pdf2md PAGE_BREAK cleanup preserves headings', countHeadings(cleaned) >= 3);
+    ok('pdf2md PAGE_BREAK cleanup preserves structure', hasPdfStructure(cleaned));
     const chunks = chunkFile('book.md', cleaned, 'book.pdf');
     ok('cleaned pdf2md output → sections assigned', chunks.some(c => c.section === 'Chapter 1'));
     ok('cleaned pdf2md output → multiple distinct sections', new Set(chunks.map(c => c.section)).size >= 3);

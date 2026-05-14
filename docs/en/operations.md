@@ -294,7 +294,7 @@ Do not hand-edit `vectorSize` or other config fields to make the error disappear
 - Reranker is off by default because current bundled benchmark shows neutral effect.
 - ColBERT / late-interaction retrieval is not implemented yet.
 - Bundled benchmark is a regression suite, not a scientific evaluation.
-- PDF files lose all heading structure during extraction; all chunks have empty or generic `section`.
+- PDF files from digitally-created sources typically have heading structure recovered by `@opendocsg/pdf2md`; scanned PDFs fall back to plain-text and get empty `section`.
 - `chunks_out/` is a review layer and can have path collisions for files with the same parent-folder and basename.
 - `chunks_out/` cleanup uses filename pattern matching (`base__chunk*.md`).
 
@@ -309,8 +309,8 @@ Do not hand-edit `vectorSize` or other config fields to make the error disappear
 | Search/link error: `Not existing vector name: dense` | Legacy flat vector schema (`{ size, distance }` instead of named `{ dense, sparse }`) or collection without a named `dense` vector | Run `npm run sync` — if it reports `LEGACY SCHEMA`, the collection must be dropped and reindexed (see below); collections without named `dense` are marked `linkDisabled` automatically |
 | Stale search results after file delete or rename | Old Qdrant points remain | Run full-root `PRUNE_STALE=1 COLLECTION=... npm run index ./root` |
 | Provider mismatch triggers unexpected full reindex | Changed `ONNX_EMBED`, `DENSE_PROVIDER`, `SPARSE_PROVIDER`, schema version, or `vectorSize` | Expected behavior — let reindex complete; do not interrupt |
-| `pandoc: Unknown input format pdf` | Pandoc cannot read PDFs | PDFs are handled by `pdf-parse`; pandoc is only used for `.docx`, `.odt`, `.rtf`, `.epub`, `.html`, `.htm` |
+| `pandoc: Unknown input format pdf` | Pandoc cannot read PDFs | PDFs are handled by `@opendocsg/pdf2md`; pandoc is only used for `.docx`, `.odt`, `.rtf`, `.epub`, `.html`, `.htm` |
 | First ONNX indexing run is very slow | Model download and cache warmup (~2.3 GB) | Wait for download to complete; all subsequent runs use `./models/` cache |
 | `ONNX_EXECUTION_PROVIDER=cuda` falls back to CPU | CUDA not bundled in `onnxruntime-node` | Expected — semidex retries with CPU automatically and logs a warning; use `dml` on Windows for GPU acceleration without extra packages |
 | Wrong search results after re-indexing | `config.json` still has old provider metadata | Check `config.json` entry for the collection, run `npm run sync`, verify provider fields match the current indexing env |
-| All PDF chunks have empty or `"intro"` section | PDF extracted as plain text — heading structure is not preserved | Acceptable fallback; navigate chunks via `source_file` + `chunk_index`. If heading structure is required, convert the PDF to Markdown externally before indexing |
+| All PDF chunks have empty `section` | Scanned or image-only PDF — `pdf2md` found no heading structure, fell back to plain-text | Navigate via `source_file` + `chunk_index`; digitally-created PDFs will have sections automatically |
