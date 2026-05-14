@@ -2,10 +2,7 @@ import { readFileSync } from 'fs';
 import { extname } from 'path';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
-import { createRequire } from 'module';
-
-const require = createRequire(import.meta.url);
-const { PDFParse } = require('pdf-parse');
+import pdf2md from '@opendocsg/pdf2md';
 
 const execFileAsync = promisify(execFile);
 
@@ -144,7 +141,7 @@ function parseMarkdown(text) {
   let currentLines = [];
 
   for (const line of lines) {
-    const headingMatch = line.match(/^(#{1,3}) (.+)/);
+    const headingMatch = line.match(/^(#{1,6}) (.+)/);
     if (headingMatch) {
       const headingText = headingMatch[2].replace(/\*\*/g, '').trim();
       if (isStructuralHeading(headingText)) {
@@ -195,11 +192,6 @@ export function chunkFile(filePath, text, sourceFile) {
     const { meta, sections } = parseMarkdown(text);
     const links = parseWikilinks(text);
     chunks.push(...chunkSections(sections, sourceFile, meta, links));
-  } else if (ext === '.pdf') {
-    const subChunks = recursiveChunkText(text, { stripPageMarkers: true });
-    subChunks.forEach((t, i) => {
-      chunks.push({ text: t, section: '', source_file: sourceFile, meta: {}, links: [], needsBoundaryCheck: i > 0 });
-    });
   } else {
     const subChunks = chunkBySentences(text);
     subChunks.forEach((t, i) => {
@@ -216,13 +208,11 @@ export async function chunkFileFromPath(filePath, sourceFile) {
   const ext = extname(filePath).toLowerCase();
 
   if (ext === '.pdf') {
-    const parser = new PDFParse({ url: filePath });
-    try {
-      const { text } = await parser.getText();
-      return chunkFile(filePath, text, sourceFile);
-    } finally {
-      await parser.destroy();
-    }
+    const data = readFileSync(filePath);
+    const md = await pdf2md(data);
+    // Strip page-break markers, then chunk as Markdown to recover headings/sections
+    const clean = md.replace(/<!-- PAGE_BREAK -->/g, '\n').replace(/\n{3,}/g, '\n\n');
+    return chunkFile(filePath.replace(/\.pdf$/i, '.md'), clean, sourceFile);
   }
 
   if (PANDOC_FORMATS.has(ext)) {

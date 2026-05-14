@@ -34,6 +34,7 @@
   "dependencies": {
     "@huggingface/transformers": "^4.2.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
+    "@opendocsg/pdf2md": "^0.2.6",
     "dotenv": "^16.0.0",
     "onnxruntime-node": "1.24.3",
     "pdf-parse": "^2.4.5"
