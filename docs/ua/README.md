@@ -279,7 +279,7 @@ npm run bench:custom50            # 50 запитів, chunkRecall@3/5, nDCG@10,
 |--------|-------|
 | `.md` | Нативний парсер (з урахуванням заголовків, frontmatter, wikilinks) |
 | `.txt` | Нативний парсер |
-| `.pdf` | pdf-parse (npm-залежність, системні інструменти не потрібні) |
+| `.pdf` | `@opendocsg/pdf2md` → Markdown (заголовки відновлюються з текстового шару) |
 | `.docx` | pandoc |
 | `.odt` | pandoc |
 | `.rtf` | pandoc |

@@ -44,9 +44,10 @@ PRUNE_STALE=1 ONNX_EMBED=1 COLLECTION=my-docs npm run index ./docs
 ONNX_EMBED=1 MAX_CHUNK_TOKENS=800 COLLECTION=my-book npm run index ./book.pdf
 ```
 
-- PDFs are parsed by `pdf-parse`, not pandoc — pandoc cannot read PDFs
-- Heading structure is usually unavailable after extraction; all chunks get `section: ""`
-- Chunking uses a recursive paragraph → sentence → word splitter with page-marker cleanup
+- PDFs are converted to Markdown by `@opendocsg/pdf2md`, not pandoc — pandoc cannot read PDFs
+- Heading structure is recovered from the PDF text layer; most digitally-created PDFs yield real `section` values
+- Scanned or image-only PDFs may produce weak structure; those chunks default to `section: ""`
+- The Markdown output is processed through the same heading-aware path as `.md` files
 - `MAX_CHUNK_TOKENS=800` is a reasonable starting point for dense book text; tune based on benchmark results
 - `chunks_out/` is a human review artifact only — Qdrant is the source of truth
 

@@ -2,7 +2,11 @@ import { readFileSync } from 'fs';
 import { extname } from 'path';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
+import { createRequire } from 'module';
 import pdf2md from '@opendocsg/pdf2md';
+
+const require = createRequire(import.meta.url);
+const { PDFParse } = require('pdf-parse');
 
 const execFileAsync = promisify(execFile);
 
@@ -209,10 +213,30 @@ export async function chunkFileFromPath(filePath, sourceFile) {
 
   if (ext === '.pdf') {
     const data = readFileSync(filePath);
-    const md = await pdf2md(data);
-    // Strip page-break markers, then chunk as Markdown to recover headings/sections
-    const clean = md.replace(/<!-- PAGE_BREAK -->/g, '\n').replace(/\n{3,}/g, '\n\n');
-    return chunkFile(filePath.replace(/\.pdf$/i, '.md'), clean, sourceFile);
+    let md = null;
+    try {
+      md = await pdf2md(data);
+    } catch { /* fall through to plain-text */ }
+
+    // Usable if pdf2md produced at least 3 heading lines; otherwise fall back to pdf-parse plain text.
+    const hasStructure = md && (md.match(/^#{1,6} /m) || []).length >= 3;
+    if (hasStructure) {
+      const clean = md.replace(/<!-- PAGE_BREAK -->/g, '\n').replace(/\n{3,}/g, '\n\n');
+      return chunkFile(filePath.replace(/\.pdf$/i, '.md'), clean, sourceFile);
+    }
+
+    console.warn(`  [chunk] pdf2md produced no structure for ${filePath}, falling back to plain-text`);
+    const parser = new PDFParse({ url: filePath });
+    try {
+      const { text } = await parser.getText();
+      const subChunks = recursiveChunkText(text, { stripPageMarkers: true });
+      return subChunks.map((t, i) => ({
+        text: t, section: '', source_file: sourceFile, meta: {}, links: [],
+        needsBoundaryCheck: i > 0, chunkIndex: i, totalChunks: subChunks.length,
+      }));
+    } finally {
+      await parser.destroy();
+    }
   }
 
   if (PANDOC_FORMATS.has(ext)) {

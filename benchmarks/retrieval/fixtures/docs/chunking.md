@@ -65,5 +65,8 @@ passing a synthetic `.md` path to `chunkFile` regardless of the original file ex
 
 ## PDF
 
-PDF files are parsed with `pdf-parse` and then chunked as plain text (no heading
-detection, since PDF structure is not reliably extracted).
+PDF files are converted to Markdown by `@opendocsg/pdf2md`, then chunked through the same
+`parseMarkdown` path as `.md` files. Headings (H1–H6) found in the Markdown output become
+`section` values on chunks. Digitally-created PDFs with a text layer typically yield real
+section headings. Scanned or image-only PDFs may produce weak structure and default to
+`section: ""`.

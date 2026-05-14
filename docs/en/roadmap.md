@@ -49,7 +49,7 @@ RAG layer for larger technical corpora.
 - compact deduplicated window output
 - semantic graph links and backlinks
 - Obsidian-compatible `chunks_out/` review artifacts
-- PDF fallback chunking — `pdf-parse` plain-text extraction with recursive paragraph → sentence → word splitting (Stage 1)
+- PDF structured chunking — `@opendocsg/pdf2md` Markdown conversion with heading-aware section splitting (H1–H6 recovered)
 - 21-query regression benchmark
 - custom-50 chunk-level quality benchmark
 - diagnostics, failure analysis, candidate comparison, and threshold sweep tooling

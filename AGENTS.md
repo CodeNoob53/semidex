@@ -322,7 +322,7 @@ no longer on disk. Never run against a single file or a subdirectory subset.
 ONNX_EMBED=1 MAX_CHUNK_TOKENS=800 COLLECTION=my-book npm run index ./book.pdf
 ```
 
-PDFs are parsed by `pdf-parse` (not pandoc). `pdf-parse` returns plain text — heading structure is not recovered. All chunks will have `section: ""` or `"intro"`. Chunking uses paragraph → sentence → word recursive splitting. `MAX_CHUNK_TOKENS=800` is a good starting point for dense prose. Navigate PDF chunks by `source_file` + `chunk_index` rather than by section. If heading structure is required, convert the PDF to Markdown externally before indexing.
+PDFs are converted to Markdown by `@opendocsg/pdf2md` (not pandoc — pandoc cannot read PDFs). The Markdown output is then chunked through the same heading-aware `parseMarkdown` path used for `.md` files. Most PDFs with embedded text will have headings recovered as `section` values. Scanned or image-only PDFs may produce weak structure; in that case sections default to `""`. `MAX_CHUNK_TOKENS=800` is a good starting point for dense prose.
 
 ### Troubleshooting quick reference
 

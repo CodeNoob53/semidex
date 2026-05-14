@@ -198,7 +198,7 @@ Mixed provider combinations, such as `ollama` dense + `bge-m3-onnx` sparse, are 
 |--------|--------|
 | `.md` | Native parser with headings, frontmatter, wikilinks |
 | `.txt` | Native parser |
-| `.pdf` | `pdf-parse` |
+| `.pdf` | `@opendocsg/pdf2md` → Markdown (headings recovered) |
 | `.docx`, `.odt`, `.rtf`, `.epub`, `.html`, `.htm` | `pandoc` conversion to Markdown |
 
 Pandoc is required only for `.docx`, `.odt`, `.rtf`, `.epub`, `.html`, and `.htm`.

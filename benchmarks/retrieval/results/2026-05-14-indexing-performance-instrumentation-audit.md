@@ -28,7 +28,7 @@ indexFile(filePath, …)
   ├─ [skip?] storedHash === fileHash → return 'skipped'
   ├─ [pre]   deleteBySourceFile (if reindexing)       — Qdrant delete, network
   │
-  ├─ [1/5]  chunkFileFromPath(filePath, sourceFile)   — CPU / pandoc / pdf-parse
+  ├─ [1/5]  chunkFileFromPath(filePath, sourceFile)   — CPU / pandoc / pdf2md
   ├─ [2/5]  processChunks(rawChunks)                  — LLM (context + merge)
   ├─ [3/5]  addTagsBatch loop                         — LLM (tags, batched)
   ├─ [4/5]  runBatched → embedForIndex + upsertPoints — ONNX/Ollama + Qdrant

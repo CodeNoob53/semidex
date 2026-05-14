@@ -562,6 +562,34 @@ console.log('\n[11] recursiveChunkText (no Qdrant)');
     ok('.txt: PDF page marker preserved (not on recursive PDF path)',
       result.some(c => c.text.includes('7 of 100')));
   }
+
+  // 11l. parseMarkdown handles H1–H6 headings (#{1,6}) — not just #{1,3}.
+  // This covers the pdf2md output where section headings appear as ##### (H5).
+  {
+    const { chunkFile } = await import('./indexer/phases/chunk.js');
+
+    // H4 and H5 headings must be recognized as section boundaries.
+    const md4 = `#### Deep Section\nContent under H4 heading.`;
+    const r4 = chunkFile('doc.md', md4, 'doc.md');
+    ok('H4 (####) becomes section name', r4.some(c => c.section === 'Deep Section'));
+
+    const md5 = `##### Subsection\nContent under H5 heading.\n\n##### Another Sub\nMore content.`;
+    const r5 = chunkFile('doc.md', md5, 'doc.md');
+    ok('H5 (#####) becomes section name', r5.some(c => c.section === 'Subsection'));
+    ok('two H5 sections are distinct', r5.some(c => c.section === 'Another Sub'));
+
+    // H6 also recognized.
+    const md6 = `###### Leaf\nLeaf content here.`;
+    const r6 = chunkFile('doc.md', md6, 'doc.md');
+    ok('H6 (######) becomes section name', r6.some(c => c.section === 'Leaf'));
+
+    // Existing H1–H3 must still work (regression guard).
+    const mdMixed = `# Top\nH1 body.\n\n## Mid\nH2 body.\n\n### Sub\nH3 body.`;
+    const rMixed = chunkFile('doc.md', mdMixed, 'doc.md');
+    ok('H1 still works after #{1,6} expansion', rMixed.some(c => c.section === 'Top'));
+    ok('H2 still works after #{1,6} expansion', rMixed.some(c => c.section === 'Mid'));
+    ok('H3 still works after #{1,6} expansion', rMixed.some(c => c.section === 'Sub'));
+  }
 }
 
 // ── 12. resolveOnnxExecutionProviders (no model load) ───────────────────────

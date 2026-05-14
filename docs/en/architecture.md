@@ -60,10 +60,10 @@ The parser tries to preserve document structure:
 |--------|--------|-----------------|-------|
 | `.md` | Native | Preserved | Wikilinks, frontmatter, heading hierarchy |
 | `.txt` | Native (sentence-based) | None | Plain sentence splitting with overlap |
-| `.pdf` | `pdf-parse` | **Not preserved** | See below |
+| `.pdf` | `@opendocsg/pdf2md` → Markdown | Recovered from PDF text layer | See below |
 | `.docx`, `.odt`, `.epub`, `.html`, `.htm`, `.rtf` | pandoc → Markdown | Preserved if pandoc can extract them | pandoc converts to Markdown first |
 
-**PDF ingestion limitation:** `pdf-parse` returns plain text with no Markdown structure. All chunks from a PDF file will have `section: ""` or `section: "intro"`. The recursive paragraph → sentence → word chunker produces clean boundaries, but heading structure cannot be recovered from the extracted text. Pandoc does not support PDF as an input format and cannot be used as a substitute. If heading structure is essential, convert the PDF to Markdown externally (OCR or specialized converter) before indexing.
+**PDF ingestion:** `@opendocsg/pdf2md` converts PDF to Markdown, then the same `parseMarkdown` path used for `.md` files processes the output. Headings (H1–H6) found in the Markdown become `section` values on chunks. PDFs with a proper text layer (digitally created) typically yield good section coverage. Scanned or image-only PDFs produce weak or no structure; chunks from those files will have `section: ""`. Pandoc does not support PDF as an input format.
 
 Important environment variables:
 
