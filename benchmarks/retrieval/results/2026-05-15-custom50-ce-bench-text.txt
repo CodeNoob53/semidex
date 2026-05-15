@@ -1,0 +1,91 @@
+====================================================================================================
+  custom-50 cross-encoder rerank benchmark
+  Date              : 2026-05-15
+  Provider          : bge-m3-onnx/bge-m3-onnx
+----------------------------------------------------------------------------------------------------
+  CE_MODEL          : cross-encoder/mmarco-mMiniLMv2-L12-H384-v1
+  CE_INPUT          : text
+  CE_BATCH_SIZE     : 16
+  CE_PROTECT_TOP1   : off
+  BENCH_TOP_K       : 10
+  RERANK_PREFETCH_MULT : 4
+  BENCH_SKIP_INDEX  : yes
+====================================================================================================
+
+Aggregate metrics:
+----------------------------------------------------------------------------------------------------
+                     hybrid-truehybrid-prefetch    det-rerank cross-encoder
+----------------------------------------------------------------------------------------------------
+MRR@10                     0.644         0.665         0.669         0.699
+rank1 exact                   23            25            25            27
+nDCG@10                    0.700         0.710         0.713         0.749
+chunkRecall@3              77.6%         77.6%         79.6%         83.7%
+chunkRecall@5              87.8%         87.8%         89.8%         89.8%
+chunkRecall@10             93.9%         93.9%         98.0%         95.9%
+windowRecall@5             95.9%         95.9%         98.0%         98.0%
+windowRecall@10            98.0%         98.0%        100.0%        100.0%
+supportRecall@10           98.0%         98.0%        100.0%        100.0%
+negativePass              100.0%        100.0%        100.0%        100.0%
+p50 latency                 49ms          51ms          52ms        3458ms
+p95 latency                 57ms          91ms          92ms        3828ms
+----------------------------------------------------------------------------------------------------
+
+Promotion gate (cross-encoder vs hybrid-true):
+----------------------------------------------------------------------------------------------------
+  [✓] MRR@10 >= 0.674   (got 0.699, need +0.030 from 0.644)
+  [✓] chunkRecall@5 >= 87.8%   (got 89.8%)
+  [✓] negativePass = 100%   (got 100.0%)
+  [✗] zero regressions (rel>=3 rank <=3 -> >3)   (got 2)
+
+  Verdict: GATE FAILED — do not promote
+----------------------------------------------------------------------------------------------------
+
+Per-query rank-1 analysis (non-rank-1 hybrid-true, regressions first):
+----------------------------------------------------------------------------------------------------
+ID      hybrid-true  hybrid-prefe    det-rerank  cross-encode  flag  query
+----------------------------------------------------------------------------------------------------
+c03              #2            #2            #2            #4  REGR  як увімкнути bge-m3-onnx без Ollama
+c36              #2            #2            #2            #5  REGR  chunkFile splitSentences parseMarkdown location in source
+c07              #2            #2            #3            #1  IMPR  Invalid provider combination error mixed ollama onnx
+c15              #4            #4            #4            #1  IMPR  OVERLAP_SENTENCES default value sentence overlap chunking
+c20              #2            #2            #2            #1  IMPR  MAX_CHUNK_TOKENS MIN_CHUNK_TOKENS chunking parameters range
+c25              #2            #2            #2            #1  IMPR  відмінність між sync та indexer стосовно config.json
+c26              #2            #1            #1            #1  IMPR  як зареєструвати MCP сервер semidex у Claude Code
+c37              #7            #7            #4            #1  IMPR  npm run bench:custom50 entry point run-v3.js
+c38              #2            #2            #2            #1  IMPR  SCHEMA_VERSION constant embeddings.js reindex discriminator
+c02            miss          miss          miss          miss        які є валідні комбінації провайдерів embeddings
+c04              #3            #3            #3            #3        embedding_schema_version reindex discriminator payload field
+c06              #2            #2            #3            #2        resolveEnvProviders single source of truth provider mapping
+c09              #4            #4            #4            #4        HYBRID_PREFETCH_LIMIT prefetch per RRF leg
+c12              #6            #6            #6            #3        як Qdrant зберігає named vectors dense sparse
+c14              #2            #2            #2            #2        Qdrant Query API body shape for RRF fusion with prefetch
+c29            miss          miss            #7            #9        як агент повинен починати сесію з semidex MCP
+c31              #5            #5            #3            #3        CHUNKS_OUT_DIR Obsidian export directory chunks output
+c32              #2            #2            #2            #2        LINK_MIN_SCORE LINK_TOP wikilink threshold semantic neighbor
+c33            miss          miss            #6          miss        що міститься у frontmatter кожного Obsidian файлу chunk
+c35              #5            #5            #3            #9        де знаходиться src/core/qdrant.js і що він експортує
+c39              #2            #1            #1            #2        chunkRecall nDCG graded relevance benchmark v3 schema
+c41              #5            #5            #6            #2        яка різниця між 21-query regression і custom-50 quality benc
+c45              #2            #2            #2            #2        config.json six reindex discriminators denseProvider denseMo
+c47              #3            #3            #5            #3        bge-m3-onnx neural sparse weights for rare Ukrainian terms
+c48              #6            #6            #5            #7        cross-lingual retrieval Ukrainian query English document BGE
+c49              #3            #3            #3            #2        ONNX_EMBED=1 recommended provider for multilingual Ukrainian
+----------------------------------------------------------------------------------------------------
+
+Regression detail (2 queries where CE hurt rank <=3):
+----------------------------------------------------------------------------------------------------
+[c03] як увімкнути bge-m3-onnx без Ollama
+  hybrid-true        rank=#2 top1=config-env.md#2 rel=0
+  hybrid-prefetch    rank=#2 top1=config-env.md#2 rel=0
+  det-rerank         rank=#2 top1=config-env.md#2 rel=0
+  cross-encoder      rank=#4 top1=config-env.md#2 rel=0
+
+[c36] chunkFile splitSentences parseMarkdown location in source
+  hybrid-true        rank=#2 top1=chunking.md#6 rel=0
+  hybrid-prefetch    rank=#2 top1=chunking.md#6 rel=0
+  det-rerank         rank=#2 top1=chunking.md#6 rel=0
+  cross-encoder      rank=#5 top1=chunking.md#6 rel=0
+
+----------------------------------------------------------------------------------------------------
+
+====================================================================================================
