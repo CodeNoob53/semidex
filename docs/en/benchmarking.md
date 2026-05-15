@@ -188,6 +188,21 @@ queries), which is too small to justify global enablement. Rerank remains off
 by default; class-specific routing is a possible future path, pending validation
 on a larger dataset.
 
+**CE routing result (2026-05-15, mmarco text+meta, 75 queries): GATE FAILED.**
+MRR lift +0.009 (gate requires +0.030); 4 rank≤3→>3 regressions concentrated in
+`config-env` (2 regressions, MRR 0.524→0.387) and a guard misfire in
+`provider-activation`. Recall and cross-lingual improved. The `heuristic-v1`
+guard from custom-50 does not generalise to custom-150 without a `config-env`
+route class. CE routing remains benchmark-only and not promotable.
+
+```bash
+BENCH_PROVIDER=onnx BENCH_SKIP_INDEX=1 \
+CE_MODEL=cross-encoder/mmarco-mMiniLMv2-L12-H384-v1 CE_INPUT=text+meta \
+  npm run bench:custom150:ce-routing
+```
+
+Result file: `benchmarks/retrieval/results/2026-05-15-custom150-ce-routing-mmarco-mminilmv2-l12-h384-v1.txt`
+
 ### custom-large stress benchmark
 
 Collection: `bench-retrieval-custom-large`

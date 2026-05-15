@@ -435,20 +435,59 @@ unresolved weakness: both hybrid and CE produce MRR 0.167 on a Ukrainian query
 whose answer document is primarily English. This is a retrieval-coverage gap,
 not a reranking failure.
 
-**Production status:** still benchmark-only. Not enabled as default due to CPU
-latency (~3 300 ms p50). Requires validation on `custom-150` and `holdout-50`
-before production integration. Next step: dataset expansion and class-aware
-benchmark tiers as described in
-[`docs/en/benchmark-dataset-plan.md`](benchmark-dataset-plan.md).
-
 Result file:
 `benchmarks/retrieval/results/2026-05-15-custom50-ce-routing-mmarco-mminilmv2-l12-h384-v1.txt`
+
+### CE routing guard — custom-150 validation result
+
+CE routing was validated on the 75-query custom-150 Tier B dataset using the
+same `heuristic-v1` guard ported unchanged from custom-50. Script:
+[`benchmarks/retrieval/custom-150/ce-routing-bench.js`](../../benchmarks/retrieval/custom-150/ce-routing-bench.js)
+
+**Gate result: FAILED.**
+
+| Metric | hybrid-true | ce-routed | Delta |
+|--------|:-----------:|:---------:|------:|
+| MRR@10 | 0.522 | 0.531 | +0.009 |
+| chunkRecall@5 | 68.1% | 70.8% | +2.7 pp |
+| chunkRecall@10 | 76.4% | 80.6% | +4.2 pp |
+| negativePass | 100% | 100% | 0 |
+| regressions (rel≥3, rank ≤3 → >3) | — | **4** | — |
+| p50 latency | 49 ms | 3 345 ms | — |
+
+The MRR lift is only +0.009 (gate requires +0.030), and four rank≤3→>3
+regressions remain. Recall and cross-lingual behavior both improve, so the
+failure is in guard precision, not in CE quality:
+
+- **`cross-lingual-ua-en`** — improved: MRR 0.572→0.617, cR@5 held at 75%. The
+  main weakness from custom-50 does not reproduce here.
+- **`config-env`** — worst regression: MRR 0.524→0.387, cR@5 66.7%→50%, 2
+  regressions. CE pushes config table chunks to miss on semantic-routed queries;
+  the heuristic guard has no signal for this route class.
+- **`provider-activation`** — guard misfire on c150-009: guard protects
+  `config-env.md#2` (wrong chunk), causing the true target to slip from rank #3
+  to #4.
+
+`ce-oracle` (qrel-aware upper bound) reaches MRR 0.541 with zero regressions,
+confirming the candidate pool contains the right chunks — the heuristic cannot
+identify them reliably yet.
+
+**Decision: CE routing is not promotable.** The custom-50 result was
+encouraging but not sufficient as proof of generalization. The guard needs a
+`config-env` route class (protecting chunks from `config-env.md` that contain
+the query's env-var token) and a fix for provider-activation guard misfires
+before re-validation.
+
+Result file:
+`benchmarks/retrieval/results/2026-05-15-custom150-ce-routing-mmarco-mminilmv2-l12-h384-v1.txt`
 
 ### Production status
 
 Cross-encoder reranking is benchmark-only. It is not enabled in `src/` or the
 MCP server. Promotion to production requires:
 
+- Passing the custom-150 gate (MRR +0.030, zero regressions) with a revised guard
+- holdout-50 validation
 - GPU latency measurement (target: p50 < 200 ms)
 - Smoke tests for the CE rerank path
 - Integration into `src/core/rerank.js` or a new `src/core/ce-rerank.js` module
