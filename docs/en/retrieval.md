@@ -131,7 +131,11 @@ The reranker also applies:
 - top-1 protection via `RERANK_PROTECT_TOP1_DELTA`
 - intro-chunk penalty via `RERANK_PENALTY_INTRO_CHUNK` (default `0.02`): demotes `chunk_index=0` results when the query contains ≥2 technical tokens, discouraging overview/intro chunks from outranking specific content
 
-Current benchmark result (custom-50, ONNX provider): reranking improves MRR@10 by ~0.005 and chunkRecall@5 by ~2pp over hybrid-only. The MRR@10 +0.03 target from the original task remains open — the remaining gap is in RRF/embedding quality for queries where the correct chunk is not retrieved in the top candidates. Keep reranking disabled unless you have validated it on your own data.
+**custom-50 (ONNX, 49 positive queries):** reranking improves MRR@10 by ~0.005 and chunkRecall@5 by ~2 pp over hybrid-only.
+
+**custom-150 Tier B (ONNX, 75 queries, 2026-05-15):** deterministic rerank is not promotable as a global default. MRR@10 is flat (+0.001), chunkRecall@5 drops −4.2 pp, chunkRecall@10 drops −5.6 pp, nDCG drops −0.013. The `cross-lingual-ua-en` class regresses most sharply (MRR 0.520→0.438, cR@5 75%→50%); the reranker systematically pushes UA-query/EN-chunk pairs down. The only class that benefits is `provider-activation` (4 queries — too small to justify global enablement). Full result files: `benchmarks/retrieval/results/2026-05-15-custom150-onnx-hybrid.txt` and `benchmarks/retrieval/results/2026-05-15-custom150-onnx-rerank.txt`.
+
+**Decision:** keep `RERANK_ENABLED=0`. Class-specific routing (e.g. skip rerank for Cyrillic-script queries) is a candidate future path but requires validation on a larger dataset.
 
 ## Literal and Exact-Token Queries
 

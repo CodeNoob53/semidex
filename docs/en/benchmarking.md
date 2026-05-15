@@ -22,6 +22,9 @@ BENCH_SKIP_INDEX=1 npm run bench:custom50:diagnostics
 npm run bench:custom-large
 BENCH_SKIP_INDEX=1 npm run bench:custom-large
 ONNX_EMBED=1 npm run bench:custom-large
+npm run bench:custom150
+BENCH_PROVIDER=onnx BENCH_SKIP_INDEX=1 npm run bench:custom150
+BENCH_PROVIDER=onnx BENCH_SKIP_INDEX=1 RERANK_ENABLED=1 npm run bench:custom150
 ```
 
 Optional live retrieval smokes (require Qdrant, not default CI):
@@ -136,6 +139,54 @@ Docs: `benchmarks/retrieval/custom-50/README.md`
 
 Chunk-level evaluation with graded relevance (`relevantChunks`, `relevance: 1/2/3`).
 Run when evaluating retrieval quality beyond file-level recall.
+
+### custom-150 Tier B benchmark
+
+Collection: `bench-retrieval-custom-150`
+
+Fixtures: `benchmarks/retrieval/fixtures/docs/` (shared 4) +
+`benchmarks/retrieval/custom-50/fixtures/docs/` (6 custom-50) +
+`benchmarks/retrieval/custom-150/fixtures/docs/` (custom-150 additions, if any)
+Queries: `benchmarks/retrieval/custom-150/queries.json` (75 queries, v3 schema)
+Docs: `benchmarks/retrieval/custom-150/README.md`
+
+Broader in-domain validation. Sits between the fast dev-regression loop of
+custom-50 (Tier A) and the sealed holdout (Tier C). Use it after custom-50
+confirms a change, to check class-level generalization across a wider and
+harder query set. Not the primary tuning target.
+
+```bash
+BENCH_PROVIDER=onnx npm run bench:custom150
+BENCH_PROVIDER=onnx BENCH_SKIP_INDEX=1 npm run bench:custom150
+BENCH_PROVIDER=onnx BENCH_SKIP_INDEX=1 RERANK_ENABLED=1 npm run bench:custom150
+```
+
+**ONNX hybrid vs rerank baseline (2026-05-15, 75 queries):**
+
+| Metric | hybrid | rerank | Delta |
+|--------|-------:|-------:|------:|
+| MRR@10 | 0.508 | 0.509 | +0.001 |
+| nDCG@10 | 0.562 | 0.549 | −0.013 |
+| chunkRecall@3 | 55.6% | 58.3% | +2.8 pp |
+| chunkRecall@5 | 68.1% | 63.9% | −4.2 pp |
+| chunkRecall@10 | 76.4% | 70.8% | −5.6 pp |
+| windowRecall@5 | 88.9% | 87.5% | −1.4 pp |
+| windowRecall@10 | 95.8% | 93.1% | −2.8 pp |
+| supportRecall@10 | 79.2% | 75.0% | −4.2 pp |
+| negativePass | 100.0% | 100.0% | 0 |
+| p50/p95 latency | 93/104 ms | 96/126 ms | +3/+22 ms |
+
+Result files:
+- `benchmarks/retrieval/results/2026-05-15-custom150-onnx-hybrid.txt`
+- `benchmarks/retrieval/results/2026-05-15-custom150-onnx-rerank.txt`
+
+**Rerank decision:** deterministic rerank is not promotable as a global default
+on this corpus. MRR@10 is flat (+0.001), but chunkRecall@5 and @10 both drop,
+nDCG drops, and `cross-lingual-ua-en` regresses sharply (MRR 0.520→0.438,
+cR@5 75%→50%). The only class that improves is `provider-activation` (4
+queries), which is too small to justify global enablement. Rerank remains off
+by default; class-specific routing is a possible future path, pending validation
+on a larger dataset.
 
 ### custom-large stress benchmark
 
