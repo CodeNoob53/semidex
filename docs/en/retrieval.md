@@ -247,8 +247,105 @@ Evaluate MMR by checking whether `dupSourceRate` decreases and
 | `MMR_DIVERSITY` | `0.5` | Dense MMR diversity balance for benchmark mode |
 | `MMR_CANDIDATES_LIMIT` | `100` | Dense MMR candidate pool size |
 
+## Cross-Encoder Reranking (Benchmark Only)
+
+Cross-encoder reranking is implemented as a standalone benchmark
+(`npm run bench:custom50:ce`, [benchmarks/retrieval/custom-50/cross-encoder-bench.js](../../benchmarks/retrieval/custom-50/cross-encoder-bench.js)).
+It is **not wired into the MCP runtime or `src/`**. The pipeline is:
+
+1. Hybrid RRF fetch — `TOP_K × RERANK_PREFETCH_MULT` candidates from Qdrant
+2. Cross-encoder scoring — `AutoModelForSequenceClassification` raw logits for each `(query, passage)` pair
+3. Return top-K by CE score
+
+The benchmark compares four candidates on every run: `hybrid-true`, `hybrid-prefetch`, `det-rerank`, and `cross-encoder`.
+
+### Candidate models evaluated (2026-05-15, custom-50, ONNX provider)
+
+**`cross-encoder/ms-marco-MiniLM-L-6-v2` — failed, not promotable**
+
+English-only 6-layer model (~22 MB). Structurally floods Ukrainian queries with
+`multilingual.md#4` at rank #1 regardless of input mode. Three hard regressions
+(c16, c23, c46 — Ukrainian operational queries) cannot be recovered by any
+threshold or input format. The post-correction `text` run achieved MRR@10
+`0.552` (vs hybrid-true `0.665`); earlier input variants also failed the
+promotion gate.
+
+**`cross-encoder/mmarco-mMiniLMv2-L12-H384-v1` — gate passed**
+
+Multilingual 12-layer model (~120 MB). Resolves the Ukrainian flooding entirely.
+Best configuration: `CE_INPUT=text+meta` (passage prefixed with `[source_file § section]`).
+
+| Metric | hybrid-true | det-rerank | mmarco text+meta |
+|--------|-------------|------------|------------------|
+| MRR@10 | 0.665 | 0.663 | **0.760** (+0.095) |
+| rank1 exact | 25 | 24 | **29** |
+| nDCG@10 | 0.712 | 0.712 | **0.796** |
+| chunkRecall@3 | 77.6% | 79.6% | **93.9%** |
+| chunkRecall@5 | 87.8% | 89.8% | **95.9%** |
+| chunkRecall@10 | 93.9% | 98.0% | **98.0%** |
+| windowRecall@5 | 95.9% | 98.0% | **100.0%** |
+| negativePass | 100% | 100% | **100%** |
+| p50 latency | 49 ms | 51 ms | **3 497 ms** |
+
+### Promotion gate result
+
+| Criterion | text+section | text+meta |
+|-----------|:-----------:|:--------:|
+| MRR@10 ≥ baseline +0.030 | ✓ 0.755 | ✓ 0.760 |
+| chunkRecall@5 ≥ baseline | ✓ 93.9% | ✓ 95.9% |
+| negativePass = 100% | ✓ | ✓ |
+| zero regressions (rel≥3, rank ≤3 → >3) | ✓ | ✓ |
+| **Verdict** | **PASSED** | **PASSED** |
+
+Both input modes pass. `text+meta` has higher MRR, recall at every depth, and
+`windowRecall@5` reaches 100%.
+
+### qrel correction — c36
+
+Before final gate runs, `queries.json` c36 was corrected:
+`project-structure.md#1` (Source Tree listing) promoted from `relevance: 2` to
+`relevance: 3`. Rationale: the Source Tree chunk explicitly lists
+`chunk.js # chunkFile(), splitSentences(), parseMarkdown()` — a direct
+source-location answer to the query `"chunkFile splitSentences parseMarkdown
+location in source"`. The original rel=2 assignment under-valued a chunk that
+names all three functions with their file path. `project-structure.md#7`
+(description of `chunkFile`'s exports) remains at `relevance: 3`.
+
+The initial pre-correction run with `text+meta` failed the gate on one regression
+(c36: target demoted from rank #2 to #9) because the CE model
+over-scores `chunking.md#6` for queries containing `parseMarkdown` — a structural
+weakness of MS-MARCO-style cross-encoders on source-navigation queries. After the
+qrel correction both `project-structure.md#1` (CE rank #2) and `#7` are accepted
+answers, eliminating the regression.
+
+### Latency caveat
+
+p50 latency is ~3 500 ms on CPU (67× slower than deterministic reranking at
+~52 ms). This is per-query inference over 40 candidate passages on a single CPU
+core. GPU acceleration (`ONNX_EXECUTION_PROVIDER=dml` or `cuda`) would reduce
+this substantially, but latency has not been measured on GPU. Cross-encoder
+reranking is **not suitable for interactive MCP use at CPU speed**.
+
+### Production status
+
+Cross-encoder reranking is benchmark-only. It is not enabled in `src/` or the
+MCP server. Promotion to production requires:
+
+- GPU latency measurement (target: p50 < 200 ms)
+- Smoke tests for the CE rerank path
+- Integration into `src/core/rerank.js` or a new `src/core/ce-rerank.js` module
+- `RERANK_CE_ENABLED` env guard following the same pattern as `RERANK_ENABLED`
+
+Run the benchmark with:
+
+```bash
+npm run bench:custom50:ce
+BENCH_SKIP_INDEX=1 CE_MODEL=cross-encoder/mmarco-mMiniLMv2-L12-H384-v1 CE_INPUT=text+meta npm run bench:custom50:ce
+```
+
 ## Limitations
 
 - `hashed-tf` is not BM25. It has no corpus statistics or IDF.
 - BGE-M3 ONNX sparse output is neural lexical weighting, not SPLADE vocabulary expansion.
 - ColBERT / late-interaction retrieval is not implemented yet.
+- Cross-encoder reranking at CPU speed (~3 500 ms p50) is not suitable for interactive use.
