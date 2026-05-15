@@ -418,10 +418,10 @@
       "expectedFiles": ["project-structure.md"],
       "relevantChunks": [
         { "chunkId": "project-structure.md#7", "relevance": 3 },
-        { "chunkId": "project-structure.md#1", "relevance": 2 }
+        { "chunkId": "project-structure.md#1", "relevance": 3 }
       ],
       "expectedTokens": ["chunkFile"],
-      "note": "chunkFile module location in project structure"
+      "note": "chunkFile module location in project structure; #1 Source Tree lists all three functions explicitly"
     },
     {
       "id": "c37",
