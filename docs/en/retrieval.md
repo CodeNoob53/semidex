@@ -382,6 +382,64 @@ core. GPU acceleration (`ONNX_EXECUTION_PROVIDER=dml` or `cuda`) would reduce
 this substantially, but latency has not been measured on GPU. Cross-encoder
 reranking is **not suitable for interactive MCP use at CPU speed**.
 
+### CE routing guard — custom-50 result
+
+CE routing is a benchmark-only experiment that combines deterministic query
+routing with a lexical guard on top of the mmarco `text+meta` cross-encoder. It
+is implemented in
+[`benchmarks/retrieval/custom-50/ce-routing-bench.js`](../../benchmarks/retrieval/custom-50/ce-routing-bench.js)
+and is **not production behaviour** — it is not wired into `src/` or the MCP
+server.
+
+The classifier assigns each query to one of four route classes
+(`provider-activation`, `source-navigation`, `exact-token`, `semantic`). For
+non-semantic queries, a lexical guard prevents CE from demoting hybrid top-3
+candidates that have strong token overlap with the query (or, for
+`provider-activation`, come from a provider activation guide). Semantic queries
+are passed through to CE without modification.
+
+**Aggregate result (2026-05-15, mmarco text+meta, custom-50, ONNX provider):**
+
+| Metric | hybrid-true | ce-routed |
+|--------|:-----------:|:---------:|
+| MRR@10 | 0.655 | **0.760** |
+| rank1 exact | 24/49 | **29/49** |
+| nDCG@10 | 0.710 | **0.799** |
+| chunkRecall@5 | 87.8% | **95.9%** |
+| negativePass | 100% | 100% |
+| regressions (rel≥3, rank ≤3 → >3) | — | **0** |
+| p50 latency | ~50 ms | ~3 300 ms |
+
+Gate passed: MRR@10 +0.105, chunkRecall@5 +8.1 pp, zero regressions, c03 not
+regressed (hybrid #2 → ce-routed #3).
+
+**Per-class findings:**
+
+| Type | hybrid MRR | ce-routed MRR | Takeaway |
+|------|:----------:|:-------------:|----------|
+| `source-navigation` | 0.281 | 0.667 | CE helps strongly; guard fires on 2/3 queries |
+| `conceptual` | 0.600 | 0.778 | CE helps broadly |
+| `config-env` | 0.553 | 0.725 | recall good, top-rank still imperfect |
+| `troubleshooting` | 0.833 | 1.000 | small class, strong signal |
+| `provider-activation` | 0.500 | 0.333 | c03 stable (no regression) but guard does not lift to rank 1 |
+| `cross-lingual-ua-en` | 0.167 | 0.167 | still weak; CE routing does not solve this class |
+| `exact-token` | 0.807 | 0.798 | broadly stable; marginal shift |
+| `negative` | — | — | negativePass 100% all modes |
+
+The `cross-lingual-ua-en` class (currently one query, c48) remains the main
+unresolved weakness: both hybrid and CE produce MRR 0.167 on a Ukrainian query
+whose answer document is primarily English. This is a retrieval-coverage gap,
+not a reranking failure.
+
+**Production status:** still benchmark-only. Not enabled as default due to CPU
+latency (~3 300 ms p50). Requires validation on `custom-150` and `holdout-50`
+before production integration. Next step: dataset expansion and class-aware
+benchmark tiers as described in
+[`docs/en/benchmark-dataset-plan.md`](benchmark-dataset-plan.md).
+
+Result file:
+`benchmarks/retrieval/results/2026-05-15-custom50-ce-routing-mmarco-mminilmv2-l12-h384-v1.txt`
+
 ### Production status
 
 Cross-encoder reranking is benchmark-only. It is not enabled in `src/` or the
