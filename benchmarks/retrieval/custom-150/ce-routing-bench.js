@@ -1,8 +1,9 @@
 // CE routing benchmark for custom-150 Tier B.
 //
-// Compares guard v1 (custom-50 heuristic-v1 ported verbatim) against guard v2
+// Compares guard v1 (custom-50 heuristic-v1 ported verbatim), guard v2
 // (adds config-env route, fixes provider-activation config-env suppression,
-// fixes protected insertion order).
+// fixes protected insertion order), and guard v3 (provider-activation priority
+// before config-env; exact-token single-protect with overlap+structural scoring).
 //
 // Requires: bench-retrieval-custom-150 already indexed.
 //   Run  BENCH_PROVIDER=onnx npm run bench:custom150  first, or use BENCH_SKIP_INDEX=1.
@@ -13,7 +14,8 @@
 //   ce-raw         CE rerank, no routing guard
 //   ce-routed-v1   CE rerank + heuristic-v1 guard (custom-50 port, no config-env)
 //   ce-routed-v2   CE rerank + heuristic-v2 guard (config-env route + insertion fix)
-//   ce-oracle      CE rerank + oracle guard (qrel-aware upper bound, not promotable)
+//   ce-routed-v3   CE rerank + heuristic-v3 guard (provider-activation priority + exact-token single-protect)
+//   ce-oracle      CE rerank + oracle guard (qrel-aware regression guard — pure CE order, promotes rel>=3 hybrid top-3 chunks; not a global upper bound)
 //
 // Usage:
 //   BENCH_PROVIDER=onnx BENCH_SKIP_INDEX=1 \
@@ -23,7 +25,7 @@
 //   npm run bench:custom150:ce-routing   (requires BENCH_PROVIDER=onnx BENCH_SKIP_INDEX=1 as env)
 
 if (process.argv.includes('--help')) {
-  process.stdout.write(`CE routing benchmark — custom-150 Tier B (guard v1 vs v2)
+  process.stdout.write(`CE routing benchmark — custom-150 Tier B (guard v1 vs v2 vs v3)
 
 Usage:
   BENCH_PROVIDER=onnx BENCH_SKIP_INDEX=1 \\
@@ -43,7 +45,7 @@ Environment:
   BENCH_PROVIDER       onnx = force bge-m3-onnx (recommended)
 
 Output:
-  benchmarks/retrieval/results/YYYY-MM-DD-custom150-ce-routing-v2-{model_slug}.txt
+  benchmarks/retrieval/results/YYYY-MM-DD-custom150-ce-routing-v3-{model_slug}.txt
 
 Modes:
   hybrid-true   baseline
@@ -51,9 +53,10 @@ Modes:
   ce-raw        CE only, no guard
   ce-routed-v1  CE + heuristic-v1 guard (custom-50 port, no config-env route)
   ce-routed-v2  CE + heuristic-v2 guard (adds config-env route, fixes insertion order)
-  ce-oracle     CE + oracle guard (qrel-aware, upper bound only)
+  ce-routed-v3  CE + heuristic-v3 guard (provider-activation priority + exact-token single-protect)
+  ce-oracle     CE + oracle guard (qrel-aware regression guard — pure CE order, promotes rel>=3 hybrid top-3 chunks; not a global upper bound)
 
-Gate (ce-routed-v2 vs hybrid-true):
+Gate (ce-routed-v3 vs hybrid-true):
   MRR@10 improvement >= +0.030
   chunkRecall@5 >= hybrid baseline
   chunkRecall@10 >= hybrid baseline
@@ -739,10 +742,13 @@ function applyHeuristicGuardV3(queryClass, ceRanked, hybridPool, typeLabel) {
   };
 }
 
-function applyOracleGuard(queryClass, ceRanked, hybridPool, qrels) {
-  const { guarded: heurGuarded } = applyHeuristicGuard(queryClass, ceRanked, hybridPool);
+// Pure CE order as base; promotes any qrel rel>=3 chunk from hybrid top-3 into
+// position 3 if CE placed it lower. Not a global upper bound — heuristic guards
+// that reorder within CE top-3 can still exceed this.
+function applyOracleGuard(ceRanked, hybridPool, qrels) {
+  const ceBase = ceRanked.map(x => x.result ?? x);
 
-  if (!qrels.size) return { guarded: heurGuarded, guardFired: false, protectedId: null };
+  if (!qrels.size) return { guarded: ceBase, guardFired: false, protectedId: null };
 
   const chunkId = r => {
     const sf = r.payload?.source_file;
@@ -756,9 +762,9 @@ function applyOracleGuard(queryClass, ceRanked, hybridPool, qrels) {
     if (cid && (qrels.get(cid) ?? 0) >= 3) protected_.add(cid);
   }
 
-  if (!protected_.size) return { guarded: heurGuarded, guardFired: false, protectedId: null };
+  if (!protected_.size) return { guarded: ceBase, guardFired: false, protectedId: null };
 
-  const out = heurGuarded.map(r => ({ result: r }));
+  const out = ceBase.map(r => ({ result: r }));
   let fired = false, protId = null;
 
   for (let i = 3; i < out.length; i++) {
@@ -819,7 +825,7 @@ async function runQuery(q) {
   const ceRoutedV3Results = heurGuardedV3.slice(0, TOP_K);
 
   const { guarded: oracleGuarded, guardFired: oracleFired } =
-    applyOracleGuard(queryClassV2, ceRanked, hybridTrue, q.qrels);
+    applyOracleGuard(ceRanked, hybridTrue, q.qrels);
   const ceOracleResults = oracleGuarded.slice(0, TOP_K);
 
   const crossEncoderMs = Date.now() - t3;
@@ -1382,38 +1388,39 @@ function buildReport(allMetrics, analysis, providerInfo, queryResults) {
   lines.push(SEP2);
   lines.push('');
 
-  // ── Gate checklist (ce-routed-v2) ──
-  lines.push('Promotion gate (ce-routed-v2 vs hybrid-true):');
+  // ── Gate checklist (ce-routed-v3) ──
+  lines.push('Promotion gate (ce-routed-v3 vs hybrid-true):');
   lines.push(SEP2);
-  lines.push(`  [${gMRRImprove ? '✓' : '✗'}] MRR@10 improvement >= +0.030   (got ${(mrrRoutedV2-mrrBase>=0?'+':'')+(mrrRoutedV2-mrrBase).toFixed(3)}, base=${f3(mrrBase).trim()}, v2=${f3(mrrRoutedV2).trim()})`);
-  lines.push(`  [${gCR5       ? '✓' : '✗'}] chunkRecall@5 >= hybrid baseline   (got ${pct(cr5RoutedV2).trim()}, base=${pct(cr5Base).trim()})`);
-  lines.push(`  [${gCR10      ? '✓' : '✗'}] chunkRecall@10 >= hybrid baseline   (got ${pct(cr10RoutedV2).trim()}, base=${pct(cr10Base).trim()})`);
-  lines.push(`  [${gNeg       ? '✓' : '✗'}] negativePass = 100%   (got ${pct(negRoutedV2).trim()})`);
-  lines.push(`  [${gRegr      ? '✓' : '✗'}] zero regressions (rel>=3, hybrid rank <=3 → ce-routed-v2 >3)   (got ${regrV2})`);
-  lines.push(`  [${gXling     ? '✓' : '✗'}] cross-lingual-ua-en cR@5 >= hybrid baseline   (got ${pct(xlingCR5V2).trim()}, base=${pct(xlingCR5Base).trim()})`);
+  lines.push(`  [${gMRRImprove ? '✓' : '✗'}] MRR@10 improvement >= +0.030   (got ${(mrrRoutedV3-mrrBase>=0?'+':'')+(mrrRoutedV3-mrrBase).toFixed(3)}, base=${f3(mrrBase).trim()}, v3=${f3(mrrRoutedV3).trim()})`);
+  lines.push(`  [${gCR5       ? '✓' : '✗'}] chunkRecall@5 >= hybrid baseline   (got ${pct(cr5RoutedV3).trim()}, base=${pct(cr5Base).trim()})`);
+  lines.push(`  [${gCR10      ? '✓' : '✗'}] chunkRecall@10 >= hybrid baseline   (got ${pct(cr10RoutedV3).trim()}, base=${pct(cr10Base).trim()})`);
+  lines.push(`  [${gNeg       ? '✓' : '✗'}] negativePass = 100%   (got ${pct(negRoutedV3).trim()})`);
+  lines.push(`  [${gRegr      ? '✓' : '✗'}] zero regressions (rel>=3, hybrid rank <=3 → ce-routed-v3 >3)   (got ${regrV3})`);
+  lines.push(`  [${gXling     ? '✓' : '✗'}] cross-lingual-ua-en cR@5 >= hybrid baseline   (got ${pct(xlingCR5V3).trim()}, base=${pct(xlingCR5Base).trim()})`);
   lines.push(`  [${gTypeDrop  ? '✓' : '✗'}] no query type with MRR drop >= 0.030 vs hybrid   (${gTypeDrop ? 'all types OK' : `worst: ${worstTypeLabel} drop=${worstTypeDrop?.toFixed(3)}`})`);
   lines.push('');
   lines.push(`  ce-raw regressions for comparison : ${regrRaw}`);
   lines.push(`  v1 regressions for comparison     : ${regrV1}`);
+  lines.push(`  v2 regressions for comparison     : ${regrV2}`);
   lines.push('');
 
   // Answer required questions.
-  lines.push(`  Q: Did CE routing v2 beat hybrid by >= +0.030 MRR?        ${gMRRImprove ? 'YES' : 'NO'}  (delta=${(mrrRoutedV2-mrrBase>=0?'+':'')+(mrrRoutedV2-mrrBase).toFixed(3)})`);
-  lines.push(`  Q: Did it preserve chunkRecall@5?                         ${gCR5   ? 'YES' : 'NO'}  (${pct(cr5RoutedV2).trim()} vs ${pct(cr5Base).trim()})`);
-  lines.push(`  Q: Did it preserve chunkRecall@10?                        ${gCR10  ? 'YES' : 'NO'}  (${pct(cr10RoutedV2).trim()} vs ${pct(cr10Base).trim()})`);
-  lines.push(`  Q: Did it preserve cross-lingual-ua-en?                   ${gXling ? 'YES' : 'NO'}  (cR@5 ${pct(xlingCR5V2).trim()} vs ${pct(xlingCR5Base).trim()})`);
-  lines.push(`  Q: Rank<=3 -> >3 regressions?                             ${regrV2 === 0 ? 'NONE' : regrV2 + ' regression(s)'}`);
+  lines.push(`  Q: Did CE routing v3 beat hybrid by >= +0.030 MRR?        ${gMRRImprove ? 'YES' : 'NO'}  (delta=${(mrrRoutedV3-mrrBase>=0?'+':'')+(mrrRoutedV3-mrrBase).toFixed(3)})`);
+  lines.push(`  Q: Did it preserve chunkRecall@5?                         ${gCR5   ? 'YES' : 'NO'}  (${pct(cr5RoutedV3).trim()} vs ${pct(cr5Base).trim()})`);
+  lines.push(`  Q: Did it preserve chunkRecall@10?                        ${gCR10  ? 'YES' : 'NO'}  (${pct(cr10RoutedV3).trim()} vs ${pct(cr10Base).trim()})`);
+  lines.push(`  Q: Did it preserve cross-lingual-ua-en?                   ${gXling ? 'YES' : 'NO'}  (cR@5 ${pct(xlingCR5V3).trim()} vs ${pct(xlingCR5Base).trim()})`);
+  lines.push(`  Q: Rank<=3 -> >3 regressions?                             ${regrV3 === 0 ? 'NONE' : regrV3 + ' regression(s)'}`);
   lines.push(`  Q: Any type with MRR drop >= 0.030?                       ${gTypeDrop ? 'NO' : 'YES — ' + worstTypeLabel + ' (drop=' + worstTypeDrop?.toFixed(3) + ')'}`);
-  lines.push(`  Q: Were 4 known v1 regressions fixed by v2?               v1 had ${regrV1}, v2 has ${regrV2} (fixed=${onlyInV1.length}, new=${onlyInV2.length})`);
+  lines.push(`  Q: Were 2 known v2 regressions fixed by v3?               v2 had ${regrV2}, v3 has ${regrV3} (fixed=${fixedByV3.length}, new=${newInV3.length})`);
   lines.push('');
 
   let verdict;
   if (gatePass) {
-    verdict = 'GATE PASSED — CE routing v2 generalises to custom-150; proceed to holdout-50 validation';
+    verdict = 'GATE PASSED — CE routing v3 generalises to custom-150; proceed to custom-50 regression check then holdout-50';
   } else if (!gMRRImprove && gCR5 && gCR10 && gNeg && gRegr && gXling && gTypeDrop) {
-    verdict = 'GATE FAILED (MRR gap only) — v2 routing is safe but does not lift MRR enough on custom-150';
+    verdict = 'GATE FAILED (MRR gap only) — v3 routing is safe but does not lift MRR enough on custom-150';
   } else if (!gRegr) {
-    verdict = 'GATE FAILED (regressions) — v2 still introduces rank<=3 -> >3 regressions';
+    verdict = 'GATE FAILED (regressions) — v3 still introduces rank<=3 -> >3 regressions';
   } else if (!gTypeDrop) {
     verdict = `GATE FAILED (type MRR drop) — ${worstTypeLabel} drops ${worstTypeDrop?.toFixed(3)} MRR vs hybrid`;
   } else if (!gXling) {
@@ -1434,75 +1441,78 @@ function buildReport(allMetrics, analysis, providerInfo, queryResults) {
     const classQRs = queryResults.filter(r => r.query.type === cls);
     if (!classQRs.length) { lines.push(`  ${cls}: no queries`); continue; }
     const pos = classQRs.filter(r => !r.query.shouldHaveNoStrongHit);
-    const regrInV1  = pos.filter(r => analysisById.get(r.query.id)?.isRegrV1).length;
-    const regrInV2  = pos.filter(r => analysisById.get(r.query.id)?.isRegrRouted).length;
-    const hyb   = pos.length ? pos.reduce((s, r) => s + (mrrAt(r.byMode['hybrid-true'],  r.query.qrels, 10) ?? 0), 0) / pos.length : null;
-    const rou1  = pos.length ? pos.reduce((s, r) => s + (mrrAt(r.byMode['ce-routed-v1'], r.query.qrels, 10) ?? 0), 0) / pos.length : null;
-    const rou2  = pos.length ? pos.reduce((s, r) => s + (mrrAt(r.byMode['ce-routed-v2'], r.query.qrels, 10) ?? 0), 0) / pos.length : null;
+    const regrInV1 = pos.filter(r => analysisById.get(r.query.id)?.isRegrV1).length;
+    const regrInV2 = pos.filter(r => analysisById.get(r.query.id)?.isRegrV2).length;
+    const regrInV3 = pos.filter(r => analysisById.get(r.query.id)?.isRegrRouted).length;
+    const hyb  = pos.length ? pos.reduce((s, r) => s + (mrrAt(r.byMode['hybrid-true'],  r.query.qrels, 10) ?? 0), 0) / pos.length : null;
+    const rou1 = pos.length ? pos.reduce((s, r) => s + (mrrAt(r.byMode['ce-routed-v1'], r.query.qrels, 10) ?? 0), 0) / pos.length : null;
+    const rou2 = pos.length ? pos.reduce((s, r) => s + (mrrAt(r.byMode['ce-routed-v2'], r.query.qrels, 10) ?? 0), 0) / pos.length : null;
+    const rou3 = pos.length ? pos.reduce((s, r) => s + (mrrAt(r.byMode['ce-routed-v3'], r.query.qrels, 10) ?? 0), 0) / pos.length : null;
     const cr5H  = pos.length ? pos.filter(r => chunkRecallHit(r.byMode['hybrid-true'],  r.query.qrels, 5) === true).length / pos.length : null;
-    const cr5V2 = pos.length ? pos.filter(r => chunkRecallHit(r.byMode['ce-routed-v2'], r.query.qrels, 5) === true).length / pos.length : null;
+    const cr5V3 = pos.length ? pos.filter(r => chunkRecallHit(r.byMode['ce-routed-v3'], r.query.qrels, 5) === true).length / pos.length : null;
+    const d1 = rou1!=null&&hyb!=null ? (rou1-hyb>=0?'+':'')+(rou1-hyb).toFixed(3) : 'n/a';
+    const d2 = rou2!=null&&hyb!=null ? (rou2-hyb>=0?'+':'')+(rou2-hyb).toFixed(3) : 'n/a';
+    const d3 = rou3!=null&&hyb!=null ? (rou3-hyb>=0?'+':'')+(rou3-hyb).toFixed(3) : 'n/a';
     lines.push(`  ${cls} (${pos.length} positive):`);
-    lines.push(`    MRR@10  hybrid=${f3(hyb).trim()}  v1=${f3(rou1).trim()} (delta=${rou1!=null&&hyb!=null?(rou1-hyb>=0?'+':'')+(rou1-hyb).toFixed(3):'n/a'})  v2=${f3(rou2).trim()} (delta=${rou2!=null&&hyb!=null?(rou2-hyb>=0?'+':'')+(rou2-hyb).toFixed(3):'n/a'})`);
-    lines.push(`    cR@5    hybrid=${pct(cr5H).trim()}  v2=${pct(cr5V2).trim()}`);
-    lines.push(`    regressions  v1=${regrInV1}  v2=${regrInV2}`);
+    lines.push(`    MRR@10  hybrid=${f3(hyb).trim()}  v1=${f3(rou1).trim()} (${d1})  v2=${f3(rou2).trim()} (${d2})  v3=${f3(rou3).trim()} (${d3})`);
+    lines.push(`    cR@5    hybrid=${pct(cr5H).trim()}  v3=${pct(cr5V3).trim()}`);
+    lines.push(`    regressions  v1=${regrInV1}  v2=${regrInV2}  v3=${regrInV3}`);
     const firedV1 = pos.filter(r => analysisById.get(r.query.id)?.guardFiredV1);
     const firedV2 = pos.filter(r => analysisById.get(r.query.id)?.guardFiredV2);
+    const firedV3 = pos.filter(r => analysisById.get(r.query.id)?.guardFiredV3);
     if (firedV1.length) lines.push(`    v1 guard fired on: ${firedV1.map(r => r.query.id).join(', ')}`);
     if (firedV2.length) lines.push(`    v2 guard fired on: ${firedV2.map(r => r.query.id).join(', ')}`);
+    if (firedV3.length) lines.push(`    v3 guard fired on: ${firedV3.map(r => r.query.id).join(', ')}`);
   }
   lines.push(SEP2);
   lines.push('');
 
   // ── Per-query routing table ──
-  lines.push('Per-query routing table (v2 is the gate-evaluated mode):');
+  lines.push('Per-query routing table (v3 is the gate-evaluated mode):');
   lines.push(SEP2);
   lines.push(
     pad('ID', 9) + '  ' +
-    pad('type', 22) + '  ' +
-    pad('v1-route', 16) + '  ' +
-    pad('v2-route', 16) + '  ' +
+    pad('type', 20) + '  ' +
+    pad('v3-route', 16) + '  ' +
     lpad('hyb', 5) + '  ' +
-    lpad('ce-raw', 7) + '  ' +
+    lpad('raw', 5) + '  ' +
     lpad('v1', 5) + '  ' +
     lpad('v2', 5) + '  ' +
-    pad('g1', 3) + ' ' +
-    pad('g2', 3) + '  ' +
+    lpad('v3', 5) + '  ' +
+    pad('g3', 3) + '  ' +
     'query'
   );
   lines.push(SEP2);
 
   for (const row of analysis) {
     const rk = m => row.ranks[m] != null ? `#${row.ranks[m]}` : 'miss';
-    const flag = row.isRegrRouted ? 'REGR-v2!' :
-                 row.isRegrV1 && !row.isRegrRouted ? 'FIX-v2' :
-                 row.isImprovRouted ? 'IMPR-v2' : '';
-    const g1 = row.guardFiredV1 ? 'Y' : '';
-    const g2 = row.guardFiredV2 ? 'Y' : (row.oracleFired ? 'o' : '');
+    const flag = row.isRegrRouted          ? 'REGR-v3!' :
+                 row.isRegrV2 && !row.isRegrRouted ? 'FIX-v3'  :
+                 row.isImprovRouted        ? 'IMPR-v3'  : '';
+    const g3 = row.guardFiredV3 ? 'Y' : (row.oracleFired ? 'o' : '');
     lines.push(
       pad(row.query.id, 9) + '  ' +
-      pad(row.query.type ?? '?', 22) + '  ' +
-      pad(row.queryClassV1, 16) + '  ' +
-      pad(row.routeClassV2 ?? row.queryClassV2, 16) + '  ' +
+      pad(row.query.type ?? '?', 20) + '  ' +
+      pad(row.routeClassV3 ?? row.queryClassV3 ?? '?', 16) + '  ' +
       lpad(rk('hybrid-true'),  5) + '  ' +
-      lpad(rk('ce-raw'),       7) + '  ' +
+      lpad(rk('ce-raw'),       5) + '  ' +
       lpad(rk('ce-routed-v1'), 5) + '  ' +
       lpad(rk('ce-routed-v2'), 5) + '  ' +
-      pad(g1, 3) + ' ' +
-      pad(g2, 3) + '  ' +
+      lpad(rk('ce-routed-v3'), 5) + '  ' +
+      pad(g3, 3) + '  ' +
       (flag ? `[${flag}] ` : '') +
-      row.query.query.slice(0, 40).trimEnd()
+      row.query.query.slice(0, 42).trimEnd()
     );
   }
   lines.push(SEP2);
   lines.push('');
 
-  // ── Remaining regressions in v2 ──
-  const regressions = analysis.filter(r => r.isRegrRouted);
-  if (regressions.length) {
-    lines.push(`Remaining regressions in ce-routed-v2 (${regressions.length}):`);
+  // ── Remaining regressions in v3 ──
+  if (stillFailingV3.length) {
+    lines.push(`Remaining regressions in ce-routed-v3 (${stillFailingV3.length}):`);
     lines.push(SEP2);
-    for (const row of regressions) {
-      lines.push(`[${row.query.id}] type=${row.query.type ?? '?'}  v1-route=${row.queryClassV1}  v2-route=${row.routeClassV2 ?? row.queryClassV2}  g1=${row.guardFiredV1}  g2=${row.guardFiredV2}`);
+    for (const row of stillFailingV3) {
+      lines.push(`[${row.query.id}] type=${row.query.type ?? '?'}  v3-route=${row.routeClassV3 ?? row.queryClassV3}  g3=${row.guardFiredV3}`);
       lines.push(`  query: ${row.query.query}`);
       for (const mode of MODES) {
         const top1cid = row.top1ByMode[mode];
@@ -1516,15 +1526,34 @@ function buildReport(allMetrics, analysis, providerInfo, queryResults) {
     lines.push('');
   }
 
-  // ── Regressions fixed by v2 (were in v1, not in v2) ──
-  if (onlyInV1.length) {
-    lines.push(`Regressions fixed by v2 guard (${onlyInV1.length}):`);
+  // ── New regressions introduced by v3 ──
+  if (newInV3.length) {
+    lines.push(`NEW regressions introduced by v3 (${newInV3.length}):`);
     lines.push(SEP2);
-    for (const row of onlyInV1) {
-      lines.push(`  [${row.query.id}] type=${row.query.type ?? '?'}  v1-route=${row.queryClassV1}  v2-route=${row.routeClassV2 ?? row.queryClassV2}  g2-fired=${row.guardFiredV2}`);
+    for (const row of newInV3) {
+      lines.push(`[${row.query.id}] type=${row.query.type ?? '?'}  v2-route=${row.routeClassV2 ?? row.queryClassV2}  v3-route=${row.routeClassV3 ?? row.queryClassV3}  g2=${row.guardFiredV2}  g3=${row.guardFiredV3}`);
+      lines.push(`  query: ${row.query.query}`);
+      for (const mode of MODES) {
+        const top1cid = row.top1ByMode[mode];
+        const rel     = top1cid ? (row.qrels.get(top1cid) ?? 0) : 0;
+        const rankStr = row.ranks[mode] != null ? `#${row.ranks[mode]}` : 'miss';
+        lines.push(`  ${pad(mode, 16)} rank=${rankStr}  top1=${top1cid ?? '-'}  rel=${rel}`);
+      }
+      lines.push('');
+    }
+    lines.push(SEP2);
+    lines.push('');
+  }
+
+  // ── Regressions fixed by v3 (were in v2, not in v3) ──
+  if (fixedByV3.length) {
+    lines.push(`Regressions fixed by v3 guard (${fixedByV3.length}):`);
+    lines.push(SEP2);
+    for (const row of fixedByV3) {
+      lines.push(`  [${row.query.id}] type=${row.query.type ?? '?'}  v3-route=${row.routeClassV3 ?? row.queryClassV3}  g3-fired=${row.guardFiredV3}`);
       lines.push(`    query: ${row.query.query}`);
-      lines.push(`    v1 rank ${row.ranks['ce-routed-v1'] ?? 'miss'} → v2 rank ${row.ranks['ce-routed-v2'] ?? 'miss'}`);
-      if (row.protectedIdV2) lines.push(`    v2 protected: ${row.protectedIdV2}`);
+      lines.push(`    v2 rank ${row.ranks['ce-routed-v2'] ?? 'miss'} → v3 rank ${row.ranks['ce-routed-v3'] ?? 'miss'}`);
+      if (row.protectedIdV3) lines.push(`    v3 protected: ${row.protectedIdV3}`);
     }
     lines.push(SEP2);
     lines.push('');
@@ -1539,8 +1568,8 @@ function buildReport(allMetrics, analysis, providerInfo, queryResults) {
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 
-process.stderr.write(`=== semidex custom-150 CE routing benchmark (guard v1 vs v2) ===\n`);
-process.stderr.write(`CE_MODEL=${CE_MODEL}  CE_INPUT=${CE_INPUT}  CE_DTYPE=${CE_DTYPE}  guard-v1=${GUARD_V1}  guard-v2=${GUARD_V2}\n`);
+process.stderr.write(`=== semidex custom-150 CE routing benchmark (guard v1 vs v2 vs v3) ===\n`);
+process.stderr.write(`CE_MODEL=${CE_MODEL}  CE_INPUT=${CE_INPUT}  CE_DTYPE=${CE_DTYPE}  v1=${GUARD_V1}  v2=${GUARD_V2}  v3=${GUARD_V3}\n`);
 
 process.stderr.write('\n[1/3] Setup collection...\n');
 let indexedIds, emptyChunkIds;
@@ -1597,8 +1626,8 @@ for (const q of queries) {
   process.stderr.write(`  ${q.id}: ${q.query.slice(0, 48)}...`);
   const res = await runQuery(q);
   queryResults.push({ query: q, ...res });
-  const guardNote = (res.guardFiredV1 ? ' [g1]' : '') + (res.guardFiredV2 ? ' [g2]' : '');
-  process.stderr.write(` v1=${res.queryClassV1} v2=${res.routeClassV2}${guardNote} (${res.hybridTrueMs + res.prefetchMs + res.crossEncoderMs}ms)\n`);
+  const guardNote = (res.guardFiredV1 ? ' [g1]' : '') + (res.guardFiredV2 ? ' [g2]' : '') + (res.guardFiredV3 ? ' [g3]' : '');
+  process.stderr.write(` v1=${res.queryClassV1} v3=${res.routeClassV3}${guardNote} (${res.hybridTrueMs + res.prefetchMs + res.crossEncoderMs}ms)\n`);
 }
 
 const allMetrics = computeAllMetrics(queryResults);
@@ -1609,6 +1638,6 @@ process.stdout.write(report + '\n');
 
 mkdirSync(RESULTS_DIR, { recursive: true });
 const modelSlug = CE_MODEL.split('/').pop().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-const outPath   = resolve(RESULTS_DIR, `${today()}-custom150-ce-routing-v2-${modelSlug}.txt`);
+const outPath   = resolve(RESULTS_DIR, `${today()}-custom150-ce-routing-v3-${modelSlug}.txt`);
 writeFileSync(outPath, report + '\n', 'utf8');
 process.stderr.write(`\nSaved: ${outPath}\n`);
