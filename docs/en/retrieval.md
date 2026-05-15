@@ -300,6 +300,62 @@ Best configuration: `CE_INPUT=text+meta` (passage prefixed with `[source_file §
 Both input modes pass. `text+meta` has higher MRR, recall at every depth, and
 `windowRecall@5` reaches 100%.
 
+**`ONNX-community/bge-reranker-v2-m3-ONNX` (dtype=q4) — gate failed on c03**
+
+Multilingual BGE reranker v2-m3 in 4-bit quantised ONNX form. Model load ~1 600 ms.
+A clean single-process latency probe (`ce-latency-probe.js`, result saved in
+`benchmarks/retrieval/results/2026-05-15-bge-q4-ce-latency-probe.txt`) reported
+CE-inference-only p50 **~31 700 ms** (40 candidates, 8 reps, CPU-only) —
+approximately 9× slower than mmarco fp32 and not suitable for interactive use at
+current CPU speed. The checked-in benchmark result files show ~56–57 s latency
+because both input-mode runs were executed in parallel, causing CPU contention
+between the BGE-M3 ONNX embedder and the CE model; the probe figure is the
+authoritative single-process measurement.
+
+Both `text+meta` and `text+section` input modes were evaluated. Both fail the
+promotion gate on a single query: **c03** (`"як увімкнути bge-m3-onnx без Ollama"`).
+
+#### c03 regression — root cause
+
+The expected answer is `providers.md#2` (rel=3), which describes how to activate
+the BGE-M3 ONNX provider. CE ranking places it at **rank #4**, displaced by
+`config-env.md#2` at rank #1–2.
+
+`config-env.md#2` is a flat reference table of every ONNX-related environment
+variable (`ONNX_EMBED`, `DENSE_PROVIDER`, `SPARSE_PROVIDER`, …). It is **not** a
+provider activation guide and is correctly assigned **rel=0** in the qrels. BGE q4
+over-scores it (+1.326 logit) while under-scoring the true target (−1.489 logit).
+
+Root cause: BGE q4 conflates dense env-var listing chunks with provider activation
+queries. The token overlap is high (`onnx`, `provider`, `ONNX_EMBED` all present),
+but the chunk is reference material, not instructional content. This is the same
+structural class of failure as ms-marco flooding `multilingual.md#4` for Ukrainian
+queries — a model weakness, not a qrel error.
+
+The qrel is correct. `config-env.md#2` remains rel=0 and was verified against the
+full chunk text in `c03-diagnostic.js`.
+
+#### BGE q4 gate summary
+
+| Criterion | text+section | text+meta |
+|-----------|:-----------:|:--------:|
+| MRR@10 ≥ baseline +0.030 | ✓ | ✓ |
+| chunkRecall@5 ≥ baseline | ✓ | ✓ |
+| negativePass = 100% | ✓ | ✓ |
+| zero regressions (rel≥3, rank ≤3 → >3) | ✗ c03 | ✗ c03 |
+| **Verdict** | **FAILED** | **FAILED** |
+
+#### Conclusion
+
+BGE q4 requires a lexical guard or query-type routing before promotion:
+env-var listing chunks must be suppressed for provider activation queries, or
+the model must be replaced with a variant that better distinguishes instructional
+from reference content. BGE q4 is not a drop-in replacement for mmarco.
+
+Result files (for reference):
+- `benchmarks/retrieval/results/2026-05-15-custom50-ce-bench-bge-v2-m3-q4-text-meta.txt`
+- `benchmarks/retrieval/results/2026-05-15-custom50-ce-bench-bge-v2-m3-q4-text-section.txt`
+
 ### qrel correction — c36
 
 Before final gate runs, `queries.json` c36 was corrected:
