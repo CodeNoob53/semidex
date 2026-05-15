@@ -31,6 +31,7 @@ Candidates compared:
 Environment:
   CE_MODEL                 HF model ID or local path (default: cross-encoder/ms-marco-MiniLM-L-6-v2)
   CE_INPUT                 text | text+section | text+meta  (default: text)
+  CE_DTYPE                 Model dtype passed to from_pretrained (default: fp32; use q4/int8/q8 for quantized ONNX repos)
   CE_BATCH_SIZE            Pairs per tokenizer/model call (default: 16)
   CE_PROTECT_TOP1_DELTA    CE logit margin to displace RRF rank-0 (default: 0 = off)
   BENCH_TOP_K              Search depth (default: 10)
@@ -38,7 +39,9 @@ Environment:
   RERANK_PREFETCH_MULT     Candidate multiplier for rerank/CE pool (default: 4)
 
 Output:
-  benchmarks/retrieval/results/YYYY-MM-DD-custom50-ce-bench-{input_mode}.txt
+  benchmarks/retrieval/results/YYYY-MM-DD-custom50-ce-bench-{model_slug}-{dtype}-{input_mode}.txt
+  model_slug = last path segment of CE_MODEL, lowercased, non-alphanumeric → hyphen
+  dtype      = CE_DTYPE value (fp32, q4, int8, ...)
 
 Promotion gate (cross-encoder vs hybrid-true):
   MRR@10 >= baseline + 0.030
@@ -97,6 +100,7 @@ function envFloat(name, def, min, max) {
 
 const CE_MODEL              = process.env.CE_MODEL ?? 'cross-encoder/ms-marco-MiniLM-L-6-v2';
 const CE_INPUT              = process.env.CE_INPUT ?? 'text';
+const CE_DTYPE              = process.env.CE_DTYPE ?? 'fp32';
 const CE_BATCH_SIZE         = envInt('CE_BATCH_SIZE', 16, 1, 256);
 const CE_PROTECT_TOP1_DELTA = envFloat('CE_PROTECT_TOP1_DELTA', 0, 0, 100);
 const TOP_K                 = envInt('BENCH_TOP_K', 10, 1, 1000);
@@ -241,7 +245,7 @@ async function loadCE() {
   if (_ceModel) return;
   process.stderr.write(`[ce] Loading ${CE_MODEL} ...\n`);
   _ceTokenizer = await AutoTokenizer.from_pretrained(CE_MODEL);
-  _ceModel = await AutoModelForSequenceClassification.from_pretrained(CE_MODEL, { dtype: 'fp32' });
+  _ceModel = await AutoModelForSequenceClassification.from_pretrained(CE_MODEL, { dtype: CE_DTYPE });
 
   // Determine numLabels from model config. logits.dims[1] is the authoritative source.
   // config.num_labels may be undefined for some ONNX exports, so we probe with a dummy pair.
@@ -586,6 +590,7 @@ function buildReport(allMetrics, queryDeltas, providerInfo) {
   lines.push(SEP2);
   lines.push(`  CE_MODEL          : ${CE_MODEL}`);
   lines.push(`  CE_INPUT          : ${CE_INPUT}`);
+  lines.push(`  CE_DTYPE          : ${CE_DTYPE}`);
   lines.push(`  CE_BATCH_SIZE     : ${CE_BATCH_SIZE}`);
   lines.push(`  CE_PROTECT_TOP1   : ${CE_PROTECT_TOP1_DELTA > 0 ? CE_PROTECT_TOP1_DELTA : 'off'}`);
   lines.push(`  BENCH_TOP_K       : ${TOP_K}`);
@@ -702,7 +707,7 @@ function buildReport(allMetrics, queryDeltas, providerInfo) {
 // ── Main ─────────────────────────────────────────────────────────────────────
 
 process.stderr.write(`=== semidex custom-50 cross-encoder benchmark ===\n`);
-process.stderr.write(`CE_MODEL=${CE_MODEL}  CE_INPUT=${CE_INPUT}  TOP_K=${TOP_K}\n`);
+process.stderr.write(`CE_MODEL=${CE_MODEL}  CE_INPUT=${CE_INPUT}  CE_DTYPE=${CE_DTYPE}  TOP_K=${TOP_K}\n`);
 
 // Force ONNX provider (same as run-v3.js when BENCH_PROVIDER=onnx)
 process.env.ONNX_EMBED = '1';
@@ -757,6 +762,10 @@ const report      = buildReport(allMetrics, queryDeltas, providerInfo);
 process.stdout.write(report + '\n');
 
 mkdirSync(RESULTS_DIR, { recursive: true });
-const outPath = resolve(RESULTS_DIR, `${today()}-custom50-ce-bench-${CE_INPUT.replace(/\+/g, '-')}.txt`);
+// Slug: last path segment of CE_MODEL (e.g. "mmarco-mMiniLMv2-L12-H384-v1", "bge-reranker-v2-m3-ONNX"),
+// lowercased, non-alphanumeric runs collapsed to single hyphen, leading/trailing hyphens stripped.
+const modelSlug = CE_MODEL.split('/').pop().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+const inputSlug = CE_INPUT.replace(/\+/g, '-');
+const outPath = resolve(RESULTS_DIR, `${today()}-custom50-ce-bench-${modelSlug}-${CE_DTYPE}-${inputSlug}.txt`);
 writeFileSync(outPath, report + '\n', 'utf8');
 process.stderr.write(`\nSaved: ${outPath}\n`);

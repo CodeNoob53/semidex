@@ -1,0 +1,84 @@
+====================================================================================================
+  custom-50 cross-encoder rerank benchmark
+  Date              : 2026-05-15
+  Provider          : bge-m3-onnx/bge-m3-onnx
+----------------------------------------------------------------------------------------------------
+  CE_MODEL          : ONNX-community/bge-reranker-v2-m3-ONNX
+  CE_INPUT          : text+section
+  CE_DTYPE          : q4
+  CE_BATCH_SIZE     : 16
+  CE_PROTECT_TOP1   : off
+  BENCH_TOP_K       : 10
+  RERANK_PREFETCH_MULT : 4
+  BENCH_SKIP_INDEX  : yes
+====================================================================================================
+
+Aggregate metrics:
+----------------------------------------------------------------------------------------------------
+                     hybrid-truehybrid-prefetch    det-rerank cross-encoder
+----------------------------------------------------------------------------------------------------
+MRR@10                     0.665         0.644         0.652         0.733
+rank1 exact                   25            23            23            28
+nDCG@10                    0.711         0.702         0.710         0.782
+chunkRecall@3              77.6%         77.6%         79.6%         89.8%
+chunkRecall@5              87.8%         87.8%         89.8%         93.9%
+chunkRecall@10             93.9%         93.9%         98.0%         98.0%
+windowRecall@5             95.9%         95.9%         98.0%         98.0%
+windowRecall@10            98.0%         98.0%        100.0%        100.0%
+supportRecall@10           98.0%         98.0%        100.0%        100.0%
+negativePass              100.0%        100.0%        100.0%        100.0%
+p50 latency                195ms          52ms          53ms       57312ms
+p95 latency                247ms          94ms          96ms       67253ms
+----------------------------------------------------------------------------------------------------
+
+Promotion gate (cross-encoder vs hybrid-true):
+----------------------------------------------------------------------------------------------------
+  [✓] MRR@10 >= 0.695   (got 0.733, need +0.030 from 0.665)
+  [✓] chunkRecall@5 >= 87.8%   (got 93.9%)
+  [✓] negativePass = 100%   (got 100.0%)
+  [✗] zero regressions (rel>=3 rank <=3 -> >3)   (got 1)
+
+  Verdict: GATE FAILED — do not promote
+----------------------------------------------------------------------------------------------------
+
+Per-query rank-1 analysis (non-rank-1 hybrid-true, regressions first):
+----------------------------------------------------------------------------------------------------
+ID      hybrid-true  hybrid-prefe    det-rerank  cross-encode  flag  query
+----------------------------------------------------------------------------------------------------
+c03              #2            #2            #2            #4  REGR  як увімкнути bge-m3-onnx без Ollama
+c12              #6            #6            #6            #1  IMPR  як Qdrant зберігає named vectors dense sparse
+c20              #2            #2            #2            #1  IMPR  MAX_CHUNK_TOKENS MIN_CHUNK_TOKENS chunking parameters range
+c25              #2            #2            #2            #1  IMPR  відмінність між sync та indexer стосовно config.json
+c32              #2            #2            #2            #1  IMPR  LINK_MIN_SCORE LINK_TOP wikilink threshold semantic neighbor
+c36              #2            #2            #2            #1  IMPR  chunkFile splitSentences parseMarkdown location in source
+c37              #7            #7            #4            #1  IMPR  npm run bench:custom50 entry point run-v3.js
+c49              #3            #3            #2            #1  IMPR  ONNX_EMBED=1 recommended provider for multilingual Ukrainian
+c02            miss          miss          miss          miss        які є валідні комбінації провайдерів embeddings
+c04              #3            #3            #3            #3        embedding_schema_version reindex discriminator payload field
+c06              #2            #2            #3            #2        resolveEnvProviders single source of truth provider mapping
+c07              #2            #2            #3            #2        Invalid provider combination error mixed ollama onnx
+c09              #4            #4            #4            #4        HYBRID_PREFETCH_LIMIT prefetch per RRF leg
+c14              #2            #2            #2            #2        Qdrant Query API body shape for RRF fusion with prefetch
+c15              #4            #4            #4            #3        OVERLAP_SENTENCES default value sentence overlap chunking
+c29            miss          miss            #7           #10        як агент повинен починати сесію з semidex MCP
+c31              #5            #5            #3            #3        CHUNKS_OUT_DIR Obsidian export directory chunks output
+c33            miss          miss            #6            #2        що міститься у frontmatter кожного Obsidian файлу chunk
+c35              #5            #5            #3            #2        де знаходиться src/core/qdrant.js і що він експортує
+c41              #5            #5            #6            #2        яка різниця між 21-query regression і custom-50 quality benc
+c43              #2            #2            #2            #2        QDRANT_URL QDRANT_KEY required environment variables
+c45              #2            #2            #2            #2        config.json six reindex discriminators denseProvider denseMo
+c47              #3            #3            #5            #3        bge-m3-onnx neural sparse weights for rare Ukrainian terms
+c48              #6            #6            #5            #6        cross-lingual retrieval Ukrainian query English document BGE
+----------------------------------------------------------------------------------------------------
+
+Regression detail (1 queries where CE hurt rank <=3):
+----------------------------------------------------------------------------------------------------
+[c03] як увімкнути bge-m3-onnx без Ollama
+  hybrid-true        rank=#2 top1=config-env.md#2 rel=0
+  hybrid-prefetch    rank=#2 top1=config-env.md#2 rel=0
+  det-rerank         rank=#2 top1=config-env.md#2 rel=0
+  cross-encoder      rank=#4 top1=config-env.md#2 rel=0
+
+----------------------------------------------------------------------------------------------------
+
+====================================================================================================
