@@ -31,6 +31,7 @@ check for class-level generalization.
 | State    | Count |
 |----------|-------|
 | Target   | 150   |
+| Current  | 75    |
 | Initial seed | 30  |
 
 New queries should be added in batches with complete qrel assignments. Do not

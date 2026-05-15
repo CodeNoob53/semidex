@@ -1,63 +1,111 @@
 {
   "schemaVersion": 3,
-  "description": "custom-150 Tier B benchmark seed dataset — 30 initial queries",
+  "description": "custom-150 Tier B benchmark — 75 queries (30 seed + 45 expansion)",
   "queries": [
     {
       "id": "c150-001",
       "type": "exact-token",
       "query": "getStoredMeta function reindex discriminator",
-      "expectedFiles": ["qdrant.md"],
-      "relevantChunks": [
-        { "chunkId": "qdrant.md#4", "relevance": 3 },
-        { "chunkId": "qdrant.md#1", "relevance": 2 }
+      "expectedFiles": [
+        "qdrant.md"
       ],
-      "expectedTokens": ["getStoredMeta"],
+      "relevantChunks": [
+        {
+          "chunkId": "qdrant.md#4",
+          "relevance": 3
+        },
+        {
+          "chunkId": "qdrant.md#1",
+          "relevance": 2
+        }
+      ],
+      "expectedTokens": [
+        "getStoredMeta"
+      ],
       "note": "getStoredMeta retrieves discriminator fields from collection; qdrant.md#4; not in custom-50"
     },
     {
       "id": "c150-002",
       "type": "exact-token",
       "query": "MIN_CHUNK_TOKENS threshold chunk filtering",
-      "expectedFiles": ["chunking.md"],
-      "relevantChunks": [
-        { "chunkId": "chunking.md#0", "relevance": 3 },
-        { "chunkId": "chunking.md#3", "relevance": 2 }
+      "expectedFiles": [
+        "chunking.md"
       ],
-      "expectedTokens": ["MIN_CHUNK_TOKENS"],
+      "relevantChunks": [
+        {
+          "chunkId": "chunking.md#0",
+          "relevance": 3
+        },
+        {
+          "chunkId": "chunking.md#3",
+          "relevance": 2
+        }
+      ],
+      "expectedTokens": [
+        "MIN_CHUNK_TOKENS"
+      ],
       "note": "MIN_CHUNK_TOKENS in params table chunking.md#0; distinct from OVERLAP_SENTENCES (c15 in custom-50)"
     },
     {
       "id": "c150-003",
       "type": "exact-token",
       "query": "qdrant_find_by_tag MCP tool",
-      "expectedFiles": ["mcp-workflow.md"],
-      "relevantChunks": [
-        { "chunkId": "mcp-workflow.md#6", "relevance": 3 },
-        { "chunkId": "mcp-workflow.md#1", "relevance": 2 }
+      "expectedFiles": [
+        "mcp-workflow.md"
       ],
-      "expectedTokens": ["qdrant_find_by_tag"],
+      "relevantChunks": [
+        {
+          "chunkId": "mcp-workflow.md#6",
+          "relevance": 3
+        },
+        {
+          "chunkId": "mcp-workflow.md#1",
+          "relevance": 2
+        }
+      ],
+      "expectedTokens": [
+        "qdrant_find_by_tag"
+      ],
       "note": "exact MCP tool name in find_by_tag dedicated section"
     },
     {
       "id": "c150-004",
       "type": "exact-token",
       "query": "qdrant_backlinks tool semantic linking",
-      "expectedFiles": ["mcp-workflow.md"],
-      "relevantChunks": [
-        { "chunkId": "mcp-workflow.md#5", "relevance": 3 },
-        { "chunkId": "mcp-workflow.md#1", "relevance": 2 }
+      "expectedFiles": [
+        "mcp-workflow.md"
       ],
-      "expectedTokens": ["qdrant_backlinks"],
+      "relevantChunks": [
+        {
+          "chunkId": "mcp-workflow.md#5",
+          "relevance": 3
+        },
+        {
+          "chunkId": "mcp-workflow.md#1",
+          "relevance": 2
+        }
+      ],
+      "expectedTokens": [
+        "qdrant_backlinks"
+      ],
       "note": "qdrant_backlinks in mcp-workflow.md#5 related+backlinks section; distinct from CHUNKS_OUT_DIR (c31)"
     },
     {
       "id": "c150-005",
       "type": "config-env",
       "query": "які змінні середовища потрібні для запуску reranker",
-      "expectedFiles": ["config-env.md"],
+      "expectedFiles": [
+        "config-env.md"
+      ],
       "relevantChunks": [
-        { "chunkId": "config-env.md#8", "relevance": 3 },
-        { "chunkId": "config-env.md#1", "relevance": 2 }
+        {
+          "chunkId": "config-env.md#8",
+          "relevance": 3
+        },
+        {
+          "chunkId": "config-env.md#1",
+          "relevance": 2
+        }
       ],
       "note": "reranking config vars in config-env.md#8 Reranking section"
     },
@@ -65,10 +113,18 @@
       "id": "c150-006",
       "type": "config-env",
       "query": "як змінити модель для LLM тегування",
-      "expectedFiles": ["config-env.md"],
+      "expectedFiles": [
+        "config-env.md"
+      ],
       "relevantChunks": [
-        { "chunkId": "config-env.md#2", "relevance": 3 },
-        { "chunkId": "config-env.md#1", "relevance": 2 }
+        {
+          "chunkId": "config-env.md#2",
+          "relevance": 3
+        },
+        {
+          "chunkId": "config-env.md#1",
+          "relevance": 2
+        }
       ],
       "note": "TAG_MODEL variable in Ollama Models section config-env.md#2"
     },
@@ -76,23 +132,45 @@
       "id": "c150-007",
       "type": "config-env",
       "query": "RRF_K parameter default value and meaning",
-      "expectedFiles": ["qdrant.md", "config-env.md"],
-      "relevantChunks": [
-        { "chunkId": "qdrant.md#5", "relevance": 3 },
-        { "chunkId": "config-env.md#5", "relevance": 3 },
-        { "chunkId": "qdrant.md#1", "relevance": 2 }
+      "expectedFiles": [
+        "qdrant.md",
+        "config-env.md"
       ],
-      "expectedTokens": ["RRF_K"],
+      "relevantChunks": [
+        {
+          "chunkId": "qdrant.md#5",
+          "relevance": 3
+        },
+        {
+          "chunkId": "config-env.md#5",
+          "relevance": 3
+        },
+        {
+          "chunkId": "qdrant.md#1",
+          "relevance": 2
+        }
+      ],
+      "expectedTokens": [
+        "RRF_K"
+      ],
       "note": "RRF_K appears in qdrant.md#5 (env tuning table) and config-env.md#5 (hybrid search)"
     },
     {
       "id": "c150-008",
       "type": "config-env",
       "query": "які поля є в config.json файлі конфігурації",
-      "expectedFiles": ["config-env.md"],
+      "expectedFiles": [
+        "config-env.md"
+      ],
       "relevantChunks": [
-        { "chunkId": "config-env.md#10", "relevance": 3 },
-        { "chunkId": "config-env.md#1", "relevance": 2 }
+        {
+          "chunkId": "config-env.md#10",
+          "relevance": 3
+        },
+        {
+          "chunkId": "config-env.md#1",
+          "relevance": 2
+        }
       ],
       "note": "config.json structure described in config-env.md#10; UA query"
     },
@@ -100,23 +178,45 @@
       "id": "c150-009",
       "type": "provider-activation",
       "query": "switch from Ollama to ONNX embeddings",
-      "expectedFiles": ["providers.md"],
-      "relevantChunks": [
-        { "chunkId": "providers.md#1", "relevance": 3 },
-        { "chunkId": "providers.md#2", "relevance": 3 },
-        { "chunkId": "config-env.md#1", "relevance": 2 }
+      "expectedFiles": [
+        "providers.md"
       ],
-      "expectedTokens": ["ONNX_EMBED"],
+      "relevantChunks": [
+        {
+          "chunkId": "providers.md#1",
+          "relevance": 3
+        },
+        {
+          "chunkId": "providers.md#2",
+          "relevance": 3
+        },
+        {
+          "chunkId": "config-env.md#1",
+          "relevance": 2
+        }
+      ],
+      "expectedTokens": [
+        "ONNX_EMBED"
+      ],
       "note": "bge-m3-onnx activation; English query; ONNX_EMBED=1 in providers.md#1 and config-env.md"
     },
     {
       "id": "c150-010",
       "type": "provider-activation",
       "query": "налаштувати dense та sparse провайдери окремо",
-      "expectedFiles": ["providers.md", "config-env.md"],
+      "expectedFiles": [
+        "providers.md",
+        "config-env.md"
+      ],
       "relevantChunks": [
-        { "chunkId": "providers.md#2", "relevance": 3 },
-        { "chunkId": "config-env.md#1", "relevance": 2 }
+        {
+          "chunkId": "providers.md#2",
+          "relevance": 3
+        },
+        {
+          "chunkId": "config-env.md#1",
+          "relevance": 2
+        }
       ],
       "note": "sparseProvider and denseProvider config; UA query"
     },
@@ -124,10 +224,18 @@
       "id": "c150-011",
       "type": "troubleshooting",
       "query": "what happens when DENSE_PROVIDER and SPARSE_PROVIDER differ",
-      "expectedFiles": ["providers.md"],
+      "expectedFiles": [
+        "providers.md"
+      ],
       "relevantChunks": [
-        { "chunkId": "providers.md#2", "relevance": 3 },
-        { "chunkId": "providers.md#3", "relevance": 2 }
+        {
+          "chunkId": "providers.md#2",
+          "relevance": 3
+        },
+        {
+          "chunkId": "providers.md#3",
+          "relevance": 2
+        }
       ],
       "note": "invalid mixed-provider state error; troubleshooting not provider-activation — no activation intent, query is about failure mode"
     },
@@ -135,45 +243,82 @@
       "id": "c150-012",
       "type": "source-navigation",
       "query": "де знаходиться реалізація MCP інструментів",
-      "expectedFiles": ["project-structure.md"],
-      "relevantChunks": [
-        { "chunkId": "project-structure.md#1", "relevance": 3 },
-        { "chunkId": "project-structure.md#0", "relevance": 2 }
+      "expectedFiles": [
+        "project-structure.md"
       ],
-      "expectedTokens": ["mcp", "server.js"],
+      "relevantChunks": [
+        {
+          "chunkId": "project-structure.md#1",
+          "relevance": 3
+        },
+        {
+          "chunkId": "project-structure.md#0",
+          "relevance": 2
+        }
+      ],
+      "expectedTokens": [
+        "mcp",
+        "server.js"
+      ],
       "note": "mcp/server.js described in Key Modules section project-structure.md#1; UA query"
     },
     {
       "id": "c150-013",
       "type": "source-navigation",
       "query": "which module implements loadConfig and saveConfig",
-      "expectedFiles": ["project-structure.md"],
-      "relevantChunks": [
-        { "chunkId": "project-structure.md#1", "relevance": 3 }
+      "expectedFiles": [
+        "project-structure.md"
       ],
-      "expectedTokens": ["loadConfig", "config.js"],
+      "relevantChunks": [
+        {
+          "chunkId": "project-structure.md#1",
+          "relevance": 3
+        }
+      ],
+      "expectedTokens": [
+        "loadConfig",
+        "config.js"
+      ],
       "note": "loadConfig/saveConfig in src/core/config.js; project-structure.md#1 Key Modules; distinct from chunkFile (c36)"
     },
     {
       "id": "c150-014",
       "type": "source-navigation",
       "query": "який модуль відповідає за hybrid search і RRF злиття",
-      "expectedFiles": ["project-structure.md"],
-      "relevantChunks": [
-        { "chunkId": "project-structure.md#1", "relevance": 3 },
-        { "chunkId": "qdrant.md#1", "relevance": 2 }
+      "expectedFiles": [
+        "project-structure.md"
       ],
-      "expectedTokens": ["qdrant.js"],
+      "relevantChunks": [
+        {
+          "chunkId": "project-structure.md#1",
+          "relevance": 3
+        },
+        {
+          "chunkId": "qdrant.md#1",
+          "relevance": 2
+        }
+      ],
+      "expectedTokens": [
+        "qdrant.js"
+      ],
       "note": "qdrant.js implements hybridSearch, referenced in project-structure.md#1; UA query"
     },
     {
       "id": "c150-015",
       "type": "source-navigation",
       "query": "entry point for the indexer CLI command",
-      "expectedFiles": ["project-structure.md"],
+      "expectedFiles": [
+        "project-structure.md"
+      ],
       "relevantChunks": [
-        { "chunkId": "project-structure.md#2", "relevance": 3 },
-        { "chunkId": "project-structure.md#0", "relevance": 2 }
+        {
+          "chunkId": "project-structure.md#2",
+          "relevance": 3
+        },
+        {
+          "chunkId": "project-structure.md#0",
+          "relevance": 2
+        }
       ],
       "note": "Entry Points section project-structure.md#2 lists src/indexer/index.js"
     },
@@ -181,10 +326,18 @@
       "id": "c150-016",
       "type": "conceptual",
       "query": "what is the purpose of sentence overlap between chunks",
-      "expectedFiles": ["chunking.md"],
+      "expectedFiles": [
+        "chunking.md"
+      ],
       "relevantChunks": [
-        { "chunkId": "chunking.md#2", "relevance": 3 },
-        { "chunkId": "chunking.md#0", "relevance": 2 }
+        {
+          "chunkId": "chunking.md#2",
+          "relevance": 3
+        },
+        {
+          "chunkId": "chunking.md#0",
+          "relevance": 2
+        }
       ],
       "note": "overlap semantics explained in chunking.md#2 Overlap section"
     },
@@ -192,10 +345,18 @@
       "id": "c150-017",
       "type": "conceptual",
       "query": "як backfill логіка sync відновлює відсутні поля провайдера",
-      "expectedFiles": ["sync.md"],
+      "expectedFiles": [
+        "sync.md"
+      ],
       "relevantChunks": [
-        { "chunkId": "sync.md#1", "relevance": 3 },
-        { "chunkId": "sync.md#0", "relevance": 2 }
+        {
+          "chunkId": "sync.md#1",
+          "relevance": 3
+        },
+        {
+          "chunkId": "sync.md#0",
+          "relevance": 2
+        }
       ],
       "note": "sync backfill logic in sync.md#1; UA query"
     },
@@ -203,10 +364,18 @@
       "id": "c150-018",
       "type": "conceptual",
       "query": "що означають wikilinks у Obsidian експорті семантично",
-      "expectedFiles": ["obsidian.md"],
+      "expectedFiles": [
+        "obsidian.md"
+      ],
       "relevantChunks": [
-        { "chunkId": "obsidian.md#2", "relevance": 3 },
-        { "chunkId": "obsidian.md#4", "relevance": 2 }
+        {
+          "chunkId": "obsidian.md#2",
+          "relevance": 3
+        },
+        {
+          "chunkId": "obsidian.md#4",
+          "relevance": 2
+        }
       ],
       "note": "wikilinks as semantic neighbor links in obsidian.md#2; UA conceptual query; distinct from sync/indexer topic"
     },
@@ -214,10 +383,18 @@
       "id": "c150-019",
       "type": "conceptual",
       "query": "how does Reciprocal Rank Fusion combine dense and sparse results",
-      "expectedFiles": ["qdrant.md"],
+      "expectedFiles": [
+        "qdrant.md"
+      ],
       "relevantChunks": [
-        { "chunkId": "qdrant.md#1", "relevance": 3 },
-        { "chunkId": "qdrant.md#5", "relevance": 2 }
+        {
+          "chunkId": "qdrant.md#1",
+          "relevance": 3
+        },
+        {
+          "chunkId": "qdrant.md#5",
+          "relevance": 2
+        }
       ],
       "note": "RRF explained in qdrant.md#1 Hybrid Search section; English query"
     },
@@ -225,10 +402,18 @@
       "id": "c150-020",
       "type": "conceptual",
       "query": "що відбувається коли sparse вектор недоступний у колекції",
-      "expectedFiles": ["qdrant.md"],
+      "expectedFiles": [
+        "qdrant.md"
+      ],
       "relevantChunks": [
-        { "chunkId": "qdrant.md#2", "relevance": 3 },
-        { "chunkId": "qdrant.md#1", "relevance": 2 }
+        {
+          "chunkId": "qdrant.md#2",
+          "relevance": 3
+        },
+        {
+          "chunkId": "qdrant.md#1",
+          "relevance": 2
+        }
       ],
       "note": "fallback to dense-only in qdrant.md#2; UA query"
     },
@@ -236,32 +421,54 @@
       "id": "c150-021",
       "type": "troubleshooting",
       "query": "реіндексація не запускається після зміни провайдера",
-      "expectedFiles": ["providers.md"],
-      "relevantChunks": [
-        { "chunkId": "providers.md#4", "relevance": 3 },
-        { "chunkId": "providers.md#3", "relevance": 2 }
+      "expectedFiles": [
+        "providers.md"
       ],
-      "expectedTokens": ["reindex"],
+      "relevantChunks": [
+        {
+          "chunkId": "providers.md#4",
+          "relevance": 3
+        },
+        {
+          "chunkId": "providers.md#3",
+          "relevance": 2
+        }
+      ],
+      "expectedTokens": [
+        "reindex"
+      ],
       "note": "reindex triggers in providers.md#4; UA troubleshooting query"
     },
     {
       "id": "c150-022",
       "type": "troubleshooting",
       "query": "BENCH_SKIP_INDEX=1 fails with no indexed points error",
-      "expectedFiles": ["benchmarking.md"],
-      "relevantChunks": [
-        { "chunkId": "benchmarking.md#6", "relevance": 3 }
+      "expectedFiles": [
+        "benchmarking.md"
       ],
-      "expectedTokens": ["BENCH_SKIP_INDEX"],
+      "relevantChunks": [
+        {
+          "chunkId": "benchmarking.md#6",
+          "relevance": 3
+        }
+      ],
+      "expectedTokens": [
+        "BENCH_SKIP_INDEX"
+      ],
       "note": "BENCH_SKIP_INDEX validation described in benchmarking.md#6"
     },
     {
       "id": "c150-023",
       "type": "troubleshooting",
       "query": "overlap crosses section boundary causing semantic contamination",
-      "expectedFiles": ["chunking.md"],
+      "expectedFiles": [
+        "chunking.md"
+      ],
       "relevantChunks": [
-        { "chunkId": "chunking.md#2", "relevance": 3 }
+        {
+          "chunkId": "chunking.md#2",
+          "relevance": 3
+        }
       ],
       "note": "section boundary overlap risk in chunking.md#2 Overlap section"
     },
@@ -269,10 +476,18 @@
       "id": "c150-024",
       "type": "cross-lingual-ua-en",
       "query": "як налаштувати bge-m3 для мультимовного пошуку",
-      "expectedFiles": ["multilingual.md"],
+      "expectedFiles": [
+        "multilingual.md"
+      ],
       "relevantChunks": [
-        { "chunkId": "multilingual.md#0", "relevance": 3 },
-        { "chunkId": "multilingual.md#6", "relevance": 2 }
+        {
+          "chunkId": "multilingual.md#0",
+          "relevance": 3
+        },
+        {
+          "chunkId": "multilingual.md#6",
+          "relevance": 2
+        }
       ],
       "note": "UA query about multilingual bge-m3 setup; answer in English multilingual.md"
     },
@@ -280,10 +495,18 @@
       "id": "c150-025",
       "type": "cross-lingual-ua-en",
       "query": "чи підтримує семантичний пошук запити українською по англомовних документах",
-      "expectedFiles": ["multilingual.md"],
+      "expectedFiles": [
+        "multilingual.md"
+      ],
       "relevantChunks": [
-        { "chunkId": "multilingual.md#4", "relevance": 3 },
-        { "chunkId": "multilingual.md#0", "relevance": 2 }
+        {
+          "chunkId": "multilingual.md#4",
+          "relevance": 3
+        },
+        {
+          "chunkId": "multilingual.md#0",
+          "relevance": 2
+        }
       ],
       "note": "UA query about cross-lingual retrieval; multilingual.md#1 is empty heading — real content at #4 (cross-lingual retrieval section)"
     },
@@ -291,9 +514,14 @@
       "id": "c150-026",
       "type": "cross-lingual-ua-en",
       "query": "хеш-tf підходить для кирилиці",
-      "expectedFiles": ["multilingual.md"],
+      "expectedFiles": [
+        "multilingual.md"
+      ],
       "relevantChunks": [
-        { "chunkId": "multilingual.md#0", "relevance": 3 }
+        {
+          "chunkId": "multilingual.md#0",
+          "relevance": 3
+        }
       ],
       "note": "UA query about hashed-tf Cyrillic support; multilingual.md#0 covers language support by provider"
     },
@@ -301,10 +529,18 @@
       "id": "c150-027",
       "type": "cross-lingual-ua-en",
       "query": "рекомендований провайдер для україномовного контенту",
-      "expectedFiles": ["multilingual.md"],
+      "expectedFiles": [
+        "multilingual.md"
+      ],
       "relevantChunks": [
-        { "chunkId": "multilingual.md#6", "relevance": 3 },
-        { "chunkId": "multilingual.md#0", "relevance": 2 }
+        {
+          "chunkId": "multilingual.md#6",
+          "relevance": 3
+        },
+        {
+          "chunkId": "multilingual.md#0",
+          "relevance": 2
+        }
       ],
       "note": "UA query; answer in multilingual.md#6 Recommended Provider section"
     },
@@ -312,10 +548,18 @@
       "id": "c150-028",
       "type": "english",
       "query": "how to discover available collections at session start",
-      "expectedFiles": ["mcp-workflow.md"],
+      "expectedFiles": [
+        "mcp-workflow.md"
+      ],
       "relevantChunks": [
-        { "chunkId": "mcp-workflow.md#7", "relevance": 3 },
-        { "chunkId": "mcp-workflow.md#2", "relevance": 2 }
+        {
+          "chunkId": "mcp-workflow.md#7",
+          "relevance": 3
+        },
+        {
+          "chunkId": "mcp-workflow.md#2",
+          "relevance": 2
+        }
       ],
       "note": "Collection Discovery section mcp-workflow.md#7; English workflow query"
     },
@@ -323,10 +567,18 @@
       "id": "c150-029",
       "type": "english",
       "query": "what frontmatter fields does an Obsidian chunk export contain",
-      "expectedFiles": ["obsidian.md"],
+      "expectedFiles": [
+        "obsidian.md"
+      ],
       "relevantChunks": [
-        { "chunkId": "obsidian.md#3", "relevance": 3 },
-        { "chunkId": "obsidian.md#0", "relevance": 2 }
+        {
+          "chunkId": "obsidian.md#3",
+          "relevance": 3
+        },
+        {
+          "chunkId": "obsidian.md#0",
+          "relevance": 2
+        }
       ],
       "note": "Frontmatter Fields in obsidian.md#3; English query"
     },
@@ -337,8 +589,889 @@
       "shouldHaveNoStrongHit": true,
       "expectedFiles": [],
       "relevantChunks": [],
-      "expectedTokens": ["graphql", "introspection"],
+      "expectedTokens": [
+        "graphql",
+        "introspection"
+      ],
       "note": "semidex has no GraphQL API; tokens 'schema' and 'endpoint' removed — too generic, appear in MCP/config fixture docs"
+    },
+    {
+      "id": "c150-031",
+      "type": "exact-token",
+      "query": "SCHEMA_VERSION constant embedding reindex trigger",
+      "expectedFiles": [
+        "project-structure.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "project-structure.md#5",
+          "relevance": 3
+        },
+        {
+          "chunkId": "providers.md#5",
+          "relevance": 2
+        }
+      ],
+      "expectedTokens": [
+        "SCHEMA_VERSION"
+      ],
+      "note": "SCHEMA_VERSION in embeddings.js description project-structure.md#5; triggers reindex when incremented"
+    },
+    {
+      "id": "c150-032",
+      "type": "exact-token",
+      "query": "mmrSearch dense MMR search function",
+      "expectedFiles": [
+        "project-structure.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "project-structure.md#6",
+          "relevance": 3
+        },
+        {
+          "chunkId": "qdrant.md#0",
+          "relevance": 2
+        }
+      ],
+      "expectedTokens": [
+        "mmrSearch"
+      ],
+      "note": "mmrSearch exported from qdrant.js; project-structure.md#6 lists key exports"
+    },
+    {
+      "id": "c150-033",
+      "type": "exact-token",
+      "query": "LINK_MIN_SCORE semantic neighbor linking threshold",
+      "expectedFiles": [
+        "obsidian.md",
+        "config-env.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "obsidian.md#3",
+          "relevance": 3
+        },
+        {
+          "chunkId": "config-env.md#7",
+          "relevance": 2
+        }
+      ],
+      "expectedTokens": [
+        "LINK_MIN_SCORE"
+      ],
+      "note": "LINK_MIN_SCORE controls minimum cosine sim for linking; obsidian.md#3 explains linking phase"
+    },
+    {
+      "id": "c150-034",
+      "type": "exact-token",
+      "query": "isStructuralHeading heuristic parseMarkdown section filter",
+      "expectedFiles": [
+        "chunking.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "chunking.md#6",
+          "relevance": 3
+        }
+      ],
+      "expectedTokens": [
+        "isStructuralHeading"
+      ],
+      "note": "isStructuralHeading token in chunking.md#6 parseMarkdown section"
+    },
+    {
+      "id": "c150-035",
+      "type": "exact-token",
+      "query": "listCollections sync config Qdrant collections",
+      "expectedFiles": [
+        "sync.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "sync.md#1",
+          "relevance": 3
+        },
+        {
+          "chunkId": "qdrant.md#0",
+          "relevance": 2
+        }
+      ],
+      "expectedTokens": [
+        "listCollections"
+      ],
+      "note": "listCollections() called by sync in sync.md#1 step-by-step description"
+    },
+    {
+      "id": "c150-036",
+      "type": "exact-token",
+      "query": "RERANK_PREFETCH_MULT candidate multiplier reranking",
+      "expectedFiles": [
+        "config-env.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "config-env.md#9",
+          "relevance": 3
+        }
+      ],
+      "expectedTokens": [
+        "RERANK_PREFETCH_MULT"
+      ],
+      "note": "RERANK_PREFETCH_MULT in reranking section config-env.md#9"
+    },
+    {
+      "id": "c150-037",
+      "type": "exact-token",
+      "query": "SOURCE_ROOT stable source_file identifier indexing",
+      "expectedFiles": [
+        "config-env.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "config-env.md#4",
+          "relevance": 3
+        },
+        {
+          "chunkId": "obsidian.md#4",
+          "relevance": 2
+        }
+      ],
+      "expectedTokens": [
+        "SOURCE_ROOT"
+      ],
+      "note": "SOURCE_ROOT in indexing CLI vars config-env.md#4; also referenced in obsidian.md#4 frontmatter"
+    },
+    {
+      "id": "c150-038",
+      "type": "exact-token",
+      "query": "embedForIndex embedForSearch exports embeddings module",
+      "expectedFiles": [
+        "project-structure.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "project-structure.md#5",
+          "relevance": 3
+        }
+      ],
+      "expectedTokens": [
+        "embedForIndex",
+        "embedForSearch"
+      ],
+      "note": "embedForIndex and embedForSearch exported from embeddings.js; project-structure.md#5"
+    },
+    {
+      "id": "c150-039",
+      "type": "config-env",
+      "query": "які обов'язкові змінні середовища для підключення до Qdrant",
+      "expectedFiles": [
+        "config-env.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "config-env.md#1",
+          "relevance": 3
+        },
+        {
+          "chunkId": "config-env.md#0",
+          "relevance": 2
+        }
+      ],
+      "expectedTokens": [
+        "QDRANT_URL",
+        "QDRANT_KEY"
+      ],
+      "note": "UA query; QDRANT_URL and QDRANT_KEY required vars in config-env.md#1"
+    },
+    {
+      "id": "c150-040",
+      "type": "config-env",
+      "query": "OLLAMA_URL default value Ollama base URL configuration",
+      "expectedFiles": [
+        "config-env.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "config-env.md#3",
+          "relevance": 3
+        }
+      ],
+      "expectedTokens": [
+        "OLLAMA_URL"
+      ],
+      "note": "OLLAMA_URL with default http://localhost:11434 in config-env.md#3 Ollama Models section"
+    },
+    {
+      "id": "c150-041",
+      "type": "config-env",
+      "query": "як налаштувати кількість сусідів для семантичного зв'язування чанків",
+      "expectedFiles": [
+        "config-env.md",
+        "obsidian.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "config-env.md#7",
+          "relevance": 3
+        },
+        {
+          "chunkId": "obsidian.md#3",
+          "relevance": 2
+        }
+      ],
+      "expectedTokens": [
+        "LINK_TOP"
+      ],
+      "note": "UA; LINK_TOP controls neighbor count in config-env.md#7; linking described in obsidian.md#3"
+    },
+    {
+      "id": "c150-042",
+      "type": "config-env",
+      "query": "MAX_CHUNK_TOKENS default range chunking size limit",
+      "expectedFiles": [
+        "config-env.md",
+        "chunking.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "config-env.md#5",
+          "relevance": 3
+        },
+        {
+          "chunkId": "chunking.md#1",
+          "relevance": 2
+        }
+      ],
+      "expectedTokens": [
+        "MAX_CHUNK_TOKENS"
+      ],
+      "note": "MAX_CHUNK_TOKENS default 400, range 1-100000 in config-env.md#5; also in chunking.md#1 params table"
+    },
+    {
+      "id": "c150-043",
+      "type": "config-env",
+      "query": "як передати COLLECTION та SOURCE_ROOT при індексуванні",
+      "expectedFiles": [
+        "config-env.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "config-env.md#4",
+          "relevance": 3
+        }
+      ],
+      "note": "UA; COLLECTION and SOURCE_ROOT are CLI-only vars for indexing, config-env.md#4"
+    },
+    {
+      "id": "c150-044",
+      "type": "config-env",
+      "query": "що таке DENSE_PROVIDER і як він перевизначає провайдера",
+      "expectedFiles": [
+        "config-env.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "config-env.md#2",
+          "relevance": 3
+        },
+        {
+          "chunkId": "providers.md#3",
+          "relevance": 2
+        }
+      ],
+      "expectedTokens": [
+        "DENSE_PROVIDER"
+      ],
+      "note": "UA; DENSE_PROVIDER explicit override in config-env.md#2 Embedding Providers table"
+    },
+    {
+      "id": "c150-045",
+      "type": "config-env",
+      "query": "де зберігається config.json і як він оновлюється",
+      "expectedFiles": [
+        "config-env.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "config-env.md#11",
+          "relevance": 3
+        },
+        {
+          "chunkId": "sync.md#4",
+          "relevance": 2
+        }
+      ],
+      "note": "UA; config.json written by sync/index, git-ignored; config-env.md#11; also sync.md#4"
+    },
+    {
+      "id": "c150-046",
+      "type": "config-env",
+      "query": "CONTEXT_MODEL default model LLM context phase",
+      "expectedFiles": [
+        "config-env.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "config-env.md#3",
+          "relevance": 3
+        },
+        {
+          "chunkId": "multilingual.md#8",
+          "relevance": 2
+        }
+      ],
+      "expectedTokens": [
+        "CONTEXT_MODEL"
+      ],
+      "note": "CONTEXT_MODEL in Ollama Models section config-env.md#3; also multilingual.md#8 about LLM phases"
+    },
+    {
+      "id": "c150-047",
+      "type": "source-navigation",
+      "query": "який модуль виконує всі виклики REST до Qdrant",
+      "expectedFiles": [
+        "project-structure.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "project-structure.md#6",
+          "relevance": 3
+        },
+        {
+          "chunkId": "qdrant.md#0",
+          "relevance": 2
+        }
+      ],
+      "expectedTokens": [
+        "qdrant.js"
+      ],
+      "note": "UA; src/core/qdrant.js handles all Qdrant REST calls; project-structure.md#6"
+    },
+    {
+      "id": "c150-048",
+      "type": "source-navigation",
+      "query": "where is the MCP server name 'qdrant' registered",
+      "expectedFiles": [
+        "project-structure.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "project-structure.md#8",
+          "relevance": 3
+        }
+      ],
+      "note": "server name 'qdrant' registered in mcp/server.js; project-structure.md#8"
+    },
+    {
+      "id": "c150-049",
+      "type": "source-navigation",
+      "query": "де знаходиться логіка фазування chunk.js і що вона експортує",
+      "expectedFiles": [
+        "project-structure.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "project-structure.md#7",
+          "relevance": 3
+        },
+        {
+          "chunkId": "chunking.md#0",
+          "relevance": 2
+        }
+      ],
+      "expectedTokens": [
+        "chunkFile"
+      ],
+      "note": "UA; chunk.js exports chunkFile(); project-structure.md#7"
+    },
+    {
+      "id": "c150-050",
+      "type": "source-navigation",
+      "query": "який файл читає та записує config.json і що він експортує",
+      "expectedFiles": [
+        "project-structure.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "project-structure.md#4",
+          "relevance": 3
+        },
+        {
+          "chunkId": "config-env.md#11",
+          "relevance": 2
+        }
+      ],
+      "expectedTokens": [
+        "config.js",
+        "resolveEnvProviders"
+      ],
+      "note": "UA; src/core/config.js reads/writes config.json; project-structure.md#4"
+    },
+    {
+      "id": "c150-051",
+      "type": "source-navigation",
+      "query": "where is hybridSearch implemented and what arguments does it take",
+      "expectedFiles": [
+        "project-structure.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "project-structure.md#6",
+          "relevance": 3
+        },
+        {
+          "chunkId": "qdrant.md#2",
+          "relevance": 2
+        }
+      ],
+      "expectedTokens": [
+        "hybridSearch"
+      ],
+      "note": "hybridSearch in qdrant.js with args: collection, dense, sparse, limit, filter; project-structure.md#6"
+    },
+    {
+      "id": "c150-052",
+      "type": "source-navigation",
+      "query": "де знаходяться всі шість MCP інструментів реалізовані",
+      "expectedFiles": [
+        "project-structure.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "project-structure.md#8",
+          "relevance": 3
+        },
+        {
+          "chunkId": "mcp-workflow.md#2",
+          "relevance": 2
+        }
+      ],
+      "note": "UA; all 6 MCP tools in src/mcp/server.js; project-structure.md#8"
+    },
+    {
+      "id": "c150-053",
+      "type": "troubleshooting",
+      "query": "провайдер в BENCH_SKIP_INDEX відрізняється від поточного середовища — помилка",
+      "expectedFiles": [
+        "benchmarking.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "benchmarking.md#23",
+          "relevance": 3
+        }
+      ],
+      "expectedTokens": [
+        "BENCH_SKIP_INDEX"
+      ],
+      "note": "UA troubleshooting; provider mismatch on BENCH_SKIP_INDEX=1 described in benchmarking.md#23"
+    },
+    {
+      "id": "c150-054",
+      "type": "troubleshooting",
+      "query": "sync записує неправильний провайдер після зміни ONNX_EMBED",
+      "expectedFiles": [
+        "sync.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "sync.md#5",
+          "relevance": 3
+        },
+        {
+          "chunkId": "providers.md#5",
+          "relevance": 2
+        }
+      ],
+      "note": "UA; sync reflects env at time of run, not original indexing env; sync.md#5 explains this"
+    },
+    {
+      "id": "c150-055",
+      "type": "troubleshooting",
+      "query": "Obsidian export shows stale chunks after re-indexing with new provider",
+      "expectedFiles": [
+        "obsidian.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "obsidian.md#5",
+          "relevance": 3
+        }
+      ],
+      "note": "obsidian.md#5 explains must re-run export after re-indexing to keep review view in sync"
+    },
+    {
+      "id": "c150-056",
+      "type": "troubleshooting",
+      "query": "чому sparse вектори відсутні в колекції і як hybridSearch реагує",
+      "expectedFiles": [
+        "qdrant.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "qdrant.md#4",
+          "relevance": 3
+        },
+        {
+          "chunkId": "qdrant.md#2",
+          "relevance": 2
+        }
+      ],
+      "note": "UA; sparse vector fallback behavior in qdrant.md#4; context in qdrant.md#2 hybrid search"
+    },
+    {
+      "id": "c150-057",
+      "type": "troubleshooting",
+      "query": "collection not found in config.json after manual creation in Qdrant dashboard",
+      "expectedFiles": [
+        "sync.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "sync.md#3",
+          "relevance": 3
+        },
+        {
+          "chunkId": "sync.md#0",
+          "relevance": 2
+        }
+      ],
+      "note": "sync after manual collection creation; sync.md#3 when to run sync"
+    },
+    {
+      "id": "c150-058",
+      "type": "conceptual",
+      "query": "how do payload indexes improve filtering performance in Qdrant",
+      "expectedFiles": [
+        "qdrant.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "qdrant.md#5",
+          "relevance": 3
+        },
+        {
+          "chunkId": "qdrant.md#1",
+          "relevance": 2
+        }
+      ],
+      "note": "payload indexes on source_file and tags enable efficient filtering; qdrant.md#5"
+    },
+    {
+      "id": "c150-059",
+      "type": "conceptual",
+      "query": "яка роль linking фази у семантичному графі Obsidian",
+      "expectedFiles": [
+        "obsidian.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "obsidian.md#3",
+          "relevance": 3
+        },
+        {
+          "chunkId": "obsidian.md#6",
+          "relevance": 2
+        }
+      ],
+      "note": "UA; linking phase computes top-N semantic neighbors; obsidian.md#3; use case in obsidian.md#6"
+    },
+    {
+      "id": "c150-060",
+      "type": "conceptual",
+      "query": "what does the RRF k parameter control and how does it affect ranking",
+      "expectedFiles": [
+        "qdrant.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "qdrant.md#3",
+          "relevance": 3
+        },
+        {
+          "chunkId": "qdrant.md#2",
+          "relevance": 2
+        }
+      ],
+      "note": "RRF k parameter rank sensitivity explained in qdrant.md#3; hybrid search context in qdrant.md#2"
+    },
+    {
+      "id": "c150-061",
+      "type": "conceptual",
+      "query": "навіщо потрібна Unicode-aware regex для розбиття речень кирилицею",
+      "expectedFiles": [
+        "multilingual.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "multilingual.md#5",
+          "relevance": 3
+        },
+        {
+          "chunkId": "multilingual.md#0",
+          "relevance": 2
+        }
+      ],
+      "note": "UA; Unicode-aware sentence splitting for Cyrillic in multilingual.md#5"
+    },
+    {
+      "id": "c150-062",
+      "type": "conceptual",
+      "query": "how does pandoc format conversion integrate with the chunking pipeline",
+      "expectedFiles": [
+        "chunking.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "chunking.md#7",
+          "relevance": 3
+        },
+        {
+          "chunkId": "chunking.md#6",
+          "relevance": 2
+        }
+      ],
+      "note": "pandoc converts docx/odt/html to Markdown then parseMarkdown chunks it; chunking.md#7"
+    },
+    {
+      "id": "c150-063",
+      "type": "conceptual",
+      "query": "чим відрізняється qdrant_related від qdrant_backlinks",
+      "expectedFiles": [
+        "mcp-workflow.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "mcp-workflow.md#6",
+          "relevance": 3
+        },
+        {
+          "chunkId": "mcp-workflow.md#2",
+          "relevance": 2
+        }
+      ],
+      "note": "UA; qdrant_related gives outgoing links, qdrant_backlinks gives incoming; mcp-workflow.md#6"
+    },
+    {
+      "id": "c150-064",
+      "type": "conceptual",
+      "query": "what information does qdrant_collection_info return at session start",
+      "expectedFiles": [
+        "mcp-workflow.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "mcp-workflow.md#8",
+          "relevance": 3
+        },
+        {
+          "chunkId": "mcp-workflow.md#0",
+          "relevance": 2
+        }
+      ],
+      "note": "collection_info returns point counts, provider, description; mcp-workflow.md#8"
+    },
+    {
+      "id": "c150-065",
+      "type": "cross-lingual-ua-en",
+      "query": "як neural sparse encoder BGE-M3 ONNX покращує пошук технічних термінів",
+      "expectedFiles": [
+        "multilingual.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "multilingual.md#3",
+          "relevance": 3
+        },
+        {
+          "chunkId": "multilingual.md#0",
+          "relevance": 2
+        }
+      ],
+      "note": "UA query; neural sparse encoder learns token importance vs frequency; answer in multilingual.md#3 (English)"
+    },
+    {
+      "id": "c150-066",
+      "type": "cross-lingual-ua-en",
+      "query": "як документи зі змішаним UA/EN контентом індексуються та ембедуються",
+      "expectedFiles": [
+        "multilingual.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "multilingual.md#6",
+          "relevance": 3
+        },
+        {
+          "chunkId": "multilingual.md#4",
+          "relevance": 2
+        }
+      ],
+      "note": "UA query; mixed-language docs indexed as single document; answer in multilingual.md#6 (English)"
+    },
+    {
+      "id": "c150-067",
+      "type": "cross-lingual-ua-en",
+      "query": "які запити покриває custom-50 benchmark щодо мультимовності",
+      "expectedFiles": [
+        "multilingual.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "multilingual.md#7",
+          "relevance": 3
+        }
+      ],
+      "note": "UA query; benchmark coverage in multilingual.md#7 (English doc)"
+    },
+    {
+      "id": "c150-068",
+      "type": "cross-lingual-ua-en",
+      "query": "чому hashed-tf гірший за bge-m3-onnx для рідкісних українських слів",
+      "expectedFiles": [
+        "multilingual.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "multilingual.md#9",
+          "relevance": 3
+        },
+        {
+          "chunkId": "multilingual.md#3",
+          "relevance": 2
+        }
+      ],
+      "note": "UA query; ONNX neural sparse outperforms hashed-tf for rare Ukrainian terms; multilingual.md#9"
+    },
+    {
+      "id": "c150-069",
+      "type": "provider-activation",
+      "query": "як увімкнути bge-m3-onnx для обох dense та sparse векторів одночасно",
+      "expectedFiles": [
+        "config-env.md",
+        "providers.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "config-env.md#2",
+          "relevance": 3
+        },
+        {
+          "chunkId": "providers.md#2",
+          "relevance": 2
+        }
+      ],
+      "expectedTokens": [
+        "ONNX_EMBED"
+      ],
+      "note": "UA; ONNX_EMBED=1 is shorthand for bge-m3-onnx on both dense+sparse; config-env.md#2"
+    },
+    {
+      "id": "c150-070",
+      "type": "provider-activation",
+      "query": "how to force onnx provider for a benchmark run without changing .env",
+      "expectedFiles": [
+        "config-env.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "config-env.md#10",
+          "relevance": 3
+        },
+        {
+          "chunkId": "config-env.md#2",
+          "relevance": 2
+        }
+      ],
+      "expectedTokens": [
+        "BENCH_PROVIDER"
+      ],
+      "note": "BENCH_PROVIDER=onnx forces provider for bench run; config-env.md#10 benchmark vars"
+    },
+    {
+      "id": "c150-071",
+      "type": "english",
+      "query": "what use cases does the Obsidian chunk export support",
+      "expectedFiles": [
+        "obsidian.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "obsidian.md#6",
+          "relevance": 3
+        },
+        {
+          "chunkId": "obsidian.md#0",
+          "relevance": 2
+        }
+      ],
+      "note": "use cases: chunking review, tag audit, semantic graph navigation; obsidian.md#6"
+    },
+    {
+      "id": "c150-072",
+      "type": "english",
+      "query": "what is the relevance grading scale used in v3 benchmark queries",
+      "expectedFiles": [
+        "benchmarking.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "benchmarking.md#8",
+          "relevance": 3
+        },
+        {
+          "chunkId": "benchmarking.md#7",
+          "relevance": 2
+        }
+      ],
+      "note": "relevance scale 0-3 in benchmarking.md#8; v3 schema in benchmarking.md#7"
+    },
+    {
+      "id": "c150-073",
+      "type": "english",
+      "query": "how does the window parameter in qdrant_get_chunk work",
+      "expectedFiles": [
+        "mcp-workflow.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "mcp-workflow.md#5",
+          "relevance": 3
+        },
+        {
+          "chunkId": "mcp-workflow.md#3",
+          "relevance": 2
+        }
+      ],
+      "note": "window parameter retrieves adjacent chunks around target; mcp-workflow.md#5"
+    },
+    {
+      "id": "c150-074",
+      "type": "negative",
+      "query": "PostgreSQL full-text search tsquery integration with semidex",
+      "shouldHaveNoStrongHit": true,
+      "expectedFiles": [],
+      "relevantChunks": [],
+      "expectedTokens": [
+        "postgresql",
+        "tsquery",
+        "postgres"
+      ],
+      "note": "semidex uses Qdrant, not PostgreSQL; none of these tokens appear in fixture docs"
+    },
+    {
+      "id": "c150-075",
+      "type": "negative",
+      "query": "Elasticsearch BM25 index sharding configuration",
+      "shouldHaveNoStrongHit": true,
+      "expectedFiles": [],
+      "relevantChunks": [],
+      "expectedTokens": [
+        "elasticsearch",
+        "sharding"
+      ],
+      "note": "semidex does not use Elasticsearch; these tokens absent from all fixture docs"
     }
   ]
 }
