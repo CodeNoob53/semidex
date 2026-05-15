@@ -50,7 +50,7 @@ Fixtures (reused, no duplication):
 }
 
 import 'dotenv/config';
-import { readFileSync, existsSync, readdirSync } from 'fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { randomUUID } from 'crypto';
@@ -67,6 +67,7 @@ import { loadConfig, saveConfig, resolveEnvProviders } from '../../../src/core/c
 import { rerankResults } from '../../../src/core/rerank.js';
 
 const __dirname  = dirname(fileURLToPath(import.meta.url));
+const RESULTS_DIR       = resolve(__dirname, '../results');
 const FIXTURES_SHARED   = resolve(__dirname, '../fixtures/docs');
 const FIXTURES_C50      = resolve(__dirname, '../custom-50/fixtures/docs');
 const FIXTURES_OWN      = resolve(__dirname, 'fixtures/docs');
@@ -109,8 +110,25 @@ function buildFixtureList() {
 
 const FIXTURE_FILES = buildFixtureList();
 
-const log  = (...a) => JSON_MODE ? process.stderr.write(a.join(' ') + '\n') : console.log(...a);
-const logw = (s)    => JSON_MODE ? process.stderr.write(s) : process.stdout.write(s);
+const reportLines = [];
+const log  = (...a) => {
+  const line = a.join(' ');
+  reportLines.push(line);
+  JSON_MODE ? process.stderr.write(line + '\n') : console.log(line);
+};
+const logw = (s) => JSON_MODE ? process.stderr.write(s) : process.stdout.write(s);
+
+function today() {
+  const d = new Date();
+  return [d.getFullYear(), String(d.getMonth()+1).padStart(2,'0'), String(d.getDate()).padStart(2,'0')].join('-');
+}
+
+function modeSlug() {
+  if (SEARCH_MODE === 'dense-mmr') return 'dense-mmr';
+  const provider = BENCH_PROVIDER === 'onnx' ? 'onnx' : 'env';
+  const rerank   = RERANK_ENABLED ? 'rerank' : 'hybrid';
+  return `${provider}-${rerank}`;
+}
 
 function envInt(name, def, min, max) {
   const v = parseInt(process.env[name] ?? '');
@@ -710,6 +728,11 @@ async function main() {
   printSummary(metrics, BENCH_PROVIDER);
   printPerClassMetrics(queryResults);
   log('');
+
+  mkdirSync(RESULTS_DIR, { recursive: true });
+  const outPath = resolve(RESULTS_DIR, `${today()}-custom150-${modeSlug()}.txt`);
+  writeFileSync(outPath, reportLines.join('\n') + '\n', 'utf8');
+  process.stderr.write(`\nSaved: ${outPath}\n`);
 
   if (JSON_MODE) {
     process.stdout.write(JSON.stringify({

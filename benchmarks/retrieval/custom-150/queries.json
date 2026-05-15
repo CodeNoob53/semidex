@@ -282,10 +282,10 @@
       "query": "чи підтримує семантичний пошук запити українською по англомовних документах",
       "expectedFiles": ["multilingual.md"],
       "relevantChunks": [
-        { "chunkId": "multilingual.md#1", "relevance": 3 },
+        { "chunkId": "multilingual.md#4", "relevance": 3 },
         { "chunkId": "multilingual.md#0", "relevance": 2 }
       ],
-      "note": "UA query about cross-lingual retrieval; answer in multilingual.md#1 Query Language vs Document Language"
+      "note": "UA query about cross-lingual retrieval; multilingual.md#1 is empty heading — real content at #4 (cross-lingual retrieval section)"
     },
     {
       "id": "c150-026",
@@ -337,8 +337,8 @@
       "shouldHaveNoStrongHit": true,
       "expectedFiles": [],
       "relevantChunks": [],
-      "expectedTokens": ["graphql", "introspection", "schema", "endpoint"],
-      "note": "semidex has no GraphQL API; should return no strong hit"
+      "expectedTokens": ["graphql", "introspection"],
+      "note": "semidex has no GraphQL API; tokens 'schema' and 'endpoint' removed — too generic, appear in MCP/config fixture docs"
     }
   ]
 }
