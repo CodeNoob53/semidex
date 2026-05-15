@@ -353,12 +353,23 @@ function isProtected(queryClass, candidate, hybridRank, pool) {
   const overlap  = tokenOverlapCount(qToks, cToks);
   const sf       = candidate.payload?.source_file ?? '';
 
-  // Distractor rule for provider-activation: suppress env-var reference tables
-  // from config-env.md when a providers.md candidate with activation terms is nearby.
+  // provider-activation guard: two-stage.
+  // Stage 1: suppress config-env.md env-table distractors first (before signal check,
+  //   because env tables can also contain activation-like text and would otherwise pass stage 2).
+  // Stage 2: only protect candidates that look like activation guides — providers.md source,
+  //   or text containing explicit enable/activate/увімкнути wording in the section or body.
+  //   ONNX_EMBED=1 is intentionally excluded here: many explanation chunks mention running
+  //   with ONNX_EMBED=1 without being activation guides (e.g. sync.md#5 which explains
+  //   what sync records when you run with that flag).
   if (queryClass === 'provider-activation') {
     if (sf === 'config-env.md' && looksLikeEnvTable(candidate.payload)) {
       if (hasProviderCandidateInPool(pool)) return false;
     }
+    const text = `${candidate.payload?.section ?? ''}\n${candidate.payload?.text ?? ''}`;
+    const hasActivationGuideSignal =
+      sf === 'providers.md' ||
+      /\benable\b|\bactivate\b|увімкнути/i.test(text);
+    if (!hasActivationGuideSignal) return false;
   }
 
   // For source-navigation, boost protection for chunks that are likely structural
@@ -879,7 +890,8 @@ function buildReport(allMetrics, analysis, providerInfo) {
       for (const mode of MODES) {
         const top1cid = row.top1ByMode[mode];
         const rel = top1cid ? (row.qrels.get(top1cid) ?? 0) : 0;
-        lines.push(`  ${pad(mode, 16)} rank=${rk(mode)} top1=${top1cid ?? '-'} rel=${rel}`);
+        const rankStr = row.ranks[mode] != null ? `#${row.ranks[mode]}` : 'miss';
+        lines.push(`  ${pad(mode, 16)} rank=${rankStr} top1=${top1cid ?? '-'} rel=${rel}`);
       }
       lines.push('');
     }
@@ -931,9 +943,9 @@ function buildReport(allMetrics, analysis, providerInfo) {
   lines.push(`  chunkRecall@5 >= 95.0%  : ${gCR5  ? 'MET' : 'NOT MET'} (${pct(cr5Routed).trim()})`);
   lines.push(`  negativePass = 100%     : ${gNeg  ? 'MET' : 'NOT MET'} (${pct(negRouted).trim()})`);
   lines.push(`  zero regressions        : ${gRegr ? 'MET' : 'NOT MET'} (${regrRouted} remaining)`);
-  lines.push(`  c03 protected           : ${gC03  ? 'MET' : 'NOT MET'}`);
+  lines.push(`  c03 not regressed       : ${gC03  ? 'MET' : 'NOT MET'}`);
   lines.push('');
-  lines.push(`  Overall: ${gatePass ? 'PROMISING — proceed to production design' : 'NEEDS WORK — adjust guard before production design'}`);
+  lines.push(`  Overall: ${gatePass ? 'PROMISING — proceed to next validation step' : 'NEEDS WORK — adjust guard before next validation step'}`);
   lines.push(SEP);
   return lines.join('\n');
 }

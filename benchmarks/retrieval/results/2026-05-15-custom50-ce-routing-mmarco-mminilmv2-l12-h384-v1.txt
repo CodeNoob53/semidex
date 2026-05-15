@@ -1,0 +1,165 @@
+==============================================================================================================
+  custom-50 CE routing benchmark
+  Date              : 2026-05-15
+  Provider          : bge-m3-onnx/bge-m3-onnx
+--------------------------------------------------------------------------------------------------------------
+  CE_MODEL          : cross-encoder/mmarco-mMiniLMv2-L12-H384-v1
+  CE_INPUT          : text+meta
+  CE_DTYPE          : fp32
+  CE_BATCH_SIZE     : 16
+  BENCH_TOP_K       : 10
+  RERANK_PREFETCH_MULT : 4
+  guard version     : heuristic-v1
+  BENCH_SKIP_INDEX  : yes
+==============================================================================================================
+
+Aggregate metrics:
+--------------------------------------------------------------------------------------------------------------
+                   hybrid-true  det-rerank      ce-raw   ce-routed   ce-oracle
+--------------------------------------------------------------------------------------------------------------
+MRR@10                   0.665       0.662       0.760       0.760       0.760
+rank1 exact                 25          24          29          29          29
+nDCG@10                  0.713       0.714       0.796       0.799       0.799
+chunkRecall@3            77.6%       79.6%       93.9%       93.9%       93.9%
+chunkRecall@5            87.8%       89.8%       95.9%       95.9%       95.9%
+chunkRecall@10           93.9%       98.0%       98.0%       98.0%       98.0%
+windowRecall@5           95.9%       98.0%      100.0%      100.0%      100.0%
+windowRecall@10          98.0%      100.0%      100.0%      100.0%      100.0%
+supportRecall@10         98.0%      100.0%      100.0%      100.0%      100.0%
+negativePass            100.0%      100.0%      100.0%      100.0%      100.0%
+p50 latency               51ms        53ms      3319ms      3319ms      3319ms
+p95 latency               55ms        96ms      3577ms      3577ms      3577ms
+--------------------------------------------------------------------------------------------------------------
+
+Promotion gate (ce-routed heuristic vs hybrid-true):
+--------------------------------------------------------------------------------------------------------------
+  [✓] MRR@10 >= 0.750 (target) / >= 0.740 (minimum)   (got 0.760, base=0.665)
+  [✓] chunkRecall@5 >= 95.0%   (got 95.9%, base=87.8%)
+  [✓] negativePass = 100%   (got 100.0%)
+  [✓] zero regressions (rel>=3, hybrid rank <=3 → ce-routed >3)   (got 0)
+  [✓] c03 must not regress   (hybrid=2 → ce-routed=3)
+
+  ce-raw regressions for comparison : 0
+  Verdict: GATE PASSED — routing guard effective
+--------------------------------------------------------------------------------------------------------------
+
+Per-query routing table:
+--------------------------------------------------------------------------------------------------------------
+ID     class                   hyb    det   ce-raw   routed  guard   protected                       query
+--------------------------------------------------------------------------------------------------------------
+c03    provider-activation      #2     #2       #3       #3                                          як увімкнути bge-m3-onnx без Ollama
+c16    semantic                 #1     #1       #1       #1                                          чому фінальний чанк може губитись при малій кількості р
+c23    semantic                 #1     #1       #1       #1                                          коли потрібно запускати sync після апгрейду semidex
+c29    semantic               miss     #7       #2       #2                                          як агент повинен починати сесію з semidex MCP
+c33    semantic               miss     #6       #2       #2                                          що міститься у frontmatter кожного Obsidian файлу chunk
+c36    source-navigation        #2     #2       #2       #2  YES     project-structure.md#7          chunkFile splitSentences parseMarkdown location in sour
+c46    exact-token              #1     #1       #1       #1                                          що таке SOURCE_ROOT і навіщо він потрібен при індексаці
+c01    exact-token              #1     #1       #1       #1                                          де налаштовується sparseProvider
+c02    semantic               miss   miss     miss     miss                                          які є валідні комбінації провайдерів embeddings
+c04    semantic                 #3     #3       #3       #3                                          embedding_schema_version reindex discriminator payload 
+c05    exact-token              #1     #1       #1       #1  YES     providers.md#2                  що станеться якщо змінити denseModel у config.json
+c06    source-navigation        #2     #3       #2       #2                                          resolveEnvProviders single source of truth provider map
+c07    semantic                 #2     #3       #1       #1                                          [IMPR] Invalid provider combination error mixed ollama onnx
+c08    semantic                 #1     #1       #2       #2                                          як працює RRF k параметр у гібридному пошуку
+c09    exact-token              #4     #4       #4       #4                                          HYBRID_PREFETCH_LIMIT prefetch per RRF leg
+c10    exact-token              #1     #1       #1       #1                                          чому hybridSearch падає коли нема sparse векторів
+c11    exact-token              #1     #1       #2       #2  YES     obsidian.md#5                   getStoredMeta які поля читає з Qdrant payload
+c12    semantic                 #6     #6       #1       #1                                          [IMPR] як Qdrant зберігає named vectors dense sparse
+c13    exact-token              #1     #1       #1       #1                                          source_file payload index efficient filtering deleteByS
+c14    semantic                 #2     #2       #2       #2                                          Qdrant Query API body shape for RRF fusion with prefetc
+c15    exact-token              #4     #4       #2       #2  YES     chunking.md#5                   OVERLAP_SENTENCES default value sentence overlap chunki
+c17    semantic                 #1     #1       #1       #1                                          чому overlap не переноситься між markdown секціями
+c18    exact-token              #1     #1       #1       #1                                          splitSentences regex trailing text without period
+c19    semantic                 #1     #1       #1       #1                                          як pandoc конвертує docx epub rtf у markdown
+c20    exact-token              #2     #2       #1       #1  YES     project-structure.md#7          [IMPR] MAX_CHUNK_TOKENS MIN_CHUNK_TOKENS chunking parameters r
+c21    semantic                 #1     #1       #1       #1                                          що робить npm run sync з config.json
+c22    exact-token              #1     #1       #1       #1  YES     providers.md#5                  sync backfill logic for missing denseProvider field
+c24    semantic                 #1     #1       #1       #1                                          sync записує поточний провайдер а не той що був при інд
+c25    semantic                 #2     #2       #1       #1                                          [IMPR] відмінність між sync та indexer стосовно config.json
+c26    semantic                 #2     #1       #1       #1                                          [IMPR] як зареєструвати MCP сервер semidex у Claude Code
+c27    semantic                 #1     #1       #1       #1                                          qdrant_get_chunk window parameter context neighbors
+c28    semantic                 #1     #1       #1       #1                                          qdrant_find_by_tag groups results by source_file tags f
+c30    semantic                 #1     #1       #1       #1                                          qdrant_related backlinks file-level semantic graph navi
+c31    exact-token              #5     #3       #2       #2  YES     obsidian.md#5                   CHUNKS_OUT_DIR Obsidian export directory chunks output
+c32    exact-token              #1     #1       #1       #1                                          LINK_MIN_SCORE LINK_TOP wikilink threshold semantic nei
+c34    semantic                 #1     #1       #1       #1                                          use cases for reviewing chunk quality and tag audit in 
+c35    source-navigation        #5     #3       #2       #2  YES     project-structure.md#9          де знаходиться src/core/qdrant.js і що він експортує
+c37    source-navigation        #7     #4       #1       #1                                          [IMPR] npm run bench:custom50 entry point run-v3.js
+c38    exact-token              #1     #2       #1       #1  YES     qdrant.md#6                     SCHEMA_VERSION constant embeddings.js reindex discrimin
+c39    exact-token              #2     #2       #2       #2                                          chunkRecall nDCG graded relevance benchmark v3 schema
+c40    exact-token              #1     #1       #1       #1  YES     mcp-workflow.md#3               relevantChunks chunkId format source_file#chunk_index
+c41    semantic                 #5     #6       #3       #3                                          яка різниця між 21-query regression і custom-50 quality
+c42    exact-token              #1     #1       #1       #1                                          BENCH_SKIP_INDEX validates stored provider matches curr
+c43    exact-token              #1     #2       #2       #2                                          QDRANT_URL QDRANT_KEY required environment variables
+c44    exact-token              #1     #1       #1       #1                                          RERANK_PROTECT_TOP1_DELTA minimum advantage to displace
+c45    exact-token              #2     #2       #2       #2  YES     providers.md#3                  config.json six reindex discriminators denseProvider de
+c47    semantic                 #3     #5       #3       #3                                          bge-m3-onnx neural sparse weights for rare Ukrainian te
+c48    semantic                 #6     #5       #6       #6                                          cross-lingual retrieval Ukrainian query English documen
+c49    exact-token              #3     #2       #1       #1                                          [IMPR] ONNX_EMBED=1 recommended provider for multilingual Ukra
+--------------------------------------------------------------------------------------------------------------
+
+Watched query detail (c03, c16, c23, c29, c33, c36, c46):
+--------------------------------------------------------------------------------------------------------------
+  [c03] ok  class=provider-activation
+    query: як увімкнути bge-m3-onnx без Ollama
+    hybrid-true     : rank #2  top1=config-env.md#2
+    det-rerank      : rank #2  top1=config-env.md#2
+    ce-raw          : rank #3  top1=config-env.md#2
+    ce-routed       : rank #3  top1=config-env.md#2
+    ce-oracle       : rank #3  top1=config-env.md#2
+  [c16] ok  class=semantic
+    query: чому фінальний чанк може губитись при малій кількості речень
+    hybrid-true     : rank #1  top1=chunking.md#5
+    det-rerank      : rank #1  top1=chunking.md#5
+    ce-raw          : rank #1  top1=chunking.md#5
+    ce-routed       : rank #1  top1=chunking.md#5
+    ce-oracle       : rank #1  top1=chunking.md#5
+  [c23] ok  class=semantic
+    query: коли потрібно запускати sync після апгрейду semidex
+    hybrid-true     : rank #1  top1=sync.md#3
+    det-rerank      : rank #1  top1=sync.md#3
+    ce-raw          : rank #1  top1=sync.md#3
+    ce-routed       : rank #1  top1=sync.md#3
+    ce-oracle       : rank #1  top1=sync.md#3
+  [c29] ok  class=semantic
+    query: як агент повинен починати сесію з semidex MCP
+    hybrid-true     : rank miss  top1=mcp-workflow.md#0
+    det-rerank      : rank #7  top1=mcp-workflow.md#0
+    ce-raw          : rank #2  top1=mcp-workflow.md#0
+    ce-routed       : rank #2  top1=mcp-workflow.md#0
+    ce-oracle       : rank #2  top1=mcp-workflow.md#0
+  [c33] ok  class=semantic
+    query: що міститься у frontmatter кожного Obsidian файлу chunk
+    hybrid-true     : rank miss  top1=obsidian.md#1
+    det-rerank      : rank #6  top1=obsidian.md#1
+    ce-raw          : rank #2  top1=obsidian.md#1
+    ce-routed       : rank #2  top1=obsidian.md#1
+    ce-oracle       : rank #2  top1=obsidian.md#1
+  [c36] ok  class=source-navigation
+    query: chunkFile splitSentences parseMarkdown location in source
+    hybrid-true     : rank #2  top1=chunking.md#6
+    det-rerank      : rank #2  top1=chunking.md#6
+    ce-raw          : rank #2  top1=chunking.md#6
+    ce-routed       : rank #2  top1=chunking.md#6
+    ce-oracle       : rank #2  top1=chunking.md#6
+    guard fired: protected project-structure.md#7
+  [c46] ok  class=exact-token
+    query: що таке SOURCE_ROOT і навіщо він потрібен при індексації
+    hybrid-true     : rank #1  top1=config-env.md#4
+    det-rerank      : rank #1  top1=config-env.md#4
+    ce-raw          : rank #1  top1=config-env.md#4
+    ce-routed       : rank #1  top1=config-env.md#4
+    ce-oracle       : rank #1  top1=config-env.md#4
+--------------------------------------------------------------------------------------------------------------
+
+Acceptance criteria (ce-routed):
+--------------------------------------------------------------------------------------------------------------
+  MRR@10 target >= 0.750  : MET (0.760)
+  MRR@10 minimum >= 0.740 : MET (0.760)
+  chunkRecall@5 >= 95.0%  : MET (95.9%)
+  negativePass = 100%     : MET (100.0%)
+  zero regressions        : MET (0 remaining)
+  c03 not regressed       : MET
+
+  Overall: PROMISING — proceed to next validation step
+==============================================================================================================
