@@ -1,0 +1,245 @@
+====================================================================================================
+  custom-50 rank-1 analysis
+  Provider : onnx (bge-m3-onnx/bge-m3-onnx)
+  Search   : hybrid  top-10
+  Window   : +/-1
+====================================================================================================
+
+Aggregate:
+  MRR@10          : 0.665
+  nDCG@10         : 0.713
+  rank1 exact     : 25/49 (51.0%)
+  rank2-5 exact   : 18/49 (36.7%)
+  rank6-10 exact  : 3/49 (6.1%)
+  not in top-10   : 3/49 (6.1%)
+
+Top-1 competitor clues among non-rank-1 queries:
+  top1 is support rel=2  : 3/24
+  top1 same source file  : 7/24
+  top1 within +/-window  : 4/24
+
+Non-rank-1 queries:
+----------------------------------------------------------------------------------------------------
+ID     type           rank  top1 chunk                    rel  same  win  first exact                   query
+----------------------------------------------------------------------------------------------------
+c02    exact-token    miss  providers.md#0                  0     n    n  providers.md#3                які є валідні комбінації провайдерів embeddings
+c03    exact-token      #2  config-env.md#2                 0     n    n  providers.md#2                як увімкнути bge-m3-onnx без Ollama
+c04    exact-token      #3  qdrant.md#6                     0     n    n  providers.md#5                embedding_schema_version reindex discriminator payload field
+c06    exact-token      #2  project-structure.md#4          0     n    n  providers.md#3                resolveEnvProviders single source of truth provider mapping
+c07    exact-token      #2  config-env.md#2                 0     n    n  providers.md#3                Invalid provider combination error mixed ollama onnx
+c09    exact-token      #4  config-env.md#6                 0     n    n  qdrant.md#2                   HYBRID_PREFETCH_LIMIT prefetch per RRF leg
+c12    exact-token      #6  project-structure.md#6          0     n    n  qdrant.md#1                   як Qdrant зберігає named vectors dense sparse
+c14    paraphrase       #2  qdrant.md#3                     0     Y    Y  qdrant.md#2                   Qdrant Query API body shape for RRF fusion with prefetch
+c15    exact-token      #4  config-env.md#5                 0     n    n  chunking.md#1                 OVERLAP_SENTENCES default value sentence overlap chunking
+c20    exact-token      #2  config-env.md#5                 0     n    n  chunking.md#1                 MAX_CHUNK_TOKENS MIN_CHUNK_TOKENS chunking parameters range
+c25    paraphrase       #2  sync.md#0                       2     Y    n  sync.md#4                     відмінність між sync та indexer стосовно config.json
+c29    paraphrase     miss  mcp-workflow.md#0               0     n    n  mcp-workflow.md#8             як агент повинен починати сесію з semidex MCP
+c31    exact-token      #5  config-env.md#8                 0     n    n  obsidian.md#2                 CHUNKS_OUT_DIR Obsidian export directory chunks output
+c32    exact-token      #2  config-env.md#7                 0     n    n  obsidian.md#3                 LINK_MIN_SCORE LINK_TOP wikilink threshold semantic neighbors
+c33    paraphrase     miss  obsidian.md#1                   2     n    n  obsidian.md#4                 що міститься у frontmatter кожного Obsidian файлу chunk
+c35    exact-token      #5  qdrant.md#0                     0     n    n  project-structure.md#6        де знаходиться src/core/qdrant.js і що він експортує
+c36    exact-token      #2  chunking.md#6                   0     n    n  project-structure.md#7        chunkFile splitSentences parseMarkdown location in source
+c37    exact-token      #7  benchmarking.md#17              0     n    n  project-structure.md#9        npm run bench:custom50 entry point run-v3.js
+c41    paraphrase       #5  benchmarking.md#22              0     Y    n  benchmarking.md#2             яка різниця між 21-query regression і custom-50 quality benchmark
+c43    exact-token      #2  config-env.md#0                 2     Y    Y  config-env.md#1               QDRANT_URL QDRANT_KEY required environment variables
+c45    exact-token      #2  providers.md#5                  0     n    n  config-env.md#11              config.json six reindex discriminators denseProvider denseModel sparsePr
+c47    exact-token      #3  multilingual.md#3               0     Y    Y  multilingual.md#2             bge-m3-onnx neural sparse weights for rare Ukrainian terms
+c48    paraphrase       #6  multilingual.md#4               0     Y    Y  multilingual.md#3             cross-lingual retrieval Ukrainian query English document BGE-M3
+c49    exact-token      #3  multilingual.md#0               0     Y    n  multilingual.md#9             ONNX_EMBED=1 recommended provider for multilingual Ukrainian content
+----------------------------------------------------------------------------------------------------
+
+Top-5 detail for non-rank-1 queries:
+----------------------------------------------------------------------------------------------------
+[c02] які є валідні комбінації провайдерів embeddings
+  exact rank: not in top-10 | MRR=0.000 nDCG=0.213
+  #1 providers.md#0               rel=0 score=0.033
+  #2 providers.md#4               rel=2 score=0.033
+  #3 multilingual.md#2            rel=0 score=0.032
+  #4 providers.md#1               rel=0 score=0.032
+  #5 multilingual.md#3            rel=0 score=0.030
+
+[c03] як увімкнути bge-m3-onnx без Ollama
+  exact rank: #2 | MRR=0.500 nDCG=0.598
+  #1 config-env.md#2              rel=0 score=0.033
+  #2 providers.md#2               rel=3 score=0.033
+  #3 sync.md#5                    rel=0 score=0.032
+  #4 config-env.md#3              rel=0 score=0.031
+  #5 providers.md#1               rel=0 score=0.031
+
+[c04] embedding_schema_version reindex discriminator payload field
+  exact rank: #3 | MRR=0.333 nDCG=0.539
+  #1 qdrant.md#6                  rel=0 score=0.033
+  #2 project-structure.md#5       rel=0 score=0.033
+  #3 providers.md#5               rel=3 score=0.032
+  #4 providers.md#4               rel=2 score=0.032
+  #5 benchmarking.md#7            rel=0 score=0.031
+
+[c06] resolveEnvProviders single source of truth provider mapping
+  exact rank: #2 | MRR=0.500 nDCG=0.631
+  #1 project-structure.md#4       rel=0 score=0.033
+  #2 providers.md#3               rel=3 score=0.033
+  #3 providers.md#4               rel=0 score=0.033
+  #4 sync.md#2                    rel=0 score=0.032
+  #5 project-structure.md#1       rel=0 score=0.031
+
+[c07] Invalid provider combination error mixed ollama onnx
+  exact rank: #2 | MRR=0.500 nDCG=0.631
+  #1 config-env.md#2              rel=0 score=0.033
+  #2 providers.md#3               rel=3 score=0.033
+  #3 sync.md#5                    rel=0 score=0.032
+  #4 providers.md#1               rel=0 score=0.031
+  #5 providers.md#0               rel=0 score=0.030
+
+[c09] HYBRID_PREFETCH_LIMIT prefetch per RRF leg
+  exact rank: #4 | MRR=0.250 nDCG=0.339
+  #1 config-env.md#6              rel=0 score=0.033
+  #2 qdrant.md#7                  rel=0 score=0.033
+  #3 qdrant.md#3                  rel=0 score=0.032
+  #4 qdrant.md#2                  rel=3 score=0.032
+  #5 config-env.md#9              rel=0 score=0.031
+
+[c12] як Qdrant зберігає named vectors dense sparse
+  exact rank: #6 | MRR=0.167 nDCG=0.280
+  #1 project-structure.md#6       rel=0 score=0.033
+  #2 qdrant.md#4                  rel=0 score=0.033
+  #3 project-structure.md#5       rel=0 score=0.032
+  #4 providers.md#2               rel=0 score=0.032
+  #5 qdrant.md#2                  rel=0 score=0.031
+
+[c14] Qdrant Query API body shape for RRF fusion with prefetch
+  exact rank: #2 | MRR=0.500 nDCG=0.631
+  #1 qdrant.md#3                  rel=0 score=0.033
+  #2 qdrant.md#2                  rel=3 score=0.033
+  #3 project-structure.md#6       rel=0 score=0.032
+  #4 config-env.md#6              rel=0 score=0.032
+  #5 qdrant.md#7                  rel=0 score=0.031
+
+[c15] OVERLAP_SENTENCES default value sentence overlap chunking
+  exact rank: #4 | MRR=0.250 nDCG=0.552
+  #1 config-env.md#5              rel=0 score=0.033
+  #2 chunking.md#3                rel=2 score=0.033
+  #3 chunking.md#5                rel=0 score=0.033
+  #4 chunking.md#1                rel=3 score=0.032
+  #5 chunking.md#4                rel=0 score=0.031
+
+[c20] MAX_CHUNK_TOKENS MIN_CHUNK_TOKENS chunking parameters range
+  exact rank: #2 | MRR=0.500 nDCG=0.631
+  #1 config-env.md#5              rel=0 score=0.033
+  #2 chunking.md#1                rel=3 score=0.033
+  #3 project-structure.md#7       rel=0 score=0.032
+  #4 mcp-workflow.md#5            rel=0 score=0.031
+  #5 config-env.md#8              rel=0 score=0.030
+
+[c25] відмінність між sync та indexer стосовно config.json
+  exact rank: #2 | MRR=0.500 nDCG=0.834
+  #1 sync.md#0                    rel=2 score=0.033
+  #2 sync.md#4                    rel=3 score=0.033
+  #3 config-env.md#11             rel=0 score=0.032
+  #4 sync.md#5                    rel=0 score=0.032
+  #5 sync.md#3                    rel=0 score=0.031
+
+[c29] як агент повинен починати сесію з semidex MCP
+  exact rank: not in top-10 | MRR=0.000 nDCG=0.000
+  #1 mcp-workflow.md#0            rel=0 score=0.033
+  #2 project-structure.md#0       rel=0 score=0.032
+  #3 project-structure.md#8       rel=0 score=0.032
+  #4 project-structure.md#1       rel=0 score=0.031
+  #5 config-env.md#0              rel=0 score=0.031
+
+[c31] CHUNKS_OUT_DIR Obsidian export directory chunks output
+  exact rank: #5 | MRR=0.200 nDCG=0.517
+  #1 config-env.md#8              rel=0 score=0.033
+  #2 obsidian.md#0                rel=2 score=0.033
+  #3 obsidian.md#5                rel=0 score=0.032
+  #4 obsidian.md#1                rel=0 score=0.031
+  #5 obsidian.md#2                rel=3 score=0.031
+
+[c32] LINK_MIN_SCORE LINK_TOP wikilink threshold semantic neighbors
+  exact rank: #2 | MRR=0.500 nDCG=0.642
+  #1 config-env.md#7              rel=0 score=0.033
+  #2 obsidian.md#3                rel=3 score=0.033
+  #3 mcp-workflow.md#2            rel=0 score=0.032
+  #4 obsidian.md#4                rel=2 score=0.031
+  #5 config-env.md#5              rel=0 score=0.031
+
+[c33] що міститься у frontmatter кожного Obsidian файлу chunk
+  exact rank: not in top-10 | MRR=0.000 nDCG=0.337
+  #1 obsidian.md#1                rel=2 score=0.033
+  #2 config-env.md#8              rel=0 score=0.033
+  #3 obsidian.md#3                rel=0 score=0.032
+  #4 obsidian.md#5                rel=0 score=0.031
+  #5 obsidian.md#0                rel=0 score=0.031
+
+[c35] де знаходиться src/core/qdrant.js і що він експортує
+  exact rank: #5 | MRR=0.200 nDCG=0.402
+  #1 qdrant.md#0                  rel=0 score=0.033
+  #2 sync.md#0                    rel=0 score=0.032
+  #3 project-structure.md#9       rel=0 score=0.032
+  #4 providers.md#4               rel=0 score=0.031
+  #5 project-structure.md#6       rel=3 score=0.031
+
+[c36] chunkFile splitSentences parseMarkdown location in source
+  exact rank: #2 | MRR=0.500 nDCG=0.497
+  #1 chunking.md#6                rel=0 score=0.033
+  #2 project-structure.md#7       rel=3 score=0.033
+  #3 chunking.md#7                rel=0 score=0.032
+  #4 chunking.md#0                rel=0 score=0.032
+  #5 multilingual.md#5            rel=0 score=0.031
+
+[c37] npm run bench:custom50 entry point run-v3.js
+  exact rank: #7 | MRR=0.143 nDCG=0.383
+  #1 benchmarking.md#17           rel=0 score=0.033
+  #2 benchmarking.md#15           rel=0 score=0.033
+  #3 benchmarking.md#18           rel=0 score=0.032
+  #4 benchmarking.md#16           rel=0 score=0.032
+  #5 benchmarking.md#14           rel=0 score=0.031
+
+[c41] яка різниця між 21-query regression і custom-50 quality benchmark
+  exact rank: #5 | MRR=0.200 nDCG=0.450
+  #1 benchmarking.md#22           rel=0 score=0.033
+  #2 multilingual.md#7            rel=0 score=0.033
+  #3 project-structure.md#1       rel=0 score=0.031
+  #4 benchmarking.md#3            rel=2 score=0.031
+  #5 benchmarking.md#2            rel=3 score=0.030
+
+[c43] QDRANT_URL QDRANT_KEY required environment variables
+  exact rank: #2 | MRR=0.500 nDCG=0.834
+  #1 config-env.md#0              rel=2 score=0.033
+  #2 config-env.md#1              rel=3 score=0.033
+  #3 qdrant.md#0                  rel=0 score=0.032
+  #4 qdrant.md#3                  rel=0 score=0.030
+  #5 project-structure.md#6       rel=0 score=0.030
+
+[c45] config.json six reindex discriminators denseProvider denseModel sparseProvider
+  exact rank: #2 | MRR=0.500 nDCG=0.497
+  #1 providers.md#5               rel=0 score=0.033
+  #2 config-env.md#11             rel=3 score=0.033
+  #3 providers.md#3               rel=0 score=0.031
+  #4 qdrant.md#6                  rel=0 score=0.031
+  #5 providers.md#2               rel=0 score=0.030
+
+[c47] bge-m3-onnx neural sparse weights for rare Ukrainian terms
+  exact rank: #3 | MRR=0.333 nDCG=0.500
+  #1 multilingual.md#3            rel=0 score=0.033
+  #2 multilingual.md#9            rel=0 score=0.033
+  #3 multilingual.md#2            rel=3 score=0.032
+  #4 config-env.md#2              rel=0 score=0.031
+  #5 multilingual.md#7            rel=0 score=0.031
+
+[c48] cross-lingual retrieval Ukrainian query English document BGE-M3
+  exact rank: #6 | MRR=0.167 nDCG=0.493
+  #1 multilingual.md#4            rel=0 score=0.033
+  #2 multilingual.md#0            rel=2 score=0.033
+  #3 multilingual.md#6            rel=0 score=0.033
+  #4 multilingual.md#2            rel=0 score=0.031
+  #5 multilingual.md#7            rel=0 score=0.031
+
+[c49] ONNX_EMBED=1 recommended provider for multilingual Ukrainian content
+  exact rank: #3 | MRR=0.333 nDCG=0.514
+  #1 multilingual.md#0            rel=0 score=0.033
+  #2 multilingual.md#3            rel=0 score=0.033
+  #3 multilingual.md#9            rel=3 score=0.033
+  #4 multilingual.md#7            rel=0 score=0.032
+  #5 config-env.md#2              rel=0 score=0.031
+
+====================================================================================================

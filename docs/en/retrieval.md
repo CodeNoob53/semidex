@@ -126,10 +126,12 @@ Technical tokens such as `snake_case`, `ACRONYM`, `camelCase`, and long identifi
 
 The reranker also applies:
 
+- original RRF rank prior, weighted by `RERANK_BASE_WEIGHT`
 - source diversity penalty
 - top-1 protection via `RERANK_PROTECT_TOP1_DELTA`
+- intro-chunk penalty via `RERANK_PENALTY_INTRO_CHUNK` (default `0.02`): demotes `chunk_index=0` results when the query contains ≥2 technical tokens, discouraging overview/intro chunks from outranking specific content
 
-Current benchmark result: reranking is neutral on the bundled 21-query corpus. Keep it disabled unless it helps on your own data.
+Current benchmark result (custom-50, ONNX provider): reranking improves MRR@10 by ~0.005 and chunkRecall@5 by ~2pp over hybrid-only. The MRR@10 +0.03 target from the original task remains open — the remaining gap is in RRF/embedding quality for queries where the correct chunk is not retrieved in the top candidates. Keep reranking disabled unless you have validated it on your own data.
 
 ## Literal and Exact-Token Queries
 
@@ -237,6 +239,11 @@ Evaluate MMR by checking whether `dupSourceRate` decreases and
 | `RERANK_ENABLED` | `0` | Enable local reranker |
 | `RERANK_PREFETCH_MULT` | `4` | Candidate multiplier before reranking |
 | `RERANK_DEBUG` | `0` | Print reranker scoring details |
+| `RERANK_BASE_WEIGHT` | `1.00` | Weight applied to the original RRF rank prior before local boosts |
+| `RERANK_PENALTY_INTRO_CHUNK` | `0.02` | Score penalty for `chunk_index=0` when query has ≥2 technical tokens |
+| `RERANK_INTRO_CHUNK_TECH_MIN` | `2` | Minimum technical token count to activate the intro-chunk penalty |
+| `RERANK_BOOST_TEXT_LEAD` | `0.00` | Bonus per token hit in the first `RERANK_TEXT_LEAD_CHARS` chars of text; off by default |
+| `RERANK_TEXT_LEAD_CHARS` | `200` | Window size for `RERANK_BOOST_TEXT_LEAD` |
 | `MMR_DIVERSITY` | `0.5` | Dense MMR diversity balance for benchmark mode |
 | `MMR_CANDIDATES_LIMIT` | `100` | Dense MMR candidate pool size |
 

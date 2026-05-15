@@ -16,6 +16,7 @@
     "bench:custom50:failures": "node benchmarks/retrieval/custom-50/analyze-failures.js",
     "bench:custom50:tune": "node benchmarks/retrieval/custom-50/tuning-matrix.js",
     "bench:custom50:compare": "node benchmarks/retrieval/custom-50/compare-candidates.js",
+    "bench:custom50:rank1": "node benchmarks/retrieval/custom-50/rank1-analysis.js",
     "bench:custom50:agent": "node benchmarks/retrieval/custom-50/agent-policy.js",
     "bench:custom50:diagnostics": "node benchmarks/retrieval/custom-50/diagnostics.js",
     "bench:custom50:sweep": "node benchmarks/retrieval/custom-50/threshold-sweep.js",

@@ -11,6 +11,16 @@ function envFloat(name, defaultVal, min, max) {
   return v;
 }
 
+function envInt(name, defaultVal, min, max) {
+  const v = parseInt(process.env[name] ?? '', 10);
+  if (!Number.isFinite(v) || v < min || v > max) {
+    if (process.env[name] !== undefined)
+      console.warn(`[rerank] ${name}="${process.env[name]}" is invalid — using default ${defaultVal}`);
+    return defaultVal;
+  }
+  return v;
+}
+
 // Common function words that carry no discriminative signal across documents.
 const STOPWORDS = new Set([
   // Ukrainian
@@ -66,8 +76,17 @@ const BOOST_SECTION      = envFloat('RERANK_BOOST_SECTION',     0.06, 0, 10);
 const BOOST_TAGS         = envFloat('RERANK_BOOST_TAGS',        0.05, 0, 10);
 const BOOST_TEXT         = envFloat('RERANK_BOOST_TEXT',        0.01, 0, 10);
 const BOOST_BACKLINK     = envFloat('RERANK_BOOST_BACKLINK',    0.04, 0, 10);
+const BASE_WEIGHT        = envFloat('RERANK_BASE_WEIGHT',       1.00, 0, 10);
 // Minimum score advantage rerank must gain over rank-1 to displace it.
 const PROTECT_TOP1_DELTA = envFloat('RERANK_PROTECT_TOP1_DELTA', 0.05, 0, 10);
+// Experimental: bonus when ≥1 non-stopword query token (technical ones weighted higher) appears
+// in first TEXT_LEAD_CHARS of chunk text. Rewards chunks that answer the query up-front.
+const BOOST_TEXT_LEAD    = envFloat('RERANK_BOOST_TEXT_LEAD',   0.00, 0, 10);
+const TEXT_LEAD_CHARS    = envInt('RERANK_TEXT_LEAD_CHARS',     200,  1, 10000);
+// Experimental: small penalty for chunk_index=0 when query has ≥2 technical tokens.
+// Discourages overview/intro chunks from ranking above specific content for technical queries.
+const PENALTY_INTRO_CHUNK  = envFloat('RERANK_PENALTY_INTRO_CHUNK',  0.02, 0, 10);
+const INTRO_CHUNK_TECH_MIN = envInt('RERANK_INTRO_CHUNK_TECH_MIN',   2,    1, 100);
 const DEBUG              = process.env.RERANK_DEBUG === '1';
 
 /**
@@ -95,7 +114,7 @@ export function rerankResults(results, query, { finalLimit, collection } = {}) {
   const scored = results.map((r, rank) => {
     const p = r.payload;
 
-    const base = 1 / (rank + 1);
+    const base = BASE_WEIGHT * (1 / (rank + 1));
 
     const sourceHits   = tokenHits(p.source_file, tokens);
     const sectionHits  = tokenHits(p.section, tokens);
@@ -110,7 +129,26 @@ export function rerankResults(results, query, { finalLimit, collection } = {}) {
     const backlinkCount = graph[p.source_file]?.backlinks?.length ?? 0;
     const boostBacklink = Math.min(backlinkCount * BOOST_BACKLINK, BOOST_BACKLINK * 5);
 
-    const baseScore = base + boostSource + boostSection + boostTags + boostText + boostBacklink;
+    // Experimental: text-lead boost — reward early appearance of non-stopword query tokens
+    // (technical tokens weighted higher via tokenHits).
+    let boostTextLead = 0;
+    if (BOOST_TEXT_LEAD > 0 && p.text && tokens.size) {
+      const lead = p.text.slice(0, TEXT_LEAD_CHARS);
+      const leadHits = tokenHits(lead, tokens);
+      if (leadHits > 0) boostTextLead = Math.min(leadHits * BOOST_TEXT_LEAD, BOOST_TEXT_LEAD * 3);
+    }
+
+    // Experimental: intro-chunk penalty — demote chunk_index=0 for specific technical queries.
+    let penaltyIntroChunk = 0;
+    if (PENALTY_INTRO_CHUNK > 0) {
+      const techCount = [...tokens.values()].filter(Boolean).length;
+      if (p.chunk_index === 0 && techCount >= INTRO_CHUNK_TECH_MIN) {
+        penaltyIntroChunk = PENALTY_INTRO_CHUNK;
+      }
+    }
+
+    const baseScore = base + boostSource + boostSection + boostTags + boostText + boostBacklink +
+      boostTextLead - penaltyIntroChunk;
 
     if (DEBUG) {
       console.error(
@@ -118,7 +156,8 @@ export function rerankResults(results, query, { finalLimit, collection } = {}) {
         `rank=${rank + 1} base=${base.toFixed(4)} ` +
         `+src=${boostSource.toFixed(3)} +sec=${boostSection.toFixed(3)} ` +
         `+tags=${boostTags.toFixed(3)} +text=${boostText.toFixed(3)} ` +
-        `+bl=${boostBacklink.toFixed(3)} => baseScore=${baseScore.toFixed(4)}`
+        `+bl=${boostBacklink.toFixed(3)} +lead=${boostTextLead.toFixed(3)} ` +
+        `-intro=${penaltyIntroChunk.toFixed(3)} => baseScore=${baseScore.toFixed(4)}`
       );
     }
 

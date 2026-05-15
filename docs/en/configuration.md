@@ -150,7 +150,12 @@ PRUNE_STALE=1 SOURCE_ROOT=./docs COLLECTION=my-docs npm run index ./docs/guides
 | `RERANK_BOOST_TAGS` | `0.05` | Boost per token hit in tags |
 | `RERANK_BOOST_TEXT` | `0.01` | Boost per token hit in body text |
 | `RERANK_BOOST_BACKLINK` | `0.04` | Boost per incoming backlink |
+| `RERANK_BASE_WEIGHT` | `1.00` | Weight applied to the original RRF rank prior before local boosts |
 | `RERANK_PROTECT_TOP1_DELTA` | `0.05` | Minimum advantage required to displace RRF rank-0 |
+| `RERANK_PENALTY_INTRO_CHUNK` | `0.02` | Score penalty for `chunk_index=0` when query has ≥2 technical tokens; discourages overview chunks from beating specific content |
+| `RERANK_INTRO_CHUNK_TECH_MIN` | `2` | Minimum number of technical tokens required to activate `RERANK_PENALTY_INTRO_CHUNK` |
+| `RERANK_BOOST_TEXT_LEAD` | `0.00` | Bonus per token hit in the first `RERANK_TEXT_LEAD_CHARS` chars of chunk text; off by default — benchmarks showed it rewards dense-listing chunks (e.g. config-env.md) rather than topical content |
+| `RERANK_TEXT_LEAD_CHARS` | `200` | Window size for `RERANK_BOOST_TEXT_LEAD` |
 
 ## Benchmark
 
@@ -203,4 +208,3 @@ semidex requires **named vectors**. Every collection must use Qdrant's named-vec
 ```
 
 Collections that use the old flat schema (`{ "size": 1024, "distance": "Cosine" }` directly under `vectors`, without a named `dense` key) are not compatible with semidex hybrid search. `npm run sync` detects these and prints a `⚠ LEGACY SCHEMA` warning. The fix requires dropping the collection and reindexing — sync cannot repair vector schema in-place. See [operations.md](operations.md) for the full recovery procedure.
-
