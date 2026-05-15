@@ -15,7 +15,7 @@
     },
     {
       "id": "c02",
-      "type": "exact-token",
+      "type": "conceptual",
       "query": "які є валідні комбінації провайдерів embeddings",
       "expectedFiles": ["providers.md"],
       "relevantChunks": [
@@ -27,7 +27,7 @@
     },
     {
       "id": "c03",
-      "type": "exact-token",
+      "type": "provider-activation",
       "query": "як увімкнути bge-m3-onnx без Ollama",
       "expectedFiles": ["providers.md"],
       "relevantChunks": [
@@ -51,7 +51,7 @@
     },
     {
       "id": "c05",
-      "type": "paraphrase",
+      "type": "conceptual",
       "query": "що станеться якщо змінити denseModel у config.json",
       "expectedFiles": ["providers.md"],
       "relevantChunks": [
@@ -74,7 +74,7 @@
     },
     {
       "id": "c07",
-      "type": "exact-token",
+      "type": "troubleshooting",
       "query": "Invalid provider combination error mixed ollama onnx",
       "expectedFiles": ["providers.md"],
       "relevantChunks": [
@@ -97,7 +97,7 @@
     },
     {
       "id": "c09",
-      "type": "exact-token",
+      "type": "config-env",
       "query": "HYBRID_PREFETCH_LIMIT prefetch per RRF leg",
       "expectedFiles": ["qdrant.md"],
       "relevantChunks": [
@@ -109,7 +109,7 @@
     },
     {
       "id": "c10",
-      "type": "exact-token",
+      "type": "troubleshooting",
       "query": "чому hybridSearch падає коли нема sparse векторів",
       "expectedFiles": ["qdrant.md"],
       "relevantChunks": [
@@ -156,7 +156,7 @@
     },
     {
       "id": "c14",
-      "type": "paraphrase",
+      "type": "exact-token",
       "query": "Qdrant Query API body shape for RRF fusion with prefetch",
       "expectedFiles": ["qdrant.md"],
       "relevantChunks": [
@@ -167,7 +167,7 @@
     },
     {
       "id": "c15",
-      "type": "exact-token",
+      "type": "config-env",
       "query": "OVERLAP_SENTENCES default value sentence overlap chunking",
       "expectedFiles": ["chunking.md"],
       "relevantChunks": [
@@ -179,7 +179,7 @@
     },
     {
       "id": "c16",
-      "type": "paraphrase",
+      "type": "troubleshooting",
       "query": "чому фінальний чанк може губитись при малій кількості речень",
       "expectedFiles": ["chunking.md"],
       "relevantChunks": [
@@ -191,7 +191,7 @@
     },
     {
       "id": "c17",
-      "type": "exact-token",
+      "type": "conceptual",
       "query": "чому overlap не переноситься між markdown секціями",
       "expectedFiles": ["chunking.md"],
       "relevantChunks": [
@@ -225,7 +225,7 @@
     },
     {
       "id": "c20",
-      "type": "exact-token",
+      "type": "config-env",
       "query": "MAX_CHUNK_TOKENS MIN_CHUNK_TOKENS chunking parameters range",
       "expectedFiles": ["chunking.md"],
       "relevantChunks": [
@@ -236,7 +236,7 @@
     },
     {
       "id": "c21",
-      "type": "exact-token",
+      "type": "conceptual",
       "query": "що робить npm run sync з config.json",
       "expectedFiles": ["sync.md"],
       "relevantChunks": [
@@ -260,7 +260,7 @@
     },
     {
       "id": "c23",
-      "type": "paraphrase",
+      "type": "conceptual",
       "query": "коли потрібно запускати sync після апгрейду semidex",
       "expectedFiles": ["sync.md"],
       "relevantChunks": [
@@ -272,7 +272,7 @@
     },
     {
       "id": "c24",
-      "type": "exact-token",
+      "type": "conceptual",
       "query": "sync записує поточний провайдер а не той що був при індексації",
       "expectedFiles": ["sync.md"],
       "relevantChunks": [
@@ -283,7 +283,7 @@
     },
     {
       "id": "c25",
-      "type": "paraphrase",
+      "type": "conceptual",
       "query": "відмінність між sync та indexer стосовно config.json",
       "expectedFiles": ["sync.md"],
       "relevantChunks": [
@@ -295,7 +295,7 @@
     },
     {
       "id": "c26",
-      "type": "exact-token",
+      "type": "conceptual",
       "query": "як зареєструвати MCP сервер semidex у Claude Code",
       "expectedFiles": ["mcp-workflow.md"],
       "relevantChunks": [
@@ -331,7 +331,7 @@
     },
     {
       "id": "c29",
-      "type": "paraphrase",
+      "type": "conceptual",
       "query": "як агент повинен починати сесію з semidex MCP",
       "expectedFiles": ["mcp-workflow.md"],
       "relevantChunks": [
@@ -354,7 +354,7 @@
     },
     {
       "id": "c31",
-      "type": "exact-token",
+      "type": "config-env",
       "query": "CHUNKS_OUT_DIR Obsidian export directory chunks output",
       "expectedFiles": ["obsidian.md"],
       "relevantChunks": [
@@ -366,7 +366,7 @@
     },
     {
       "id": "c32",
-      "type": "exact-token",
+      "type": "config-env",
       "query": "LINK_MIN_SCORE LINK_TOP wikilink threshold semantic neighbors",
       "expectedFiles": ["obsidian.md"],
       "relevantChunks": [
@@ -378,7 +378,7 @@
     },
     {
       "id": "c33",
-      "type": "paraphrase",
+      "type": "conceptual",
       "query": "що міститься у frontmatter кожного Obsidian файлу chunk",
       "expectedFiles": ["obsidian.md"],
       "relevantChunks": [
@@ -390,7 +390,7 @@
     },
     {
       "id": "c34",
-      "type": "paraphrase",
+      "type": "conceptual",
       "query": "use cases for reviewing chunk quality and tag audit in Obsidian",
       "expectedFiles": ["obsidian.md"],
       "relevantChunks": [
@@ -401,7 +401,7 @@
     },
     {
       "id": "c35",
-      "type": "exact-token",
+      "type": "source-navigation",
       "query": "де знаходиться src/core/qdrant.js і що він експортує",
       "expectedFiles": ["project-structure.md"],
       "relevantChunks": [
@@ -413,7 +413,7 @@
     },
     {
       "id": "c36",
-      "type": "exact-token",
+      "type": "source-navigation",
       "query": "chunkFile splitSentences parseMarkdown location in source",
       "expectedFiles": ["project-structure.md"],
       "relevantChunks": [
@@ -425,7 +425,7 @@
     },
     {
       "id": "c37",
-      "type": "exact-token",
+      "type": "source-navigation",
       "query": "npm run bench:custom50 entry point run-v3.js",
       "expectedFiles": ["project-structure.md"],
       "relevantChunks": [
@@ -473,7 +473,7 @@
     },
     {
       "id": "c41",
-      "type": "paraphrase",
+      "type": "conceptual",
       "query": "яка різниця між 21-query regression і custom-50 quality benchmark",
       "expectedFiles": ["benchmarking.md"],
       "relevantChunks": [
@@ -497,7 +497,7 @@
     },
     {
       "id": "c43",
-      "type": "exact-token",
+      "type": "config-env",
       "query": "QDRANT_URL QDRANT_KEY required environment variables",
       "expectedFiles": ["config-env.md"],
       "relevantChunks": [
@@ -509,7 +509,7 @@
     },
     {
       "id": "c44",
-      "type": "exact-token",
+      "type": "config-env",
       "query": "RERANK_PROTECT_TOP1_DELTA minimum advantage to displace rank-0",
       "expectedFiles": ["config-env.md"],
       "relevantChunks": [
@@ -520,7 +520,7 @@
     },
     {
       "id": "c45",
-      "type": "exact-token",
+      "type": "config-env",
       "query": "config.json six reindex discriminators denseProvider denseModel sparseProvider",
       "expectedFiles": ["config-env.md"],
       "relevantChunks": [
@@ -532,7 +532,7 @@
     },
     {
       "id": "c46",
-      "type": "paraphrase",
+      "type": "config-env",
       "query": "що таке SOURCE_ROOT і навіщо він потрібен при індексації",
       "expectedFiles": ["config-env.md"],
       "relevantChunks": [
@@ -555,7 +555,7 @@
     },
     {
       "id": "c48",
-      "type": "paraphrase",
+      "type": "cross-lingual-ua-en",
       "query": "cross-lingual retrieval Ukrainian query English document BGE-M3",
       "expectedFiles": ["multilingual.md"],
       "relevantChunks": [
@@ -567,7 +567,7 @@
     },
     {
       "id": "c49",
-      "type": "exact-token",
+      "type": "config-env",
       "query": "ONNX_EMBED=1 recommended provider for multilingual Ukrainian content",
       "expectedFiles": ["multilingual.md"],
       "relevantChunks": [

@@ -59,6 +59,8 @@ import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { randomUUID } from 'crypto';
 
+import { validateQueryTypes, formatTypeDistribution } from './query-types.js';
+
 import { chunkFile } from '../../../src/indexer/phases/chunk.js';
 import {
   listCollections, createCollection, deleteBySourceFile,
@@ -569,6 +571,75 @@ function printResults(queryResults) {
   log('─'.repeat(header.length));
 }
 
+function printPerClassMetrics(queryResults) {
+  const byType = new Map();
+  for (const r of queryResults) {
+    const t = r.query.type ?? '(missing)';
+    if (!byType.has(t)) byType.set(t, []);
+    byType.get(t).push(r);
+  }
+
+  log('\nPer-class metrics:');
+  log('─'.repeat(100));
+  log(
+    pad('type', 22) +
+    lpad('count', 6) +
+    lpad('MRR@10', 8) +
+    lpad('rank1', 6) +
+    lpad('cR@5', 7) +
+    lpad('nDCG@10', 9) +
+    lpad('negPass', 8)
+  );
+  log('─'.repeat(100));
+
+  const sorted = [...byType.entries()].sort((a, b) => b[1].length - a[1].length);
+  for (const [type, rows] of sorted) {
+    const isNeg = type === 'negative';
+    const pos   = rows.filter(r => !r.query.shouldHaveNoStrongHit);
+    const neg   = rows.filter(r =>  r.query.shouldHaveNoStrongHit);
+
+    let mrrSum = 0, mrrCount = 0, rank1 = 0, cr5 = 0, cr5Count = 0, ndcgSum = 0, ndcgCount = 0;
+    for (const r of pos) {
+      const mrrV  = mrr(r.results, r.query.qrels, 10, 3);
+      const cr5h  = chunkRecallHit(r.results, r.query.qrels, 5, 3);
+      const ndcgV = gradedNDCG(r.results, r.query.qrels, TOP_K);
+      if (mrrV  !== null) { mrrSum  += mrrV;  mrrCount++;  }
+      if (cr5h  !== null) { cr5     += cr5h ? 1 : 0; cr5Count++; }
+      if (ndcgV !== null) { ndcgSum += ndcgV; ndcgCount++; }
+      if (r.results.length && (r.query.qrels.get(resultChunkId(r.results[0])) ?? 0) >= 3) rank1++;
+    }
+
+    let negPassStr = 'n/a';
+    if (neg.length > 0) {
+      let negPass = 0;
+      for (const r of neg) {
+        const top1Words = new Set([
+          ...tokenise(r.results[0]?.payload?.text    ?? ''),
+          ...tokenise(r.results[0]?.payload?.section ?? ''),
+        ]);
+        const strongHit = (r.query.expectedTokens ?? []).some(t => top1Words.has(t));
+        if (!strongHit) negPass++;
+      }
+      negPassStr = pct(negPass / neg.length);
+    }
+
+    const mrrStr  = mrrCount   > 0 ? mrrSum  / mrrCount  : null;
+    const cr5Str  = cr5Count   > 0 ? cr5     / cr5Count  : null;
+    const ndcgStr = ndcgCount  > 0 ? ndcgSum / ndcgCount : null;
+
+    log(
+      pad(type, 22) +
+      lpad(rows.length, 6) +
+      lpad(isNeg ? 'n/a' : (mrrStr != null ? mrrStr.toFixed(3) : 'n/a'), 8) +
+      lpad(isNeg ? 'n/a' : String(rank1), 6) +
+      lpad(isNeg ? 'n/a' : pct(cr5Str), 7) +
+      lpad(isNeg ? 'n/a' : (ndcgStr != null ? ndcgStr.toFixed(3) : 'n/a'), 9) +
+      lpad(negPassStr, 8)
+    );
+  }
+  log('─'.repeat(100));
+}
+
 function printSummary(metrics, provider) {
   log(`\nProvider          : ${provider}`);
   log(`Queries           : ${metrics.nPositive} positive, ${metrics.nNegative} negative`);
@@ -597,11 +668,17 @@ async function main() {
   const queries = raw.queries.map(normaliseQuery);
   const { denseProvider, sparseProvider } = resolveEnvProviders();
 
+  const { typeDistribution, warnings: typeWarnings } = validateQueryTypes(raw.queries);
+  if (typeWarnings.length) {
+    for (const w of typeWarnings) process.stderr.write(`[bench-v3] type warning: ${w}\n`);
+  }
+
   log(`\n=== semidex custom-50 quality benchmark ===`);
   log(`Provider  : ${BENCH_PROVIDER}  (${denseProvider}/${sparseProvider})`);
   log(`Search    : ${SEARCH_MODE}${SEARCH_MODE === 'dense-mmr' ? `  (diversity=${MMR_DIVERSITY}, candidates=${MMR_CANDIDATES_LIMIT})` : RERANK_ENABLED ? `  +rerank(prefetch×${RERANK_PREFETCH_MULT})` : ''}`);
   log(`Top-K     : ${TOP_K}`);
   log(`Queries   : ${queries.length} (${queries.filter(q => !q.shouldHaveNoStrongHit).length} positive, ${queries.filter(q => q.shouldHaveNoStrongHit).length} negative)`);
+  log(`Types     : ${formatTypeDistribution(typeDistribution)}`);
 
   log('\n[1/2] Setup collection...');
   await ensureCollection();
@@ -653,6 +730,7 @@ async function main() {
   const metrics = computeMetrics(queryResults, emptyChunkIds);
   printResults(queryResults);
   printSummary(metrics, BENCH_PROVIDER);
+  printPerClassMetrics(queryResults);
   log('');
 
   if (JSON_MODE) {

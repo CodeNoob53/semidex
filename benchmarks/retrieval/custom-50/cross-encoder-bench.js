@@ -68,6 +68,7 @@ import {
 import { embedForIndex, embedForSearch, SCHEMA_VERSION } from '../../../src/core/embeddings.js';
 import { loadConfig, saveConfig, resolveEnvProviders } from '../../../src/core/config.js';
 import { rerankResults } from '../../../src/core/rerank.js';
+import { validateQueryTypes, formatTypeDistribution } from './query-types.js';
 
 const __dirname        = dirname(fileURLToPath(import.meta.url));
 const FIXTURES_SHARED  = resolve(__dirname, '../fixtures/docs');
@@ -576,11 +577,93 @@ function pct(v) { return v == null ? '  n/a' : `${(v*100).toFixed(1)}%`; }
 function pad(s, n)  { return String(s).padEnd(n); }
 function lpad(s, n) { return String(s).padStart(n); }
 
-function buildReport(allMetrics, queryDeltas, providerInfo) {
+// True per-mode regression: rel>=3 chunk was at hybrid-true rank <=3 but mode moves it to >3 or miss.
+function isModeRegression(r, mode) {
+  const h = bestExactRank(r.byMode['hybrid-true'], r.query.qrels);
+  const m = bestExactRank(r.byMode[mode],          r.query.qrels);
+  return h != null && h <= 3 && (m == null || m > 3);
+}
+
+function buildPerClassSection(queryResults, SEP2) {
+  const lines = [];
+  const byType = new Map();
+  for (const r of queryResults) {
+    const t = r.query.type ?? '(missing)';
+    if (!byType.has(t)) byType.set(t, []);
+    byType.get(t).push(r);
+  }
+
+  const sorted = [...byType.entries()].sort((a, b) => b[1].length - a[1].length);
+
+  for (const mode of MODES) {
+    // hybrid-true is baseline — regr vs itself is always 0, skip the column
+    const showRegr = mode !== 'hybrid-true';
+
+    lines.push(`Per-class metrics (${mode}):`);
+    lines.push(SEP2);
+    lines.push(
+      pad('type', 22) + lpad('n', 4) +
+      lpad('MRR@10', 8) + lpad('rank1', 6) + lpad('cR@5', 7) +
+      (showRegr ? lpad('regr', 5) : '') +
+      lpad('negPass', 8)
+    );
+    lines.push(SEP2);
+
+    for (const [type, rows] of sorted) {
+      const neg = rows.filter(r =>  r.query.shouldHaveNoStrongHit);
+      const pos = rows.filter(r => !r.query.shouldHaveNoStrongHit);
+
+      let mrrSum = 0, mrrCount = 0, rank1 = 0, cr5 = 0, cr5Count = 0, regrCount = 0;
+      for (const r of pos) {
+        const results = r.byMode[mode];
+        const mrrV = mrrAt(results, r.query.qrels, 10);
+        const cr5h = chunkRecallHit(results, r.query.qrels, 5);
+        if (mrrV !== null) { mrrSum += mrrV; mrrCount++; }
+        if (cr5h !== null) { cr5 += cr5h ? 1 : 0; cr5Count++; }
+        if (results.length && (r.query.qrels.get(resultChunkId(results[0])) ?? 0) >= 3) rank1++;
+        if (showRegr && isModeRegression(r, mode)) regrCount++;
+      }
+
+      let negPassStr = 'n/a';
+      if (neg.length > 0) {
+        let pass = 0;
+        for (const r of neg) {
+          const results = r.byMode[mode];
+          const top1Words = new Set([
+            ...tokenise(results?.[0]?.payload?.text ?? ''),
+            ...tokenise(results?.[0]?.payload?.section ?? ''),
+          ]);
+          if (!(r.query.expectedTokens ?? []).some(t => top1Words.has(t))) pass++;
+        }
+        negPassStr = `${(pass / neg.length * 100).toFixed(0)}%`;
+      }
+
+      const mrrStr = mrrCount > 0 ? (mrrSum / mrrCount).toFixed(3) : 'n/a';
+      const cr5Str = cr5Count > 0 ? pct(cr5 / cr5Count) : 'n/a';
+
+      lines.push(
+        pad(type, 22) + lpad(rows.length, 4) +
+        lpad(pos.length > 0 ? mrrStr           : 'n/a', 8) +
+        lpad(pos.length > 0 ? String(rank1)    : 'n/a', 6) +
+        lpad(pos.length > 0 ? cr5Str           : 'n/a', 7) +
+        (showRegr ? lpad(pos.length > 0 ? String(regrCount) : 'n/a', 5) : '') +
+        lpad(negPassStr, 8)
+      );
+    }
+    lines.push(SEP2);
+    lines.push('');
+  }
+  return lines;
+}
+
+function buildReport(allMetrics, queryDeltas, providerInfo, queryResults) {
   const lines = [];
   const SEP  = '='.repeat(100);
   const SEP2 = '-'.repeat(100);
   const M    = MODES;
+
+  const { typeDistribution } = validateQueryTypes(queryResults.map(r => r.query));
+  const typeLine = formatTypeDistribution(typeDistribution);
 
   // ── Header ──────────────────────────────────────────────────────────────────
   lines.push(SEP);
@@ -596,6 +679,7 @@ function buildReport(allMetrics, queryDeltas, providerInfo) {
   lines.push(`  BENCH_TOP_K       : ${TOP_K}`);
   lines.push(`  RERANK_PREFETCH_MULT : ${RERANK_PREFETCH_MULT}`);
   lines.push(`  BENCH_SKIP_INDEX  : ${SKIP_INDEX ? 'yes' : 'no'}`);
+  lines.push(`  Query types       : ${typeLine}`);
   lines.push(SEP);
   lines.push('');
 
@@ -700,6 +784,9 @@ function buildReport(allMetrics, queryDeltas, providerInfo) {
     lines.push('');
   }
 
+  // ── Per-class metrics ────────────────────────────────────────────────────────
+  for (const l of buildPerClassSection(queryResults, SEP2)) lines.push(l);
+
   lines.push(SEP);
   return lines.join('\n');
 }
@@ -740,6 +827,12 @@ const queries = rawQueries.queries.map(q => ({
   expectedTokens: q.expectedTokens ? q.expectedTokens.flatMap(t => tokenise(t)).filter(Boolean) : null,
 }));
 
+const { typeDistribution, warnings: typeWarnings } = validateQueryTypes(rawQueries.queries);
+if (typeWarnings.length) {
+  for (const w of typeWarnings) process.stderr.write(`[ce-bench] type warning: ${w}\n`);
+}
+process.stderr.write(`Types: ${formatTypeDistribution(typeDistribution)}\n`);
+
 validateQrels(queries, indexedIds);
 
 // Pre-load CE model before query loop so first-query latency is not inflated.
@@ -757,7 +850,7 @@ for (const q of queries) {
 
 const allMetrics  = computeAllMetrics(queryResults, emptyChunkIds);
 const queryDeltas = buildQueryDeltas(queryResults);
-const report      = buildReport(allMetrics, queryDeltas, providerInfo);
+const report      = buildReport(allMetrics, queryDeltas, providerInfo, queryResults);
 
 process.stdout.write(report + '\n');
 
