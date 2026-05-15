@@ -1,0 +1,321 @@
+========================================================================================================================
+  custom-150 Tier B CE routing benchmark — guard v1 vs v2
+  Date              : 2026-05-15
+  Provider          : bge-m3-onnx/bge-m3-onnx
+  Queries           : 75 total (72 positive, 3 negative)
+------------------------------------------------------------------------------------------------------------------------
+  CE_MODEL          : cross-encoder/mmarco-mMiniLMv2-L12-H384-v1
+  CE_INPUT          : text+meta
+  CE_DTYPE          : fp32
+  CE_BATCH_SIZE     : 16
+  BENCH_TOP_K       : 10
+  BENCH_WINDOW      : 1
+  RERANK_PREFETCH_MULT : 4
+  guard v1          : heuristic-v1 (custom-50 port, no config-env route)
+  guard v2          : heuristic-v2 (config-env route via type label + token detector, insertion-order fix)
+  v2 config-env routing uses dataset type label: YES (benchmark-only; label checked first, then token detector)
+  BENCH_SKIP_INDEX  : yes
+  Query types       : exact-token=12  config-env=12  conceptual=12  source-navigation=10  troubleshooting=9  cross-lingual-ua-en=8  english=5  provider-activation=4  negative=3
+========================================================================================================================
+
+Aggregate metrics:
+------------------------------------------------------------------------------------------------------------------------
+                       hybrid-true    det-rerank        ce-raw  ce-routed-v1  ce-routed-v2     ce-oracle
+------------------------------------------------------------------------------------------------------------------------
+MRR@10                       0.508         0.504         0.531         0.531         0.554         0.541
+rank1 exact                     29            29            29            29            31            29
+nDCG@10                      0.563         0.549         0.589         0.592         0.607         0.600
+chunkRecall@3                55.6%         58.3%         59.7%         58.3%         61.1%         63.9%
+chunkRecall@5                66.7%         63.9%         69.4%         70.8%         73.6%         73.6%
+chunkRecall@10               76.4%         70.8%         80.6%         80.6%         81.9%         81.9%
+windowRecall@5               87.5%         87.5%         84.7%         86.1%         90.3%         88.9%
+windowRecall@10              95.8%         93.1%         95.8%         95.8%         98.6%         97.2%
+supportRecall@10             79.2%         75.0%         83.3%         83.3%         84.7%         84.7%
+fileRecall@1                 75.0%         75.0%         79.2%         79.2%         83.3%         79.2%
+negativePass                100.0%        100.0%        100.0%        100.0%        100.0%        100.0%
+p50 latency                   48ms          51ms        3337ms        3337ms        3337ms        3337ms
+p95 latency                   55ms          91ms        3722ms        3722ms        3722ms        3722ms
+------------------------------------------------------------------------------------------------------------------------
+
+Guard v1 vs v2 regression comparison:
+------------------------------------------------------------------------------------------------------------------------
+  ce-raw regressions         : 3
+  ce-routed-v1 regressions   : 4  (custom-50 heuristic-v1, no config-env route)
+  ce-routed-v2 regressions   : 2  (heuristic-v2, with config-env route + insertion fix)
+  MRR delta  v1 vs hybrid    : +0.023
+  MRR delta  v2 vs hybrid    : +0.047
+
+  Fixed by v2 (was regression in v1, not in v2) — 2:
+    [c150-039] config-env / v1-route=semantic v2-route=config-env  hybrid=#1 v1=#miss v2=#1
+      query: які обов'язкові змінні середовища для підключення до Qdrant
+    [c150-044] config-env / v1-route=exact-token v2-route=config-env  hybrid=#2 v1=#7 v2=#1
+      query: що таке DENSE_PROVIDER і як він перевизначає провайдера
+
+  Still failing in both v1 and v2 — 2:
+    [c150-009] provider-activation / v1-route=exact-token v2-route=exact-token  hybrid=#3 v1=#4 v2=#4
+      query: switch from Ollama to ONNX embeddings
+    [c150-032] exact-token / v1-route=exact-token v2-route=exact-token  hybrid=#1 v1=#4 v2=#4
+      query: mmrSearch dense MMR search function
+
+------------------------------------------------------------------------------------------------------------------------
+
+Promotion gate (ce-routed-v2 vs hybrid-true):
+------------------------------------------------------------------------------------------------------------------------
+  [✓] MRR@10 improvement >= +0.030   (got +0.047, base=0.508, v2=0.554)
+  [✓] chunkRecall@5 >= hybrid baseline   (got 73.6%, base=66.7%)
+  [✓] chunkRecall@10 >= hybrid baseline   (got 81.9%, base=76.4%)
+  [✓] negativePass = 100%   (got 100.0%)
+  [✗] zero regressions (rel>=3, hybrid rank <=3 → ce-routed-v2 >3)   (got 2)
+  [✓] cross-lingual-ua-en cR@5 >= hybrid baseline   (got 75.0%, base=75.0%)
+  [✓] no query type with MRR drop >= 0.030 vs hybrid   (all types OK)
+
+  ce-raw regressions for comparison : 3
+  v1 regressions for comparison     : 4
+
+  Q: Did CE routing v2 beat hybrid by >= +0.030 MRR?        YES  (delta=+0.047)
+  Q: Did it preserve chunkRecall@5?                         YES  (73.6% vs 66.7%)
+  Q: Did it preserve chunkRecall@10?                        YES  (81.9% vs 76.4%)
+  Q: Did it preserve cross-lingual-ua-en?                   YES  (cR@5 75.0% vs 75.0%)
+  Q: Rank<=3 -> >3 regressions?                             2 regression(s)
+  Q: Any type with MRR drop >= 0.030?                       NO
+  Q: Were 4 known v1 regressions fixed by v2?               v1 had 4, v2 has 2 (fixed=2, new=0)
+
+  Verdict: GATE FAILED (regressions) — v2 still introduces rank<=3 -> >3 regressions
+------------------------------------------------------------------------------------------------------------------------
+
+Watched class detail (cross-lingual-ua-en, provider-activation, source-navigation, config-env, exact-token):
+------------------------------------------------------------------------------------------------------------------------
+  cross-lingual-ua-en (8 positive):
+    MRR@10  hybrid=0.572  v1=0.617 (delta=+0.045)  v2=0.617 (delta=+0.045)
+    cR@5    hybrid=75.0%  v2=75.0%
+    regressions  v1=0  v2=0
+    v1 guard fired on: c150-065
+    v2 guard fired on: c150-065
+  provider-activation (4 positive):
+    MRR@10  hybrid=0.354  v1=0.396 (delta=+0.042)  v2=0.354 (delta=+0.000)
+    cR@5    hybrid=100.0%  v2=100.0%
+    regressions  v1=1  v2=1
+    v1 guard fired on: c150-009, c150-069
+    v2 guard fired on: c150-009, c150-069
+  source-navigation (10 positive):
+    MRR@10  hybrid=0.452  v1=0.473 (delta=+0.021)  v2=0.523 (delta=+0.071)
+    cR@5    hybrid=60.0%  v2=70.0%
+    regressions  v1=0  v2=0
+    v1 guard fired on: c150-012, c150-048, c150-051
+    v2 guard fired on: c150-012, c150-048, c150-051
+  config-env (12 positive):
+    MRR@10  hybrid=0.523  v1=0.387 (delta=-0.136)  v2=0.542 (delta=+0.019)
+    cR@5    hybrid=66.7%  v2=66.7%
+    regressions  v1=2  v2=0
+    v2 guard fired on: c150-005, c150-039, c150-044
+  exact-token (12 positive):
+    MRR@10  hybrid=0.583  v1=0.573 (delta=-0.010)  v2=0.573 (delta=-0.010)
+    cR@5    hybrid=66.7%  v2=66.7%
+    regressions  v1=1  v2=1
+    v1 guard fired on: c150-002, c150-032
+    v2 guard fired on: c150-032
+------------------------------------------------------------------------------------------------------------------------
+
+Per-query routing table (v2 is the gate-evaluated mode):
+------------------------------------------------------------------------------------------------------------------------
+ID         type                    v1-route          v2-route            hyb   ce-raw     v1     v2  g1  g2   query
+------------------------------------------------------------------------------------------------------------------------
+c150-009   provider-activation     exact-token       exact-token          #3       #3     #4     #4  Y   Y    [REGR-v2!] switch from Ollama to ONNX embeddings
+c150-032   exact-token             exact-token       exact-token          #1       #3     #4     #4  Y   Y    [REGR-v2!] mmrSearch dense MMR search function
+c150-039   config-env              semantic          config-env           #1     miss   miss     #1      Y    [FIX-v2] які обов'язкові змінні середовища для пі
+c150-044   config-env              exact-token       config-env           #2       #7     #7     #1      Y    [FIX-v2] що таке DENSE_PROVIDER і як він перевизн
+c150-051   source-navigation       source-navigation  source-navigation     #2       #6     #3     #1  Y   Y    [IMPR-v2] where is hybridSearch implemented and wh
+c150-005   config-env              semantic          config-env         miss     miss   miss   miss      Y    які змінні середовища потрібні для запус
+c150-006   config-env              semantic          config-env           #9     miss   miss   miss           як змінити модель для LLM тегування
+c150-007   config-env              exact-token       config-env         miss     miss   miss   miss           RRF_K parameter default value and meanin
+c150-008   config-env              semantic          config-env         miss     miss   miss   miss           які поля є в config.json файлі конфігура
+c150-010   provider-activation     semantic          semantic             #3       #3     #3     #3           налаштувати dense та sparse провайдери о
+c150-012   source-navigation       source-navigation  source-navigation     #7       #6     #7     #7  Y   Y    де знаходиться реалізація MCP інструмент
+c150-013   source-navigation       exact-token       exact-token        miss     miss   miss   miss           which module implements loadConfig and s
+c150-014   source-navigation       semantic          semantic             #8     miss   miss   miss           який модуль відповідає за hybrid search
+c150-015   source-navigation       source-navigation  source-navigation   miss       #4     #4     #4           entry point for the indexer CLI command
+c150-024   cross-lingual-ua-en     semantic          semantic             #5       #8     #8     #8           як налаштувати bge-m3 для мультимовного
+c150-025   cross-lingual-ua-en     semantic          semantic             #1       #1     #1     #1           чи підтримує семантичний пошук запити ук
+c150-026   cross-lingual-ua-en     semantic          semantic             #8       #9     #9     #9           хеш-tf підходить для кирилиці
+c150-027   cross-lingual-ua-en     semantic          semantic           miss       #5     #5     #5           рекомендований провайдер для україномовн
+c150-040   config-env              exact-token       config-env           #1       #2     #2     #2           OLLAMA_URL default value Ollama base URL
+c150-041   config-env              semantic          config-env           #3       #1     #1     #1           [IMPR-v2] як налаштувати кількість сусідів для сем
+c150-042   config-env              exact-token       config-env           #1       #2     #2     #2           MAX_CHUNK_TOKENS default range chunking
+c150-043   config-env              exact-token       config-env           #1       #1     #1     #1           як передати COLLECTION та SOURCE_ROOT пр
+c150-045   config-env              semantic          config-env           #1       #1     #1     #1           де зберігається config.json і як він оно
+c150-046   config-env              exact-token       config-env           #3       #2     #2     #2           CONTEXT_MODEL default model LLM context
+c150-047   source-navigation       exact-token       exact-token          #1       #1     #1     #1           який модуль виконує всі виклики REST до
+c150-048   source-navigation       source-navigation  source-navigation     #1       #2     #2     #3  Y   Y    where is the MCP server name 'qdrant' re
+c150-049   source-navigation       source-navigation  source-navigation     #4       #2     #2     #2           де знаходиться логіка фазування chunk.js
+c150-050   source-navigation       source-navigation  config-env           #2       #1     #1     #1           [IMPR-v2] який файл читає та записує config.json і
+c150-052   source-navigation       semantic          semantic             #1       #1     #1     #1           де знаходяться всі шість MCP інструменті
+c150-065   cross-lingual-ua-en     exact-token       exact-token          #1       #1     #1     #1  Y   Y    як neural sparse encoder BGE-M3 ONNX пок
+c150-066   cross-lingual-ua-en     semantic          semantic             #4       #1     #1     #1           [IMPR-v2] як документи зі змішаним UA/EN контентом
+c150-067   cross-lingual-ua-en     semantic          semantic             #1       #1     #1     #1           які запити покриває custom-50 benchmark
+c150-068   cross-lingual-ua-en     semantic          semantic             #1       #2     #2     #2           чому hashed-tf гірший за bge-m3-onnx для
+c150-069   provider-activation     provider-activation  provider-activation     #2       #2     #2     #3  Y   Y    як увімкнути bge-m3-onnx для обох dense
+c150-070   provider-activation     semantic          config-env           #4       #2     #2     #2           how to force onnx provider for a benchma
+c150-001   exact-token             exact-token       exact-token        miss     miss   miss   miss           getStoredMeta function reindex discrimin
+c150-002   exact-token             exact-token       config-env         miss     miss   miss   miss  Y        MIN_CHUNK_TOKENS threshold chunk filteri
+c150-003   exact-token             semantic          semantic           miss       #8     #8     #8           qdrant_find_by_tag MCP tool
+c150-004   exact-token             semantic          semantic           miss     miss   miss   miss           qdrant_backlinks tool semantic linking
+c150-011   troubleshooting         exact-token       config-env           #4       #6     #6     #6  Y   Y    what happens when DENSE_PROVIDER and SPA
+c150-016   conceptual              semantic          semantic             #9       #4     #4     #4           what is the purpose of sentence overlap
+c150-017   conceptual              semantic          semantic             #5       #2     #2     #2           як backfill логіка sync відновлює відсут
+c150-018   conceptual              semantic          semantic           miss     miss   miss   miss           що означають wikilinks у Obsidian експор
+c150-019   conceptual              semantic          semantic           miss      #10    #10    #10           how does Reciprocal Rank Fusion combine
+c150-020   conceptual              semantic          semantic           miss     miss   miss   miss           що відбувається коли sparse вектор недос
+c150-021   troubleshooting         semantic          semantic           miss       #4     #4     #4           реіндексація не запускається після зміни
+c150-022   troubleshooting         exact-token       exact-token        miss     miss   miss   miss           BENCH_SKIP_INDEX=1 fails with no indexed
+c150-023   troubleshooting         semantic          semantic           miss     miss   miss   miss           overlap crosses section boundary causing
+c150-028   english                 semantic          config-env          #10       #4     #4     #4           how to discover available collections at
+c150-029   english                 semantic          semantic             #6       #5     #5     #5           what frontmatter fields does an Obsidian
+c150-031   exact-token             exact-token       exact-token          #1       #1     #1     #1           SCHEMA_VERSION constant embedding reinde
+c150-033   exact-token             exact-token       exact-token          #2       #2     #2     #2           LINK_MIN_SCORE semantic neighbor linking
+c150-034   exact-token             exact-token       exact-token          #1       #1     #1     #1           isStructuralHeading heuristic parseMarkd
+c150-035   exact-token             exact-token       config-env           #1       #1     #1     #1           listCollections sync config Qdrant colle
+c150-036   exact-token             exact-token       exact-token          #1       #1     #1     #1           RERANK_PREFETCH_MULT candidate multiplie
+c150-037   exact-token             exact-token       config-env           #2       #1     #1     #1           [IMPR-v2] SOURCE_ROOT stable source_file identifie
+c150-038   exact-token             source-navigation  source-navigation     #1       #1     #1     #1           embedForIndex embedForSearch exports emb
+c150-053   troubleshooting         exact-token       config-env           #2       #1     #1     #1           [IMPR-v2] провайдер в BENCH_SKIP_INDEX відрізняєть
+c150-054   troubleshooting         exact-token       config-env           #1       #1     #1     #2      Y    sync записує неправильний провайдер післ
+c150-055   troubleshooting         semantic          semantic             #1       #1     #1     #1           Obsidian export shows stale chunks after
+c150-056   troubleshooting         exact-token       exact-token          #1       #1     #1     #1           чому sparse вектори відсутні в колекції
+c150-057   troubleshooting         semantic          config-env           #5       #2     #2     #2           collection not found in config.json afte
+c150-058   conceptual              semantic          semantic             #1       #1     #1     #1           how do payload indexes improve filtering
+c150-059   conceptual              semantic          semantic             #1       #1     #1     #1           яка роль linking фази у семантичному гра
+c150-060   conceptual              semantic          semantic             #1       #1     #1     #1           what does the RRF k parameter control an
+c150-061   conceptual              semantic          semantic             #1       #1     #1     #1           навіщо потрібна Unicode-aware regex для
+c150-062   conceptual              semantic          semantic             #1       #1     #1     #1           how does pandoc format conversion integr
+c150-063   conceptual              semantic          semantic             #1       #1     #1     #1           чим відрізняється qdrant_related від qdr
+c150-064   conceptual              semantic          config-env           #1       #1     #1     #1           what information does qdrant_collection_
+c150-071   english                 semantic          semantic             #4       #1     #1     #1           [IMPR-v2] what use cases does the Obsidian chunk e
+c150-072   english                 semantic          semantic           miss       #4     #4     #4           what is the relevance grading scale used
+c150-073   english                 semantic          semantic             #1       #1     #1     #1           how does the window parameter in qdrant_
+------------------------------------------------------------------------------------------------------------------------
+
+Remaining regressions in ce-routed-v2 (2):
+------------------------------------------------------------------------------------------------------------------------
+[c150-009] type=provider-activation  v1-route=exact-token  v2-route=exact-token  g1=true  g2=true
+  query: switch from Ollama to ONNX embeddings
+  hybrid-true      rank=#3  top1=multilingual.md#0  rel=0
+  det-rerank       rank=#3  top1=config-env.md#2  rel=0
+  ce-raw           rank=#3  top1=config-env.md#2  rel=0
+  ce-routed-v1     rank=#4  top1=config-env.md#2  rel=0
+  ce-routed-v2     rank=#4  top1=config-env.md#2  rel=0
+  ce-oracle        rank=#3  top1=config-env.md#2  rel=0
+
+[c150-032] type=exact-token  v1-route=exact-token  v2-route=exact-token  g1=true  g2=true
+  query: mmrSearch dense MMR search function
+  hybrid-true      rank=#1  top1=project-structure.md#6  rel=3
+  det-rerank       rank=#1  top1=project-structure.md#6  rel=3
+  ce-raw           rank=#3  top1=benchmarking.md#18  rel=0
+  ce-routed-v1     rank=#4  top1=benchmarking.md#18  rel=0
+  ce-routed-v2     rank=#4  top1=qdrant.md#2  rel=0
+  ce-oracle        rank=#3  top1=benchmarking.md#18  rel=0
+
+------------------------------------------------------------------------------------------------------------------------
+
+Regressions fixed by v2 guard (2):
+------------------------------------------------------------------------------------------------------------------------
+  [c150-039] type=config-env  v1-route=semantic  v2-route=config-env  g2-fired=true
+    query: які обов'язкові змінні середовища для підключення до Qdrant
+    v1 rank miss → v2 rank 1
+    v2 protected: config-env.md#1
+  [c150-044] type=config-env  v1-route=exact-token  v2-route=config-env  g2-fired=true
+    query: що таке DENSE_PROVIDER і як він перевизначає провайдера
+    v1 rank 7 → v2 rank 1
+    v2 protected: config-env.md#2
+------------------------------------------------------------------------------------------------------------------------
+
+Per-class metrics (hybrid-true):
+------------------------------------------------------------------------------------------------------------------------
+type                     n  MRR@10 rank1   cR@5 negPass
+------------------------------------------------------------------------------------------------------------------------
+exact-token             12   0.583     6  66.7%     n/a
+config-env              12   0.523     5  66.7%     n/a
+conceptual              12   0.609     7  66.7%     n/a
+source-navigation       10   0.452     3  60.0%     n/a
+troubleshooting          9   0.439     3  66.7%     n/a
+cross-lingual-ua-en      8   0.572     4  75.0%     n/a
+english                  5   0.303     1  40.0%     n/a
+provider-activation      4   0.354     0 100.0%     n/a
+negative                 3     n/a   n/a    n/a    100%
+------------------------------------------------------------------------------------------------------------------------
+
+Per-class metrics (det-rerank):
+------------------------------------------------------------------------------------------------------------------------
+type                     n  MRR@10 rank1   cR@5 regr negPass
+------------------------------------------------------------------------------------------------------------------------
+exact-token             12   0.594     6  66.7%    0     n/a
+config-env              12   0.521     5  66.7%    1     n/a
+conceptual              12   0.621     7  75.0%    0     n/a
+source-navigation       10   0.446     3  60.0%    0     n/a
+troubleshooting          9   0.429     3  55.6%    0     n/a
+cross-lingual-ua-en      8   0.500     4  50.0%    0     n/a
+english                  5   0.329     1  40.0%    0     n/a
+provider-activation      4   0.375     0 100.0%    0     n/a
+negative                 3     n/a   n/a    n/a  n/a    100%
+------------------------------------------------------------------------------------------------------------------------
+
+Per-class metrics (ce-raw):
+------------------------------------------------------------------------------------------------------------------------
+type                     n  MRR@10 rank1   cR@5 regr negPass
+------------------------------------------------------------------------------------------------------------------------
+exact-token             12   0.580     6  66.7%    0     n/a
+config-env              12   0.387     3  50.0%    2     n/a
+conceptual              12   0.654     7  75.0%    0     n/a
+source-navigation       10   0.458     3  60.0%    1     n/a
+troubleshooting          9   0.546     4  66.7%    0     n/a
+cross-lingual-ua-en      8   0.617     4  75.0%    0     n/a
+english                  5   0.540     2 100.0%    0     n/a
+provider-activation      4   0.417     0 100.0%    0     n/a
+negative                 3     n/a   n/a    n/a  n/a    100%
+------------------------------------------------------------------------------------------------------------------------
+
+Per-class metrics (ce-routed-v1):
+------------------------------------------------------------------------------------------------------------------------
+type                     n  MRR@10 rank1   cR@5 regr guards negPass
+------------------------------------------------------------------------------------------------------------------------
+exact-token             12   0.573     6  66.7%    1      2     n/a
+config-env              12   0.387     3  50.0%    2      0     n/a
+conceptual              12   0.654     7  75.0%    0      0     n/a
+source-navigation       10   0.473     3  70.0%    0      3     n/a
+troubleshooting          9   0.546     4  66.7%    0      1     n/a
+cross-lingual-ua-en      8   0.617     4  75.0%    0      1     n/a
+english                  5   0.540     2 100.0%    0      0     n/a
+provider-activation      4   0.396     0 100.0%    1      2     n/a
+negative                 3     n/a   n/a    n/a  n/a    n/a    100%
+------------------------------------------------------------------------------------------------------------------------
+
+Per-class metrics (ce-routed-v2):
+------------------------------------------------------------------------------------------------------------------------
+type                     n  MRR@10 rank1   cR@5 regr guards negPass
+------------------------------------------------------------------------------------------------------------------------
+exact-token             12   0.573     6  66.7%    1      1     n/a
+config-env              12   0.542     5  66.7%    0      3     n/a
+conceptual              12   0.654     7  75.0%    0      0     n/a
+source-navigation       10   0.523     4  70.0%    0      3     n/a
+troubleshooting          9   0.491     3  66.7%    0      2     n/a
+cross-lingual-ua-en      8   0.617     4  75.0%    0      1     n/a
+english                  5   0.540     2 100.0%    0      0     n/a
+provider-activation      4   0.354     0 100.0%    1      2     n/a
+negative                 3     n/a   n/a    n/a  n/a    n/a    100%
+------------------------------------------------------------------------------------------------------------------------
+
+Per-class metrics (ce-oracle):
+------------------------------------------------------------------------------------------------------------------------
+type                     n  MRR@10 rank1   cR@5 regr negPass
+------------------------------------------------------------------------------------------------------------------------
+exact-token             12   0.580     6  66.7%    0     n/a
+config-env              12   0.431     3  66.7%    0     n/a
+conceptual              12   0.654     7  75.0%    0     n/a
+source-navigation       10   0.473     3  70.0%    0     n/a
+troubleshooting          9   0.546     4  66.7%    0     n/a
+cross-lingual-ua-en      8   0.617     4  75.0%    0     n/a
+english                  5   0.540     2 100.0%    0     n/a
+provider-activation      4   0.417     0 100.0%    0     n/a
+negative                 3     n/a   n/a    n/a  n/a    100%
+------------------------------------------------------------------------------------------------------------------------
+
+========================================================================================================================
