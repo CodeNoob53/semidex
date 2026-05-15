@@ -3,8 +3,8 @@
 Provider  : onnx  (bge-m3-onnx/bge-m3-onnx)
 Search    : hybrid  +rerank(prefetch×4)
 Top-K     : 10
-Queries   : 30 (29 positive, 1 negative)
-Types     : conceptual=5  exact-token=4  config-env=4  troubleshooting=4  source-navigation=4  cross-lingual-ua-en=4  provider-activation=2  english=2  negative=1
+Queries   : 75 (72 positive, 3 negative)
+Types     : exact-token=12  config-env=12  conceptual=12  source-navigation=10  troubleshooting=9  cross-lingual-ua-en=8  english=5  provider-activation=4  negative=3
 Fixtures  : 10 docs
 
 [1/2] Setup collection...
@@ -12,100 +12,190 @@ Fixtures  : 10 docs
 Validating qrels...
 
 Running queries...
-✗ (1803ms)
+✗ (1759ms)
 ✗ (97ms)
-✗ (92ms)
-✗ (90ms)
-✗ (90ms)
-✗ (90ms)
-✗ (89ms)
-✗ (98ms)
-✓ (91ms)
-✓ (94ms)
-✓ (117ms)
 ✗ (94ms)
-✗ (93ms)
-✗ (93ms)
-✗ (91ms)
-✓ (97ms)
-✓ (98ms)
-✗ (101ms)
-✗ (97ms)
-✗ (97ms)
-✗ (101ms)
-✗ (104ms)
-✗ (103ms)
-✗ (96ms)
-✓ (102ms)
-✗ (99ms)
-✗ (96ms)
 ✗ (95ms)
-✗ (180ms)
-(neg) (97ms)
+✗ (92ms)
+✗ (87ms)
+✗ (89ms)
+✗ (95ms)
+✓ (93ms)
+✓ (92ms)
+✓ (96ms)
+✗ (88ms)
+✗ (93ms)
+✗ (92ms)
+✗ (89ms)
+✓ (97ms)
+✓ (95ms)
+✗ (95ms)
+✗ (92ms)
+✗ (96ms)
+✗ (93ms)
+✗ (102ms)
+✗ (94ms)
+✗ (151ms)
+✓ (103ms)
+✗ (92ms)
+✗ (91ms)
+✗ (87ms)
+✗ (98ms)
+(neg) (99ms)
+✓ (124ms)
+✓ (90ms)
+✓ (96ms)
+✓ (99ms)
+✓ (92ms)
+✓ (100ms)
+✓ (103ms)
+✓ (95ms)
+✓ (95ms)
+✓ (97ms)
+✓ (110ms)
+✓ (95ms)
+✓ (95ms)
+✓ (102ms)
+✓ (94ms)
+✓ (96ms)
+✓ (93ms)
+✓ (93ms)
+✓ (104ms)
+✓ (108ms)
+✓ (90ms)
+✓ (90ms)
+✓ (100ms)
+✓ (104ms)
+✓ (97ms)
+✓ (100ms)
+✗ (98ms)
+✓ (93ms)
+✓ (93ms)
+✓ (95ms)
+✓ (106ms)
+✓ (93ms)
+✓ (97ms)
+✓ (96ms)
+✓ (114ms)
+✗ (108ms)
+✓ (99ms)
+✓ (126ms)
+✓ (116ms)
+✓ (109ms)
+✓ (101ms)
+✗ (102ms)
+✓ (101ms)
+(neg) (101ms)
+(neg) (132ms)
 
 ─────────────────────────────────────────────────────────────────────────────────────────────────
 ID        Query                                          cr3   cr5   sup     nDCG     MRR      ms
 ─────────────────────────────────────────────────────────────────────────────────────────────────
-c150-001  getStoredMeta function reindex discriminato      ✗     ✗     ✗    0.000   0.000    1803
+c150-001  getStoredMeta function reindex discriminato      ✗     ✗     ✗    0.000   0.000    1759
 c150-002  MIN_CHUNK_TOKENS threshold chunk filtering       ✗     ✗     ✗    0.000   0.000      97
-c150-003  qdrant_find_by_tag MCP tool                      ✗     ✗     ✓    0.248   0.125      92
-c150-004  qdrant_backlinks tool semantic linking           ✗     ✗     ✗    0.000   0.000      90
-c150-005  які змінні середовища потрібні для запуску       ✗     ✗     ✗    0.000   0.000      90
-c150-006  як змінити модель для LLM тегування              ✗     ✗     ✗    0.000   0.000      90
+c150-003  qdrant_find_by_tag MCP tool                      ✗     ✗     ✓    0.248   0.125      94
+c150-004  qdrant_backlinks tool semantic linking           ✗     ✗     ✗    0.000   0.000      95
+c150-005  які змінні середовища потрібні для запуску       ✗     ✗     ✗    0.000   0.000      92
+c150-006  як змінити модель для LLM тегування              ✗     ✗     ✗    0.000   0.000      87
 c150-007  RRF_K parameter default value and meaning        ✗     ✗     ✗    0.000   0.000      89
-c150-008  які поля є в config.json файлі конфігурації      ✗     ✗     ✗    0.000   0.000      98
-c150-009  switch from Ollama to ONNX embeddings            ✓     ✓     ✓    0.481   0.333      91
-c150-010  налаштувати dense та sparse провайдери окре      ✓     ✓     ✓    0.394   0.333      94
-c150-011  what happens when DENSE_PROVIDER and SPARSE      ✗     ✓     ✓    0.339   0.250     117
-c150-012  де знаходиться реалізація MCP інструментів       ✗     ✗     ✓    0.145   0.000      94
+c150-008  які поля є в config.json файлі конфігурації      ✗     ✗     ✗    0.000   0.000      95
+c150-009  switch from Ollama to ONNX embeddings            ✓     ✓     ✓    0.481   0.333      93
+c150-010  налаштувати dense та sparse провайдери окре      ✓     ✓     ✓    0.394   0.333      92
+c150-011  what happens when DENSE_PROVIDER and SPARSE      ✗     ✓     ✓    0.339   0.250      96
+c150-012  де знаходиться реалізація MCP інструментів       ✗     ✗     ✓    0.145   0.000      88
 c150-013  which module implements loadConfig and save      ✗     ✗     ✗    0.000   0.000      93
-c150-014  який модуль відповідає за hybrid search і R      ✗     ✗     ✓    0.248   0.125      93
-c150-015  entry point for the indexer CLI command          ✗     ✗     ✗    0.000   0.000      91
+c150-014  який модуль відповідає за hybrid search і R      ✗     ✗     ✓    0.248   0.125      92
+c150-015  entry point for the indexer CLI command          ✗     ✗     ✗    0.000   0.000      89
 c150-016  what is the purpose of sentence overlap bet      ✗     ✓     ✓    0.339   0.250      97
-c150-017  як backfill логіка sync відновлює відсутні       ✗     ✓     ✓    0.417   0.200      98
-c150-018  що означають wikilinks у Obsidian експорті       ✗     ✗     ✓    0.102   0.000     101
-c150-019  how does Reciprocal Rank Fusion combine den      ✗     ✗     ✗    0.000   0.000      97
-c150-020  що відбувається коли sparse вектор недоступ      ✗     ✗     ✗    0.000   0.000      97
-c150-021  реіндексація не запускається після зміни пр      ✗     ✗     ✗    0.000   0.000     101
-c150-022  BENCH_SKIP_INDEX=1 fails with no indexed po      ✗     ✗     ✗    0.000   0.000     104
-c150-023  overlap crosses section boundary causing se      ✗     ✗     ✗    0.000   0.000     103
-c150-024  як налаштувати bge-m3 для мультимовного пош      ✗     ✗     ✗    0.000   0.000      96
-c150-025  чи підтримує семантичний пошук запити украї      ✓     ✓     ✓    0.900   1.000     102
-c150-026  хеш-tf підходить для кирилиці                    ✗     ✗     ✗    0.000   0.000      99
-c150-027  рекомендований провайдер для україномовного      ✗     ✗     ✗    0.000   0.000      96
-c150-028  how to discover available collections at se      ✗     ✗     ✓    0.145   0.000      95
-c150-029  what frontmatter fields does an Obsidian ch      ✗     ✗     ✓    0.449   0.167     180
-c150-030  GraphQL schema introspection endpoint for s    neg   neg   neg        ✓       –      97
+c150-017  як backfill логіка sync відновлює відсутні       ✗     ✓     ✓    0.417   0.200      95
+c150-018  що означають wikilinks у Obsidian експорті       ✗     ✗     ✓    0.102   0.000      95
+c150-019  how does Reciprocal Rank Fusion combine den      ✗     ✗     ✗    0.000   0.000      92
+c150-020  що відбувається коли sparse вектор недоступ      ✗     ✗     ✗    0.000   0.000      96
+c150-021  реіндексація не запускається після зміни пр      ✗     ✗     ✗    0.000   0.000      93
+c150-022  BENCH_SKIP_INDEX=1 fails with no indexed po      ✗     ✗     ✗    0.000   0.000     102
+c150-023  overlap crosses section boundary causing se      ✗     ✗     ✗    0.000   0.000      94
+c150-024  як налаштувати bge-m3 для мультимовного пош      ✗     ✗     ✗    0.000   0.000     151
+c150-025  чи підтримує семантичний пошук запити украї      ✓     ✓     ✓    0.900   1.000     103
+c150-026  хеш-tf підходить для кирилиці                    ✗     ✗     ✗    0.000   0.000      92
+c150-027  рекомендований провайдер для україномовного      ✗     ✗     ✗    0.000   0.000      91
+c150-028  how to discover available collections at se      ✗     ✗     ✓    0.145   0.000      87
+c150-029  what frontmatter fields does an Obsidian ch      ✗     ✗     ✓    0.449   0.167      98
+c150-030  GraphQL schema introspection endpoint for s    neg   neg   neg        ✓       –      99
+c150-031  SCHEMA_VERSION constant embedding reindex t      ✓     ✓     ✓    0.956   1.000     124
+c150-032  mmrSearch dense MMR search function              ✓     ✓     ✓    0.787   1.000      90
+c150-033  LINK_MIN_SCORE semantic neighbor linking th      ✓     ✓     ✓    0.834   0.500      96
+c150-034  isStructuralHeading heuristic parseMarkdown      ✓     ✓     ✓    1.000   1.000      99
+c150-035  listCollections sync config Qdrant collecti      ✓     ✓     ✓    0.894   1.000      92
+c150-036  RERANK_PREFETCH_MULT candidate multiplier r      ✓     ✓     ✓    1.000   1.000     100
+c150-037  SOURCE_ROOT stable source_file identifier i      ✓     ✓     ✓    0.834   0.500     103
+c150-038  embedForIndex embedForSearch exports embedd      ✓     ✓     ✓    1.000   1.000      95
+c150-039  які обов'язкові змінні середовища для підкл      ✓     ✓     ✓    0.787   1.000      95
+c150-040  OLLAMA_URL default value Ollama base URL co      ✓     ✓     ✓    1.000   1.000      97
+c150-041  як налаштувати кількість сусідів для семант      ✗     ✓     ✓    0.508   0.250     110
+c150-042  MAX_CHUNK_TOKENS default range chunking siz      ✓     ✓     ✓    1.000   1.000      95
+c150-043  як передати COLLECTION та SOURCE_ROOT при і      ✓     ✓     ✓    1.000   1.000      95
+c150-044  що таке DENSE_PROVIDER і як він перевизнача      ✓     ✓     ✓    0.497   0.500     102
+c150-045  де зберігається config.json і як він оновлю      ✓     ✓     ✓    1.000   1.000      94
+c150-046  CONTEXT_MODEL default model LLM context pha      ✓     ✓     ✓    0.731   0.333      96
+c150-047  який модуль виконує всі виклики REST до Qdr      ✓     ✓     ✓    1.000   1.000      93
+c150-048  where is the MCP server name 'qdrant' regis      ✓     ✓     ✓    1.000   1.000      93
+c150-049  де знаходиться логіка фазування chunk.js і       ✓     ✓     ✓    0.731   0.333     104
+c150-050  який файл читає та записує config.json і що      ✓     ✓     ✓    1.000   1.000     108
+c150-051  where is hybridSearch implemented and what       ✓     ✓     ✓    0.665   0.500      90
+c150-052  де знаходяться всі шість MCP інструментів р      ✓     ✓     ✓    0.900   1.000      90
+c150-053  провайдер в BENCH_SKIP_INDEX відрізняється       ✓     ✓     ✓    0.631   0.500     100
+c150-054  sync записує неправильний провайдер після з      ✓     ✓     ✓    0.787   1.000     104
+c150-055  Obsidian export shows stale chunks after re      ✓     ✓     ✓    1.000   1.000      97
+c150-056  чому sparse вектори відсутні в колекції і я      ✓     ✓     ✓    0.932   1.000     100
+c150-057  collection not found in config.json after m      ✗     ✗     ✓    0.367   0.111      98
+c150-058  how do payload indexes improve filtering pe      ✓     ✓     ✓    0.900   1.000      93
+c150-059  яка роль linking фази у семантичному графі       ✓     ✓     ✓    0.956   1.000      93
+c150-060  what does the RRF k parameter control and h      ✓     ✓     ✓    1.000   1.000      95
+c150-061  навіщо потрібна Unicode-aware regex для роз      ✓     ✓     ✓    0.787   1.000     106
+c150-062  how does pandoc format conversion integrate      ✓     ✓     ✓    0.900   1.000      93
+c150-063  чим відрізняється qdrant_related від qdrant      ✓     ✓     ✓    1.000   1.000      97
+c150-064  what information does qdrant_collection_inf      ✓     ✓     ✓    0.787   1.000      96
+c150-065  як neural sparse encoder BGE-M3 ONNX покращ      ✓     ✓     ✓    0.918   1.000     114
+c150-066  як документи зі змішаним UA/EN контентом ін      ✗     ✗     ✗    0.000   0.000     108
+c150-067  які запити покриває custom-50 benchmark щод      ✓     ✓     ✓    1.000   1.000      99
+c150-068  чому hashed-tf гірший за bge-m3-onnx для рі      ✓     ✓     ✓    0.603   0.500     126
+c150-069  як увімкнути bge-m3-onnx для обох dense та       ✓     ✓     ✓    1.000   1.000     116
+c150-070  how to force onnx provider for a benchmark       ✓     ✓     ✓    0.731   0.333     109
+c150-071  what use cases does the Obsidian chunk expo      ✓     ✓     ✓    0.606   0.333     101
+c150-072  what is the relevance grading scale used in      ✗     ✗     ✓    0.262   0.143     102
+c150-073  how does the window parameter in qdrant_get      ✓     ✓     ✓    1.000   1.000     101
+c150-074  PostgreSQL full-text search tsquery integra    neg   neg   neg        ✓       –     101
+c150-075  Elasticsearch BM25 index sharding configura    neg   neg   neg        ✓       –     132
 ─────────────────────────────────────────────────────────────────────────────────────────────────
 
 Provider          : onnx
-Queries           : 29 positive, 1 negative
-chunkRecall@3     : 10.3%
-chunkRecall@5     : 20.7%
-chunkRecall@10    : 31.0%
-windowRecall@5    : 72.4%  (±1 window)
-windowRecall@10   : 82.8%  (±1 window)
-supportRecall@10  : 41.4%
-nDCG@10 (graded)  : 0.145
-MRR@10            : 0.096
-fileRecall@1      : 62.1%
+Queries           : 72 positive, 3 negative
+chunkRecall@3     : 58.3%
+chunkRecall@5     : 63.9%
+chunkRecall@10    : 70.8%
+windowRecall@5    : 87.5%  (±1 window)
+windowRecall@10   : 93.1%  (±1 window)
+supportRecall@10  : 75.0%
+nDCG@10 (graded)  : 0.549
+MRR@10            : 0.509
+fileRecall@1      : 75.0%
 fileRecall@10     : 100.0%
 negativePass      : 100.0%
-Latency p50/p95   : 97ms / 180ms
-Avg ms            : 156
+Latency p50/p95   : 96ms / 126ms
+Avg ms            : 121
 
 Per-class metrics:
 ────────────────────────────────────────────────────────────────────────────────────────────────────
 type                   count  MRR@10 rank1   cR@5  nDCG@10 negPass
 ────────────────────────────────────────────────────────────────────────────────────────────────────
-conceptual                 5   0.090     0  40.0%    0.172     n/a
-exact-token                4   0.031     0   0.0%    0.062     n/a
-config-env                 4   0.000     0   0.0%    0.000     n/a
-troubleshooting            4   0.063     0  25.0%    0.085     n/a
-source-navigation          4   0.031     0   0.0%    0.098     n/a
-cross-lingual-ua-en        4   0.250     1  25.0%    0.225     n/a
-provider-activation        2   0.333     0 100.0%    0.437     n/a
-english                    2   0.083     0   0.0%    0.297     n/a
-negative                   1     n/a   n/a    n/a      n/a  100.0%
+exact-token               12   0.594     6  66.7%    0.629     n/a
+config-env                12   0.507     5  66.7%    0.544     n/a
+conceptual                12   0.621     7  75.0%    0.599     n/a
+source-navigation         10   0.496     4  60.0%    0.569     n/a
+troubleshooting            9   0.429     3  55.6%    0.451     n/a
+cross-lingual-ua-en        8   0.438     3  50.0%    0.428     n/a
+english                    5   0.329     1  40.0%    0.493     n/a
+provider-activation        4   0.500     1 100.0%    0.651     n/a
+negative                   3     n/a   n/a    n/a      n/a  100.0%
 ────────────────────────────────────────────────────────────────────────────────────────────────────
 
