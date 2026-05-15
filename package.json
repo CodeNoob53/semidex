@@ -21,6 +21,7 @@
     "bench:custom50:diagnostics": "node benchmarks/retrieval/custom-50/diagnostics.js",
     "bench:custom50:sweep": "node benchmarks/retrieval/custom-50/threshold-sweep.js",
     "bench:custom50:ce": "node benchmarks/retrieval/custom-50/cross-encoder-bench.js",
+    "bench:custom50:ce-routing": "node benchmarks/retrieval/custom-50/ce-routing-bench.js",
     "bench:custom-large": "node benchmarks/retrieval/custom-large/run.js",
     "bench:custom-large:analyze": "node benchmarks/retrieval/custom-large/analyze-failures.js",
     "bench:custom-large:agent-default": "node benchmarks/retrieval/custom-large/agent-default-eval.js",
