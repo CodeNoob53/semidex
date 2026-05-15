@@ -26,6 +26,7 @@
     "bench:custom-large:analyze": "node benchmarks/retrieval/custom-large/analyze-failures.js",
     "bench:custom-large:agent-default": "node benchmarks/retrieval/custom-large/agent-default-eval.js",
     "bench:custom150": "node benchmarks/retrieval/custom-150/run.js",
+    "bench:custom150:ce-routing": "node benchmarks/retrieval/custom-150/ce-routing-bench.js",
     "bench:custom-raw": "node benchmarks/retrieval/custom-raw/run.js",
     "smoke:window-live": "node benchmarks/retrieval/custom-50/smoke-live-window.js",
     "smoke:source-filter-live": "node benchmarks/retrieval/custom-raw/smoke-live-source-filter.js",
