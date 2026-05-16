@@ -19,15 +19,37 @@ colbert_vecs dimension: **1024** (same as dense; XLM-RoBERTa hidden size).
 
 ---
 
+## CLS offset (token alignment)
+
+`aapot/bge-m3-onnx` **strips CLS from `colbert_vecs` output**.
+
+| Metric | Value |
+|--------|-------|
+| `input_ids` length | 5 (includes CLS at position 0) |
+| `colbert_vecs` seq_len | 4 (CLS stripped) |
+| Inferred offset | **1** — `colbert_row[t] → inputIds[t + 1]` |
+| First token IDs | `[0, 33600, 31, 8999, 2]` — CLS=0, EOS=2 |
+| Last mapped token | EOS (id=2) — present in colbert output |
+
+Token policy (`COLBERT_TOKEN_POLICY` env):
+- **`official`** (default) — exclude CLS(0), bos(1), unk(3), mask(250001); **keep EOS(2)**
+- **`no-eos`** — also exclude EOS(2)
+
+Use `extractTokenVecsBGE()` (not the legacy `extractTokenVecs`) which detects offset automatically
+from `inputIds.length - seqLen` and enforces policy. Throws on unexpected offset.
+
+---
+
 ## Token counts (example query)
 
 Query: "How does semidex index documents with ONNX embeddings?"
 
 | Metric | Value |
 |--------|-------|
-| Raw seq_len (padded) | 15 |
-| After attn_mask filter | 15 |
-| After special-token filter | 14 |
+| `input_ids` length (incl. CLS) | 15 |
+| `colbert_vecs` seq_len (CLS stripped) | 14 |
+| After attn_mask filter | 14 |
+| After special-token filter (`official`) | 13 |
 
 ---
 
@@ -98,15 +120,17 @@ or top-N trimming (e.g. top-20).
 
 ### Key implementation notes
 
-1. **No padding issue:** seq_len for a query is exactly the tokenised length (no forced
+1. **CLS stripped by model (offset=1):** `colbert_vecs` seq_len = `inputIds.length − 1`.
+   Token mapping: `colbert_row[t] → inputIds[t + 1]`. Use `extractTokenVecsBGE()`.
+2. **No padding issue:** seq_len for a query is exactly the tokenised length (no forced
    padding to max_length=8192); sparse_vecs shape confirms per-query dynamic length.
-2. **Special tokens:** CLS/SEP/pad filtered with the existing `SPECIAL_TOKENS` set —
-   identical logic to production `processSparse`. No new token handling needed.
-3. **Normalisation:** vectors are pre-normalised to unit L2 by the model — cosine = dot.
+3. **Special tokens:** filter CLS(0), bos(1), unk(3), mask(250001) via `COLBERT_TOKEN_POLICY`.
+   EOS(2) kept by `official` policy (matches BGE-M3 authors), excluded by `no-eos`.
+4. **Normalisation:** vectors are pre-normalised to unit L2 by the model — cosine = dot.
    MaxSim inner loop is pure dot product.
-4. **Shape:** colbert_vecs is `[1, seq_len, 1024]` — extract `flat.slice(t*1024, (t+1)*1024)`
-   per live token. Compatible with the probe's `extractTokenVecs` helper.
-5. **No Qdrant multivector needed:** reranker reads colbert_vecs at query time only;
+5. **Shape:** colbert_vecs is `[1, seq_len, 1024]` — extract `flat.slice(t*1024, (t+1)*1024)`
+   per live token.
+6. **No Qdrant multivector needed:** reranker reads colbert_vecs at query time only;
    stored vectors in Qdrant remain dense+sparse unchanged.
 
 ### Risks before full benchmark
@@ -125,18 +149,30 @@ or top-N trimming (e.g. top-20).
 
 ---
 
-## Next step
+## Full benchmark result (2026-05-16)
 
-Implement `bench:custom50:colbert` — rerank hybrid top-40 (or top-20 for speed) with MaxSim
-and compare MRR@10 against two reference points:
-- **hybrid baseline**: 0.634 MRR@10 (custom-50, hybrid ONNX, 2026-05-10)
-- **CE v4 reference**: 0.764 MRR@10 (custom-50, CE-routed v4, 2026-05-16) — the bar to beat
+`bench:custom50:colbert` run with `COLBERT_TOP_N=40 MAX_LENGTH=512 SCORE_MODE=mean`.
+Result file: `benchmarks/retrieval/results/2026-05-16-custom50-colbert-top40-maxlen512-mean-official.txt`
 
-Gate (matching CE routing gate, measured vs hybrid baseline):
-- MRR@10 ≥ hybrid + 0.030 (i.e. ≥ 0.664)
-- negativePass 100% (zero rank≤3 → >3 regressions)
-- recall not below hybrid
-- no query-type MRR drop ≥ 0.030 vs hybrid
-- ordering-loss count < 2 (CE v4 had 2 CE-caused losses on custom-50)
+| Mode | MRR@10 | vs hybrid-true | nDCG@10 | p50 latency |
+|------|--------|----------------|---------|-------------|
+| hybrid-true | 0.675 | — | 0.718 | 180 ms |
+| det-rerank | 0.676 | +0.001 | 0.722 | 51 ms |
+| colbert-top20 | 0.716 | +0.041 | 0.762 | 5 971 ms |
+| colbert-top40 | **0.718** | **+0.043** | 0.767 | 11 400 ms |
+| CE v4 reference | 0.764 | — | — | — |
 
-If ColBERT reaches or exceeds CE v4 (0.764), it replaces CE routing as the reranking candidate.
+**Gate verdict: FAILED**
+- ✓ MRR@10 ≥ hybrid + 0.030 (0.718 ≥ 0.705)
+- ✓ chunkRecall@5 ≥ hybrid (93.9% vs 87.8%)
+- ✓ negativePass = 100%
+- ✗ zero rank≤3 regressions — got **1** (c36 source-navigation: hybrid#2 → colbert#4)
+- ✗ ordering-loss < 2 — got **3** (CE v4 had 2)
+
+**Latency: far over budget.** colbert-top40 p50=11 400 ms, p95=13 289 ms (vs hybrid 180/236 ms).
+colbert-top20 halves pool but p50=5 971 ms still impractical for production.
+
+**Next steps to unblock gate:**
+- Investigate c36 regression (source-navigation type, persistent across all colbert modes)
+- Investigate 3 ordering-loss cases (c05, c32, c39 — all #1→#2 demotions)
+- Latency work: DML measurement (must be benchmarked — not assumed faster), batching/cache, or hard top-N cap

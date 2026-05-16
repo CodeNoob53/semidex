@@ -18,7 +18,7 @@ import { existsSync, statSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { resolveOnnxExecutionProviders } from '../../src/core/onnx-embed.js';
-import { l2Norm, maxSimScore, extractTokenVecs } from './lib/colbert-math.js';
+import { l2Norm, maxSimScore, extractTokenVecsBGE } from './lib/colbert-math.js';
 
 const ROOT       = join(dirname(fileURLToPath(import.meta.url)), '../../');
 const MODEL_DIR  = join(ROOT, 'models', 'bge-m3-onnx');
@@ -116,18 +116,28 @@ if (!session.outputNames.includes('colbert_vecs')) {
 
 // ── 1. Shape probe ─────────────────────────────────────────────────────────────
 
-console.log('═══ 1. Output shape ════════════════════════════════════════════════════════');
+console.log('═══ 1. Output shape & token alignment ══════════════════════════════════════');
 
+const TOKEN_POLICY = process.env.COLBERT_TOKEN_POLICY ?? 'official';
 const QUERY = 'How does semidex index documents with ONNX embeddings?';
 const { colbertTensor, inputIds, attnMask, ms: queryMs } = await encode(session, tokenizer, QUERY);
 
 const [batchSize, seqLen, colbertDim] = colbertTensor.dims;
+const offset = inputIds.length - seqLen;
 console.log(`Query : "${QUERY}"`);
-console.log(`Shape : [batch=${batchSize}, seq_len=${seqLen}, dim=${colbertDim}]`);
-console.log(`Inference ms: ${queryMs.toFixed(1)}`);
+console.log(`input_ids length   : ${inputIds.length}`);
+console.log(`attention_mask sum : ${attnMask.reduce((s, v) => s + v, 0)}`);
+console.log(`colbert seq_len    : ${seqLen}`);
+console.log(`inferred offset    : ${offset}  (${offset === 1 ? 'CLS stripped by model' : offset === 0 ? 'no stripping' : 'UNEXPECTED'})`);
+console.log(`first token IDs    : [${inputIds.slice(0, 5).join(', ')}]  (CLS=0)`);
+console.log(`mapped IDs (off+1) : [${inputIds.slice(1, 6).join(', ')}]`);
+console.log(`last mapped ID     : ${inputIds[inputIds.length - 1]}  (EOS=2)`);
+console.log(`Shape              : [batch=${batchSize}, seq_len=${seqLen}, dim=${colbertDim}]`);
+console.log(`Token policy       : ${TOKEN_POLICY}  (COLBERT_TOKEN_POLICY env)`);
+console.log(`Inference ms       : ${queryMs.toFixed(1)}`);
 
-const queryVecs = extractTokenVecs(colbertTensor, inputIds, attnMask);
-console.log(`Tokens after mask+special filtering: ${queryVecs.length} / ${seqLen}`);
+const queryVecs = extractTokenVecsBGE(colbertTensor, inputIds, attnMask, TOKEN_POLICY);
+console.log(`Tokens after policy filtering: ${queryVecs.length} / ${seqLen}`);
 
 const { norms, allOne } = checkNormalised(queryVecs);
 console.log(`L2 norms (first ${norms.length} tokens): [${norms.map(n => n.toFixed(4)).join(', ')}]`);
@@ -150,7 +160,7 @@ const CHUNKS = [
 const chunkResults = [];
 for (let i = 0; i < CHUNKS.length; i++) {
   const { colbertTensor: ct, inputIds: cIds, attnMask: cMask } = await encode(session, tokenizer, CHUNKS[i]);
-  const docVecs = extractTokenVecs(ct, cIds, cMask);
+  const docVecs = extractTokenVecsBGE(ct, cIds, cMask, TOKEN_POLICY);
   const score   = maxSimScore(queryVecs, docVecs, allOne);
   chunkResults.push({ i, score, tokens: docVecs.length });
   console.log(`Chunk ${i}: MaxSim=${score.toFixed(4)}  tokens=${docVecs.length}  "${CHUNKS[i].slice(0, 55)}..."`);
@@ -173,11 +183,11 @@ const BENCH_CHUNK = CHUNKS[0];
 for (const N of [1, 10, 40]) {
   const t1 = performance.now();
   const { colbertTensor: qt, inputIds: qIds, attnMask: qMask } = await encode(session, tokenizer, QUERY);
-  const qVecs = extractTokenVecs(qt, qIds, qMask);
+  const qVecs = extractTokenVecsBGE(qt, qIds, qMask, TOKEN_POLICY);
 
   for (let n = 0; n < N; n++) {
     const { colbertTensor: ct, inputIds: cIds, attnMask: cMask } = await encode(session, tokenizer, BENCH_CHUNK);
-    const dVecs = extractTokenVecs(ct, cIds, cMask);
+    const dVecs = extractTokenVecsBGE(ct, cIds, cMask, TOKEN_POLICY);
     maxSimScore(qVecs, dVecs, allOne);
   }
   const total = performance.now() - t1;
@@ -190,6 +200,8 @@ console.log();
 console.log('═══ 4. Summary ══════════════════════════════════════════════════════════════');
 console.log(`colbert_vecs present       : yes (named output)`);
 console.log(`Shape                      : [batch, seq_len, ${colbertDim}]`);
+console.log(`CLS offset                 : ${offset}  (${offset === 1 ? 'CLS stripped by model output' : 'no stripping'})`);
+console.log(`Token policy               : ${TOKEN_POLICY}`);
 console.log(`Live query tokens (example): ${queryVecs.length}`);
 console.log(`Vectors pre-normalised     : ${allOne}`);
 console.log(`MaxSim ordering correct    : chunk0 scored highest → ${sorted[0].i === 0}`);
