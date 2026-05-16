@@ -241,8 +241,43 @@ classifier with a lexical guard on top of the mmarco cross-encoder. It is
 
 **Current v4 status (guard heuristic-v4, mmarco text+meta, ONNX provider):**
 
-- `custom-50`: gate **passes** — MRR@10 ≥ 0.755, zero rank≤3 regressions, all watched queries stable.
-- `custom-150`: gate **fails** — `provider-activation` type MRR drops versus hybrid by more than the 0.030 threshold, even though rank≤3 regressions are zero. MRR lift is positive but insufficient for promotion.
+- `custom-50`: gate **passes** — MRR@10 0.764, zero rank≤3 regressions, all watched queries stable. c03 recovered to hybrid rank by v4 guard.
+- `custom-150`: gate **fails** — `provider-activation` type MRR drops −0.104 vs hybrid (gate allows ≤−0.030). All other criteria pass: MRR lift +0.031, zero rank≤3 regressions, chunkRecall@5 +5.5 pp.
+
+Result files:
+- `benchmarks/retrieval/results/2026-05-16-custom50-ce-routing-v4-mmarco-mminilmv2-l12-h384-v1.txt`
+- `benchmarks/retrieval/results/2026-05-16-custom150-ce-routing-v4-mmarco-mminilmv2-l12-h384-v1.txt`
+
+**Ordering-loss diagnostic (v4 vs hybrid, top-3 only):**
+
+Ordering loss = query where the correct chunk stays within top-3 but moves down from a better hybrid rank. Cause classification: `CE` = cross-encoder already demoted it before any guard; `guard` = CE was fine, guard insertion caused the demotion; `mixed` = both contributed.
+
+`custom-50` (2 queries, total MRR loss 1.000):
+
+| ID | Type | hybrid | v4 | Cause | Query |
+|----|------|-------:|---:|-------|-------|
+| c08 | exact-token | #1 | #2 | CE | як працює RRF k параметр |
+| c11 | exact-token | #1 | #2 | CE | getStoredMeta які поля читає з Qdrant payload |
+
+Both are CE-caused: CE demotes the correct `qdrant.md` chunk and puts an adjacent irrelevant chunk at rank #1. The guard cannot intervene because the correct chunk never leaves top-3. No guard-caused or mixed losses on custom-50.
+
+`custom-150` (6 queries, total MRR loss 3.500):
+
+| ID | Type | hybrid | v4 | Cause | MRR loss | Query |
+|----|------|-------:|---:|-------|-------:|-------|
+| c150-032 | exact-token | #1 | #3 | CE | 0.667 | mmrSearch dense MMR search function |
+| c150-048 | source-navigation | #1 | #3 | mixed | 0.667 | where is MCP server name 'qdrant' registered |
+| c150-069 | provider-activation | #1 | #3 | mixed | 0.667 | як увімкнути bge-m3-onnx для обох dense та sparse |
+| c150-040 | config-env | #1 | #2 | CE | 0.500 | OLLAMA_URL default value |
+| c150-042 | config-env | #1 | #2 | CE | 0.500 | MAX_CHUNK_TOKENS default range |
+| c150-054 | troubleshooting | #1 | #2 | guard | 0.500 | sync записує неправильний провайдер |
+
+Key cases:
+- **c150-032**: CE puts `benchmarking.md#18` (rel=0) at rank #1; correct `project-structure.md#6` falls to #3. CE-caused — token overlap with irrelevant benchmark doc.
+- **c150-069**: CE promotes `providers.md#2` (rel=2) above `config-env.md#2` (rel=3); v4 guard then inserts `providers.md#1` (rel=0) at rank #2, pushing the rel=3 chunk from CE-rank #2 to rank #3. Mixed — CE demoted first, guard displaced further.
+- **c150-040 / c150-042**: CE demotes exact env-var chunks in favour of adjacent configuration prose. CE-caused exact-token demotions that the guard has no signal to catch.
+
+**Conclusion:** 3 of 6 ordering losses on custom-150 are CE-caused (the ranker itself), not guard-caused. Further guard tuning resolves at most 1–2 losses (`mixed` cases where the guard's own insertion is the final displacement). The `provider-activation` MRR drop is partly structural — the CE model prefers instructional guides (`providers.md`) over reference env-var chunks (`config-env.md`) for activation queries, which is the wrong preference when the qrel assigns rel=3 to the env-var chunk. A stronger late-interaction ranker (ColBERT) is the logical next experiment.
 
 **Rerun variance note:** CE reranking result files may drift slightly between
 reruns. Qdrant tie-breaking, CE score precision, and collection rebuilds can
@@ -250,13 +285,53 @@ shift rank positions within top-K. Treat MRR changes smaller than ±0.010 near a
 gate threshold as requiring confirmation across multiple runs, not as proof of a
 logic change.
 
-**Next investigation:** rank-1 preservation and top-3 ordering loss — cases
-where the correct chunk stays within top-3 but moves down from rank #1/#2 to #3.
-
 See [retrieval.md — Cross-encoder reranking](retrieval.md#cross-encoder-reranking)
 for the per-guard history, class-level findings, and promotion criteria.
 
-## Metrics
+## ColBERT Benchmark Plan
+
+ColBERT (late-interaction retrieval) is the next benchmark experiment. It is **benchmark-only** — no `src/` changes, no MCP runtime changes.
+
+**Motivation:** CE routing v4 shows that part of the top-3 ordering loss on custom-150 is CE-caused, not guard-caused. Further guard iteration has diminishing returns. The hypothesis is that a late-interaction ranker (token-level interaction instead of single-score cross-encoding) will better preserve rank-1 for exact-token and config-env queries where CE systematically picks adjacent prose over the target chunk.
+
+**No production changes.** The experiment is:
+- new benchmark-only scripts (analogous to `ce-routing-bench.js`)
+- no `src/` edits
+- no qrel changes
+- no new routing heuristics evaluated as production candidates
+- compare directly against the 2026-05-16 CE v4 result files as baseline
+
+**Candidate modes:**
+
+| Mode | Description |
+|------|-------------|
+| `hybrid-true` | existing ONNX hybrid RRF (control) |
+| `det-rerank` | existing deterministic reranker (control) |
+| `ce-routed-v4` | CE routing v4 result (carry-forward from 2026-05-16 files) |
+| `colbert-rerank` | late-interaction ColBERT reranking over hybrid candidates |
+| `ce-routed-v4 + colbert` | optional: CE guard + ColBERT final ranking |
+
+**Promotion gate (same as CE routing gate, with one additional criterion):**
+
+| Criterion | Threshold |
+|-----------|-----------|
+| MRR@10 improvement vs hybrid | ≥ +0.030 |
+| negativePass | 100% |
+| chunkRecall@5 | ≥ hybrid baseline |
+| chunkRecall@10 | ≥ hybrid baseline |
+| rank≤3 → >3 regressions | zero |
+| type MRR drop vs hybrid | < 0.030 for all watched classes |
+| ordering-loss count | < CE v4 (< 6 on custom-150, < 2 on custom-50) |
+| ordering-loss total MRR loss | < CE v4 (< 3.500 on custom-150, < 1.000 on custom-50) |
+
+**Watched queries:**
+
+- `custom-50`: c03, c08, c11, c16, c23, c36, c46
+- `custom-150`: c150-032, c150-040, c150-042, c150-048, c150-054, c150-069
+
+These are the queries where CE v4 shows known ordering loss or guard sensitivity. A ColBERT pass that resolves c150-032, c150-040, c150-042 (CE-caused exact-token and config-env demotions) without regressing others would be the strongest signal to proceed.
+
+**Status:** not started. Blocked on ColBERT model selection and ONNX availability check.
 
 ### Regression benchmark (v2 schema)
 

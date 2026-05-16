@@ -26,6 +26,27 @@ Sparse search helps with:
 - config keys
 - technical identifiers like `embedding_schema_version`
 
+## Search Pipeline Layers
+
+For agents, `qdrant_search` remains a single MCP tool. Additional ranking
+methods are internal pipeline layers, not separate agent-facing tools.
+
+The intended shape is:
+
+```text
+qdrant_search
+  -> hybrid dense+sparse candidate retrieval
+  -> optional deterministic rerank
+  -> optional cross-encoder rerank
+  -> future optional ColBERT / late-interaction rerank
+  -> final top-K chunks returned to the agent
+```
+
+The first stage finds a candidate pool. Later stages reorder that pool so the
+best chunks are more likely to appear in `top=3` or `top=5`. They should not be
+enabled globally until benchmarks show they improve quality without hurting
+recall, negative queries, or watched query classes.
+
 ## RRF
 
 Dense and sparse scores live on different scales, so semidex does not add raw scores. RRF works by rank position:
@@ -440,10 +461,12 @@ Result file:
 
 **v4 update (heuristic-v4, 2026-05-16):** Guard revised through v2/v3/v4
 iterations adding a `config-env` route class, `provider-activation` priority
-fix, and top-2 preservation lift. Custom-50 gate now **passes** with MRR@10
-≥ 0.755 and zero rank≤3 regressions. See
+fix, and top-2 preservation lift. Custom-50 gate **passes** (MRR@10 0.764,
+zero rank≤3 regressions, all watched queries stable). Remaining ordering loss:
+2 exact-token queries (c08, c11) where CE demotes the correct `qdrant.md` chunk
+to rank #2 — both are CE-caused and not recoverable by the guard. See
 [benchmarking.md — CE Routing Benchmark](benchmarking.md#ce-routing-benchmark)
-for current entrypoint and shared-lib structure.
+for ordering-loss detail and the ColBERT benchmark plan.
 
 ### CE routing guard — custom-150 validation result
 
@@ -489,11 +512,14 @@ Result file:
 `benchmarks/retrieval/results/2026-05-15-custom150-ce-routing-mmarco-mminilmv2-l12-h384-v1.txt`
 
 **v4 update (heuristic-v4, 2026-05-16):** Guard iterations v2/v3/v4 reduced
-rank≤3 regressions to zero, but custom-150 gate still **fails** — the
-`provider-activation` type MRR drops versus hybrid by more than the 0.030
-threshold. The MRR lift is positive but below the promotion bar. Next
-diagnostic: rank-1 preservation loss within top-3 on `provider-activation`
-queries. See [benchmarking.md — CE Routing Benchmark](benchmarking.md#ce-routing-benchmark).
+rank≤3 regressions to zero and lifted MRR@10 +0.031, but custom-150 gate still
+**fails** — `provider-activation` type MRR drops −0.104 vs hybrid. The
+ordering-loss diagnostic found 6 total top-3 ordering losses (3 CE-caused,
+1 guard-caused, 2 mixed), total MRR loss 3.500. The CE-caused losses (c150-032, c150-040, c150-042) are
+not addressable by further guard iteration — the ranker itself makes the wrong
+choice. See
+[benchmarking.md — CE Routing Benchmark](benchmarking.md#ce-routing-benchmark)
+for the full ordering-loss table and the ColBERT plan as next step.
 
 ### Production status
 
@@ -506,6 +532,15 @@ MCP server. Promotion to production requires:
 - Smoke tests for the CE rerank path
 - Integration into `src/core/rerank.js` or a new `src/core/ce-rerank.js` module
 - `RERANK_CE_ENABLED` env guard following the same pattern as `RERANK_ENABLED`
+
+**CE routing v4 is useful as a safety guard** (zero hard regressions on both
+corpora, chunkRecall improves, cross-lingual MRR lifts +0.097 on custom-150)
+but is **not sufficient as a final technical ranker**. Three out of six top-3
+ordering losses on custom-150 are CE-caused — the cross-encoder itself makes the
+wrong ranking choice for exact-token and config-env queries where a relevant prose
+chunk scores higher than the target env-var chunk. Further guard tuning cannot fix
+ranker-level errors. The next investigation is a stronger late-interaction reranker
+(ColBERT). See [benchmarking.md — ColBERT Benchmark Plan](benchmarking.md#colbert-benchmark-plan).
 
 Run the benchmark with:
 
