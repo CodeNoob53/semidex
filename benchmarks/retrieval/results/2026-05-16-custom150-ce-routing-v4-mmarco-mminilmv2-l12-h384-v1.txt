@@ -24,19 +24,19 @@ Aggregate metrics:
 ------------------------------------------------------------------------------------------------------------------------
                        hybrid-true    det-rerank        ce-raw  ce-routed-v1  ce-routed-v2  ce-routed-v3  ce-routed-v4     ce-oracle
 ------------------------------------------------------------------------------------------------------------------------
-MRR@10                       0.529         0.516         0.531         0.531         0.554         0.557         0.557         0.541
-rank1 exact                     32            31            29            29            31            31            31            29
-nDCG@10                      0.570         0.551         0.589         0.592         0.607         0.608         0.608         0.598
-chunkRecall@3                55.6%         58.3%         59.7%         58.3%         61.1%         63.9%         63.9%         63.9%
-chunkRecall@5                66.7%         63.9%         69.4%         70.8%         73.6%         73.6%         73.6%         73.6%
+MRR@10                       0.526         0.523         0.531         0.531         0.554         0.557         0.557         0.541
+rank1 exact                     31            32            29            29            31            31            31            29
+nDCG@10                      0.569         0.555         0.589         0.592         0.607         0.608         0.608         0.598
+chunkRecall@3                56.9%         58.3%         59.7%         58.3%         61.1%         63.9%         63.9%         63.9%
+chunkRecall@5                68.1%         63.9%         69.4%         70.8%         73.6%         73.6%         73.6%         73.6%
 chunkRecall@10               76.4%         70.8%         80.6%         80.6%         81.9%         81.9%         81.9%         81.9%
-windowRecall@5               87.5%         87.5%         84.7%         86.1%         90.3%         90.3%         90.3%         88.9%
+windowRecall@5               88.9%         87.5%         84.7%         86.1%         90.3%         90.3%         90.3%         88.9%
 windowRecall@10              95.8%         93.1%         95.8%         95.8%         98.6%         98.6%         98.6%         97.2%
 supportRecall@10             79.2%         75.0%         83.3%         83.3%         84.7%         84.7%         84.7%         84.7%
 fileRecall@1                 76.4%         76.4%         79.2%         79.2%         83.3%         83.3%         83.3%         79.2%
 negativePass                100.0%        100.0%        100.0%        100.0%        100.0%        100.0%        100.0%        100.0%
-p50 latency                   47ms          49ms        3193ms        3193ms        3193ms        3193ms        3193ms        3193ms
-p95 latency                   53ms          87ms        3612ms        3612ms        3612ms        3612ms        3612ms        3612ms
+p50 latency                   47ms          49ms        3288ms        3288ms        3288ms        3288ms        3288ms        3288ms
+p95 latency                   52ms          89ms        3652ms        3652ms        3652ms        3652ms        3652ms        3652ms
 ------------------------------------------------------------------------------------------------------------------------
 
 Guard v1 vs v2 vs v3 vs v4 regression comparison:
@@ -46,10 +46,10 @@ Guard v1 vs v2 vs v3 vs v4 regression comparison:
   ce-routed-v2 regressions   : 2  (heuristic-v2: config-env route + insertion fix)
   ce-routed-v3 regressions   : 0  (heuristic-v3: provider-activation priority + exact-token single-protect)
   ce-routed-v4 regressions   : 0  (heuristic-v4: v3 + provider-activation top-2 preservation)
-  MRR delta  v1 vs hybrid    : +0.002
-  MRR delta  v2 vs hybrid    : +0.026
-  MRR delta  v3 vs hybrid    : +0.028
-  MRR delta  v4 vs hybrid    : +0.028
+  MRR delta  v1 vs hybrid    : +0.005
+  MRR delta  v2 vs hybrid    : +0.029
+  MRR delta  v3 vs hybrid    : +0.031
+  MRR delta  v4 vs hybrid    : +0.031
 
   Known regression status:
   ID           type                     hyb    v1    v2    v3    v4  status
@@ -63,8 +63,8 @@ Guard v1 vs v2 vs v3 vs v4 regression comparison:
 
 Promotion gate (ce-routed-v4 vs hybrid-true):
 ------------------------------------------------------------------------------------------------------------------------
-  [✗] MRR@10 improvement >= +0.030   (got +0.028, base=0.529, v4=0.557)
-  [✓] chunkRecall@5 >= hybrid baseline   (got 73.6%, base=66.7%)
+  [✓] MRR@10 improvement >= +0.030   (got +0.031, base=0.526, v4=0.557)
+  [✓] chunkRecall@5 >= hybrid baseline   (got 73.6%, base=68.1%)
   [✓] chunkRecall@10 >= hybrid baseline   (got 81.9%, base=76.4%)
   [✓] negativePass = 100%   (got 100.0%)
   [✓] zero regressions (rel>=3, hybrid rank <=3 → ce-routed-v4 >3)   (got 0)
@@ -76,8 +76,8 @@ Promotion gate (ce-routed-v4 vs hybrid-true):
   v2 regressions for comparison     : 2
   v3 regressions for comparison     : 0
 
-  Q: Did CE routing v4 beat hybrid by >= +0.030 MRR?        NO  (delta=+0.028)
-  Q: Did it preserve chunkRecall@5?                         YES  (73.6% vs 66.7%)
+  Q: Did CE routing v4 beat hybrid by >= +0.030 MRR?        YES  (delta=+0.031)
+  Q: Did it preserve chunkRecall@5?                         YES  (73.6% vs 68.1%)
   Q: Did it preserve chunkRecall@10?                        YES  (81.9% vs 76.4%)
   Q: Did it preserve cross-lingual-ua-en?                   YES  (cR@5 75.0% vs 75.0%)
   Q: Rank<=3 -> >3 regressions?                             NONE
@@ -90,7 +90,7 @@ Promotion gate (ce-routed-v4 vs hybrid-true):
 Watched class detail (cross-lingual-ua-en, provider-activation, source-navigation, config-env, exact-token):
 ------------------------------------------------------------------------------------------------------------------------
   cross-lingual-ua-en (8 positive):
-    MRR@10  hybrid=0.582  v1=0.617 (+0.035)  v2=0.617 (+0.035)  v3=0.617 (+0.035)  v4=0.617 (+0.035)
+    MRR@10  hybrid=0.520  v1=0.617 (+0.097)  v2=0.617 (+0.097)  v3=0.617 (+0.097)  v4=0.617 (+0.097)
     cR@5    hybrid=75.0%  v4=75.0%
     regressions  v1=0  v2=0  v3=0  v4=0
     v1 guard fired on: c150-065
@@ -112,7 +112,7 @@ Watched class detail (cross-lingual-ua-en, provider-activation, source-navigatio
     v3 guard fired on: c150-012, c150-048, c150-051
     v4 guard fired on: c150-012, c150-048, c150-051
   config-env (12 positive):
-    MRR@10  hybrid=0.516  v1=0.387 (-0.129)  v2=0.542 (+0.025)  v3=0.542 (+0.025)  v4=0.542 (+0.025)
+    MRR@10  hybrid=0.537  v1=0.387 (-0.150)  v2=0.542 (+0.005)  v3=0.542 (+0.005)  v4=0.542 (+0.005)
     cR@5    hybrid=66.7%  v4=66.7%
     regressions  v1=2  v2=0  v3=0  v4=0
     v2 guard fired on: c150-005, c150-039, c150-044
@@ -149,11 +149,11 @@ c150-025   cross-lingual-ua-en   semantic             #1     #1     #1     #1   
 c150-026   cross-lingual-ua-en   semantic             #8     #9     #9     #9     #9     #9       хеш-tf підходить для кирилиці
 c150-027   cross-lingual-ua-en   semantic           miss     #5     #5     #5     #5     #5       рекомендований провайдер для україномовног
 c150-040   config-env            config-env           #1     #2     #2     #2     #2     #2       OLLAMA_URL default value Ollama base URL c
-c150-041   config-env            config-env           #4     #1     #1     #1     #1     #1       [IMPR-v4] як налаштувати кількість сусідів для семан
+c150-041   config-env            config-env           #3     #1     #1     #1     #1     #1       [IMPR-v4] як налаштувати кількість сусідів для семан
 c150-042   config-env            config-env           #1     #2     #2     #2     #2     #2       MAX_CHUNK_TOKENS default range chunking si
 c150-043   config-env            config-env           #1     #1     #1     #1     #1     #1       як передати COLLECTION та SOURCE_ROOT при
 c150-045   config-env            config-env           #1     #1     #1     #1     #1     #1       де зберігається config.json і як він оновл
-c150-046   config-env            config-env           #3     #2     #2     #2     #2     #2       CONTEXT_MODEL default model LLM context ph
+c150-046   config-env            config-env           #2     #2     #2     #2     #2     #2       CONTEXT_MODEL default model LLM context ph
 c150-047   source-navigation     exact-token          #1     #1     #1     #1     #1     #1       який модуль виконує всі виклики REST до Qd
 c150-048   source-navigation     source-navigation     #1     #2     #2     #3     #3     #3  Y    where is the MCP server name 'qdrant' regi
 c150-049   source-navigation     source-navigation     #4     #2     #2     #2     #2     #2       де знаходиться логіка фазування chunk.js і
@@ -162,7 +162,7 @@ c150-052   source-navigation     semantic             #1     #1     #1     #1   
 c150-065   cross-lingual-ua-en   exact-token          #1     #1     #1     #1     #1     #1       як neural sparse encoder BGE-M3 ONNX покра
 c150-066   cross-lingual-ua-en   semantic             #3     #1     #1     #1     #1     #1       [IMPR-v4] як документи зі змішаним UA/EN контентом і
 c150-067   cross-lingual-ua-en   semantic             #1     #1     #1     #1     #1     #1       які запити покриває custom-50 benchmark що
-c150-068   cross-lingual-ua-en   semantic             #1     #2     #2     #2     #2     #2       чому hashed-tf гірший за bge-m3-onnx для р
+c150-068   cross-lingual-ua-en   semantic             #2     #2     #2     #2     #2     #2       чому hashed-tf гірший за bge-m3-onnx для р
 c150-069   provider-activation   provider-activation     #1     #2     #2     #3     #3     #3  Y    як увімкнути bge-m3-onnx для обох dense та
 c150-070   provider-activation   provider-activation     #4     #2     #2     #2     #2     #2       how to force onnx provider for a benchmark
 c150-001   exact-token           exact-token        miss   miss   miss   miss   miss   miss       getStoredMeta function reindex discriminat
@@ -179,7 +179,7 @@ c150-021   troubleshooting       semantic           miss     #4     #4     #4   
 c150-022   troubleshooting       exact-token        miss   miss   miss   miss   miss   miss       BENCH_SKIP_INDEX=1 fails with no indexed p
 c150-023   troubleshooting       semantic           miss   miss   miss   miss   miss   miss       overlap crosses section boundary causing s
 c150-028   english               config-env          #10     #4     #4     #4     #4     #4       how to discover available collections at s
-c150-029   english               semantic             #6     #5     #5     #5     #5     #5       what frontmatter fields does an Obsidian c
+c150-029   english               semantic             #5     #5     #5     #5     #5     #5       what frontmatter fields does an Obsidian c
 c150-031   exact-token           exact-token          #1     #1     #1     #1     #1     #1       SCHEMA_VERSION constant embedding reindex
 c150-033   exact-token           exact-token          #2     #2     #2     #2     #2     #2       LINK_MIN_SCORE semantic neighbor linking t
 c150-034   exact-token           exact-token          #1     #1     #1     #1     #1     #1       isStructuralHeading heuristic parseMarkdow
@@ -214,17 +214,125 @@ Regressions fixed by v3 guard (2):
     v2 rank 4 → v3 rank 3
 ------------------------------------------------------------------------------------------------------------------------
 
+Rank-1 / top-3 ordering loss diagnostic (ce-routed-v4 vs hybrid-true):
+------------------------------------------------------------------------------------------------------------------------
+  Ordering-loss queries  : 6  (hybrid rank <=2, ce-routed-v4 rank still <=3 but lower)
+  hybrid#1 -> v4#2       : 3
+  hybrid#1 -> v4#3       : 3
+  hybrid#2 -> v4#3       : 0
+  CE-caused              : 3   (ce-raw already demoted before guard)
+  guard-caused           : 1   (ce-raw was ok; guard insertion demoted)
+  mixed                  : 2   (both CE and guard contributed)
+  Total MRR loss         : 3.500  (sum of 1/hybridRank - 1/v4Rank)
+
+  Per-class ordering loss:
+  type                          n  MRR_loss    CE  guard  mixed
+  --------------------------------------------------------------
+  config-env                    2     1.000     2      0      0
+  exact-token                   1     0.667     1      0      0
+  source-navigation             1     0.667     0      0      1
+  provider-activation           1     0.667     0      0      1
+  troubleshooting               1     0.500     0      1      0
+
+  ID            type                     hyb   raw  v1  v2   v3   v4  cause   mrrLoss  top1(v4)                  query
+  ----------------------------------------------------------------------------------------------------------------------------------
+  c150-032      exact-token               #1    #3    #4    #4    #3    #3  CE        0.667  benchmarking.md#18     r0   mmrSearch dense MMR search function
+  c150-048      source-navigation         #1    #2    #2    #3    #3    #3  mixed     0.667  project-structure.md#9 r0   where is the MCP server name 'qdrant' regist
+  c150-069      provider-activation       #1    #2    #2    #3    #3    #3  mixed     0.667  providers.md#2         r2   як увімкнути bge-m3-onnx для обох dense та s
+  c150-040      config-env                #1    #2    #2    #2    #2    #2  CE        0.500  providers.md#1         r0   OLLAMA_URL default value Ollama base URL con
+  c150-042      config-env                #1    #2    #2    #2    #2    #2  CE        0.500  chunking.md#1          r2   MAX_CHUNK_TOKENS default range chunking size
+  c150-054      troubleshooting           #1    #1    #1    #2    #2    #2  guard     0.500  config-env.md#2        r0   sync записує неправильний провайдер після зм
+
+  Top-5 ordering-loss detail:
+------------------------------------------------------------------------------------------------------------------------
+  [c150-032] exact-token — mmrSearch dense MMR search function
+    cause: CE-caused  hybrid=#1  ce-routed-v4=#3  mrrLoss=0.667
+    hybrid-true:
+      #1 project-structure.md#6               rel=3
+      #2 qdrant.md#2                          rel=0
+      #3 config-env.md#10                     rel=0
+    ce-raw:
+      #1 benchmarking.md#18                   rel=0
+      #2 config-env.md#10                     rel=0
+      #3 project-structure.md#6               rel=3
+    ce-routed-v4:
+      #1 benchmarking.md#18                   rel=0
+      #2 config-env.md#10                     rel=0
+      #3 project-structure.md#6               rel=3
+
+  [c150-048] source-navigation — where is the MCP server name 'qdrant' registered
+    cause: mixed-caused  hybrid=#1  ce-routed-v4=#3  mrrLoss=0.667
+    hybrid-true:
+      #1 project-structure.md#8               rel=3
+      #2 mcp-workflow.md#0                    rel=0
+      #3 project-structure.md#9               rel=0
+    ce-raw:
+      #1 mcp-workflow.md#0                    rel=0
+      #2 project-structure.md#8               rel=3
+      #3 mcp-workflow.md#1                    rel=0
+    ce-routed-v4:
+      #1 project-structure.md#9               rel=0
+      #2 mcp-workflow.md#0                    rel=0
+      #3 project-structure.md#8               rel=3
+
+  [c150-069] provider-activation — як увімкнути bge-m3-onnx для обох dense та sparse векторів одночасно
+    cause: mixed-caused  hybrid=#1  ce-routed-v4=#3  mrrLoss=0.667
+    hybrid-true:
+      #1 config-env.md#2                      rel=3
+      #2 providers.md#2                       rel=2
+      #3 providers.md#1                       rel=0
+    ce-raw:
+      #1 providers.md#2                       rel=2
+      #2 config-env.md#2                      rel=3
+      #3 multilingual.md#3                    rel=0
+    ce-routed-v4:
+      #1 providers.md#2                       rel=2
+      #2 providers.md#1                       rel=0
+      #3 config-env.md#2                      rel=3
+
+  [c150-040] config-env — OLLAMA_URL default value Ollama base URL configuration
+    cause: CE-caused  hybrid=#1  ce-routed-v4=#2  mrrLoss=0.500
+    hybrid-true:
+      #1 config-env.md#3                      rel=3
+      #2 providers.md#1                       rel=0
+      #3 config-env.md#2                      rel=0
+    ce-raw:
+      #1 providers.md#1                       rel=0
+      #2 config-env.md#3                      rel=3
+      #3 config-env.md#2                      rel=0
+    ce-routed-v4:
+      #1 providers.md#1                       rel=0
+      #2 config-env.md#3                      rel=3
+      #3 config-env.md#2                      rel=0
+
+  [c150-042] config-env — MAX_CHUNK_TOKENS default range chunking size limit
+    cause: CE-caused  hybrid=#1  ce-routed-v4=#2  mrrLoss=0.500
+    hybrid-true:
+      #1 config-env.md#5                      rel=3
+      #2 chunking.md#1                        rel=2
+      #3 project-structure.md#7               rel=0
+    ce-raw:
+      #1 chunking.md#1                        rel=2
+      #2 config-env.md#5                      rel=3
+      #3 chunking.md#6                        rel=0
+    ce-routed-v4:
+      #1 chunking.md#1                        rel=2
+      #2 config-env.md#5                      rel=3
+      #3 chunking.md#6                        rel=0
+
+------------------------------------------------------------------------------------------------------------------------
+
 Per-class metrics (hybrid-true):
 ------------------------------------------------------------------------------------------------------------------------
 type                     n  MRR@10 rank1   cR@5 negPass
 ------------------------------------------------------------------------------------------------------------------------
 exact-token             12   0.625     7  66.7%     n/a
-config-env              12   0.516     5  66.7%     n/a
+config-env              12   0.537     5  66.7%     n/a
 conceptual              12   0.609     7  66.7%     n/a
 source-navigation       10   0.502     4  60.0%     n/a
 troubleshooting          9   0.439     3  66.7%     n/a
-cross-lingual-ua-en      8   0.582     4  75.0%     n/a
-english                  5   0.303     1  40.0%     n/a
+cross-lingual-ua-en      8   0.520     3  75.0%     n/a
+english                  5   0.310     1  60.0%     n/a
 provider-activation      4   0.479     1 100.0%     n/a
 negative                 3     n/a   n/a    n/a    100%
 ------------------------------------------------------------------------------------------------------------------------
@@ -234,11 +342,11 @@ Per-class metrics (det-rerank):
 type                     n  MRR@10 rank1   cR@5 regr negPass
 ------------------------------------------------------------------------------------------------------------------------
 exact-token             12   0.635     7  66.7%    0     n/a
-config-env              12   0.507     5  66.7%    0     n/a
+config-env              12   0.507     5  66.7%    1     n/a
 conceptual              12   0.621     7  75.0%    0     n/a
 source-navigation       10   0.496     4  60.0%    0     n/a
 troubleshooting          9   0.429     3  55.6%    0     n/a
-cross-lingual-ua-en      8   0.438     3  50.0%    1     n/a
+cross-lingual-ua-en      8   0.500     4  50.0%    1     n/a
 english                  5   0.329     1  40.0%    0     n/a
 provider-activation      4   0.500     1 100.0%    0     n/a
 negative                 3     n/a   n/a    n/a  n/a    100%

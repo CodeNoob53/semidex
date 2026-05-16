@@ -21,9 +21,9 @@ Aggregate metrics:
 --------------------------------------------------------------------------------------------------------------
                    hybrid-true  det-rerank      ce-rawce-routed-v1ce-routed-v3ce-routed-v4ce-oracle-regression
 --------------------------------------------------------------------------------------------------------------
-MRR@10                   0.665       0.673       0.760       0.760       0.760       0.764       0.760
-rank1 exact                 25          25          29          29          29          29          29
-nDCG@10                  0.712       0.720       0.796       0.799       0.799       0.801       0.799
+MRR@10                   0.634       0.659       0.760       0.760       0.760       0.764       0.760
+rank1 exact                 22          24          29          29          29          29          29
+nDCG@10                  0.697       0.707       0.796       0.799       0.799       0.801       0.799
 chunkRecall@3            77.6%       79.6%       93.9%       93.9%       93.9%       93.9%       93.9%
 chunkRecall@5            87.8%       89.8%       95.9%       95.9%       95.9%       95.9%       95.9%
 chunkRecall@10           93.9%       98.0%       98.0%       98.0%       98.0%       98.0%       98.0%
@@ -31,8 +31,8 @@ windowRecall@5           95.9%       98.0%      100.0%      100.0%      100.0%  
 windowRecall@10          98.0%      100.0%      100.0%      100.0%      100.0%      100.0%      100.0%
 supportRecall@10         98.0%      100.0%      100.0%      100.0%      100.0%      100.0%      100.0%
 negativePass            100.0%      100.0%      100.0%      100.0%      100.0%      100.0%      100.0%
-p50 latency               47ms        49ms      3211ms      3211ms      3211ms      3211ms      3211ms
-p95 latency               51ms        91ms      3585ms      3585ms      3585ms      3585ms      3585ms
+p50 latency               50ms        52ms      3335ms      3335ms      3335ms      3335ms      3335ms
+p95 latency               54ms        96ms      3802ms      3802ms      3802ms      3802ms      3802ms
 --------------------------------------------------------------------------------------------------------------
 
 Guard v1 vs v3 vs v4 regression comparison:
@@ -41,15 +41,15 @@ Guard v1 vs v3 vs v4 regression comparison:
   ce-routed-v1 regressions   : 0  (heuristic-v1: original custom-50 guard)
   ce-routed-v3 regressions   : 0  (heuristic-v3: provider-activation priority + exact-token single-protect)
   ce-routed-v4 regressions   : 0  (heuristic-v4: v3 + provider-activation top-2 preservation)
-  MRR delta  v1 vs hybrid    : +0.095
-  MRR delta  v3 vs hybrid    : +0.095
-  MRR delta  v4 vs hybrid    : +0.099
+  MRR delta  v1 vs hybrid    : +0.126
+  MRR delta  v3 vs hybrid    : +0.126
+  MRR delta  v4 vs hybrid    : +0.129
 
 --------------------------------------------------------------------------------------------------------------
 
 Promotion gate (ce-routed-v4 vs hybrid-true):
 --------------------------------------------------------------------------------------------------------------
-  [✓] MRR@10 >= 0.755 (original v1 baseline 0.760 − 0.005)   (got 0.764, base=0.665)
+  [✓] MRR@10 >= 0.755 (original v1 baseline 0.760 − 0.005)   (got 0.764, base=0.634)
   [✓] chunkRecall@5 >= hybrid baseline   (got 95.9%, base=87.8%)
   [✓] chunkRecall@10 >= hybrid baseline   (got 98.0%, base=93.9%)
   [✓] negativePass = 100%   (got 100.0%)
@@ -59,7 +59,7 @@ Promotion gate (ce-routed-v4 vs hybrid-true):
   [✓] watched c23 must not regress   (hybrid=#1 v3=#1 v4=#1)
   [✓] watched c36 must not regress   (hybrid=#2 v3=#2 v4=#2)
   [✓] watched c46 must not regress   (hybrid=#1 v3=#1 v4=#1)
-  [✓] no query type with MRR drop >= 0.030 vs hybrid   (worst: exact-token drop=0.009)
+  [✓] no query type with MRR drop >= 0.030 vs hybrid   (worst: none drop=0.000)
 
   ce-raw regressions for comparison : 0
   v1 regressions for comparison     : 0
@@ -100,17 +100,17 @@ c21    conceptual            config-env               #1     #1     #1     #1   
 c22    exact-token           exact-token              #1     #1     #1     #1     #1        sync backfill logic for missing denseProvider fiel
 c24    conceptual            config-env               #1     #1     #1     #1     #1        sync записує поточний провайдер а не той що був пр
 c25    conceptual            config-env               #2     #1     #1     #1     #1        [IMPR-v4] відмінність між sync та indexer стосовно config.js
-c26    conceptual            semantic                 #1     #1     #1     #1     #1        як зареєструвати MCP сервер semidex у Claude Code
+c26    conceptual            semantic                 #2     #1     #1     #1     #1        [IMPR-v4] як зареєструвати MCP сервер semidex у Claude Code
 c27    exact-token           semantic                 #1     #1     #1     #1     #1        qdrant_get_chunk window parameter context neighbor
 c28    exact-token           semantic                 #1     #1     #1     #1     #1        qdrant_find_by_tag groups results by source_file t
 c30    exact-token           semantic                 #1     #1     #1     #1     #1        qdrant_related backlinks file-level semantic graph
 c31    config-env            config-env               #5     #2     #2     #2     #2        CHUNKS_OUT_DIR Obsidian export directory chunks ou
-c32    config-env            config-env               #1     #1     #1     #1     #1        LINK_MIN_SCORE LINK_TOP wikilink threshold semanti
+c32    config-env            config-env               #2     #1     #1     #1     #1        [IMPR-v4] LINK_MIN_SCORE LINK_TOP wikilink threshold semanti
 c34    conceptual            semantic                 #1     #1     #1     #1     #1        use cases for reviewing chunk quality and tag audi
 c35    source-navigation     source-navigation        #5     #2     #2     #2     #2  Y     де знаходиться src/core/qdrant.js і що він експорт
 c37    source-navigation     source-navigation        #7     #1     #1     #1     #1        [IMPR-v4] npm run bench:custom50 entry point run-v3.js
 c38    exact-token           exact-token              #2     #1     #1     #1     #1        [IMPR-v4] SCHEMA_VERSION constant embeddings.js reindex disc
-c39    exact-token           exact-token              #1     #2     #2     #2     #2        chunkRecall nDCG graded relevance benchmark v3 sch
+c39    exact-token           exact-token              #2     #2     #2     #2     #2        chunkRecall nDCG graded relevance benchmark v3 sch
 c40    exact-token           exact-token              #1     #1     #1     #1     #1        relevantChunks chunkId format source_file#chunk_in
 c41    conceptual            semantic                 #5     #3     #3     #3     #3        яка різниця між 21-query regression і custom-50 qu
 c42    exact-token           config-env               #1     #1     #1     #1     #1        BENCH_SKIP_INDEX validates stored provider matches
@@ -202,18 +202,73 @@ Acceptance criteria (ce-routed-v4):
   negativePass = 100%                         : MET (100.0%)
   zero rank<=3 regressions                    : MET (0 remaining)
   watched queries (c03,c16,c23,c36,c46) ok    : MET
-  no type MRR drop >= 0.030                   : MET (worst: exact-token drop=0.009)
+  no type MRR drop >= 0.030                   : MET (worst: none drop=0.000)
 
   Overall: PASSED — proceed to holdout-50 planning
+--------------------------------------------------------------------------------------------------------------
+
+Rank-1 / top-3 ordering loss diagnostic (ce-routed-v4 vs hybrid-true):
+--------------------------------------------------------------------------------------------------------------
+  Ordering-loss queries  : 2  (hybrid rank <=2, ce-routed-v4 rank still <=3 but lower)
+  hybrid#1 -> v4#2       : 2
+  hybrid#1 -> v4#3       : 0
+  hybrid#2 -> v4#3       : 0
+  CE-caused              : 2   (ce-raw already demoted before guard)
+  guard-caused           : 0   (ce-raw was ok; guard insertion demoted)
+  mixed                  : 0   (both CE and guard contributed)
+  Total MRR loss         : 1.000  (sum of 1/hybridRank - 1/v4Rank)
+
+  Per-class ordering loss:
+  type                          n  MRR_loss    CE  guard  mixed
+  --------------------------------------------------------------
+  exact-token                   2     1.000     2      0      0
+
+  ID            type                     hyb   raw  v1   v3   v4  cause   mrrLoss  top1(v4)                  query
+  ----------------------------------------------------------------------------------------------------------------------------
+  c08           exact-token               #1    #2    #2    #2    #2  CE        0.500  qdrant.md#3            r0   як працює RRF k параметр у гібридному пошуку
+  c11           exact-token               #1    #2    #2    #2    #2  CE        0.500  qdrant.md#6            r0   getStoredMeta які поля читає з Qdrant payloa
+
+  Top-5 ordering-loss detail:
+--------------------------------------------------------------------------------------------------------------
+  [c08] exact-token — як працює RRF k параметр у гібридному пошуку
+    cause: CE-caused  hybrid=#1  ce-routed-v4=#2  mrrLoss=0.500
+    hybrid-true:
+      #1 qdrant.md#2                          rel=3
+      #2 qdrant.md#3                          rel=0
+      #3 qdrant.md#7                          rel=0
+    ce-raw:
+      #1 qdrant.md#3                          rel=0
+      #2 qdrant.md#2                          rel=3
+      #3 config-env.md#6                      rel=0
+    ce-routed-v4:
+      #1 qdrant.md#3                          rel=0
+      #2 qdrant.md#2                          rel=3
+      #3 config-env.md#6                      rel=0
+
+  [c11] exact-token — getStoredMeta які поля читає з Qdrant payload
+    cause: CE-caused  hybrid=#1  ce-routed-v4=#2  mrrLoss=0.500
+    hybrid-true:
+      #1 qdrant.md#5                          rel=3
+      #2 project-structure.md#6               rel=0
+      #3 obsidian.md#5                        rel=0
+    ce-raw:
+      #1 qdrant.md#6                          rel=0
+      #2 qdrant.md#5                          rel=3
+      #3 project-structure.md#6               rel=0
+    ce-routed-v4:
+      #1 qdrant.md#6                          rel=0
+      #2 qdrant.md#5                          rel=3
+      #3 project-structure.md#6               rel=0
+
 --------------------------------------------------------------------------------------------------------------
 
 Per-class metrics (hybrid-true):
 --------------------------------------------------------------------------------------------------------------
 type                     n  MRR@10 rank1   cR@5 negPass
 --------------------------------------------------------------------------------------------------------------
-exact-token             19   0.807    13  94.7%     n/a
-conceptual              12   0.642     7  75.0%     n/a
-config-env              10   0.553     3 100.0%     n/a
+exact-token             19   0.781    12  94.7%     n/a
+conceptual              12   0.600     6  75.0%     n/a
+config-env              10   0.503     2 100.0%     n/a
 troubleshooting          3   0.833     2 100.0%     n/a
 source-navigation        3   0.281     0  66.7%     n/a
 provider-activation      1   0.500     0 100.0%     n/a
@@ -225,9 +280,9 @@ Per-class metrics (det-rerank):
 --------------------------------------------------------------------------------------------------------------
 type                     n  MRR@10 rank1   cR@5 regr negPass
 --------------------------------------------------------------------------------------------------------------
-exact-token             19   0.791    13  94.7%    1     n/a
-conceptual              12   0.623     6  66.7%    0     n/a
-config-env              10   0.633     4 100.0%    0     n/a
+exact-token             19   0.765    12  94.7%    1     n/a
+conceptual              12   0.665     7  66.7%    0     n/a
+config-env              10   0.567     3 100.0%    0     n/a
 troubleshooting          3   0.778     2 100.0%    0     n/a
 source-navigation        3   0.361     0 100.0%    0     n/a
 provider-activation      1   0.500     0 100.0%    0     n/a

@@ -79,6 +79,7 @@ import { today, f3, pct, pad, lpad } from '../lib/ce-routing-format.js';
 import {
   buildQrels, tokenise, mrrAt,
   computeRoutingMetrics, buildRoutingAnalysis, computePerClassRows,
+  computeOrderingLoss, buildOrderingLossSection,
 } from '../lib/ce-routing-metrics.js';
 import {
   classifyQueryV1, classifyQueryV3C50,
@@ -673,6 +674,12 @@ function buildReport(allMetrics, analysis, providerInfo, queryResults) {
   lines.push(`  Overall: ${gatePass ? 'PASSED — proceed to holdout-50 planning' : 'FAILED — iterate guard before holdout'}`);
   lines.push(SEP2);
   lines.push('');
+
+  // ── Ordering-loss diagnostic ─────────────────────────────────────────────────
+  const lossRows = computeOrderingLoss(queryResults, MODES);
+  for (const l of buildOrderingLossSection(lossRows, queryResults, SEP2, {
+    modes: MODES, v4Mode: 'ce-routed-v4', showV2: false,
+  })) lines.push(l);
 
   // ── Per-class metrics ────────────────────────────────────────────────────────
   for (const l of buildPerClassSection(queryResults, analysis, SEP2)) lines.push(l);

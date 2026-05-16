@@ -239,6 +239,171 @@ export function buildRoutingAnalysis(queryResults, modes, {
 // options: { modes, topK, guardFiredFn? }
 //   guardFiredFn(queryResult, mode) -> bool — whether guard fired for this query in this mode
 // Returns: Map<mode, Array<{ type, count, posCount, negCount, mrr10, rank1, chunkRecall5, regressions, guards, negativePass }>>
+// computeOrderingLoss — finds queries where the best rel>=3 chunk stays in
+// top-3 after v4 routing but moves down compared to hybrid-true rank.
+//
+// A row is emitted when:
+//   hybridRank is 1 or 2
+//   AND v4Rank > hybridRank
+//   AND v4Rank <= 3
+//
+// cause classification:
+//   'CE'    — ce-raw moved it down (ceRawRank > hybridRank), guard did not fix
+//   'guard' — ce-raw was equal to or better than hybrid, guard moved it down
+//   'mixed' — both CE and guard contributed
+//
+// Returns array of loss row objects sorted by mrrLoss descending.
+export function computeOrderingLoss(queryResults, modes, v4Mode = 'ce-routed-v4') {
+  const rows = [];
+  for (const r of queryResults) {
+    if (r.query.shouldHaveNoStrongHit) continue;
+    const { qrels } = r.query;
+    if (!qrels.size || ![...qrels.values()].some(v => v >= 3)) continue;
+
+    const hybridRank = bestExactRank(r.byMode['hybrid-true'], qrels);
+    const v4Rank     = bestExactRank(r.byMode[v4Mode],        qrels);
+
+    if (hybridRank == null || hybridRank > 2) continue;
+    if (v4Rank     == null || v4Rank <= hybridRank || v4Rank > 3) continue;
+
+    const ranksByMode = {};
+    for (const mode of modes) ranksByMode[mode] = bestExactRank(r.byMode[mode], qrels);
+
+    const ceRawRank = ranksByMode['ce-raw'] ?? null;
+    // CE contributed if ce-raw already demoted the chunk vs hybrid.
+    // Guard contributed if v4 is worse than ce-raw (guard pushed it further down).
+    // Both can be true simultaneously: hybrid #1 → raw #2 → v4 #3.
+    const ceCaused   = ceRawRank != null && ceRawRank > hybridRank;
+    const guardCaused = ceRawRank != null && v4Rank > ceRawRank;
+
+    let cause;
+    if (ceCaused && guardCaused) cause = 'mixed';
+    else if (ceCaused)           cause = 'CE';
+    else                         cause = 'guard';
+
+    const mrrLoss = (1 / hybridRank) - (1 / v4Rank);
+
+    const v4Results  = r.byMode[v4Mode] ?? [];
+    const top1v4Id   = v4Results[0] ? resultChunkId(v4Results[0]) : null;
+    const top1v4Rel  = top1v4Id ? (qrels.get(top1v4Id) ?? 0) : 0;
+
+    rows.push({
+      queryResult: r,
+      type:        r.query.type ?? '(missing)',
+      hybridRank, v4Rank, ranksByMode,
+      cause, mrrLoss,
+      top1v4Id, top1v4Rel,
+    });
+  }
+  rows.sort((a, b) => b.mrrLoss - a.mrrLoss);
+  return rows;
+}
+
+// buildOrderingLossSection — formats the ordering-loss diagnostic section.
+// options: {
+//   modes,           — mode list for per-query table header
+//   v4Mode,          — gate-evaluated mode key
+//   showV2,          — include v2 column in per-query table (custom-150 only)
+//   showWorstN,      — how many worst queries to show detail for (default 5)
+// }
+export function buildOrderingLossSection(lossRows, queryResults, SEP2, {
+  modes,
+  v4Mode    = 'ce-routed-v4',
+  showV2    = false,
+  showWorstN = 5,
+} = {}) {
+  const lines = [];
+
+  const total     = lossRows.length;
+  const h1v4_2    = lossRows.filter(r => r.hybridRank === 1 && r.v4Rank === 2).length;
+  const h1v4_3    = lossRows.filter(r => r.hybridRank === 1 && r.v4Rank === 3).length;
+  const h2v4_3    = lossRows.filter(r => r.hybridRank === 2 && r.v4Rank === 3).length;
+  const ceCaused  = lossRows.filter(r => r.cause === 'CE').length;
+  const grdCaused = lossRows.filter(r => r.cause === 'guard').length;
+  const mixed     = lossRows.filter(r => r.cause === 'mixed').length;
+  const totalMrrLoss = lossRows.reduce((s, r) => s + r.mrrLoss, 0);
+
+  lines.push(`Rank-1 / top-3 ordering loss diagnostic (${v4Mode} vs hybrid-true):`);
+  lines.push(SEP2);
+  lines.push(`  Ordering-loss queries  : ${total}  (hybrid rank <=2, ${v4Mode} rank still <=3 but lower)`);
+  lines.push(`  hybrid#1 -> v4#2       : ${h1v4_2}`);
+  lines.push(`  hybrid#1 -> v4#3       : ${h1v4_3}`);
+  lines.push(`  hybrid#2 -> v4#3       : ${h2v4_3}`);
+  lines.push(`  CE-caused              : ${ceCaused}   (ce-raw already demoted before guard)`);
+  lines.push(`  guard-caused           : ${grdCaused}   (ce-raw was ok; guard insertion demoted)`);
+  lines.push(`  mixed                  : ${mixed}   (both CE and guard contributed)`);
+  lines.push(`  Total MRR loss         : ${totalMrrLoss.toFixed(3)}  (sum of 1/hybridRank - 1/v4Rank)`);
+  lines.push('');
+
+  // Per-class table.
+  const byType = new Map();
+  for (const row of lossRows) {
+    if (!byType.has(row.type)) byType.set(row.type, []);
+    byType.get(row.type).push(row);
+  }
+  if (byType.size) {
+    lines.push('  Per-class ordering loss:');
+    lines.push(`  ${'type'.padEnd(26)} ${'n'.padStart(4)} ${'MRR_loss'.padStart(9)} ${'CE'.padStart(5)} ${'guard'.padStart(6)} ${'mixed'.padStart(6)}`);
+    lines.push(`  ${'-'.repeat(62)}`);
+    for (const [type, rows] of [...byType.entries()].sort((a, b) => b[1].length - a[1].length)) {
+      const loss = rows.reduce((s, r) => s + r.mrrLoss, 0);
+      const ce   = rows.filter(r => r.cause === 'CE').length;
+      const grd  = rows.filter(r => r.cause === 'guard').length;
+      const mx   = rows.filter(r => r.cause === 'mixed').length;
+      lines.push(`  ${type.padEnd(26)} ${String(rows.length).padStart(4)} ${loss.toFixed(3).padStart(9)} ${String(ce).padStart(5)} ${String(grd).padStart(6)} ${String(mx).padStart(6)}`);
+    }
+    lines.push('');
+  }
+
+  // Per-query detail table.
+  if (lossRows.length) {
+    const v2Col = showV2 ? '  v2' : '';
+    lines.push(
+      `  ${'ID'.padEnd(12)}  ${'type'.padEnd(22)}  ${'hyb'.padStart(4)}  ${'raw'.padStart(4)}  v1${v2Col}   v3   v4  ${'cause'.padEnd(6)}  ${'mrrLoss'.padStart(7)}  ${'top1(v4)'.padEnd(24)}  query`
+    );
+    lines.push(`  ${'-'.repeat(showV2 ? 130 : 124)}`);
+    for (const row of lossRows) {
+      const rk = mode => {
+        const r = row.ranksByMode[mode];
+        return r != null ? `#${r}` : 'miss';
+      };
+      const v2part = showV2 ? `  ${rk('ce-routed-v2').padStart(4)}` : '';
+      const top1str = (row.top1v4Id ?? '-').slice(0, 22).padEnd(22) + ` r${row.top1v4Rel}`;
+      lines.push(
+        `  ${row.queryResult.query.id.padEnd(12)}  ${row.type.padEnd(22)}  ${rk('hybrid-true').padStart(4)}  ${rk('ce-raw').padStart(4)}  ${rk('ce-routed-v1').padStart(4)}${v2part}  ${rk('ce-routed-v3').padStart(4)}  ${rk(v4Mode).padStart(4)}  ${row.cause.padEnd(6)}  ${row.mrrLoss.toFixed(3).padStart(7)}  ${top1str.padEnd(26)}  ${row.queryResult.query.query.slice(0, 44).trimEnd()}`
+      );
+    }
+    lines.push('');
+  }
+
+  // Worst-N detail.
+  const worstRows = lossRows.slice(0, showWorstN);
+  if (worstRows.length) {
+    lines.push(`  Top-${showWorstN} ordering-loss detail:`);
+    lines.push(SEP2);
+    for (const row of worstRows) {
+      const { queryResult: r, ranksByMode } = row;
+      const qrels = r.query.qrels;
+      lines.push(`  [${r.query.id}] ${row.type} — ${r.query.query}`);
+      lines.push(`    cause: ${row.cause}  hybrid=#${row.hybridRank}  ${v4Mode}=#${row.v4Rank}  mrrLoss=${row.mrrLoss.toFixed(3)}`);
+      for (const mode of ['hybrid-true', 'ce-raw', v4Mode]) {
+        const results = r.byMode[mode] ?? [];
+        lines.push(`    ${mode}:`);
+        for (let i = 0; i < Math.min(results.length, 3); i++) {
+          const cid = resultChunkId(results[i]);
+          const rel = cid ? (qrels.get(cid) ?? 0) : 0;
+          lines.push(`      #${i + 1} ${(cid ?? '-').slice(0, 36).padEnd(36)} rel=${rel}`);
+        }
+      }
+      lines.push('');
+    }
+    lines.push(SEP2);
+    lines.push('');
+  }
+
+  return lines;
+}
+
 export function computePerClassRows(queryResults, analysis, modes, { topK, guardFiredFn } = {}) {
   const byType = new Map();
   for (const r of queryResults) {
