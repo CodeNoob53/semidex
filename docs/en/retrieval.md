@@ -553,5 +553,5 @@ BENCH_SKIP_INDEX=1 CE_MODEL=cross-encoder/mmarco-mMiniLMv2-L12-H384-v1 CE_INPUT=
 
 - `hashed-tf` is not BM25. It has no corpus statistics or IDF.
 - BGE-M3 ONNX sparse output is neural lexical weighting, not SPLADE vocabulary expansion.
-- ColBERT / late-interaction retrieval is not implemented yet.
+- ColBERT / late-interaction retrieval is benchmark-only (deferred). BGE-M3 `colbert_vecs` improved MRR@10 on custom-50 (+0.043–0.055 vs hybrid) but failed the promotion gate due to 3 ordering losses and ~11 s CPU latency. No runtime or MCP support.
 - Cross-encoder reranking at CPU speed (~3 500 ms p50) is not suitable for interactive use.

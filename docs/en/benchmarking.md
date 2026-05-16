@@ -342,30 +342,39 @@ logic change.
 See [retrieval.md — Cross-encoder reranking](retrieval.md#cross-encoder-reranking)
 for the per-guard history, class-level findings, and promotion criteria.
 
-## ColBERT Benchmark Plan
+## ColBERT Benchmark — Stage 1 Results (2026-05-16)
 
-ColBERT (late-interaction retrieval) is the next benchmark experiment. It is **benchmark-only** — no `src/` changes, no MCP runtime changes.
+ColBERT late-interaction reranking was evaluated using the `colbert_vecs` head of `aapot/bge-m3-onnx` — the same model already used for dense+sparse indexing. The experiment is **benchmark-only**: no `src/` changes, no MCP runtime changes.
 
-**Motivation:** CE routing v4 shows that part of the top-3 ordering loss on custom-150 is CE-caused, not guard-caused. Further guard iteration has diminishing returns. The hypothesis is that a late-interaction ranker (token-level interaction instead of single-score cross-encoding) will better preserve rank-1 for exact-token and config-env queries where CE systematically picks adjacent prose over the target chunk.
+**Motivation:** CE routing v4 shows that part of the top-3 ordering loss is CE-caused, not guard-caused. The hypothesis was that token-level MaxSim interaction would better preserve rank-1 for exact-token and config-env queries.
 
-**No production changes.** The experiment is:
-- new benchmark-only scripts (analogous to `ce-routing-bench.js`)
-- no `src/` edits
-- no qrel changes
-- no new routing heuristics evaluated as production candidates
-- compare directly against the 2026-05-16 CE v4 result files as baseline
+**Result:** MRR@10 improves substantially over hybrid (+0.043–0.055 depending on token policy), but the promotion gate fails due to ordering-loss count = 3 on custom-50 (gate requires < 2). The losses are structural — ColBERT promotes lexically-matching but non-relevant `config-env.md` chunks above the hybrid top-1 for c05 and c32. This is a ranker-level limitation not addressable by guard iteration.
 
-**Candidate modes:**
+Two token policies were benchmarked (`COLBERT_TOKEN_POLICY` env):
 
-| Mode | Description |
-|------|-------------|
-| `hybrid-true` | existing ONNX hybrid RRF (control) |
-| `det-rerank` | existing deterministic reranker (control) |
-| `ce-routed-v4` | CE routing v4 result (carry-forward from 2026-05-16 files) |
-| `colbert-rerank` | late-interaction ColBERT reranking over hybrid candidates |
-| `ce-routed-v4 + colbert` | optional: CE guard + ColBERT final ranking |
+| Metric | official | no-eos | Gate |
+|--------|----------|--------|------|
+| MRR@10 (colbert-top40) | 0.718 | **0.720** | ≥ 0.705 ✓ |
+| Rank≤3 regressions | **1** (c36) | **0** | zero required |
+| Ordering losses | **3** | **3** | < 2 required ✗ |
+| Total MRR loss | 1.500 | **1.167** | — |
+| p50 latency | 11 400 ms | 11 195 ms | — |
+| Gate | FAILED | FAILED | — |
 
-**Promotion gate (same as CE routing gate, with one additional criterion):**
+`official` keeps EOS(2) per released FlagEmbedding scoring code (parity reference). `no-eos` excludes EOS based on an open upstream issue — it eliminates the c36 hard regression and reduces total MRR loss, making it the better experimental policy. Both fail the gate on ordering-loss count.
+
+**Latency:** colbert-top40 p50 ≈ 11 200 ms on CPU (~63× slower than hybrid). Not suitable for interactive use without GPU acceleration or a top-N reduction strategy.
+
+**Stage 1 verdict: DEFER standalone ColBERT.** Next experiment, if continuing, should be a guarded/blended variant: top-1 protection, hybrid/ColBERT score blend, or trigger-only rerank. Not standalone replacement of hybrid ranking.
+
+Result files:
+- `benchmarks/retrieval/results/2026-05-16-custom50-colbert-top40-maxlen512-mean-official.txt`
+- `benchmarks/retrieval/results/2026-05-17-custom50-colbert-top40-maxlen512-mean-no-eos.txt`
+- Probe and full analysis: `benchmarks/retrieval/results/2026-05-16-bge-m3-colbert-head-probe.md`
+
+Scripts: `benchmarks/retrieval/custom-50/colbert-bench.js`, `benchmarks/retrieval/lib/colbert-rerank.js`, `benchmarks/retrieval/lib/colbert-math.js`.
+
+### Gate criteria (for reference)
 
 | Criterion | Threshold |
 |-----------|-----------|
@@ -375,17 +384,12 @@ ColBERT (late-interaction retrieval) is the next benchmark experiment. It is **b
 | chunkRecall@10 | ≥ hybrid baseline |
 | rank≤3 → >3 regressions | zero |
 | type MRR drop vs hybrid | < 0.030 for all watched classes |
-| ordering-loss count | < CE v4 (< 6 on custom-150, < 2 on custom-50) |
-| ordering-loss total MRR loss | < CE v4 (< 3.500 on custom-150, < 1.000 on custom-50) |
+| ordering-loss count | < 2 on custom-50 |
 
-**Watched queries:**
+### Watched queries
 
 - `custom-50`: c03, c08, c11, c16, c23, c36, c46
-- `custom-150`: c150-032, c150-040, c150-042, c150-048, c150-054, c150-069
-
-These are the queries where CE v4 shows known ordering loss or guard sensitivity. A ColBERT pass that resolves c150-032, c150-040, c150-042 (CE-caused exact-token and config-env demotions) without regressing others would be the strongest signal to proceed.
-
-**Status:** not started. Blocked on ColBERT model selection and ONNX availability check.
+- `custom-150`: c150-032, c150-040, c150-042, c150-048, c150-054, c150-069 (not yet evaluated)
 
 ### Regression benchmark (v2 schema)
 
