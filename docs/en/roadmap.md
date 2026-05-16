@@ -413,10 +413,10 @@ Remaining general tasks:
 
 5. Evaluate whether to change the programmatic tool default from `window=0` to `window=1, window_format="compact"` — the recommended agent pattern is already documented in AGENTS.md, but the code default has not changed.
 6. Add a chunking-quality design document and large-document stress fixture plan.
-7. Summarize custom-50 diagnostics conclusions in the benchmarking docs.
-8. Design first-run semidex documentation self-indexing (`semidex-docs`) for agent onboarding.
+7. ~~Summarize custom-50 diagnostics conclusions in the benchmarking docs~~ — **done**: `## Retrieval Diagnostics Conclusions` section added to `docs/en/benchmarking.md`; covers RRF score interpretation, agent defaults, trigger signals, MMR/full-text deferral, scope handling, and window utility.
+8. ~~Design first-run semidex documentation self-indexing (`semidex-docs`) for agent onboarding~~ — **done**: `npm run bootstrap:docs` implemented; indexes semidex docs into `semidex-docs` collection with ONNX provider; managed-collection guard prevents accidental overwrite.
 9. Draft the agent wake-up workflow before implementing any new MCP tool.
-10. Design a diagnostic bundle command with redaction rules.
+10. ~~Design a diagnostic bundle command with redaction rules~~ — **done**: `npm run doctor` implemented (`src/doctor.js`, `src/core/doctor-checks.js`); covers Node version, QDRANT_URL/KEY, Ollama reachability and model presence, collection schema, payload indexes, provider agreement, schema version, ONNX cache; full redaction of URL credentials and API key literals; writes timestamped report to `diagnostics/`.
 11. Revisit MMR Stage 2 only after broad-query duplicate pressure is measured live.
 12. Revisit full-text search only after a confirmed hybrid exact-token regression.
 13. Update `SKILL.md` MCP setup instructions for npm package install path (`npx semidex` or `semidex mcp`) once the package is published — current instructions assume a cloned repo.

@@ -25,6 +25,7 @@ ONNX_EMBED=1 npm run bench:custom-large
 npm run bench:custom150
 BENCH_PROVIDER=onnx BENCH_SKIP_INDEX=1 npm run bench:custom150
 BENCH_PROVIDER=onnx BENCH_SKIP_INDEX=1 RERANK_ENABLED=1 npm run bench:custom150
+BENCH_PROVIDER=onnx BENCH_SKIP_INDEX=1 npm run bench:custom150:ce-routing
 ```
 
 Optional live retrieval smokes (require Qdrant, not default CI):
@@ -128,7 +129,7 @@ Docs: `benchmarks/retrieval/README.md`
 Fast file-level smoke. Run before merges to catch regressions in chunking,
 providers, RRF settings, or reranking.
 
-### custom-50 quality benchmark
+### custom-50 — Tier A (dev regression loop)
 
 Collection: `bench-retrieval-custom-50`
 
@@ -138,30 +139,48 @@ Queries: `benchmarks/retrieval/custom-50/queries.json` (50 queries, v3 schema)
 Docs: `benchmarks/retrieval/custom-50/README.md`
 
 Chunk-level evaluation with graded relevance (`relevantChunks`, `relevance: 1/2/3`).
-Run when evaluating retrieval quality beyond file-level recall.
+Primary dev-regression loop: run when evaluating retrieval quality beyond
+file-level recall, and use it as the primary tuning target for retrieval
+parameter changes, reranking experiments, and guard iteration. custom-50 is
+intentionally inspectable — per-query failure analysis and guard tuning against
+specific query IDs is acceptable here.
 
-### custom-150 Tier B benchmark
+custom-150 (Tier B) is the confirmation layer after custom-50 validates a
+change. A change that passes custom-50 but fails custom-150's class-level gate
+is not yet promotable.
+
+### custom-150 — Tier B (class-level generalization check)
 
 Collection: `bench-retrieval-custom-150`
 
 Fixtures: `benchmarks/retrieval/fixtures/docs/` (shared 4) +
 `benchmarks/retrieval/custom-50/fixtures/docs/` (6 custom-50) +
 `benchmarks/retrieval/custom-150/fixtures/docs/` (custom-150 additions, if any)
-Queries: `benchmarks/retrieval/custom-150/queries.json` (75 queries, v3 schema)
+Queries: `benchmarks/retrieval/custom-150/queries.json` (75 queries, v3 schema, target 150)
 Docs: `benchmarks/retrieval/custom-150/README.md`
 
 Broader in-domain validation. Sits between the fast dev-regression loop of
-custom-50 (Tier A) and the sealed holdout (Tier C). Use it after custom-50
-confirms a change, to check class-level generalization across a wider and
-harder query set. Not the primary tuning target.
+custom-50 (Tier A) and the sealed blind holdout (Tier C). Use it after custom-50
+confirms a change, to check class-level generalization across a wider and harder
+query set.
+
+**Key constraints:**
+- Not the primary tuning target. Parameter changes and guard rules must be
+  validated on custom-50 first, then confirmed here.
+- No query-id hardcoding. Guard rules must generalize by query class or semantic
+  pattern, not by specific `c150-NNN` IDs.
+- Not blind — fixture docs and per-class metrics can be inspected for diagnostics.
+- A class-level MRR drop ≥ 0.030 blocks promotion even if aggregate metrics improve.
 
 ```bash
+npm run bench:custom150
+BENCH_SKIP_INDEX=1 npm run bench:custom150
 BENCH_PROVIDER=onnx npm run bench:custom150
-BENCH_PROVIDER=onnx BENCH_SKIP_INDEX=1 npm run bench:custom150
-BENCH_PROVIDER=onnx BENCH_SKIP_INDEX=1 RERANK_ENABLED=1 npm run bench:custom150
+RERANK_ENABLED=1 npm run bench:custom150
+npm run bench:custom150:ce-routing
 ```
 
-**ONNX hybrid vs rerank baseline (2026-05-15, 75 queries):**
+**ONNX hybrid baseline (2026-05-15, 75 queries):**
 
 | Metric | hybrid | rerank | Delta |
 |--------|-------:|-------:|------:|
@@ -188,12 +207,32 @@ queries), which is too small to justify global enablement. Rerank remains off
 by default; class-specific routing is a possible future path, pending validation
 on a larger dataset.
 
-**CE routing result (2026-05-15, mmarco text+meta, 75 queries): GATE FAILED.**
-MRR lift +0.009 (gate requires +0.030); 4 rank≤3→>3 regressions concentrated in
-`config-env` (2 regressions, MRR 0.524→0.387) and a guard misfire in
-`provider-activation`. Recall and cross-lingual improved. The `heuristic-v1`
-guard from custom-50 does not generalise to custom-150 without a `config-env`
-route class. CE routing remains benchmark-only and not promotable.
+**CE routing v4 result (2026-05-16, mmarco text+meta, 75 queries): GATE FAILED.**
+
+Guard iterations v2/v3/v4 brought aggregate metrics up substantially and reduced
+rank≤3 regressions to zero — but the class-level gate blocks promotion:
+
+| Metric | hybrid | ce-routed-v4 | Delta |
+|--------|-------:|-------------:|------:|
+| MRR@10 | 0.526 | 0.557 | +0.031 |
+| chunkRecall@5 | 68.1% | 73.6% | +5.5 pp |
+| chunkRecall@10 | 76.4% | 81.9% | +5.5 pp |
+| negativePass | 100% | 100% | 0 |
+| rank≤3→>3 regressions | — | 0 | — |
+| provider-activation MRR | 0.479 | 0.375 | −0.104 ✗ |
+
+The gate requires no query type to drop MRR ≥ 0.030 vs hybrid. `provider-activation`
+(4 queries) drops −0.104 — the v4 guard lifts `providers.md` activation-guide
+chunks above the target `config-env.md` env-var chunks for activation queries.
+This is a class-specific regression that aggregate MRR (+0.031) does not capture.
+
+Result files:
+- `benchmarks/retrieval/results/2026-05-15-custom150-ce-routing-mmarco-mminilmv2-l12-h384-v1.txt` (v1 guard)
+- `benchmarks/retrieval/results/2026-05-16-custom150-ce-routing-v4-mmarco-mminilmv2-l12-h384-v1.txt` (v4 guard)
+
+**CE routing promotion status:** benchmark-only, not promotable. See
+[CE Routing Benchmark](#ce-routing-benchmark) and
+[ColBERT Benchmark Plan](#colbert-benchmark-plan) for the next investigation.
 
 ```bash
 BENCH_PROVIDER=onnx BENCH_SKIP_INDEX=1 \
@@ -201,7 +240,13 @@ CE_MODEL=cross-encoder/mmarco-mMiniLMv2-L12-H384-v1 CE_INPUT=text+meta \
   npm run bench:custom150:ce-routing
 ```
 
-Result file: `benchmarks/retrieval/results/2026-05-15-custom150-ce-routing-mmarco-mminilmv2-l12-h384-v1.txt`
+### Tier C — blind holdout (not implemented)
+
+A sealed blind holdout set for final promotion decisions. Not yet implemented.
+Queries will not overlap with custom-50 or custom-150 IDs and will not be
+inspectable during development. A change must pass both custom-50 and custom-150
+gates before running against Tier C. Tier C is used only for final promotion
+approval, never for tuning.
 
 ### custom-large stress benchmark
 
@@ -242,7 +287,7 @@ classifier with a lexical guard on top of the mmarco cross-encoder. It is
 **Current v4 status (guard heuristic-v4, mmarco text+meta, ONNX provider):**
 
 - `custom-50`: gate **passes** — MRR@10 0.764, zero rank≤3 regressions, all watched queries stable. c03 recovered to hybrid rank by v4 guard.
-- `custom-150`: gate **fails** — `provider-activation` type MRR drops −0.104 vs hybrid (gate allows ≤−0.030). All other criteria pass: MRR lift +0.031, zero rank≤3 regressions, chunkRecall@5 +5.5 pp.
+- `custom-150`: gate **fails** — `provider-activation` type MRR drops −0.104 vs hybrid (gate blocks drops worse than −0.030). All other criteria pass: MRR lift +0.031, zero rank≤3 regressions, chunkRecall@5 +5.5 pp.
 
 Result files:
 - `benchmarks/retrieval/results/2026-05-16-custom50-ce-routing-v4-mmarco-mminilmv2-l12-h384-v1.txt`
@@ -278,6 +323,15 @@ Key cases:
 - **c150-040 / c150-042**: CE demotes exact env-var chunks in favour of adjacent configuration prose. CE-caused exact-token demotions that the guard has no signal to catch.
 
 **Conclusion:** 3 of 6 ordering losses on custom-150 are CE-caused (the ranker itself), not guard-caused. Further guard tuning resolves at most 1–2 losses (`mixed` cases where the guard's own insertion is the final displacement). The `provider-activation` MRR drop is partly structural — the CE model prefers instructional guides (`providers.md`) over reference env-var chunks (`config-env.md`) for activation queries, which is the wrong preference when the qrel assigns rel=3 to the env-var chunk. A stronger late-interaction ranker (ColBERT) is the logical next experiment.
+
+**Interpreting aggregate vs class-level results:** CE routing v4 improves
+aggregate MRR@10 by +0.031 and chunkRecall@5 by +5.5 pp on custom-150, yet the
+gate blocks promotion. This is by design: aggregate metrics can improve while a
+specific query class regresses, and that class-level regression matters more for
+agent safety than the aggregate gain. custom-150 is specifically structured to
+surface this — its broader class distribution catches overfitting to custom-50's
+query mix. A fix that passes custom-50 and fails custom-150's class-level gate is
+not promotable regardless of aggregate delta.
 
 **Rerun variance note:** CE reranking result files may drift slightly between
 reruns. Qdrant tie-breaking, CE score precision, and collection rebuilds can
@@ -519,15 +573,178 @@ Duplicate source audits:
 Full-text / literal search audit:
 - `benchmarks/retrieval/results/2026-05-14-full-text-literal-search-audit.md`
 
+## Retrieval Diagnostics Conclusions
+
+Practical guidance distilled from custom-50 diagnostics, threshold sweep, MMR
+matrix, duplicate-source audit, full-text audit, and live agent review.
+Source reports are linked throughout; conclusions do not duplicate their tables.
+
+Most signal experiments below were run on the custom-50 corpus (Tier A). Where
+custom-150 (Tier B) provides a confirming or contradicting data point, it is
+noted. If a conclusion is custom-50-only and has not yet been validated on
+custom-150, treat it as a Tier A finding pending broader confirmation.
+
+### RRF scores are not confidence values
+
+Hybrid RRF scores fall in a narrow band (~0.016–0.033) regardless of how well
+the query matched. A score of 0.017 at rank #1 may be the only correct chunk
+in the corpus. A low absolute score alone must never trigger a fallback or be
+reported to the user as "low confidence."
+
+What to use instead of score magnitude:
+- rank order within the result set (rank #1 is better than rank #3)
+- `source_file` and `section` — does the result come from the expected file?
+- exact token overlap — do the query's identifiers appear in the chunk text?
+- `context` field — does the LLM summary confirm the chunk is on-topic?
+- `window=1` neighbors — is the surrounding context consistent?
+
+See also: [retrieval.md — Interpreting Scores](retrieval.md#interpreting-scores).
+
+### Recommended agent search defaults
+
+From the live agent review (2026-05-12, 32 positive queries, 0 risky windows):
+
+| Query type | Recommended call |
+|------------|-----------------|
+| Normal positive query | `qdrant_search(query, collection, top=3, window=1, window_format="compact")` |
+| Ambiguous, negative, or scope-sensitive | `top=5`, same window settings |
+
+`window=1, window_format="compact"` is load-bearing for ~3% of positive queries
+(the case where the exact-answer chunk needs its neighbor for completeness) and
+harmless for the rest. Do not disable it to save tokens — compact format already
+caps neighbor snippets at ~150 chars.
+
+Full report: `benchmarks/retrieval/results/2026-05-12-clean-live-agent-review.md`
+
+### Trigger signals are diagnostic, not runtime rules
+
+The search diagnostics benchmark (2026-05-10) computes observable signals
+(`topScoreSpread`, `sourceDiversity`, `exactQueryTokenHits`, `technicalTokenHits`)
+and evaluates whether they predict top-5 misses. Key findings:
+
+- **`topScoreSpread`**: range is 0.001–0.017 for this corpus. The default
+  `SPREAD_THRESHOLD=0.05` fires on 100% of queries and is useless as a
+  discriminator. The useful range (FPR < 50%) is below 0.003 — catching only
+  ~25% of misses with FPR=0%. Not a reliable standalone trigger.
+- **`sourceDiversity < 2`**: fires on 2/49 queries, catches 2/8 misses, FPR=0%.
+  High precision but very low recall — only useful as a secondary gate.
+- **`technicalTokenHits`**: 100% hit rate on all exact-token queries in this
+  corpus, so it fires on 0/49 — no discrimination.
+- **No tested trigger achieves both high missRecall and low FPR** on a single run.
+  Cross-validate across multiple runs before treating any threshold as reliable.
+
+Signals flagged as "eval-only" (`hasNeighborCandidate`, `top5ContainsExpectedFile`,
+`isMiss`) depend on qrels — they are not observable at runtime and must never
+be used in production triggers.
+
+Full reports:
+- `benchmarks/retrieval/results/2026-05-10-custom50-diagnostics.txt`
+- `benchmarks/retrieval/results/2026-05-10-custom50-threshold-sweep.txt`
+
+### Dense MMR is deferred
+
+Dense MMR (`mmrSearch`) is benchmark-only and not exposed in `qdrant_search`.
+Measured results (2026-05-10, 21 queries):
+
+- `ollama-mmr0.3`: Recall@1 unchanged (90.5%), dupSourceRate −11.4pp — the only
+  variant where MMR is a net win.
+- `onnx-mmr0.3`: Recall@1 −4.8pp at all tested diversity values. For the ONNX
+  provider, hybrid RRF dominates.
+
+The 61.9% `dupSourceRate` baseline from the technical-query corpus is not evidence
+that hybrid RRF creates harmful duplicate pressure for broad queries. For
+exact-token and config queries, multiple chunks from the same file are often
+adjacent context the agent needs, not redundancy. For broad/exploratory queries,
+hybrid RRF naturally pulls from 3–4 distinct files; predicted `dupSourceRate`
+~30–50%, below the baseline.
+
+Stage 2 runtime opt-in requires: a live broad-query `dupSourceRate` measurement
+exceeding 60% for ≥3 of the 12 defined evaluation queries, confirmed agent answer
+quality degradation, and onnx Recall@1 regression within a defined budget. None
+of these are currently met.
+
+Full audits:
+- `benchmarks/retrieval/results/2026-05-14-mmr-mcp-opt-in-audit.md`
+- `benchmarks/retrieval/results/2026-05-14-duplicate-source-pressure-audit.md`
+
+### Full-text / literal search is deferred
+
+BGE-M3 sparse (`bge-m3-onnx`) already handles all confirmed exact-token use
+cases: custom-raw benchmark (2026-05-12) achieved **100% tokenHit@5** across
+7 exact-token queries including error strings with file paths (`OOM killed at
+/src/indexer.js:42`), env var assignments (`ONNX_EMBED=1`, `OVERLAP_SENTENCES=2`),
+and timeout values in ms — without any payload text index.
+
+For exact-token queries, use verbatim terms in the query string. BGE-M3 sparse
+encodes technical tokens as neural lexical units and retrieves them reliably.
+
+If using `ollama + hashed-tf` and exact literal recall is critical for raw logs
+or config dumps, switch to `ONNX_EMBED=1` — hashed-TF has no IDF and may miss
+rare tokens in high-noise corpora. This is a provider choice, not a missing
+feature.
+
+Adding a Qdrant payload `text` index is deferred: implementation cost is
+non-trivial (large RAM-resident index, sync changes, Qdrant version sensitivity),
+the benefit is narrow, and Qdrant `match: { text: "..." }` filters are still
+tokenized — not true verbatim substring search.
+
+Full audit: `benchmarks/retrieval/results/2026-05-14-full-text-literal-search-audit.md`
+
+### Scope and ambiguity handling
+
+From the live agent review and custom-raw scope simulations (2026-05-12):
+
+- If a query lacks a source scope and multiple valid values coexist in the corpus
+  (e.g. two different Qdrant timeout values from different source files), surface
+  both values and ask the user to clarify. Do not pick rank #1 blindly.
+- If the user names an exact filename or a high-confidence domain alias ("prod
+  config", "incident log"), apply a `source_file` filter. When no scope is given,
+  do not invent a filter.
+- Scope mismatch detection is entirely agent-side — RRF scores and chunk rank do
+  not suppress cross-scope results. An agent must verify that the evidence scope
+  matches the query scope before answering.
+
+Full reports:
+- `benchmarks/retrieval/results/2026-05-12-custom-raw-timeout-source-filter.md`
+- `benchmarks/retrieval/results/2026-05-12-custom-raw-staging-prod-scope-sentinel.md`
+
+### Window utility
+
+Across 32 positive queries (live agent review, 2026-05-12):
+
+- `window=1, window_format="compact"` is load-bearing in ~3% of queries (the
+  case where the exact-answer chunk needs its neighbor for completeness).
+- USEFUL_CONTEXT (neighbor adds helpful adjacent detail): ~54% of queries.
+- HARMLESS_FILLER (neighbor is an anchor-only or section-header chunk): ~38%,
+  concentrated in custom-large fixture docs.
+- RISKY_CONTEXT (neighbor introduces conflicting or misleading content): 0/32.
+
+Compact format keeps neighbor snippets short (~150 chars) and includes stored
+metadata, making window filler safe. Do not disable `window=1` to save tokens —
+the format is already optimised for this.
+
+Full reports:
+- `benchmarks/retrieval/results/2026-05-12-positive-compact-window-smoke.md`
+- `benchmarks/retrieval/results/2026-05-12-expanded-window-utility-audit.md`
+
 ## Current Role
 
 The regression benchmark catches quality regressions when changing chunking,
 providers, sparse vectors, Qdrant schema, RRF settings, reranking, or MCP search
 behavior. It is not a scientific corpus evaluation.
 
-The custom-50 quality benchmark is a more demanding evaluation harness. Use it
-when making changes that could affect chunk-level retrieval precision — provider
-switches, embedding schema changes, or RRF/MMR parameter tuning.
+The **custom-50 (Tier A)** benchmark is the primary tuning and dev-regression
+harness. Use it when making changes that could affect chunk-level retrieval
+precision — provider switches, embedding schema changes, RRF/MMR parameter
+tuning, or reranking guard iteration. Per-query analysis and guard tuning against
+specific query IDs is acceptable here.
+
+The **custom-150 (Tier B)** benchmark is the class-level confirmation layer.
+Run it after custom-50 validates a change, to check whether improvements
+generalise across the broader and harder query set. A change that passes custom-50
+but fails custom-150's class-level gate (MRR drop ≥ 0.030 for any watched type)
+is not promotable. The baseline here is 0.508 MRR@10 / 68.1% chunkRecall@5
+(hybrid ONNX, 2026-05-15, 75 queries).
 
 ONNX baseline on custom-50 (2026-05-10, bge-m3-onnx, hybrid RRF, top-10, corrected qrels):
 
