@@ -105,6 +105,27 @@ export async function scoreColBERT(query, candidates, {
   scoreMode      = process.env.COLBERT_SCORE_MODE ?? 'mean',
   topK           = candidates.length,
 } = {}) {
+  const { allScored, ms } = await scoreColBERTAll(query, candidates, { queryMaxLength, docMaxLength, scoreMode });
+  const sorted = [...allScored].sort((a, b) => b.score - a.score);
+  return { scored: sorted.slice(0, topK), ms };
+}
+
+// Score query vs candidate list and return candidates in their ORIGINAL pool order,
+// each enriched with a `.score` field.  No topK slicing or sort applied.
+//
+// Use this when you need to derive multiple result sets from one scoring pass:
+//   const { allScored, ms } = await scoreColBERTAll(query, pool40, opts);
+//   const top40 = [...allScored].sort(...).slice(0, K);   // ColBERT order over full pool
+//   const top20 = allScored.slice(0, 20).sort(...).slice(0, K); // ColBERT order over hybrid-top-20 subset
+//
+// Returns { allScored: result[], ms: number }
+//   allScored: one entry per input candidate, same order as `candidates`, each with `.score`.
+//   ms: total elapsed ms for query encode + all doc encodes + MaxSim.
+export async function scoreColBERTAll(query, candidates, {
+  queryMaxLength = 512,
+  docMaxLength   = parseInt(process.env.COLBERT_MAX_LENGTH ?? '512', 10),
+  scoreMode      = process.env.COLBERT_SCORE_MODE ?? 'mean',
+} = {}) {
   const t0 = performance.now();
 
   const { vecs: queryVecs } = await encodeColBERT(query, queryMaxLength);
@@ -112,7 +133,7 @@ export async function scoreColBERT(query, candidates, {
   // BGE-M3 colbert_vecs are L2-normalised — cosine = dot product.
   const ALREADY_NORMED = true;
 
-  const scored = [];
+  const allScored = [];
   for (const cand of candidates) {
     const text = [
       cand.payload?.section ? `[${cand.payload.section}] ` : '',
@@ -124,11 +145,9 @@ export async function scoreColBERT(query, candidates, {
     let score = maxSimScore(queryVecs, docVecs, ALREADY_NORMED);
     if (scoreMode === 'sum') score *= queryVecs.length;
 
-    scored.push({ ...cand, score });
+    allScored.push({ ...cand, score });
   }
 
-  scored.sort((a, b) => b.score - a.score);
-
   const ms = performance.now() - t0;
-  return { scored: scored.slice(0, topK), ms };
+  return { allScored, ms };
 }

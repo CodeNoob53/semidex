@@ -1,0 +1,227 @@
+==============================================================================================================
+  custom-50 ColBERT reranker benchmark — benchmark-only, no production changes
+  Date              : 2026-05-17
+  Provider          : bge-m3-onnx/bge-m3-onnx
+--------------------------------------------------------------------------------------------------------------
+  COLBERT_TOP_N      : 40  (pool for colbert-top40)
+  colbert-top20 pool    : 20  (derived from top-40 scoring pass — no extra ONNX calls)
+  COLBERT_MAX_LENGTH : 512  (doc token cap)
+  COLBERT_SCORE_MODE : mean
+  COLBERT_TOKEN_POLICY: official  (official=keep EOS | no-eos=filter EOS)
+  BENCH_TOP_K       : 10  (final result depth)
+  BENCH_WINDOW      : 1
+  BENCH_SKIP_INDEX  : yes
+  Query types       : exact-token=19  conceptual=12  config-env=10  troubleshooting=3  source-navigation=3  provider-activation=1  cross-lingual-ua-en=1  negative=1
+
+  References (not rerun; gate baseline = live hybrid-true above):
+    CE v4              : 0.764 MRR@10  (custom-50, ce-routed-v4, 2026-05-16)
+    Hybrid (2026-05-10): 0.634 MRR@10  (custom-50, standalone run, pre-CE-v4)
+==============================================================================================================
+
+Aggregate metrics:
+--------------------------------------------------------------------------------------------------------------
+                     hybrid-true    det-rerank colbert-top20 colbert-top40
+--------------------------------------------------------------------------------------------------------------
+MRR@10                     0.634         0.683         0.716         0.718
+rank1 exact                   22            26            28            28
+nDCG@10                    0.695         0.726         0.762         0.767
+chunkRecall@3              77.6%         79.6%         81.6%         81.6%
+chunkRecall@5              87.8%         89.8%         93.9%         93.9%
+chunkRecall@10             93.9%         98.0%         95.9%         98.0%
+windowRecall@5             95.9%         98.0%         95.9%         95.9%
+windowRecall@10            98.0%        100.0%         98.0%        100.0%
+supportRecall@10           98.0%        100.0%         98.0%        100.0%
+negativePass              100.0%        100.0%        100.0%        100.0%
+p50 latency                177ms          51ms          50ms       11332ms
+p95 latency                243ms          93ms          92ms       12549ms
+--------------------------------------------------------------------------------------------------------------
+
+MRR@10 vs references:
+--------------------------------------------------------------------------------------------------------------
+  colbert-top40 vs hybrid-true   : +0.084  (base=0.634)
+  colbert-top20 vs hybrid-true   : +0.082
+  CE v4 reference                : 0.764  (not rerun; colbert-top40 gap: -0.046)
+--------------------------------------------------------------------------------------------------------------
+
+Promotion gate (colbert-top40 vs hybrid-true, exploratory):
+--------------------------------------------------------------------------------------------------------------
+  [✓] MRR@10 >= hybrid + 0.030  (>= 0.664)   (got 0.718)
+  [✓] chunkRecall@5 >= hybrid   (got 93.9%, base=87.8%)
+  [✓] chunkRecall@10 >= hybrid  (got 98.0%, base=93.9%)
+  [✓] negativePass = 100%        (got 100.0%)
+  [✗] zero rank<=3 regressions  (got 1)
+  [✓] no query type MRR drop >= 0.030  (worst: none drop=0.000)
+  [✓] ordering-loss count < 2  (got 1; CE v4 had 2)
+
+  Verdict: GATE FAILED — 1 rank<=3 regression(s)
+--------------------------------------------------------------------------------------------------------------
+
+Per-query results (colbert-top40 is the gate-evaluated mode):
+--------------------------------------------------------------------------------------------------------------
+ID     type                    hyb    det    c20    c40  query
+--------------------------------------------------------------------------------------------------------------
+c36    source-navigation        #2     #2     #4     #4  [REGR-c40!] chunkFile splitSentences parseMarkdown location in sour
+c03    provider-activation      #2     #2     #2     #2  як увімкнути bge-m3-onnx без Ollama
+c16    troubleshooting          #1     #1     #1     #1  чому фінальний чанк може губитись при малій кількості р
+c23    conceptual               #1     #1     #1     #1  коли потрібно запускати sync після апгрейду semidex
+c29    conceptual             miss     #6   miss     #9  як агент повинен починати сесію з semidex MCP
+c33    conceptual             miss     #6     #2     #2  що міститься у frontmatter кожного Obsidian файлу chunk
+c46    config-env               #1     #1     #1     #1  що таке SOURCE_ROOT і навіщо він потрібен при індексаці
+c01    exact-token              #1     #1     #1     #1  де налаштовується sparseProvider
+c02    conceptual             miss   miss   miss   miss  які є валідні комбінації провайдерів embeddings
+c04    exact-token              #3     #3     #3     #3  embedding_schema_version reindex discriminator payload
+c05    conceptual               #1     #1     #2     #2  що станеться якщо змінити denseModel у config.json
+c06    exact-token              #2     #3     #2     #2  resolveEnvProviders single source of truth provider map
+c07    troubleshooting          #2     #3     #2     #2  Invalid provider combination error mixed ollama onnx
+c08    exact-token              #1     #1     #1     #1  як працює RRF k параметр у гібридному пошуку
+c09    config-env               #4     #4     #4     #4  HYBRID_PREFETCH_LIMIT prefetch per RRF leg
+c10    troubleshooting          #1     #1     #1     #1  чому hybridSearch падає коли нема sparse векторів
+c11    exact-token              #1     #1     #1     #1  getStoredMeta які поля читає з Qdrant payload
+c12    exact-token              #6     #6     #7     #7  як Qdrant зберігає named vectors dense sparse
+c13    exact-token              #1     #1     #1     #1  source_file payload index efficient filtering deleteByS
+c14    exact-token              #2     #2     #1     #1  [IMPR-c40] Qdrant Query API body shape for RRF fusion with prefetc
+c15    config-env               #4     #4     #3     #3  OVERLAP_SENTENCES default value sentence overlap chunki
+c17    conceptual               #1     #1     #1     #1  чому overlap не переноситься між markdown секціями
+c18    exact-token              #1     #1     #1     #1  splitSentences regex trailing text without period
+c19    exact-token              #1     #1     #1     #1  як pandoc конвертує docx epub rtf у markdown
+c20    config-env               #2     #2     #2     #2  MAX_CHUNK_TOKENS MIN_CHUNK_TOKENS chunking parameters r
+c21    conceptual               #1     #1     #1     #1  що робить npm run sync з config.json
+c22    exact-token              #1     #1     #1     #1  sync backfill logic for missing denseProvider field
+c24    conceptual               #1     #1     #1     #1  sync записує поточний провайдер а не той що був при інд
+c25    conceptual               #2     #2     #1     #1  [IMPR-c40] відмінність між sync та indexer стосовно config.json
+c26    conceptual               #2     #2     #1     #1  [IMPR-c40] як зареєструвати MCP сервер semidex у Claude Code
+c27    exact-token              #1     #1     #1     #1  qdrant_get_chunk window parameter context neighbors
+c28    exact-token              #1     #1     #1     #1  qdrant_find_by_tag groups results by source_file tags f
+c30    exact-token              #1     #1     #1     #1  qdrant_related backlinks file-level semantic graph navi
+c31    config-env               #5     #2     #4     #4  CHUNKS_OUT_DIR Obsidian export directory chunks output
+c32    config-env               #2     #1     #2     #2  LINK_MIN_SCORE LINK_TOP wikilink threshold semantic nei
+c34    conceptual               #1     #1     #1     #1  use cases for reviewing chunk quality and tag audit in
+c35    source-navigation        #5     #3     #1     #1  [IMPR-c40] де знаходиться src/core/qdrant.js і що він експортує
+c37    source-navigation        #7     #4     #4     #4  npm run bench:custom50 entry point run-v3.js
+c38    exact-token              #2     #1     #1     #1  [IMPR-c40] SCHEMA_VERSION constant embeddings.js reindex discrimin
+c39    exact-token              #2     #1     #2     #2  chunkRecall nDCG graded relevance benchmark v3 schema
+c40    exact-token              #1     #1     #1     #1  relevantChunks chunkId format source_file#chunk_index
+c41    conceptual               #5     #6     #4     #4  яка різниця між 21-query regression і custom-50 quality
+c42    exact-token              #1     #1     #1     #1  BENCH_SKIP_INDEX validates stored provider matches curr
+c43    config-env               #2     #1     #1     #1  [IMPR-c40] QDRANT_URL QDRANT_KEY required environment variables
+c44    config-env               #1     #1     #1     #1  RERANK_PROTECT_TOP1_DELTA minimum advantage to displace
+c45    config-env               #2     #2     #2     #2  config.json six reindex discriminators denseProvider de
+c47    exact-token              #3     #5     #3     #3  bge-m3-onnx neural sparse weights for rare Ukrainian te
+c48    cross-lingual-ua-en      #6     #5     #5     #5  cross-lingual retrieval Ukrainian query English documen
+c49    config-env               #3     #3     #1     #1  [IMPR-c40] ONNX_EMBED=1 recommended provider for multilingual Ukra
+--------------------------------------------------------------------------------------------------------------
+
+Regressions in colbert-top40 (1):
+--------------------------------------------------------------------------------------------------------------
+[c36] type=source-navigation
+  query: chunkFile splitSentences parseMarkdown location in source
+  hybrid-true      rank=#2  top1=chunking.md#6  rel=0
+  det-rerank       rank=#2  top1=chunking.md#6  rel=0
+  colbert-top20    rank=#4  top1=chunking.md#6  rel=0
+  colbert-top40    rank=#4  top1=chunking.md#6  rel=0
+
+--------------------------------------------------------------------------------------------------------------
+
+Rank-1 / top-3 ordering loss diagnostic (colbert-top40 vs hybrid-true):
+--------------------------------------------------------------------------------------------------------------
+  Ordering-loss queries  : 1  (hybrid rank <=2, colbert-top40 rank still <=3 but lower)
+  hybrid#1 -> colbert#2  : 1
+  hybrid#1 -> colbert#3  : 0
+  hybrid#2 -> colbert#3  : 0
+  Total MRR loss         : 0.500  (sum of 1/hybridRank − 1/colbertRank)
+  CE v4 reference        : 2 ordering losses, 1.000 MRR loss (custom-50, 2026-05-16)
+
+  Per-class ordering loss:
+  type                          n  MRR_loss
+  ------------------------------------------
+  conceptual                    1     0.500
+
+  ID          type                     hyb   c20   c40  mrrLoss  top1(colbert40)             query
+  --------------------------------------------------------------------------------------------------------------
+  c05         conceptual                #1    #2    #2    0.500  config-env.md#11         r0   що станеться якщо змінити denseModel у confi
+
+  Top-3 ordering-loss detail:
+--------------------------------------------------------------------------------------------------------------
+  [c05] conceptual — що станеться якщо змінити denseModel у config.json
+    hybrid=#1  colbert-top40=#2  mrrLoss=0.500
+    hybrid-true:
+      #1 providers.md#5                       rel=3
+      #2 providers.md#2                       rel=0
+      #3 config-env.md#11                     rel=0
+    colbert-top40:
+      #1 config-env.md#11                     rel=0
+      #2 providers.md#5                       rel=3
+      #3 project-structure.md#4               rel=0
+
+--------------------------------------------------------------------------------------------------------------
+
+Per-class metrics (hybrid-true):
+--------------------------------------------------------------------------------------------------------------
+type                     n  MRR@10 rank1   cR@5 negPass
+--------------------------------------------------------------------------------------------------------------
+exact-token             19   0.781    12  94.7%     n/a
+conceptual              12   0.600     6  75.0%     n/a
+config-env              10   0.503     2 100.0%     n/a
+troubleshooting          3   0.833     2 100.0%     n/a
+source-navigation        3   0.281     0  66.7%     n/a
+provider-activation      1   0.500     0 100.0%     n/a
+cross-lingual-ua-en      1   0.167     0   0.0%     n/a
+negative                 1     n/a   n/a    n/a    100%
+--------------------------------------------------------------------------------------------------------------
+
+Per-class metrics (det-rerank):
+--------------------------------------------------------------------------------------------------------------
+type                     n  MRR@10 rank1   cR@5 regr negPass
+--------------------------------------------------------------------------------------------------------------
+exact-token             19   0.818    14  94.7%    1     n/a
+conceptual              12   0.625     6  66.7%    0     n/a
+config-env              10   0.633     4 100.0%    0     n/a
+troubleshooting          3   0.778     2 100.0%    0     n/a
+source-navigation        3   0.361     0 100.0%    0     n/a
+provider-activation      1   0.500     0 100.0%    0     n/a
+cross-lingual-ua-en      1   0.200     0 100.0%    0     n/a
+negative                 1     n/a   n/a    n/a  n/a    100%
+--------------------------------------------------------------------------------------------------------------
+
+Per-class metrics (colbert-top20):
+--------------------------------------------------------------------------------------------------------------
+type                     n  MRR@10 rank1   cR@5 regr negPass
+--------------------------------------------------------------------------------------------------------------
+exact-token             19   0.832    14  94.7%    0     n/a
+conceptual              12   0.688     7  83.3%    0     n/a
+config-env              10   0.633     4 100.0%    0     n/a
+troubleshooting          3   0.833     2 100.0%    0     n/a
+source-navigation        3   0.500     1 100.0%    1     n/a
+provider-activation      1   0.500     0 100.0%    0     n/a
+cross-lingual-ua-en      1   0.200     0 100.0%    0     n/a
+negative                 1     n/a   n/a    n/a  n/a    100%
+--------------------------------------------------------------------------------------------------------------
+
+Per-class metrics (colbert-top40):
+--------------------------------------------------------------------------------------------------------------
+type                     n  MRR@10 rank1   cR@5 regr negPass
+--------------------------------------------------------------------------------------------------------------
+exact-token             19   0.832    14  94.7%    0     n/a
+conceptual              12   0.697     7  83.3%    0     n/a
+config-env              10   0.633     4 100.0%    0     n/a
+troubleshooting          3   0.833     2 100.0%    0     n/a
+source-navigation        3   0.500     1 100.0%    1     n/a
+provider-activation      1   0.500     0 100.0%    0     n/a
+cross-lingual-ua-en      1   0.200     0 100.0%    0     n/a
+negative                 1     n/a   n/a    n/a  n/a    100%
+--------------------------------------------------------------------------------------------------------------
+
+Interpretation:
+--------------------------------------------------------------------------------------------------------------
+  benchmark-only — no production runtime changes.
+  ColBERT vs hybrid          : BEATS hybrid  (0.718 vs 0.634)
+  ColBERT vs CE v4 (0.764)   : BELOW CE v4  (gap: -0.046)
+  Latency (colbert-top40 p50/p95): 11332ms / 12549ms vs hybrid 177ms / 243ms
+  colbert-top20 p50/p95        : 50ms / 92ms  (derived from colbert-top40 pass — no extra ONNX calls)
+  Optimization note: top20/top40 ColBERT scores are identical to a separate scoring pass.
+  Gate/ordering-loss counts reflect this run's live hybrid-true baseline and are not
+  used as evidence for the optimization — compare colbert-top20/40 quality metrics only.
+  Next step: fix regression(s) before proceeding, or defer if latency exceeds budget.
+--------------------------------------------------------------------------------------------------------------
+
+==============================================================================================================

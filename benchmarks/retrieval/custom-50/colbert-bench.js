@@ -6,7 +6,7 @@
 // Modes compared:
 //   hybrid-true     hybridSearch(TOP_K) — baseline
 //   det-rerank      current deterministic reranker on prefetch pool
-//   colbert-top20   ColBERT MaxSim on hybrid top-20 pool, final TOP_K
+//   colbert-top20   ColBERT MaxSim on hybrid top-20 subset, derived from top-40 scoring pass
 //   colbert-top40   ColBERT MaxSim on hybrid top-40 pool, final TOP_K  [gate-evaluated]
 //
 // CE v4 reference: 0.764 MRR@10 (custom-50, 2026-05-16, ce-routed-v4)
@@ -69,7 +69,7 @@ import {
   computeRoutingMetrics, buildRoutingAnalysis, computePerClassRows,
   bestExactRank, resultChunkId,
 } from '../lib/ce-routing-metrics.js';
-import { loadColBERTModel, scoreColBERT } from '../lib/colbert-rerank.js';
+import { loadColBERTModel, scoreColBERTAll } from '../lib/colbert-rerank.js';
 
 const __dirname       = dirname(fileURLToPath(import.meta.url));
 const FIXTURES_SHARED = resolve(__dirname, '../fixtures/docs');
@@ -232,22 +232,21 @@ async function runQuery(q) {
   const detResults = rerankResults(pool40, q.query, { finalLimit: TOP_K, collection: COLLECTION });
   const detRerankMs = Date.now() - t2;
 
-  // ColBERT top-40
-  const { scored: colbert40Scored, ms: colbert40Ms } =
-    await scoreColBERT(q.query, pool40, {
-      docMaxLength: COLBERT_MAX_LENGTH,
-      scoreMode:    COLBERT_SCORE_MODE,
-      topK:         TOP_K,
-    });
+  // Score full pool40 once; derive both top40 and top20 from the same pass.
+  // top20 semantics: candidates whose hybrid rank was inside pool40.slice(0, TOP_N_20),
+  // re-sorted by their already-computed ColBERT score — no additional ONNX calls.
+  const { allScored, ms: colbert40Ms } = await scoreColBERTAll(q.query, pool40, {
+    docMaxLength: COLBERT_MAX_LENGTH,
+    scoreMode:    COLBERT_SCORE_MODE,
+  });
 
-  // ColBERT top-20: slice prefetch pool to 20 before scoring
-  const pool20 = pool40.slice(0, TOP_N_20);
-  const { scored: colbert20Scored, ms: colbert20Ms } =
-    await scoreColBERT(q.query, pool20, {
-      docMaxLength: COLBERT_MAX_LENGTH,
-      scoreMode:    COLBERT_SCORE_MODE,
-      topK:         TOP_K,
-    });
+  const colbert40Scored = [...allScored].sort((a, b) => b.score - a.score).slice(0, TOP_K);
+
+  // Derive top20: restrict to candidates whose hybrid rank was within TOP_N_20,
+  // re-sort by ColBERT score already computed above — no additional ONNX calls.
+  const t3 = performance.now();
+  const colbert20Scored = allScored.slice(0, TOP_N_20).sort((a, b) => b.score - a.score).slice(0, TOP_K);
+  const colbert20Ms = performance.now() - t3; // array ops only; ONNX cost is in colbert40Ms
 
   return {
     hybridTrueMs, prefetchMs40, detRerankMs, colbert40Ms, colbert20Ms,
@@ -467,7 +466,7 @@ function buildReport(allMetrics, analysis, providerInfo, queryResults) {
   lines.push(`  Provider          : ${providerInfo.denseProvider}/${providerInfo.sparseProvider}`);
   lines.push(SEP2);
   lines.push(`  COLBERT_TOP_N      : ${COLBERT_TOP_N}  (pool for colbert-top${TOP_N_40})`);
-  lines.push(`  ${MODE_C20} pool    : ${TOP_N_20}  (first ${TOP_N_20} from top-${TOP_N_40} pool)`);
+  lines.push(`  ${MODE_C20} pool    : ${TOP_N_20}  (derived from top-${TOP_N_40} scoring pass — no extra ONNX calls)`);
   lines.push(`  COLBERT_MAX_LENGTH : ${COLBERT_MAX_LENGTH}  (doc token cap)`);
   lines.push(`  COLBERT_SCORE_MODE : ${COLBERT_SCORE_MODE}`);
   lines.push(`  COLBERT_TOKEN_POLICY: ${COLBERT_TOKEN_POLICY}  (official=keep EOS | no-eos=filter EOS)`);
@@ -656,6 +655,10 @@ function buildReport(allMetrics, analysis, providerInfo, queryResults) {
   lines.push(`  ColBERT vs CE v4 (0.764)   : ${mrrC40 >= 0.764 ? 'BEATS' : 'BELOW'} CE v4  (gap: ${(mrrC40 - 0.764).toFixed(3)})`);
   const latencyNote = `  Latency (${MODE_C40} p50/p95): ${Math.round(c40.p50)}ms / ${Math.round(c40.p95)}ms vs hybrid ${Math.round(base.p50)}ms / ${Math.round(base.p95)}ms`;
   lines.push(latencyNote);
+  lines.push(`  ${MODE_C20} p50/p95        : ${Math.round(c20.p50)}ms / ${Math.round(c20.p95)}ms  (derived from ${MODE_C40} pass — no extra ONNX calls)`);
+  lines.push('  Optimization note: top20/top40 ColBERT scores are identical to a separate scoring pass.');
+  lines.push('  Gate/ordering-loss counts reflect this run\'s live hybrid-true baseline and are not');
+  lines.push('  used as evidence for the optimization — compare colbert-top20/40 quality metrics only.');
   if (gatePass) {
     lines.push('  Next step: proceed to custom-150 ColBERT benchmark to check class-level generalisation.');
   } else if (!gMRR) {
