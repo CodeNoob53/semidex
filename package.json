@@ -34,6 +34,7 @@
     "smoke:retrieval-live": "node benchmarks/retrieval/smoke-live.js",
     "smoke:prune-live": "node benchmarks/retrieval/smoke-live-prune-stale.js",
     "bench:onnx-provider": "node benchmarks/onnx-provider-bench.js",
+    "bench:colbert-probe": "node benchmarks/retrieval/bge-m3-colbert-probe.js",
     "bootstrap:docs": "node src/bootstrap-docs.js",
     "doctor": "node src/doctor.js"
   },
