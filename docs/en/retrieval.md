@@ -438,6 +438,13 @@ not a reranking failure.
 Result file:
 `benchmarks/retrieval/results/2026-05-15-custom50-ce-routing-mmarco-mminilmv2-l12-h384-v1.txt`
 
+**v4 update (heuristic-v4, 2026-05-16):** Guard revised through v2/v3/v4
+iterations adding a `config-env` route class, `provider-activation` priority
+fix, and top-2 preservation lift. Custom-50 gate now **passes** with MRR@10
+≥ 0.755 and zero rank≤3 regressions. See
+[benchmarking.md — CE Routing Benchmark](benchmarking.md#ce-routing-benchmark)
+for current entrypoint and shared-lib structure.
+
 ### CE routing guard — custom-150 validation result
 
 CE routing was validated on the 75-query custom-150 Tier B dataset using the
@@ -480,6 +487,13 @@ before re-validation.
 
 Result file:
 `benchmarks/retrieval/results/2026-05-15-custom150-ce-routing-mmarco-mminilmv2-l12-h384-v1.txt`
+
+**v4 update (heuristic-v4, 2026-05-16):** Guard iterations v2/v3/v4 reduced
+rank≤3 regressions to zero, but custom-150 gate still **fails** — the
+`provider-activation` type MRR drops versus hybrid by more than the 0.030
+threshold. The MRR lift is positive but below the promotion bar. Next
+diagnostic: rank-1 preservation loss within top-3 on `provider-activation`
+queries. See [benchmarking.md — CE Routing Benchmark](benchmarking.md#ce-routing-benchmark).
 
 ### Production status
 

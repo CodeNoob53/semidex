@@ -221,6 +221,41 @@ custom-50 = controlled chunk-level retrieval quality on short, well-structured d
 custom-large = large structured document stress benchmark (API references, migration
 guides, multilingual workflows, runbooks).
 
+## CE Routing Benchmark
+
+CE routing is a benchmark-only experiment combining a deterministic query
+classifier with a lexical guard on top of the mmarco cross-encoder. It is
+**not production runtime code** — nothing in `src/` is modified.
+
+**Entrypoints:**
+
+- [`benchmarks/retrieval/custom-50/ce-routing-bench.js`](../../benchmarks/retrieval/custom-50/ce-routing-bench.js)
+- [`benchmarks/retrieval/custom-150/ce-routing-bench.js`](../../benchmarks/retrieval/custom-150/ce-routing-bench.js)
+
+**Shared benchmark-only helpers** (not imported by production code):
+
+- `benchmarks/retrieval/lib/ce-model.js` — lazy-singleton cross-encoder loader and batch scorer
+- `benchmarks/retrieval/lib/ce-routing-guards.js` — all classifier and guard variants (v1/v2/v3/v4/oracle)
+- `benchmarks/retrieval/lib/ce-routing-metrics.js` — aggregate metrics, regression analysis, per-class rows
+- `benchmarks/retrieval/lib/ce-routing-format.js` — formatting helpers shared across both entrypoints
+
+**Current v4 status (guard heuristic-v4, mmarco text+meta, ONNX provider):**
+
+- `custom-50`: gate **passes** — MRR@10 ≥ 0.755, zero rank≤3 regressions, all watched queries stable.
+- `custom-150`: gate **fails** — `provider-activation` type MRR drops versus hybrid by more than the 0.030 threshold, even though rank≤3 regressions are zero. MRR lift is positive but insufficient for promotion.
+
+**Rerun variance note:** CE reranking result files may drift slightly between
+reruns. Qdrant tie-breaking, CE score precision, and collection rebuilds can
+shift rank positions within top-K. Treat MRR changes smaller than ±0.010 near a
+gate threshold as requiring confirmation across multiple runs, not as proof of a
+logic change.
+
+**Next investigation:** rank-1 preservation and top-3 ordering loss — cases
+where the correct chunk stays within top-3 but moves down from rank #1/#2 to #3.
+
+See [retrieval.md — Cross-encoder reranking](retrieval.md#cross-encoder-reranking)
+for the per-guard history, class-level findings, and promotion criteria.
+
 ## Metrics
 
 ### Regression benchmark (v2 schema)
