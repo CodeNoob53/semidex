@@ -96,34 +96,42 @@ async function indexFile(filePath, rootPath, collection, allCollections, graph) 
   profiler.mark('tag');
 
   console.log('  [4/5] embedding + upserting...');
-  const points = await runBatched(taggedChunks, BATCH_SIZE, async (chunk) => {
+  const pointsWithDense = await runBatched(taggedChunks, BATCH_SIZE, async (chunk) => {
     const embedText = `${chunk.context}\n\n${chunk.text}`;
     const { dense, sparse, meta } = await embedForIndex(collection, embedText);
     return {
-      id: randomUUID(),
-      vector: { dense, sparse },
-      payload: {
-        text: chunk.text,
-        context: chunk.context,
-        section: chunk.section,
-        source_file: chunk.source_file,
-        tags: chunk.tags,
-        links: chunk.links,
-        backlinks: [],
-        chunk_index: chunk.chunkIndex,
-        total_chunks: chunk.totalChunks,
-        file_hash: fileHash,
-        vector_size: configVectorSize,
-        ...meta,
+      dense,
+      point: {
+        id: randomUUID(),
+        vector: { dense, sparse },
+        payload: {
+          text: chunk.text,
+          context: chunk.context,
+          section: chunk.section,
+          source_file: chunk.source_file,
+          tags: chunk.tags,
+          links: chunk.links,
+          backlinks: [],
+          chunk_index: chunk.chunkIndex,
+          total_chunks: chunk.totalChunks,
+          file_hash: fileHash,
+          vector_size: configVectorSize,
+          ...meta,
+        },
       },
     };
   });
+  const points = pointsWithDense.map(({ point }) => point);
   await upsertPoints(collection, points);
   console.log(`        upserted ${points.length} points`);
   profiler.mark('embed+upsert');
 
   console.log('  [5/5] linking...');
-  const linkedChunks = await runBatched(taggedChunks, BATCH_SIZE, chunk => buildLinks(chunk, allCollections, graph, collection));
+  // zip outside runBatched — taggedChunks[i] and pointsWithDense[i] share the same global index.
+  // never do (chunk, i) => ... inside the runBatched callback: i is batch-local and resets to 0.
+  const chunksWithDense = taggedChunks.map((chunk, i) => ({ chunk, dense: pointsWithDense[i].dense }));
+  const linkedChunks = await runBatched(chunksWithDense, BATCH_SIZE, ({ chunk, dense }) =>
+    buildLinks(chunk, allCollections, graph, collection, dense));
 
   await Promise.all(linkedChunks.map((chunk, i) => {
     const newLinks = chunk.links ?? [];

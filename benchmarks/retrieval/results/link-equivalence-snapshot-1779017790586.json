@@ -1,0 +1,253 @@
+{
+  "captured": "2026-05-17T11:38:35.783Z",
+  "collection": "_equiv-baseline-1779017790586",
+  "fixture_files": [
+    "benchmarks\\retrieval\\custom-50\\fixtures\\docs\\config-env.md",
+    "benchmarks\\retrieval\\custom-50\\fixtures\\docs\\mcp-workflow.md",
+    "benchmarks\\retrieval\\custom-50\\fixtures\\docs\\project-structure.md",
+    "benchmarks\\retrieval\\custom-50\\fixtures\\docs\\benchmarking.md",
+    "benchmarks\\retrieval\\custom-50\\fixtures\\docs\\multilingual.md",
+    "benchmarks\\retrieval\\custom-50\\fixtures\\docs\\obsidian.md"
+  ],
+  "embed_text": {
+    "phase4_separator": "\\n\\n",
+    "phase5_separator": "\\n\\n",
+    "note": "Patch A applied: phase 5 now uses \\n\\n, matching phase 4. Pre-conditions B+C (dense reuse) still pending."
+  },
+  "payloads": {
+    "benchmarking.md": {
+      "links": [
+        "config-env.md",
+        "mixed-language-agent-guide.md",
+        "troubleshooting-runbook.md",
+        "Современный_JavaScript_для_нетерпеливых.pdf"
+      ],
+      "backlinks": [
+        "config-env.md",
+        "multilingual.md",
+        "project-structure.md"
+      ]
+    },
+    "config-env.md": {
+      "links": [
+        "benchmarking.md",
+        "chunking.md",
+        "configuration-manual.md",
+        "migration-guide-v1-v2.md",
+        "obsidian.md",
+        "providers.md",
+        "qdrant.md",
+        "sync.md"
+      ],
+      "backlinks": [
+        "obsidian.md"
+      ]
+    },
+    "mcp-workflow.md": {
+      "links": [
+        "api-reference-large.md",
+        "mixed-language-agent-guide.md",
+        "project-structure.md",
+        "qdrant.md",
+        "sync.md"
+      ],
+      "backlinks": [
+        "project-structure.md"
+      ]
+    },
+    "multilingual.md": {
+      "links": [
+        "benchmarking.md",
+        "configuration-manual.md",
+        "mixed-language-agent-guide.md",
+        "providers.md",
+        "Современный_JavaScript_для_нетерпеливых.pdf"
+      ],
+      "backlinks": [
+        "project-structure.md"
+      ]
+    },
+    "obsidian.md": {
+      "links": [
+        "config-env.md",
+        "configuration-manual.md",
+        "source_file#chunk_index"
+      ],
+      "backlinks": []
+    },
+    "project-structure.md": {
+      "links": [
+        "api-reference-large.md",
+        "benchmarking.md",
+        "chunking.md",
+        "configuration-manual.md",
+        "mcp-workflow.md",
+        "multilingual.md",
+        "obsidian.md",
+        "providers.md",
+        "qdrant.md",
+        "sync.md",
+        "Современный_JavaScript_для_нетерпеливых.pdf"
+      ],
+      "backlinks": []
+    }
+  },
+  "graph": {
+    "api-reference-large.md": {
+      "links": [],
+      "backlinks": [
+        "mcp-workflow.md",
+        "project-structure.md"
+      ]
+    },
+    "benchmarking.md": {
+      "links": [
+        "config-env.md",
+        "mixed-language-agent-guide.md",
+        "troubleshooting-runbook.md",
+        "Современный_JavaScript_для_нетерпеливых.pdf"
+      ],
+      "backlinks": [
+        "config-env.md",
+        "multilingual.md",
+        "project-structure.md"
+      ]
+    },
+    "chunking.md": {
+      "links": [],
+      "backlinks": [
+        "config-env.md",
+        "project-structure.md"
+      ]
+    },
+    "config-env.md": {
+      "links": [
+        "benchmarking.md",
+        "chunking.md",
+        "configuration-manual.md",
+        "migration-guide-v1-v2.md",
+        "obsidian.md",
+        "providers.md",
+        "qdrant.md",
+        "sync.md"
+      ],
+      "backlinks": [
+        "benchmarking.md",
+        "obsidian.md"
+      ]
+    },
+    "configuration-manual.md": {
+      "links": [],
+      "backlinks": [
+        "config-env.md",
+        "multilingual.md",
+        "obsidian.md",
+        "project-structure.md"
+      ]
+    },
+    "mcp-workflow.md": {
+      "links": [
+        "api-reference-large.md",
+        "mixed-language-agent-guide.md",
+        "project-structure.md",
+        "qdrant.md",
+        "sync.md"
+      ],
+      "backlinks": [
+        "project-structure.md"
+      ]
+    },
+    "migration-guide-v1-v2.md": {
+      "links": [],
+      "backlinks": [
+        "config-env.md"
+      ]
+    },
+    "mixed-language-agent-guide.md": {
+      "links": [],
+      "backlinks": [
+        "benchmarking.md",
+        "mcp-workflow.md",
+        "multilingual.md"
+      ]
+    },
+    "multilingual.md": {
+      "links": [
+        "benchmarking.md",
+        "configuration-manual.md",
+        "mixed-language-agent-guide.md",
+        "providers.md",
+        "Современный_JavaScript_для_нетерпеливых.pdf"
+      ],
+      "backlinks": [
+        "project-structure.md"
+      ]
+    },
+    "obsidian.md": {
+      "links": [
+        "config-env.md",
+        "configuration-manual.md"
+      ],
+      "backlinks": [
+        "config-env.md",
+        "project-structure.md"
+      ]
+    },
+    "project-structure.md": {
+      "links": [
+        "api-reference-large.md",
+        "benchmarking.md",
+        "chunking.md",
+        "configuration-manual.md",
+        "mcp-workflow.md",
+        "multilingual.md",
+        "obsidian.md",
+        "providers.md",
+        "qdrant.md",
+        "sync.md",
+        "Современный_JavaScript_для_нетерпеливых.pdf"
+      ],
+      "backlinks": [
+        "mcp-workflow.md"
+      ]
+    },
+    "providers.md": {
+      "links": [],
+      "backlinks": [
+        "config-env.md",
+        "multilingual.md",
+        "project-structure.md"
+      ]
+    },
+    "qdrant.md": {
+      "links": [],
+      "backlinks": [
+        "config-env.md",
+        "mcp-workflow.md",
+        "project-structure.md"
+      ]
+    },
+    "sync.md": {
+      "links": [],
+      "backlinks": [
+        "config-env.md",
+        "mcp-workflow.md",
+        "project-structure.md"
+      ]
+    },
+    "troubleshooting-runbook.md": {
+      "links": [],
+      "backlinks": [
+        "benchmarking.md"
+      ]
+    },
+    "Современный_JavaScript_для_нетерпеливых.pdf": {
+      "links": [],
+      "backlinks": [
+        "benchmarking.md",
+        "multilingual.md",
+        "project-structure.md"
+      ]
+    }
+  }
+}

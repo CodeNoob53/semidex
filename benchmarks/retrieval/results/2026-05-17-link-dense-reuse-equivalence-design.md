@@ -251,11 +251,11 @@ same scores, same links.
 |------|--------|
 | Baseline capture script | ✅ done |
 | Snapshot diff mode | ✅ done (`diff <before.json> <after.json>`) |
-| Pre-condition A (unify `\n` → `\n\n`) | ✅ **implemented and verified** — 2026-05-17 |
-| Pre-condition B (buildLinks optional dense param) | ⏳ pending |
-| Pre-condition C (zip phase-4 dense in index.js) | ⏳ pending |
-| Candidate capture (B+C) | ⏳ blocked on B+C |
-| Full PASS/FAIL diff (A vs A+B+C) | ⏳ after B+C |
+| Pre-condition A (unify `\n` → `\n\n`) | ✅ **implemented** — 2026-05-17 |
+| Pre-condition B (buildLinks optional dense param) | ✅ **implemented** — 2026-05-17 |
+| Pre-condition C (zip phase-4 dense in index.js) | ✅ **implemented** — 2026-05-17 |
+| Candidate capture (B+C) | ✅ **done** — `link-equivalence-snapshot-1779017790586.json` |
+| Full PASS/FAIL diff (A vs A+B+C) | ⚠ **INCONCLUSIVE** — harness non-deterministic at LINK_MIN_SCORE=0.70; see §8 |
 
 **Patch A result:** diff non-empty at `LINK_MIN_SCORE=0.70` — 7 payload and 11 graph
 differences. Accepted: format unification is correct; the delta is near-threshold
@@ -265,6 +265,58 @@ variance from the `\n` inconsistency, not a semantic regression. See
 **Reference snapshot for B+C diff:** `link-equivalence-snapshot-1779016800146.json`
 (post-Patch-A, phase 5 using `\n\n`). The B+C candidate must be diffed against
 this snapshot, not the original pre-A baseline.
+
+---
+
+## 8. B+C result (2026-05-17)
+
+**Pre-conditions B and C implemented:**
+- `buildLinks()` now accepts optional `precomputedDense = null` (Pre-condition B).
+- `index.js` phase 4 returns `{ dense, point }` per chunk; phase 5 zips with
+  `taggedChunks.map((chunk, i) => ({ chunk, dense: pointsWithDense[i].dense }))`
+  outside `runBatched`, then passes `dense` directly to `buildLinks()` (Pre-condition C).
+- Fallback: when `precomputedDense` is null (default), `buildLinks()` still calls
+  `embedForSearch()` as before — backward compatible.
+
+**Equivalence diff result: INCONCLUSIVE — harness non-determinism prevents a clean PASS.**
+
+Three captures were taken — post-A reference, B+C capture 1, B+C capture 2:
+
+| Diff | Payload diffs | Graph diffs | Exit code |
+|------|--------------|-------------|-----------|
+| post-A ref vs B+C capture 1 | 6 | 8 | 1 (FAIL) |
+| B+C capture 1 vs B+C capture 2 (same code, consecutive) | 3 | 8 | 1 (FAIL) |
+
+The original pass criterion (§3) required **empty diffs**. Neither B+C run meets it,
+so the formal verdict is **not proven**.
+
+**Why the harness is non-deterministic:** at `LINK_MIN_SCORE=0.70`, cosine scores
+near the threshold are sensitive to Qdrant HNSW index state (segment merges,
+approximate nearest-neighbor non-determinism). Two consecutive runs with identical
+code and vectors already produce 3 payload + 8 graph differences — before any
+optimization is even compared. The harness cannot distinguish "B+C introduced a
+delta" from "HNSW returned different neighbors this run."
+
+**Implementation status:** the code is believed correct (same text → same vector →
+same scores → same links), but the live harness cannot prove zero additional delta
+at this threshold. This is a harness limitation, not a confirmed implementation bug.
+
+**What would make this provable:** replace the HNSW search in the harness with
+exact search (Qdrant `exact: true` flag on the search call), or run a local cosine
+comparison over scrolled candidate vectors, or use a deterministic test double for
+`search()`. Any of these would remove HNSW variance and make the diff meaningful.
+
+**Performance impact (informational):** one ONNX dense embedding call eliminated per
+chunk during the link phase. For a 30-chunk file this removes ~30 × 100–125 ms =
+3–4 s of ONNX inference from phase 5.
+
+**Smoke coverage:** `src/smoke/sections/22-build-links-precomputed.js` covers:
+- `buildLinks()` with `precomputedDense=null` does not throw synchronously (fallback path exists).
+- `buildLinks()` with a precomputed vector and empty collections resolves without calling embed.
+
+**B+C snapshots:**
+- `link-equivalence-snapshot-1779017790586.json` — first B+C capture
+- `link-equivalence-snapshot-1779017931410.json` — second B+C capture (inter-run variance baseline)
 
 The baseline can be recaptured any time by running the script against the current
 production code.

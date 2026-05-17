@@ -10,8 +10,11 @@ const LINK_ALLOWLIST = process.env.LINK_COLLECTIONS
 
 // graph is mutated in place — caller owns load/save to avoid race conditions.
 // sourceCollection determines which embedding provider to use for the query.
-export async function buildLinks(chunk, collections, graph, sourceCollection) {
-  const { dense } = await embedForSearch(sourceCollection, `${chunk.context}\n\n${chunk.text}`);
+// precomputedDense: if provided, skips the embedForSearch call (phase-4 vector reuse).
+export async function buildLinks(chunk, collections, graph, sourceCollection, precomputedDense = null) {
+  const dense = precomputedDense !== null
+    ? precomputedDense
+    : (await embedForSearch(sourceCollection, `${chunk.context}\n\n${chunk.text}`)).dense;
   const vector    = { name: 'dense', vector: dense };
   const links     = [...(chunk.links || [])];
 
