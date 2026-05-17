@@ -1,0 +1,284 @@
+{
+  "config": {
+    "date": "2026-05-17",
+    "provider": "onnx",
+    "onnxEmbed": "1",
+    "ep": "cpu",
+    "batchSize": "4",
+    "cudaStrict": "",
+    "runs": 3,
+    "collection": "bench-indexing-skip-path-cpu",
+    "corpusFileCount": 15,
+    "sourceRoot": "C:\\Users\\Aorus\\Documents\\Projects\\semidex\\.bench-indexing-corpus",
+    "cleanup": true
+  },
+  "runs": [
+    {
+      "run": 1,
+      "totalMs": 1094848,
+      "filesIndexed": 15,
+      "filesSkipped": 0,
+      "chunksTotal": 318
+    },
+    {
+      "run": 2,
+      "totalMs": 1094,
+      "filesIndexed": 0,
+      "filesSkipped": 15,
+      "chunksTotal": 0
+    },
+    {
+      "run": 3,
+      "totalMs": 1025,
+      "filesIndexed": 0,
+      "filesSkipped": 15,
+      "chunksTotal": 0
+    }
+  ],
+  "fileResults": [
+    [
+      {
+        "file": "C:\\Users\\Aorus\\Documents\\Projects\\semidex\\.bench-indexing-corpus\\AGENTS.md",
+        "phases": {
+          "pre": 70,
+          "chunk": 1,
+          "context": 18693,
+          "tag": 24363,
+          "embed+upsert": 18727,
+          "link": 4227,
+          "chunks_out": 12
+        },
+        "chunksIn": 23,
+        "chunksOut": 23,
+        "tokensEst": 4096,
+        "totalMs": 66093
+      },
+      {
+        "file": "C:\\Users\\Aorus\\Documents\\Projects\\semidex\\.bench-indexing-corpus\\docs\\en\\architecture.md",
+        "phases": {
+          "pre": 61,
+          "chunk": 1,
+          "context": 10938,
+          "tag": 9818,
+          "embed+upsert": 6612,
+          "link": 3186,
+          "chunks_out": 7
+        },
+        "chunksIn": 13,
+        "chunksOut": 13,
+        "tokensEst": 2091,
+        "totalMs": 30623
+      },
+      {
+        "file": "C:\\Users\\Aorus\\Documents\\Projects\\semidex\\.bench-indexing-corpus\\docs\\en\\benchmark-dataset-plan.md",
+        "phases": {
+          "pre": 55,
+          "chunk": 1,
+          "context": 21187,
+          "tag": 14577,
+          "embed+upsert": 16130,
+          "link": 4480,
+          "chunks_out": 10
+        },
+        "chunksIn": 25,
+        "chunksOut": 24,
+        "tokensEst": 4757,
+        "totalMs": 56440
+      },
+      {
+        "file": "C:\\Users\\Aorus\\Documents\\Projects\\semidex\\.bench-indexing-corpus\\docs\\en\\benchmarking.md",
+        "phases": {
+          "pre": 58,
+          "chunk": 2,
+          "context": 59878,
+          "tag": 39275,
+          "embed+upsert": 51038,
+          "link": 8279,
+          "chunks_out": 28
+        },
+        "chunksIn": 61,
+        "chunksOut": 56,
+        "tokensEst": 15048,
+        "totalMs": 158558
+      },
+      {
+        "file": "C:\\Users\\Aorus\\Documents\\Projects\\semidex\\.bench-indexing-corpus\\docs\\en\\ce-rerank-design.md",
+        "phases": {
+          "pre": 73,
+          "chunk": 1,
+          "context": 37127,
+          "tag": 24569,
+          "embed+upsert": 21830,
+          "link": 7560,
+          "chunks_out": 18
+        },
+        "chunksIn": 42,
+        "chunksOut": 41,
+        "tokensEst": 6124,
+        "totalMs": 91178
+      },
+      {
+        "file": "C:\\Users\\Aorus\\Documents\\Projects\\semidex\\.bench-indexing-corpus\\docs\\en\\chunking-quality.md",
+        "phases": {
+          "pre": 63,
+          "chunk": 1,
+          "context": 15740,
+          "tag": 11103,
+          "embed+upsert": 7637,
+          "link": 3912,
+          "chunks_out": 14
+        },
+        "chunksIn": 20,
+        "chunksOut": 20,
+        "tokensEst": 2153,
+        "totalMs": 38470
+      },
+      {
+        "file": "C:\\Users\\Aorus\\Documents\\Projects\\semidex\\.bench-indexing-corpus\\docs\\en\\configuration.md",
+        "phases": {
+          "pre": 54,
+          "chunk": 0,
+          "context": 17281,
+          "tag": 323553,
+          "embed+upsert": 11160,
+          "link": 4422,
+          "chunks_out": 10
+        },
+        "chunksIn": 21,
+        "chunksOut": 21,
+        "tokensEst": 2989,
+        "totalMs": 356480
+      },
+      {
+        "file": "C:\\Users\\Aorus\\Documents\\Projects\\semidex\\.bench-indexing-corpus\\docs\\en\\mcp-tools.md",
+        "phases": {
+          "pre": 47,
+          "chunk": 0,
+          "context": 6653,
+          "tag": 6312,
+          "embed+upsert": 4586,
+          "link": 2073,
+          "chunks_out": 4
+        },
+        "chunksIn": 8,
+        "chunksOut": 8,
+        "tokensEst": 1301,
+        "totalMs": 19675
+      },
+      {
+        "file": "C:\\Users\\Aorus\\Documents\\Projects\\semidex\\.bench-indexing-corpus\\docs\\en\\obsidian.md",
+        "phases": {
+          "pre": 48,
+          "chunk": 1,
+          "context": 4889,
+          "tag": 3404,
+          "embed+upsert": 2267,
+          "link": 1101,
+          "chunks_out": 3
+        },
+        "chunksIn": 6,
+        "chunksOut": 6,
+        "tokensEst": 550,
+        "totalMs": 11713
+      },
+      {
+        "file": "C:\\Users\\Aorus\\Documents\\Projects\\semidex\\.bench-indexing-corpus\\docs\\en\\operations.md",
+        "phases": {
+          "pre": 55,
+          "chunk": 1,
+          "context": 19731,
+          "tag": 16956,
+          "embed+upsert": 13796,
+          "link": 4477,
+          "chunks_out": 12
+        },
+        "chunksIn": 26,
+        "chunksOut": 25,
+        "tokensEst": 4084,
+        "totalMs": 55028
+      },
+      {
+        "file": "C:\\Users\\Aorus\\Documents\\Projects\\semidex\\.bench-indexing-corpus\\docs\\en\\project-structure.md",
+        "phases": {
+          "pre": 51,
+          "chunk": 0,
+          "context": 7288,
+          "tag": 7447,
+          "embed+upsert": 4707,
+          "link": 2224,
+          "chunks_out": 4
+        },
+        "chunksIn": 9,
+        "chunksOut": 9,
+        "tokensEst": 1287,
+        "totalMs": 21721
+      },
+      {
+        "file": "C:\\Users\\Aorus\\Documents\\Projects\\semidex\\.bench-indexing-corpus\\docs\\en\\README.md",
+        "phases": {
+          "pre": 50,
+          "chunk": 0,
+          "context": 1266,
+          "tag": 527,
+          "embed+upsert": 1156,
+          "link": 527,
+          "chunks_out": 1
+        },
+        "chunksIn": 1,
+        "chunksOut": 1,
+        "tokensEst": 347,
+        "totalMs": 3527
+      },
+      {
+        "file": "C:\\Users\\Aorus\\Documents\\Projects\\semidex\\.bench-indexing-corpus\\docs\\en\\retrieval.md",
+        "phases": {
+          "pre": 58,
+          "chunk": 1,
+          "context": 25635,
+          "tag": 19603,
+          "embed+upsert": 22837,
+          "link": 5848,
+          "chunks_out": 13
+        },
+        "chunksIn": 30,
+        "chunksOut": 27,
+        "tokensEst": 6617,
+        "totalMs": 73995
+      },
+      {
+        "file": "C:\\Users\\Aorus\\Documents\\Projects\\semidex\\.bench-indexing-corpus\\docs\\en\\roadmap.md",
+        "phases": {
+          "pre": 61,
+          "chunk": 0,
+          "context": 21883,
+          "tag": 18841,
+          "embed+upsert": 15492,
+          "link": 4434,
+          "chunks_out": 23
+        },
+        "chunksIn": 27,
+        "chunksOut": 26,
+        "tokensEst": 5674,
+        "totalMs": 60734
+      },
+      {
+        "file": "C:\\Users\\Aorus\\Documents\\Projects\\semidex\\.bench-indexing-corpus\\README.md",
+        "phases": {
+          "pre": 57,
+          "chunk": 1,
+          "context": 14227,
+          "tag": 21876,
+          "embed+upsert": 9586,
+          "link": 3945,
+          "chunks_out": 7
+        },
+        "chunksIn": 18,
+        "chunksOut": 18,
+        "tokensEst": 2656,
+        "totalMs": 49699
+      }
+    ],
+    [],
+    []
+  ]
+}
