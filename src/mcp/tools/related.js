@@ -14,6 +14,19 @@ export const schema = {
   },
 };
 
+// Pure helper — exposed for smoke testing.
+// Zips ordered link names with parallel scroll results, preserving graph order.
+// links: string[]  — ordered target file names from node.links
+// results: Array<Point[]>  — parallel scroll results, same order as links
+// Returns: string[]  — formatted lines, one per link
+export function zipOrderedLinks(links, results) {
+  return links.map((target, i) => {
+    const p    = results[i]?.[0]?.payload;
+    const desc = p ? (p.context || p.section || '') : '';
+    return `- **${target}**${desc ? ` — ${desc}` : ''}`;
+  });
+}
+
 export async function handle({ collection, source_file }) {
   const graph = loadGraph(collection);
   const node = graph[source_file];
@@ -24,10 +37,6 @@ export async function handle({ collection, source_file }) {
       must: [{ key: 'source_file', match: { value: target } }],
     }, 1, ['context', 'section', 'tags'])
   ));
-  const lines = [`## Related files for \`${source_file}\`\n`];
-  for (let i = 0; i < node.links.length; i++) {
-    const p = results[i][0]?.payload;
-    lines.push(`- **${node.links[i]}**${p ? ` — ${p.context || p.section || ''}` : ''}`);
-  }
+  const lines = [`## Related files for \`${source_file}\`\n`, ...zipOrderedLinks(node.links, results)];
   return lines.join('\n');
 }

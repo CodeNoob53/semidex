@@ -605,7 +605,7 @@ sessions — exclude.
 | Rank | Блокер | Impact | Статус |
 |------|--------|--------|--------|
 | 1 | Sync `loadGraph` на MCP search (#2.1) | 5-50 ms per search request | ✅ **merged** — mtime cache у `graph.js` |
-| 2 | Parallel scroll у `qdrant_related` (#2.8) | 70-90% latency для запиту з 5+ links | ✅ **merged** — `Promise.all` у `related.js` |
+| 2 | Parallel scroll у `qdrant_related` (#2.8) | 70-90% latency для запиту з 5+ links | ✅ **merged** — `Promise.all` у `related.js`; graph order збережено через indexed loop; `zipOrderedLinks` pure helper + smoke section 25 (10 assertions, 367/367 pass) |
 
 ### Tier 2 — ✅ реалізовано
 
@@ -676,7 +676,7 @@ per chunk до і після фіксу #2.2 та #2.4 — це найвищий
 ### Tier 1 — ✅ реалізовано
 
 1. **#2.1 graph cache** — merged. `Map<collection, {mtimeMs, data}>` у `graph.js`.
-2. **#2.8 parallel scroll у related** — merged. `Promise.all` у `related.js`.
+2. **#2.8 parallel scroll у related** — merged. `Promise.all` у `related.js`. Graph order збережено через indexed loop. `zipOrderedLinks` pure helper extracted; smoke section 25 покриває order preservation, missing-result fallback, section fallback, empty-desc edge case (10 assertions). **Output delta (intentional cleanup):** якщо point існує, але context і section порожні, старий код додавав ` — ` без тексту; новий код прибирає trailing dash. Це cleanup, не regression.
 
 ### Tier 2 — ✅ реалізовано
 
