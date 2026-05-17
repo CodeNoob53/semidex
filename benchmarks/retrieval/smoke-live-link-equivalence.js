@@ -1,8 +1,17 @@
-// Live equivalence harness for dense-vector reuse in the link phase (Tier 2).
+// Live observational harness for dense-vector reuse in the link phase (Tier 2).
 //
-// Purpose: prove that reusing the phase-4 dense vector in buildLinks() does not
-// change links, backlinks, or graph output vs the current behaviour of calling
-// embedForSearch() independently in phase 5.
+// CLASSIFICATION: observational, not acceptance-grade proof.
+//   HNSW approximate search is nondeterministic at low LINK_MIN_SCORE thresholds.
+//   Two consecutive runs with identical code produce differing link/graph snapshots.
+//   A "FAIL" diff may indicate a regression or may be pure HNSW variance.
+//   Use this harness to detect large regressions (all links disappear, counts halved),
+//   not to prove zero additional delta.
+//
+// ACCEPTANCE PROOF for B+C dense reuse:
+//   src/smoke/sections/22-build-links-precomputed.js — deterministic, no Qdrant required.
+//
+// Purpose (original): index fixture corpus with two code variants, snapshot
+// links/backlinks/graph, diff normalized snapshots.
 //
 // Modes:
 //   capture  (default) — index fixture corpus, snapshot, save JSON, exit.

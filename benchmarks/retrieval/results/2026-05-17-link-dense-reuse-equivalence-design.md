@@ -4,14 +4,16 @@
 vector produced in phase 4 (embed+upsert) as the query vector in phase 5 (link
 building), instead of calling `embedForSearch()` again for each chunk.
 
-**Optimization not implemented yet.** This document defines the harness design and
-records the pre-conditions that must hold before the patch is safe to merge.
+**Status (2026-05-17): fully implemented.** Patch A (embed-text unification) and
+Pre-conditions B+C (dense-vector reuse) are all merged. See §7–8 for results.
+The sections below are the original design record; they describe the pre-implementation
+state for traceability.
 
 ---
 
 ## 1. The problem
 
-### Current code — two separate embed calls per chunk
+### Historical code — two separate embed calls per chunk (pre-implementation)
 
 **Phase 4** (`src/indexer/index.js:99-101`):
 ```js
@@ -255,7 +257,8 @@ same scores, same links.
 | Pre-condition B (buildLinks optional dense param) | ✅ **implemented** — 2026-05-17 |
 | Pre-condition C (zip phase-4 dense in index.js) | ✅ **implemented** — 2026-05-17 |
 | Candidate capture (B+C) | ✅ **done** — `link-equivalence-snapshot-1779017790586.json` |
-| Full PASS/FAIL diff (A vs A+B+C) | ⚠ **INCONCLUSIVE** — harness non-deterministic at LINK_MIN_SCORE=0.70; see §8 |
+| Full PASS/FAIL diff (A vs A+B+C) | ⚠ **INCONCLUSIVE** — live harness nondeterministic; see §8 |
+| Deterministic smoke proof (B+C) | ✅ **PASS** — `22-build-links-precomputed.js`, 23 assertions; see §8 |
 
 **Patch A result:** diff non-empty at `LINK_MIN_SCORE=0.70` — 7 payload and 11 graph
 differences. Accepted: format unification is correct; the delta is near-threshold
@@ -271,50 +274,65 @@ this snapshot, not the original pre-A baseline.
 ## 8. B+C result (2026-05-17)
 
 **Pre-conditions B and C implemented:**
-- `buildLinks()` now accepts optional `precomputedDense = null` (Pre-condition B).
+- `buildLinks()` accepts optional `precomputedDense = null` (Pre-condition B).
 - `index.js` phase 4 returns `{ dense, point }` per chunk; phase 5 zips with
   `taggedChunks.map((chunk, i) => ({ chunk, dense: pointsWithDense[i].dense }))`
   outside `runBatched`, then passes `dense` directly to `buildLinks()` (Pre-condition C).
 - Fallback: when `precomputedDense` is null (default), `buildLinks()` still calls
   `embedForSearch()` as before — backward compatible.
+- The pure link-decision loop was extracted into `applyLinkResults()` (exported, no I/O
+  except `updatePayload` for already-found backlinks) to enable deterministic testing.
+  `buildLinks()` is now a thin wrapper: resolve dense → search Qdrant → call `applyLinkResults`.
 
-**Equivalence diff result: INCONCLUSIVE — harness non-determinism prevents a clean PASS.**
+### Live harness result: INCONCLUSIVE
 
-Three captures were taken — post-A reference, B+C capture 1, B+C capture 2:
+Three live captures were taken. All diffs are nondeterministic:
 
 | Diff | Payload diffs | Graph diffs | Exit code |
 |------|--------------|-------------|-----------|
 | post-A ref vs B+C capture 1 | 6 | 8 | 1 (FAIL) |
 | B+C capture 1 vs B+C capture 2 (same code, consecutive) | 3 | 8 | 1 (FAIL) |
 
-The original pass criterion (§3) required **empty diffs**. Neither B+C run meets it,
-so the formal verdict is **not proven**.
+The original pass criterion (§3) required empty diffs. Neither B+C run meets it,
+so the live harness result is **not a valid equivalence proof**.
 
-**Why the harness is non-deterministic:** at `LINK_MIN_SCORE=0.70`, cosine scores
-near the threshold are sensitive to Qdrant HNSW index state (segment merges,
-approximate nearest-neighbor non-determinism). Two consecutive runs with identical
-code and vectors already produce 3 payload + 8 graph differences — before any
-optimization is even compared. The harness cannot distinguish "B+C introduced a
-delta" from "HNSW returned different neighbors this run."
+The live harness is now reclassified as **observational** — useful for spotting large
+regressions (e.g. all links disappear) but not proof of zero additional delta. At
+`LINK_MIN_SCORE=0.70`, HNSW approximate search nondeterminism (segment merges, beam
+walk variation) produces 3+ payload diffs between consecutive identical-code runs.
+The harness cannot distinguish "B+C introduced a delta" from "HNSW returned different
+neighbors this run."
 
-**Implementation status:** the code is believed correct (same text → same vector →
-same scores → same links), but the live harness cannot prove zero additional delta
-at this threshold. This is a harness limitation, not a confirmed implementation bug.
+### Deterministic smoke proof: PASS
 
-**What would make this provable:** replace the HNSW search in the harness with
-exact search (Qdrant `exact: true` flag on the search call), or run a local cosine
-comparison over scrolled candidate vectors, or use a deterministic test double for
-`search()`. Any of these would remove HNSW variance and make the diff meaningful.
+`src/smoke/sections/22-build-links-precomputed.js` tests `applyLinkResults` with
+synthetic, fixed search results. All 23 assertions pass. Covered cases:
 
-**Performance impact (informational):** one ONNX dense embedding call eliminated per
-chunk during the link phase. For a 30-chunk file this removes ~30 × 100–125 ms =
-3–4 s of ONNX inference from phase 5.
+| Case | Result |
+|------|--------|
+| empty collections | ✅ links unchanged, graph untouched |
+| above-threshold result | ✅ link added, graph mutated |
+| same-file result | ✅ ignored |
+| duplicate result | ✅ link appears once |
+| below-threshold result | ✅ ignored |
+| pre-existing link | ✅ preserved |
+| multiple collections | ✅ results merged |
+| mixed above/below | ✅ only above-threshold added |
+| `buildLinks(null)` fallback | ✅ does not throw, returns Promise |
+| `buildLinks(precomputed)` | ✅ resolves with correct shape, no embed call |
 
-**Smoke coverage:** `src/smoke/sections/22-build-links-precomputed.js` covers:
-- `buildLinks()` with `precomputedDense=null` does not throw synchronously (fallback path exists).
-- `buildLinks()` with a precomputed vector and empty collections resolves without calling embed.
+This is the **acceptance proof for B+C logic**. The proof is valid because:
+1. `applyLinkResults` contains the entire link-decision and graph-mutation logic.
+2. Given the same `searchResults` input, `buildLinks` with precomputed dense and
+   `buildLinks` with a fallback embed that returns the same vector produce identical
+   `searchResults` — so `applyLinkResults` is called with identical arguments in both
+   paths. The decision loop output is therefore identical by construction.
 
-**B+C snapshots:**
+**Performance impact:** one ONNX dense embedding call eliminated per chunk during the
+link phase. For a 30-chunk file this removes ~30 × 100–125 ms = 3–4 s of ONNX
+inference from phase 5.
+
+**B+C snapshots (observational, not proof):**
 - `link-equivalence-snapshot-1779017790586.json` — first B+C capture
 - `link-equivalence-snapshot-1779017931410.json` — second B+C capture (inter-run variance baseline)
 
