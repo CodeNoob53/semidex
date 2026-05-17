@@ -14,7 +14,7 @@ function existingTags(chunk) {
   return Array.isArray(t) ? t : t ? [t] : [];
 }
 
-export async function addTags(chunk) {
+export async function addTagsWithModel(chunk, model) {
   const prompt = `You are a document tagger. Generate 3-7 concise tags for this text chunk. Tags should describe the topic, technology, or concept. Use lowercase, hyphens for spaces (e.g. "node-js", "sql-join", "normalization"). Output only a comma-separated list of tags, nothing else.
 
 File: ${chunk.source_file}
@@ -24,9 +24,13 @@ Context: ${chunk.context || ''}
 Text:
 ${chunk.text.slice(0, 800)}`;
 
-  const raw = await generate(MODEL, prompt);
+  const raw = await generate(model, prompt);
   const tags = [...new Set([...existingTags(chunk), ...parseTags(raw)])];
   return { ...chunk, tags };
+}
+
+export async function addTags(chunk) {
+  return addTagsWithModel(chunk, MODEL);
 }
 
 export function extractJsonArray(raw, expectedLength) {

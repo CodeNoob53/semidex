@@ -33,7 +33,10 @@ ${chunkB.text.slice(0, 300)}`;
   return answer.trim().toLowerCase().includes('merge');
 }
 
-export async function processChunks(chunks) {
+// Merge boundary-flagged adjacent chunks and reindex. No per-chunk context generation
+// (addContext is not called). shouldMerge() LLM calls still happen for boundary chunks.
+// Used directly by the combined path so it can skip the addContext step.
+export async function mergeChunks(chunks) {
   const merged = [];
   let i = 0;
   while (i < chunks.length) {
@@ -54,7 +57,10 @@ export async function processChunks(chunks) {
     merged.push(current);
     i++;
   }
+  return merged.map((c, idx) => ({ ...c, chunkIndex: idx, totalChunks: merged.length }));
+}
 
-  const reindexed = merged.map((c, i) => ({ ...c, chunkIndex: i, totalChunks: merged.length }));
+export async function processChunks(chunks) {
+  const reindexed = await mergeChunks(chunks);
   return runBatched(reindexed, BATCH_SIZE, addContext);
 }

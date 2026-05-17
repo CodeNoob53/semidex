@@ -326,6 +326,14 @@ PRUNE_STALE=1 ONNX_EMBED=1 COLLECTION=my-docs npm run index ./docs
 Only safe when the target is the full source root. Removes Qdrant points for files
 no longer on disk. Never run against a single file or a subdirectory subset.
 
+### Combined LLM mode (opt-in, faster indexing)
+
+```bash
+COMBINED_LLM=1 ONNX_EMBED=1 COLLECTION=my-docs npm run index ./docs
+```
+
+Merges context and tag generation into a single Ollama call per chunk. Uses `CONTEXT_MODEL` for both; `TAG_MODEL` is ignored. Falls back to separate context and tag prompts per chunk on parse failure, still using `CONTEXT_MODEL` for both — `TAG_MODEL` is never used. Indexing never aborts due to combined-mode errors. See `docs/en/configuration.md — COMBINED_LLM` for details.
+
 ### PDF / book indexing
 
 ```bash
@@ -338,7 +346,9 @@ PDFs are converted to Markdown by `@opendocsg/pdf2md` (not pandoc — pandoc can
 
 | Symptom | Action |
 |---------|--------|
-| Unclear environment failures | Run `npm run doctor` first — it checks Qdrant, Ollama, schema, models, and local files in one read-only pass |
+| Unclear environment failures | Run `npm run doctor` first — it checks Qdrant, Ollama, schema, models, COMBINED_LLM config, and local files in one read-only pass |
+| `[combined] parse failed` in indexer output | Normal fallback — combined mode fell back to separate context+tag for that chunk; not an error |
+| `COMBINED_LLM=1 … TAG_MODEL is ignored` doctor WARN | Expected when TAG_MODEL ≠ CONTEXT_MODEL and COMBINED_LLM=1; set TAG_MODEL to match CONTEXT_MODEL or leave unset to silence it |
 | `[preflight] Ollama unreachable` | Indexer now fails fast before chunking. Start Ollama (`ollama serve`); on Windows try `OLLAMA_URL=http://127.0.0.1:11434` if localhost is proxied |
 | `[preflight] Required Ollama model(s) not pulled` | Run the `ollama pull <model>` command shown in the error, then retry |
 | Qdrant connection refused | Start Qdrant; verify `QDRANT_URL`; run `npm run sync` |

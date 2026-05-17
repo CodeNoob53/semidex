@@ -53,8 +53,25 @@ The light/fallback mode uses `ollama` + `hashed-tf`. It requires Ollama running 
 | `OLLAMA_URL` | `http://localhost:11434` | Ollama base URL |
 | `EMBED_MODEL` | `bge-m3` | Dense model for Ollama provider |
 | `CONTEXT_MODEL` | `gemma3:4b` | Model for chunk contextualization |
-| `TAG_MODEL` | `gemma3:4b` | Model for tag generation |
+| `TAG_MODEL` | `gemma3:4b` | Model for tag generation (ignored when `COMBINED_LLM=1`) |
+| `COMBINED_LLM` | `0` | Set to `1` to use a single LLM call for both context and tags per chunk (opt-in) |
 | `VECTOR_SIZE` | `1024` | Must match dense embedding size |
+
+### COMBINED_LLM
+
+`COMBINED_LLM=1` merges the context and tag phases into a single Ollama call per chunk. The model is always `CONTEXT_MODEL`; `TAG_MODEL` is ignored when this flag is set (doctor warns if they differ).
+
+**When to use:** If Ollama LLM phases are your indexing bottleneck and you want to reduce total LLM calls. Benchmarks showed ~30% latency reduction on gemma3:4b for normal chunks.
+
+**Fallback behavior:** If the combined JSON response cannot be parsed, or if the chunk is too short (< 80 chars), the indexer falls back to separate context and tag prompts for that chunk — both still using `CONTEXT_MODEL`. `TAG_MODEL` is not used. Indexing never fails due to a combined-mode parse error.
+
+**Batch combined is not implemented.** Each chunk still gets its own LLM call — the only change is that one call returns both context and tags instead of two calls returning them separately.
+
+```bash
+COMBINED_LLM=1 COLLECTION=my-docs npm run index ./docs
+```
+
+`COMBINED_LLM` does not affect embedding, linking, or any retrieval behavior. It is safe to switch on or off between indexing runs of the same collection — the payload schema is unchanged.
 
 ## Providers
 

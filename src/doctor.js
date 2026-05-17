@@ -13,6 +13,7 @@ import {
   checkNodeVersion, classifyVectorSchema,
   checkProviderAgreement, checkSchemaVersion,
   missingModelCommands, formatCudaProbeFailure, STATUS,
+  resolveCombinedLlmConfig,
 } from './core/doctor-checks.js';
 import { loadConfig } from './core/config.js';
 import { SCHEMA_VERSION } from './core/embeddings.js';
@@ -88,6 +89,16 @@ report('A', checkNodeVersion(process.version));
   report('A', makeResult(STATUS.PASS, `TAG_MODEL: ${tag}`));
   report('A', makeResult(STATUS.PASS, `ONNX_EMBED: ${onnx}`));
   report('A', makeResult(STATUS.PASS, `ONNX_EXECUTION_PROVIDER: ${ep}`));
+
+  const combinedCfg = resolveCombinedLlmConfig(process.env);
+  if (combinedCfg.enabled) {
+    report('A', makeResult(STATUS.PASS, `COMBINED_LLM: enabled (model: ${combinedCfg.model})`));
+    if (combinedCfg.warning) {
+      report('A', makeResult(STATUS.WARN, `COMBINED_LLM: ${combinedCfg.warning}`));
+    }
+  } else {
+    report('A', makeResult(STATUS.PASS, 'COMBINED_LLM: disabled (default separate context+tag path)'));
+  }
 }
 
 // ── B: Qdrant connectivity ────────────────────────────────────────────────────

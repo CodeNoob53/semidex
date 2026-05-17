@@ -211,4 +211,39 @@ export default async function ({ ok }) {
     // Must not leak multi-line ORT stack — caller truncates, but verify output is still well-formed.
     ok('19n: output starts with [onnx] prefix',                        linuxErr.startsWith('[onnx]'));
   }
+
+  // 19o. resolveCombinedLlmConfig
+  {
+    const { resolveCombinedLlmConfig } = await import('../../core/doctor-checks.js');
+
+    const off = resolveCombinedLlmConfig({});
+    ok('19o: disabled by default (unset)',        !off.enabled);
+    ok('19o: model falls back to default',        off.model === 'gemma3:4b');
+    ok('19o: no warning when disabled',           off.warning === '');
+
+    const offZero = resolveCombinedLlmConfig({ COMBINED_LLM: '0' });
+    ok('19o: COMBINED_LLM=0 → disabled',          !offZero.enabled);
+
+    const offOther = resolveCombinedLlmConfig({ COMBINED_LLM: 'yes' });
+    ok('19o: COMBINED_LLM=yes → disabled (only "1" enables)', !offOther.enabled);
+
+    const on = resolveCombinedLlmConfig({ COMBINED_LLM: '1' });
+    ok('19o: COMBINED_LLM=1 → enabled',           on.enabled);
+    ok('19o: model is default CONTEXT_MODEL',      on.model === 'gemma3:4b');
+    ok('19o: no warning when TAG_MODEL unset (same default)', on.warning === '');
+
+    const onSame = resolveCombinedLlmConfig({ COMBINED_LLM: '1', CONTEXT_MODEL: 'llama3.2:3b', TAG_MODEL: 'llama3.2:3b' });
+    ok('19o: same models → no warning',            onSame.warning === '');
+    ok('19o: model is CONTEXT_MODEL',              onSame.model === 'llama3.2:3b');
+
+    const onDiff = resolveCombinedLlmConfig({ COMBINED_LLM: '1', CONTEXT_MODEL: 'llama3.2:3b', TAG_MODEL: 'gemma3:4b' });
+    ok('19o: different TAG_MODEL → warning non-empty', onDiff.warning.length > 0);
+    ok('19o: warning mentions TAG_MODEL ignored',      onDiff.warning.includes('TAG_MODEL'));
+    ok('19o: model is still CONTEXT_MODEL',            onDiff.model === 'llama3.2:3b');
+
+    const onCtxOnly = resolveCombinedLlmConfig({ COMBINED_LLM: '1', CONTEXT_MODEL: 'qwen3:1.7b' });
+    ok('19o: CONTEXT_MODEL set, TAG_MODEL unset → model is CONTEXT_MODEL', onCtxOnly.model === 'qwen3:1.7b');
+    // TAG_MODEL not explicitly set → no warning (user hasn't expressed a different preference)
+    ok('19o: TAG_MODEL unset → no warning (not explicitly different)', onCtxOnly.warning === '');
+  }
 }

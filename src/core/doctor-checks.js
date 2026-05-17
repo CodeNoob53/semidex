@@ -203,3 +203,26 @@ export function formatCudaProbeFailure(errMessage, platform) {
   if (errMessage) return `${errMessage}\n             ${guidance}`;
   return guidance;
 }
+
+// ── COMBINED_LLM config helper ────────────────────────────────────────────────
+
+const DEFAULT_CONTEXT_MODEL = 'gemma3:4b';
+
+// Resolves combined LLM mode config from the environment.
+// Returns { enabled, model, warning }.
+//   enabled: true only when COMBINED_LLM=1
+//   model:   CONTEXT_MODEL (or default) — the single model used for both context and tags
+//   warning: non-empty string when TAG_MODEL is set to a different value than CONTEXT_MODEL
+export function resolveCombinedLlmConfig(env = process.env) {
+  const enabled = env.COMBINED_LLM === '1';
+  const model   = env.CONTEXT_MODEL || DEFAULT_CONTEXT_MODEL;
+
+  let warning = '';
+  if (enabled && env.TAG_MODEL && env.TAG_MODEL !== model) {
+    // Only warn when TAG_MODEL is explicitly set to a different value.
+    // If TAG_MODEL is unset, there is no user confusion to surface.
+    warning = `COMBINED_LLM=1 uses CONTEXT_MODEL for both context and tags; TAG_MODEL is ignored.`;
+  }
+
+  return { enabled, model, warning };
+}
