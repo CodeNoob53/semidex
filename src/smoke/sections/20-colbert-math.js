@@ -112,6 +112,22 @@ export default async function ({ ok, throws }) {
     'shape mismatch'
   );
 
+  // ── attn-count semantics: official = attn.sum()-1, no-eos = attn.sum()-2 ──────
+  // ids1/mask1 from above: attnMask=[1,1,1,1,0,1] → attn.sum()=5
+  // official keeps EOS → 5-1=4 live tokens; no-eos removes EOS → 5-2=3 live tokens.
+  const attnSum = mask1.reduce((a, b) => a + b, 0); // = 5 (CLS + a + b + c + EOS)
+  ok('official token count == attn.sum()-1', vecsOfficial.length === attnSum - 1);
+  ok('no-eos token count == attn.sum()-2',   vecsNoEos.length   === attnSum - 2);
+
+  // ── maxSimScore: average ≠ sum on asymmetric query ────────────────────────────
+  // q=[ax0, ax1], d=[ax0]: MaxSim avg = (1+0)/2 = 0.5; sum = 1+0 = 1.
+  // Verify the function returns average, not sum.
+  const qAsym = [unit(0, dim), unit(1, dim)];
+  const dOne  = [unit(0, dim)];
+  const scoreAvg = maxSimScore(qAsym, dOne, true);
+  ok('MaxSim average != sum (asymmetric query)', Math.abs(scoreAvg - 0.5) < 1e-6);
+  ok('MaxSim average is sum/|Q|, not raw sum',   Math.abs(scoreAvg - 1.0) > 0.4);
+
   // ── SPECIAL_TOKENS exported and matches production values ────────────────────
   ok('SPECIAL_TOKENS contains pad(0)',        SPECIAL_TOKENS.has(0));
   ok('SPECIAL_TOKENS contains bos(1)',        SPECIAL_TOKENS.has(1));

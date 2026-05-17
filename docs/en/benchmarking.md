@@ -352,8 +352,8 @@ ColBERT late-interaction reranking was evaluated using the `colbert_vecs` head o
 
 Two token policies were benchmarked (`COLBERT_TOKEN_POLICY` env):
 
-| Metric | official | no-eos | Gate |
-|--------|----------|--------|------|
+| Metric | official (primary) | no-eos (ablation) | Gate |
+|--------|--------------------|-------------------|------|
 | MRR@10 (colbert-top40) | 0.718 | **0.720** | ≥ 0.705 ✓ |
 | Rank≤3 regressions | **1** (c36) | **0** | zero required |
 | Ordering losses | **3** | **3** | < 2 required ✗ |
@@ -361,7 +361,18 @@ Two token policies were benchmarked (`COLBERT_TOKEN_POLICY` env):
 | p50 latency | 11 400 ms | 11 195 ms | — |
 | Gate | FAILED | FAILED | — |
 
-`official` keeps EOS(2) per released FlagEmbedding scoring code (parity reference). `no-eos` excludes EOS based on an open upstream issue — it eliminates the c36 hard regression and reduces total MRR loss, making it the better experimental policy. Both fail the gate on ordering-loss count.
+**Token policy semantics** (implemented in `benchmarks/retrieval/lib/colbert-math.js`):
+
+Raw ONNX `colbert_vecs` has shape `[batch, padded_seq_len − 1, 1024]` — CLS is already excluded by the model, but padding rows are present (zeroed by the attention mask). The two policies trim to the real sequence length:
+
+- **`official`** (primary — FlagEmbedding parity): keep `attention_mask.sum() − 1` tokens — excludes CLS, keeps EOS. Matches the released `_process_colbert_vecs` / `colbert_score` behavior.
+- **`no-eos`** (ablation): keep `attention_mask.sum() − 2` tokens — excludes both CLS and EOS. Based on an open FlagEmbedding PR; eliminates the c36 regression and reduces total MRR loss.
+
+**Scoring:** `score = Σ_q max_d(q·d) / |Q|` — average MaxSim over query tokens, matching released FlagEmbedding. A `COLBERT_SCORE_MODE=sum` ablation is available but not used in headline results.
+
+**Qdrant MAX_SIM note:** Qdrant's server-side multivector `MAX_SIM` is defined as sum of maximum similarities (not average). Within a single query the ranking order is identical (sum = average × const for fixed query length), but the absolute score scales differ. If future Qdrant multivector comparisons are run, compare ranking quality (MRR@10, nDCG) — not raw score equality. Qdrant multivector storage is deferred due to ~0.5–1 MiB per chunk at 1024-dim ColBERT.
+
+`official` is the canonical reference policy. `no-eos` is an ablation tracking an open upstream issue — results are reported separately and are not used as headline numbers.
 
 **Latency:** colbert-top40 p50 ≈ 11 200 ms on CPU (~63× slower than hybrid). Not suitable for interactive use without GPU acceleration or a top-N reduction strategy.
 

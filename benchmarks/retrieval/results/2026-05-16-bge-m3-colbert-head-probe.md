@@ -122,15 +122,28 @@ or top-N trimming (e.g. top-20).
 
 1. **CLS stripped by model (offset=1):** `colbert_vecs` seq_len = `inputIds.length − 1`.
    Token mapping: `colbert_row[t] → inputIds[t + 1]`. Use `extractTokenVecsBGE()`.
-2. **No padding issue:** seq_len for a query is exactly the tokenised length (no forced
-   padding to max_length=8192); sparse_vecs shape confirms per-query dynamic length.
+2. **Token count semantics (FlagEmbedding parity):** raw ONNX `colbert_vecs` has shape
+   `[batch, padded_seq_len − 1, 1024]`. Padding rows are zeroed by the model's mask but
+   still present. `extractTokenVecsBGE` trims them by checking `attnMask[idxInIds] === 0`.
+   This is equivalent to the FlagEmbedding post-processing rule:
+   - `official` policy: keep `attention_mask.sum() − 1` tokens (CLS excluded, EOS kept)
+   - `no-eos` policy: keep `attention_mask.sum() − 2` tokens (CLS and EOS both excluded)
+   When the tokenizer is called with `padding: true` (batch mode), padding tokens appear
+   at the end and are correctly gated out by attnMask. Single-text inference with dynamic
+   seq_len also works because the same mask check applies.
 3. **Special tokens:** filter CLS(0), bos(1), unk(3), mask(250001) via `COLBERT_TOKEN_POLICY`.
-   EOS(2) kept by `official` policy (matches BGE-M3 authors), excluded by `no-eos`.
+   EOS(2) kept by `official` policy (matches released FlagEmbedding scoring code), excluded by `no-eos`.
 4. **Normalisation:** vectors are pre-normalised to unit L2 by the model — cosine = dot.
    MaxSim inner loop is pure dot product.
-5. **Shape:** colbert_vecs is `[1, seq_len, 1024]` — extract `flat.slice(t*1024, (t+1)*1024)`
-   per live token.
-6. **No Qdrant multivector needed:** reranker reads colbert_vecs at query time only;
+5. **Shape:** colbert_vecs is `[batch, colbert_seq_len, dim]` where `colbert_seq_len = padded_seq_len − 1` and `dim = 1024`.
+   Per-token stride is `dim` (not `colbert_seq_len`): extract `flat.slice(t * dim, (t+1) * dim)` per live token.
+   Read `dim` from `colbertTensor.dims[2]` (axis 2), not from axis 1 (which is the sequence length).
+6. **MaxSim score is average over query tokens, not sum:** `score = Σ_q max_d(q·d) / |Q|`.
+   This matches the released `colbert_score` / `compute_colbert_score` in FlagEmbedding.
+   Qdrant's server-side `MAX_SIM` is defined as sum (not average); within a single query
+   the ranking is identical (sum = average × const), but the absolute scales differ — do not
+   compare raw scores between application-side average-MaxSim and Qdrant MAX_SIM.
+7. **No Qdrant multivector needed:** reranker reads colbert_vecs at query time only;
    stored vectors in Qdrant remain dense+sparse unchanged.
 
 ### Risks before full benchmark
@@ -170,7 +183,7 @@ or top-N trimming (e.g. top-20).
 
 **Policy interpretation:**
 - `official` — FlagEmbedding parity reference: keeps EOS(2) as a content token per the released scoring code.
-- `no-eos` — ablation based on an open FlagEmbedding issue/PR about EOS handling. Better experimental policy for semidex: eliminates the hard regression, lower total MRR loss, slightly higher MRR/nDCG.
+- `no-eos` — ablation based on an open FlagEmbedding issue/PR about EOS handling. Better on this custom-50 ablation run (eliminates the hard regression, lower total MRR loss, slightly higher MRR/nDCG), but not canonical — `official` remains the primary reference policy.
 - The EOS token appears to hurt c36 (`source-navigation`) specifically — removing it shifts c36 from a hard regression (#2→#4) to a softer ordering-loss (#2→#3, mrrLoss=0.167).
 - The 3 persistent ordering losses (c05, c32 in both policies; c39 in `official`, c36 in `no-eos`) are structural: ColBERT promotes lexically similar but non-relevant `config-env.md` chunks above the hybrid top-1 because the term overlap with the query is high. This is a ranker-level limitation, not a guard issue.
 
@@ -192,7 +205,7 @@ Both policies: **FAILED**
 |--------|-------------|-------|
 | official (initial run) | `benchmarks/retrieval/results/2026-05-16-custom50-colbert-top40-maxlen512-mean-official.txt` | first official run |
 | official (post-optimization) | `benchmarks/retrieval/results/2026-05-17-custom50-colbert-top40-maxlen512-mean-official.txt` | after eliminating top-20 duplicate ONNX encoding; quality metrics identical |
-| no-eos | `benchmarks/retrieval/results/2026-05-17-custom50-colbert-top40-maxlen512-mean-no-eos.txt` | ablation — better experimental policy |
+| no-eos | `benchmarks/retrieval/results/2026-05-17-custom50-colbert-top40-maxlen512-mean-no-eos.txt` | ablation — better on custom-50 run, not canonical |
 
 ### Mode summary (no-eos run, for reference)
 
