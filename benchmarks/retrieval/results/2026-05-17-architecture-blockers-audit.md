@@ -567,7 +567,7 @@ single-file режимі це блокує keep-alive до Qdrant та Ollama.
 |----------------|----------|----------------------|
 | 1 | ColBERT top-20 re-encoding | ✅ **виправлено** — `scoreColBERTAll` у `colbert-rerank.js:124`, p50 top20 = 50 ms (раніше 5971 ms) |
 | 2 | Query encoded twice у ColBERT | ✅ **виправлено** разом з 1 |
-| 3 | ONNX true batch inference | ❌ не зроблено — `embedOnnx` все ще batch=1 |
+| 3 | ONNX true batch inference | ⚠ **probe проведено** — всі три виходи batch-safe (bit-identical після виправлення slicing bug у probe: colbert stride = `colbertAll.dims[1]`, не `seqLen`). Speedup: N=2→1.25×, N=6→0.38× (mixed-length; padding overhead домінує). Verdict: PROCEED — реалізувати length-bucketed `embedOnnxBatch` helper. Div. `2026-05-17-onnx-true-batching-probe.md`. |
 | 4 | `OLLAMA_NUM_PARALLEL=1` server default | ⚠ потребує лише server-side зміни, не коду |
 | 5 | Sequential candidate encoding у ColBERT | ❌ не зроблено (вимагає multi-session або worker) |
 | 6 | File-level concurrency | ❌ не зроблено (correctness risk — в Do NOT do yet) |
@@ -642,10 +642,12 @@ per chunk до і після фіксу #2.2 та #2.4 — це найвищий
 - ❌ Parallel file indexing — race conditions на graph mutations
 - ❌ Pipeline overlap context/tag/embed — correctness risk через ланцюжок залежностей
 - ❌ ONNX concurrent `session.run()` — не re-entrant у `onnxruntime-node@1.24.3`
-- ❌ ONNX true batch inference у production (`onnx-embed.js`) — потребує API-зміни та
-  верифікації batch_size>1 для трьох виходів (dense, sparse, colbert_vecs). Тільки
-  в benchmark helper, як зазначено в попередньому аудиті.
-- ❌ Length-bucketed batching — релевантне тільки після true batching
+- ⏳ ONNX true batch inference у production (`onnx-embed.js`) — correctness probe
+  пройшов (всі три виходи bit-identical). Не інтегрувати до production поки не
+  реалізовано length-bucketing і не підтверджено speedup на реальному corpus.
+  Наступний крок: `embedOnnxBatch` helper + bucketed benchmark.
+- ⏳ Length-bucketed batching — передумова для ефективного true batching; без
+  bucketing mixed-length corpus дає padding overhead і уповільнення (N=6: 0.38×)
 - ❌ ColBERT у production — explicit defer per Stage 1 verdict
 
 Все, що в розділі 0 та 2 цього звіту, цих обмежень не стосується.
