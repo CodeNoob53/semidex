@@ -151,3 +151,4 @@ Verify correct behavior with `ONNX_EMBED=1` after manual model placement.
 - Provider code: `src/core/onnx-embed.js` — `resolveOnnxExecutionProviders()`
 - Configuration docs: `docs/en/configuration.md` — `ONNX_EXECUTION_PROVIDER` section
 - Operations docs: `docs/en/operations.md` — provider troubleshooting table
+- Strict probe design: `benchmarks/retrieval/results/2026-05-17-onnx-cuda-strict-probe-design.md`

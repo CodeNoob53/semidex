@@ -100,7 +100,10 @@ and CUDA is unavailable, semidex currently logs a warning and retries with CPU. 
 means a misconfigured CUDA environment runs silently on CPU without error. Do not
 treat the absence of an error as proof that CUDA is active. To verify: check the
 `[onnx] creating inference session (providers: cuda)` line in stderr — if followed
-by `retrying with cpu`, CUDA did not load. A future patch will add a strict mode.
+by `retrying with cpu`, CUDA did not load. A planned Stage 1 patch will add a CUDA
+session probe to `npm run doctor` (PASS/WARN, no indexing run required). A planned
+Stage 2 patch will add `ONNX_CUDA_STRICT=1` to convert the silent retry into a hard
+failure when CUDA is explicitly requested.
 
 Invalid values produce a warning and fall back to `cpu`.
 
