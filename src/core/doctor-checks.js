@@ -140,3 +140,34 @@ export function missingModelCommands(required, available) {
   const missing = [...new Set(required)].filter(m => !availSet.has(m));
   return missing.map(m => `ollama pull ${m}`);
 }
+
+// ── CUDA probe guidance helpers ───────────────────────────────────────────────
+
+// Platform-specific guidance lines for a failed CUDA probe.
+// platform: process.platform value ('win32', 'linux', etc.)
+// Returns a string suitable for the `detail` field of a doctor result.
+export function cudaProbeGuidance(platform) {
+  if (platform === 'win32') {
+    return [
+      'CUDA is not supported via prebuilt onnxruntime-node on Windows.',
+      'Use ONNX_EXECUTION_PROVIDER=dml for GPU acceleration instead.',
+      'To use CPU: ONNX_EXECUTION_PROVIDER=cpu',
+      'See: docs/en/configuration.md — ONNX_EXECUTION_PROVIDER',
+    ].join('\n             ');
+  }
+  return [
+    'CUDA on Linux requires CUDA 12.x + cuDNN 9 + LD_LIBRARY_PATH set to their lib dirs.',
+    'Verify: nvidia-smi  |  nvcc --version (must be 12.x)  |  LD_LIBRARY_PATH includes CUDA lib64 + cuDNN lib',
+    'To use CPU instead: ONNX_EXECUTION_PROVIDER=cpu',
+    'See: docs/en/configuration.md — ONNX_EXECUTION_PROVIDER',
+  ].join('\n             ');
+}
+
+// One-line detail string for a CUDA probe failure result.
+// errMessage: the (already-truncated) error string from probeOnnxProvider.
+// platform: process.platform value.
+export function formatCudaProbeFailure(errMessage, platform) {
+  const guidance = cudaProbeGuidance(platform);
+  if (errMessage) return `${errMessage}\n             ${guidance}`;
+  return guidance;
+}

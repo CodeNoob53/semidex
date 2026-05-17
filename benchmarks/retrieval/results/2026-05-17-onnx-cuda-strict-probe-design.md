@@ -1,6 +1,6 @@
 # ONNX CUDA Strict Probe — Design Report (2026-05-17)
 
-**Scope:** Design only — no production code changed in this task.
+**Scope:** Stage 1 implemented (2026-05-17). Stage 2 (`ONNX_CUDA_STRICT=1`) is planned.
 **Context:** Companion to `2026-05-17-onnx-cuda-node-provider-research.md`.
 
 ---
@@ -79,7 +79,7 @@ Rationale:
 
 ## 4. Staged Plan
 
-### Stage 1 — docs + doctor probe only (no indexing behavior change)
+### Stage 1 — docs + doctor probe only (no indexing behavior change) ✅ implemented
 
 **Goal:** give users a way to verify CUDA before trusting it, without changing any indexing path.
 
@@ -97,7 +97,7 @@ Changes:
 
 **Model path requirement:** doctor needs to know where the model file lives. The model path is currently constructed in `load()` in `onnx-embed.js` — not exported. Stage 1 would require exporting a `getModelPath()` helper or a standalone `probeOnnxProvider(provider)` function from `onnx-embed.js`.
 
-### Stage 2 — `ONNX_CUDA_STRICT=1` flag
+### Stage 2 — `ONNX_CUDA_STRICT=1` flag (planned)
 
 **Goal:** make CUDA failures hard-fail during indexing when the user explicitly opts in.
 
@@ -288,7 +288,7 @@ This design does not change the Windows CUDA stance:
 ## 9. Linux CUDA — Remains Opt-In / Experimental
 
 - `ONNX_EXECUTION_PROVIDER=cuda` remains opt-in and advanced.
-- Linux CUDA is the only officially supported CUDA path via `onnxruntime-node` 1.26.x.
+- Linux CUDA is the only officially supported CUDA path via `onnxruntime-node` 1.26.x (semidex currently pins 1.24.3 — upgrade is a prerequisite for this path).
 - Strict mode (Stage 2) does not change the supported-platform set — it only makes failures visible.
 - Stage 3 (strict-by-default) requires real Linux CUDA validation before being considered.
 
@@ -296,16 +296,17 @@ This design does not change the Windows CUDA stance:
 
 ## 10. Files to Change (When Implemented)
 
-| File | Stage | Change |
-|---|---|---|
-| `src/core/onnx-embed.js` | 1 | Export `MODEL_PATH` (or `getModelPath()`) |
-| `src/core/onnx-embed.js` | 2 | Add `ONNX_CUDA_STRICT` gate in `load()` |
-| `src/core/onnx-embed.js` | 2 | Add `buildCudaErrorMessage(err, strict)` helper |
-| `src/doctor.js` | 1 | Add `[F] ONNX / GPU` section with CUDA probe |
-| `src/core/doctor-checks.js` | 1 | Add `checkOnnxCudaProbe()` — pure or async, for smoke-testability |
-| `src/smoke/sections/19-doctor-checks.js` | 1 | Add assertions for new pure helpers in section 19 |
-| `docs/en/configuration.md` | 1–2 | Update CUDA gap note to mention `ONNX_CUDA_STRICT` and doctor probe |
-| `docs/en/operations.md` | 1–2 | Update troubleshooting row to mention doctor probe and strict flag |
+| File | Stage | Change | Status |
+|---|---|---|---|
+| `src/core/onnx-embed.js` | 1 | Export `getOnnxModelPath()` | ✅ |
+| `src/core/onnx-provider-probe.js` | 1 | New: `probeOnnxProvider(providers, modelPath)` | ✅ |
+| `src/core/doctor-checks.js` | 1 | Add `cudaProbeGuidance()`, `formatCudaProbeFailure()` | ✅ |
+| `src/doctor.js` | 1 | Add `[F] ONNX / GPU` section with CUDA probe | ✅ |
+| `src/smoke/sections/19-doctor-checks.js` | 1 | Add assertions 19k–19l for new pure helpers | ✅ |
+| `docs/en/configuration.md` | 1–2 | Updated — doctor probe live, Stage 2 planned | ✅ |
+| `docs/en/operations.md` | 1–2 | Updated — doctor probe live, Stage 2 planned | ✅ |
+| `src/core/onnx-embed.js` | 2 | Add `ONNX_CUDA_STRICT` gate in `load()` | planned |
+| `src/core/onnx-embed.js` | 2 | Add `buildCudaErrorMessage(err, strict)` helper | planned |
 
 ---
 

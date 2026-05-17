@@ -6,20 +6,18 @@
 import { env, AutoTokenizer } from '@huggingface/transformers';
 import * as ort from 'onnxruntime-node';
 import { existsSync, mkdirSync, createWriteStream, statSync } from 'fs';
-import { join, dirname, resolve } from 'path';
+import { join, resolve } from 'path';
 import { fileURLToPath } from 'url';
 
-const ROOT      = join(dirname(fileURLToPath(import.meta.url)), '../../');
-const CACHE_DIR = join(ROOT, 'models');
+import { ONNX_CACHE_DIR as CACHE_DIR, ONNX_MODEL_DIR as MODEL_DIR } from './onnx-paths.js';
+
 const MODEL_ID  = 'aapot/bge-m3-onnx';
-const MODEL_DIR = join(CACHE_DIR, 'bge-m3-onnx');
 const HF_BASE   = 'https://huggingface.co';
 
 // bge-m3 sentencepiece special token ids
 const SPECIAL_TOKENS = new Set([0, 1, 2, 3, 250001]); // pad, bos, eos, unk, mask
 
 env.cacheDir = CACHE_DIR;
-mkdirSync(CACHE_DIR, { recursive: true });
 
 let tokenizer = null;
 let session   = null;
@@ -115,6 +113,7 @@ export function resolveOnnxExecutionProviders(envValue) {
 async function load() {
   if (tokenizer && session) return;
 
+  mkdirSync(CACHE_DIR, { recursive: true });
   process.stderr.write('[onnx] loading tokenizer...\n');
   tokenizer = await AutoTokenizer.from_pretrained(MODEL_ID);
 

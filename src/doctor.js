@@ -12,10 +12,12 @@ import {
   makeResult, aggregateExitCode, formatResult,
   checkNodeVersion, classifyVectorSchema,
   checkProviderAgreement, checkSchemaVersion,
-  missingModelCommands, STATUS,
+  missingModelCommands, formatCudaProbeFailure, STATUS,
 } from './core/doctor-checks.js';
 import { loadConfig } from './core/config.js';
 import { SCHEMA_VERSION } from './core/embeddings.js';
+import { getOnnxModelPath } from './core/onnx-paths.js';
+import { probeOnnxProvider } from './core/onnx-provider-probe.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const KEY  = process.env.QDRANT_KEY ?? '';
@@ -350,6 +352,54 @@ console.log('\n[E] Local files');
   }
 }
 
+// ── F: ONNX / GPU ─────────────────────────────────────────────────────────────
+
+const needsOnnxF = useOnnx
+  || Object.values(configCollections).some(c => c.denseProvider === 'bge-m3-onnx');
+
+if (needsOnnxF) {
+  console.log('\n[F] ONNX / GPU');
+
+  const ep = (process.env.ONNX_EXECUTION_PROVIDER ?? '').trim().toLowerCase() || 'cpu';
+  report('F', makeResult(STATUS.PASS, `ONNX_EXECUTION_PROVIDER: ${ep}`));
+
+  if (ep === 'cuda') {
+    const modelPath     = getOnnxModelPath();
+    const modelDataPath = modelPath + '.data';
+    const hasModel      = existsSync(modelPath);
+    const hasData       = existsSync(modelDataPath);
+
+    if (!hasModel && !hasData) {
+      report('F', makeResult(STATUS.SKIP,
+        'CUDA session probe',
+        'model not cached — first ONNX run downloads ~2.3 GB; probe will run after that'));
+    } else if (!hasModel || !hasData) {
+      const missing = !hasModel ? 'model.onnx' : 'model.onnx.data';
+      report('F', makeResult(STATUS.WARN,
+        'CUDA session probe skipped — ONNX model cache incomplete',
+        `${missing} missing; re-run indexing to complete the download`));
+    } else {
+      const result = await probeOnnxProvider(['cuda'], modelPath);
+      if (result.ok) {
+        report('F', makeResult(STATUS.PASS, 'CUDA session probe — CUDA is available'));
+      } else {
+        report('F', makeResult(STATUS.WARN,
+          'CUDA session probe failed — CUDA provider unavailable',
+          formatCudaProbeFailure(result.message, process.platform)));
+      }
+    }
+  } else if (ep === 'dml') {
+    report('F', makeResult(STATUS.PASS,
+      'Execution provider: dml — CUDA probe not applicable'));
+  } else {
+    report('F', makeResult(STATUS.PASS,
+      'Execution provider: cpu — CUDA probe not applicable'));
+  }
+} else {
+  console.log('\n[F] ONNX / GPU — SKIPPED (ONNX not in use)');
+  collect('F', makeResult(STATUS.SKIP, 'ONNX / GPU checks', 'ONNX not in use'));
+}
+
 // ── Summary ───────────────────────────────────────────────────────────────────
 
 const counts = { PASS: 0, WARN: 0, FAIL: 0, SKIP: 0 };
@@ -388,7 +438,7 @@ const lines = [
 let currentGroup = '';
 for (const r of allResults) {
   if (r.group !== currentGroup) {
-    const groupNames = { A: 'Runtime environment', B: 'Qdrant connectivity', C: 'Collection schema', D: 'Ollama', E: 'Local files' };
+    const groupNames = { A: 'Runtime environment', B: 'Qdrant connectivity', C: 'Collection schema', D: 'Ollama', E: 'Local files', F: 'ONNX / GPU' };
     lines.push(`### [${r.group}] ${groupNames[r.group] ?? r.group}`);
     lines.push('');
     currentGroup = r.group;

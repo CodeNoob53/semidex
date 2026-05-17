@@ -24,7 +24,12 @@ Official `onnxruntime-node` 1.26.x includes a Linux x64 postinstall manifest
 libraries from NuGet. This makes Linux CUDA the **only officially supported CUDA
 path** for the standard npm package.
 
-**Target stack:** CUDA 12.x + cuDNN 9 + `onnxruntime-node` 1.26.x
+> **Note:** semidex currently pins `onnxruntime-node` 1.24.3 (see `package.json`).
+> The 1.26.x CUDA postinstall path described here requires a dependency upgrade.
+> Linux CUDA support is therefore documented as a forward-looking policy target,
+> not a currently-tested configuration. Upgrade planning is a separate task.
+
+**Target stack:** CUDA 12.x + cuDNN 9 + `onnxruntime-node` 1.26.x (upgrade required)
 
 **Required setup (user responsibility):**
 
@@ -37,6 +42,7 @@ path** for the standard npm package.
 **Status:** Advanced/experimental — upstream packaging is in transition.
 The official Node.js binding docs still reference CUDA 11.8, while the 1.26.x
 release scripts already enforce CUDA 12. Treat ORT minor releases cautiously.
+semidex currently pins 1.24.3; this path requires upgrading to 1.26.x first.
 
 ---
 
@@ -134,8 +140,8 @@ await ort.InferenceSession.create(modelPath, {
 ## ONNX Runtime Install Note (Linux CPU-Only)
 
 `onnxruntime-node` 1.26.x on Linux x64 may pull CUDA provider libraries during
-postinstall even when only CPU is needed. To skip GPU bits on a CPU-only Linux
-server:
+postinstall even when only CPU is needed (semidex currently pins 1.24.3; verify
+this behavior after upgrading). To skip GPU bits on a CPU-only Linux server:
 
 ```bash
 ONNXRUNTIME_NODE_INSTALL=skip npm install

@@ -13,6 +13,8 @@ export default async function ({ ok }) {
     checkProviderAgreement,
     checkSchemaVersion,
     missingModelCommands,
+    cudaProbeGuidance,
+    formatCudaProbeFailure,
     STATUS,
   } = await import('../../core/doctor-checks.js');
 
@@ -138,5 +140,38 @@ export default async function ({ ok }) {
 
     const empty = missingModelCommands([], ['gemma3:4b']);
     ok('empty required list → no commands', empty.length === 0);
+  }
+
+  // 19k. cudaProbeGuidance
+  {
+    const win = cudaProbeGuidance('win32');
+    ok('19k: Windows guidance mentions dml',                 win.includes('dml'));
+    ok('19k: Windows guidance mentions cpu fallback',        win.includes('ONNX_EXECUTION_PROVIDER=cpu'));
+    ok('19k: Windows guidance mentions configuration.md',    win.includes('configuration.md'));
+
+    const linux = cudaProbeGuidance('linux');
+    ok('19k: Linux guidance mentions CUDA 12.x',            linux.includes('CUDA 12.x'));
+    ok('19k: Linux guidance mentions cuDNN 9',              linux.includes('cuDNN 9'));
+    ok('19k: Linux guidance mentions LD_LIBRARY_PATH',      linux.includes('LD_LIBRARY_PATH'));
+    ok('19k: Linux guidance mentions cpu fallback',         linux.includes('ONNX_EXECUTION_PROVIDER=cpu'));
+    ok('19k: Linux guidance mentions configuration.md',     linux.includes('configuration.md'));
+  }
+
+  // 19l. formatCudaProbeFailure
+  {
+    const withErr = formatCudaProbeFailure('no available backend found', 'linux');
+    ok('19l: error message included in output',              withErr.includes('no available backend found'));
+    ok('19l: guidance included when error present',          withErr.includes('CUDA 12.x'));
+
+    const withErrWin = formatCudaProbeFailure('provider error', 'win32');
+    ok('19l: Windows path includes dml hint',                withErrWin.includes('dml'));
+
+    const noErr = formatCudaProbeFailure('', 'linux');
+    ok('19l: empty errMessage → guidance only, no leading blank', noErr.includes('CUDA 12.x') && !noErr.startsWith('\n'));
+
+    // Multi-line stack traces must not pass through — probeOnnxProvider truncates at first newline.
+    // Verify the guidance output itself is single-pass (no stray newlines before the first line).
+    const firstLine = withErr.split('\n')[0];
+    ok('19l: first line contains the one-line error message', firstLine.includes('no available backend found'));
   }
 }
