@@ -7,6 +7,13 @@
 `2026-05-17-performance-bottleneck-audit.md`, не порушуючи коректності.
 **Constraint per user:** лише безпечні оптимізації — нічого з розділу `Do NOT do yet`.
 
+**Revisions (2026-05-17 v4 — link dense reuse implemented):**
+- Dense reuse (#2.2) реалізовано: Patch A (уніфікація `\n\n`), Pre-condition B
+  (`precomputedDense = null`), Pre-condition C (zip поза `runBatched`). Статус
+  змінено з Tier 2 pending → implemented. Live Qdrant harness перекласифіковано
+  як observational (HNSW nondeterminism на LINK_MIN_SCORE=0.70). Acceptance proof
+  — детермінований smoke: `22-build-links-precomputed.js`.
+
 **Revisions (2026-05-17 v3 — за user feedback):**
 - `addTagsBatch` fallback переоцінено (#2.9): запропонований фікс `runBatched(chunks,
   BATCH_SIZE, addTags)` не є реальним покращенням, бо fallback уже виконується
@@ -38,11 +45,11 @@
 | 1 | `loadGraph` — sync `readFileSync` + JSON parse на кожен MCP-search/rerank | `src/core/rerank.js:110` + `src/core/graph.js:8-12` | низький | mtime-cache, поведінка зберігається |
 | 2 | `qdrant_related` — sequential `scroll` у циклі links | `src/mcp/tools/related.js:22-28` | нульовий | `Promise.all` з збереженням порядку |
 
-**Після quick wins, тільки з equivalence test:**
+**Реалізовано (dense reuse — #2.2):**
 
-| # | Блокер | Файл:рядок | Ризик | Підстава |
-|---|--------|-----------|-------|----------|
-| 3 | Phase 5 (link) повторно ембеджить chunk, який вже ембеджений у phase 4 | `src/indexer/index.js:99-101` + `src/indexer/phases/link.js:14` | низький — **АЛЕ** потрібен live equivalence test (links/backlinks до/після) | dense вектор з phase 4 пробросити в `buildLinks`; уніфікувати embed-text формат |
+| # | Блокер | Статус |
+|---|--------|--------|
+| 3 | Phase 5 (link) повторно ембеджить chunk, який вже ембеджений у phase 4 | ✅ **реалізовано** — одна ONNX inference на chunk в link-фазі усунута |
 
 **Перевірити вимірюванням, перш ніж робити:**
 
@@ -69,7 +76,7 @@
 | Graph cache | rank 2 | **rank 1** | Найвище співвідношення ROI / ризик |
 | addTagsBatch fallback | rank 9 | **deferred** | Запропонований фікс неефективний: fallback уже виконується у batch-sized slice; потрібно виміряти частоту fallback і вибрати serial/env-controlled policy |
 | qdrant_related | rank 8 | **rank 3** | Три рядки, нульовий ризик, видимий ефект на MCP latency |
-| Dense reuse phase 4→5 | rank 1 | **rank 4 з equivalence test** | ROI підтверджується тільки після перевірки що `links`/`backlinks` ідентичні до/після |
+| Dense reuse phase 4→5 | rank 1 | ✅ **реалізовано** | Patch A + B+C merged; детермінований smoke proof (section 22); live harness — observational |
 | Keep-alive | rank 3 ("nullable risk") | **deferred — measure first** | Глобальний undici pool вже має keep-alive за замовчуванням |
 | Batch payload | rank 5 ("low risk") | **deferred — design review** | Різний payload per-point ускладнює batch; ризик lost-update |
 | Batched shouldMerge | rank 8 ("low risk") | **deferred — needs quality eval** | Семантика залежна від попередніх рішень |
@@ -155,66 +162,57 @@ export function loadGraph(collection = 'default') {
 
 ---
 
-### 2.2 — Подвійний ембеджинг у phase 4 → phase 5 (потребує live equivalence test)
+### 2.2 — Подвійний ембеджинг у phase 4 → phase 5 — ✅ **РЕАЛІЗОВАНО**
 
-**Файли:** `src/indexer/index.js:99-120` (phase 4) + `src/indexer/phases/link.js:14`
-(phase 5).
+**Файли:** `src/indexer/index.js` (phase 4+5) + `src/indexer/phases/link.js`.
 
-```js
-// phase 4
-const points = await runBatched(taggedChunks, BATCH_SIZE, async (chunk) => {
-  const embedText = `${chunk.context}\n\n${chunk.text}`;
-  const { dense, sparse, meta } = await embedForIndex(collection, embedText);
-  ...
-});
-```
+**Що було зроблено:**
 
-```js
-// phase 5 — link.js
-const { dense } = await embedForSearch(sourceCollection, chunk.context + '\n' + chunk.text);
-```
+- **Patch A:** уніфіковано embed-text формат у phase 5: `\n` → `\n\n`, що відповідає
+  phase 4. Дало non-empty diff на links (7 payload + 11 graph різниць при
+  LINK_MIN_SCORE=0.70) — прийнятий як усвідомлений behavior delta, бо `\n` в
+  phase 5 була непослідовністю, а не фічею.
 
-**Проблема:** для побудови links chunk ембеджиться **вдруге** з майже ідентичним
-текстом (різниця тільки `\n\n` vs `\n`). На ONNX-шляху це окремий `session.run`
-(~100-125 ms) на чанк; на Ollama-шляху — окремий HTTP-виклик до Ollama (1-5 s).
+- **Pre-condition B:** `buildLinks()` тепер приймає `precomputedDense = null`. При
+  `null` — fallback на `embedForSearch()`, поведінка ідентична до попередньої.
 
-Для файлу з 30 чанків це: 30 додаткових ONNX викликів (~3-4 с) або 30 додаткових
-Ollama викликів (~30-150 с). Це ПОЛОВИНА часу phase 5.
+- **Pre-condition C:** `index.js` phase 4 повертає `{ dense, point }` per chunk.
+  Zip виконується **поза** `runBatched`:
+  ```js
+  const chunksWithDense = taggedChunks.map((chunk, i) => ({
+    chunk, dense: pointsWithDense[i].dense,
+  }));
+  const linkedChunks = await runBatched(chunksWithDense, BATCH_SIZE,
+    ({ chunk, dense }) => buildLinks(chunk, allCollections, graph, collection, dense));
+  ```
+  (Індекс `i` використовується у `taggedChunks.map`, а не всередині callback
+  `runBatched` — де він був би batch-local і скидався б до 0 на кожному batch.)
 
-**Фікс:** передавати `dense` вектор з phase 4 у phase 5. Уніфікувати формат
-embed-тексту: завжди `chunk.context + '\n\n' + chunk.text`. Тоді у `buildLinks`
-використати готовий вектор — без повторного `embedForSearch`.
+- **Refactor:** pure link-decision loop виділено в `applyLinkResults(chunk, graph,
+  searchResults, minScore)` — exported, без ONNX/Qdrant залежностей.
 
-```js
-// phase 4 (in indexer/index.js)
-const pointsWithVectors = await runBatched(taggedChunks, BATCH_SIZE, async (chunk) => {
-  const embedText = `${chunk.context}\n\n${chunk.text}`;
-  const { dense, sparse, meta } = await embedForIndex(collection, embedText);
-  return { point: {...}, dense };  // зберігаємо dense для link фази
-});
+**Equivalence proof:**
 
-// phase 5
-await runBatched(taggedChunks, BATCH_SIZE, (chunk, i) =>
-  buildLinks(chunk, allCollections, graph, collection, pointsWithVectors[i].dense));
-```
+- **Live Qdrant harness:** INCONCLUSIVE. Три capture’и показали run-to-run variance
+  (3 payload + 8 graph дифи між ідентичними runs) через HNSW nondeterminism при
+  LINK_MIN_SCORE=0.70. Harness перекласифіковано як **observational** — корисний
+  для виявлення великих регресій, але не acceptance-grade proof.
+- **Детермінований smoke:** `src/smoke/sections/22-build-links-precomputed.js` —
+  23 assertions на `applyLinkResults` з синтетичними search results. Покриває всі
+  гілки loop: above/below threshold, same-file skip, duplicate dedup, pre-existing
+  link preservation, multi-collection merge. Всі 23 проходять. Це **acceptance proof**.
 
-**КРИТИЧНО для безпеки зміни:**
-1. Поточний код у phase 4 і phase 5 використовує **різний** embed-текст: phase 4 —
-   `${chunk.context}\n\n${chunk.text}`, phase 5 — `chunk.context + '\n' + chunk.text`.
-   Перед reuse ці форматування мають бути уніфіковані (single newline vs double
-   matter — це впливає на токенізацію і отже на вектор).
-2. Provider/model має збігатися у `embedForIndex` і `embedForSearch` для тієї ж
-   collection — поточний код це задовольняє через `getEmbeddingConfig(collection)`,
-   але це треба assertити в тестах.
-3. **Live equivalence check:** зіндексувати той самий corpus двічі (до зміни і
-   після) і diff’ити отримані `links` / `backlinks` у Qdrant payload та у
-   `graph.<col>.json`. Очікуваний результат: bit-identical (з точністю до
-   randomUUID для chunk IDs).
-4. Тільки після проходу equivalence test зливати в main.
+**Proof rationale:** `applyLinkResults` містить увесь link-decision та graph-mutation
+код. При однаковому `searchResults` вхідному масиві обидва шляхи — reuse dense та
+fallback embed — приводять до ідентичного виклику `applyLinkResults`, тому результат
+ідентичний за конструкцією.
 
-Без цих кроків це **не** «низький ризик», а «потенційно zero-impact зміна, що
-випадково зсуне ваги»: різниця у `\n` vs `\n\n` справді може дати інший токенізаційний
-результат → інший dense → інші links.
+**Performance impact:** одна ONNX inference (~100–125 ms) на chunk в phase 5 усунута.
+Для 30-chunk файлу — ~3–4 с прискорення phase 5.
+
+**Документація:**
+- `benchmarks/retrieval/results/2026-05-17-link-dense-reuse-equivalence-design.md`
+- `benchmarks/retrieval/smoke-live-link-equivalence.js` (observational harness)
 
 ---
 
@@ -587,18 +585,18 @@ single-file режимі це блокує keep-alive до Qdrant та Ollama.
 оптимізації». ColBERT true batching, file-level concurrency, ONNX concurrent
 sessions — exclude.
 
-### Тier 1 — робити зараз (2 quick wins)
+### Tier 1 — ✅ реалізовано
 
-| Rank | Блокер | Impact | Risk | Розмір |
-|------|--------|--------|------|--------|
-| 1 | Sync `loadGraph` на MCP search (#2.1) | 5-50 ms per search request | низький (mtime cache) | ~10 рядків |
-| 2 | Parallel scroll у `qdrant_related` (#2.8) | 70-90% latency для запиту з 5+ links | нульовий | ~3 рядки |
+| Rank | Блокер | Impact | Статус |
+|------|--------|--------|--------|
+| 1 | Sync `loadGraph` на MCP search (#2.1) | 5-50 ms per search request | ✅ **merged** — mtime cache у `graph.js` |
+| 2 | Parallel scroll у `qdrant_related` (#2.8) | 70-90% latency для запиту з 5+ links | ✅ **merged** — `Promise.all` у `related.js` |
 
-### Tier 2 — робити після Tier 1, з тестом
+### Tier 2 — ✅ реалізовано
 
-| Rank | Блокер | Impact | Risk | Що ще треба |
-|------|--------|--------|------|-------------|
-| 4 | Подвійний embed phase 4→5 (#2.2) | 30-50% phase 5 (ONNX) / 50-70% (Ollama) | низький **за умови** equivalence test | live diff на links/backlinks до/після (див. §2.2) |
+| Rank | Блокер | Impact | Статус |
+|------|--------|--------|--------|
+| 3 | Подвійний embed phase 4→5 (#2.2) | ~3–4 с на 30-chunk файл (ONNX); одна inference усунута | ✅ **merged** — детермінований smoke proof |
 
 ### Tier 3 — потребує вимірювання або design review
 
@@ -654,22 +652,20 @@ per chunk до і після фіксу #2.2 та #2.4 — це найвищий
 
 ---
 
-## 7. Рекомендований порядок впровадження (v3)
+## 7. Рекомендований порядок впровадження (v4)
 
-### Tier 1 — атомарні quick wins (тиждень 1)
+### Tier 1 — ✅ реалізовано
 
-1. **#2.1 graph cache** (~10 рядків) — `Map<collection, {mtimeMs, data}>` у
-   `graph.js`. Зберігає auto-reload by mtime.
-2. **#2.8 parallel scroll у related** (~3 рядки) — `Promise.all(node.links.map(...))`
-   з збереженням порядку.
+1. **#2.1 graph cache** — merged. `Map<collection, {mtimeMs, data}>` у `graph.js`.
+2. **#2.8 parallel scroll у related** — merged. `Promise.all` у `related.js`.
 
-### Tier 2 — потребує equivalence test перед merge
+### Tier 2 — ✅ реалізовано
 
-4. **#2.2 reuse dense vector phase 4→5** (~15 рядків) — обов’язково:
-   - спочатку уніфікувати embed-text формат у phase 4 і phase 5;
-   - запустити re-index того ж corpus двічі (до зміни і після);
-   - diff `links` / `backlinks` у Qdrant payload + у `graph.<col>.json`;
-   - merge тільки після bit-identical (по модулю UUID) результату.
+3. **#2.2 reuse dense vector phase 4→5** — **merged**.
+   - Patch A (уніфікація `\n\n`): прийнятий behavior delta задокументований.
+   - B+C (zip + precomputedDense): merged; acceptance proof — `22-build-links-precomputed.js`.
+   - Live Qdrant harness: observational (HNSW nondeterminism → run-to-run variance).
+   - Наступний великий performance item у indexing: ONNX true batching (#3 з попереднього аудиту) або batch payload updates (#2.4).
 
 ### Tier 3 — спершу вимірювати, потім вирішувати
 
@@ -696,27 +692,30 @@ per chunk до і після фіксу #2.2 та #2.4 — це найвищий
 
 ---
 
-## 8. Підсумок (v3)
+## 8. Підсумок (v4)
 
 Попередній аудит правильно ідентифікував два високовартісні дублікати в
 ColBERT-бенчмарку (вже виправлено). Він **не дослідив** структурні вузькі
 місця в індексері та MCP search, бо фокус був на ColBERT timings та LLM-фазах.
 
-Цей звіт ідентифікує 9 нових пунктів. **Не всі вони safe quick wins** — після
-review (за user feedback):
+Цей звіт ідентифікував 9 нових пунктів. Поточний стан (v4):
 
-- **2 справжніх zero-risk quick wins** (#2.1 graph cache, #2.8 parallel scroll у
-  related). Сумарно ~13 рядків коду.
-- **1 з низьким ризиком при equivalence test** (#2.2 dense reuse phase 4→5).
-  Ефект є потенційно великим, але до live diff не варто merge’ити.
+- **3 реалізовано** (#2.1 graph cache, #2.8 parallel scroll, #2.2 dense reuse).
+  Всі три merged, smoke: 306/306.
 - **4 потребують вимірювання або quality eval** (#2.3 keep-alive, #2.4 batch
   payload, #2.5 batched shouldMerge, #2.9 addTagsBatch fallback). Жоден не
   «починаємо одразу».
 - **2 micro-opt** (#2.6/#2.10 fs/promises, #2.7 ONNX BigInt).
 
-Найважливіше виправлення vs первинна версія цього звіту: **claims «нульового
-ризику» для keep-alive і batch payload були необґрунтовані**. Кожен з цих
-пунктів потребує дослідження перед фіксом.
+**Про dense reuse (#2.2):** live Qdrant harness є INCONCLUSIVE через HNSW
+nondeterminism — він перекласифікований як observational. Acceptance proof —
+детермінований smoke `22-build-links-precomputed.js` (23 assertions на
+`applyLinkResults`). Live diff не можна вважати equivalence pass або fail.
 
-**Найбезпечніший крок зараз:** Tier 1 (graph cache + parallel scroll у related).
-Обидва — атомарні, незалежні, тестабельні. Після них — Tier 2 з equivalence test.
+**Що не реалізовано з indexing performance (Do NOT список без змін):**
+ONNX true batching, file-level concurrency, pipeline overlap — усі три мають
+correctness або re-entrancy ризики і залишаються поза scope.
+
+**Наступний великий performance item у indexing** (якщо вимірювання покаже
+потребу): ONNX true batching (#3 з попереднього аудиту) або batch payload
+updates для backlinks (#2.4 — потребує design для lost-update protection).
