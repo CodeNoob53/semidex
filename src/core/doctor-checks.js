@@ -141,6 +141,38 @@ export function missingModelCommands(required, available) {
   return missing.map(m => `ollama pull ${m}`);
 }
 
+// ── CUDA strict-mode helpers ──────────────────────────────────────────────────
+
+// Returns true when ONNX_CUDA_STRICT=1 is set in the given env map.
+export function isCudaStrict(env = process.env) {
+  return env.ONNX_CUDA_STRICT === '1';
+}
+
+// Builds the actionable error message thrown when strict CUDA fails.
+// errMessage: one-line ORT error (already sanitised/truncated by caller).
+// platform: process.platform value ('win32', 'linux', etc.).
+// Returns a string — no trailing newline.
+export function buildCudaStrictError(errMessage, platform) {
+  const ortLine = errMessage ? `ONNX Runtime: ${errMessage}` : 'ONNX Runtime: no available backend found';
+  const platformLines = platform === 'win32'
+    ? [
+        'Windows: CUDA is not supported via prebuilt onnxruntime-node.',
+        '  Use ONNX_EXECUTION_PROVIDER=dml for GPU acceleration instead.',
+      ]
+    : [
+        'Linux: CUDA requires CUDA 12.x + cuDNN 9 + LD_LIBRARY_PATH set to their lib dirs.',
+        '  Verify: nvidia-smi  |  nvcc --version (must be 12.x)',
+        '  Set LD_LIBRARY_PATH to include CUDA lib64 and cuDNN lib.',
+      ];
+  return [
+    `[onnx] CUDA provider failed — ONNX_EXECUTION_PROVIDER=cuda ONNX_CUDA_STRICT=1`,
+    `  ${ortLine}`,
+    ...platformLines,
+    '  To fall back to CPU: unset ONNX_CUDA_STRICT or set ONNX_EXECUTION_PROVIDER=cpu',
+    '  See: docs/en/configuration.md — ONNX_EXECUTION_PROVIDER',
+  ].join('\n');
+}
+
 // ── CUDA probe guidance helpers ───────────────────────────────────────────────
 
 // Platform-specific guidance lines for a failed CUDA probe.

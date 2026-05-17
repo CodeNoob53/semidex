@@ -13,6 +13,8 @@ export default async function ({ ok }) {
     checkProviderAgreement,
     checkSchemaVersion,
     missingModelCommands,
+    isCudaStrict,
+    buildCudaStrictError,
     cudaProbeGuidance,
     formatCudaProbeFailure,
     STATUS,
@@ -173,5 +175,40 @@ export default async function ({ ok }) {
     // Verify the guidance output itself is single-pass (no stray newlines before the first line).
     const firstLine = withErr.split('\n')[0];
     ok('19l: first line contains the one-line error message', firstLine.includes('no available backend found'));
+  }
+
+  // 19m. isCudaStrict
+  {
+    ok('19m: ONNX_CUDA_STRICT=1 → true',    isCudaStrict({ ONNX_CUDA_STRICT: '1' }));
+    ok('19m: ONNX_CUDA_STRICT=0 → false',   !isCudaStrict({ ONNX_CUDA_STRICT: '0' }));
+    ok('19m: ONNX_CUDA_STRICT unset → false', !isCudaStrict({}));
+    ok('19m: ONNX_CUDA_STRICT=true → false', !isCudaStrict({ ONNX_CUDA_STRICT: 'true' }));
+    ok('19m: ONNX_CUDA_STRICT=false → false', !isCudaStrict({ ONNX_CUDA_STRICT: 'false' }));
+  }
+
+  // 19n. buildCudaStrictError
+  {
+    const linuxErr = buildCudaStrictError('no available backend found', 'linux');
+    ok('19n: Linux strict error mentions ONNX_EXECUTION_PROVIDER=cuda',  linuxErr.includes('ONNX_EXECUTION_PROVIDER=cuda'));
+    ok('19n: Linux strict error mentions ONNX_CUDA_STRICT=1',            linuxErr.includes('ONNX_CUDA_STRICT=1'));
+    ok('19n: Linux strict error includes the ORT error message',         linuxErr.includes('no available backend found'));
+    ok('19n: Linux strict error mentions CUDA 12.x',                     linuxErr.includes('CUDA 12.x'));
+    ok('19n: Linux strict error mentions cuDNN 9',                       linuxErr.includes('cuDNN 9'));
+    ok('19n: Linux strict error mentions LD_LIBRARY_PATH',               linuxErr.includes('LD_LIBRARY_PATH'));
+    ok('19n: Linux strict error mentions cpu fallback option',           linuxErr.includes('ONNX_EXECUTION_PROVIDER=cpu'));
+    ok('19n: Linux strict error mentions configuration.md',             linuxErr.includes('configuration.md'));
+
+    const winErr = buildCudaStrictError('provider init failed', 'win32');
+    ok('19n: Windows strict error mentions dml',                        winErr.includes('dml'));
+    ok('19n: Windows strict error mentions ONNX_CUDA_STRICT=1',         winErr.includes('ONNX_CUDA_STRICT=1'));
+    ok('19n: Windows strict error includes the ORT error message',      winErr.includes('provider init failed'));
+    ok('19n: Windows strict error mentions cpu fallback option',        winErr.includes('ONNX_EXECUTION_PROVIDER=cpu'));
+
+    // Empty errMessage falls back to generic ORT line — no crash, no empty first line.
+    const emptyErr = buildCudaStrictError('', 'linux');
+    ok('19n: empty errMessage → no available backend found fallback',   emptyErr.includes('no available backend found'));
+
+    // Must not leak multi-line ORT stack — caller truncates, but verify output is still well-formed.
+    ok('19n: output starts with [onnx] prefix',                        linuxErr.startsWith('[onnx]'));
   }
 }

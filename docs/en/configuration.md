@@ -65,6 +65,7 @@ The light/fallback mode uses `ollama` + `hashed-tf`. It requires Ollama running 
 | `SPARSE_PROVIDER` | unset | Explicit sparse provider override |
 | `DENSE_MODEL` | unset | Dense model override for Ollama |
 | `ONNX_EXECUTION_PROVIDER` | `cpu` | ONNX Runtime execution provider: `cpu`, `dml`, or `cuda` |
+| `ONNX_CUDA_STRICT` | `0` | Set to `1` to hard-fail on CUDA provider load failure instead of retrying CPU. Only relevant when `ONNX_EXECUTION_PROVIDER=cuda`. |
 | `ONNX_BATCH_SIZE` | `4` | Batch size for Windows DirectML batching (1–64); ignored on CPU/CUDA |
 
 ### ONNX_EXECUTION_PROVIDER
@@ -95,16 +96,25 @@ phase 4 (embedding), which benchmarks show at ~3.2× faster than DML sequential 
 (default 4, valid range 1–64). CPU and all other providers use the default per-text
 path regardless of this setting.
 
-**CUDA silent fallback (known gap):** When `ONNX_EXECUTION_PROVIDER=cuda` is set
-and CUDA is unavailable, semidex currently logs a warning and retries with CPU. This
-means a misconfigured CUDA environment runs silently on CPU without error. Do not
-treat the absence of an error as proof that CUDA is active. To verify: check the
-`[onnx] creating inference session (providers: cuda)` line in stderr — if followed
-by `retrying with cpu`, CUDA did not load. Run `npm run doctor` with `ONNX_EMBED=1`
-to get a CUDA session probe (PASS/WARN) without starting an indexing run — doctor
-attempts `InferenceSession.create` with `['cuda']` only and never retries with CPU.
-A planned Stage 2 patch will add `ONNX_CUDA_STRICT=1` to convert the silent retry
-into a hard failure when CUDA is explicitly requested.
+**CUDA behavior:** When `ONNX_EXECUTION_PROVIDER=cuda` is set and CUDA is
+unavailable, semidex logs a warning and retries with CPU by default. To verify
+whether CUDA actually loaded, check stderr for `retrying with cpu` after the
+`creating inference session (providers: cuda)` line, or run `npm run doctor` with
+`ONNX_EMBED=1` — doctor probes with `['cuda']` only and never retries with CPU.
+
+**Strict mode (`ONNX_CUDA_STRICT=1`):** Set this alongside
+`ONNX_EXECUTION_PROVIDER=cuda` to make CUDA provider failure a hard error instead of
+silently falling back to CPU. Use this in CI or when you need to guarantee GPU
+inference is actually running:
+
+```bash
+ONNX_EMBED=1 ONNX_EXECUTION_PROVIDER=cuda ONNX_CUDA_STRICT=1 npm run index ./docs
+```
+
+On failure, semidex prints an actionable error with platform-specific guidance and
+exits. On Windows, the error directs to `dml`; on Linux, to CUDA 12.x + cuDNN 9 +
+`LD_LIBRARY_PATH`. To fall back to CPU, unset `ONNX_CUDA_STRICT` or set
+`ONNX_EXECUTION_PROVIDER=cpu`.
 
 Invalid values produce a warning and fall back to `cpu`.
 

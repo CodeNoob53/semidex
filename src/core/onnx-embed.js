@@ -10,6 +10,7 @@ import { join, resolve } from 'path';
 import { fileURLToPath } from 'url';
 
 import { ONNX_CACHE_DIR as CACHE_DIR, ONNX_MODEL_DIR as MODEL_DIR } from './onnx-paths.js';
+import { isCudaStrict, buildCudaStrictError } from './doctor-checks.js';
 
 const MODEL_ID  = 'aapot/bge-m3-onnx';
 const HF_BASE   = 'https://huggingface.co';
@@ -129,9 +130,13 @@ async function load() {
       graphOptimizationLevel: 'all',
     });
   } catch (err) {
-    // CUDA is not bundled in onnxruntime-node — retry with CPU only.
+    // CUDA is not bundled in onnxruntime-node — retry with CPU, or hard-fail in strict mode.
     if (providers[0] === 'cuda') {
-      process.stderr.write(`[onnx] CUDA provider unavailable (${err.message}) — retrying with cpu\n`);
+      const rawMsg = String(err?.message ?? '').replace(/\r?\n.*/s, '').trim().slice(0, 120);
+      if (isCudaStrict(process.env)) {
+        throw new Error(buildCudaStrictError(rawMsg, process.platform));
+      }
+      process.stderr.write(`[onnx] CUDA provider unavailable (${rawMsg}) — retrying with cpu\n`);
       session = await ort.InferenceSession.create(modelPath, {
         executionProviders: ['cpu'],
         graphOptimizationLevel: 'all',
