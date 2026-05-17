@@ -7,13 +7,20 @@
 `2026-05-17-performance-bottleneck-audit.md`, не порушуючи коректності.
 **Constraint per user:** лише безпечні оптимізації — нічого з розділу `Do NOT do yet`.
 
+**Revisions (2026-05-17 v6 — ONNX batching provider comparison):**
+- DML benchmark: bucketed maxBatch=4 → **3.19×** speedup vs DML sequential,
+  **4.61×** vs CPU sequential (24.0 ms/text vs 110.6 ms/text). Correctness:
+  FP-equivalent (max dense delta 2.3e-7, cosine=1.000000). CPU: 0.92× (no change).
+  CUDA: fell back to CPU — `onnxruntime-node` does not bundle CUDA EP.
+  Verdict: DML → PROCEED (opt-in); CPU → defer; CUDA → out of scope.
+  Div. `2026-05-17-onnx-batching-provider-comparison.md`.
+
 **Revisions (2026-05-17 v5 — ONNX length-bucketed batching Stage 1 verdict):**
 - `embedOnnxBatch` + `length-bucket.js` + smoke section 23 реалізовано.
-  Benchmark на 163-chunk corpus (CPU): correctness PASS (bit-identical dense/sparse
-  up to FP padding differences). Speedup: **~0.93× (не прискорення)**. Причина:
-  `session.run()` call overhead домінує над padding savings на CPU при малих N.
-  Verdict: NOT production-ready на CPU; `⏳` → `❌` у §6; helpers залишаються як
-  benchmark infrastructure. Div. `2026-05-17-onnx-length-bucketed-batching.md`.
+  Benchmark на 163-chunk corpus (CPU): correctness PASS (bit-identical).
+  Speedup: **~0.93× (не прискорення)** на CPU. Причина: `session.run()` call
+  overhead домінує. Verdict: NOT production-ready на CPU.
+  Div. `2026-05-17-onnx-length-bucketed-batching.md`.
 
 **Revisions (2026-05-17 v4 — link dense reuse implemented):**
 - Dense reuse (#2.2) реалізовано: Patch A (уніфікація `\n\n`), Pre-condition B
@@ -575,7 +582,7 @@ single-file режимі це блокує keep-alive до Qdrant та Ollama.
 |----------------|----------|----------------------|
 | 1 | ColBERT top-20 re-encoding | ✅ **виправлено** — `scoreColBERTAll` у `colbert-rerank.js:124`, p50 top20 = 50 ms (раніше 5971 ms) |
 | 2 | Query encoded twice у ColBERT | ✅ **виправлено** разом з 1 |
-| 3 | ONNX true batch inference | ⚠ **Stage 1 завершено** — probe: всі три виходи bit-identical (slicing bug виправлено, colbert stride = `colbertAll.dims[1]`). `embedOnnxBatch` + `length-bucket.js` реалізовано; benchmark на 163-chunk corpus: correctness PASS, speedup **~0.93× (уповільнення)** — `session.run()` overhead домінує на CPU. NOT production-ready. Div. `2026-05-17-onnx-length-bucketed-batching.md`. |
+| 3 | ONNX true batch inference | ✅ **Stage 1+2 завершено** — probe: bit-identical. CPU: 0.92× (defer). DML: **3.19× bucketed** (24.0 ms/text vs 110.6 ms/text CPU sequential). Correctness: FP-equiv (cosine=1.0, max delta 2.3e-7). CUDA: не bundled, CPU fallback. Verdict: DML → PROCEED (opt-in); CPU → defer. Div. `2026-05-17-onnx-batching-provider-comparison.md`. |
 | 4 | `OLLAMA_NUM_PARALLEL=1` server default | ⚠ потребує лише server-side зміни, не коду |
 | 5 | Sequential candidate encoding у ColBERT | ❌ не зроблено (вимагає multi-session або worker) |
 | 6 | File-level concurrency | ❌ не зроблено (correctness risk — в Do NOT do yet) |
@@ -650,13 +657,13 @@ per chunk до і після фіксу #2.2 та #2.4 — це найвищий
 - ❌ Parallel file indexing — race conditions на graph mutations
 - ❌ Pipeline overlap context/tag/embed — correctness risk через ланцюжок залежностей
 - ❌ ONNX concurrent `session.run()` — не re-entrant у `onnxruntime-node@1.24.3`
-- ❌ ONNX true batch inference у production (`onnx-embed.js`) — Stage 1 завершено:
-  correctness PASS, але speedup **~0.93× (уповільнення)** на CPU. Причина:
-  `session.run()` call overhead домінує. Інтегрувати тільки якщо DML/CUDA benchmark
-  покаже реальний приріст. `embedOnnxBatch` + `length-bucket.js` залишаються як
-  benchmark infrastructure. Div. `2026-05-17-onnx-length-bucketed-batching.md`.
-- ❌ Length-bucketed batching у production — benchmark завершено: не прискорює на CPU
-  (padding savings < `session.run()` overhead при малих N на 163-chunk corpus)
+- ⏳ ONNX true batch inference у production (`onnx-embed.js`) — DML: **3.19× bucketed**
+  підтверджено (24.0 ms/text vs 110.6 ms/text CPU sequential). CPU: defer (0.92×).
+  Наступний крок: opt-in production integration, gated on `ONNX_EXECUTION_PROVIDER=dml`.
+  `embedOnnxBatch` + `length-bucket.js` готові як infrastructure.
+  Div. `2026-05-17-onnx-batching-provider-comparison.md`.
+- ❌ Length-bucketed batching на CPU — не прискорює (0.92×); `session.run()` overhead
+  домінує. Актуально тільки з DML/GPU.
 - ❌ ColBERT у production — explicit defer per Stage 1 verdict
 
 Все, що в розділі 0 та 2 цього звіту, цих обмежень не стосується.
@@ -703,7 +710,7 @@ per chunk до і після фіксу #2.2 та #2.4 — це найвищий
 
 ---
 
-## 8. Підсумок (v5)
+## 8. Підсумок (v6)
 
 Попередній аудит правильно ідентифікував два високовартісні дублікати в
 ColBERT-бенчмарку (вже виправлено). Він **не дослідив** структурні вузькі
@@ -723,17 +730,16 @@ nondeterminism — він перекласифікований як observationa
 детермінований smoke `22-build-links-precomputed.js` (23 assertions на
 `applyLinkResults`). Live diff не можна вважати equivalence pass або fail.
 
-**ONNX true batching (Stage 1 verdict, v5):** `embedOnnxBatch` + `length-bucket.js`
-реалізовано та збенчмарковано. Correctness PASS. Speedup на CPU: **~0.93×** (не
-прискорення — `session.run()` overhead домінує при N≤8 на 163-chunk corpus). NOT
-production-ready. Helpers залишаються як benchmark infrastructure для майбутнього
-DML/CUDA probe.
+**ONNX true batching (Stage 1+2 verdict, v6):** `embedOnnxBatch` + `length-bucket.js`
+реалізовано та збенчмарковано на CPU та DML. CPU: 0.92× (defer). DML: **3.19×
+bucketed** (24.0 ms/text vs 110.6 ms/text CPU sequential — 4.61× total gain).
+Correctness: FP-equivalent на DML (max delta 2.3e-7, cosine=1.0). CUDA: не bundled
+у `onnxruntime-node`, CPU fallback. Наступний крок: opt-in production integration,
+gated on `ONNX_EXECUTION_PROVIDER=dml`.
 
 **Що не реалізовано з indexing performance (Do NOT список):**
-ONNX true batching (CPU: без speedup), length-bucketed batching (CPU: без speedup),
-file-level concurrency (correctness risk), pipeline overlap (correctness risk) —
-залишаються поза production scope.
+Length-bucketed batching на CPU (без speedup), file-level concurrency (correctness
+risk), pipeline overlap (correctness risk). DML batching — pending production wiring.
 
-**Наступний великий performance item у indexing** (якщо вимірювання покаже
-потребу): batch payload updates для backlinks (#2.4 — потребує design для
-lost-update protection).
+**Наступний великий performance item у indexing:** DML-gated opt-in batching
+(`ONNX_EXECUTION_PROVIDER=dml` + `embedBucketed` у production indexer).
