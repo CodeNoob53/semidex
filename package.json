@@ -39,7 +39,8 @@
     "bootstrap:docs": "node src/bootstrap-docs.js",
     "doctor": "node src/doctor.js",
     "bench:indexing": "node benchmarks/retrieval/indexing-performance-bench.js",
-    "bench:combined-probe": "node benchmarks/retrieval/combined-context-tags-probe.js"
+    "bench:combined-probe": "node benchmarks/retrieval/combined-context-tags-probe.js",
+    "verify:combined-llm": "node benchmarks/retrieval/combined-llm-live-verification.js"
   },
   "dependencies": {
     "@huggingface/transformers": "^4.2.0",
