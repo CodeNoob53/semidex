@@ -38,7 +38,8 @@
     "bench:custom50:colbert": "node benchmarks/retrieval/custom-50/colbert-bench.js",
     "bootstrap:docs": "node src/bootstrap-docs.js",
     "doctor": "node src/doctor.js",
-    "bench:indexing": "node benchmarks/retrieval/indexing-performance-bench.js"
+    "bench:indexing": "node benchmarks/retrieval/indexing-performance-bench.js",
+    "bench:combined-probe": "node benchmarks/retrieval/combined-context-tags-probe.js"
   },
   "dependencies": {
     "@huggingface/transformers": "^4.2.0",

@@ -13,3 +13,4 @@ config.json
 models/
 .bench-indexing-corpus/
 .bench-indexing-chunks-out/
+.bench-combined-probe-corpus/
