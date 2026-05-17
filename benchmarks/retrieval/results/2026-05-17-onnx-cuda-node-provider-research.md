@@ -1,7 +1,7 @@
 # ONNX Runtime CUDA Provider for Node.js — Research Summary (2026-05-17)
 
-**Source:** Deep Research report, 2026-05-17  
-**Scope:** Provider support policy for semidex — docs and code behavior audit only.  
+**Source:** Deep Research report, 2026-05-17
+**Scope:** Provider support policy for semidex — docs and code behavior audit only.
 No production runtime changes in this task.
 
 ---
@@ -34,7 +34,7 @@ path** for the standard npm package.
 4. Install the npm package — postinstall will download the CUDA provider libraries.
 5. Set `ONNX_EXECUTION_PROVIDER=cuda` and verify with a startup probe (see below).
 
-**Status:** Advanced/experimental — upstream packaging is in transition.  
+**Status:** Advanced/experimental — upstream packaging is in transition.
 The official Node.js binding docs still reference CUDA 11.8, while the 1.26.x
 release scripts already enforce CUDA 12. Treat ORT minor releases cautiously.
 
@@ -131,7 +131,7 @@ await ort.InferenceSession.create(modelPath, {
 
 ---
 
-## Qdrant Install Note (Linux CPU-Only)
+## ONNX Runtime Install Note (Linux CPU-Only)
 
 `onnxruntime-node` 1.26.x on Linux x64 may pull CUDA provider libraries during
 postinstall even when only CPU is needed. To skip GPU bits on a CPU-only Linux
