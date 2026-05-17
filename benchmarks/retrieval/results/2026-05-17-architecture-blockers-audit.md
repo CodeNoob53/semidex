@@ -663,7 +663,8 @@ per chunk до і після фіксу #2.2 та #2.4 — це найвищий
   `embedOnnxBatch` + `length-bucket.js` готові як infrastructure.
   Div. `2026-05-17-onnx-batching-provider-comparison.md`.
 - ❌ Length-bucketed batching на CPU — не прискорює (0.92×); `session.run()` overhead
-  домінує. Актуально тільки з DML/GPU.
+  домінує. Актуально тільки з Windows DirectML (`ONNX_EXECUTION_PROVIDER=dml`);
+  CUDA falls back to CPU with current `onnxruntime-node` (pending research).
 - ❌ ColBERT у production — explicit defer per Stage 1 verdict
 
 Все, що в розділі 0 та 2 цього звіту, цих обмежень не стосується.

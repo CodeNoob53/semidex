@@ -120,12 +120,13 @@ project's dependencies. Not tested.
 |----------|---------|
 | CPU | **Defer** — batching regresses (0.92× bucketed). No production change. |
 | DML | **Proceed** — 3.19× bucketed speedup confirmed. DML available on Windows with any DirectX 12 GPU (integrated or discrete). Correctness: FP-equivalent. |
-| CUDA | **Not tested** — `onnxruntime-node` does not bundle CUDA EP. Would require `onnxruntime-node-gpu` dependency change. Out of scope. |
+| CUDA | **Falls back to CPU** — `onnxruntime-node` does not bundle CUDA EP. Results identical to CPU. CUDA/Linux GPU support pending research; out of scope for this task. |
 
-**Recommended next step (DML):** wire `embedBucketed(texts, embedOnnxBatch, 4)` as an
-opt-in path in the indexer, gated by `ONNX_EXECUTION_PROVIDER=dml`. Users on Windows
-with a GPU (including integrated Intel/AMD graphics) get ~3× indexing throughput. CPU
-users are unaffected.
+**Recommended next step (Windows DirectML opt-in batching):** wire
+`embedBucketed(texts, embedOnnxBatch, 4)` as an opt-in indexer path, gated by
+`ONNX_EMBED=1` + `ONNX_EXECUTION_PROVIDER=dml`. Users on Windows with any DirectX 12
+GPU (including integrated Intel/AMD graphics) get ~3× indexing throughput. CPU path
+remains the default and is unaffected. Design: `2026-05-17-dml-batching-production-wiring-design.md`.
 
 ---
 
@@ -133,7 +134,8 @@ users are unaffected.
 
 - `benchmarks/onnx-batch-indexing-bench.js` — benchmark script
 - `benchmarks/lib/length-bucket.js` — pure bucketing helper
-- `src/core/onnx-embed.js` — `embedOnnxBatch()` (benchmark/opt-in only, not wired)
+- `src/core/onnx-embed.js` — `embedOnnxBatch()` (infrastructure; production wiring pending)
+- `src/core/embeddings.js` — `embedForIndexBatch()` with Windows DirectML gate (planned; not yet implemented — see design doc)
 - `src/smoke/sections/23-length-bucket.js` — 32 pure-helper assertions (338/338 pass)
 - Prior: `2026-05-17-onnx-true-batching-probe.md` — correctness probe
 - Prior: `2026-05-17-onnx-length-bucketed-batching.md` — CPU-only benchmark

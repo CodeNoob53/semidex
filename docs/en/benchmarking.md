@@ -87,9 +87,9 @@ Does not use Qdrant. Requires the ONNX model to be cached in `./models/` (run an
 
 Outputs a plain-text table with init time, total time, avg ms/text, and speedup vs CPU baseline.
 
-`PROVIDERS` env var selects which providers to test (default: `cpu,dml,cuda`). `cuda` is expected to fall back to CPU on most setups since it is not bundled in `onnxruntime-node`.
+`PROVIDERS` env var selects which providers to test (default: `cpu,dml,cuda`). `cuda` always falls back to CPU — CUDA EP is not bundled in `onnxruntime-node`; results will be identical to CPU.
 
-**Important:** GPU providers are performance-only. Switching `ONNX_EXECUTION_PROVIDER` does not change embedding model or provider metadata and does not require reindexing. Minor numeric differences between providers are possible but do not affect retrieval quality in practice.
+**Important:** Switching `ONNX_EXECUTION_PROVIDER` is performance-only — it does not change embedding model or provider metadata and does not require reindexing. Minor numeric differences between providers are possible but do not affect retrieval quality in practice. Windows DirectML (`dml`) is the only provider with a confirmed indexing speedup (see `2026-05-17-onnx-batching-provider-comparison.md`).
 
 ## Smoke Tests
 

@@ -74,9 +74,15 @@ Controls which hardware backend ONNX Runtime uses for inference. Only relevant w
 |-------|---------|-------|
 | `cpu` (default) | CPU | Portable, no extra setup required |
 | `dml` | DirectML | Windows GPU acceleration (NVIDIA, AMD, Intel). Falls back to CPU if DirectML is unavailable. No extra package needed — `onnxruntime-node` includes DirectML support on Windows. |
-| `cuda` | NVIDIA CUDA | Requires a CUDA-capable GPU. If the current `onnxruntime-node` build does not include CUDA support, semidex warns and retries with CPU. |
+| `cuda` | NVIDIA CUDA | Falls back to CPU — CUDA EP is not bundled in `onnxruntime-node`. Semidex warns and retries with CPU automatically. CUDA/Linux GPU support is pending research. |
 
-GPU providers are **performance-only** — they do not change the embedding model or provider metadata and should not require reindexing; minor numeric differences between execution providers are possible.
+`dml` and `cpu` are **performance-only** — they do not change the embedding model or provider metadata and do not require reindexing; minor numeric differences between execution providers are possible and do not affect retrieval quality.
+
+**Batching note (planned):** Benchmarks show that Windows DirectML (`dml`) can enable
+length-bucketed batch inference at ~3.2× faster than DML sequential and ~4.6× faster
+than CPU sequential. This opt-in path is not yet wired into the production indexer —
+see `2026-05-17-dml-batching-production-wiring-design.md`. CPU path uses per-text
+inference today regardless of this setting.
 
 Invalid values produce a warning and fall back to `cpu`.
 
