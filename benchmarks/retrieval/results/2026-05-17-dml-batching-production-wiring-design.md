@@ -1,6 +1,6 @@
 # DML Batching — Production Wiring Design (2026-05-17)
 
-**Status:** design document — production implementation is the next task.
+**Status:** implemented — production wiring complete as of 2026-05-17.
 
 **Context:** ONNX batching provider comparison (2026-05-17) confirmed:
 - CPU bucketed batching: 0.92× (defer — `session.run()` overhead dominates)
@@ -106,7 +106,7 @@ const pointsWithDense = taggedChunks.map((chunk, i) => {
 
 `embedForIndexBatch` handles the gate internally:
 - DML active → `embedBucketed(texts, embedOnnxBatch, maxBatch)`
-- all other cases → sequential `for` loop of `embedForIndex` calls (identical to current)
+- all other cases → current per-text `runBatched` path of `embedForIndex` calls (identical to current)
 
 ---
 
@@ -129,8 +129,8 @@ embedForIndexBatch(collection, embedTexts, maxBatch)
   │    restore order via batch.indices[i]
   │    return [{ dense, sparse, meta }, ...]  ← aligned to embedTexts input order
   │
-  └─ [sequential fallback]
-       for each text: embedForIndex(collection, text)
+  └─ [per-text runBatched fallback]
+       runBatched(texts, batchSize, text => embedForIndex(collection, text))
        return [{ dense, sparse, meta }, ...]  ← aligned to embedTexts input order
   │
   ▼
@@ -163,25 +163,26 @@ structure, and upsert call are unchanged.
 If `embedForIndexBatch` throws (DML session error, OOM, driver failure):
 
 1. **Warn once** to stderr with the error message.
-2. **Retry the entire file's chunks sequentially** via `embedForIndex` per text.
+2. **Retry the entire file's chunks** via the current per-text `runBatched` path.
 3. **Do not partially upsert.** If the batch call fails after some texts but before
    completion, the entire embed step for that file must retry from scratch — no partial
    `pointsWithDense` array is passed to upsert.
-4. **No silent CPU batching.** The fallback path is sequential `embedOnnx` calls
-   (same as current CPU path), not `embedOnnxBatch` with CPU.
+4. **No silent CPU batching.** The fallback path is `runBatched` over `embedForIndex`
+   calls (same concurrency as the current CPU path), not `embedOnnxBatch` with CPU.
 
-Implementation sketch:
+Implementation:
 
 ```js
 let embedResults;
-try {
-  embedResults = await embedForIndexBatch(collection, embedTexts);
-} catch (batchErr) {
-  process.stderr.write(`[embed] DML batch failed (${batchErr.message}) — retrying sequential\n`);
-  embedResults = [];
-  for (const text of embedTexts) {
-    embedResults.push(await embedForIndex(collection, text));
+if (shouldUseOnnxBatching(process.env)) {
+  try {
+    embedResults = await embedForIndexBatch(collection, embedTexts, runBatched, BATCH_SIZE);
+  } catch (batchErr) {
+    process.stderr.write(`[embed] DML batch failed (${batchErr.message}) — retrying per-text\n`);
+    embedResults = await runBatched(embedTexts, BATCH_SIZE, text => embedForIndex(collection, text));
   }
+} else {
+  embedResults = await runBatched(embedTexts, BATCH_SIZE, text => embedForIndex(collection, text));
 }
 ```
 
@@ -297,7 +298,7 @@ source file.
 ### Step 4 — Fallback path
 
 Temporarily set an invalid DML condition (e.g. break DML by unsetting required
-driver) and confirm the indexer falls back to sequential with a single warning line,
+driver) and confirm the indexer falls back to the per-text `runBatched` path with a single warning line,
 completes successfully, and produces the same point count.
 
 ---
@@ -321,17 +322,17 @@ completes successfully, and produces the same point count.
 
 ## Summary
 
-Production implementation is **ready as the next task**. All infrastructure exists:
+Production implementation complete. All components wired:
 
 | Component | Status |
 |-----------|--------|
 | `embedOnnxBatch` | ✅ in `src/core/onnx-embed.js` |
-| `embedBucketed` + `bucketBatches` | ✅ in `benchmarks/lib/length-bucket.js` |
-| `embedForIndexBatch` (with DML gate + sequential fallback) | ⬜ to implement in `src/core/embeddings.js` |
-| Phase 4 wiring in `index.js` | ⬜ to implement (replace `runBatched` + `embedForIndex` loop with `embedForIndexBatch` call) |
-| `shouldUseOnnxBatching` export | ⬜ to add (needed for smoke section 24) |
-| `resolveOnnxBatchSize` | ⬜ to add |
-| Correctness guardrails in phase 4 | ⬜ to add |
-| Fallback on DML batch error | ⬜ to add |
-| Smoke section 24 | ⬜ to add |
-| Live verification | ⬜ to run |
+| `embedBucketed` + `bucketBatches` | ✅ in `src/core/length-bucket.js` (canonical); `benchmarks/lib/length-bucket.js` is a re-export shim |
+| `embedForIndexBatch` (with DML gate + sequential fallback) | ✅ in `src/core/embeddings.js` |
+| Phase 4 wiring in `index.js` | ✅ implemented — `embedTexts` array + `embedForIndexBatch` call with DML-gated fallback |
+| `shouldUseOnnxBatching` export | ✅ exported from `src/core/embeddings.js` |
+| `resolveOnnxBatchSize` | ✅ exported from `src/core/embeddings.js` |
+| Correctness guardrails in phase 4 | ✅ length + sparse shape guards before `pointsWithDense` construction |
+| Fallback on DML batch error | ✅ warn-once + per-text retry in `index.js` phase 4 |
+| Smoke section 24 | ✅ 15 assertions, all pass (353/353 total) |
+| Live verification | ⬜ to run (requires real collection + DML GPU) |

@@ -65,6 +65,7 @@ The light/fallback mode uses `ollama` + `hashed-tf`. It requires Ollama running 
 | `SPARSE_PROVIDER` | unset | Explicit sparse provider override |
 | `DENSE_MODEL` | unset | Dense model override for Ollama |
 | `ONNX_EXECUTION_PROVIDER` | `cpu` | ONNX Runtime execution provider: `cpu`, `dml`, or `cuda` |
+| `ONNX_BATCH_SIZE` | `4` | Batch size for Windows DirectML batching (1–64); ignored on CPU/CUDA |
 
 ### ONNX_EXECUTION_PROVIDER
 
@@ -78,11 +79,12 @@ Controls which hardware backend ONNX Runtime uses for inference. Only relevant w
 
 `dml` and `cpu` are **performance-only** — they do not change the embedding model or provider metadata and do not require reindexing; minor numeric differences between execution providers are possible and do not affect retrieval quality.
 
-**Batching note (planned):** Benchmarks show that Windows DirectML (`dml`) can enable
-length-bucketed batch inference at ~3.2× faster than DML sequential and ~4.6× faster
-than CPU sequential. This opt-in path is not yet wired into the production indexer —
-see `2026-05-17-dml-batching-production-wiring-design.md`. CPU path uses per-text
-inference today regardless of this setting.
+**Windows DirectML batching (opt-in):** When `ONNX_EMBED=1` and
+`ONNX_EXECUTION_PROVIDER=dml`, the indexer uses length-bucketed batch inference for
+phase 4 (embedding), which benchmarks show at ~3.2× faster than DML sequential and
+~4.6× faster than CPU sequential. Batch size is controlled by `ONNX_BATCH_SIZE`
+(default 4, valid range 1–64). CPU and all other providers use the default per-text
+path regardless of this setting. CUDA/Linux GPU support is pending research.
 
 Invalid values produce a warning and fall back to `cpu`.
 

@@ -134,8 +134,8 @@ remains the default and is unaffected. Design: `2026-05-17-dml-batching-producti
 
 - `benchmarks/onnx-batch-indexing-bench.js` — benchmark script
 - `benchmarks/lib/length-bucket.js` — pure bucketing helper
-- `src/core/onnx-embed.js` — `embedOnnxBatch()` (infrastructure; production wiring pending)
-- `src/core/embeddings.js` — `embedForIndexBatch()` with Windows DirectML gate (planned; not yet implemented — see design doc)
+- `src/core/onnx-embed.js` — `embedOnnxBatch()` (infrastructure)
+- `src/core/embeddings.js` — `embedForIndexBatch()` with Windows DirectML gate (implemented — see design doc)
 - `src/smoke/sections/23-length-bucket.js` — 32 pure-helper assertions (338/338 pass)
 - Prior: `2026-05-17-onnx-true-batching-probe.md` — correctness probe
 - Prior: `2026-05-17-onnx-length-bucketed-batching.md` — CPU-only benchmark

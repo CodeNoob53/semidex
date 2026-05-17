@@ -12,7 +12,7 @@ import { Profiler } from './profiler.js';
 import { upsertPoints, updatePayload, listCollections, createCollection, getStoredMeta, deleteBySourceFile, listSourceFiles } from '../core/qdrant.js';
 import { loadGraph, saveGraph, removeFile } from '../core/graph.js';
 import { loadConfig, saveConfig, resolveEnvProviders } from '../core/config.js';
-import { embedForIndex, getEmbeddingConfig, SCHEMA_VERSION } from '../core/embeddings.js';
+import { embedForIndex, embedForIndexBatch, shouldUseOnnxBatching, getEmbeddingConfig, SCHEMA_VERSION } from '../core/embeddings.js';
 import { ensureOllamaPreflight } from './preflight.js';
 
 const BATCH_SIZE   = parseInt(process.env.LLM_BATCH_SIZE || '3');
@@ -96,9 +96,37 @@ async function indexFile(filePath, rootPath, collection, allCollections, graph) 
   profiler.mark('tag');
 
   console.log('  [4/5] embedding + upserting...');
-  const pointsWithDense = await runBatched(taggedChunks, BATCH_SIZE, async (chunk) => {
-    const embedText = `${chunk.context}\n\n${chunk.text}`;
-    const { dense, sparse, meta } = await embedForIndex(collection, embedText);
+  const embedTexts = taggedChunks.map(chunk => `${chunk.context}\n\n${chunk.text}`);
+
+  // Attempt DML-bucketed batch embed; fall back to per-text path on any failure.
+  let embedResults;
+  if (shouldUseOnnxBatching(process.env)) {
+    try {
+      embedResults = await embedForIndexBatch(collection, embedTexts, runBatched, BATCH_SIZE);
+    } catch (batchErr) {
+      process.stderr.write(`[embed] DML batch failed (${batchErr.message}) — retrying per-text\n`);
+      embedResults = await runBatched(embedTexts, BATCH_SIZE, text => embedForIndex(collection, text));
+    }
+  } else {
+    embedResults = await runBatched(embedTexts, BATCH_SIZE, text => embedForIndex(collection, text));
+  }
+
+  // Correctness guards — catch misalignment before any upsert.
+  if (embedResults.length !== taggedChunks.length) {
+    throw new Error(`embed phase: expected ${taggedChunks.length} results, got ${embedResults.length}`);
+  }
+  for (let i = 0; i < embedResults.length; i++) {
+    const { dense, sparse } = embedResults[i];
+    if (!Array.isArray(dense) || dense.length !== configVectorSize) {
+      throw new Error(`embed phase: chunk ${i} dense length ${dense?.length} ≠ ${configVectorSize}`);
+    }
+    if (!Array.isArray(sparse?.indices) || !Array.isArray(sparse?.values)) {
+      throw new Error(`embed phase: chunk ${i} sparse shape invalid`);
+    }
+  }
+
+  const pointsWithDense = taggedChunks.map((chunk, i) => {
+    const { dense, sparse, meta } = embedResults[i];
     return {
       dense,
       point: {

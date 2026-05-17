@@ -24,6 +24,7 @@ import section20 from './sections/20-colbert-math.js';
 import section21 from './sections/21-graph-cache.js';
 import section22 from './sections/22-build-links-precomputed.js';
 import section23 from './sections/23-length-bucket.js';
+import section24 from './sections/24-dml-batching-gate.js';
 
 let passed = 0;
 let failed = 0;
@@ -68,7 +69,7 @@ const sections = [
   section06, section07, section08, section09, section10,
   section11, section12, section13, section14, section15,
   section16, section17, section18, section19, section20,
-  section21, section22, section23,
+  section21, section22, section23, section24,
 ];
 
 for (const section of sections) {
