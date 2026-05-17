@@ -1,18 +1,28 @@
-import { readFileSync, writeFileSync, existsSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, statSync } from 'fs';
 import { resolve } from 'path';
 
 function graphPath(collection) {
   return resolve(`graph.${collection}.json`);
 }
 
+const _graphCache = new Map(); // collection → { mtimeMs, data }
+
 export function loadGraph(collection = 'default') {
   const p = graphPath(collection);
   if (!existsSync(p)) return {};
-  return JSON.parse(readFileSync(p, 'utf8'));
+  const { mtimeMs } = statSync(p);
+  const cached = _graphCache.get(collection);
+  if (cached && cached.mtimeMs === mtimeMs) return cached.data;
+  const data = JSON.parse(readFileSync(p, 'utf8'));
+  _graphCache.set(collection, { mtimeMs, data });
+  return data;
 }
 
 export function saveGraph(graph, collection = 'default') {
-  writeFileSync(graphPath(collection), JSON.stringify(graph, null, 2), 'utf8');
+  const p = graphPath(collection);
+  writeFileSync(p, JSON.stringify(graph, null, 2), 'utf8');
+  const { mtimeMs } = statSync(p);
+  _graphCache.set(collection, { mtimeMs, data: graph });
 }
 
 export function addLink(graph, from, to) {

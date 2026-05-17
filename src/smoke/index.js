@@ -21,6 +21,7 @@ import section17 from './sections/17-pdf-fixture.js';
 import section18 from './sections/18-validate-ollama-models.js';
 import section19 from './sections/19-doctor-checks.js';
 import section20 from './sections/20-colbert-math.js';
+import section21 from './sections/21-graph-cache.js';
 
 let passed = 0;
 let failed = 0;
@@ -65,6 +66,7 @@ const sections = [
   section06, section07, section08, section09, section10,
   section11, section12, section13, section14, section15,
   section16, section17, section18, section19, section20,
+  section21,
 ];
 
 for (const section of sections) {
