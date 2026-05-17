@@ -71,11 +71,20 @@ The light/fallback mode uses `ollama` + `hashed-tf`. It requires Ollama running 
 
 Controls which hardware backend ONNX Runtime uses for inference. Only relevant when `ONNX_EMBED=1`.
 
+**Platform provider matrix:**
+
+| Platform | Recommended provider | Status |
+|----------|----------------------|--------|
+| Any OS | `cpu` | Default, safe, no extra setup |
+| Windows (any GPU vendor) | `dml` | Recommended Windows GPU path |
+| Linux x64 + NVIDIA | `cuda` | Opt-in, advanced/experimental |
+| Windows + NVIDIA CUDA | — | Not supported via prebuilt npm |
+
 | Value | Backend | Notes |
 |-------|---------|-------|
 | `cpu` (default) | CPU | Portable, no extra setup required |
 | `dml` | DirectML | Windows GPU acceleration (NVIDIA, AMD, Intel). Falls back to CPU if DirectML is unavailable. No extra package needed — `onnxruntime-node` includes DirectML support on Windows. |
-| `cuda` | NVIDIA CUDA | Falls back to CPU — CUDA EP is not bundled in `onnxruntime-node`. Semidex warns and retries with CPU automatically. CUDA/Linux GPU support is pending research. |
+| `cuda` | NVIDIA CUDA | **Linux x64 + NVIDIA only, advanced/experimental.** Requires CUDA 12.x + cuDNN 9 installed separately. On Windows, no official prebuilt path exists — semidex does not support Windows CUDA. If CUDA is unavailable, semidex warns and retries with CPU automatically (see gap note below). |
 
 `dml` and `cpu` are **performance-only** — they do not change the embedding model or provider metadata and do not require reindexing; minor numeric differences between execution providers are possible and do not affect retrieval quality.
 
@@ -84,7 +93,14 @@ Controls which hardware backend ONNX Runtime uses for inference. Only relevant w
 phase 4 (embedding), which benchmarks show at ~3.2× faster than DML sequential and
 ~4.6× faster than CPU sequential. Batch size is controlled by `ONNX_BATCH_SIZE`
 (default 4, valid range 1–64). CPU and all other providers use the default per-text
-path regardless of this setting. CUDA/Linux GPU support is pending research.
+path regardless of this setting.
+
+**CUDA silent fallback (known gap):** When `ONNX_EXECUTION_PROVIDER=cuda` is set
+and CUDA is unavailable, semidex currently logs a warning and retries with CPU. This
+means a misconfigured CUDA environment runs silently on CPU without error. Do not
+treat the absence of an error as proof that CUDA is active. To verify: check the
+`[onnx] creating inference session (providers: cuda)` line in stderr — if followed
+by `retrying with cpu`, CUDA did not load. A future patch will add a strict mode.
 
 Invalid values produce a warning and fall back to `cpu`.
 

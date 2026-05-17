@@ -200,7 +200,16 @@ Changing `denseProvider`, `denseModel`, `sparseProvider`,
 `embeddingSchemaVersion`, or `vectorSize` requires reindexing. Do not treat wrong
 search results as ranking bugs until provider metadata has been checked.
 
-`ONNX_EXECUTION_PROVIDER` selects the ONNX Runtime hardware backend (`cpu` / `dml` / `cuda`). It is **performance-only** — it does not change embedding model or provider metadata and should not require reindexing; minor numeric differences between execution providers are possible. Default is `cpu`. Use `dml` on Windows for GPU acceleration without extra packages. `cuda` falls back to CPU automatically if not supported by the current runtime.
+`ONNX_EXECUTION_PROVIDER` selects the ONNX Runtime hardware backend. It is **performance-only** — it does not change embedding model or provider metadata and should not require reindexing; minor numeric differences between execution providers are possible.
+
+| Platform | Recommended provider | Notes |
+|----------|----------------------|-------|
+| Any OS | `cpu` (default) | Safe, no extra setup |
+| Windows | `dml` | Preferred GPU path — bundled in `onnxruntime-node`; covers NVIDIA, AMD, Intel |
+| Linux x64 + NVIDIA | `cuda` | Advanced/experimental opt-in; requires CUDA 12.x + cuDNN 9 installed separately |
+| Windows + NVIDIA CUDA | — | Not supported via prebuilt npm; Windows GPU → use `dml` |
+
+**CUDA silent fallback:** When `ONNX_EXECUTION_PROVIDER=cuda` is set and CUDA is unavailable, semidex warns and retries with CPU. This means a bad CUDA setup runs silently on CPU — check stderr for `retrying with cpu` to verify. Do not treat absence of an error as proof CUDA loaded.
 
 ## `config.json`
 
