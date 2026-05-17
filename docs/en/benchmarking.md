@@ -5,6 +5,8 @@ semidex includes both offline smoke tests and a live retrieval benchmark.
 ## Commands
 
 ```bash
+npm run bench:indexing
+BENCH_INDEX_EP=dml BENCH_INDEX_RUNS=3 npm run bench:indexing
 npm run bench:onnx-provider
 npm run smoke
 npm run bench:retrieval
@@ -73,6 +75,89 @@ embeddings + Qdrant upsert), `link` (semantic link search + backlink updates),
 
 `tokensEst` is a rough estimate: `sum(chunk.text.length / 4)`. Not a precise
 token count — use it to normalise throughput across files of different sizes.
+
+## Indexing Performance Benchmark
+
+```bash
+npm run bench:indexing
+BENCH_INDEX_EP=dml BENCH_INDEX_RUNS=3 npm run bench:indexing
+BENCH_INDEX_EP=cpu BENCH_INDEX_RUNS=3 npm run bench:indexing
+```
+
+Measures wall-clock indexing phase timings across repeated runs against a fixed
+local corpus (README.md, AGENTS.md, docs/en/\*.md). Requires Qdrant and Ollama.
+Does not change any indexing behavior — reads `INDEX_PROFILE=1` output.
+
+**Env vars:**
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `BENCH_INDEX_PROVIDER` | `onnx` | Embedding provider: `onnx` or `ollama` |
+| `BENCH_INDEX_EP` | `cpu` | ONNX execution provider: `cpu`, `dml`, or `cuda` |
+| `BENCH_INDEX_RUNS` | `3` | Number of complete corpus passes (positive integer; invalid value exits immediately) |
+| `BENCH_INDEX_COLLECTION` | `bench-indexing-perf-<ts>` | Qdrant collection name (must start with `bench-indexing-`) |
+| `BENCH_INDEX_CLEANUP` | `1` | Set to `0` to leave the collection in Qdrant after the run |
+| `BENCH_INDEX_OVERWRITE` | `0` | Set to `1` to reuse an existing collection instead of failing |
+| `ONNX_BATCH_SIZE` | `4` | DML batch size (passed through to the indexer) |
+
+**Safety:** `BENCH_INDEX_COLLECTION` must start with `bench-indexing-`. Any other
+prefix exits with an error — the harness will not accidentally benchmark into a
+production collection.
+
+**How the harness runs the indexer:**
+
+Each run is a **single indexer process** against a bounded temp directory
+(`.bench-indexing-corpus/`) that contains copies of `README.md`, `AGENTS.md`,
+and `docs/en/*.md` with their relative paths preserved under the temp root.
+`SOURCE_ROOT` is set to the temp corpus root (not the repo root), so the indexer
+computes `source_file` as the path relative to that root — e.g.
+`docs/en/configuration.md` — which matches production/bootstrap layout.
+Setting `SOURCE_ROOT` to the repo root would instead produce
+`.bench-indexing-corpus/docs/en/configuration.md`. The temp dir is created before
+Run 1 and deleted in a `finally` block after all runs complete — it is always
+cleaned up even if the benchmark aborts. Redirected `chunks_out`
+(`.bench-indexing-chunks-out/`) is also cleaned up by the same finally block.
+Both dirs are gitignored.
+
+**What each run measures:**
+
+- Run 1 — includes ONNX session init, tokenizer load, Ollama model warmup, and
+  actual embedding + upsert for every file. This is the primary measurement for
+  full indexing throughput and DML batching comparison.
+- Run 2+ — all files hash as unchanged and are skipped by the indexer. These runs
+  measure the skip-path overhead: process startup, collection/config setup, graph
+  load/save, file scan, hash check, and `getStoredMeta` lookup per file. Preflight
+  (Qdrant/Ollama reachability) does not re-run per file on the skip path. The
+  profiler emits no phase lines for skipped files, so the phase timing table is
+  populated by Run 1 data only — skip-path cost is visible only in per-run total ms.
+  Do not compare Run 2+ embedding timings against Run 1; no embedding runs on the
+  skip path.
+
+To force full re-indexing on every run, delete and recreate the collection between
+invocations, or run the harness once per configuration with `BENCH_INDEX_RUNS=1`.
+
+**Artifacts written to `benchmarks/retrieval/results/`:**
+
+- `YYYY-MM-DD-indexing-perf-<provider>-<ep>.json` — full per-file phase timings for all runs
+- `YYYY-MM-DD-indexing-perf-<provider>-<ep>.md` — Markdown report with config, per-run summary, and phase timing table
+
+Provider and EP are included in the filename so same-day CPU and DML runs produce
+distinct files and can be compared directly.
+
+**DML batching comparison:**
+
+```bash
+# CPU baseline
+BENCH_INDEX_EP=cpu BENCH_INDEX_RUNS=1 npm run bench:indexing
+
+# DML comparison (separate invocation — distinct artifact filename)
+BENCH_INDEX_EP=dml BENCH_INDEX_RUNS=1 npm run bench:indexing
+```
+
+Compare Run 1 `total ms` and `chunks/sec` from the two JSON artifacts. Use
+`BENCH_INDEX_RUNS=1` for DML comparison — Run 1 is the only run that measures
+actual embedding, since Run 2+ measure the skip path. DML batching is only active
+when `ONNX_EXECUTION_PROVIDER=dml` and the `shouldUseOnnxBatching` gate passes.
 
 ## ONNX Provider Speed Benchmark
 

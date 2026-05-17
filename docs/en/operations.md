@@ -201,6 +201,7 @@ command exits with a warning rather than overwriting it.
 | `npm run sync` | Sync config and Qdrant indexes |
 | `npm run smoke` | Offline smoke tests |
 | `npm run bootstrap:docs` | Index semidex's own docs into `semidex-docs` |
+| `npm run bench:indexing` | Indexing phase timing benchmark |
 | `npm run bench:retrieval` | Live retrieval benchmark |
 | `npm run bench:retrieval:compare` | Provider comparison |
 | `npm run bench:retrieval:rerank` | Rerank matrix |

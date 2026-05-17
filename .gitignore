@@ -11,3 +11,5 @@ graph.*.json
 !graph.example.json
 config.json
 models/
+.bench-indexing-corpus/
+.bench-indexing-chunks-out/
