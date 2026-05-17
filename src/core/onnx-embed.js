@@ -6,7 +6,7 @@
 import { env, AutoTokenizer } from '@huggingface/transformers';
 import * as ort from 'onnxruntime-node';
 import { existsSync, mkdirSync, createWriteStream, statSync } from 'fs';
-import { join, dirname } from 'path';
+import { join, dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 
 const ROOT      = join(dirname(fileURLToPath(import.meta.url)), '../../');
@@ -203,8 +203,67 @@ function processSparse(tokenWeights, inputIds, attnMask) {
   return { indices: [...best.keys()], values: [...best.values()] };
 }
 
+/**
+ * Embed a batch of texts using bge-m3 ONNX in one inference call.
+ * Returns an array aligned to the input order.
+ * dense stride  : 1024
+ * sparse stride : input seqLen (dims[1])
+ * colbert stride: colbertAll.dims[1] * 1024  ← NOT input seqLen * 1024
+ *
+ * Not used by the production indexer by default. Benchmark/opt-in only.
+ *
+ * @param {string[]} texts — non-empty array
+ * @returns {Promise<Array<{ dense: number[], sparse: { indices: number[], values: number[] } }>>}
+ */
+export async function embedOnnxBatch(texts) {
+  if (!texts.length) throw new Error('embedOnnxBatch: texts must be non-empty');
+  await load();
+
+  const encoded = await tokenizer(texts, {
+    padding:        true,
+    truncation:     true,
+    max_length:     8192,
+    return_tensors: 'np',
+  });
+
+  const dims    = encoded.input_ids.dims;      // [batchSize, seqLen]
+  const [batchSize, seqLen] = dims;
+  const toInt64 = (data) => new ort.Tensor('int64',
+    BigInt64Array.from(Array.from(data).map(BigInt)), dims);
+
+  const feeds = {
+    input_ids:      toInt64(encoded.input_ids.data),
+    attention_mask: toInt64(encoded.attention_mask.data),
+    token_type_ids: toInt64(
+      encoded.token_type_ids?.data ?? new Array(encoded.input_ids.data.length).fill(0)
+    ),
+  };
+
+  const outputs  = await session.run(feeds);
+  const names    = session.outputNames;
+
+  const denseAll   = Array.from(outputs[names[0]].data);            // [batchSize * 1024]
+  const sparseAll  = Array.from(outputs[names[1]].data).map(Number); // [batchSize * seqLen]
+  // colbert_vecs dims[1] = seqLen - 1; stride differs from input seqLen
+  const colbertSeqLen = outputs[names[2]].dims[1];  // not used in return value but kept for correctness
+
+  const inputIdsAll = Array.from(encoded.input_ids.data).map(Number);
+  const attnMaskAll = Array.from(encoded.attention_mask.data).map(Number);
+
+  const results = [];
+  for (let b = 0; b < batchSize; b++) {
+    const dense      = denseAll.slice(b * 1024, (b + 1) * 1024);
+    const sparseSlice = sparseAll.slice(b * seqLen, (b + 1) * seqLen);
+    const inputIds    = inputIdsAll.slice(b * seqLen, (b + 1) * seqLen);
+    const attnMask    = attnMaskAll.slice(b * seqLen, (b + 1) * seqLen);
+    results.push({ dense, sparse: processSparse(sparseSlice, inputIds, attnMask) });
+  }
+  return results;
+}
+
 // CLI: node src/core/onnx-embed.js "your text here"
-if (process.argv[2]) {
+const _isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (_isMain && process.argv[2]) {
   const text = process.argv[2];
   console.log(`\nTest: "${text}"\n`);
   try {
