@@ -116,6 +116,15 @@ Planned work:
   - expand with `qdrant_get_chunk(window=1)`
   - follow related/backlinks when the task spans files
   - use tags and source filters for narrow tasks
+- explore **Synthetic Intuition** as a future cheap routing layer:
+  - use lightweight signals before expensive LLM calls or retrieval expansion
+  - suggest likely collection, source scope, search tactic, diagnostic path, or
+    benchmark report to inspect
+  - treat the output as directional guidance, not as evidence or an answer
+  - rely on metadata and measurements such as provider config, phase timings,
+    source diversity, exact-token overlap, section/tag hints, graph neighbors,
+    and previous benchmark verdicts
+  - keep it local, explainable, and benchmarked before any default behavior
 - evaluate whether a controlled `agent-notes` collection is worth adding
 - keep any write-capable MCP memory tool disabled by default unless it has a clear safety model
 
@@ -123,6 +132,7 @@ Success signals:
 
 - agents need fewer blind file reads
 - agents retrieve surrounding context more often
+- agents choose a useful first search or diagnostic path more often
 - fewer answers are based on a single isolated chunk when the task needs a section or file context
 
 ## Phase 3 - Observability and Diagnostics
