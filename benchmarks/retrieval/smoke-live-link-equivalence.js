@@ -4,31 +4,20 @@
 // change links, backlinks, or graph output vs the current behaviour of calling
 // embedForSearch() independently in phase 5.
 //
-// Design constraint: dense reuse is NOT implemented yet. This script establishes
-// the BASELINE capture only. The CANDIDATE section is documented as TODOs that
-// activate once the production patch exists.
-//
-// What this script does today:
-//   1. Index a small deterministic fixture corpus into a temporary Qdrant collection.
-//   2. Scroll all points and read the graph file.
-//   3. Normalize and serialize links/backlinks/graph keyed by source_file.
-//   4. Save the baseline snapshot to results/link-equivalence-baseline-<stamp>.json.
-//   5. Print the normalized state clearly so it can be diffed against a future
-//      candidate run.
-//
-// What the CANDIDATE run will add (after dense-reuse patch):
-//   Index the same corpus into a second temporary collection using the patched
-//   indexer, snapshot identically, then diff the two snapshots. See TODO sections.
+// Modes:
+//   capture  (default) — index fixture corpus, snapshot, save JSON, exit.
+//   diff     — load two previously saved JSON snapshots and compare them.
 //
 // Usage:
 //   ONNX_EMBED=1 node benchmarks/retrieval/smoke-live-link-equivalence.js
+//   node benchmarks/retrieval/smoke-live-link-equivalence.js diff <before.json> <after.json>
 //
-// Requires: Qdrant reachable (QDRANT_URL in .env), ONNX model cached.
+// Requires: Qdrant reachable (QDRANT_URL in .env), ONNX model cached (capture mode).
 // NOT part of default CI or npm run smoke.
 
 import 'dotenv/config';
 import { writeFileSync, readFileSync, existsSync, rmSync, mkdirSync } from 'fs';
-import { resolve, join, dirname, relative } from 'path';
+import { resolve, join, dirname, relative, basename } from 'path';
 import { fileURLToPath } from 'url';
 import { spawnSync } from 'child_process';
 import { tmpdir } from 'os';
@@ -52,8 +41,8 @@ const FIXTURE_FILES = [
   join(FIXTURES, 'obsidian.md'),
 ];
 
-const _stamp    = Date.now();
-const COL_BASE  = `_equiv-baseline-${_stamp}`;
+const _stamp     = Date.now();
+const COL_BASE   = `_equiv-baseline-${_stamp}`;
 const GRAPH_BASE = join(ROOT, `graph.${COL_BASE}.json`);
 
 let passed = 0;
@@ -65,7 +54,7 @@ function ok(label, result) {
   else        { console.error(`  ✗ ${label}`); failed++; }
 }
 
-// ── tmp dir ──────────────────────────────────────────────────────────────────
+// ── tmp dir ───────────────────────────────────────────────────────────────────
 function pickTmpRoot() {
   for (const base of [tmpdir(), join(ROOT, '.tmp')]) {
     try {
@@ -118,9 +107,9 @@ async function cleanup() {
 function runIndexer(targetDir, collection, extraEnv = {}) {
   const env = {
     ...process.env,
-    COLLECTION:    collection,
-    ONNX_EMBED:    '1',
-    SOURCE_ROOT:   targetDir,
+    COLLECTION:     collection,
+    ONNX_EMBED:     '1',
+    SOURCE_ROOT:    targetDir,
     CHUNKS_OUT_DIR: CHUNKS_DIR,
     LINK_MIN_SCORE: '0.70',   // slightly lower threshold → more links in small corpus
     ...extraEnv,
@@ -133,8 +122,7 @@ function runIndexer(targetDir, collection, extraEnv = {}) {
 
 // ── snapshot helpers ──────────────────────────────────────────────────────────
 
-// Scroll all points in a collection and return a Map<source_file, { links, backlinks }>.
-// Normalizes: sorts links and backlinks arrays; strips UUIDs and collection names.
+// Paginated scroll — raw fetch so we can control offset continuation.
 async function snapshotPayloads(collection) {
   const allPoints = [];
   let offset = null;
@@ -160,17 +148,14 @@ async function snapshotPayloads(collection) {
     if (!sf) continue;
     if (!byFile.has(sf)) byFile.set(sf, { links: new Set(), backlinks: new Set() });
     const entry = byFile.get(sf);
-    for (const l of (pt.payload?.links ?? []))     entry.links.add(l);
+    for (const l of (pt.payload?.links     ?? [])) entry.links.add(l);
     for (const b of (pt.payload?.backlinks ?? [])) entry.backlinks.add(b);
   }
 
-  // Convert to sorted arrays for stable comparison.
+  // Normalized: sorted arrays, sorted keys.
   const result = {};
   for (const [sf, { links, backlinks }] of [...byFile.entries()].sort()) {
-    result[sf] = {
-      links:     [...links].sort(),
-      backlinks: [...backlinks].sort(),
-    };
+    result[sf] = { links: [...links].sort(), backlinks: [...backlinks].sort() };
   }
   return result;
 }
@@ -189,143 +174,215 @@ function snapshotGraph(graphFile) {
   return result;
 }
 
-// ── embed-text format note ─────────────────────────────────────────────────────
-// IMPORTANT — recorded here for the candidate diff:
-//
-// Phase 4 (index.js:100):   embedText = `${chunk.context}\n\n${chunk.text}`
-// Phase 5 (link.js:14):     embedForSearch(col, chunk.context + '\n' + chunk.text)
-//
-// The separator differs: '\n\n' (phase 4) vs '\n' (phase 5).
-// For BGE-M3 / bge-m3-onnx these produce different token sequences and therefore
-// slightly different dense vectors. The cosine similarity between them is typically
-// ≥ 0.999 for short chunks, so link decisions should be identical in practice —
-// but this must be verified empirically, not assumed.
-//
-// Before the dense-reuse patch lands, the embed-text format in phase 5 must be
-// unified to '\n\n' to match phase 4. Otherwise the reuse changes both the
-// optimization AND the query text simultaneously, making it impossible to isolate
-// the cause of any delta.
-//
-// The CANDIDATE run should use unified '\n\n' in both phases, then reuse the
-// phase-4 dense vector in phase 5 — both changes in one patch.
+// ── diff mode ─────────────────────────────────────────────────────────────────
+
+// Compare two normalized payload maps. Returns array of delta objects.
+function diffPayloads(before, after) {
+  const deltas = [];
+  const allFiles = new Set([...Object.keys(before), ...Object.keys(after)]);
+  for (const sf of [...allFiles].sort()) {
+    const b = before[sf] ?? { links: [], backlinks: [] };
+    const a = after[sf]  ?? { links: [], backlinks: [] };
+    const bLinks = JSON.stringify(b.links);
+    const aLinks = JSON.stringify(a.links);
+    const bBack  = JSON.stringify(b.backlinks);
+    const aBack  = JSON.stringify(a.backlinks);
+    if (bLinks !== aLinks) deltas.push({ sf, field: 'links',     before: b.links,     after: a.links });
+    if (bBack  !== aBack)  deltas.push({ sf, field: 'backlinks', before: b.backlinks, after: a.backlinks });
+  }
+  return deltas;
+}
+
+// Compare two normalized graph maps. Returns array of delta objects.
+function diffGraph(before, after) {
+  const deltas = [];
+  const allNodes = new Set([...Object.keys(before), ...Object.keys(after)]);
+  for (const sf of [...allNodes].sort()) {
+    const b = before[sf] ?? { links: [], backlinks: [] };
+    const a = after[sf]  ?? { links: [], backlinks: [] };
+    if (JSON.stringify(b.links)     !== JSON.stringify(a.links))
+      deltas.push({ sf, field: 'graph.links',     before: b.links,     after: a.links });
+    if (JSON.stringify(b.backlinks) !== JSON.stringify(a.backlinks))
+      deltas.push({ sf, field: 'graph.backlinks', before: b.backlinks, after: a.backlinks });
+  }
+  return deltas;
+}
+
+function runDiff(beforePath, afterPath) {
+  console.log('=== smoke-live-link-equivalence — diff mode ===');
+  console.log(`before : ${beforePath}`);
+  console.log(`after  : ${afterPath}`);
+  console.log('');
+
+  if (!existsSync(beforePath)) { console.error(`  ✗ before snapshot not found: ${beforePath}`); process.exit(1); }
+  if (!existsSync(afterPath))  { console.error(`  ✗ after snapshot not found: ${afterPath}`);  process.exit(1); }
+
+  const before = JSON.parse(readFileSync(beforePath, 'utf8'));
+  const after  = JSON.parse(readFileSync(afterPath,  'utf8'));
+
+  console.log(`before captured : ${before.captured}  (embed_text phase5: ${before.embed_text?.phase5_separator ?? 'unknown'})`);
+  console.log(`after  captured : ${after.captured}   (embed_text phase5: ${after.embed_text?.phase5_separator  ?? 'unknown'})`);
+  console.log('');
+
+  const payloadDeltas = diffPayloads(before.payloads ?? {}, after.payloads ?? {});
+  const graphDeltas   = diffGraph(before.graph ?? {}, after.graph ?? {});
+
+  if (payloadDeltas.length === 0) {
+    console.log('  ✓ payload links/backlinks: identical');
+    passed++;
+  } else {
+    console.error(`  ✗ payload links/backlinks: ${payloadDeltas.length} difference(s)`);
+    for (const d of payloadDeltas) {
+      console.error(`      ${d.sf}  [${d.field}]`);
+      console.error(`        before: ${JSON.stringify(d.before)}`);
+      console.error(`        after : ${JSON.stringify(d.after)}`);
+    }
+    failed++;
+  }
+
+  if (graphDeltas.length === 0) {
+    console.log('  ✓ graph links/backlinks: identical');
+    passed++;
+  } else {
+    console.error(`  ✗ graph links/backlinks: ${graphDeltas.length} difference(s)`);
+    for (const d of graphDeltas) {
+      console.error(`      ${d.sf}  [${d.field}]`);
+      console.error(`        before: ${JSON.stringify(d.before)}`);
+      console.error(`        after : ${JSON.stringify(d.after)}`);
+    }
+    failed++;
+  }
+
+  console.log(`\n${'─'.repeat(60)}`);
+  if (failed === 0) {
+    console.log(`DIFF RESULT: PASS — snapshots are equivalent (${passed}/${passed} checks)`);
+  } else {
+    console.error(`DIFF RESULT: FAIL — ${failed} check(s) failed`);
+    process.exit(1);
+  }
+}
+
+// ── capture mode ──────────────────────────────────────────────────────────────
+
 const EMBED_TEXT_NOTE = {
   phase4_separator: '\\n\\n',
-  phase5_separator: '\\n',
-  note: 'Separators differ. Candidate patch must unify to \\n\\n first, then reuse dense vector.',
+  phase5_separator: '\\n\\n',  // updated to reflect Patch A — both now use \n\n
+  note: 'Patch A applied: phase 5 now uses \\n\\n, matching phase 4. Pre-conditions B+C (dense reuse) still pending.',
 };
 
-// ── main ──────────────────────────────────────────────────────────────────────
-async function main() {
-  console.log('=== smoke-live-link-equivalence — baseline capture ===');
+async function runCapture() {
+  console.log('=== smoke-live-link-equivalence — capture ===');
   console.log(`collection   : ${COL_BASE}`);
   console.log(`fixture files: ${FIXTURE_FILES.length} (custom-50 docs subset)`);
   console.log(`fixture dir  : ${FIXTURE_DIR}`);
   console.log(`chunks dir   : ${CHUNKS_DIR}`);
   console.log('');
-  console.log('[embed-text format]');
+  console.log('[embed-text format — Patch A applied]');
   console.log(`  phase 4  : context + "\\n\\n" + text`);
-  console.log(`  phase 5  : context + "\\n" + text   ← DIFFERENT — must unify before reuse`);
+  console.log(`  phase 5  : context + "\\n\\n" + text   ✓ unified`);
   console.log('');
 
-  // ── step 1: copy exactly FIXTURE_FILES into a temp dir ───────────────────
-  // The indexer is run against this temp dir, not the source FIXTURES folder.
-  // This guarantees the indexed corpus matches FIXTURE_FILES exactly — no
-  // extra files sneak in if the fixtures directory grows in the future.
+  // ── step 1: copy FIXTURE_FILES into a temp dir ────────────────────────────
   console.log('[step 1] preparing fixture corpus...');
   mkdirSync(FIXTURE_DIR, { recursive: true });
   for (const src of FIXTURE_FILES) {
-    const dst = join(FIXTURE_DIR, src.split(/[\\/]/).pop());
+    const dst = join(FIXTURE_DIR, basename(src));
     writeFileSync(dst, readFileSync(src));
   }
   console.log(`  copied ${FIXTURE_FILES.length} files to ${relative(ROOT, FIXTURE_DIR)}`);
 
-  // ── step 2: index baseline ────────────────────────────────────────────────
-  console.log('\n[step 2] indexing baseline collection...');
+  // ── step 2: index ─────────────────────────────────────────────────────────
+  console.log('\n[step 2] indexing collection...');
   const status = runIndexer(FIXTURE_DIR, COL_BASE);
   if (status !== 0) {
     console.error(`  ✗ indexer failed (exit ${status})`);
     await cleanup();
     process.exit(1);
   }
-  console.log('  ✓ baseline indexed');
+  console.log('  ✓ indexed');
 
-  // ── step 3: snapshot baseline ─────────────────────────────────────────────
-  console.log('\n[step 3] snapshotting baseline...');
-  const basePayloads = await snapshotPayloads(COL_BASE);
-  const baseGraph    = snapshotGraph(GRAPH_BASE);
+  // ── step 3: snapshot ──────────────────────────────────────────────────────
+  console.log('\n[step 3] snapshotting...');
+  const payloads = await snapshotPayloads(COL_BASE);
+  const graph    = snapshotGraph(GRAPH_BASE);
 
-  const sourceFiles = Object.keys(basePayloads);
-  ok('baseline has at least one source_file', sourceFiles.length >= 1);
+  const sourceFiles = Object.keys(payloads);
+  ok('has at least one source_file', sourceFiles.length >= 1);
 
-  console.log(`\n  source_files in baseline: ${sourceFiles.length}`);
+  console.log(`\n  source_files: ${sourceFiles.length}`);
   for (const sf of sourceFiles) {
-    const { links, backlinks } = basePayloads[sf];
+    const { links, backlinks } = payloads[sf];
     console.log(`    ${sf}: links=[${links.join(', ')}]  backlinks=[${backlinks.join(', ')}]`);
   }
 
-  const graphNodes = Object.keys(baseGraph);
+  const graphNodes = Object.keys(graph);
   console.log(`\n  graph nodes: ${graphNodes.length}`);
   for (const sf of graphNodes) {
-    const { links, backlinks } = baseGraph[sf];
+    const { links, backlinks } = graph[sf];
     console.log(`    ${sf}: links=[${links.join(', ')}]  backlinks=[${backlinks.join(', ')}]`);
   }
 
-  // Consistency check: every file with links in payload should appear in graph.
   let payloadGraphConsistent = true;
   for (const sf of sourceFiles) {
-    if (basePayloads[sf].links.length > 0 && !baseGraph[sf]) {
+    if (payloads[sf].links.length > 0 && !graph[sf]) {
       console.error(`  ✗ graph missing node for ${sf} (has links in payload)`);
       payloadGraphConsistent = false;
     }
   }
   ok('payload links consistent with graph', payloadGraphConsistent);
 
-  // ── step 4: save baseline snapshot ───────────────────────────────────────
+  // ── step 4: save snapshot ─────────────────────────────────────────────────
   mkdirSync(RESULTS_DIR, { recursive: true });
-  const snapshotPath = join(RESULTS_DIR, `link-equivalence-baseline-${_stamp}.json`);
-  const snapshot = {
+  const snapshotPath = join(RESULTS_DIR, `link-equivalence-snapshot-${_stamp}.json`);
+  writeFileSync(snapshotPath, JSON.stringify({
     captured:      new Date().toISOString(),
     collection:    COL_BASE,
-    fixture_files: FIXTURE_FILES.map(f => relative(ROOT, f)),   // original source paths
+    fixture_files: FIXTURE_FILES.map(f => relative(ROOT, f)),
     embed_text:    EMBED_TEXT_NOTE,
-    payloads:      basePayloads,
-    graph:         baseGraph,
-    // TODO(candidate): add `candidate_payloads` and `candidate_graph` here after patch.
-  };
-  writeFileSync(snapshotPath, JSON.stringify(snapshot, null, 2), 'utf8');
-  ok('baseline snapshot written', existsSync(snapshotPath));
+    payloads,
+    graph,
+  }, null, 2), 'utf8');
+  ok('snapshot written', existsSync(snapshotPath));
   console.log(`\n  snapshot saved: ${relative(ROOT, snapshotPath)}`);
+  console.log(`\n  To diff against another snapshot:`);
+  console.log(`    node benchmarks/retrieval/smoke-live-link-equivalence.js diff <before.json> ${relative(ROOT, snapshotPath)}`);
 
   // ── step 5: candidate TODO block ─────────────────────────────────────────
-  console.log('\n[step 5] CANDIDATE (not yet runnable — awaiting dense-reuse patch)');
-  console.log('  TODO: index same fixtures into COL_CAND using patched indexer');
-  console.log('  TODO: snapshot candidate payloads + graph');
-  console.log('  TODO: diff(basePayloads, candPayloads) and diff(baseGraph, candGraph)');
-  console.log('  TODO: PASS if both diffs are empty; FAIL with diff summary otherwise');
-  console.log('');
-  console.log('  Pre-conditions for candidate run:');
-  console.log('    1. Unify embed-text format: phase 5 must use "\\n\\n" (same as phase 4).');
-  console.log('    2. buildLinks() must accept optional precomputed dense vector param.');
-  console.log('    3. index.js phase 5 must pass the phase-4 dense vector to buildLinks().');
+  console.log('\n[step 5] CANDIDATE (not yet runnable — awaiting Pre-conditions B+C)');
+  console.log('  Pre-conditions B+C for dense-reuse patch:');
+  console.log('    B. buildLinks() must accept optional precomputed dense vector param.');
+  console.log('    C. index.js phase 5 must zip taggedChunks with phase-4 dense vectors');
+  console.log('       (use chunksWithDense = taggedChunks.map((c,i) => ({chunk:c, dense:pts[i].dense})),');
+  console.log('       NOT a callback index inside runBatched — that resets per batch).');
   console.log('  See design report: results/2026-05-17-link-dense-reuse-equivalence-design.md');
 
-  // ── cleanup + result ──────────────────────────────────────────────────────
   await cleanup();
 
   console.log(`\n${'─'.repeat(60)}`);
   if (failed === 0) {
-    console.log(`smoke-live-link-equivalence (baseline): PASS — ${passed}/${passed} assertions`);
-    console.log(`Next step: apply dense-reuse patch, then re-run to compare snapshots.`);
+    console.log(`smoke-live-link-equivalence (capture): PASS — ${passed}/${passed} assertions`);
   } else {
-    console.error(`smoke-live-link-equivalence (baseline): FAIL — ${failed} failure(s), ${passed} passed`);
+    console.error(`smoke-live-link-equivalence (capture): FAIL — ${failed} failure(s), ${passed} passed`);
     process.exit(1);
   }
 }
 
+// ── entry point ───────────────────────────────────────────────────────────────
+// only warn about incomplete cleanup in capture mode — diff mode creates no temp state
 process.on('exit', () => { if (!cleanupDone) console.warn('[warn] cleanup not completed'); });
 
-main().catch(async err => {
-  console.error('\nUnhandled error:', err);
-  await cleanup();
-  process.exit(1);
-});
+const args = process.argv.slice(2);
+if (args[0] === 'diff') {
+  if (!args[1] || !args[2]) {
+    console.error('Usage: node smoke-live-link-equivalence.js diff <before.json> <after.json>');
+    process.exit(1);
+  }
+  cleanupDone = true;  // diff mode creates no temp collections or files
+  runDiff(resolve(args[1]), resolve(args[2]));
+} else {
+  runCapture().catch(async err => {
+    console.error('\nUnhandled error:', err);
+    await cleanup();
+    process.exit(1);
+  });
+}

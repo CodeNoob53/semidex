@@ -193,9 +193,15 @@ Print a compact diff (source_file, field, baseline value, candidate value).
 Before Pre-condition A lands, running baseline with `\n\n` vs candidate with `\n`
 will show a diff if any link decision changes near the score threshold. After Pre-
 condition A (both use `\n\n`), and before Pre-condition B (reuse disabled by
-default), baseline and candidate should be bit-identical even without vector reuse.
-Vector reuse then becomes a pure latency optimization: the score is the same dense
-vector, so search results are deterministic.
+default), baseline and candidate should produce identical link decisions — same text
+produces the same vector, same scores, same threshold outcomes.
+
+**Note:** Patch A itself produced a non-empty diff vs the pre-A baseline (7 payload +
+11 graph differences at LINK_MIN_SCORE=0.70). That diff is an **accepted behavior
+delta**: the `\n` format in phase 5 was an inconsistency. The post-Patch-A snapshot
+(`link-equivalence-snapshot-1779016800146.json`) is the new reference. Vector reuse
+(B+C) must produce zero additional delta vs this reference — same text, same vector,
+same scores, same links.
 
 ---
 
@@ -243,12 +249,22 @@ vector, so search results are deterministic.
 
 | Part | Status |
 |------|--------|
-| Baseline capture script | ✅ runnable now (`ONNX_EMBED=1 node ...`) |
-| Baseline snapshot save | ✅ works |
-| Candidate capture | ⏳ blocked on Pre-conditions A+B+C |
-| Snapshot diff logic | ⏳ TODO in script (trivial once candidate exists) |
-| Full PASS/FAIL report | ⏳ after candidate |
+| Baseline capture script | ✅ done |
+| Snapshot diff mode | ✅ done (`diff <before.json> <after.json>`) |
+| Pre-condition A (unify `\n` → `\n\n`) | ✅ **implemented and verified** — 2026-05-17 |
+| Pre-condition B (buildLinks optional dense param) | ⏳ pending |
+| Pre-condition C (zip phase-4 dense in index.js) | ⏳ pending |
+| Candidate capture (B+C) | ⏳ blocked on B+C |
+| Full PASS/FAIL diff (A vs A+B+C) | ⏳ after B+C |
 
-The baseline can be captured any time to establish the reference point. Re-run
-baseline after any production change to links/backlinks logic to keep the
-reference fresh.
+**Patch A result:** diff non-empty at `LINK_MIN_SCORE=0.70` — 7 payload and 11 graph
+differences. Accepted: format unification is correct; the delta is near-threshold
+variance from the `\n` inconsistency, not a semantic regression. See
+`2026-05-17-link-dense-reuse-patch-a-result.md` for full diff.
+
+**Reference snapshot for B+C diff:** `link-equivalence-snapshot-1779016800146.json`
+(post-Patch-A, phase 5 using `\n\n`). The B+C candidate must be diffed against
+this snapshot, not the original pre-A baseline.
+
+The baseline can be recaptured any time by running the script against the current
+production code.
