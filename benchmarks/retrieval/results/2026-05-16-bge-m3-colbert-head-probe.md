@@ -188,10 +188,11 @@ Both policies: **FAILED**
 
 ### Artifact references
 
-| Policy | Result file |
-|--------|-------------|
-| official | `benchmarks/retrieval/results/2026-05-16-custom50-colbert-top40-maxlen512-mean-official.txt` |
-| no-eos | `benchmarks/retrieval/results/2026-05-17-custom50-colbert-top40-maxlen512-mean-no-eos.txt` |
+| Policy | Result file | Notes |
+|--------|-------------|-------|
+| official (initial run) | `benchmarks/retrieval/results/2026-05-16-custom50-colbert-top40-maxlen512-mean-official.txt` | first official run |
+| official (post-optimization) | `benchmarks/retrieval/results/2026-05-17-custom50-colbert-top40-maxlen512-mean-official.txt` | after eliminating top-20 duplicate ONNX encoding; quality metrics identical |
+| no-eos | `benchmarks/retrieval/results/2026-05-17-custom50-colbert-top40-maxlen512-mean-no-eos.txt` | ablation — better experimental policy |
 
 ### Mode summary (no-eos run, for reference)
 

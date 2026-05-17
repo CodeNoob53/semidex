@@ -250,6 +250,25 @@ This requires `scoreColBERT` to return intermediate scores (or a second path tha
 
 **Also eliminate duplicate query encode:** pass query vectors from the top40 run into the top20 run instead of re-encoding. Saves ~120 ms per query.
 
+#### Optimization follow-up (2026-05-17)
+
+Implemented via `scoreColBERTAll()` in `benchmarks/retrieval/lib/colbert-rerank.js`. Pool40 is scored once; colbert-top20 results are derived by slicing `allScored` to the first `TOP_N_20` entries (hybrid rank ≤ 20) and re-sorting by the already-computed ColBERT scores — no additional ONNX calls.
+
+**Outcome (post-optimization official run, 2026-05-17):**
+
+| Metric | Before | After |
+|--------|--------|-------|
+| colbert-top40 MRR@10 | 0.718 | 0.718 |
+| colbert-top20 MRR@10 | 0.716 | 0.716 |
+| colbert-top20 p50 latency | ~5 971 ms | ~50 ms |
+| colbert-top40 p50 latency | ~11 400 ms | ~11 332 ms |
+
+Quality metrics for colbert-top20 and colbert-top40 are **unchanged** — identical scores, as expected (no re-encoding means no numerical difference).
+
+**Baseline note:** the live `hybrid-true` MRR@10 changed between runs (0.665 in the no-eos run → 0.634 in the post-optimization run) due to Qdrant tie-breaking variance across sessions. Gate pass/fail status and ordering-loss counts changed accordingly. These differences are **not attributable to the optimization** — do not treat them as ranking improvement evidence. Compare only colbert-top20/40 quality metrics between runs.
+
+Artifact: `benchmarks/retrieval/results/2026-05-17-custom50-colbert-top40-maxlen512-mean-official.txt`
+
 ### Second (benchmark quality experiment)
 
 **Cache candidate ColBERT vectors across the run.**
