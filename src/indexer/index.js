@@ -115,7 +115,11 @@ async function indexFile(filePath, rootPath, collection, allCollections, graph) 
   }
 
   console.log('  [4/5] embedding + upserting...');
-  const embedTexts = taggedChunks.map(chunk => `${chunk.context}\n\n${chunk.text}`);
+  // BENCH_EMBED_INPUT=text — benchmark/ablation only, not a stable config option.
+  // Default (unset): context+text. Do not rely on this in production.
+  const embedTexts = process.env.BENCH_EMBED_INPUT === 'text'
+    ? taggedChunks.map(chunk => chunk.text)
+    : taggedChunks.map(chunk => `${chunk.context}\n\n${chunk.text}`);
 
   // Attempt DML-bucketed batch embed; fall back to per-text path on any failure.
   let embedResults;
