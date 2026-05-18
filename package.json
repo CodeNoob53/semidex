@@ -41,7 +41,8 @@
     "bench:indexing": "node benchmarks/retrieval/indexing-performance-bench.js",
     "bench:combined-probe": "node benchmarks/retrieval/combined-context-tags-probe.js",
     "verify:combined-llm": "node benchmarks/retrieval/combined-llm-live-verification.js",
-    "bench:custom50:combined": "node benchmarks/retrieval/custom-50/combined-llm-quality.js"
+    "bench:custom50:combined": "node benchmarks/retrieval/custom-50/combined-llm-quality.js",
+    "bench:custom50:diag": "node benchmarks/retrieval/custom-50/combined-hard-regression-diagnostic.js"
   },
   "dependencies": {
     "@huggingface/transformers": "^4.2.0",
