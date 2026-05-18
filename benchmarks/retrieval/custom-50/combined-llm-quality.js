@@ -133,20 +133,39 @@ async function countPoints(collection) {
   return (await scrollAll(collection)).length;
 }
 
+async function scrollPage(collection, offset) {
+  const body = { limit: 100, with_payload: true, with_vectors: false };
+  if (offset !== null) body.offset = offset;
+  const r = await fetch(`${QDRANT_URL}/collections/${collection}/points/scroll`, {
+    method: 'POST',
+    headers: { 'api-key': process.env.QDRANT_KEY ?? '', 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(60000),
+  });
+  if (!r.ok) {
+    const text = await r.text().catch(() => '');
+    throw new Error(`Qdrant scroll "${collection}" returned ${r.status}: ${text.slice(0, 200)}`);
+  }
+  return r.json();
+}
+
 async function scrollAll(collection) {
   const points = [];
-  let offset = null;
+  let offset   = null;
   while (true) {
-    const body = { limit: 100, with_payload: true, with_vectors: false };
-    if (offset !== null) body.offset = offset;
-    const r = await fetch(`${QDRANT_URL}/collections/${collection}/points/scroll`, {
-      method: 'POST',
-      headers: { 'api-key': process.env.QDRANT_KEY ?? '', 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(20000),
-    });
-    if (!r.ok) break;
-    const data = await r.json();
+    let data;
+    // Retry once on network-level failure (stale keep-alive after long spawnSync)
+    try {
+      data = await scrollPage(collection, offset);
+    } catch (e) {
+      if (offset === null && e.message === 'fetch failed') {
+        console.log('  [scroll] network error on first page — retrying once...');
+        await new Promise(r => setTimeout(r, 2000));
+        data = await scrollPage(collection, offset);
+      } else {
+        throw e;
+      }
+    }
     const batch = data?.result?.points ?? [];
     points.push(...batch);
     offset = data?.result?.next_page_offset ?? null;
