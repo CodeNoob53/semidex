@@ -10,6 +10,7 @@ import { addContextAndTags } from './phases/combined.js';
 import { resolveCombinedLlmConfig } from '../core/doctor-checks.js';
 import { buildLinks } from './phases/link.js';
 import { runBatched } from './batch.js';
+import { collectFiles, SUPPORTED_EXTENSIONS } from './files.js';
 import { Profiler } from './profiler.js';
 import { upsertPoints, updatePayload, listCollections, createCollection, getStoredMeta, deleteBySourceFile, listSourceFiles } from '../core/qdrant.js';
 import { loadGraph, saveGraph, removeFile } from '../core/graph.js';
@@ -98,7 +99,7 @@ async function indexFile(filePath, rootPath, collection, allCollections, graph) 
     profiler.mark('context');
 
     console.log('  [3/5] (combined — no separate tag phase)');
-    taggedChunks = await runBatched(merged, BATCH_SIZE, chunk => addContextAndTags(chunk, combinedCfg.model));
+    taggedChunks = await runBatched(merged, BATCH_SIZE, chunk => addContextAndTags(chunk, combinedCfg.model, merged));
     profiler.mark('tag');
   } else {
     console.log('  [2/5] contextualizing...');
@@ -257,20 +258,6 @@ export function resolveLinkCollections(qdrantCollections, configCollectionsMap, 
   return base.filter(c => envAllowlist.has(c));
 }
 
-const SUPPORTED_EXTENSIONS = new Set(['.md', '.txt', '.docx', '.odt', '.rtf', '.epub', '.html', '.htm', '.pdf']);
-
-function collectFiles(targetPath) {
-  const stat = statSync(targetPath);
-  if (stat.isFile()) return SUPPORTED_EXTENSIONS.has(extname(targetPath).toLowerCase()) ? [targetPath] : [];
-  const files = [];
-  for (const entry of readdirSync(targetPath, { withFileTypes: true })) {
-    if (entry.name.startsWith('.')) continue;
-    const full = join(targetPath, entry.name);
-    if (entry.isDirectory()) files.push(...collectFiles(full));
-    else if (SUPPORTED_EXTENSIONS.has(extname(entry.name).toLowerCase())) files.push(full);
-  }
-  return files;
-}
 
 async function main() {
   const targetPath = process.argv[2];

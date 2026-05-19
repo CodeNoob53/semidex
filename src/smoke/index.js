@@ -28,6 +28,8 @@ import section24 from './sections/24-dml-batching-gate.js';
 import section25 from './sections/25-zip-ordered-links.js';
 import section26 from './sections/26-extract-context-tags-array.js';
 import section27 from './sections/27-combined-phase.js';
+import section28 from './sections/28-setext-headings.js';
+import section29 from './sections/29-semidex-ignore.js';
 
 let passed = 0;
 let failed = 0;
@@ -73,7 +75,7 @@ const sections = [
   section11, section12, section13, section14, section15,
   section16, section17, section18, section19, section20,
   section21, section22, section23, section24, section25,
-  section26, section27,
+  section26, section27, section28, section29,
 ];
 
 for (const section of sections) {

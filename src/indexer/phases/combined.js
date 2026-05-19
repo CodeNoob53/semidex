@@ -62,7 +62,23 @@ export function parseCombinedResponse(raw) {
 
 // ── Prompt ────────────────────────────────────────────────────────────────────
 
-function buildPrompt(chunk) {
+// BENCH_CONTEXT_POLICY — benchmark/ablation only, not a stable config option.
+// Selects alternate prompt variant for context generation experiments.
+// Valid values: "current-minimal" (default), "identifier-preserving", "section-window-aware".
+// Production behavior is always "current-minimal" when unset.
+const BENCH_CONTEXT_POLICY = process.env.BENCH_CONTEXT_POLICY || 'current-minimal';
+
+function buildPrompt(chunk, chunks) {
+  if (BENCH_CONTEXT_POLICY === 'identifier-preserving') {
+    return buildPromptIdentifierPreserving(chunk);
+  }
+  if (BENCH_CONTEXT_POLICY === 'section-window-aware') {
+    return buildPromptSectionWindowAware(chunk, chunks);
+  }
+  return buildPromptCurrentMinimal(chunk);
+}
+
+function buildPromptCurrentMinimal(chunk) {
   return `You are a document indexer. Given a text chunk, return a JSON object with:
 - "context": 1-2 sentences describing what this chunk is about and where it fits in the document
 - "tags": array of 3-7 lowercase hyphenated tags (e.g. "node-js", "qdrant-hybrid-search")
@@ -77,17 +93,72 @@ Text:
 ${chunk.text.slice(0, 1000)}`;
 }
 
+function buildPromptIdentifierPreserving(chunk) {
+  return `You are a document indexer. Given a text chunk, return a JSON object with:
+- "context": 1-2 sentences describing what this chunk is about and where it fits in the document
+- "tags": array of 3-7 lowercase hyphenated tags (e.g. "node-js", "qdrant-hybrid-search")
+
+Rules for context:
+- Preserve exact identifiers verbatim: env vars, function names, file paths, CLI flags, error strings, config keys, model names, IDs, numbers.
+- Do not paraphrase technical terms. If the chunk mentions QDRANT_URL, write QDRANT_URL.
+- Help retrieve this exact chunk — write context a user would search for.
+- Do not summarize the whole document. Do not invent scope.
+
+Output ONLY valid JSON, nothing else. Example: {"context":"This chunk explains X.","tags":["x","y"]}
+
+File: ${chunk.source_file}
+Section: ${chunk.section || 'unknown'}
+Chunk ${chunk.chunkIndex + 1} of ${chunk.totalChunks}
+
+Text:
+${chunk.text.slice(0, 1000)}`;
+}
+
+function buildPromptSectionWindowAware(chunk, chunks) {
+  const prev = chunks ? chunks[chunk.chunkIndex - 1] : null;
+  const next = chunks ? chunks[chunk.chunkIndex + 1] : null;
+  const prevSnippet = prev ? prev.text.slice(-200).trim() : null;
+  const nextSnippet = next ? next.text.slice(0, 200).trim() : null;
+
+  const windowLines = [];
+  if (prevSnippet) windowLines.push(`Previous chunk (end):\n${prevSnippet}`);
+  if (nextSnippet) windowLines.push(`Next chunk (start):\n${nextSnippet}`);
+  const windowBlock = windowLines.length
+    ? '\n\n' + windowLines.join('\n\n')
+    : '';
+
+  return `You are a document indexer. Given a text chunk and its surrounding context, return a JSON object with:
+- "context": 1-2 sentences (40-90 tokens) describing what this specific chunk is about and where it fits
+- "tags": array of 3-7 lowercase hyphenated tags
+
+Rules:
+- Preserve exact identifiers verbatim: env vars, function names, file paths, CLI flags, error strings, config keys, model names.
+- Context must be specific to this chunk, not the whole document or section.
+- Use surrounding chunks only to understand position — do not describe them.
+- Do not include tags in the context field.
+
+Output ONLY valid JSON, nothing else. Example: {"context":"This chunk explains X.","tags":["x","y"]}
+
+File: ${chunk.source_file}
+Section: ${chunk.section || 'unknown'}
+Chunk ${chunk.chunkIndex + 1} of ${chunk.totalChunks}${windowBlock}
+
+Text:
+${chunk.text.slice(0, 1000)}`;
+}
+
 // ── addContextAndTags ─────────────────────────────────────────────────────────
 
 // Single combined LLM call per chunk.
 // On parse failure: falls back to separate addContext + addTags.
 // Short chunks (< COMBINED_MIN_CHARS) skip the combined call and fall back directly.
-export async function addContextAndTags(chunk, model) {
+// chunks: full array, required for section-window-aware policy; unused by other policies.
+export async function addContextAndTags(chunk, model, chunks) {
   const tooShort = chunk.text.trim().length < COMBINED_MIN_CHARS;
 
   if (!tooShort) {
     try {
-      const raw    = await generate(model, buildPrompt(chunk), { format: 'json' });
+      const raw    = await generate(model, buildPrompt(chunk, chunks), { format: 'json' });
       const parsed = parseCombinedResponse(raw);
       if (parsed) {
         return { ...chunk, context: parsed.context, tags: parsed.tags };

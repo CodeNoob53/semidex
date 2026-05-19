@@ -160,9 +160,9 @@ Raw/unstructured chunks may contain distractors, stale values, commented-out val
 - For exact-token queries — error strings, env vars, function names, config
   keys, log line fragments — use verbatim terms in the `query` field. BGE-M3
   sparse encodes them as lexical units and retrieves them reliably (100%
-  tokenHit@5 on custom-raw exact-token queries). If using `ollama + hashed-tf`
-  and literal recall matters on raw-log or config-dump corpora, switch to
-  `ONNX_EMBED=1` for that collection.
+  tokenHit@5 on custom-raw exact-token queries). `ollama + hashed-tf` is a
+  fallback only — for literal recall on raw-log or config-dump corpora, use
+  `ONNX_EMBED=1`.
 - PDF chunks from digitally-created files typically carry real `section` values
   recovered by `@opendocsg/pdf2md`. Scanned or image-only PDFs fall back to
   plain-text extraction and will have `section: ""`. When `section` is empty,
@@ -192,7 +192,7 @@ Valid provider combinations:
 | Dense provider | Sparse provider | Mode | Notes |
 |----------------|-----------------|------|-------|
 | `bge-m3-onnx` | `bge-m3-onnx` | `ONNX_EMBED=1` | **Recommended** — better retrieval quality, multilingual, neural sparse |
-| `ollama` | `hashed-tf` | default (no env) | Light fallback — requires Ollama running; `hashed-tf` has no corpus statistics |
+| `ollama` | `hashed-tf` | default (no env) | **Fallback only** — requires Ollama running with `bge-m3` pulled; `hashed-tf` has no corpus statistics; use only when ONNX is unavailable |
 
 Mixed combinations are rejected at runtime.
 
@@ -219,9 +219,9 @@ search results as ranking bugs until provider metadata has been checked.
 {
   "collections": {
     "my-docs": {
-      "denseProvider": "ollama",
-      "denseModel": "bge-m3",
-      "sparseProvider": "hashed-tf",
+      "denseProvider": "bge-m3-onnx",
+      "denseModel": "aapot/bge-m3-onnx",
+      "sparseProvider": "bge-m3-onnx",
       "embeddingSchemaVersion": 2,
       "vectorSize": 1024,
       "description": "Project architecture documentation"
@@ -229,6 +229,8 @@ search results as ranking bugs until provider metadata has been checked.
   }
 }
 ```
+
+The `ollama` / `hashed-tf` combination is a fallback for environments where ONNX is unavailable. New collections should use `bge-m3-onnx` by default.
 
 Safe manual edits:
 
@@ -308,14 +310,14 @@ ONNX_EMBED=1 COLLECTION=my-docs npm run index ./docs
 Use for any serious indexing task — books, multilingual docs, benchmark collections.
 Downloads the ONNX model (~2.3 GB) once into `./models/`.
 
-### Light fallback
+### Light fallback (ollama + hashed-tf)
 
 ```bash
 COLLECTION=my-docs npm run index ./docs
 ```
 
 Use only when ONNX is unavailable or the user explicitly wants minimal setup.
-Requires Ollama running with `bge-m3` pulled.
+Requires Ollama running with `bge-m3` pulled. This is the code default when `ONNX_EMBED` is unset, but not recommended for serious indexing — retrieval quality is lower than ONNX.
 
 ### Full-root cleanup after deletes/renames
 

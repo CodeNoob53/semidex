@@ -144,16 +144,38 @@ function parseMarkdown(text) {
   let currentHeading = '';
   let currentLines = [];
 
-  for (const line of lines) {
+  function flushSection(newHeading) {
+    if (currentLines.length) {
+      sections.push({ heading: currentHeading, text: currentLines.join('\n').trim() });
+    }
+    currentHeading = newHeading;
+    currentLines = [];
+  }
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const next = lines[i + 1] ?? '';
+
+    // Setext headings: a non-empty line followed by ===+ (h1) or ---+ (h2).
+    // The underline must be at least 2 chars and contain only = or -.
+    // Skip if the candidate line looks like a frontmatter delimiter (---).
+    const isSetextH1 = /^=+$/.test(next) && next.length >= 2 && line.trim().length > 0;
+    const isSetextH2 = /^-+$/.test(next) && next.length >= 2 && line.trim().length > 0;
+
+    if (isSetextH1 || isSetextH2) {
+      const headingText = line.replace(/\*\*/g, '').trim();
+      if (isStructuralHeading(headingText)) {
+        flushSection(headingText);
+        i++; // consume the underline row
+        continue;
+      }
+    }
+
     const headingMatch = line.match(/^(#{1,6}) (.+)/);
     if (headingMatch) {
       const headingText = headingMatch[2].replace(/\*\*/g, '').trim();
       if (isStructuralHeading(headingText)) {
-        if (currentLines.length) {
-          sections.push({ heading: currentHeading, text: currentLines.join('\n').trim() });
-        }
-        currentHeading = headingText;
-        currentLines = [];
+        flushSection(headingText);
       } else {
         currentLines.push(line);
       }
