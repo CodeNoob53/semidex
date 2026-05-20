@@ -195,10 +195,11 @@ Design a query set where correct retrieval requires topic filtering (e.g., "show
 chunks tagged `authentication`") and measure hit rate vs. `qdrant_find_by_tag` vs. unfiltered
 hybrid. Establishes whether tag filters help or hurt precision on topic-scoped queries.
 
-### FT-3: TAG_MODEL benchmark for separate tag path (low priority)
-Run a focused benchmark: index custom-50 with `TAG_MODEL=qwen2.5:3b-instruct` (separate tag
-path, no `COMBINED_LLM`). Measure batch parse success rate and per-chunk fallback count vs.
-`gemma3:4b` baseline. Only recommend a default change if parse failure rate drops significantly.
+### FT-3: TAG_MODEL benchmark for separate tag path ✓ completed (2026-05-20)
+See [`2026-05-20-tag-model-qwen25-separate-path.md`](2026-05-20-tag-model-qwen25-separate-path.md).
+**Result: qwen2.5:3b-instruct does NOT improve the separate tag path.** gemma3:4b baseline had
+14.3% fallback rate; qwen same-model was 42.9%; split-model qwen-tags 35.7%. Both qwen scenarios
+were worse than gemma on fallback rate and tag phase latency. Default unchanged.
 
 ---
 
