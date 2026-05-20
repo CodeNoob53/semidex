@@ -140,7 +140,7 @@ Tags represent 25–50% of total Ollama call budget depending on parse success r
 | **Keep current** (batch + fallback) | Status quo | MEDIUM-HIGH | gemma3 fallback storm |
 | **`TAG_GEN=0` skip flag** | Lose find_by_tag, display tags | Eliminate tag phase | Agent capability reduction |
 | **Tags only on `TAG_GEN=1`** (opt-in) | Same as current when on | Zero when off | Breaks existing indexed collections |
-| **Switch TAG_MODEL to qwen2.5:3b** | No retrieval change | Stable batch parse rate | New model dependency |
+| **Benchmark qwen2.5:3b as TAG_MODEL** | No retrieval change | Stable batch parse rate if confirmed | New model dependency |
 | **Reduce BATCH_SIZE** | No change | More calls, less fallback | Higher call count but predictable |
 | **Embed context+tags together** | Tags would affect retrieval | Same as current | Changes embedding semantics (not recommended) |
 
