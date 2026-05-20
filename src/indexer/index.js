@@ -5,7 +5,7 @@ import { randomUUID, createHash } from 'crypto';
 
 import { chunkFileFromPath } from './phases/chunk.js';
 import { processChunks, mergeChunks } from './phases/context.js';
-import { addTagsBatch } from './phases/tag.js';
+import { addTagsBatch, shouldGenerateTags } from './phases/tag.js';
 import { addContextAndTags } from './phases/combined.js';
 import { resolveCombinedLlmConfig } from '../core/doctor-checks.js';
 import { buildLinks } from './phases/link.js';
@@ -67,8 +67,10 @@ async function indexFile(filePath, rootPath, collection, allCollections, graph) 
   const contextModel = process.env.CONTEXT_MODEL || 'gemma3:4b';
   const combinedCfg  = resolveCombinedLlmConfig(process.env);
   // COMBINED_LLM=1 uses CONTEXT_MODEL for both context and tags; TAG_MODEL is ignored.
-  // Only check TAG_MODEL reachability when actually using the separate tag path.
-  const tagModel = combinedCfg.enabled ? contextModel : (process.env.TAG_MODEL || 'gemma3:4b');
+  // TAG_GEN=0 skips tag generation entirely; no need to check TAG_MODEL reachability.
+  // Only check TAG_MODEL when actually using the separate tag path.
+  const genTagsPreflight = shouldGenerateTags(process.env);
+  const tagModel = (combinedCfg.enabled || !genTagsPreflight) ? contextModel : (process.env.TAG_MODEL || 'gemma3:4b');
   await ensureOllamaPreflight(ollamaUrl, contextModel, tagModel);
   if (storedHash) {
     const reasons = [];
@@ -91,6 +93,8 @@ async function indexFile(filePath, rootPath, collection, allCollections, graph) 
 
   if (combinedCfg.warning) console.warn(`  [combined] ${combinedCfg.warning}`);
 
+  const genTags = shouldGenerateTags(process.env);
+
   let taggedChunks;
   if (combinedCfg.enabled) {
     console.log('  [2/5] contextualizing + tagging (combined)...');
@@ -98,8 +102,17 @@ async function indexFile(filePath, rootPath, collection, allCollections, graph) 
     console.log(`        ${merged.length} chunks after merge`);
     profiler.mark('context');
 
-    console.log('  [3/5] (combined — no separate tag phase)');
-    taggedChunks = await runBatched(merged, BATCH_SIZE, chunk => addContextAndTags(chunk, combinedCfg.model, merged));
+    if (genTags) {
+      console.log('  [3/5] (combined — no separate tag phase)');
+      taggedChunks = await runBatched(merged, BATCH_SIZE, chunk => addContextAndTags(chunk, combinedCfg.model, merged));
+    } else {
+      // TAG_GEN=0: run combined call for context only, then force tags: [].
+      // addContextAndTags still generates tags internally but we discard them here
+      // rather than splitting the prompt, which would be a riskier change.
+      console.log('  [3/5] tagging skipped (TAG_GEN=0) — context only');
+      const withContext = await runBatched(merged, BATCH_SIZE, chunk => addContextAndTags(chunk, combinedCfg.model, merged));
+      taggedChunks = withContext.map(c => ({ ...c, tags: [] }));
+    }
     profiler.mark('tag');
   } else {
     console.log('  [2/5] contextualizing...');
@@ -107,10 +120,15 @@ async function indexFile(filePath, rootPath, collection, allCollections, graph) 
     console.log(`        ${contextChunks.length} chunks after merge`);
     profiler.mark('context');
 
-    console.log('  [3/5] tagging...');
-    taggedChunks = [];
-    for (let i = 0; i < contextChunks.length; i += BATCH_SIZE) {
-      taggedChunks.push(...await addTagsBatch(contextChunks.slice(i, i + BATCH_SIZE)));
+    if (genTags) {
+      console.log('  [3/5] tagging...');
+      taggedChunks = [];
+      for (let i = 0; i < contextChunks.length; i += BATCH_SIZE) {
+        taggedChunks.push(...await addTagsBatch(contextChunks.slice(i, i + BATCH_SIZE)));
+      }
+    } else {
+      console.log('  [3/5] tagging skipped (TAG_GEN=0)');
+      taggedChunks = contextChunks.map(c => ({ ...c, tags: [] }));
     }
     profiler.mark('tag');
   }

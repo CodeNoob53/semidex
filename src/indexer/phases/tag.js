@@ -2,6 +2,12 @@ import { generate } from '../../core/ollama.js';
 
 const MODEL = process.env.TAG_MODEL || 'gemma3:4b';
 
+// Returns false only when TAG_GEN is exactly the string '0'.
+// All other values (unset, '1', 'false', ...) leave tag generation enabled.
+export function shouldGenerateTags(env = process.env) {
+  return env.TAG_GEN !== '0';
+}
+
 function parseTags(raw) {
   return raw
     .split(',')

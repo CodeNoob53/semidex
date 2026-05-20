@@ -81,12 +81,14 @@ report('A', checkNodeVersion(process.version));
 }
 
 {
-  const ctx   = process.env.CONTEXT_MODEL ?? '(not set — default gemma3:4b)';
-  const tag   = process.env.TAG_MODEL     ?? '(not set — default gemma3:4b)';
-  const onnx  = process.env.ONNX_EMBED    ?? '(not set)';
-  const ep    = process.env.ONNX_EXECUTION_PROVIDER ?? '(not set — default cpu)';
+  const ctx    = process.env.CONTEXT_MODEL ?? '(not set — default gemma3:4b)';
+  const tag    = process.env.TAG_MODEL     ?? '(not set — default gemma3:4b)';
+  const tagGen = process.env.TAG_GEN === '0' ? 'disabled (TAG_GEN=0)' : 'enabled (default)';
+  const onnx   = process.env.ONNX_EMBED    ?? '(not set)';
+  const ep     = process.env.ONNX_EXECUTION_PROVIDER ?? '(not set — default cpu)';
   report('A', makeResult(STATUS.PASS, `CONTEXT_MODEL: ${ctx}`));
   report('A', makeResult(STATUS.PASS, `TAG_MODEL: ${tag}`));
+  report('A', makeResult(process.env.TAG_GEN === '0' ? STATUS.WARN : STATUS.PASS, `TAG_GEN: ${tagGen}`));
   report('A', makeResult(STATUS.PASS, `ONNX_EMBED: ${onnx}`));
   report('A', makeResult(STATUS.PASS, `ONNX_EXECUTION_PROVIDER: ${ep}`));
 
@@ -440,6 +442,7 @@ const lines = [
   `- OLLAMA_URL: ${redactUrl(process.env.OLLAMA_URL ?? 'http://localhost:11434')}`,
   `- CONTEXT_MODEL: ${process.env.CONTEXT_MODEL ?? 'gemma3:4b (default)'}`,
   `- TAG_MODEL: ${process.env.TAG_MODEL ?? 'gemma3:4b (default)'}`,
+  `- TAG_GEN: ${process.env.TAG_GEN === '0' ? 'disabled (TAG_GEN=0)' : 'enabled (default)'}`,
   `- ONNX_EMBED: ${process.env.ONNX_EMBED ?? '(not set)'}`,
   '',
   '## Check results',

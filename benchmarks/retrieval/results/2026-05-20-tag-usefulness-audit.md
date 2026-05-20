@@ -72,8 +72,8 @@ role in vector similarity — they are filterable labels only.
 - **Value**: low-overhead display signal; does not require tags to affect retrieval.
 
 ### 2d. `RERANK_BOOST_TAGS` (deterministic reranker path)
-- `RERANK_BOOST_TAGS=0.05` — boosts CE score when a query token matches a tag.
-- CE reranking is **default-off** (ADR 0003). This boost is dormant in production.
+- `RERANK_BOOST_TAGS=0.05` — boosts deterministic reranker score when a query token matches a tag.
+- The deterministic reranker is **default-off** (ADR 0003). This boost is dormant in production.
 - **Value**: effectively zero under current defaults.
 
 ---
@@ -85,7 +85,7 @@ role in vector similarity — they are filterable labels only.
 | Default hybrid RRF (`qdrant_search`, no filter) | None | Zero |
 | `qdrant_search` with `tags=[]` filter | OR filter on payload | Reduces candidate set |
 | `qdrant_find_by_tag` | Scroll filter only | Direct topic lookup |
-| CE reranker + `RERANK_BOOST_TAGS` | Score boost | Dormant (reranker off) |
+| Deterministic reranker + `RERANK_BOOST_TAGS` | Score boost | Dormant (reranker off) |
 
 **Bottom line**: Tags have zero impact on the default retrieval path used in all benchmarks
 and in the majority of production agent sessions. They add value only when an agent
@@ -185,9 +185,10 @@ is architecturally clean and matches the design rationale in ADR 0004.
 
 ## 7. Follow-up Task Proposals
 
-### FT-1: `TAG_GEN=0` flag (1–2 hours)
-Add `TAG_GEN` env var to `src/indexer/phases/tag.js` and `src/indexer/index.js`. Document
-in `docs/en/configuration.md`. No schema change.
+### FT-1: `TAG_GEN=0` flag ✓ implemented (2026-05-20)
+`shouldGenerateTags()` helper added to `src/indexer/phases/tag.js`. Separate and combined
+paths both branch on it; `tags: []` stored when disabled. Smoke section 30 covers the helper.
+Documented in `docs/en/configuration.md` (TAG_GEN subsection) and `AGENTS.md`.
 
 ### FT-2: Tag quality benchmark (1 benchmark session)
 Design a query set where correct retrieval requires topic filtering (e.g., "show me all

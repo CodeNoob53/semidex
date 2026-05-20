@@ -336,6 +336,14 @@ COMBINED_LLM=1 ONNX_EMBED=1 COLLECTION=my-docs npm run index ./docs
 
 Merges context and tag generation into a single Ollama call per chunk. Uses `CONTEXT_MODEL` for both; `TAG_MODEL` is ignored. Falls back to separate context and tag prompts per chunk on parse failure, still using `CONTEXT_MODEL` for both — `TAG_MODEL` is never used. Indexing never aborts due to combined-mode errors. See `docs/en/configuration.md — COMBINED_LLM` for details.
 
+### Skip tag generation (large automated runs)
+
+```bash
+TAG_GEN=0 ONNX_EMBED=1 COLLECTION=my-docs npm run index ./docs
+```
+
+Use when `qdrant_find_by_tag` and tag-filtered search are not needed. Tags are payload-only metadata and do not affect default hybrid retrieval — skipping them saves ~25–50% of the Ollama LLM call budget (tag batch calls + per-chunk fallback when batch parse fails). Chunks are stored with `tags: []`.
+
 ### PDF / book indexing
 
 ```bash

@@ -54,8 +54,25 @@ The light/fallback mode uses `ollama` + `hashed-tf`. It requires Ollama running 
 | `EMBED_MODEL` | `bge-m3` | Dense model for Ollama provider |
 | `CONTEXT_MODEL` | `gemma3:4b` | Model for chunk contextualization |
 | `TAG_MODEL` | `gemma3:4b` | Model for tag generation (ignored when `COMBINED_LLM=1`) |
+| `TAG_GEN` | `1` | Set to `0` to skip LLM tag generation and store `tags: []` (opt-out) |
 | `COMBINED_LLM` | `0` | Set to `1` to use a single LLM call for both context and tags per chunk (opt-in) |
 | `VECTOR_SIZE` | `1024` | Must match dense embedding size |
+
+### TAG_GEN
+
+In the default separate path, `TAG_GEN=0` skips the tag phase entirely — no Ollama call is made for tags and every chunk is stored with `tags: []` in its Qdrant payload. Default behavior (tags generated) is preserved when `TAG_GEN` is unset, `1`, or any value other than the exact string `0`.
+
+Tags are payload-only metadata — they are **not** embedded into the dense/sparse vectors and do not affect default hybrid RRF retrieval. Disabling them has no impact on `qdrant_search` result quality when called without a `tags` filter.
+
+**When to use `TAG_GEN=0`:** Large automated indexing runs where `qdrant_find_by_tag` and tag-filtered search are not needed. Reduces Ollama LLM call budget by ~25–50% (tag batch calls + avoided per-chunk fallback).
+
+**Tradeoff:** `qdrant_find_by_tag` returns no results for chunks indexed with `TAG_GEN=0`. Result display in MCP search output will show no tags for those chunks. The deterministic reranker tag boost (`RERANK_BOOST_TAGS`) has no effect.
+
+```bash
+TAG_GEN=0 ONNX_EMBED=1 COLLECTION=my-docs npm run index ./docs
+```
+
+**With `COMBINED_LLM=1`:** The combined context+tags call still runs (context is needed), but the generated tags are discarded and `tags: []` is stored. This avoids a risky prompt split — context generation is unchanged.
 
 ### COMBINED_LLM
 
