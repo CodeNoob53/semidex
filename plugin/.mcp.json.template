@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "qdrant": {
+      "command": "node",
+      "args": ["SEMIDEX_PATH\\src\\mcp\\server.js"],
+      "env": {
+        "QDRANT_URL": "YOUR_QDRANT_URL",
+        "QDRANT_KEY": "YOUR_QDRANT_KEY"
+      }
+    }
+  }
+}

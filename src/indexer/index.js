@@ -12,7 +12,7 @@ import { buildLinks } from './phases/link.js';
 import { runBatched } from './batch.js';
 import { collectFiles, SUPPORTED_EXTENSIONS } from './files.js';
 import { Profiler } from './profiler.js';
-import { upsertPoints, updatePayload, listCollections, createCollection, getStoredMeta, deleteBySourceFile, listSourceFiles } from '../core/qdrant.js';
+import { upsertPoints, updatePayload, listCollections, createCollection, getCollectionInfo, getStoredMeta, deleteBySourceFile, listSourceFiles } from '../core/qdrant.js';
 import { loadGraph, saveGraph, removeFile } from '../core/graph.js';
 import { loadConfig, saveConfig, resolveEnvProviders } from '../core/config.js';
 import { embedForIndex, embedForIndexBatch, shouldUseOnnxBatching, getEmbeddingConfig, SCHEMA_VERSION } from '../core/embeddings.js';
@@ -285,6 +285,23 @@ async function main() {
       };
       saveConfig(cfg);
       console.log(`  saved config for "${COLLECTION}" (dense: ${denseProvider}/${denseModel}, sparse: ${sparseProvider})`);
+    }
+  } else {
+    // Guard against plain-vector collections (indexed outside semidex, e.g. via
+    // third-party MCP plugins). semidex always uses named vectors {dense, sparse}.
+    // A plain-vector collection has vectors.size at the top level instead of
+    // vectors.dense — upsertting named-vector points into it silently corrupts it.
+    const info = await getCollectionInfo(COLLECTION);
+    const vectorsCfg = info?.config?.params?.vectors;
+    const isPlainVectors = vectorsCfg && typeof vectorsCfg.size === 'number';
+    if (isPlainVectors) {
+      console.error(
+        `\nERROR: Collection "${COLLECTION}" uses plain (unnamed) vectors — it was not indexed by semidex.\n` +
+        `  semidex requires named vectors { dense, sparse }.\n` +
+        `  To fix: delete the collection in Qdrant, then re-run indexing.\n` +
+        `  Qdrant dashboard or: curl -X DELETE $QDRANT_URL/collections/${COLLECTION} -H "api-key: $QDRANT_KEY"`
+      );
+      process.exit(1);
     }
   }
 

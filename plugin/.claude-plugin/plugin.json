@@ -1,0 +1,8 @@
+{
+  "name": "semidex",
+  "version": "1.0.0",
+  "description": "semidex MCP server — local-first RAG indexer backed by Qdrant. Provides semantic search over indexed document collections via qdrant_search, qdrant_collection_info, and related tools.",
+  "author": {
+    "name": "Code_NooB"
+  }
+}
