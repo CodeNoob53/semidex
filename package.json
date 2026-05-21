@@ -46,7 +46,8 @@
     "bench:custom50:diag": "node benchmarks/retrieval/custom-50/combined-hard-regression-diagnostic.js",
     "bench:combined-policy": "node benchmarks/retrieval/combined-prompt-policy-bench.js",
     "bench:custom50:context-policy": "node benchmarks/retrieval/custom-50/context-policy-bench.js",
-    "bench:custom50:tag-gen": "node benchmarks/retrieval/custom-50/tag-gen-ablation.js"
+    "bench:custom50:tag-gen": "node benchmarks/retrieval/custom-50/tag-gen-ablation.js",
+    "verify:empty-section-live": "node benchmarks/retrieval/empty-section-live-verification.js"
   },
   "dependencies": {
     "@huggingface/transformers": "^4.2.0",
