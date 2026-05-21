@@ -20,4 +20,16 @@ export default async function ({ ok }) {
 
   ok('markdown fenced → parsed',
     JSON.stringify(extractJsonArray('```json\n[["a"],["b"]]\n```', 2)) === '[["a"],["b"]]');
+
+  ok('16g: numbered-key object with empty tag group → [[], ["a","b"]]',
+    JSON.stringify(extractJsonArray('{"tags_0":[],"tags_1":["a","b"]}', 2)) === '[[],["a","b"]]');
+
+  ok('16h: three numbered keys, middle empty → [["a"], [], ["c"]]',
+    JSON.stringify(extractJsonArray('{"tags0":["a"],"tags1":[],"tags2":["c"]}', 3)) === '[["a"],[],["c"]]');
+
+  ok('16i: object array containing objects → null (not accepted)',
+    extractJsonArray('{"tags0":[{"bad":true}],"tags1":["a"]}', 2) === null);
+
+  ok('16j: object array containing numbers → null (not accepted)',
+    extractJsonArray('{"tags0":[1,2],"tags1":["a"]}', 2) === null);
 }

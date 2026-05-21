@@ -55,8 +55,8 @@ export function extractJsonArray(raw, expectedLength) {
         const vals = Object.values(parsed).filter(Array.isArray);
         const flat = [];
         for (const v of vals) {
-          if (v.every(Array.isArray)) flat.push(...v);
-          else if (v.every(s => typeof s === 'string')) flat.push(v);
+          if (v.length > 0 && v.every(Array.isArray)) flat.push(...v);
+          else if (v.length === 0 || v.every(s => typeof s === 'string')) flat.push(v);
         }
         if (flat.length === expectedLength) return flat;
       }
