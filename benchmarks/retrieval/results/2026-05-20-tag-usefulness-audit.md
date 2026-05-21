@@ -116,6 +116,20 @@ improve it unless explicitly used as a filter.
 - For a 100-chunk document: up to 100 tag calls vs. 34 expected
 - **Tag cost can match context cost (100 calls) in the failure path**
 
+### Root cause: synthetic empty-section chunks in batch
+The chunker emits `(empty section: <name>)` placeholder chunks for empty markdown sections
+(observed in music-genre docs corpus: 478 of 5662 chunks = 8.4%). When these placeholders
+are included in an `addTagsBatch` call, the LLM receives degenerate input (placeholder text
+instead of prose) and returns a malformed response (flat object vs. array of arrays).
+`extractJsonArray` fails, triggering the per-chunk fallback for the entire batch.
+
+**Fix (2026-05-21):** `src/indexer/phases/empty-section.js` implements `partitionChunks` /
+`reassembleChunks`. Both separate and combined paths in `index.js` partition after `mergeChunks`
+and before any LLM call (context or tag), routing empty-section chunks around both LLM phases
+entirely. Finalized payload: `context` = `Empty section placeholder for "<name>".`, `tags = []`.
+Original chunk order preserved via `__origIndex`.
+Smoke tests: section 31 (23 cases, all green).
+
 ### Source: `2026-05-17-performance-bottleneck-audit.md`
 > "Tagging phase: MEDIUM bottleneck. Batch parse failure rate with gemma3:4b is high.
 > Individual fallback dominates wall-clock time when model output is irregular."
@@ -194,6 +208,20 @@ Documented in `docs/en/configuration.md` (TAG_GEN subsection) and `AGENTS.md`.
 Design a query set where correct retrieval requires topic filtering (e.g., "show me all
 chunks tagged `authentication`") and measure hit rate vs. `qdrant_find_by_tag` vs. unfiltered
 hybrid. Establishes whether tag filters help or hurt precision on topic-scoped queries.
+
+### FT-4: TAG_GEN=0 latency + payload benchmark ✓ run (2026-05-21)
+See [`2026-05-21T1833-tag-gen-ablation-custom50.md`](2026-05-21T1833-tag-gen-ablation-custom50.md).
+Script: `npm run bench:custom50:tag-gen`.
+
+**Latency result:** TAG_GEN=0 saves 34.7% wall-time (195s → 127s); tag phase eliminated entirely.
+**Payload audit:** all sampled points confirmed `tags: []` — shouldGenerateTags() works correctly.
+**Quality result: inconclusive.** The script indexes the corpus twice with independent LLM context
+runs. Context is embedded into the retrieval prefix, so context variance between runs confounds
+any quality comparison. The 1 hard regression (c41) and symmetric regressions/improvements are
+consistent with LLM noise, not a TAG_GEN effect. A clean quality test would require copying
+the same vectors/points into a second collection with tags stripped — not re-running context
+generation. This is not needed: tags are not embedded and cannot affect hybrid RRF retrieval
+by design (confirmed in code: `src/core/embeddings.js` does not reference tags).
 
 ### FT-3: TAG_MODEL benchmark for separate tag path ✓ completed (2026-05-20)
 See [`2026-05-20-tag-model-qwen25-separate-path.md`](2026-05-20-tag-model-qwen25-separate-path.md).

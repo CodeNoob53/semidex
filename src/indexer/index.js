@@ -1,11 +1,13 @@
 import 'dotenv/config';
 import { readFileSync, writeFileSync, mkdirSync, rmSync, createReadStream, statSync, readdirSync } from 'fs';
 import { resolve, relative, basename, dirname, join, extname, isAbsolute } from 'path';
+import { pathToFileURL } from 'url';
 import { randomUUID, createHash } from 'crypto';
 
 import { chunkFileFromPath } from './phases/chunk.js';
-import { processChunks, mergeChunks } from './phases/context.js';
+import { addContext, mergeChunks } from './phases/context.js';
 import { addTagsBatch, shouldGenerateTags } from './phases/tag.js';
+import { finalizeEmptySectionChunk, partitionChunks, reassembleChunks } from './phases/empty-section.js';
 import { addContextAndTags } from './phases/combined.js';
 import { resolveCombinedLlmConfig } from '../core/doctor-checks.js';
 import { buildLinks } from './phases/link.js';
@@ -102,33 +104,43 @@ async function indexFile(filePath, rootPath, collection, allCollections, graph) 
     console.log(`        ${merged.length} chunks after merge`);
     profiler.mark('context');
 
+    const { normal: normalMerged, empty: emptyMerged } = partitionChunks(merged);
+    const finalizedEmpty = emptyMerged.map(finalizeEmptySectionChunk);
+
     if (genTags) {
       console.log('  [3/5] (combined — no separate tag phase)');
-      taggedChunks = await runBatched(merged, BATCH_SIZE, chunk => addContextAndTags(chunk, combinedCfg.model, merged));
+      const processed = await runBatched(normalMerged, BATCH_SIZE, chunk => addContextAndTags(chunk, combinedCfg.model, merged));
+      taggedChunks = reassembleChunks(processed, finalizedEmpty);
     } else {
       // TAG_GEN=0: run combined call for context only, then force tags: [].
       // addContextAndTags still generates tags internally but we discard them here
       // rather than splitting the prompt, which would be a riskier change.
       console.log('  [3/5] tagging skipped (TAG_GEN=0) — context only');
-      const withContext = await runBatched(merged, BATCH_SIZE, chunk => addContextAndTags(chunk, combinedCfg.model, merged));
-      taggedChunks = withContext.map(c => ({ ...c, tags: [] }));
+      const withContext = await runBatched(normalMerged, BATCH_SIZE, chunk => addContextAndTags(chunk, combinedCfg.model, merged));
+      const processedNormal = withContext.map(c => ({ ...c, tags: [] }));
+      taggedChunks = reassembleChunks(processedNormal, finalizedEmpty);
     }
     profiler.mark('tag');
   } else {
     console.log('  [2/5] contextualizing...');
-    const contextChunks = await processChunks(rawChunks);
-    console.log(`        ${contextChunks.length} chunks after merge`);
+    const merged = await mergeChunks(rawChunks);
+    const { normal: normalMerged, empty: emptyMerged } = partitionChunks(merged);
+    const finalizedEmpty = emptyMerged.map(finalizeEmptySectionChunk);
+    const contextNormal = await runBatched(normalMerged, BATCH_SIZE, addContext);
+    console.log(`        ${merged.length} chunks after merge (${emptyMerged.length} empty-section skipped)`);
     profiler.mark('context');
 
     if (genTags) {
       console.log('  [3/5] tagging...');
-      taggedChunks = [];
-      for (let i = 0; i < contextChunks.length; i += BATCH_SIZE) {
-        taggedChunks.push(...await addTagsBatch(contextChunks.slice(i, i + BATCH_SIZE)));
+      const tagged = [];
+      for (let i = 0; i < contextNormal.length; i += BATCH_SIZE) {
+        tagged.push(...await addTagsBatch(contextNormal.slice(i, i + BATCH_SIZE)));
       }
+      taggedChunks = reassembleChunks(tagged, finalizedEmpty);
     } else {
       console.log('  [3/5] tagging skipped (TAG_GEN=0)');
-      taggedChunks = contextChunks.map(c => ({ ...c, tags: [] }));
+      const processedNormal = contextNormal.map(c => ({ ...c, tags: [] }));
+      taggedChunks = reassembleChunks(processedNormal, finalizedEmpty);
     }
     profiler.mark('tag');
   }
@@ -402,6 +414,6 @@ async function main() {
 }
 
 // Run only when executed directly, not when imported for testing.
-if (process.argv[1] && (process.argv[1].endsWith('index.js') || process.argv[1].endsWith('index'))) {
+if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) {
   main().catch(err => { console.error(err); process.exit(1); });
 }
