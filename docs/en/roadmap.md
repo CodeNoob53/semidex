@@ -183,6 +183,15 @@ Planned work:
   - source diversity
   - duplicate source rate
   - rerank/MMR mode
+- add duplicate point diagnostics:
+  - detect repeated `source_file + chunk_index` hits with different point IDs,
+    tags, context, or provider metadata
+  - report likely causes such as reindexing with random point IDs, changed tag
+    model output, interrupted indexing, or missing same-source cleanup
+  - make clear that `PRUNE_STALE=1` removes absent source files but does not
+    deduplicate multiple points that still share the same live `source_file`
+  - provide a safe repair path, such as delete-and-reindex one affected
+    `source_file` or run a future collection-level duplicate cleanup command
 - design a diagnostic bundle command that collects:
   - smoke output
   - config metadata without secrets
