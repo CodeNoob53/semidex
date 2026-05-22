@@ -49,7 +49,8 @@
     "bench:custom50:tag-gen": "node benchmarks/retrieval/custom-50/tag-gen-ablation.js",
     "verify:empty-section-live": "node benchmarks/retrieval/empty-section-live-verification.js",
     "diag:tag-batch": "node benchmarks/retrieval/tag-batch-fallback-diagnostic.js",
-    "diag:combined-parser": "node benchmarks/retrieval/combined-parser-stability-diagnostic.js"
+    "diag:combined-parser": "node benchmarks/retrieval/combined-parser-stability-diagnostic.js",
+    "bench:custom50:combined-matrix": "node benchmarks/retrieval/custom-50/combined-llm-quality-matrix.js"
   },
   "dependencies": {
     "@huggingface/transformers": "^4.2.0",
