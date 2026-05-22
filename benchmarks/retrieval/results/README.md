@@ -40,9 +40,31 @@ rg -n "c48|qrel|superseded|DEFER" benchmarks/retrieval/results benchmarks/retrie
 
 ## Current Cleanup Status
 
-Known superseded combined-prompt alignment reports from 2026-05-22 were moved to
-`archive/` because custom-50 qrel `c48` was corrected after those reports were
-generated. See `archive/README.md` for the full table and rationale.
+**First high-confidence archive batch — 2026-05-22:**
+
+33 files moved to `archive/` per
+`2026-05-22T1300-results-folder-organization-plan.md`. Groups:
+
+- 2026-05-09 early 20q variants and rerank v1/v2 (4 files)
+- 2026-05-10 abandoned custom-large fixture (2 files)
+- 2026-05-11/12 agent-eval text dumps and custom-raw raw baselines (6 files)
+- 2026-05-15 CE routing intermediate runs not cited by docs/en (7 files)
+- 2026-05-17 ONNX intermediate probes (5 files)
+- 2026-05-18 intermediate combined-LLM custom-50 quality runs T1004/T1010/T1048/T1054 (4 files)
+- 2026-05-18 prompt policy matrix non-decisive model runs T0950/T0951/T0954/T1043/T1044 (5 files)
+
+8 additional candidates were **skipped** because `docs/en/retrieval.md` or
+`docs/en/benchmarking.md` cite them directly — they remain in `results/` until those
+docs are updated. See `archive/README.md` "First High-Confidence Cleanup Batch" for the skipped list.
+
+Medium/low-confidence candidates and files needing human review are intentionally
+left in root; see the organization plan for the full candidate list.
+
+**Earlier cleanup (2026-05-22, c48 qrel fix):**
+
+7 combined-prompt alignment reports from 2026-05-22 were moved to `archive/`
+because custom-50 qrel `c48` was corrected after those reports were generated.
+See `archive/README.md` for the full table and rationale.
 
 Do not archive `2026-05-22T0239-combined-parser-stability.md` for that reason:
 it tests parser stability, not custom-50 retrieval quality.
