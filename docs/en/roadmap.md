@@ -116,6 +116,33 @@ Planned work:
   - expand with `qdrant_get_chunk(window=1)`
   - follow related/backlinks when the task spans files
   - use tags and source filters for narrow tasks
+- preserve and improve strengths found during real MCP dogfooding:
+  - `qdrant_get_chunk` with `window` is high-value because agents can read a
+    document section as a document, not as isolated snippets
+  - `qdrant_search(window=1, window_format="compact")` is a strong default for
+    implementation and explanation tasks, but compact output should make it
+    easy to continue to the next/previous chunk when useful context is cut off
+  - `qdrant_find_by_tag` is useful when the agent knows the exact tag, but it
+    is underused without a way to discover available tags first
+  - source-file filters are powerful after a likely file is known, but exact
+    `source_file` paths are a friction point when the agent only knows a folder,
+    partial filename, or approximate title
+- evaluate MCP navigation helpers before adding broader write-capable memory:
+  - `qdrant_list_files(collection, prefix?)` for "what exists under this folder?"
+    navigation
+  - `qdrant_list_tags(collection, prefix?, min_count?)` so agents can discover
+    valid tags before calling `qdrant_find_by_tag`
+  - source-file suggestion or fuzzy path recovery when `qdrant_get_chunk` returns
+    "No chunks found" for a mistyped path
+  - optional `path_format="short"` plus a lookup table to reduce token cost from
+    long repeated `source_file` paths in agent-facing responses
+  - a derived `confidence` signal above RRF rank scores, based on evidence such
+    as dense similarity, score spread, exact-token overlap, source diversity, and
+    context/section agreement
+  - adaptive `top` guidance for ambiguous searches, exact-token lookups, and
+    broad navigation tasks
+  - an MCP self-test / sanity-check workflow that confirms collection health and
+    a known-good search result before a long agent investigation
 - explore **Synthetic Intuition** as a future cheap routing layer:
   - use lightweight signals before expensive LLM calls or retrieval expansion
   - suggest likely collection, source scope, search tactic, diagnostic path, or
@@ -134,6 +161,12 @@ Success signals:
 - agents retrieve surrounding context more often
 - agents choose a useful first search or diagnostic path more often
 - fewer answers are based on a single isolated chunk when the task needs a section or file context
+- agents can browse unfamiliar collections without already knowing exact
+  filenames or tag names
+- tag filtering becomes more useful because agents can discover the tag
+  vocabulary first
+- source path length and repeated provenance do not consume excessive context
+  budget in typical top-3/top-5 results
 
 ## Phase 3 - Observability and Diagnostics
 
@@ -328,6 +361,9 @@ Stage 2 — full incremental sync (planned):
 - index a whole repository with stable include/exclude rules and `SOURCE_ROOT`
 - store a per-collection manifest of source files, hashes, provider metadata, chunking settings, and source root
 - detect changed, new, deleted, and renamed files (e.g. optionally use `git status --porcelain` as a fast change signal, with a scan-based fallback)
+- add a same-hash move/rename fast path: when a file's content hash is unchanged
+  but `source_file` changed, reuse existing chunks/vectors and update only
+  path-dependent payload or point IDs instead of rerunning chunk/context/tag/embed
 - use stable point IDs for deterministic upsert
 - use Qdrant batch update/delete operations
 - force a full reindex only when provider, schema, vector size, or chunking settings change
