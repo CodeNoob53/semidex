@@ -50,7 +50,8 @@
     "verify:empty-section-live": "node benchmarks/retrieval/empty-section-live-verification.js",
     "diag:tag-batch": "node benchmarks/retrieval/tag-batch-fallback-diagnostic.js",
     "diag:combined-parser": "node benchmarks/retrieval/combined-parser-stability-diagnostic.js",
-    "bench:custom50:combined-matrix": "node benchmarks/retrieval/custom-50/combined-llm-quality-matrix.js"
+    "bench:custom50:combined-matrix": "node benchmarks/retrieval/custom-50/combined-llm-quality-matrix.js",
+    "bench:custom50:context-only-ablation": "node benchmarks/retrieval/custom-50/combined-context-only-ablation.js"
   },
   "dependencies": {
     "@huggingface/transformers": "^4.2.0",

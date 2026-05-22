@@ -68,7 +68,48 @@ export function parseCombinedResponse(raw) {
 // Production behavior is always "current-minimal" when unset.
 const BENCH_CONTEXT_POLICY = process.env.BENCH_CONTEXT_POLICY || 'current-minimal';
 
+// BENCH_COMBINED_CONTEXT_ONLY — benchmark/ablation only, not a stable config option.
+// When '1': uses a context-only prompt that asks for {"context":"..."} with no tags field.
+// Tags are stored as [] so embedding remains default (context + text).
+// Purpose: isolate whether asking for tags in the same prompt degrades context quality.
+// Production behavior is always unchanged when this flag is unset.
+const BENCH_COMBINED_CONTEXT_ONLY = process.env.BENCH_COMBINED_CONTEXT_ONLY === '1';
+
+function buildPromptContextOnly(chunk) {
+  return `You are a document indexer. Given a text chunk, return a JSON object with:
+- "context": 1-2 sentences describing what this chunk is about and where it fits in the document
+
+Output ONLY valid JSON, nothing else. Example: {"context":"This chunk explains X."}
+
+File: ${chunk.source_file}
+Section: ${chunk.section || 'unknown'}
+Chunk ${chunk.chunkIndex + 1} of ${chunk.totalChunks}
+
+Text:
+${chunk.text.slice(0, 1000)}`;
+}
+
+function parseContextOnlyResponse(raw) {
+  if (typeof raw !== 'string' || !raw.trim()) return null;
+  const stripped = raw
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```\s*$/, '')
+    .trim();
+  for (const candidate of [stripped, raw.trim()]) {
+    let parsed;
+    try { parsed = JSON.parse(candidate); } catch { continue; }
+    const obj = Array.isArray(parsed) && parsed.length >= 1 ? parsed[0] : parsed;
+    if (obj !== null && typeof obj === 'object' && typeof obj.context === 'string' && obj.context.trim().length > 0) {
+      return obj.context.trim();
+    }
+  }
+  return null;
+}
+
 function buildPrompt(chunk, chunks) {
+  if (BENCH_COMBINED_CONTEXT_ONLY) {
+    return buildPromptContextOnly(chunk);
+  }
   if (BENCH_CONTEXT_POLICY === 'identifier-preserving') {
     return buildPromptIdentifierPreserving(chunk);
   }
@@ -158,20 +199,30 @@ export async function addContextAndTags(chunk, model, chunks) {
 
   if (!tooShort) {
     try {
-      const raw    = await generate(model, buildPrompt(chunk, chunks), { format: 'json' });
-      const parsed = parseCombinedResponse(raw);
-      if (parsed) {
-        return { ...chunk, context: parsed.context, tags: parsed.tags };
+      const raw = await generate(model, buildPrompt(chunk, chunks), { format: 'json' });
+      if (BENCH_COMBINED_CONTEXT_ONLY) {
+        const context = parseContextOnlyResponse(raw);
+        if (context) return { ...chunk, context, tags: [] };
+      } else {
+        const parsed = parseCombinedResponse(raw);
+        if (parsed) return { ...chunk, context: parsed.context, tags: parsed.tags };
       }
     } catch { /* fall through to separate path */ }
 
     process.stderr.write(
-      `[combined] parse failed for ${chunk.source_file}#${chunk.chunkIndex}; falling back to separate context/tags\n`,
+      `[combined] parse failed for ${chunk.source_file}#${chunk.chunkIndex}; falling back to ${BENCH_COMBINED_CONTEXT_ONLY ? 'context-only' : 'separate context/tags'}\n`,
     );
   }
 
-  // Fallback: separate context then tags, both using CONTEXT_MODEL (same model
-  // as the combined call — TAG_MODEL is intentionally not used here).
+  // Fallback path.
+  // In context-only mode: add context but force tags=[] so the variant stays
+  // pure — no fallback chunk ever contributes tags.
+  if (BENCH_COMBINED_CONTEXT_ONLY) {
+    const withContext = await addContext(chunk);
+    return { ...withContext, tags: [] };
+  }
+  // Normal combined fallback: separate context then tags, both using CONTEXT_MODEL
+  // (TAG_MODEL is intentionally not used here).
   const withContext = await addContext(chunk);
   return addTagsWithModel(withContext, model);
 }
