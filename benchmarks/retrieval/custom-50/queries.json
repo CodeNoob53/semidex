@@ -559,11 +559,12 @@
       "query": "cross-lingual retrieval Ukrainian query English document BGE-M3",
       "expectedFiles": ["multilingual.md"],
       "relevantChunks": [
-        { "chunkId": "multilingual.md#3", "relevance": 3 },
-        { "chunkId": "multilingual.md#0", "relevance": 2 }
+        { "chunkId": "multilingual.md#4", "relevance": 3 },
+        { "chunkId": "multilingual.md#0", "relevance": 2 },
+        { "chunkId": "multilingual.md#3", "relevance": 2 }
       ],
       "expectedTokens": ["cross"],
-      "note": "cross-lingual retrieval with BGE-M3"
+      "note": "cross-lingual retrieval with BGE-M3; #4 is the direct Ukrainian-query-to-English-document chunk"
     },
     {
       "id": "c49",

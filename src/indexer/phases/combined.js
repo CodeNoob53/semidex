@@ -120,8 +120,8 @@ function buildPrompt(chunk, chunks) {
 }
 
 function buildPromptCurrentMinimal(chunk) {
-  return `You are a document indexer. Given a text chunk, return a JSON object with:
-- "context": 1-2 sentences describing what this chunk is about and where it fits in the document
+  return `You are a document indexer. Given a text chunk from a file, return a JSON object with:
+- "context": 1-2 sentences describing what this chunk is about and where it fits in the document. Be concise.
 - "tags": array of 3-7 lowercase hyphenated tags (e.g. "node-js", "qdrant-hybrid-search")
 
 Output ONLY valid JSON, nothing else. Example: {"context":"This chunk explains X.","tags":["x","y"]}
