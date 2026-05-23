@@ -2,7 +2,7 @@ import 'dotenv/config';
 import { readFileSync, writeFileSync, mkdirSync, rmSync, createReadStream, statSync, readdirSync } from 'fs';
 import { resolve, relative, basename, dirname, join, extname, isAbsolute } from 'path';
 import { pathToFileURL } from 'url';
-import { randomUUID, createHash } from 'crypto';
+import { createHash } from 'crypto';
 
 import { chunkFileFromPath } from './phases/chunk.js';
 import { addContext, mergeChunks } from './phases/context.js';
@@ -14,7 +14,8 @@ import { buildLinks } from './phases/link.js';
 import { runBatched } from './batch.js';
 import { collectFiles, SUPPORTED_EXTENSIONS } from './files.js';
 import { Profiler } from './profiler.js';
-import { upsertPoints, updatePayload, listCollections, createCollection, getCollectionInfo, getStoredMeta, deleteBySourceFile, listSourceFiles } from '../core/qdrant.js';
+import { upsertPoints, updatePayload, listCollections, createCollection, getCollectionInfo, getStoredMeta, deleteBySourceFile, deleteTrailingChunks, listSourceFiles } from '../core/qdrant.js';
+import { makePointId } from '../core/point-id.js';
 import { loadGraph, saveGraph, removeFile } from '../core/graph.js';
 import { loadConfig, saveConfig, resolveEnvProviders } from '../core/config.js';
 import { embedForIndex, embedForIndexBatch, shouldUseOnnxBatching, getEmbeddingConfig, SCHEMA_VERSION } from '../core/embeddings.js';
@@ -184,7 +185,12 @@ async function indexFile(filePath, rootPath, collection, allCollections, graph) 
     return {
       dense,
       point: {
-        id: randomUUID(),
+        id: makePointId({
+          collection,
+          sourceFile: chunk.source_file,
+          chunkIndex: chunk.chunkIndex,
+          embeddingSchemaVersion: embedCfg.schemaVersion,
+        }),
         vector: { dense, sparse },
         payload: {
           text: chunk.text,
@@ -206,6 +212,11 @@ async function indexFile(filePath, rootPath, collection, allCollections, graph) 
   const points = pointsWithDense.map(({ point }) => point);
   await upsertPoints(collection, points);
   console.log(`        upserted ${points.length} points`);
+
+  // Remove trailing chunk orphans: if the file previously had more chunks, the
+  // old deterministic IDs for chunk_index >= taggedChunks.length still exist in
+  // Qdrant but will never be overwritten. Delete them now.
+  await deleteTrailingChunks(collection, sourceFile, taggedChunks.length);
   profiler.mark('embed+upsert');
 
   console.log('  [5/5] linking...');

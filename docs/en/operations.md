@@ -110,6 +110,38 @@ Run only against the **full directory root** used for indexing. Single-file targ
 
 Renamed files: the old `source_file` persists in Qdrant until `PRUNE_STALE=1` is run over the full directory. The new path is indexed as a fresh file.
 
+## Duplicate point repair
+
+semidex generates deterministic point IDs from `collection + source_file + chunk_index + embeddingSchemaVersion`. Reindexing the same content is idempotent — Qdrant overwrites the existing point.
+
+Collections indexed before deterministic IDs were introduced may contain duplicate points from earlier randomUUID-based runs: multiple Qdrant points sharing the same `source_file + chunk_index` but carrying different IDs (and often different LLM-generated tags/context). `PRUNE_STALE=1` does not fix this — both duplicates share a live `source_file` and survive the stale check.
+
+**To repair a specific file:**
+
+```bash
+# 1. Delete all existing points for the file
+COLLECTION=my-docs node -e "
+import { deleteBySourceFile } from './src/core/qdrant.js';
+await deleteBySourceFile('my-docs', 'relative/path/to/file.md');
+"
+
+# 2. Reindex the file to produce a single clean set of deterministic-ID points.
+# Use the same SOURCE_ROOT that was used during the original indexing run.
+# Without SOURCE_ROOT, a single-file target derives root from dirname(file),
+# which shortens source_file and creates a mismatched path in Qdrant.
+SOURCE_ROOT=. ONNX_EMBED=1 COLLECTION=my-docs npm run index ./relative/path/to/file.md
+```
+
+**To repair all affected files** (after running the duplicate diagnostic):
+
+For each affected `source_file` reported by the diagnostic, repeat the delete + reindex pair above. Run sequentially, not in parallel. Avoid running while another indexer job is active on the same collection.
+
+**Note:** The diagnostic script at `benchmarks/retrieval/duplicate-point-diagnostic.js` lists affected source files. Run it first to scope the repair:
+
+```bash
+COLLECTION=my-docs node benchmarks/retrieval/duplicate-point-diagnostic.js
+```
+
 ## Qdrant indexes and sync
 
 ```bash

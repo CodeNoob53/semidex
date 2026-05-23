@@ -327,6 +327,8 @@ PRUNE_STALE=1 ONNX_EMBED=1 COLLECTION=my-docs npm run index ./docs
 
 Only safe when the target is the full source root. Removes Qdrant points for files
 no longer on disk. Never run against a single file or a subdirectory subset.
+`PRUNE_STALE=1` handles deleted/renamed files only — it does not detect or remove
+same-source duplicate points (where `source_file` still exists on disk).
 
 ### Combined LLM mode (opt-in, faster indexing)
 
@@ -365,6 +367,7 @@ PDFs are converted to Markdown by `@opendocsg/pdf2md` (not pandoc — pandoc can
 | `Invalid provider combination` | Use default or `ONNX_EMBED=1` — do not mix providers |
 | `Not existing vector name: dense` | Run `npm run sync` — if it reports `LEGACY SCHEMA`, drop that collection and reindex (see operations.md); collections without a named `dense` vector are marked `linkDisabled` and skipped by link-building |
 | Stale results after delete/rename | Run full-root `PRUNE_STALE=1 ... npm run index ./root` |
+| Duplicate chunks in search results | Caused by prior randomUUID indexing runs; new runs are idempotent. Repair existing duplicates with a separate targeted reindex per affected source file (see `docs/en/operations.md`) |
 | Unexpected full reindex after env change | Expected — provider/schema change forces reindex; let it complete |
 | `pandoc: Unknown input format pdf` | Not a bug — pandoc cannot read PDFs; `.pdf` is handled by `@opendocsg/pdf2md` |
 | All PDF chunks have empty section | Likely a scanned/image-only PDF — `pdf2md` found no heading structure; navigate via `source_file` + `chunk_index` |

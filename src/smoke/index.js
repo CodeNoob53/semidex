@@ -32,6 +32,7 @@ import section28 from './sections/28-setext-headings.js';
 import section29 from './sections/29-semidex-ignore.js';
 import section30 from './sections/30-tag-gen-flag.js';
 import section31 from './sections/31-empty-section.js';
+import section32 from './sections/32-deterministic-point-id.js';
 
 let passed = 0;
 let failed = 0;
@@ -78,7 +79,7 @@ const sections = [
   section16, section17, section18, section19, section20,
   section21, section22, section23, section24, section25,
   section26, section27, section28, section29, section30,
-  section31,
+  section31, section32,
 ];
 
 for (const section of sections) {

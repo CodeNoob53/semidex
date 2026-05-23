@@ -155,6 +155,26 @@ export async function deleteBySourceFile(collection, sourceFile) {
   if (!r.ok) throw new Error(`Qdrant delete failed: ${await r.text()}`);
 }
 
+// Delete points for sourceFile whose chunk_index >= fromChunkIndex.
+// Used after a file shrinks: deterministic IDs overwrite existing chunks 0..N-1,
+// but old points for chunk N..old_N-1 become orphans that PRUNE_STALE cannot
+// detect (the source_file still exists on disk).
+export async function deleteTrailingChunks(collection, sourceFile, fromChunkIndex) {
+  const r = await fetch(`${URL}/collections/${collection}/points/delete`, {
+    method: 'POST',
+    headers: headers(),
+    body: JSON.stringify({
+      filter: {
+        must: [
+          { key: 'source_file', match: { value: sourceFile } },
+          { key: 'chunk_index', range: { gte: fromChunkIndex } },
+        ],
+      },
+    }),
+  });
+  if (!r.ok) throw new Error(`Qdrant deleteTrailingChunks failed: ${await r.text()}`);
+}
+
 export async function listSourceFiles(collection) {
   const seen = new Set();
   let offset = null;
