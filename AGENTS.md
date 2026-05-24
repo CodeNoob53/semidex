@@ -319,6 +319,43 @@ COLLECTION=my-docs npm run index ./docs
 Use only when ONNX is unavailable or the user explicitly wants minimal setup.
 Requires Ollama running with `bge-m3` pulled. This is the code default when `ONNX_EMBED` is unset, but not recommended for serious indexing — retrieval quality is lower than ONNX.
 
+### Ollama startup for agents
+
+Indexing uses Ollama for context/tag generation even when `ONNX_EMBED=1` is used
+for embeddings. Before any destructive apply/repair job, verify Ollama before
+deleting Qdrant points.
+
+On Windows PowerShell:
+
+```powershell
+ollama --version
+try { (Invoke-WebRequest -Uri "http://127.0.0.1:11434/api/tags" -TimeoutSec 5).StatusCode } catch { "unreachable" }
+```
+
+If unreachable and `ollama --version` works, start the API server as a hidden
+background helper and re-check:
+
+```powershell
+Start-Process -FilePath "ollama" -ArgumentList "serve" -WindowStyle Hidden
+Start-Sleep -Seconds 5
+ollama list
+```
+
+Required indexing models depend on env:
+
+- default context/tag model: `gemma3:4b`
+- Ollama embedding fallback model: `bge-m3`
+
+If a required model is missing, run `ollama pull <model>` and retry. Do not use
+`ollama run <model>` for repair/indexing; it opens an interactive model session
+instead of starting the API server. If `localhost` is unreliable on Windows, set
+`OLLAMA_URL=http://127.0.0.1:11434` before running the indexer or repair script.
+
+For destructive repair scripts, do this preflight before the first delete. If a
+repair fails after `deleteBySourceFile` but before reindexing, that file can be
+temporarily absent from Qdrant; fix the service/model issue and reindex the
+affected file with the same `SOURCE_ROOT`.
+
 ### Full-root cleanup after deletes/renames
 
 ```bash
@@ -361,7 +398,7 @@ PDFs are converted to Markdown by `@opendocsg/pdf2md` (not pandoc — pandoc can
 | Unclear environment failures | Run `npm run doctor` first — it checks Qdrant, Ollama, schema, models, COMBINED_LLM config, and local files in one read-only pass |
 | `[combined] parse failed` in indexer output | Normal fallback — combined mode fell back to separate context+tag for that chunk; not an error |
 | `COMBINED_LLM=1 … TAG_MODEL is ignored` doctor WARN | Expected when TAG_MODEL ≠ CONTEXT_MODEL and COMBINED_LLM=1; set TAG_MODEL to match CONTEXT_MODEL or leave unset to silence it |
-| `[preflight] Ollama unreachable` | Indexer now fails fast before chunking. Start Ollama (`ollama serve`); on Windows try `OLLAMA_URL=http://127.0.0.1:11434` if localhost is proxied |
+| `[preflight] Ollama unreachable` | Indexer now fails fast before chunking. Use the Ollama startup steps above; on Windows prefer `Start-Process -FilePath "ollama" -ArgumentList "serve" -WindowStyle Hidden`, then verify `ollama list` |
 | `[preflight] Required Ollama model(s) not pulled` | Run the `ollama pull <model>` command shown in the error, then retry |
 | Qdrant connection refused | Start Qdrant; verify `QDRANT_URL`; run `npm run sync` |
 | `Invalid provider combination` | Use default or `ONNX_EMBED=1` — do not mix providers |

@@ -28,6 +28,17 @@
  *   - Resolved file paths must stay inside SOURCE_ROOT (path traversal guard).
  *   - Sequential only: one file at a time.
  *   - On first failure: stop, report, do not continue.
+ *
+ * Known gap — delete-before-reindex window:
+ *   Apply deletes a file's points THEN reindexes. If the process is interrupted
+ *   between those two steps (Ollama down, network error, Ctrl-C), that file will
+ *   be absent from Qdrant until manually reindexed. With deterministic point IDs
+ *   a plain reindex (no prior delete) is sufficient to restore it — run:
+ *     SOURCE_ROOT=<same root> COLLECTION=<col> ONNX_EMBED=1 npm run index <file>
+ *   The apply report records the failed file hash so you can identify which file
+ *   needs recovery. A future improvement could flip the order to reindex-first
+ *   (upsert overwrites old point IDs via deterministic IDs), then delete orphan
+ *   old-ID points. That would eliminate this window entirely.
  */
 
 import 'dotenv/config';
@@ -64,6 +75,35 @@ const INDEXER_PASSTHROUGH = [
 
 export function hashPath(p) {
   return createHash('sha1').update(p ?? '').digest('hex').slice(0, 16);
+}
+
+/**
+ * Strip filesystem paths from an error string before writing it to a report.
+ * Covers: Windows absolute (C:\... or C:/...), UNC (\\server\...), POSIX (/seg/seg).
+ * http(s):// and other scheme:// URLs are preserved — only bare FS paths are redacted.
+ */
+export function sanitizeErrorForReport(msg) {
+  if (msg == null) return '';
+  // Protect scheme://... URLs by replacing them with placeholders so later
+  // path regexes cannot match the slashes inside them.
+  const urls = [];
+  let s = String(msg).replace(/\w+:\/\/[^\s"'\n]*/g, m => {
+    urls.push(m);
+    return `\x00URL${urls.length - 1}\x00`;
+  });
+  s = s
+    // UNC: two or more leading backslashes followed by non-whitespace
+    .replace(/[\\]{2,}[^\s"'\n]+/g, '<path>')
+    // Windows absolute: drive letter + colon + forward or back slash, up to quote/newline
+    // Match greedily including spaces — paths with spaces (C:\Program Files\...) are common
+    .replace(/[A-Za-z]:[/\\][^"'\n]*/g, '<path>')
+    // POSIX absolute: at least two /segment groups (e.g. /usr/local/bin)
+    .replace(/(\/[^/\s"'\n][^\s"'\n]*){2,}/g, '<path>')
+    // Residual: backslash-separated word sequences left after Windows path partial match
+    .replace(/(?:\w+\\){2,}\w+[^\s"'\n]*/g, '<path>');
+  // Restore protected URLs
+  s = s.replace(/\x00URL(\d+)\x00/g, (_, i) => urls[+i]);
+  return s.slice(0, 300);
 }
 
 export function nowStamp() {
@@ -443,7 +483,11 @@ if (isMain) (async () => {
       console.log(`[repair] OK hash=${sfHash}`);
     } catch (err) {
       failed++;
-      const reason = err.message.replace(/\n/g, ' ').slice(0, 200);
+      // execFileSync embeds the full argv in err.message; prefer stderr for the
+      // human-readable cause, then fall back to err.message first non-empty line.
+      const rawMsg = (err.stderr?.toString() || err.message)
+        .split('\n').map(l => l.trim()).find(l => l.length > 0) ?? 'unknown error';
+      const reason = sanitizeErrorForReport(rawMsg);
       failureDetails.push({ hash: sfHash, reason });
       console.error(`[repair] FAILED hash=${sfHash}: ${reason}`);
       console.error('[repair] Stopping after first failure to avoid partial state.');

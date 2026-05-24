@@ -1,5 +1,5 @@
 import { resolve } from 'path';
-import { hashPath, buildDuplicateGroups, buildDryRunSummary, safeResolveFile } from '../../../benchmarks/retrieval/duplicate-point-repair.js';
+import { hashPath, buildDuplicateGroups, buildDryRunSummary, safeResolveFile, sanitizeErrorForReport } from '../../../benchmarks/retrieval/duplicate-point-repair.js';
 
 export default async function ({ ok, throws }) {
   console.log('\n[33] Duplicate repair helpers');
@@ -131,4 +131,42 @@ export default async function ({ ok, throws }) {
     summaryWithMissing.missingFileHashes.every(h => /^[0-9a-f]{16}$/.test(h)));
   ok('buildDryRunSummary: missingFilesCount correct',
     summaryWithMissing.missingFilesCount === 1);
+
+  // ── sanitizeErrorForReport ────────────────────────────────────────────────
+
+  // Windows absolute path (with and without spaces)
+  ok('sanitizeErrorForReport: strips Windows path without spaces',
+    !sanitizeErrorForReport('Command failed: C:\\nvm4w\\node.exe src\\idx.js C:\\Users\\Aorus\\file.md').includes('Users'));
+
+  ok('sanitizeErrorForReport: strips Windows path with spaces',
+    !sanitizeErrorForReport('failed: C:\\Program Files\\Some App\\runner.exe').includes('Program Files'));
+
+  ok('sanitizeErrorForReport: strips Windows drive+slash variant',
+    !sanitizeErrorForReport('Error at C:/Users/Aorus/project/file.md line 1').includes('Aorus'));
+
+  // UNC path
+  ok('sanitizeErrorForReport: strips UNC path',
+    !sanitizeErrorForReport('failed: \\\\server\\share\\private\\file.txt').includes('private'));
+
+  // POSIX absolute path
+  ok('sanitizeErrorForReport: strips POSIX absolute path',
+    !sanitizeErrorForReport('[preflight] model not found at /usr/local/models/bge-m3').includes('/usr/local'));
+
+  // Preserves human-readable error text
+  ok('sanitizeErrorForReport: preserves Ollama error text',
+    sanitizeErrorForReport('[preflight] Ollama unreachable at http://localhost:11434').includes('Ollama unreachable'));
+
+  ok('sanitizeErrorForReport: preserves http URL (not stripped as POSIX path)',
+    sanitizeErrorForReport('fetch failed at http://localhost:11434/api').includes('http://localhost'));
+
+  // null / undefined safety
+  ok('sanitizeErrorForReport: handles null',
+    sanitizeErrorForReport(null) === '');
+
+  ok('sanitizeErrorForReport: handles undefined',
+    sanitizeErrorForReport(undefined) === '');
+
+  // Length cap
+  ok('sanitizeErrorForReport: output capped at 300 chars',
+    sanitizeErrorForReport('x'.repeat(400)).length <= 300);
 }
