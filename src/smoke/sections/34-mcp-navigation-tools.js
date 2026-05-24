@@ -36,12 +36,12 @@ export default async function ({ ok }) {
   ok('aggregateFiles: empty section falls back to "intro"',
     all.find(f => f.source_file === 'docs/config.md')?.firstSection === 'Setup');
 
-  // prefix filtering
+  // source_prefix filtering
   const docsOnly = aggregateFiles(pts, 'docs/');
-  ok('aggregateFiles: prefix filters to matching files only',
+  ok('aggregateFiles: source_prefix filters to matching files only',
     docsOnly.length === 2 && docsOnly.every(f => f.source_file.startsWith('docs/')));
 
-  ok('aggregateFiles: non-matching prefix returns empty',
+  ok('aggregateFiles: non-matching source_prefix returns empty',
     aggregateFiles(pts, 'nonexistent/').length === 0);
 
   // Windows backslash normalisation
@@ -62,6 +62,62 @@ export default async function ({ ok }) {
 
   ok('aggregateFiles: points without source_file are skipped',
     aggregateFiles([{ payload: {} }, { payload: { chunk_index: 0 } }]).length === 0);
+
+  // ── aggregateFiles: tags filter ───────────────────────────────────────────
+
+  const taggedPts = [
+    { payload: { source_file: 'a/file1.md', chunk_index: 0, section: 'S1', tags: ['alpha', 'beta'] } },
+    { payload: { source_file: 'a/file1.md', chunk_index: 1, section: 'S2', tags: ['gamma'] } },
+    { payload: { source_file: 'a/file2.md', chunk_index: 0, section: 'S1', tags: ['beta'] } },
+    { payload: { source_file: 'b/file3.md', chunk_index: 0, section: 'S1', tags: ['alpha'] } },
+    { payload: { source_file: 'b/file4.md', chunk_index: 0, section: 'S1', tags: ['delta'] } },
+  ];
+
+  const anyBeta = aggregateFiles(taggedPts, null, ['beta'], 'any');
+  ok('aggregateFiles tags any: returns files with any matching tag',
+    anyBeta.length === 2 &&
+    anyBeta.some(f => f.source_file === 'a/file1.md') &&
+    anyBeta.some(f => f.source_file === 'a/file2.md'));
+
+  ok('aggregateFiles tags any: excludes files with no matching tag',
+    !anyBeta.some(f => f.source_file === 'b/file4.md'));
+
+  ok('aggregateFiles tags any: tagHitCount = matching chunks (1 chunk has beta in file1)',
+    anyBeta.find(f => f.source_file === 'a/file1.md')?.tagHitCount === 1);
+
+  const anyAlphaBeta = aggregateFiles(taggedPts, null, ['alpha', 'beta'], 'any');
+  ok('aggregateFiles tags any multi: file1 chunk0 has both alpha+beta → 1 matching chunk',
+    anyAlphaBeta.find(f => f.source_file === 'a/file1.md')?.tagHitCount === 1);
+
+  ok('aggregateFiles tags any: sorted by tagHitCount desc then path asc (tie → alpha order)',
+    anyAlphaBeta[0].source_file === 'a/file1.md');
+
+  // density sorting: file with same tag in many chunks should rank above file with tag in 1 chunk
+  const densePts = [
+    { payload: { source_file: 'dense.md', chunk_index: 0, section: 'A', tags: ['release-strategy'] } },
+    { payload: { source_file: 'dense.md', chunk_index: 1, section: 'B', tags: ['release-strategy'] } },
+    { payload: { source_file: 'dense.md', chunk_index: 2, section: 'C', tags: ['release-strategy'] } },
+    { payload: { source_file: 'sparse.md', chunk_index: 0, section: 'A', tags: ['release-strategy'] } },
+  ];
+  const denseSorted = aggregateFiles(densePts, null, ['release-strategy'], 'any');
+  ok('aggregateFiles tags density: tagHitCount counts matching chunks not unique tags',
+    denseSorted.find(f => f.source_file === 'dense.md')?.tagHitCount === 3);
+  ok('aggregateFiles tags density: dense file sorts above sparse file',
+    denseSorted[0].source_file === 'dense.md');
+
+  const allAlphaBeta = aggregateFiles(taggedPts, null, ['alpha', 'beta'], 'all');
+  ok('aggregateFiles tags all: only files with all requested tags present',
+    allAlphaBeta.length === 1 && allAlphaBeta[0].source_file === 'a/file1.md');
+
+  ok('aggregateFiles tags all: file with only one of the two tags excluded',
+    !allAlphaBeta.some(f => f.source_file === 'a/file2.md'));
+
+  // tagHitCount not present on non-tag-filtered result
+  ok('aggregateFiles: no tagHitCount when no tags filter',
+    !('tagHitCount' in (aggregateFiles(pts)[0] ?? {})));
+
+  ok('aggregateFiles: tagHitCount present when tags filter active',
+    'tagHitCount' in (anyBeta[0] ?? {}));
 
   // ── aggregateTags ─────────────────────────────────────────────────────────
 
@@ -102,13 +158,13 @@ export default async function ({ ok }) {
   ok('aggregateTags: null tags field skipped without error',
     allTags.length === 3); // overview, setup, advanced
 
-  // prefix filtering on tags
+  // source_prefix filtering on tags (was: prefix)
   const aTags = aggregateTags(tagPts, 'a/');
-  ok('aggregateTags: prefix restricts to files starting with a/',
+  ok('aggregateTags: source_prefix restricts to files starting with a/',
     aTags.every(t => t.tag !== 'overview' || t.fileCount === 1)); // b/other excluded
-  ok('aggregateTags: setup still 2 files within a/ prefix',
+  ok('aggregateTags: setup still 2 files within a/ source_prefix',
     aTags.find(t => t.tag === 'setup')?.fileCount === 2);
-  ok('aggregateTags: overview only 1 file within a/ prefix',
+  ok('aggregateTags: overview only 1 file within a/ source_prefix',
     aTags.find(t => t.tag === 'overview')?.fileCount === 1);
 
   // min_count filtering
@@ -126,12 +182,44 @@ export default async function ({ ok }) {
   ok('aggregateTags: returns all tags before limit is applied by handle()',
     manyTags.length === 10);
 
-  // Windows backslash normalisation for prefix
+  // Windows backslash normalisation for source_prefix
   const winTagPts = [
     { payload: { source_file: 'a\\guide.md', tags: ['win-tag'] } },
     { payload: { source_file: 'b\\other.md', tags: ['other-tag'] } },
   ];
   const winTags = aggregateTags(winTagPts, 'a/');
-  ok('aggregateTags: normalises Windows backslash paths for prefix filtering',
+  ok('aggregateTags: normalises Windows backslash paths for source_prefix filtering',
     winTags.length === 1 && winTags[0].tag === 'win-tag');
+
+  // tag_prefix filtering
+  const prefixPts = [
+    { payload: { source_file: 'x.md', tags: ['release-planning', 'release-strategy', 'social-media', 'advanced'] } },
+  ];
+  const relTags = aggregateTags(prefixPts, null, 1, 'release');
+  ok('aggregateTags: tag_prefix=release keeps only release-* tags',
+    relTags.length === 2 &&
+    relTags.every(t => t.tag.startsWith('release')));
+
+  ok('aggregateTags: tag_prefix is case-insensitive match',
+    aggregateTags(prefixPts, null, 1, 'Release').length === 2);
+
+  // contains filtering
+  const containsPts = [
+    { payload: { source_file: 'x.md', tags: ['social-media', 'media-kit', 'release', 'unrelated'] } },
+  ];
+  const mediaTags = aggregateTags(containsPts, null, 1, null, 'media');
+  ok('aggregateTags: contains=media keeps social-media and media-kit',
+    mediaTags.length === 2 &&
+    mediaTags.every(t => t.tag.includes('media')));
+
+  ok('aggregateTags: contains is case-insensitive',
+    aggregateTags(containsPts, null, 1, null, 'MEDIA').length === 2);
+
+  // tag_prefix + contains together
+  const bothPts = [
+    { payload: { source_file: 'x.md', tags: ['social-media', 'social-promo', 'release-media', 'other'] } },
+  ];
+  const socialMedia = aggregateTags(bothPts, null, 1, 'social', 'media');
+  ok('aggregateTags: tag_prefix + contains: only social-media matches both',
+    socialMedia.length === 1 && socialMedia[0].tag === 'social-media');
 }

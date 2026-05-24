@@ -14,8 +14,9 @@ import * as backlinks from './tools/backlinks.js';
 import * as findByTag from './tools/findByTag.js';
 import * as listFiles from './tools/listFiles.js';
 import * as listTags from './tools/listTags.js';
+import * as listDirectories from './tools/listDirectories.js';
 
-const tools = [search, collections, getChunk, related, backlinks, findByTag, listFiles, listTags];
+const tools = [search, collections, getChunk, related, backlinks, findByTag, listFiles, listTags, listDirectories];
 const toolMap = Object.fromEntries(tools.map(t => [t.schema.name, t.handle]));
 
 const server = new Server(

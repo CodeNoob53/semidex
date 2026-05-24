@@ -20,14 +20,23 @@ After registering, reconnect the MCP server in Claude Code and run `/mcp`.
 
 ## Recommended Agent Workflow
 
+For unknown collection structure:
+
 ```text
 qdrant_collection_info
-  -> qdrant_list_files(collection, prefix?) when folder is known but exact source_file path is not
-  -> qdrant_list_tags(collection) before qdrant_find_by_tag when valid tags are unknown
-  -> qdrant_search(window=1, window_format="compact", top=3)
+  -> qdrant_list_directories(collection)                     # explore top-level folder structure
+  -> qdrant_list_files(collection, source_prefix="...")      # list files within a known folder
+  -> qdrant_search(query, collection, top=3, window=1, window_format="compact")
   -> qdrant_get_chunk (if broader context is needed)
   -> qdrant_related / qdrant_backlinks
-  -> qdrant_find_by_tag when narrowing by topic
+```
+
+For tag discovery and breadth expansion:
+
+```text
+qdrant_search first — inspect tags in search results
+  -> qdrant_list_tags(collection, tag_prefix=... or contains=...)  # discover valid tags; prefer filters on large collections
+  -> qdrant_find_by_tag for breadth expansion across files
 ```
 
 Search results return the matched chunk plus `source_file` and `chunk_index`.
@@ -67,12 +76,22 @@ Raw/unstructured corpus chunks may contain distractor values, stale config, or c
 |------|-----------|-------------|
 | `qdrant_search` | `query`, `collection`, `top?`, `tags?[]`, `source_file?`, `window?`, `window_format?` | Hybrid search with optional tag/source filters and context window |
 | `qdrant_collection_info` | none | Lists collections with point counts, provider metadata, descriptions |
-| `qdrant_get_chunk` | `collection`, `source_file`, `chunk_index`, `window?` | Retrieves one chunk and optional neighbors |
+| `qdrant_get_chunk` | `collection`, `source_file`, `chunk_index`, `window?` | Retrieves one chunk and optional neighbors. Heading shows explicit `chunk_index` and display position. |
 | `qdrant_related` | `collection`, `source_file` | Shows outgoing file-level semantic links |
 | `qdrant_backlinks` | `collection`, `source_file` | Shows incoming file-level links |
-| `qdrant_find_by_tag` | `collection`, `tag`, `limit?` | Lists chunks matching a tag, grouped by file |
-| `qdrant_list_files` | `collection`, `prefix?`, `limit?` | Lists unique source files with chunk counts and first section. Use when a folder is known but the exact `source_file` path is not. |
-| `qdrant_list_tags` | `collection`, `prefix?`, `min_count?`, `limit?` | Lists tags with chunk and file counts. Use before `qdrant_find_by_tag` when valid tags are unknown. |
+| `qdrant_find_by_tag` | `collection`, `tag?`, `tags?[]`, `match?`, `limit?` | Lists chunks matching tag(s), grouped by file and sorted by density |
+| `qdrant_list_directories` | `collection`, `source_prefix?`, `depth?`, `limit?` | Lists directory prefixes with file and chunk counts. Use to explore structure before listing files. |
+| `qdrant_list_files` | `collection`, `source_prefix?`, `tags?[]`, `tag_match?`, `limit?` | Lists unique source files with chunk counts, first section, and optional tag filtering |
+| `qdrant_list_tags` | `collection`, `source_prefix?`, `tag_prefix?`, `contains?`, `min_count?`, `limit?` | Lists tags with chunk and file counts. Use `tag_prefix` or `contains` to narrow results on large collections. |
+
+### Navigation parameter semantics
+
+- `source_prefix` — filters by `source_file` path prefix.
+- `tag_prefix` — filters tag names by prefix. Not a `source_file` filter.
+- `contains` — filters tag names by substring. Can combine with `tag_prefix`.
+- `qdrant_list_tags` without filters can return hundreds of broad tags on large collections — prefer `tag_prefix` or `contains` to narrow first.
+- Do not guess `source_file` when `qdrant_list_directories` / `qdrant_list_files` can resolve it.
+- Tags are best used for breadth expansion after an initial `qdrant_search`, not always as a first step.
 
 ## Search Mode
 

@@ -15,6 +15,13 @@ export const schema = {
   },
 };
 
+// Pure formatter — exported for smoke tests.
+export function formatChunkHeading(chunkIndex, totalChunks, section) {
+  const display = `${chunkIndex + 1}/${totalChunks}`;
+  const sectionLabel = section || 'intro';
+  return `### chunk_index: ${chunkIndex}, display: ${display} — ${sectionLabel}`;
+}
+
 export async function handle({ collection, source_file, chunk_index, window = 0 }) {
   window = Math.max(0, Math.min(10, parseInt(window) || 0));
   const points = await fetchWindowChunks(collection, source_file, chunk_index, window);
@@ -24,7 +31,7 @@ export async function handle({ collection, source_file, chunk_index, window = 0 
   return points.map(p => {
     const pay = p.payload;
     return [
-      `### Chunk ${pay.chunk_index + 1}/${pay.total_chunks} — ${pay.section || 'intro'}`,
+      formatChunkHeading(pay.chunk_index, pay.total_chunks, pay.section),
       `**Context:** ${pay.context || ''}`,
       '',
       pay.text,

@@ -72,14 +72,21 @@ qdrant_collection_info
 Use it to see available collections, point counts, descriptions, and provider
 metadata. Then follow this workflow:
 
+For unknown collection structure:
+
 ```text
 qdrant_collection_info
-  -> qdrant_list_files(collection, prefix?) when folder is known but exact source_file path is not
-  -> qdrant_list_tags(collection) before qdrant_find_by_tag when valid tags are unknown
-  -> qdrant_search(window=1, window_format="compact", top=3)
-  -> qdrant_get_chunk (if broader context is needed)
-  -> qdrant_related / qdrant_backlinks
-  -> qdrant_find_by_tag when narrowing by topic
+  -> qdrant_list_directories(collection)                     # explore top-level folder structure
+  -> qdrant_list_files(collection, source_prefix="...")      # list files within a known folder
+  -> qdrant_search(query, collection, top=3, window=1, window_format="compact")
+```
+
+For tag discovery and breadth expansion:
+
+```text
+qdrant_search first — inspect tags in search results
+  -> qdrant_list_tags(collection, tag_prefix=... or contains=...)  # discover valid tags
+  -> qdrant_find_by_tag for breadth expansion across files
 ```
 
 Search returns the matched chunk text plus `source_file` and `chunk_index`. The programmatic default is `window=0` (no neighbors), but for AI agents, the following patterns are recommended:
@@ -97,18 +104,29 @@ Search returns the matched chunk text plus `source_file` and `chunk_index`. The 
 | Goal | Tool |
 |------|------|
 | List collections and provider metadata | `qdrant_collection_info()` |
+| Explore folder structure | `qdrant_list_directories(collection, source_prefix?, depth?)` |
+| List files in a folder | `qdrant_list_files(collection, source_prefix?, tags?, tag_match?)` |
+| List tags with counts | `qdrant_list_tags(collection, source_prefix?, tag_prefix?, contains?, min_count?)` |
 | Find chunks by topic | `qdrant_search(query, collection)` |
 | Find actionable context | `qdrant_search(query, collection, top=3, window=1, window_format="compact")` |
 | Search inside one file | `qdrant_search(query, collection, source_file=...)` |
 | Filter by tags | `qdrant_search(query, collection, tags=[...])` |
 | Read a chunk with neighbors | `qdrant_get_chunk(collection, source_file, chunk_index, window=1)` |
 | Find chunks with a tag | `qdrant_find_by_tag(collection, tag)` |
-| List files in a folder or collection | `qdrant_list_files(collection, prefix?)` |
-| List available tags with counts | `qdrant_list_tags(collection, prefix?, min_count?)` |
+| Find chunks matching multiple tags | `qdrant_find_by_tag(collection, tags=[...], match="any"\|"all")` |
 | See outgoing semantic links | `qdrant_related(collection, source_file)` |
 | See incoming semantic links | `qdrant_backlinks(collection, source_file)` |
 
-Tag filters are OR across tags. Combining `tags` with `source_file` narrows to
+Navigation parameter semantics:
+
+- `source_prefix` — filters by `source_file` path prefix (forward-slash normalized).
+- `tag_prefix` — filters tag names by prefix. Use to narrow `qdrant_list_tags` results on large collections.
+- `contains` — filters tag names by substring. Can combine with `tag_prefix`.
+- `qdrant_list_tags` without any filter can be noisy on large collections — prefer `tag_prefix` or `contains`.
+- Do not guess `source_file` when `qdrant_list_directories` / `qdrant_list_files` can resolve it.
+- Tags are best used as breadth expansion after search, not always as the first step.
+
+Tag filters on `qdrant_search` are OR across tags. Combining `tags` with `source_file` narrows to
 chunks in that file matching any requested tag.
 
 ## Agent Retrieval Safety Rules

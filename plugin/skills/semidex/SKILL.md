@@ -1,7 +1,7 @@
 ---
 name: semidex
 description: "Use when working with semidex: indexing documents, configuring retrieval, debugging search results, checking env vars, or understanding architecture. Prefer live semidex MCP search over loading static docs into context."
-allowed-tools: mcp__qdrant__qdrant_search, mcp__qdrant__qdrant_collection_info, mcp__qdrant__qdrant_get_chunk, mcp__qdrant__qdrant_find_by_tag, mcp__qdrant__qdrant_related, mcp__qdrant__qdrant_backlinks, mcp__qdrant__qdrant_list_files, mcp__qdrant__qdrant_list_tags
+allowed-tools: mcp__qdrant__qdrant_search, mcp__qdrant__qdrant_collection_info, mcp__qdrant__qdrant_get_chunk, mcp__qdrant__qdrant_find_by_tag, mcp__qdrant__qdrant_related, mcp__qdrant__qdrant_backlinks, mcp__qdrant__qdrant_list_files, mcp__qdrant__qdrant_list_tags, mcp__qdrant__qdrant_list_directories
 ---
 
 semidex is a local-first RAG indexer and MCP server backed by Qdrant.
@@ -43,8 +43,11 @@ Start with collection metadata:
 
 ```text
 qdrant_collection_info()
-  -> qdrant_list_files(collection, prefix?) when folder is known but exact source_file path is not
-  -> qdrant_list_tags(collection) before qdrant_find_by_tag when valid tags are unknown
+  -> qdrant_list_directories(collection)                    # explore folder structure
+  -> qdrant_list_files(collection, source_prefix="...")     # list files in a known folder
+  -> qdrant_search first, inspect tags in results
+  -> qdrant_list_tags(collection, tag_prefix=... or contains=...)  # discover valid tags; filter on large collections
+  -> qdrant_find_by_tag for breadth expansion
 ```
 
 Sanity check the MCP wiring before relying on search results:
@@ -79,13 +82,14 @@ fragments.
 | Goal | Tool |
 |------|------|
 | List collections and provider metadata | `qdrant_collection_info()` |
+| Explore folder structure | `qdrant_list_directories(collection, source_prefix?, depth?)` |
+| List files in a folder | `qdrant_list_files(collection, source_prefix?, tags?, tag_match?)` |
+| List available tags | `qdrant_list_tags(collection, source_prefix?, tag_prefix?, contains?, min_count?)` |
 | Search semantically and lexically | `qdrant_search(query, collection, top=3, window=1, window_format="compact")` |
 | Search inside one file | `qdrant_search(query, collection, source_file="docs/en/retrieval.md", top=3, window=1, window_format="compact")` |
 | Filter by tags | `qdrant_search(query, collection, tags=["providers"], top=5)` |
 | Read a chunk and neighbors | `qdrant_get_chunk(collection, source_file, chunk_index, window=1)` |
-| Find chunks with one tag | `qdrant_find_by_tag(collection, tag)` |
-| List files in a folder | `qdrant_list_files(collection, prefix?)` |
-| List available tags | `qdrant_list_tags(collection, prefix?, min_count?)` |
+| Find chunks by tag(s) | `qdrant_find_by_tag(collection, tags=[...], match="any"\|"all")` |
 | Follow outgoing semantic links | `qdrant_related(collection, source_file)` |
 | Find incoming semantic links | `qdrant_backlinks(collection, source_file)` |
 
@@ -93,7 +97,11 @@ Notes:
 - `qdrant_search` always uses hybrid dense+sparse RRF.
 - `window_format="compact"` returns snippets for neighbor chunks.
 - Use `qdrant_get_chunk(..., window=1)` when full neighbor text is needed.
-- `tags` are OR filters. Combine with `source_file` only when the file scope is known.
+- `tags` on `qdrant_search` are OR filters. Combine with `source_file` only when the file scope is known.
+- `source_prefix` filters by `source_file` path prefix. `tag_prefix` and `contains` filter tag names — they are not `source_file` filters.
+- `qdrant_list_tags` without filters can be noisy on large collections — use `tag_prefix` or `contains` to narrow.
+- Do not guess `source_file` when `qdrant_list_directories` / `qdrant_list_files` can resolve it.
+- Tags are best used for breadth expansion after `qdrant_search`, not always as a first step.
 
 ## Retrieval Safety Rules
 
