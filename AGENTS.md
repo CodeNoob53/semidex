@@ -93,7 +93,7 @@ qdrant_search(...)                                                    # inspect 
   -> qdrant_find_by_tag(collection, tags=[...])                       # breadth expansion
 ```
 
-Use `tag_prefix` or `contains` to narrow tag names. If the relevant directory is already known from `list_directories`, combine with `source_prefix` to scope tag counts to that area and reduce result set size. Unfiltered `qdrant_list_tags` can return hundreds of tags on large collections. Tags are most useful for breadth expansion after an initial search, not as the first step. This workflow was live-tested on a large collection and eliminated blind prefix guessing.
+On large collections, do not start with unscoped `qdrant_list_tags` — it can return hundreds of tags with no grouping signal. Always run `qdrant_list_directories(depth=1)` first, drill into the relevant area with `source_prefix`, then call `qdrant_list_tags(collection, contains=..., source_prefix=...)` scoped to that area. Tags are most useful for breadth expansion after an initial search, not as the first step. This workflow was live-tested on a large collection and eliminated blind prefix guessing.
 
 Search returns the matched chunk text plus `source_file` and `chunk_index`. The programmatic default is `window=0` (no neighbors), but for AI agents, the following patterns are recommended:
 
@@ -102,6 +102,8 @@ Search returns the matched chunk text plus `source_file` and `chunk_index`. The 
 - **Implementation, explanation, or decision tasks:**
   `qdrant_search(query, collection, top=3, window=1, window_format="compact")`
   This is the recommended agent pattern. It provides the setup and continuation around the matched chunk without bloating the context window, which often eliminates the need for follow-up chunk retrieval.
+- **Structured data in compact output:**
+  If a compact snippet shows a table header, checklist, YAML/JSON block, or any structure that appears cut mid-row or mid-item, call `qdrant_get_chunk(collection, source_file, chunk_index)` directly. Compact snippets are capped at 150 chars and always truncate multi-row tables. Do not summarize structured content from a truncated snippet.
 - **Deep context diving:**
   If you need the full section after finding a hit, use `qdrant_get_chunk(collection, source_file, chunk_index, window=1)` (or `window=2`).
 
@@ -137,10 +139,12 @@ Navigation parameter semantics:
 **When to use `qdrant_related` and `qdrant_backlinks`:**
 
 - `qdrant_search` — find chunks relevant to a topic or query. Use this first.
-- `qdrant_related(collection, source_file)` — once you have a file of interest, find other documents that are semantically linked *from* it. Use when you need to traverse outgoing connections: "what does this file point to?"
+- `qdrant_related(collection, source_file)` — once you have a high-confidence file of interest, find other documents semantically linked *from* it. Best applied to hub/reference/skill files or files with many chunks (>20 is a useful heuristic for `reference/` and `skills/` directories). Use when you need to traverse outgoing connections: "what does this file point to?" If results are noisy, fall back to `qdrant_search` with a narrower query or `source_file` filter.
 - `qdrant_backlinks(collection, source_file)` — find documents that link *to* a given file. Use when you need to understand dependencies or callers: "what depends on or references this file?"
 
-Do not substitute `related`/`backlinks` for search on an unknown topic. They are graph traversal tools, not discovery tools — they only work once you have a specific `source_file` to start from.
+Do not substitute `related`/`backlinks` for search on an unknown topic. They are graph traversal tools, not ranked topical search — they only work once you have a specific `source_file` to start from.
+
+**Related-link noise:** On large or mixed-domain collections, `qdrant_related` can return off-topic files alongside relevant ones. Triage by section summary, source family, tags, and whether the file supports the current task — do not assume every returned file is relevant.
 
 Tag filters on `qdrant_search` are OR across tags. Combining `tags` with `source_file` narrows to
 chunks in that file matching any requested tag.

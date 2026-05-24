@@ -104,10 +104,12 @@ Notes:
 - `tags` on `qdrant_search` are OR filters. Combine with `source_file` only when the file scope is known.
 - `source_prefix` filters by `source_file` path prefix. `tag_prefix` and `contains` filter tag names — they are not `source_file` filters.
 - `qdrant_list_tags` without filters can be noisy on large collections — use `tag_prefix` or `contains` to narrow.
+- `qdrant_list_tags(source_prefix=...)` is most useful after `qdrant_list_directories` has identified the right prefix; skip the directory step and unscoped `list_tags` may return an unmanageable flat list.
 - Do not guess `source_file` when `qdrant_list_directories` / `qdrant_list_files` can resolve it.
 - Tags are best used for breadth expansion after `qdrant_search`, not always as a first step.
 - **Truncation:** `Found N … showing M` means the list is truncated. Narrow with `source_prefix`, `tag_prefix`, or `contains` and re-call — do not treat a truncated list as complete.
-- **`qdrant_related` vs `qdrant_backlinks` vs `qdrant_search`:** Use `search` to discover chunks by topic. Use `related` once you have a file to find documents it links *to* (outgoing). Use `backlinks` to find documents that link *to* it (incoming dependencies). `related`/`backlinks` are graph traversal, not discovery — they need a known `source_file` to start from.
+- **Structured-data trigger:** If a compact snippet shows a table header, checklist, YAML/JSON block, or any structure cut mid-row or mid-item, call `qdrant_get_chunk` directly — do not summarize from a truncated snippet. Compact snippets are capped at 150 chars and always truncate multi-row tables.
+- **`qdrant_related` vs `qdrant_backlinks` vs `qdrant_search`:** Use `search` to discover chunks by topic. Use `related` once you have a high-confidence file to find documents it links *to* (outgoing); files with >20 chunks in `reference/` or `skills/` tend to be well-connected — if results are noisy, fall back to `qdrant_search` with a narrower query. Use `backlinks` to find documents that link *to* it (incoming dependencies). `related`/`backlinks` are graph traversal, not ranked topical search — they need a known `source_file` to start from. On large or mixed-domain collections, `related` can return off-topic files — triage by section summary, source family, and tags; do not assume every returned file is relevant.
 
 ## Retrieval Safety Rules
 

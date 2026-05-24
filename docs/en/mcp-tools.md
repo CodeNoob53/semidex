@@ -61,6 +61,8 @@ Use `top=5` for ambiguous, negative, or scope-sensitive queries where the answer
 
 If implementation requires even broader context, follow up with `qdrant_get_chunk(..., window=1 or 2)`.
 
+**Structured-data trigger:** If a compact snippet shows a table header, checklist, YAML/JSON block, or any structure that appears cut mid-row or mid-item, call `qdrant_get_chunk(collection, source_file, chunk_index)` directly. Compact snippets are capped at 150 characters and will always truncate multi-row tables. Do not summarize structured content from a truncated snippet — retrieve the full chunk first.
+
 ### Retrieval Safety
 
 Before answering from retrieved evidence, verify that the evidence matches the query's scope:
@@ -96,6 +98,7 @@ Raw/unstructured corpus chunks may contain distractor values, stale config, or c
 - `tag_prefix` — filters tag names by prefix. Not a `source_file` filter.
 - `contains` — filters tag names by substring. Can combine with `tag_prefix`.
 - `qdrant_list_tags` without filters can return hundreds of broad tags on large collections — prefer `tag_prefix` or `contains` to narrow first.
+- `qdrant_list_tags(source_prefix=...)` is most useful after `qdrant_list_directories` has identified the right prefix. Without a prior directory step, unscoped `list_tags` on a large collection risks returning an unmanageable flat list.
 - Do not guess `source_file` when `qdrant_list_directories` / `qdrant_list_files` can resolve it.
 - Tags are best used for breadth expansion after an initial `qdrant_search`, not always as a first step.
 
@@ -104,10 +107,12 @@ Raw/unstructured corpus chunks may contain distractor values, stale config, or c
 ### When to use `qdrant_related` and `qdrant_backlinks`
 
 - **`qdrant_search`** — find chunks relevant to a topic. Use this first.
-- **`qdrant_related(collection, source_file)`** — once you have a specific file, find documents semantically linked *from* it. Use to traverse outgoing connections: "what does this file point to?"
+- **`qdrant_related(collection, source_file)`** — once you have a high-confidence file, find documents semantically linked *from* it. Use to traverse outgoing connections: "what does this file point to?" Best applied to hub/reference/skill files or files with many chunks (>20 chunks in `reference/` or `skills/` is a useful heuristic). If results are noisy, fall back to `qdrant_search` with a narrower query or `source_file` filter.
 - **`qdrant_backlinks(collection, source_file)`** — find documents that link *to* a given file. Use to understand dependencies: "what references or depends on this file?"
 
-These are graph traversal tools, not discovery tools. They require a known `source_file` as a starting point and should not substitute for `qdrant_search` on an unknown topic.
+These are graph traversal tools, not ranked topical search. They require a known `source_file` as a starting point and should not substitute for `qdrant_search` on an unknown topic.
+
+**Noise:** On large or mixed-domain collections, `qdrant_related` can return off-topic files. Triage by section summary, source family, tags, and whether the file supports the current task — do not assume every returned file is relevant.
 
 ## Search Mode
 
