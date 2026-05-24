@@ -64,8 +64,56 @@ exact old methodology.
 | `2026-05-22T1143-combined-llm-quality-matrix.md` | Second post-alignment combined quality matrix | Generated before custom-50 `c48` qrel fix | Rerun combined matrix after qrel fix | Comparing post-alignment variance against T1117 |
 | `2026-05-22T1152-combined-context-only-ablation.md` | Second post-alignment context-only ablation | Generated before custom-50 `c48` qrel fix | Rerun context-only ablation after qrel fix | Comparing post-alignment variance against T1126 |
 | `2026-05-22T1200-combined-prompt-alignment-verification.md` | Summary report comparing pre/post prompt alignment runs | Summary is based on pre-fix `c48` qrels and archived raw reports | Write a fresh verification report after reruns | Understanding the deprecated prompt-alignment conclusion |
+| `2026-05-13-indexing-performance-analysis.md` | Indexing performance analysis — May 13 | Superseded by May-17 DML/CPU indexing perf reports with better instrumentation | `2026-05-17-indexing-perf-onnx-cpu.md`, `2026-05-17-indexing-perf-onnx-dml.md` | Tracing early indexing perf baseline before DML work |
+| `2026-05-14-diagnostic-bundle-design.md` | Design doc for diagnostic bundle tooling | Design superseded; diagnostic functionality delivered via `npm run doctor` and smoke tests | `npm run doctor` output | Understanding original diagnostic bundle design intent |
+| `2026-05-14-indexing-performance-instrumentation-audit.md` | Audit of indexing perf instrumentation gaps | Superseded by May-17 perf work which closed the instrumentation gaps | `2026-05-17-indexing-perf-onnx-cpu.md` | Understanding what instrumentation was missing before May-17 |
+| `2026-05-14-preflight-live-verification.md` | Live verification of preflight checks | Preflight behavior verified; `npm run doctor` is the current interface | `npm run doctor` | Checking original preflight live behavior |
+| `2026-05-14-sync-link-filter-semantics-audit.md` | Audit of sync link filter semantics | Sync link filter behavior established; conclusions folded into code and docs | `docs/en/` sync sections | Checking original sync link filter ambiguity |
+| `2026-05-17-link-dense-reuse-equivalence-design.md` | Design harness for dense-vector reuse in link-building | Implementation complete; Patch A and pre-conditions B+C merged | Link-building code in `src/` | Tracing dense-reuse design rationale before implementation |
+| `2026-05-17-link-dense-reuse-patch-a-result.md` | Patch A result for dense-vector reuse | Implementation complete; result folded into closure in equivalence-design doc | `2026-05-17-link-dense-reuse-equivalence-design.md` (archived) | Checking Patch A specific benchmark numbers |
+| `2026-05-17-performance-bottleneck-audit.md` | Performance bottleneck audit pre-DML | Superseded by DML/CPU perf reports and DML production wiring design | `2026-05-17-dml-batching-production-wiring-design.md` | Tracing what bottleneck analysis led to DML decision |
+| `2026-05-17-indexing-performance-live-summary.md` | Live summary of indexing performance work | Superseded by final DML and CPU perf reports | `2026-05-17-indexing-perf-onnx-cpu.md`, `2026-05-17-indexing-perf-onnx-dml.md` | Understanding what the live indexing perf investigation covered |
+| `2026-05-17T2122-combined-context-tags-feasibility.md` | Combined context+tags feasibility — earlier draft | Earlier draft probe; superseded by canonical `2026-05-17-combined-context-tags-feasibility.md` | `2026-05-17-combined-context-tags-feasibility.md` | Comparing T2122 probe setup vs canonical report |
+| `2026-05-20-tag-model-qwen25-separate-path.md` | Exploratory separate tag-model path with qwen2.5 | Superseded by tag batch fallback diagnostic; combined mode is canonical path | `2026-05-22T0129-tag-batch-fallback-diagnostic.md` | Understanding why separate tag-model path was not pursued |
+| `2026-05-22T0039-tag-batch-fallback-diagnostic.md` | Tag batch fallback diagnostic — first run | Superseded by T0129 pair (postfix qwen2.5 run confirms behavior) | `2026-05-22T0129-tag-batch-fallback-diagnostic.md` | Checking first fallback diagnostic raw output |
+| `2026-05-22T1300-results-folder-organization-plan.md` | Organization plan for results folder — May 22 | Organization complete; superseded by this README and current cleanup status | `benchmarks/retrieval/results/README.md` | Understanding rationale for first high-confidence archive batch |
+| `2026-05-23T0024-duplicate-point-diagnostic-bitwize-music.md` | Initial duplicate point diagnostic for bitwize-music | Superseded by closure report; intermediate diagnostic step | `2026-05-24T1500-duplicate-point-repair-bitwize-music-closure.md` | Checking initial duplicate detection methodology |
+| `2026-05-23T0215-duplicate-point-repair-plan.md` | Repair plan for duplicate points in bitwize-music | Superseded by closure report; plan implemented and completed | `2026-05-24T1500-duplicate-point-repair-bitwize-music-closure.md` | Understanding original repair approach design |
+| `2026-05-24T0318-duplicate-point-repair-bitwize-music-dry-run.md` | Dry-run #1 for duplicate repair (bitwize-music) | Superseded by closure report; intermediate dry-run result | `2026-05-24T1500-duplicate-point-repair-bitwize-music-closure.md` | Comparing dry-run #1 metrics against final apply |
+| `2026-05-24T0404-duplicate-point-repair-bitwize-music-dry-run.md` | Dry-run #2 for duplicate repair (bitwize-music, safe reindex-first mode) | Superseded by closure report; intermediate dry-run with updated mode | `2026-05-24T1500-duplicate-point-repair-bitwize-music-closure.md` | Checking safe reindex-first mode dry-run result |
+| `2026-05-24T0320-duplicate-point-repair-bitwize-music-apply.md` | Apply run #1 for duplicate repair (bitwize-music) | Superseded by closure report; intermediate apply result | `2026-05-24T1500-duplicate-point-repair-bitwize-music-closure.md` | Comparing apply run #1 metrics against final T0442 |
+| `2026-05-24T0442-duplicate-point-repair-bitwize-music-apply.md` | Apply run #2 for duplicate repair (bitwize-music, final apply) | Superseded by closure report; final numbers are in the closure report | `2026-05-24T1500-duplicate-point-repair-bitwize-music-closure.md` | Checking raw apply output for the final run |
 
 ## Batch Notes
+
+### 2026-05-25 Second Archive Batch
+
+Batch moved 19 files based on citation checks against `docs/`, `docs/adr/`, and `AGENTS.md`.
+None of these files were cited outside `benchmarks/retrieval/results/`. Groups:
+
+1. **2026-05-13 indexing performance analysis** — superseded by May-17 DML/CPU reports with proper instrumentation.
+
+2. **2026-05-14 diagnostic/instrumentation/preflight/sync-link (4 files)** — all superseded by later audits,
+   `npm run doctor`, and docs; conclusions folded into code or docs.
+
+3. **2026-05-17 link-dense-reuse design + Patch A result (2 files)** — implementation complete and merged;
+   design record preserved in archive for traceability.
+
+4. **2026-05-17 performance-bottleneck audit + indexing-performance live summary (2 files)** — superseded by
+   final `indexing-perf-onnx-cpu.md` and `indexing-perf-onnx-dml.md` reports.
+
+5. **2026-05-17T2122 combined-context-tags feasibility** — earlier probe draft; canonical report is
+   `2026-05-17-combined-context-tags-feasibility.md` (same date, without timestamp suffix).
+
+6. **2026-05-20 tag-model-qwen25-separate-path** — exploratory separate tag-model path; superseded by
+   combined-mode tag batch diagnostic.
+
+7. **2026-05-22T0039 tag-batch-fallback-diagnostic** — first diagnostic run; superseded by T0129 pair.
+
+8. **2026-05-22T1300 results-folder-organization-plan** — organization complete; superseded by results/README.md.
+
+9. **2026-05-23/24 duplicate-point repair intermediates (6 files)** — diagnostic, plan, two dry-runs, two apply runs;
+   all superseded by the closure report `2026-05-24T1500-duplicate-point-repair-bitwize-music-closure.md`.
 
 ### 2026-05-22 First High-Confidence Cleanup Batch
 

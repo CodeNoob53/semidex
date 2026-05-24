@@ -200,6 +200,11 @@ Raw/unstructured chunks may contain distractors, stale values, commented-out val
   benchmark-only mode (`npm run bench:retrieval:mmr`); literal/full-text
   payload search is deferred. Both decisions are documented in
   `benchmarks/retrieval/results/`.
+- When looking up benchmark evidence, read `benchmarks/retrieval/results/README.md`
+  first — it has a canonical reports table and a task-based lookup. Do not scan
+  individual report files until you have used the README to identify which one
+  to open. Superseded runs live in `benchmarks/retrieval/results/archive/`;
+  read `archive/README.md` before opening any archived file.
 - For exact-token queries — error strings, env vars, function names, config
   keys, log line fragments — use verbatim terms in the `query` field. BGE-M3
   sparse encodes them as lexical units and retrieves them reliably (100%

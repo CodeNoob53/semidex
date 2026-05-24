@@ -3,9 +3,9 @@
 This directory contains benchmark reports, audits, diagnostics, and result
 snapshots for semidex retrieval and indexing work.
 
-Use this README as the first stop before opening individual reports. The folder
-is intentionally history-rich, so agents should narrow by category and filename
-pattern instead of reading every file.
+**Read this README first before opening individual reports.** The folder is
+intentionally history-rich; use the tables below to go directly to the file
+you need instead of scanning directory listings.
 
 ## Folder Policy
 
@@ -17,6 +17,57 @@ pattern instead of reading every file.
 Archived reports are not deleted. They remain available for regression
 archaeology and comparisons, but they should not be treated as current quality
 evidence unless the archive README explicitly says so.
+
+## Current Canonical Reports
+
+These are the reports that represent current decisions and should be read first
+for each area. For superseded or exploratory runs in the same area, check
+`archive/README.md`.
+
+| Area | Canonical report(s) | Use when | Notes |
+|------|---------------------|----------|-------|
+| Retrieval quality — custom-50 | `2026-05-17T2333-combined-llm-custom50-quality.md`, `2026-05-18T1144-combined-llm-custom50-quality.md` | Checking current hybrid+combined retrieval baseline | T2333 = no-combined baseline; T1144 = combined PROCEED opt-in verdict |
+| Retrieval quality — custom-150 | `2026-05-18T-custom150-qwen25-combined-quality.md` | Checking quality on 150-query fixture | Combined-LLM qwen2.5 run |
+| CE routing / reranking | `2026-05-16-custom50-ce-routing-v4-mmarco-mminilmv2-l12-h384-v1.txt`, `2026-05-16-custom150-ce-routing-v4-mmarco-mminilmv2-l12-h384-v1.txt` | Understanding why reranking is off by default | ADR 0003 cites these; v4 = final decision run |
+| ColBERT / rerankers | `2026-05-16-bge-m3-colbert-head-probe.md` | ColBERT head probe results | Cited by ADR 0005 |
+| BGE-M3 ONNX provider | `2026-05-09-bge-m3-onnx.txt` | BGE-M3 vs Ollama initial quality comparison | ADR 0001 cites this |
+| Ollama hashed-TF provider | `2026-05-09-ollama-hashed-tf.txt` | Baseline for Ollama+hashed-TF provider path | ADR 0001 cites this |
+| MMR opt-in | `2026-05-14-mmr-mcp-opt-in-audit.md` | Whether dense_mmr mode should be exposed | Cited by docs/en |
+| Literal/full-text search | `2026-05-14-full-text-literal-search-audit.md` | Why full-text search is deferred | Cited by docs/en |
+| Duplicate source pressure | `2026-05-14-duplicate-source-pressure-audit.md` | Duplicate source rate analysis | Cited by docs/en |
+| Combined context+tags | `2026-05-17-combined-context-tags-feasibility.md`, `2026-05-17T2248-combined-llm-live-verification.md` | Feasibility and live verification of combined mode | T2122 is a superseded earlier draft |
+| Prompt policy matrix | `2026-05-18T0948-combined-llm-prompt-policy-matrix.md` | Which context policy to use | qwen2.5 canonical cross-model run; other models archived |
+| Section-window context policy | `2026-05-18-section-window-context-policy.md` | Section-window policy evaluation | Deferred — recall risk |
+| ONNX batching / DML | `2026-05-17-onnx-batching-provider-comparison.md`, `2026-05-17-dml-batching-production-wiring-design.md` | GPU/DML batching decision | DML design = production wiring record |
+| Indexing performance | `2026-05-17-indexing-perf-onnx-cpu.md`, `2026-05-17-indexing-perf-onnx-dml.md` | CPU vs DML wall-time baselines | DML = 6.9× speedup vs CPU |
+| Architecture blockers | `2026-05-17-architecture-blockers-audit.md` | Outstanding architecture decisions | Cited by docs/en |
+| Self-docs bootstrap | `2026-05-14-self-docs-bootstrap-design.md` | Semidex indexing its own docs | Cited by docs/en |
+| Live agent review | `2026-05-12-clean-live-agent-review.md` | Definitive compact-window agent eval | Supersedes May-11 text dumps |
+| Custom-raw answer policy | `2026-05-12-custom-raw-*.md` series (8 files) | Specific retrieval policy cases | Evidence for docs/en/retrieval.md answer-policy section |
+| Tag usefulness | `2026-05-20-tag-usefulness-audit.md` | Whether tags improve retrieval | Audit vs. no-tag baseline |
+| Tag gen ablation | `2026-05-21T1833-tag-gen-ablation-custom50.md` | Tag generation quality on custom-50 | |
+| Tag batch fallback | `2026-05-22T0129-tag-batch-fallback-diagnostic.md`, `2026-05-22T0129-tag-batch-fallback-postfix-qwen25.md` | Tag batch JSON parse failure behavior | T0039 is superseded earlier run |
+| Empty section live test | `2026-05-21T2221-empty-section-live-verification.md` | Empty section behavior verification | |
+| Combined parser stability | `2026-05-22T0239-combined-parser-stability.md` | Parser stability independent of c48 qrel | Not archived despite c48 fix |
+| Duplicate point repair | `2026-05-24T1500-duplicate-point-repair-bitwize-music-closure.md` | Full closure report for duplicate repair | Supersedes dry-run and apply intermediates |
+| Deterministic point IDs | `2026-05-23T1249-deterministic-point-id-implementation.md` | Deterministic ID implementation record | |
+| MCP agent UX | `2026-05-25-mcp-agent-ux-polish-v3-live-retest.md` | Current agent workflow retest verdict | v2 retest also in results/ for v2→v3 diff |
+| Link-building equivalence | `link-equivalence-snapshot-*.json` | Dense-reuse graph equivalence snapshots | Machine-readable; 4 snapshots |
+
+## Report Lookup by Task
+
+| If you need to... | Start with |
+|-------------------|------------|
+| Understand current retrieval quality | `summary.md`, then `2026-05-18T1144-combined-llm-custom50-quality.md` |
+| Decide whether to enable reranking | `2026-05-16-custom50-ce-routing-v4-*.txt` and `docs/adr/0003-rerankers-default-off.md` |
+| Understand why `dense_mmr` is not the default | `2026-05-14-mmr-mcp-opt-in-audit.md` |
+| Understand combined context+tags mode | `2026-05-17-combined-context-tags-feasibility.md`, then `2026-05-18T1144-combined-llm-custom50-quality.md` |
+| Decide which context policy to use | `2026-05-18T0948-combined-llm-prompt-policy-matrix.md` |
+| Understand ONNX GPU/DML setup | `2026-05-17-onnx-batching-provider-comparison.md` then `2026-05-17-dml-batching-production-wiring-design.md` |
+| Debug duplicate points in a collection | `2026-05-24T1500-duplicate-point-repair-bitwize-music-closure.md` |
+| Validate MCP agent workflow | `2026-05-25-mcp-agent-ux-polish-v3-live-retest.md` |
+| Understand answer-policy edge cases | `2026-05-12-custom-raw-*.md` series |
+| Understand tag generation behavior | `2026-05-20-tag-usefulness-audit.md`, `2026-05-21T1833-tag-gen-ablation-custom50.md` |
 
 ## How To Navigate
 
@@ -39,6 +90,20 @@ rg -n "c48|qrel|superseded|DEFER" benchmarks/retrieval/results benchmarks/retrie
 ```
 
 ## Current Cleanup Status
+
+**Second archive batch — 2026-05-25:**
+
+19 files moved to `archive/`. Groups:
+
+- 2026-05-13 indexing performance analysis (1 file) — superseded by May-17 DML/CPU reports
+- 2026-05-14 diagnostic/instrumentation/preflight/sync-link audits (4 files) — superseded by later audits and docs
+- 2026-05-17 link-dense-reuse design + patch-A result (2 files) — implementation complete; conclusions in AGENTS.md and code
+- 2026-05-17 performance-bottleneck audit + indexing-performance live summary (2 files) — superseded by DML/CPU reports
+- 2026-05-17 combined-context-tags-feasibility T2122 (1 file) — earlier draft; superseded by canonical dated file
+- 2026-05-20 tag-model-qwen25-separate-path (1 file) — exploratory; superseded by tag batch diagnostic runs
+- 2026-05-22 tag-batch-fallback T0039 (1 file) — superseded by T0129 pair
+- 2026-05-22 results-folder-organization-plan (1 file) — organization complete; plan superseded by this README
+- 2026-05-23/24 duplicate-point repair intermediates (6 files: diagnostic, plan, 2 dry-runs, 2 apply runs) — all superseded by closure report `2026-05-24T1500-duplicate-point-repair-bitwize-music-closure.md`
 
 **First high-confidence archive batch — 2026-05-22:**
 
