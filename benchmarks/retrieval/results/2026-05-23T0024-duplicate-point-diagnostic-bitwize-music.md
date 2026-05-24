@@ -1,6 +1,8 @@
 # Duplicate Point Diagnostic — `bitwize-music`
 
 *Generated: 2026-05-23T0024*
+*This file has been sanitised: raw source_file paths, point IDs, and named*
+*examples replaced with aggregate counts and hashed identifiers.*
 
 ## Summary
 
@@ -30,44 +32,44 @@
 - **different-provider-or-schema** — different embedding provider or schema version; stale points from a provider switch
 - **partial-difference** — some fields differ but none of the above categories match exactly
 
-## Named Example: social-media-best-practices.md#46
+## Example Duplicate Group
 
 | Field | Values |
 |-------|--------|
-| Key | `reference/promotion/social-media-best-practices.md#46` |
+| File hash | `e4abe08ed4368f7b` |
+| chunk_index | 46 |
 | Count | 2 |
-| Point IDs | 31cb1465-911b-4c63-a165-2fce0938efa3, 3a7fb1fd-91de-41b8-9063-9fdb0f288187 |
 | Classification | different-tags-and-context |
 | Tag set hash (per point) | pt1: 81cf1b824e4d / pt2: 2daecd59d245 |
 | Tag count (per point) | pt1: 5 / pt2: 5 |
 | Context hash (per point) | pt1: d5101f33f1c8 / pt2: 4b0730500bfd |
 
-This is the case that triggered the diagnostic.
+This group triggered the initial investigation.
 
-## Top 20 Duplicate Groups by Count
+## Top 20 Duplicate Groups by Count (file hashes, no raw paths)
 
-| source_file | chunk_index | count | class | point IDs (truncated) |
-|-------------|-------------|-------|-------|-----------------------|
-| `reference/release/metadata-by-platform.md` | 17 | 3 | different-tags-and-context | 02283799…, 16ece437…, c600e146… |
-| `reference/streaming-mastering-specs.md` | 13 | 3 | different-tags-and-context | 03938ea3…, 1d0a780f…, 3d8d04dd… |
-| `reference/sheet-music/troubleshooting.md` | 23 | 3 | different-tags-and-context | 03a54277…, d70bdb85…, e71cfc0c… |
-| `reference/sheet-music/troubleshooting.md` | 24 | 3 | different-tags-and-context | 03c53c7a…, 985fd6cc…, f59a4495… |
-| `reference/release/distributor-guide.md` | 8 | 3 | different-tags-and-context | 04179cf2…, 5cb00e7c…, 9df89521… |
-| `reference/sheet-music/troubleshooting.md` | 17 | 3 | different-tags-and-context | 05c3ddf6…, aa2d8f8a…, c4d50ebf… |
-| `reference/streaming-mastering-specs.md` | 4 | 3 | different-tags-and-context | 066c1c07…, 23e8ca53…, fce710cd… |
-| `reference/streaming-mastering-specs.md` | 6 | 3 | different-tags-and-context | 06a482f3…, 59131c8c…, 90d39c0c… |
-| `reference/streaming-mastering-specs.md` | 3 | 3 | different-tags-and-context | 07038a3d…, 4bc6dfc0…, 56e53227… |
-| `reference/release/metadata-by-platform.md` | 14 | 3 | different-tags-and-context | 077aa9f5…, 2d9ce29c…, 65ff6113… |
-| `reference/release/metadata-by-platform.md` | 12 | 3 | different-tags-and-context | 097715cc…, 153d605b…, c406184b… |
-| `reference/release/distributor-guide.md` | 14 | 3 | different-tags-and-context | 09811142…, 139b3b46…, b71d10a8… |
-| `reference/release/metadata-by-platform.md` | 13 | 3 | different-tags-and-context | 0ab15928…, 762fbd79…, 7ea452e8… |
-| `reference/release/distributor-guide.md` | 4 | 3 | different-tags-and-context | 0bc0d1b4…, 3107a0ab…, 72c18e54… |
-| `reference/sheet-music/troubleshooting.md` | 13 | 3 | different-tags-and-context | 0d4ae5c4…, 71c3ce07…, d0cee90b… |
-| `reference/sheet-music/troubleshooting.md` | 2 | 3 | different-tags-and-context | 0da765f5…, 4aef3033…, f0315c38… |
-| `reference/release/metadata-by-platform.md` | 4 | 3 | different-tags-and-context | 0e2b828a…, 1f96b3d8…, 69af42fd… |
-| `reference/streaming-mastering-specs.md` | 1 | 3 | different-tags-and-context | 104be001…, 89223a94…, 8b85a2ad… |
-| `reference/sheet-music/troubleshooting.md` | 22 | 3 | different-tags-and-context | 10868d45…, 7fdccacf…, e749efdb… |
-| `reference/release/metadata-by-platform.md` | 2 | 3 | different-tags-and-context | 10f19398…, 226b2da0…, 989c8372… |
+| file hash | chunk_index | count | class |
+|-----------|-------------|-------|-------|
+| `14e0516bdbe20a83` | 17 | 3 | different-tags-and-context |
+| `95f53306f8ed875b` | 13 | 3 | different-tags-and-context |
+| `dd32864029f449db` | 23 | 3 | different-tags-and-context |
+| `dd32864029f449db` | 24 | 3 | different-tags-and-context |
+| `4d604f4b06f21402` |  8 | 3 | different-tags-and-context |
+| `dd32864029f449db` | 17 | 3 | different-tags-and-context |
+| `95f53306f8ed875b` |  4 | 3 | different-tags-and-context |
+| `95f53306f8ed875b` |  6 | 3 | different-tags-and-context |
+| `95f53306f8ed875b` |  3 | 3 | different-tags-and-context |
+| `14e0516bdbe20a83` | 14 | 3 | different-tags-and-context |
+| `14e0516bdbe20a83` | 12 | 3 | different-tags-and-context |
+| `4d604f4b06f21402` | 14 | 3 | different-tags-and-context |
+| `14e0516bdbe20a83` | 13 | 3 | different-tags-and-context |
+| `4d604f4b06f21402` |  4 | 3 | different-tags-and-context |
+| `dd32864029f449db` | 13 | 3 | different-tags-and-context |
+| `dd32864029f449db` |  2 | 3 | different-tags-and-context |
+| `14e0516bdbe20a83` |  4 | 3 | different-tags-and-context |
+| `95f53306f8ed875b` |  1 | 3 | different-tags-and-context |
+| `dd32864029f449db` | 22 | 3 | different-tags-and-context |
+| `14e0516bdbe20a83` |  2 | 3 | different-tags-and-context |
 
 ## Likely Cause
 
@@ -134,4 +136,4 @@ content never produces duplicates. This is the root-cause fix.
 ---
 
 *Report generated by `benchmarks/retrieval/duplicate-point-diagnostic.js`.*
-*No chunk text, no private absolute paths.*
+*Sanitised: raw source_file paths and point IDs replaced with SHA-1 hashes.*
