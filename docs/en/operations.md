@@ -116,31 +116,56 @@ semidex generates deterministic point IDs from `collection + source_file + chunk
 
 Collections indexed before deterministic IDs were introduced may contain duplicate points from earlier randomUUID-based runs: multiple Qdrant points sharing the same `source_file + chunk_index` but carrying different IDs (and often different LLM-generated tags/context). `PRUNE_STALE=1` does not fix this — both duplicates share a live `source_file` and survive the stale check.
 
-**To repair a specific file:**
-
-```bash
-# 1. Delete all existing points for the file
-COLLECTION=my-docs node -e "
-import { deleteBySourceFile } from './src/core/qdrant.js';
-await deleteBySourceFile('my-docs', 'relative/path/to/file.md');
-"
-
-# 2. Reindex the file to produce a single clean set of deterministic-ID points.
-# Use the same SOURCE_ROOT that was used during the original indexing run.
-# Without SOURCE_ROOT, a single-file target derives root from dirname(file),
-# which shortens source_file and creates a mismatched path in Qdrant.
-SOURCE_ROOT=. ONNX_EMBED=1 COLLECTION=my-docs npm run index ./relative/path/to/file.md
-```
-
-**To repair all affected files** (after running the duplicate diagnostic):
-
-For each affected `source_file` reported by the diagnostic, repeat the delete + reindex pair above. Run sequentially, not in parallel. Avoid running while another indexer job is active on the same collection.
-
-**Note:** The diagnostic script at `benchmarks/retrieval/duplicate-point-diagnostic.js` lists affected source files. Run it first to scope the repair:
+**Step 1 — Run the diagnostic to scope the repair:**
 
 ```bash
 COLLECTION=my-docs node benchmarks/retrieval/duplicate-point-diagnostic.js
 ```
+
+**Step 2 — Dry-run the repair (non-destructive, always run first):**
+
+```bash
+COLLECTION=my-docs SOURCE_ROOT=. \
+  node benchmarks/retrieval/duplicate-point-repair.js
+```
+
+Prints a summary (duplicate groups, affected files, estimated extra points, which files are missing from disk) and writes a privacy-safe report to `benchmarks/retrieval/results/`. Does not delete or reindex anything.
+
+**Step 3 — Apply the repair:**
+
+```bash
+DUPLICATE_REPAIR_APPLY=1 COLLECTION=my-docs SOURCE_ROOT=. ONNX_EMBED=1 \
+  node benchmarks/retrieval/duplicate-point-repair.js
+```
+
+For each affected `source_file`, the script:
+1. Calls `deleteBySourceFile` to wipe all existing points for that file.
+2. Reindexes the file using the same `SOURCE_ROOT`, producing a clean set of deterministic-ID points.
+
+Runs sequentially. Stops on the first failure and reports the affected file hash and reason. Writes a before/after verification report.
+
+**Step 4 — Confirm repair (optional):**
+
+```bash
+COLLECTION=my-docs node benchmarks/retrieval/duplicate-point-diagnostic.js
+```
+
+Compare duplicate group counts before and after to confirm the repair was effective.
+
+**Key options:**
+
+| Env var | Default | Description |
+|---------|---------|-------------|
+| `DUPLICATE_REPAIR_APPLY` | (unset) | Set to `1` to enable destructive mode |
+| `SOURCE_ROOT` | (required in apply) | Must match the root used during original indexing |
+| `DUPLICATE_REPAIR_LIMIT=N` | all | Repair only the first N affected files |
+| `DUPLICATE_REPAIR_REPORT_PATH` | auto | Override the report output path |
+| `ONNX_EMBED`, `TAG_GEN`, `CONTEXT_MODEL`, etc. | (from env) | Passed through to the indexer subprocess |
+
+**Notes:**
+- `SOURCE_ROOT` must match the root used during the original indexing run. Without it, single-file targets derive root from `dirname(file)`, which shortens `source_file` and creates a mismatched path in Qdrant.
+- Do not run while another indexer job is active on the same collection.
+- Reports contain no raw paths, tags, context, or chunk text — only SHA-1 hashes of source file paths.
 
 ## Qdrant indexes and sync
 
@@ -237,6 +262,8 @@ command exits with a warning rather than overwriting it.
 | `npm run bench:retrieval` | Live retrieval benchmark |
 | `npm run bench:retrieval:compare` | Provider comparison |
 | `npm run bench:retrieval:rerank` | Rerank matrix |
+| `node benchmarks/retrieval/duplicate-point-diagnostic.js` | Detect duplicate points |
+| `node benchmarks/retrieval/duplicate-point-repair.js` | Repair duplicate points (dry-run by default) |
 
 ## Project Structure
 
