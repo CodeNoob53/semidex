@@ -1,5 +1,5 @@
 import { resolve } from 'path';
-import { hashPath, buildDuplicateGroups, buildDryRunSummary, safeResolveFile, sanitizeErrorForReport } from '../../../benchmarks/retrieval/duplicate-point-repair.js';
+import { hashPath, buildDuplicateGroups, buildDryRunSummary, safeResolveFile, sanitizeErrorForReport, computeDeterministicId, buildCleanupPlan, resolveOllamaModelsToCheck } from '../../../benchmarks/retrieval/duplicate-point-repair.js';
 
 export default async function ({ ok, throws }) {
   console.log('\n[33] Duplicate repair helpers');
@@ -131,6 +131,157 @@ export default async function ({ ok, throws }) {
     summaryWithMissing.missingFileHashes.every(h => /^[0-9a-f]{16}$/.test(h)));
   ok('buildDryRunSummary: missingFilesCount correct',
     summaryWithMissing.missingFilesCount === 1);
+
+  // ── computeDeterministicId ────────────────────────────────────────────────
+
+  // Must match src/core/point-id.js makePointId exactly
+  const { makePointId } = await import('../../core/point-id.js');
+
+  const idArgs = { collection: 'test-col', sourceFile: 'docs/intro.md', chunkIndex: 0, embeddingSchemaVersion: 2 };
+
+  ok('computeDeterministicId matches makePointId output',
+    computeDeterministicId(idArgs) === makePointId(idArgs));
+
+  ok('computeDeterministicId is stable across calls',
+    computeDeterministicId(idArgs) === computeDeterministicId(idArgs));
+
+  ok('computeDeterministicId differs for different chunkIndex',
+    computeDeterministicId(idArgs) !== computeDeterministicId({ ...idArgs, chunkIndex: 1 }));
+
+  ok('computeDeterministicId differs for different sourceFile',
+    computeDeterministicId(idArgs) !== computeDeterministicId({ ...idArgs, sourceFile: 'docs/other.md' }));
+
+  ok('computeDeterministicId differs for different embeddingSchemaVersion',
+    computeDeterministicId(idArgs) !== computeDeterministicId({ ...idArgs, embeddingSchemaVersion: 3 }));
+
+  ok('computeDeterministicId normalises Windows backslash paths',
+    computeDeterministicId({ ...idArgs, sourceFile: 'docs\\intro.md' }) ===
+    computeDeterministicId({ ...idArgs, sourceFile: 'docs/intro.md' }));
+
+  // ── buildCleanupPlan ──────────────────────────────────────────────────────
+
+  const col = 'test-col';
+  const schemaVersion = 2;
+
+  // Build two groups for file-a.md: chunk 0 has the deterministic ID + one orphan;
+  // chunk 1 has two orphan IDs and the deterministic ID is NOT present.
+  const detIdChunk0 = computeDeterministicId({ collection: col, sourceFile: 'file-a.md', chunkIndex: 0, embeddingSchemaVersion: schemaVersion });
+  const detIdChunk1 = computeDeterministicId({ collection: col, sourceFile: 'file-a.md', chunkIndex: 1, embeddingSchemaVersion: schemaVersion });
+
+  const planGroups = [
+    // chunk 0: deterministic ID present + one random orphan
+    ['file-a.md\x000', [
+      { id: detIdChunk0,              sourceFile: 'file-a.md', payload: { source_file: 'file-a.md', chunk_index: 0 } },
+      { id: 'random-uuid-orphan-000', sourceFile: 'file-a.md', payload: { source_file: 'file-a.md', chunk_index: 0 } },
+    ]],
+    // chunk 1: deterministic ID NOT present (both are old random UUIDs)
+    ['file-a.md\x001', [
+      { id: 'random-uuid-orphan-100', sourceFile: 'file-a.md', payload: { source_file: 'file-a.md', chunk_index: 1 } },
+      { id: 'random-uuid-orphan-101', sourceFile: 'file-a.md', payload: { source_file: 'file-a.md', chunk_index: 1 } },
+    ]],
+  ];
+
+  const plan = buildCleanupPlan(planGroups, col, schemaVersion);
+
+  ok('buildCleanupPlan: orphanIds contains the random-UUID point from chunk 0',
+    plan.orphanIds.includes('random-uuid-orphan-000'));
+
+  ok('buildCleanupPlan: keeper (deterministic ID) is NOT in orphanIds',
+    !plan.orphanIds.includes(detIdChunk0));
+
+  ok('buildCleanupPlan: chunk 1 has no deterministic ID → missingDeterministicIdGroups',
+    plan.missingDeterministicIdGroups.length === 1);
+
+  ok('buildCleanupPlan: missing group chunkIndex is 1',
+    plan.missingDeterministicIdGroups[0].chunkIndex === 1);
+
+  ok('buildCleanupPlan: missing group actualIds contains both orphan IDs',
+    plan.missingDeterministicIdGroups[0].actualIds.includes('random-uuid-orphan-100') &&
+    plan.missingDeterministicIdGroups[0].actualIds.includes('random-uuid-orphan-101'));
+
+  // All deterministic IDs present → no missing groups, all orphans collected
+  const allDetPlanGroups = [
+    ['file-b.md\x000', [
+      { id: computeDeterministicId({ collection: col, sourceFile: 'file-b.md', chunkIndex: 0, embeddingSchemaVersion: schemaVersion }),
+        sourceFile: 'file-b.md', payload: { source_file: 'file-b.md', chunk_index: 0 } },
+      { id: 'old-orphan-b0',
+        sourceFile: 'file-b.md', payload: { source_file: 'file-b.md', chunk_index: 0 } },
+    ]],
+  ];
+  const cleanPlan = buildCleanupPlan(allDetPlanGroups, col, schemaVersion);
+  ok('buildCleanupPlan: no missing groups when all deterministic IDs present',
+    cleanPlan.missingDeterministicIdGroups.length === 0);
+  ok('buildCleanupPlan: orphan collected when all deterministic IDs present',
+    cleanPlan.orphanIds.includes('old-orphan-b0'));
+
+  // ── post-reindex cleanup logic ────────────────────────────────────────────
+  // Simulates the repair's step-3 branch: deterministic ID was missing before
+  // reindex (so it appears in missingDeterministicIdGroups), but after reindex
+  // the fresh Qdrant scan confirms it now exists. The old randomUUID IDs must
+  // be deleted directly from g.actualIds — NOT filtered against freshIds,
+  // because freshIds still contains the old IDs (SKIP_PRE_DELETE means they
+  // were never removed before reindex).
+
+  {
+    // chunk 1 had no deterministic ID before reindex (appears in missingDeterministicIdGroups)
+    const missingGroups = plan.missingDeterministicIdGroups; // [{chunkIndex:1, actualIds:[...]}]
+
+    // After reindex, fresh scan returns: old orphans still present + new det ID
+    const freshAfterReindex = new Set([
+      detIdChunk1,            // new — written by reindex
+      'random-uuid-orphan-100', // old — still in Qdrant (SKIP_PRE_DELETE)
+      'random-uuid-orphan-101', // old — still in Qdrant
+    ]);
+
+    // Verify deterministic ID is now confirmed
+    const confirmedInFresh = missingGroups.every(g => {
+      const expId = computeDeterministicId({
+        collection: col, sourceFile: 'file-a.md',
+        chunkIndex: g.chunkIndex, embeddingSchemaVersion: schemaVersion,
+      });
+      return freshAfterReindex.has(expId);
+    });
+    ok('post-reindex: deterministic ID confirmed in fresh scan', confirmedInFresh);
+
+    // Correct: delete g.actualIds directly (they are all orphans by definition)
+    const correctToDelete = missingGroups.flatMap(g => g.actualIds);
+    ok('post-reindex correct: old randomUUID IDs included in toDelete',
+      correctToDelete.includes('random-uuid-orphan-100') &&
+      correctToDelete.includes('random-uuid-orphan-101'));
+
+    // Wrong (the bug): filter against freshIds — old IDs are in freshIds so they
+    // would be excluded, leaving duplicates un-deleted.
+    const buggyToDelete = missingGroups.flatMap(g => g.actualIds)
+      .filter(id => !freshAfterReindex.has(id));
+    ok('post-reindex buggy filter: would produce empty toDelete (demonstrates the bug)',
+      buggyToDelete.length === 0);
+
+    ok('post-reindex: correct toDelete is non-empty while buggy toDelete is empty',
+      correctToDelete.length > 0 && buggyToDelete.length === 0);
+  }
+
+  // ── resolveOllamaModelsToCheck ────────────────────────────────────────────
+
+  ok('resolveOllamaModelsToCheck: defaults to [gemma3:4b]',
+    resolveOllamaModelsToCheck({}).join(',') === 'gemma3:4b');
+
+  ok('resolveOllamaModelsToCheck: CONTEXT_MODEL only (no TAG_MODEL set)',
+    resolveOllamaModelsToCheck({ CONTEXT_MODEL: 'qwen3:1.7b' }).join(',') === 'qwen3:1.7b');
+
+  ok('resolveOllamaModelsToCheck: separate TAG_MODEL included when not COMBINED/disabled',
+    resolveOllamaModelsToCheck({ CONTEXT_MODEL: 'ctx:1b', TAG_MODEL: 'tag:4b' })
+      .includes('tag:4b'));
+
+  ok('resolveOllamaModelsToCheck: COMBINED_LLM=1 → TAG_MODEL ignored, only context model',
+    !resolveOllamaModelsToCheck({ COMBINED_LLM: '1', CONTEXT_MODEL: 'ctx:1b', TAG_MODEL: 'tag:4b' })
+      .includes('tag:4b'));
+
+  ok('resolveOllamaModelsToCheck: TAG_GEN=0 → TAG_MODEL not needed',
+    !resolveOllamaModelsToCheck({ TAG_GEN: '0', CONTEXT_MODEL: 'ctx:1b', TAG_MODEL: 'tag:4b' })
+      .includes('tag:4b'));
+
+  ok('resolveOllamaModelsToCheck: deduplicates when context=tag model',
+    resolveOllamaModelsToCheck({ CONTEXT_MODEL: 'same:1b', TAG_MODEL: 'same:1b' }).length === 1);
 
   // ── sanitizeErrorForReport ────────────────────────────────────────────────
 

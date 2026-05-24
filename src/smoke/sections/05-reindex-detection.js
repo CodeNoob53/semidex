@@ -4,8 +4,9 @@ export default async function ({ ok }) {
   const embedCfg   = { denseProvider: 'ollama', denseModel: 'bge-m3', sparseProvider: 'hashed-tf', schemaVersion: 2 };
   const vectorSize = 1024;
 
-  function wouldSkip(storedMeta) {
+  function wouldSkip(storedMeta, forceReindex = false) {
     return (
+      !forceReindex &&
       storedMeta.hash                   === 'abc123' &&
       storedMeta.denseProvider          === embedCfg.denseProvider &&
       storedMeta.denseModel             === embedCfg.denseModel &&
@@ -13,6 +14,12 @@ export default async function ({ ok }) {
       storedMeta.embeddingSchemaVersion === embedCfg.schemaVersion &&
       (storedMeta.vectorSize ?? vectorSize) === vectorSize
     );
+  }
+
+  // Mirrors the indexer's pre-delete guard: delete runs when storedHash is set
+  // AND SKIP_PRE_DELETE is not set.
+  function wouldPreDelete(storedMeta, skipPreDelete = false) {
+    return !!storedMeta.hash && !skipPreDelete;
   }
 
   const base = { hash: 'abc123', denseProvider: 'ollama', denseModel: 'bge-m3', sparseProvider: 'hashed-tf', embeddingSchemaVersion: 2, vectorSize: 1024 };
@@ -25,4 +32,11 @@ export default async function ({ ok }) {
   ok('vectorSize changed → reindex',     !wouldSkip({ ...base, vectorSize: 768 }));
   ok('file hash changed → reindex',      !wouldSkip({ ...base, hash: 'different' }));
   ok('null vectorSize in stored → treated as current → skip', wouldSkip({ ...base, vectorSize: null }));
+  ok('FORCE_REINDEX=true bypasses unchanged skip',            !wouldSkip(base, true));
+
+  // SKIP_PRE_DELETE guard — used by safe-mode repair so the file is never deleted
+  // before the reindex completes. The repair script handles orphan cleanup itself.
+  ok('storedHash present → pre-delete would run without flag', wouldPreDelete(base));
+  ok('SKIP_PRE_DELETE=true → pre-delete suppressed',           !wouldPreDelete(base, true));
+  ok('no storedHash (new file) → pre-delete skipped regardless', !wouldPreDelete({ ...base, hash: null }));
 }

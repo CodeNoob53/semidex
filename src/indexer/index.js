@@ -53,6 +53,7 @@ async function indexFile(filePath, rootPath, collection, allCollections, graph) 
   const storedHash = storedMeta?.hash ?? null;
 
   if (
+    !process.env.FORCE_REINDEX &&
     storedHash === fileHash &&
     storedMeta?.denseProvider          === embedCfg.denseProvider &&
     storedMeta?.denseModel             === embedCfg.denseModel &&
@@ -75,7 +76,7 @@ async function indexFile(filePath, rootPath, collection, allCollections, graph) 
   const genTagsPreflight = shouldGenerateTags(process.env);
   const tagModel = (combinedCfg.enabled || !genTagsPreflight) ? contextModel : (process.env.TAG_MODEL || 'gemma3:4b');
   await ensureOllamaPreflight(ollamaUrl, contextModel, tagModel);
-  if (storedHash) {
+  if (storedHash && !process.env.SKIP_PRE_DELETE) {
     const reasons = [];
     if (storedMeta?.denseProvider          !== embedCfg.denseProvider)  reasons.push(`denseProvider: ${storedMeta?.denseProvider} → ${embedCfg.denseProvider}`);
     if (storedMeta?.denseModel             !== embedCfg.denseModel)     reasons.push(`denseModel: ${storedMeta?.denseModel} → ${embedCfg.denseModel}`);

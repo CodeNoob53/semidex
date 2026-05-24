@@ -351,10 +351,11 @@ If a required model is missing, run `ollama pull <model>` and retry. Do not use
 instead of starting the API server. If `localhost` is unreliable on Windows, set
 `OLLAMA_URL=http://127.0.0.1:11434` before running the indexer or repair script.
 
-For destructive repair scripts, do this preflight before the first delete. If a
-repair fails after `deleteBySourceFile` but before reindexing, that file can be
-temporarily absent from Qdrant; fix the service/model issue and reindex the
-affected file with the same `SOURCE_ROOT`.
+The duplicate-point repair script (`benchmarks/retrieval/duplicate-point-repair.js`)
+runs this preflight automatically in apply mode and aborts before touching any
+Qdrant data if Ollama is unreachable. The default safe mode (reindex-first) never
+leaves a file absent: it reindexes first, verifies `>0` points exist, then deletes
+only orphan old-ID duplicates. A failure stops the repair with the file intact.
 
 ### Full-root cleanup after deletes/renames
 

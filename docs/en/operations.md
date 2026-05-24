@@ -116,6 +116,17 @@ semidex generates deterministic point IDs from `collection + source_file + chunk
 
 Collections indexed before deterministic IDs were introduced may contain duplicate points from earlier randomUUID-based runs: multiple Qdrant points sharing the same `source_file + chunk_index` but carrying different IDs (and often different LLM-generated tags/context). `PRUNE_STALE=1` does not fix this — both duplicates share a live `source_file` and survive the stale check.
 
+### Safe Repair v2 (default)
+
+The default apply flow is **reindex-first**: a file is never deleted before it has been successfully reindexed. Only orphan old-ID duplicates are deleted after the reindex is verified.
+
+For each affected `source_file`:
+1. Reindex the file — deterministic IDs overwrite the current points in place.
+2. Verify Qdrant has `>0` points for that `source_file` after reindex.
+3. Delete only the orphan old-ID duplicate points (those not overwritten by the reindex).
+
+A file can never become absent: it is always reindexed before any deletes occur.
+
 **Step 1 — Run the diagnostic to scope the repair:**
 
 ```bash
@@ -133,16 +144,14 @@ Prints a summary (duplicate groups, affected files, estimated extra points, whic
 
 **Step 3 — Apply the repair:**
 
+Ollama must be reachable before apply — the script runs an indexer preflight check before touching any Qdrant data and aborts if Ollama is unavailable.
+
 ```bash
 DUPLICATE_REPAIR_APPLY=1 COLLECTION=my-docs SOURCE_ROOT=. ONNX_EMBED=1 \
   node benchmarks/retrieval/duplicate-point-repair.js
 ```
 
-For each affected `source_file`, the script:
-1. Calls `deleteBySourceFile` to wipe all existing points for that file.
-2. Reindexes the file using the same `SOURCE_ROOT`, producing a clean set of deterministic-ID points.
-
-Runs sequentially. Stops on the first failure and reports the affected file hash and reason. Writes a before/after verification report.
+Runs sequentially. Stops on the first failure and reports the affected file hash and reason. Writes a before/after verification report. In safe mode, a failed file is **not** left absent from Qdrant — the delete step only runs after a successful reindex is verified.
 
 **Step 4 — Confirm repair (optional):**
 
@@ -156,8 +165,9 @@ Compare duplicate group counts before and after to confirm the repair was effect
 
 | Env var | Default | Description |
 |---------|---------|-------------|
-| `DUPLICATE_REPAIR_APPLY` | (unset) | Set to `1` to enable destructive mode |
+| `DUPLICATE_REPAIR_APPLY` | (unset) | Set to `1` to enable apply mode |
 | `SOURCE_ROOT` | (required in apply) | Must match the root used during original indexing |
+| `DUPLICATE_REPAIR_MODE` | (unset) | Set to `legacy-delete-first` to use the old unsafe delete-then-reindex flow — not recommended |
 | `DUPLICATE_REPAIR_LIMIT=N` | all | Repair only the first N affected files |
 | `DUPLICATE_REPAIR_REPORT_PATH` | auto | Override the report output path |
 | `ONNX_EMBED`, `TAG_GEN`, `CONTEXT_MODEL`, etc. | (from env) | Passed through to the indexer subprocess |
@@ -166,6 +176,7 @@ Compare duplicate group counts before and after to confirm the repair was effect
 - `SOURCE_ROOT` must match the root used during the original indexing run. Without it, single-file targets derive root from `dirname(file)`, which shortens `source_file` and creates a mismatched path in Qdrant.
 - Do not run while another indexer job is active on the same collection.
 - Reports contain no raw paths, tags, context, or chunk text — only SHA-1 hashes of source file paths.
+- The legacy `DUPLICATE_REPAIR_MODE=legacy-delete-first` mode deletes all points for a file before reindexing. If interrupted between delete and reindex, the file becomes absent from Qdrant. Use only if the safe default is not suitable.
 
 ## Qdrant indexes and sync
 

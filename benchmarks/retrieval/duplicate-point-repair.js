@@ -1,8 +1,19 @@
 /**
- * Duplicate Qdrant point repair.
+ * Duplicate Qdrant point repair — Safe Repair v2 (default) and legacy mode.
  *
- * Finds all duplicate (source_file, chunk_index) groups, then for each
- * affected source_file: deletes all its points and reindexes the file.
+ * Default mode (reindex-first / safe):
+ *   For each affected source_file:
+ *   1. Reindex the file — with deterministic IDs, this upserts the correct
+ *      current points in place.
+ *   2. Verify Qdrant has >0 points for that source_file after reindex.
+ *   3. Delete only the orphan old-ID duplicates (non-deterministic point IDs
+ *      that were not overwritten by the reindex).
+ *   A file can never become absent: it is always reindexed before any deletes.
+ *
+ * Legacy mode (opt-in only, DUPLICATE_REPAIR_MODE=legacy-delete-first):
+ *   Deletes all points for a source_file THEN reindexes.
+ *   This matches the v1 behaviour. There is a window where the file is absent
+ *   from Qdrant between the delete and the reindex. Do NOT use for new repairs.
  *
  * Required env:
  *   QDRANT_URL, QDRANT_KEY (via .env)
@@ -10,7 +21,8 @@
  *   SOURCE_ROOT           — must match the root used during original indexing
  *
  * Optional env:
- *   DUPLICATE_REPAIR_APPLY=1        — enable destructive mode (default: dry-run)
+ *   DUPLICATE_REPAIR_APPLY=1        — enable apply mode (default: dry-run)
+ *   DUPLICATE_REPAIR_MODE=legacy-delete-first — use old unsafe delete-first flow
  *   DUPLICATE_REPAIR_LIMIT=N        — max number of source files to repair
  *   DUPLICATE_REPAIR_REPORT_PATH=   — override report output path
  *   SCROLL_LIMIT=250                — scroll page size
@@ -25,20 +37,14 @@
  *   - Dry-run by default: no deletes, no reindexing.
  *   - Apply mode requires DUPLICATE_REPAIR_APPLY=1.
  *   - Apply mode requires SOURCE_ROOT and verifies it exists.
+ *   - All affected files validated on disk before any mutation begins.
+ *   - Ollama/indexer preflight runs before any mutation.
+ *   - If preflight fails, abort before touching any data.
  *   - Resolved file paths must stay inside SOURCE_ROOT (path traversal guard).
  *   - Sequential only: one file at a time.
  *   - On first failure: stop, report, do not continue.
- *
- * Known gap — delete-before-reindex window:
- *   Apply deletes a file's points THEN reindexes. If the process is interrupted
- *   between those two steps (Ollama down, network error, Ctrl-C), that file will
- *   be absent from Qdrant until manually reindexed. With deterministic point IDs
- *   a plain reindex (no prior delete) is sufficient to restore it — run:
- *     SOURCE_ROOT=<same root> COLLECTION=<col> ONNX_EMBED=1 npm run index <file>
- *   The apply report records the failed file hash so you can identify which file
- *   needs recovery. A future improvement could flip the order to reindex-first
- *   (upsert overwrites old point IDs via deterministic IDs), then delete orphan
- *   old-ID points. That would eliminate this window entirely.
+ *   - A file is never left with 0 points by safe mode — orphan delete only
+ *     runs after a successful reindex is verified.
  */
 
 import 'dotenv/config';
@@ -58,6 +64,7 @@ const QDRANT_KEY   = process.env.QDRANT_KEY;
 const COLLECTION   = process.env.COLLECTION;
 const SOURCE_ROOT  = process.env.SOURCE_ROOT;
 const APPLY        = process.env.DUPLICATE_REPAIR_APPLY === '1';
+const LEGACY_MODE  = process.env.DUPLICATE_REPAIR_MODE === 'legacy-delete-first';
 const LIMIT        = process.env.DUPLICATE_REPAIR_LIMIT
   ? parseInt(process.env.DUPLICATE_REPAIR_LIMIT, 10)
   : Infinity;
@@ -71,7 +78,7 @@ const INDEXER_PASSTHROUGH = [
   'LINK_TOP', 'LINK_MIN_SCORE', 'MAX_CHUNK_TOKENS', 'LLM_BATCH_SIZE',
 ];
 
-// ── helpers ───────────────────────────────────────────────────────────────────
+// ── pure helpers (exported for smoke tests) ───────────────────────────────────
 
 export function hashPath(p) {
   return createHash('sha1').update(p ?? '').digest('hex').slice(0, 16);
@@ -127,36 +134,76 @@ export function safeResolveFile(sourceRoot, sourceFile) {
   return abs;
 }
 
-const qdrantHeaders = { 'api-key': QDRANT_KEY, 'Content-Type': 'application/json' };
+/**
+ * Compute the expected deterministic point ID for a chunk using the same
+ * algorithm as src/core/point-id.js (RFC 4122 v5 SHA-1 UUID).
+ *
+ * This is duplicated here (not imported) to keep the repair script self-contained
+ * and to avoid coupling to internal module paths.
+ *
+ * Pure function — no I/O.
+ */
+export function computeDeterministicId({ collection, sourceFile, chunkIndex, embeddingSchemaVersion }) {
+  const NAMESPACE = '6ba7b810-9dad-11d1-80b4-00c04fd430c8';
+  const hex = NAMESPACE.replace(/-/g, '');
+  const nsBuf = Buffer.allocUnsafe(16);
+  for (let i = 0; i < 16; i++) nsBuf[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
 
-const PAYLOAD_FIELDS = ['source_file', 'chunk_index'];
+  const normalizedFile = sourceFile.replace(/\\/g, '/');
+  const name = `${collection}\x00${normalizedFile}\x00${chunkIndex}\x00${embeddingSchemaVersion}`;
+  const hash = createHash('sha1').update(nsBuf).update(Buffer.from(name, 'utf8')).digest();
 
-// ── scroll ────────────────────────────────────────────────────────────────────
+  hash[6] = (hash[6] & 0x0f) | 0x50; // version 5
+  hash[8] = (hash[8] & 0x3f) | 0x80; // variant RFC 4122
 
-async function scrollAll() {
-  const points = [];
-  let offset = null;
-  let page = 0;
-  while (true) {
-    const body = { limit: SCROLL_LIMIT, with_payload: PAYLOAD_FIELDS, with_vectors: false };
-    if (offset !== null) body.offset = offset;
-    const r = await fetch(`${QDRANT_URL}/collections/${COLLECTION}/points/scroll`, {
-      method: 'POST', headers: qdrantHeaders, body: JSON.stringify(body),
-    });
-    if (!r.ok) throw new Error(`Scroll failed (page ${page}): ${await r.text()}`);
-    const data = await r.json();
-    const batch = data.result?.points ?? [];
-    points.push(...batch);
-    offset = data.result?.next_page_offset ?? null;
-    page++;
-    process.stderr.write(`\r  scrolled ${points.length} points (page ${page})...`);
-    if (offset === null) break;
-  }
-  process.stderr.write('\n');
-  return points;
+  const h = hash.toString('hex');
+  return `${h.slice(0,8)}-${h.slice(8,12)}-${h.slice(12,16)}-${h.slice(16,20)}-${h.slice(20,32)}`;
 }
 
-// ── duplicate grouping (shared logic with diagnostic) ────────────────────────
+/**
+ * Build a cleanup plan for one source_file's duplicate groups.
+ *
+ * For each (source_file, chunk_index) group with >1 point:
+ *   - Compute the expected deterministic ID for that chunk.
+ *   - If that ID is present among the actual point IDs → it is the keeper;
+ *     all other IDs in the group are orphans to delete.
+ *   - If the deterministic ID is NOT present → we cannot safely select a keeper;
+ *     mark the group as `missingDeterministicId`.
+ *
+ * Returns { orphanIds, missingDeterministicIdGroups }.
+ * Pure function — no I/O.
+ */
+export function buildCleanupPlan(dupGroupsForFile, collection, embeddingSchemaVersion) {
+  const orphanIds = [];
+  const missingDeterministicIdGroups = [];
+
+  for (const [key, entries] of dupGroupsForFile) {
+    const sourceFile = entries[0].sourceFile;
+    const chunkIndex = entries[0].payload?.chunk_index ?? '?';
+
+    const deterministicId = computeDeterministicId({
+      collection,
+      sourceFile,
+      chunkIndex,
+      embeddingSchemaVersion,
+    });
+
+    const actualIds = entries.map(e => e.id);
+    const hasDeterministicId = actualIds.includes(deterministicId);
+
+    if (!hasDeterministicId) {
+      missingDeterministicIdGroups.push({ key, chunkIndex, actualIds });
+      continue;
+    }
+
+    // Keep the deterministic ID; delete all others
+    for (const id of actualIds) {
+      if (id !== deterministicId) orphanIds.push(id);
+    }
+  }
+
+  return { orphanIds, missingDeterministicIdGroups };
+}
 
 /**
  * Build duplicate groups from a flat points array.
@@ -189,8 +236,6 @@ export function buildDuplicateGroups(points) {
   return { dupGroups, affectedFiles, totalExtraPoints };
 }
 
-// ── dry-run summary ───────────────────────────────────────────────────────────
-
 /**
  * Build a privacy-safe dry-run summary object from duplicate analysis results.
  * Pure function — no I/O, no raw paths.
@@ -209,7 +254,67 @@ export function buildDryRunSummary({ collection, dupGroups, affectedFiles, total
   };
 }
 
-// ── delete ────────────────────────────────────────────────────────────────────
+// ── Qdrant I/O ────────────────────────────────────────────────────────────────
+
+const qdrantHeaders = { 'api-key': QDRANT_KEY, 'Content-Type': 'application/json' };
+
+const PAYLOAD_FIELDS = ['source_file', 'chunk_index', 'embedding_schema_version'];
+
+async function scrollAll() {
+  const points = [];
+  let offset = null;
+  let page = 0;
+  while (true) {
+    const body = { limit: SCROLL_LIMIT, with_payload: PAYLOAD_FIELDS, with_vectors: false };
+    if (offset !== null) body.offset = offset;
+    const r = await fetch(`${QDRANT_URL}/collections/${COLLECTION}/points/scroll`, {
+      method: 'POST', headers: qdrantHeaders, body: JSON.stringify(body),
+    });
+    if (!r.ok) throw new Error(`Scroll failed (page ${page}): ${await r.text()}`);
+    const data = await r.json();
+    const batch = data.result?.points ?? [];
+    points.push(...batch);
+    offset = data.result?.next_page_offset ?? null;
+    page++;
+    process.stderr.write(`\r  scrolled ${points.length} points (page ${page})...`);
+    if (offset === null) break;
+  }
+  process.stderr.write('\n');
+  return points;
+}
+
+async function scrollBySourceFile(collection, sourceFile) {
+  const points = [];
+  let offset = null;
+  while (true) {
+    const body = {
+      limit: SCROLL_LIMIT,
+      with_payload: false,
+      with_vectors: false,
+      filter: { must: [{ key: 'source_file', match: { value: sourceFile } }] },
+    };
+    if (offset !== null) body.offset = offset;
+    const r = await fetch(`${QDRANT_URL}/collections/${collection}/points/scroll`, {
+      method: 'POST', headers: qdrantHeaders, body: JSON.stringify(body),
+    });
+    if (!r.ok) throw new Error(`Scroll by source_file failed: ${await r.text()}`);
+    const data = await r.json();
+    points.push(...(data.result?.points ?? []));
+    offset = data.result?.next_page_offset ?? null;
+    if (offset === null) break;
+  }
+  return points;
+}
+
+async function deletePointsByIds(collection, ids) {
+  if (ids.length === 0) return;
+  const r = await fetch(`${QDRANT_URL}/collections/${collection}/points/delete`, {
+    method: 'POST',
+    headers: qdrantHeaders,
+    body: JSON.stringify({ points: ids }),
+  });
+  if (!r.ok) throw new Error(`Qdrant delete by IDs failed: ${await r.text()}`);
+}
 
 async function deleteBySourceFile(collection, sourceFile) {
   const r = await fetch(`${QDRANT_URL}/collections/${collection}/points/delete`, {
@@ -222,24 +327,87 @@ async function deleteBySourceFile(collection, sourceFile) {
   if (!r.ok) throw new Error(`Qdrant delete failed for '${hashPath(sourceFile)}': ${await r.text()}`);
 }
 
-// ── reindex ───────────────────────────────────────────────────────────────────
+/**
+ * Resolve which Ollama model names the indexer will actually need, mirroring
+ * src/indexer/index.js lines 71-77. Pure function — no I/O, exported for tests.
+ *
+ * Rules (same as indexer):
+ *   COMBINED_LLM=1 → TAG_MODEL is ignored; only CONTEXT_MODEL is used for both.
+ *   TAG_GEN=0      → tag generation skipped; TAG_MODEL not needed.
+ *   Otherwise      → both CONTEXT_MODEL and TAG_MODEL are needed independently.
+ *
+ * Returns a deduplicated string[] of model names to check for availability.
+ */
+export function resolveOllamaModelsToCheck(env = {}) {
+  const contextModel = env.CONTEXT_MODEL || 'gemma3:4b';
+  const combinedLlm  = env.COMBINED_LLM === '1';
+  const genTags      = env.TAG_GEN !== '0';
+  const tagModel     = (combinedLlm || !genTags) ? contextModel : (env.TAG_MODEL || contextModel);
+  return [...new Set([contextModel, tagModel])];
+}
 
-function buildIndexerEnv(sourceRoot) {
+// ── indexer subprocess ────────────────────────────────────────────────────────
+
+function buildIndexerEnv(sourceRoot, { forceReindex = false, skipPreDelete = false } = {}) {
   const env = { ...process.env, COLLECTION, SOURCE_ROOT: sourceRoot };
-  // Ensure passthrough vars are forwarded if present
   for (const k of INDEXER_PASSTHROUGH) {
     if (process.env[k] !== undefined) env[k] = process.env[k];
   }
+  if (forceReindex)  env.FORCE_REINDEX  = '1';
+  if (skipPreDelete) env.SKIP_PRE_DELETE = '1';
   return env;
 }
 
 function reindexFile(absFilePath, sourceRoot) {
-  const env = buildIndexerEnv(sourceRoot);
+  // FORCE_REINDEX=1: bypass unchanged-skip so deterministic IDs are always upserted.
+  // SKIP_PRE_DELETE=1: skip the indexer's own pre-delete so the file stays in Qdrant
+  //   if anything fails between here and the final upsert. Orphan old-ID cleanup is
+  //   done by the repair script itself after verifying the reindex succeeded.
+  const env = buildIndexerEnv(sourceRoot, { forceReindex: true, skipPreDelete: true });
   execFileSync(process.execPath, ['src/indexer/index.js', absFilePath], {
     env,
     cwd: resolve(__dirname, '..', '..'),
     stdio: 'inherit',
   });
+}
+
+/**
+ * Direct HTTP Ollama preflight — mirrors the model-selection logic in
+ * src/indexer/index.js so we check exactly the models the indexer will need:
+ *   - COMBINED_LLM=1 → indexer uses CONTEXT_MODEL for both context and tags;
+ *     TAG_MODEL is ignored, so we only check CONTEXT_MODEL.
+ *   - TAG_GEN=0 → tag generation is skipped; TAG_MODEL is not needed.
+ *   - Otherwise → check both CONTEXT_MODEL and TAG_MODEL independently.
+ * Throws with a [preflight]-prefixed message on failure.
+ */
+async function checkOllamaReachable() {
+  const base  = (process.env.OLLAMA_URL || 'http://localhost:11434').replace(/\/$/, '');
+  const needed = resolveOllamaModelsToCheck(process.env);
+
+  try {
+    const r = await fetch(`${base}/api/version`, { signal: AbortSignal.timeout(5000) });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  } catch (err) {
+    const hint = /localhost/i.test(base)
+      ? ' (on Windows try OLLAMA_URL=http://127.0.0.1:11434)'
+      : '';
+    throw new Error(`[preflight] Ollama unreachable at ${base}${hint}: ${err.message}`);
+  }
+
+  let available;
+  try {
+    const r = await fetch(`${base}/api/tags`, { signal: AbortSignal.timeout(5000) });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const data = await r.json();
+    available = new Set((data.models ?? []).map(m => m.name));
+  } catch (err) {
+    throw new Error(`[preflight] Could not list Ollama models: ${err.message}`);
+  }
+
+  const missing = needed.filter(m => !available.has(m));
+  if (missing.length > 0) {
+    throw new Error(`[preflight] Required Ollama model(s) not pulled: ${missing.join(', ')}`);
+  }
 }
 
 // ── report writing ────────────────────────────────────────────────────────────
@@ -296,15 +464,18 @@ function writeDryRunReport(stamp, summary) {
   return path;
 }
 
-function writeApplyReport(stamp, { before, after, repaired, skipped, failed, failureDetails }) {
+function writeApplyReport(stamp, { mode, before, after, repaired, skipped, failed, failureDetails, recoveryRequired }) {
   const path = REPORT_PATH
     ? REPORT_PATH.replace('{suffix}', 'apply')
     : defaultReportPath(stamp, 'apply');
+
+  const modeLabel = mode === 'safe' ? 'Safe (reindex-first)' : 'Legacy (delete-first — DEPRECATED)';
 
   const lines = [
     `# Duplicate Point Repair — Apply — \`${COLLECTION}\``,
     '',
     `*Generated: ${stamp}*`,
+    `*Mode: ${modeLabel}*`,
     '',
     '## Results',
     '',
@@ -325,6 +496,15 @@ function writeApplyReport(stamp, { before, after, repaired, skipped, failed, fai
       failureDetails.map(f => `- file hash \`${f.hash}\`: ${f.reason}`).join('\n'),
       '',
     ] : []),
+    ...(recoveryRequired ? [
+      '## Recovery required',
+      '',
+      '> One or more files failed during repair. In safe mode the file was NOT',
+      '> deleted before failure, so no files should be absent from Qdrant.',
+      '> Verify with the diagnostic script and reindex the affected file hashes',
+      '> manually if needed.',
+      '',
+    ] : []),
     '---',
     '',
     '*Report contains no raw paths, tags, context, or chunk text.*',
@@ -342,7 +522,7 @@ const isMain = process.argv[1] &&
   resolve(process.argv[1]).replace(/\\/g, '/');
 
 if (isMain) (async () => {
-  // ── preflight checks ───────────────────────────────────────────────────────
+  // ── basic preflight ────────────────────────────────────────────────────────
 
   if (!COLLECTION) {
     console.error('[repair] COLLECTION is required');
@@ -364,9 +544,15 @@ if (isMain) (async () => {
     }
   }
 
-  const mode = APPLY ? 'APPLY' : 'DRY-RUN';
+  const repairMode = LEGACY_MODE ? 'legacy' : 'safe';
+  const mode = APPLY ? `APPLY (${repairMode})` : 'DRY-RUN';
   console.log(`[repair] Duplicate point repair — collection: ${COLLECTION} — mode: ${mode}`);
-  if (APPLY) console.log(`[repair] SOURCE_ROOT: ${SOURCE_ROOT}`);
+  if (APPLY) {
+    console.log(`[repair] SOURCE_ROOT: ${SOURCE_ROOT}`);
+    if (LEGACY_MODE) {
+      console.warn('[repair] WARNING: legacy-delete-first mode enabled. Files can become temporarily absent.');
+    }
+  }
   if (isFinite(LIMIT)) console.log(`[repair] DUPLICATE_REPAIR_LIMIT: ${LIMIT}`);
 
   // ── scroll & analyse ───────────────────────────────────────────────────────
@@ -386,7 +572,6 @@ if (isMain) (async () => {
     process.exit(0);
   }
 
-  // Check which affected files exist under SOURCE_ROOT (or report unknown when dry-run)
   const sourceRootExists = SOURCE_ROOT ? existsSync(SOURCE_ROOT) : false;
 
   const missingFiles = [];
@@ -434,6 +619,40 @@ if (isMain) (async () => {
     process.exit(0);
   }
 
+  // ── apply preflight — validate ALL files before touching anything ──────────
+
+  console.log('\n[repair] Validating all affected files before any mutation...');
+  const filesToProcess = isFinite(LIMIT) ? affectedFiles.slice(0, LIMIT) : affectedFiles;
+
+  for (const sf of filesToProcess) {
+    if (missingFiles.includes(sf)) continue; // will be skipped
+    try {
+      safeResolveFile(SOURCE_ROOT, sf);
+    } catch (err) {
+      console.error(`[repair] Preflight FAIL: path traversal detected for hash=${hashPath(sf)}: ${err.message}`);
+      console.error('[repair] Aborting before any data was modified.');
+      process.exit(1);
+    }
+    const abs = safeResolveFile(SOURCE_ROOT, sf);
+    if (!existsSync(abs)) {
+      // Already in missingFiles — shouldn't reach here, but guard anyway
+      console.error(`[repair] Preflight FAIL: file not found on disk — hash=${hashPath(sf)}`);
+      console.error('[repair] Aborting before any data was modified.');
+      process.exit(1);
+    }
+  }
+
+  console.log('[repair] Disk validation OK. Running Ollama preflight...');
+  try {
+    await checkOllamaReachable();
+    console.log('[repair] Ollama preflight OK.');
+  } catch (err) {
+    const reason = sanitizeErrorForReport(err.message);
+    console.error(`[repair] Ollama preflight FAILED: ${reason}`);
+    console.error('[repair] Aborting before any data was modified. Fix the service issue and retry.');
+    process.exit(1);
+  }
+
   // ── apply path ─────────────────────────────────────────────────────────────
 
   console.log('\n[repair] Starting apply...');
@@ -441,50 +660,101 @@ if (isMain) (async () => {
   const beforeGroups = dupGroups.length;
   const beforeFiles  = affectedFiles.length;
 
+  // Group dupGroups by source_file for per-file cleanup plan
+  const dupGroupsByFile = new Map();
+  for (const entry of dupGroups) {
+    const sf = entry[1][0].sourceFile;
+    if (!dupGroupsByFile.has(sf)) dupGroupsByFile.set(sf, []);
+    dupGroupsByFile.get(sf).push(entry);
+  }
+
+  // Read embeddingSchemaVersion from a sample point in the collection
+  // so cleanup plan uses the correct schema version actually stored in Qdrant.
+  let embeddingSchemaVersion = 2; // default
+  {
+    const samplePoint = all.find(p => p.payload?.embedding_schema_version != null);
+    if (samplePoint) embeddingSchemaVersion = samplePoint.payload.embedding_schema_version;
+  }
+
   let repaired = 0;
   let skipped  = 0;
   let failed   = 0;
   const failureDetails = [];
 
-  const filesToProcess = isFinite(LIMIT) ? affectedFiles.slice(0, LIMIT) : affectedFiles;
-
   for (const sf of filesToProcess) {
     const sfHash = hashPath(sf);
 
-    // Resolve and validate path
-    let absPath;
-    try {
-      absPath = safeResolveFile(SOURCE_ROOT, sf);
-    } catch (err) {
-      console.error(`[repair] SKIP (path traversal) hash=${sfHash}: ${err.message}`);
-      skipped++;
-      continue;
-    }
-
-    if (!existsSync(absPath)) {
+    if (missingFiles.includes(sf)) {
       console.log(`[repair] SKIP (file missing) hash=${sfHash}`);
       skipped++;
       continue;
     }
 
+    const absPath = safeResolveFile(SOURCE_ROOT, sf);
+    const fileGroups = dupGroupsByFile.get(sf) ?? [];
+
     console.log(`[repair] Processing hash=${sfHash} (${repaired + skipped + failed + 1}/${filesToProcess.length})`);
 
     try {
-      // 1. Delete all existing points for this source_file
-      process.stderr.write(`  deleting points...`);
-      await deleteBySourceFile(COLLECTION, sf);
-      process.stderr.write(` done\n`);
+      if (LEGACY_MODE) {
+        // ── Legacy: delete-first (unsafe, deprecated) ──────────────────────
+        process.stderr.write(`  [legacy] deleting points...\n`);
+        await deleteBySourceFile(COLLECTION, sf);
+        process.stderr.write(`  [legacy] reindexing...\n`);
+        reindexFile(absPath, SOURCE_ROOT);
+      } else {
+        // ── Safe: reindex-first ────────────────────────────────────────────
 
-      // 2. Reindex
-      process.stderr.write(`  reindexing...\n`);
-      reindexFile(absPath, SOURCE_ROOT);
+        // Step 1: Reindex — deterministic IDs overwrite current points in place
+        process.stderr.write(`  reindexing (step 1/3)...\n`);
+        reindexFile(absPath, SOURCE_ROOT);
+
+        // Step 2: Verify >0 points exist after reindex
+        process.stderr.write(`  verifying Qdrant points (step 2/3)...\n`);
+        const afterReindex = await scrollBySourceFile(COLLECTION, sf);
+        if (afterReindex.length === 0) {
+          throw new Error(`Reindex verification failed: 0 points for hash=${sfHash} after reindex`);
+        }
+
+        // Step 3: Build cleanup plan and delete only orphan old-ID points
+        process.stderr.write(`  deleting orphan duplicates (step 3/3)...\n`);
+        const { orphanIds, missingDeterministicIdGroups } = buildCleanupPlan(
+          fileGroups, COLLECTION, embeddingSchemaVersion
+        );
+
+        let toDelete;
+        if (missingDeterministicIdGroups.length > 0) {
+          // Some groups had no deterministic ID before reindex — verify they exist now.
+          const freshIds = new Set(afterReindex.map(p => p.id));
+          for (const g of missingDeterministicIdGroups) {
+            const expectedId = computeDeterministicId({
+              collection: COLLECTION,
+              sourceFile: sf,
+              chunkIndex: g.chunkIndex,
+              embeddingSchemaVersion,
+            });
+            if (!freshIds.has(expectedId)) {
+              throw new Error(`Cleanup refused: deterministic ID missing after reindex for hash=${sfHash} chunk ${g.chunkIndex}`);
+            }
+          }
+          // Deterministic IDs confirmed — collect all pre-reindex IDs from those groups
+          // as orphans. These are the old randomUUID IDs; they were not overwritten by
+          // the reindex (SKIP_PRE_DELETE means they still exist in Qdrant). Delete them
+          // directly — do NOT filter against freshIds, which still contains them.
+          const missingGroupOrphans = missingDeterministicIdGroups.flatMap(g => g.actualIds);
+          toDelete = [...orphanIds, ...missingGroupOrphans];
+        } else {
+          toDelete = orphanIds;
+        }
+
+        await deletePointsByIds(COLLECTION, toDelete);
+        process.stderr.write(`  deleted ${toDelete.length} orphan point(s)\n`);
+      }
 
       repaired++;
       console.log(`[repair] OK hash=${sfHash}`);
     } catch (err) {
       failed++;
-      // execFileSync embeds the full argv in err.message; prefer stderr for the
-      // human-readable cause, then fall back to err.message first non-empty line.
       const rawMsg = (err.stderr?.toString() || err.message)
         .split('\n').map(l => l.trim()).find(l => l.length > 0) ?? 'unknown error';
       const reason = sanitizeErrorForReport(rawMsg);
@@ -502,6 +772,7 @@ if (isMain) (async () => {
   const { dupGroups: dupGroupsAfter, affectedFiles: affectedFilesAfter } = buildDuplicateGroups(allAfter);
 
   console.log('\n[repair] APPLY RESULTS');
+  console.log(`  Mode:                    ${repairMode}`);
   console.log(`  Duplicate groups before: ${beforeGroups}  →  after: ${dupGroupsAfter.length}`);
   console.log(`  Affected files before:   ${beforeFiles}  →  after: ${affectedFilesAfter.length}`);
   console.log(`  Repaired:  ${repaired}`);
@@ -510,12 +781,14 @@ if (isMain) (async () => {
 
   const stamp = nowStamp();
   const reportPath = writeApplyReport(stamp, {
+    mode: repairMode,
     before: { dupGroups: beforeGroups, affectedFiles: beforeFiles },
     after:  { dupGroups: dupGroupsAfter.length, affectedFiles: affectedFilesAfter.length },
     repaired,
     skipped,
     failed,
     failureDetails,
+    recoveryRequired: failed > 0,
   });
   console.log(`\n[repair] Report: ${reportPath}`);
 
