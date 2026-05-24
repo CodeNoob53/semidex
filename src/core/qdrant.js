@@ -199,6 +199,32 @@ export async function listSourceFiles(collection) {
   return [...seen];
 }
 
+/**
+ * Paginate through all points in a collection, requesting only the specified
+ * payload fields (no vectors). Returns the full flat array of points.
+ * payloadFields: string[] of payload field names, e.g. ['source_file', 'tags']
+ */
+export async function scrollAllPoints(collection, payloadFields, pageSize = 250) {
+  const points = [];
+  let offset = null;
+  while (true) {
+    const body = { limit: pageSize, with_payload: payloadFields, with_vectors: false };
+    if (offset !== null) body.offset = offset;
+    const r = await fetch(`${URL}/collections/${collection}/points/scroll`, {
+      method: 'POST',
+      headers: headers(),
+      body: JSON.stringify(body),
+    });
+    if (!r.ok) throw new Error(`Qdrant scrollAllPoints failed: ${await r.text()}`);
+    const data = await r.json();
+    const batch = data.result?.points ?? [];
+    points.push(...batch);
+    offset = data.result?.next_page_offset ?? null;
+    if (offset === null) break;
+  }
+  return points;
+}
+
 export async function createPayloadIndex(collection, field, type = 'keyword') {
   const r = await fetch(`${URL}/collections/${collection}/index`, {
     method: 'PUT',

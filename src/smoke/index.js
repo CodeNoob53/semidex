@@ -34,6 +34,7 @@ import section30 from './sections/30-tag-gen-flag.js';
 import section31 from './sections/31-empty-section.js';
 import section32 from './sections/32-deterministic-point-id.js';
 import section33 from './sections/33-duplicate-repair-helpers.js';
+import section34 from './sections/34-mcp-navigation-tools.js';
 
 let passed = 0;
 let failed = 0;
@@ -80,7 +81,7 @@ const sections = [
   section16, section17, section18, section19, section20,
   section21, section22, section23, section24, section25,
   section26, section27, section28, section29, section30,
-  section31, section32, section33,
+  section31, section32, section33, section34,
 ];
 
 for (const section of sections) {

@@ -73,7 +73,10 @@ Use it to see available collections, point counts, descriptions, and provider
 metadata. Then follow this workflow:
 
 ```text
-qdrant_search(window=1, window_format="compact", top=3)
+qdrant_collection_info
+  -> qdrant_list_files(collection, prefix?) when folder is known but exact source_file path is not
+  -> qdrant_list_tags(collection) before qdrant_find_by_tag when valid tags are unknown
+  -> qdrant_search(window=1, window_format="compact", top=3)
   -> qdrant_get_chunk (if broader context is needed)
   -> qdrant_related / qdrant_backlinks
   -> qdrant_find_by_tag when narrowing by topic
@@ -100,6 +103,8 @@ Search returns the matched chunk text plus `source_file` and `chunk_index`. The 
 | Filter by tags | `qdrant_search(query, collection, tags=[...])` |
 | Read a chunk with neighbors | `qdrant_get_chunk(collection, source_file, chunk_index, window=1)` |
 | Find chunks with a tag | `qdrant_find_by_tag(collection, tag)` |
+| List files in a folder or collection | `qdrant_list_files(collection, prefix?)` |
+| List available tags with counts | `qdrant_list_tags(collection, prefix?, min_count?)` |
 | See outgoing semantic links | `qdrant_related(collection, source_file)` |
 | See incoming semantic links | `qdrant_backlinks(collection, source_file)` |
 

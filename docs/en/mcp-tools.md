@@ -22,6 +22,8 @@ After registering, reconnect the MCP server in Claude Code and run `/mcp`.
 
 ```text
 qdrant_collection_info
+  -> qdrant_list_files(collection, prefix?) when folder is known but exact source_file path is not
+  -> qdrant_list_tags(collection) before qdrant_find_by_tag when valid tags are unknown
   -> qdrant_search(window=1, window_format="compact", top=3)
   -> qdrant_get_chunk (if broader context is needed)
   -> qdrant_related / qdrant_backlinks
@@ -69,6 +71,8 @@ Raw/unstructured corpus chunks may contain distractor values, stale config, or c
 | `qdrant_related` | `collection`, `source_file` | Shows outgoing file-level semantic links |
 | `qdrant_backlinks` | `collection`, `source_file` | Shows incoming file-level links |
 | `qdrant_find_by_tag` | `collection`, `tag`, `limit?` | Lists chunks matching a tag, grouped by file |
+| `qdrant_list_files` | `collection`, `prefix?`, `limit?` | Lists unique source files with chunk counts and first section. Use when a folder is known but the exact `source_file` path is not. |
+| `qdrant_list_tags` | `collection`, `prefix?`, `min_count?`, `limit?` | Lists tags with chunk and file counts. Use before `qdrant_find_by_tag` when valid tags are unknown. |
 
 ## Search Mode
 

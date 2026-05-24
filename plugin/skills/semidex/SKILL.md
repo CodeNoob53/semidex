@@ -1,7 +1,7 @@
 ---
 name: semidex
 description: "Use when working with semidex: indexing documents, configuring retrieval, debugging search results, checking env vars, or understanding architecture. Prefer live semidex MCP search over loading static docs into context."
-allowed-tools: mcp__qdrant__qdrant_search, mcp__qdrant__qdrant_collection_info, mcp__qdrant__qdrant_get_chunk, mcp__qdrant__qdrant_find_by_tag, mcp__qdrant__qdrant_related, mcp__qdrant__qdrant_backlinks
+allowed-tools: mcp__qdrant__qdrant_search, mcp__qdrant__qdrant_collection_info, mcp__qdrant__qdrant_get_chunk, mcp__qdrant__qdrant_find_by_tag, mcp__qdrant__qdrant_related, mcp__qdrant__qdrant_backlinks, mcp__qdrant__qdrant_list_files, mcp__qdrant__qdrant_list_tags
 ---
 
 semidex is a local-first RAG indexer and MCP server backed by Qdrant.
@@ -43,6 +43,8 @@ Start with collection metadata:
 
 ```text
 qdrant_collection_info()
+  -> qdrant_list_files(collection, prefix?) when folder is known but exact source_file path is not
+  -> qdrant_list_tags(collection) before qdrant_find_by_tag when valid tags are unknown
 ```
 
 Sanity check the MCP wiring before relying on search results:
@@ -82,6 +84,8 @@ fragments.
 | Filter by tags | `qdrant_search(query, collection, tags=["providers"], top=5)` |
 | Read a chunk and neighbors | `qdrant_get_chunk(collection, source_file, chunk_index, window=1)` |
 | Find chunks with one tag | `qdrant_find_by_tag(collection, tag)` |
+| List files in a folder | `qdrant_list_files(collection, prefix?)` |
+| List available tags | `qdrant_list_tags(collection, prefix?, min_count?)` |
 | Follow outgoing semantic links | `qdrant_related(collection, source_file)` |
 | Find incoming semantic links | `qdrant_backlinks(collection, source_file)` |
 
