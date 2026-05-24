@@ -76,18 +76,24 @@ For unknown collection structure:
 
 ```text
 qdrant_collection_info
-  -> qdrant_list_directories(collection)                     # explore top-level folder structure
-  -> qdrant_list_files(collection, source_prefix="...")      # list files within a known folder
+  -> qdrant_list_directories(collection, depth=1)                               # map top-level areas
+  -> qdrant_list_directories(collection, source_prefix="<area>/", depth=1|2)   # drill into a known area
+  -> qdrant_list_files(collection, source_prefix="<area>/")                    # list files in that area
   -> qdrant_search(query, collection, top=3, window=1, window_format="compact")
 ```
+
+Always call `list_directories` at depth=1 first to orient, then drill with `source_prefix` before listing files. Do not guess `source_file` paths.
 
 For tag discovery and breadth expansion:
 
 ```text
-qdrant_search first — inspect tags in search results
-  -> qdrant_list_tags(collection, tag_prefix=... or contains=...)  # discover valid tags
-  -> qdrant_find_by_tag for breadth expansion across files
+qdrant_search(...)                                                    # inspect tags in results first
+  -> qdrant_list_tags(collection, contains="...", source_prefix="<known-area>/")
+     # narrow by substring; add source_prefix when the relevant area is already known
+  -> qdrant_find_by_tag(collection, tags=[...])                       # breadth expansion
 ```
+
+Use `tag_prefix` or `contains` to narrow tag names. If the relevant directory is already known from `list_directories`, combine with `source_prefix` to scope tag counts to that area and reduce result set size. Unfiltered `qdrant_list_tags` can return hundreds of tags on large collections. Tags are most useful for breadth expansion after an initial search, not as the first step. This workflow was live-tested on a large collection and eliminated blind prefix guessing.
 
 Search returns the matched chunk text plus `source_file` and `chunk_index`. The programmatic default is `window=0` (no neighbors), but for AI agents, the following patterns are recommended:
 
@@ -125,6 +131,16 @@ Navigation parameter semantics:
 - `qdrant_list_tags` without any filter can be noisy on large collections — prefer `tag_prefix` or `contains`.
 - Do not guess `source_file` when `qdrant_list_directories` / `qdrant_list_files` can resolve it.
 - Tags are best used as breadth expansion after search, not always as the first step.
+
+**Truncation rule:** When a tool output says `Found N … showing M` where M < N, the list is truncated — do not treat it as complete. Narrow the query: add or tighten `source_prefix`, `tag_prefix`, or `contains`, then re-call.
+
+**When to use `qdrant_related` and `qdrant_backlinks`:**
+
+- `qdrant_search` — find chunks relevant to a topic or query. Use this first.
+- `qdrant_related(collection, source_file)` — once you have a file of interest, find other documents that are semantically linked *from* it. Use when you need to traverse outgoing connections: "what does this file point to?"
+- `qdrant_backlinks(collection, source_file)` — find documents that link *to* a given file. Use when you need to understand dependencies or callers: "what depends on or references this file?"
+
+Do not substitute `related`/`backlinks` for search on an unknown topic. They are graph traversal tools, not discovery tools — they only work once you have a specific `source_file` to start from.
 
 Tag filters on `qdrant_search` are OR across tags. Combining `tags` with `source_file` narrows to
 chunks in that file matching any requested tag.

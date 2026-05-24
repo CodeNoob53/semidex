@@ -24,20 +24,26 @@ For unknown collection structure:
 
 ```text
 qdrant_collection_info
-  -> qdrant_list_directories(collection)                     # explore top-level folder structure
-  -> qdrant_list_files(collection, source_prefix="...")      # list files within a known folder
+  -> qdrant_list_directories(collection, depth=1)                               # map top-level areas
+  -> qdrant_list_directories(collection, source_prefix="<area>/", depth=1|2)   # drill into a known area
+  -> qdrant_list_files(collection, source_prefix="<area>/")                    # list files in that area
   -> qdrant_search(query, collection, top=3, window=1, window_format="compact")
   -> qdrant_get_chunk (if broader context is needed)
   -> qdrant_related / qdrant_backlinks
 ```
 
+Always call `list_directories` at depth=1 first to orient, then drill with `source_prefix` before listing files. Do not guess `source_file` paths.
+
 For tag discovery and breadth expansion:
 
 ```text
-qdrant_search first — inspect tags in search results
-  -> qdrant_list_tags(collection, tag_prefix=... or contains=...)  # discover valid tags; prefer filters on large collections
-  -> qdrant_find_by_tag for breadth expansion across files
+qdrant_search(...)                                                    # inspect tags in results first
+  -> qdrant_list_tags(collection, contains="...", source_prefix="<known-area>/")
+     # combine contains= with source_prefix= when the relevant area is already known
+  -> qdrant_find_by_tag(collection, tags=[...])                       # breadth expansion
 ```
+
+Unfiltered `qdrant_list_tags` can return hundreds of tags on large collections. Use `tag_prefix` or `contains` to narrow by tag name. When the relevant directory is already known from `list_directories`, add `source_prefix` to scope tag counts to that area. Tags are most useful for breadth expansion after an initial search, not as the first step. This workflow was live-tested on a large collection and eliminated blind prefix guessing.
 
 Search results return the matched chunk plus `source_file` and `chunk_index`.
 
@@ -92,6 +98,16 @@ Raw/unstructured corpus chunks may contain distractor values, stale config, or c
 - `qdrant_list_tags` without filters can return hundreds of broad tags on large collections — prefer `tag_prefix` or `contains` to narrow first.
 - Do not guess `source_file` when `qdrant_list_directories` / `qdrant_list_files` can resolve it.
 - Tags are best used for breadth expansion after an initial `qdrant_search`, not always as a first step.
+
+**Truncation:** When output reads `Found N … showing M` and M < N, the list is truncated. Do not treat it as complete — narrow with `source_prefix`, `tag_prefix`, or `contains` and re-call.
+
+### When to use `qdrant_related` and `qdrant_backlinks`
+
+- **`qdrant_search`** — find chunks relevant to a topic. Use this first.
+- **`qdrant_related(collection, source_file)`** — once you have a specific file, find documents semantically linked *from* it. Use to traverse outgoing connections: "what does this file point to?"
+- **`qdrant_backlinks(collection, source_file)`** — find documents that link *to* a given file. Use to understand dependencies: "what references or depends on this file?"
+
+These are graph traversal tools, not discovery tools. They require a known `source_file` as a starting point and should not substitute for `qdrant_search` on an unknown topic.
 
 ## Search Mode
 

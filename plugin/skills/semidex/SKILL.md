@@ -43,12 +43,16 @@ Start with collection metadata:
 
 ```text
 qdrant_collection_info()
-  -> qdrant_list_directories(collection)                    # explore folder structure
-  -> qdrant_list_files(collection, source_prefix="...")     # list files in a known folder
+  -> qdrant_list_directories(collection, depth=1)                               # map top-level areas
+  -> qdrant_list_directories(collection, source_prefix="<area>/", depth=1|2)   # drill into a known area
+  -> qdrant_list_files(collection, source_prefix="<area>/")                    # list files in that area
   -> qdrant_search first, inspect tags in results
-  -> qdrant_list_tags(collection, tag_prefix=... or contains=...)  # discover valid tags; filter on large collections
+  -> qdrant_list_tags(collection, contains="...", source_prefix="<known-area>/")
+     # narrow by substring; add source_prefix when area is already known
   -> qdrant_find_by_tag for breadth expansion
 ```
+
+Always call `list_directories` at depth=1 first, then drill with `source_prefix`. Combine `contains=` with `source_prefix=` when the relevant area is already known to keep tag results focused. Do not guess `source_file` paths.
 
 Sanity check the MCP wiring before relying on search results:
 - Confirm the expected collection exists, usually `semidex-docs`.
@@ -102,6 +106,8 @@ Notes:
 - `qdrant_list_tags` without filters can be noisy on large collections — use `tag_prefix` or `contains` to narrow.
 - Do not guess `source_file` when `qdrant_list_directories` / `qdrant_list_files` can resolve it.
 - Tags are best used for breadth expansion after `qdrant_search`, not always as a first step.
+- **Truncation:** `Found N … showing M` means the list is truncated. Narrow with `source_prefix`, `tag_prefix`, or `contains` and re-call — do not treat a truncated list as complete.
+- **`qdrant_related` vs `qdrant_backlinks` vs `qdrant_search`:** Use `search` to discover chunks by topic. Use `related` once you have a file to find documents it links *to* (outgoing). Use `backlinks` to find documents that link *to* it (incoming dependencies). `related`/`backlinks` are graph traversal, not discovery — they need a known `source_file` to start from.
 
 ## Retrieval Safety Rules
 
