@@ -1,6 +1,6 @@
 # c41 Hard Regression Diagnostic — custom-50
 
-*Generated: 2026-05-25T2335*
+*Generated: 2026-05-25T2335, corrected: 2026-05-25*
 
 ## Query
 
@@ -28,6 +28,14 @@ correctly rel=2 (supporting context for the other half of the comparison).
 
 ---
 
+## Embedding Architecture Note
+
+Tags are stored as Qdrant payload only. The embedding input is `context + "\n\n" + text`
+(`src/indexer/index.js:155`). Tags do not enter the dense or sparse vectors and therefore
+cannot affect retrieval ranking. Any analysis implicating tags as a retrieval mechanism is wrong.
+
+---
+
 ## Observed Behavior Across Runs
 
 ### 2026-05-25T1951 quality matrix (gemma3:4b)
@@ -38,8 +46,9 @@ correctly rel=2 (supporting context for the other half of the comparison).
 | nDCG@10 | 0.473 | 0.618 | 0.425 |
 | chunkRecall@5 | ✓ | ✗ | ✓ |
 
-- gemma3: **hard regression** (bCr5 ✓ → cCr5 ✗). nDCG improves because chunk 3 (rel=2) moved up.
-- qwen2.5: stable (unchanged — ✓ → ✓).
+- gemma3: **hard regression** (bCr5 ✓ → cCr5 ✗). nDCG increases because `benchmarking.md#3`
+  (rel=2) rises to rank 2 in both variants — but the rel=3 chunk falls out of top-5.
+- qwen2.5: stable (✓ → ✓). Regression is model-specific.
 
 ### 2026-05-25T2004 context-only ablation (gemma3:4b)
 
@@ -49,7 +58,10 @@ correctly rel=2 (supporting context for the other half of the comparison).
 | nDCG@10 | 0.517 | 0.449 | 0.449 |
 | chunkRecall@5 | ✓ | ✗ | ✗ |
 
-Both ctx+tags and ctx-only combined variants show hard regression. Context-only does not recover it.
+ctx+tags and ctx-only both show the same hard regression with identical MRR and nDCG deltas.
+ctx-only uses `tags: []` (`src/indexer/phases/combined.js:205`), so the tags field is definitively
+ruled out — the only remaining difference between baseline and both combined variants is the
+**context text** itself.
 
 ### 2026-05-25T2034 focused c41 diagnostic (bench:custom50:diag, gemma3:4b)
 
@@ -58,8 +70,8 @@ Both ctx+tags and ctx-only combined variants show hard regression. Context-only 
 | `benchmarking.md#2` (rel=3) | **4** | **8** | B: ✓ C: ✗ |
 | `benchmarking.md#3` (rel=2) | 2 | 2 | B: ✓ C: ✓ |
 
-**Regression reproduced.** Baseline MRR = 1/4 = 0.250 (report shows 0.200, difference is
-run-to-run variance with rank-5 boundary in prior runs). Combined rank drops from 4 to 8.
+**Regression reproduced.** Baseline MRR = 1/4 = 0.250 in this run (prior runs showed rank 5,
+giving MRR 0.200 — run-to-run variance at the top-5 boundary). Combined drops from rank 4 to 8.
 
 ---
 
@@ -67,111 +79,117 @@ run-to-run variance with rank-5 boundary in prior runs). Combined rank drops fro
 
 ### 1. Structural hardness of c41 baseline
 
-Even without combined mode, c41 is a fragile query. The rel=3 chunk (`benchmarking.md#2`) is:
+The rel=3 chunk (`benchmarking.md#2`) is:
 - **Very short** (192 chars, 3 sentences).
-- Ranked 4th in baseline — one position from the top-5 boundary.
-- Semantically outcompeted by `benchmarking.md#22` (Collection Isolation, always rank 1),
+- Ranked 4th or 5th in baseline — at or one position inside the top-5 boundary.
+- Semantically outcompeted by `benchmarking.md#22` (Collection Isolation, rank 1),
   `benchmarking.md#3` (rel=2, rank 2), and `multilingual.md#7` (Benchmark Coverage, rank 3).
 
-The Ukrainian query paraphrase has no exact token overlap with the short chunk 2 text beyond
-"regression" and "21". BGE-M3 handles the paraphrase semantically, but the chunk's short length
-means it accumulates less contextual signal than neighboring chunks that discuss benchmarking
-more broadly.
+The Ukrainian query paraphrase has limited token overlap with the raw chunk text. BGE-M3 bridges
+the language gap semantically, but the chunk's brevity means its embedding accumulates less
+signal than longer benchmark-adjacent chunks. Any perturbation to the context prefix shifts
+this already-marginal chunk out of top-5.
 
-### 2. Combined mode: tag quality is the primary failure mechanism
+### 2. Combined mode: context wording is the failure mechanism
 
-Comparing `benchmarking.md#2` payload between baseline and combined:
+The embedding input is `context + "\n\n" + text` (tags excluded). The context diff for
+`benchmarking.md#2` between baseline and combined (from T2034 payload comparison):
 
-| Field | Baseline | Combined |
-|-------|----------|----------|
-| context | "…stable regression smoke benchmark, a test run using 4 fixture documents and 21 queries to **ide**ntify retrieval regressions…" | "…stable regression smoke benchmark, a test run performed before merges to identify retrieval regressions…" |
-| tags | regression-benchmark, retrieval-testing, smoke-test, fixture-documents, **schema-comparison**, **query-regression**, bench-retrieval | regression-benchmark, smoke-test, retrieval, query-testing, **v1-v2**, **fixture-docs**, bench-retrieval |
+| | Context |
+|---|---|
+| **Baseline** | "…stable regression smoke benchmark, a test run using **4 fixture documents and 21 queries** to identify retrieval regressions…" |
+| **Combined** | "…stable regression smoke benchmark, a test run performed before merges to identify retrieval regressions…" |
 
-The baseline tags include `query-regression` — a token that overlaps with the query token
-`regression` via BGE-M3 sparse encoding. Combined mode dropped this term and replaced it with
-`v1-v2` and `fixture-docs`, which are accurate descriptions of the chunk but have no overlap
-with the UA query string.
+The combined context drops two specific details: "4 fixture documents" and "21 queries". Both
+are concrete descriptors from the chunk text that anchor the semantic embedding of this short
+chunk to the "21-query regression" concept. Without them, the combined context is a generic
+benchmark description that overlaps more with other benchmark-related chunks than with the
+specific 21q-vs-custom50 distinction the query asks about.
 
-The context wording is similar enough that context alone cannot explain the full 4-position drop.
-The sparse/lexical leg of hybrid RRF depends on token overlap between the query and the embedded
-prefix (`<context> <tags> <text>`). Losing `query-regression` from tags reduces the lexical
-score for `benchmarking.md#2` while other benchmark-related chunks (`benchmarking.md#17`,
-`#15`, `#16`) move up because their combined tags better match generic benchmark query terms.
+This context wording difference is what shifts `benchmarking.md#2` from rank 4 to rank 8.
 
-### 3. Context-only does not recover the regression
+### 3. ctx-only ablation confirms context as the mechanism
 
-The T2004 ablation shows ctx-only has the same hard regression as ctx+tags. If the failure were
-caused by the tags JSON output distorting the context generation (model attention split), ctx-only
-would recover. It does not — confirming the tags field itself is the culprit, not the combined
-prompt structure. Specifically: combined mode generates weaker tags for short chunks where there
-is less text for the model to extract vocabulary from.
+The T2004 ablation uses `BENCH_COMBINED_CONTEXT_ONLY=1`, which requests `{"context":"..."}` only
+from the combined LLM — no tags field in the prompt at all (`combined.js:78-89`). Tags are stored
+as `[]`. Yet c41 still regresses identically to ctx+tags (same MRR 0.167, same nDCG 0.449, same
+chunkRecall@5 ✗).
+
+This means: removing the tags request from the prompt does not recover the regression. The
+combined LLM generates weaker context for this chunk even when freed from the dual-output
+constraint. The regression is in context quality, not in tag-field contamination of the context.
+
+The combined prompt wording (`buildPromptCurrentMinimal`) differs from the separate context
+prompt (`addContext`) — different instruction framing is likely causing the model to produce a
+higher-level summary that loses specific numeric/structural details from the short chunk text.
 
 ### 4. Not a qrel problem
 
 The qrels are correct:
-- `benchmarking.md#2` (rel=3): directly names and describes the 21q regression benchmark.
-- `benchmarking.md#3` (rel=2): directly describes the custom-50 benchmark.
-- No missing relevant chunks — chunks 0 and 1 are an intro and empty-section placeholder; they
-  add no information beyond chunks 2 and 3.
+- `benchmarking.md#2` (rel=3): directly names the 21q regression benchmark tier.
+- `benchmarking.md#3` (rel=2): directly describes the custom-50 quality tier.
+- No missing relevant chunks. Chunks 0 and 1 are intro and empty-section placeholder; chunk 0
+  mentions "two benchmark tiers" but does not describe either, so rel=1 would be marginal.
 
 No qrel changes are needed.
 
 ### 5. Not stochastic variance
 
-Regression reproduced in three independent runs (T1951 gemma3, T2004 ctx+tags, T2004 ctx-only,
-T2034 diag). qwen2.5 does not reproduce the same pattern, which is consistent with model-specific
-tag vocabulary behavior rather than retrieval-layer variance.
+Regression reproduced in four independent runs across two experiments (T1951 gemma3, T2004
+ctx+tags, T2004 ctx-only, T2034 diag). qwen2.5 does not reproduce it — consistent with
+model-specific context generation behavior rather than retrieval-layer noise.
 
 ---
 
 ## Verdict
 
-**Root cause: combined-mode tag quality degradation for short chunks.**
+**Root cause: combined-mode context quality degradation for short chunks.**
 
-The combined LLM generates tags that lose exact query-term overlap (specifically `query-regression`)
-for `benchmarking.md#2`. This reduces its sparse retrieval score, dropping it from rank 4 to rank
-8 — just outside top-5. The underlying retrieval gap is real but narrow (rank 4 baseline, easily
-displaced).
+The combined LLM prompt produces a context for `benchmarking.md#2` that drops specific
+numeric details ("4 fixture docs", "21 queries") present in the baseline context. These details
+anchor the embedding of this 192-char chunk to the 21q regression concept. Without them,
+the chunk's combined embedding is closer to generic benchmarking content, displacing it from
+rank 4 to rank 8 — out of top-5.
 
-The c41 regression is **not a qrel problem** and **not stochastic variance**. It is a real
-retrieval regression caused by combined-mode tag vocabulary drift on short chunks.
+Tags play no role in retrieval scoring (they are payload only, not embedded). The ctx-only
+ablation confirms context is the sole mechanism.
+
+The regression is **real, reproducible, and model-specific** (gemma3:4b only). It is **not**
+a qrel problem and **not** stochastic variance.
 
 ---
 
-## Contributing Factor: Marginal Baseline Performance
+## Contributing Factor: Marginal Baseline Position
 
-c41 baseline MRR is 0.200 (rel=3 chunk at rank 5 in the aggregate; rank 4 in this run), which is
-already low. Any perturbation that shifts the rel=3 chunk one position outward causes a chunkRecall@5
-failure. This makes c41 more sensitive to combined-mode noise than queries where baseline rank is 1
-or 2.
-
-This is not a qrel gap but it is worth noting: if a third chunk in `benchmarking.md` also discusses
-both benchmark tiers (e.g., chunk 0's intro), consider whether it warrants rel=1 to give the scorer
-partial credit when the rel=3 chunk misses top-5. Current qrels have no rel=1 grade for benchmarking.md.
+c41 baseline MRR is 0.200 (rank 5 in aggregate runs; rank 4 in the T2034 diag run). A single
+rank shift is enough to cross the chunkRecall@5 boundary. This makes c41 particularly sensitive
+to context wording changes even when the semantic direction is broadly correct.
 
 ---
 
 ## Recommended Next Actions
 
-1. **No qrel changes.** Current qrels accurately reflect ground-truth relevance. Do not apply
-   any changes.
+1. **No qrel changes.** Current qrels accurately reflect ground-truth relevance.
 
-2. **Tag prompt improvement (primary fix).** Add to the combined prompt: instructions to prefer
-   exact technical terms and domain-specific vocabulary over paraphrased descriptors. Example:
-   "Prefer exact technical tokens that appear in or are closely implied by the text. Avoid
-   synonyms or paraphrased variants of key terms."
+2. **Context prompt improvement (primary fix).** The combined prompt (`buildPromptCurrentMinimal`
+   in `src/indexer/phases/combined.js`) should be updated to preserve specific details from the
+   chunk text rather than producing high-level summaries. The `identifier-preserving` policy
+   variant already addresses this for identifiers — consider extending it to numeric and structural
+   details. Alternatively, benchmark the `identifier-preserving` policy on custom-50 and check
+   whether it recovers c41 without introducing new regressions.
 
-3. **Consider rel=1 expansion for c41.** `benchmarking.md#0` (intro chunk, mentions "two benchmark
-   tiers") could receive rel=1. This would give partial nDCG credit when the rel=3 chunk falls to
-   rank 6-10. Proposed change (do not apply yet — validate against other runs first):
+3. **Consider rel=1 for `benchmarking.md#0`.** The intro chunk mentions "two benchmark tiers"
+   and could receive rel=1 to provide partial nDCG credit when the rel=3 chunk narrowly misses
+   top-5. Proposed change (do not apply without validation):
    ```json
    { "chunkId": "benchmarking.md#0", "relevance": 1 }
    ```
-   This does not change the hard regression verdict (chunkRecall@5 requires rel≥3), but makes nDCG
-   a more faithful signal when the primary chunk is narrowly missed.
+   This does not resolve the hard regression (chunkRecall@5 requires rel≥3) but makes nDCG a
+   more faithful signal for this query.
 
-4. **Rerun bench:custom50:combined after tag prompt change** to verify c41 recovers and no new
-   regressions appear.
+4. **Run bench:custom50 with `identifier-preserving` context policy** and compare c41 behavior
+   against current `current-minimal`. If c41 recovers, evaluate aggregate impact across all 50
+   queries before promoting.
 
 ---
 
@@ -181,6 +199,8 @@ partial credit when the rel=3 chunk misses top-5. Current qrels have no rel=1 gr
 |------|------|
 | `benchmarks/retrieval/custom-50/queries.json` | c41 definition, qrels |
 | `benchmarks/retrieval/custom-50/fixtures/docs/benchmarking.md` | Target fixture |
+| `src/indexer/index.js:153-155` | Embedding input construction (context + text, no tags) |
+| `src/indexer/phases/combined.js:71-89` | ctx-only mode: tags=[], same context prompt |
 | `benchmarks/retrieval/results/2026-05-25T1951-combined-llm-quality-matrix.md` | First observation (gemma3 hard regression) |
-| `benchmarks/retrieval/results/2026-05-25T2004-combined-context-only-ablation.md` | Ablation confirming tags-not-context as cause |
+| `benchmarks/retrieval/results/2026-05-25T2004-combined-context-only-ablation.md` | Ablation isolating context as the failure mechanism |
 | `benchmarks/retrieval/results/2026-05-25T2034-combined-llm-hard-regressions.md` | Focused diag: top-10 tables, payload comparison, rank confirmed |
