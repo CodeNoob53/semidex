@@ -194,14 +194,15 @@ function chunkSections(sections, sourceFile, meta = {}, links = []) {
   const chunks = [];
 
   for (const section of sections) {
-    if (!section.heading && (!section.text || countTokens(section.text) < MIN_TOKENS)) continue;
-    const text = section.text || `(empty section: ${section.heading})`;
+    // Skip heading-only sections: no text means no retrievable content.
+    if (!section.text || !section.text.trim()) continue;
+    if (!section.heading && countTokens(section.text) < MIN_TOKENS) continue;
 
     // prevSentences resets per section so overlap never crosses heading boundaries.
-    if (countTokens(text) <= MAX_TOKENS) {
-      chunks.push({ text, section: section.heading, source_file: sourceFile, meta, links, needsBoundaryCheck: false });
+    if (countTokens(section.text) <= MAX_TOKENS) {
+      chunks.push({ text: section.text, section: section.heading, source_file: sourceFile, meta, links, needsBoundaryCheck: false });
     } else {
-      const subChunks = chunkBySentences(text, []);
+      const subChunks = chunkBySentences(section.text, []);
       subChunks.forEach((t, i) => {
         chunks.push({ text: t, section: section.heading, source_file: sourceFile, meta, links, needsBoundaryCheck: i > 0 });
       });

@@ -7,7 +7,7 @@ import { createHash } from 'crypto';
 import { chunkFileFromPath } from './phases/chunk.js';
 import { addContext, mergeChunks } from './phases/context.js';
 import { addTagsBatch, shouldGenerateTags } from './phases/tag.js';
-import { finalizeEmptySectionChunk, partitionChunks, reassembleChunks } from './phases/empty-section.js';
+import { isEmptySectionChunk } from './phases/empty-section.js';
 import { addContextAndTags } from './phases/combined.js';
 import { resolveCombinedLlmConfig } from '../core/doctor-checks.js';
 import { buildLinks } from './phases/link.js';
@@ -106,45 +106,49 @@ async function indexFile(filePath, rootPath, collection, allCollections, graph) 
     console.log(`        ${merged.length} chunks after merge`);
     profiler.mark('context');
 
-    const { normal: normalMerged, empty: emptyMerged } = partitionChunks(merged);
-    const finalizedEmpty = emptyMerged.map(finalizeEmptySectionChunk);
-
     if (genTags) {
       console.log('  [3/5] (combined — no separate tag phase)');
-      const processed = await runBatched(normalMerged, BATCH_SIZE, chunk => addContextAndTags(chunk, combinedCfg.model, merged));
-      taggedChunks = reassembleChunks(processed, finalizedEmpty);
+      taggedChunks = await runBatched(merged, BATCH_SIZE, chunk => addContextAndTags(chunk, combinedCfg.model, merged));
     } else {
       // TAG_GEN=0: run combined call for context only, then force tags: [].
       // addContextAndTags still generates tags internally but we discard them here
       // rather than splitting the prompt, which would be a riskier change.
       console.log('  [3/5] tagging skipped (TAG_GEN=0) — context only');
-      const withContext = await runBatched(normalMerged, BATCH_SIZE, chunk => addContextAndTags(chunk, combinedCfg.model, merged));
-      const processedNormal = withContext.map(c => ({ ...c, tags: [] }));
-      taggedChunks = reassembleChunks(processedNormal, finalizedEmpty);
+      const withContext = await runBatched(merged, BATCH_SIZE, chunk => addContextAndTags(chunk, combinedCfg.model, merged));
+      taggedChunks = withContext.map(c => ({ ...c, tags: [] }));
     }
     profiler.mark('tag');
   } else {
     console.log('  [2/5] contextualizing...');
     const merged = await mergeChunks(rawChunks);
-    const { normal: normalMerged, empty: emptyMerged } = partitionChunks(merged);
-    const finalizedEmpty = emptyMerged.map(finalizeEmptySectionChunk);
-    const contextNormal = await runBatched(normalMerged, BATCH_SIZE, addContext);
-    console.log(`        ${merged.length} chunks after merge (${emptyMerged.length} empty-section skipped)`);
+    const contextChunks = await runBatched(merged, BATCH_SIZE, addContext);
+    console.log(`        ${merged.length} chunks after merge`);
     profiler.mark('context');
 
     if (genTags) {
       console.log('  [3/5] tagging...');
       const tagged = [];
-      for (let i = 0; i < contextNormal.length; i += BATCH_SIZE) {
-        tagged.push(...await addTagsBatch(contextNormal.slice(i, i + BATCH_SIZE)));
+      for (let i = 0; i < contextChunks.length; i += BATCH_SIZE) {
+        tagged.push(...await addTagsBatch(contextChunks.slice(i, i + BATCH_SIZE)));
       }
-      taggedChunks = reassembleChunks(tagged, finalizedEmpty);
+      taggedChunks = tagged;
     } else {
       console.log('  [3/5] tagging skipped (TAG_GEN=0)');
-      const processedNormal = contextNormal.map(c => ({ ...c, tags: [] }));
-      taggedChunks = reassembleChunks(processedNormal, finalizedEmpty);
+      taggedChunks = contextChunks.map(c => ({ ...c, tags: [] }));
     }
     profiler.mark('tag');
+  }
+
+  // Defensive guard: empty-section chunks must not reach Qdrant.
+  // The chunker no longer emits them; this fires only on a future regression.
+  // Throw rather than silently dropping: filtering here would leave chunkIndex/totalChunks
+  // non-contiguous and cause deleteTrailingChunks to remove valid higher-index points.
+  const emptySectionChunks = taggedChunks.filter(isEmptySectionChunk);
+  if (emptySectionChunks.length > 0) {
+    throw new Error(
+      `${emptySectionChunks.length} empty-section chunk(s) reached the upsert gate — ` +
+      `sections: ${emptySectionChunks.map(c => c.section || '(unknown)').join(', ')}`
+    );
   }
 
   console.log('  [4/5] embedding + upserting...');
