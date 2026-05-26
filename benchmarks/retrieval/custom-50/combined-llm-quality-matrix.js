@@ -57,6 +57,11 @@ process.env.ONNX_EXECUTION_PROVIDER = process.env.ONNX_EXECUTION_PROVIDER ?? 'cp
 const COMBINED_MODELS = (process.env.COMBINED_MODELS || 'gemma3:4b,qwen2.5:3b-instruct')
   .split(',').map(m => m.trim()).filter(Boolean);
 
+// BENCH_COMBINED_CONTEXT_POLICY — benchmark-only. Applied to combined runs only.
+// Baseline is always pinned to 'current-minimal' to remain a stable reference.
+// Valid values: 'current-minimal' (default), 'identifier-preserving', 'section-window-aware'.
+const BENCH_COMBINED_CONTEXT_POLICY = process.env.BENCH_COMBINED_CONTEXT_POLICY || 'current-minimal';
+
 const QDRANT_URL = (process.env.QDRANT_URL ?? '').replace(/\/$/, '');
 const STAMP      = Date.now();
 
@@ -427,6 +432,7 @@ function buildReport({ dateStr, baselineRun, baselineCount, combinedVariants, bM
   lines.push(`| Search mode | hybrid (RRF) |`);
   lines.push(`| Top-K | ${TOP_K} |`);
   lines.push(`| Combined models tested | ${COMBINED_MODELS.join(', ')} |`);
+  lines.push(`| Combined context policy | ${BENCH_COMBINED_CONTEXT_POLICY} |`);
   lines.push('');
   lines.push('## Indexing');
   lines.push('');
@@ -624,8 +630,8 @@ async function main() {
         CONTEXT_MODEL:       model,
         TAG_MODEL:           '',   // combined path owns tag generation; clear to avoid interference
         TAG_GEN:             '1',
-        BENCH_CONTEXT_POLICY: 'current-minimal',
-      }, chunksCombined(model), `combined COMBINED_LLM=1 CONTEXT_MODEL=${model}`);
+        BENCH_CONTEXT_POLICY: BENCH_COMBINED_CONTEXT_POLICY,
+      }, chunksCombined(model), `combined COMBINED_LLM=1 CONTEXT_MODEL=${model} BENCH_CONTEXT_POLICY=${BENCH_COMBINED_CONTEXT_POLICY}`);
     }
 
     if (!baselineRun.ok || COMBINED_MODELS.some(m => !combinedRuns[m].ok)) {

@@ -47,6 +47,12 @@ const QDRANT_URL    = (process.env.QDRANT_URL ?? '').replace(/\/$/, '');
 const KEEP          = process.env.KEEP_COLLECTIONS === '1';
 const TOP_K         = 10;
 
+// BENCH_COMBINED_CONTEXT_POLICY — benchmark-only. Passed to the combined indexer run only.
+// Baseline is always pinned to 'current-minimal' so it remains a stable reference.
+// Valid values match BENCH_CONTEXT_POLICY in combined.js: 'current-minimal' (default),
+// 'identifier-preserving', 'section-window-aware'.
+const BENCH_COMBINED_CONTEXT_POLICY = process.env.BENCH_COMBINED_CONTEXT_POLICY || 'current-minimal';
+
 // Target query IDs to diagnose
 const TARGET_IDS = (process.env.QUERY_IDS ?? 'c04,c41').split(',').map(s => s.trim()).filter(Boolean);
 
@@ -391,14 +397,12 @@ function buildReport({ dateStr, targetQueries, diagResults, indexingNotes }) {
   const lines = [];
   lines.push(`# COMBINED_LLM=1 Hard Regression Diagnostic — ${dateStr}`);
   lines.push('');
-  lines.push('## Context');
+  lines.push('## Diagnostic Scope');
   lines.push('');
-  lines.push('Source report: `benchmarks/retrieval/results/2026-05-17T2333-combined-llm-custom50-quality.md`');
-  lines.push('');
-  lines.push('Hard regressions (lost chunkRecall@5) identified in custom-50 run:');
+  lines.push('Target queries:');
   for (const id of TARGET_IDS) lines.push(`- \`${id}\``);
   lines.push('');
-  lines.push('This report compares the exact top-10 results and expected chunk payloads between');
+  lines.push('Compares exact top-10 results and expected chunk payloads between');
   lines.push('baseline (context+tags) and combined (COMBINED_LLM=1) to identify the root cause.');
   lines.push('');
 
@@ -577,6 +581,7 @@ function buildReport({ dateStr, targetQueries, diagResults, indexingNotes }) {
 async function main() {
   console.log('[diag] COMBINED_LLM=1 hard regression diagnostic');
   console.log(`  targets:   ${TARGET_IDS.join(', ')}`);
+  console.log(`  combined context policy: ${BENCH_COMBINED_CONTEXT_POLICY}`);
   console.log(`  reuse mode: ${REUSE_MODE ? `${COL_BASELINE} | ${COL_COMBINED}` : 'no — will index fresh'}`);
 
   if (!QDRANT_URL) { console.error('[diag] QDRANT_URL not set'); process.exit(1); }
@@ -603,13 +608,23 @@ async function main() {
       await ensureBenchCollection(COL_BASELINE);
       await ensureBenchCollection(COL_COMBINED);
 
-      const baselineRun = runIndexer(COL_BASELINE, {}, CHUNKS_BASELINE, 'A: baseline (context + tags)');
-      const combinedRun = runIndexer(COL_COMBINED, { COMBINED_LLM: '1' }, CHUNKS_COMBINED, 'B: combined (COMBINED_LLM=1)');
+      const baselineRun = runIndexer(COL_BASELINE, {
+        BENCH_CONTEXT_POLICY: 'current-minimal',
+      }, CHUNKS_BASELINE, 'A: baseline (context + tags)');
+      const combinedRun = runIndexer(COL_COMBINED, {
+        COMBINED_LLM:         '1',
+        BENCH_CONTEXT_POLICY: BENCH_COMBINED_CONTEXT_POLICY,
+      }, CHUNKS_COMBINED, `B: combined (COMBINED_LLM=1, BENCH_CONTEXT_POLICY=${BENCH_COMBINED_CONTEXT_POLICY})`);
 
       if (!baselineRun.ok || !combinedRun.ok) {
         throw new Error('one or both indexing runs failed');
       }
       indexingNotes = [
+        `| Setting | Value |`,
+        `|---------|-------|`,
+        `| Baseline context policy | \`current-minimal\` (pinned) |`,
+        `| Combined context policy | \`${BENCH_COMBINED_CONTEXT_POLICY}\` |`,
+        ``,
         `| Run | Wall time | Combined fallbacks | Tag batch fallbacks |`,
         `|-----|-----------|-------------------|---------------------|`,
         `| Baseline | ${baselineRun.totalMs} ms | n/a | ${baselineRun.tagFallbacks} |`,
