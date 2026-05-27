@@ -58,6 +58,7 @@ for each area. For superseded or exploratory runs in the same area, check
 | Entity boost — design | `2026-05-27T1600-source-navigation-entity-chunking-design.md` | Root cause analysis + MVP design for source-navigation cliff cases | |
 | Entity boost — implementation | `2026-05-27T1800-entity-aware-source-navigation-mvp.md` | MVP implementation record | |
 | Entity boost — benchmark | `2026-05-27T2000-entity-boost-benchmark.md` | **Canonical entity boost evidence; verdict ENTITY_BOOST_ACCEPT** | ADR 0005 cites this; weight sweep + 3 reindexes |
+| Entity boost — live validation | `2026-05-27T1422-entity-boost-live-optin-validation-refresh.md` | **Canonical live opt-in validation; verdict ENTITY_BOOST_LIVE_ACCEPT_TECHNICAL** | Fresh semidex-docs index; 16 queries (8 nav, 8 sem); 2 top-1 improvements, semantic fully stable |
 
 ## Report Lookup by Task
 
@@ -76,6 +77,7 @@ for each area. For superseded or exploratory runs in the same area, check
 | Understand answer-policy edge cases | `2026-05-12-custom-raw-*.md` series |
 | Understand tag generation behavior | `2026-05-20-tag-usefulness-audit.md`, `2026-05-21T1833-tag-gen-ablation-custom50.md` |
 | Understand entity boost and source-navigation improvement | `2026-05-27T2000-entity-boost-benchmark.md`, then `docs/adr/0005-entity-boost-opt-in.md` |
+| Validate entity boost on a live technical collection | `2026-05-27T1422-entity-boost-live-optin-validation-refresh.md` |
 | Understand entity boost root cause and design | `2026-05-27T1600-source-navigation-entity-chunking-design.md` |
 | Understand entity boost implementation | `2026-05-27T1800-entity-aware-source-navigation-mvp.md` |
 

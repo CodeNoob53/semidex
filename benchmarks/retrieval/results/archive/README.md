@@ -83,6 +83,7 @@ exact old methodology.
 | `2026-05-24T0404-duplicate-point-repair-bitwize-music-dry-run.md` | Dry-run #2 for duplicate repair (bitwize-music, safe reindex-first mode) | Superseded by closure report; intermediate dry-run with updated mode | `2026-05-24T1500-duplicate-point-repair-bitwize-music-closure.md` | Checking safe reindex-first mode dry-run result |
 | `2026-05-24T0320-duplicate-point-repair-bitwize-music-apply.md` | Apply run #1 for duplicate repair (bitwize-music) | Superseded by closure report; intermediate apply result | `2026-05-24T1500-duplicate-point-repair-bitwize-music-closure.md` | Comparing apply run #1 metrics against final T0442 |
 | `2026-05-24T0442-duplicate-point-repair-bitwize-music-apply.md` | Apply run #2 for duplicate repair (bitwize-music, final apply) | Superseded by closure report; final numbers are in the closure report | `2026-05-24T1500-duplicate-point-repair-bitwize-music-closure.md` | Checking raw apply output for the final run |
+| `2026-05-27T1244-entity-boost-live-optin-validation.md` | First live entity-boost opt-in validation on semidex-docs | Stale collection: 330 old-prefix (`en/`, `ua/`) points mixed with 329 fresh `docs/en/` points; backfill used instead of reindex; ENTITY_BOOST_ENABLED absent from entity payload | `2026-05-27T1422-entity-boost-live-optin-validation-refresh.md` | Comparing stale vs fresh collection entity coverage |
 
 ## Batch Notes
 
