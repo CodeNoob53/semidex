@@ -523,6 +523,52 @@ Scripts: `benchmarks/retrieval/custom-50/colbert-bench.js`, `benchmarks/retrieva
 the same depth shows how many misses are chunk-boundary effects rather than true
 retrieval failures. Control the adjacency window with `BENCH_WINDOW` (default: 1).
 
+### Interpreting custom-50 metric variance
+
+Repeated `custom-50` runs produce two classes of metrics with different stability
+properties.
+
+**Stable metrics** — safe for direct comparison across runs and providers:
+
+- `chunkRecall@3/5/10`, `windowRecall@5/10`, `supportRecall@10`, `fileRecall@10`,
+  `negativePass`, and per-query top-5 pass/fail (✓/✗)
+
+These are threshold-based: a relevant chunk is either in the top-K or it is not.
+Because the same chunk wins or loses regardless of tie-breaking, they are
+deterministic given the same index.
+
+**Ordering-sensitive metrics** — useful but noisy:
+
+- `nDCG@10`, `MRR@10`, `fileRecall@1`
+
+These depend on the exact rank of relevant chunks among near-equal RRF scores.
+Qdrant's internal ordering of ties (HNSW traversal, sort stability) can swap
+adjacent results between runs, shifting a relevant chunk between rank 1 and rank 2.
+A single such swap changes MRR by up to 0.5 for that query and nDCG by ~0.15.
+
+**Measured noise floor (ONNX, same fixed index, 5 runs):**
+
+| Metric | Run-to-run range |
+|--------|-----------------|
+| nDCG@10 | ±0.014 |
+| MRR@10 | ±0.030 |
+| fileRecall@1 | ±2 pp (±1 file hit) |
+
+Source: `benchmarks/retrieval/results/2026-05-26T1430-custom50-variance-source-check.md`
+
+**Recommended practice:**
+
+- **Quick regression check** — one run is sufficient if you are looking for hard
+  regressions (chunkRecall drops, new ✗ queries) or provider comparison.
+- **Decisions based on MRR/nDCG** — run at least 3 repeats and use the mean or
+  report a range. A delta smaller than ±0.014 nDCG / ±0.030 MRR is within noise
+  and should not be treated as meaningful.
+- **A/B comparisons** — index once, then run both variants with `BENCH_SKIP_INDEX=1`
+  to hold the index constant. This removes reindex variance but does not eliminate
+  search-ordering noise; still apply the noise floor above.
+- **Cross-reindex comparisons** — always report nDCG and MRR as a range, not a
+  single value (e.g. "nDCG@10 = 0.725–0.740").
+
 ### Relevance scale (v3)
 
 | Score | Meaning |
