@@ -36,7 +36,8 @@ for each area. For superseded or exploratory runs in the same area, check
 | Literal/full-text search | `2026-05-14-full-text-literal-search-audit.md` | Why full-text search is deferred | Cited by docs/en |
 | Duplicate source pressure | `2026-05-14-duplicate-source-pressure-audit.md` | Duplicate source rate analysis | Cited by docs/en |
 | Combined context+tags | `2026-05-17-combined-context-tags-feasibility.md`, `2026-05-17T2248-combined-llm-live-verification.md` | Feasibility and live verification of combined mode | T2122 is a superseded earlier draft |
-| Combined mode quality (post-qrel-fix) | `2026-05-27T0000-combined-post-qrel-fix-verification.md`, `2026-05-27T0430-c41-combined-regression-diagnostic.md`, `2026-05-27T0900-combined-identifier-preserving-policy.md` | Current combined-mode quality decision | Canonical post-2026-05-26 series. T0802 = raw matrix evidence for T0900. |
+| Combined mode quality — final decision | `2026-05-27T1430-combined-post-stable-ordering-verification.md` | **Current combined-mode opt-in decision** | Post-stable-ordering canonical. T0906 = raw matrix evidence. Supporting: T0000, T0430, T0900. |
+| Combined mode quality (post-qrel-fix) | `2026-05-27T0000-combined-post-qrel-fix-verification.md`, `2026-05-27T0430-c41-combined-regression-diagnostic.md`, `2026-05-27T0900-combined-identifier-preserving-policy.md` | Supporting evidence behind T1430 | Pre-stable-ordering; verdicts confirmed by T1430. T0802 = raw matrix for T0900. |
 | Prompt policy matrix | `2026-05-18T0948-combined-llm-prompt-policy-matrix.md` | Which context policy to use for initial model sweep | qwen2.5 canonical cross-model run (pre-qrel-fix); superseded for quality conclusions by T0900 |
 | Section-window context policy | `2026-05-18-section-window-context-policy.md` | Section-window policy evaluation | Deferred — recall risk |
 | ONNX batching / DML | `2026-05-17-onnx-batching-provider-comparison.md`, `2026-05-17-dml-batching-production-wiring-design.md` | GPU/DML batching decision | DML design = production wiring record |
@@ -63,7 +64,7 @@ for each area. For superseded or exploratory runs in the same area, check
 | Decide whether to enable reranking | `2026-05-16-custom50-ce-routing-v4-*.txt` and `docs/adr/0003-rerankers-default-off.md` |
 | Understand why `dense_mmr` is not the default | `2026-05-14-mmr-mcp-opt-in-audit.md` |
 | Understand combined context+tags mode | `2026-05-17-combined-context-tags-feasibility.md`, then `2026-05-27T0000-combined-post-qrel-fix-verification.md` |
-| Understand current combined-mode quality decision | `2026-05-27T0000-combined-post-qrel-fix-verification.md`, then `docs/adr/0004-combined-llm-opt-in.md` (2026-05-27 update section) |
+| Understand current combined-mode quality decision | `2026-05-27T1430-combined-post-stable-ordering-verification.md`, then `docs/adr/0004-combined-llm-opt-in.md` (2026-05-27 update section) |
 | Understand c41 combined regression | `2026-05-27T0430-c41-combined-regression-diagnostic.md` |
 | Decide which context policy to use | `2026-05-27T0900-combined-identifier-preserving-policy.md` (post-qrel-fix), `2026-05-18T0948-combined-llm-prompt-policy-matrix.md` (initial model sweep) |
 | Understand ONNX GPU/DML setup | `2026-05-17-onnx-batching-provider-comparison.md` then `2026-05-17-dml-batching-production-wiring-design.md` |
@@ -99,11 +100,13 @@ rg -n "c48|qrel|superseded|DEFER" benchmarks/retrieval/results benchmarks/retrie
 All combined-mode reports generated before 2026-05-26T1200 (including the May-18
 and May-22 combined quality runs) used a stale custom-50 qrel for query `c48`.
 They must not be treated as current quality evidence for combined-mode retrieval.
-Use the post-qrel-fix canonical series instead:
+Use the post-stable-ordering canonical series instead:
 
-- `2026-05-27T0000-combined-post-qrel-fix-verification.md` — quality matrix + ablation
-- `2026-05-27T0430-c41-combined-regression-diagnostic.md` — c41 root cause
-- `2026-05-27T0900-combined-identifier-preserving-policy.md` — identifier-preserving policy
+- `2026-05-27T1430-combined-post-stable-ordering-verification.md` — **final combined-mode decision** (start here)
+- `2026-05-27T0906-combined-llm-quality-matrix.md` — raw matrix evidence for T1430
+- `2026-05-27T0000-combined-post-qrel-fix-verification.md` — post-qrel-fix quality matrix + ablation (supporting)
+- `2026-05-27T0430-c41-combined-regression-diagnostic.md` — c41 root cause (supporting)
+- `2026-05-27T0900-combined-identifier-preserving-policy.md` — identifier-preserving policy (supporting)
 - `2026-05-27T0802-combined-llm-quality-matrix.md` — raw matrix evidence for T0900
 
 **Second archive batch — 2026-05-25:**
