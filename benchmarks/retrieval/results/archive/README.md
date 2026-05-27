@@ -48,22 +48,22 @@ exact old methodology.
 | `2026-05-17-onnx-cuda-strict-probe-design.md` | ONNX CUDA strict probe design | Intermediate investigation step; superseded by DML decision | `2026-05-17-dml-batching-production-wiring-design.md` | Tracing CUDA strict probe design rationale |
 | `2026-05-17-onnx-length-bucketed-batching.md` | CPU length-bucketed batching: 0.92× result | CPU bucketed batching deferred (0.92×); intermediate step before DML comparison | `2026-05-17-onnx-batching-provider-comparison.md` | Checking why CPU bucketed batching was rejected |
 | `2026-05-17-indexing-perf-onnx-cpu-run1.md` | ONNX CPU indexing perf — run 1 of 3 | Preserved before overwrite; superseded by multi-run average in `2026-05-17-indexing-perf-onnx-cpu.md` | `2026-05-17-indexing-perf-onnx-cpu.md` | Checking per-run variance for CPU baseline |
-| `2026-05-18T1004-combined-llm-custom50-quality.md` | Combined-LLM custom-50 quality (INVESTIGATE verdict) | Intermediate run; same setup as T1010, both superseded by T1144 final run | `2026-05-18T1144-combined-llm-custom50-quality.md` | Checking T1004 vs T1010 run-to-run variance |
-| `2026-05-18T1010-combined-llm-custom50-quality.md` | Combined-LLM custom-50 quality (INVESTIGATE verdict) | Intermediate run; superseded by T1048 → T1054 → T1144 progression | `2026-05-18T1144-combined-llm-custom50-quality.md` | Tracing INVESTIGATE→PROCEED opt-in progression |
-| `2026-05-18T1048-combined-llm-custom50-quality.md` | Combined-LLM custom-50 quality (PROCEED opt-in with caution) | Intermediate run; superseded by T1054, T1144 | `2026-05-18T1144-combined-llm-custom50-quality.md` | Tracing INVESTIGATE→PROCEED opt-in progression |
-| `2026-05-18T1054-combined-llm-custom50-quality.md` | Combined-LLM custom-50 quality (PROCEED opt-in) | Intermediate run; superseded by T1144 (last clean run) | `2026-05-18T1144-combined-llm-custom50-quality.md` | Comparing T1054 vs T1144 final run |
+| `2026-05-18T1004-combined-llm-custom50-quality.md` | Combined-LLM custom-50 quality (INVESTIGATE verdict) | Intermediate run; same setup as T1010, both superseded by T1144 → `2026-05-27T0000` (stale qrels) | `2026-05-27T0000-combined-post-qrel-fix-verification.md` | Checking T1004 vs T1010 run-to-run variance |
+| `2026-05-18T1010-combined-llm-custom50-quality.md` | Combined-LLM custom-50 quality (INVESTIGATE verdict) | Intermediate run; superseded by T1048 → T1054 → T1144 → `2026-05-27T0000` (stale qrels) | `2026-05-27T0000-combined-post-qrel-fix-verification.md` | Tracing INVESTIGATE→PROCEED opt-in progression |
+| `2026-05-18T1048-combined-llm-custom50-quality.md` | Combined-LLM custom-50 quality (PROCEED opt-in with caution) | Intermediate run; superseded by T1054 → T1144 → `2026-05-27T0000` (stale qrels) | `2026-05-27T0000-combined-post-qrel-fix-verification.md` | Tracing INVESTIGATE→PROCEED opt-in progression |
+| `2026-05-18T1054-combined-llm-custom50-quality.md` | Combined-LLM custom-50 quality (PROCEED opt-in) | Intermediate run; superseded by T1144 → `2026-05-27T0000` (stale qrels) | `2026-05-27T0000-combined-post-qrel-fix-verification.md` | Comparing T1054 vs T1144 final run |
 | `2026-05-18T0950-combined-llm-prompt-policy-matrix.md` | Prompt policy matrix — qwen3:1.7b model | Exploratory model run; `current-minimal` verdict same as canonical T0948 (qwen2.5) | `2026-05-18T0948-combined-llm-prompt-policy-matrix.md` | Checking qwen3:1.7b vs qwen2.5 prompt policy behavior |
 | `2026-05-18T0951-combined-llm-prompt-policy-matrix.md` | Prompt policy matrix — qwen3:4b model | Exploratory model run; `current-minimal` verdict same as canonical T0948 | `2026-05-18T0948-combined-llm-prompt-policy-matrix.md` | Checking qwen3:4b prompt policy behavior |
 | `2026-05-18T0954-combined-llm-prompt-policy-matrix.md` | Prompt policy matrix — phi4-mini model | Exploratory model run; `current-minimal` verdict same as canonical T0948 | `2026-05-18T0948-combined-llm-prompt-policy-matrix.md` | Checking phi4-mini prompt policy behavior |
 | `2026-05-18T1043-combined-llm-prompt-policy-matrix.md` | Prompt policy matrix — batiai/gemma4-e2b:q4 model | Exploratory model run; `current-minimal` verdict same as canonical T0948 | `2026-05-18T0948-combined-llm-prompt-policy-matrix.md` | Checking gemma4-e2b prompt policy behavior |
 | `2026-05-18T1044-combined-llm-prompt-policy-matrix.md` | Prompt policy matrix — gemma3:4b-it-qat model | Exploratory model run; `current-minimal` verdict same as canonical T0948 | `2026-05-18T0948-combined-llm-prompt-policy-matrix.md` | Checking gemma3:4b-it-qat prompt policy behavior |
-| `2026-05-22T1012-combined-llm-quality-matrix.md` | Pre-alignment `COMBINED_LLM=1` custom-50 quality matrix for gemma3/qwen2.5 | Generated before custom-50 `c48` qrel fix; may misclassify c48 retrieval quality | Rerun `npm run bench:custom50:combined-matrix` after qrel fix | Comparing pre-fix combined quality only |
-| `2026-05-22T1036-combined-context-only-ablation.md` | Pre-alignment context-only ablation for combined mode | Generated before custom-50 `c48` qrel fix | Rerun `npm run bench:custom50:context-only-ablation` after qrel fix | Comparing pre-fix context-only hypothesis only |
-| `2026-05-22T1117-combined-llm-quality-matrix.md` | First post-alignment combined quality matrix | Generated before custom-50 `c48` qrel fix; c48 was counted as a hard regression in this run | Rerun combined matrix after qrel fix | Checking run-to-run variance before qrel correction |
-| `2026-05-22T1126-combined-context-only-ablation.md` | First post-alignment context-only ablation | Generated before custom-50 `c48` qrel fix | Rerun context-only ablation after qrel fix | Checking why the context-only verdict briefly flipped |
-| `2026-05-22T1143-combined-llm-quality-matrix.md` | Second post-alignment combined quality matrix | Generated before custom-50 `c48` qrel fix | Rerun combined matrix after qrel fix | Comparing post-alignment variance against T1117 |
-| `2026-05-22T1152-combined-context-only-ablation.md` | Second post-alignment context-only ablation | Generated before custom-50 `c48` qrel fix | Rerun context-only ablation after qrel fix | Comparing post-alignment variance against T1126 |
-| `2026-05-22T1200-combined-prompt-alignment-verification.md` | Summary report comparing pre/post prompt alignment runs | Summary is based on pre-fix `c48` qrels and archived raw reports | Write a fresh verification report after reruns | Understanding the deprecated prompt-alignment conclusion |
+| `2026-05-22T1012-combined-llm-quality-matrix.md` | Pre-alignment `COMBINED_LLM=1` custom-50 quality matrix for gemma3/qwen2.5 | Generated before custom-50 `c48` qrel fix; may misclassify c48 retrieval quality | `2026-05-27T0000-combined-post-qrel-fix-verification.md` | Comparing pre-fix combined quality only |
+| `2026-05-22T1036-combined-context-only-ablation.md` | Pre-alignment context-only ablation for combined mode | Generated before custom-50 `c48` qrel fix | `2026-05-27T0000-combined-post-qrel-fix-verification.md`, `2026-05-26T2115-combined-context-only-ablation.md` | Comparing pre-fix context-only hypothesis only |
+| `2026-05-22T1117-combined-llm-quality-matrix.md` | First post-alignment combined quality matrix | Generated before custom-50 `c48` qrel fix; c48 was counted as a hard regression in this run | `2026-05-27T0000-combined-post-qrel-fix-verification.md` | Checking run-to-run variance before qrel correction |
+| `2026-05-22T1126-combined-context-only-ablation.md` | First post-alignment context-only ablation | Generated before custom-50 `c48` qrel fix | `2026-05-27T0000-combined-post-qrel-fix-verification.md`, `2026-05-26T2115-combined-context-only-ablation.md` | Checking why the context-only verdict briefly flipped |
+| `2026-05-22T1143-combined-llm-quality-matrix.md` | Second post-alignment combined quality matrix | Generated before custom-50 `c48` qrel fix | `2026-05-27T0000-combined-post-qrel-fix-verification.md` | Comparing post-alignment variance against T1117 |
+| `2026-05-22T1152-combined-context-only-ablation.md` | Second post-alignment context-only ablation | Generated before custom-50 `c48` qrel fix | `2026-05-27T0000-combined-post-qrel-fix-verification.md`, `2026-05-26T2115-combined-context-only-ablation.md` | Comparing post-alignment variance against T1126 |
+| `2026-05-22T1200-combined-prompt-alignment-verification.md` | Summary report comparing pre/post prompt alignment runs | Summary is based on pre-fix `c48` qrels and archived raw reports | `2026-05-27T0000-combined-post-qrel-fix-verification.md` | Understanding the deprecated prompt-alignment conclusion |
 | `2026-05-13-indexing-performance-analysis.md` | Indexing performance analysis — May 13 | Superseded by May-17 DML/CPU indexing perf reports with better instrumentation | `2026-05-17-indexing-perf-onnx-cpu.md`, `2026-05-17-indexing-perf-onnx-dml.md` | Tracing early indexing perf baseline before DML work |
 | `2026-05-14-diagnostic-bundle-design.md` | Design doc for diagnostic bundle tooling | Design superseded; diagnostic functionality delivered via `npm run doctor` and smoke tests | `npm run doctor` output | Understanding original diagnostic bundle design intent |
 | `2026-05-14-indexing-performance-instrumentation-audit.md` | Audit of indexing perf instrumentation gaps | Superseded by May-17 perf work which closed the instrumentation gaps | `2026-05-17-indexing-perf-onnx-cpu.md` | Understanding what instrumentation was missing before May-17 |
@@ -168,19 +168,26 @@ These 8 files remain in `results/` until their referencing docs are updated or t
 ### 2026-05-22 Combined Prompt Alignment Reports
 
 The custom-50 `c48` qrel was corrected after these reports were generated. The
-old qrel treated `multilingual.md#3` as the primary relevant chunk for:
+old qrel pointed to the wrong chunk for the cross-lingual query. After manual
+inspection, the correct primary relevant chunk is `multilingual.md#3` (Query
+Language vs Document Language section) — not `multilingual.md#4`. The old
+archived reports may therefore overstate or misclassify `c48` regressions.
 
-```text
-cross-lingual retrieval Ukrainian query English document BGE-M3
-```
+Post-qrel-fix reruns were completed on 2026-05-27. See the canonical series:
+- `benchmarks/retrieval/results/2026-05-27T0000-combined-post-qrel-fix-verification.md`
+- `benchmarks/retrieval/results/2026-05-27T0430-c41-combined-regression-diagnostic.md`
+- `benchmarks/retrieval/results/2026-05-27T0900-combined-identifier-preserving-policy.md`
 
-Manual inspection showed that `multilingual.md#4` is the direct answer because
-it explicitly describes a Ukrainian query matching an English document through
-BGE-M3. The old reports may therefore overstate or misclassify `c48`
-regressions.
+### 2026-05-18 Combined Quality Runs
 
-After the qrel fix, rerun the affected custom-50 combined benchmarks and write a
-new non-archived report.
+The May-18 combined-LLM custom-50 quality runs (`T1144` and earlier) were the
+original evidence for ADR 0004 "PROCEED opt-in with caution" verdict. They are
+now superseded on two grounds: (1) they used the stale `c48` qrel, and (2) the
+post-qrel-fix 2026-05-27 benchmark series is the current quality evidence.
+
+The May-18 runs remain in `results/` (not moved to `archive/`) because ADR 0004
+cites them directly in the original Evidence section. They should not be read for
+current quality conclusions — read the 2026-05-27 series instead.
 
 ## Agent Archiving Rules
 
