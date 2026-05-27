@@ -32,6 +32,7 @@ import {
   deleteCollection,
   hybridSearch,
 } from '../../../src/core/qdrant.js';
+import { stableSortResults } from './sort-results.js';
 import { embedForSearch } from '../../../src/core/embeddings.js';
 import { loadConfig, saveConfig } from '../../../src/core/config.js';
 
@@ -384,7 +385,7 @@ function computeMetrics(queryResults) {
 async function runQuery(collection, queryText) {
   const t0 = Date.now();
   const { dense, sparse } = await embedForSearch(collection, queryText);
-  const results = await hybridSearch(collection, dense, sparse, TOP_K);
+  const results = stableSortResults(await hybridSearch(collection, dense, sparse, TOP_K));
   return { results, latency: Date.now() - t0 };
 }
 

@@ -29,6 +29,7 @@ import { resolve, join, dirname }                       from 'path';
 import { fileURLToPath }                                from 'url';
 
 import { listCollections, createCollection, deleteCollection, hybridSearch } from '../../../src/core/qdrant.js';
+import { stableSortResults } from './sort-results.js';
 import { embedForSearch, SCHEMA_VERSION }               from '../../../src/core/embeddings.js';
 import { loadConfig, saveConfig, resolveEnvProviders }  from '../../../src/core/config.js';
 
@@ -316,7 +317,7 @@ async function runAllQueries(collection, queries) {
     process.stdout.write(`  ${q.id}: ${q.query.slice(0, 42)}... `);
     const t0 = Date.now();
     const { dense, sparse } = await embedForSearch(collection, q.query);
-    const results = await hybridSearch(collection, dense, sparse, TOP_K);
+    const results = stableSortResults(await hybridSearch(collection, dense, sparse, TOP_K));
     const latency = Date.now() - t0;
     qr.push({ query: q, results, latency });
     const hit = q.shouldHaveNoStrongHit

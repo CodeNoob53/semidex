@@ -33,6 +33,7 @@ import {
   listCollections, createCollection, deleteCollection,
   hybridSearch, scroll,
 } from '../../../src/core/qdrant.js';
+import { stableSortResults } from './sort-results.js';
 import { embedForSearch, SCHEMA_VERSION } from '../../../src/core/embeddings.js';
 import { loadConfig, saveConfig, resolveEnvProviders } from '../../../src/core/config.js';
 
@@ -251,7 +252,7 @@ function resultChunkId(r) {
 
 async function runQuery(collection, queryText) {
   const { dense, sparse } = await embedForSearch(collection, queryText);
-  return hybridSearch(collection, dense, sparse, TOP_K);
+  return stableSortResults(await hybridSearch(collection, dense, sparse, TOP_K));
 }
 
 // ── Cause classifier ──────────────────────────────────────────────────────────

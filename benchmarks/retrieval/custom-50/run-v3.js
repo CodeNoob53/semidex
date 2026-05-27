@@ -60,6 +60,7 @@ import { fileURLToPath } from 'url';
 import { randomUUID } from 'crypto';
 
 import { validateQueryTypes, formatTypeDistribution } from './query-types.js';
+import { stableSortResults } from './sort-results.js';
 
 import { chunkFile } from '../../../src/indexer/phases/chunk.js';
 import {
@@ -292,6 +293,7 @@ async function runQuery(queryText) {
 
   let results;
   if (SEARCH_MODE === 'dense-mmr') {
+    // MMR output order is the diversity-selected ranking — do not re-sort by score.
     results = await mmrSearch(COLLECTION, dense, TOP_K, null, {
       diversity: MMR_DIVERSITY,
       candidatesLimit: MMR_CANDIDATES_LIMIT,
@@ -299,9 +301,9 @@ async function runQuery(queryText) {
   } else if (RERANK_ENABLED) {
     const candidateLimit = Math.max(TOP_K * RERANK_PREFETCH_MULT, TOP_K + 5);
     const candidates = await hybridSearch(COLLECTION, dense, sparse, candidateLimit);
-    results = rerankResults(candidates, queryText, { finalLimit: TOP_K, collection: COLLECTION });
+    results = stableSortResults(rerankResults(candidates, queryText, { finalLimit: TOP_K, collection: COLLECTION }));
   } else {
-    results = await hybridSearch(COLLECTION, dense, sparse, TOP_K);
+    results = stableSortResults(await hybridSearch(COLLECTION, dense, sparse, TOP_K));
   }
 
   const latency = Date.now() - t0;
