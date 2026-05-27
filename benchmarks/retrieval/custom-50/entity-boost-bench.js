@@ -27,6 +27,7 @@ import { fileURLToPath } from 'url';
 import { randomUUID } from 'crypto';
 
 import { stableSortResults } from './sort-results.js';
+import { queryEntityTokens, entityOverlap, applyEntityBoost } from '../../../src/core/entity-boost.js';
 import { chunkFile } from '../../../src/indexer/phases/chunk.js';
 import { extractEntities } from '../../../src/indexer/phases/entities.js';
 import {
@@ -121,60 +122,6 @@ function mrrAt(results, qrels, k) {
 
 function pct(v) { return v === null ? 'n/a' : `${(v * 100).toFixed(1)}%`; }
 function fmt3(v) { return v === null ? 'n/a' : v.toFixed(3); }
-
-// ── Entity helpers ────────────────────────────────────────────────────────────
-
-/**
- * Extract entity tokens from a query string for overlap comparison.
- * Returns a Set of all strings extracted via the entity extractor
- * treating the query as a synthetic chunk with no source_file.
- */
-function queryEntityTokens(queryText) {
-  const { entities } = extractEntities({
-    text: queryText,
-    section: '',
-    source_file: '',
-  });
-  const all = [
-    ...entities.paths,
-    ...entities.symbols,
-    ...entities.env_vars,
-    ...entities.commands,
-  ];
-  return new Set(all);
-}
-
-/**
- * Entity overlap count between query tokens and a chunk's stored entity payload.
- */
-function entityOverlap(queryTokens, chunkPayload) {
-  const e = chunkPayload?.entities;
-  if (!e || !queryTokens.size) return 0;
-  const chunkTokens = [
-    ...(e.paths      ?? []),
-    ...(e.symbols    ?? []),
-    ...(e.env_vars   ?? []),
-    ...(e.commands   ?? []),
-  ];
-  let count = 0;
-  for (const t of chunkTokens) {
-    if (queryTokens.has(t)) count++;
-  }
-  return count;
-}
-
-/**
- * Apply entity boost to a candidate list.
- * Returns new array with score boosted, then stable-sorted.
- */
-function applyEntityBoost(candidates, queryTokens, boostWeight) {
-  const boosted = candidates.map(r => {
-    const overlap = entityOverlap(queryTokens, r.payload);
-    const bonus   = overlap > 0 ? boostWeight * overlap : 0;
-    return { ...r, score: (r.score ?? 0) + bonus, _entityOverlap: overlap };
-  });
-  return stableSortResults(boosted);
-}
 
 // ── Collection setup ──────────────────────────────────────────────────────────
 

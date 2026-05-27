@@ -210,6 +210,22 @@ PRUNE_STALE=1 SOURCE_ROOT=./docs COLLECTION=my-docs npm run index ./docs/guides
 | `RRF_K` | `60` | RRF smoothing constant |
 | `HYBRID_PREFETCH_LIMIT` | `2` | Per-leg candidate multiplier: prefetch = max(top × mult, top + 1) |
 
+## Entity Boost
+
+Post-RRF rerank stage that improves source-navigation queries (file paths,
+symbols, env vars, npm commands). Disabled by default. See
+[retrieval.md — Entity Boost](retrieval.md#entity-boost-opt-in) and ADR 0005.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ENTITY_BOOST_ENABLED` | `0` | Set to `1` to enable entity overlap boost after hybrid search |
+| `ENTITY_BOOST_WEIGHT` | `0.0015` | Additive score bonus per overlapping entity token |
+| `ENTITY_BOOST_PREFETCH` | `20` | Candidate pool fetched before entity rerank; if ≤ `top`, no extra Qdrant call |
+
+Old collections without `entities` in their payload are unaffected (overlap = 0).
+Run `APPLY=1 COLLECTION=<name> npm run backfill:entities` to add entity payload
+to an existing collection without re-embedding.
+
 ## Reranking
 
 | Variable | Default | Description |

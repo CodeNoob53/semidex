@@ -29,7 +29,7 @@ for each area. For superseded or exploratory runs in the same area, check
 | Retrieval quality — custom-50 | `2026-05-27T0000-combined-post-qrel-fix-verification.md` | Checking current hybrid+combined retrieval baseline | Post-qrel-fix canonical. Pre-2026-05-26T1200 reports (incl. T1144) are archival — stale qrels. |
 | Retrieval quality — custom-150 | `2026-05-18T-custom150-qwen25-combined-quality.md` | Checking quality on 150-query fixture | Combined-LLM qwen2.5 run |
 | CE routing / reranking | `2026-05-16-custom50-ce-routing-v4-mmarco-mminilmv2-l12-h384-v1.txt`, `2026-05-16-custom150-ce-routing-v4-mmarco-mminilmv2-l12-h384-v1.txt` | Understanding why reranking is off by default | ADR 0003 cites these; v4 = final decision run |
-| ColBERT / rerankers | `2026-05-16-bge-m3-colbert-head-probe.md` | ColBERT head probe results | Cited by ADR 0005 |
+| ColBERT / rerankers | `2026-05-16-bge-m3-colbert-head-probe.md` | ColBERT head probe results | Cited by ADR 0003 |
 | BGE-M3 ONNX provider | `2026-05-09-bge-m3-onnx.txt` | BGE-M3 vs Ollama initial quality comparison | ADR 0001 cites this |
 | Ollama hashed-TF provider | `2026-05-09-ollama-hashed-tf.txt` | Baseline for Ollama+hashed-TF provider path | ADR 0001 cites this |
 | MMR opt-in | `2026-05-14-mmr-mcp-opt-in-audit.md` | Whether dense_mmr mode should be exposed | Cited by docs/en |
@@ -55,6 +55,9 @@ for each area. For superseded or exploratory runs in the same area, check
 | Deterministic point IDs | `2026-05-23T1249-deterministic-point-id-implementation.md` | Deterministic ID implementation record | |
 | MCP agent UX | `2026-05-25-mcp-agent-ux-polish-v3-live-retest.md` | Current agent workflow retest verdict | v2 retest also in results/ for v2→v3 diff |
 | Link-building equivalence | `link-equivalence-snapshot-*.json` | Dense-reuse graph equivalence snapshots | Machine-readable; 4 snapshots |
+| Entity boost — design | `2026-05-27T1600-source-navigation-entity-chunking-design.md` | Root cause analysis + MVP design for source-navigation cliff cases | |
+| Entity boost — implementation | `2026-05-27T1800-entity-aware-source-navigation-mvp.md` | MVP implementation record | |
+| Entity boost — benchmark | `2026-05-27T2000-entity-boost-benchmark.md` | **Canonical entity boost evidence; verdict ENTITY_BOOST_ACCEPT** | ADR 0005 cites this; weight sweep + 3 reindexes |
 
 ## Report Lookup by Task
 
@@ -72,6 +75,9 @@ for each area. For superseded or exploratory runs in the same area, check
 | Validate MCP agent workflow | `2026-05-25-mcp-agent-ux-polish-v3-live-retest.md` |
 | Understand answer-policy edge cases | `2026-05-12-custom-raw-*.md` series |
 | Understand tag generation behavior | `2026-05-20-tag-usefulness-audit.md`, `2026-05-21T1833-tag-gen-ablation-custom50.md` |
+| Understand entity boost and source-navigation improvement | `2026-05-27T2000-entity-boost-benchmark.md`, then `docs/adr/0005-entity-boost-opt-in.md` |
+| Understand entity boost root cause and design | `2026-05-27T1600-source-navigation-entity-chunking-design.md` |
+| Understand entity boost implementation | `2026-05-27T1800-entity-aware-source-navigation-mvp.md` |
 
 ## How To Navigate
 

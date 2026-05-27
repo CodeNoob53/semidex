@@ -251,6 +251,47 @@ Evaluate MMR by checking whether `dupSourceRate` decreases and
 `sourceDiversity` increases without unacceptable drops in `Recall@1`, `MRR`, or
 `nDCG@K`.
 
+## Entity Boost (Opt-In)
+
+Entity boost is an optional post-RRF rerank stage that improves retrieval
+for **source-navigation queries** — queries that name specific file paths,
+function symbols, env vars, or npm commands.
+
+When enabled, the indexer extracts structured entity tokens from each chunk
+at index time (`entities.paths`, `entities.symbols`, `entities.env_vars`,
+`entities.commands`). At query time, the same extractor runs on the query
+string and scores each candidate by entity token overlap:
+
+```text
+finalScore = rrfScore + ENTITY_BOOST_WEIGHT × |queryEntities ∩ chunkEntities|
+```
+
+**Default: off.** Set `ENTITY_BOOST_ENABLED=1` to enable. Queries with no
+entity tokens are unaffected (overlap = 0, boost = 0).
+
+**Backward compatibility:** collections indexed before entity support was added
+have no `entities` field in their payloads. The boost produces overlap = 0 for
+those points — the result list is unchanged and no reindexing is required to
+safely enable the flag. Run `APPLY=1 COLLECTION=<name> npm run backfill:entities` to gain the
+quality benefit on an existing collection.
+
+**Benchmark evidence (custom-50, ONNX, 3 fresh reindexes):**
+
+| Weight | c35 | c36 | c37 | new hard reg | chunkRecall@5 |
+|--------|-----|-----|-----|-------------|---------------|
+| 0 (off) | ✓ | ✓ | ✗ | 0 | 89.8% |
+| 0.0015 | ✓ | ✓ | ✓ | 0 | 91.8% (+2.0pp) |
+
+Source-navigation cliff cases (c35, c36, c37) are stable 3/3 across all 3
+reindexes at weight 0.0015. No new regressions at any tested weight
+(0.001–0.005). Full evidence: `benchmarks/retrieval/results/2026-05-27T2000-entity-boost-benchmark.md`,
+ADR 0005.
+
+**Known tradeoff:** c36 (symbols query, 3 overlapping tokens) sees the Source
+Tree chunk promoted above the Key Modules subsection — MRR drops 0.500 → 0.333.
+Both chunks are rel=3 and cr@5 remains ✓. Monitor if rank-1 selection quality
+matters for your use case.
+
 ## Relevant Environment Variables
 
 | Variable | Default | Description |
@@ -261,6 +302,9 @@ Evaluate MMR by checking whether `dupSourceRate` decreases and
 | `DENSE_MODEL` | unset | Dense model override for Ollama |
 | `RRF_K` | `60` | RRF smoothing |
 | `HYBRID_PREFETCH_LIMIT` | `2` | Per-leg candidate multiplier: prefetch = max(top × mult, top + 1) |
+| `ENTITY_BOOST_ENABLED` | `0` | Enable post-RRF entity overlap boost (opt-in; see Entity Boost section) |
+| `ENTITY_BOOST_WEIGHT` | `0.0015` | Additive score bonus per overlapping entity token |
+| `ENTITY_BOOST_PREFETCH` | `20` | Candidate pool size for entity rerank; if ≤ top, no extra Qdrant call |
 | `RERANK_ENABLED` | `0` | Enable local reranker |
 | `RERANK_PREFETCH_MULT` | `4` | Candidate multiplier before reranking |
 | `RERANK_DEBUG` | `0` | Print reranker scoring details |

@@ -63,6 +63,26 @@ If implementation requires even broader context, follow up with `qdrant_get_chun
 
 **Structured-data trigger:** If a compact snippet shows a table header, checklist, YAML/JSON block, or any structure that appears cut mid-row or mid-item, call `qdrant_get_chunk(collection, source_file, chunk_index)` directly. Compact snippets are capped at 150 characters and will always truncate multi-row tables. Do not summarize structured content from a truncated snippet — retrieve the full chunk first.
 
+### Source-Navigation Queries
+
+Queries that ask *where* something lives in the codebase — file paths, function
+symbols, env var names, npm commands — are **source-navigation queries**. Examples:
+
+- "Where is `hybridSearch` defined?"
+- "What does `src/core/qdrant.js` export?"
+- "Entry point for `npm run bench:custom50`"
+
+For these queries, `qdrant_search` returns the correct chunk in top-10 reliably
+(chunkRecall@10 ≈ 96%), but it may not be in the top 3–5 without entity boost
+enabled. If source-navigation results look unexpectedly low-ranked:
+
+- Increase `top` to 10 and scan the full list.
+- Check whether `ENTITY_BOOST_ENABLED=1` is set in your environment; entity
+  boost is designed specifically for this query class and improves cr@5 by ~2 pp
+  on the custom-50 benchmark.
+- Use `qdrant_list_files` or `qdrant_list_directories` if you need to enumerate
+  files by path rather than retrieve by semantic query.
+
 ### Retrieval Safety
 
 Before answering from retrieved evidence, verify that the evidence matches the query's scope:
