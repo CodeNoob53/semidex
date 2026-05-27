@@ -9,6 +9,7 @@ import { addContext, mergeChunks } from './phases/context.js';
 import { addTagsBatch, shouldGenerateTags } from './phases/tag.js';
 import { isEmptySectionChunk } from './phases/empty-section.js';
 import { addContextAndTags } from './phases/combined.js';
+import { extractEntities } from './phases/entities.js';
 import { resolveCombinedLlmConfig } from '../core/doctor-checks.js';
 import { buildLinks } from './phases/link.js';
 import { runBatched } from './batch.js';
@@ -187,6 +188,7 @@ async function indexFile(filePath, rootPath, collection, allCollections, graph) 
 
   const pointsWithDense = taggedChunks.map((chunk, i) => {
     const { dense, sparse, meta } = embedResults[i];
+    const { entities, doc_role } = extractEntities(chunk);
     return {
       dense,
       point: {
@@ -209,6 +211,8 @@ async function indexFile(filePath, rootPath, collection, allCollections, graph) 
           total_chunks: chunk.totalChunks,
           file_hash: fileHash,
           vector_size: configVectorSize,
+          entities,
+          doc_role,
           ...meta,
         },
       },
