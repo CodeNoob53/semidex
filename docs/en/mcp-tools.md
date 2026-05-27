@@ -79,7 +79,8 @@ enabled. If source-navigation results look unexpectedly low-ranked:
 - Increase `top` to 10 and scan the full list.
 - Check whether `ENTITY_BOOST_ENABLED=1` is set in your environment; entity
   boost is designed specifically for this query class and improves cr@5 by ~2 pp
-  on the custom-50 benchmark.
+  on the custom-50 benchmark. A fresh `semidex-docs` live validation also showed
+  2 source-navigation top-1 improvements with semantic queries unchanged.
 - Use `qdrant_list_files` or `qdrant_list_directories` if you need to enumerate
   files by path rather than retrieve by semantic query.
 

@@ -1,8 +1,20 @@
-# ADR 0005: Entity-Aware Indexing Benchmark-First
+# ADR 0005-DRAFT: Entity-Aware Indexing Benchmark-First
 
-Status: Proposed
+Status: Superseded
 
 Date: 2026-05-20
+
+Superseded by: [ADR 0005: Entity Boost - Opt-In Production Rollout](0005-entity-boost-opt-in.md)
+
+This draft captured an earlier, heavier entity-indexing direction: extract
+tables/code/entities, generate entity-specific context, and index those entities
+as dedicated points. That direction remains a possible future architecture, but
+it is not the accepted production plan.
+
+The accepted 2026-05-27 implementation is narrower and payload-only: extract
+lightweight entities into chunk payloads and optionally use them for post-RRF
+entity boost in `qdrant_search`. It does not add separate entity points and does
+not change embedding input.
 
 ## Context
 

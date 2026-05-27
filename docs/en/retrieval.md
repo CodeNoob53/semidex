@@ -287,6 +287,11 @@ reindexes at weight 0.0015. No new regressions at any tested weight
 (0.001–0.005). Full evidence: `benchmarks/retrieval/results/2026-05-27T2000-entity-boost-benchmark.md`,
 ADR 0005.
 
+**Live validation (`semidex-docs`, fresh bootstrap index):** entity boost produced
+2 source-navigation top-1 improvements, 4 harmless tail reorders, and 8/8
+semantic queries unchanged. See
+`benchmarks/retrieval/results/2026-05-27T1422-entity-boost-live-optin-validation-refresh.md`.
+
 **Known tradeoff:** c36 (symbols query, 3 overlapping tokens) sees the Source
 Tree chunk promoted above the Key Modules subsection — MRR drops 0.500 → 0.333.
 Both chunks are rel=3 and cr@5 remains ✓. Monitor if rank-1 selection quality

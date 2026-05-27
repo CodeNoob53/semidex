@@ -31,8 +31,10 @@ added:
 
 The bench-only entity boost script (`entity-boost-bench.js`) proved the concept
 on custom-50 with verdict `ENTITY_BOOST_ACCEPT` (benchmark report
-`2026-05-27T2000-entity-boost-benchmark.md`). Production MCP scoring was not
-changed prior to this ADR.
+`2026-05-27T2000-entity-boost-benchmark.md`). A later live validation on a fresh
+`semidex-docs` index confirmed the opt-in path on a technical documentation
+collection: 2 source-navigation top-1 improvements, 4 harmless tail reorders,
+and 8/8 semantic queries unchanged (`2026-05-27T1422` report).
 
 ## Decision
 
@@ -58,11 +60,12 @@ set.
    hard regressions across 49 positive queries. The boost is additive and has
    no effect on queries with entity overlap = 0 (24/49 queries in the sweep).
 
-2. **Opt-in gate is required before default-on.** The evidence is from a
-   single fixture corpus (custom-50, 10 fixture files). Generalization to
-   production corpora with different file types, section structures, and entity
-   densities is not yet validated. A live test on a production collection is
-   required before promoting to default.
+2. **Opt-in gate is still required before default-on.** Evidence now covers
+   both custom-50 and one live technical documentation collection
+   (`semidex-docs`). This is enough for opt-in on technical/source-navigation
+   workflows, but not enough for default-on. Generalization to mixed prose,
+   scientific, literary, or media-heavy corpora with different entity densities
+   is not yet validated.
 
 3. **Backwards compatibility is unconditional.** Collections indexed before
    the entity phase (pre-2026-05-27) have no `entities` field. The boost
@@ -161,17 +164,19 @@ import `queryEntityTokens`, `entityOverlap`, and `applyEntityBoost` from
    token) and did not cause regressions across 0–0.005 weight sweep, but
    production corpora with different content may surface edge cases.
 
-4. **Fixture-only validation.** All evidence is from 10 custom-50 fixture files.
-   Production corpora with different file structures, entity densities, or
-   doc_role distributions may produce different overlap patterns.
+4. **Domain-limited validation.** Evidence covers custom-50 fixture files and
+   one live technical documentation collection. Corpora with different file
+   structures, entity densities, or non-technical prose may produce different
+   overlap patterns.
 
 ## Acceptance Criteria for Default-On
 
 Promote `ENTITY_BOOST_ENABLED` to default (`=1`) when:
 
-1. Live test on a production collection (not fixture data) shows no new hard
-   regressions vs the un-boosted baseline.
-2. Source-navigation queries on the production collection show stable cr@5
+1. Live tests across multiple collection types (technical docs plus at least
+   one mixed/prose-heavy collection) show no new hard regressions vs the
+   un-boosted baseline.
+2. Source-navigation queries on production collections show stable cr@5
    improvement or no change (not degradation) across ≥ 2 reindexes.
 3. Aggregate chunkRecall@5 does not decrease vs baseline.
 4. The Source Tree overpromotion risk (risk 1) is either confirmed acceptable
@@ -190,6 +195,8 @@ Promote `ENTITY_BOOST_ENABLED` to default (`=1`) when:
   `src/core/entity-boost.js`, which is the shared reference implementation.
 
 ## Evidence
+
+- [`benchmarks/retrieval/results/2026-05-27T1422-entity-boost-live-optin-validation-refresh.md`](../../benchmarks/retrieval/results/2026-05-27T1422-entity-boost-live-optin-validation-refresh.md) - fresh `semidex-docs` live opt-in validation
 
 - [`benchmarks/retrieval/results/2026-05-27T2000-entity-boost-benchmark.md`](../../benchmarks/retrieval/results/2026-05-27T2000-entity-boost-benchmark.md) — benchmark sweep, reindex stability, verdict
 - [`benchmarks/retrieval/results/2026-05-27T1800-entity-aware-source-navigation-mvp.md`](../../benchmarks/retrieval/results/2026-05-27T1800-entity-aware-source-navigation-mvp.md) — implementation record
