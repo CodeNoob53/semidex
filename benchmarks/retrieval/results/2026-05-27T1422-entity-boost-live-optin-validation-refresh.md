@@ -2,6 +2,10 @@
 
 **Date:** 2026-05-27T1422  
 **Verdict:** `ENTITY_BOOST_LIVE_ACCEPT_TECHNICAL`  
+**Current status (2026-05-29):** situational semidex-like technical evidence
+only. Production opt-in was rolled back by
+`2026-05-29T0000-entity-boost-production-rollback.md` after a hard-technical
+validation showed the current extractor does not generalize.
 **Supersedes:** `2026-05-27T1244-entity-boost-live-optin-validation.md` (stale collection)
 
 ## Setup

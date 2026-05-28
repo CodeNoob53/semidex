@@ -1,7 +1,6 @@
 import { hybridSearch, fetchWindowChunks } from '../../core/qdrant.js';
 import { embedForSearch } from '../../core/embeddings.js';
 import { rerankResults } from '../../core/rerank.js';
-import { queryEntityTokens, entityOverlap, applyEntityBoost } from '../../core/entity-boost.js';
 
 function envInt(name, defaultVal, min, max) {
   const v = parseInt(process.env[name] ?? '');
@@ -11,10 +10,6 @@ function envInt(name, defaultVal, min, max) {
 
 const RERANK_ENABLED        = process.env.RERANK_ENABLED === '1';
 const RERANK_PREFETCH_MULT  = envInt('RERANK_PREFETCH_MULT', 4, 1, 100);
-const ENTITY_BOOST_ENABLED  = process.env.ENTITY_BOOST_ENABLED === '1';
-const _ebw = parseFloat(process.env.ENTITY_BOOST_WEIGHT ?? '');
-const ENTITY_BOOST_WEIGHT   = Number.isFinite(_ebw) ? _ebw : 0.0015;
-const ENTITY_BOOST_PREFETCH = envInt('ENTITY_BOOST_PREFETCH', 20, 1, 200);
 
 export function assembleWindowChunks(wPoints, matchedChunkIndex, window_format, seenChunks = new Set()) {
   const result = [];
@@ -73,24 +68,6 @@ export async function handle({ query, collection, top = 5, tags, source_file, wi
     const candidateLimit = Math.max(top * RERANK_PREFETCH_MULT, top + 5);
     const candidates = await hybridSearch(collection, dense, sparse, candidateLimit, filter);
     results = rerankResults(candidates, query, { finalLimit: top, collection });
-  } else if (ENTITY_BOOST_ENABLED) {
-    const queryTokens = queryEntityTokens(query);
-    const baseline = await hybridSearch(collection, dense, sparse, top, filter);
-    if (queryTokens.size === 0) {
-      results = baseline;
-    } else {
-      const prefetchLimit = ENTITY_BOOST_PREFETCH > top ? ENTITY_BOOST_PREFETCH : top;
-      const candidates = prefetchLimit > top
-        ? await hybridSearch(collection, dense, sparse, prefetchLimit, filter)
-        : baseline;
-      // Check overlap before boosting — if no candidate has entity payload matching
-      // the query (e.g. old collection without payload.entities), skip the wide
-      // candidates entirely and return the true baseline unchanged.
-      const hasOverlap = candidates.some(r => entityOverlap(queryTokens, r.payload) > 0);
-      results = hasOverlap
-        ? applyEntityBoost(candidates, queryTokens, ENTITY_BOOST_WEIGHT).slice(0, top)
-        : baseline;
-    }
   } else {
     results = await hybridSearch(collection, dense, sparse, top, filter);
   }

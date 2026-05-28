@@ -251,13 +251,22 @@ Evaluate MMR by checking whether `dupSourceRate` decreases and
 `sourceDiversity` increases without unacceptable drops in `Recall@1`, `MRR`, or
 `nDCG@K`.
 
-## Entity Boost (Opt-In)
+## Entity Boost (Deferred Experiment)
 
-Entity boost is an optional post-RRF rerank stage that improves retrieval
+Entity boost is not available in production MCP search. `qdrant_search` no
+longer reads or applies `ENTITY_BOOST_*` environment variables. The experiment
+is deferred because the current entity extractor is tuned to semidex/code
+documentation and does not reliably create useful entities for broader
+technical corpora.
+
+Status: `ENTITY_BOOST_DEFERRED_SITUATIONAL`. See ADR 0005 and
+`benchmarks/retrieval/results/2026-05-27T1619-entity-boost-private-linux-hard-technical-validation.md`.
+
+Earlier benchmark-only versions tested entity boost as a post-RRF rerank stage
 for **source-navigation queries** — queries that name specific file paths,
 function symbols, env vars, or npm commands.
 
-When enabled, the indexer extracts structured entity tokens from each chunk
+The experimental indexer/entity phase extracts structured entity tokens from each chunk
 at index time (`entities.paths`, `entities.symbols`, `entities.env_vars`,
 `entities.commands`). At query time, the same extractor runs on the query
 string and scores each candidate by entity token overlap:
@@ -266,16 +275,17 @@ string and scores each candidate by entity token overlap:
 finalScore = rrfScore + ENTITY_BOOST_WEIGHT × |queryEntities ∩ chunkEntities|
 ```
 
-**Default: off.** Set `ENTITY_BOOST_ENABLED=1` to enable. Queries with no
+The production MCP server does not expose a flag to enable this rerank stage. Queries with no
 entity tokens are unaffected (overlap = 0, boost = 0).
 
-**Backward compatibility:** collections indexed before entity support was added
+**Experiment compatibility:** collections indexed before entity support was added
 have no `entities` field in their payloads. The boost produces overlap = 0 for
-those points — the result list is unchanged and no reindexing is required to
-safely enable the flag. Run `APPLY=1 COLLECTION=<name> npm run backfill:entities` to gain the
-quality benefit on an existing collection.
+those points, so benchmark diagnostics fall back to the unmodified result list.
+Run
+`APPLY=1 COLLECTION=<name> npm run backfill:entities` only for experimental
+diagnostics, not as a production quality-improvement step.
 
-**Benchmark evidence (custom-50, ONNX, 3 fresh reindexes):**
+**Situational benchmark evidence (custom-50, ONNX, 3 fresh reindexes):**
 
 | Weight | c35 | c36 | c37 | new hard reg | chunkRecall@5 |
 |--------|-----|-----|-----|-------------|---------------|
@@ -284,10 +294,11 @@ quality benefit on an existing collection.
 
 Source-navigation cliff cases (c35, c36, c37) are stable 3/3 across all 3
 reindexes at weight 0.0015. No new regressions at any tested weight
-(0.001–0.005). Full evidence: `benchmarks/retrieval/results/2026-05-27T2000-entity-boost-benchmark.md`,
-ADR 0005.
+(0.001-0.005). Full evidence:
+`benchmarks/retrieval/results/2026-05-27T2000-entity-boost-benchmark.md`.
+This is no longer treated as production acceptance evidence.
 
-**Live validation (`semidex-docs`, fresh bootstrap index):** entity boost produced
+**Situational live validation (`semidex-docs`, fresh bootstrap index):** entity boost produced
 2 source-navigation top-1 improvements, 4 harmless tail reorders, and 8/8
 semantic queries unchanged. See
 `benchmarks/retrieval/results/2026-05-27T1422-entity-boost-live-optin-validation-refresh.md`.
@@ -307,9 +318,6 @@ matters for your use case.
 | `DENSE_MODEL` | unset | Dense model override for Ollama |
 | `RRF_K` | `60` | RRF smoothing |
 | `HYBRID_PREFETCH_LIMIT` | `2` | Per-leg candidate multiplier: prefetch = max(top × mult, top + 1) |
-| `ENTITY_BOOST_ENABLED` | `0` | Enable post-RRF entity overlap boost (opt-in; see Entity Boost section) |
-| `ENTITY_BOOST_WEIGHT` | `0.0015` | Additive score bonus per overlapping entity token |
-| `ENTITY_BOOST_PREFETCH` | `20` | Candidate pool size for entity rerank; if ≤ top, no extra Qdrant call |
 | `RERANK_ENABLED` | `0` | Enable local reranker |
 | `RERANK_PREFETCH_MULT` | `4` | Candidate multiplier before reranking |
 | `RERANK_DEBUG` | `0` | Print reranker scoring details |

@@ -2,6 +2,12 @@
 
 *Generated: 2026-05-27*
 
+**Current status (2026-05-29):** situational benchmark evidence only. The
+production opt-in decision was rolled back by
+`2026-05-29T0000-entity-boost-production-rollback.md` after hard-technical
+validation showed the extractor does not generalize beyond semidex/code-style
+documents.
+
 ## Purpose
 
 Verify the entity-aware source-navigation MVP (`2026-05-27T1800-entity-aware-source-navigation-mvp.md`):

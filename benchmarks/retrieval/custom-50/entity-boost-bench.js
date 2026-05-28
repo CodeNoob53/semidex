@@ -27,7 +27,7 @@ import { fileURLToPath } from 'url';
 import { randomUUID } from 'crypto';
 
 import { stableSortResults } from './sort-results.js';
-import { queryEntityTokens, entityOverlap, applyEntityBoost } from '../../../src/core/entity-boost.js';
+import { queryEntityTokens, entityOverlap, applyEntityBoost } from './entity-boost-helpers.js';
 import { chunkFile } from '../../../src/indexer/phases/chunk.js';
 import { extractEntities } from '../../../src/indexer/phases/entities.js';
 import {

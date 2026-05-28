@@ -72,15 +72,15 @@ symbols, env var names, npm commands — are **source-navigation queries**. Exam
 - "What does `src/core/qdrant.js` export?"
 - "Entry point for `npm run bench:custom50`"
 
-For these queries, `qdrant_search` returns the correct chunk in top-10 reliably
-(chunkRecall@10 ≈ 96%), but it may not be in the top 3–5 without entity boost
-enabled. If source-navigation results look unexpectedly low-ranked:
+For these queries, `qdrant_search` usually returns the correct chunk in top-10,
+but exact file/symbol chunks may not always land in the top 3-5. If
+source-navigation results look unexpectedly low-ranked:
 
 - Increase `top` to 10 and scan the full list.
-- Check whether `ENTITY_BOOST_ENABLED=1` is set in your environment; entity
-  boost is designed specifically for this query class and improves cr@5 by ~2 pp
-  on the custom-50 benchmark. A fresh `semidex-docs` live validation also showed
-  2 source-navigation top-1 improvements with semantic queries unchanged.
+- Use exact identifiers in the query (`source_file`, function name, env var, or
+  command). Production MCP search does not currently apply entity boost; that
+  experiment is deferred until entity extraction generalizes beyond
+  semidex/code-style documentation.
 - Use `qdrant_list_files` or `qdrant_list_directories` if you need to enumerate
   files by path rather than retrieve by semantic query.
 

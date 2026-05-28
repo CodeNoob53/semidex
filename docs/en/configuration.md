@@ -212,19 +212,15 @@ PRUNE_STALE=1 SOURCE_ROOT=./docs COLLECTION=my-docs npm run index ./docs/guides
 
 ## Entity Boost
 
-Post-RRF rerank stage that improves source-navigation queries (file paths,
-symbols, env vars, npm commands). Disabled by default. See
-[retrieval.md — Entity Boost](retrieval.md#entity-boost-opt-in) and ADR 0005.
+Entity boost is deferred and is not available in production MCP search. The
+former `ENTITY_BOOST_*` environment variables are intentionally unsupported by
+`qdrant_search`.
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `ENTITY_BOOST_ENABLED` | `0` | Set to `1` to enable entity overlap boost after hybrid search |
-| `ENTITY_BOOST_WEIGHT` | `0.0015` | Additive score bonus per overlapping entity token |
-| `ENTITY_BOOST_PREFETCH` | `20` | Candidate pool fetched before entity rerank; if ≤ `top`, no extra Qdrant call |
-
-Old collections without `entities` in their payload are unaffected (overlap = 0).
-Run `APPLY=1 COLLECTION=<name> npm run backfill:entities` to add entity payload
-to an existing collection without re-embedding.
+The benchmark-only script `npm run bench:custom50:entity-boost` and
+`npm run backfill:entities` remain available for diagnostics while the entity
+creation layer is redesigned. See
+[retrieval.md — Entity Boost](retrieval.md#entity-boost-deferred-experiment)
+and ADR 0005.
 
 ## Reranking
 
