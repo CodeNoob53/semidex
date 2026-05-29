@@ -24,9 +24,13 @@
 
 ## B. Покращення
 
+> **Note:** Items P0 and P1/overlap have a detailed implementation plan in
+> `docs/design/bge-m3-token-aware-chunking-plan.md`. That document supersedes the
+> brief notes below for those two items.
+
 ### P0 — токен-лічильник
 
-- [ ] **Замінити `length/4` на реальний токенайзер BGE-M3.**
+- [ ] **Замінити `length/4` на реальний токенайзер BGE-M3.** *(in design — see plan doc)*
       `chunk.js:27` (`countTokens = len/4`), `length-bucket.js:16`, `index.js:246`.
       Звіт §«Діапазон 400–512»: для української через субслівний BPE XLM-RoBERTa
       400 токенів ≈ 200–300 слів — `length/4` (англоцентрична евристика) для кирилиці
@@ -37,7 +41,7 @@
 
 ### P1 — overlap
 
-- [ ] **Перевести overlap на 10–20% від розміру чанка (target ~15%).**
+- [ ] **Перевести overlap на 10–20% від розміру чанка (target ~15%).** *(in design — see plan doc)*
       Зараз `OVERLAP_SENTENCES=2` (`chunk.js:25`), речення, лише між суб-чанками
       секції, скидається на межі heading (`context.js:45`). Звіт §«Математика
       перекриття»: рекомендований overlap 50–100 токенів для 512 (≈15% = 75).
