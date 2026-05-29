@@ -210,18 +210,6 @@ PRUNE_STALE=1 SOURCE_ROOT=./docs COLLECTION=my-docs npm run index ./docs/guides
 | `RRF_K` | `60` | RRF smoothing constant |
 | `HYBRID_PREFETCH_LIMIT` | `2` | Per-leg candidate multiplier: prefetch = max(top × mult, top + 1) |
 
-## Entity Boost
-
-Entity boost is deferred and is not available in production MCP search. The
-former `ENTITY_BOOST_*` environment variables are intentionally unsupported by
-`qdrant_search`.
-
-The benchmark-only script `npm run bench:custom50:entity-boost` and
-`npm run backfill:entities` remain available for diagnostics while the entity
-creation layer is redesigned. See
-[retrieval.md — Entity Boost](retrieval.md#entity-boost-deferred-experiment)
-and ADR 0005.
-
 ## Reranking
 
 | Variable | Default | Description |

@@ -20,5 +20,5 @@ a decision is backed by benchmarks or implementation experience — not as specu
 | [0002](0002-hybrid-rrf-as-default-retrieval.md) | Hybrid dense+sparse RRF as default retrieval | Accepted |
 | [0003](0003-rerankers-default-off.md) | Rerankers default-off | Accepted |
 | [0004](0004-combined-llm-opt-in.md) | Combined LLM context+tags mode opt-in | Accepted |
-| [0005](0005-entity-boost-opt-in.md) | Entity boost deferred after scope validation | Deferred |
+| [0005](0005-entity-boost-opt-in.md) | Entity boost removed after scope validation | Accepted |
 | [0005-draft](0005-entity-indexing-benchmark-first.md) | Entity-aware indexing benchmark-first | Superseded |

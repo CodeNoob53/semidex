@@ -1,5 +1,6 @@
 import { generate } from '../../core/ollama.js';
 import { runBatched } from '../batch.js';
+import { OVERLAP_SENTENCES, splitSentences } from './chunk.js';
 
 const MODEL = process.env.CONTEXT_MODEL || 'gemma3:4b';
 const BATCH_SIZE = parseInt(process.env.LLM_BATCH_SIZE || '3');
@@ -33,17 +34,53 @@ ${chunkB.text.slice(0, 300)}`;
   return answer.trim().toLowerCase().includes('merge');
 }
 
+function sameMergeScope(chunkA, chunkB) {
+  return (
+    chunkA?.source_file === chunkB?.source_file &&
+    (chunkA?.section || '') === (chunkB?.section || '')
+  );
+}
+
+function overlapPrefixFrom(text) {
+  if (OVERLAP_SENTENCES <= 0) return '';
+  return splitSentences(text).slice(-OVERLAP_SENTENCES).join(' ').trim();
+}
+
+function addSplitOverlap(chunks) {
+  return chunks.map((chunk, idx) => {
+    if (idx === 0 || !chunk.needsBoundaryCheck) {
+      return { ...chunk, needsBoundaryCheck: false };
+    }
+
+    const prev = chunks[idx - 1];
+    if (!sameMergeScope(prev, chunk)) {
+      return { ...chunk, needsBoundaryCheck: false };
+    }
+
+    const prefix = overlapPrefixFrom(prev.text);
+    if (!prefix || chunk.text.startsWith(prefix)) {
+      return { ...chunk, needsBoundaryCheck: false };
+    }
+
+    return {
+      ...chunk,
+      text: `${prefix} ${chunk.text}`,
+      needsBoundaryCheck: false,
+    };
+  });
+}
+
 // Merge boundary-flagged adjacent chunks and reindex. No per-chunk context generation
 // (addContext is not called). shouldMerge() LLM calls still happen for boundary chunks.
 // Used directly by the combined path so it can skip the addContext step.
-export async function mergeChunks(chunks) {
+export async function mergeChunksWithDecisions(chunks, decideMerge) {
   const merged = [];
   let i = 0;
   while (i < chunks.length) {
     const current = chunks[i];
     if (current.needsBoundaryCheck && i > 0 && merged.length > 0) {
       const prev = merged.at(-1);
-      const merge = await shouldMerge(prev, current);
+      const merge = sameMergeScope(prev, current) ? await decideMerge(prev, current) : false;
       if (merge) {
         merged[merged.length - 1] = {
           ...prev,
@@ -57,7 +94,11 @@ export async function mergeChunks(chunks) {
     merged.push(current);
     i++;
   }
-  return merged.map((c, idx) => ({ ...c, chunkIndex: idx, totalChunks: merged.length }));
+  return addSplitOverlap(merged).map((c, idx) => ({ ...c, chunkIndex: idx, totalChunks: merged.length }));
+}
+
+export async function mergeChunks(chunks) {
+  return mergeChunksWithDecisions(chunks, shouldMerge);
 }
 
 export async function processChunks(chunks) {

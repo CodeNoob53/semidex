@@ -78,9 +78,7 @@ source-navigation results look unexpectedly low-ranked:
 
 - Increase `top` to 10 and scan the full list.
 - Use exact identifiers in the query (`source_file`, function name, env var, or
-  command). Production MCP search does not currently apply entity boost; that
-  experiment is deferred until entity extraction generalizes beyond
-  semidex/code-style documentation.
+  command).
 - Use `qdrant_list_files` or `qdrant_list_directories` if you need to enumerate
   files by path rather than retrieve by semantic query.
 

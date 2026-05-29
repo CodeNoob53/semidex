@@ -4,7 +4,7 @@ Status: Superseded
 
 Date: 2026-05-20
 
-Superseded by: [ADR 0005: Entity Boost Deferred After Scope Validation](0005-entity-boost-opt-in.md)
+Superseded by: [ADR 0005: Entity Boost Removed After Scope Validation](0005-entity-boost-opt-in.md)
 
 This draft captured an earlier, heavier entity-indexing direction: extract
 tables/code/entities, generate entity-specific context, and index those entities
@@ -12,9 +12,9 @@ as dedicated points. That direction remains a possible future architecture, but
 it is not the accepted production plan.
 
 The 2026-05-27 MVP was narrower and payload-only: extract lightweight entities
-into chunk payloads and test post-RRF entity boost. That production opt-in path
-was later deferred after scope validation showed the extractor did not
-generalize beyond semidex/code-style documentation.
+into chunk payloads and test post-RRF entity boost. That implementation path was
+later removed after scope validation showed the extractor did not generalize
+beyond semidex/code-style documentation.
 
 ## Context
 

@@ -247,11 +247,6 @@ export async function createCollection(name, size = 1024) {
   await createPayloadIndex(name, 'source_file', 'keyword');
   await createPayloadIndex(name, 'tags', 'keyword');
   await createPayloadIndex(name, 'chunk_index', 'integer');
-  await createPayloadIndex(name, 'entities.paths', 'keyword');
-  await createPayloadIndex(name, 'entities.symbols', 'keyword');
-  await createPayloadIndex(name, 'entities.env_vars', 'keyword');
-  await createPayloadIndex(name, 'entities.commands', 'keyword');
-  await createPayloadIndex(name, 'doc_role', 'keyword');
 }
 
 export async function deleteCollection(name) {

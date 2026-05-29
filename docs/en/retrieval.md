@@ -251,63 +251,6 @@ Evaluate MMR by checking whether `dupSourceRate` decreases and
 `sourceDiversity` increases without unacceptable drops in `Recall@1`, `MRR`, or
 `nDCG@K`.
 
-## Entity Boost (Deferred Experiment)
-
-Entity boost is not available in production MCP search. `qdrant_search` no
-longer reads or applies `ENTITY_BOOST_*` environment variables. The experiment
-is deferred because the current entity extractor is tuned to semidex/code
-documentation and does not reliably create useful entities for broader
-technical corpora.
-
-Status: `ENTITY_BOOST_DEFERRED_SITUATIONAL`. See ADR 0005 and
-`benchmarks/retrieval/results/2026-05-27T1619-entity-boost-private-linux-hard-technical-validation.md`.
-
-Earlier benchmark-only versions tested entity boost as a post-RRF rerank stage
-for **source-navigation queries** — queries that name specific file paths,
-function symbols, env vars, or npm commands.
-
-The experimental indexer/entity phase extracts structured entity tokens from each chunk
-at index time (`entities.paths`, `entities.symbols`, `entities.env_vars`,
-`entities.commands`). At query time, the same extractor runs on the query
-string and scores each candidate by entity token overlap:
-
-```text
-finalScore = rrfScore + ENTITY_BOOST_WEIGHT × |queryEntities ∩ chunkEntities|
-```
-
-The production MCP server does not expose a flag to enable this rerank stage. Queries with no
-entity tokens are unaffected (overlap = 0, boost = 0).
-
-**Experiment compatibility:** collections indexed before entity support was added
-have no `entities` field in their payloads. The boost produces overlap = 0 for
-those points, so benchmark diagnostics fall back to the unmodified result list.
-Run
-`APPLY=1 COLLECTION=<name> npm run backfill:entities` only for experimental
-diagnostics, not as a production quality-improvement step.
-
-**Situational benchmark evidence (custom-50, ONNX, 3 fresh reindexes):**
-
-| Weight | c35 | c36 | c37 | new hard reg | chunkRecall@5 |
-|--------|-----|-----|-----|-------------|---------------|
-| 0 (off) | ✓ | ✓ | ✗ | 0 | 89.8% |
-| 0.0015 | ✓ | ✓ | ✓ | 0 | 91.8% (+2.0pp) |
-
-Source-navigation cliff cases (c35, c36, c37) are stable 3/3 across all 3
-reindexes at weight 0.0015. No new regressions at any tested weight
-(0.001-0.005). Full evidence:
-`benchmarks/retrieval/results/2026-05-27T2000-entity-boost-benchmark.md`.
-This is no longer treated as production acceptance evidence.
-
-**Situational live validation (`semidex-docs`, fresh bootstrap index):** entity boost produced
-2 source-navigation top-1 improvements, 4 harmless tail reorders, and 8/8
-semantic queries unchanged. See
-`benchmarks/retrieval/results/2026-05-27T1422-entity-boost-live-optin-validation-refresh.md`.
-
-**Known tradeoff:** c36 (symbols query, 3 overlapping tokens) sees the Source
-Tree chunk promoted above the Key Modules subsection — MRR drops 0.500 → 0.333.
-Both chunks are rel=3 and cr@5 remains ✓. Monitor if rank-1 selection quality
-matters for your use case.
-
 ## Relevant Environment Variables
 
 | Variable | Default | Description |

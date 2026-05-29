@@ -55,9 +55,9 @@ for each area. For superseded or exploratory runs in the same area, check
 | Deterministic point IDs | `2026-05-23T1249-deterministic-point-id-implementation.md` | Deterministic ID implementation record | |
 | MCP agent UX | `2026-05-25-mcp-agent-ux-polish-v3-live-retest.md` | Current agent workflow retest verdict | v2 retest also in results/ for v2→v3 diff |
 | Link-building equivalence | `link-equivalence-snapshot-*.json` | Dense-reuse graph equivalence snapshots | Machine-readable; 4 snapshots |
-| Entity boost — design | `2026-05-27T1600-source-navigation-entity-chunking-design.md` | Root cause analysis + MVP design for source-navigation cliff cases | |
-| Entity boost — implementation | `2026-05-27T1800-entity-aware-source-navigation-mvp.md` | MVP implementation record | |
-| Entity boost — rollback decision | `2026-05-29T0000-entity-boost-production-rollback.md` | **Current entity boost decision; verdict ENTITY_BOOST_DEFERRED_SITUATIONAL** | Production `qdrant_search` boost removed; prior positive runs are situational only |
+| Entity boost — historical design | `2026-05-27T1600-source-navigation-entity-chunking-design.md` | Superseded source-navigation boost design | Historical only; superseded by removal decision |
+| Entity boost — historical implementation | `2026-05-27T1800-entity-aware-source-navigation-mvp.md` | Removed MVP implementation record | Historical only; code path removed |
+| Entity boost — removal decision | `2026-05-29T0000-entity-boost-production-rollback.md` | **Current entity boost decision; verdict ENTITY_BOOST_REMOVED** | Runtime, benchmark command, and backfill path removed; prior positive runs are situational only |
 | Entity boost — benchmark | `2026-05-27T2000-entity-boost-benchmark.md` | Situational source-navigation evidence | custom-50 improved, but not sufficient for production acceptance |
 | Entity boost — live validation | `2026-05-27T1422-entity-boost-live-optin-validation-refresh.md` | Situational semidex-docs evidence | Fresh semidex-docs index; still semidex-like technical docs |
 
@@ -77,11 +77,7 @@ for each area. For superseded or exploratory runs in the same area, check
 | Validate MCP agent workflow | `2026-05-25-mcp-agent-ux-polish-v3-live-retest.md` |
 | Understand answer-policy edge cases | `2026-05-12-custom-raw-*.md` series |
 | Understand tag generation behavior | `2026-05-20-tag-usefulness-audit.md`, `2026-05-21T1833-tag-gen-ablation-custom50.md` |
-| Understand current entity boost decision | `2026-05-29T0000-entity-boost-production-rollback.md`, then `docs/adr/0005-entity-boost-opt-in.md` |
-| Understand source-navigation boost evidence | `2026-05-27T2000-entity-boost-benchmark.md` and `2026-05-27T1422-entity-boost-live-optin-validation-refresh.md` — situational only |
-| Understand entity boost extractor scope limits | `2026-05-27T1619-entity-boost-private-linux-hard-technical-validation.md` — failed generalization test; boost no-op on general Linux/shell docs |
-| Understand entity boost root cause and design | `2026-05-27T1600-source-navigation-entity-chunking-design.md` |
-| Understand entity boost implementation | `2026-05-27T1800-entity-aware-source-navigation-mvp.md` |
+| Understand why entity boost was removed | `2026-05-29T0000-entity-boost-production-rollback.md`, then `docs/adr/0005-entity-boost-opt-in.md` |
 
 ## How To Navigate
 

@@ -1,6 +1,6 @@
-# ADR 0005: Entity Boost Deferred After Scope Validation
+# ADR 0005: Entity Boost Removed After Scope Validation
 
-Status: Deferred
+Status: Accepted
 
 Date: 2026-05-29
 
@@ -24,15 +24,15 @@ realistic technical corpus.
 
 ## Decision
 
-Entity boost is removed from production MCP search.
+Entity boost is removed from semidex runtime and benchmark tooling.
 
 - `qdrant_search` no longer reads or applies `ENTITY_BOOST_ENABLED`,
   `ENTITY_BOOST_WEIGHT`, or `ENTITY_BOOST_PREFETCH`.
 - The default production search path remains hybrid dense+sparse RRF, with the
   existing `RERANK_ENABLED=1` path as the only optional production rerank stage.
 - Entity payload extraction, payload indexes, backfill tooling, and
-  `bench:custom50:entity-boost` remain as experimental infrastructure for
-  future entity-layer work.
+  `bench:custom50:entity-boost` are removed. Historical reports remain as
+  evidence only.
 - The previous positive custom-50 and semidex-docs results are retained as
   situational evidence, not as production acceptance evidence.
 
@@ -54,44 +54,32 @@ Entity boost is removed from production MCP search.
    source-navigation. They do not validate entity extraction as a general RAG
    primitive.
 
-4. **The underlying idea is still worth preserving.** Payload entities and
-   overlap-based reranking remain promising, but they need a neutral/entity-profile
-   extraction layer and broader validation before production exposure.
+4. **The implementation path should not be preserved.** Regex-token payloads and
+   post-RRF overlap boosting are not the structural entity model semidex needs.
+   Future work should be specified separately, for example through skeleton-first
+   chunking, rather than extending this experiment.
 
 ## Current Status
 
-Verdict: `ENTITY_BOOST_DEFERRED_SITUATIONAL`
+Verdict: `ENTITY_BOOST_REMOVED`
 
-Entity boost is a failed production rollout attempt, not a failed research
-direction. It should be treated as a benchmark-only experiment until the entity
-creation layer is redesigned and validated.
+Entity boost was a failed production rollout attempt. It is not available as a
+runtime feature, benchmark command, or backfill path.
 
-## Future Acceptance Criteria
+## Future Work Boundary
 
-Reconsider production exposure only after all of the following are true:
-
-1. A neutral entity extractor exists and is documented.
-2. Optional domain profiles are explicit and named, for example:
-   `neutral`, `code-docs`, `linux-devops`, `api-docs`.
-3. Entity extraction is validated on at least:
-   - semidex/code documentation
-   - Linux/devops technical documentation
-   - one prose-heavy or non-code corpus
-4. Benchmarks show no new hard regressions vs hybrid RRF.
-5. Reports clearly separate:
-   - entity creation quality
-   - boost/rerank quality
-   - retrieval quality without entity boost
+Do not reintroduce this mechanism as a shortcut. Any future entity work should
+start from a separate design, with structural document objects and benchmark
+coverage before implementation.
 
 ## Consequences
 
-- Production MCP behavior is simpler and safer: no hidden entity rerank path.
-- Existing indexed `entities` payloads are harmless metadata and may be reused by
-  future experiments.
-- `backfill:entities` remains available for diagnostics, but should not be
-  presented as a production quality improvement path.
-- Documentation must describe entity boost as deferred/benchmark-only, not as an
-  accepted opt-in feature.
+- Production MCP behavior is simpler: no hidden entity rerank path.
+- New indexes do not write `entities` payloads or `doc_role`.
+- Existing old collections may still contain stale `entities` metadata, but
+  semidex no longer reads or maintains it.
+- Documentation must not present entity boost as an available agent, benchmark,
+  or production workflow.
 
 ## Evidence
 

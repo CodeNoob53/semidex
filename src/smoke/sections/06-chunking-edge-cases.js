@@ -2,6 +2,7 @@ export default async function ({ ok }) {
   console.log('\n[6] Chunking edge cases');
 
   const { chunkFile } = await import('../../indexer/phases/chunk.js');
+  const { mergeChunksWithDecisions } = await import('../../indexer/phases/context.js');
 
   // 6a. Short .txt (1-2 sentences) must not return 0 chunks.
   const short1 = 'Hello world.';
@@ -38,4 +39,49 @@ export default async function ({ ok }) {
   // 6f. chunkIndex / totalChunks metadata is correct.
   ok('chunkIndex + totalChunks set correctly',
     r1[0].chunkIndex === 0 && r1[0].totalChunks === 1);
+
+  // 6g. LLM merge decisions must see clean split boundaries; overlap is added only
+  // when the split is kept, so merged chunks do not duplicate overlap sentences.
+  const boundaryChunks = [
+    {
+      text: 'Alpha one. Beta two. Gamma three.',
+      section: 'Merge Test',
+      source_file: 'merge.md',
+      needsBoundaryCheck: false,
+    },
+    {
+      text: 'Delta four. Epsilon five.',
+      section: 'Merge Test',
+      source_file: 'merge.md',
+      needsBoundaryCheck: true,
+    },
+  ];
+
+  let seenBoundary = null;
+  const merged = await mergeChunksWithDecisions(boundaryChunks, async (_prev, current) => {
+    seenBoundary = current.text;
+    return true;
+  });
+  ok('merge decision sees current chunk without pre-applied overlap',
+    seenBoundary === 'Delta four. Epsilon five.');
+  ok('merge after clean split does not duplicate overlap text',
+    merged.length === 1 &&
+    merged[0].text === 'Alpha one. Beta two. Gamma three.\nDelta four. Epsilon five.');
+
+  const split = await mergeChunksWithDecisions(boundaryChunks, async () => false);
+  ok('split after merge decision adds overlap to second chunk',
+    split.length === 2 &&
+    split[1].text === 'Beta two. Gamma three. Delta four. Epsilon five.');
+
+  let crossSectionCalls = 0;
+  const crossSection = await mergeChunksWithDecisions([
+    { ...boundaryChunks[0], section: 'A' },
+    { ...boundaryChunks[1], section: 'B' },
+  ], async () => {
+    crossSectionCalls++;
+    return true;
+  });
+  ok('merge decision is not called across section boundaries', crossSectionCalls === 0);
+  ok('overlap is not applied across section boundaries',
+    crossSection[1].text === 'Delta four. Epsilon five.');
 }

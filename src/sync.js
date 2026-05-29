@@ -8,17 +8,10 @@ import { listCollections, getCollectionInfo, createPayloadIndex, addSparseVector
 import { SCHEMA_VERSION } from './core/embeddings.js';
 
 // Required indexes for MCP filters and hash-based skip to work correctly.
-// Entity payload indexes are included so existing collections receive them on
-// the next `npm run sync` without needing a full reindex.
 const REQUIRED_INDEXES = {
   'source_file':      'keyword',
   'tags':             'keyword',
   'chunk_index':      'integer',
-  'entities.paths':   'keyword',
-  'entities.symbols': 'keyword',
-  'entities.env_vars':'keyword',
-  'entities.commands':'keyword',
-  'doc_role':         'keyword',
 };
 
 const config = loadConfig();

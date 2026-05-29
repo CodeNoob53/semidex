@@ -22,11 +22,11 @@ function envInt(name, defaultVal, min, max) {
 
 const MAX_TOKENS       = envInt('MAX_CHUNK_TOKENS',  400, 1, 100000);
 const MIN_TOKENS       = envInt('MIN_CHUNK_TOKENS',   30, 0, 100000);
-const OVERLAP_SENTENCES = envInt('OVERLAP_SENTENCES',  2, 0, 100);
+export const OVERLAP_SENTENCES = envInt('OVERLAP_SENTENCES',  2, 0, 100);
 
 const countTokens = (text) => Math.ceil(text.length / 4);
 
-function splitSentences(text) {
+export function splitSentences(text) {
   const parts = text.match(/[^.!?\n]+[.!?\n]+|[^.!?\n]+$/g) ?? [];
   const result = parts.map(s => s.trim()).filter(Boolean);
   return result.length ? result : [text];
@@ -55,7 +55,7 @@ function parseWikilinks(text) {
 
 // Recursive text chunker: paragraph → sentence → word.
 // Each level tries to pack units up to MAX_TOKENS before falling to the next level.
-// No overlap — overlap is the responsibility of chunkBySentences used by chunkSections.
+// No overlap here; indexing overlap is applied after merge/split boundary decisions.
 // stripPageMarkers: strip "-- N of M --" markers emitted by pdf-parse.
 export function recursiveChunkText(text, { stripPageMarkers = false } = {}) {
   let src = text;
@@ -109,11 +109,10 @@ function _splitLevel(text, levels) {
   return chunks;
 }
 
-function chunkBySentences(text, prevSentences = []) {
+function chunkBySentences(text) {
   const sentences = splitSentences(text);
   const chunks = [];
-  const overlap = OVERLAP_SENTENCES > 0 ? prevSentences.slice(-OVERLAP_SENTENCES) : [];
-  let current = [...overlap];
+  let current = [];
   let pending = 0;
 
   for (const sentence of sentences) {
@@ -121,7 +120,7 @@ function chunkBySentences(text, prevSentences = []) {
     pending++;
     if (countTokens(current.join(' ')) >= MAX_TOKENS) {
       chunks.push(current.join(' '));
-      current = OVERLAP_SENTENCES > 0 ? current.slice(-OVERLAP_SENTENCES) : [];
+      current = [];
       pending = 0;
     }
   }
@@ -198,7 +197,8 @@ function chunkSections(sections, sourceFile, meta = {}, links = []) {
     if (!section.text || !section.text.trim()) continue;
     if (!section.heading && countTokens(section.text) < MIN_TOKENS) continue;
 
-    // prevSentences resets per section so overlap never crosses heading boundaries.
+    // Section chunks are split cleanly here. Overlap is added later, after
+    // merge/split boundary decisions, so merge never duplicates overlap text.
     if (countTokens(section.text) <= MAX_TOKENS) {
       chunks.push({ text: section.text, section: section.heading, source_file: sourceFile, meta, links, needsBoundaryCheck: false });
     } else {

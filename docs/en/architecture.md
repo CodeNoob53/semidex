@@ -52,7 +52,9 @@ The parser tries to preserve document structure:
 - Markdown headings and sections are respected.
 - Body text styled as a heading by Word/pandoc artifacts is kept as content.
 - Oversized sections fall back to sentence splitting.
-- Sentence overlap is reset at section boundaries, so overlap does not leak content from one heading into another.
+- Sentence overlap is applied after merge/split boundary decisions and is reset
+  at section boundaries, so overlap does not leak content from one heading into
+  another or duplicate inside merged chunks.
 - Very short `.txt` files are preserved instead of being dropped.
 
 ### Format-specific behavior
@@ -208,4 +210,3 @@ semidex is designed for local/private knowledge bases:
 | `aapot/bge-m3-onnx` through ONNX Runtime | Dense + neural sparse multilingual embeddings |
 
 No document text needs to leave your machine when using local Qdrant/Ollama/ONNX.
-
