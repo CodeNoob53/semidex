@@ -101,6 +101,10 @@ export async function mergeChunks(chunks) {
   return mergeChunksWithDecisions(chunks, shouldMerge);
 }
 
+export async function mergeChunksDeterministic(chunks) {
+  return mergeChunksWithDecisions(chunks, async () => false);
+}
+
 export async function processChunks(chunks) {
   const reindexed = await mergeChunks(chunks);
   return runBatched(reindexed, BATCH_SIZE, addContext);
