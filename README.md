@@ -19,6 +19,7 @@ In simple terms: semidex helps an AI find the right paragraph, section, command,
 
 - [Problems semidex solves](#problems-semidex-solves)
 - [Quick Start](#quick-start)
+- [Platform Support](#platform-support)
 - [Documentation](#documentation)
 - [How It Fits Together](#how-it-fits-together)
 - [Recommended Modes](#recommended-modes)
@@ -98,6 +99,20 @@ Reconnect the MCP server in Claude Code and run `/mcp`. The server appears as `q
 <td><img src="assets/avif/mcp_connected.avif" alt="MCP connected"/></td>
 <td><img src="assets/avif/mcp_status.avif" alt="MCP tools status"/></td>
 </tr></table>
+
+## Platform Support
+
+Verified support currently targets **Windows 10/11**. The tested local setup is
+Node.js with ONNX Runtime on CPU or DirectML (`ONNX_EXECUTION_PROVIDER=dml`) and
+Ollama using the available GPU backend.
+
+Linux and macOS are **experimental / unverified**. The Node.js entry points and
+CPU path are intended to remain portable, and Ollama may use platform GPU
+backends such as CUDA or Metal, but semidex does not claim end-to-end support for
+those systems until they are tested on physical hardware.
+
+See [docs/en/configuration.md](docs/en/configuration.md#platform-support) for the
+detailed support matrix.
 
 ## Documentation
 

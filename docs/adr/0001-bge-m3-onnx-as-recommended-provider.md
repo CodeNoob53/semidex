@@ -56,8 +56,9 @@ not affect vector values, collection metadata, or provider compatibility.
   existing collection has an incompatible schema (e.g. plain vectors from a non-semidex
   indexer); for provider changes within semidex, the indexer detects the mismatch and
   reindexes each file automatically.
-- Windows GPU acceleration uses `ONNX_EXECUTION_PROVIDER=dml`; CUDA is Linux-only via the
-  prebuilt npm path.
+- Windows GPU acceleration uses the verified `ONNX_EXECUTION_PROVIDER=dml` path.
+  CUDA is an experimental / unverified advanced opt-in intended for Linux x64 +
+  NVIDIA; Linux and macOS are not yet supported end-to-end.
 
 ## Evidence
 

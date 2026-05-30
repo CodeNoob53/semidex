@@ -404,8 +404,9 @@ answers, eliminating the regression.
 p50 latency is ~3 500 ms on CPU (67× slower than deterministic reranking at
 ~52 ms). This is per-query inference over 40 candidate passages on a single CPU
 core. GPU acceleration (`ONNX_EXECUTION_PROVIDER=dml` or `cuda`) would reduce
-this substantially, but latency has not been measured on GPU. Cross-encoder
-reranking is **not suitable for interactive MCP use at CPU speed**.
+this substantially, but latency has not been measured on GPU. Windows DirectML
+is the verified ONNX GPU path; CUDA remains experimental / unverified. Cross-
+encoder reranking is **not suitable for interactive MCP use at CPU speed**.
 
 ### CE routing guard — custom-50 result
 

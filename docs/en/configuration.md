@@ -102,24 +102,42 @@ COMBINED_LLM=1 COLLECTION=my-docs npm run index ./docs
 | `ONNX_CUDA_STRICT` | `0` | Set to `1` to hard-fail on CUDA provider load failure instead of retrying CPU. Only relevant when `ONNX_EXECUTION_PROVIDER=cuda`. |
 | `ONNX_BATCH_SIZE` | `4` | Batch size for Windows DirectML batching (1–64); ignored on CPU/CUDA |
 
+### Platform Support
+
+semidex currently provides verified end-to-end support for **Windows 10/11**.
+Linux and macOS remain **experimental / unverified** until indexing, search,
+Ollama integration, and MCP operation are tested on physical hardware.
+
+Cross-platform Node.js dependencies make the CPU path likely to work outside
+Windows, and Ollama may use platform-specific GPU backends such as CUDA or Metal.
+These are expected capabilities, not support guarantees.
+
+| Platform | Support status | Verified ONNX path | Notes |
+|----------|----------------|--------------------|-------|
+| Windows 10/11 | Supported | `cpu`; `dml` opt-in | Primary development and test platform |
+| Linux | Experimental / unverified | None | Try `cpu` first. `cuda` is an unverified advanced opt-in for Linux x64 + NVIDIA |
+| macOS | Experimental / unverified | None | Try `cpu` first. Ollama Metal acceleration may work, but is not validated end-to-end |
+
 ### ONNX_EXECUTION_PROVIDER
 
 Controls which hardware backend ONNX Runtime uses for inference. Only relevant when `ONNX_EMBED=1`.
 
-**Platform provider matrix:**
+**Execution-provider matrix:**
 
 | Platform | Recommended provider | Status |
 |----------|----------------------|--------|
-| Any OS | `cpu` | Default, safe, no extra setup |
-| Windows (any GPU vendor) | `dml` | Recommended Windows GPU path |
-| Linux x64 + NVIDIA | `cuda` | Opt-in, advanced/experimental |
-| Windows + NVIDIA CUDA | — | Not supported via prebuilt npm |
+| Windows | `cpu` | Verified default, no extra setup |
+| Windows with supported GPU | `dml` | Verified opt-in GPU path |
+| Linux | `cpu` | Experimental / unverified |
+| Linux x64 + NVIDIA | `cuda` | Experimental / unverified advanced opt-in |
+| macOS | `cpu` | Experimental / unverified |
+| Windows + NVIDIA CUDA | — | Not supported via prebuilt npm; use `dml` |
 
 | Value | Backend | Notes |
 |-------|---------|-------|
-| `cpu` (default) | CPU | Portable, no extra setup required |
-| `dml` | DirectML | Windows GPU acceleration (NVIDIA, AMD, Intel). Falls back to CPU if DirectML is unavailable. No extra package needed — `onnxruntime-node` includes DirectML support on Windows. |
-| `cuda` | NVIDIA CUDA | **Linux x64 + NVIDIA only, advanced/experimental.** Requires CUDA 12.x + cuDNN 9 installed separately. On Windows, no official prebuilt path exists — semidex does not support Windows CUDA. If CUDA is unavailable, semidex warns and retries with CPU automatically (see gap note below). |
+| `cpu` (default) | CPU | Verified on Windows. Intended to be portable, but Linux and macOS remain experimental until validated end-to-end. |
+| `dml` | DirectML | Verified Windows GPU acceleration path. Falls back to CPU if DirectML is unavailable. No extra package needed — `onnxruntime-node` includes DirectML support on Windows. |
+| `cuda` | NVIDIA CUDA | **Experimental / unverified.** Intended for Linux x64 + NVIDIA only. Requires CUDA 12.x + cuDNN 9 installed separately. On Windows, no official prebuilt path exists — use `dml`. If CUDA is unavailable, semidex warns and retries with CPU automatically (see gap note below). |
 
 `dml` and `cpu` are **performance-only** — they do not change the embedding model or provider metadata and do not require reindexing; minor numeric differences between execution providers are possible and do not affect retrieval quality.
 

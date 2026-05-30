@@ -4,6 +4,9 @@ The MCP server is the reader side of semidex. It lets an AI agent query indexed 
 
 ## Registering in Claude Code
 
+Verified end-to-end support currently targets Windows 10/11. The Linux and
+macOS registration command is provided for experimental / unverified setups.
+
 Linux / macOS:
 
 ```bash
