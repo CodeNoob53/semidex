@@ -12,6 +12,8 @@ export default async function ({ ok }) {
     sparse_provider: 'bge-m3-onnx',
     embedding_schema_version: 2,
     vector_size: 1024,
+    chunking_schema_version: 1,
+    token_count_mode: 'bge-m3',
   };
 
   ok('full semidex payload → true', isSemidexPayload(FULL));

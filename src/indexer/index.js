@@ -20,6 +20,7 @@ import { loadGraph, saveGraph, removeFile } from '../core/graph.js';
 import { loadConfig, saveConfig, resolveEnvProviders } from '../core/config.js';
 import { embedForIndex, embedForIndexBatch, shouldUseOnnxBatching, getEmbeddingConfig, SCHEMA_VERSION } from '../core/embeddings.js';
 import { ensureOllamaPreflight } from './preflight.js';
+import { CHUNKING_SCHEMA_VERSION, getTokenCounter, resolveTokenCountMode } from '../core/token-count.js';
 
 const BATCH_SIZE   = parseInt(process.env.LLM_BATCH_SIZE || '3');
 const CHUNKS_OUT_DIR = process.env.CHUNKS_OUT_DIR || './chunks_out';
@@ -46,6 +47,7 @@ async function indexFile(filePath, rootPath, collection, allCollections, graph) 
   }
 
   const embedCfg       = getEmbeddingConfig(collection);
+  const tokenCountMode = resolveTokenCountMode();
   const configVectorSize = loadConfig().collections?.[collection]?.vectorSize ?? VECTOR_SIZE;
 
   const fileHash   = await hashFile(filePath);
@@ -59,6 +61,8 @@ async function indexFile(filePath, rootPath, collection, allCollections, graph) 
     storedMeta?.denseModel             === embedCfg.denseModel &&
     storedMeta?.sparseProvider         === embedCfg.sparseProvider &&
     storedMeta?.embeddingSchemaVersion === embedCfg.schemaVersion &&
+    storedMeta?.chunkingSchemaVersion  === CHUNKING_SCHEMA_VERSION &&
+    storedMeta?.tokenCountMode         === tokenCountMode &&
     (storedMeta?.vectorSize ?? configVectorSize) === configVectorSize
   ) {
     console.log('  ✓ unchanged, skipping');
@@ -76,12 +80,17 @@ async function indexFile(filePath, rootPath, collection, allCollections, graph) 
   const genTagsPreflight = shouldGenerateTags(process.env);
   const tagModel = (combinedCfg.enabled || !genTagsPreflight) ? contextModel : (process.env.TAG_MODEL || 'gemma3:4b');
   await ensureOllamaPreflight(ollamaUrl, contextModel, tagModel);
+  // Load/download tokenizer before deleting existing points. A tokenizer
+  // failure must leave the previously indexed file intact.
+  if (tokenCountMode === 'bge-m3') await getTokenCounter({ mode: 'bge-m3' });
   if (storedHash && !process.env.SKIP_PRE_DELETE) {
     const reasons = [];
     if (storedMeta?.denseProvider          !== embedCfg.denseProvider)  reasons.push(`denseProvider: ${storedMeta?.denseProvider} → ${embedCfg.denseProvider}`);
     if (storedMeta?.denseModel             !== embedCfg.denseModel)     reasons.push(`denseModel: ${storedMeta?.denseModel} → ${embedCfg.denseModel}`);
     if (storedMeta?.sparseProvider         !== embedCfg.sparseProvider) reasons.push(`sparseProvider: ${storedMeta?.sparseProvider} → ${embedCfg.sparseProvider}`);
     if (storedMeta?.embeddingSchemaVersion !== embedCfg.schemaVersion)  reasons.push(`schemaVersion: ${storedMeta?.embeddingSchemaVersion} → ${embedCfg.schemaVersion}`);
+    if (storedMeta?.chunkingSchemaVersion  !== CHUNKING_SCHEMA_VERSION) reasons.push(`chunkingSchemaVersion: ${storedMeta?.chunkingSchemaVersion} → ${CHUNKING_SCHEMA_VERSION}`);
+    if (storedMeta?.tokenCountMode         !== tokenCountMode)          reasons.push(`tokenCountMode: ${storedMeta?.tokenCountMode} → ${tokenCountMode}`);
     if ((storedMeta?.vectorSize ?? configVectorSize) !== configVectorSize) reasons.push(`vectorSize: ${storedMeta?.vectorSize} → ${configVectorSize}`);
     const reason = reasons.length ? reasons.join(', ') : 'content changed';
     console.log(`  ~ ${reason}, reindexing...`);
@@ -209,6 +218,8 @@ async function indexFile(filePath, rootPath, collection, allCollections, graph) 
           total_chunks: chunk.totalChunks,
           file_hash: fileHash,
           vector_size: configVectorSize,
+          chunking_schema_version: CHUNKING_SCHEMA_VERSION,
+          token_count_mode: tokenCountMode,
           ...meta,
         },
       },

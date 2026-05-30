@@ -131,7 +131,7 @@ export async function getStoredMeta(collection, sourceFile) {
     collection,
     { must: [{ key: 'source_file', match: { value: sourceFile } }] },
     1,
-    ['file_hash', 'dense_provider', 'dense_model', 'sparse_provider', 'embedding_schema_version', 'vector_size']
+    ['file_hash', 'dense_provider', 'dense_model', 'sparse_provider', 'embedding_schema_version', 'vector_size', 'chunking_schema_version', 'token_count_mode']
   );
   const p = points[0]?.payload;
   return p ? {
@@ -141,6 +141,8 @@ export async function getStoredMeta(collection, sourceFile) {
     sparseProvider:         p.sparse_provider          ?? null,
     embeddingSchemaVersion: p.embedding_schema_version ?? null,
     vectorSize:             p.vector_size              ?? null,
+    chunkingSchemaVersion:  p.chunking_schema_version  ?? null,
+    tokenCountMode:         p.token_count_mode          ?? null,
   } : null;
 }
 
@@ -277,6 +279,7 @@ const SEMIDEX_PAYLOAD_FIELDS = [
   'source_file', 'chunk_index', 'file_hash',
   'dense_provider', 'dense_model', 'sparse_provider',
   'embedding_schema_version', 'vector_size',
+  'chunking_schema_version', 'token_count_mode',
 ];
 
 // Pure helper — returns true when the given payload object contains all

@@ -4,6 +4,7 @@ import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { createRequire } from 'module';
 import pdf2md from '@opendocsg/pdf2md';
+import { heuristicTokenCount, getTokenCounter, resolveTokenCountMode } from '../../core/token-count.js';
 
 const require = createRequire(import.meta.url);
 const { PDFParse } = require('pdf-parse');
@@ -24,7 +25,9 @@ const MAX_TOKENS       = envInt('MAX_CHUNK_TOKENS',  400, 1, 100000);
 const MIN_TOKENS       = envInt('MIN_CHUNK_TOKENS',   30, 0, 100000);
 export const OVERLAP_SENTENCES = envInt('OVERLAP_SENTENCES',  2, 0, 100);
 
-const countTokens = (text) => Math.ceil(text.length / 4);
+// Sync heuristic used by the legacy sync chunking path. Aliased from
+// token-count.js so both paths share the same implementation.
+const countTokens = heuristicTokenCount;
 
 export function splitSentences(text) {
   const parts = text.match(/[^.!?\n]+[.!?\n]+|[^.!?\n]+$/g) ?? [];
@@ -229,7 +232,120 @@ export function chunkFile(filePath, text, sourceFile) {
   return chunks.map((c, i) => ({ ...c, chunkIndex: i, totalChunks: chunks.length }));
 }
 
+// ── async token-aware chunking helpers ────────────────────────────────────
+// Used by the production indexer. The sync chunkFile helper remains heuristic
+// for legacy callers and benchmarks until they explicitly migrate.
+
+async function _splitLevelAsync(text, levels, countFn) {
+  if (await countFn(text) <= MAX_TOKENS) return [text];
+  if (levels.length === 0) return [text];
+
+  const [level, ...rest] = levels;
+  const units = level.split(text);
+  if (units.length <= 1) return _splitLevelAsync(text, rest, countFn);
+
+  const chunks = [];
+  let current = [];
+  let currentTokens = 0;
+
+  for (const unit of units) {
+    const ut = await countFn(unit);
+    if (ut > MAX_TOKENS) {
+      if (current.length > 0) {
+        chunks.push(current.join(level.join));
+        current = [];
+        currentTokens = 0;
+      }
+      chunks.push(...await _splitLevelAsync(unit, rest, countFn));
+    } else if (currentTokens + ut > MAX_TOKENS && current.length > 0) {
+      chunks.push(current.join(level.join));
+      current = [unit];
+      currentTokens = ut;
+    } else {
+      current.push(unit);
+      currentTokens += ut;
+    }
+  }
+  if (current.length > 0) chunks.push(current.join(level.join));
+  return chunks;
+}
+
+async function recursiveChunkTextAsync(text, countFn, { stripPageMarkers = false } = {}) {
+  let src = text;
+  if (stripPageMarkers) src = src.replace(/--\s*\d+\s*of\s*\d+\s*--/g, '');
+  src = src.replace(/\n{3,}/g, '\n\n').trim();
+  if (!src) return [];
+  return _splitLevelAsync(src, LEVELS, countFn);
+}
+
+async function chunkBySentencesAsync(text, countFn) {
+  const sentences = splitSentences(text);
+  const chunks = [];
+  let current = [];
+  let pending = 0;
+
+  for (const sentence of sentences) {
+    current.push(sentence);
+    pending++;
+    if (await countFn(current.join(' ')) >= MAX_TOKENS) {
+      chunks.push(current.join(' '));
+      current = [];
+      pending = 0;
+    }
+  }
+  if (pending > 0) chunks.push(current.join(' '));
+  return chunks;
+}
+
+async function chunkSectionsAsync(sections, sourceFile, meta = {}, links = [], countFn) {
+  const chunks = [];
+
+  for (const section of sections) {
+    if (!section.text || !section.text.trim()) continue;
+    if (!section.heading && await countFn(section.text) < MIN_TOKENS) continue;
+
+    if (await countFn(section.text) <= MAX_TOKENS) {
+      chunks.push({ text: section.text, section: section.heading, source_file: sourceFile, meta, links, needsBoundaryCheck: false });
+    } else {
+      const subChunks = await _splitLevelAsync(section.text, LEVELS, countFn);
+      subChunks.forEach((t, i) => {
+        chunks.push({ text: t, section: section.heading, source_file: sourceFile, meta, links, needsBoundaryCheck: i > 0 });
+      });
+    }
+  }
+  return chunks;
+}
+
+/**
+ * Async variant of chunkFile. Accepts a countFn for token-aware splitting.
+ * Used by the production chunkFileFromPath real-tokenizer mode.
+ * The sync chunkFile() is not modified.
+ *
+ * @param {string} filePath
+ * @param {string} text
+ * @param {string} sourceFile
+ * @param {(text: string) => Promise<number>} countFn
+ */
+export async function chunkFileAsync(filePath, text, sourceFile, countFn = heuristicTokenCount) {
+  const ext = extname(filePath).toLowerCase();
+  const chunks = [];
+
+  if (ext === '.md') {
+    const { meta, sections } = parseMarkdown(text);
+    const links = parseWikilinks(text);
+    chunks.push(...await chunkSectionsAsync(sections, sourceFile, meta, links, countFn));
+  } else {
+    const subChunks = await chunkBySentencesAsync(text, countFn);
+    subChunks.forEach((t, i) => {
+      chunks.push({ text: t, section: '', source_file: sourceFile, meta: {}, links: [], needsBoundaryCheck: i > 0 });
+    });
+  }
+
+  return chunks.map((c, i) => ({ ...c, chunkIndex: i, totalChunks: chunks.length }));
+}
+
 const PANDOC_FORMATS = new Set(['.docx', '.odt', '.rtf', '.epub', '.html', '.htm']);
+let tokenCounterLogShown = false;
 
 // Returns true if the pdf2md Markdown output has enough heading lines to use the structured path.
 export function hasPdfStructure(md) {
@@ -238,6 +354,21 @@ export function hasPdfStructure(md) {
 
 export async function chunkFileFromPath(filePath, sourceFile) {
   const ext = extname(filePath).toLowerCase();
+
+  // Real BGE-M3 tokenization is the production default. TOKEN_COUNT=heuristic
+  // is an explicit compatibility/performance fallback.
+  const tokenCountMode = resolveTokenCountMode();
+  let countFn = null;
+  let useAsync = false;
+
+  if (tokenCountMode === 'bge-m3') {
+    countFn = await getTokenCounter({ mode: 'bge-m3' });
+    useAsync = true;
+    if (!tokenCounterLogShown) {
+      process.stderr.write('[chunk] token counter: bge-m3 tokenizer\n');
+      tokenCounterLogShown = true;
+    }
+  }
 
   if (ext === '.pdf') {
     const data = readFileSync(filePath);
@@ -249,13 +380,23 @@ export async function chunkFileFromPath(filePath, sourceFile) {
     const hasStructure = hasPdfStructure(md);
     if (hasStructure) {
       const clean = md.replace(/<!-- PAGE_BREAK -->/g, '\n').replace(/\n{3,}/g, '\n\n');
-      return chunkFile(filePath.replace(/\.pdf$/i, '.md'), clean, sourceFile);
+      const mdPath = filePath.replace(/\.pdf$/i, '.md');
+      return useAsync
+        ? chunkFileAsync(mdPath, clean, sourceFile, countFn)
+        : chunkFile(mdPath, clean, sourceFile);
     }
 
     console.warn(`  [chunk] pdf2md produced no structure for ${filePath}, falling back to plain-text`);
     const parser = new PDFParse({ url: filePath });
     try {
       const { text } = await parser.getText();
+      if (useAsync) {
+        const subChunks = await recursiveChunkTextAsync(text, countFn, { stripPageMarkers: true });
+        return subChunks.map((t, i) => ({
+          text: t, section: '', source_file: sourceFile, meta: {}, links: [],
+          needsBoundaryCheck: i > 0, chunkIndex: i, totalChunks: subChunks.length,
+        }));
+      }
       const subChunks = recursiveChunkText(text, { stripPageMarkers: true });
       return subChunks.map((t, i) => ({
         text: t, section: '', source_file: sourceFile, meta: {}, links: [],
@@ -268,10 +409,14 @@ export async function chunkFileFromPath(filePath, sourceFile) {
 
   if (PANDOC_FORMATS.has(ext)) {
     const { stdout } = await execFileAsync('pandoc', [filePath, '-t', 'markdown', '--wrap=none']);
-    // Pass a synthetic .md path so chunkFile runs parseMarkdown on the pandoc output.
-    return chunkFile(filePath.replace(/\.[^.]+$/, '.md'), stdout, sourceFile);
+    const mdPath = filePath.replace(/\.[^.]+$/, '.md');
+    return useAsync
+      ? chunkFileAsync(mdPath, stdout, sourceFile, countFn)
+      : chunkFile(mdPath, stdout, sourceFile);
   }
 
   const text = readFileSync(filePath, 'utf8');
-  return chunkFile(filePath, text, sourceFile);
+  return useAsync
+    ? chunkFileAsync(filePath, text, sourceFile, countFn)
+    : chunkFile(filePath, text, sourceFile);
 }
