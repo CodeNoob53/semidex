@@ -310,12 +310,17 @@ Every indexed point has payload similar to:
   "dense_model": "bge-m3",
   "sparse_provider": "hashed-tf",
   "embedding_schema_version": 2,
+  "chunking_schema_version": 1,
+  "token_count_mode": "bge-m3",
   "vector_size": 1024
 }
 ```
 
 `source_file` is relative to `SOURCE_ROOT` when set, otherwise to the indexed
 folder. Use `source_file + chunk_index` as the stable way to retrieve context.
+`chunking_schema_version` and `token_count_mode` ensure that collections indexed
+with older chunk boundaries are reindexed instead of silently mixed with the
+current tokenizer-aware chunks.
 
 ## Graph Files
 
@@ -357,6 +362,12 @@ ONNX_EMBED=1 COLLECTION=my-docs npm run index ./docs
 
 Use for any serious indexing task — books, multilingual docs, benchmark collections.
 Downloads the ONNX model (~2.3 GB) once into `./models/`.
+
+Chunk boundaries use the real BGE-M3 tokenizer by default, independently of the
+embedding provider. The first indexing run may download the small tokenizer files
+into `./models/`. Set `TOKEN_COUNT=heuristic` only as an explicit compatibility or
+offline fallback; it restores the old `Math.ceil(text.length / 4)` approximation.
+Changing token-count mode causes affected files to be reindexed.
 
 ### Light fallback (ollama + hashed-tf)
 
@@ -449,12 +460,13 @@ PDFs are converted to Markdown by `@opendocsg/pdf2md` (not pandoc — pandoc can
 | `COMBINED_LLM=1 … TAG_MODEL is ignored` doctor WARN | Expected when TAG_MODEL ≠ CONTEXT_MODEL and COMBINED_LLM=1; set TAG_MODEL to match CONTEXT_MODEL or leave unset to silence it |
 | `[preflight] Ollama unreachable` | Indexer now fails fast before chunking. Use the Ollama startup steps above; on Windows prefer `Start-Process -FilePath "ollama" -ArgumentList "serve" -WindowStyle Hidden`, then verify `ollama list` |
 | `[preflight] Required Ollama model(s) not pulled` | Run the `ollama pull <model>` command shown in the error, then retry |
+| `Unable to load BGE-M3 tokenizer` | Check network/cache access and retry. Use `TOKEN_COUNT=heuristic` only when the old approximate chunking behavior is intentionally acceptable |
 | Qdrant connection refused | Start Qdrant; verify `QDRANT_URL`; run `npm run sync` |
 | `Invalid provider combination` | Use default or `ONNX_EMBED=1` — do not mix providers |
 | `Not existing vector name: dense` | Run `npm run sync` — if it reports `LEGACY SCHEMA`, drop that collection and reindex (see operations.md); collections without a named `dense` vector are marked `linkDisabled` and skipped by link-building |
 | Stale results after delete/rename | Run full-root `PRUNE_STALE=1 ... npm run index ./root` |
 | Duplicate chunks in search results | Caused by prior randomUUID indexing runs; new runs are idempotent. Repair existing duplicates with a separate targeted reindex per affected source file (see `docs/en/operations.md`) |
-| Unexpected full reindex after env change | Expected — provider/schema change forces reindex; let it complete |
+| Unexpected full reindex after env change | Expected — provider/schema or `TOKEN_COUNT` change forces reindex; let it complete |
 | `pandoc: Unknown input format pdf` | Not a bug — pandoc cannot read PDFs; `.pdf` is handled by `@opendocsg/pdf2md` |
 | All PDF chunks have empty section | Likely a scanned/image-only PDF — `pdf2md` found no heading structure; navigate via `source_file` + `chunk_index` |
 | First ONNX run very slow | Model downloading (~2.3 GB); wait; cache used on next run |

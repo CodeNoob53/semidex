@@ -30,7 +30,7 @@
 
 ### P0 — токен-лічильник
 
-- [ ] **Замінити `length/4` на реальний токенайзер BGE-M3.** *(in design — see plan doc)*
+- [x] **Замінити `length/4` на реальний токенайзер BGE-M3.** *(implemented — see plan doc and `2026-05-30T1334-bge-m3-token-count-production-default.md`)*
       `chunk.js:27` (`countTokens = len/4`), `length-bucket.js:16`, `index.js:246`.
       Звіт §«Діапазон 400–512»: для української через субслівний BPE XLM-RoBERTa
       400 токенів ≈ 200–300 слів — `length/4` (англоцентрична евристика) для кирилиці

@@ -1,14 +1,20 @@
 # BGE-M3 Tokenizer-Aware Chunking — Design Plan
 
-> Status: **design draft**. No production code changes. Validated against the current
-> codebase (2026-05-29). Supersedes the raw checklist items B/P0 and B/P1 from
+> Status: **implemented decision record**. Production default is now the real BGE-M3
+> tokenizer; `TOKEN_COUNT=heuristic` is an explicit opt-out. Validated against the current
+> codebase (2026-05-30). Supersedes the raw checklist items B/P0 and B/P1 from
 > `docs/design/bge-m3-alignment-checklist.md` for the purpose of implementation planning.
 > The checklist remains as a backlog tracker; items CE reranker (P1) and MCLS/domain-
 > adaptive (P2) are **out of scope** for this plan.
+>
+> The sections below retain the original planning analysis. The final implementation
+> intentionally differs from the preliminary fallback proposal: tokenizer files may be
+> downloaded on first use, heuristic fallback is never silent, and old payloads are
+> reindexed through `chunking_schema_version` + `token_count_mode`.
 
 ---
 
-## 1. Current state — where `length/4` is used
+## 1. Original state — where `length/4` was used
 
 Three sites in the codebase apply the character-based heuristic `Math.ceil(text.length / 4)`:
 
@@ -94,10 +100,10 @@ to async token counting requires either:
 - (a) Making `recursiveChunkText` / `chunkBySentences` / `chunkSections` async, or
 - (b) Pre-computing a text → token-count map before calling the chunker.
 
-**Option (b) is safer for the current codebase** because `chunkFile` is called synchronously
-in many places, including smoke tests and benchmark scripts. The approach is not to make a
-sync function secretly wait on async tokenizer loading. Instead, keep the existing sync
-heuristic path as the default, and add an explicit async path for `TOKEN_COUNT=bge-m3`:
+**Implemented resolution:** `chunkFile` remains synchronous for legacy benchmark callers,
+while the production `chunkFileFromPath` path is async and uses the real tokenizer by
+default. The approach is not to make a sync function secretly wait on async tokenizer
+loading:
 
 - load the tokenizer once before chunking starts;
 - pass a `countFn` / `truncateFn` into the chunking helpers;
@@ -133,24 +139,21 @@ Fallback policy:
 
 | Condition | Token counter used | Behavior |
 |-----------|-------------------|----------|
-| `ONNX_EMBED=1` or tokenizer cache exists | Real BGE-M3 tokenizer | Accurate counts |
-| Neither `ONNX_EMBED` nor cache | Heuristic `Math.ceil(len/4)` | Current behavior, documented |
-| `TOKEN_COUNT=heuristic` (opt-out env) | Heuristic | Explicit override for speed |
-| `TOKEN_COUNT=bge-m3` (future opt-in) | Real BGE-M3 tokenizer | Explicit opt-in without implying ONNX inference |
+| Default, tokenizer cache exists | Real BGE-M3 tokenizer | Accurate counts |
+| Default, tokenizer cache absent | Real BGE-M3 tokenizer | Download tokenizer files; hard-fail if unavailable |
+| `TOKEN_COUNT=heuristic` | Heuristic | Explicit compatibility/offline opt-out |
+| `TOKEN_COUNT=bge-m3` | Real BGE-M3 tokenizer | Explicit spelling of the default |
 
-Fallback must be **explicit in logs**, not silent:
+Real-tokenizer failures are explicit, not silent:
 ```
-[chunk] tokenizer not available — using length/4 heuristic (set ONNX_EMBED=1 for accurate counts)
+Unable to load BGE-M3 tokenizer. Check network/cache access or set TOKEN_COUNT=heuristic.
 ```
-
-If `ONNX_EMBED=1` and the tokenizer cannot be loaded, that is a hard failure (the model
-should already be cached; a missing tokenizer indicates a corrupt cache).
 
 ---
 
-## 4. How `MAX_CHUNK_TOKENS=400` maps to real tokenizer tokens
+## 4. How the old `MAX_CHUNK_TOKENS=400` heuristic mapped to real tokenizer tokens
 
-`MAX_CHUNK_TOKENS=400` is currently a character-heuristic limit. It really means
+Before the production switch, `MAX_CHUNK_TOKENS=400` was a character-heuristic limit. It meant
 "allow roughly 1600 characters before splitting", not "allow 400 BGE-M3 tokens".
 
 In real BGE-M3 tokens:
@@ -165,13 +168,11 @@ Concrete example:
 
 So the bug is: the heuristic can pass a chunk as "within budget" when it is actually far over budget in real BGE-M3 tokens. The effective max chunk size for Cyrillic text can drift toward 700–900 real tokens when `MAX_CHUNK_TOKENS=400` is enforced via `chars/4`.
 
-**Migration recommendation:**
+**Implemented migration:**
 
-Do NOT change `MAX_CHUNK_TOKENS=400` immediately. Instead:
-1. Instrument: log real token counts alongside heuristic counts during indexing.
-2. Measure: on custom-50 and the Ukrainian test corpus, compare chunk distributions.
-3. Calibrate: if real token distribution shows chunks >512 real tokens frequently, adjust
-   the effective limit — but this is a benchmark-gated decision, not done by default.
+Keep `MAX_CHUNK_TOKENS=400`, but enforce it with the real tokenizer. Offline comparison
+showed the old heuristic left 30 `docs/en/` chunks above 512 real tokens; the production
+tokenizer path left none. Positional benchmark qrels are regenerated separately.
 
 The existing checklist item "pack to ~512 not ~400" (for skeleton-first section merging)
 should also be driven by real token counts once the counter is available.
@@ -290,12 +291,12 @@ positional index). `node_id`-based qrels are immune to reordering unless the fil
 structure changes. This is the long-term solution, but it requires the skeleton pipeline
 to be active.
 
-For the immediate token-counter migration, the safest approach is:
-1. Run the new counter behind a flag (`TOKEN_COUNT=bge-m3`).
-2. Regenerate qrel chunk indices on the benchmark corpus before declaring the change
-   complete.
-3. Document that any external qrel files referencing `chunk_index` must be regenerated
-   after the counter is switched.
+Implemented migration:
+1. Production indexing uses the real tokenizer by default.
+2. Each point stores `chunking_schema_version` and `token_count_mode`; stale payloads
+   trigger a reindex instead of mixing old and new boundaries.
+3. Benchmark qrels referencing positional `chunk_index` are regenerated after the
+   switch. They do not block the production correctness fix.
 
 ### 7.3 Tokenizer loading and indexing startup time
 
@@ -304,14 +305,15 @@ This is a one-time cost per process (lazy singleton). For large indexing runs (h
 of files), this is negligible. For single-file or smoke runs, it adds a visible but
 tolerable delay.
 
-If `ONNX_EMBED=1` is already set, the tokenizer is loaded as part of `load()` anyway;
-no extra cost.
+If `ONNX_EMBED=1` is already set, both paths reuse the same cached tokenizer files.
+The current modules keep separate in-memory tokenizer singletons, so a small
+one-time tokenizer initialization cost may still occur in each path; no second
+network download is required.
 
-If `ONNX_EMBED` is not set, loading the tokenizer still requires the tokenizer JSON
-files to be present in the HuggingFace cache directory. Semidex should not silently
-trigger a ~5 MB download during indexing without user awareness. Recommended behavior:
-if tokenizer files are absent and `ONNX_EMBED` is not set, fall back to heuristic and
-log a warning (see §3.4).
+If `ONNX_EMBED` is not set, tokenizer JSON files may still be downloaded into the
+HuggingFace cache directory. This is intentional: production chunking must not silently
+degrade based on cache state. Users who need the old approximation can explicitly set
+`TOKEN_COUNT=heuristic` (see §3.4).
 
 ---
 
@@ -381,10 +383,12 @@ implementing as an intermediate step.
 
 ---
 
-## 10. Proposed implementation sequence (P0 only)
+## 10. Original implementation sequence (P0 only)
 
-This plan covers only P0 (token counter) and P1 (overlap). CE reranker, MCLS, domain-
-adaptive chunk profiles, and production default changes are **out of scope**.
+This section preserves the original staged proposal. The final decision promoted the
+real tokenizer to production default immediately after smoke coverage and migration
+guards were added. CE reranker, MCLS, and domain-adaptive chunk profiles remain out of
+scope.
 
 ```
 Step 1  Create src/core/token-count.js
@@ -409,7 +413,7 @@ Step 4  Benchmark run — heuristic vs real tokenizer
         - Decision gate: if oversized_chunks >10% of total on any corpus, proceed
           to Step 5; otherwise document and revisit
 
-Step 5  Wire real counter into chunk.js (behind TOKEN_COUNT=bge-m3 flag)
+Step 5  Wire real counter into chunk.js (initially behind TOKEN_COUNT=bge-m3 flag)
         - Modify _splitLevel / chunkBySentences to accept countFn parameter
         - Default countFn = heuristic (no behavior change without flag)
         - TOKEN_COUNT=bge-m3 injects real counter
@@ -423,8 +427,8 @@ Step 7  Re-run full benchmark
         - Confirm success criteria from §8.4
 
 Step 8  Documentation and decision
-        - If criteria met: document TOKEN_COUNT=bge-m3 as recommended for Cyrillic workloads
-        - Do NOT change default yet (benchmark-before-defaults principle)
+        - Completed with real BGE-M3 token counting as production default
+        - Keep TOKEN_COUNT=heuristic as the explicit compatibility/offline opt-out
         - Update checklist items B/P0 and B/P1 to reflect outcome
 ```
 
@@ -445,18 +449,18 @@ in the checklist:
   skeleton-first MCP tools, not the token counter.
 - B/P2 — MCLS, domain-adaptive chunk profiles. Post-skeleton, low priority.
 
-The checklist item "B/P0 — замінити `length/4` на реальний токенайзер" should be marked
-as "in design" and point to this document.
+The checklist item "B/P0 — замінити `length/4` на реальний токенайзер" is complete and
+points to this document plus the production-default report.
 
 ---
 
-## 12. Files affected (no changes yet)
+## 12. Implemented file map
 
-| File | Change planned |
+| File | Implemented change |
 |------|---------------|
-| `src/core/token-count.js` | **Create** (Step 1) |
-| `src/indexer/phases/chunk.js` | Modify `countTokens` and chunking functions (Step 5) |
+| `src/core/token-count.js` | Created: real tokenizer counter, explicit heuristic fallback, bounded memo-cache |
+| `src/indexer/phases/chunk.js` | Production async tokenizer-aware path added; legacy sync helper retained |
 | `src/core/length-bucket.js` | **No behavior change** — batching only; correct the comment if this file is touched |
-| `src/indexer/index.js` line 246 | **No change** — telemetry only |
-| `src/core/onnx-embed.js` | **No change** — tokenizer reused via `token-count.js`, not modified |
-| `benchmarks/retrieval/fixtures/ua-prose-synthetic.md` | **Create** (Step 3) |
+| `src/indexer/index.js` | Stores chunking metadata and triggers safe reindex on mismatch |
+| `src/core/onnx-embed.js` | **No change** — embedding path keeps its existing tokenizer; both paths reuse cached files |
+| `benchmarks/retrieval/fixtures/ua-prose-synthetic.md` | Created public synthetic fixture |

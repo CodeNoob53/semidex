@@ -189,10 +189,18 @@ PRUNE_STALE=1 SOURCE_ROOT=./docs COLLECTION=my-docs npm run index ./docs/guides
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `MAX_CHUNK_TOKENS` | `400` | Max tokens per chunk |
+| `TOKEN_COUNT` | `bge-m3` | Token counter for chunk boundaries. Default uses the real BGE-M3 tokenizer. Set `heuristic` only to explicitly restore the old `Math.ceil(text.length / 4)` approximation |
+| `MAX_CHUNK_TOKENS` | `400` | Max tokens per chunk according to `TOKEN_COUNT` |
 | `MIN_CHUNK_TOKENS` | `30` | Minimum tokens; smaller chunks may be skipped |
 | `OVERLAP_SENTENCES` | `2` | Sentence overlap between adjacent chunks |
 | `LLM_BATCH_SIZE` | `3` | Chunks per LLM call for context/tag phases |
+
+The real tokenizer path loads tokenizer files only; it does not create an ONNX
+inference session. Tokenizer files are cached under `./models/` and may be
+downloaded on first use. Each indexed payload stores `chunking_schema_version`
+and `token_count_mode`. Changing `TOKEN_COUNT`, or indexing a collection created
+before these fields existed, triggers a reindex so one collection cannot silently
+mix incompatible chunk boundaries.
 
 ## Linking and Review Output
 

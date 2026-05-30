@@ -12,6 +12,7 @@ ONNX_EMBED=1 COLLECTION=my-docs npm run index ./docs
 
 - Dense + sparse: `bge-m3-onnx` + `bge-m3-onnx`
 - Downloads the ONNX model (~2.3 GB) on first use into `./models/`; subsequent runs use local cache
+- Chunk boundaries use the real BGE-M3 tokenizer by default; tokenizer files are loaded separately from the ONNX inference session
 - Best retrieval quality for current semidex work
 
 ### Light / local fallback
@@ -83,6 +84,10 @@ COLLECTION=my-docs npm run index path/to/docs/
 ```
 
 Unchanged files are skipped by file hash and provider metadata checks.
+The skip guard also checks `chunking_schema_version` and `token_count_mode`.
+Collections created before tokenizer-aware chunking are reindexed automatically.
+Use `TOKEN_COUNT=heuristic` only as an explicit fallback to the older approximate
+chunk boundaries.
 
 ## Stable Source IDs
 
@@ -390,12 +395,13 @@ Doctor never mutates. Use `npm run sync` to repair any schema or index issues it
 |---------|-------------|--------|
 | `[preflight] Ollama unreachable at ...` | Ollama not running or wrong `OLLAMA_URL` | Indexer fails fast before chunking. Start Ollama (`ollama serve`); on Windows try `OLLAMA_URL=http://127.0.0.1:11434` if localhost is proxied |
 | `[preflight] Required Ollama model(s) not pulled` | `CONTEXT_MODEL` or `TAG_MODEL` not pulled | Run `ollama pull <model>` as shown in the error message, then retry |
+| `Unable to load BGE-M3 tokenizer` | Tokenizer cache is missing and cannot be downloaded | Check network/cache access and retry. Set `TOKEN_COUNT=heuristic` only when the older approximate boundaries are intentionally acceptable |
 | `fetch failed` on search with ollama provider | Ollama not running | `ONNX_EMBED=1` makes search use ONNX, but Ollama is still needed for context/tag during indexing — preflight will catch this before the loop |
 | Qdrant connection refused or timeout | Qdrant not running or wrong `QDRANT_URL` | Start Qdrant, verify `QDRANT_URL` in `.env`, run `npm run sync` |
 | `Invalid provider combination` | Mixed dense/sparse providers | Use either the default (no extra env) or `ONNX_EMBED=1` — mixed combos are rejected at runtime |
 | Search/link error: `Not existing vector name: dense` | Legacy flat vector schema (`{ size, distance }` instead of named `{ dense, sparse }`) or collection without a named `dense` vector | Run `npm run sync` — if it reports `LEGACY SCHEMA`, the collection must be dropped and reindexed (see below); collections without named `dense` are marked `linkDisabled` automatically |
 | Stale search results after file delete or rename | Old Qdrant points remain | Run full-root `PRUNE_STALE=1 COLLECTION=... npm run index ./root` |
-| Provider mismatch triggers unexpected full reindex | Changed `ONNX_EMBED`, `DENSE_PROVIDER`, `SPARSE_PROVIDER`, schema version, or `vectorSize` | Expected behavior — let reindex complete; do not interrupt |
+| Metadata mismatch triggers unexpected full reindex | Changed `ONNX_EMBED`, `DENSE_PROVIDER`, `SPARSE_PROVIDER`, schema version, `vectorSize`, or `TOKEN_COUNT`; or collection predates tokenizer-aware chunking | Expected behavior — let reindex complete; do not interrupt |
 | `pandoc: Unknown input format pdf` | Pandoc cannot read PDFs | PDFs are handled by `@opendocsg/pdf2md`; pandoc is only used for `.docx`, `.odt`, `.rtf`, `.epub`, `.html`, `.htm` |
 | First ONNX indexing run is very slow | Model download and cache warmup (~2.3 GB) | Wait for download to complete; all subsequent runs use `./models/` cache |
 | `ONNX_EXECUTION_PROVIDER=cuda` falls back to CPU | CUDA unavailable or not supported on this platform | On Windows, CUDA is not supported via prebuilt npm — use `dml` instead. On Linux x64 + NVIDIA, CUDA is opt-in/experimental: install CUDA 12.x + cuDNN 9, set `LD_LIBRARY_PATH`, then retry. Run `npm run doctor` with `ONNX_EMBED=1` for a CUDA session probe (PASS/WARN, no indexing run, never retries CPU). To make CUDA failure a hard error instead of a silent CPU retry, set `ONNX_CUDA_STRICT=1` — use this in CI or when you need to guarantee GPU inference is active. |

@@ -31,6 +31,8 @@ for each area. For superseded or exploratory runs in the same area, check
 | CE routing / reranking | `2026-05-16-custom50-ce-routing-v4-mmarco-mminilmv2-l12-h384-v1.txt`, `2026-05-16-custom150-ce-routing-v4-mmarco-mminilmv2-l12-h384-v1.txt` | Understanding why reranking is off by default | ADR 0003 cites these; v4 = final decision run |
 | ColBERT / rerankers | `2026-05-16-bge-m3-colbert-head-probe.md` | ColBERT head probe results | Cited by ADR 0003 |
 | BGE-M3 ONNX provider | `2026-05-09-bge-m3-onnx.txt` | BGE-M3 vs Ollama initial quality comparison | ADR 0001 cites this |
+| BGE-M3 tokenizer sizing | `2026-05-29T2253-bge-m3-tokenizer-audit.md` | Checking `length/4` heuristic vs real BGE-M3 token counts | Verdict: Cyrillic/mixed Markdown risk; motivated real-tokenizer production default |
+| BGE-M3 tokenizer default | `2026-05-30T1334-bge-m3-token-count-production-default.md` | Production decision, migration guards, and offline comparison | Default is real tokenizer; `TOKEN_COUNT=heuristic` is explicit opt-out; 695/695 smoke pass |
 | Ollama hashed-TF provider | `2026-05-09-ollama-hashed-tf.txt` | Baseline for Ollama+hashed-TF provider path | ADR 0001 cites this |
 | MMR opt-in | `2026-05-14-mmr-mcp-opt-in-audit.md` | Whether dense_mmr mode should be exposed | Cited by docs/en |
 | Literal/full-text search | `2026-05-14-full-text-literal-search-audit.md` | Why full-text search is deferred | Cited by docs/en |
@@ -75,6 +77,8 @@ for each area. For superseded or exploratory runs in the same area, check
 | Understand c41 combined regression | `2026-05-27T0430-c41-combined-regression-diagnostic.md` |
 | Decide which context policy to use | `2026-05-27T0900-combined-identifier-preserving-policy.md` (post-qrel-fix), `2026-05-18T0948-combined-llm-prompt-policy-matrix.md` (initial model sweep) |
 | Understand ONNX GPU/DML setup | `2026-05-17-onnx-batching-provider-comparison.md` then `2026-05-17-dml-batching-production-wiring-design.md` |
+| Understand BGE-M3 tokenizer sizing risk | `2026-05-29T2253-bge-m3-tokenizer-audit.md`, then `docs/design/bge-m3-token-aware-chunking-plan.md` |
+| Understand BGE-M3 tokenizer-aware chunking | `2026-05-30T1334-bge-m3-token-count-production-default.md` — real tokenizer is the production default |
 | Debug duplicate points in a collection | `2026-05-24T1500-duplicate-point-repair-bitwize-music-closure.md` |
 | Validate MCP agent workflow | `2026-05-25-mcp-agent-ux-polish-v3-live-retest.md` |
 | Understand answer-policy edge cases | `2026-05-12-custom-raw-*.md` series |
