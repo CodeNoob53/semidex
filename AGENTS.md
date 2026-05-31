@@ -361,6 +361,23 @@ npm run sync
 
 When asked to index documents, choose the mode based on the goal:
 
+### Create a new collection
+
+There is no separate collection-create command. If the requested collection does
+not exist, the first indexing run creates it automatically with named `dense` and
+`sparse` vectors, required payload indexes, and a matching `config.json` entry:
+
+```bash
+ONNX_EMBED=1 COLLECTION=my-docs npm run index ./docs
+```
+
+Always set `COLLECTION`. Do not manually create a semidex collection through the
+Qdrant dashboard or generic Qdrant tools. The semidex MCP tools are read-only:
+they inspect and search existing collections but do not index documents.
+
+Run `npm run sync` after upgrading semidex or when adopting an existing remote
+collection. It is safe to re-run, but it is not required before first indexing.
+
 ### Recommended: ONNX (production quality)
 
 ```bash

@@ -142,9 +142,12 @@ Runtime на CPU або DirectML, Ollama на доступному GPU-backend).
 ```bash
 npm install
 cp .env.example .env
-# задайте QDRANT_URL; QDRANT_KEY — лише якщо Qdrant захищений ключем
-# (для локального незахищеного Qdrant ключ не потрібен, Qdrant Cloud — потрібен)
 ```
+
+У Windows PowerShell замість `cp` використовуйте
+`Copy-Item .env.example .env`. Приклад env-файлу за замовчуванням налаштований
+на локальний Qdrant. Для Qdrant Cloud замініть `QDRANT_URL` і `QDRANT_KEY`
+значеннями зі сторінки вашого кластера.
 
 ### 2. Запуск Qdrant
 
@@ -181,12 +184,20 @@ ollama pull gemma3:4b     # LLM для контексту + теґів
 > через Ollama. `ONNX_EMBED=1` прибирає Ollama лише з фази ембедингів, не з
 > context/tag. Якщо теґи не потрібні — `TAG_GEN=0`.
 
-### 4. Синхронізація та індексація
+### 4. Створення колекції та індексація
 
 ```bash
-npm run sync                                    # генерує config.json з реальних колекцій Qdrant
-COLLECTION=my-docs npm run index ./docs/        # індексація папки
+ONNX_EMBED=1 COLLECTION=my-docs npm run index ./docs/
 ```
+
+Окрема команда для створення колекції не потрібна. Якщо `my-docs` ще не існує,
+індексатор автоматично створить колекцію Qdrant із named-векторами `dense` і
+`sparse`, потрібними payload-індексами та відповідним записом у `config.json`.
+Повторний запуск тієї самої команди оновлює змінені файли й пропускає незмінені.
+
+`npm run sync` варто запускати після оновлення semidex або для вже наявних
+віддалених колекцій. Команда безпечна для повторного запуску, але не потрібна
+перед першою індексацією нової колекції.
 
 ### 5. Реєстрація MCP
 

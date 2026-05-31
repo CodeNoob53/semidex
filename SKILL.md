@@ -169,6 +169,16 @@ npm run smoke
 
 Rules:
 - Always set `COLLECTION` before running `npm run index`.
+- There is no separate collection-create command. If `COLLECTION` does not
+  exist, the first `npm run index` creates it automatically with named `dense`
+  and `sparse` vectors, required payload indexes, and a matching `config.json`
+  entry.
+- Do not manually create semidex collections through generic Qdrant tools. The
+  semidex MCP tools are read-only: they inspect and search existing collections
+  but do not index documents.
+- Run `npm run sync` after upgrading semidex or when adopting an existing remote
+  collection. It is safe to re-run, but it is not required before first
+  indexing.
 - Use `PRUNE_STALE=1` only on the full source root, never on a single file or
   subset directory.
 - `.semidexignore` can exclude top-level entry names during directory indexing.

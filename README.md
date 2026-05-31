@@ -51,8 +51,11 @@ In simple terms: semidex helps an AI find the right paragraph, section, command,
 ```bash
 npm install
 cp .env.example .env
-# set QDRANT_URL and QDRANT_KEY
 ```
+
+On Windows PowerShell, use `Copy-Item .env.example .env` instead of `cp`.
+The example env file targets local Qdrant by default. For Qdrant Cloud, replace
+`QDRANT_URL` and `QDRANT_KEY` with the values from your cluster dashboard.
 
 ### 2. Start Qdrant
 
@@ -64,21 +67,34 @@ docker run -d --name qdrant -p 6333:6333 qdrant/qdrant
 
 ### 3. Pull local models
 
-Default mode uses Ollama for embeddings plus context/tag generation:
+Context and tag generation use Ollama in every indexing mode:
 
 ```bash
-ollama pull bge-m3
 ollama pull gemma3:4b
 ```
 
-For the higher-quality multilingual embedding path, set `ONNX_EMBED=1` in `.env`. The BGE-M3 ONNX model downloads once on first use.
-
-### 4. Sync and index
+For the recommended multilingual embedding path, set `ONNX_EMBED=1`. The BGE-M3
+ONNX model downloads once on first use. Pull `bge-m3` in Ollama only when you
+intend to use the lighter `ollama + hashed-tf` fallback:
 
 ```bash
-npm run sync
-COLLECTION=my-docs npm run index ./docs/
+ollama pull bge-m3
 ```
+
+### 4. Create a collection and index documents
+
+```bash
+ONNX_EMBED=1 COLLECTION=my-docs npm run index ./docs/
+```
+
+No separate create command is required. If `my-docs` does not exist, the indexer
+creates the Qdrant collection automatically with named `dense` and `sparse`
+vectors, required payload indexes, and a matching `config.json` entry. Re-running
+the same command updates changed files and skips unchanged files.
+
+Run `npm run sync` after upgrading semidex or when adopting an existing remote
+collection. It is safe to re-run, but it is not required to create a new
+collection.
 
 ### 5. Register MCP in Claude Code
 

@@ -1,5 +1,27 @@
 # Operations
 
+## Create A Collection And Index Documents
+
+There is no separate collection-create command. The first indexing run creates a
+missing Qdrant collection automatically:
+
+```bash
+ONNX_EMBED=1 COLLECTION=my-docs npm run index ./docs
+```
+
+The indexer creates named `dense` and `sparse` vectors, required payload
+indexes, and a matching `config.json` entry before it writes document chunks.
+Re-running the same command updates changed files and skips unchanged files.
+
+Always set `COLLECTION`. Do not create a semidex collection manually in the
+Qdrant dashboard unless you are deliberately reproducing the named-vector schema.
+The MCP server is the read side of semidex; it queries existing collections but
+does not create or index them.
+
+`npm run sync` is safe to run after indexing, after a semidex upgrade, or when
+adopting an existing remote collection. It is not required before the first
+indexing run.
+
 ## Indexing Mode Guide
 
 ### Recommended: production / multilingual
