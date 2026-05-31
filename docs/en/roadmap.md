@@ -11,6 +11,12 @@ collections. Its job is to make a knowledge base searchable, inspectable, and
 usable by an agent without forcing the agent to read every source file or trust
 an opaque generated summary.
 
+semidex is currently an experimental retrieval MVP. Its benchmark suites are
+development regression tools, not independent evidence of competitive
+superiority. Before making quality claims against other systems, the project
+needs a representative demo, selected external datasets, and direct workflow
+comparisons.
+
 The immediate product is a document retrieval layer. The longer-term direction
 adds grounded assistant runtimes, codebase memory, richer ingestion, and
 optional agent memory on top of the same structural foundation.
@@ -57,7 +63,7 @@ specific retrieval weakness that the existing hybrid path does not solve.
 
 ## Shipped Baseline
 
-The current MVP is a working local-first retrieval system.
+The current MVP is a working experimental local-first retrieval system.
 
 ### Indexing and ingestion
 
@@ -211,6 +217,8 @@ should be driven by document structure, not by collection-specific keywords.
 Planned work:
 
 - benchmark legacy chunking against skeleton-first chunking;
+- compare representative workflows against direct alternatives before making
+  competitive quality claims;
 - add structural retrieval metrics for tables, code blocks, and anchored
   content assembly alongside existing chunk-level metrics;
 - test Markdown with tables, code, lists, quotes, images, and long sections;

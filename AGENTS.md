@@ -1,6 +1,6 @@
 # Agent Instructions
 
-semidex is a local-first RAG memory system for AI agents. It has two runtime
+semidex is a local-first retrieval system for AI agents. It has two runtime
 entry points:
 
 - **Indexer** - writes documents into Qdrant.
@@ -378,7 +378,7 @@ they inspect and search existing collections but do not index documents.
 Run `npm run sync` after upgrading semidex or when adopting an existing remote
 collection. It is safe to re-run, but it is not required before first indexing.
 
-### Recommended: ONNX (production quality)
+### Recommended: ONNX (quality / multilingual)
 
 ```bash
 ONNX_EMBED=1 COLLECTION=my-docs npm run index ./docs

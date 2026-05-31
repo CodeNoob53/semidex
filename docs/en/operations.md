@@ -24,7 +24,7 @@ indexing run.
 
 ## Indexing Mode Guide
 
-### Recommended: production / multilingual
+### Recommended: quality / multilingual
 
 Use for serious indexing — books, multilingual docs, benchmark collections, any corpus where retrieval quality matters:
 
@@ -35,7 +35,7 @@ ONNX_EMBED=1 COLLECTION=my-docs npm run index ./docs
 - Dense + sparse: `bge-m3-onnx` + `bge-m3-onnx`
 - Downloads the ONNX model (~2.3 GB) on first use into `./models/`; subsequent runs use local cache
 - Chunk boundaries use the real BGE-M3 tokenizer by default; tokenizer files are loaded separately from the ONNX inference session
-- Best retrieval quality for current semidex work
+- Strongest currently evaluated retrieval quality among semidex modes
 
 ### Light / local fallback
 
@@ -47,7 +47,7 @@ COLLECTION=my-docs npm run index ./docs
 
 - Dense + sparse: `ollama` + `hashed-tf`
 - Requires Ollama running locally with `bge-m3` pulled
-- `hashed-tf` has no corpus statistics — not recommended for production-quality retrieval
+- `hashed-tf` has no corpus statistics — use only as a fallback when retrieval quality matters
 
 ### Full-root cleanup indexing
 

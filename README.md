@@ -10,14 +10,32 @@
 ![Qdrant](https://img.shields.io/badge/Qdrant-vector%20DB-red?logo=qdrant&logoColor=white)
 ![MCP](https://img.shields.io/badge/MCP-compatible-purple)
 
-**semidex is an experimental local-first RAG memory system for AI agents**
+**semidex is an experimental local-first retrieval layer for AI agents**
 
-It turns your documents, notes, specs, and code knowledge into a searchable memory layer that an AI assistant can query through MCP. Instead of pasting huge files into chat or hoping the model remembers your project, semidex stores your knowledge in Qdrant, splits it into useful chunks, enriches it with summaries, tags, and semantic links, then retrieves only the pieces that matter for the current task.
+It turns your documents, notes, specs, and code knowledge into an indexed
+collection that an AI assistant can query through MCP. Instead of pasting huge
+files into chat, semidex stores your knowledge in Qdrant, splits it into chunks,
+enriches them with summaries, tags, and semantic links, then returns relevant
+pieces for the current task.
 
-In simple terms: semidex helps an AI find the right paragraph, section, command, config option, or related document before it answers or edits code.
+In simple terms: semidex helps an AI look up paragraphs, sections, commands,
+config options, and related documents before it answers or edits code.
+
+## Evaluation status
+
+semidex is a working experimental retrieval MVP, not a production-ready
+assistant platform. Its current benchmark suites are regression tools for
+development: they help compare semidex changes against earlier semidex behavior.
+They are not an independent quality evaluation and do not establish superiority
+over other RAG systems.
+
+The next validation milestone is to build a representative demo, run selected
+external datasets, and compare the relevant workflows against direct
+alternatives before making competitive quality claims.
 
 ## Contents
 
+- [Evaluation status](#evaluation-status)
 - [Problems semidex solves](#problems-semidex-solves)
 - [Quick Start](#quick-start)
 - [Platform Support](#platform-support)
@@ -35,11 +53,11 @@ In simple terms: semidex helps an AI find the right paragraph, section, command,
 | Problem | How semidex addresses it |
 |---------|--------------------------|
 | Context windows are too small | Indexes large document sets and retrieves only relevant chunks |
-| AI agents guess when context is missing | MCP tools give the agent precise, on-demand access to project knowledge |
-| Semantic search misses exact terms | Sparse lexical vectors catch `ONNX_EMBED`, `embedding_schema_version`, env vars, function names |
-| Keyword search misses meaning | Dense vectors match paraphrases, related concepts, and mixed-language queries |
-| Chunks lose context when isolated | Before embedding, a local LLM generates a summary of what each chunk means in its document — the vector is computed from summary + text combined, so even a bare code snippet is findable by natural language |
-| Related docs are hard to discover | Semantic links and backlinks create a navigable knowledge graph |
+| AI agents guess when context is missing | MCP tools give the agent on-demand access to indexed project knowledge |
+| Semantic search misses exact terms | Sparse lexical vectors help retrieve `ONNX_EMBED`, `embedding_schema_version`, env vars, and function names |
+| Keyword search misses meaning | Dense vectors help retrieve paraphrases, related concepts, and mixed-language queries |
+| Chunks lose context when isolated | Before embedding, a local LLM generates a summary of what each chunk means in its document — the vector is computed from summary + text combined, which can improve natural-language retrieval of short fragments |
+| Related docs are hard to discover | Semantic links and backlinks provide an additional file-level navigation path |
 | Re-indexing is expensive | SHA-256 hash checks skip unchanged files |
 | Provider mismatch breaks search quality | Provider metadata is stored per collection; mismatches force reindexing |
 | Private docs should stay local | Ollama, ONNX, and Qdrant can run locally; document text does not need external APIs |
@@ -159,7 +177,7 @@ English deep dives:
 
 ```text
 Documents
-  -> structure-aware chunking
+  -> heading-aware, tokenizer-aware chunking
   -> LLM context summaries and tags
   -> dense + sparse embeddings
   -> Qdrant named vectors + payload metadata
@@ -170,7 +188,7 @@ Side output:
   -> chunks_out/ Markdown notes for Obsidian review and quality control
 ```
 
-At query time, semidex embeds the search query with the same provider used during indexing, runs hybrid search in Qdrant, fuses dense and sparse results with RRF, optionally reranks locally, and returns the best chunks to the AI client.
+At query time, semidex embeds the search query with the same provider used during indexing, runs hybrid search in Qdrant, fuses dense and sparse results with RRF, optionally reranks locally, and returns the highest-ranked chunks to the AI client.
 
 Each indexed chunk becomes a single Qdrant point:
 
@@ -201,7 +219,7 @@ Vectors are used for search and ranking only. The payload is what gets returned 
 | Mode | Config | Best for |
 |------|--------|----------|
 | Default / light | `DENSE_PROVIDER=ollama`, `SPARSE_PROVIDER=hashed-tf` | Fast setup, low memory, Ollama-based embeddings |
-| Quality / multilingual | `ONNX_EMBED=1` | Ukrainian, mixed-language, exact technical terms, best retrieval quality |
+| Quality / multilingual | `ONNX_EMBED=1` | Ukrainian, mixed-language, exact technical terms; strongest currently evaluated semidex mode |
 | Rerank | `RERANK_ENABLED=1` | Experimental opt-in for larger or ambiguous corpora; benchmark first |
 
 Mixed provider combinations, such as `ollama` dense + `bge-m3-onnx` sparse, are rejected at runtime.
@@ -242,15 +260,18 @@ Pandoc is required only for `.docx`, `.odt`, `.rtf`, `.epub`, `.html`, and `.htm
 
 ## Roadmap
 
-semidex is not trying to become a broad AI memory platform. The current roadmap
-focuses on strengthening the existing agent-grade RAG index:
+The current roadmap first strengthens the experimental retrieval MVP through a
+shared structural foundation:
 
-- retrieval-grade chunking for large technical documents
+- skeleton-first chunking for tables, code, images, and document structure
+- hierarchical skeleton navigation for agents
+- cross-domain validation, external datasets, and direct workflow comparisons
 - benchmark-driven tuning before changing defaults
-- better diagnostics and local observability
-- agent wake-up workflows for MCP clients
-- future incremental codebase memory that refreshes only changed project files
-- careful experiments with MMR, full-text filtering, and future ColBERT reranking
+
+After that foundation is validated, separate product tracks may add Assistant
+Runtime, Codebase Memory, richer ingestion, and opt-in Agent Memory. Retrieval
+experiments such as MMR or ColBERT remain conditional research, not mandatory
+milestones.
 
 Chunking quality is treated as a first-class retrieval concern — see
 [docs/en/chunking-quality.md](docs/en/chunking-quality.md) for the design
@@ -285,7 +306,7 @@ deleted or renamed, and cleans up old paths after a rename.
 Not implemented yet:
 
 - Skeleton-first structural-node chunking
-- Production ColBERT / late-interaction retrieval
+- Runtime integration for ColBERT / late-interaction retrieval
 - Full external dataset evaluation
 - True BM25/SPLADE fallback for Node-only sparse retrieval
 - Git-aware project/codebase sync and same-hash rename/move reuse
