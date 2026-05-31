@@ -515,6 +515,23 @@ candidate for an initial adapter. Native on-device LLM generation through ONNX i
 research direction, not a shipped promise: ONNX Runtime GenAI is still preview and
 its integration path for the Node.js runtime must be validated before adoption.
 
+### Image understanding pipeline *(planned, staged)*
+
+Image nodes from skeleton-first chunking remain first-class structural placeholders
+instead of being mixed into prose as inline base64. The original image stays
+authoritative. Future processors add separate derived payload with provenance:
+
+- an OCR stage extracts exact visible text for scanned pages, screenshots, and
+  text-heavy images;
+- a vision-language stage describes semantic content that OCR cannot recover well,
+  such as diagrams, charts, interface screenshots, and illustrations;
+- retrieval embeds a concise derived context while keeping the original image,
+  OCR text, and vision summary separately inspectable.
+
+These stages are complementary and independently benchmarked. A multimodal Gemma
+model through Ollama is a practical local candidate for the initial vision-language
+probe, not a source of truth and not a shipped default.
+
 ### Codebase Memory *(planned, separate track)*
 
 A specialized direction for large and legacy repositories: skeleton-first project

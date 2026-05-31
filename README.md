@@ -6,6 +6,7 @@
 ![npm](https://img.shields.io/badge/npm-2.0.0-blue?logo=npm&logoColor=white)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Ollama](https://img.shields.io/badge/Ollama-local%20LLM-black?logo=ollama&logoColor=white)
+![ONNX Runtime](https://img.shields.io/badge/ONNX%20Runtime-local%20embeddings-blue?logo=onnx&logoColor=white)
 ![Qdrant](https://img.shields.io/badge/Qdrant-vector%20DB-red?logo=qdrant&logoColor=white)
 ![MCP](https://img.shields.io/badge/MCP-compatible-purple)
 

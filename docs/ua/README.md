@@ -7,6 +7,7 @@
 ![Node.js](https://img.shields.io/badge/node-%3E%3D18-brightgreen?logo=node.js&logoColor=white)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Ollama](https://img.shields.io/badge/Ollama-local%20LLM-black?logo=ollama&logoColor=white)
+![ONNX Runtime](https://img.shields.io/badge/ONNX%20Runtime-local%20embeddings-blue?logo=onnx&logoColor=white)
 ![Qdrant](https://img.shields.io/badge/Qdrant-vector%20DB-red?logo=qdrant&logoColor=white)
 ![MCP](https://img.shields.io/badge/MCP-compatible-purple)
 
@@ -316,6 +317,20 @@ storage/inference. Не готова функція.
   **окремий** від authoritative бази знань: global / user-scoped / collection-scoped
   нотатки, правила роботи з конкретною бібліотекою, inbox кандидатів знань для
   зовнішніх фактів, з provenance, review і журналом змін перед promotion у основну базу.
+- **Assistant Runtime** *(план, опційно)* — runtime для побудови готових
+  RAG-застосунків поверх semidex: консультантів на сайтах, внутрішніх помічників
+  компаній тощо. Матиме HTTP API для запитань, retrieval policy, формування grounded
+  prompt, streaming-відповіді та citations до конкретних файлів, секцій і чанків.
+  Генератор відповідей **змінний**: локальна модель або зовнішній API; Ollama —
+  практичний кандидат для першого локального adapter. Нативна ONNX LLM-генерація — це
+  research-напрям, а не готова обіцянка.
+- **Image understanding pipeline** *(план, поетапно)* — розуміння зображень у
+  документах, без змішування з prose: base64-зображення не вмішуються в текст,
+  **оригінальне зображення лишається authoritative**. OCR витягує точний видимий
+  текст; vision-language модель описує схеми, графіки, скриншоти та ілюстрації.
+  OCR-текст і vision-summary — це **derived payload із provenance** (похідні дані з
+  посиланням на джерело), а не джерело істини. Gemma через Ollama — кандидат для
+  майбутнього probe, не default і не source of truth.
 - **Provider adapters** *(дослідження)* — опційні зовнішні API embeddings/контексту;
   оцінити Qdrant Cloud Inference як один із варіантів; локальні ONNX/Ollama лишаються
   основним шляхом.
@@ -349,4 +364,4 @@ docs: [translation-backlog.md](translation-backlog.md).
 - **[OpenAI Codex](https://openai.com/blog/openai-codex)** — рев'ю коду
 - **[Claude](https://claude.ai) (Anthropic)** — генерація коду, документація
 
-Дизайн пайплайну, основна механіка, концепт і тестування — автор.
+Дизай
