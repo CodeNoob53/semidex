@@ -1,610 +1,469 @@
-# Roadmap
+# semidex Roadmap
 
-semidex is not trying to become a general memory platform. The focus is narrower:
-an agent-grade local RAG index for real project knowledge, codebase notes, specs,
-and technical documentation.
+> Status: canonical product roadmap, updated 2026-05-31.
+>
+> This document is ordered by architectural dependency, not by a speculative
+> calendar. Presentation decks and grant materials should derive their stage
+> order from this file.
 
-This roadmap is intentionally benchmark-driven. New retrieval features should
-prove that they improve chunk-level quality, agent usability, or operational
-reliability before becoming defaults.
+semidex is a local-first RAG system for grounding AI agents in real document
+collections. Its job is to make a knowledge base searchable, inspectable, and
+usable by an agent without forcing the agent to read every source file or trust
+an opaque generated summary.
 
-## Product Direction
+The immediate product is a document retrieval layer. The longer-term direction
+adds grounded assistant runtimes, codebase memory, richer ingestion, and
+optional agent memory on top of the same structural foundation.
 
-The core direction is:
+## Product Goal
 
-- local-first indexing and retrieval
-- Qdrant as the retrieval database
-- structure-aware chunking as a first-class feature
-- dense + sparse hybrid search as the default path
-- MCP workflows for AI agents
-- Obsidian-compatible review output for human quality control
-- reproducible benchmarks before ranking changes
+semidex should help teams build accurate AI-assisted workflows over their own
+knowledge:
 
-semidex should stay useful as a small local tool, while growing into a rigorous
-RAG layer for larger technical corpora.
+- internal documentation assistants;
+- customer-facing consultants grounded in approved material;
+- research and project libraries;
+- local personal knowledge collections;
+- future codebase navigation and maintenance workflows.
 
-## Roadmap Principles
+The system remains useful as a small local tool while scaling toward larger
+document collections and specialized project memory.
+
+## Roadmap Model
+
+The roadmap has three layers:
+
+1. **Shipped baseline** - what works today.
+2. **Core foundation sequence** - the next dependency-ordered work that improves
+   the data model shared by every future product track.
+3. **Product tracks and conditional research** - work that can proceed after the
+   required foundation exists, but should not block unrelated capabilities.
+
+This distinction matters. Retrieval experiments such as ColBERT or MMR are not
+mandatory milestones. They are investigated only when measurements show a
+specific retrieval weakness that the existing hybrid path does not solve.
+
+## Product Principles
 
 | Principle | Meaning |
 |-----------|---------|
-| Improve existing strengths first | Prefer better chunking, retrieval diagnostics, and agent workflows over broad new product surfaces |
-| Keep raw text authoritative | LLM summaries, tags, and graph links enrich chunks, but never replace source text |
-| Benchmark before defaults | Rerank, MMR, trigger policies, and future ColBERT work must be measured before becoming default behavior |
-| Make chunks inspectable | Users should be able to review and audit indexed knowledge through Obsidian-compatible Markdown output |
-| Keep storage focused | Qdrant remains the **reference** storage and search backend. Storage-adapter portability is a roadmap research direction, not a rewrite — Qdrant stays the default and supported path |
-| Provider adapters (roadmap) | Add provider adapters for optional external embedding and context-generation APIs. Evaluate Qdrant Cloud Inference for embeddings while keeping local ONNX/Ollama as the default path. Qdrant REST and JS/TS APIs support cloud/server inference; seamless client-side local FastEmbed switching remains Python-specific, so the Node.js runtime keeps its own ONNX pipeline |
-| Local-first by default | The primary path should not require external APIs for document content |
+| Raw sources stay authoritative | LLM summaries, tags, links, OCR text, and vision descriptions enrich the index but never replace original source content. |
+| Structure before ranking tricks | Improve what semidex indexes and how agents navigate it before adding more ranking complexity. |
+| Local-first, not local-only | A complete local deployment remains possible. External providers may be added as optional adapters when users choose them. |
+| Benchmark before defaults | New chunking, retrieval, generation, and ingestion behavior must pass relevant regression gates before becoming default. |
+| Inspectable by humans | Generated chunks, skeleton artifacts, diagnostics, and provenance should remain auditable. |
+| Qdrant remains the reference backend | Portability is a future adapter problem, not a reason to weaken the supported default path. |
+| Keep future tracks modular | Assistant Runtime, Codebase Memory, image processing, and Agent Memory share a foundation but should not become one tightly coupled application. |
 
-## Current Baseline
+## Shipped Baseline
 
-### Implemented and default
+The current MVP is a working local-first retrieval system.
 
-- structure-aware document indexing
-- LLM context summaries and tags
-- dense + sparse named vectors in Qdrant
-- **hybrid dense+sparse RRF** — production default for `qdrant_search`; covers exact technical tokens, paraphrases, and multilingual queries
-- BGE-M3 ONNX multilingual provider
-- Ollama + hashed-TF fallback provider
-- MCP reader tools
-- MCP search context window (`window=1`)
-- compact deduplicated window output
-- semantic graph links and backlinks
-- Obsidian-compatible `chunks_out/` review artifacts
-- PDF structured chunking — `@opendocsg/pdf2md` Markdown conversion with heading-aware section splitting (H1–H6 recovered)
-- 21-query regression benchmark
-- custom-50 chunk-level quality benchmark
-- diagnostics, failure analysis, candidate comparison, and threshold sweep tooling
+### Indexing and ingestion
 
-### Implemented, opt-in, default off
+- Markdown-first document indexing. Markdown provides the highest structural
+  fidelity.
+- Best-effort ingestion for plain text, PDF, and pandoc-convertible formats.
+- Heading-aware, tokenizer-aware chunking with section-boundary preservation.
+- Real BGE-M3 token counting by default, with an explicit heuristic fallback.
+- LLM-generated chunk context and optional tags.
+- SHA-256 skip for unchanged files.
+- Deterministic point IDs for idempotent reindexing.
+- Opt-in stale-file cleanup with `PRUNE_STALE=1`.
+- Obsidian-compatible `chunks_out/` review artifacts.
 
-- **Local reranker** (`RERANK_ENABLED=1`) — neutral on the 21-query regression benchmark, but custom-150 showed regressions; not promotable as a global default, stays opt-in. Keep disabled unless it improves on your own data
-- **MMR benchmark mode** (`BENCH_SEARCH_MODE=dense-mmr`, `npm run bench:retrieval:mmr`) — dense-only evaluation, not a production MCP mode
-- **PRUNE_STALE=1** — opt-in stale-file cleanup after indexing
+### Retrieval
 
-### Audited and deferred
+- Qdrant named dense and sparse vectors.
+- BGE-M3 ONNX multilingual dense and neural sparse provider.
+- Ollama dense plus hashed-TF sparse fallback when ONNX is unavailable.
+- Hybrid dense+sparse retrieval with Qdrant RRF fusion as the production
+  `qdrant_search` path.
+- Compact context windows for agent-facing results.
+- File-level semantic graph links and backlinks.
+- Optional deterministic reranker, disabled by default because it is not a
+  universal win across evaluated query classes.
 
-- **MMR runtime opt-in (`search_mode="dense_mmr"`)** — deferred; see criteria below
-- **Full-text / literal payload search** — deferred; see criteria below
+### Agent and operator tooling
 
-## Phase 1 - Stabilize Retrieval Quality
+- Nine read-only MCP tools for collection inspection, directory navigation,
+  file listing, tag discovery, search, chunk retrieval, and graph traversal.
+- `npm run doctor` for redacted environment diagnostics.
+- `npm run bootstrap:docs` for a managed `semidex-docs` self-documentation
+  collection.
+- Ollama preflight diagnostics before indexing work begins.
+- Retrieval regression suites and focused benchmark tooling.
 
-Goal: make the existing retrieval system easier to measure, debug, and trust.
+### Current limitations
 
-Planned work:
+- Chunking understands headings and token limits, but it does not yet model
+  tables, code blocks, images, and other Markdown structures as first-class
+  nodes.
+- Agents can search and traverse files, but they do not yet have a hierarchical
+  collection map.
+- Markdown is the primary supported format. Conversion quality for other
+  formats depends on third-party parsers and source document quality.
+- There is no application-facing grounded answer API yet.
+- Codebase Memory, OCR/vision processing, write-capable Agent Memory, and the
+  Control Panel remain future work.
 
-- document final conclusions from custom-50 diagnostics and threshold sweep
-- extend custom-50 with large-document stress fixtures
-- add explicit chunk-quality checks:
-  - answer not split across unrelated chunks
-  - chunk is self-contained enough for an agent
-  - section boundaries do not leak unrelated context
+## Core Foundation Sequence
 
-Recent Results (`agent-window-eval` at `top=3`/`window=1`):
-- `full` mode avg ~7.7k chars
-- `compact` mode avg ~5.2k chars (~32% reduction)
-- `compact` mode preserved expected hints 5/5
-- Default remains `window=0`
-- keep tuning policies out of production until they improve metrics across runs
-- define clear pass/fail expectations for regression and quality benchmarks
+These stages are ordered. Each stage creates a stable contract needed by the
+next one.
 
-Success signals:
+| Stage | Outcome | Depends on |
+|-------|---------|------------|
+| 1. Skeleton-first Chunking MVP | Typed document nodes and structurally correct content chunks | Shipped baseline |
+| 2. Skeleton Navigation Layer | Hierarchical agent navigation without polluting normal search | Stage 1 |
+| 3. Validation, Profiles, and Performance Baseline | Evidence that the structural model is useful, universal enough, and operationally affordable | Stages 1-2 |
 
-- higher or stable `chunkRecall@5`
-- stable `windowRecall@5`
-- lower duplicate source rate where diversity matters
-- no regression in multilingual and technical-token queries
-- benchmark reports explain failures without manual guesswork
+### Stage 1 - Skeleton-first Chunking MVP
 
-## Phase 2 - Agent Workflow
+**Goal:** replace "text below a heading" as the only knowledge unit with a
+typed structural model of the document.
 
-Goal: make semidex easier for AI agents to use correctly.
+The skeleton model is part of chunking, not a retrieval boost layered on top.
+The parser first builds a document skeleton, then a policy decides what becomes
+searchable content, what remains navigation metadata, what is preserved as raw
+payload, and what waits for a future processor.
 
-Planned work:
+Initial scope:
 
-- design an agent wake-up workflow:
-  - collection overview
-  - project architecture pointers
-  - important docs
-  - recent decisions if available
-  - suggested follow-up searches
-- design first-run documentation self-indexing:
-  - create or update a reserved local docs collection such as `semidex-docs`
-  - index `README.md`, `AGENTS.md`, and `docs/` so agents can query semidex usage, architecture, and troubleshooting through MCP
-  - make first-run cost visible, especially provider setup and model downloads
-  - mark the collection as internal/semidex-managed so it does not pollute user project link targets by default
-- document recommended MCP search patterns:
-  - search first
-  - expand with `qdrant_get_chunk(window=1)`
-  - follow related/backlinks when the task spans files
-  - use tags and source filters for narrow tasks
-- preserve and improve strengths found during real MCP dogfooding:
-  - `qdrant_get_chunk` with `window` is high-value because agents can read a
-    document section as a document, not as isolated snippets
-  - `qdrant_search(window=1, window_format="compact")` is a strong default for
-    implementation and explanation tasks, but compact output should make it
-    easy to continue to the next/previous chunk when useful context is cut off
-  - `qdrant_find_by_tag` is useful when the agent knows the exact tag, but it
-    is underused without a way to discover available tags first
-  - source-file filters are powerful after a likely file is known, but exact
-    `source_file` paths are a friction point when the agent only knows a folder,
-    partial filename, or approximate title
-- evaluate MCP navigation helpers before adding broader write-capable memory:
-  - `qdrant_list_files(collection, prefix?)` for "what exists under this folder?"
-    navigation
-  - `qdrant_list_tags(collection, prefix?, min_count?)` so agents can discover
-    valid tags before calling `qdrant_find_by_tag`
-  - source-file suggestion or fuzzy path recovery when `qdrant_get_chunk` returns
-    "No chunks found" for a mistyped path
-  - optional `path_format="short"` plus a lookup table to reduce token cost from
-    long repeated `source_file` paths in agent-facing responses
-  - a derived `confidence` signal above RRF rank scores, based on evidence such
-    as dense similarity, score spread, exact-token overlap, source diversity, and
-    context/section agreement
-  - adaptive `top` guidance for ambiguous searches, exact-token lookups, and
-    broad navigation tasks
-  - an MCP self-test / sanity-check workflow that confirms collection health and
-    a known-good search result before a long agent investigation
-- explore **Synthetic Intuition** as a future cheap routing layer:
-  - use lightweight signals before expensive LLM calls or retrieval expansion
-  - suggest likely collection, source scope, search tactic, diagnostic path, or
-    benchmark report to inspect
-  - treat the output as directional guidance, not as evidence or an answer
-  - rely on metadata and measurements such as provider config, phase timings,
-    source diversity, exact-token overlap, section/tag hints, graph neighbors,
-    and previous benchmark verdicts
-  - keep it local, explainable, and benchmarked before any default behavior
-- evaluate whether a controlled `agent-notes` collection is worth adding
-- keep any write-capable MCP memory tool disabled by default unless it has a clear safety model
+- parse Markdown through an AST rather than extending the legacy regex parser;
+- recognize sections, paragraphs, lists, tables, code blocks, blockquotes,
+  images, frontmatter, and unknown nodes with a safe fallback;
+- preserve tables and code blocks as complete structural objects instead of
+  splitting them as prose;
+- keep `raw_content`, generated `embedding_text`, provenance, and node type
+  separate;
+- keep image placeholders in the skeleton while excluding inline base64 bodies
+  from retrieval content;
+- prevent heading-only and placeholder-only retrieval chunks by construction;
+- generate inspectable file-skeleton JSON artifacts;
+- keep the legacy chunker available behind a feature flag during evaluation.
 
-Success signals:
+Implementation contract:
 
-- agents need fewer blind file reads
-- agents retrieve surrounding context more often
-- agents choose a useful first search or diagnostic path more often
-- fewer answers are based on a single isolated chunk when the task needs a section or file context
-- agents can browse unfamiliar collections without already knowing exact
-  filenames or tag names
-- tag filtering becomes more useful because agents can discover the tag
-  vocabulary first
-- source path length and repeated provenance do not consume excessive context
-  budget in typical top-3/top-5 results
+- [Skeleton-first design](../design/skeleton-first-chunking.md)
+- [Skeleton-first MVP implementation spec](../design/skeleton-first-chunking-impl-spec.md)
 
-## Phase 3 - Observability and Diagnostics
+**Exit gate:**
 
-Goal: make local deployments easier to debug without exposing user content.
+- smoke tests cover every supported AST mapping and safe fallback;
+- tables and code blocks are not split incorrectly;
+- empty and placeholder-only retrieval chunks cannot be emitted;
+- legacy indexing remains intact when skeleton-first mode is disabled;
+- a dedicated structural benchmark fixture is available.
+
+### Stage 2 - Skeleton Navigation Layer
+
+**Goal:** let agents understand a large collection progressively, without
+forcing navigation summaries into topical search results.
+
+The skeleton has two distinct roles:
+
+1. `retrieval_content` - searchable prose and structural content objects.
+2. `skeleton_nav` - collection, file, and section map nodes used only for
+   navigation.
 
 Planned work:
 
-- add local search observability:
-  - provider
-  - collection
-  - latency
-  - top-K
-  - RRF settings
-  - source diversity
-  - duplicate source rate
-  - rerank/MMR mode
-- add duplicate point diagnostics:
-  - detect repeated `source_file + chunk_index` hits with different point IDs,
-    tags, context, or provider metadata
-  - report likely causes such as reindexing with random point IDs, changed tag
-    model output, interrupted indexing, or missing same-source cleanup
-  - make clear that `PRUNE_STALE=1` removes absent source files but does not
-    deduplicate multiple points that still share the same live `source_file`
-  - provide a safe repair path, such as delete-and-reindex one affected
-    `source_file` or run a future collection-level duplicate cleanup command
-- design a diagnostic bundle command that collects:
-  - smoke output
-  - config metadata without secrets
-  - Qdrant collection/schema info
-  - benchmark summaries
-  - latest diagnostics reports
-  - environment hints
-- exclude raw user document text from diagnostic bundles by default
+- add `point_kind`, `node_type`, `node_id`, `parent_id`, `heading_path`, and
+  structural provenance fields to the Qdrant payload model;
+- add the required payload indexes;
+- make default search conditionally filter to `point_kind="retrieval_content"`
+  for skeleton-first collections while preserving legacy collection behavior;
+- upsert navigation nodes only after that search filter is active;
+- add paginated `qdrant_get_skeleton(collection, source_file?, node_id?, depth?)`;
+- add anchored content assembly through
+  `qdrant_get_content(collection, anchor_node_id, scope="section"|"file")`;
+- generate summaries at useful navigation levels: file, major section,
+  table, code block, and later collection;
+- keep navigation summaries out of default `qdrant_search`.
 
-Success signals:
+Expected agent flow:
 
-- easier bug reports
-- faster provider mismatch diagnosis
-- easier comparison between local and CI benchmark results
-
-## Phase 4 - Retrieval Experiments
-
-Goal: test more advanced retrieval ideas without destabilizing the default path.
-
-### Deferred: MMR runtime opt-in (`search_mode="dense_mmr"`)
-
-Implementation plan: `benchmarks/retrieval/results/2026-05-14-mmr-mcp-opt-in-audit.md`
-
-Duplicate pressure audit: `benchmarks/retrieval/results/2026-05-14-duplicate-source-pressure-audit.md`
-
-Stage 1 (docs-only guidance) is complete. Stage 2 (runtime `search_mode` parameter) is
-deferred until **all** of the following criteria are met:
-
-- Live broad-query `dupSourceRate` ≥ 60% for ≥ 3 of the 12 defined exploratory queries
-  (see audit for query set)
-- Agent answer quality is confirmed to degrade (not just a statistical metric)
-- onnx Recall@1 regression budget is defined (e.g. ≤ −2pp acceptable)
-- Smoke tests for argument routing pass (5 cases defined in the audit)
-
-Background: the 61.9% `dupSourceRate` from the 21-query benchmark comes from
-exact/technical queries with single-file dominance — not broad exploratory queries.
-Broad queries naturally pull 3–4 distinct files. MMR penalises the ONNX provider
-by 4.8pp Recall@1 at all tested diversity values; for ollama the tradeoff is neutral
-at diversity=0.3. Until the broad-query duplicate pressure is measured live, the
-hypothesis that hybrid RRF harms exploratory search is unconfirmed.
-
-### Deferred: Full-text / literal payload search
-
-Audit: `benchmarks/retrieval/results/2026-05-14-full-text-literal-search-audit.md`
-
-The custom-raw benchmark (bge-m3-onnx, 2026-05-12) achieved 100% tokenHit@5 on all
-7 exact-token queries including error strings, env var assignments, and log line
-fragments. Hybrid sparse already covers the use cases attributed to literal search.
-
-Deferred until **one** of the following:
-
-- `tokenHit@5` < 90% on custom-raw exact-token queries after a provider or chunking change
-- A reproducible user case where hybrid returns the wrong chunk despite the exact string
-  being present in the corpus
-- hashed-TF gap confirmed: exact-token recall < 70% on raw-log corpora with hashed-TF,
-  confirming the problem is not just "use ONNX_EMBED=1"
-
-Note: Qdrant `match: { text: "..." }` is still tokenized, not true verbatim substring
-search. The claimed advantage over hybrid sparse (exact substring) does not exist in the
-Qdrant filter API. The right lever for improving literal recall on raw-log corpora is
-switching from hashed-TF to bge-m3-onnx, not adding a payload text index.
-
-### Remaining experiments
-
-- MMR policy evaluation beyond dense-only benchmark mode
-- stronger lexical fallback than hashed-TF
-- ColBERT / late-interaction rerank prototype
-- query expansion only when diagnostics indicate a likely miss
-- graph-aware retrieval expansion through existing file links and backlinks
-- separate wide candidate retrieval from compact agent-facing output
-
-ColBERT remains a roadmap item, not an immediate default. It should be tested
-only after benchmarks show that the correct chunk is often present in a wider
-candidate pool but ranked too low by hybrid RRF.
-
-### Candidate pool vs output context
-
-Hybrid-search examples commonly retrieve a wider dense/sparse candidate pool
-before returning a much smaller final context to the language model. semidex
-should keep this distinction explicit:
-
-- retrieval may prefetch more candidates than are shown to the agent
-- dense and sparse candidate limits can be tuned independently in benchmarks
-- MCP output should stay compact, provenance-rich, and suitable for agent use
-- `top=3`, `window=1`, and `window_format="compact"` remain agent-facing output
-  policy candidates, not limits on internal retrieval
-- negative/distractor diagnostics should evaluate whether the final compact
-  context contains enough evidence for an agent to refuse unsupported answers
-
-### Graph-aware retrieval expansion
-
-Qdrant GraphRAG examples show a useful pattern: run vector search first, then
-use stable IDs from the vector results to retrieve related graph context. semidex
-should explore the same idea with its existing lightweight file graph before
-introducing external graph databases.
-
-Possible shape:
-
-- use `source_file` and `chunk_index` as stable cross-reference IDs
-- after top results are found, optionally show related files and backlinks near
-  the result
-- prefer file-level graph metadata, tags, and provenance before LLM-generated
-  ontology extraction
-- evaluate multi-hop agent tasks where one search result points to supporting
-  context in a linked file
-- avoid Neo4j or full Knowledge Graph dependencies until benchmarks show a clear
-  need
-
-Success criteria:
-
-- graph expansion improves multi-hop task success without hurting direct lookup
-- agents can explain why related context was included
-- added graph context remains compact enough for MCP use
-- raw text and Qdrant payloads remain the source of truth
-
-Success signals:
-
-- improvement in `MRR@10` or `nDCG@10` without hurting `chunkRecall@5`
-- measurable recovery of known miss classes
-- acceptable latency overhead
-- clear trigger rules for when expensive paths run
-
-## Phase 5 - External Evaluation
-
-Goal: compare semidex quality with broader retrieval and memory benchmarks while
-keeping claims honest.
-
-Planned work:
-
-- keep custom-50 as the internal quality benchmark
-- add held-out or generated large-doc benchmarks before publishing broad claims
-- evaluate selected external datasets only when their metric matches semidex's purpose
-- clearly separate:
-  - retrieval recall
-  - chunk-level recall
-  - answer-generation accuracy
-  - agent task success
-
-Possible references:
-
-- BEIR-style retrieval metrics
-- MTEB retrieval/reranking tasks
-- LongMemEval-style memory retrieval, if adapted carefully
-- synthetic project-doc benchmarks with exact chunk qrels
-
-Success signals:
-
-- reproducible reports committed under `benchmarks/retrieval/results/`
-- clear caveats for every published number
-- no comparison between incompatible metrics
-
-## Phase 6 - Incremental Codebase Memory
-
-Goal: make semidex useful as a live memory layer for large software projects,
-where the index follows source changes without requiring a full reindex after
-every edit.
-
-This is a future concept, not immediate implementation work. The intended shape
-is closer to an incremental project index than a one-shot document import.
-
-### Git-like incremental indexing
-
-Stage 1 — partial incremental sync (implemented):
-
-- deleted-file cleanup: implemented via `PRUNE_STALE=1`; after the indexing loop,
-  points whose `source_file` is absent from the current directory scan are removed
-  from Qdrant (opt-in, directory-scope only — see configuration docs)
-- changed-file skip: implemented via hash/provider metadata; files already indexed
-  with the same content hash and provider are skipped without re-embedding
-- rename behavior: documented — the old `source_file` persists in Qdrant until
-  `PRUNE_STALE=1` is run over the full source root; the new path is indexed as a
-  fresh file
-
-Stage 2 — full incremental sync (planned):
-
-- index a whole repository with stable include/exclude rules and `SOURCE_ROOT`
-- store a per-collection manifest of source files, hashes, provider metadata, chunking settings, and source root
-- detect changed, new, deleted, and renamed files (e.g. optionally use `git status --porcelain` as a fast change signal, with a scan-based fallback)
-- add a same-hash move/rename fast path: when a file's content hash is unchanged
-  but `source_file` changed, reuse existing chunks/vectors and update only
-  path-dependent payload or point IDs instead of rerunning chunk/context/tag/embed
-- use stable point IDs for deterministic upsert
-- use Qdrant batch update/delete operations
-- force a full reindex only when provider, schema, vector size, or chunking settings change
-- goal: large codebase/project indexing without full rebuild
-
-This should not try to replace Git. Git can provide useful change information,
-but semidex's responsibility is keeping the retrieval index aligned with the
-current working tree.
-
-Possible command shape:
-
-```bash
-COLLECTION=my-project SOURCE_ROOT=. npm run index:project
-COLLECTION=my-project SOURCE_ROOT=. npm run sync:project
-COLLECTION=my-project SOURCE_ROOT=. npm run watch:project
+```text
+show collection skeleton
+  -> inspect file summaries
+  -> open one file skeleton
+  -> inspect section summaries
+  -> retrieve or assemble the relevant raw content
 ```
 
-Later extensions:
+**Exit gate:**
 
-- code-aware chunking for JavaScript, TypeScript, Python, and backend service
-  files
-- chunking by functions, classes, exports, route handlers, config blocks, and
-  module boundaries instead of sentence-only splitting
-- branch or commit metadata for agent awareness
-- MCP guidance that tells agents whether the index is fresh or stale relative
-  to the working tree
+- navigation nodes never appear in normal search;
+- a new agent can orient in a large unfamiliar collection without blind file
+  scanning;
+- content assembly preserves authoritative raw tables and code blocks;
+- pagination keeps skeleton reads compact on large collections.
 
-Success signals:
+### Stage 3 - Validation, Profiles, and Performance Baseline
 
-- deleted files disappear from search results (opt-in via `PRUNE_STALE=1` — implemented)
-- unchanged files are skipped during re-index runs (implemented via hash/provider metadata)
-- large repositories can be refreshed without full reindexing
-- changed files become searchable quickly
-- agents search current codebase state instead of stale snapshots
-- indexing cost scales with the size of the change, not the size of the repo
+**Goal:** prove that the new structural model improves real workflows without
+overfitting one technical collection or creating unacceptable indexing cost.
 
-## Phase 7 - Structured PDF Ingestion
+Validation must cover different document shapes and domains. The parser policy
+should be driven by document structure, not by collection-specific keywords.
 
-Goal: recover heading structure and section metadata from PDF files without requiring external pre-processing steps.
+Planned work:
 
-**Current status (Stage 1 — implemented):** `@opendocsg/pdf2md` converts PDF to Markdown; chunking uses the same heading-aware `parseMarkdown` path as `.md` files. H1–H6 headings are recovered as `section` values. Scanned/image-only PDFs with fewer than 3 detected headings fall back to `pdf-parse` plain-text extraction with `section: ""`. Pandoc cannot read PDFs as an input format.
+- benchmark legacy chunking against skeleton-first chunking;
+- add structural retrieval metrics for tables, code blocks, and anchored
+  content assembly alongside existing chunk-level metrics;
+- test Markdown with tables, code, lists, quotes, images, and long sections;
+- evaluate a neutral document profile as the baseline;
+- test representative technical, business, and research-oriented corpora;
+- keep private corpora private: reports record generalized findings, not source
+  paths or content;
+- measure indexing throughput, chunks per second, token volume, LLM cost, Qdrant
+  operations, and per-phase wall time;
+- profile expensive phases before optimizing them;
+- define recommendations for optional document profiles only if measurements
+  justify them;
+- add selected external evaluation datasets when their metrics match semidex's
+  purpose.
 
-Remaining work (Stage 2+): improve structure recovery for edge cases (scanned PDFs, complex layouts, tables).
+**Exit gate:**
 
-Possible approaches (not yet evaluated):
+- structural retrieval improves or preserves established regression metrics;
+- improvements reproduce across multiple document shapes;
+- no profile becomes a hidden requirement for acceptable baseline quality;
+- indexing cost and quality tradeoffs are documented honestly;
+- the neutral profile remains a usable default.
 
-- OCR pipeline for scanned PDFs (e.g. `pymupdf`-based tooling or a document layout model)
-- companion `.md` sidecar file that provides structure, with the PDF used only for page-marker alignment
-- structured extraction using an LLM with vision input (e.g. page-image → heading detection)
+## Product Tracks After the Foundation
 
-Any approach must be benchmarked against the existing plain-text path before becoming a default, since extraction errors could degrade chunk quality compared to the current clean paragraph-based fallback.
+These tracks share Stages 1-3 but do not need to block each other. Their order is
+chosen by user value, available hardware, and validation results.
 
-Success signals:
+### Track A - Assistant Runtime
 
-- PDF chunks have correct `section` values matching document headings
-- no regression in retrieval quality on clean-text PDFs
-- external tool dependency is clearly documented and optional
+**Goal:** make indexed collections usable by grounded assistants in websites,
+internal tools, and local workflows.
 
-## Phase 8 - Semidex Control Panel
+Planned capabilities:
 
-Goal: provide a local user-facing control panel for setup, collection management,
-indexing, diagnostics, manual search, and graph inspection without requiring users
-to edit `.env`, inspect `config.json`, or compose CLI commands by hand.
+- application-facing HTTP answer API;
+- configurable retrieval policy;
+- grounded prompt assembly from semidex results;
+- streaming answers;
+- citations back to files, sections, and structural nodes;
+- local generation adapter, initially through Ollama;
+- optional external generation-provider adapters;
+- evaluation of native on-device ONNX generation when the Node.js integration
+  path is mature enough.
 
-This is a future product surface, not part of the current benchmark and retrieval
-stabilization work. It should wrap the existing CLI/core/MCP capabilities rather
-than introduce new retrieval behavior.
+This track is the bridge from "retrieval MCP for agents" to reusable assistants
+for users who do not operate an MCP client directly.
 
-Possible scope:
+### Track B - Codebase Memory
 
-- first-run setup for `QDRANT_URL`, `QDRANT_KEY`, provider mode, and local model checks
-- `npm run doctor` results shown as PASS/WARN/FAIL cards with repair commands
-- collection list with point counts, provider metadata, schema compatibility, and descriptions
-- create benchmark/test collections and edit collection descriptions with safety checks
-- file/folder picker for indexing into a selected collection
-- indexing options such as `SOURCE_ROOT`, `PRUNE_STALE`, `MAX_CHUNK_TOKENS`, provider mode, and ONNX execution provider
-- live indexing progress by phase: chunking, context, tags, embedding/upsert, links, and review output
-- copyable CLI equivalent for every UI-triggered indexing operation
-- manual semantic search UI with `top`, `window`, `source_file`, and tag filters
-- chunk inspector showing raw text, context, section, tags, score, and provider metadata
-- file-level semantic graph view similar to Obsidian graph: nodes are source files, edges are links/backlinks
-- graph filters by collection, folder/source prefix, tag, and link direction
+**Goal:** specialize the skeleton model for large and legacy software projects.
 
-Stage 1 concept:
+Codebase Memory is not a separate rewrite. It extends the same structural
+principles from documents to source code.
 
-- local-only web UI or desktop wrapper
-- no hosted service, no accounts, no multi-user mode
-- read-only diagnostics and manual search first
-- use existing `doctor`, config, Qdrant, and MCP/search helpers where possible
-- secrets must be redacted in logs and diagnostics output
+Planned capabilities:
 
-Stage 2 concept:
+- project map and file skeletons for repositories;
+- language-aware structural nodes such as symbols, functions, classes, exports,
+  routes, configuration blocks, and source positions;
+- raw code retained alongside generated context;
+- coding-oriented context models selected by benchmark, not hard-coded by
+  preference;
+- per-collection manifest with hashes, provider metadata, chunking settings,
+  and source root;
+- detection of new, changed, deleted, and renamed files;
+- same-hash move/rename fast path;
+- optional Git signals with a scan-based fallback;
+- fast refresh workflows suitable for hooks or watchers;
+- documentation generation and upkeep for poorly documented projects.
 
-- collection creation and indexing actions with explicit confirmations
-- live indexing progress and failure handling
-- graph visualization and chunk drill-down
-- guided setup for Claude Desktop / MCP config
+Already shipped as a partial basis:
 
-Non-goals for this phase:
+- unchanged files are skipped by hash and provider metadata;
+- deleted files and old rename paths can be removed with full-root
+  `PRUNE_STALE=1`;
+- deterministic point IDs make repeated indexing safer.
 
-- hosted SaaS dashboard
-- replacing the MCP server
-- changing retrieval ranking or indexing defaults
-- automatic destructive operations without confirmation
-- multi-user access control
+### Track C - Extended Ingestion and Image Understanding
 
-Success signals:
+**Goal:** improve fidelity for non-Markdown sources without weakening the
+Markdown-first contract.
 
-- new users can configure and test semidex without manually editing files
-- indexing commands generated by the UI match documented CLI behavior
-- users can inspect collections, chunks, and graph links before involving an agent
-- diagnostics failures are understandable without reading stack traces
+Current position:
 
-## Deployment Profiles and Future Tracks (roadmap)
+- Markdown remains the primary format;
+- plain text is supported without heading structure;
+- PDF and pandoc-convertible formats are best-effort conversion paths;
+- parser quality for those formats depends on third-party tools.
 
-These are planned directions, not shipped features. They do not change the current
-baseline (local-first Qdrant + Ollama/ONNX, hybrid RRF default).
+Planned staged pipeline:
 
-### Profiles
+1. Preserve image nodes and provenance in the skeleton.
+2. Exclude inline base64 bodies from prose embeddings.
+3. Add OCR for text-heavy images and scanned pages.
+4. Add a vision-language stage for diagrams, charts, UI screenshots, and
+   illustrations.
+5. Store original image, OCR text, vision summary, and derived retrieval
+   context separately.
+6. Benchmark every processor against the clean fallback path before enabling it
+   by default.
 
-- **semidex Local** — the current primary profile. Fully local or mixed deployment:
-  Ollama + ONNX + Qdrant.
-- **semidex Light** *(planned)* — a profile for when the local machine is weak or
-  busy and its resources must be conserved, **and the data is allowed to leave for
-  external services**: optional external APIs for embeddings/context generation, cloud
-  storage/inference. Not a shipped feature.
+OCR and vision are complementary. Neither generated output becomes the source
+of truth.
 
-### Assistant Runtime *(planned, optional)*
+### Track D - Control Panel and Deployment Profiles
 
-An application-facing runtime for building grounded assistants on top of indexed
-collections: website consultants, internal team helpers, and other read-oriented
-RAG applications. It would provide an HTTP answer API, retrieval policy, grounded
-prompt assembly, streaming responses, and citations back to source files, sections,
-and chunks.
+**Goal:** make setup and operation approachable without changing retrieval
+semantics.
 
-Generation stays pluggable: deployments may use a local model runtime or an external
-API depending on privacy and hardware constraints. Ollama is the practical local
-candidate for an initial adapter. Native on-device LLM generation through ONNX is a
-research direction, not a shipped promise: ONNX Runtime GenAI is still preview and
-its integration path for the Node.js runtime must be validated before adoption.
+Control Panel scope:
 
-### Image understanding pipeline *(planned, staged)*
+- local setup for Qdrant, Ollama, ONNX, and provider configuration;
+- collection management and safe indexing actions;
+- `doctor` results shown as actionable diagnostics;
+- indexing progress by pipeline phase;
+- manual search and chunk inspection;
+- file-level graph visualization;
+- copyable CLI equivalents for UI-triggered actions.
 
-Image nodes from skeleton-first chunking remain first-class structural placeholders
-instead of being mixed into prose as inline base64. The original image stays
-authoritative. Future processors add separate derived payload with provenance:
+Deployment profiles:
 
-- an OCR stage extracts exact visible text for scanned pages, screenshots, and
-  text-heavy images;
-- a vision-language stage describes semantic content that OCR cannot recover well,
-  such as diagrams, charts, interface screenshots, and illustrations;
-- retrieval embeds a concise derived context while keeping the original image,
-  OCR text, and vision summary separately inspectable.
+- **semidex Local** - the current primary profile. Fully local or mixed
+  deployment with ONNX, Ollama, and Qdrant.
+- **semidex Light** - planned resource-conserving profile using optional
+  external embeddings, context generation, inference, or storage where data
+  policy allows it.
+- **semidex Codebase** - planned specialization built through Track B.
 
-These stages are complementary and independently benchmarked. A multimodal Gemma
-model through Ollama is a practical local candidate for the initial vision-language
-probe, not a source of truth and not a shipped default.
+### Track E - Agent Memory Overlay
 
-### Codebase Memory *(planned, separate track)*
+**Goal:** allow agents to record useful working knowledge without contaminating
+the authoritative document index.
 
-A specialized direction for large and legacy repositories: skeleton-first project
-structure; context for files, sections, and structural entities; raw code, source
-path, and position kept available; git-aware incremental refresh after changes;
-documentation generation and upkeep. The coding-oriented context model is selected by
-benchmark — no specific model is promised. See Phase 6 for the incremental-sync basis.
+Planned constraints:
 
-### Agent Memory *(planned, opt-in)*
+- opt-in and disabled by default;
+- separate from source-derived knowledge;
+- global, user-scoped, and collection-scoped notes;
+- per-library search guidance and working rules;
+- candidate-knowledge inbox for externally discovered facts;
+- provenance, review state, and change log;
+- explicit promotion workflow before any fact joins an authoritative source.
 
-A future writable overlay for all profiles, kept **separate** from the authoritative
-knowledge base: global / user-scoped / collection-scoped notes, per-library working
-rules, and a candidate-knowledge inbox for external facts — with provenance, review,
-and a change log required before any promotion into the main base. Off by default;
-authoritative source text is never overwritten by agent-written memory.
+## Conditional Retrieval Research
 
-### Provider adapters *(research)*
+These experiments are intentionally outside the required delivery sequence.
+They should start only when a measured miss class justifies them.
 
-Optional external embedding/context-generation APIs. Evaluate Qdrant Cloud Inference
-as one option while keeping local ONNX/Ollama as the default path. Qdrant REST and
-JS/TS APIs support cloud/server inference; seamless client-side local FastEmbed
-switching remains Python-specific, so the Node.js runtime keeps its own ONNX pipeline.
+| Candidate | Current position | Trigger for renewed work |
+|-----------|------------------|--------------------------|
+| Deterministic reranker | Implemented, opt-in, default off | A validated collection or query-class routing policy where it improves quality without unacceptable regressions |
+| Dense MMR runtime mode | Benchmark-only, deferred | Reproducible broad-query duplicate pressure that harms agent answer quality |
+| Literal payload search | Deferred | Exact-token regressions not solved by BGE-M3 sparse retrieval |
+| Stronger Node-only sparse fallback | Research item | A requirement for better fallback quality where ONNX BGE-M3 cannot be used |
+| ColBERT / late interaction | Benchmark-only prototype direction, deferred | Correct chunks frequently exist in a wider candidate pool but hybrid RRF ranks them too low |
+| Graph-aware expansion | Research item | Multi-hop tasks where file links recover useful evidence without bloating context |
+| Query expansion | Research item | Diagnostics show systematic misses that cannot be solved by better structure or lexical retrieval |
 
-### Storage adapters *(future)*
+Relevant retrieval decisions and benchmark evidence remain documented in:
 
-Qdrant remains the reference backend and supported default. Adapters for other vector
-databases are a future research item, only after a parity check against Qdrant's
-named-vector hybrid schema.
+- [Retrieval documentation](retrieval.md)
+- [Benchmarking guide](benchmarking.md)
+- [`benchmarks/retrieval/results/README.md`](../../benchmarks/retrieval/results/README.md)
 
-## Not Planned Right Now
+## Provider and Storage Adapter Research
 
-These may be useful later, but they are not the current priority:
+These adapters broaden deployment options but do not replace the reference
+architecture.
 
-- replacing Qdrant as the default/reference backend (storage-adapter portability remains a roadmap research item, but Qdrant stays the supported default)
-- building a hosted or multi-user web dashboard
-- becoming a general conversational memory platform
-- adding many MCP tools before the current ones are fully polished
-- making LLM extraction the source of truth
-- enabling write-capable agent memory by default
-- making ColBERT a default path before benchmark evidence supports it
-- building a full Git replacement or source-control workflow
+### Provider adapters
 
-## Near-Term Task Queue
+- optional external embedding APIs;
+- optional external context-generation APIs;
+- optional external answer-generation APIs for Assistant Runtime;
+- evaluation of Qdrant Cloud Inference where its API surface fits the Node.js
+  runtime;
+- local ONNX and Ollama paths remain supported defaults.
 
-Retrieval and chunking decision closure (done):
+### Storage adapters
 
-- Hybrid dense+sparse RRF confirmed as production default — no change needed.
-- Reranker not promotable as a global default — custom-150 showed regressions; stays opt-in (`RERANK_ENABLED=1`).
-- MMR runtime opt-in deferred — criteria documented, broad-query live eval pending.
-- Full-text literal search deferred — hybrid sparse covers all confirmed use cases.
-- PDF chunking Stage 1 implemented — `@opendocsg/pdf2md` Markdown conversion with H1–H6 heading recovery; scanned PDFs fall back to plain-text.
+- Qdrant remains the reference backend and the supported default;
+- adapters for other vector databases are future research;
+- any adapter must pass a parity check for named vectors, hybrid retrieval,
+  payload filtering, schema migration, and operational safety.
 
-**Next planned block: indexing/chunking performance baseline.**
+## Cross-cutting Work
 
-Before any optimization work (faster indexing, incremental sync, code-aware chunking),
-establish a baseline:
+These concerns apply across all stages and tracks.
 
-1. Measure indexing throughput on a realistic corpus (tokens/sec, chunks/sec, wall time).
-2. Profile per-phase cost: pandoc conversion, chunking, LLM context/tag generation, embedding, Qdrant upsert.
-3. Identify the dominant cost phase before choosing where to optimize.
-4. Run `js-modern-book` benchmark to assess retrieval quality on a large real-world document.
+### Evaluation
 
-Remaining general tasks:
+- preserve internal regression suites;
+- add held-out fixtures before publishing broad claims;
+- separate retrieval recall, structural-node recall, answer accuracy, latency,
+  and agent task success;
+- publish caveats with every metric;
+- avoid comparisons between incompatible metrics.
 
-5. Evaluate whether to change the programmatic tool default from `window=0` to `window=1, window_format="compact"` — the recommended agent pattern is already documented in AGENTS.md, but the code default has not changed.
-6. Add a chunking-quality design document and large-document stress fixture plan.
-7. ~~Summarize custom-50 diagnostics conclusions in the benchmarking docs~~ — **done**: `## Retrieval Diagnostics Conclusions` section added to `docs/en/benchmarking.md`; covers RRF score interpretation, agent defaults, trigger signals, MMR/full-text deferral, scope handling, and window utility.
-8. ~~Design first-run semidex documentation self-indexing (`semidex-docs`) for agent onboarding~~ — **done**: `npm run bootstrap:docs` implemented; indexes semidex docs into `semidex-docs` collection with ONNX provider; managed-collection guard prevents accidental overwrite.
-9. Draft the agent wake-up workflow before implementing any new MCP tool.
-10. ~~Design a diagnostic bundle command with redaction rules~~ — **done**: `npm run doctor` implemented (`src/doctor.js`, `src/core/doctor-checks.js`); covers Node version, QDRANT_URL/KEY, Ollama reachability and model presence, collection schema, payload indexes, provider agreement, schema version, ONNX cache; full redaction of URL credentials and API key literals; writes timestamped report to `diagnostics/`.
-11. Revisit MMR Stage 2 only after broad-query duplicate pressure is measured live.
-12. Revisit full-text search only after a confirmed hybrid exact-token regression.
-13. Update `SKILL.md` MCP setup instructions for npm package install path (`npx semidex` or `semidex mcp`) once the package is published — current instructions assume a cloned repo.
-14. ~~Add pre-flight Ollama diagnostics~~ — **implemented** (`src/indexer/preflight.js`): reachability check + exact model validation before indexing loop; fail-fast with actionable error including Windows `127.0.0.1` hint.
-15. Investigate persistent `[tag] batch parse failed` on PDF chunks despite `format:json` fix — Gemma3 may ignore `format:json` for certain prompt lengths or chunk content patterns. Consider logging the raw response on failure to diagnose.
-16. Pre-release MCP naming cleanup: rename the MCP server registration from `qdrant` to `semidex` so exposed Claude/Codex tool names become `mcp__semidex__qdrant_*` instead of `mcp__qdrant__qdrant_*`. Keep actual tool names (`qdrant_search`, `qdrant_get_chunk`, etc.) stable for now, update plugin config/install docs/skill allow-lists, and document migration for existing local `.mcp.json` setups. Do not do this in the middle of UX polish work.
+### Observability and operations
+
+- keep diagnostics redacted by default;
+- expose provider, collection, latency, schema, and source-diversity metadata;
+- preserve safe repair paths for stale and duplicate points;
+- make destructive operations explicit and scoped;
+- keep collection migrations inspectable.
+
+### Platform support
+
+- Windows 10/11 remains the verified end-to-end target;
+- Linux and macOS remain experimental until validated on physical hardware;
+- hardware execution providers affect performance, not retrieval semantics;
+- do not promise platform support based only on theoretical dependency
+  compatibility.
+
+### Documentation quality
+
+- keep the English deep-dive documentation accurate and implementation-facing;
+- maintain a Ukrainian product-facing documentation path;
+- keep README claims narrower than the evidence;
+- clearly distinguish shipped behavior, opt-in behavior, planned work, and
+  research hypotheses.
+
+## Near-term Execution Queue
+
+The next implementation work should follow the approved skeleton-first MVP spec.
+
+1. Add the AST parser, node policy, skeleton warnings, and deterministic node ID
+   helper behind `SKELETON_CHUNKING=1`.
+2. Add `chunkFromSkeleton()` with safe fallback behavior and no placeholder-only
+   retrieval chunks.
+3. Extend payload metadata for skeleton-first content nodes and add schema
+   versioning.
+4. Generate file-skeleton JSON artifacts for inspection only.
+5. Add the conditional `point_kind="retrieval_content"` search filter for
+   skeleton-first collections while preserving legacy collection behavior.
+6. Upsert `skeleton_nav` nodes only after the search filter is active.
+7. Add structural smoke tests and a dedicated benchmark fixture.
+8. Add paginated `qdrant_get_skeleton` and anchored `qdrant_get_content`.
+9. Add file and section summaries, then evaluate collection-level summaries.
+10. Run Stage 3 validation before enabling skeleton-first behavior by default.
+
+## Explicit Non-goals
+
+Not planned as immediate work:
+
+- replacing Qdrant as the reference backend;
+- enabling write-capable Agent Memory by default;
+- treating LLM-generated summaries, OCR text, or vision descriptions as source
+  truth;
+- building a hosted multi-user dashboard before the local Control Panel;
+- making ColBERT, MMR, reranking, or graph expansion default without benchmark
+  evidence;
+- building a Git replacement;
+- claiming full-fidelity ingestion for formats whose third-party conversion
+  paths remain partial.
