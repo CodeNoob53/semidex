@@ -31,7 +31,8 @@ RAG layer for larger technical corpora.
 | Keep raw text authoritative | LLM summaries, tags, and graph links enrich chunks, but never replace source text |
 | Benchmark before defaults | Rerank, MMR, trigger policies, and future ColBERT work must be measured before becoming default behavior |
 | Make chunks inspectable | Users should be able to review and audit indexed knowledge through Obsidian-compatible Markdown output |
-| Keep storage focused | Qdrant remains the storage and search engine; no Postgres/Chroma/backend rewrite is planned |
+| Keep storage focused | Qdrant remains the **reference** storage and search backend. Storage-adapter portability is a roadmap research direction, not a rewrite — Qdrant stays the default and supported path |
+| Provider adapters (roadmap) | Add provider adapters for optional external embedding and context-generation APIs. Evaluate Qdrant Cloud Inference for embeddings while keeping local ONNX/Ollama as the default path. Qdrant REST and JS/TS APIs support cloud/server inference; seamless client-side local FastEmbed switching remains Python-specific, so the Node.js runtime keeps its own ONNX pipeline |
 | Local-first by default | The primary path should not require external APIs for document content |
 
 ## Current Baseline
@@ -56,7 +57,7 @@ RAG layer for larger technical corpora.
 
 ### Implemented, opt-in, default off
 
-- **Local reranker** (`RERANK_ENABLED=1`) — neutral on the 21-query benchmark; keep disabled unless it improves on your own data
+- **Local reranker** (`RERANK_ENABLED=1`) — neutral on the 21-query regression benchmark, but custom-150 showed regressions; not promotable as a global default, stays opt-in. Keep disabled unless it improves on your own data
 - **MMR benchmark mode** (`BENCH_SEARCH_MODE=dense-mmr`, `npm run bench:retrieval:mmr`) — dense-only evaluation, not a production MCP mode
 - **PRUNE_STALE=1** — opt-in stale-file cleanup after indexing
 
@@ -486,11 +487,68 @@ Success signals:
 - users can inspect collections, chunks, and graph links before involving an agent
 - diagnostics failures are understandable without reading stack traces
 
+## Deployment Profiles and Future Tracks (roadmap)
+
+These are planned directions, not shipped features. They do not change the current
+baseline (local-first Qdrant + Ollama/ONNX, hybrid RRF default).
+
+### Profiles
+
+- **semidex Local** — the current primary profile. Fully local or mixed deployment:
+  Ollama + ONNX + Qdrant.
+- **semidex Light** *(planned)* — a profile for when the local machine is weak or
+  busy and its resources must be conserved, **and the data is allowed to leave for
+  external services**: optional external APIs for embeddings/context generation, cloud
+  storage/inference. Not a shipped feature.
+
+### Assistant Runtime *(planned, optional)*
+
+An application-facing runtime for building grounded assistants on top of indexed
+collections: website consultants, internal team helpers, and other read-oriented
+RAG applications. It would provide an HTTP answer API, retrieval policy, grounded
+prompt assembly, streaming responses, and citations back to source files, sections,
+and chunks.
+
+Generation stays pluggable: deployments may use a local model runtime or an external
+API depending on privacy and hardware constraints. Ollama is the practical local
+candidate for an initial adapter. Native on-device LLM generation through ONNX is a
+research direction, not a shipped promise: ONNX Runtime GenAI is still preview and
+its integration path for the Node.js runtime must be validated before adoption.
+
+### Codebase Memory *(planned, separate track)*
+
+A specialized direction for large and legacy repositories: skeleton-first project
+structure; context for files, sections, and structural entities; raw code, source
+path, and position kept available; git-aware incremental refresh after changes;
+documentation generation and upkeep. The coding-oriented context model is selected by
+benchmark — no specific model is promised. See Phase 6 for the incremental-sync basis.
+
+### Agent Memory *(planned, opt-in)*
+
+A future writable overlay for all profiles, kept **separate** from the authoritative
+knowledge base: global / user-scoped / collection-scoped notes, per-library working
+rules, and a candidate-knowledge inbox for external facts — with provenance, review,
+and a change log required before any promotion into the main base. Off by default;
+authoritative source text is never overwritten by agent-written memory.
+
+### Provider adapters *(research)*
+
+Optional external embedding/context-generation APIs. Evaluate Qdrant Cloud Inference
+as one option while keeping local ONNX/Ollama as the default path. Qdrant REST and
+JS/TS APIs support cloud/server inference; seamless client-side local FastEmbed
+switching remains Python-specific, so the Node.js runtime keeps its own ONNX pipeline.
+
+### Storage adapters *(future)*
+
+Qdrant remains the reference backend and supported default. Adapters for other vector
+databases are a future research item, only after a parity check against Qdrant's
+named-vector hybrid schema.
+
 ## Not Planned Right Now
 
 These may be useful later, but they are not the current priority:
 
-- replacing Qdrant with another backend
+- replacing Qdrant as the default/reference backend (storage-adapter portability remains a roadmap research item, but Qdrant stays the supported default)
 - building a hosted or multi-user web dashboard
 - becoming a general conversational memory platform
 - adding many MCP tools before the current ones are fully polished
@@ -504,7 +562,7 @@ These may be useful later, but they are not the current priority:
 Retrieval and chunking decision closure (done):
 
 - Hybrid dense+sparse RRF confirmed as production default — no change needed.
-- Reranker confirmed neutral on benchmark — stays off by default.
+- Reranker not promotable as a global default — custom-150 showed regressions; stays opt-in (`RERANK_ENABLED=1`).
 - MMR runtime opt-in deferred — criteria documented, broad-query live eval pending.
 - Full-text literal search deferred — hybrid sparse covers all confirmed use cases.
 - PDF chunking Stage 1 implemented — `@opendocsg/pdf2md` Markdown conversion with H1–H6 heading recovery; scanned PDFs fall back to plain-text.

@@ -93,7 +93,7 @@ Windows:
 claude mcp add --scope user semidex -- node C:\absolute\path\to\semidex\src\mcp\server.js
 ```
 
-Reconnect the MCP server in Claude Code and run `/mcp`. The server appears as `qdrant` with 6 tools.
+Reconnect the MCP server in Claude Code and run `/mcp`. The server appears as `qdrant` with 9 tools.
 
 <table><tr>
 <td><img src="assets/avif/mcp_connected.avif" alt="MCP connected"/></td>
