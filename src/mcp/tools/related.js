@@ -3,7 +3,7 @@ import { loadGraph } from '../../core/graph.js';
 
 export const schema = {
   name: 'qdrant_related',
-  description: 'Get files semantically linked to a source file (outgoing links from graph.<collection>.json).',
+  description: 'After qdrant_search identifies a high-confidence source_file, traverse its outgoing file-level semantic links from graph.<collection>.json. This is graph navigation, not ranked topical search: results may include noise, so inspect summaries and narrow with qdrant_search or qdrant_get_chunk when needed.',
   inputSchema: {
     type: 'object',
     properties: {

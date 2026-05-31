@@ -266,12 +266,16 @@ mix incompatible chunk boundaries.
 
 ## Supported Formats
 
-| Format | Method |
-|--------|--------|
-| `.md` | Native parser with headings, frontmatter, wikilinks |
-| `.txt` | Native parser |
-| `.pdf` | `@opendocsg/pdf2md` → Markdown (headings recovered) |
-| `.docx`, `.odt`, `.rtf`, `.epub`, `.html`, `.htm` | `pandoc` conversion to Markdown |
+Markdown is the primary input format and provides the best structural fidelity.
+Other formats are supported on a best-effort basis: conversion quality depends on
+the source document and the available third-party parser.
+
+| Format | Method | Current support level |
+|--------|--------|-----------------------|
+| `.md` | Native parser with headings, frontmatter, wikilinks | Primary format |
+| `.txt` | Native parser | Plain text only; no heading structure |
+| `.pdf` | `@opendocsg/pdf2md` → Markdown | Partial; depends on the PDF text layer and recovered structure |
+| `.docx`, `.odt`, `.rtf`, `.epub`, `.html`, `.htm` | `pandoc` conversion to Markdown | Partial; depends on pandoc conversion quality |
 
 Pandoc is required only for `.docx`, `.odt`, `.rtf`, `.epub`, `.html`, and `.htm`.
 

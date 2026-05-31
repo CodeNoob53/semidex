@@ -19,7 +19,7 @@ Example `.claude/mcp.json`:
   "mcpServers": {
     "qdrant": {
       "command": "node",
-      "args": ["C:\\Users\\Aorus\\Documents\\Projects\\semidex\\src\\mcp\\server.js"],
+      "args": ["C:\\absolute\\path\\to\\semidex\\src\\mcp\\server.js"],
       "env": {
         "QDRANT_URL": "http://localhost:6333",
         "QDRANT_KEY": "optional-if-required"

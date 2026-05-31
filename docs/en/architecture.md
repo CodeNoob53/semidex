@@ -59,6 +59,10 @@ The parser tries to preserve document structure:
 
 ### Format-specific behavior
 
+Markdown is the primary input format and has the strongest structural fidelity.
+Other formats are best-effort ingestion paths: they rely on text extraction or
+third-party conversion before entering the Markdown-oriented chunking pipeline.
+
 | Format | Parser | Section headings | Notes |
 |--------|--------|-----------------|-------|
 | `.md` | Native | Preserved | Wikilinks, frontmatter, heading hierarchy |

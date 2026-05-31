@@ -2,7 +2,7 @@ import { loadGraph } from '../../core/graph.js';
 
 export const schema = {
   name: 'qdrant_backlinks',
-  description: 'Get files that link to a given source file (incoming links from graph.<collection>.json).',
+  description: 'For a known source_file, list incoming file-level links from graph.<collection>.json to inspect documents that reference or depend on it. Use after qdrant_search resolves the file, not as topical search; read linked content with qdrant_search or qdrant_get_chunk.',
   inputSchema: {
     type: 'object',
     properties: {

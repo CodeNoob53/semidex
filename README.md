@@ -210,12 +210,17 @@ Mixed provider combinations, such as `ollama` dense + `bge-m3-onnx` sparse, are 
 
 ## Supported Formats
 
-| Format | Method |
-|--------|--------|
-| `.md` | Native parser with headings, frontmatter, wikilinks |
-| `.txt` | Native parser |
-| `.pdf` | `@opendocsg/pdf2md` → Markdown (headings recovered) |
-| `.docx`, `.odt`, `.rtf`, `.epub`, `.html`, `.htm` | `pandoc` conversion to Markdown |
+Markdown is the primary input format and currently provides the best structural
+fidelity. Other formats are supported on a best-effort basis: semidex converts
+them into text or Markdown first, so the resulting headings, tables, and layout
+depend on the source document and the available third-party parser.
+
+| Format | Method | Current support level |
+|--------|--------|-----------------------|
+| `.md` | Native parser with headings, frontmatter, wikilinks | Primary format |
+| `.txt` | Native parser | Plain text only; no heading structure |
+| `.pdf` | `@opendocsg/pdf2md` → Markdown | Partial; quality depends on the PDF text layer and recovered structure |
+| `.docx`, `.odt`, `.rtf`, `.epub`, `.html`, `.htm` | `pandoc` conversion to Markdown | Partial; quality depends on pandoc conversion |
 
 Pandoc is required only for `.docx`, `.odt`, `.rtf`, `.epub`, `.html`, and `.htm`.
 
@@ -243,23 +248,31 @@ and explicit non-goals.
 Implemented:
 
 - Local-first indexing pipeline
-- Structure-aware chunking
-- LLM context summaries and tags
+- Heading-aware, tokenizer-aware chunking with section-boundary preservation
+- LLM context summaries and optional tags
 - Dense + sparse hybrid retrieval
 - Qdrant RRF fusion
 - BGE-M3 ONNX multilingual provider
-- MCP reader tools
-- Semantic graph links/backlinks
+- 9 read-only MCP tools
+- File-level semantic graph links/backlinks
+- SHA-256 skip for unchanged files
+- Deterministic point IDs for idempotent reindexing
+- Opt-in stale-file cleanup via `PRUNE_STALE=1` (when run against the full source root)
 - Obsidian-readable review output
 - Optional deterministic reranker
-- Retrieval regression benchmark
+- Retrieval regression benchmark suites
+
+Changed files are detected automatically by SHA-256 hash and reindexed on the next
+`npm run index` run. `PRUNE_STALE=1` removes Qdrant points for files that have been
+deleted or renamed, and cleans up old paths after a rename.
 
 Not implemented yet:
 
-- ColBERT / late-interaction retrieval
+- Skeleton-first structural-node chunking
+- Production ColBERT / late-interaction retrieval
 - Full external dataset evaluation
 - True BM25/SPLADE fallback for Node-only sparse retrieval
-- Incremental project/codebase sync for changed and renamed files (deleted files are handled via `PRUNE_STALE=1`)
+- Git-aware project/codebase sync and same-hash rename/move reuse
 
 ## Acknowledgements
 
