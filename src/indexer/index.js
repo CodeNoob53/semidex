@@ -21,6 +21,8 @@ import { loadConfig, saveConfig, resolveEnvProviders } from '../core/config.js';
 import { embedForIndex, embedForIndexBatch, shouldUseOnnxBatching, getEmbeddingConfig, SCHEMA_VERSION } from '../core/embeddings.js';
 import { ensureOllamaPreflight } from './preflight.js';
 import { CHUNKING_SCHEMA_VERSION, getTokenCounter, resolveTokenCountMode } from '../core/token-count.js';
+import { Semaphore } from './semaphore.js';
+import { SerialQueue } from './serial-queue.js';
 
 const BATCH_SIZE   = parseInt(process.env.LLM_BATCH_SIZE || '3');
 const CHUNKS_OUT_DIR = process.env.CHUNKS_OUT_DIR || './chunks_out';
@@ -35,11 +37,11 @@ function hashFile(filePath) {
   });
 }
 
-async function indexFile(filePath, rootPath, collection, allCollections, graph) {
-  console.log(`\n→ ${filePath}`);
-
-  const profiler = new Profiler();
-
+// ── Stage A: read-only preflight / hash / chunk / merge ──────────────────────
+// Non-destructive: no Qdrant deletes, no graph mutations.
+// Returns { status: 'skipped' } or a prepared object carrying needsDelete/deleteReason
+// so later stages can act on them at the right time.
+async function stageA(filePath, rootPath, collection, profiler) {
   const effectiveRoot = SOURCE_ROOT ?? rootPath;
   const sourceFile = relative(effectiveRoot, filePath).replace(/\\/g, '/');
   if (SOURCE_ROOT && (sourceFile.startsWith('../') || sourceFile === '..' || isAbsolute(sourceFile))) {
@@ -66,24 +68,24 @@ async function indexFile(filePath, rootPath, collection, allCollections, graph) 
     (storedMeta?.vectorSize ?? configVectorSize) === configVectorSize
   ) {
     console.log('  ✓ unchanged, skipping');
-    return 'skipped';
+    return { status: 'skipped' };
   }
 
   // Preflight runs once per process, on the first file that actually needs indexing.
-  // Skipped files and PRUNE_STALE-only runs never trigger it.
   const ollamaUrl    = process.env.OLLAMA_URL    || 'http://localhost:11434';
   const contextModel = process.env.CONTEXT_MODEL || 'gemma3:4b';
   const combinedCfg  = resolveCombinedLlmConfig(process.env);
-  // COMBINED_LLM=1 uses CONTEXT_MODEL for both context and tags; TAG_MODEL is ignored.
-  // TAG_GEN=0 skips tag generation entirely; no need to check TAG_MODEL reachability.
-  // Only check TAG_MODEL when actually using the separate tag path.
   const genTagsPreflight = shouldGenerateTags(process.env);
   const tagModel = (combinedCfg.enabled || !genTagsPreflight) ? contextModel : (process.env.TAG_MODEL || 'gemma3:4b');
   await ensureOllamaPreflight(ollamaUrl, contextModel, tagModel);
-  // Load/download tokenizer before deleting existing points. A tokenizer
-  // failure must leave the previously indexed file intact.
+  // Load/download tokenizer before any destructive work — a failure here leaves old points intact.
   if (tokenCountMode === 'bge-m3') await getTokenCounter({ mode: 'bge-m3' });
-  if (storedHash && !process.env.SKIP_PRE_DELETE) {
+
+  // Compute whether a pre-delete is needed, but do NOT execute it yet.
+  // Qdrant delete happens in stageC (after embed succeeds); graph removeFile in stageD.
+  const needsDelete = Boolean(storedHash && !process.env.SKIP_PRE_DELETE);
+  let deleteReason = '';
+  if (needsDelete) {
     const reasons = [];
     if (storedMeta?.denseProvider          !== embedCfg.denseProvider)  reasons.push(`denseProvider: ${storedMeta?.denseProvider} → ${embedCfg.denseProvider}`);
     if (storedMeta?.denseModel             !== embedCfg.denseModel)     reasons.push(`denseModel: ${storedMeta?.denseModel} → ${embedCfg.denseModel}`);
@@ -92,10 +94,8 @@ async function indexFile(filePath, rootPath, collection, allCollections, graph) 
     if (storedMeta?.chunkingSchemaVersion  !== CHUNKING_SCHEMA_VERSION) reasons.push(`chunkingSchemaVersion: ${storedMeta?.chunkingSchemaVersion} → ${CHUNKING_SCHEMA_VERSION}`);
     if (storedMeta?.tokenCountMode         !== tokenCountMode)          reasons.push(`tokenCountMode: ${storedMeta?.tokenCountMode} → ${tokenCountMode}`);
     if ((storedMeta?.vectorSize ?? configVectorSize) !== configVectorSize) reasons.push(`vectorSize: ${storedMeta?.vectorSize} → ${configVectorSize}`);
-    const reason = reasons.length ? reasons.join(', ') : 'content changed';
-    console.log(`  ~ ${reason}, reindexing...`);
-    await deleteBySourceFile(collection, sourceFile);
-    removeFile(graph, sourceFile);
+    deleteReason = reasons.length ? reasons.join(', ') : 'content changed';
+    console.log(`  ~ ${deleteReason}, reindexing...`);
   }
   profiler.mark('pre');
 
@@ -104,8 +104,22 @@ async function indexFile(filePath, rootPath, collection, allCollections, graph) 
   console.log(`        ${rawChunks.length} chunks`);
   profiler.mark('chunk');
 
-  if (combinedCfg.warning) console.warn(`  [combined] ${combinedCfg.warning}`);
+  return {
+    status: 'ready',
+    filePath, sourceFile, collection, fileHash,
+    embedCfg, tokenCountMode, configVectorSize,
+    needsDelete, deleteReason,
+    rawChunks, combinedCfg: resolveCombinedLlmConfig(process.env),
+    profiler,
+  };
+}
 
+// ── Stage B: context + tag generation (Ollama GPU) ───────────────────────────
+// Guarded by ollamaSem in pipeline mode.
+async function stageB(prepared) {
+  const { rawChunks, combinedCfg, profiler } = prepared;
+
+  if (combinedCfg.warning) console.warn(`  [combined] ${combinedCfg.warning}`);
   const genTags = shouldGenerateTags(process.env);
 
   let taggedChunks;
@@ -120,8 +134,6 @@ async function indexFile(filePath, rootPath, collection, allCollections, graph) 
       taggedChunks = await runBatched(merged, BATCH_SIZE, chunk => addContextAndTags(chunk, combinedCfg.model, merged));
     } else {
       // TAG_GEN=0: run combined call for context only, then force tags: [].
-      // addContextAndTags still generates tags internally but we discard them here
-      // rather than splitting the prompt, which would be a riskier change.
       console.log('  [3/5] tagging skipped (TAG_GEN=0) — context only');
       const withContext = await runBatched(merged, BATCH_SIZE, chunk => addContextAndTags(chunk, combinedCfg.model, merged));
       taggedChunks = withContext.map(c => ({ ...c, tags: [] }));
@@ -149,9 +161,6 @@ async function indexFile(filePath, rootPath, collection, allCollections, graph) 
   }
 
   // Defensive guard: empty-section chunks must not reach Qdrant.
-  // The chunker no longer emits them; this fires only on a future regression.
-  // Throw rather than silently dropping: filtering here would leave chunkIndex/totalChunks
-  // non-contiguous and cause deleteTrailingChunks to remove valid higher-index points.
   const emptySectionChunks = taggedChunks.filter(isEmptySectionChunk);
   if (emptySectionChunks.length > 0) {
     throw new Error(
@@ -160,14 +169,24 @@ async function indexFile(filePath, rootPath, collection, allCollections, graph) 
     );
   }
 
-  console.log('  [4/5] embedding + upserting...');
+  return { ...prepared, taggedChunks };
+}
+
+// ── Stage C: embed + validate + build points (ONNX CPU, pure compute) ────────
+// Guarded by embedSem in pipeline mode.
+// No Qdrant mutations here — produces pointsWithDense for stageD to commit.
+// Keeping embed separate from Qdrant writes allows ONNX to overlap with the
+// serialised commit+link phase of a previous file.
+async function stageC(withTagged) {
+  const { taggedChunks, collection, sourceFile, fileHash,
+          embedCfg, tokenCountMode, configVectorSize, profiler } = withTagged;
+
+  console.log('  [4/5] embedding...');
   // BENCH_EMBED_INPUT=text — benchmark/ablation only, not a stable config option.
-  // Default (unset): context+text. Do not rely on this in production.
   const embedTexts = process.env.BENCH_EMBED_INPUT === 'text'
     ? taggedChunks.map(chunk => chunk.text)
     : taggedChunks.map(chunk => `${chunk.context}\n\n${chunk.text}`);
 
-  // Attempt DML-bucketed batch embed; fall back to per-text path on any failure.
   let embedResults;
   if (shouldUseOnnxBatching(process.env)) {
     try {
@@ -180,7 +199,7 @@ async function indexFile(filePath, rootPath, collection, allCollections, graph) 
     embedResults = await runBatched(embedTexts, BATCH_SIZE, text => embedForIndex(collection, text));
   }
 
-  // Correctness guards — catch misalignment before any upsert.
+  // Validate vectors before passing to stageD — no destructive work has happened yet.
   if (embedResults.length !== taggedChunks.length) {
     throw new Error(`embed phase: expected ${taggedChunks.length} results, got ${embedResults.length}`);
   }
@@ -225,19 +244,43 @@ async function indexFile(filePath, rootPath, collection, allCollections, graph) 
       },
     };
   });
+
+  profiler.mark('embed+upsert'); // mark covers embed; Qdrant write happens in stageD
+
+  return { ...withTagged, pointsWithDense };
+}
+
+// ── Stage D: commit + link (always serial via SerialQueue) ────────────────────
+// All Qdrant mutations and graph mutations are here, serialised.
+// Order: removeFile → deleteBySourceFile → upsertPoints → deleteTrailingChunks
+//        → buildLinks → updatePayload (backlinks)
+// This prevents Stage C of file B from racing with buildLinks/updatePayload of file A.
+async function stageD(withPoints, allCollections, graph) {
+  const { filePath, taggedChunks, pointsWithDense, collection, rawChunks,
+          sourceFile, needsDelete, profiler } = withPoints;
+
+  // ── Qdrant commit ──
+  console.log('  [4/5] upserting...');
+
+  // Graph: remove stale entry before buildLinks sees the graph.
+  if (needsDelete) {
+    removeFile(graph, sourceFile);
+  }
+
+  // Qdrant: delete old points only when we have validated replacements ready.
+  if (needsDelete) {
+    await deleteBySourceFile(collection, sourceFile);
+  }
+
   const points = pointsWithDense.map(({ point }) => point);
   await upsertPoints(collection, points);
   console.log(`        upserted ${points.length} points`);
 
-  // Remove trailing chunk orphans: if the file previously had more chunks, the
-  // old deterministic IDs for chunk_index >= taggedChunks.length still exist in
-  // Qdrant but will never be overwritten. Delete them now.
   await deleteTrailingChunks(collection, sourceFile, taggedChunks.length);
-  profiler.mark('embed+upsert');
 
+  // ── Link phase ──
   console.log('  [5/5] linking...');
   // zip outside runBatched — taggedChunks[i] and pointsWithDense[i] share the same global index.
-  // never do (chunk, i) => ... inside the runBatched callback: i is batch-local and resets to 0.
   const chunksWithDense = taggedChunks.map((chunk, i) => ({ chunk, dense: pointsWithDense[i].dense }));
   const linkedChunks = await runBatched(chunksWithDense, BATCH_SIZE, ({ chunk, dense }) =>
     buildLinks(chunk, allCollections, graph, collection, dense));
@@ -258,6 +301,19 @@ async function indexFile(filePath, rootPath, collection, allCollections, graph) 
   profiler.report({ chunksIn: rawChunks.length, chunksOut: taggedChunks.length, tokensEst });
 
   console.log(`  ✓ done`);
+}
+
+// ── Sequential indexFile (default, PIPELINE_MODE unset) ───────────────────────
+async function indexFile(filePath, rootPath, collection, allCollections, graph) {
+  console.log(`\n→ ${filePath}`);
+  const profiler = new Profiler();
+
+  const preparedA = await stageA(filePath, rootPath, collection, profiler);
+  if (preparedA.status === 'skipped') return 'skipped';
+
+  const preparedB = await stageB(preparedA);
+  const preparedC = await stageC(preparedB);
+  await stageD(preparedC, allCollections, graph);
 }
 
 function saveChunksMd(filePath, chunks) {
@@ -405,10 +461,55 @@ async function main() {
   let indexed = 0, skipped = 0;
 
   const graph = loadGraph(COLLECTION);
-  for (const filePath of files) {
-    const status = await indexFile(filePath, rootPath, COLLECTION, linkTargetCollections, graph);
-    if (status === 'skipped') skipped++; else indexed++;
+
+  const pipelineMode = process.env.PIPELINE_MODE === '1';
+
+  if (pipelineMode) {
+    const parsedOllama = parseInt(process.env.OLLAMA_STAGE_CONCURRENCY ?? '1', 10);
+    const parsedEmbed  = parseInt(process.env.EMBED_STAGE_CONCURRENCY  ?? '1', 10);
+    const ollamaConcurrency = (Number.isInteger(parsedOllama) && parsedOllama >= 1) ? parsedOllama : 1;
+    const embedConcurrency  = (Number.isInteger(parsedEmbed)  && parsedEmbed  >= 1) ? parsedEmbed  : 1;
+    if (parsedOllama !== ollamaConcurrency) console.warn(`[pipeline] invalid OLLAMA_STAGE_CONCURRENCY, using 1`);
+    if (parsedEmbed  !== embedConcurrency)  console.warn(`[pipeline] invalid EMBED_STAGE_CONCURRENCY, using 1`);
+
+    console.log(`[pipeline] enabled: ollama=${ollamaConcurrency} embed=${embedConcurrency} link=serial`);
+
+    const ollamaSem = new Semaphore(ollamaConcurrency);
+    const embedSem  = new Semaphore(embedConcurrency);
+    const linkQueue = new SerialQueue();
+
+    const settlements = await Promise.allSettled(files.map(async filePath => {
+      console.log(`\n→ ${filePath}`);
+      const profiler = new Profiler();
+
+      const preparedA = await stageA(filePath, rootPath, COLLECTION, profiler);
+      if (preparedA.status === 'skipped') return 'skipped';
+
+      const preparedB = await ollamaSem.run(() => stageB(preparedA));
+      const preparedC = await embedSem.run(() => stageC(preparedB));
+      await linkQueue.run(() => stageD(preparedC, linkTargetCollections, graph));
+      return 'indexed';
+    }));
+
+    const failures = [];
+    for (const s of settlements) {
+      if (s.status === 'fulfilled') {
+        if (s.value === 'skipped') skipped++; else indexed++;
+      } else {
+        failures.push(s.reason);
+      }
+    }
+    if (failures.length > 0) {
+      for (const err of failures) console.error(`[pipeline] file failed: ${err?.message ?? err}`);
+      throw new Error(`[pipeline] ${failures.length} file(s) failed — see errors above`);
+    }
+  } else {
+    for (const filePath of files) {
+      const status = await indexFile(filePath, rootPath, COLLECTION, linkTargetCollections, graph);
+      if (status === 'skipped') skipped++; else indexed++;
+    }
   }
+
   saveGraph(graph, COLLECTION);
 
   if (pruneAllowed) {

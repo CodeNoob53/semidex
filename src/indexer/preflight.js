@@ -54,10 +54,12 @@ export async function checkOllamaPreflight(ollamaUrl, contextModel, tagModel) {
 }
 
 // Process-level cache: runs preflight at most once per indexer invocation.
-// Subsequent calls (one per changed file) are no-ops after the first success.
-let _preflightDone = false;
+// Stores the in-flight Promise so concurrent callers await the same check
+// instead of each launching their own fetch (safe under Promise.all).
+let _preflightPromise = null;
 export async function ensureOllamaPreflight(ollamaUrl, contextModel, tagModel) {
-  if (_preflightDone) return;
-  await checkOllamaPreflight(ollamaUrl, contextModel, tagModel);
-  _preflightDone = true;
+  if (!_preflightPromise) {
+    _preflightPromise = checkOllamaPreflight(ollamaUrl, contextModel, tagModel);
+  }
+  await _preflightPromise;
 }
