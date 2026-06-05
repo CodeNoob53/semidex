@@ -62,7 +62,7 @@ for each area. For superseded or exploratory runs in the same area, check
 | Entity boost — removal decision | `2026-05-29T0000-entity-boost-production-rollback.md` | **Current entity boost decision; verdict ENTITY_BOOST_REMOVED** | Runtime, benchmark command, and backfill path removed; prior positive runs are situational only |
 | Entity boost — benchmark | `2026-05-27T2000-entity-boost-benchmark.md` | Situational source-navigation evidence | custom-50 improved, but not sufficient for production acceptance |
 | Entity boost — live validation | `2026-05-27T1422-entity-boost-live-optin-validation-refresh.md` | Situational semidex-docs evidence | Fresh semidex-docs index; still semidex-like technical docs |
-| Merge strategy | `2026-05-29T1500-merge-strategy-benchmark-v2.md` | **Current** LLM merge vs deterministic: wall-time, qrel safety, hard-boundary diagnostic | Verdict MERGE_STRATEGY_EQUIVALENT_ON_CUSTOM50_LLM_ALWAYS_SPLITS; supersedes T1200 |
+| Merge strategy | `2026-05-29T1500-merge-strategy-benchmark-v2.md` | Historical LLM merge vs deterministic evidence that motivated production removal | Production now uses deterministic short-fragment merge inside the chunker; supersedes T1200 |
 | Merge strategy v1 | `2026-05-29T1200-merge-strategy-benchmark.md` | Superseded — missing wall-time breakdown, qrel safety, hard-boundary phase | Use T1500-v2 instead |
 
 ## Report Lookup by Task

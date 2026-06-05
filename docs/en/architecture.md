@@ -52,9 +52,11 @@ The parser tries to preserve document structure:
 - Markdown headings and sections are respected.
 - Body text styled as a heading by Word/pandoc artifacts is kept as content.
 - Oversized sections fall back to sentence splitting.
-- Sentence overlap is applied after merge/split boundary decisions and is reset
+- Short split fragments inside a section are deterministically merged using
+  `MIN_CHUNK_TOKENS`; headed sections are not merged across boundaries.
+- Sentence overlap is applied after deterministic chunk finalization and is reset
   at section boundaries, so overlap does not leak content from one heading into
-  another or duplicate inside merged chunks.
+  another.
 - Very short `.txt` files are preserved instead of being dropped.
 
 ### Format-specific behavior

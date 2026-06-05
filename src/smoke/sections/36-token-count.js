@@ -7,7 +7,7 @@ export default async function ({ ok, throwsAsync }) {
     await import('../../core/token-count.js');
 
   // 36a. Production default is bge-m3; heuristic remains an explicit opt-out.
-  ok('CHUNKING_SCHEMA_VERSION === 1', CHUNKING_SCHEMA_VERSION === 1);
+  ok('CHUNKING_SCHEMA_VERSION === 2', CHUNKING_SCHEMA_VERSION === 2);
   ok('resolveTokenCountMode default → bge-m3', resolveTokenCountMode({}) === 'bge-m3');
   ok('resolveTokenCountMode bge-m3 → bge-m3', resolveTokenCountMode({ TOKEN_COUNT: 'bge-m3' }) === 'bge-m3');
   ok('resolveTokenCountMode heuristic → heuristic', resolveTokenCountMode({ TOKEN_COUNT: 'heuristic' }) === 'heuristic');

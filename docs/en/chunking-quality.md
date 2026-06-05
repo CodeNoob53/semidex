@@ -47,6 +47,13 @@ The final chunk of a file is never dropped due to being below `MIN_CHUNK_TOKENS`
 This prevents the last section of a document — often a conclusion, summary, or
 configuration reference — from being silently lost.
 
+### Deterministic short-fragment merge
+
+When token splitting creates a fragment below `MIN_CHUNK_TOKENS`, semidex merges
+that fragment with an adjacent chunk in the same section before overlap is added.
+This removes the former LLM merge/split decision from the production indexing
+path while keeping short tails from becoming weak standalone chunks.
+
 ### Stable `chunk_index` / `total_chunks`
 
 Every chunk carries a zero-based `chunk_index` and a `total_chunks` field in its
@@ -83,11 +90,11 @@ in chunk N+1. Neither chunk alone is sufficient. `chunkRecall@K` fails; only
 **Detection:** `windowRecall@K − chunkRecall@K` gap in the benchmark. A wide gap
 on specific query types (paraphrase, multi-step) suggests boundary effects.
 
-### Unrelated topics merged
+### Unrelated topics merged inside one large section
 
-Two adjacent short sections are merged because each is below `MIN_CHUNK_TOKENS`.
-The resulting chunk contains content from both topics, increasing false-positive
-retrieval rate and diluting the dense embedding.
+A large flat section may contain multiple unrelated topics with no headings.
+Token-based splitting and short-fragment merging can still place neighboring
+subtopics in the same chunk when the source document lacks structural boundaries.
 
 **Detection:** high `duplicateSourceRate` on queries where only one subtopic is
 relevant; manual inspection via `chunks_out/`.

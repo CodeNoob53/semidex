@@ -18,7 +18,7 @@ Pipeline одного файлу (`src/indexer/index.js`):
 
 ```
 chunkFileFromPath()  -> parseMarkdown() -> chunkSections()   // phases/chunk.js
-  -> mergeChunks() -> addContext()/tags                       // phases/context.js, combined.js
+  -> deterministic finalization -> addContext()/tags           // phases/chunk.js, context.js, combined.js
   -> embedForIndex()  (dense = embed(context + text))
   -> upsertPoints()   (1 чанк = 1 Qdrant point)
 ```

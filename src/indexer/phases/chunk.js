@@ -58,7 +58,7 @@ function parseWikilinks(text) {
 
 // Recursive text chunker: paragraph → sentence → word.
 // Each level tries to pack units up to MAX_TOKENS before falling to the next level.
-// No overlap here; indexing overlap is applied after merge/split boundary decisions.
+// No overlap here; indexing overlap is applied after deterministic chunk finalization.
 // stripPageMarkers: strip "-- N of M --" markers emitted by pdf-parse.
 export function recursiveChunkText(text, { stripPageMarkers = false } = {}) {
   let src = text;
@@ -131,6 +131,133 @@ function chunkBySentences(text) {
   return chunks;
 }
 
+function sameChunkScope(chunkA, chunkB) {
+  const groupA = chunkA?._split_group;
+  const groupB = chunkB?._split_group;
+  return (
+    chunkA?.source_file === chunkB?.source_file &&
+    (chunkA?.section || '') === (chunkB?.section || '') &&
+    (groupA === undefined || groupB === undefined || groupA === groupB)
+  );
+}
+
+function mergePair(chunkA, chunkB) {
+  return {
+    ...chunkA,
+    text: `${chunkA.text}\n${chunkB.text}`,
+    needsBoundaryCheck: false,
+  };
+}
+
+function markSplitBoundaries(chunks) {
+  return chunks.map((chunk, idx) => ({
+    ...chunk,
+    needsBoundaryCheck: idx > 0 && sameChunkScope(chunks[idx - 1], chunk),
+  }));
+}
+
+function overlapPrefixFrom(text) {
+  if (OVERLAP_SENTENCES <= 0) return '';
+  return splitSentences(text).slice(-OVERLAP_SENTENCES).join(' ').trim();
+}
+
+function addSplitOverlap(chunks) {
+  return chunks.map((chunk, idx) => {
+    if (idx === 0 || !chunk.needsBoundaryCheck) {
+      return { ...chunk, needsBoundaryCheck: false };
+    }
+
+    const prev = chunks[idx - 1];
+    if (!sameChunkScope(prev, chunk)) {
+      return { ...chunk, needsBoundaryCheck: false };
+    }
+
+    const prefix = overlapPrefixFrom(prev.text);
+    if (!prefix || chunk.text.startsWith(prefix)) {
+      return { ...chunk, needsBoundaryCheck: false };
+    }
+
+    return {
+      ...chunk,
+      text: `${prefix} ${chunk.text}`,
+      needsBoundaryCheck: false,
+    };
+  });
+}
+
+function reindexChunks(chunks) {
+  return chunks.map((c, i) => {
+    const { _split_group, ...chunk } = c;
+    return { ...chunk, chunkIndex: i, totalChunks: chunks.length };
+  });
+}
+
+export function mergeShortChunks(chunks, countFn = countTokens) {
+  if (MIN_TOKENS <= 0 || chunks.length <= 1) return chunks.map(c => ({ ...c }));
+
+  const merged = [];
+  for (let i = 0; i < chunks.length; i++) {
+    let current = { ...chunks[i] };
+    let currentTokens = countFn(current.text);
+
+    while (
+      currentTokens < MIN_TOKENS &&
+      i + 1 < chunks.length &&
+      sameChunkScope(current, chunks[i + 1])
+    ) {
+      current = mergePair(current, chunks[i + 1]);
+      i++;
+      currentTokens = countFn(current.text);
+    }
+
+    if (currentTokens < MIN_TOKENS && merged.length > 0 && sameChunkScope(merged.at(-1), current)) {
+      merged[merged.length - 1] = mergePair(merged.at(-1), current);
+    } else {
+      merged.push(current);
+    }
+  }
+
+  return merged;
+}
+
+async function mergeShortChunksAsync(chunks, countFn) {
+  if (MIN_TOKENS <= 0 || chunks.length <= 1) return chunks.map(c => ({ ...c }));
+
+  const merged = [];
+  for (let i = 0; i < chunks.length; i++) {
+    let current = { ...chunks[i] };
+    let currentTokens = await countFn(current.text);
+
+    while (
+      currentTokens < MIN_TOKENS &&
+      i + 1 < chunks.length &&
+      sameChunkScope(current, chunks[i + 1])
+    ) {
+      current = mergePair(current, chunks[i + 1]);
+      i++;
+      currentTokens = await countFn(current.text);
+    }
+
+    if (currentTokens < MIN_TOKENS && merged.length > 0 && sameChunkScope(merged.at(-1), current)) {
+      merged[merged.length - 1] = mergePair(merged.at(-1), current);
+    } else {
+      merged.push(current);
+    }
+  }
+
+  return merged;
+}
+
+export function finalizeChunks(chunks, countFn = countTokens) {
+  const merged = mergeShortChunks(chunks, countFn);
+  return reindexChunks(addSplitOverlap(markSplitBoundaries(merged)));
+}
+
+async function finalizeChunksAsync(chunks, countFn) {
+  const merged = await mergeShortChunksAsync(chunks, countFn);
+  return reindexChunks(addSplitOverlap(markSplitBoundaries(merged)));
+}
+
 // heuristic: is this a real section title or just body text styled as heading?
 function isStructuralHeading(text) {
   if (!text || text.length === 0) return false;
@@ -195,19 +322,20 @@ function parseMarkdown(text) {
 function chunkSections(sections, sourceFile, meta = {}, links = []) {
   const chunks = [];
 
-  for (const section of sections) {
+  for (let group = 0; group < sections.length; group++) {
+    const section = sections[group];
     // Skip heading-only sections: no text means no retrievable content.
     if (!section.text || !section.text.trim()) continue;
     if (!section.heading && countTokens(section.text) < MIN_TOKENS) continue;
 
-    // Section chunks are split cleanly here. Overlap is added later, after
-    // merge/split boundary decisions, so merge never duplicates overlap text.
+    // Section chunks are split cleanly here. Short-fragment merge and overlap
+    // happen in finalizeChunks(), after all section-local split boundaries exist.
     if (countTokens(section.text) <= MAX_TOKENS) {
-      chunks.push({ text: section.text, section: section.heading, source_file: sourceFile, meta, links, needsBoundaryCheck: false });
+      chunks.push({ text: section.text, section: section.heading, source_file: sourceFile, meta, links, needsBoundaryCheck: false, _split_group: group });
     } else {
       const subChunks = chunkBySentences(section.text, []);
       subChunks.forEach((t, i) => {
-        chunks.push({ text: t, section: section.heading, source_file: sourceFile, meta, links, needsBoundaryCheck: i > 0 });
+        chunks.push({ text: t, section: section.heading, source_file: sourceFile, meta, links, needsBoundaryCheck: i > 0, _split_group: group });
       });
     }
   }
@@ -229,7 +357,7 @@ export function chunkFile(filePath, text, sourceFile) {
     });
   }
 
-  return chunks.map((c, i) => ({ ...c, chunkIndex: i, totalChunks: chunks.length }));
+  return finalizeChunks(chunks);
 }
 
 // ── async token-aware chunking helpers ────────────────────────────────────
@@ -300,16 +428,17 @@ async function chunkBySentencesAsync(text, countFn) {
 async function chunkSectionsAsync(sections, sourceFile, meta = {}, links = [], countFn) {
   const chunks = [];
 
-  for (const section of sections) {
+  for (let group = 0; group < sections.length; group++) {
+    const section = sections[group];
     if (!section.text || !section.text.trim()) continue;
     if (!section.heading && await countFn(section.text) < MIN_TOKENS) continue;
 
     if (await countFn(section.text) <= MAX_TOKENS) {
-      chunks.push({ text: section.text, section: section.heading, source_file: sourceFile, meta, links, needsBoundaryCheck: false });
+      chunks.push({ text: section.text, section: section.heading, source_file: sourceFile, meta, links, needsBoundaryCheck: false, _split_group: group });
     } else {
       const subChunks = await _splitLevelAsync(section.text, LEVELS, countFn);
       subChunks.forEach((t, i) => {
-        chunks.push({ text: t, section: section.heading, source_file: sourceFile, meta, links, needsBoundaryCheck: i > 0 });
+        chunks.push({ text: t, section: section.heading, source_file: sourceFile, meta, links, needsBoundaryCheck: i > 0, _split_group: group });
       });
     }
   }
@@ -341,7 +470,7 @@ export async function chunkFileAsync(filePath, text, sourceFile, countFn = heuri
     });
   }
 
-  return chunks.map((c, i) => ({ ...c, chunkIndex: i, totalChunks: chunks.length }));
+  return finalizeChunksAsync(chunks, countFn);
 }
 
 const PANDOC_FORMATS = new Set(['.docx', '.odt', '.rtf', '.epub', '.html', '.htm']);
@@ -392,16 +521,18 @@ export async function chunkFileFromPath(filePath, sourceFile) {
       const { text } = await parser.getText();
       if (useAsync) {
         const subChunks = await recursiveChunkTextAsync(text, countFn, { stripPageMarkers: true });
-        return subChunks.map((t, i) => ({
+        const chunks = subChunks.map((t, i) => ({
           text: t, section: '', source_file: sourceFile, meta: {}, links: [],
           needsBoundaryCheck: i > 0, chunkIndex: i, totalChunks: subChunks.length,
         }));
+        return finalizeChunksAsync(chunks, countFn);
       }
       const subChunks = recursiveChunkText(text, { stripPageMarkers: true });
-      return subChunks.map((t, i) => ({
+      const chunks = subChunks.map((t, i) => ({
         text: t, section: '', source_file: sourceFile, meta: {}, links: [],
         needsBoundaryCheck: i > 0, chunkIndex: i, totalChunks: subChunks.length,
       }));
+      return finalizeChunks(chunks);
     } finally {
       await parser.destroy();
     }

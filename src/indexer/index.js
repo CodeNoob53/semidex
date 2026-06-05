@@ -5,7 +5,7 @@ import { pathToFileURL } from 'url';
 import { createHash } from 'crypto';
 
 import { chunkFileFromPath } from './phases/chunk.js';
-import { addContext, mergeChunks } from './phases/context.js';
+import { addContext } from './phases/context.js';
 import { addTagsBatch, shouldGenerateTags } from './phases/tag.js';
 import { addTagsOnnxBatch, isOnnxTagProvider, shutdownOnnxTagWorker } from './phases/tag-onnx.js';
 import { isEmptySectionChunk } from './phases/empty-section.js';
@@ -38,7 +38,7 @@ function hashFile(filePath) {
   });
 }
 
-// ── Stage A: read-only preflight / hash / chunk / merge ──────────────────────
+// ── Stage A: read-only preflight / hash / finalized chunking ─────────────────
 // Non-destructive: no Qdrant deletes, no graph mutations.
 // Returns { status: 'skipped' } or a prepared object carrying needsDelete/deleteReason
 // so later stages can act on them at the right time.
@@ -122,7 +122,8 @@ async function stageA(filePath, rootPath, collection, profiler) {
 // ── Stage B: context + tag generation (Ollama GPU) ───────────────────────────
 // In default mode: guarded by ollamaSem in pipeline mode (caller wraps with sem.run).
 // In TAG_PROVIDER=onnx mode: caller passes ollamaSem so context alone acquires it
-// while ONNX tags run outside — both start after merge, freeing the semaphore sooner.
+// while ONNX tags run outside — both start after chunk finalization, freeing the
+// semaphore sooner.
 async function stageB(prepared, ollamaSem = null) {
   const { rawChunks, combinedCfg, profiler } = prepared;
 
@@ -137,8 +138,8 @@ async function stageB(prepared, ollamaSem = null) {
       console.warn('  [tag-onnx] TAG_PROVIDER=onnx is ignored when COMBINED_LLM=1 — combined mode owns context+tags');
     }
     console.log(`  [2/5] ${genTags ? 'contextualizing + tagging' : 'contextualizing'} (combined)...`);
-    const merged = await mergeChunks(rawChunks);
-    console.log(`        ${merged.length} chunks after merge`);
+    const merged = rawChunks;
+    console.log(`        ${merged.length} finalized chunks`);
     profiler.mark('context');
 
     if (genTags) {
@@ -153,7 +154,7 @@ async function stageB(prepared, ollamaSem = null) {
     profiler.mark('tag');
   } else if (tagViaOnnx && genTags) {
     // TAG_PROVIDER=onnx: ONNX tags (CPU worker) run outside ollamaSem; only context
-    // acquires the semaphore. Both start after merge so GPU and CPU lanes overlap.
+    // acquires the semaphore. Both start after chunk finalization so GPU and CPU lanes overlap.
     // ollamaSem is null in non-pipeline mode — context runs ungated as before.
     //
     // Known limitation: stageC (embed) still waits for Promise.all to settle, so
@@ -161,8 +162,8 @@ async function stageB(prepared, ollamaSem = null) {
     // Full context→embed overlap requires returning the tag Promise from stageB and
     // awaiting it lazily in stageD — a larger contract change tracked separately.
     console.log('  [2/5] contextualizing...');
-    const merged = await mergeChunks(rawChunks);
-    console.log(`        ${merged.length} chunks after merge  [3/5] tagging (onnx, parallel)`);
+    const merged = rawChunks;
+    console.log(`        ${merged.length} finalized chunks  [3/5] tagging (onnx, parallel)`);
 
     const tContextStart = Date.now();
     const tTagStart     = Date.now();
@@ -181,9 +182,9 @@ async function stageB(prepared, ollamaSem = null) {
     }));
   } else {
     console.log('  [2/5] contextualizing...');
-    const merged = await mergeChunks(rawChunks);
+    const merged = rawChunks;
     const contextChunks = await runBatched(merged, BATCH_SIZE, addContext);
-    console.log(`        ${merged.length} chunks after merge`);
+    console.log(`        ${merged.length} finalized chunks`);
     profiler.mark('context');
 
     if (genTags) {

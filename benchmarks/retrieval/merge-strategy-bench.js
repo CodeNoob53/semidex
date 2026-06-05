@@ -1,4 +1,4 @@
-// Merge strategy benchmark v2: LLM-merge (current) vs deterministic split+overlap.
+// Merge strategy benchmark v2: legacy LLM-merge vs deterministic split+overlap.
 //
 // Phase 1 — custom-50 quality:
 //   Indexes the 10-file custom-50 fixture corpus with each strategy, runs all
@@ -34,7 +34,7 @@ import { performance } from 'perf_hooks';
 
 import { stableSortResults } from './custom-50/sort-results.js';
 import { chunkFile } from '../../src/indexer/phases/chunk.js';
-import { mergeChunksWithDecisions, mergeChunksDeterministic, shouldMerge } from '../../src/indexer/phases/context.js';
+import { mergeChunksWithDecisions, mergeChunksDeterministic, shouldMerge } from './legacy-merge.js';
 import {
   listCollections, createCollection, deleteBySourceFile,
   upsertPoints, hybridSearch, scroll,
@@ -87,7 +87,7 @@ async function shouldMergeInstrumented(a, b) {
 const STRATEGIES = [
   {
     id: 'llm',
-    label: 'LLM merge (current)',
+    label: 'LLM merge (legacy)',
     collection: 'merge-llm-current',
     mergeFn: async (chunks) => mergeChunksWithDecisions(chunks, shouldMergeInstrumented),
   },

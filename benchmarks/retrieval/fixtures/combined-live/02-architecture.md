@@ -8,7 +8,7 @@ The indexer processes documents in five phases:
 
 **Phase 1: Chunking.** Documents are split into overlapping chunks using a recursive text splitter. Markdown headings become section boundaries. Each chunk carries `source_file`, `section`, `chunkIndex`, and `totalChunks`.
 
-**Phase 2: Contextualization.** Each chunk receives a 1-2 sentence LLM summary describing what it is about. Adjacent chunks flagged with `needsBoundaryCheck` may be merged via a merge/split LLM call before contextualization. In combined mode (`COMBINED_LLM=1`), this phase is merged with Phase 3.
+**Phase 2: Contextualization.** Each chunk receives a 1-2 sentence LLM summary describing what it is about. Short split fragments are merged deterministically by `MIN_CHUNK_TOKENS` inside the chunker before contextualization. In combined mode (`COMBINED_LLM=1`), this phase can be merged with Phase 3 when tags are enabled.
 
 **Phase 3: Tagging.** Each chunk receives 3-7 lowercase hyphenated tags describing its topic. Tags are generated in batches. In combined mode, this phase is skipped and tags are returned by the same call that generates context.
 

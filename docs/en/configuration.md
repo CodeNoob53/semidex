@@ -284,7 +284,7 @@ PRUNE_STALE=1 SOURCE_ROOT=./docs COLLECTION=my-docs npm run index ./docs/guides
 |----------|---------|-------------|
 | `TOKEN_COUNT` | `bge-m3` | Token counter for chunk boundaries. Default uses the real BGE-M3 tokenizer. Set `heuristic` only to explicitly restore the old `Math.ceil(text.length / 4)` approximation |
 | `MAX_CHUNK_TOKENS` | `400` | Max tokens per chunk according to `TOKEN_COUNT` |
-| `MIN_CHUNK_TOKENS` | `30` | Minimum tokens; smaller chunks may be skipped |
+| `MIN_CHUNK_TOKENS` | `30` | Minimum useful split size; short split fragments are merged within the same section. Unheaded prefaces below this threshold may be skipped |
 | `OVERLAP_SENTENCES` | `2` | Sentence overlap between adjacent chunks |
 | `LLM_BATCH_SIZE` | `3` | Chunks per LLM call for context and enabled tag phases |
 

@@ -22,7 +22,7 @@ Each file completes all 5 phases before the next file starts. Inside `indexFile`
 
 | Phase | Code location | Worker | Notes |
 |---|---|---|---|
-| A: pre/hash/chunk/merge | `index.js:100–135` | CPU + I/O | SHA-256, `chunkFileFromPath()`, `mergeChunks()` |
+| A: pre/hash/chunk/finalize | `index.js:100–135` | CPU + I/O | SHA-256, `chunkFileFromPath()`, deterministic short-fragment merge + overlap |
 | B: context | `index.js:131–135` | Ollama GPU | `runBatched(..., addContext)` |
 | B: tag | `index.js:137–148` | Ollama GPU | `addTagsBatch(...)` |
 | C: embed+upsert | `index.js:163–181` | ONNX CPU + Qdrant I/O | `embedForIndexBatch(...)` |
@@ -50,7 +50,7 @@ total           26351 ms
 
 **Ollama active: 11037 ms (42%). Ollama idle (embed+upsert+link): 14366 ms (55%).**
 
-### File 2 — medium (24 raw → 20 merged chunks, ~6132 tokens)
+### File 2 — medium (24 raw → 20 finalized chunks, ~6132 tokens)
 
 ```
 pre               497 ms
@@ -64,7 +64,7 @@ total           67746 ms
 
 **Ollama active: 26959 ms (40%). Ollama idle (embed+upsert+link): 36003 ms (53%).**
 
-### File 3 — large (48 raw → 41 merged chunks, ~13491 tokens)
+### File 3 — large (48 raw → 41 finalized chunks, ~13491 tokens)
 
 ```
 pre               490 ms
