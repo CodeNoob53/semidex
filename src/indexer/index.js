@@ -7,6 +7,7 @@ import { createHash } from 'crypto';
 import { chunkFileFromPath } from './phases/chunk.js';
 import { addContext, mergeChunks } from './phases/context.js';
 import { addTagsBatch, shouldGenerateTags } from './phases/tag.js';
+import { addTagsOnnxBatch, isOnnxTagProvider, shutdownOnnxTagWorker } from './phases/tag-onnx.js';
 import { isEmptySectionChunk } from './phases/empty-section.js';
 import { addContextAndTags } from './phases/combined.js';
 import { resolveCombinedLlmConfig } from '../core/doctor-checks.js';
@@ -76,7 +77,11 @@ async function stageA(filePath, rootPath, collection, profiler) {
   const contextModel = process.env.CONTEXT_MODEL || 'gemma3:4b';
   const combinedCfg  = resolveCombinedLlmConfig(process.env);
   const genTagsPreflight = shouldGenerateTags(process.env);
-  const tagModel = (combinedCfg.enabled || !genTagsPreflight) ? contextModel : (process.env.TAG_MODEL || 'gemma3:4b');
+  // TAG_PROVIDER=onnx: tag generation goes to ONNX worker, not Ollama — skip tagModel check.
+  const tagViaOnnx = isOnnxTagProvider(process.env);
+  const tagModel = (combinedCfg.enabled || !genTagsPreflight || tagViaOnnx)
+    ? contextModel
+    : (process.env.TAG_MODEL || 'gemma3:4b');
   await ensureOllamaPreflight(ollamaUrl, contextModel, tagModel);
   // Load/download tokenizer before any destructive work — a failure here leaves old points intact.
   if (tokenCountMode === 'bge-m3') await getTokenCounter({ mode: 'bge-m3' });
@@ -116,14 +121,22 @@ async function stageA(filePath, rootPath, collection, profiler) {
 
 // ── Stage B: context + tag generation (Ollama GPU) ───────────────────────────
 // Guarded by ollamaSem in pipeline mode.
+// When TAG_PROVIDER=onnx (and not COMBINED_LLM), context (GPU/Ollama) and tag
+// generation (ONNX CPU worker) run in parallel after merge. This hides the ONNX
+// tag lane under the longer Ollama context lane — the resource utilisation goal.
 async function stageB(prepared) {
   const { rawChunks, combinedCfg, profiler } = prepared;
 
   if (combinedCfg.warning) console.warn(`  [combined] ${combinedCfg.warning}`);
-  const genTags = shouldGenerateTags(process.env);
+  const genTags   = shouldGenerateTags(process.env);
+  const tagViaOnnx = isOnnxTagProvider(process.env);
 
   let taggedChunks;
   if (combinedCfg.enabled) {
+    // COMBINED_LLM=1 owns both context and tags in one call; TAG_PROVIDER=onnx is ignored.
+    if (tagViaOnnx) {
+      console.warn('  [tag-onnx] TAG_PROVIDER=onnx is ignored when COMBINED_LLM=1 — combined mode owns context+tags');
+    }
     console.log('  [2/5] contextualizing + tagging (combined)...');
     const merged = await mergeChunks(rawChunks);
     console.log(`        ${merged.length} chunks after merge`);
@@ -139,6 +152,25 @@ async function stageB(prepared) {
       taggedChunks = withContext.map(c => ({ ...c, tags: [] }));
     }
     profiler.mark('tag');
+  } else if (tagViaOnnx && genTags) {
+    // TAG_PROVIDER=onnx: context (Ollama/GPU) and tag generation (ONNX CPU worker) overlap.
+    // Each branch is timed independently so profiler.mark captures real wall time.
+    console.log('  [2/5] contextualizing...');
+    const merged = await mergeChunks(rawChunks);
+    console.log(`        ${merged.length} chunks after merge  [3/5] tagging (onnx, parallel)`);
+
+    const tContextStart = Date.now();
+    const tTagStart     = Date.now();
+
+    const [contextChunks, onnxTagged] = await Promise.all([
+      runBatched(merged, BATCH_SIZE, addContext).then(r => { profiler.markAt('context', tContextStart); return r; }),
+      addTagsOnnxBatch(merged).then(r => { profiler.markAt('tag', tTagStart); return r; }),
+    ]);
+
+    taggedChunks = contextChunks.map((chunk, i) => ({
+      ...chunk,
+      tags: onnxTagged[i]?.tags ?? [],
+    }));
   } else {
     console.log('  [2/5] contextualizing...');
     const merged = await mergeChunks(rawChunks);
@@ -543,5 +575,7 @@ async function main() {
 
 // Run only when executed directly, not when imported for testing.
 if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) {
-  main().catch(err => { console.error(err); process.exit(1); });
+  main()
+    .catch(err => { console.error(err); process.exit(1); })
+    .finally(() => shutdownOnnxTagWorker());
 }
