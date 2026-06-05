@@ -14,7 +14,7 @@ import { existsSync } from 'fs';
 
 const { modelId, cacheDir, numThreads, allowDownload } = workerData;
 
-const MAX_NEW_TOKENS = 48;
+const MAX_NEW_TOKENS = 28;
 const PROMPT_TEXT_LIMIT = 600;
 
 function buildPrompt(chunk) {
@@ -37,9 +37,11 @@ function buildPrompt(chunk) {
 }
 
 function parseTags(raw) {
-  const tags = String(raw ?? '')
+  // Trim leakage suffix that appears after valid tags (e.g. "\n\nExplanation:" or "Note:").
+  const clean = String(raw ?? '').split(/\n\n|\bExplanation\b|\bNote\b/i)[0];
+  const tags = clean
     .split(/[,\n;#]|\s+\/\s+/)
-    .map(t => t.trim().toLowerCase())
+    .map(t => t.replace(/^[-*•\d.)\s]+/, '').trim().toLowerCase())
     .map(t => t.replace(/[_\s]+/g, '-').replace(/[^a-z0-9\-]/g, ''))
     .map(t => t.replace(/-+/g, '-').replace(/^-+|-+$/g, ''))
     .filter(t => t.length > 1 && t.length < 40);
@@ -118,6 +120,7 @@ parentPort.on('message', async msg => {
         const output = await generator(prompt, {
           max_new_tokens: MAX_NEW_TOKENS,
           do_sample: false,
+          repetition_penalty: 1.3,
           return_full_text: false,
         });
         raw = extractGeneratedText(output).trim();
