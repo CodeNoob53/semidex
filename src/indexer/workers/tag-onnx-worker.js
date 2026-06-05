@@ -39,6 +39,10 @@ function buildPrompt(chunk) {
 function parseTags(raw) {
   // Trim leakage suffix that appears after valid tags (e.g. "\n\nExplanation:" or "Note:").
   const clean = String(raw ?? '').split(/\n\n|\bExplanation\b|\bNote\b/i)[0];
+  // Normalise to lowercase-hyphenated. This is intentional: qdrant_find_by_tag uses
+  // Qdrant match.value which is exact/case-sensitive, so all tags must arrive in a
+  // consistent form regardless of model output casing (QDRANT_URL → qdrant-url).
+  // Callers searching by tag must use the same normalised form.
   const tags = clean
     .split(/[,\n;#]|\s+\/\s+/)
     .map(t => t.replace(/^[-*•\d.)\s]+/, '').trim().toLowerCase())

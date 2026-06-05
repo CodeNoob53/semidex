@@ -155,6 +155,11 @@ async function stageB(prepared, ollamaSem = null) {
     // TAG_PROVIDER=onnx: ONNX tags (CPU worker) run outside ollamaSem; only context
     // acquires the semaphore. Both start after merge so GPU and CPU lanes overlap.
     // ollamaSem is null in non-pipeline mode — context runs ungated as before.
+    //
+    // Known limitation: stageC (embed) still waits for Promise.all to settle, so
+    // embed starts after the slower of context/tags rather than right after context.
+    // Full context→embed overlap requires returning the tag Promise from stageB and
+    // awaiting it lazily in stageD — a larger contract change tracked separately.
     console.log('  [2/5] contextualizing...');
     const merged = await mergeChunks(rawChunks);
     console.log(`        ${merged.length} chunks after merge  [3/5] tagging (onnx, parallel)`);
@@ -520,10 +525,13 @@ async function main() {
       const preparedA = await stageA(filePath, rootPath, COLLECTION, profiler);
       if (preparedA.status === 'skipped') return 'skipped';
 
-      // TAG_PROVIDER=onnx: pass ollamaSem into stageB so context acquires it
-      // while ONNX tags run outside — the semaphore is held only for the GPU call.
-      // Default mode: stageB runs entirely under ollamaSem as before.
-      const preparedB = isOnnxTagProvider(process.env)
+      // ONNX split-sem path: only active when tags actually go to the ONNX worker.
+      // COMBINED_LLM=1 and TAG_GEN=0 both bypass the ONNX lane inside stageB, so
+      // they must keep the default ollamaSem.run() wrapper to gate Ollama correctly.
+      const onnxLaneActive = isOnnxTagProvider(process.env)
+        && shouldGenerateTags(process.env)
+        && !resolveCombinedLlmConfig(process.env).enabled;
+      const preparedB = onnxLaneActive
         ? await stageB(preparedA, ollamaSem)
         : await ollamaSem.run(() => stageB(preparedA));
       const preparedC = await embedSem.run(() => stageC(preparedB));
