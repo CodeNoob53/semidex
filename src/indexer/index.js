@@ -120,11 +120,10 @@ async function stageA(filePath, rootPath, collection, profiler) {
 }
 
 // ── Stage B: context + tag generation (Ollama GPU) ───────────────────────────
-// Guarded by ollamaSem in pipeline mode.
-// When TAG_PROVIDER=onnx (and not COMBINED_LLM), context (GPU/Ollama) and tag
-// generation (ONNX CPU worker) run in parallel after merge. This hides the ONNX
-// tag lane under the longer Ollama context lane — the resource utilisation goal.
-async function stageB(prepared) {
+// In default mode: guarded by ollamaSem in pipeline mode (caller wraps with sem.run).
+// In TAG_PROVIDER=onnx mode: caller passes ollamaSem so context alone acquires it
+// while ONNX tags run outside — both start after merge, freeing the semaphore sooner.
+async function stageB(prepared, ollamaSem = null) {
   const { rawChunks, combinedCfg, profiler } = prepared;
 
   if (combinedCfg.warning) console.warn(`  [combined] ${combinedCfg.warning}`);
@@ -153,8 +152,9 @@ async function stageB(prepared) {
     }
     profiler.mark('tag');
   } else if (tagViaOnnx && genTags) {
-    // TAG_PROVIDER=onnx: context (Ollama/GPU) and tag generation (ONNX CPU worker) overlap.
-    // Each branch is timed independently so profiler.mark captures real wall time.
+    // TAG_PROVIDER=onnx: ONNX tags (CPU worker) run outside ollamaSem; only context
+    // acquires the semaphore. Both start after merge so GPU and CPU lanes overlap.
+    // ollamaSem is null in non-pipeline mode — context runs ungated as before.
     console.log('  [2/5] contextualizing...');
     const merged = await mergeChunks(rawChunks);
     console.log(`        ${merged.length} chunks after merge  [3/5] tagging (onnx, parallel)`);
@@ -162,8 +162,11 @@ async function stageB(prepared) {
     const tContextStart = Date.now();
     const tTagStart     = Date.now();
 
+    const runContext = () =>
+      runBatched(merged, BATCH_SIZE, addContext).then(r => { profiler.markAt('context', tContextStart); return r; });
+
     const [contextChunks, onnxTagged] = await Promise.all([
-      runBatched(merged, BATCH_SIZE, addContext).then(r => { profiler.markAt('context', tContextStart); return r; }),
+      ollamaSem ? ollamaSem.run(runContext) : runContext(),
       addTagsOnnxBatch(merged).then(r => { profiler.markAt('tag', tTagStart); return r; }),
     ]);
 
@@ -517,7 +520,12 @@ async function main() {
       const preparedA = await stageA(filePath, rootPath, COLLECTION, profiler);
       if (preparedA.status === 'skipped') return 'skipped';
 
-      const preparedB = await ollamaSem.run(() => stageB(preparedA));
+      // TAG_PROVIDER=onnx: pass ollamaSem into stageB so context acquires it
+      // while ONNX tags run outside — the semaphore is held only for the GPU call.
+      // Default mode: stageB runs entirely under ollamaSem as before.
+      const preparedB = isOnnxTagProvider(process.env)
+        ? await stageB(preparedA, ollamaSem)
+        : await ollamaSem.run(() => stageB(preparedA));
       const preparedC = await embedSem.run(() => stageC(preparedB));
       await linkQueue.run(() => stageD(preparedC, linkTargetCollections, graph));
       return 'indexed';
