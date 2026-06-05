@@ -56,6 +56,10 @@ The light/fallback mode uses `ollama` + `hashed-tf`. It requires Ollama running 
 | `TAG_MODEL` | `gemma3:4b` | Model for tag generation (ignored when `COMBINED_LLM=1`) |
 | `TAG_GEN` | `1` | Set to `0` to skip LLM tag generation and store `tags: []` (opt-out) |
 | `COMBINED_LLM` | `0` | Set to `1` to use a single LLM call for both context and tags per chunk (opt-in) |
+| `TAG_PROVIDER` | `ollama` | Tag generation backend: `ollama` (default) or `onnx` (opt-in, experimental) |
+| `TAG_ONNX_MODEL` | `onnx-community/Qwen2.5-Coder-1.5B-Instruct` | ONNX tag model ID (only when `TAG_PROVIDER=onnx`) |
+| `TAG_ONNX_THREADS` | `1` | ONNX tag worker thread count (only when `TAG_PROVIDER=onnx`) |
+| `TAG_ONNX_ALLOW_DOWNLOAD` | `0` | Set to `1` to allow downloading the ONNX tag model on first use |
 | `VECTOR_SIZE` | `1024` | Must match dense embedding size |
 
 ### TAG_GEN
@@ -89,6 +93,31 @@ COMBINED_LLM=1 COLLECTION=my-docs npm run index ./docs
 ```
 
 `COMBINED_LLM` does not affect embedding, linking, or any retrieval behavior. It is safe to switch on or off between indexing runs of the same collection — the payload schema is unchanged.
+
+### TAG_PROVIDER
+
+`TAG_PROVIDER=onnx` routes tag generation through a persistent ONNX CPU worker thread instead of Ollama. The worker loads `Qwen2.5-Coder-0.5B-Instruct` (q4, ~500 MB) from the local model cache by default.
+
+**Resource utilisation goal:** Ollama context generation runs on the GPU; ONNX tag generation runs on CPU. When both paths are active, they run in parallel after the merge phase and before embedding — the ONNX tag lane is hidden under the longer Ollama context lane.
+
+**Status:** opt-in, experimental. Benchmark before switching production runs.
+
+**Requirements:**
+- ONNX tag model must be locally cached. Run `npm run bench:onnx-worker-budget` once to populate the cache, or set `TAG_ONNX_ALLOW_DOWNLOAD=1` to download on first use.
+- Does not require `TAG_MODEL` to be set or present in Ollama.
+- Incompatible with `COMBINED_LLM=1` — combined mode owns both context and tags in one call; `TAG_PROVIDER=onnx` is ignored with a warning when `COMBINED_LLM=1` is set.
+
+**Recommended initial budget:** `TAG_ONNX_THREADS=1` (benchmark result: +4% max wall degradation at threads=2/1).
+
+```bash
+# Experimental ONNX tag provider (requires cached model)
+TAG_PROVIDER=onnx PIPELINE_MODE=1 ONNX_EMBED=1 COLLECTION=my-docs npm run index ./docs
+
+# Allow download on first use
+TAG_PROVIDER=onnx TAG_ONNX_ALLOW_DOWNLOAD=1 COLLECTION=my-docs npm run index ./docs
+```
+
+`TAG_GEN=0` still takes priority — when set, no tag generation runs regardless of `TAG_PROVIDER`.
 
 ## Providers
 

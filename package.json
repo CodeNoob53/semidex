@@ -36,6 +36,8 @@
     "smoke:prune-live": "node benchmarks/retrieval/smoke-live-prune-stale.js",
     "bench:onnx-provider": "node benchmarks/onnx-provider-bench.js",
     "bench:onnx-worker-budget": "node benchmarks/onnx-worker-budget-bench.js",
+    "bench:onnx-tag-provider": "node benchmarks/onnx-tag-provider-indexing-bench.js",
+    "bench:onnx-tag-embed-parallel": "node benchmarks/onnx-tag-embed-parallel-bench.js",
     "bench:colbert-probe": "node benchmarks/retrieval/bge-m3-colbert-probe.js",
     "bench:custom50:colbert": "node benchmarks/retrieval/custom-50/colbert-bench.js",
     "bootstrap:docs": "node src/bootstrap-docs.js",
