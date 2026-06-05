@@ -14,7 +14,7 @@ Documents (md, pdf, docx, epub, txt, ...)
   |
   +- [1] Chunk          - structure-aware: headings -> sentences -> boundary check
   +- [2] Contextualize  - LLM writes a 1-2 sentence summary per chunk
-  +- [3] Tag            - LLM generates semantic tags per chunk
+  +- [3] Tag            - optional payload tags (TAG_GEN=1 or backfill)
   +- [4] Embed + Upsert - dense vector + sparse vector -> Qdrant point
   +- [5] Link           - semantic graph: top-N neighbors, bidirectional
        |
@@ -110,7 +110,18 @@ the direction without being the source of it.
 
 ## Phase 3 - Tag
 
-The same local LLM generates semantic tags for each chunk. Tags are batched for speed and are later usable through `qdrant_search` filters or `qdrant_find_by_tag`.
+Tags are optional payload metadata. They are disabled by default because they do
+not affect normal hybrid retrieval: dense/sparse vectors are built from
+`context + text`, not from tags.
+
+Enable tags during indexing with `TAG_GEN=1`, or generate them later with:
+
+```bash
+COLLECTION=my-docs npm run backfill:tags
+```
+
+Tags are useful when a workflow depends on `qdrant_list_tags`,
+`qdrant_find_by_tag`, tag-filtered `qdrant_search`, or manual collection audits.
 
 ## Phase 4 - Embed + Upsert
 
@@ -209,7 +220,7 @@ semidex is designed for local/private knowledge bases:
 
 | Model/runtime | Role |
 |---------------|------|
-| `gemma3:4b` through Ollama | Context summaries and tags |
+| `gemma3:4b` through Ollama | Context summaries; optional tags when `TAG_GEN=1` and no separate `TAG_MODEL` is set |
 | `bge-m3` through Ollama | Default dense embeddings |
 | `aapot/bge-m3-onnx` through ONNX Runtime | Dense + neural sparse multilingual embeddings |
 

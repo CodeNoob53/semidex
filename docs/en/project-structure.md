@@ -45,7 +45,7 @@ src/indexer/
   phases/
     chunk.js      - structure-aware parsing and chunking
     context.js    - LLM context summaries and boundary merging
-    tag.js        - batched semantic tag generation
+    tag.js        - optional batched semantic tag generation
     link.js       - semantic links/backlinks across indexed files
 ```
 

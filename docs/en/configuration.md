@@ -53,9 +53,9 @@ The light/fallback mode uses `ollama` + `hashed-tf`. It requires Ollama running 
 | `OLLAMA_URL` | `http://localhost:11434` | Ollama base URL |
 | `EMBED_MODEL` | `bge-m3` | Dense model for Ollama provider |
 | `CONTEXT_MODEL` | `gemma3:4b` | Model for chunk contextualization |
-| `TAG_MODEL` | `gemma3:4b` | Model for tag generation (ignored when `COMBINED_LLM=1`) |
-| `TAG_GEN` | `1` | Set to `0` to skip LLM tag generation and store `tags: []` (opt-out) |
-| `COMBINED_LLM` | `0` | Set to `1` to use a single LLM call for both context and tags per chunk (opt-in) |
+| `TAG_MODEL` | `CONTEXT_MODEL` | Model for tag generation when `TAG_GEN=1` and `TAG_PROVIDER=ollama`; defaults to the context model unless explicitly set |
+| `TAG_GEN` | `0` | Set to `1` to generate payload tags during indexing |
+| `COMBINED_LLM` | `0` | Set to `1` to use the combined LLM path: context-only by default, context+tags when `TAG_GEN=1` |
 | `TAG_PROVIDER` | `ollama` | Tag generation backend: `ollama` (default) or `onnx` (opt-in, experimental) |
 | `TAG_ONNX_MODEL` | `onnx-community/Qwen2.5-Coder-1.5B-Instruct` | ONNX tag model ID (only when `TAG_PROVIDER=onnx`) |
 | `TAG_ONNX_THREADS` | `1` | ONNX tag worker thread count (only when `TAG_PROVIDER=onnx`) |
@@ -64,29 +64,73 @@ The light/fallback mode uses `ollama` + `hashed-tf`. It requires Ollama running 
 
 ### TAG_GEN
 
-In the default separate path, `TAG_GEN=0` skips the tag phase entirely — no Ollama call is made for tags and every chunk is stored with `tags: []` in its Qdrant payload. Default behavior (tags generated) is preserved when `TAG_GEN` is unset, `1`, or any value other than the exact string `0`.
+Tags are disabled by default. `TAG_GEN=1` enables tag generation during indexing;
+any other value, including unset, skips the tag phase and stores `tags: []` in
+Qdrant payload.
+
+When tags are enabled and `TAG_MODEL` is not set, semidex uses `CONTEXT_MODEL`
+for tag generation. Set `TAG_MODEL` only when you intentionally want a separate
+tagging model. The same model-resolution rule applies to `npm run backfill:tags`
+and `FORCE_TAGS=1`.
 
 Tags are payload-only metadata — they are **not** embedded into the dense/sparse vectors and do not affect default hybrid RRF retrieval. Disabling them has no impact on `qdrant_search` result quality when called without a `tags` filter.
 
-**When to use `TAG_GEN=0`:** Large automated indexing runs where `qdrant_find_by_tag` and tag-filtered search are not needed. Reduces Ollama LLM call budget by ~25–50% (tag batch calls + avoided per-chunk fallback).
+**When to keep tags disabled:** Most indexing runs where agents rely on
+`qdrant_search`, `qdrant_get_chunk`, directory/file navigation, and exact-token
+hybrid retrieval. This is the default because tags are situational and cost an
+extra generation phase.
 
-**Tradeoff:** `qdrant_find_by_tag` returns no results for chunks indexed with `TAG_GEN=0`. Result display in MCP search output will show no tags for those chunks. The deterministic reranker tag boost (`RERANK_BOOST_TAGS`) has no effect.
+**When to enable tags:** Collections where tag tools are part of the workflow:
+`qdrant_list_tags`, `qdrant_find_by_tag`, tag-filtered `qdrant_search`, manual
+collection audit, or broad topic navigation after an initial search.
+
+**Tradeoff:** `qdrant_find_by_tag` returns no results for chunks indexed without
+tags. Result display in MCP search output will show no tags for those chunks.
+The deterministic reranker tag boost (`RERANK_BOOST_TAGS`) has no effect.
 
 ```bash
-TAG_GEN=0 ONNX_EMBED=1 COLLECTION=my-docs npm run index ./docs
+TAG_GEN=1 ONNX_EMBED=1 COLLECTION=my-docs npm run index ./docs
 ```
 
-**With `COMBINED_LLM=1`:** The combined context+tags call still runs (context is needed), but the generated tags are discarded and `tags: []` is stored. This avoids a risky prompt split — context generation is unchanged.
+**Backfill after indexing:** Tags can be generated later without reindexing
+vectors. The backfill command reads existing Qdrant payloads, generates tags, and
+updates only the `tags` payload field:
+
+```bash
+# Fill only points with missing/empty tags
+COLLECTION=my-docs npm run backfill:tags
+
+# Regenerate tags for every point in the collection
+FORCE_TAGS=1 COLLECTION=my-docs npm run backfill:tags
+
+# Use the ONNX CPU tag worker for backfill
+TAG_PROVIDER=onnx COLLECTION=my-docs npm run backfill:tags
+```
+
+Use `DRY_RUN=1` to count target points without writing payload updates.
+
+**With `COMBINED_LLM=1` and tags disabled:** The combined call is not used for
+tags. Context generation is unchanged, and chunks are stored with `tags: []`.
 
 ### COMBINED_LLM
 
-`COMBINED_LLM=1` merges the context and tag phases into a single Ollama call per chunk. The model is always `CONTEXT_MODEL`; `TAG_MODEL` is ignored when this flag is set (doctor warns if they differ).
+`COMBINED_LLM=1` uses the combined LLM path. With the default `TAG_GEN=0`, it
+generates context only and stores `tags: []`. When `TAG_GEN=1`, it merges context
+and tag generation into a single Ollama call per chunk. The model is always
+`CONTEXT_MODEL`; `TAG_MODEL` is ignored when this flag is set (doctor warns if
+they differ).
 
 **When to use:** If Ollama LLM phases are your indexing bottleneck and you want to reduce total LLM calls. Benchmarks showed ~30% latency reduction on gemma3:4b for normal chunks.
 
-**Fallback behavior:** If the combined JSON response cannot be parsed, or if the chunk is too short (< 80 chars), the indexer falls back to separate context and tag prompts for that chunk — both still using `CONTEXT_MODEL`. `TAG_MODEL` is not used. Indexing never fails due to a combined-mode parse error.
+**Fallback behavior when `TAG_GEN=1`:** If the combined JSON response cannot be
+parsed, or if the chunk is too short (< 80 chars), the indexer falls back to
+separate context and tag prompts for that chunk — both still using
+`CONTEXT_MODEL`. `TAG_MODEL` is not used. Indexing never fails due to a
+combined-mode parse error.
 
-**Batch combined is not implemented.** Each chunk still gets its own LLM call — the only change is that one call returns both context and tags instead of two calls returning them separately.
+**Batch combined is not implemented.** Each chunk still gets its own LLM call.
+With `TAG_GEN=1`, the difference is that one call returns both context and tags
+instead of two calls returning them separately.
 
 ```bash
 COMBINED_LLM=1 COLLECTION=my-docs npm run index ./docs
@@ -98,26 +142,28 @@ COMBINED_LLM=1 COLLECTION=my-docs npm run index ./docs
 
 `TAG_PROVIDER=onnx` routes tag generation through a persistent ONNX CPU worker thread instead of Ollama. The worker loads `Qwen2.5-Coder-1.5B-Instruct` (q4, ~1.8 GB) from the local model cache by default.
 
-**Resource utilisation goal:** Ollama context generation runs on the GPU; ONNX tag generation runs on CPU. When both paths are active, they run in parallel after the merge phase and before embedding — the ONNX tag lane is hidden under the longer Ollama context lane.
+**Resource utilisation goal:** When `TAG_GEN=1`, Ollama context generation can
+run on the GPU while ONNX tag generation runs on CPU. This keeps tags off the
+Ollama lane and can reduce idle hardware time in tag-heavy workflows.
 
 **Status:** opt-in, experimental. Benchmark before switching production runs.
 
 **Requirements:**
 - ONNX tag model must be locally cached. Run `npm run bench:onnx-worker-budget` once to populate the cache, or set `TAG_ONNX_ALLOW_DOWNLOAD=1` to download on first use.
 - Does not require `TAG_MODEL` to be set or present in Ollama.
-- Incompatible with `COMBINED_LLM=1` — combined mode owns both context and tags in one call; `TAG_PROVIDER=onnx` is ignored with a warning when `COMBINED_LLM=1` is set.
+- Incompatible with `COMBINED_LLM=1` during indexing when `TAG_GEN=1` — combined mode owns tag generation; `TAG_PROVIDER=onnx` is ignored with a warning.
 
 **Recommended initial budget:** `TAG_ONNX_THREADS=1` (benchmark result: +4% max wall degradation at threads=2/1).
 
 ```bash
-# Experimental ONNX tag provider (requires cached model)
-TAG_PROVIDER=onnx PIPELINE_MODE=1 ONNX_EMBED=1 COLLECTION=my-docs npm run index ./docs
+# Experimental ONNX tag provider during indexing (requires cached model)
+TAG_GEN=1 TAG_PROVIDER=onnx PIPELINE_MODE=1 ONNX_EMBED=1 COLLECTION=my-docs npm run index ./docs
 
 # Allow download on first use
-TAG_PROVIDER=onnx TAG_ONNX_ALLOW_DOWNLOAD=1 COLLECTION=my-docs npm run index ./docs
+TAG_GEN=1 TAG_PROVIDER=onnx TAG_ONNX_ALLOW_DOWNLOAD=1 COLLECTION=my-docs npm run index ./docs
 ```
 
-`TAG_GEN=0` still takes priority — when set, no tag generation runs regardless of `TAG_PROVIDER`.
+If `TAG_GEN=1` is not set, no tags are generated during indexing regardless of `TAG_PROVIDER`.
 
 ## Providers
 
@@ -240,7 +286,7 @@ PRUNE_STALE=1 SOURCE_ROOT=./docs COLLECTION=my-docs npm run index ./docs/guides
 | `MAX_CHUNK_TOKENS` | `400` | Max tokens per chunk according to `TOKEN_COUNT` |
 | `MIN_CHUNK_TOKENS` | `30` | Minimum tokens; smaller chunks may be skipped |
 | `OVERLAP_SENTENCES` | `2` | Sentence overlap between adjacent chunks |
-| `LLM_BATCH_SIZE` | `3` | Chunks per LLM call for context/tag phases |
+| `LLM_BATCH_SIZE` | `3` | Chunks per LLM call for context and enabled tag phases |
 
 The real tokenizer path loads tokenizer files only; it does not create an ONNX
 inference session. Tokenizer files are cached under `./models/` and may be

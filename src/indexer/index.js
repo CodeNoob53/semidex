@@ -81,7 +81,7 @@ async function stageA(filePath, rootPath, collection, profiler) {
   const tagViaOnnx = isOnnxTagProvider(process.env);
   const tagModel = (combinedCfg.enabled || !genTagsPreflight || tagViaOnnx)
     ? contextModel
-    : (process.env.TAG_MODEL || 'gemma3:4b');
+    : (process.env.TAG_MODEL || contextModel);
   await ensureOllamaPreflight(ollamaUrl, contextModel, tagModel);
   // Load/download tokenizer before any destructive work — a failure here leaves old points intact.
   if (tokenCountMode === 'bge-m3') await getTokenCounter({ mode: 'bge-m3' });
@@ -132,11 +132,11 @@ async function stageB(prepared, ollamaSem = null) {
 
   let taggedChunks;
   if (combinedCfg.enabled) {
-    // COMBINED_LLM=1 owns both context and tags in one call; TAG_PROVIDER=onnx is ignored.
-    if (tagViaOnnx) {
+    // COMBINED_LLM=1 owns tags only when TAG_GEN=1; TAG_PROVIDER=onnx is ignored then.
+    if (genTags && tagViaOnnx) {
       console.warn('  [tag-onnx] TAG_PROVIDER=onnx is ignored when COMBINED_LLM=1 — combined mode owns context+tags');
     }
-    console.log('  [2/5] contextualizing + tagging (combined)...');
+    console.log(`  [2/5] ${genTags ? 'contextualizing + tagging' : 'contextualizing'} (combined)...`);
     const merged = await mergeChunks(rawChunks);
     console.log(`        ${merged.length} chunks after merge`);
     profiler.mark('context');
@@ -145,9 +145,9 @@ async function stageB(prepared, ollamaSem = null) {
       console.log('  [3/5] (combined — no separate tag phase)');
       taggedChunks = await runBatched(merged, BATCH_SIZE, chunk => addContextAndTags(chunk, combinedCfg.model, merged));
     } else {
-      // TAG_GEN=0: run combined call for context only, then force tags: [].
-      console.log('  [3/5] tagging skipped (TAG_GEN=0) — context only');
-      const withContext = await runBatched(merged, BATCH_SIZE, chunk => addContextAndTags(chunk, combinedCfg.model, merged));
+      // TAG_GEN is opt-in: run a pure context prompt and force tags: [].
+      console.log('  [3/5] tagging skipped (TAG_GEN not enabled) — context only');
+      const withContext = await runBatched(merged, BATCH_SIZE, addContext);
       taggedChunks = withContext.map(c => ({ ...c, tags: [] }));
     }
     profiler.mark('tag');
@@ -194,7 +194,7 @@ async function stageB(prepared, ollamaSem = null) {
       }
       taggedChunks = tagged;
     } else {
-      console.log('  [3/5] tagging skipped (TAG_GEN=0)');
+      console.log('  [3/5] tagging skipped (TAG_GEN not enabled)');
       taggedChunks = contextChunks.map(c => ({ ...c, tags: [] }));
     }
     profiler.mark('tag');
@@ -526,7 +526,7 @@ async function main() {
       if (preparedA.status === 'skipped') return 'skipped';
 
       // ONNX split-sem path: only active when tags actually go to the ONNX worker.
-      // COMBINED_LLM=1 and TAG_GEN=0 both bypass the ONNX lane inside stageB, so
+      // COMBINED_LLM=1 and disabled tags both bypass the ONNX lane inside stageB, so
       // they must keep the default ollamaSem.run() wrapper to gate Ollama correctly.
       const onnxLaneActive = isOnnxTagProvider(process.env)
         && shouldGenerateTags(process.env)

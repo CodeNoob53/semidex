@@ -254,12 +254,13 @@ console.log(`[bench] ONNX collection:   ${COLLECTION_ONNX}\n`);
 
 // Run ollama provider
 console.log('[bench] --- Run 1: TAG_PROVIDER=ollama ---');
-const ollamaResult = await runIndexer(COLLECTION_OLLAMA, { TAG_PROVIDER: 'ollama' }, 'ollama');
+const ollamaResult = await runIndexer(COLLECTION_OLLAMA, { TAG_GEN: '1', TAG_PROVIDER: 'ollama' }, 'ollama');
 console.log(`  wall: ${fmtMs(ollamaResult.wallMs)}${ollamaResult.error ? '  ERROR: ' + ollamaResult.error.slice(0, 80) : ''}`);
 
 // Run onnx provider
 console.log('\n[bench] --- Run 2: TAG_PROVIDER=onnx ---');
 const onnxResult = await runIndexer(COLLECTION_ONNX, {
+  TAG_GEN: '1',
   TAG_PROVIDER: 'onnx',
   TAG_ONNX_THREADS: '1',
 }, 'onnx');

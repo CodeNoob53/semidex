@@ -333,15 +333,15 @@ async function deleteBySourceFile(collection, sourceFile) {
  *
  * Rules (same as indexer):
  *   COMBINED_LLM=1 → TAG_MODEL is ignored; only CONTEXT_MODEL is used for both.
- *   TAG_GEN=0      → tag generation skipped; TAG_MODEL not needed.
- *   Otherwise      → both CONTEXT_MODEL and TAG_MODEL are needed independently.
+ *   TAG_GEN=1      → tag generation enabled; TAG_MODEL is needed unless combined.
+ *   Otherwise      → tags are skipped; TAG_MODEL not needed.
  *
  * Returns a deduplicated string[] of model names to check for availability.
  */
 export function resolveOllamaModelsToCheck(env = {}) {
   const contextModel = env.CONTEXT_MODEL || 'gemma3:4b';
   const combinedLlm  = env.COMBINED_LLM === '1';
-  const genTags      = env.TAG_GEN !== '0';
+  const genTags      = env.TAG_GEN === '1';
   const tagModel     = (combinedLlm || !genTags) ? contextModel : (env.TAG_MODEL || contextModel);
   return [...new Set([contextModel, tagModel])];
 }
@@ -376,8 +376,8 @@ function reindexFile(absFilePath, sourceRoot) {
  * src/indexer/index.js so we check exactly the models the indexer will need:
  *   - COMBINED_LLM=1 → indexer uses CONTEXT_MODEL for both context and tags;
  *     TAG_MODEL is ignored, so we only check CONTEXT_MODEL.
- *   - TAG_GEN=0 → tag generation is skipped; TAG_MODEL is not needed.
- *   - Otherwise → check both CONTEXT_MODEL and TAG_MODEL independently.
+ *   - TAG_GEN is not 1 → tag generation is skipped; TAG_MODEL is not needed.
+ *   - TAG_GEN=1 → check both CONTEXT_MODEL and TAG_MODEL independently.
  * Throws with a [preflight]-prefixed message on failure.
  */
 async function checkOllamaReachable() {

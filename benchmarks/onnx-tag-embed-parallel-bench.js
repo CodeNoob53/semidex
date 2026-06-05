@@ -220,6 +220,7 @@ const VARIANTS = [
     id: 'A',
     label: 'TAG_PROVIDER=onnx (current)',
     env: {
+      TAG_GEN:         '1',
       TAG_PROVIDER:    'onnx',
       TAG_ONNX_MODEL:  TAG_ONNX_MODEL,
       TAG_ONNX_THREADS: '1',
@@ -242,6 +243,7 @@ const VARIANTS = [
     id: 'C',
     label: 'TAG_PROVIDER=ollama (reference)',
     env: {
+      TAG_GEN:         '1',
       OLLAMA_STAGE_CONCURRENCY: '1',
       EMBED_STAGE_CONCURRENCY:  '1',
     },

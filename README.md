@@ -15,8 +15,9 @@
 It turns your documents, notes, specs, and code knowledge into an indexed
 collection that an AI assistant can query through MCP. Instead of pasting huge
 files into chat, semidex stores your knowledge in Qdrant, splits it into chunks,
-enriches them with summaries, tags, and semantic links, then returns relevant
-pieces for the current task.
+enriches them with summaries and semantic links, then returns relevant pieces
+for the current task. Tags are optional payload metadata and can be generated
+only when a workflow needs tag navigation.
 
 In simple terms: semidex helps an AI look up paragraphs, sections, commands,
 config options, and related documents before it answers or edits code.
@@ -85,7 +86,7 @@ docker run -d --name qdrant -p 6333:6333 qdrant/qdrant
 
 ### 3. Pull local models
 
-Context and tag generation use Ollama in every indexing mode:
+Context generation uses Ollama in every indexing mode:
 
 ```bash
 ollama pull gemma3:4b
@@ -178,7 +179,8 @@ English deep dives:
 ```text
 Documents
   -> heading-aware, tokenizer-aware chunking
-  -> LLM context summaries and tags
+  -> LLM context summaries
+  -> optional tags (TAG_GEN=1 or backfill:tags)
   -> dense + sparse embeddings
   -> Qdrant named vectors + payload metadata
   -> semantic graph links/backlinks
@@ -203,7 +205,7 @@ Qdrant point
     ├── context:      "calls the superclass..."  ← LLM summary
     ├── section:      "4.10. Subclass constructor"
     ├── source_file:  "docs/guide.md"
-    ├── tags:         ["inheritance", "class"]
+    ├── tags:         []                          ← optional payload metadata
     ├── links:        ["other_file.md"]
     ├── backlinks:    []
     ├── chunk_index:  99
@@ -230,6 +232,8 @@ Mixed provider combinations, such as `ollama` dense + `bge-m3-onnx` sparse, are 
 |---------|-------------|
 | `COLLECTION=my-docs npm run index ./docs` | Index a file or folder |
 | `PRUNE_STALE=1 COLLECTION=my-docs npm run index ./docs` | Index and remove Qdrant points for files no longer on disk |
+| `COLLECTION=my-docs npm run backfill:tags` | Generate missing tags for an already indexed collection |
+| `FORCE_TAGS=1 COLLECTION=my-docs npm run backfill:tags` | Regenerate all tags without reindexing vectors |
 | `npm run mcp` | Start the MCP server over stdio |
 | `npm run sync` | Sync `config.json` and Qdrant payload indexes |
 | `npm run smoke` | Fast offline smoke tests — runs in CI on every push/PR |
@@ -241,6 +245,36 @@ Mixed provider combinations, such as `ollama` dense + `bge-m3-onnx` sparse, are 
 | `npm run bench:retrieval:mmr` | MMR diversity matrix benchmark |
 
 `PRUNE_STALE=1` compares the files found on disk against all `source_file` values stored in Qdrant and deletes any points whose source file is no longer present. Run only against the full directory root used for indexing. When `SOURCE_ROOT` is set, subset directory targets are rejected with a warning.
+
+## Optional Tags
+
+Tags are disabled by default. They are payload-only metadata: they do not affect
+normal hybrid search quality because vectors are built from `context + text`, not
+from tags.
+
+When enabled, tag generation uses `CONTEXT_MODEL` by default. Set `TAG_MODEL`
+only when you intentionally want a separate tagging model. The same rule applies
+to `npm run backfill:tags` and `FORCE_TAGS=1`.
+
+Use tags only when you need tag-specific tools and workflows:
+
+- `qdrant_list_tags`
+- `qdrant_find_by_tag`
+- tag-filtered `qdrant_search`
+- manual collection auditing or navigation by topic labels
+
+Generate tags during indexing:
+
+```bash
+TAG_GEN=1 ONNX_EMBED=1 COLLECTION=my-docs npm run index ./docs
+```
+
+Or add them later to an existing collection without reindexing vectors:
+
+```bash
+COLLECTION=my-docs npm run backfill:tags
+FORCE_TAGS=1 COLLECTION=my-docs npm run backfill:tags
+```
 
 ## Supported Formats
 
@@ -286,7 +320,8 @@ Implemented:
 
 - Local-first indexing pipeline
 - Heading-aware, tokenizer-aware chunking with section-boundary preservation
-- LLM context summaries and optional tags
+- LLM context summaries
+- Optional payload tags via `TAG_GEN=1` or `npm run backfill:tags`
 - Dense + sparse hybrid retrieval
 - Qdrant RRF fusion
 - BGE-M3 ONNX multilingual provider

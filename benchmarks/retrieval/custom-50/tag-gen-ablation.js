@@ -624,8 +624,8 @@ async function main() {
     buildCorpus();
     console.log(`  corpus built: ${FIXTURE_FILES.length} files`);
 
-    // ── A: baseline indexing (TAG_GEN=1 default) ─────────────────────────────
-    const baselineRun = runIndexer(COL_BASELINE, {}, CHUNKS_BASELINE, 'A: baseline (TAG_GEN=1)');
+    // ── A: baseline indexing (explicit TAG_GEN=1) ────────────────────────────
+    const baselineRun = runIndexer(COL_BASELINE, { TAG_GEN: '1' }, CHUNKS_BASELINE, 'A: baseline (TAG_GEN=1)');
 
     // ── B: tag-off indexing (TAG_GEN=0) ──────────────────────────────────────
     const tagoffRun = runIndexer(COL_TAGOFF, { TAG_GEN: '0' }, CHUNKS_TAGOFF, 'B: TAG_GEN=0');

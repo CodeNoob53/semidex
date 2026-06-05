@@ -14,6 +14,7 @@ They share the same core provider, config, graph, chunking, and Qdrant helpers.
 COLLECTION=my-docs npm run index <file|folder>  # index documents
 npm run mcp                                      # start MCP server (stdio)
 npm run sync                                     # sync config.json + Qdrant indexes
+npm run backfill:tags                            # generate missing tags for an indexed collection
 npm run doctor                                   # read-only environment health check
 npm run smoke                                    # offline smoke tests (no Qdrant)
 npm run smoke:retrieval-live                     # optional live smoke suite (requires Qdrant)
@@ -84,7 +85,7 @@ qdrant_collection_info
 
 Always call `list_directories` at depth=1 first to orient, then drill with `source_prefix` before listing files. Do not guess `source_file` paths.
 
-For tag discovery and breadth expansion:
+For tag discovery and breadth expansion, only when tags exist in the collection:
 
 ```text
 qdrant_search(...)                                                    # inspect tags in results first
@@ -93,7 +94,14 @@ qdrant_search(...)                                                    # inspect 
   -> qdrant_find_by_tag(collection, tags=[...])                       # breadth expansion
 ```
 
-On large collections, do not start with unscoped `qdrant_list_tags` — it can return hundreds of tags with no grouping signal. Always run `qdrant_list_directories(depth=1)` first, drill into the relevant area with `source_prefix`, then call `qdrant_list_tags(collection, contains=..., source_prefix=...)` scoped to that area. Tags are most useful for breadth expansion after an initial search, not as the first step. This workflow was live-tested on a large collection and eliminated blind prefix guessing.
+Tags are disabled during indexing by default. They exist only when the collection
+was indexed with `TAG_GEN=1` or later processed with `npm run backfill:tags`.
+On large collections, do not start with unscoped `qdrant_list_tags` — it can
+return hundreds of tags with no grouping signal. Always run
+`qdrant_list_directories(depth=1)` first, drill into the relevant area with
+`source_prefix`, then call `qdrant_list_tags(collection, contains=...,
+source_prefix=...)` scoped to that area. Tags are most useful for breadth
+expansion after an initial search, not as the first step.
 
 Search returns the matched chunk text plus `source_file` and `chunk_index`. The programmatic default is `window=0` (no neighbors), but for AI agents, the following patterns are recommended:
 
@@ -404,9 +412,11 @@ Requires Ollama running with `bge-m3` pulled. This is the code default when `ONN
 
 ### Ollama startup for agents
 
-Indexing uses Ollama for context/tag generation even when `ONNX_EMBED=1` is used
-for embeddings. Before any destructive apply/repair job, verify Ollama before
-deleting Qdrant points.
+Indexing uses Ollama for context generation even when `ONNX_EMBED=1` is used
+for embeddings. Tag generation is disabled by default; if `TAG_GEN=1` is set,
+tags use either Ollama (`TAG_PROVIDER=ollama`) or the ONNX tag worker
+(`TAG_PROVIDER=onnx`). Before any destructive apply/repair job, verify required
+models before deleting Qdrant points.
 
 On Windows PowerShell:
 
@@ -426,7 +436,9 @@ ollama list
 
 Required indexing models depend on env:
 
-- default context/tag model: `gemma3:4b`
+- default context model: `gemma3:4b`
+- tag model only when `TAG_GEN=1` and `TAG_PROVIDER=ollama`: `TAG_MODEL`,
+  or `CONTEXT_MODEL` when `TAG_MODEL` is unset
 - Ollama embedding fallback model: `bge-m3`
 
 If a required model is missing, run `ollama pull <model>` and retry. Do not use
@@ -457,15 +469,37 @@ same-source duplicate points (where `source_file` still exists on disk).
 COMBINED_LLM=1 ONNX_EMBED=1 COLLECTION=my-docs npm run index ./docs
 ```
 
-Merges context and tag generation into a single Ollama call per chunk. Uses `CONTEXT_MODEL` for both; `TAG_MODEL` is ignored. Falls back to separate context and tag prompts per chunk on parse failure, still using `CONTEXT_MODEL` for both — `TAG_MODEL` is never used. Indexing never aborts due to combined-mode errors. See `docs/en/configuration.md — COMBINED_LLM` for details.
+Uses the combined LLM path. With default tags disabled, it generates context only
+and stores `tags: []`. With `TAG_GEN=1`, it merges context and tag generation
+into a single Ollama call per chunk. Uses `CONTEXT_MODEL`; `TAG_MODEL` is
+ignored. If the context+tags response cannot be parsed, it falls back to separate
+context and tag prompts for that chunk, still using `CONTEXT_MODEL`. Indexing
+never aborts due to combined-mode errors. See
+`docs/en/configuration.md — COMBINED_LLM` for details.
 
-### Skip tag generation (large automated runs)
+### Generate tags during indexing
 
 ```bash
-TAG_GEN=0 ONNX_EMBED=1 COLLECTION=my-docs npm run index ./docs
+TAG_GEN=1 ONNX_EMBED=1 COLLECTION=my-docs npm run index ./docs
 ```
 
-Use when `qdrant_find_by_tag` and tag-filtered search are not needed. Tags are payload-only metadata and do not affect default hybrid retrieval — skipping them saves ~25–50% of the Ollama LLM call budget (tag batch calls + per-chunk fallback when batch parse fails). Chunks are stored with `tags: []`.
+Use only when `qdrant_find_by_tag`, `qdrant_list_tags`, or tag-filtered search
+are part of the workflow. Tags are payload-only metadata and do not affect
+default hybrid retrieval. Chunks indexed without `TAG_GEN=1` are stored with
+`tags: []`.
+
+### Generate tags after indexing
+
+```bash
+COLLECTION=my-docs npm run backfill:tags
+FORCE_TAGS=1 COLLECTION=my-docs npm run backfill:tags
+TAG_PROVIDER=onnx COLLECTION=my-docs npm run backfill:tags
+```
+
+`backfill:tags` updates only Qdrant payload tags. It does not reindex files,
+change vectors, or alter chunk boundaries. By default it fills only missing or
+empty tags; `FORCE_TAGS=1` regenerates all tags. If `TAG_MODEL` is unset,
+backfill uses `CONTEXT_MODEL` as the tag model.
 
 ### PDF / book indexing
 
@@ -480,7 +514,7 @@ PDFs are converted to Markdown by `@opendocsg/pdf2md` (not pandoc — pandoc can
 | Symptom | Action |
 |---------|--------|
 | Unclear environment failures | Run `npm run doctor` first — it checks Qdrant, Ollama, schema, models, COMBINED_LLM config, and local files in one read-only pass |
-| `[combined] parse failed` in indexer output | Normal fallback — combined mode fell back to separate context+tag for that chunk; not an error |
+| `[combined] parse failed` in indexer output | Normal fallback when `COMBINED_LLM=1 TAG_GEN=1` — combined mode fell back to separate context+tag for that chunk; not an error |
 | `COMBINED_LLM=1 … TAG_MODEL is ignored` doctor WARN | Expected when TAG_MODEL ≠ CONTEXT_MODEL and COMBINED_LLM=1; set TAG_MODEL to match CONTEXT_MODEL or leave unset to silence it |
 | `[preflight] Ollama unreachable` | Indexer now fails fast before chunking. Use the Ollama startup steps above; on Windows prefer `Start-Process -FilePath "ollama" -ArgumentList "serve" -WindowStyle Hidden`, then verify `ollama list` |
 | `[preflight] Required Ollama model(s) not pulled` | Run the `ollama pull <model>` command shown in the error, then retry |

@@ -1,11 +1,15 @@
 import { generate } from '../../core/ollama.js';
 
-const MODEL = process.env.TAG_MODEL || 'gemma3:4b';
+export function resolveTagModel(env = process.env) {
+  return env.TAG_MODEL || env.CONTEXT_MODEL || 'gemma3:4b';
+}
 
-// Returns false only when TAG_GEN is exactly the string '0'.
-// All other values (unset, '1', 'false', ...) leave tag generation enabled.
+const MODEL = resolveTagModel();
+
+// Tags are optional navigation metadata. Generate them only when explicitly
+// requested so normal indexing does not spend LLM time on payload-only tags.
 export function shouldGenerateTags(env = process.env) {
-  return env.TAG_GEN !== '0';
+  return env.TAG_GEN === '1';
 }
 
 function parseTags(raw) {

@@ -256,8 +256,9 @@ Run once after initial setup, and again whenever the docs change significantly.
 **Provider:** Uses `ONNX_EMBED=1` (bge-m3-onnx) by default for embeddings. On first
 run this downloads the ONNX model (~2.3 GB) into `./models/`. Set `ONNX_EMBED=0`
 in the shell or `.env` to use the Ollama/hashed-tf embedding fallback instead.
-Context and tag generation still use Ollama during indexing, so keep Ollama running
-with the configured `CONTEXT_MODEL` / `TAG_MODEL` available.
+Context generation still uses Ollama during indexing, so keep Ollama running
+with the configured `CONTEXT_MODEL` available. Tags are disabled by default; if
+`TAG_GEN=1` is set, also make sure the configured tag backend is available.
 
 **Re-run safety:** Unchanged files are skipped by the file-hash check. Re-running after
 a docs update only reindexes the files that changed.
@@ -416,9 +417,9 @@ Doctor never mutates. Use `npm run sync` to repair any schema or index issues it
 | Symptom | Likely cause | Action |
 |---------|-------------|--------|
 | `[preflight] Ollama unreachable at ...` | Ollama not running or wrong `OLLAMA_URL` | Indexer fails fast before chunking. Start Ollama (`ollama serve`); on Windows try `OLLAMA_URL=http://127.0.0.1:11434` if localhost is proxied |
-| `[preflight] Required Ollama model(s) not pulled` | `CONTEXT_MODEL` or `TAG_MODEL` not pulled | Run `ollama pull <model>` as shown in the error message, then retry |
+| `[preflight] Required Ollama model(s) not pulled` | `CONTEXT_MODEL` or, when `TAG_GEN=1`, the resolved tag model is not pulled. If `TAG_MODEL` is unset, the tag model is `CONTEXT_MODEL` | Run `ollama pull <model>` as shown in the error message, then retry |
 | `Unable to load BGE-M3 tokenizer` | Tokenizer cache is missing and cannot be downloaded | Check network/cache access and retry. Set `TOKEN_COUNT=heuristic` only when the older approximate boundaries are intentionally acceptable |
-| `fetch failed` on search with ollama provider | Ollama not running | `ONNX_EMBED=1` makes search use ONNX, but Ollama is still needed for context/tag during indexing — preflight will catch this before the loop |
+| `fetch failed` on search with ollama provider | Ollama not running | `ONNX_EMBED=1` makes search use ONNX, but Ollama is still needed for context generation during indexing — preflight will catch this before the loop |
 | Qdrant connection refused or timeout | Qdrant not running or wrong `QDRANT_URL` | Start Qdrant, verify `QDRANT_URL` in `.env`, run `npm run sync` |
 | `Invalid provider combination` | Mixed dense/sparse providers | Use either the default (no extra env) or `ONNX_EMBED=1` — mixed combos are rejected at runtime |
 | Search/link error: `Not existing vector name: dense` | Legacy flat vector schema (`{ size, distance }` instead of named `{ dense, sparse }`) or collection without a named `dense` vector | Run `npm run sync` — if it reports `LEGACY SCHEMA`, the collection must be dropped and reindexed (see below); collections without named `dense` are marked `linkDisabled` automatically |

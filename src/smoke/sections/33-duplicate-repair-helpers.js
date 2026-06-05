@@ -268,12 +268,19 @@ export default async function ({ ok, throws }) {
   ok('resolveOllamaModelsToCheck: CONTEXT_MODEL only (no TAG_MODEL set)',
     resolveOllamaModelsToCheck({ CONTEXT_MODEL: 'qwen3:1.7b' }).join(',') === 'qwen3:1.7b');
 
-  ok('resolveOllamaModelsToCheck: separate TAG_MODEL included when not COMBINED/disabled',
-    resolveOllamaModelsToCheck({ CONTEXT_MODEL: 'ctx:1b', TAG_MODEL: 'tag:4b' })
+  ok('resolveOllamaModelsToCheck: default tags disabled → TAG_MODEL not needed',
+    !resolveOllamaModelsToCheck({ CONTEXT_MODEL: 'ctx:1b', TAG_MODEL: 'tag:4b' })
       .includes('tag:4b'));
 
+  ok('resolveOllamaModelsToCheck: TAG_GEN=1 includes separate TAG_MODEL',
+    resolveOllamaModelsToCheck({ TAG_GEN: '1', CONTEXT_MODEL: 'ctx:1b', TAG_MODEL: 'tag:4b' })
+      .includes('tag:4b'));
+
+  ok('resolveOllamaModelsToCheck: TAG_GEN=1 without TAG_MODEL uses CONTEXT_MODEL',
+    resolveOllamaModelsToCheck({ TAG_GEN: '1', CONTEXT_MODEL: 'ctx:1b' }).join(',') === 'ctx:1b');
+
   ok('resolveOllamaModelsToCheck: COMBINED_LLM=1 → TAG_MODEL ignored, only context model',
-    !resolveOllamaModelsToCheck({ COMBINED_LLM: '1', CONTEXT_MODEL: 'ctx:1b', TAG_MODEL: 'tag:4b' })
+    !resolveOllamaModelsToCheck({ TAG_GEN: '1', COMBINED_LLM: '1', CONTEXT_MODEL: 'ctx:1b', TAG_MODEL: 'tag:4b' })
       .includes('tag:4b'));
 
   ok('resolveOllamaModelsToCheck: TAG_GEN=0 → TAG_MODEL not needed',
@@ -281,7 +288,7 @@ export default async function ({ ok, throws }) {
       .includes('tag:4b'));
 
   ok('resolveOllamaModelsToCheck: deduplicates when context=tag model',
-    resolveOllamaModelsToCheck({ CONTEXT_MODEL: 'same:1b', TAG_MODEL: 'same:1b' }).length === 1);
+    resolveOllamaModelsToCheck({ TAG_GEN: '1', CONTEXT_MODEL: 'same:1b', TAG_MODEL: 'same:1b' }).length === 1);
 
   // ── sanitizeErrorForReport ────────────────────────────────────────────────
 

@@ -81,14 +81,15 @@ report('A', checkNodeVersion(process.version));
 }
 
 {
+  const ctxModel = process.env.CONTEXT_MODEL ?? 'gemma3:4b';
   const ctx    = process.env.CONTEXT_MODEL ?? '(not set — default gemma3:4b)';
-  const tag    = process.env.TAG_MODEL     ?? '(not set — default gemma3:4b)';
-  const tagGen = process.env.TAG_GEN === '0' ? 'disabled (TAG_GEN=0)' : 'enabled (default)';
+  const tag    = process.env.TAG_MODEL     ?? `(not set — default CONTEXT_MODEL: ${ctxModel})`;
+  const tagGen = process.env.TAG_GEN === '1' ? 'enabled (TAG_GEN=1)' : 'disabled (default)';
   const onnx   = process.env.ONNX_EMBED    ?? '(not set)';
   const ep     = process.env.ONNX_EXECUTION_PROVIDER ?? '(not set — default cpu)';
   report('A', makeResult(STATUS.PASS, `CONTEXT_MODEL: ${ctx}`));
   report('A', makeResult(STATUS.PASS, `TAG_MODEL: ${tag}`));
-  report('A', makeResult(process.env.TAG_GEN === '0' ? STATUS.WARN : STATUS.PASS, `TAG_GEN: ${tagGen}`));
+  report('A', makeResult(STATUS.PASS, `TAG_GEN: ${tagGen}`));
   report('A', makeResult(STATUS.PASS, `ONNX_EMBED: ${onnx}`));
   report('A', makeResult(STATUS.PASS, `ONNX_EXECUTION_PROVIDER: ${ep}`));
 
@@ -241,8 +242,9 @@ if (qdrantReachable && qdrantCollections.length > 0) {
 
 // ── D: Ollama ─────────────────────────────────────────────────────────────────
 
-// CONTEXT_MODEL and TAG_MODEL always default to gemma3:4b regardless of dense provider —
-// the indexer uses Ollama for context and tagging even when ONNX_EMBED=1 for embeddings.
+// CONTEXT_MODEL always defaults to gemma3:4b regardless of dense provider.
+// TAG_MODEL is required only when TAG_GEN=1 and TAG_PROVIDER=ollama.
+// The indexer uses Ollama for context even when ONNX_EMBED=1 for embeddings.
 // Always check Ollama to avoid false-green before indexing.
 const useOnnx = process.env.ONNX_EMBED === '1' || process.env.DENSE_PROVIDER === 'bge-m3-onnx';
 
@@ -281,8 +283,13 @@ console.log('\n[D] Ollama');
     }
 
     const contextModel = process.env.CONTEXT_MODEL ?? 'gemma3:4b';
-    const tagModel     = process.env.TAG_MODEL     ?? 'gemma3:4b';
-    const required     = [contextModel, tagModel];
+    const tagModel     = process.env.TAG_MODEL     ?? contextModel;
+    const combinedCfg  = resolveCombinedLlmConfig(process.env);
+    const genTags      = process.env.TAG_GEN === '1';
+    const tagViaOnnx   = process.env.TAG_PROVIDER === 'onnx';
+    const required     = (genTags && !combinedCfg.enabled && !tagViaOnnx)
+      ? [contextModel, tagModel]
+      : [contextModel];
     const pullCmds     = availableModels.length > 0
       ? missingModelCommands(required, availableModels)
       : [];
@@ -441,8 +448,8 @@ const lines = [
   `- QDRANT_KEY: ${redactKey(process.env.QDRANT_KEY)}`,
   `- OLLAMA_URL: ${redactUrl(process.env.OLLAMA_URL ?? 'http://localhost:11434')}`,
   `- CONTEXT_MODEL: ${process.env.CONTEXT_MODEL ?? 'gemma3:4b (default)'}`,
-  `- TAG_MODEL: ${process.env.TAG_MODEL ?? 'gemma3:4b (default)'}`,
-  `- TAG_GEN: ${process.env.TAG_GEN === '0' ? 'disabled (TAG_GEN=0)' : 'enabled (default)'}`,
+  `- TAG_MODEL: ${process.env.TAG_MODEL ?? `CONTEXT_MODEL (${process.env.CONTEXT_MODEL ?? 'gemma3:4b'})`}`,
+  `- TAG_GEN: ${process.env.TAG_GEN === '1' ? 'enabled (TAG_GEN=1)' : 'disabled (default)'}`,
   `- ONNX_EMBED: ${process.env.ONNX_EMBED ?? '(not set)'}`,
   '',
   '## Check results',

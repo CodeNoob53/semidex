@@ -75,7 +75,7 @@ semidex розв'язує це так: бібліотека індексуєть
 - індексація документів: основний формат — `.md`; інші формати приймаються з
   частковою підтримкою через нативний plain-text шлях або конвертацію;
 - tokenizer-aware chunking (межі за реальним токенайзером BGE-M3);
-- локальна генерація context/теґів через Ollama (теґи опційні — `TAG_GEN=0`);
+- локальна генерація context через Ollama; теґи опційні (`TAG_GEN=1` або `backfill:tags`);
 - гібридний пошук dense + sparse з RRF-fusion;
 - 9 read-only MCP-інструментів;
 - сховище: локальний Qdrant **або** Qdrant Cloud;
@@ -129,7 +129,7 @@ Runtime на CPU або DirectML, Ollama на доступному GPU-backend).
   │
   ├─ [1] Chunk          — заголовки → речення; межі за токенайзером BGE-M3
   ├─ [2] Contextualize  — локальний LLM пише 1–2 речення резюме чанку в контексті документа
-  ├─ [3] Tag            — LLM генерує 3–7 семантичних теґів на чанк (опційно, TAG_GEN)
+  ├─ [3] Tag            — опційні payload-теґи (`TAG_GEN=1` або `backfill:tags`)
   ├─ [4] Embed + Upsert — dense + sparse вектори → Qdrant named vectors + payload
   └─ [5] Link           — семантичний граф: top-N сусідів між колекціями, двосторонньо
          │
@@ -182,7 +182,7 @@ ONNX_EMBED=1
 ```
 
 ```bash
-# context/tag-фази все одно потребують Ollama + gemma3:4b (навіть у ONNX-режимі):
+# context phase still requires Ollama + CONTEXT_MODEL (default gemma3:4b), even in ONNX mode:
 ollama pull gemma3:4b
 ```
 
@@ -190,13 +190,14 @@ ollama pull gemma3:4b
 
 ```bash
 ollama pull bge-m3        # dense ембединги
-ollama pull gemma3:4b     # LLM для контексту + теґів
+ollama pull gemma3:4b     # LLM для контексту; також для теґів, якщо TAG_GEN=1
 ```
 
 > **Важливо:** Ollama має бути **запущена** і модель `gemma3:4b` витягнута в **обох**
-> режимах — бо контекст (і теґи, якщо `TAG_GEN` не вимкнено) генерує локальний LLM
+> режимах — бо контекст генерує локальний LLM
 > через Ollama. `ONNX_EMBED=1` прибирає Ollama лише з фази ембедингів, не з
-> context/tag. Якщо теґи не потрібні — `TAG_GEN=0`.
+> context. Теґи вимкнені за замовчуванням; увімкніть `TAG_GEN=1`, якщо потрібні
+> `qdrant_list_tags`, `qdrant_find_by_tag` або tag-фільтри.
 
 ### 4. Створення колекції та індексація
 
@@ -293,9 +294,9 @@ SOURCE_ROOT=/vault COLLECTION=my-docs npm run index /vault/docs/  # стабіл
 | `TOKEN_COUNT` | `bge-m3` | Лічильник токенів: реальний токенайзер; `heuristic` — стара `length/4` |
 | `MAX_CHUNK_TOKENS` | `400` | Максимум токенів на чанк |
 | `OVERLAP_SENTENCES` | `2` | Перекриття речень між сусідніми чанками |
-| `TAG_GEN` | `1` | `0` — пропустити теґи (`tags: []`); на основний пошук не впливає |
-| `COMBINED_LLM` | `0` | `1` — один LLM-виклик на context+tags |
-| `CONTEXT_MODEL` / `TAG_MODEL` | `gemma3:4b` | Локальні LLM-моделі |
+| `TAG_GEN` | `0` | `1` — генерувати payload-теґи під час індексації; на основний пошук не впливає |
+| `COMBINED_LLM` | `0` | `1` — combined LLM path: context-only за замовчуванням, context+tags якщо `TAG_GEN=1` |
+| `CONTEXT_MODEL` / `TAG_MODEL` | `gemma3:4b` / `CONTEXT_MODEL` | Локальні LLM-моделі; `TAG_MODEL` успадковує `CONTEXT_MODEL`, якщо не заданий явно |
 | `COLLECTION` / `SOURCE_ROOT` / `PRUNE_STALE` | — | Параметри індексації |
 
 Reranker (`RERANK_ENABLED` + бусти) і RRF (`RRF_K`, `HYBRID_PREFETCH_LIMIT`) —

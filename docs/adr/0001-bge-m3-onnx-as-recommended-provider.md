@@ -39,7 +39,8 @@ Activated via `ONNX_EMBED=1` at index time, or by setting `denseProvider: "bge-m
 
 4. **Reduced Ollama dependency.** Embedding (dense + sparse vectors) and MCP search run
    fully locally via ONNX without a running Ollama server. Indexing still calls Ollama
-   for context and tag generation; only the embedding phase is Ollama-free.
+   for context generation; optional tag generation may also use Ollama when
+   `TAG_GEN=1` and `TAG_PROVIDER=ollama`.
 
 5. **Provider metadata is stored per-point.** Changing provider mid-collection corrupts
    retrieval. The ONNX path makes the provider explicit and auditable in `config.json`.
