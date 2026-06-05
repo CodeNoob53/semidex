@@ -96,7 +96,7 @@ COMBINED_LLM=1 COLLECTION=my-docs npm run index ./docs
 
 ### TAG_PROVIDER
 
-`TAG_PROVIDER=onnx` routes tag generation through a persistent ONNX CPU worker thread instead of Ollama. The worker loads `Qwen2.5-Coder-0.5B-Instruct` (q4, ~500 MB) from the local model cache by default.
+`TAG_PROVIDER=onnx` routes tag generation through a persistent ONNX CPU worker thread instead of Ollama. The worker loads `Qwen2.5-Coder-1.5B-Instruct` (q4, ~1.8 GB) from the local model cache by default.
 
 **Resource utilisation goal:** Ollama context generation runs on the GPU; ONNX tag generation runs on CPU. When both paths are active, they run in parallel after the merge phase and before embedding — the ONNX tag lane is hidden under the longer Ollama context lane.
 
