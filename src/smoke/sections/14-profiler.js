@@ -73,6 +73,17 @@ export default async function ({ ok }) {
     console.log = orig;
     ok('totalMs≤0 with chunks: no Infinity', !out4.includes('Infinity'));
     ok('totalMs≤0 with chunks: cps is em-dash', out4.includes('—'));
+
+    // markAt: duration measured from explicit startMs, not previous mark
+    const p5 = new Profiler();
+    const tStart = Date.now() - 500; // simulate start 500ms ago
+    p5.markAt('parallel-branch', tStart);
+    ok('markAt: mark stored', p5.marks.length === 1);
+    ok('markAt: startOverride set', p5.marks[0].startOverride === tStart);
+    // duration should be ~500ms — just check it's > 0 and < 5000ms
+    const elapsed = p5.marks[0].t - p5.marks[0].startOverride;
+    ok('markAt: duration uses startOverride (>0)', elapsed > 0);
+    ok('markAt: duration uses startOverride (<5000)', elapsed < 5000);
   }
 
   if (savedProfile !== undefined) process.env.INDEX_PROFILE = savedProfile;

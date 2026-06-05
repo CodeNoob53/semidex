@@ -20,14 +20,21 @@ export class Profiler {
     this.marks.push({ label, t: Date.now() });
   }
 
+  // Mark with explicit start time — for parallel branches where wall time
+  // should be measured from branch start, not from the previous sequential mark.
+  markAt(label, startMs) {
+    if (!this.enabled) return;
+    this.marks.push({ label, t: Date.now(), startOverride: startMs });
+  }
+
   report({ chunksIn, chunksOut, tokensEst }) {
     if (!this.enabled) return;
     const totalMs = Date.now() - this.t0;
 
     const phases = [];
     let prev = this.t0;
-    for (const { label, t } of this.marks) {
-      phases.push({ label, ms: t - prev });
+    for (const { label, t, startOverride } of this.marks) {
+      phases.push({ label, ms: t - (startOverride ?? prev) });
       prev = t;
     }
 
