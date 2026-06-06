@@ -26,6 +26,10 @@ const MIN_TOKENS       = envInt('MIN_CHUNK_TOKENS',  160, 0, 100000);
 export const OVERLAP_SENTENCES   = envInt('OVERLAP_SENTENCES',    2, 0, 100);
 const CHUNK_OVERLAP_TOKENS = envInt('CHUNK_OVERLAP_TOKENS', 80, 0, 100000);
 
+export function getChunkingConfig() {
+  return { maxTokens: MAX_TOKENS, minTokens: MIN_TOKENS, overlapTokens: CHUNK_OVERLAP_TOKENS, overlapSentences: OVERLAP_SENTENCES };
+}
+
 // Sync heuristic used by the legacy sync chunking path. Aliased from
 // token-count.js so both paths share the same implementation.
 const countTokens = heuristicTokenCount;

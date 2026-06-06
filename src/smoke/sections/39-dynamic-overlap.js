@@ -16,12 +16,11 @@
 export default async function ({ ok }) {
   console.log('\n[39] Dynamic token-budgeted overlap');
 
-  const { chunkFileAsync } = await import('../../indexer/phases/chunk.js');
+  const { chunkFileAsync, getChunkingConfig } = await import('../../indexer/phases/chunk.js');
   const { getTokenCounter } = await import('../../core/token-count.js');
 
   const countFn = await getTokenCounter({ mode: 'bge-m3' });
-  const MAX    = parseInt(process.env.MAX_CHUNK_TOKENS    ?? '512');
-  const OVERLAP = parseInt(process.env.CHUNK_OVERLAP_TOKENS ?? '80');
+  const { maxTokens: MAX, overlapTokens: OVERLAP } = getChunkingConfig();
 
   // ── 39e: explicit CHUNK_OVERLAP_TOKENS=0 → sentence-overlap fallback ─────────
   if (OVERLAP <= 0) {

@@ -1,10 +1,10 @@
 export default async function ({ ok }) {
   console.log('\n[11] recursiveChunkText (no Qdrant)');
 
-  const { recursiveChunkText } = await import('../../indexer/phases/chunk.js');
+  const { recursiveChunkText, getChunkingConfig } = await import('../../indexer/phases/chunk.js');
 
   const TOKEN_CHARS = 4;
-  const MAX = (() => { const v = parseInt(process.env.MAX_CHUNK_TOKENS ?? ''); return Number.isFinite(v) && v >= 1 ? v : 400; })();
+  const { maxTokens: MAX } = getChunkingConfig();
   const bigWord = 'A'.repeat(MAX * TOKEN_CHARS + 4);
 
   // 11a. PDF page markers are stripped.

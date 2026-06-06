@@ -108,7 +108,7 @@ export default async function ({ ok, throwsAsync }) {
       const prevTokenCount = process.env.TOKEN_COUNT;
       process.env.TOKEN_COUNT = 'bge-m3';
       try {
-        const { chunkFileFromPath } = await import('../../indexer/phases/chunk.js');
+        const { chunkFileFromPath, getChunkingConfig } = await import('../../indexer/phases/chunk.js');
         const fixtureFile = new URL('../../../benchmarks/retrieval/fixtures/ua-prose-synthetic.md', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
         const { existsSync: exists } = await import('fs');
         if (exists(fixtureFile)) {
@@ -116,7 +116,7 @@ export default async function ({ ok, throwsAsync }) {
           ok('bge-m3 chunkFileFromPath returns chunks array', Array.isArray(asyncChunks));
           ok('bge-m3 chunks have text field', asyncChunks.every(c => typeof c.text === 'string'));
           // Verify no chunk grossly exceeds MAX_CHUNK_TOKENS in real tokens.
-          const MAX = parseInt(process.env.MAX_CHUNK_TOKENS ?? '512');
+          const { maxTokens: MAX } = getChunkingConfig();
           let oversized = 0;
           for (const c of asyncChunks) {
             const count = await counter(c.text);

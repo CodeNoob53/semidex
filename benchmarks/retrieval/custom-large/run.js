@@ -72,7 +72,7 @@ import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { randomUUID } from 'crypto';
 
-import { chunkFile } from '../../../src/indexer/phases/chunk.js';
+import { chunkFile, getChunkingConfig } from '../../../src/indexer/phases/chunk.js';
 import {
   listCollections, createCollection, deleteBySourceFile,
   upsertPoints, hybridSearch, scroll,
@@ -92,9 +92,9 @@ const BENCH_WINDOW = envInt('BENCH_WINDOW', 1, 0, 10);
 const BENCH_CONTEXT_WINDOW = envInt('BENCH_CONTEXT_WINDOW', 0, 0, 10);
 
 // Approximate token count threshold for oversized-chunk guardrail.
-// Default matches production MAX_CHUNK_TOKENS (chunk.js line 22) so the
-// guardrail catches chunks that exceeded the splitter's own target.
-const MAX_CHUNK_TOKENS_THRESHOLD = envInt('BENCH_OVERSIZED_CHUNK_TOKENS', 400, 1, 100000);
+// Default follows production MAX_CHUNK_TOKENS so the guardrail catches chunks
+// that exceeded the splitter's own target.
+const MAX_CHUNK_TOKENS_THRESHOLD = envInt('BENCH_OVERSIZED_CHUNK_TOKENS', getChunkingConfig().maxTokens, 1, 100000);
 
 const FIXTURE_FILES = [
   'api-reference-large.md',
