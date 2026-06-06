@@ -39,6 +39,7 @@ import section35 from './sections/35-mcp-ux-polish.js';
 import section36 from './sections/36-token-count.js';
 import section37 from './sections/37-pipeline-primitives.js';
 import section38 from './sections/38-tag-onnx-provider.js';
+import section39 from './sections/39-dynamic-overlap.js';
 
 let passed = 0;
 let failed = 0;
@@ -86,7 +87,7 @@ const sections = [
   section21, section22, section23, section24, section25,
   section26, section27, section28, section29, section30,
   section31, section32, section33, section34, section35,
-  section36, section37, section38,
+  section36, section37, section38, section39,
 ];
 
 for (const section of sections) {

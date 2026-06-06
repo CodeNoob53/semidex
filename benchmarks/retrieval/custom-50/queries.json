@@ -405,7 +405,7 @@
       "query": "де знаходиться src/core/qdrant.js і що він експортує",
       "expectedFiles": ["project-structure.md"],
       "relevantChunks": [
-        { "chunkId": "project-structure.md#6", "relevance": 3 },
+        { "chunkId": "project-structure.md#5", "relevance": 3 },
         { "chunkId": "project-structure.md#1", "relevance": 2 }
       ],
       "expectedTokens": ["qdrant"],
@@ -417,7 +417,7 @@
       "query": "chunkFile splitSentences parseMarkdown location in source",
       "expectedFiles": ["project-structure.md"],
       "relevantChunks": [
-        { "chunkId": "project-structure.md#7", "relevance": 3 },
+        { "chunkId": "project-structure.md#6", "relevance": 3 },
         { "chunkId": "project-structure.md#1", "relevance": 3 }
       ],
       "expectedTokens": ["chunkFile"],
@@ -429,7 +429,7 @@
       "query": "npm run bench:custom50 entry point run-v3.js",
       "expectedFiles": ["project-structure.md"],
       "relevantChunks": [
-        { "chunkId": "project-structure.md#9", "relevance": 3 },
+        { "chunkId": "project-structure.md#8", "relevance": 3 },
         { "chunkId": "project-structure.md#2", "relevance": 2 }
       ],
       "expectedTokens": ["bench"],
@@ -441,8 +441,8 @@
       "query": "SCHEMA_VERSION constant embeddings.js reindex discriminator",
       "expectedFiles": ["project-structure.md"],
       "relevantChunks": [
-        { "chunkId": "project-structure.md#5", "relevance": 3 },
-        { "chunkId": "project-structure.md#6", "relevance": 2 }
+        { "chunkId": "project-structure.md#4", "relevance": 3 },
+        { "chunkId": "project-structure.md#5", "relevance": 2 }
       ],
       "expectedTokens": ["SCHEMA_VERSION"],
       "note": "SCHEMA_VERSION in embeddings.js"

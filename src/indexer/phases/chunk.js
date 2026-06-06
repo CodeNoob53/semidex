@@ -23,7 +23,8 @@ function envInt(name, defaultVal, min, max) {
 
 const MAX_TOKENS       = envInt('MAX_CHUNK_TOKENS',  400, 1, 100000);
 const MIN_TOKENS       = envInt('MIN_CHUNK_TOKENS',   30, 0, 100000);
-export const OVERLAP_SENTENCES = envInt('OVERLAP_SENTENCES',  2, 0, 100);
+export const OVERLAP_SENTENCES   = envInt('OVERLAP_SENTENCES',    2, 0, 100);
+const CHUNK_OVERLAP_TOKENS = envInt('CHUNK_OVERLAP_TOKENS', 0, 0, 100000);
 
 // Sync heuristic used by the legacy sync chunking path. Aliased from
 // token-count.js so both paths share the same implementation.
@@ -192,6 +193,78 @@ function reindexChunks(chunks) {
   });
 }
 
+// ── word-boundary-safe token suffix ───────────────────────────────────────
+// Binary search for the shortest suffix with count <= maxTokens, then snap the
+// start position forward to the next /\s/ if it lands mid-word.
+// Returns '' if the text is entirely one unsplittable run (no whitespace after cut).
+
+async function safeLastTokens(text, maxTokens, countFn) {
+  if (!text || maxTokens <= 0) return '';
+  const full = await countFn(text);
+  if (full <= maxTokens) return text;
+
+  let lo = 0, hi = text.length;
+  while (lo < hi) {
+    const mid = Math.floor((lo + hi) / 2);
+    if (await countFn(text.slice(mid)) <= maxTokens) hi = mid;
+    else lo = mid + 1;
+  }
+
+  // Snap forward if cut is mid-word (prev char and cur char are both non-space).
+  if (lo > 0 && lo < text.length && /\S/.test(text[lo - 1]) && /\S/.test(text[lo])) {
+    const ws = text.slice(lo).search(/\s/);
+    if (ws === -1) return '';   // no whitespace after cut — unsplittable run
+    lo = lo + ws + 1;
+  }
+
+  return lo < text.length ? text.slice(lo).trim() : '';
+}
+
+// ── async dynamic-budget overlap ───────────────────────────────────────────
+// Dynamic rule: body is split to MAX first. Overlap is taken only from the
+// remaining budget: available = MAX - bodyTokens; cap = min(OVERLAP_CAP, available).
+// If CHUNK_OVERLAP_TOKENS === 0 fall back to sentence-based addSplitOverlap.
+
+async function addSplitOverlapAsync(chunks, countFn) {
+  if (CHUNK_OVERLAP_TOKENS <= 0) return addSplitOverlap(chunks);
+
+  const result = [];
+  for (let idx = 0; idx < chunks.length; idx++) {
+    const chunk = chunks[idx];
+
+    if (idx === 0 || !chunk.needsBoundaryCheck) {
+      result.push({ ...chunk, needsBoundaryCheck: false });
+      continue;
+    }
+
+    const prev = chunks[idx - 1];
+    if (!sameChunkScope(prev, chunk)) {
+      result.push({ ...chunk, needsBoundaryCheck: false });
+      continue;
+    }
+
+    const bodyTokens = await countFn(chunk.text);
+    const available = MAX_TOKENS - bodyTokens;
+
+    if (available <= 0) {
+      // Body already fills MAX — skip overlap.
+      result.push({ ...chunk, needsBoundaryCheck: false });
+      continue;
+    }
+
+    const cap = Math.min(CHUNK_OVERLAP_TOKENS, available);
+    const overlap = await safeLastTokens(prev.text, cap, countFn);
+
+    if (!overlap || chunk.text.startsWith(overlap)) {
+      result.push({ ...chunk, needsBoundaryCheck: false });
+      continue;
+    }
+
+    result.push({ ...chunk, text: `${overlap} ${chunk.text}`, needsBoundaryCheck: false });
+  }
+  return result;
+}
+
 export function mergeShortChunks(chunks, countFn = countTokens) {
   if (MIN_TOKENS <= 0 || chunks.length <= 1) return chunks.map(c => ({ ...c }));
 
@@ -255,7 +328,9 @@ export function finalizeChunks(chunks, countFn = countTokens) {
 
 async function finalizeChunksAsync(chunks, countFn) {
   const merged = await mergeShortChunksAsync(chunks, countFn);
-  return reindexChunks(addSplitOverlap(markSplitBoundaries(merged)));
+  const marked = markSplitBoundaries(merged);
+  const overlapped = await addSplitOverlapAsync(marked, countFn);
+  return reindexChunks(overlapped);
 }
 
 // heuristic: is this a real section title or just body text styled as heading?
