@@ -58,4 +58,6 @@ export default async function ({ ok }) {
     r9.length === 2 && r9[1].text === 'Short tail.');
   ok('internal split group is not exposed on finalized chunks',
     r9.every(c => !('_split_group' in c)));
+  ok('_split_boundary is not exposed on finalized chunks',
+    r9.every(c => !('_split_boundary' in c)));
 }

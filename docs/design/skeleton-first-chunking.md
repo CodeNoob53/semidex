@@ -1,6 +1,6 @@
-# Skeleton-first Chunking — Design Spec (v3 draft)
+# Skeleton-first Chunking — Design Spec (v4 draft)
 
-> Статус: **draft v3**. Це нова **архітектура чанкінгу**, а не retrieval-фіча і не
+> Статус: **draft v4**. Це нова **архітектура чанкінгу**, а не retrieval-фіча і не
 > окремий "entity model" шар. Відкриті/відкладені рішення зібрані в §18 і §20;
 > у тексті відкладені інлайн-пункти позначені `OPEN:`.
 >
@@ -9,6 +9,10 @@
 > - **Structural node (вузол)** — одиниця, яку продукує чанкер: section, paragraph,
 >   table, code_block, list, blockquote, image. "Entity" тут = structural node,
 >   а НЕ regex-сутність і НЕ retrieval-буст.
+> - **AST (Abstract Syntax Tree)** — дерево вузлів яке remark будує з Markdown
+>   при парсингу. Є єдиною основою pipeline: будується один раз, слугує двом
+>   цілям одночасно (retrieval chunking + skeleton navigation). Немає перехідного
+>   regex-етапу — `parseMarkdown()` замінюється одразу.
 
 ---
 
@@ -47,6 +51,21 @@ chunkFileFromPath()  -> parseMarkdown() -> chunkSections()   // phases/chunk.js
 
 Універсальність: таблиця є таблиця, code block є code block — жодних доменних
 (Linux/semidex/код) правил у самій моделі.
+
+**Ключове архітектурне рішення — один AST, дві цілі:**
+
+remark будує AST **один раз** при читанні файлу. Це дерево одразу слугує двом
+незалежним цілям без повторного парсингу:
+
+```
+remark AST (один прохід)
+  ├── chunkFromSkeleton()    →  retrieval_content points  (пошук)
+  └── buildFileSkeleton()    →  skeleton_nav points       (навігація)
+```
+
+Це усуває необхідність перехідних етапів: `parseMarkdown()` (regex) замінюється
+на `parseSkeleton()` (remark AST) одразу і повністю. Regex-шлях лишається тільки
+для legacy `chunkFile()` (sync heuristic path) — він не є частиною skeleton pipeline.
 
 ---
 
@@ -109,6 +128,10 @@ document
 Усе під прапором `SKELETON_CHUNKING=1` поряд зі старим шляхом (узгоджено з
 "benchmark before defaults").
 
+**Важливо:** `parseSkeleton()` отримує remark AST **один раз** і передає його і в
+`chunkFromSkeleton()` і в `buildFileSkeleton()`. Повторного парсингу немає — обидві
+гілки працюють з одним деревом.
+
 ---
 
 ## 5. Парсер — тільки AST
@@ -123,7 +146,9 @@ remark-gfm          // tables, task lists, strikethrough, autolinks
 remark-frontmatter  // YAML frontmatter
 ```
 
-`parseMarkdown()` (regex) лишається для legacy-шляху, доки flag не стане default.
+`parseMarkdown()` (regex) лишається **тільки** для legacy sync path (`chunkFile()` /
+`chunkFileAsync()` без `SKELETON_CHUNKING=1`). Skeleton pipeline його не використовує
+взагалі — `parseSkeleton()` є повною заміною для нового шляху, без перехідних етапів.
 
 ### 5.1 Розпізнавання вузлів (mapping + fallback)
 
@@ -602,6 +627,89 @@ drill-down, а не перечитує весь проєкт.
 
 ---
 
+## 17.1 Споживачі skeleton — стратегічний vision
+
+Skeleton — це не тільки chunking архітектура. Це **universal index** який обслуговує
+три принципово різні групи споживачів з одних і тих самих даних:
+
+```
+Skeleton (один індекс)
+  ├── Агент / LLM
+  │     drill-down навігація по карті проєкту
+  │     anchored context expansion (§15.1)
+  │     вибірка цілої гілки без чанк-ітерації
+  │     рефакторинг з повним розумінням архітектури
+  │
+  ├── Людина (UI без LLM)
+  │     ручний пошук з фільтрами по node_type
+  │     ("показати тільки таблиці", "тільки code blocks", "тільки зображення")
+  │     перегляд структури файлу/колекції як дерева
+  │     mind map — візуальний рендер skeleton_nav вузлів
+  │
+  └── Інструменти (програмно)
+        автогенерація документації з context вузлів
+        аналіз архітектури без читання вихідного коду
+        dependency mapping між модулями через parent_id/children
+```
+
+### Mind map
+
+Mind map — це **не окрема модель даних**. Це інший renderer поверх вже існуючих
+`skeleton_nav` вузлів. Дані (`children`, `parent_id`, `heading_path`, `summary`)
+вже в Qdrant після skeleton індексації. Фронтенд просто обходить дерево і рендерить
+його як граф замість списку.
+
+```
+qdrant_get_skeleton(collection, depth=∞, include="summary")
+  → JSON дерево вузлів
+    → рендер як mind map (D3.js / Mermaid / будь-який граф-рендерер)
+```
+
+Фільтри по `node_type` дають предметні зрізи без зміни індексу:
+
+```
+{ node_type: "table" }      → всі таблиці колекції з контекстом
+{ node_type: "code_block" } → весь код з мовою і батьківською секцією
+{ node_type: "image" }      → всі зображення з alt/path
+{ source_file: "X.md" }     → повна структура одного файлу
+```
+
+### Codebase intelligence
+
+Для складних проєктів skeleton дає:
+
+- **Рефакторинг**: агент бачить повну архітектуру через skeleton_nav, розуміє
+  зв'язки між модулями через `parent_id`/`children`, пропонує зміни з повним
+  контекстом — а не читає файли по одному тримаючи структуру у своєму вікні.
+
+- **Документація**: кожен вузол вже має `context` як побічний продукт індексації
+  (§12). Документація **вже написана** — залишається зібрати skeleton_nav вузли
+  в потрібному порядку і відрендерити. Не потрібен окремий LLM pass по всьому коду.
+
+- **Аналіз архітектури**: `qdrant_get_skeleton` без векторного пошуку взагалі —
+  чиста структурна вибірка. Людина або інструмент отримує карту проєкту за один
+  запит, без embedding, без LLM.
+
+### Ручний пошук (без LLM)
+
+Qdrant `scroll` з фільтрами по payload — без векторного пошуку:
+
+```json
+{
+  "filter": {
+    "must": [
+      { "key": "node_type", "match": { "value": "table" } },
+      { "key": "source_file", "match": { "value": "config.md" } }
+    ]
+  }
+}
+```
+
+Людина отримує структурований перегляд конкретних типів елементів без жодного
+embedding чи LLM виклику. Це також основа для UI з фасетними фільтрами.
+
+---
+
 ## 18. Ризики / відкриті питання
 
 - `boundedRaw` довжина N (§8).
@@ -626,9 +734,12 @@ drill-down, а не перечитує весь проєкт.
 ## 19. Поетапний план
 
 1. Зафіксувати MVP-scope вузлів (§7.1) і матрицю policy (§7.2).
-2. `parseSkeleton()` (remark) за `SKELETON_CHUNKING=1`, поряд зі старим шляхом.
+2. `parseSkeleton()` (remark AST) за `SKELETON_CHUNKING=1`, поряд зі старим шляхом.
+   AST будується один раз і одразу передається в обидві гілки: `chunkFromSkeleton()`
+   (retrieval) і `buildFileSkeleton()` (nav) — без повторного парсингу.
    Включає mapping-таблицю (§5.1) + обгортку з warnings-JSONL (§5.2) з першого дня —
-   щоб одразу збирати статистику unknown-вузлів.
+   щоб одразу збирати статистику unknown-вузлів. `parseMarkdown()` (regex) не
+   використовується в skeleton pipeline взагалі.
 3. Payload-розширення (§6) + payload-index на `point_kind` і `node_type`.
    Ввести `indexing_schema_version` + `chunking_model`.
 4. **Умовний фільтр `point_kind=retrieval_content`** за `chunking_model` (§9), legacy не ламати.
@@ -662,3 +773,51 @@ drill-down, а не перечитує весь проєкт.
    collection summary — пізніше (§19 крок 11).
 5. **Порожні чанки — структурно (§7.3):** єдиний `isContentBearing` gate на емісії
    point, без пост-фільтра `empty-section.js`.
+6. **Один AST — дві цілі (§2, §4):** remark AST будується один раз і передається
+   в обидві гілки без повторного парсингу. Немає перехідного regex-етапу.
+7. **Skeleton = universal index (§17.1):** один індекс обслуговує агентів, людей
+   (UI/фільтри/mind map) і програмні інструменти. Mind map — renderer поверх
+   skeleton_nav, не окрема модель даних.
+
+---
+
+## 21. Roadmap — за межами MVP
+
+Цей розділ описує напрямки розвитку після стабілізації skeleton-v1. Не є частиною
+поточного scope — але формує архітектурні рішення MVP щоб не закривати ці шляхи.
+
+### Stage 2 — UI і ручний пошук
+
+- **Фасетний UI**: перегляд колекції з фільтрами по `node_type`, `source_file`,
+  `heading_path`. Без LLM, без embedding — чистий Qdrant scroll.
+- **Mind map**: візуальний рендер `skeleton_nav` дерева. Дані вже в Qdrant після
+  stage 1 — питання тільки у рендері (D3.js, Mermaid, або інший граф-рендерер).
+- **Grep-буст**: точний текстовий матч по `raw_content` як post-retrieval re-rank
+  для вузьких запитів (конкретні змінні, команди, назви функцій).
+
+### Stage 3 — Codebase intelligence
+
+- **Codebase memory**: агент зберігає посилання на `node_id` між сесіями.
+  Потребує content-fingerprint для стабільності при редагуванні (§6 `OPEN:`).
+- **Dependency mapping**: зв'язки між модулями через `parent_id`/`children` +
+  аналіз import/export в code_block вузлах.
+- **Автодокументація**: збірка `context` вузлів по skeleton_nav дереву без
+  додаткового LLM pass — документація як побічний продукт індексації.
+- **Архітектурний аналіз**: `qdrant_get_skeleton` без векторного пошуку дає
+  повну карту проєкту за один запит. Основа для рефакторинг-асистента.
+
+### Stage 4 — Мультимодальність
+
+- **OCR для images**: `future_processor` policy (§10) стає реальним процесором.
+  Image вузли отримують `raw_content` з OCR, індексуються як retrieval_content.
+- **Діаграми**: розпізнавання структури з Mermaid/PlantUML блоків, індексація
+  як структурний вузол з semantic summary.
+- **Таблиці з формулами**: розширення `boundedRaw` стратегії для math-контенту.
+
+### Принцип масштабування
+
+Кожен stage працює поверх тієї самої skeleton-моделі — нові можливості не
+мають вимагати зміни базового контракту даних. Для старих колекцій може
+знадобитись backfill або reindex, якщо додається новий `node_type` чи processor.
+Архітектура має лишатися відкритою для розширення без breaking changes у
+контракті MCP/API.

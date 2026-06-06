@@ -174,7 +174,7 @@ export function isContentBearing(node)
  *
  * @param {SkeletonNode[]} nodes
  * @param {{ sourceFile: string, meta: object, links: string[] }} ctx
- * @returns {Chunk[]}  // {text, section, source_file, meta, links, needsBoundaryCheck,
+ * @returns {Chunk[]}  // {text, section, source_file, meta, links,
  *                     //  node_type, node_id, node_path, parent_id, heading_path,
  *                     //  raw_content, lang, point_kind, position, chunkIndex, totalChunks}
  */

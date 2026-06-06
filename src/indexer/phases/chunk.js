@@ -150,14 +150,14 @@ function mergePair(chunkA, chunkB) {
   return {
     ...chunkA,
     text: `${chunkA.text}\n${chunkB.text}`,
-    needsBoundaryCheck: false,
+    _split_boundary: false,
   };
 }
 
 function markSplitBoundaries(chunks) {
   return chunks.map((chunk, idx) => ({
     ...chunk,
-    needsBoundaryCheck: idx > 0 && sameChunkScope(chunks[idx - 1], chunk),
+    _split_boundary: idx > 0 && sameChunkScope(chunks[idx - 1], chunk),
   }));
 }
 
@@ -168,31 +168,31 @@ function overlapPrefixFrom(text) {
 
 function addSplitOverlap(chunks) {
   return chunks.map((chunk, idx) => {
-    if (idx === 0 || !chunk.needsBoundaryCheck) {
-      return { ...chunk, needsBoundaryCheck: false };
+    if (idx === 0 || !chunk._split_boundary) {
+      return { ...chunk, _split_boundary: false };
     }
 
     const prev = chunks[idx - 1];
     if (!sameChunkScope(prev, chunk)) {
-      return { ...chunk, needsBoundaryCheck: false };
+      return { ...chunk, _split_boundary: false };
     }
 
     const prefix = overlapPrefixFrom(prev.text);
     if (!prefix || chunk.text.startsWith(prefix)) {
-      return { ...chunk, needsBoundaryCheck: false };
+      return { ...chunk, _split_boundary: false };
     }
 
     return {
       ...chunk,
       text: `${prefix} ${chunk.text}`,
-      needsBoundaryCheck: false,
+      _split_boundary: false,
     };
   });
 }
 
 function reindexChunks(chunks) {
   return chunks.map((c, i) => {
-    const { _split_group, ...chunk } = c;
+    const { _split_group, _split_boundary, ...chunk } = c;
     return { ...chunk, chunkIndex: i, totalChunks: chunks.length };
   });
 }
@@ -236,14 +236,14 @@ async function addSplitOverlapAsync(chunks, countFn) {
   for (let idx = 0; idx < chunks.length; idx++) {
     const chunk = chunks[idx];
 
-    if (idx === 0 || !chunk.needsBoundaryCheck) {
-      result.push({ ...chunk, needsBoundaryCheck: false });
+    if (idx === 0 || !chunk._split_boundary) {
+      result.push({ ...chunk, _split_boundary: false });
       continue;
     }
 
     const prev = chunks[idx - 1];
     if (!sameChunkScope(prev, chunk)) {
-      result.push({ ...chunk, needsBoundaryCheck: false });
+      result.push({ ...chunk, _split_boundary: false });
       continue;
     }
 
@@ -252,7 +252,7 @@ async function addSplitOverlapAsync(chunks, countFn) {
 
     if (available <= 0) {
       // Body already fills MAX — skip overlap.
-      result.push({ ...chunk, needsBoundaryCheck: false });
+      result.push({ ...chunk, _split_boundary: false });
       continue;
     }
 
@@ -260,11 +260,11 @@ async function addSplitOverlapAsync(chunks, countFn) {
     const overlap = await safeLastTokens(prev.text, cap, countFn);
 
     if (!overlap || chunk.text.startsWith(overlap)) {
-      result.push({ ...chunk, needsBoundaryCheck: false });
+      result.push({ ...chunk, _split_boundary: false });
       continue;
     }
 
-    result.push({ ...chunk, text: `${overlap} ${chunk.text}`, needsBoundaryCheck: false });
+    result.push({ ...chunk, text: `${overlap} ${chunk.text}`, _split_boundary: false });
   }
   return result;
 }
@@ -410,11 +410,11 @@ function chunkSections(sections, sourceFile, meta = {}, links = []) {
     // Section chunks are split cleanly here. Short-fragment merge and overlap
     // happen in finalizeChunks(), after all section-local split boundaries exist.
     if (countTokens(section.text) <= MAX_TOKENS) {
-      chunks.push({ text: section.text, section: section.heading, source_file: sourceFile, meta, links, needsBoundaryCheck: false, _split_group: group });
+      chunks.push({ text: section.text, section: section.heading, source_file: sourceFile, meta, links, _split_boundary: false, _split_group: group });
     } else {
       const subChunks = chunkBySentences(section.text, []);
       subChunks.forEach((t, i) => {
-        chunks.push({ text: t, section: section.heading, source_file: sourceFile, meta, links, needsBoundaryCheck: i > 0, _split_group: group });
+        chunks.push({ text: t, section: section.heading, source_file: sourceFile, meta, links, _split_boundary: i > 0, _split_group: group });
       });
     }
   }
@@ -432,7 +432,7 @@ export function chunkFile(filePath, text, sourceFile) {
   } else {
     const subChunks = chunkBySentences(text);
     subChunks.forEach((t, i) => {
-      chunks.push({ text: t, section: '', source_file: sourceFile, meta: {}, links: [], needsBoundaryCheck: i > 0 });
+      chunks.push({ text: t, section: '', source_file: sourceFile, meta: {}, links: [], _split_boundary: i > 0 });
     });
   }
 
@@ -513,11 +513,11 @@ async function chunkSectionsAsync(sections, sourceFile, meta = {}, links = [], c
     if (!section.heading && await countFn(section.text) < MIN_TOKENS) continue;
 
     if (await countFn(section.text) <= MAX_TOKENS) {
-      chunks.push({ text: section.text, section: section.heading, source_file: sourceFile, meta, links, needsBoundaryCheck: false, _split_group: group });
+      chunks.push({ text: section.text, section: section.heading, source_file: sourceFile, meta, links, _split_boundary: false, _split_group: group });
     } else {
       const subChunks = await _splitLevelAsync(section.text, LEVELS, countFn);
       subChunks.forEach((t, i) => {
-        chunks.push({ text: t, section: section.heading, source_file: sourceFile, meta, links, needsBoundaryCheck: i > 0, _split_group: group });
+        chunks.push({ text: t, section: section.heading, source_file: sourceFile, meta, links, _split_boundary: i > 0, _split_group: group });
       });
     }
   }
@@ -545,7 +545,7 @@ export async function chunkFileAsync(filePath, text, sourceFile, countFn = heuri
   } else {
     const subChunks = await chunkBySentencesAsync(text, countFn);
     subChunks.forEach((t, i) => {
-      chunks.push({ text: t, section: '', source_file: sourceFile, meta: {}, links: [], needsBoundaryCheck: i > 0 });
+      chunks.push({ text: t, section: '', source_file: sourceFile, meta: {}, links: [], _split_boundary: i > 0 });
     });
   }
 
@@ -602,14 +602,14 @@ export async function chunkFileFromPath(filePath, sourceFile) {
         const subChunks = await recursiveChunkTextAsync(text, countFn, { stripPageMarkers: true });
         const chunks = subChunks.map((t, i) => ({
           text: t, section: '', source_file: sourceFile, meta: {}, links: [],
-          needsBoundaryCheck: i > 0, chunkIndex: i, totalChunks: subChunks.length,
+          _split_boundary: i > 0, chunkIndex: i, totalChunks: subChunks.length,
         }));
         return finalizeChunksAsync(chunks, countFn);
       }
       const subChunks = recursiveChunkText(text, { stripPageMarkers: true });
       const chunks = subChunks.map((t, i) => ({
         text: t, section: '', source_file: sourceFile, meta: {}, links: [],
-        needsBoundaryCheck: i > 0, chunkIndex: i, totalChunks: subChunks.length,
+        _split_boundary: i > 0, chunkIndex: i, totalChunks: subChunks.length,
       }));
       return finalizeChunks(chunks);
     } finally {

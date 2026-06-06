@@ -1,8 +1,9 @@
 # Hard Boundary Fixture
 
-A synthetic document designed to produce many `needsBoundaryCheck` chunks.
-Each section below exceeds MAX_CHUNK_TOKENS (400 ≈ 1600 chars) and is split
-by the sentence-level chunker. No private paths or corpora.
+A synthetic document designed to produce many split-boundary chunks.
+Each section below exceeds MAX_CHUNK_TOKENS (512; roughly 2048 ASCII chars in
+this synthetic prose) and is split by the sentence-level chunker. No private
+paths or corpora.
 
 ## Long Prose Section
 
@@ -133,12 +134,13 @@ prepended to the chunk text before embedding, enriching the dense vector with
 task-level information. Default: 0 (disabled). This mode increases indexing
 time significantly because it requires one LLM call per chunk.
 
-MAX_CHUNK_TOKENS: Maximum token budget for a single chunk, where one token is
-approximated as four characters. Sections that exceed this budget are split at
-sentence boundaries. Sub-chunks beyond the first receive needsBoundaryCheck=true,
-marking them as candidates for LLM merge decisions. Default: 400.
+MAX_CHUNK_TOKENS: Maximum token budget for a single chunk, measured by the active
+token counter. The production async path uses the BGE-M3 tokenizer by default.
+Sections that exceed this budget are split at sentence boundaries. Short split
+fragments below MIN_CHUNK_TOKENS are merged deterministically within the same
+section before overlap is added. Default: 512.
 
 OVERLAP_SENTENCES: Number of trailing sentences from the previous chunk to
-prepend to the current chunk as overlap. Overlap is applied after merge decisions
-by the addSplitOverlap pass. Setting this to zero disables overlap entirely.
-Default: 2.
+prepend to the current chunk as overlap. Overlap is applied after final boundary
+decisions by the addSplitOverlapAsync pass. Setting this to zero disables sentence
+overlap; use CHUNK_OVERLAP_TOKENS for token-budgeted overlap instead. Default: 2.
