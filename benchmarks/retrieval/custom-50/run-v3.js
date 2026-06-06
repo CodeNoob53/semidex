@@ -62,7 +62,7 @@ import { randomUUID } from 'crypto';
 import { validateQueryTypes, formatTypeDistribution } from './query-types.js';
 import { stableSortResults } from './sort-results.js';
 
-import { chunkFile } from '../../../src/indexer/phases/chunk.js';
+import { chunkFileFromPath } from '../../../src/indexer/phases/chunk.js';
 import {
   listCollections, createCollection, deleteBySourceFile,
   upsertPoints, hybridSearch, mmrSearch, scroll,
@@ -210,12 +210,11 @@ async function indexFixtures() {
   const emptyChunkIds = new Set();
   for (const { name, dir } of FIXTURE_FILES) {
     const filePath   = resolve(dir, name);
-    const text       = readFileSync(filePath, 'utf8');
     const sourceFile = name;
 
     await deleteBySourceFile(COLLECTION, sourceFile);
 
-    const chunks = chunkFile(filePath, text, sourceFile);
+    const chunks = await chunkFileFromPath(filePath, sourceFile);
     const points = [];
     for (const chunk of chunks) {
       const cid = `${sourceFile}#${chunk.chunkIndex}`;
