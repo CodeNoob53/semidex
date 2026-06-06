@@ -150,15 +150,12 @@ function buildEnv(collection) {
 
   env.COLLECTION    = collection;
   env.INDEX_PROFILE = '1';
-  // Redirect chunks_out away from the default ./chunks_out to keep the run clean.
-  // This dir is cleaned up together with the temp corpus dir after the benchmark.
-  env.CHUNKS_OUT_DIR = join(ROOT, '.bench-indexing-chunks-out');
   return env;
 }
 
 // Run the indexer once against the corpus temp dir in a single process.
-// One ONNX session init, one tokenizer load, one Qdrant preflight, one graph
-// load/save per run — matches production directory indexing behavior.
+// One ONNX session init, one tokenizer load, and one Qdrant preflight per run —
+// matches production directory indexing behavior.
 function runIndexerOnCorpus(corpusDir, env) {
   console.log(`  [run] indexing...`);
   const result = spawnSync(process.execPath, ['src/indexer/index.js', corpusDir], {
@@ -231,7 +228,7 @@ async function collectionExists(name) {
 
 // ── Output formatting ─────────────────────────────────────────────────────────
 
-const PHASE_ORDER = ['pre', 'chunk', 'context', 'tag', 'embed+upsert', 'link', 'chunks_out'];
+const PHASE_ORDER = ['pre', 'chunk', 'context', 'tag', 'embed+upsert'];
 
 function writeMarkdownReport(path, config, runs, allFileResults) {
   const totalMsList = runs.map(r => r.totalMs).filter(Boolean);
@@ -329,7 +326,7 @@ function writeMarkdownReport(path, config, runs, allFileResults) {
   lines.push('- Run 1 always includes model warmup (ONNX session init, tokenizer load, Ollama model load).');
   lines.push('  Run 1 total ms is the best signal for end-to-end cold-start cost.');
   lines.push('- After Run 1 all files hash as unchanged and are skipped. Runs 2+ measure process');
-  lines.push('  startup, collection/config setup, graph load/save, file scan, hash check, and');
+  lines.push('  startup, collection/config setup, file scan, hash check, and');
   lines.push('  getStoredMeta lookup — not re-indexing throughput. The profiler emits no phase');
   lines.push('  lines for skipped files; skip-path cost is visible only in per-run total ms.');
   lines.push('- DML batching is only active with `BENCH_INDEX_EP=dml` and the `shouldUseOnnxBatching` gate.');
@@ -456,11 +453,10 @@ async function main() {
       console.log(`  chunks/sec: ${(meanChunks / (meanMs / 1000)).toFixed(2)}`);
     }
   } finally {
-    // Always clean up the temp corpus dir and redirected chunks_out, whether the
-    // benchmark succeeded, aborted, or threw. Qdrant cleanup runs here too so
-    // bench-prefixed collections are not left behind on indexer failure.
+    // Always clean up the temp corpus dir, whether the benchmark succeeded,
+    // aborted, or threw. Qdrant cleanup runs here too so bench-prefixed
+    // collections are not left behind on indexer failure.
     removeCorpusTempDir(corpusTempDir);
-    removeCorpusTempDir(join(ROOT, '.bench-indexing-chunks-out'));
 
     if (CLEANUP) {
       await deleteCollection(COLLECTION);

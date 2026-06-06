@@ -207,7 +207,7 @@ export function buildFileSkeleton(nodes, ctx)
   `point_kind:"skeleton_nav"`. У першій реалізації `buildFileSkeleton` пише тільки
   inspect JSON; Qdrant upsert дозволений лише після search-фільтра `point_kind`
   (див. §6 і §11).
-- `json` пишеться в `chunks_out/<collection>/<file>.skeleton.json` (inspect-only,
+- `json` пишеться в `.tmp/semidex-inspect/<collection>/<file>.skeleton.json` (inspect-only,
   не джерело істини, design §14).
 - Collection-skeleton тут **не** будується (out of scope).
 
@@ -233,7 +233,7 @@ export function makeNodeId(parts)
 
 ```js
 /**
- * Append одного JSONL-рядка у chunks_out/<collection>/skeleton-warnings.jsonl.
+ * Append одного JSONL-рядка у .tmp/semidex-inspect/<collection>/skeleton-warnings.jsonl.
  * Лог НІКОЛИ не йде в Qdrant. Помилка запису логу не валить індексацію.
  *
  * @param {{ collection, source_file, kind, mdast_type, node_type, position, reason, raw_excerpt }} event
@@ -246,7 +246,7 @@ export function logSkeletonWarning(event)
 ## 4. Payload-схема (skeleton-v1)
 
 Адитивно до поточного payload (`text, context, section, source_file, tags, links,
-backlinks, chunk_index, total_chunks, file_hash, vector_size, ...meta`). Нові поля:
+chunk_index, total_chunks, file_hash, vector_size, ...meta`). Нові поля:
 
 | Поле | Тип | Примітка |
 |------|-----|----------|

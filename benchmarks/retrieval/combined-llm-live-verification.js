@@ -137,7 +137,6 @@ function runIndexer(collection, extraEnv, label) {
     INDEX_PROFILE:  '1',
     ONNX_EMBED:     '1',
     CONTEXT_MODEL:  CONTEXT_MODEL,
-    CHUNKS_OUT_DIR: join(ROOT, '.tmp', 'combined-live-chunks-out'),
     ...extraEnv,
   };
 

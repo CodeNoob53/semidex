@@ -142,8 +142,6 @@ function parseProfilerOutput(stdout) {
 
 function runIndexer(policy, collection) {
   console.log(`\n[policy-bench] Indexing policy: ${policy.id}...`);
-  const chunksOut = join(ROOT, '.tmp', `ctx-policy-chunks-${policy.id}-${STAMP}`);
-  mkdirSync(chunksOut, { recursive: true });
   const env = {
     ...process.env,
     COLLECTION:           collection,
@@ -152,7 +150,6 @@ function runIndexer(policy, collection) {
     COMBINED_LLM:         '1',
     CONTEXT_MODEL:        CONTEXT_MODEL,
     BENCH_CONTEXT_POLICY: policy.id,
-    CHUNKS_OUT_DIR:       chunksOut,
     INDEX_PROFILE:        '1',
   };
   const t0 = Date.now();

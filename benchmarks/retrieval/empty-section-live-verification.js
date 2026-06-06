@@ -43,7 +43,6 @@ const KEEP        = process.env.KEEP_COLLECTIONS === '1';
 const STAMP       = Date.now();
 const COLLECTION  = `bench-empty-section-${STAMP}`;
 const TMP_SRC     = join(ROOT, '.tmp', `empty-section-live-${STAMP}`);
-const CHUNKS_OUT  = join(ROOT, '.tmp', `empty-section-live-chunks-${STAMP}`);
 
 const CONTEXT_MODEL = process.env.CONTEXT_MODEL || 'gemma3:4b';
 const TAG_MODEL     = process.env.TAG_MODEL     || 'gemma3:4b';
@@ -85,7 +84,6 @@ function buildCorpus() {
 
 function cleanupTransient() {
   try { rmSync(TMP_SRC,    { recursive: true, force: true }); } catch { /* ignore */ }
-  try { rmSync(CHUNKS_OUT, { recursive: true, force: true }); } catch { /* ignore */ }
 }
 
 function cleanupConfigEntry() {
@@ -136,7 +134,6 @@ function runIndexer() {
     ONNX_EMBED:    '1',
     CONTEXT_MODEL,
     TAG_MODEL,
-    CHUNKS_OUT_DIR: CHUNKS_OUT,
     INDEX_PROFILE:  '1',
   };
 

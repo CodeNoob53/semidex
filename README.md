@@ -15,12 +15,12 @@
 It turns your documents, notes, specs, and code knowledge into an indexed
 collection that an AI assistant can query through MCP. Instead of pasting huge
 files into chat, semidex stores your knowledge in Qdrant, splits it into chunks,
-enriches them with summaries and semantic links, then returns relevant pieces
+enriches them with local summaries and metadata, then returns relevant pieces
 for the current task. Tags are optional payload metadata and can be generated
 only when a workflow needs tag navigation.
 
 In simple terms: semidex helps an AI look up paragraphs, sections, commands,
-config options, and related documents before it answers or edits code.
+config options, and source files before it answers or edits code.
 
 ## Evaluation status
 
@@ -58,7 +58,7 @@ alternatives before making competitive quality claims.
 | Semantic search misses exact terms | Sparse lexical vectors help retrieve `ONNX_EMBED`, `embedding_schema_version`, env vars, and function names |
 | Keyword search misses meaning | Dense vectors help retrieve paraphrases, related concepts, and mixed-language queries |
 | Chunks lose context when isolated | Before embedding, a local LLM generates a summary of what each chunk means in its document — the vector is computed from summary + text combined, which can improve natural-language retrieval of short fragments |
-| Related docs are hard to discover | Semantic links and backlinks provide an additional file-level navigation path |
+| Source scope is unclear | MCP directory and file listing tools help agents choose the right collection area before searching |
 | Re-indexing is expensive | SHA-256 hash checks skip unchanged files |
 | Provider mismatch breaks search quality | Provider metadata is stored per collection; mismatches force reindexing |
 | Private docs should stay local | Ollama, ONNX, and Qdrant can run locally; document text does not need external APIs |
@@ -163,9 +163,8 @@ English deep dives:
 
 | Document | What it covers |
 |----------|----------------|
-| [docs/en/architecture.md](docs/en/architecture.md) | Indexer pipeline, local models, graph building, source of truth |
+| [docs/en/architecture.md](docs/en/architecture.md) | Indexer pipeline, local models, Qdrant storage, source of truth |
 | [docs/en/retrieval.md](docs/en/retrieval.md) | Dense + sparse vectors, RRF, providers, reranking |
-| [docs/en/obsidian.md](docs/en/obsidian.md) | Obsidian-compatible `chunks_out/` review console |
 | [docs/en/mcp-tools.md](docs/en/mcp-tools.md) | MCP tool reference and agent workflow |
 | [docs/en/configuration.md](docs/en/configuration.md) | Environment variables, provider modes, formats, Qdrant indexes |
 | [docs/en/chunking-quality.md](docs/en/chunking-quality.md) | Chunking guarantees, failure modes, quality metrics, large-doc benchmark plan |
@@ -183,11 +182,7 @@ Documents
   -> optional tags (TAG_GEN=1 or backfill:tags)
   -> dense + sparse embeddings
   -> Qdrant named vectors + payload metadata
-  -> semantic graph links/backlinks
   -> MCP tools for AI agents
-
-Side output:
-  -> chunks_out/ Markdown notes for Obsidian review and quality control
 ```
 
 At query time, semidex embeds the search query with the same provider used during indexing, runs hybrid search in Qdrant, fuses dense and sparse results with RRF, optionally reranks locally, and returns the highest-ranked chunks to the AI client.
@@ -207,7 +202,6 @@ Qdrant point
     ├── source_file:  "docs/guide.md"
     ├── tags:         []                          ← optional payload metadata
     ├── links:        ["other_file.md"]
-    ├── backlinks:    []
     ├── chunk_index:  99
     ├── total_chunks: 285
     ├── file_hash:    "abc123..."
@@ -325,12 +319,10 @@ Implemented:
 - Dense + sparse hybrid retrieval
 - Qdrant RRF fusion
 - BGE-M3 ONNX multilingual provider
-- 9 read-only MCP tools
-- File-level semantic graph links/backlinks
+- 7 read-only MCP tools
 - SHA-256 skip for unchanged files
 - Deterministic point IDs for idempotent reindexing
 - Opt-in stale-file cleanup via `PRUNE_STALE=1` (when run against the full source root)
-- Obsidian-readable review output
 - Optional deterministic reranker
 - Retrieval regression benchmark suites
 

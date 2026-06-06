@@ -323,21 +323,6 @@ console.log('\n[E] Local files');
 }
 
 {
-  // chunks_out — presence only, never content
-  const chunksDir = resolve(ROOT, process.env.CHUNKS_OUT_DIR ?? 'chunks_out');
-  if (existsSync(chunksDir)) {
-    let count = 0;
-    try {
-      count = readdirSync(chunksDir).length;
-    } catch { /* ignore */ }
-    report('E', makeResult(STATUS.WARN, `chunks_out/ present (${count} entr${count === 1 ? 'y' : 'ies'})`,
-      'Debug artifacts — safe to delete if no longer needed'));
-  } else {
-    report('E', makeResult(STATUS.PASS, 'chunks_out/ absent (clean)'));
-  }
-}
-
-{
   // ONNX model cache — directory-level WARN only
   const needsOnnx = useOnnx
     || Object.values(configCollections).some(c => c.denseProvider === 'bge-m3-onnx');

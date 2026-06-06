@@ -15,7 +15,6 @@ docs/
     README.md
     architecture.md
     retrieval.md
-    obsidian.md
     mcp-tools.md
     configuration.md
     benchmarking.md

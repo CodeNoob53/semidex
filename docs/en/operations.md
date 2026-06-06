@@ -72,7 +72,7 @@ ONNX_EMBED=1 MAX_CHUNK_TOKENS=800 COLLECTION=my-book npm run index ./book.pdf
 - Scanned or image-only PDFs may produce weak structure; those chunks default to `section: ""`
 - The Markdown output is processed through the same heading-aware path as `.md` files
 - `MAX_CHUNK_TOKENS=800` is a reasonable starting point for dense book text; tune based on benchmark results
-- `chunks_out/` is a human review artifact only — Qdrant is the source of truth
+- Qdrant is the source of truth
 
 ### Large corpus
 
@@ -218,7 +218,7 @@ The `sync` command ensures that the Qdrant collection is correctly configured fo
 - backfills provider metadata for older config entries
 - ensures required payload indexes
 - checks sparse vector support
-- marks schema-incompatible collections as `linkDisabled: true` in `config.json` (flat schema or no named `dense` vector)
+- warns about schema-incompatible collections (flat schema or no named `dense` vector)
 
 **Operational Note:**
 
@@ -259,7 +259,6 @@ a docs update only reindexes the files that changed.
 ```json
 "semidex-docs": {
   "semidexManaged": true,
-  "linkDisabled": true,
   "description": "semidex usage docs: providers, indexing, retrieval, MCP tools, troubleshooting, architecture"
 }
 ```
@@ -308,7 +307,6 @@ PDF files are converted to Markdown by `@opendocsg/pdf2md`, then chunked through
 - Digitally-created PDFs with an embedded text layer typically yield real `section` values from H1–H6 headings found in the Markdown output.
 - Scanned or image-only PDFs may produce weak or no structure. If fewer than 3 heading lines are detected, the indexer falls back to `pdf-parse` plain-text extraction with recursive paragraph → sentence → word splitting, and chunks get `section: ""`.
 - Tags and LLM context summaries run normally in both paths, so chunks remain semantically meaningful for retrieval.
-- `chunks_out/` shows the extracted chunks for review, but Qdrant is the source of truth.
 
 **Pandoc cannot read PDFs.** Pandoc is used only for `.docx`, `.odt`, `.rtf`, `.epub`, `.html`, and `.htm`. Passing a `.pdf` to pandoc produces `Unknown input format pdf`.
 
@@ -346,8 +344,6 @@ Do not hand-edit `vectorSize` or other config fields to make the error disappear
 - ColBERT / late-interaction retrieval is not implemented yet.
 - Bundled benchmark is a regression suite, not a scientific evaluation.
 - PDF files from digitally-created sources typically have heading structure recovered by `@opendocsg/pdf2md`; scanned PDFs fall back to plain-text and get empty `section`.
-- `chunks_out/` is a review layer and can have path collisions for files with the same parent-folder and basename.
-- `chunks_out/` cleanup uses filename pattern matching (`base__chunk*.md`).
 
 ## Diagnostics
 

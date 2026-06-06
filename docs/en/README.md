@@ -8,7 +8,6 @@ Other languages: [Українська](../ua/README.md)
 |----------|---------|
 | [architecture.md](architecture.md) | How the indexer pipeline works and what is stored |
 | [retrieval.md](retrieval.md) | Hybrid search, providers, RRF, and reranking |
-| [obsidian.md](obsidian.md) | Obsidian-compatible review output in `chunks_out/` |
 | [mcp-tools.md](mcp-tools.md) | MCP tool reference and agent workflows |
 | [configuration.md](configuration.md) | Environment variables, formats, provider config, indexes |
 | [chunking-quality.md](chunking-quality.md) | Chunking guarantees, failure modes, quality metrics, large-doc benchmark plan |

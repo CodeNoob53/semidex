@@ -120,7 +120,7 @@ For details, read `docs/en/configuration.md` or `docs/en/architecture.md`.
 - Do not use MCP tools to index documents; they are read-only.
 - Do not mix embedding providers for the same collection.
 - Do not manually change `vectorSize` or schema fields to avoid reindexing.
-- Do not commit generated `config.json`, model cache, or `chunks_out/` output unless explicitly requested.
+- Do not commit generated `config.json` or model cache unless explicitly requested.
 
 ## Troubleshooting
 

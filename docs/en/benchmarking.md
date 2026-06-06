@@ -62,15 +62,13 @@ Sample output:
     context          4230 ms
     tag              2140 ms
     embed+upsert     3180 ms
-    link             2950 ms
-    chunks_out          4 ms
     total           12524 ms  (1.4 chunks/s)
   ✓ done
 ```
 
 Phase labels: `pre` (hash + stored-meta lookup), `chunk` (parse + split),
 `context` (LLM context summaries), `tag` (LLM tags), `embed+upsert` (ONNX/Ollama
-embeddings + Qdrant upsert), `chunks_out` (Obsidian review file write).
+embeddings + Qdrant upsert).
 
 `tokensEst` is a rough estimate: `sum(chunk.text.length / 4)`. Not a precise
 token count — use it to normalise throughput across files of different sizes.
@@ -114,9 +112,7 @@ computes `source_file` as the path relative to that root — e.g.
 Setting `SOURCE_ROOT` to the repo root would instead produce
 `.bench-indexing-corpus/docs/en/configuration.md`. The temp dir is created before
 Run 1 and deleted in a `finally` block after all runs complete — it is always
-cleaned up even if the benchmark aborts. Redirected `chunks_out`
-(`.bench-indexing-chunks-out/`) is also cleaned up by the same finally block.
-Both dirs are gitignored.
+cleaned up even if the benchmark aborts.
 
 **What each run measures:**
 
@@ -124,8 +120,8 @@ Both dirs are gitignored.
   actual embedding + upsert for every file. This is the primary measurement for
   full indexing throughput and DML batching comparison.
 - Run 2+ — all files hash as unchanged and are skipped by the indexer. These runs
-  measure the skip-path overhead: process startup, collection/config setup, graph
-  load/save, file scan, hash check, and `getStoredMeta` lookup per file. Preflight
+  measure the skip-path overhead: process startup, collection/config setup,
+  file scan, hash check, and `getStoredMeta` lookup per file. Preflight
   (Qdrant/Ollama reachability) does not re-run per file on the skip path. The
   profiler emits no phase lines for skipped files, so the phase timing table is
   populated by Run 1 data only — skip-path cost is visible only in per-run total ms.

@@ -1,6 +1,6 @@
 import 'dotenv/config';
-import { readFileSync, writeFileSync, mkdirSync, rmSync, createReadStream, statSync, readdirSync } from 'fs';
-import { resolve, relative, basename, dirname, join, extname, isAbsolute } from 'path';
+import { createReadStream, statSync } from 'fs';
+import { resolve, relative, dirname, isAbsolute } from 'path';
 import { pathToFileURL } from 'url';
 import { createHash } from 'crypto';
 
@@ -24,7 +24,6 @@ import { Semaphore } from './semaphore.js';
 import { SerialQueue } from './serial-queue.js';
 
 const BATCH_SIZE   = parseInt(process.env.LLM_BATCH_SIZE || '3');
-const CHUNKS_OUT_DIR = process.env.CHUNKS_OUT_DIR || './chunks_out';
 const COLLECTION   = process.env.COLLECTION;
 const VECTOR_SIZE  = parseInt(process.env.VECTOR_SIZE || '1024');
 const SOURCE_ROOT  = process.env.SOURCE_ROOT ? resolve(process.env.SOURCE_ROOT) : null;
@@ -215,7 +214,7 @@ async function stageB(prepared, ollamaSem = null) {
 // Guarded by embedSem in pipeline mode.
 // No Qdrant mutations here — produces pointsWithDense for stageD to commit.
 // Keeping embed separate from Qdrant writes allows ONNX to overlap with the
-// serialised commit+link phase of a previous file.
+// serialised commit phase of a previous file.
 async function stageC(withTagged) {
   const { taggedChunks, collection, sourceFile, fileHash,
           embedCfg, tokenCountMode, configVectorSize, profiler } = withTagged;
@@ -293,7 +292,7 @@ async function stageC(withTagged) {
 // Order: deleteBySourceFile → upsertPoints → deleteTrailingChunks
 // Serialisation prevents stageC of file B from racing with the commit of file A.
 async function stageD(withPoints) {
-  const { filePath, taggedChunks, pointsWithDense, collection, rawChunks,
+  const { taggedChunks, pointsWithDense, collection, rawChunks,
           sourceFile, needsDelete, profiler } = withPoints;
 
   console.log('  [4/4] upserting...');
@@ -307,9 +306,6 @@ async function stageD(withPoints) {
   console.log(`        upserted ${points.length} points`);
 
   await deleteTrailingChunks(collection, sourceFile, taggedChunks.length);
-
-  saveChunksMd(filePath, taggedChunks);
-  profiler.mark('chunks_out');
 
   const tokensEst = taggedChunks.reduce((s, c) => s + Math.ceil(c.text.length / 4), 0);
   profiler.report({ chunksIn: rawChunks.length, chunksOut: taggedChunks.length, tokensEst });
@@ -328,28 +324,6 @@ async function indexFile(filePath, rootPath, collection) {
   const preparedB = await stageB(preparedA);
   const preparedC = await stageC(preparedB);
   await stageD(preparedC);
-}
-
-function saveChunksMd(filePath, chunks) {
-  const outDir = join(CHUNKS_OUT_DIR, basename(dirname(filePath)));
-  mkdirSync(outDir, { recursive: true });
-  const base = basename(filePath, extname(filePath));
-  for (const entry of readdirSync(outDir)) {
-    if (entry.startsWith(`${base}__chunk`) && entry.endsWith('.md')) rmSync(join(outDir, entry));
-  }
-  chunks.forEach((chunk, i) => {
-    writeFileSync(join(outDir, `${base}__chunk${i + 1}.md`), `---
-source_file: ${chunk.source_file}
-section: ${chunk.section || ''}
-chunk: ${i + 1}/${chunks.length}
-tags: [${(chunk.tags || []).join(', ')}]
-links: [${(chunk.links || []).join(', ')}]
-context: "${(chunk.context || '').replace(/"/g, "'")}"
----
-
-${chunk.text}
-`, 'utf8');
-  });
 }
 
 export function computeStaleSourceFiles(indexedSourceFiles, storedSourceFiles) {

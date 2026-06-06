@@ -71,7 +71,6 @@ export function applyManagedConfig(config, env = process.env) {
     embeddingSchemaVersion: SCHEMA_VERSION,
     vectorSize: parseInt(env.VECTOR_SIZE || '1024', 10),
     semidexManaged: true,
-    linkDisabled: true,
     description: DESCRIPTION,
   };
   return cfg;
@@ -150,7 +149,7 @@ async function main() {
   saveConfig(applyManagedConfig(loadConfig(), env));
 
   console.log(`\nbootstrap:docs: done. "${COLLECTION}" is ready.`);
-  console.log(`  semidexManaged: true, linkDisabled: true written to config.json`);
+  console.log(`  semidexManaged: true written to config.json`);
   console.log(`  Agents can now query: qdrant_search("<question>", "${COLLECTION}")`);
 }
 

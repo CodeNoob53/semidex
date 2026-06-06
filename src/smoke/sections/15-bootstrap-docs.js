@@ -38,7 +38,6 @@ export default async function ({ ok, withConfig }) {
     const cfg = applyManagedConfig({ collections: {} }, buildIndexerEnv({}, root));
     const entry = cfg.collections?.['semidex-docs'];
     ok('applyManagedConfig writes semidexManaged:true', entry?.semidexManaged === true);
-    ok('applyManagedConfig writes linkDisabled:true', entry?.linkDisabled === true);
     ok('applyManagedConfig writes ONNX denseProvider by default', entry?.denseProvider === 'bge-m3-onnx');
     ok('applyManagedConfig writes ONNX sparseProvider by default', entry?.sparseProvider === 'bge-m3-onnx');
 
@@ -51,14 +50,12 @@ export default async function ({ ok, withConfig }) {
 
   // 15e. semidexManaged config field round-trips through loadConfig/saveConfig
   await withConfig(
-    { collections: { 'semidex-docs': { semidexManaged: true, linkDisabled: true, description: 'test' } } },
+    { collections: { 'semidex-docs': { semidexManaged: true, description: 'test' } } },
     async () => {
       const { loadConfig } = await import('../../core/config.js');
       const cfg = loadConfig();
       ok('semidexManaged:true survives loadConfig round-trip',
         cfg.collections?.['semidex-docs']?.semidexManaged === true);
-      ok('linkDisabled:true survives loadConfig round-trip',
-        cfg.collections?.['semidex-docs']?.linkDisabled === true);
     },
   );
 

@@ -290,12 +290,12 @@ export function isSemidexPayload(payload) {
 }
 
 // Fetches one point payload from the collection without pulling vectors or text.
-// Return value contract (important — sync.js relies on this distinction):
-//   null  → collection is empty (no points); caller should NOT mark linkDisabled
+// Return value contract:
+//   null  → collection is empty (no points)
 //   {}    → point exists but Qdrant returned no payload or an empty payload object;
-//           isSemidexPayload({}) = false → caller should mark linkDisabled
-//   {...} → normal payload; caller checks isSemidexPayload to decide
-// Throws on Qdrant errors so the caller can handle failures conservatively.
+//           isSemidexPayload({}) = false
+//   {...} → normal payload; caller may check isSemidexPayload
+// Throws on Qdrant errors so callers can handle failures conservatively.
 export async function getCollectionSamplePayload(collection) {
   const r = await fetch(`${URL}/collections/${collection}/points/scroll`, {
     method: 'POST',

@@ -148,7 +148,6 @@ function parseProfilerOutput(stdout) {
 
 function runIndexer(collection, extraEnv, chunksOutDir, label) {
   console.log(`\n[ablation] Indexing ${label}...`);
-  mkdirSync(chunksOutDir, { recursive: true });
   const env = {
     ...process.env,
     COLLECTION:     collection,
@@ -156,7 +155,6 @@ function runIndexer(collection, extraEnv, chunksOutDir, label) {
     ONNX_EMBED:     '1',
     COMBINED_LLM:   '1',
     CONTEXT_MODEL:  CONTEXT_MODEL,
-    CHUNKS_OUT_DIR: chunksOutDir,
     INDEX_PROFILE:  '1',
     ...extraEnv,
   };

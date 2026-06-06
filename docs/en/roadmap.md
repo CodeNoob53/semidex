@@ -76,7 +76,6 @@ The current MVP is a working experimental local-first retrieval system.
 - SHA-256 skip for unchanged files.
 - Deterministic point IDs for idempotent reindexing.
 - Opt-in stale-file cleanup with `PRUNE_STALE=1`.
-- Obsidian-compatible `chunks_out/` review artifacts.
 
 ### Retrieval
 

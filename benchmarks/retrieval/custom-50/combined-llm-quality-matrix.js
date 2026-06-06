@@ -183,7 +183,6 @@ function runIndexer(collection, extraEnv, chunksOutDir, label) {
     COLLECTION:    collection,
     SOURCE_ROOT:   CORPUS_DIR,
     ONNX_EMBED:    '1',
-    CHUNKS_OUT_DIR: chunksOutDir,
     INDEX_PROFILE: '1',
     ...extraEnv,
   };

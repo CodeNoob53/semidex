@@ -176,10 +176,10 @@ for each node:
     continue
 ```
 
-Лог — **окремий JSONL-артефакт** поряд з inspect-JSON (як `chunks_out`), НЕ в Qdrant:
+Лог — **окремий JSONL inspect-артефакт**, НЕ в Qdrant:
 
 ```
-chunks_out/<collection>/skeleton-warnings.jsonl
+.tmp/semidex-inspect/<collection>/skeleton-warnings.jsonl
 ```
 
 Один рядок = одна подія:
@@ -229,7 +229,7 @@ chunks_out/<collection>/skeleton-warnings.jsonl
   "context": "Таблиця директив unit-файлу systemd (ExecStart, Restart).",
   "surface_terms": ["Directive", "ExecStart", "Restart"],
 
-  "tags": [...], "links": [...], "backlinks": [...],
+  "tags": [...], "links": [...],
   "total_chunks": 285, "file_hash": "...", "vector_size": 1024,
   "indexing_schema_version": 3,            // НОВЕ, окремо від embedding schema
   "chunking_model": "skeleton-v1",         // НОВЕ
@@ -476,7 +476,7 @@ chunking_model: "skeleton-v1"
 
 ```
 Qdrant = source of truth (content nodes + skeleton_nav nodes)
-JSON skeleton artifact = review/debug only (як chunks_out), НЕ правда
+JSON skeleton artifact = inspect/debug only, НЕ правда
 ```
 
 Жорстко: JSON ніколи не стає другим джерелом істини.
@@ -578,8 +578,8 @@ qdrant_get_content(collection, anchor_node_id, scope="section"|"file",
 drill-down, а не перечитує весь проєкт.
 
 - code-вузли: `file -> symbol -> function/class -> code_block` (ті ж механізми).
-- collection skeleton = карта проєкту; зв'язки вже є через `graph.js`
-  (`links`/`backlinks`).
+- collection skeleton = карта проєкту; зв'язки між вузлами мають будуватися
+  поверх skeleton-моделі, а не через старий file-level graph.
 - інкрементальність (roadmap: "refreshes only changed files"): `file_hash` уже є;
   при зміні файлу перебудовуємо лише його піддерево.
 - codebase memory — окремий наступний дизайн-док поверх стабільної skeleton-моделі.

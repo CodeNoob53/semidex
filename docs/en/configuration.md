@@ -298,12 +298,6 @@ reindex. Changing `CHUNKING_SCHEMA_VERSION` in code (e.g. after a default change
 triggers automatic reindex detection so one collection cannot silently mix
 incompatible chunk boundaries.
 
-## Review Output
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `CHUNKS_OUT_DIR` | `./chunks_out` | Obsidian-compatible review output directory |
-
 ## Hybrid Search
 
 | Variable | Default | Description |
@@ -361,16 +355,6 @@ Pandoc is required only for `.docx`, `.odt`, `.rtf`, `.epub`, `.html`, and `.htm
 | `tags` | keyword | tag filter and `qdrant_find_by_tag` |
 
 `npm run index` creates these for new collections. `npm run sync` ensures them on existing collections.
-
-## config.json — Internal Fields Written by sync
-
-The following fields are written automatically by `npm run sync` and should not be edited manually:
-
-| Field | Type | Written by | Meaning |
-|-------|------|------------|---------|
-| `linkDisabled` | boolean | `sync` | `true` when the collection has an incompatible vector schema (flat schema or no named `dense` vector), or when the collection is non-empty and its sampled point payload lacks semidex discriminator fields (`source_file`, `chunk_index`, `file_hash`, `dense_provider`, etc.). Collections marked `linkDisabled` are excluded from link-building target lists. The current collection being indexed is always included regardless of this flag. |
-
-`linkDisabled` is cleared automatically when sync re-runs after the collection has been dropped, reindexed with a compatible schema, and contains at least one semidex-indexed point.
 
 ## Required Qdrant Vector Schema
 

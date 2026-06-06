@@ -67,13 +67,6 @@ Every chunk carries a zero-based `chunk_index` and a `total_chunks` field in its
 Qdrant payload. These are stable across re-indexing of the same file if the
 content is unchanged, making `qdrant_get_chunk(window=N)` deterministic.
 
-### Obsidian review output
-
-The `chunks_out/` directory contains one Markdown file per indexed document, with
-each chunk rendered as a fenced block including its `chunk_index`, section path,
-and text. This allows human review of chunk boundaries, empty chunks, and heading
-topology before a benchmark run.
-
 ### Window recovery through `qdrant_get_chunk`
 
 The MCP `qdrant_get_chunk` tool accepts a `window` parameter. It fetches the
@@ -103,8 +96,7 @@ A large flat section may contain multiple unrelated topics with no headings.
 Token-based splitting and short-fragment merging can still place neighboring
 subtopics in the same chunk when the source document lacks structural boundaries.
 
-**Detection:** high `duplicateSourceRate` on queries where only one subtopic is
-relevant; manual inspection via `chunks_out/`.
+**Detection:** high `duplicateSourceRate` on queries where only one subtopic is relevant.
 
 ### Chunk too small to be useful
 
@@ -131,8 +123,7 @@ A code example and its preceding or following prose explanation fall into
 different chunks due to a section boundary or token limit. The agent retrieves
 the code without context, or the explanation without the example.
 
-**Detection:** manual inspection of `chunks_out/` for code-heavy files; a future
-`codeExplanationPairRate` metric on fixture files with paired code+explanation blocks.
+**Detection:** a future `codeExplanationPairRate` metric on fixture files with paired code+explanation blocks.
 
 ### Heading-only or overlap-only chunks
 

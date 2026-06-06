@@ -5,7 +5,7 @@ semidex has two runtime entry points:
 - **Indexer** - writes documents into Qdrant.
 - **MCP server** - reads indexed knowledge for AI agents.
 
-Both share the same core provider, config, graph, and Qdrant helpers.
+Both share the same core provider, config, chunking, and Qdrant helpers.
 
 ## Pipeline
 
@@ -20,8 +20,6 @@ Documents (md, pdf, docx, epub, txt, ...)
        v
   Qdrant collection
   (dense, sparse, text, section, tags, context, source_file)
-       |
-       +-> chunks_out/ Markdown review files for Obsidian
        |
        v
   MCP tools
@@ -160,12 +158,7 @@ Indexing-time semantic link building has been removed. The planned replacement i
 
 ## What Is Stored vs What the Agent Sees
 
-`chunks_out/` Markdown files are a **human review artifact only** — they are never
-read by the retrieval pipeline or sent to an AI agent. They are written to disk so
-you can open them in Obsidian and inspect chunk boundaries, context summaries, tags,
-and links visually.
-
-What actually lives in Qdrant for each point:
+What lives in Qdrant for each point:
 
 | Field | Stored in | Used for |
 |-------|-----------|----------|
@@ -206,9 +199,7 @@ separate payload fields, so it can read the summary and the raw content together
 
 ### Source of Truth
 
-Qdrant is the live retrieval source of truth. `chunks_out/` is a generated review artifact for humans.
-
-Use MCP tools to inspect indexed data. Use `chunks_out/` to visually inspect chunk boundaries, context summaries, and tags.
+Qdrant is the live retrieval source of truth. Use MCP tools to inspect indexed data.
 
 ## Local Models
 

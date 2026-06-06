@@ -4,8 +4,8 @@ Status: draft for design discussion.
 
 This note records two connected ideas:
 
-1. Replace or narrow expensive indexing-time semantic linking with query-time
-   global search across selected collections.
+1. Replace the removed indexing-time related-file graph with query-time global
+   search across selected collections.
 2. Add collection-level profiles/markers so global search can route safely and
    avoid unrelated or private/memory collections.
 
@@ -20,8 +20,8 @@ memory.
 semidex currently has two retrieval/navigation mechanisms:
 
 - `qdrant_search` searches one collection at query time.
-- the link phase searches during indexing and writes file-level `links` and
-  `backlinks` into payload/graph files.
+- the removed link phase searched during indexing and wrote file-level related
+  files into generated graph/payload metadata.
 
 The link phase is expensive because it does work for every indexed chunk:
 
@@ -30,10 +30,9 @@ new chunks * target collections * Qdrant search
 ```
 
 For example, 30 chunks across 30 target collections means roughly 900 semantic
-searches during indexing, before counting payload updates for backlinks.
+searches during indexing, before counting extra payload updates.
 
-This cost is paid even if no agent ever uses `qdrant_related` or
-`qdrant_backlinks` for those files.
+This cost was paid even if no agent ever used the precomputed related-file data.
 
 Same-collection links are especially questionable: in one collection,
 `qdrant_search(top=3|5)` can already surface nearby chunks for the user's actual
@@ -50,23 +49,23 @@ still expensive and hard to scope correctly.
 Move broad cross-collection discovery from indexing-time to query-time:
 
 ```text
-current link phase:
+removed link phase:
   during indexing:
-    chunk -> search many collections -> write links/backlinks
+    chunk -> search many collections -> write precomputed related-file metadata
 
 target global search:
   during agent query:
     query -> choose allowed collections -> search them -> merge/group results
 ```
 
-In other words, the current link phase is effectively a **precomputed global
+In other words, the removed link phase was effectively a **precomputed global
 related search**:
 
 ```text
 during indexing:
   for each chunk
     search target collections
-    write links/backlinks
+    write precomputed related-file metadata
 ```
 
 The proposed global-search model makes the same kind of discovery demand-driven:
@@ -80,10 +79,10 @@ during agent query:
 
 This changes the cost model:
 
-- indexing gets faster because link-building can be disabled or narrowed;
+- indexing gets faster because related-file graph building is gone;
 - search pays cross-collection cost only when the agent actually needs it;
 - results are current because they are read directly from Qdrant;
-- stale `links`/`backlinks` become less important or can be deprecated later.
+- stale precomputed relation metadata is avoided.
 
 The missing piece is routing. Global search cannot mean "search every Qdrant
 collection". It needs collection profiles.
@@ -93,7 +92,7 @@ collection". It needs collection profiles.
 Benefits:
 
 - removes a heavy link-building phase from indexing;
-- avoids maintaining `links`/`backlinks` payload for broad discovery;
+- avoids maintaining broad precomputed relation metadata;
 - avoids stale graph edges after updates, deletes, and renames;
 - lets agents search across collections when the task actually needs it;
 - makes cross-collection discovery easier to scope through explicit parameters.
@@ -277,7 +276,7 @@ small routing sample:
 - context sample from a limited number of chunks;
 - optional language detection summary.
 
-Do not include raw large documents, binary data, generated `chunks_out`, or
+Do not include raw large documents, binary data, generated inspect artifacts, or
 private absolute paths.
 
 ### 4.3 Prompt Contract
@@ -346,9 +345,8 @@ Candidate collections:
 
 1. Must exist in Qdrant.
 2. Must be known in `config.json`.
-3. Must not have `linkDisabled: true`.
-4. Must have compatible semidex payload/schema.
-5. Must pass profile filters:
+3. Must have compatible semidex payload/schema.
+4. Must pass profile filters:
    - `visibility="searchable"`;
    - `global_search=true`;
    - `memory_access="none"`;
@@ -483,32 +481,20 @@ knowledge base with an agent's private notes about previous conversations.
 
 ---
 
-## 7. Relationship To Current Link Phase
+## 7. Relationship To Removed Link Phase
 
-Current graph tools:
-
-- `qdrant_related(collection, source_file)`
-- `qdrant_backlinks(collection, source_file)`
-
-They read precomputed graph files/payload links. They are useful for debugging
-and for explicit graph traversal, but they are not a replacement for scoped
-global search.
+The previous related-file graph was removed from production because it did
+index-time global-ish search without reliable query-time scope control. Global
+search is the replacement direction, not another layer on top of that graph.
 
 Future direction:
 
-1. Keep current link phase available while global search is tested.
-2. Add a switch to disable or narrow link-building during bulk indexing:
-
-```bash
-LINK_BUILD=0 COLLECTION=my-docs npm run index ./docs
-LINK_SCOPE=current COLLECTION=my-docs npm run index ./docs
-LINK_COLLECTIONS=docs-a,docs-b COLLECTION=docs-a npm run index ./docs
-```
-
-3. Prefer global search for cross-collection discovery.
-4. If global search performs well, deprecate same-collection link-building.
-5. Keep `qdrant_related`/`qdrant_backlinks` as legacy/debug until a replacement
-   is proven.
+1. Prefer global search for cross-collection discovery.
+2. Keep local collection search as the default for ordinary questions.
+3. Use collection profiles to decide which collections are eligible for a
+   global query.
+4. Do not reintroduce index-time related-file graph building unless a separate
+   benchmark proves it solves a problem global search cannot solve.
 
 Decision hypothesis:
 
@@ -540,17 +526,14 @@ Before changing defaults, measure:
 
 Compare:
 
-- current link phase;
-- `LINK_BUILD=0`;
-- cross-collection allowlist only;
-- global search query-time alternative.
+- current indexing path without related-file graph building;
+- global search query-time alternative;
+- scoped global search with a collection allowlist.
 
 Metrics:
 
 - wall time;
-- link phase time;
 - Qdrant search count;
-- Qdrant payload update count;
 - points indexed;
 - failures/retries.
 
@@ -561,7 +544,7 @@ collections.
 
 Compare:
 
-- current `qdrant_related`/`backlinks` workflow;
+- previous related-file graph workflow;
 - manual multi-collection search;
 - proposed `qdrant_search_global`.
 
@@ -622,18 +605,19 @@ Acceptance:
 ### Phase 4 - Benchmarks
 
 - Build cross-collection fixture.
-- Compare current link workflow vs global search.
-- Measure indexing speed with link disabled/narrowed.
-- Measure query-time cost.
+- Compare manual multi-collection search vs global search.
+- Measure query-time cost for scoped global search.
 
-### Phase 5 - Link Phase Decision
+### Phase 5 - Default Decision
 
 Based on benchmark evidence:
 
-- keep link phase as optional;
-- narrow link phase to explicit collection allowlists;
-- deprecate same-collection links;
-- or remove link from the normal indexing path.
+- keep global search behind explicit collection scope;
+- enable profile-routed global search for safe collections;
+- or reject global search if it adds too much query-time noise/cost.
+
+Do not reintroduce indexing-time related-file graph building unless a separate
+benchmark proves it solves a problem scoped global search cannot solve.
 
 ---
 

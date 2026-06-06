@@ -388,7 +388,6 @@ docs: [translation-backlog.md](translation-backlog.md).
 | [benchmarking.md](../en/benchmarking.md) | Smoke-тести, бенчмарк пошуку, метрики |
 | [roadmap.md](../en/roadmap.md) | Напрям продукту, профілі, non-goals |
 | [project-structure.md](../en/project-structure.md) | Дерево вихідників, згенеровані файли |
-| [obsidian.md](../en/obsidian.md) | Obsidian-сумісний review-вивід `chunks_out/` |
 
 ## Подяки
 

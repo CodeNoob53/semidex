@@ -106,7 +106,6 @@ async function runIndexer(collection, extraEnv, label) {
     SKIP_PRE_DELETE:       '1',
     INDEX_PROFILE:         '1',
     TAG_ONNX_ALLOW_DOWNLOAD: '0',
-    CHUNKS_OUT_DIR:        join(ROOT, '.tmp', 'bench-chunks-out'),
     ...extraEnv,
   };
 
@@ -134,7 +133,7 @@ async function runIndexer(collection, extraEnv, label) {
 // Parse INDEX_PROFILE=1 output lines like:
 //   "    context            1234 ms"
 //   "    total              5678 ms  (1.2 chunks/s)"
-// Returns { phaseMs: { pre, chunk, context, tag, 'embed+upsert', link, chunks_out }, totalMs }
+// Returns { phaseMs: { pre, chunk, context, tag, 'embed+upsert' }, totalMs }
 function parseProfileBlock(block) {
   const phaseMs = {};
   let totalMs = null;
@@ -184,7 +183,7 @@ function fmtMs(ms) {
 
 function analyseRun(results) {
   // results: array of { phaseMs, totalMs } one per file per rep
-  const phases = ['pre', 'chunk', 'context', 'tag', 'embed+upsert', 'link'];
+  const phases = ['pre', 'chunk', 'context', 'tag', 'embed+upsert'];
   const out = { totalMs: [], phases: {} };
   for (const p of phases) out.phases[p] = [];
 
@@ -442,7 +441,6 @@ function buildMarkdown() {
     ['context',      'context (Ollama)'],
     ['tag',          'tag (ONNX or Ollama)'],
     ['embed+upsert', 'embed (BGE-M3 ONNX)'],
-    ['link',         'link'],
   ];
 
   for (const vr of variantResults) {
