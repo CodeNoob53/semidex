@@ -523,11 +523,11 @@
       "query": "config.json six reindex discriminators denseProvider denseModel sparseProvider",
       "expectedFiles": ["config-env.md"],
       "relevantChunks": [
-        { "chunkId": "config-env.md#11", "relevance": 3 },
+        { "chunkId": "config-env.md#9", "relevance": 3 },
         { "chunkId": "config-env.md#2", "relevance": 2 }
       ],
       "expectedTokens": ["discriminator"],
-      "note": "six reindex discriminators in config.json section"
+      "note": "six reindex discriminators in config.json section; chunk #9 after Linking/Review Output removal"
     },
     {
       "id": "c46",
