@@ -103,12 +103,12 @@ Controlling API interaction frequency and failure handling.
 [[BENCH_ANCHOR: CFG_ENV_RETRY_POLICY]]
 Transient embedding or Qdrant errors trigger a configurable retry policy. `RETRY_MAX_ATTEMPTS` (default: 3) and `RETRY_DELAY_MS` (default: 500) control the retry behavior. Set `RETRY_POLICY=none` to disable retries during benchmarking.
 
-## 9. Obsidian Export
+## 9. Index Inspection
 
-Integration with local knowledge graph review tools.
+Inspecting indexed content via MCP tools.
 
-[[BENCH_ANCHOR: CFG_OBSIDIAN_EXPORT]]
-To generate a structured review export compatible with Obsidian, set `CHUNKS_OUT_DIR` to the desired output path. semidex writes one Markdown note per indexed document into this directory, with each chunk rendered as a fenced block including its `chunk_index`, section path, and text. This is useful for human quality review before benchmark runs.
+[[BENCH_ANCHOR: CFG_INDEX_INSPECTION]]
+To inspect indexed chunk content, use `qdrant_get_chunk(collection, source_file, chunk_index)`. Setting `window=1` returns the target chunk plus its immediate neighbors, which is useful for verifying section boundaries and overlap behavior before benchmark runs. Use `qdrant_list_files` to enumerate all indexed files in a collection.
 
 ## 10. Mixed-Language Notes
 

@@ -71,24 +71,25 @@
     {
       "id": "c150-004",
       "type": "exact-token",
-      "query": "qdrant_backlinks tool semantic linking",
+      "query": "qdrant_list_files qdrant_list_directories corpus navigation directory prefix",
       "expectedFiles": [
         "mcp-workflow.md"
       ],
       "relevantChunks": [
         {
-          "chunkId": "mcp-workflow.md#5",
+          "chunkId": "mcp-workflow.md#6",
           "relevance": 3
         },
         {
-          "chunkId": "mcp-workflow.md#1",
+          "chunkId": "mcp-workflow.md#2",
           "relevance": 2
         }
       ],
       "expectedTokens": [
-        "qdrant_backlinks"
+        "qdrant_list_files",
+        "qdrant_list_directories"
       ],
-      "note": "qdrant_backlinks in mcp-workflow.md#5 related+backlinks section; distinct from CHUNKS_OUT_DIR (c31)"
+      "note": "list_files and list_directories navigation section in mcp-workflow.md#6; tool table in #2"
     },
     {
       "id": "c150-005",
@@ -642,25 +643,21 @@
     {
       "id": "c150-033",
       "type": "exact-token",
-      "query": "LINK_MIN_SCORE semantic neighbor linking threshold",
+      "query": "RERANK_ENABLED RERANK_PROTECT_TOP1_DELTA reranking threshold",
       "expectedFiles": [
-        "obsidian.md",
         "config-env.md"
       ],
       "relevantChunks": [
         {
-          "chunkId": "obsidian.md#3",
-          "relevance": 3
-        },
-        {
           "chunkId": "config-env.md#7",
-          "relevance": 2
+          "relevance": 3
         }
       ],
       "expectedTokens": [
-        "LINK_MIN_SCORE"
+        "RERANK_ENABLED",
+        "RERANK_PROTECT_TOP1_DELTA"
       ],
-      "note": "LINK_MIN_SCORE controls minimum cosine sim for linking; obsidian.md#3 explains linking phase"
+      "note": "Reranking controls live in config-env.md#7 after removed-feature cleanup"
     },
     {
       "id": "c150-034",
@@ -805,25 +802,20 @@
     {
       "id": "c150-041",
       "type": "config-env",
-      "query": "як налаштувати кількість сусідів для семантичного зв'язування чанків",
+      "query": "як налаштувати кількість кандидатів для hybrid search prefetch",
       "expectedFiles": [
-        "config-env.md",
-        "obsidian.md"
+        "config-env.md"
       ],
       "relevantChunks": [
         {
-          "chunkId": "config-env.md#7",
+          "chunkId": "config-env.md#6",
           "relevance": 3
-        },
-        {
-          "chunkId": "obsidian.md#3",
-          "relevance": 2
         }
       ],
       "expectedTokens": [
-        "LINK_TOP"
+        "HYBRID_PREFETCH_LIMIT"
       ],
-      "note": "UA; LINK_TOP controls neighbor count in config-env.md#7; linking described in obsidian.md#3"
+      "note": "UA; HYBRID_PREFETCH_LIMIT controls candidate prefetch for hybrid RRF in config-env.md#6"
     },
     {
       "id": "c150-042",
@@ -1237,7 +1229,7 @@
     {
       "id": "c150-063",
       "type": "conceptual",
-      "query": "чим відрізняється qdrant_related від qdrant_backlinks",
+      "query": "чим відрізняється qdrant_list_files від qdrant_list_directories",
       "expectedFiles": [
         "mcp-workflow.md"
       ],
@@ -1251,7 +1243,7 @@
           "relevance": 2
         }
       ],
-      "note": "UA; qdrant_related gives outgoing links, qdrant_backlinks gives incoming; mcp-workflow.md#6"
+      "note": "UA; list_files scopes to directory, list_directories returns top-level layout; mcp-workflow.md#6"
     },
     {
       "id": "c150-064",
@@ -1392,21 +1384,21 @@
     {
       "id": "c150-071",
       "type": "english",
-      "query": "what use cases does the Obsidian chunk export support",
+      "query": "what use cases does qdrant_list_files support for corpus management",
       "expectedFiles": [
         "obsidian.md"
       ],
       "relevantChunks": [
         {
-          "chunkId": "obsidian.md#6",
+          "chunkId": "obsidian.md#9",
           "relevance": 3
         },
         {
-          "chunkId": "obsidian.md#0",
+          "chunkId": "obsidian.md#8",
           "relevance": 2
         }
       ],
-      "note": "use cases: chunking review, tag audit, semantic graph navigation; obsidian.md#6"
+      "note": "use cases: coverage verification, tag audit, scope search, confirm indexed; obsidian.md#9 (Use Cases section)"
     },
     {
       "id": "c150-072",

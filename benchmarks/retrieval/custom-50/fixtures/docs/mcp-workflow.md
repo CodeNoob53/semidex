@@ -29,8 +29,8 @@ The server must be running (i.e., the node process must be alive) for tools to w
 | `qdrant_search` | `query`, `collection`, `top?`, `tags?[]`, `source_file?` | Hybrid search with optional tag/source filters |
 | `qdrant_collection_info` | none | Lists collections with point counts, provider metadata, descriptions |
 | `qdrant_get_chunk` | `collection`, `source_file`, `chunk_index`, `window?` | Retrieves one chunk and optional neighbors |
-| `qdrant_related` | `collection`, `source_file` | Shows outgoing file-level semantic links |
-| `qdrant_backlinks` | `collection`, `source_file` | Shows incoming file-level links |
+| `qdrant_list_files` | `collection`, `directory?` | Lists indexed files, optionally scoped to a directory |
+| `qdrant_list_directories` | `collection` | Lists top-level directories present in the collection |
 | `qdrant_find_by_tag` | `collection`, `tag`, `limit?` | Lists chunks matching a tag, grouped by file |
 
 ## Recommended Workflow
@@ -39,7 +39,7 @@ The server must be running (i.e., the node process must be alive) for tools to w
 qdrant_collection_info
   -> qdrant_search(query, collection, top=5)
   -> qdrant_get_chunk(collection, source_file, chunk_index, window=1)
-  -> qdrant_related(collection, source_file)
+  -> qdrant_list_files(collection, directory)
   -> qdrant_find_by_tag(collection, tag)
 ```
 
@@ -70,15 +70,16 @@ chunk, and the next chunk.
 This is useful when a search result mentions a concept that spans a chunk boundary.
 Retrieving the window avoids re-embedding and re-searching for the adjacent content.
 
-## qdrant_related and qdrant_backlinks
+## qdrant_list_files and qdrant_list_directories
 
-`qdrant_related` returns files that are semantically similar to the given `source_file`,
-based on links computed during indexing. `qdrant_backlinks` returns files that link
-to the given `source_file`.
+`qdrant_list_files` returns all files indexed in a collection, optionally filtered to a
+specific directory prefix. `qdrant_list_directories` returns the top-level directories
+present in the collection.
 
-Both tools operate at the file level, not the chunk level. They are most useful for
-navigating documentation graphs: following `qdrant_related` leads to files covering
-similar topics, while `qdrant_backlinks` shows which other files reference the current one.
+Both tools operate at the file level. They are most useful for navigating the corpus
+structure: `qdrant_list_directories` shows the layout, while `qdrant_list_files` lets
+the agent scope a follow-up search to a specific subdirectory or list all files for
+inspection.
 
 ## qdrant_find_by_tag
 

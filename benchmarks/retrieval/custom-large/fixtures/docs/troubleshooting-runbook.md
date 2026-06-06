@@ -1,6 +1,6 @@
 # semidex Troubleshooting Runbook
 
-**Domain:** Operational diagnosis for retrieval failures, Qdrant timeouts, ONNX cache corruption, empty chunks, MCP tool issues, and stale graphs.
+**Domain:** Operational diagnosis for retrieval failures, Qdrant timeouts, ONNX cache corruption, empty chunks, MCP tool issues, and stale index points.
 
 ---
 
@@ -15,7 +15,6 @@ semidex relies on several interconnected services:
 1. **Vector Store:** Qdrant instance (local Docker or Qdrant Cloud)
 2. **Embedding Model:** ONNX runtime (BGE-M3) or Ollama
 3. **Document Parser:** Pandoc integration (for .docx, .pdf, .html, .epub, .odt, .rtf)
-4. **Knowledge Graph:** `graph.<collection>.json` link/backlink map
 
 ## Common Failure Scenarios
 
@@ -71,18 +70,18 @@ If the system processes documents but yields no usable chunks, the indexing proc
 If `emptyChunkIds` are reported by the benchmark, the document source is either empty or the chunking strategy is producing heading-only sections. A chunk containing only a Markdown heading line or an `(empty section: ...)` placeholder carries no retrievable answer content.
 
 **Debugging:**
-* Inspect the `chunks_out/` review output for the affected document.
+* Use `qdrant_get_chunk(collection, source_file, chunk_index)` to inspect the stored chunk text for the affected document.
 * Review the heading structure of the source file for sections with no body text.
 * Adjust `MIN_CHUNK_TOKENS` if very short sections should be merged.
 
-#### 2.2 Graph Staleness
+#### 2.2 Stale Index Points
 
-The knowledge graph may point to outdated relationships.
+Qdrant may contain points for source files that have been deleted or moved.
 
-[[BENCH_ANCHOR: TRB_GRAPH_STALE]]
-If the graph appears stale — for example, `qdrant_related` or `qdrant_backlinks` returns links to documents that no longer exist or have moved — the `graph.<collection>.json` file has not been updated to reflect the current index state.
+[[BENCH_ANCHOR: TRB_STALE_INDEX]]
+If `qdrant_list_files` returns files that no longer exist on disk, or if search returns results from deleted sources, the collection has stale index points. semidex does not delete points automatically unless `PRUNE_STALE=1` is set.
 
-**Fix:** Reindex the affected files. The link/backlink pass runs during indexing and updates `graph.<collection>.json` automatically.
+**Fix:** Run `PRUNE_STALE=1 COLLECTION=<name> npm run index <path>` to remove stale points for files that are no longer present at the source path.
 
 ### 3. Retrieval Quality Degradation
 
@@ -159,8 +158,8 @@ semidex uses SHA-256 hash checks on source files to skip unchanged content. If t
 | Slow or failed search | Network latency, Qdrant overload | Check network path; increase timeout. |
 | Bad results | Outdated embeddings, poor chunking | Reindex with ONNX; adjust chunk sizes. |
 | Tool failure | MCP server not connected | Run `/mcp` in Claude Code; reconnect. |
-| Empty chunks | Heading-only sections in source | Review `chunks_out/`; adjust source doc. |
-| Graph stale | Deleted or moved files | Reindex affected files to rebuild graph. |
+| Empty chunks | Heading-only sections in source | Inspect with `qdrant_get_chunk`; adjust source doc. |
+| Stale points | Deleted or moved files | Run with `PRUNE_STALE=1` to remove deleted sources. |
 
 **Final Step:** If all else fails, delete the collection in Qdrant and perform a controlled full reindex with `COLLECTION=<name> npm run index <path>`.
 

@@ -69,20 +69,6 @@ a warning and fall back to the default.
 `HYBRID_PREFETCH_LIMIT` controls how many candidates each leg fetches before RRF fusion.
 The actual prefetch count is `max(limit * HYBRID_PREFETCH_LIMIT, limit + 1)`.
 
-## Linking
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `LINK_TOP` | `5` | Number of semantic neighbors to link per chunk |
-| `LINK_MIN_SCORE` | `0.75` | Minimum cosine similarity threshold for a link |
-| `LINK_COLLECTIONS` | all | Comma-separated allowlist for cross-collection linking |
-
-## Review Output
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `CHUNKS_OUT_DIR` | `./chunks_out` | Directory for Obsidian-compatible chunk export |
-
 ## Reranking (experimental)
 
 | Variable | Default | Description |
@@ -94,7 +80,6 @@ The actual prefetch count is `max(limit * HYBRID_PREFETCH_LIMIT, limit + 1)`.
 | `RERANK_BOOST_SECTION` | `0.06` | Score boost per token hit in section heading |
 | `RERANK_BOOST_TAGS` | `0.05` | Score boost per token hit in tags |
 | `RERANK_BOOST_TEXT` | `0.01` | Score boost per token hit in body text |
-| `RERANK_BOOST_BACKLINK` | `0.04` | Score boost per incoming backlink |
 | `RERANK_PROTECT_TOP1_DELTA` | `0.05` | Minimum advantage required to displace RRF rank-0 |
 
 ## Benchmark Variables

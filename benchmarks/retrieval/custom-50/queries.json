@@ -344,60 +344,59 @@
     {
       "id": "c30",
       "type": "exact-token",
-      "query": "qdrant_related backlinks file-level semantic graph navigation",
+      "query": "qdrant_list_files qdrant_list_directories corpus navigation MCP tool",
       "expectedFiles": ["mcp-workflow.md"],
       "relevantChunks": [
         { "chunkId": "mcp-workflow.md#6", "relevance": 3 }
       ],
-      "expectedTokens": ["backlinks"],
-      "note": "related and backlinks for graph navigation"
+      "expectedTokens": ["qdrant_list_files", "qdrant_list_directories"],
+      "note": "list_files and list_directories for corpus navigation; mcp-workflow.md#6 replaced graph nav section"
     },
     {
       "id": "c31",
-      "type": "config-env",
-      "query": "CHUNKS_OUT_DIR Obsidian export directory chunks output",
+      "type": "exact-token",
+      "query": "qdrant_list_directories recommended first step corpus layout collection",
       "expectedFiles": ["obsidian.md"],
       "relevantChunks": [
-        { "chunkId": "obsidian.md#2", "relevance": 3 },
-        { "chunkId": "obsidian.md#0", "relevance": 2 }
+        { "chunkId": "obsidian.md#1", "relevance": 3 },
+        { "chunkId": "obsidian.md#8", "relevance": 2 }
       ],
-      "expectedTokens": ["CHUNKS_OUT_DIR"],
-      "note": "CHUNKS_OUT_DIR env var for export"
+      "expectedTokens": ["qdrant_list_directories"],
+      "note": "qdrant_list_directories in obsidian.md#1 (qdrant_list_directories section)"
     },
     {
       "id": "c32",
-      "type": "config-env",
-      "query": "LINK_MIN_SCORE LINK_TOP wikilink threshold semantic neighbors",
+      "type": "exact-token",
+      "query": "qdrant_list_files directory prefix alphabetical source_file enumeration",
       "expectedFiles": ["obsidian.md"],
       "relevantChunks": [
-        { "chunkId": "obsidian.md#3", "relevance": 3 },
-        { "chunkId": "obsidian.md#4", "relevance": 2 }
+        { "chunkId": "obsidian.md#4", "relevance": 3 },
+        { "chunkId": "obsidian.md#6", "relevance": 2 }
       ],
-      "expectedTokens": ["LINK_MIN_SCORE"],
-      "note": "link threshold for Obsidian wikilinks"
+      "expectedTokens": ["qdrant_list_files"],
+      "note": "qdrant_list_files with directory filter; obsidian.md#4/#6; workflow in #8"
     },
     {
       "id": "c33",
       "type": "conceptual",
-      "query": "що міститься у frontmatter кожного Obsidian файлу chunk",
+      "query": "які payload-поля доступні для навігації по колекції chunk_index section tags",
       "expectedFiles": ["obsidian.md"],
       "relevantChunks": [
-        { "chunkId": "obsidian.md#4", "relevance": 3 },
-        { "chunkId": "obsidian.md#1", "relevance": 2 }
+        { "chunkId": "obsidian.md#7", "relevance": 3 }
       ],
-      "expectedTokens": ["frontmatter"],
-      "note": "Obsidian frontmatter fields, UA paraphrase"
+      "expectedTokens": ["source_file", "chunk_index"],
+      "note": "payload fields table in obsidian.md#7 (Payload Fields section); UA paraphrase"
     },
     {
       "id": "c34",
       "type": "conceptual",
-      "query": "use cases for reviewing chunk quality and tag audit in Obsidian",
+      "query": "use cases for listing indexed files verifying coverage tag audit scope search",
       "expectedFiles": ["obsidian.md"],
       "relevantChunks": [
-        { "chunkId": "obsidian.md#6", "relevance": 3 }
+        { "chunkId": "obsidian.md#9", "relevance": 3 }
       ],
-      "expectedTokens": ["audit"],
-      "note": "Obsidian use cases list"
+      "expectedTokens": ["qdrant_find_by_tag"],
+      "note": "use cases list in obsidian.md#9; workflow in #8"
     },
     {
       "id": "c35",

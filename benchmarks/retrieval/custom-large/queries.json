@@ -23,11 +23,11 @@
       "expectedTokens": ["X-Semidex-API-Token"]
     },
     {
-      "id": "lg-api-graph-related",
+      "id": "lg-api-list-files",
       "type": "paraphrase",
-      "query": "traverse the knowledge graph from a seed chunk to find related documents",
+      "query": "list files in a collection scoped by directory prefix",
       "expectedAnchors": [
-        { "anchor": "API_GRAPH_RELATED", "relevance": 3 }
+        { "anchor": "API_LIST_FILES", "relevance": 3 }
       ],
       "expectedTokens": []
     },
@@ -166,11 +166,11 @@
       "expectedTokens": ["RETRY_MAX_ATTEMPTS", "RETRY_DELAY_MS"]
     },
     {
-      "id": "lg-cfg-obsidian-export",
+      "id": "lg-cfg-index-inspection",
       "type": "paraphrase",
-      "query": "generate Markdown review notes per document for Obsidian quality inspection",
+      "query": "inspect indexed chunk content with qdrant_get_chunk window neighbors",
       "expectedAnchors": [
-        { "anchor": "CFG_OBSIDIAN_EXPORT", "relevance": 3 }
+        { "anchor": "CFG_INDEX_INSPECTION", "relevance": 3 }
       ],
       "expectedTokens": []
     },
@@ -233,11 +233,11 @@
       "expectedTokens": ["Node.js", "npm run smoke"]
     },
     {
-      "id": "lg-mig-obsidian-review",
+      "id": "lg-mig-content-review",
       "type": "paraphrase",
-      "query": "inspect chunks_out after reindexing to verify section boundaries are respected",
+      "query": "inspect indexed chunks after reindexing to verify section boundaries are respected",
       "expectedAnchors": [
-        { "anchor": "MIG_OBSIDIAN_REVIEW", "relevance": 3 },
+        { "anchor": "MIG_CONTENT_REVIEW", "relevance": 3 },
         { "anchor": "MIG_VALIDATION",       "relevance": 2 }
       ],
       "expectedTokens": []
@@ -331,14 +331,14 @@
       "expectedTokens": []
     },
     {
-      "id": "lg-mlg-backlinks",
+      "id": "lg-mlg-directory-navigation",
       "type": "exact-token",
-      "query": "qdrant_backlinks graph view related concepts vault knowledge graph MCP tool",
+      "query": "qdrant_list_files directory scoped search source_file filter navigation",
       "expectedAnchors": [
-        { "anchor": "MLG_BACKLINK_FLOW", "relevance": 3 },
-        { "anchor": "MLG_OBSIDIAN_QA",  "relevance": 2 }
+        { "anchor": "MLG_DIRECTORY_FLOW", "relevance": 3 },
+        { "anchor": "MLG_CONTEXT_WINDOW_QA",  "relevance": 2 }
       ],
-      "expectedTokens": ["qdrant_backlinks", "backlinks"]
+      "expectedTokens": ["qdrant_list_files", "source_file"]
     },
     {
       "id": "lg-mlg-ua-query",
@@ -372,12 +372,12 @@
     {
       "id": "lg-trb-empty-chunks",
       "type": "exact-token",
-      "query": "emptyChunkIds heading-only section no body text chunks_out review",
+      "query": "emptyChunkIds heading-only section no body text qdrant_get_chunk inspect",
       "expectedAnchors": [
         { "anchor": "TRB_EMPTY_CHUNKS", "relevance": 3 },
-        { "anchor": "TRB_GRAPH_STALE",  "relevance": 2 }
+        { "anchor": "TRB_STALE_INDEX",  "relevance": 2 }
       ],
-      "expectedTokens": ["emptyChunkIds", "chunks_out"]
+      "expectedTokens": ["emptyChunkIds", "qdrant_get_chunk"]
     },
     {
       "id": "lg-trb-low-recall",

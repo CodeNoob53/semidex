@@ -23,8 +23,8 @@ const QUERIES = [
   },
   {
     id: 'boundary-neighbor',
-    query: 'inspect chunks_out after reindexing to verify section boundaries',
-    hints: ['MIG_OBSIDIAN_REVIEW', 'chunks_out']
+    query: 'inspect indexed chunks after reindexing to verify section boundaries',
+    hints: ['MIG_CONTENT_REVIEW', 'qdrant_get_chunk']
   },
   {
     id: 'troubleshooting',

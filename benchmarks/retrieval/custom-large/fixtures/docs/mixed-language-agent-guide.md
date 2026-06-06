@@ -1,6 +1,6 @@
 # Mixed-Language Agent Workflow Guide
 
-**Domain:** How AI agents use hybrid search with Ukrainian and English documents, exact tokens, Obsidian review, backlinks, and context windows.
+**Domain:** How AI agents use hybrid search with Ukrainian and English documents, exact tokens, directory navigation, and context windows.
 
 ---
 
@@ -87,18 +87,18 @@ retrieval_method: hybrid
 [[BENCH_ANCHOR: MLG_CODE_PROSE]]
 The resulting context is a **code/prose mixed chunk** structure, allowing the LLM to distinguish between executable examples and narrative explanation. semidex preserves code blocks within chunks and does not split them across chunk boundaries when possible.
 
-### 3.3 Advanced Linking and Review
+### 3.3 Corpus Navigation and Scoping
 
-The agent traces the source of its information.
+The agent traces the source of its information and narrows the search scope.
 
-* **Backlinks:** The source is traced by analyzing **backlinks** within retrieved chunks, showing related concepts across the knowledge graph.
-* **Obsidian Review:** For complex queries, the system flags the need for manual review by directing the user to the relevant Obsidian QA section.
+* **Directory Navigation:** The agent uses `qdrant_list_directories` and `qdrant_list_files` to map the indexed corpus before issuing targeted queries.
+* **Scoped Search:** For targeted queries, the agent applies a `source_file` filter to restrict search to a known document.
 
-[[BENCH_ANCHOR: MLG_BACKLINK_FLOW]]
-The **backlinks** analysis provides a graph view showing which other concepts in the vault reference the retrieved material. This is available via the `qdrant_backlinks` MCP tool.
+[[BENCH_ANCHOR: MLG_DIRECTORY_FLOW]]
+When the agent needs to enumerate the files in a subdirectory, it calls `qdrant_list_files(collection, directory)` to get the full file list, then issues scoped `qdrant_search` calls with `source_file` filters to retrieve relevant chunks from each candidate.
 
-[[BENCH_ANCHOR: MLG_OBSIDIAN_QA]]
-When retrieval confidence is low, the agent generates a draft answer formatted for the **Obsidian QA** template and flags it for human review. The draft includes the source chunks, their relevance scores, and the section paths.
+[[BENCH_ANCHOR: MLG_CONTEXT_WINDOW_QA]]
+When retrieval confidence is low, the agent widens the search by removing the `source_file` filter and increasing `top` to retrieve more candidates. It then uses `qdrant_get_chunk(window=1)` to expand context around the best-scoring result.
 
 ## 4. Workflow Control and Auditing
 
@@ -127,4 +127,4 @@ If the user query contains a specific non-negotiable term (a product ID, an envi
 The final output is presented with clear provenance markers.
 
 [[BENCH_ANCHOR: MLG_AGENT_WAKEUP]]
-The agent signals completion upon finishing synthesis, returning the answer with a source summary: each chunk ID, its source file, section path, and relevance score. This provenance record allows downstream verification against the Obsidian review output in `chunks_out/`.
+The agent signals completion upon finishing synthesis, returning the answer with a source summary: each chunk ID, its source file, section path, and relevance score. This provenance record is verifiable via `qdrant_get_chunk` using the returned `source_file` and `chunk_index` values.

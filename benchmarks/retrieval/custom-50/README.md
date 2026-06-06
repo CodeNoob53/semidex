@@ -120,7 +120,7 @@ Created automatically on first run.
 | File | Topic |
 |------|-------|
 | `mcp-workflow.md` | MCP tools, agent workflow, qdrant_* tool reference |
-| `obsidian.md` | Obsidian review output, CHUNKS_OUT_DIR, wikilinks |
+| `obsidian.md` | File and directory navigation, qdrant_list_files, qdrant_list_directories |
 | `project-structure.md` | Source tree, key modules, entry points |
 | `benchmarking.md` | Benchmark tiers, query schema, metrics, running benchmarks |
 | `config-env.md` | All environment variables, config.json structure |

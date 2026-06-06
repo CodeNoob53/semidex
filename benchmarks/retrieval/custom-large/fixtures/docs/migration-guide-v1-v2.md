@@ -43,7 +43,7 @@ The old `config.json` structure is insufficient. The schema definition must be u
 [[BENCH_ANCHOR: MIG_QDRANT_COLLECTION]]
 ### Qdrant Collection Preparation
 
-Before enabling v2 search, create or verify the target Qdrant collection with named vectors for `dense` and `sparse` data. The migration must confirm collection aliases, payload indexes, the `graph.<collection>.json` link map, and the expected vector schema before `npm run sync` writes any points.
+Before enabling v2 search, create or verify the target Qdrant collection with named vectors for `dense` and `sparse` data. The migration must confirm collection aliases, payload indexes, and the expected vector schema before `npm run sync` writes any points.
 
 [[BENCH_ANCHOR: MIG_PROVIDER_META]]
 ## 3. Provider Configuration Update
@@ -66,9 +66,7 @@ ONNX_EMBED=1
 [[BENCH_ANCHOR: MIG_CHUNK_INDEX_CHANGE]]
 ## 4. Chunking Strategy Evolution
 
-In v1, chunking was based solely on fixed token counts. In v2, semidex adopts a structure-aware chunking strategy that respects heading section boundaries defined by the source document.
-
-The `chunks_out/` output now includes structural markers alongside the raw text payload.
+In v1, chunking was based solely on fixed token counts. In v2, semidex adopts a structure-aware chunking strategy that respects heading section boundaries defined by the source document. Chunk metadata is stored in Qdrant payloads and inspectable via `qdrant_get_chunk`.
 
 **Old Chunking (v1):**
 * Size: 512 tokens
@@ -108,10 +106,10 @@ The core configuration file, `config.json`, must undergo a mandatory rewrite. Th
 
 ---
 
-[[BENCH_ANCHOR: MIG_OBSIDIAN_REVIEW]]
+[[BENCH_ANCHOR: MIG_CONTENT_REVIEW]]
 ## 7. Content Review and Validation
 
-Given the shift in retrieval logic, a manual review of high-value documents is recommended. Inspect `chunks_out/` after reindexing to verify that section boundaries are respected and no critical sections are split unexpectedly.
+Given the shift in retrieval logic, a review of high-value documents is recommended after reindexing. Use `qdrant_get_chunk` to inspect individual chunks and verify that section boundaries are respected and no critical sections are split unexpectedly.
 
 * **Focus Area:** Documents with more than 30 heading sections.
 * **Goal:** Ensure the hybrid retrieval mechanism surfaces contextually relevant chunks, not just keyword matches.
@@ -180,7 +178,7 @@ If critical failures occur during the v2 deployment, execute the following steps
 3. Reindex the collection using the previous provider configuration from `.env`.
 4. Run `npm run sync` to restore the payload indexes.
 
-The `graph.<collection>.json` file should also be restored from backup if graph links are used.
+Run `npm run sync` after restoring to ensure payload indexes are aligned with the restored collection state.
 
 ---
 

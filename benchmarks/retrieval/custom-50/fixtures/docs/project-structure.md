@@ -21,10 +21,13 @@ semidex/
 │   │       ├── chunk.js       # chunkFile(), splitSentences(), parseMarkdown()
 │   │       ├── context.js     # LLM chunk contextualization
 │   │       ├── embed.js       # Batch embedding phase
-│   │       ├── link.js        # Semantic linking phase
 │   │       └── tag.js         # LLM tag generation phase
 │   ├── mcp/
-│   │   └── server.js          # MCP server: all six qdrant_* tools
+│   │   ├── server.js          # MCP server entry point
+│   │   └── tools/
+│   │       ├── search.js      # qdrant_search, qdrant_get_chunk, qdrant_find_by_tag
+│   │       ├── list.js        # qdrant_list_files, qdrant_list_directories
+│   │       └── info.js        # qdrant_collection_info
 │   └── sync.js                # Sync config.json with live Qdrant collections
 ├── benchmarks/
 │   ├── retrieval/
@@ -47,11 +50,9 @@ semidex/
 │       ├── retrieval.md       # Hybrid search, RRF, MMR, reranking
 │       ├── benchmarking.md    # Benchmark harness guide
 │       ├── mcp-tools.md       # MCP server tool reference
-│       ├── obsidian.md        # Obsidian review output guide
 │       ├── operations.md      # Day-to-day operations guide
 │       └── project-structure.md # Full source tree reference
 ├── models/                    # ONNX model cache (git-ignored)
-├── chunks_out/                # Obsidian export output (git-ignored)
 ├── config.json                # Per-collection provider metadata (git-ignored)
 ├── .env                       # Environment variables (git-ignored)
 ├── package.json
@@ -90,8 +91,9 @@ with `text`, `section`, `chunkIndex`, `totalChunks`. Controlled by `MAX_CHUNK_TO
 
 ### src/mcp/server.js
 
-Implements all six MCP tools: `qdrant_search`, `qdrant_collection_info`,
-`qdrant_get_chunk`, `qdrant_related`, `qdrant_backlinks`, `qdrant_find_by_tag`.
+Entry point for the MCP server. Tools are implemented in `src/mcp/tools/`:
+`qdrant_search`, `qdrant_collection_info`, `qdrant_get_chunk`,
+`qdrant_list_files`, `qdrant_list_directories`, `qdrant_find_by_tag`.
 The server name registered in MCP clients is `qdrant` (legacy name), but the
 project is called semidex.
 

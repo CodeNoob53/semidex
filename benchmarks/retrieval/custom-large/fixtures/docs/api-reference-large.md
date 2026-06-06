@@ -1,6 +1,6 @@
 # semidex API Reference
 
-semidex exposes a local REST API for retrieval, indexing, and graph traversal. This reference covers all available endpoints.
+semidex exposes a local REST API for retrieval, indexing, and collection navigation. This reference covers all available endpoints.
 
 ## Authentication
 
@@ -32,7 +32,7 @@ Performs a hybrid dense+sparse search across all indexed chunks. Supports tag fi
     "tag_filter": ["technical", "architecture"],
     "source_file": "project_specs.md"
   },
-  "qdrant_related": true
+  "window": 1
 }
 ```
 
@@ -41,7 +41,7 @@ Performs a hybrid dense+sparse search across all indexed chunks. Supports tag fi
 * `top_k` (integer): Number of top results to return.
 * `rerank` (boolean): If true, applies the cross-encoder reranking model.
 * `filter` (object): Compound filter supporting `tag_filter` and `source_file`.
-* `qdrant_related` (boolean): If true, performs graph traversal lookups on retrieved chunks.
+* `window` (integer): If set, returns adjacent chunks on each side of each result.
 
 **Example Request (cURL):**
 ```bash
@@ -92,19 +92,20 @@ curl -X GET "http://localhost:8080/v1/chunks/user_manual.pdf/42" \
      -H "X-Semidex-API-Token: <TOKEN>"
 ```
 
-### Graph Related Lookup
+### List Files in Collection
 
-Performs lookups that traverse the semantic graph structure of the indexed collection.
+Returns all source files indexed in a collection, optionally scoped to a directory prefix.
 
-[[BENCH_ANCHOR: API_GRAPH_RELATED]]
-**Endpoint:** `POST /v1/graph/lookup`
+[[BENCH_ANCHOR: API_LIST_FILES]]
+**Endpoint:** `GET /v1/files`
 
-**Request Body:**
+**Query Params:** `?collection=my-docs&directory=docs/`
+
+**Example Response:**
 ```json
 {
-  "seed_chunk_id": "abc123xyz",
-  "depth": 2,
-  "relationship_type": "DEPENDS_ON"
+  "files": ["docs/architecture.md", "docs/configuration.md", "docs/retrieval.md"],
+  "collection": "my-docs"
 }
 ```
 
@@ -248,7 +249,7 @@ To fetch a chunk and its surrounding context (preceding and succeeding chunks), 
 | `rerank` | boolean | Enable cross-encoder reranking. | No |
 | `tag_filter` | array | List of tags to restrict results. | No |
 | `source_file` | string | Filter by exact source file name. | No |
-| `qdrant_related` | boolean | Enable graph traversal lookups. | No |
+| `window` | integer | Number of adjacent chunks to return on each side. | No |
 
 ### Rate Limiting and Pagination
 
