@@ -325,7 +325,7 @@ Every indexed point has payload similar to:
   "dense_model": "bge-m3",
   "sparse_provider": "hashed-tf",
   "embedding_schema_version": 2,
-  "chunking_schema_version": 2,
+  "chunking_schema_version": 3,
   "token_count_mode": "bge-m3",
   "vector_size": 1024
 }

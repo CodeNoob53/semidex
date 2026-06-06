@@ -10,7 +10,7 @@
  *   39b. word-boundary safety via a known mid-word cut point
  *   39c. overlap skipped when available budget = 0 (body = MAX)
  *   39d. no overlap across section boundaries
- *   39e. fallback when CHUNK_OVERLAP_TOKENS is not set
+ *   39e. fallback when CHUNK_OVERLAP_TOKENS=0 (explicit sentence-overlap mode)
  */
 
 export default async function ({ ok }) {
@@ -20,12 +20,12 @@ export default async function ({ ok }) {
   const { getTokenCounter } = await import('../../core/token-count.js');
 
   const countFn = await getTokenCounter({ mode: 'bge-m3' });
-  const MAX    = parseInt(process.env.MAX_CHUNK_TOKENS    ?? '400');
-  const OVERLAP = parseInt(process.env.CHUNK_OVERLAP_TOKENS ?? '0');
+  const MAX    = parseInt(process.env.MAX_CHUNK_TOKENS    ?? '512');
+  const OVERLAP = parseInt(process.env.CHUNK_OVERLAP_TOKENS ?? '80');
 
-  // ── 39e: baseline — no CHUNK_OVERLAP_TOKENS ─────────────────────────────────
+  // ── 39e: explicit CHUNK_OVERLAP_TOKENS=0 → sentence-overlap fallback ─────────
   if (OVERLAP <= 0) {
-    console.log('  (CHUNK_OVERLAP_TOKENS not set — testing sentence-overlap fallback)');
+    console.log('  (CHUNK_OVERLAP_TOKENS=0 — testing sentence-overlap fallback)');
     const md = `# A\nSentence one. Sentence two.\n\n# B\nSentence three.`;
     const chunks = await chunkFileAsync('doc.md', md, 'doc.md', countFn);
     ok('39e: fallback — section A exists', chunks.some(c => c.section === 'A'));

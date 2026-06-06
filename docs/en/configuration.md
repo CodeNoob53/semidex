@@ -283,17 +283,20 @@ PRUNE_STALE=1 SOURCE_ROOT=./docs COLLECTION=my-docs npm run index ./docs/guides
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `TOKEN_COUNT` | `bge-m3` | Token counter for chunk boundaries. Default uses the real BGE-M3 tokenizer. Set `heuristic` only to explicitly restore the old `Math.ceil(text.length / 4)` approximation |
-| `MAX_CHUNK_TOKENS` | `400` | Max tokens per chunk according to `TOKEN_COUNT` |
-| `MIN_CHUNK_TOKENS` | `30` | Minimum useful split size; short split fragments are merged within the same section. Unheaded prefaces below this threshold may be skipped |
-| `OVERLAP_SENTENCES` | `2` | Sentence overlap between adjacent chunks |
+| `MAX_CHUNK_TOKENS` | `512` | Max tokens per chunk according to `TOKEN_COUNT` |
+| `MIN_CHUNK_TOKENS` | `160` | Minimum useful split size; short split fragments are merged within the same section. Unheaded prefaces below this threshold may be skipped |
+| `CHUNK_OVERLAP_TOKENS` | `80` | Token-budgeted overlap between adjacent chunks. Overlap is selected from the previous chunk and included inside `MAX_CHUNK_TOKENS`; the overlap itself never pushes a chunk over the limit. Unsplittable blocks (dense checklists, code, tables) may still exceed `MAX_CHUNK_TOKENS`. Set to `0` to disable token-budgeted overlap and fall back to `OVERLAP_SENTENCES` |
+| `OVERLAP_SENTENCES` | `2` | Legacy sentence overlap, used only when `CHUNK_OVERLAP_TOKENS=0` |
 | `LLM_BATCH_SIZE` | `3` | Chunks per LLM call for context and enabled tag phases |
 
 The real tokenizer path loads tokenizer files only; it does not create an ONNX
 inference session. Tokenizer files are cached under `./models/` and may be
 downloaded on first use. Each indexed payload stores `chunking_schema_version`
-and `token_count_mode`. Changing `TOKEN_COUNT`, or indexing a collection created
-before these fields existed, triggers a reindex so one collection cannot silently
-mix incompatible chunk boundaries.
+and `token_count_mode`. Changing `TOKEN_COUNT`, `MAX_CHUNK_TOKENS`,
+`MIN_CHUNK_TOKENS`, or `CHUNK_OVERLAP_TOKENS` from defaults requires a manual
+reindex. Changing `CHUNKING_SCHEMA_VERSION` in code (e.g. after a default change)
+triggers automatic reindex detection so one collection cannot silently mix
+incompatible chunk boundaries.
 
 ## Linking and Review Output
 

@@ -36,10 +36,17 @@ sections are never merged across heading boundaries.
 
 ### No overlap leakage across sections
 
-Sentence overlap (`OVERLAP_SENTENCES`) carries forward contextual continuity
-within a section only. Overlap does not copy content from one heading section
-into the next, preventing a chunk from appearing to cover a topic it does not
-actually address.
+Token-budgeted overlap (`CHUNK_OVERLAP_TOKENS=80` default) carries forward
+contextual continuity within a section only. The overlap is a suffix of the
+previous chunk's body, re-selected to fit inside the remaining token budget
+(`MAX_CHUNK_TOKENS - bodyTokens`). The overlap itself never pushes a chunk over
+`MAX_CHUNK_TOKENS`; normal splittable content stays within the limit. Unsplittable
+blocks — dense checklists, code blocks, or tables with no sentence boundaries —
+may still exceed `MAX_CHUNK_TOKENS` and are a known limitation until structural
+chunking handles those block types. Overlap does not copy content from one heading
+section into the next, preventing a chunk from appearing to cover a topic it does
+not actually address. When `CHUNK_OVERLAP_TOKENS=0`, the legacy sentence-based
+overlap (`OVERLAP_SENTENCES`) is used instead.
 
 ### Final chunk preservation
 

@@ -21,10 +21,10 @@ function envInt(name, defaultVal, min, max) {
   return v;
 }
 
-const MAX_TOKENS       = envInt('MAX_CHUNK_TOKENS',  400, 1, 100000);
-const MIN_TOKENS       = envInt('MIN_CHUNK_TOKENS',   30, 0, 100000);
+const MAX_TOKENS       = envInt('MAX_CHUNK_TOKENS',  512, 1, 100000);
+const MIN_TOKENS       = envInt('MIN_CHUNK_TOKENS',  160, 0, 100000);
 export const OVERLAP_SENTENCES   = envInt('OVERLAP_SENTENCES',    2, 0, 100);
-const CHUNK_OVERLAP_TOKENS = envInt('CHUNK_OVERLAP_TOKENS', 0, 0, 100000);
+const CHUNK_OVERLAP_TOKENS = envInt('CHUNK_OVERLAP_TOKENS', 80, 0, 100000);
 
 // Sync heuristic used by the legacy sync chunking path. Aliased from
 // token-count.js so both paths share the same implementation.

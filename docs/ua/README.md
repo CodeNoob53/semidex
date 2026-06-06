@@ -292,8 +292,10 @@ SOURCE_ROOT=/vault COLLECTION=my-docs npm run index /vault/docs/  # стабіл
 | `ONNX_EXECUTION_PROVIDER` | `cpu` | `cpu`, `dml` (Windows GPU, verified), `cuda` (Linux, експериментально) |
 | `ONNX_BATCH_SIZE` | `4` | Розмір батчу для Windows DirectML (1–64) |
 | `TOKEN_COUNT` | `bge-m3` | Лічильник токенів: реальний токенайзер; `heuristic` — стара `length/4` |
-| `MAX_CHUNK_TOKENS` | `400` | Максимум токенів на чанк |
-| `OVERLAP_SENTENCES` | `2` | Перекриття речень між сусідніми чанками |
+| `MAX_CHUNK_TOKENS` | `512` | Максимум токенів на чанк |
+| `MIN_CHUNK_TOKENS` | `160` | Мінімальний розмір чанку; короткі фрагменти зливаються в межах секції |
+| `CHUNK_OVERLAP_TOKENS` | `80` | Токен-бюджетне перекриття між сусідніми чанками; включено в `MAX_CHUNK_TOKENS` |
+| `OVERLAP_SENTENCES` | `2` | Застарілий режим речень; використовується лише коли `CHUNK_OVERLAP_TOKENS=0` |
 | `TAG_GEN` | `0` | `1` — генерувати payload-теґи під час індексації; на основний пошук не впливає |
 | `COMBINED_LLM` | `0` | `1` — combined LLM path: context-only за замовчуванням, context+tags якщо `TAG_GEN=1` |
 | `CONTEXT_MODEL` / `TAG_MODEL` | `gemma3:4b` / `CONTEXT_MODEL` | Локальні LLM-моделі; `TAG_MODEL` успадковує `CONTEXT_MODEL`, якщо не заданий явно |

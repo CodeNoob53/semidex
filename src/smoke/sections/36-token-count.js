@@ -7,7 +7,7 @@ export default async function ({ ok, throwsAsync }) {
     await import('../../core/token-count.js');
 
   // 36a. Production default is bge-m3; heuristic remains an explicit opt-out.
-  ok('CHUNKING_SCHEMA_VERSION === 2', CHUNKING_SCHEMA_VERSION === 2);
+  ok('CHUNKING_SCHEMA_VERSION === 3', CHUNKING_SCHEMA_VERSION === 3);
   ok('resolveTokenCountMode default → bge-m3', resolveTokenCountMode({}) === 'bge-m3');
   ok('resolveTokenCountMode bge-m3 → bge-m3', resolveTokenCountMode({ TOKEN_COUNT: 'bge-m3' }) === 'bge-m3');
   ok('resolveTokenCountMode heuristic → heuristic', resolveTokenCountMode({ TOKEN_COUNT: 'heuristic' }) === 'heuristic');
@@ -116,7 +116,7 @@ export default async function ({ ok, throwsAsync }) {
           ok('bge-m3 chunkFileFromPath returns chunks array', Array.isArray(asyncChunks));
           ok('bge-m3 chunks have text field', asyncChunks.every(c => typeof c.text === 'string'));
           // Verify no chunk grossly exceeds MAX_CHUNK_TOKENS in real tokens.
-          const MAX = parseInt(process.env.MAX_CHUNK_TOKENS ?? '400');
+          const MAX = parseInt(process.env.MAX_CHUNK_TOKENS ?? '512');
           let oversized = 0;
           for (const c of asyncChunks) {
             const count = await counter(c.text);

@@ -54,9 +54,15 @@ The parser tries to preserve document structure:
 - Oversized sections fall back to sentence splitting.
 - Short split fragments inside a section are deterministically merged using
   `MIN_CHUNK_TOKENS`; headed sections are not merged across boundaries.
-- Sentence overlap is applied after deterministic chunk finalization and is reset
-  at section boundaries, so overlap does not leak content from one heading into
-  another.
+- Token-budgeted overlap (`CHUNK_OVERLAP_TOKENS=80` default) is applied after
+  deterministic chunk finalization. The overlap is taken from the previous chunk's
+  body and included inside `MAX_CHUNK_TOKENS`, so the overlap itself never pushes
+  a chunk over the limit. Normal splittable content stays within `MAX_CHUNK_TOKENS`;
+  unsplittable blocks (dense checklists, code blocks, tables with no sentence
+  boundaries) may still exceed it and are a known limitation. Overlap is reset at
+  section boundaries so it does not leak content from one heading into another.
+  When `CHUNK_OVERLAP_TOKENS=0` the legacy sentence-based overlap
+  (`OVERLAP_SENTENCES`) is used instead.
 - Very short `.txt` files are preserved instead of being dropped.
 
 ### Format-specific behavior
@@ -76,9 +82,10 @@ third-party conversion before entering the Markdown-oriented chunking pipeline.
 
 Important environment variables:
 
-- `MAX_CHUNK_TOKENS`
-- `MIN_CHUNK_TOKENS`
-- `OVERLAP_SENTENCES`
+- `MAX_CHUNK_TOKENS` (default `512`)
+- `MIN_CHUNK_TOKENS` (default `160`)
+- `CHUNK_OVERLAP_TOKENS` (default `80`; token-budgeted, included in MAX)
+- `OVERLAP_SENTENCES` (legacy fallback when `CHUNK_OVERLAP_TOKENS=0`)
 
 ## Phase 2 - Contextualize
 
