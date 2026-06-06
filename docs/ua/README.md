@@ -136,16 +136,12 @@ Runtime на CPU або DirectML, Ollama на доступному GPU-backend).
          ▼
     Колекція Qdrant (dense · sparse · text · context · section · tags · source_file)
          │
-         ├──▶ graph.<collection>.json  (sidecar-граф: links/backlinks)
-         │
          ▼
-    MCP-інструменти (9) ── AI-агент отримує знайдений контекст
+    MCP-інструменти (7) ── AI-агент отримує знайдений контекст
 ```
 
 Вектор обчислюється з `context + text` разом, тому LLM-резюме може допомогти
-знайти короткий фрагмент коду за природномовним запитом. Граф зберігається
-у `graph.<collection>.json` (посилання дублюються в payload точок); `qdrant_related`/
-`qdrant_backlinks` читають саме цей файл, а не обчислюють зв'язки всередині Qdrant.
+знайти короткий фрагмент коду за природномовним запитом.
 Під час запиту MCP-сервер ембедить запит **тим самим провайдером**, що й при індексації.
 
 ## Швидкий старт
@@ -241,8 +237,6 @@ semidex надає 9 read-only інструментів:
 | `qdrant_search` | `query`, `collection`, `top?`, `tags?[]`, `source_file?`, `window?`, `window_format?` | Гібридний пошук (dense + sparse + RRF) з фільтрами та контекстним вікном |
 | `qdrant_collection_info` | — | Список колекцій з кількістю точок, провайдером, описом |
 | `qdrant_get_chunk` | `collection`, `source_file`, `chunk_index`, `window?` | Один чанк (+опційні сусіди) за точним розташуванням |
-| `qdrant_related` | `collection`, `source_file` | Вихідні семантичні посилання файлу (граф) |
-| `qdrant_backlinks` | `collection`, `source_file` | Вхідні посилання на файл (граф) |
 | `qdrant_find_by_tag` | `collection`, `tag?`, `tags?[]`, `match?`, `limit?` | Чанки за теґом/теґами, згруповані за файлом |
 | `qdrant_list_directories` | `collection`, `source_prefix?`, `depth?`, `limit?` | Префікси директорій з кількістю файлів/чанків |
 | `qdrant_list_files` | `collection`, `source_prefix?`, `tags?[]`, `tag_match?`, `limit?` | Унікальні файли з кількістю чанків і першою секцією |
@@ -257,7 +251,6 @@ qdrant_collection_info
   → qdrant_list_files(collection, source_prefix="<area>/")        # файли в області
   → qdrant_search(query, top=3, window=1, window_format="compact")
   → qdrant_get_chunk (якщо потрібен ширший контекст)
-  → qdrant_related / qdrant_backlinks
 ```
 
 Теґи — для розширення охоплення **після** першого пошуку: `qdrant_list_tags`

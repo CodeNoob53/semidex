@@ -141,7 +141,6 @@ Signals:
 | query token in `section` | `0.06` |
 | query token in `tags` | `0.05` |
 | query token in `text` | `0.01` |
-| incoming backlink | `0.04` |
 
 Technical tokens such as `snake_case`, `ACRONYM`, `camelCase`, and long identifiers are weighted higher than prose words. Common Ukrainian and English stopwords are ignored.
 

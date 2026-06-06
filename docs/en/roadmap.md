@@ -86,14 +86,13 @@ The current MVP is a working experimental local-first retrieval system.
 - Hybrid dense+sparse retrieval with Qdrant RRF fusion as the production
   `qdrant_search` path.
 - Compact context windows for agent-facing results.
-- File-level semantic graph links and backlinks.
 - Optional deterministic reranker, disabled by default because it is not a
   universal win across evaluated query classes.
 
 ### Agent and operator tooling
 
-- Nine read-only MCP tools for collection inspection, directory navigation,
-  file listing, tag discovery, search, chunk retrieval, and graph traversal.
+- Seven read-only MCP tools for collection inspection, directory navigation,
+  file listing, tag discovery, search, and chunk retrieval.
 - `npm run doctor` for redacted environment diagnostics.
 - `npm run bootstrap:docs` for a managed `semidex-docs` self-documentation
   collection.
@@ -375,8 +374,35 @@ They should start only when a measured miss class justifies them.
 | Literal payload search | Deferred | Exact-token regressions not solved by BGE-M3 sparse retrieval |
 | Stronger Node-only sparse fallback | Research item | A requirement for better fallback quality where ONNX BGE-M3 cannot be used |
 | ColBERT / late interaction | Benchmark-only prototype direction, deferred | Correct chunks frequently exist in a wider candidate pool but hybrid RRF ranks them too low |
-| Graph-aware expansion | Research item | Multi-hop tasks where file links recover useful evidence without bloating context |
+| Scoped global search | Planned — see design note below | Cross-collection discovery needed without precomputed link graphs |
 | Query expansion | Research item | Diagnostics show systematic misses that cannot be solved by better structure or lexical retrieval |
+
+### Scoped Global Search Design Note
+
+Cross-collection discovery is handled at query time, not indexing time. The design constraints are:
+
+- search happens on demand; no precomputed link graph is required or maintained;
+- the agent or user passes explicit collection names or a collection prefix;
+- by default, only semidex-managed collections are eligible;
+- agent memory collections are excluded unless explicitly requested;
+- results are grouped by collection → source file → chunks;
+- collection markers or scopes are required before searching across a large number of collections.
+
+Planned future API shape:
+
+```js
+qdrant_search_global({
+  query,
+  collections?: string[],       // explicit list, overrides default
+  collection_prefix?: string,   // filter by collection name prefix
+  scope?: string,               // named scope registered in config
+  top_per_collection?: number,  // max results per collection before final merge
+  final_top?: number,           // total results returned
+  window?: number,
+})
+```
+
+This is the mechanism for cross-collection discovery. Implementation is deferred until the Skeleton Navigation Layer (Stage 2) is ready.
 
 Relevant retrieval decisions and benchmark evidence remain documented in:
 

@@ -67,7 +67,7 @@ export async function handle({ query, collection, top = 5, tags, source_file, wi
   if (RERANK_ENABLED) {
     const candidateLimit = Math.max(top * RERANK_PREFETCH_MULT, top + 5);
     const candidates = await hybridSearch(collection, dense, sparse, candidateLimit, filter);
-    results = rerankResults(candidates, query, { finalLimit: top, collection });
+    results = rerankResults(candidates, query, { finalLimit: top });
   } else {
     results = await hybridSearch(collection, dense, sparse, top, filter);
   }

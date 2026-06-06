@@ -32,7 +32,6 @@ qdrant_collection_info
   -> qdrant_list_files(collection, source_prefix="<area>/")                    # list files in that area
   -> qdrant_search(query, collection, top=3, window=1, window_format="compact")
   -> qdrant_get_chunk (if broader context is needed)
-  -> qdrant_related / qdrant_backlinks
 ```
 
 Always call `list_directories` at depth=1 first to orient, then drill with `source_prefix` before listing files. Do not guess `source_file` paths.
@@ -107,8 +106,6 @@ Raw/unstructured corpus chunks may contain distractor values, stale config, or c
 | `qdrant_search` | `query`, `collection`, `top?`, `tags?[]`, `source_file?`, `window?`, `window_format?` | Hybrid search with optional tag/source filters and context window |
 | `qdrant_collection_info` | none | Lists collections with point counts, provider metadata, descriptions |
 | `qdrant_get_chunk` | `collection`, `source_file`, `chunk_index`, `window?` | Retrieves one chunk and optional neighbors. Heading shows explicit `chunk_index` and display position. |
-| `qdrant_related` | `collection`, `source_file` | Shows outgoing file-level semantic links |
-| `qdrant_backlinks` | `collection`, `source_file` | Shows incoming file-level links |
 | `qdrant_find_by_tag` | `collection`, `tag?`, `tags?[]`, `match?`, `limit?` | Lists chunks matching tag(s), grouped by file and sorted by density |
 | `qdrant_list_directories` | `collection`, `source_prefix?`, `depth?`, `limit?` | Lists directory prefixes with file and chunk counts. Use to explore structure before listing files. |
 | `qdrant_list_files` | `collection`, `source_prefix?`, `tags?[]`, `tag_match?`, `limit?` | Lists unique source files with chunk counts, first section, and optional tag filtering |
@@ -126,15 +123,6 @@ Raw/unstructured corpus chunks may contain distractor values, stale config, or c
 
 **Truncation:** When output reads `Found N … showing M` and M < N, the list is truncated. Do not treat it as complete — narrow with `source_prefix`, `tag_prefix`, or `contains` and re-call.
 
-### When to use `qdrant_related` and `qdrant_backlinks`
-
-- **`qdrant_search`** — find chunks relevant to a topic. Use this first.
-- **`qdrant_related(collection, source_file)`** — once you have a high-confidence file, find documents semantically linked *from* it. Use to traverse outgoing connections: "what does this file point to?" Best applied to hub/reference/skill files or files with many chunks (>20 chunks in `reference/` or `skills/` is a useful heuristic). If results are noisy, fall back to `qdrant_search` with a narrower query or `source_file` filter.
-- **`qdrant_backlinks(collection, source_file)`** — find documents that link *to* a given file. Use to understand dependencies: "what references or depends on this file?"
-
-These are graph traversal tools, not ranked topical search. They require a known `source_file` as a starting point and should not substitute for `qdrant_search` on an unknown topic.
-
-**Noise:** On large or mixed-domain collections, `qdrant_related` can return off-topic files. Triage by section summary, source family, tags, and whether the file supports the current task — do not assume every returned file is relevant.
 
 ## Search Mode
 

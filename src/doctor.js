@@ -323,20 +323,6 @@ console.log('\n[E] Local files');
 }
 
 {
-  // Graph files: glob for graph.*.json at root
-  let graphFiles = [];
-  try {
-    graphFiles = readdirSync(ROOT).filter(f => /^graph(\..+)?\.json$/.test(f) && f !== 'graph.example.json');
-  } catch { /* ignore */ }
-  if (graphFiles.length > 0) {
-    report('E', makeResult(STATUS.PASS, `Graph files: ${graphFiles.join(', ')}`));
-  } else {
-    report('E', makeResult(STATUS.WARN, 'No graph files found (graph.<collection>.json)',
-      'Normal if no indexing has been run yet'));
-  }
-}
-
-{
   // chunks_out — presence only, never content
   const chunksDir = resolve(ROOT, process.env.CHUNKS_OUT_DIR ?? 'chunks_out');
   if (existsSync(chunksDir)) {

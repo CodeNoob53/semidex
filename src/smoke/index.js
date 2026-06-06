@@ -10,7 +10,6 @@ import section06 from './sections/06-chunking-edge-cases.js';
 import section07 from './sections/07-reranker-top1.js';
 import section08 from './sections/08-compact-window.js';
 import section09 from './sections/09-stale-source-files.js';
-import section10 from './sections/10-link-collections.js';
 import section11 from './sections/11-recursive-chunk-text.js';
 import section12 from './sections/12-onnx-providers.js';
 import section13 from './sections/13-semidex-payload.js';
@@ -21,11 +20,8 @@ import section17 from './sections/17-pdf-fixture.js';
 import section18 from './sections/18-validate-ollama-models.js';
 import section19 from './sections/19-doctor-checks.js';
 import section20 from './sections/20-colbert-math.js';
-import section21 from './sections/21-graph-cache.js';
-import section22 from './sections/22-build-links-precomputed.js';
 import section23 from './sections/23-length-bucket.js';
 import section24 from './sections/24-dml-batching-gate.js';
-import section25 from './sections/25-zip-ordered-links.js';
 import section26 from './sections/26-extract-context-tags-array.js';
 import section27 from './sections/27-combined-phase.js';
 import section28 from './sections/28-setext-headings.js';
@@ -81,10 +77,10 @@ const helpers = { ok, throws, throwsAsync, withConfig };
 
 const sections = [
   section01, section02, section03, section04, section05,
-  section06, section07, section08, section09, section10,
+  section06, section07, section08, section09,
   section11, section12, section13, section14, section15,
   section16, section17, section18, section19, section20,
-  section21, section22, section23, section24, section25,
+  section23, section24,
   section26, section27, section28, section29, section30,
   section31, section32, section33, section34, section35,
   section36, section37, section38, section39,

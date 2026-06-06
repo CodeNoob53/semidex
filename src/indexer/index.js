@@ -11,13 +11,11 @@ import { addTagsOnnxBatch, isOnnxTagProvider, shutdownOnnxTagWorker } from './ph
 import { isEmptySectionChunk } from './phases/empty-section.js';
 import { addContextAndTags } from './phases/combined.js';
 import { resolveCombinedLlmConfig } from '../core/doctor-checks.js';
-import { buildLinks } from './phases/link.js';
 import { runBatched } from './batch.js';
 import { collectFiles, SUPPORTED_EXTENSIONS } from './files.js';
 import { Profiler } from './profiler.js';
-import { upsertPoints, updatePayload, listCollections, createCollection, getCollectionInfo, getStoredMeta, deleteBySourceFile, deleteTrailingChunks, listSourceFiles } from '../core/qdrant.js';
+import { upsertPoints, listCollections, createCollection, getCollectionInfo, getStoredMeta, deleteBySourceFile, deleteTrailingChunks, listSourceFiles } from '../core/qdrant.js';
 import { makePointId } from '../core/point-id.js';
-import { loadGraph, saveGraph, removeFile } from '../core/graph.js';
 import { loadConfig, saveConfig, resolveEnvProviders } from '../core/config.js';
 import { embedForIndex, embedForIndexBatch, shouldUseOnnxBatching, getEmbeddingConfig, SCHEMA_VERSION } from '../core/embeddings.js';
 import { ensureOllamaPreflight } from './preflight.js';
@@ -39,7 +37,7 @@ function hashFile(filePath) {
 }
 
 // ── Stage A: read-only preflight / hash / finalized chunking ─────────────────
-// Non-destructive: no Qdrant deletes, no graph mutations.
+// Non-destructive: no Qdrant deletes.
 // Returns { status: 'skipped' } or a prepared object carrying needsDelete/deleteReason
 // so later stages can act on them at the right time.
 async function stageA(filePath, rootPath, collection, profiler) {
@@ -87,7 +85,7 @@ async function stageA(filePath, rootPath, collection, profiler) {
   if (tokenCountMode === 'bge-m3') await getTokenCounter({ mode: 'bge-m3' });
 
   // Compute whether a pre-delete is needed, but do NOT execute it yet.
-  // Qdrant delete happens in stageC (after embed succeeds); graph removeFile in stageD.
+  // Qdrant delete happens in stageD (after embed succeeds in stageC).
   const needsDelete = Boolean(storedHash && !process.env.SKIP_PRE_DELETE);
   let deleteReason = '';
   if (needsDelete) {
@@ -273,7 +271,6 @@ async function stageC(withTagged) {
           source_file: chunk.source_file,
           tags: chunk.tags,
           links: chunk.links,
-          backlinks: [],
           chunk_index: chunk.chunkIndex,
           total_chunks: chunk.totalChunks,
           file_hash: fileHash,
@@ -291,24 +288,16 @@ async function stageC(withTagged) {
   return { ...withTagged, pointsWithDense };
 }
 
-// ── Stage D: commit + link (always serial via SerialQueue) ────────────────────
-// All Qdrant mutations and graph mutations are here, serialised.
-// Order: removeFile → deleteBySourceFile → upsertPoints → deleteTrailingChunks
-//        → buildLinks → updatePayload (backlinks)
-// This prevents Stage C of file B from racing with buildLinks/updatePayload of file A.
-async function stageD(withPoints, allCollections, graph) {
+// ── Stage D: commit (always serial via SerialQueue) ───────────────────────────
+// All Qdrant mutations are here, serialised.
+// Order: deleteBySourceFile → upsertPoints → deleteTrailingChunks
+// Serialisation prevents stageC of file B from racing with the commit of file A.
+async function stageD(withPoints) {
   const { filePath, taggedChunks, pointsWithDense, collection, rawChunks,
           sourceFile, needsDelete, profiler } = withPoints;
 
-  // ── Qdrant commit ──
-  console.log('  [4/5] upserting...');
+  console.log('  [4/4] upserting...');
 
-  // Graph: remove stale entry before buildLinks sees the graph.
-  if (needsDelete) {
-    removeFile(graph, sourceFile);
-  }
-
-  // Qdrant: delete old points only when we have validated replacements ready.
   if (needsDelete) {
     await deleteBySourceFile(collection, sourceFile);
   }
@@ -319,23 +308,7 @@ async function stageD(withPoints, allCollections, graph) {
 
   await deleteTrailingChunks(collection, sourceFile, taggedChunks.length);
 
-  // ── Link phase ──
-  console.log('  [5/5] linking...');
-  // zip outside runBatched — taggedChunks[i] and pointsWithDense[i] share the same global index.
-  const chunksWithDense = taggedChunks.map((chunk, i) => ({ chunk, dense: pointsWithDense[i].dense }));
-  const linkedChunks = await runBatched(chunksWithDense, BATCH_SIZE, ({ chunk, dense }) =>
-    buildLinks(chunk, allCollections, graph, collection, dense));
-
-  await Promise.all(linkedChunks.map((chunk, i) => {
-    const newLinks = chunk.links ?? [];
-    const oldLinks = points[i].payload.links ?? [];
-    const changed = newLinks.length !== oldLinks.length || newLinks.some(l => !oldLinks.includes(l));
-    if (!changed) return Promise.resolve();
-    return updatePayload(collection, points[i].id, { links: newLinks });
-  }));
-  profiler.mark('link');
-
-  saveChunksMd(filePath, linkedChunks);
+  saveChunksMd(filePath, taggedChunks);
   profiler.mark('chunks_out');
 
   const tokensEst = taggedChunks.reduce((s, c) => s + Math.ceil(c.text.length / 4), 0);
@@ -345,7 +318,7 @@ async function stageD(withPoints, allCollections, graph) {
 }
 
 // ── Sequential indexFile (default, PIPELINE_MODE unset) ───────────────────────
-async function indexFile(filePath, rootPath, collection, allCollections, graph) {
+async function indexFile(filePath, rootPath, collection) {
   console.log(`\n→ ${filePath}`);
   const profiler = new Profiler();
 
@@ -354,7 +327,7 @@ async function indexFile(filePath, rootPath, collection, allCollections, graph) 
 
   const preparedB = await stageB(preparedA);
   const preparedC = await stageC(preparedB);
-  await stageD(preparedC, allCollections, graph);
+  await stageD(preparedC);
 }
 
 function saveChunksMd(filePath, chunks) {
@@ -382,34 +355,6 @@ ${chunk.text}
 export function computeStaleSourceFiles(indexedSourceFiles, storedSourceFiles) {
   const indexed = new Set(indexedSourceFiles);
   return storedSourceFiles.filter(sf => !indexed.has(sf));
-}
-
-// Returns the set of collections eligible as link targets.
-// configCollectionsMap: the full config.collections object (name → entry).
-// Only Qdrant collections present in configCollectionsMap are eligible, unless
-// they carry linkDisabled: true — those are excluded (incompatible/foreign schema).
-// The current collection is always included regardless of linkDisabled, because
-// intra-collection links must work even when the collection was just created and
-// sync has not yet run (linkDisabled would be wrong for a fresh semidex collection).
-// If LINK_COLLECTIONS env allowlist is set, it narrows the result and does NOT
-// auto-add the current collection (existing semantics).
-export function resolveLinkCollections(qdrantCollections, configCollectionsMap, currentCollection, envAllowlist) {
-  const configMap = configCollectionsMap ?? {};
-  const configKnown = new Set(Object.keys(configMap));
-  configKnown.add(currentCollection); // always include current, even if missing from config
-
-  const base = qdrantCollections.filter(c => {
-    if (!configKnown.has(c)) return false;
-    // Exclude linkDisabled entries, but never exclude the current collection.
-    if (c !== currentCollection && configMap[c]?.linkDisabled === true) return false;
-    return true;
-  });
-  // Ensure current collection is present even if not yet in qdrantCollections
-  // (e.g. just created and not yet returned by a fresh listCollections call).
-  if (!base.includes(currentCollection)) base.push(currentCollection);
-
-  if (!envAllowlist) return base;
-  return base.filter(c => envAllowlist.has(c));
 }
 
 
@@ -459,19 +404,6 @@ async function main() {
     }
   }
 
-  // Limit link targets to config-known semidex collections (Stage 1 filter).
-  // LINK_COLLECTIONS env allowlist, if set, narrows further (existing semantics).
-  const linkCfg = loadConfig();
-  const linkEnvAllowlist = process.env.LINK_COLLECTIONS
-    ? new Set(process.env.LINK_COLLECTIONS.split(',').map(s => s.trim()))
-    : null;
-  const linkTargetCollections = resolveLinkCollections(
-    allCollections,
-    linkCfg.collections ?? {},
-    COLLECTION,
-    linkEnvAllowlist,
-  );
-
   const PRUNE_STALE = process.env.PRUNE_STALE === '1';
   const absTarget = resolve(targetPath);
   const isDirectory = statSync(absTarget).isDirectory();
@@ -501,8 +433,6 @@ async function main() {
   if (files.length) console.log(`Found ${files.length} file(s) to process`);
   let indexed = 0, skipped = 0;
 
-  const graph = loadGraph(COLLECTION);
-
   const pipelineMode = process.env.PIPELINE_MODE === '1';
 
   if (pipelineMode) {
@@ -513,11 +443,11 @@ async function main() {
     if (parsedOllama !== ollamaConcurrency) console.warn(`[pipeline] invalid OLLAMA_STAGE_CONCURRENCY, using 1`);
     if (parsedEmbed  !== embedConcurrency)  console.warn(`[pipeline] invalid EMBED_STAGE_CONCURRENCY, using 1`);
 
-    console.log(`[pipeline] enabled: ollama=${ollamaConcurrency} embed=${embedConcurrency} link=serial`);
+    console.log(`[pipeline] enabled: ollama=${ollamaConcurrency} embed=${embedConcurrency} commit=serial`);
 
-    const ollamaSem = new Semaphore(ollamaConcurrency);
-    const embedSem  = new Semaphore(embedConcurrency);
-    const linkQueue = new SerialQueue();
+    const ollamaSem  = new Semaphore(ollamaConcurrency);
+    const embedSem   = new Semaphore(embedConcurrency);
+    const commitQueue = new SerialQueue();
 
     const settlements = await Promise.allSettled(files.map(async filePath => {
       console.log(`\n→ ${filePath}`);
@@ -536,7 +466,7 @@ async function main() {
         ? await stageB(preparedA, ollamaSem)
         : await ollamaSem.run(() => stageB(preparedA));
       const preparedC = await embedSem.run(() => stageC(preparedB));
-      await linkQueue.run(() => stageD(preparedC, linkTargetCollections, graph));
+      await commitQueue.run(() => stageD(preparedC));
       return 'indexed';
     }));
 
@@ -554,12 +484,10 @@ async function main() {
     }
   } else {
     for (const filePath of files) {
-      const status = await indexFile(filePath, rootPath, COLLECTION, linkTargetCollections, graph);
+      const status = await indexFile(filePath, rootPath, COLLECTION);
       if (status === 'skipped') skipped++; else indexed++;
     }
   }
-
-  saveGraph(graph, COLLECTION);
 
   if (pruneAllowed) {
     const indexedSourceFiles = files.map(f => relative(effectiveRoot, f).replace(/\\/g, '/'));
@@ -579,10 +507,8 @@ async function main() {
         console.log(`\nPRUNE_STALE: pruning ${stale.length} stale source file(s)...`);
         for (const sf of stale) {
           await deleteBySourceFile(COLLECTION, sf);
-          removeFile(graph, sf);
           console.log(`  - removed: ${sf}`);
         }
-        saveGraph(graph, COLLECTION);
       }
     }
   }

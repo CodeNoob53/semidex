@@ -68,8 +68,6 @@ MCP tools reference:
 | Read a chunk with neighbors | `qdrant_get_chunk(collection, source_file, chunk_index, window=1)` |
 | Find chunks with a tag | `qdrant_find_by_tag(collection, tag)` |
 | Find chunks matching multiple tags | `qdrant_find_by_tag(collection, tags=[...], match="any"\|"all")` |
-| See outgoing semantic links | `qdrant_related(collection, source_file)` |
-| See incoming semantic links | `qdrant_backlinks(collection, source_file)` |
 
 **Truncation rule:** When a tool output says `Found N … showing M` where M < N, the list is truncated — narrow the query with `source_prefix`, `tag_prefix`, or `contains` and re-call.
 
@@ -87,8 +85,7 @@ Use `qdrant_search(..., window=1, window_format="compact", top=3)` as the recomm
 - Use both natural-language and exact-token queries when needed.
 - For config, CLI, or code questions, include exact identifiers: env vars, function names, config keys, log line fragments.
 - If a result is relevant but too narrow, call `qdrant_get_chunk` with a window before acting on it.
-- If the task involves dependencies between documents, use `qdrant_related` and `qdrant_backlinks`; search only gives local chunk relevance.
-- `qdrant_related` — find documents a known file links *to* (outgoing). Use `backlinks` to find documents that link *to* a file (incoming). Both need a known `source_file` to start from and are not topical search.
+- If multiple documents are likely related, use `qdrant_search` with a scoped `source_file` filter to gather evidence across them.
 - If multiple collections exist, use collection descriptions and source files to choose the right one.
 - For ambiguous tasks, gather at least two supporting hits or one hit plus its surrounding chunks before making a claim.
 - Prefer `source_file` filters once a likely file is known. Do not invent a `source_file` filter when no scope is given.
@@ -123,7 +120,7 @@ For details, read `docs/en/configuration.md` or `docs/en/architecture.md`.
 - Do not use MCP tools to index documents; they are read-only.
 - Do not mix embedding providers for the same collection.
 - Do not manually change `vectorSize` or schema fields to avoid reindexing.
-- Do not commit generated `config.json`, `graph.<collection>.json`, model cache, or `chunks_out/` output unless explicitly requested.
+- Do not commit generated `config.json`, model cache, or `chunks_out/` output unless explicitly requested.
 
 ## Troubleshooting
 

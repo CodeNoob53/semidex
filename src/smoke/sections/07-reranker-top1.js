@@ -11,7 +11,6 @@ export default async function ({ ok }) {
   process.env.RERANK_BOOST_SECTION          = '0';
   process.env.RERANK_BOOST_TAGS             = '0';
   process.env.RERANK_BOOST_TEXT             = '0';
-  process.env.RERANK_BOOST_BACKLINK         = '0';
 
   const { rerankResults } = await import('../../core/rerank.js');
 
@@ -19,12 +18,12 @@ export default async function ({ ok }) {
     { score: 0.9, payload: { source_file: 'original', section: '', tags: [], text: '' } },
     { score: 0.5, payload: { source_file: 'boostme',  section: '', tags: [], text: '' } },
   ];
-  const result = await rerankResults(input, 'boostme', { finalLimit: 2, collection: null });
+  const result = await rerankResults(input, 'boostme', { finalLimit: 2 });
   ok('top-1 protection keeps original RRF rank-0 when advantage < delta', result[0].payload.source_file === 'original');
 
   for (const k of ['RERANK_BOOST_SOURCE_FILE', 'RERANK_PROTECT_TOP1_DELTA',
                     'RERANK_BOOST_SECTION', 'RERANK_BOOST_TAGS',
-                    'RERANK_BOOST_TEXT', 'RERANK_BOOST_BACKLINK']) {
+                    'RERANK_BOOST_TEXT']) {
     delete process.env[k];
   }
 }

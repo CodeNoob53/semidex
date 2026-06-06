@@ -255,7 +255,7 @@ These are passed on the command line, not in `.env`:
 | `SOURCE_ROOT` | Root path for stable `source_file` IDs across runs |
 | `PRUNE_STALE` | Set to `1` to remove Qdrant points for source files no longer on disk |
 
-`PRUNE_STALE=1` is opt-in and **directory-scope only**. After the indexing loop completes, it compares source files found on disk against all `source_file` values stored in Qdrant. Any file present in Qdrant but absent from the current directory scan is deleted from Qdrant and removed from the graph.
+`PRUNE_STALE=1` is opt-in and **directory-scope only**. After the indexing loop completes, it compares source files found on disk against all `source_file` values stored in Qdrant. Any file present in Qdrant but absent from the current directory scan is deleted from Qdrant.
 
 Safety constraints:
 - If the target path is a single file (not a directory), `PRUNE_STALE=1` is ignored with a warning. A single-file run cannot safely represent the full collection scope.
@@ -298,13 +298,10 @@ reindex. Changing `CHUNKING_SCHEMA_VERSION` in code (e.g. after a default change
 triggers automatic reindex detection so one collection cannot silently mix
 incompatible chunk boundaries.
 
-## Linking and Review Output
+## Review Output
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `LINK_TOP` | `5` | Top-N semantic neighbors to link |
-| `LINK_MIN_SCORE` | `0.75` | Minimum cosine similarity to create a link |
-| `LINK_COLLECTIONS` | all collections | Comma-separated collection allowlist for linking |
 | `CHUNKS_OUT_DIR` | `./chunks_out` | Obsidian-compatible review output directory |
 
 ## Hybrid Search
@@ -325,7 +322,6 @@ incompatible chunk boundaries.
 | `RERANK_BOOST_SECTION` | `0.06` | Boost per token hit in section |
 | `RERANK_BOOST_TAGS` | `0.05` | Boost per token hit in tags |
 | `RERANK_BOOST_TEXT` | `0.01` | Boost per token hit in body text |
-| `RERANK_BOOST_BACKLINK` | `0.04` | Boost per incoming backlink |
 | `RERANK_BASE_WEIGHT` | `1.00` | Weight applied to the original RRF rank prior before local boosts |
 | `RERANK_PROTECT_TOP1_DELTA` | `0.05` | Minimum advantage required to displace RRF rank-0 |
 | `RERANK_PENALTY_INTRO_CHUNK` | `0.02` | Score penalty for `chunk_index=0` when query has ≥2 technical tokens; discourages overview chunks from beating specific content |

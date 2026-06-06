@@ -131,7 +131,7 @@ When files are deleted or renamed, their Qdrant points remain until explicitly p
 PRUNE_STALE=1 COLLECTION=my-docs npm run index ./docs
 ```
 
-After indexing completes, semidex compares the files found on disk against all `source_file` values stored in Qdrant. Any file present in Qdrant but absent from the current scan is deleted from Qdrant and removed from the graph.
+After indexing completes, semidex compares the files found on disk against all `source_file` values stored in Qdrant. Any file present in Qdrant but absent from the current scan is deleted from Qdrant.
 
 Run only against the **full directory root** used for indexing. Single-file targets are rejected with a warning. When `SOURCE_ROOT` is set, subdirectory targets are also rejected because they cannot safely represent the full collection scope.
 
@@ -220,15 +220,6 @@ The `sync` command ensures that the Qdrant collection is correctly configured fo
 - checks sparse vector support
 - marks schema-incompatible collections as `linkDisabled: true` in `config.json` (flat schema or no named `dense` vector)
 
-**Link target filtering:** `sync` adds every remote Qdrant collection to `config.json`, including collections created by other tools. Collections are marked `linkDisabled: true` and excluded from link-building when any of the following is true:
-
-- flat vector schema (no named `dense` vector) — Stage 1
-- no named `dense` vector at all — Stage 1
-- non-empty collection whose sampled point payload lacks semidex discriminator fields (`source_file`, `chunk_index`, `file_hash`, `dense_provider`, etc.) — Stage 2
-- payload scroll fails during sync (conservative: unknown → disabled) — Stage 2
-
-Empty collections with a compatible schema are not disabled — a newly created semidex collection has no points yet. The current collection being indexed is always included regardless of `linkDisabled`.
-
 **Operational Note:**
 
 - **When to run**: Always run `npm run sync` after upgrading semidex.
@@ -273,8 +264,7 @@ a docs update only reindexes the files that changed.
 }
 ```
 
-`linkDisabled: true` prevents `semidex-docs` from appearing as a cross-file link target
-when user project collections are indexed. Agents can still search it directly.
+Agents can search `semidex-docs` directly via `qdrant_search`.
 
 **Agent usage:**
 
@@ -309,44 +299,6 @@ command exits with a warning rather than overwriting it.
 See [project-structure.md](project-structure.md) for the source tree, runtime
 entry points, benchmark layout, and generated files.
 
-## Semantic Link Building
-
-During indexing, each chunk is searched against one or more collections to build
-cross-file semantic links and backlinks. By default, link building searches only
-collections that are **known to semidex** — i.e. listed in `config.json`. Qdrant
-collections created by other tools or applications are never included as link targets.
-
-By default, the current collection being indexed is always included (intra-collection
-cross-file links are the primary use case).
-
-### LINK_COLLECTIONS — narrow the target set further
-
-Set `LINK_COLLECTIONS` to a comma-separated list of collection names to restrict link
-building to that explicit subset:
-
-```bash
-LINK_COLLECTIONS=my-docs,my-notes COLLECTION=my-docs npm run index ./docs
-```
-
-The allowlist is applied on top of the config-known filter. A collection not in
-`config.json` cannot be added via `LINK_COLLECTIONS`.
-
-When `LINK_COLLECTIONS` is set, the current collection is **not** automatically added.
-Include it explicitly if you want intra-collection links to be built:
-
-```bash
-LINK_COLLECTIONS=my-docs,my-notes COLLECTION=my-docs npm run index ./docs
-#                 ^^^^^^^^ include current collection for intra-collection links
-```
-
-### Tuning thresholds
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `LINK_TOP` | `5` | Top-N semantic neighbors to consider per chunk |
-| `LINK_MIN_SCORE` | `0.75` | Minimum cosine similarity to create a link |
-| `LINK_COLLECTIONS` | all config-known | Comma-separated allowlist to narrow link targets |
-
 ## PDF Ingestion
 
 PDF files are converted to Markdown by `@opendocsg/pdf2md`, then chunked through the same heading-aware `parseMarkdown` path used for `.md` files.
@@ -362,7 +314,7 @@ PDF files are converted to Markdown by `@opendocsg/pdf2md`, then chunked through
 
 ## Legacy Flat Vector Schema Recovery
 
-semidex requires **named vectors**: every Qdrant point must have a `dense` vector and a `sparse` vector stored under those exact names. Search and link building both target `dense` by name; hybrid search also requires `sparse`.
+semidex requires **named vectors**: every Qdrant point must have a `dense` vector and a `sparse` vector stored under those exact names. Search targets `dense` by name; hybrid search also requires `sparse`.
 
 Collections created before semidex adopted named vectors (or created by other tools) may use a **flat schema** — Qdrant stores `{ size, distance }` directly instead of `{ dense: { size, distance } }`. This breaks hybrid search with:
 
@@ -422,7 +374,7 @@ Doctor never mutates. Use `npm run sync` to repair any schema or index issues it
 | `fetch failed` on search with ollama provider | Ollama not running | `ONNX_EMBED=1` makes search use ONNX, but Ollama is still needed for context generation during indexing — preflight will catch this before the loop |
 | Qdrant connection refused or timeout | Qdrant not running or wrong `QDRANT_URL` | Start Qdrant, verify `QDRANT_URL` in `.env`, run `npm run sync` |
 | `Invalid provider combination` | Mixed dense/sparse providers | Use either the default (no extra env) or `ONNX_EMBED=1` — mixed combos are rejected at runtime |
-| Search/link error: `Not existing vector name: dense` | Legacy flat vector schema (`{ size, distance }` instead of named `{ dense, sparse }`) or collection without a named `dense` vector | Run `npm run sync` — if it reports `LEGACY SCHEMA`, the collection must be dropped and reindexed (see below); collections without named `dense` are marked `linkDisabled` automatically |
+| `Not existing vector name: dense` | Legacy flat vector schema (`{ size, distance }` instead of named `{ dense, sparse }`) or collection without a named `dense` vector | Run `npm run sync` — if it reports `LEGACY SCHEMA`, the collection must be dropped and reindexed (see below) |
 | Stale search results after file delete or rename | Old Qdrant points remain | Run full-root `PRUNE_STALE=1 COLLECTION=... npm run index ./root` |
 | Metadata mismatch triggers unexpected full reindex | Changed `ONNX_EMBED`, `DENSE_PROVIDER`, `SPARSE_PROVIDER`, schema version, `vectorSize`, or `TOKEN_COUNT`; or collection predates tokenizer-aware chunking | Expected behavior — let reindex complete; do not interrupt |
 | `pandoc: Unknown input format pdf` | Pandoc cannot read PDFs | PDFs are handled by `@opendocsg/pdf2md`; pandoc is only used for `.docx`, `.odt`, `.rtf`, `.epub`, `.html`, `.htm` |

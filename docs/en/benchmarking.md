@@ -70,8 +70,7 @@ Sample output:
 
 Phase labels: `pre` (hash + stored-meta lookup), `chunk` (parse + split),
 `context` (LLM context summaries), `tag` (LLM tags), `embed+upsert` (ONNX/Ollama
-embeddings + Qdrant upsert), `link` (semantic link search + backlink updates),
-`chunks_out` (Obsidian review file write).
+embeddings + Qdrant upsert), `chunks_out` (Obsidian review file write).
 
 `tokensEst` is a rough estimate: `sum(chunk.text.length / 4)`. Not a precise
 token count — use it to normalise throughput across files of different sizes.
@@ -201,7 +200,7 @@ It covers:
 
 `npm run smoke:retrieval-live` aggregates all three live smokes above (`smoke:window-live`, `smoke:source-filter-live`, `smoke:answer-policy-live`) into a single command. Runs them sequentially and stops on first failure, propagating the exit code. Optional, live-Qdrant-dependent, not part of default CI.
 
-`npm run smoke:prune-live` is a destructive-isolated live integration smoke for `PRUNE_STALE=1`. It creates a uniquely named temporary Qdrant collection (`smoke-prune-<timestamp>`), indexes two small fixture files, deletes one from disk, re-runs the indexer with `PRUNE_STALE=1`, and asserts the deleted file's `source_file` is absent from Qdrant and the graph. Cleans up the temp collection, graph file, and temp directory on exit. Not included in `smoke:retrieval-live` — it is more expensive (two indexer runs, collection create/delete) and destructive in scope.
+`npm run smoke:prune-live` is a destructive-isolated live integration smoke for `PRUNE_STALE=1`. It creates a uniquely named temporary Qdrant collection (`smoke-prune-<timestamp>`), indexes two small fixture files, deletes one from disk, re-runs the indexer with `PRUNE_STALE=1`, and asserts the deleted file's `source_file` is absent from Qdrant. Cleans up the temp collection and temp directory on exit. Not included in `smoke:retrieval-live` — it is more expensive (two indexer runs, collection create/delete) and destructive in scope.
 
 ## Three Benchmark Tiers
 

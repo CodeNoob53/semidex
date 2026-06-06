@@ -92,7 +92,7 @@ All new env vars follow the `envFloat` / `envInt` pattern from `src/core/rerank.
 
 **Decision: create `src/core/ce-rerank.js` as a new module.**
 
-**Rationale:** `src/core/rerank.js` is pure and synchronous with no async I/O, no side effects at module scope beyond `envFloat`/`envInt` reads, and no external dependencies beyond `dotenv` and `graph.js`. Embedding the HF model lifecycle into that file would make it async-at-module-scope, would impose an unconditional `@huggingface/transformers` import on every code path that imports `rerankResults`, and would make CE-specific testing harder to isolate.
+**Rationale:** `src/core/rerank.js` is pure and synchronous with no async I/O, no side effects at module scope beyond `envFloat`/`envInt` reads, and no external dependencies beyond `dotenv`. Embedding the HF model lifecycle into that file would make it async-at-module-scope, would impose an unconditional `@huggingface/transformers` import on every code path that imports `rerankResults`, and would make CE-specific testing harder to isolate.
 
 A separate module is cleaner because:
 1. CE is opt-in and must not affect the hot path even at import time.
@@ -151,7 +151,7 @@ hybridSearch(prefetch N)
 
 ### Does CE rerank the raw RRF pool or det-rerank output?
 
-CE reranks the **det-rerank output** when `RERANK_ENABLED=1 RERANK_CE_ENABLED=1`. Det-rerank applies cheap but meaningful signals (token hits, backlinks, intro-chunk penalty) consistently yielding zero regressions. Running CE on det-rerank output rather than the raw RRF pool means CE's inference budget is spent after clearly relevant candidates have been lifted into the TOP_N window. Critically, `finalLimit` passed to `rerankResults()` in combined mode is `N` (the full pool), not `top`, so CE receives the full ordering, not a pre-sliced top-K.
+CE reranks the **det-rerank output** when `RERANK_ENABLED=1 RERANK_CE_ENABLED=1`. Det-rerank applies cheap but meaningful signals (token hits, source/section/tag/text overlap, intro-chunk penalty) consistently yielding zero regressions. Running CE on det-rerank output rather than the raw RRF pool means CE's inference budget is spent after clearly relevant candidates have been lifted into the TOP_N window. Critically, `finalLimit` passed to `rerankResults()` in combined mode is `N` (the full pool), not `top`, so CE receives the full ordering, not a pre-sliced top-K.
 
 When `RERANK_ENABLED=0 RERANK_CE_ENABLED=1`, CE runs directly on the raw RRF pool up to `RERANK_CE_TOP_N`.
 

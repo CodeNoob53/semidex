@@ -9,14 +9,12 @@ import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprot
 import * as search from './tools/search.js';
 import * as collections from './tools/collections.js';
 import * as getChunk from './tools/getChunk.js';
-import * as related from './tools/related.js';
-import * as backlinks from './tools/backlinks.js';
 import * as findByTag from './tools/findByTag.js';
 import * as listFiles from './tools/listFiles.js';
 import * as listTags from './tools/listTags.js';
 import * as listDirectories from './tools/listDirectories.js';
 
-const tools = [search, collections, getChunk, related, backlinks, findByTag, listFiles, listTags, listDirectories];
+const tools = [search, collections, getChunk, findByTag, listFiles, listTags, listDirectories];
 const toolMap = Object.fromEntries(tools.map(t => [t.schema.name, t.handle]));
 
 const server = new Server(

@@ -1,5 +1,4 @@
 import 'dotenv/config';
-import { loadGraph } from './graph.js';
 
 function envFloat(name, defaultVal, min, max) {
   const v = parseFloat(process.env[name] ?? '');
@@ -75,7 +74,6 @@ const BOOST_SOURCE_FILE  = envFloat('RERANK_BOOST_SOURCE_FILE', 0.08, 0, 10);
 const BOOST_SECTION      = envFloat('RERANK_BOOST_SECTION',     0.06, 0, 10);
 const BOOST_TAGS         = envFloat('RERANK_BOOST_TAGS',        0.05, 0, 10);
 const BOOST_TEXT         = envFloat('RERANK_BOOST_TEXT',        0.01, 0, 10);
-const BOOST_BACKLINK     = envFloat('RERANK_BOOST_BACKLINK',    0.04, 0, 10);
 const BASE_WEIGHT        = envFloat('RERANK_BASE_WEIGHT',       1.00, 0, 10);
 // Minimum score advantage rerank must gain over rank-1 to displace it.
 const PROTECT_TOP1_DELTA = envFloat('RERANK_PROTECT_TOP1_DELTA', 0.05, 0, 10);
@@ -96,19 +94,12 @@ const DEBUG              = process.env.RERANK_DEBUG === '1';
  * @param {string} query       - The search query
  * @param {Object} opts
  * @param {number} opts.finalLimit   - How many to return (default: results.length)
- * @param {string} [opts.collection] - Collection name (for backlink graph)
  * @returns {Array} Reranked, trimmed to finalLimit.
  */
-export function rerankResults(results, query, { finalLimit, collection } = {}) {
+export function rerankResults(results, query, { finalLimit } = {}) {
   if (!results.length) return results;
   const limit = finalLimit ?? results.length;
   const tokens = queryTokens(query); // Map<lowerToken, isTechnical>
-
-  // Load backlink graph once.
-  let graph = {};
-  if (collection) {
-    try { graph = loadGraph(collection); } catch (_) { /* no graph file is fine */ }
-  }
 
   // Phase 1: score each candidate (base + boosts, no diversity yet).
   const scored = results.map((r, rank) => {
@@ -125,9 +116,6 @@ export function rerankResults(results, query, { finalLimit, collection } = {}) {
     const boostSection = Math.min(sectionHits * BOOST_SECTION,     BOOST_SECTION      * 3);
     const boostTags    = Math.min(tagsHits    * BOOST_TAGS,        BOOST_TAGS         * 3);
     const boostText    = Math.min(textHits    * BOOST_TEXT,        BOOST_TEXT         * 5);
-
-    const backlinkCount = graph[p.source_file]?.backlinks?.length ?? 0;
-    const boostBacklink = Math.min(backlinkCount * BOOST_BACKLINK, BOOST_BACKLINK * 5);
 
     // Experimental: text-lead boost — reward early appearance of non-stopword query tokens
     // (technical tokens weighted higher via tokenHits).
@@ -147,7 +135,7 @@ export function rerankResults(results, query, { finalLimit, collection } = {}) {
       }
     }
 
-    const baseScore = base + boostSource + boostSection + boostTags + boostText + boostBacklink +
+    const baseScore = base + boostSource + boostSection + boostTags + boostText +
       boostTextLead - penaltyIntroChunk;
 
     if (DEBUG) {
@@ -156,7 +144,7 @@ export function rerankResults(results, query, { finalLimit, collection } = {}) {
         `rank=${rank + 1} base=${base.toFixed(4)} ` +
         `+src=${boostSource.toFixed(3)} +sec=${boostSection.toFixed(3)} ` +
         `+tags=${boostTags.toFixed(3)} +text=${boostText.toFixed(3)} ` +
-        `+bl=${boostBacklink.toFixed(3)} +lead=${boostTextLead.toFixed(3)} ` +
+        `+lead=${boostTextLead.toFixed(3)} ` +
         `-intro=${penaltyIntroChunk.toFixed(3)} => baseScore=${baseScore.toFixed(4)}`
       );
     }
