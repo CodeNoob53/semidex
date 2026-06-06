@@ -33,9 +33,8 @@ For Qdrant Cloud, set `QDRANT_URL` to the HTTPS cluster URL and provide
 `QDRANT_KEY`. Do not paste API keys into reports or chat summaries.
 
 The semidex MCP server reads semidex config and embeds queries with the
-collection's configured provider. Generic `qdrant-mcp` tools may hardcode the
-wrong embedding provider and can return wrong results for `bge-m3-onnx`
-collections.
+collection's configured provider. A generic `qdrant-mcp` plugin may hardcode the
+wrong embedding provider and return wrong results for `bge-m3-onnx` collections.
 
 ## Search Workflow
 
@@ -43,28 +42,27 @@ Start with collection metadata:
 
 ```text
 qdrant_collection_info()
-  -> qdrant_list_directories(collection, depth=1)                               # map top-level areas
-  -> qdrant_list_directories(collection, source_prefix="<area>/", depth=1|2)   # drill into a known area
-  -> qdrant_list_files(collection, source_prefix="<area>/")                    # list files in that area
-  -> qdrant_search first, inspect tags in results
-  -> qdrant_list_tags(collection, contains="...", source_prefix="<known-area>/")
-     # narrow by substring; add source_prefix when area is already known
-  -> qdrant_find_by_tag for breadth expansion
+  -> qdrant_list_directories(collection, depth=1)
+  -> qdrant_list_directories(collection, source_prefix="<area>/", depth=1|2)
+  -> qdrant_list_files(collection, source_prefix="<area>/")
+  -> qdrant_search(query, collection, top=3, window=1, window_format="compact")
 ```
 
-Always call `list_directories` at depth=1 first, then drill with `source_prefix`. Combine `contains=` with `source_prefix=` when the relevant area is already known to keep tag results focused. Do not guess `source_file` paths.
+Sanity check before relying on results: confirm the expected collection exists and
+`qdrant_collection_info()` shows semidex provider metadata. If it shows only
+generic Qdrant collection names without provider fields, you may be connected to a
+generic Qdrant MCP server instead of semidex MCP — stop and warn.
 
-Sanity check the MCP wiring before relying on search results:
-- Confirm the expected collection exists, usually `semidex-docs`.
-- For `semidex-docs`, expect semidex metadata such as `semidexManaged: true`,
-  provider fields, point count, and a useful description.
-- Legacy or foreign collections may not have `semidexManaged`, but semidex-owned
-  collections should expose provider/management metadata.
-- If `qdrant_collection_info()` returns only generic Qdrant collection names
-  without semidex provider or management metadata, stop and warn that Claude may
-  be connected to a generic Qdrant MCP server instead of semidex MCP.
+For tag discovery and breadth expansion:
 
-Then search with compact neighbors for most work:
+```text
+qdrant_list_tags(collection, contains="...", source_prefix="<known-area>/")
+  -> qdrant_find_by_tag(collection, tags=[...])
+```
+
+Always call `list_directories` at depth=1 first, then drill with `source_prefix`. Do not guess `source_file` paths. Tags are best used for breadth expansion after search, not as a first step.
+
+For most work, search with compact neighbors:
 
 ```text
 qdrant_search(
@@ -78,10 +76,9 @@ qdrant_search(
 
 Use `top=5` for ambiguous, negative, or scope-sensitive queries. For exact
 identifiers, include the exact string in the query: env vars, error messages,
-function names, config keys, CLI flags, model names, file paths, and log
-fragments.
+function names, config keys, CLI flags, model names.
 
-## MCP Tools And Parameters
+## MCP Tools
 
 | Goal | Tool |
 |------|------|
@@ -90,135 +87,44 @@ fragments.
 | List files in a folder | `qdrant_list_files(collection, source_prefix?, tags?, tag_match?)` |
 | List available tags | `qdrant_list_tags(collection, source_prefix?, tag_prefix?, contains?, min_count?)` |
 | Search semantically and lexically | `qdrant_search(query, collection, top=3, window=1, window_format="compact")` |
-| Search inside one file | `qdrant_search(query, collection, source_file="docs/en/retrieval.md", top=3, window=1, window_format="compact")` |
-| Filter by tags | `qdrant_search(query, collection, tags=["providers"], top=5)` |
+| Search inside one file | `qdrant_search(query, collection, source_file=..., top=3, window=1, window_format="compact")` |
+| Filter by tags | `qdrant_search(query, collection, tags=[...], top=5)` |
 | Read a chunk and neighbors | `qdrant_get_chunk(collection, source_file, chunk_index, window=1)` |
 | Find chunks by tag(s) | `qdrant_find_by_tag(collection, tags=[...], match="any"\|"all")` |
 | Follow outgoing semantic links | `qdrant_related(collection, source_file)` |
 | Find incoming semantic links | `qdrant_backlinks(collection, source_file)` |
 
-Notes:
 - `qdrant_search` always uses hybrid dense+sparse RRF.
-- `window_format="compact"` returns snippets for neighbor chunks.
-- Use `qdrant_get_chunk(..., window=1)` when full neighbor text is needed.
-- `tags` on `qdrant_search` are OR filters. Combine with `source_file` only when the file scope is known.
-- `source_prefix` filters by `source_file` path prefix. `tag_prefix` and `contains` filter tag names — they are not `source_file` filters.
-- `qdrant_list_tags` without filters can be noisy on large collections — use `tag_prefix` or `contains` to narrow.
-- `qdrant_list_tags(source_prefix=...)` is most useful after `qdrant_list_directories` has identified the right prefix; skip the directory step and unscoped `list_tags` may return an unmanageable flat list.
-- Do not guess `source_file` when `qdrant_list_directories` / `qdrant_list_files` can resolve it.
-- Tags are best used for breadth expansion after `qdrant_search`, not always as a first step.
-- **Truncation:** `Found N … showing M` means the list is truncated. Narrow with `source_prefix`, `tag_prefix`, or `contains` and re-call — do not treat a truncated list as complete.
-- **Structured-data trigger:** If a compact snippet shows a table header, checklist, YAML/JSON block, or any structure cut mid-row or mid-item, call `qdrant_get_chunk` directly — do not summarize from a truncated snippet. Compact snippets are capped at 150 chars and always truncate multi-row tables.
-- **`qdrant_related` vs `qdrant_backlinks` vs `qdrant_search`:** Use `search` to discover chunks by topic. Use `related` once you have a high-confidence file to find documents it links *to* (outgoing); files with >20 chunks in `reference/` or `skills/` tend to be well-connected — if results are noisy, fall back to `qdrant_search` with a narrower query. Use `backlinks` to find documents that link *to* it (incoming dependencies). `related`/`backlinks` are graph traversal, not ranked topical search — they need a known `source_file` to start from. On large or mixed-domain collections, `related` can return off-topic files — triage by section summary, source family, and tags; do not assume every returned file is relevant.
+- If a compact snippet shows a table, checklist, or YAML/JSON block cut mid-row, call `qdrant_get_chunk` directly — compact snippets are capped at 150 chars.
+- **Truncation:** `Found N … showing M` means the list is truncated. Narrow with `source_prefix`, `tag_prefix`, or `contains` and re-call.
+- `qdrant_related` / `qdrant_backlinks` are graph traversal, not topical search — they need a known `source_file` to start from.
 
 ## Retrieval Safety Rules
 
-- Do not treat absolute RRF scores as confidence. Scores around `0.016-0.033`
-  are normal for hybrid RRF. Compare rank, source file, section, context,
-  exact-token overlap, and neighbor chunks.
-- Verify scope before answering: collection, provider, environment, feature,
-  storage system, and source document.
+- Do not treat absolute RRF scores as confidence. Scores around `0.016–0.033` are normal. Compare rank, source file, section, context, and exact-token overlap.
+- Verify scope before answering: collection, provider, environment, feature, storage system.
 - If evidence is from the wrong scope, say so and do not answer as if it matched.
-- Raw chunks can include stale values, false examples, comments, or distractors.
-  Prefer current, non-distractor evidence tied to the query.
-- Do not use `chunks_out/` as retrieval truth. It is a human review artifact and
-  can be stale.
+- Raw chunks can include stale values, false examples, or distractors. Prefer current, non-distractor evidence.
 
-## Provider Rules
-
-Recommended provider mode:
+## Indexing
 
 ```bash
 ONNX_EMBED=1 COLLECTION=my-docs npm run index ./docs
+PRUNE_STALE=1 ONNX_EMBED=1 COLLECTION=my-docs npm run index ./docs  # full-root stale cleanup only
+npm run sync          # after upgrading or adopting a remote collection
+npm run doctor        # environment health check
 ```
 
-Provider combinations:
-
-| Dense provider | Sparse provider | Use |
-|----------------|-----------------|-----|
-| `bge-m3-onnx` | `bge-m3-onnx` | Recommended quality path |
-| `ollama` | `hashed-tf` | Fallback when ONNX is unavailable |
-
-Do not mix providers in one collection. Changing provider, model, schema
-version, or vector size requires reindexing.
-
-Hardware env vars:
-
-```bash
-ONNX_EXECUTION_PROVIDER=cpu   # default, portable
-ONNX_EXECUTION_PROVIDER=dml   # Windows GPU path: NVIDIA/AMD/Intel via DirectML
-ONNX_EXECUTION_PROVIDER=cuda  # Linux NVIDIA experimental; requires CUDA/cuDNN
-ONNX_CUDA_STRICT=1            # fail instead of silent CPU fallback for CUDA
-ONNX_BATCH_SIZE=4             # opt-in DML batching tuning
-```
-
-Windows CUDA is not supported by the prebuilt npm path; use `dml` on Windows.
-
-## Indexing Commands
-
-Core commands:
-
-```bash
-npm run doctor
-ONNX_EMBED=1 COLLECTION=my-docs npm run index ./docs
-PRUNE_STALE=1 ONNX_EMBED=1 COLLECTION=my-docs npm run index ./docs
-npm run sync
-npm run smoke
-```
-
-Rules:
-- Always set `COLLECTION` before running `npm run index`.
-- There is no separate collection-create command. If `COLLECTION` does not
-  exist, the first `npm run index` creates it automatically with named `dense`
-  and `sparse` vectors, required payload indexes, and a matching `config.json`
-  entry.
-- Do not manually create semidex collections through generic Qdrant tools. The
-  semidex MCP tools are read-only: they inspect and search existing collections
-  but do not index documents.
-- Run `npm run sync` after upgrading semidex or when adopting an existing remote
-  collection. It is safe to re-run, but it is not required before first
-  indexing.
-- Use `PRUNE_STALE=1` only on the full source root, never on a single file or
-  subset directory.
-- `.semidexignore` can exclude top-level entry names during directory indexing.
-- PDF files are converted through `@opendocsg/pdf2md`; scanned/image PDFs may
-  have empty sections.
-
-## Combined Context And Tags
-
-Combined LLM mode is opt-in:
-
-```bash
-COMBINED_LLM=1 CONTEXT_MODEL=qwen2.5:3b-instruct ONNX_EMBED=1 COLLECTION=my-docs npm run index ./docs
-```
-
-Rules:
-- When `COMBINED_LLM=1`, semidex uses `CONTEXT_MODEL` for both context and tags.
-- If `TAG_MODEL` is set differently, treat it as ignored in combined mode.
-- Tags are payload/filter metadata; do not assume they are embedded into the
-  retrieval prefix.
-
-Benchmark-only prompt policy:
-
-```bash
-BENCH_CONTEXT_POLICY=current-minimal
-BENCH_CONTEXT_POLICY=identifier-preserving
-BENCH_CONTEXT_POLICY=section-window-aware
-npm run bench:custom50:context-policy
-```
-
-Do not use `BENCH_CONTEXT_POLICY` as production configuration. Current benchmark
-finding: `identifier-preserving` is promising but needs repeat runs;
-`section-window-aware` is deferred because of recall risk.
+- Always set `COLLECTION`. Use `ONNX_EMBED=1` for serious indexing.
+- Do not mix providers in one collection. Provider/schema changes require reindexing.
+- Use `PRUNE_STALE=1` only against the full source root, never a subset.
 
 ## Troubleshooting
 
-- Run `npm run doctor` first for unclear environment failures.
-- If Qdrant returns `403`, rotate or update `QDRANT_KEY`.
-- If Ollama is unreachable, start `ollama serve`.
-- If required Ollama models are missing, run the `ollama pull <model>` command
-  shown by preflight/doctor.
-- If Qdrant says `Not existing vector name: dense`, run `npm run sync`; legacy
-  flat-schema collections may need reindexing.
-- If search looks wrong, check `qdrant_collection_info()` provider metadata
-  before changing ranking logic.
+- Run `npm run doctor` first.
+- Qdrant unreachable → check `QDRANT_URL`; run `npm run sync`.
+- Ollama unreachable → start `ollama serve`; pull missing models.
+- `Not existing vector name: dense` → run `npm run sync`; if legacy schema, drop and reindex.
+- Search looks wrong → check `qdrant_collection_info()` provider metadata before changing ranking logic.
+
+If these instructions are insufficient, read the relevant file under `docs/`.
