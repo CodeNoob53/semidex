@@ -38,6 +38,36 @@ function placeholderFor(sourceFile, n) {
   return `[${label} node: ${nodePathOf(sourceFile, n)}${hint ? ` — ${hint}` : ''}]`;
 }
 
+// ── Deterministic context (design §12, re-decided 2026-06-10) ───────────────
+// Cost math on a real code-heavy corpus killed the original §12 plan: entity
+// count alone (65) exceeded the legacy chunk count (49), so per-entity LLM
+// context would COST MORE than legacy, not less. Instead, context is built
+// deterministically from what the skeleton already knows:
+//   prose  : heading path ("Тема › Розділ") — locational signal in the vector;
+//   entity : heading path + node type + the closing sentence of the adjacent
+//            prose (the same prose that carries this entity's placeholder).
+// Result: 0 LLM calls per skeleton file (vs N in legacy). LLM context stays
+// available as an explicit opt-in (SKELETON_CONTEXT=llm) for Stage-3 A/B runs.
+
+function lastSentenceOf(text, maxChars = 180) {
+  const t = String(text ?? '').trim();
+  if (!t) return '';
+  const noPh = t.split('\n').filter(l => !/^\[[^\]]*node: /.test(l.trim())).join(' ').trim();
+  const sentences = noPh.match(/[^.!?]+[.!?]+|[^.!?]+$/g) ?? [];
+  return (sentences.at(-1) ?? '').trim().slice(0, maxChars);
+}
+
+function proseContext(headingPath) {
+  return (headingPath ?? []).join(' › ');
+}
+
+function entityContext(headingPath, nodeType, neighborProse) {
+  const where = (headingPath ?? []).join(' › ');
+  const label = nodeType === 'code_block' ? 'code block' : nodeType;
+  const near  = lastSentenceOf(neighborProse);
+  return [where, label, near].filter(Boolean).join(' — ');
+}
+
 // Inline form for merged tiny code: keep it searchable inside prose.
 function inlineTinyCode(n) {
   const body = String(n.text ?? '').trim();
@@ -82,6 +112,7 @@ export function chunkFromSkeleton(nodes, ctx = {}) {
       const ordinal = nextProseOrdinal(proseParentPath);
       out.push({
         text: piece,
+        context: proseContext(proseHeadingPath),
         section: proseSection,
         source_file: sourceFile,
         meta, links,
@@ -136,12 +167,16 @@ export function chunkFromSkeleton(nodes, ctx = {}) {
         // out by isContentBearing — placeholders are never content (§7.3/§11).
         const bearing = isContentBearing(n);
         const hadPrecedingProse = proseParts.length > 0;
+        const neighborProse = hadPrecedingProse
+          ? proseParts.join(' ')
+          : (lastProseIdx >= 0 ? out[lastProseIdx].text : '');
         if (bearing && hadPrecedingProse) proseParts.push(placeholderFor(sourceFile, n));
         flushProse();
         if (!bearing) break;               // defensive — structural types pass
 
         out.push({
           text: n.rawContent,              // display/embedding input stays raw for MVP
+          context: entityContext(n.headingPath, n.nodeType, neighborProse),
           section: proseSection,
           source_file: sourceFile,
           meta, links,

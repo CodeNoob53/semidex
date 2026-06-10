@@ -90,6 +90,16 @@ export default async function ({ ok }) {
   ok('exactly one table placeholder', tablePh.length === 1 && tablePh[0].node_type === 'paragraph');
   ok('exactly one code placeholder',  codePh.length === 1 && codePh[0].node_type === 'paragraph');
 
+  // deterministic context (design §12): present on every chunk, zero LLM calls
+  ok('every chunk carries deterministic context',
+     chunks.every(c => typeof c.context === 'string' && c.context.length > 0));
+  ok('paragraph context = heading path',
+     byType('paragraph').some(c => c.context === 'Install'));
+  ok('entity context carries heading + type + neighbor sentence',
+     byType('table')[0].context.includes('Install') &&
+     byType('table')[0].context.includes('table') &&
+     /directives/.test(byType('table')[0].context));
+
   // empty section: no chunk emitted for it, heading-only never becomes content
   ok('empty section emits nothing', !chunks.some(c => c.section === 'Empty Section'));
 
