@@ -85,3 +85,54 @@ export function skeletonPayloadFields(chunk) {
 export function makeSkeletonPointId({ collection, nodeId, embeddingSchemaVersion }) {
   return uuidv5(`point:${collection ?? ''}\x00${nodeId ?? ''}\x00${embeddingSchemaVersion ?? ''}`);
 }
+
+/**
+ * Payload for a skeleton_nav point (impl spec task 6). Pure assembly.
+ *
+ * Nav points carry ALL semidex discriminator fields (source_file, file_hash,
+ * provider metadata, schema versions) so isSemidexPayload() recognises them —
+ * otherwise a nav point sampled by `npm run sync` would mark the collection
+ * "foreign". chunk_index is -1 by contract: never matched by the range
+ * filters in fetchWindowChunks / deleteTrailingChunks (both use gte: 0+).
+ *
+ * Cleanup: nav points carry source_file, so deleteBySourceFile (skeleton
+ * files always pre-delete) and PRUNE_STALE cover them automatically.
+ *
+ * @param {Object} navPoint — node from buildFileSkeleton()
+ * @param {Object} ctx — { fileHash, vectorSize, tokenCountMode,
+ *                         chunkingSchemaVersion, embedMeta }
+ * @returns {Object} Qdrant payload
+ */
+export function buildNavPointPayload(navPoint, ctx = {}) {
+  return {
+    // Display/content: agents read the summary; text mirrors it for tools
+    // that render payload.text.
+    text:        navPoint.summary ?? '',
+    summary:     navPoint.summary ?? '',
+    context:     '',
+    section:     navPoint.node_type === 'section' ? (navPoint.heading_path?.at(-1) ?? '') : '',
+    tags:        [],
+    links:       [],
+    children:    navPoint.children ?? [],
+
+    // Skeleton graph fields.
+    point_kind:              navPoint.point_kind,
+    node_type:               navPoint.node_type,
+    node_id:                 navPoint.node_id,
+    node_path:               navPoint.node_path,
+    parent_id:               navPoint.parent_id ?? null,
+    heading_path:            navPoint.heading_path ?? [],
+    chunking_model:          SKELETON_CHUNKING_MODEL,
+    indexing_schema_version: INDEXING_SCHEMA_VERSION,
+
+    // semidex discriminator fields (isSemidexPayload contract).
+    source_file:             navPoint.source_file,
+    chunk_index:             -1,               // nav contract: outside all ranges
+    total_chunks:            -1,
+    file_hash:               ctx.fileHash ?? null,
+    vector_size:             ctx.vectorSize ?? null,
+    chunking_schema_version: ctx.chunkingSchemaVersion ?? null,
+    token_count_mode:        ctx.tokenCountMode ?? null,
+    ...(ctx.embedMeta ?? {}),                  // dense/sparse provider fields
+  };
+}
