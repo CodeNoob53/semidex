@@ -584,10 +584,11 @@ export async function chunkFileFromPath(filePath, sourceFile) {
   // Everything below this block is the legacy pipeline, byte-identical when
   // the flag is unset (smoke section 45 guards this).
   if (process.env.SKELETON_CHUNKING === '1' && ext === '.md') {
-    const [skeletonMod, chunkMod, warnMod] = await Promise.all([
+    const [skeletonMod, chunkMod, warnMod, indexMod] = await Promise.all([
       import('./skeleton.js'),
       import('./skeleton-chunk.js'),
       import('../skeleton-warnings.js'),
+      import('./skeleton-index.js'),
     ]);
     const raw = readFileSync(filePath, 'utf8');
     const skel = skeletonMod.parseSkeleton(raw, { sourceFile });
@@ -595,7 +596,15 @@ export async function chunkFileFromPath(filePath, sourceFile) {
       collection: process.env.COLLECTION ?? '', sourceFile,
     });
     for (const e of events) warnMod.logSkeletonWarning(e);
-    return chunkMod.chunkFromSkeleton(skel, { sourceFile });
+    // Task 4 (impl spec §11): file-skeleton inspect artifact ONLY — the
+    // navPoints Qdrant upsert stays disabled until task 6 (filter-first order).
+    const { json } = indexMod.buildFileSkeleton(skel, { sourceFile });
+    indexMod.writeFileSkeletonArtifact(json, {
+      collection: process.env.COLLECTION ?? '', sourceFile,
+    });
+    // Wikilinks parity with the legacy path (audit finding 2026-06-10):
+    // legacy chunkFile() extracts [[wikilinks]]; the skeleton path must too.
+    return chunkMod.chunkFromSkeleton(skel, { sourceFile, links: parseWikilinks(raw) });
   }
 
   if (ext === '.pdf') {

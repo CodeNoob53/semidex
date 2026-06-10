@@ -5,9 +5,10 @@ export default async function ({ ok }) {
   console.log('\n[46] skeleton payload — additive fields + B1 reindex meta');
 
   const {
-    expectedChunkingMeta, skeletonPayloadFields, isSkeletonChunk,
+    expectedChunkingMeta, skeletonPayloadFields, isSkeletonChunk, makeSkeletonPointId,
     SKELETON_CHUNKING_MODEL, INDEXING_SCHEMA_VERSION,
   } = await import('../../indexer/skeleton-payload.js');
+  const { makePointId } = await import('../../core/point-id.js');
 
   // ── expectedChunkingMeta (B1: skip-tuple input) ─────────────────────────────
   const on  = { SKELETON_CHUNKING: '1' };
@@ -57,6 +58,18 @@ export default async function ({ ok }) {
   const legacyChunk = { text: 't', section: 's', chunkIndex: 0, totalChunks: 1 };
   ok('legacy chunk → empty object', Object.keys(skeletonPayloadFields(legacyChunk)).length === 0);
   ok('isSkeletonChunk discriminates', isSkeletonChunk(skelChunk) && !isSkeletonChunk(legacyChunk));
+
+  // ── makeSkeletonPointId (transitional stage collapsed) ──────────────────────
+  const pidArgs = { collection: 'col-a', nodeId: 'node-uuid-1', embeddingSchemaVersion: 2 };
+  ok('skeleton point ID deterministic', makeSkeletonPointId(pidArgs) === makeSkeletonPointId(pidArgs));
+  ok('skeleton point ID is a UUID',
+     /^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(makeSkeletonPointId(pidArgs)));
+  ok('changes with collection', makeSkeletonPointId({ ...pidArgs, collection: 'col-b' }) !== makeSkeletonPointId(pidArgs));
+  ok('changes with node_id',    makeSkeletonPointId({ ...pidArgs, nodeId: 'node-uuid-2' }) !== makeSkeletonPointId(pidArgs));
+  ok('changes with embedding schema', makeSkeletonPointId({ ...pidArgs, embeddingSchemaVersion: 3 }) !== makeSkeletonPointId(pidArgs));
+  // Disjoint from the legacy point-ID space even on colliding inputs.
+  ok('disjoint from makePointId space',
+     makeSkeletonPointId(pidArgs) !== makePointId({ collection: 'col-a', sourceFile: 'node-uuid-1', chunkIndex: 0, embeddingSchemaVersion: 2 }));
 
   // ── end-to-end: chunkFromSkeleton output → payload fields round-trip ────────
   const { parseSkeleton } = await import('../../indexer/phases/skeleton.js');

@@ -23,7 +23,7 @@ import { CHUNKING_SCHEMA_VERSION, getTokenCounter, resolveTokenCountMode } from 
 import { Semaphore } from './semaphore.js';
 import { SerialQueue } from './serial-queue.js';
 import { envInt } from '../core/env.js';
-import { expectedChunkingMeta, skeletonPayloadFields, isSkeletonChunk } from './skeleton-payload.js';
+import { expectedChunkingMeta, skeletonPayloadFields, isSkeletonChunk, makeSkeletonPointId } from './skeleton-payload.js';
 
 const BATCH_SIZE   = envInt('LLM_BATCH_SIZE', 3, 1, 64, '[indexer] ');
 const COLLECTION   = process.env.COLLECTION;
@@ -92,7 +92,11 @@ async function stageA(filePath, rootPath, collection, profiler) {
 
   // Compute whether a pre-delete is needed, but do NOT execute it yet.
   // Qdrant delete happens in stageD (after embed succeeds in stageC).
-  const needsDelete = Boolean(storedHash && !process.env.SKIP_PRE_DELETE);
+  let needsDelete = Boolean(storedHash && !process.env.SKIP_PRE_DELETE);
+  if (storedHash && process.env.SKIP_PRE_DELETE && chunkMeta.chunkingModel) {
+    console.warn('  [skeleton] SKIP_PRE_DELETE ignored for skeleton-v1 files — node-derived point IDs require full pre-delete');
+    needsDelete = true;
+  }
   let deleteReason = '';
   if (needsDelete) {
     const reasons = [];
@@ -268,12 +272,21 @@ async function stageC(withTagged) {
     return {
       dense,
       point: {
-        id: makePointId({
-          collection,
-          sourceFile: chunk.source_file,
-          chunkIndex: chunk.chunkIndex,
-          embeddingSchemaVersion: embedCfg.schemaVersion,
-        }),
+        // Skeleton-v1: point identity follows the structural node, not the
+        // positional chunkIndex (transitional stage collapsed 2026-06-10).
+        // Legacy: unchanged chunkIndex-based IDs.
+        id: isSkeletonChunk(chunk)
+          ? makeSkeletonPointId({
+              collection,
+              nodeId: chunk.node_id,
+              embeddingSchemaVersion: embedCfg.schemaVersion,
+            })
+          : makePointId({
+              collection,
+              sourceFile: chunk.source_file,
+              chunkIndex: chunk.chunkIndex,
+              embeddingSchemaVersion: embedCfg.schemaVersion,
+            }),
         vector: { dense, sparse },
         payload: {
           text: chunk.text,

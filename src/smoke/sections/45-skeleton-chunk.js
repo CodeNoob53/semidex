@@ -21,8 +21,9 @@ Create the service unit with these directives in mind.
 
 \`\`\`js
 const svc = require('./svc');
-svc.start({ retries: 3 });
-console.log('started');
+const result = svc.start({ retries: 3, timeout: 5000 });
+if (!result.ok) throw new Error('startup failed: ' + result.reason);
+console.log('started', result.pid);
 \`\`\`
 
 ## Empty Section

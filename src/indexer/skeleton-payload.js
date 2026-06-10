@@ -11,6 +11,7 @@
 //      chunking_model IS the legacy marker).
 
 import { extname } from 'path';
+import { uuidv5 } from '../core/point-id.js';
 
 export const SKELETON_CHUNKING_MODEL = 'skeleton-v1';
 // Indexing schema (impl spec §9): versions the point model + chunking behavior,
@@ -62,4 +63,25 @@ export function skeletonPayloadFields(chunk) {
   };
   if (chunk.lang !== undefined && chunk.lang !== null) fields.lang = chunk.lang;
   return fields;
+}
+
+/**
+ * Point ID for a skeleton-v1 chunk — derived from node_id, NOT chunk_index.
+ *
+ * Transitional stage collapsed (2026-06-10): impl spec §6 originally kept
+ * chunkIndex-based point IDs "for MVP" with a later migration. Migrating after
+ * collections grow would force a full reindex of every skeleton collection;
+ * doing it while skeleton is opt-in and collections are experimental is free.
+ *
+ * Identity = collection + node_id + embedding schema version. The "point:"
+ * domain prefix keeps this ID space disjoint from makePointId and makeNodeId.
+ * Cleanup contract: node-derived IDs do not overwrite positionally on
+ * structural edits, so skeleton files ALWAYS pre-delete before upsert —
+ * SKIP_PRE_DELETE is ignored for skeleton-v1 files (stageA logs this).
+ *
+ * @param {{ collection: string, nodeId: string, embeddingSchemaVersion: number }} parts
+ * @returns {string} UUID
+ */
+export function makeSkeletonPointId({ collection, nodeId, embeddingSchemaVersion }) {
+  return uuidv5(`point:${collection ?? ''}\x00${nodeId ?? ''}\x00${embeddingSchemaVersion ?? ''}`);
 }
