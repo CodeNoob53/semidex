@@ -1,6 +1,6 @@
 # Skeleton-first Chunking — Implementation Spec (MVP)
 
-> Похідний від `skeleton-first-chunking.md` (design v3). Тут — **технічна
+> Похідний від `skeleton-first-chunking.md` (design v4, узгоджено 2026-06-10). Тут — **технічна
 > специфікація**, не код: сигнатури, файли, payload-схема, індекси, прапор, тести,
 > fixture і жорсткі обмеження. Реалізація йде потім, маленькими задачами (§11).
 >
@@ -341,12 +341,35 @@ chunk_index, total_chunks, file_hash, vector_size, ...meta`). Нові поля:
 
 ## 9. Версіонування
 
-- `indexing_schema_version` стартує з `3` (design §13). Зберігається у payload і
-  stored-meta.
+| Поле | Що версіонує | У reindex-кортежі stageA | Примітка |
+|------|-------------|--------------------------|---------|
+| `embedding_schema_version` | vector shape / provider | ✅ вже є | не чіпаємо |
+| `chunking_schema_version` | алгоритм розбивки / overlap / токен-режим | ✅ вже є (`CHUNKING_SCHEMA_VERSION` у `token-count.js`) | **не замінюємо**; legacy-точки мають це поле |
+| `indexing_schema_version` | point model (нові поля, point_kind, node_id) | ✅ **додати у задачі 3** | нове поле; стартує з `3`; legacy-точки поля НЕ мають → відсутність = legacy |
+| `chunking_model` | яким парсером побудовано чанки | ✅ **додати у задачі 3** | `"skeleton-v1"` або відсутнє (legacy); входить у skip-порівняння |
+
+**Правило skip у stageA після задачі 3:**
+```
+skip ←  hash == storedHash
+     && denseProvider == stored  && denseModel == stored
+     && sparseProvider == stored
+     && embeddingSchemaVersion == stored
+     && chunkingSchemaVersion == stored    // вже є
+     && tokenCountMode == stored           // вже є
+     && vectorSize == stored
+     && indexingSchemaVersion == stored    // НОВЕ
+     && chunkingModel == stored            // НОВЕ (null/absent = legacy)
+```
+
 - `embedding_schema_version` (`SCHEMA_VERSION` у `core/embeddings.js`) **не чіпаємо** —
   вектор/провайдер не змінюються.
-- Зміна chunking-моделі = нова indexing-версія; реіндекс skeleton-колекції повний
-  (через `FORCE_REINDEX` або зміну `chunking_model` у meta).
+- `chunking_schema_version` **не замінюємо** на `indexing_schema_version` — обидва живуть
+  паралельно; `chunking_schema_version` залишається в legacy-точках і далі бампується при
+  змінах алгоритму розбивки/overlap.
+- Зміна chunking-моделі = зміна `chunking_model` у stored-meta → stageA побачить різницю
+  і запустить повний реіндекс (без `FORCE_REINDEX`).
+- **Smoke-тест (задача 3):** увімкнути `SKELETON_CHUNKING=1` для вже проіндексованого файлу →
+  stageA повинен запустити реіндекс (не `skipped`).
 
 ---
 
@@ -381,9 +404,18 @@ chunk_index, total_chunks, file_hash, vector_size, ...meta`). Нові поля:
    `indexing_schema_version`/`chunking_model`. Вимкнення empty-guard для skeleton-v1.
 4. `buildFileSkeleton` — **тільки `*.skeleton.json`** (inspect), **БЕЗ Qdrant upsert
    skeleton_nav**. Це знімає ризик протікання nav-вузлів у пошук, поки фільтр відсутній.
-5. **Search-фільтр `point_kind="retrieval_content"`** (за `chunking_model` колекції,
-   design §9) у всіх шляхах пошуку (`qdrant_search`, link/backlink). **Передумова**
-   будь-якого upsert skeleton_nav.
+5. **Фільтр `point_kind="retrieval_content"`** (за `chunking_model` колекції, design §9)
+   у **всіх** шляхах де nav-вузли спотворять результат:
+   - `qdrant_search`, link/backlink — пошук
+   - `qdrant_list_files` / `aggregateFiles` — `chunkCount`, `minChunkIndex`, `firstSection`
+     рахуватимуться лише по `retrieval_content`; nav-вузли мають `source_file`, але
+     не є контентом → завищать лічильники
+   - `qdrant_list_directories` — те саме для агрегації по директорії
+   - `qdrant_list_tags` — nav-вузли не матимуть тегів, але scroll-скан без фільтру
+     тягне зайві сторінки
+   - `qdrant_get_chunk` / `fetchWindowChunks` — захищені непрямо (nav-вузли без
+     `chunk_index`), але явний фільтр безпечніший
+   **Передумова будь-якого upsert skeleton_nav.**
 6. Аж тепер — **upsert skeleton_nav** у Qdrant (після того, як фільтр уже діє).
 7. Benchmark-fixture + qrel із `node_id` (без раннера).
 8. (Пізніше, окремі етапи) MCP-tools

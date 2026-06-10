@@ -229,7 +229,9 @@ Planned work:
 - evaluate a neutral document profile as the baseline; keep private corpora
   private;
 - measure indexing throughput, token volume, LLM cost, Qdrant operations,
-  payload/storage growth, MCP list-tool latency, and per-phase wall time;
+  payload/storage growth (skeleton stores `text` + `raw_content` + future
+  `embedding_text` — expect 2–3× payload vs legacy), MCP list-tool latency
+  (scroll-based aggregations grow with point count), and per-phase wall time;
 - profile expensive phases before optimizing them;
 - add selected external evaluation datasets when their metrics match
   semidex's purpose.

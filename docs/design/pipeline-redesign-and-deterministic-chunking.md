@@ -1,6 +1,11 @@
 # Pipeline Redesign and Deterministic Chunking
 
-Status: draft for implementation planning.
+Status: implemented decision record (2026-06-10).
+
+All proposals in this document are fully implemented in production code:
+`PIPELINE_MODE`, stage A–D pipeline, `Semaphore`/`SerialQueue` concurrency
+primitives, deterministic chunk merge without LLM. See `src/indexer/index.js`,
+`src/indexer/semaphore.js`, `src/indexer/serial-queue.js`.
 
 This note records the proposed indexing pipeline redesign discussed after the
 pipeline bottleneck profiling work.

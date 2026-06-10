@@ -344,7 +344,9 @@ skeleton-моделі порожнеча зникає **за побудовою*
    лише тоді**, коли проходить предикат:
    ```
    isContentBearing(node):
-     structural (table/code/checklist/image-ref) -> true (має raw_content / metadata)
+     structural (table/code/checklist) -> true (має raw_content / metadata)
+     // image має policy=future_processor → point_kind=skeleton_nav, а не retrieval_content;
+     // isContentBearing для image не викликається
      prose (paragraph/list/blockquote)
        -> normalize(text) має >= MIN_CONTENT_TOKENS значущих токенів
           (після зняття whitespace, самотніх пунктуаційних/маркерних символів,
@@ -361,7 +363,7 @@ skeleton-моделі порожнеча зникає **за побудовою*
 
 Наслідок: `empty-section.js` для skeleton-v1 **не потрібен** — нема що
 пост-фільтрувати. `MIN_CONTENT_TOKENS` — єдиний параметр, фіксуємо бенчмарком
-(стартове значення мале, напр. 3–5 значущих токенів).
+(стартове значення 4; фіналізувати бенчмарком).
 
 ---
 
@@ -399,14 +401,15 @@ embedding_text =
 {
   "point_kind": "skeleton_nav",
   "node_type": "section",
-  "node_id": "guide.md#sec-3",
+  "node_id": "e7f3a1b2...",              // СТАБІЛЬНИЙ hash (як у §6), НЕ node_path
+  "node_path": "docs/guide.md#sec-3",   // human-readable, може мінятись при редагуванні
   "source_file": "docs/guide.md",
   "heading_path": ["Linux", "systemd", "Autostart"],
   "summary": "Section about enabling services at boot and configuring unit files.",
   "children": [
-    "guide.md#sec-3/paragraph-1",
-    "guide.md#sec-3/table-1",
-    "guide.md#sec-3/code-1"
+    "e8a2c4d1...",   // node_id параграфа (hash), не node_path
+    "f1b3e5a7...",   // node_id table-1
+    "a2c4f6b8..."    // node_id code-1
   ]
 }
 ```
@@ -628,6 +631,9 @@ drill-down, а не перечитує весь проєкт.
 ---
 
 ## 17.1 Споживачі skeleton — стратегічний vision
+
+> **Scope note:** цей розділ описує довгостроковий vision поза MVP. Реалізація
+> охоплена Track B (Codebase Memory) та Track D (Control Panel) у `docs/en/roadmap.md`.
 
 Skeleton — це не тільки chunking архітектура. Це **universal index** який обслуговує
 три принципово різні групи споживачів з одних і тих самих даних:
