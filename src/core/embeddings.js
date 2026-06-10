@@ -15,6 +15,7 @@
 import { embed as ollamaEmbed } from './ollama.js';
 import { encode as hashedTfEncode } from './sparse.js';
 import { getDenseProvider, getDenseModel, getSparseProvider } from './config.js';
+import { assertProviderCombo } from './env.js';
 
 export const SCHEMA_VERSION = 2;
 
@@ -113,7 +114,7 @@ export async function embedForIndex(collection, text) {
  */
 export async function embedForIndexBatch(collection, texts, runBatched, batchSize) {
   const cfg = getEmbeddingConfig(collection);
-  assertValidCombo(cfg.denseProvider, cfg.sparseProvider);
+  assertProviderCombo(cfg.denseProvider, cfg.sparseProvider);
   const meta = {
     dense_provider:           cfg.denseProvider,
     dense_model:              cfg.denseModel,
@@ -146,20 +147,9 @@ export async function embedForSearch(collection, query) {
   return _embed(cfg, query);
 }
 
-const VALID_COMBOS = new Set(['ollama:hashed-tf', 'bge-m3-onnx:bge-m3-onnx']);
-
-function assertValidCombo(denseProvider, sparseProvider) {
-  const key = `${denseProvider}:${sparseProvider}`;
-  if (!VALID_COMBOS.has(key)) {
-    throw new Error(
-      `Unsupported provider combination: denseProvider="${denseProvider}", sparseProvider="${sparseProvider}". ` +
-      `Valid combinations: ollama+hashed-tf, bge-m3-onnx+bge-m3-onnx.`
-    );
-  }
-}
 
 async function _embed(cfg, text) {
-  assertValidCombo(cfg.denseProvider, cfg.sparseProvider);
+  assertProviderCombo(cfg.denseProvider, cfg.sparseProvider);
 
   if (cfg.denseProvider === 'bge-m3-onnx') {
     const embedOnnx = await loadOnnx();

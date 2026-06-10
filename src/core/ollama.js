@@ -7,6 +7,7 @@ export async function embed(text, model) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ model, input: text.slice(0, 8000) }),
+    // Note: input is truncated to 8000 chars (not tokens) — long chunks lose their tail.
   });
   if (!r.ok) throw new Error(`Ollama embed failed: ${await r.text()}`);
   const data = await r.json();

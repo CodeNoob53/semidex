@@ -59,7 +59,29 @@ export default async function ({ ok }) {
   ok('isIgnored: "raw" pattern matches entry "raw"',        isIgnored('raw',    ['raw']));
   ok('isIgnored: non-ignored entry not matched',            !isIgnored('sub',   ['raw/', 'assets/']));
 
+  // 29e. Glob patterns.
+  ok('isIgnored: *.txt matches file.txt',              isIgnored('file.txt',         ['*.txt']));
+  ok('isIgnored: *.txt does not match file.md',        !isIgnored('file.md',         ['*.txt']));
+  ok('isIgnored: **/*.txt matches sub/file.txt',       isIgnored('sub/file.txt',     ['**/*.txt']));
+  ok('isIgnored: drafts/*.md matches drafts/x.md',    isIgnored('drafts/x.md',      ['drafts/*.md']));
+  ok('isIgnored: drafts/*.md does not match sub/x.md', !isIgnored('sub/x.md',       ['drafts/*.md']));
+  ok('isIgnored: path pattern sub/deep.md matches',   isIgnored('sub/deep.md',      ['sub/deep.md']));
+
+  // 29f. Glob collectFiles — *.txt excluded from root.
+  const base3 = join(tmpdir(), `semidex-ignore-test3-${Date.now()}`);
+  mkdirSync(join(base3, 'sub'), { recursive: true });
+  writeFileSync(join(base3, 'keep.md'),     'keep');
+  writeFileSync(join(base3, 'skip.txt'),    'skip');
+  writeFileSync(join(base3, 'sub', 'a.md'), 'a');
+  writeFileSync(join(base3, '.semidexignore'), '*.txt\n');
+  const files3 = collectFiles(base3);
+  const names3 = files3.map(f => f.replace(base3, '').replace(/\\/g, '/'));
+  ok('glob: keep.md included',   names3.includes('/keep.md'));
+  ok('glob: skip.txt excluded',  !names3.includes('/skip.txt'));
+  ok('glob: sub/a.md included',  names3.includes('/sub/a.md'));
+
   // Cleanup
   rmSync(base,  { recursive: true, force: true });
   rmSync(base2, { recursive: true, force: true });
+  rmSync(base3, { recursive: true, force: true });
 }

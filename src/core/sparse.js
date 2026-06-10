@@ -20,7 +20,7 @@ const STOP_WORDS = new Set([
 function tokenize(text) {
   return text
     .toLowerCase()
-    .replace(/[^a-zа-яіїєґ0-9\s]/gu, ' ')
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
     .split(/\s+/)
     .filter(t => t.length > 1 && !STOP_WORDS.has(t));
 }

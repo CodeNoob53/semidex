@@ -24,7 +24,7 @@ export default async function ({ ok, throwsAsync, withConfig }) {
     await throwsAsync(
       'embedForSearch with bad config combo throws',
       () => embMod.embedForSearch('__smoke_bad__', 'test query'),
-      'Unsupported provider combination'
+      'Invalid provider combination'
     );
   });
 }

@@ -1,17 +1,8 @@
 import 'dotenv/config';
+import { envInt } from './env.js';
 
 function envFloat(name, defaultVal, min, max) {
   const v = parseFloat(process.env[name] ?? '');
-  if (!Number.isFinite(v) || v < min || v > max) {
-    if (process.env[name] !== undefined)
-      console.warn(`[rerank] ${name}="${process.env[name]}" is invalid — using default ${defaultVal}`);
-    return defaultVal;
-  }
-  return v;
-}
-
-function envInt(name, defaultVal, min, max) {
-  const v = parseInt(process.env[name] ?? '', 10);
   if (!Number.isFinite(v) || v < min || v > max) {
     if (process.env[name] !== undefined)
       console.warn(`[rerank] ${name}="${process.env[name]}" is invalid — using default ${defaultVal}`);
@@ -80,11 +71,11 @@ const PROTECT_TOP1_DELTA = envFloat('RERANK_PROTECT_TOP1_DELTA', 0.05, 0, 10);
 // Experimental: bonus when ≥1 non-stopword query token (technical ones weighted higher) appears
 // in first TEXT_LEAD_CHARS of chunk text. Rewards chunks that answer the query up-front.
 const BOOST_TEXT_LEAD    = envFloat('RERANK_BOOST_TEXT_LEAD',   0.00, 0, 10);
-const TEXT_LEAD_CHARS    = envInt('RERANK_TEXT_LEAD_CHARS',     200,  1, 10000);
+const TEXT_LEAD_CHARS    = envInt('RERANK_TEXT_LEAD_CHARS',     200,  1, 10000, '[rerank] ');
 // Experimental: small penalty for chunk_index=0 when query has ≥2 technical tokens.
 // Discourages overview/intro chunks from ranking above specific content for technical queries.
 const PENALTY_INTRO_CHUNK  = envFloat('RERANK_PENALTY_INTRO_CHUNK',  0.02, 0, 10);
-const INTRO_CHUNK_TECH_MIN = envInt('RERANK_INTRO_CHUNK_TECH_MIN',   2,    1, 100);
+const INTRO_CHUNK_TECH_MIN = envInt('RERANK_INTRO_CHUNK_TECH_MIN',   2,    1, 100, '[rerank] ');
 const DEBUG              = process.env.RERANK_DEBUG === '1';
 
 /**
