@@ -1,10 +1,12 @@
 import { hybridSearch, fetchWindowChunks } from '../../core/qdrant.js';
 import { embedForSearch } from '../../core/embeddings.js';
 import { rerankResults } from '../../core/rerank.js';
+import { ceRerank, withCETimeout, RERANK_CE_TIMEOUT_MS } from '../../core/ce-rerank.js';
 
 import { envInt } from '../../core/env.js';
 
 const RERANK_ENABLED        = process.env.RERANK_ENABLED === '1';
+const RERANK_CE_ENABLED     = process.env.RERANK_CE_ENABLED === '1';
 const RERANK_PREFETCH_MULT  = envInt('RERANK_PREFETCH_MULT', 4, 1, 100, '[search] ');
 
 export function assembleWindowChunks(wPoints, matchedChunkIndex, window_format, seenChunks = new Set()) {
@@ -60,11 +62,29 @@ export async function handle({ query, collection, top = 5, tags, source_file, wi
     filter = { must };
   }
 
+  // Pipeline (docs/en/ce-rerank-design.md §4):
+  //   hybridSearch(prefetch N) → [Stage 1: det-rerank] → [Stage 2: CE rerank] → slice(top)
+  // When CE follows det-rerank, det-rerank keeps the FULL pool ordering
+  // (finalLimit = pool length) so CE receives the complete candidate window.
   let results;
-  if (RERANK_ENABLED) {
+  if (RERANK_ENABLED || RERANK_CE_ENABLED) {
     const candidateLimit = Math.max(top * RERANK_PREFETCH_MULT, top + 5);
-    const candidates = await hybridSearch(collection, dense, sparse, candidateLimit, filter);
-    results = rerankResults(candidates, query, { finalLimit: top });
+    let pool = await hybridSearch(collection, dense, sparse, candidateLimit, filter);
+
+    if (RERANK_ENABLED) {
+      pool = rerankResults(pool, query, { finalLimit: RERANK_CE_ENABLED ? pool.length : top });
+    }
+
+    if (RERANK_CE_ENABLED) {
+      const preCE = pool;
+      pool = await withCETimeout(
+        ceRerank(preCE, query, { finalLimit: top }),
+        RERANK_CE_TIMEOUT_MS,
+        () => preCE.slice(0, top),
+      );
+    }
+
+    results = pool.slice(0, top);
   } else {
     results = await hybridSearch(collection, dense, sparse, top, filter);
   }

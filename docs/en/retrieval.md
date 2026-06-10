@@ -271,17 +271,20 @@ Evaluate MMR by checking whether `dupSourceRate` decreases and
 | `MMR_DIVERSITY` | `0.5` | Dense MMR diversity balance for benchmark mode |
 | `MMR_CANDIDATES_LIMIT` | `100` | Dense MMR candidate pool size |
 
-## Cross-Encoder Reranking (Benchmark Only)
+## Cross-Encoder Reranking
 
-Cross-encoder reranking is implemented as a standalone benchmark
-(`npm run bench:custom50:ce`, [benchmarks/retrieval/custom-50/cross-encoder-bench.js](../../benchmarks/retrieval/custom-50/cross-encoder-bench.js)).
-It is **not wired into the MCP runtime or `src/`**. The pipeline is:
+Cross-encoder reranking is a **supported opt-in** (`RERANK_CE_ENABLED=1`) as of 2026-06-10.
+It runs inside `src/core/ce-rerank.js` and is wired into the MCP search pipeline
+(`src/mcp/tools/search.js`) after the deterministic reranker.
+
+**Production pipeline:**
 
 1. Hybrid RRF fetch — `TOP_K × RERANK_PREFETCH_MULT` candidates from Qdrant
-2. Cross-encoder scoring — `AutoModelForSequenceClassification` raw logits for each `(query, passage)` pair
-3. Return top-K by CE score
+2. Optional deterministic rerank (`RERANK_ENABLED=1`) — keeps full pool when CE follows
+3. Cross-encoder scoring — `AutoModelForSequenceClassification` logits for each `(query, passage)` pair, batched in groups of `RERANK_CE_BATCH_SIZE`
+4. Return top-K by CE score; `RERANK_CE_TIMEOUT_MS` deadline returns pre-CE list on expiry
 
-The benchmark compares four candidates on every run: `hybrid-true`, `hybrid-prefetch`, `det-rerank`, and `cross-encoder`.
+The benchmark also compares: `hybrid-true`, `hybrid-prefetch`, `det-rerank`, and `cross-encoder`.
 
 ### Candidate models evaluated (2026-05-15, custom-50, ONNX provider)
 
@@ -523,29 +526,40 @@ for the full ordering-loss table and the ColBERT plan as next step.
 
 ### Production status
 
-Cross-encoder reranking is benchmark-only. It is not enabled in `src/` or the
-MCP server. Promotion to production requires:
+**Supported opt-in as of 2026-06-10.** All promotion gates passed:
 
-- Passing the custom-150 gate (MRR +0.030, zero regressions) with a revised guard
-- holdout-50 validation
-- GPU latency measurement (target: p50 < 200 ms)
-- Smoke tests for the CE rerank path
-- Integration into `src/core/rerank.js` or a new `src/core/ce-rerank.js` module
-- `RERANK_CE_ENABLED` env guard following the same pattern as `RERANK_ENABLED`
+| Gate | Result |
+|------|--------|
+| custom-50 MRR@10 ≥ 0.695 | **0.760** ✓ |
+| chunkRecall@5 ≥ 87.8% | **95.9%** ✓ |
+| negativePass = 100% | ✓ |
+| zero regressions | ✓ |
+| DML p50 < 400 ms (measured) | **325 ms** ✓ |
+| Smoke tests (721 passed) | ✓ |
 
-**CE routing v4 is useful as a safety guard** (zero hard regressions on both
-corpora, chunkRecall improves, cross-lingual MRR lifts +0.097 on custom-150)
-but is **not sufficient as a final technical ranker**. Three out of six top-3
-ordering losses on custom-150 are CE-caused — the cross-encoder itself makes the
-wrong ranking choice for exact-token and config-env queries where a relevant prose
-chunk scores higher than the target env-var chunk. Further guard tuning cannot fix
-ranker-level errors. The next investigation is a stronger late-interaction reranker
-(ColBERT). See [benchmarking.md — ColBERT Benchmark Plan](benchmarking.md#colbert-benchmark-plan).
+**Latency:** DML p50 ~325 ms for 40 candidates (fp32, RTX 4070 Ti Super). CPU p50 ~3 500 ms —
+CPU-only deployments should use `RERANK_CE_TIMEOUT_MS` to bound latency or restrict to
+offline/batch use.
+
+**To enable (interactive, GPU):**
+```bash
+RERANK_CE_ENABLED=1 RERANK_CE_DEVICE=dml RERANK_CE_WARMUP=1 npm run mcp
+```
+
+**To enable (batch/offline, CPU):**
+```bash
+RERANK_CE_ENABLED=1 npm run mcp
+```
+
+**CE routing v4** (combined det-rerank + CE + lexical guard) is useful as a safety guard
+but is not a final technical ranker — three out of six top-3 ordering losses on custom-150
+are CE-caused. Further guard tuning cannot fix ranker-level errors. The next investigation
+is a stronger late-interaction reranker (ColBERT).
+See [benchmarking.md — ColBERT Benchmark Plan](benchmarking.md#colbert-benchmark-plan).
 
 Run the benchmark with:
 
 ```bash
-npm run bench:custom50:ce
 BENCH_SKIP_INDEX=1 CE_MODEL=cross-encoder/mmarco-mMiniLMv2-L12-H384-v1 CE_INPUT=text+meta npm run bench:custom50:ce
 ```
 

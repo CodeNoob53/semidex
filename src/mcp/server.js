@@ -39,5 +39,17 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
   }
 });
 
+// Mode C (docs/en/ce-rerank-design.md §1): preload the cross-encoder before
+// accepting MCP connections so the first CE-enabled query has no load spike.
+// Load failure must not kill the server — CE degrades to the pre-CE path.
+if (process.env.RERANK_CE_ENABLED === '1' && process.env.RERANK_CE_WARMUP === '1') {
+  try {
+    const { loadCEModel } = await import('./../core/ce-rerank.js');
+    await loadCEModel();
+  } catch (err) {
+    process.stderr.write(`[ce-rerank] warmup failed: ${err.message} — CE disabled for this session\n`);
+  }
+}
+
 const transport = new StdioServerTransport();
 await server.connect(transport);

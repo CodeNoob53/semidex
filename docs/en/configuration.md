@@ -323,6 +323,25 @@ incompatible chunk boundaries.
 | `RERANK_BOOST_TEXT_LEAD` | `0.00` | Bonus per token hit in the first `RERANK_TEXT_LEAD_CHARS` chars of chunk text; off by default — benchmarks showed it rewards dense-listing chunks (e.g. config-env.md) rather than topical content |
 | `RERANK_TEXT_LEAD_CHARS` | `200` | Window size for `RERANK_BOOST_TEXT_LEAD` |
 
+### Cross-Encoder Reranking (CE)
+
+Opt-in neural reranker using `cross-encoder/mmarco-mMiniLMv2-L12-H384-v1` (~120 MB).
+Runs after the deterministic reranker when both are enabled. Requires GPU for interactive use
+(DML p50 ~325 ms; CPU p50 ~3 500 ms). See `docs/en/ce-rerank-design.md` for full design.
+
+| Variable | Default | Valid range | Description |
+|----------|---------|-------------|-------------|
+| `RERANK_CE_ENABLED` | `0` | `0`, `1` | Enable cross-encoder reranking. `0` = CE never loaded; `1` = CE runs after hybrid (and optional det-rerank) |
+| `RERANK_CE_MODEL` | `cross-encoder/mmarco-mMiniLMv2-L12-H384-v1` | Any HF model ID or local path | HuggingFace model for `AutoModelForSequenceClassification`. Only the mmarco model is benchmark-validated |
+| `RERANK_CE_INPUT` | `text+meta` | `text`, `text+section`, `text+meta` | Passage format. `text+meta` = `[source_file § section]\ntext` (benchmark-optimal) |
+| `RERANK_CE_TOP_N` | `40` | `1`–`500` | Candidates passed to CE. Default 40 is the benchmark-validated value |
+| `RERANK_CE_TIMEOUT_MS` | `10000` | `100`–`120000` | CE inference deadline (ms). On expiry returns pre-CE candidates without erroring |
+| `RERANK_CE_DEVICE` | `cpu` | `cpu`, `dml`, `cuda` | ONNX execution provider. Use `dml` on Windows GPU (p50 ~325 ms), `cuda` for NVIDIA |
+| `RERANK_CE_CACHE_DIR` | `./models` | Any writable path | HF model cache directory (shared with ONNX embedder) |
+| `RERANK_CE_BATCH_SIZE` | `16` | `1`–`256` | Tokenizer batch size per CE forward pass |
+| `RERANK_CE_WARMUP` | `0` | `0`, `1` | Preload model at server startup (Mode C). Eliminates first-query latency spike |
+| `RERANK_CE_DEBUG` | `0` | `0`, `1` | Log per-candidate CE scores to stderr |
+
 ## Benchmark
 
 | Variable | Default | Description |
