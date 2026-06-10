@@ -4,7 +4,7 @@
 export default async function ({ ok }) {
   console.log('\n[51] skeleton summary — adaptive window rule + stubbed LLM');
 
-  const { estTokens, chooseSource, summaryWindowTokens, generateNavSummaries, buildCollectionSummary } =
+  const { estTokens, chooseSource, summaryWindowTokens, generateNavSummaries, buildCollectionSummary, sanitizeSummary } =
     await import('../../indexer/phases/skeleton-summary.js');
   const { parseSkeleton } = await import('../../indexer/phases/skeleton.js');
   const { chunkFromSkeleton } = await import('../../indexer/phases/skeleton-chunk.js');
@@ -62,6 +62,9 @@ export default async function ({ ok }) {
      promptsSeen.some(p => p.includes('Install the runtime')));
   ok('file prompt carries full document content',
      promptsSeen.some(p => p.includes('deploy the service safely') && p.includes('Install the runtime')));
+  // gemma calibration: content first, trailing instructions with SUMMARY: cue
+  ok('rules trail the content (content-first prompt)',
+     promptsSeen.every(p => p.trimEnd().endsWith('SUMMARY:')));
 
   // LLM failure → inventory kept, indexing never breaks
   const origWrite = process.stderr.write.bind(process.stderr);
@@ -71,6 +74,35 @@ export default async function ({ ok }) {
   });
   process.stderr.write = origWrite;
   ok('LLM failure keeps inventory summary', failed.every(n => /paragraph|section/.test(n.summary)));
+
+  // ── sanitizeSummary: gemma calibration guards (live-run failure modes) ──────
+  ok('clean summary passes', sanitizeSummary('Документ описує налаштування retrieval.') === 'Документ описує налаштування retrieval.');
+  ok('SUMMARY: echo stripped', sanitizeSummary('SUMMARY: It works.') === 'It works.');
+  ok('wrapping quotes stripped', sanitizeSummary('"Описує конфігурацію."') === 'Описує конфігурацію.');
+  ok('newlines collapsed', sanitizeSummary('Line one.\nLine two.') === 'Line one. Line two.');
+  ok('"This document..." opener allowed', sanitizeSummary('This document explains deployment.') !== null);
+  ok('conversational EN rejected', sanitizeSummary("Okay, here's a breakdown of the file:") === null);
+  ok('conversational "Here is" rejected', sanitizeSummary('Here is a summary of the content.') === null);
+  ok('conversational UA rejected', sanitizeSummary('Звичайно! Ось короткий огляд.') === null);
+  ok('markdown list answer rejected', sanitizeSummary('- item one\n- item two') === null);
+  ok('markdown bold answer rejected', sanitizeSummary('**Overview:** the doc covers setup.') === null);
+  ok('over-length blow-up rejected', sanitizeSummary('w '.repeat(400)) === null);
+  ok('degenerate loop rejected', sanitizeSummary('npm run sync '.repeat(20)) === null);
+  ok('empty/garbage rejected', sanitizeSummary('   ') === null && sanitizeSummary(null) === null);
+
+  // Integration: broken LLM output never lands — nav keeps inventory.
+  const errs = [];
+  process.stderr.write = (s) => { errs.push(String(s)); return true; };
+  const rejected = await generateNavSummaries(navPoints, chunks, {
+    generateFn: async () => "Okay, here's what I found in this section:", windowTokens: 8000,
+  });
+  const colRejected = await buildCollectionSummary('col', [{ source_file: 'a.md', summary: 's.' }], {
+    llm: true, generateFn: async () => '## Analysis\n\n- bullet',
+  });
+  process.stderr.write = origWrite;
+  ok('rejected output keeps inventory summary', rejected.every(n => /paragraph|section/.test(n.summary)));
+  ok('rejection logged per node', errs.some(s => s.includes('rejected by sanitizer')));
+  ok('collection rejection falls back to inventory', colRejected.summary === 'col — 1 file');
 
   // ── collection summary ───────────────────────────────────────────────────────
   const fileNodes = [

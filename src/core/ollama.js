@@ -14,9 +14,10 @@ export async function embed(text, model) {
   return data.embeddings[0];
 }
 
-export async function generate(model, prompt, { format } = {}) {
+export async function generate(model, prompt, { format, options } = {}) {
   const body = { model, prompt, stream: false };
   if (format) body.format = format;
+  if (options) body.options = options;  // e.g. { temperature, num_predict }
   const r = await fetch(`${OLLAMA_URL}/api/generate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

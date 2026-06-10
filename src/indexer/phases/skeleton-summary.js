@@ -56,29 +56,82 @@ export function chooseSource(fullText, parts, budget) {
   return { mode: 'batched', batches };
 }
 
-const SUMMARY_RULES =
-  'Write 1-2 sentences describing what this content is about, in the SAME ' +
-  'LANGUAGE as the content. Plain text only — no preamble, no markdown, no quotes.';
+// Generation options: deterministic, hard-capped output. num_predict stops
+// runaway loops (a 4b model can echo a command list forever); the sanitizer
+// below then rejects whatever the truncated loop produced.
+const GEN_OPTIONS = { temperature: 0, num_predict: 160 };
 
-function sectionPrompt(heading, body) {
-  return `${SUMMARY_RULES}\n\nSection heading: ${heading}\n\nContent:\n${body}`;
+// gemma3:4b calibration (live run 2026-06-11, 12 files: 7 clean / 3
+// conversational / 2 degenerate): small models follow TRAILING instructions
+// far better than leading ones — so every prompt is content-first,
+// rules-last, ending with an explicit "SUMMARY:" cue.
+const SUMMARY_RULES =
+  'TASK: Summarize the content above.\n' +
+  'RULES: 1-2 sentences, at most 50 words, in the SAME LANGUAGE as the ' +
+  'content. Plain text only — no markdown, no lists, no quotes, no preamble ' +
+  'like "Here is" or "Okay". Start directly with the summary.\n' +
+  'SUMMARY:';
+
+function sectionPrompt(label, body) {
+  return `Content of ${label}:\n\n${body}\n\n${SUMMARY_RULES}`;
 }
+// Roll-up framing matters: "these are summaries, combine them" made gemma
+// ANALYZE the notes as foreign text (conversational mode). State the job as
+// describing the whole, and forbid commenting on the notes.
 function rollupPrompt(label, lines) {
-  return `${SUMMARY_RULES}\n\nThese are summaries of the parts of ${label}. ` +
-    `Combine them into one overview.\n\n${lines.join('\n')}`;
+  return `Notes describing the parts of ${label}:\n\n${lines.join('\n')}\n\n` +
+    `TASK: Based only on these notes, summarize ${label} as a whole.\n` +
+    'RULES: 1-2 sentences, at most 50 words, in the SAME LANGUAGE as the ' +
+    'notes. Plain text only — no markdown, no lists, no quotes, no preamble. ' +
+    'Do NOT analyze or comment on the notes themselves.\n' +
+    'SUMMARY:';
+}
+
+const MAX_SUMMARY_CHARS = 600;
+// Conversational openers (en + uk) — a real summary never starts like this.
+// "This document describes…" stays allowed: that IS a valid summary style.
+const PREAMBLE_RE = new RegExp(
+  '^(okay|ok[,!\\s]|sure|certainly|of course|great[,!]|here(’|\')?s\\b|here is\\b|' +
+  'let me\\b|let(’|\')?s\\b|i(’|\')?ll\\b|i can\\b|as an ai|' +
+  'ось |звичайно|гаразд|добре[,!]|давай)', 'i');
+
+/**
+ * Validate + normalize raw LLM output. Returns the clean one-line summary,
+ * or null when the output must be REJECTED (caller keeps the inventory
+ * summary — a broken generation never lands in a nav point).
+ *
+ * Rejection classes map 1:1 to the live-run failure modes:
+ *   conversational preamble / markdown answer → broken-prompt class;
+ *   over-length or low unique-word ratio      → degenerate-loop class.
+ */
+export function sanitizeSummary(raw) {
+  if (typeof raw !== 'string') return null;
+  let s = raw.trim().replace(/^summary\s*:\s*/i, '');
+  s = s.replace(/^["'«]+|["'»]+$/g, '').trim();
+  if (!s) return null;
+  if (PREAMBLE_RE.test(s)) return null;                   // conversational mode
+  if (/^#{1,6}\s|\*\*|^\s*[-*>]\s/m.test(s)) return null; // markdown answer
+  s = s.replace(/\s+/g, ' ').trim();
+  if (s.length > MAX_SUMMARY_CHARS) return null;          // blow-up / truncated loop
+  const words = s.toLowerCase().split(/\s+/);
+  if (words.length >= 25 && new Set(words).size / words.length < 0.4) {
+    return null;                                          // degenerate repetition
+  }
+  return s;
 }
 
 async function summarizeWithRule(label, fullText, parts, { generateFn, model, budget }) {
   const src = chooseSource(fullText, parts, budget);
-  if (src.mode === 'full')  return (await generateFn(model, sectionPrompt(label, fullText))).trim();
-  if (src.mode === 'parts') return (await generateFn(model, rollupPrompt(label, parts))).trim();
+  const gen = (prompt) => generateFn(model, prompt, { options: GEN_OPTIONS });
+  if (src.mode === 'full')  return (await gen(sectionPrompt(label, fullText))).trim();
+  if (src.mode === 'parts') return (await gen(rollupPrompt(label, parts))).trim();
   // batched: part summaries first, then final roll-up (one extra level is
   // enough in practice — each level compresses ~50-100×; see design §12.1).
   const partSummaries = [];
   for (const batch of src.batches) {
-    partSummaries.push((await generateFn(model, rollupPrompt(`a part of ${label}`, batch))).trim());
+    partSummaries.push((await gen(rollupPrompt(`a part of ${label}`, batch))).trim());
   }
-  return (await generateFn(model, rollupPrompt(label, partSummaries))).trim();
+  return (await gen(rollupPrompt(label, partSummaries))).trim();
 }
 
 /**
@@ -111,9 +164,11 @@ export async function generateNavSummaries(navPoints, chunks, opts = {}) {
     let summary = nav.summary; // inventory fallback
     try {
       if (fullText.trim()) {
-        summary = await summarizeWithRule(
+        const clean = sanitizeSummary(await summarizeWithRule(
           `section "${heading}"`, fullText,
-          [lead, nav.summary].filter(Boolean), { generateFn, model, budget });
+          [lead, nav.summary].filter(Boolean), { generateFn, model, budget }));
+        if (clean) summary = clean;
+        else process.stderr.write(`[skeleton-summary] section "${heading}" output rejected by sanitizer — keeping inventory\n`);
       }
     } catch (err) {
       process.stderr.write(`[skeleton-summary] section "${heading}" failed (${err.message}) — keeping inventory\n`);
@@ -128,10 +183,12 @@ export async function generateNavSummaries(navPoints, chunks, opts = {}) {
     let summary = nav.summary;
     try {
       if (fullText.trim()) {
-        summary = await summarizeWithRule(
+        const clean = sanitizeSummary(await summarizeWithRule(
           `the document "${nav.source_file}"`, fullText,
           sectionSummaries.length ? sectionSummaries : [nav.summary],
-          { generateFn, model, budget });
+          { generateFn, model, budget }));
+        if (clean) summary = clean;
+        else process.stderr.write(`[skeleton-summary] file "${nav.source_file}" output rejected by sanitizer — keeping inventory\n`);
       }
     } catch (err) {
       process.stderr.write(`[skeleton-summary] file "${nav.source_file}" failed (${err.message}) — keeping inventory\n`);
@@ -167,10 +224,14 @@ export async function buildCollectionSummary(collection, fileNodes, opts = {}) {
   const windowTokens = opts.windowTokens ?? summaryWindowTokens(process.env);
   const budget = Math.max(500, Math.floor(windowTokens * 0.8));
   try {
-    const summary = await summarizeWithRule(
+    const clean = sanitizeSummary(await summarizeWithRule(
       `the collection "${collection}"`, lines.join('\n'), lines,
-      { generateFn, model, budget });
-    return { summary, children };
+      { generateFn, model, budget }));
+    if (!clean) {
+      process.stderr.write('[skeleton-summary] collection summary rejected by sanitizer — keeping inventory\n');
+      return { summary: inventory, children };
+    }
+    return { summary: clean, children };
   } catch (err) {
     process.stderr.write(`[skeleton-summary] collection summary failed (${err.message}) — keeping inventory\n`);
     return { summary: inventory, children };
