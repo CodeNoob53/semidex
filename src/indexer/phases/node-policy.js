@@ -49,10 +49,16 @@ export const NODE_POLICY = Object.freeze({
 // by the export. Treating them as standalone structural entities would flood
 // the index with ~2.5k one-word retrieval points.
 //
-// Rule: a code_block becomes an entity only when it has enough substance —
-//   >= CODE_ENTITY_MIN_LINES non-empty lines (default 2), OR
-//   >= CODE_ENTITY_MIN_TOKENS whitespace tokens (default 8 — long one-line
-//      commands like multi-flag curl calls stay entities).
+// Rule (re-calibrated 2026-06-10 against a manual ground-truth count on a
+// second real corpus — visual target was 60-65 entities, the original rule
+// produced 93; this rule lands on 65):
+//
+//   entity  ⇔  (lines >= CODE_ENTITY_MIN_LINES  AND  tokens >= CODE_ENTITY_MIN_TOKENS)
+//            OR tokens >= CODE_ENTITY_ONELINE_TOKENS
+//
+// Defaults: MIN_LINES=2, MIN_TOKENS=12 (multi-line token floor — kills 2-line
+// `mkdir x / cd y` pairs and sparse output dumps), ONELINE_TOKENS=16 (only
+// genuinely long one-line commands stay entities).
 // Anything smaller merges into the surrounding prose (policy merge_with_parent):
 // still searchable through the prose chunk's sparse leg, but never a point of
 // its own and never a placeholder.
@@ -61,12 +67,14 @@ export const NODE_POLICY = Object.freeze({
 
 export function isTinyCodeBlock(node) {
   if (node?.nodeType !== 'code_block') return false;
-  const minLines  = envInt('CODE_ENTITY_MIN_LINES', 2, 1, 100, '[skeleton] ');
-  const minTokens = envInt('CODE_ENTITY_MIN_TOKENS', 8, 1, 1000, '[skeleton] ');
+  const minLines      = envInt('CODE_ENTITY_MIN_LINES', 2, 1, 100, '[skeleton] ');
+  const minTokens     = envInt('CODE_ENTITY_MIN_TOKENS', 12, 1, 1000, '[skeleton] ');
+  const onelineTokens = envInt('CODE_ENTITY_ONELINE_TOKENS', 16, 1, 1000, '[skeleton] ');
   const text   = String(node.text ?? '');
   const lines  = text.split('\n').filter(l => l.trim()).length;
   const tokens = text.trim().split(/\s+/).filter(Boolean).length;
-  return lines < minLines && tokens < minTokens;
+  const isEntity = (lines >= minLines && tokens >= minTokens) || tokens >= onelineTokens;
+  return !isEntity;
 }
 
 /**

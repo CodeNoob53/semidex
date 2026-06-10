@@ -11,7 +11,12 @@ export default async function ({ ok }) {
   const node = (nodeType, text = '') => ({ nodeType, text });
   // Substantial code body: the tiny-code rule (vault-validated) routes small
   // fences to merge_with_parent, so mapping tests use a real multi-line block.
-  const BIG_CODE = 'const a = require("x");\nconst b = a.run();\nconsole.log(b);';
+  const BIG_CODE = [
+    'const service = require("./service");',
+    'const result = service.start({ retries: 3, timeout: 5000 });',
+    'if (!result.ok) throw new Error("startup failed: " + result.reason);',
+    'console.log("started", result.pid);',
+  ].join('\n'); // 4 lines, ~20 tokens — clearly above the entity floor
 
   // ── mapping matrix (design §7.2) ─────────────────────────────────────────────
   const expect = [
@@ -38,8 +43,10 @@ export default async function ({ ok }) {
   const tiny = t => applyNodePolicy(node('code_block', t));
   ok('one-word fence → merge_with_parent',    tiny('LTS').policy === 'merge_with_parent' && tiny('LTS').pointKind === null);
   ok('short command → merge_with_parent',     tiny('node -v').policy === 'merge_with_parent');
-  ok('long one-liner (>=8 tok) stays entity', tiny('curl -o- -L --silent --show-error --fail https://x/install.sh | bash').policy === 'payload_raw_embed_context');
-  ok('two-line block stays entity',           tiny('mkdir topic_01\ncd topic_01').policy === 'payload_raw_embed_context');
+  ok('long one-liner (>=16 tok) stays entity', tiny('curl -fsSL -o- --retry 3 --retry-delay 2 --max-time 30 -H "Accept: text/plain" https://x/install.sh | bash -s -- --yes').policy === 'payload_raw_embed_context');
+  ok('short one-liner (<16 tok) merges',       tiny('curl -o- -L --silent --show-error --fail https://x/install.sh | bash').policy === 'merge_with_parent');
+  ok('two-line low-token pair merges',         tiny('mkdir topic_01\ncd topic_01').policy === 'merge_with_parent');
+  ok('multi-line >=12 tokens stays entity',    tiny('docker run -d --name qdrant \\\n  -p 6333:6333 \\\n  -v ./data:/qdrant/storage qdrant/qdrant:latest').policy === 'payload_raw_embed_context');
   ok('isTinyCodeBlock only matches code',     isTinyCodeBlock({ nodeType: 'paragraph', text: 'x' }) === false);
   ok('tiny code never content-bearing alone', !isContentBearing(tiny('node -v')));
   ok('unmapped type degrades to unknown row',
