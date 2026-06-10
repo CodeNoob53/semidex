@@ -333,7 +333,7 @@ only when a measured miss class justifies them.
 | Dense MMR runtime mode | Benchmark-only, deferred | Reproducible broad-query duplicate pressure that harms agent answer quality |
 | Literal payload search / grep boost over `raw_content` | Deferred (same idea as the design doc's "grep boost") | Exact-token regressions not solved by BGE-M3 sparse retrieval |
 | Stronger Node-only sparse fallback | Research item | A requirement for better fallback quality where ONNX BGE-M3 cannot be used |
-| ColBERT / late interaction | Benchmark-only prototype, deferred | Correct chunks frequently exist in a wider candidate pool but hybrid RRF ranks them too low |
+| ColBERT / late interaction | Benchmark-only, deferred. Standalone rerank failed the 2026-05-17 gate (ordering losses, ~11 s/query CPU); guarded/blended/trigger variants implemented in `bench:custom50:colbert` (2026-06-10), pending measurement | Correct chunks frequently exist in a wider candidate pool but hybrid RRF ranks them too low |
 | Scoped global search | Planned — see design note below | Cross-collection discovery needed without precomputed link graphs |
 | Query expansion | Research item | Systematic misses not solvable by better structure or lexical retrieval |
 

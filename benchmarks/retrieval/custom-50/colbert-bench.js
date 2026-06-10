@@ -7,7 +7,11 @@
 //   hybrid-true     hybridSearch(TOP_K) — baseline
 //   det-rerank      current deterministic reranker on prefetch pool
 //   colbert-top20   ColBERT MaxSim on hybrid top-20 subset, derived from top-40 scoring pass
-//   colbert-top40   ColBERT MaxSim on hybrid top-40 pool, final TOP_K  [gate-evaluated]
+//   colbert-top40   ColBERT MaxSim on hybrid top-40 pool, final TOP_K  [default gate mode]
+//   colbert-guarded blend(ColBERT, hybrid rank) + top-1 protection — same scoring pass
+//   colbert-trigger guarded order only when hybrid #1-#2 RRF gap is low; else hybrid order
+//
+// Gate-evaluated mode selectable via COLBERT_GATE_MODE (see env knobs below).
 //
 // CE v4 reference: 0.764 MRR@10 (custom-50, 2026-05-16, ce-routed-v4)
 // Hybrid baseline: 0.634 MRR@10 (custom-50, 2026-05-10, hybrid ONNX)
@@ -34,6 +38,10 @@ Environment:
   COLBERT_TOP_N         Candidate pool for top-40 mode (default: 40)
   COLBERT_MAX_LENGTH    Max token length for doc encoding (default: 512)
   COLBERT_SCORE_MODE    mean (default) | sum
+  COLBERT_PROTECT_DELTA Top-1 protection threshold on raw MaxSim (default: 0.05; 0 disables)
+  COLBERT_BLEND_ALPHA   ColBERT weight in blend score (default: 0.7; 1=pure ColBERT)
+  COLBERT_TRIGGER_GAP   Hybrid #1-#2 relative gap below which trigger mode reranks (default: 0.10)
+  COLBERT_GATE_MODE     Gate-evaluated mode: colbert-top40 (default) | colbert-guarded | colbert-trigger
   BENCH_TOP_K           Final result depth (default: 10)
   BENCH_WINDOW          Adjacency window for windowRecall (default: 1)
   BENCH_SKIP_INDEX      1 = reuse existing bench-retrieval-custom-50 collection
@@ -70,6 +78,7 @@ import {
   bestExactRank, resultChunkId,
 } from '../lib/ce-routing-metrics.js';
 import { loadColBERTModel, scoreColBERTAll } from '../lib/colbert-rerank.js';
+import { guardedColbertOrder, shouldTriggerColbert } from '../lib/colbert-guard.js';
 
 const __dirname       = dirname(fileURLToPath(import.meta.url));
 const FIXTURES_SHARED = resolve(__dirname, '../fixtures/docs');
@@ -101,11 +110,32 @@ const COLBERT_MAX_LENGTH   = envInt('COLBERT_MAX_LENGTH', 512, 32, 8192);
 const COLBERT_SCORE_MODE   = process.env.COLBERT_SCORE_MODE   ?? 'mean';
 const COLBERT_TOKEN_POLICY = process.env.COLBERT_TOKEN_POLICY ?? 'official';
 
+function envFloat(name, def, min, max) {
+  const v = parseFloat(process.env[name] ?? '');
+  if (!Number.isFinite(v) || v < min || v > max) {
+    if (process.env[name] !== undefined)
+      process.stderr.write(`[colbert] ${name}="${process.env[name]}" invalid — using ${def}\n`);
+    return def;
+  }
+  return v;
+}
+
+const COLBERT_PROTECT_DELTA = envFloat('COLBERT_PROTECT_DELTA', 0.05, 0, 1);
+const COLBERT_BLEND_ALPHA   = envFloat('COLBERT_BLEND_ALPHA',   0.7,  0, 1);
+const COLBERT_TRIGGER_GAP   = envFloat('COLBERT_TRIGGER_GAP',   0.10, 0, 1);
+
 const TOP_N_20 = Math.min(20, COLBERT_TOP_N);
 const TOP_N_40 = COLBERT_TOP_N;
 
-const MODE_C20 = `colbert-top${TOP_N_20}`;
-const MODE_C40 = `colbert-top${TOP_N_40}`;
+const MODE_C20   = `colbert-top${TOP_N_20}`;
+const MODE_C40   = `colbert-top${TOP_N_40}`;
+const MODE_GUARD = 'colbert-guarded';
+const MODE_TRIG  = 'colbert-trigger';
+
+const GATE_MODE_RAW = process.env.COLBERT_GATE_MODE ?? MODE_C40;
+const GATE_MODE = [MODE_C40, MODE_GUARD, MODE_TRIG].includes(GATE_MODE_RAW)
+  ? GATE_MODE_RAW
+  : (process.stderr.write(`[colbert] COLBERT_GATE_MODE="${GATE_MODE_RAW}" invalid — using ${MODE_C40}\n`), MODE_C40);
 
 // ── Fixture list (mirrors ce-routing-bench.js) ─────────────────────────────────
 
@@ -248,20 +278,35 @@ async function runQuery(q) {
   const colbert20Scored = allScored.slice(0, TOP_N_20).sort((a, b) => b.score - a.score).slice(0, TOP_K);
   const colbert20Ms = performance.now() - t3; // array ops only; ONNX cost is in colbert40Ms
 
+  // Guarded mode: blend + top-1 protection over the same scoring pass (no extra ONNX calls).
+  const guardedScored = guardedColbertOrder(allScored, {
+    protectDelta: COLBERT_PROTECT_DELTA,
+    blendAlpha:   COLBERT_BLEND_ALPHA,
+    topK:         TOP_K,
+  });
+
+  // Trigger mode: rerank only when hybrid confidence (#1 vs #2 RRF gap) is low.
+  // When not triggered, a real runtime would skip ColBERT inference entirely —
+  // the latency model in computeAllMetrics reflects that.
+  const triggered = shouldTriggerColbert(pool40, COLBERT_TRIGGER_GAP);
+  const triggerScored = triggered ? guardedScored : hybridTrue;
+
   return {
-    hybridTrueMs, prefetchMs40, detRerankMs, colbert40Ms, colbert20Ms,
+    hybridTrueMs, prefetchMs40, detRerankMs, colbert40Ms, colbert20Ms, triggered,
     byMode: {
       'hybrid-true':    hybridTrue,
       'det-rerank':     detResults,
       [MODE_C20]:       colbert20Scored,
       [MODE_C40]:       colbert40Scored,
+      [MODE_GUARD]:     guardedScored,
+      [MODE_TRIG]:      triggerScored,
     },
   };
 }
 
 // ── Modes and metrics ──────────────────────────────────────────────────────────
 
-const MODES = ['hybrid-true', 'det-rerank', MODE_C20, MODE_C40];
+const MODES = ['hybrid-true', 'det-rerank', MODE_C20, MODE_C40, MODE_GUARD, MODE_TRIG];
 
 function computeAllMetrics(queryResults) {
   const latencyFn = (r, mode) => {
@@ -269,6 +314,8 @@ function computeAllMetrics(queryResults) {
     if (mode === 'det-rerank')    return r.prefetchMs40 + r.detRerankMs;
     if (mode === MODE_C20) return r.prefetchMs40 + r.colbert20Ms;
     if (mode === MODE_C40) return r.prefetchMs40 + r.colbert40Ms;
+    if (mode === MODE_GUARD) return r.prefetchMs40 + r.colbert40Ms; // same scoring pass
+    if (mode === MODE_TRIG)  return r.triggered ? r.prefetchMs40 + r.colbert40Ms : r.hybridTrueMs;
     return 0;
   };
   return computeRoutingMetrics(queryResults, MODES, { topK: TOP_K, window: BENCH_WINDOW, latencyFn });
@@ -470,6 +517,10 @@ function buildReport(allMetrics, analysis, providerInfo, queryResults) {
   lines.push(`  COLBERT_MAX_LENGTH : ${COLBERT_MAX_LENGTH}  (doc token cap)`);
   lines.push(`  COLBERT_SCORE_MODE : ${COLBERT_SCORE_MODE}`);
   lines.push(`  COLBERT_TOKEN_POLICY: ${COLBERT_TOKEN_POLICY}  (official=keep EOS | no-eos=filter EOS)`);
+  lines.push(`  COLBERT_PROTECT_DELTA: ${COLBERT_PROTECT_DELTA}  (top-1 protection on raw MaxSim; 0=off)`);
+  lines.push(`  COLBERT_BLEND_ALPHA : ${COLBERT_BLEND_ALPHA}  (ColBERT weight in guarded blend)`);
+  lines.push(`  COLBERT_TRIGGER_GAP : ${COLBERT_TRIGGER_GAP}  (hybrid #1-#2 rel. gap below which trigger reranks)`);
+  lines.push(`  COLBERT_GATE_MODE   : ${GATE_MODE}  (gate-evaluated mode)`);
   lines.push(`  BENCH_TOP_K       : ${TOP_K}  (final result depth)`);
   lines.push(`  BENCH_WINDOW      : ${BENCH_WINDOW}`);
   lines.push(`  BENCH_SKIP_INDEX  : ${SKIP_INDEX ? 'yes' : 'no'}`);
@@ -509,24 +560,34 @@ function buildReport(allMetrics, analysis, providerInfo, queryResults) {
   lines.push('');
 
   // ── MRR deltas ───────────────────────────────────────────────────────────────
+  const guard = allMetrics[MODE_GUARD];
+  const trig  = allMetrics[MODE_TRIG];
+  const mrrGuard = guard.mrr10 ?? 0;
+  const mrrTrig  = trig.mrr10 ?? 0;
+  const triggeredCount = queryResults.filter(r => r.triggered).length;
+
   lines.push('MRR@10 vs references:');
   lines.push(SEP2);
   lines.push(`  ${MODE_C40} vs hybrid-true   : ${mrrC40 >= mrrBase ? '+' : ''}${(mrrC40 - mrrBase).toFixed(3)}  (base=${f3(mrrBase).trim()})`);
   lines.push(`  ${MODE_C20} vs hybrid-true   : ${mrrC20 >= mrrBase ? '+' : ''}${(mrrC20 - mrrBase).toFixed(3)}`);
-  lines.push(`  CE v4 reference                : 0.764  (not rerun; ${MODE_C40} gap: ${(mrrC40 - 0.764).toFixed(3)})`);
+  lines.push(`  ${MODE_GUARD} vs hybrid-true : ${mrrGuard >= mrrBase ? '+' : ''}${(mrrGuard - mrrBase).toFixed(3)}  (delta=${COLBERT_PROTECT_DELTA}, alpha=${COLBERT_BLEND_ALPHA})`);
+  lines.push(`  ${MODE_TRIG} vs hybrid-true  : ${mrrTrig >= mrrBase ? '+' : ''}${(mrrTrig - mrrBase).toFixed(3)}  (triggered on ${triggeredCount}/${queryResults.length} queries, gap<${COLBERT_TRIGGER_GAP})`);
+  lines.push(`  CE v4 reference                : 0.764  (not rerun; ${GATE_MODE} gap: ${((allMetrics[GATE_MODE].mrr10 ?? 0) - 0.764).toFixed(3)})`);
   lines.push(SEP2);
   lines.push('');
 
-  // ── Gate checklist (colbert-top40 vs hybrid-true) ──────────────────────────
+  // ── Gate checklist (GATE_MODE vs hybrid-true) ────────────────────────────────
+  const gate      = allMetrics[GATE_MODE];
+  const mrrGate   = gate.mrr10 ?? 0;
   const cr5Base   = base.chunkRecall5 ?? 0;
   const cr10Base  = base.chunkRecall10 ?? 0;
-  const cr5C40    = c40.chunkRecall5 ?? 0;
-  const cr10C40   = c40.chunkRecall10 ?? 0;
-  const negC40    = c40.negativePass ?? 0;
+  const cr5Gate   = gate.chunkRecall5 ?? 0;
+  const cr10Gate  = gate.chunkRecall10 ?? 0;
+  const negGate   = gate.negativePass ?? 0;
 
-  const regrC40 = analysis.filter(r => r.isRegrC40).length;
+  const regrGate = analysis.filter(r => r.isRegrByMode[GATE_MODE]).length;
 
-  // Type-level MRR drop for colbert-top40.
+  // Type-level MRR drop for the gate mode.
   const byType = new Map();
   for (const r of queryResults) {
     const t = r.query.type ?? '(missing)';
@@ -537,37 +598,37 @@ function buildReport(allMetrics, analysis, providerInfo, queryResults) {
   for (const [type, rows] of byType) {
     const pos = rows.filter(r => !r.query.shouldHaveNoStrongHit);
     if (!pos.length) continue;
-    let hybSum = 0, c40Sum = 0, cnt = 0;
+    let hybSum = 0, gateSum = 0, cnt = 0;
     for (const r of pos) {
-      const hv = mrrAt(r.byMode['hybrid-true'],   r.query.qrels, 10);
-      const cv = mrrAt(r.byMode[MODE_C40], r.query.qrels, 10);
-      if (hv !== null && cv !== null) { hybSum += hv; c40Sum += cv; cnt++; }
+      const hv = mrrAt(r.byMode['hybrid-true'], r.query.qrels, 10);
+      const gv = mrrAt(r.byMode[GATE_MODE],     r.query.qrels, 10);
+      if (hv !== null && gv !== null) { hybSum += hv; gateSum += gv; cnt++; }
     }
     if (cnt > 0) {
-      const drop = (hybSum - c40Sum) / cnt;
+      const drop = (hybSum - gateSum) / cnt;
       if (drop > worstTypeDrop) { worstTypeDrop = drop; worstTypeLabel = type; }
     }
   }
 
-  const lossRows = computeColBERTOrderingLoss(queryResults);
+  const lossRows = computeColBERTOrderingLoss(queryResults, GATE_MODE);
   const orderingLossCount = lossRows.length;
 
-  const gMRR      = mrrC40 >= mrrBase + 0.030;
-  const gCR5      = cr5C40 >= cr5Base;
-  const gCR10     = cr10C40 >= cr10Base;
-  const gNeg      = negC40 >= 1.0;
-  const gRegr     = regrC40 === 0;
+  const gMRR      = mrrGate >= mrrBase + 0.030;
+  const gCR5      = cr5Gate >= cr5Base;
+  const gCR10     = cr10Gate >= cr10Base;
+  const gNeg      = negGate >= 1.0;
+  const gRegr     = regrGate === 0;
   const gTypeMRR  = worstTypeDrop < 0.030;
   const gOrdering = orderingLossCount < 2;
   const gatePass  = gMRR && gCR5 && gCR10 && gNeg && gRegr && gTypeMRR && gOrdering;
 
-  lines.push(`Promotion gate (${MODE_C40} vs hybrid-true, exploratory):`);
+  lines.push(`Promotion gate (${GATE_MODE} vs hybrid-true, exploratory):`);
   lines.push(SEP2);
-  lines.push(`  [${gMRR ? '✓' : '✗'}] MRR@10 >= hybrid + 0.030  (>= ${(mrrBase + 0.030).toFixed(3)})   (got ${f3(mrrC40).trim()})`);
-  lines.push(`  [${gCR5 ? '✓' : '✗'}] chunkRecall@5 >= hybrid   (got ${pct(cr5C40).trim()}, base=${pct(cr5Base).trim()})`);
-  lines.push(`  [${gCR10 ? '✓' : '✗'}] chunkRecall@10 >= hybrid  (got ${pct(cr10C40).trim()}, base=${pct(cr10Base).trim()})`);
-  lines.push(`  [${gNeg ? '✓' : '✗'}] negativePass = 100%        (got ${pct(negC40).trim()})`);
-  lines.push(`  [${gRegr ? '✓' : '✗'}] zero rank<=3 regressions  (got ${regrC40})`);
+  lines.push(`  [${gMRR ? '✓' : '✗'}] MRR@10 >= hybrid + 0.030  (>= ${(mrrBase + 0.030).toFixed(3)})   (got ${f3(mrrGate).trim()})`);
+  lines.push(`  [${gCR5 ? '✓' : '✗'}] chunkRecall@5 >= hybrid   (got ${pct(cr5Gate).trim()}, base=${pct(cr5Base).trim()})`);
+  lines.push(`  [${gCR10 ? '✓' : '✗'}] chunkRecall@10 >= hybrid  (got ${pct(cr10Gate).trim()}, base=${pct(cr10Base).trim()})`);
+  lines.push(`  [${gNeg ? '✓' : '✗'}] negativePass = 100%        (got ${pct(negGate).trim()})`);
+  lines.push(`  [${gRegr ? '✓' : '✗'}] zero rank<=3 regressions  (got ${regrGate})`);
   lines.push(`  [${gTypeMRR ? '✓' : '✗'}] no query type MRR drop >= 0.030  (worst: ${worstTypeLabel || 'none'} drop=${worstTypeDrop.toFixed(3)})`);
   lines.push(`  [${gOrdering ? '✓' : '✗'}] ordering-loss count < 2  (got ${orderingLossCount}; CE v4 had 2)`);
   lines.push('');
@@ -575,12 +636,12 @@ function buildReport(allMetrics, analysis, providerInfo, queryResults) {
   // Verdict with clear proceed/iterate/defer decision.
   let verdict;
   if (gatePass) {
-    verdict = mrrC40 >= 0.764
-      ? 'GATE PASSED — ColBERT matches/beats CE v4 reference (0.764); proceed to custom-150'
-      : 'GATE PASSED (vs hybrid) — ColBERT below CE v4 reference; proceed to custom-150 if delta acceptable';
+    verdict = mrrGate >= 0.764
+      ? `GATE PASSED — ${GATE_MODE} matches/beats CE v4 reference (0.764); proceed to custom-150`
+      : `GATE PASSED (vs hybrid) — ${GATE_MODE} below CE v4 reference; proceed to custom-150 if delta acceptable`;
   } else {
-    const reason = !gMRR     ? `MRR@10 ${f3(mrrC40).trim()} below hybrid + 0.030 (${(mrrBase + 0.030).toFixed(3)})`
-                 : !gRegr    ? `${regrC40} rank<=3 regression(s)`
+    const reason = !gMRR     ? `MRR@10 ${f3(mrrGate).trim()} below hybrid + 0.030 (${(mrrBase + 0.030).toFixed(3)})`
+                 : !gRegr    ? `${regrGate} rank<=3 regression(s)`
                  : !gTypeMRR ? `type MRR drop ${worstTypeDrop.toFixed(3)} >= 0.030 (${worstTypeLabel})`
                  : !gNeg     ? 'negativePass < 100%'
                  : !gOrdering ? `${orderingLossCount} ordering losses >= 2`
@@ -592,7 +653,7 @@ function buildReport(allMetrics, analysis, providerInfo, queryResults) {
   lines.push('');
 
   // ── Per-query table ──────────────────────────────────────────────────────────
-  lines.push(`Per-query results (${MODE_C40} is the gate-evaluated mode):`);
+  lines.push(`Per-query results (${GATE_MODE} is the gate-evaluated mode):`);
   lines.push(SEP2);
   lines.push(
     pad('ID', 5) + '  ' +
@@ -601,13 +662,15 @@ function buildReport(allMetrics, analysis, providerInfo, queryResults) {
     lpad('det', 5) + '  ' +
     lpad('c20', 5) + '  ' +
     lpad('c40', 5) + '  ' +
+    lpad('grd', 5) + '  ' +
+    lpad('trg', 5) + '  ' +
     'query'
   );
   lines.push(SEP2);
   for (const row of analysis) {
     const rk = m => row.ranks[m] != null ? `#${row.ranks[m]}` : 'miss';
-    const flag = row.isRegrC40    ? '[REGR-c40!]' :
-                 row.isImprovC40  ? '[IMPR-c40]'  : '';
+    const flag = row.isRegrByMode[GATE_MODE]   ? '[REGR!]' :
+                 row.isImprovByMode[GATE_MODE] ? '[IMPR]'  : '';
     lines.push(
       pad(row.query.id, 5) + '  ' +
       pad(row.query.type ?? '?', 20) + '  ' +
@@ -615,6 +678,8 @@ function buildReport(allMetrics, analysis, providerInfo, queryResults) {
       lpad(rk('det-rerank'), 5) + '  ' +
       lpad(rk(MODE_C20), 5) + '  ' +
       lpad(rk(MODE_C40), 5) + '  ' +
+      lpad(rk(MODE_GUARD), 5) + '  ' +
+      lpad(rk(MODE_TRIG), 5) + '  ' +
       (flag ? `${flag} ` : '') +
       row.query.query.slice(0, 55).trimEnd()
     );
@@ -623,9 +688,9 @@ function buildReport(allMetrics, analysis, providerInfo, queryResults) {
   lines.push('');
 
   // ── Regression detail ────────────────────────────────────────────────────────
-  const regressions = analysis.filter(r => r.isRegrC40);
+  const regressions = analysis.filter(r => r.isRegrByMode[GATE_MODE]);
   if (regressions.length) {
-    lines.push(`Regressions in ${MODE_C40} (${regressions.length}):`);
+    lines.push(`Regressions in ${GATE_MODE} (${regressions.length}):`);
     lines.push(SEP2);
     for (const row of regressions) {
       lines.push(`[${row.query.id}] type=${row.query.type ?? '?'}`);
@@ -642,7 +707,7 @@ function buildReport(allMetrics, analysis, providerInfo, queryResults) {
   }
 
   // ── Ordering-loss diagnostic ─────────────────────────────────────────────────
-  for (const l of buildColBERTOrderingLossSection(lossRows, SEP2)) lines.push(l);
+  for (const l of buildColBERTOrderingLossSection(lossRows, SEP2, GATE_MODE)) lines.push(l);
 
   // ── Per-class metrics ────────────────────────────────────────────────────────
   for (const l of buildPerClassSection(queryResults, analysis, SEP2)) lines.push(l);
@@ -653,6 +718,8 @@ function buildReport(allMetrics, analysis, providerInfo, queryResults) {
   lines.push('  benchmark-only — no production runtime changes.');
   lines.push(`  ColBERT vs hybrid          : ${mrrC40 >= mrrBase ? 'BEATS hybrid' : 'BELOW hybrid'}  (${f3(mrrC40).trim()} vs ${f3(mrrBase).trim()})`);
   lines.push(`  ColBERT vs CE v4 (0.764)   : ${mrrC40 >= 0.764 ? 'BEATS' : 'BELOW'} CE v4  (gap: ${(mrrC40 - 0.764).toFixed(3)})`);
+  lines.push(`  ${MODE_GUARD} vs hybrid    : ${mrrGuard >= mrrBase ? '+' : ''}${(mrrGuard - mrrBase).toFixed(3)}  (protect=${COLBERT_PROTECT_DELTA}, alpha=${COLBERT_BLEND_ALPHA})`);
+  lines.push(`  ${MODE_TRIG} vs hybrid     : ${mrrTrig >= mrrBase ? '+' : ''}${(mrrTrig - mrrBase).toFixed(3)}  (${triggeredCount}/${queryResults.length} triggered; p50 ${Math.round(trig.p50)}ms - untriggered queries pay only hybrid latency)`);
   const latencyNote = `  Latency (${MODE_C40} p50/p95): ${Math.round(c40.p50)}ms / ${Math.round(c40.p95)}ms vs hybrid ${Math.round(base.p50)}ms / ${Math.round(base.p95)}ms`;
   lines.push(latencyNote);
   lines.push(`  ${MODE_C20} p50/p95        : ${Math.round(c20.p50)}ms / ${Math.round(c20.p95)}ms  (derived from ${MODE_C40} pass — no extra ONNX calls)`);
@@ -736,7 +803,8 @@ const report     = buildReport(allMetrics, analysis, providerInfo, queryResults)
 process.stdout.write(report + '\n');
 
 mkdirSync(RESULTS_DIR, { recursive: true });
-const configSlug = `top${COLBERT_TOP_N}-maxlen${COLBERT_MAX_LENGTH}-${COLBERT_SCORE_MODE}-${COLBERT_TOKEN_POLICY}`;
+const gateSlug   = GATE_MODE === MODE_C40 ? '' : `-gate-${GATE_MODE}-d${COLBERT_PROTECT_DELTA}-a${COLBERT_BLEND_ALPHA}`;
+const configSlug = `top${COLBERT_TOP_N}-maxlen${COLBERT_MAX_LENGTH}-${COLBERT_SCORE_MODE}-${COLBERT_TOKEN_POLICY}${gateSlug}`;
 const outPath    = resolve(RESULTS_DIR, `${today()}-custom50-colbert-${configSlug}.txt`);
 writeFileSync(outPath, report + '\n', 'utf8');
 process.stderr.write(`\nSaved: ${outPath}\n`);
