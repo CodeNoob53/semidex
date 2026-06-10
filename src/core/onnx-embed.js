@@ -20,8 +20,9 @@ const SPECIAL_TOKENS = new Set([0, 1, 2, 3, 250001]); // pad, bos, eos, unk, mas
 
 env.cacheDir = CACHE_DIR;
 
-let tokenizer = null;
-let session   = null;
+let tokenizer    = null;
+let session      = null;
+let _loadPromise = null;
 
 // Expected file sizes from HF repo (used for offline cache validation).
 const EXPECTED_SIZES = {
@@ -75,8 +76,15 @@ async function fetchRange(filename, dest, from, total) {
   const res     = await fetch(url, { redirect: 'follow', headers });
   if (!res.ok && res.status !== 206) throw new Error(`Download failed: ${res.status} ${filename}`);
 
-  let downloaded = from;
-  const writer   = createWriteStream(dest, { flags: from > 0 ? 'a' : 'w' });
+  // Server ignored Range header and returned the full file — restart from scratch.
+  let actualFrom = from;
+  if (from > 0 && res.status === 200) {
+    process.stderr.write(`[onnx] server returned 200 instead of 206 for ${filename} — restarting download\n`);
+    actualFrom = 0;
+  }
+
+  let downloaded = actualFrom;
+  const writer   = createWriteStream(dest, { flags: actualFrom > 0 ? 'a' : 'w' });
   const reader   = res.body.getReader();
   const write    = (chunk) => new Promise((ok, fail) => writer.write(chunk, e => e ? fail(e) : ok()));
 
@@ -89,6 +97,10 @@ async function fetchRange(filename, dest, from, total) {
   }
   await new Promise((ok, fail) => writer.end(e => e ? fail(e) : ok()));
   process.stderr.write(`\n[onnx] saved: ${filename}\n`);
+
+  if (total > 0 && downloaded !== total) {
+    throw new Error(`[onnx] ${filename}: expected ${total} bytes, got ${downloaded} — cache may be corrupt, retry`);
+  }
 }
 
 const VALID_PROVIDERS = new Set(['cpu', 'dml', 'cuda']);
@@ -111,9 +123,7 @@ export function resolveOnnxExecutionProviders(envValue) {
   return ['cpu'];
 }
 
-async function load() {
-  if (tokenizer && session) return;
-
+async function _doLoad() {
   mkdirSync(CACHE_DIR, { recursive: true });
   process.stderr.write('[onnx] loading tokenizer...\n');
   tokenizer = await AutoTokenizer.from_pretrained(MODEL_ID);
@@ -148,6 +158,11 @@ async function load() {
   }
 
   process.stderr.write(`[onnx] ready. outputs: ${session.outputNames}\n`);
+}
+
+async function load() {
+  if (!_loadPromise) _loadPromise = _doLoad().catch(e => { _loadPromise = null; throw e; });
+  return _loadPromise;
 }
 
 /**
