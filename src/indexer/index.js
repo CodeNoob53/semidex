@@ -24,6 +24,9 @@ import { Semaphore } from './semaphore.js';
 import { SerialQueue } from './serial-queue.js';
 import { envInt } from '../core/env.js';
 import { expectedChunkingMeta, skeletonPayloadFields, isSkeletonChunk, makeSkeletonPointId, buildNavPointPayload } from './skeleton-payload.js';
+import { generateNavSummaries, buildCollectionSummary } from './phases/skeleton-summary.js';
+import { makeNodeId } from '../core/node-id.js';
+import { scroll } from '../core/qdrant.js';
 
 const BATCH_SIZE   = envInt('LLM_BATCH_SIZE', 3, 1, 64, '[indexer] ');
 const COLLECTION   = process.env.COLLECTION;
@@ -92,6 +95,7 @@ async function stageA(filePath, rootPath, collection, profiler) {
   // no Ollama running. SKELETON_CONTEXT=llm restores the legacy requirement.
   const skeletonNoLlm = Boolean(chunkMeta.chunkingModel)
     && process.env.SKELETON_CONTEXT !== 'llm'
+    && process.env.SKELETON_SUMMARY !== 'llm'
     && (!genTagsPreflight || tagViaOnnx);
   if (!skeletonNoLlm) {
     await ensureOllamaPreflight(ollamaUrl, contextModel, tagModel);
@@ -185,7 +189,17 @@ async function stageB(prepared, ollamaSem = null) {
     }
     profiler.mark('context');
     profiler.mark('tag');
-    return { ...prepared, taggedChunks };
+
+    // Stage 2 (design §12.1): semantic nav summaries — the "pre-paid context"
+    // an agent reads instead of walking the tree. Opt-in: SKELETON_SUMMARY=llm.
+    // Cached by file_hash: unchanged files never regenerate (stageA skip).
+    let navPoints = prepared.navPoints ?? [];
+    if (navPoints.length > 0 && process.env.SKELETON_SUMMARY === 'llm') {
+      console.log(`  [3.5/5] nav summaries (llm, ${navPoints.length} node(s))...`);
+      navPoints = await generateNavSummaries(navPoints, taggedChunks);
+    }
+
+    return { ...prepared, taggedChunks, navPoints };
   }
 
   let taggedChunks;
@@ -599,6 +613,55 @@ async function main() {
           console.log(`  - removed: ${sf}`);
         }
       }
+    }
+  }
+
+  // ── Collection-level nav node (design §9/§12.1) ─────────────────────────────
+  // Regenerated whenever anything was indexed this run (incremental contract:
+  // file change → file branch + collection roll-up). Non-fatal on failure.
+  if (process.env.SKELETON_CHUNKING === '1' && process.env.SKELETON_NAV !== '0' && indexed > 0) {
+    try {
+      const fileNavs = await scroll(COLLECTION, {
+        must: [
+          { key: 'point_kind', match: { value: 'skeleton_nav' } },
+          { key: 'node_type',  match: { value: 'file' } },
+        ],
+      }, 1000, ['source_file', 'summary']);
+      const fileNodes = fileNavs
+        .map(p => ({ source_file: p.payload?.source_file ?? '', summary: p.payload?.summary ?? '' }))
+        .filter(f => f.source_file)
+        .sort((a, b) => a.source_file.localeCompare(b.source_file));
+
+      const { summary, children } = await buildCollectionSummary(COLLECTION, fileNodes, {
+        llm: process.env.SKELETON_SUMMARY === 'llm',
+      });
+
+      const collectionNodeId = makeNodeId({
+        collection: '', sourceFile: '', structuralPath: '',
+        nodeType: 'collection', ordinalWithinParent: 1,
+      });
+      const { dense, sparse, meta } = await embedForIndex(COLLECTION, summary);
+      const cfgVectorSize = loadConfig().collections?.[COLLECTION]?.vectorSize ?? VECTOR_SIZE;
+      await upsertPoints(COLLECTION, [{
+        id: makeSkeletonPointId({
+          collection: COLLECTION, nodeId: collectionNodeId,
+          embeddingSchemaVersion: SCHEMA_VERSION,
+        }),
+        vector: { dense, sparse },
+        payload: buildNavPointPayload({
+          point_kind: 'skeleton_nav', node_type: 'collection',
+          node_id: collectionNodeId, node_path: `${COLLECTION}#collection`,
+          source_file: '', heading_path: [], summary, children,
+        }, {
+          fileHash: null, vectorSize: cfgVectorSize,
+          tokenCountMode: resolveTokenCountMode(),
+          chunkingSchemaVersion: CHUNKING_SCHEMA_VERSION,
+          embedMeta: meta,
+        }),
+      }]);
+      console.log(`\nCollection nav node updated (${fileNodes.length} file summaries).`);
+    } catch (err) {
+      console.warn(`\nWARN: collection nav node update failed — ${err.message}`);
     }
   }
 

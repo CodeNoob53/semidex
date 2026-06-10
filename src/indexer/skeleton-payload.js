@@ -109,6 +109,14 @@ export function buildNavPointPayload(navPoint, ctx = {}) {
     // that render payload.text.
     text:        navPoint.summary ?? '',
     summary:     navPoint.summary ?? '',
+    // Structural complement to the semantic summary ("what's inside" vs
+    // "what it's about"). Stored ONLY when it differs from summary — i.e.
+    // after LLM summary generation. In inventory mode summary IS the
+    // inventory, so the field would be pure duplication. Also serves as the
+    // marker for selective re-generation: summary === inventory → LLM failed
+    // or was never run for this node.
+    ...(navPoint.inventory && navPoint.inventory !== navPoint.summary
+        ? { inventory: navPoint.inventory } : {}),
     context:     '',
     section:     navPoint.node_type === 'section' ? (navPoint.heading_path?.at(-1) ?? '') : '',
     tags:        [],

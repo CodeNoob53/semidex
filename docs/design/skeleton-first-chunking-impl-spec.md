@@ -12,6 +12,13 @@
 > discriminator-поля з `chunk_index: -1` (поза всіма range-вибірками), тож
 > sync/isSemidexPayload їх визнає, а deleteBySourceFile/PRUNE_STALE прибирають
 > разом із файлом. Kill-switch: `SKELETON_NAV=0`.
+> **Stage 2 ядро (2026-06-10, поза §11):** семантичні nav-summary реалізовані
+> opt-in через `SKELETON_SUMMARY=llm` (`phases/skeleton-summary.js`):
+> адаптивне правило вікна (full → parts → batched, `SUMMARY_WINDOW_TOKENS`),
+> інвентар зберігається в полі `inventory`, LLM-збій відкатує на інвентар,
+> кеш по file_hash через штатний reindex-skip. Колекційний nav-вузол
+> (`<collection>#collection`) перебудовується в main() після кожного запуску
+> з індексацією — roll-up файлових summary (LLM або інвентар).
 > Задача 4: `buildFileSkeleton` пише лише `*.skeleton.json` (inspect-only),
 > Qdrant upsert nav-вузлів НЕ підключений — порядок 4→5→6 дотримано.
 > Задача 5: nav-виключення реалізоване як безумовний `must_not
