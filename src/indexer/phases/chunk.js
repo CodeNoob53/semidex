@@ -596,15 +596,19 @@ export async function chunkFileFromPath(filePath, sourceFile) {
       collection: process.env.COLLECTION ?? '', sourceFile,
     });
     for (const e of events) warnMod.logSkeletonWarning(e);
-    // Task 4 (impl spec §11): file-skeleton inspect artifact ONLY — the
-    // navPoints Qdrant upsert stays disabled until task 6 (filter-first order).
-    const { json } = indexMod.buildFileSkeleton(skel, { sourceFile });
+    // Tasks 4+6 (impl spec §11): inspect artifact + nav points for upsert.
+    // The point_kind search filter is live (task 5), so nav upsert is allowed.
+    const { navPoints, json } = indexMod.buildFileSkeleton(skel, { sourceFile });
     indexMod.writeFileSkeletonArtifact(json, {
       collection: process.env.COLLECTION ?? '', sourceFile,
     });
     // Wikilinks parity with the legacy path (audit finding 2026-06-10):
     // legacy chunkFile() extracts [[wikilinks]]; the skeleton path must too.
-    return chunkMod.chunkFromSkeleton(skel, { sourceFile, links: parseWikilinks(raw) });
+    const chunks = chunkMod.chunkFromSkeleton(skel, { sourceFile, links: parseWikilinks(raw) });
+    // Side-channel to the indexer stages: non-enumerable so legacy consumers
+    // and JSON serialisation never see it (return shape stays a plain array).
+    Object.defineProperty(chunks, '__navPoints', { value: navPoints, enumerable: false });
+    return chunks;
   }
 
   if (ext === '.pdf') {

@@ -23,7 +23,7 @@ import { CHUNKING_SCHEMA_VERSION, getTokenCounter, resolveTokenCountMode } from 
 import { Semaphore } from './semaphore.js';
 import { SerialQueue } from './serial-queue.js';
 import { envInt } from '../core/env.js';
-import { expectedChunkingMeta, skeletonPayloadFields, isSkeletonChunk, makeSkeletonPointId } from './skeleton-payload.js';
+import { expectedChunkingMeta, skeletonPayloadFields, isSkeletonChunk, makeSkeletonPointId, buildNavPointPayload } from './skeleton-payload.js';
 
 const BATCH_SIZE   = envInt('LLM_BATCH_SIZE', 3, 1, 64, '[indexer] ');
 const COLLECTION   = process.env.COLLECTION;
@@ -86,7 +86,16 @@ async function stageA(filePath, rootPath, collection, profiler) {
   const tagModel = (combinedCfg.enabled || !genTagsPreflight || tagViaOnnx)
     ? contextModel
     : (process.env.TAG_MODEL || contextModel);
-  await ensureOllamaPreflight(ollamaUrl, contextModel, tagModel);
+  // Skeleton files with deterministic context (§12, default) never call the
+  // LLM for context; if tags are off or routed to the ONNX worker, Ollama is
+  // not needed at all — skip the preflight so skeleton indexing works with
+  // no Ollama running. SKELETON_CONTEXT=llm restores the legacy requirement.
+  const skeletonNoLlm = Boolean(chunkMeta.chunkingModel)
+    && process.env.SKELETON_CONTEXT !== 'llm'
+    && (!genTagsPreflight || tagViaOnnx);
+  if (!skeletonNoLlm) {
+    await ensureOllamaPreflight(ollamaUrl, contextModel, tagModel);
+  }
   // Load/download tokenizer before any destructive work — a failure here leaves old points intact.
   if (tokenCountMode === 'bge-m3') await getTokenCounter({ mode: 'bge-m3' });
 
@@ -119,12 +128,16 @@ async function stageA(filePath, rootPath, collection, profiler) {
   console.log(`        ${rawChunks.length} chunks`);
   profiler.mark('chunk');
 
+  // Task 6: nav points ride a non-enumerable side-channel on the chunk array.
+  // SKELETON_NAV=0 is the kill-switch (default: on for skeleton files).
+  const navPoints = (process.env.SKELETON_NAV === '0') ? [] : (rawChunks.__navPoints ?? []);
+
   return {
     status: 'ready',
     filePath, sourceFile, collection, fileHash,
     embedCfg, tokenCountMode, configVectorSize,
     needsDelete, deleteReason,
-    rawChunks, combinedCfg: resolveCombinedLlmConfig(process.env),
+    rawChunks, navPoints, combinedCfg: resolveCombinedLlmConfig(process.env),
     profiler,
   };
 }
@@ -140,6 +153,40 @@ async function stageB(prepared, ollamaSem = null) {
   if (combinedCfg.warning) console.warn(`  [combined] ${combinedCfg.warning}`);
   const genTags   = shouldGenerateTags(process.env);
   const tagViaOnnx = isOnnxTagProvider(process.env);
+
+  // ── Skeleton leveled context (design §12, deterministic by default) ────────
+  // Skeleton chunks arrive with a precomputed deterministic `context`
+  // (heading path + adjacent prose) — the per-chunk LLM context phase is
+  // skipped entirely: 0 LLM calls vs N in legacy. SKELETON_CONTEXT=llm opts
+  // back into the legacy per-chunk LLM path for A/B benchmarking.
+  const skeletonDeterministic = rawChunks.length > 0
+    && rawChunks.every(ch => isSkeletonChunk(ch))
+    && process.env.SKELETON_CONTEXT !== 'llm';
+
+  if (skeletonDeterministic) {
+    if (combinedCfg.enabled) {
+      console.warn('  [skeleton] COMBINED_LLM=1 ignored for skeleton files — deterministic context owns the context phase');
+    }
+    console.log('  [2/5] contextualizing skipped (skeleton deterministic context)');
+    let taggedChunks;
+    if (genTags && tagViaOnnx) {
+      console.log('  [3/5] tagging (onnx)...');
+      taggedChunks = await addTagsOnnxBatch(rawChunks);
+    } else if (genTags) {
+      console.log('  [3/5] tagging (ollama)...');
+      const tagged = [];
+      for (let i = 0; i < rawChunks.length; i += BATCH_SIZE) {
+        tagged.push(...await addTagsBatch(rawChunks.slice(i, i + BATCH_SIZE)));
+      }
+      taggedChunks = tagged;
+    } else {
+      console.log('  [3/5] tagging skipped (TAG_GEN not enabled)');
+      taggedChunks = rawChunks.map(ch => ({ ...ch, tags: ch.tags ?? [] }));
+    }
+    profiler.mark('context');
+    profiler.mark('tag');
+    return { ...prepared, taggedChunks };
+  }
 
   let taggedChunks;
   if (combinedCfg.enabled) {
@@ -308,9 +355,35 @@ async function stageC(withTagged) {
     };
   });
 
+  // Task 6: embed nav summaries (local ONNX/provider — not an LLM cost) and
+  // assemble skeleton_nav points. Same provider as content for consistency.
+  const navPoints = withTagged.navPoints ?? [];
+  let navQdrantPoints = [];
+  if (navPoints.length > 0) {
+    const navEmbeds = await runBatched(
+      navPoints.map(n => n.summary ?? ''), BATCH_SIZE,
+      text => embedForIndex(collection, text),
+    );
+    navQdrantPoints = navPoints.map((nav, i) => {
+      const { dense, sparse, meta } = navEmbeds[i];
+      return {
+        id: makeSkeletonPointId({
+          collection, nodeId: nav.node_id,
+          embeddingSchemaVersion: embedCfg.schemaVersion,
+        }),
+        vector: { dense, sparse },
+        payload: buildNavPointPayload(nav, {
+          fileHash, vectorSize: configVectorSize,
+          tokenCountMode, chunkingSchemaVersion: CHUNKING_SCHEMA_VERSION,
+          embedMeta: meta,
+        }),
+      };
+    });
+  }
+
   profiler.mark('embed+upsert'); // mark covers embed; Qdrant write happens in stageD
 
-  return { ...withTagged, pointsWithDense };
+  return { ...withTagged, pointsWithDense, navQdrantPoints };
 }
 
 // ── Stage D: commit (always serial via SerialQueue) ───────────────────────────
@@ -336,6 +409,14 @@ async function stageD(withPoints) {
   console.log(`        upserted ${points.length} points`);
 
   await deleteTrailingChunks(collection, sourceFile, taggedChunks.length);
+
+  // Task 6: nav points last — content is committed and the point_kind filter
+  // (task 5) guarantees they never surface in search or tool aggregations.
+  const navQdrantPoints = withPoints.navQdrantPoints ?? [];
+  if (navQdrantPoints.length > 0) {
+    await upsertPoints(collection, navQdrantPoints);
+    console.log(`        upserted ${navQdrantPoints.length} nav point(s) (skeleton_nav)`);
+  }
 
   const tokensEst = taggedChunks.reduce((s, c) => s + Math.ceil(c.text.length / 4), 0);
   profiler.report({ chunksIn: rawChunks.length, chunksOut: taggedChunks.length, tokensEst });
