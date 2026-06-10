@@ -1,26 +1,42 @@
 import 'dotenv/config';
+import { envInt } from './env.js';
 
-const URL = process.env.QDRANT_URL;
-const KEY = process.env.QDRANT_KEY;
+const QDRANT_URL = process.env.QDRANT_URL;
+const KEY        = process.env.QDRANT_KEY;
 
-const headers = () => ({ 'api-key': KEY, 'Content-Type': 'application/json' });
+if (!QDRANT_URL) throw new Error('QDRANT_URL is not set. Add it to your .env file.');
+
+const headers = () => {
+  const h = { 'Content-Type': 'application/json' };
+  if (KEY) h['api-key'] = KEY;
+  return h;
+};
+
+// Default timeouts: 30 s for reads, 60 s for writes (upsert/delete can be slow on large collections).
+function qdrantFetch(url, init = {}) {
+  const isWrite = init.method && init.method !== 'GET';
+  return fetch(url, { signal: AbortSignal.timeout(isWrite ? 60_000 : 30_000), ...init });
+}
+
+const cUrl = (name, path = '') =>
+  `${QDRANT_URL}/collections/${encodeURIComponent(name)}${path}`;
 
 export async function listCollections() {
-  const r = await fetch(`${URL}/collections`, { headers: headers() });
+  const r = await qdrantFetch(`${QDRANT_URL}/collections`, { headers: headers() });
   if (!r.ok) throw new Error(`Qdrant listCollections failed: ${await r.text()}`);
   const data = await r.json();
   return data.result.collections.map(c => c.name);
 }
 
 export async function getCollectionInfo(name) {
-  const r = await fetch(`${URL}/collections/${name}`, { headers: headers() });
+  const r = await qdrantFetch(cUrl(name), { headers: headers() });
   if (!r.ok) throw new Error(`Qdrant getCollectionInfo failed: ${await r.text()}`);
   const data = await r.json();
   return data.result;
 }
 
 export async function upsertPoints(collection, points) {
-  const r = await fetch(`${URL}/collections/${collection}/points`, {
+  const r = await qdrantFetch(cUrl(collection, '/points'), {
     method: 'PUT',
     headers: headers(),
     body: JSON.stringify({ points }),
@@ -29,7 +45,7 @@ export async function upsertPoints(collection, points) {
 }
 
 export async function updatePayload(collection, id, payload) {
-  const r = await fetch(`${URL}/collections/${collection}/points/payload`, {
+  const r = await qdrantFetch(cUrl(collection, '/points/payload'), {
     method: 'POST',
     headers: headers(),
     body: JSON.stringify({ payload, points: [id] }),
@@ -43,7 +59,7 @@ export async function search(collection, vector, limit = 5, filter = null) {
     ? { vector, limit, with_payload: true }
     : { vector: { name: vector.name, vector: vector.vector ?? vector }, limit, with_payload: true };
   if (filter) body.filter = filter;
-  const r = await fetch(`${URL}/collections/${collection}/points/search`, {
+  const r = await qdrantFetch(cUrl(collection, '/points/search'), {
     method: 'POST',
     headers: headers(),
     body: JSON.stringify(body),
@@ -53,18 +69,8 @@ export async function search(collection, vector, limit = 5, filter = null) {
   return data.result ?? [];
 }
 
-function envInt(name, defaultVal, min, max) {
-  const v = parseInt(process.env[name] ?? '');
-  if (!Number.isFinite(v) || v < min || v > max) {
-    if (process.env[name] !== undefined)
-      console.warn(`[qdrant] ${name}="${process.env[name]}" is invalid — using default ${defaultVal}`);
-    return defaultVal;
-  }
-  return v;
-}
-
-const PREFETCH_MULT = envInt('HYBRID_PREFETCH_LIMIT', 2, 1, 100);
-const RRF_K        = envInt('RRF_K', 60, 1, 10000);
+const PREFETCH_MULT = envInt('HYBRID_PREFETCH_LIMIT', 2, 1, 100, '[qdrant] ');
+const RRF_K        = envInt('RRF_K', 60, 1, 10000, '[qdrant] ');
 
 export async function hybridSearch(collection, denseVector, sparseVector, limit = 5, filter = null) {
   const prefetchLimit = Math.max(limit * PREFETCH_MULT, limit + 1);
@@ -73,15 +79,19 @@ export async function hybridSearch(collection, denseVector, sparseVector, limit 
     { query: denseVector,  using: 'dense',  limit: prefetchLimit, ...(filter && { filter }) },
   ];
   const body = { prefetch, query: { rrf: { k: RRF_K } }, limit, with_payload: true };
-  const r = await fetch(`${URL}/collections/${collection}/points/query`, {
+  const r = await qdrantFetch(cUrl(collection, '/points/query'), {
     method: 'POST',
     headers: headers(),
     body: JSON.stringify(body),
   });
   if (!r.ok) {
-    // fall back to dense-only search if collection has no sparse vectors yet
     const err = await r.text();
-    if (err.includes('sparse') || err.includes('Wrong input')) return search(collection, { name: 'dense', vector: denseVector }, limit, filter);
+    // Qdrant returns "Wrong sparse vector name: sparse" when the collection has no sparse index yet.
+    // Fall back to dense-only in that case; all other errors are real failures.
+    if (err.includes('Wrong sparse vector name')) {
+      process.stderr.write(`[qdrant] hybridSearch fallback to dense-only for "${collection}": ${err.slice(0, 120)}\n`);
+      return search(collection, { name: 'dense', vector: denseVector }, limit, filter);
+    }
     throw new Error(`Qdrant hybridSearch failed (${collection}): ${err}`);
   }
   const data = await r.json();
@@ -105,7 +115,7 @@ export async function mmrSearch(collection, denseVector, limit = 5, filter = nul
   };
   if (filter) body.filter = filter;
 
-  const r = await fetch(`${URL}/collections/${collection}/points/query`, {
+  const r = await qdrantFetch(cUrl(collection, '/points/query'), {
     method: 'POST',
     headers: headers(),
     body: JSON.stringify(body),
@@ -116,7 +126,7 @@ export async function mmrSearch(collection, denseVector, limit = 5, filter = nul
 }
 
 export async function scroll(collection, filter, limit = 100, withPayload = true) {
-  const r = await fetch(`${URL}/collections/${collection}/points/scroll`, {
+  const r = await qdrantFetch(cUrl(collection, '/points/scroll'), {
     method: 'POST',
     headers: headers(),
     body: JSON.stringify({ filter, limit, with_payload: withPayload }),
@@ -147,7 +157,7 @@ export async function getStoredMeta(collection, sourceFile) {
 }
 
 export async function deleteBySourceFile(collection, sourceFile) {
-  const r = await fetch(`${URL}/collections/${collection}/points/delete`, {
+  const r = await qdrantFetch(cUrl(collection, '/points/delete'), {
     method: 'POST',
     headers: headers(),
     body: JSON.stringify({
@@ -162,7 +172,7 @@ export async function deleteBySourceFile(collection, sourceFile) {
 // but old points for chunk N..old_N-1 become orphans that PRUNE_STALE cannot
 // detect (the source_file still exists on disk).
 export async function deleteTrailingChunks(collection, sourceFile, fromChunkIndex) {
-  const r = await fetch(`${URL}/collections/${collection}/points/delete`, {
+  const r = await qdrantFetch(cUrl(collection, '/points/delete'), {
     method: 'POST',
     headers: headers(),
     body: JSON.stringify({
@@ -184,7 +194,7 @@ export async function listSourceFiles(collection) {
   while (true) {
     const body = { limit, with_payload: ['source_file'] };
     if (offset !== null) body.offset = offset;
-    const r = await fetch(`${URL}/collections/${collection}/points/scroll`, {
+    const r = await qdrantFetch(cUrl(collection, '/points/scroll'), {
       method: 'POST',
       headers: headers(),
       body: JSON.stringify(body),
@@ -212,7 +222,7 @@ export async function scrollAllPoints(collection, payloadFields, pageSize = 250)
   while (true) {
     const body = { limit: pageSize, with_payload: payloadFields, with_vectors: false };
     if (offset !== null) body.offset = offset;
-    const r = await fetch(`${URL}/collections/${collection}/points/scroll`, {
+    const r = await qdrantFetch(cUrl(collection, '/points/scroll'), {
       method: 'POST',
       headers: headers(),
       body: JSON.stringify(body),
@@ -228,7 +238,7 @@ export async function scrollAllPoints(collection, payloadFields, pageSize = 250)
 }
 
 export async function createPayloadIndex(collection, field, type = 'keyword') {
-  const r = await fetch(`${URL}/collections/${collection}/index`, {
+  const r = await qdrantFetch(cUrl(collection, '/index'), {
     method: 'PUT',
     headers: headers(),
     body: JSON.stringify({ field_name: field, field_schema: type }),
@@ -237,7 +247,7 @@ export async function createPayloadIndex(collection, field, type = 'keyword') {
 }
 
 export async function createCollection(name, size = 1024) {
-  const r = await fetch(`${URL}/collections/${name}`, {
+  const r = await qdrantFetch(cUrl(name), {
     method: 'PUT',
     headers: headers(),
     body: JSON.stringify({
@@ -252,7 +262,7 @@ export async function createCollection(name, size = 1024) {
 }
 
 export async function deleteCollection(name) {
-  const r = await fetch(`${URL}/collections/${name}`, {
+  const r = await qdrantFetch(cUrl(name), {
     method: 'DELETE',
     headers: headers(),
   });
@@ -260,7 +270,7 @@ export async function deleteCollection(name) {
 }
 
 export async function hasSparseVectors(collection) {
-  const r = await fetch(`${URL}/collections/${collection}/points/scroll`, {
+  const r = await qdrantFetch(cUrl(collection, '/points/scroll'), {
     method: 'POST',
     headers: headers(),
     body: JSON.stringify({ limit: 1, with_vectors: ['sparse'] }),
@@ -297,7 +307,7 @@ export function isSemidexPayload(payload) {
 //   {...} → normal payload; caller may check isSemidexPayload
 // Throws on Qdrant errors so callers can handle failures conservatively.
 export async function getCollectionSamplePayload(collection) {
-  const r = await fetch(`${URL}/collections/${collection}/points/scroll`, {
+  const r = await qdrantFetch(cUrl(collection, '/points/scroll'), {
     method: 'POST',
     headers: headers(),
     body: JSON.stringify({
@@ -314,7 +324,7 @@ export async function getCollectionSamplePayload(collection) {
 }
 
 export async function addSparseVectorSupport(name) {
-  const r = await fetch(`${URL}/collections/${name}`, {
+  const r = await qdrantFetch(cUrl(name), {
     method: 'PATCH',
     headers: headers(),
     body: JSON.stringify({
