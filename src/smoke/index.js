@@ -36,6 +36,13 @@ import section36 from './sections/36-token-count.js';
 import section37 from './sections/37-pipeline-primitives.js';
 import section38 from './sections/38-tag-onnx-provider.js';
 import section39 from './sections/39-dynamic-overlap.js';
+import section40 from './sections/40-colbert-guard.js';
+import section41 from './sections/41-ce-rerank-stub.js';
+import section42 from './sections/42-skeleton-parse.js';
+import section43 from './sections/43-skeleton-policy.js';
+import section44 from './sections/44-skeleton-warnings.js';
+import section45 from './sections/45-skeleton-chunk.js';
+import section46 from './sections/46-skeleton-payload.js';
 
 let passed = 0;
 let failed = 0;
@@ -84,6 +91,7 @@ const sections = [
   section26, section27, section28, section29, section30,
   section31, section32, section33, section34, section35,
   section36, section37, section38, section39,
+  section40, section41, section42, section43, section44, section45, section46,
 ];
 
 for (const section of sections) {
