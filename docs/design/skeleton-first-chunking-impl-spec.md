@@ -6,7 +6,12 @@
 >
 > Section-посилання (§N) вказують на **дизайн-док**, якщо не сказано інше.
 >
-> **Статус реалізації (2026-06-10): задачі 1–5 з §11 виконані.**
+> **Статус реалізації (2026-06-10): задачі 1–6 з §11 виконані.**
+> Задача 6: nav-вузли upsert-яться у stageD ПІСЛЯ контенту і trailing-cleanup;
+> ембед summary — локальний провайдер (не LLM); payload несе всі semidex
+> discriminator-поля з `chunk_index: -1` (поза всіма range-вибірками), тож
+> sync/isSemidexPayload їх визнає, а deleteBySourceFile/PRUNE_STALE прибирають
+> разом із файлом. Kill-switch: `SKELETON_NAV=0`.
 > Задача 4: `buildFileSkeleton` пише лише `*.skeleton.json` (inspect-only),
 > Qdrant upsert nav-вузлів НЕ підключений — порядок 4→5→6 дотримано.
 > Задача 5: nav-виключення реалізоване як безумовний `must_not
