@@ -43,6 +43,9 @@ import section43 from './sections/43-skeleton-policy.js';
 import section44 from './sections/44-skeleton-warnings.js';
 import section45 from './sections/45-skeleton-chunk.js';
 import section46 from './sections/46-skeleton-payload.js';
+import section47 from './sections/47-skeleton-nav.js';
+import section48 from './sections/48-nav-filter.js';
+import section49 from './sections/49-skeleton-edge-cases.js';
 
 let passed = 0;
 let failed = 0;
@@ -92,6 +95,7 @@ const sections = [
   section31, section32, section33, section34, section35,
   section36, section37, section38, section39,
   section40, section41, section42, section43, section44, section45, section46,
+  section47, section48, section49,
 ];
 
 for (const section of sections) {
