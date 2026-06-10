@@ -17,14 +17,26 @@
 // CONTEXT_MODEL. All prompts instruct the model to answer in the content's
 // own language, 1-2 sentences, no preamble.
 
-import { generate } from '../../core/ollama.js';
+import { generate, getModelContextLength } from '../../core/ollama.js';
 
-// Model window budget for summary prompts (env-tunable — every local model
-// has a different practical window). Conservative default for gemma3-class.
+// Model window budget for summary prompts. When SUMMARY_WINDOW_TOKENS is not
+// set we derive it at runtime from the model's actual context_length via
+// /api/show — so switching models never silently truncates prompts.
+// The env override stays available for offline tests and CI (no Ollama).
 export function summaryWindowTokens(env = process.env) {
   const v = parseInt(env.SUMMARY_WINDOW_TOKENS ?? '', 10);
   if (!Number.isFinite(v) || v < 500 || v > 1_000_000) return 8000;
   return v;
+}
+
+// Resolve the effective num_ctx to pass in every generate() options block.
+// Uses the model's real context_length (cached after first call) so Ollama
+// actually allocates the full window instead of defaulting to 4096.
+// Falls back to summaryWindowTokens() when Ollama is unreachable.
+export async function resolveNumCtx(model, env = process.env) {
+  const envVal = parseInt(env.SUMMARY_WINDOW_TOKENS ?? '', 10);
+  if (Number.isFinite(envVal) && envVal >= 500) return envVal;
+  return getModelContextLength(model);
 }
 
 // Heuristic token estimate — same chars/4 convention as length-bucket.js.
@@ -56,10 +68,12 @@ export function chooseSource(fullText, parts, budget) {
   return { mode: 'batched', batches };
 }
 
-// Generation options: deterministic, hard-capped output. num_predict stops
-// runaway loops (a 4b model can echo a command list forever); the sanitizer
-// below then rejects whatever the truncated loop produced.
-const GEN_OPTIONS = { temperature: 0, num_predict: 160 };
+// Build per-call generation options. num_ctx is resolved once per run and
+// passed explicitly so Ollama allocates the full model window (not 4096).
+// num_predict caps output to stop runaway loops; sanitizer rejects truncated junk.
+function genOptions(numCtx) {
+  return { temperature: 0, num_predict: 160, num_ctx: numCtx };
+}
 
 // gemma3:4b calibration (live run 2026-06-11, 12 files: 7 clean / 3
 // conversational / 2 degenerate): small models follow TRAILING instructions
@@ -120,9 +134,9 @@ export function sanitizeSummary(raw) {
   return s;
 }
 
-async function summarizeWithRule(label, fullText, parts, { generateFn, model, budget }) {
+async function summarizeWithRule(label, fullText, parts, { generateFn, model, budget, numCtx }) {
   const src = chooseSource(fullText, parts, budget);
-  const gen = (prompt) => generateFn(model, prompt, { options: GEN_OPTIONS });
+  const gen = (prompt) => generateFn(model, prompt, { options: genOptions(numCtx) });
   if (src.mode === 'full')  return (await gen(sectionPrompt(label, fullText))).trim();
   if (src.mode === 'parts') return (await gen(rollupPrompt(label, parts))).trim();
   // batched: part summaries first, then final roll-up (one extra level is
@@ -149,6 +163,9 @@ export async function generateNavSummaries(navPoints, chunks, opts = {}) {
   const generateFn   = opts.generateFn ?? generate;
   const model        = opts.model ?? (process.env.CONTEXT_MODEL || 'gemma3:4b');
   const windowTokens = opts.windowTokens ?? summaryWindowTokens(process.env);
+  // Resolve once: the model's real context window, then pass as num_ctx on
+  // every generate() call so Ollama allocates the full window (not 4096).
+  const numCtx = opts.numCtx ?? await resolveNumCtx(model, process.env);
   // Reserve a margin for the prompt scaffolding + output.
   const budget = Math.max(500, Math.floor(windowTokens * 0.8));
 
@@ -166,7 +183,7 @@ export async function generateNavSummaries(navPoints, chunks, opts = {}) {
       if (fullText.trim()) {
         const clean = sanitizeSummary(await summarizeWithRule(
           `section "${heading}"`, fullText,
-          [lead, nav.summary].filter(Boolean), { generateFn, model, budget }));
+          [lead, nav.summary].filter(Boolean), { generateFn, model, budget, numCtx }));
         if (clean) summary = clean;
         else process.stderr.write(`[skeleton-summary] section "${heading}" output rejected by sanitizer — keeping inventory\n`);
       }
@@ -186,7 +203,7 @@ export async function generateNavSummaries(navPoints, chunks, opts = {}) {
         const clean = sanitizeSummary(await summarizeWithRule(
           `the document "${nav.source_file}"`, fullText,
           sectionSummaries.length ? sectionSummaries : [nav.summary],
-          { generateFn, model, budget }));
+          { generateFn, model, budget, numCtx }));
         if (clean) summary = clean;
         else process.stderr.write(`[skeleton-summary] file "${nav.source_file}" output rejected by sanitizer — keeping inventory\n`);
       }
@@ -222,11 +239,12 @@ export async function buildCollectionSummary(collection, fileNodes, opts = {}) {
   const generateFn   = opts.generateFn ?? generate;
   const model        = opts.model ?? (process.env.CONTEXT_MODEL || 'gemma3:4b');
   const windowTokens = opts.windowTokens ?? summaryWindowTokens(process.env);
+  const numCtx = opts.numCtx ?? await resolveNumCtx(model, process.env);
   const budget = Math.max(500, Math.floor(windowTokens * 0.8));
   try {
     const clean = sanitizeSummary(await summarizeWithRule(
       `the collection "${collection}"`, lines.join('\n'), lines,
-      { generateFn, model, budget }));
+      { generateFn, model, budget, numCtx }));
     if (!clean) {
       process.stderr.write('[skeleton-summary] collection summary rejected by sanitizer — keeping inventory\n');
       return { summary: inventory, children };
