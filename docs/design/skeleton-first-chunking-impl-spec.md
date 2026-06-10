@@ -5,6 +5,24 @@
 > fixture і жорсткі обмеження. Реалізація йде потім, маленькими задачами (§11).
 >
 > Section-посилання (§N) вказують на **дизайн-док**, якщо не сказано інше.
+>
+> **Статус реалізації (2026-06-10): задачі 1–5 з §11 виконані.**
+> Задача 4: `buildFileSkeleton` пише лише `*.skeleton.json` (inspect-only),
+> Qdrant upsert nav-вузлів НЕ підключений — порядок 4→5→6 дотримано.
+> Задача 5: nav-виключення реалізоване як безумовний `must_not
+> point_kind=skeleton_nav` (no-op для legacy-точок без поля — умовність за
+> chunking_model не потрібна) у `qdrant_search` + client-side skip у
+> listFiles/listTags/listDirectories/findByTag. Наступна — задача 6 (nav upsert). Відхилення,
+> внесені під час реалізації:
+> 1. **Tiny-code правило** (vault-валідоване): code_block < 2 рядків і < 8 токенів →
+>    `merge_with_parent`, інлайн у прозу (design §7.2.1).
+> 2. **Point ID скелета — похідна node_id, не chunkIndex** — перехідний етап §6
+>    згорнуто одразу (пізніша міграція = повний реіндекс наповнених колекцій).
+>    `makeSkeletonPointId` у `skeleton-payload.js`; SKIP_PRE_DELETE для
+>    skeleton-файлів ігнорується.
+> 3. **B1 закрито:** skip-кортеж stageA включає `chunking_model` +
+>    `indexing_schema_version`.
+> 4. Smoke-покриття — секції 42–46 основної сюїти.
 
 ---
 
@@ -145,7 +163,9 @@ export function applyNodePolicy(node)
 /**
  * Чи має вузол стати retrieval_content point. Єдиний gate проти порожніх чанків (§7.3).
  *
- * structural (table/code/checklist/image-ref) -> true (має raw_content/metadata).
+ * structural (table/code/checklist) -> true (має raw_content/metadata).
+ * image не є retrieval-вузлом (pointKind=skeleton_nav) — gate застосовується
+ * лише до retrieval_content (C2-виправлення, 2026-06-10).
  * prose (paragraph/list/blockquote) -> normalize(text) має >= MIN_CONTENT_TOKENS
  *   значущих токенів, де плейсхолдери [table node: ...]/[code block node: ...]
  *   та голі heading-рядки НЕ рахуються (§11-правило).
@@ -300,9 +320,13 @@ chunk_index, total_chunks, file_hash, vector_size, ...meta`). Нові поля:
   `point_kind="retrieval_content"` уже діє (§11 кроки 4→5→6). До того
   `buildFileSkeleton` пише лише `*.skeleton.json`, у Qdrant нічого не йде. Payload/
   ID-схему фіксуємо тут заздалегідь.
-- `makePointId` для content-вузлів skeleton-v1 у MVP лишається на `chunkIndex`
-  (сумісність із `deleteTrailingChunks`); `node_id` живе як окреме payload-поле.
-  Перехід point-id на node_id — пізніший крок (потребує заміни trailing-cleanup).
+- ~~`makePointId` для content-вузлів skeleton-v1 у MVP лишається на `chunkIndex`~~
+  **Згорнуто 2026-06-10:** point ID skeleton-чанків одразу похідний від `node_id`
+  (`makeSkeletonPointId(collection, node_id, embeddingSchemaVersion)`), без
+  перехідного chunkIndex-етапу. Cleanup-контракт: skeleton-файли завжди
+  pre-delete перед upsert (SKIP_PRE_DELETE ігнорується з попередженням), бо
+  node-похідні ID не перезаписуються позиційно при структурних правках.
+  `deleteTrailingChunks` лишається — `chunk_index` у payload присутній.
 
 ---
 
@@ -426,7 +450,9 @@ skip ←  hash == storedHash
 
 ## 12. Відкриті дрібниці (підтвердити перед задачею 2+)
 
-- `MIN_CONTENT_TOKENS` default — пропоную 4; фіналізуємо бенчмарком.
+- `MIN_CONTENT_TOKENS` default — **зафіксовано 4** (реалізовано; два реальні
+  корпуси дали 0 порожніх чанків). Пороги tiny-code: `CODE_ENTITY_MIN_LINES=2`,
+  `CODE_ENTITY_MIN_TOKENS=8` — vault-валідовані.
 - Формат `node_path` slug для table/code: `#<section-slug>/<type>-<ordinal>`
   (напр. `#install/table-1`) — підтвердити.
 - (Вирішено §4: бекфілу немає — `chunking_model` лише на skeleton-reindex, legacy =

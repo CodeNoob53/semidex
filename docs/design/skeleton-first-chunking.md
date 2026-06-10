@@ -1,6 +1,9 @@
-# Skeleton-first Chunking — Design Spec (v4 draft)
+# Skeleton-first Chunking — Design Spec (v5)
 
-> Статус: **draft v4**. Це нова **архітектура чанкінгу**, а не retrieval-фіча і не
+> Статус: **v5 — частково реалізовано** (задачі 1–3 impl-спеки виконані
+> 2026-06-10; див. статус-блок у impl-спеці). Доповнено vault-валідованим
+> tiny-code правилом (§7.2.1) і правилами кріплення плейсхолдерів (§11).
+> Попередній статус: draft v4. Це нова **архітектура чанкінгу**, а не retrieval-фіча і не
 > окремий "entity model" шар. Відкриті/відкладені рішення зібрані в §18 і §20;
 > у тексті відкладені інлайн-пункти позначені `OPEN:`.
 >
@@ -313,7 +316,8 @@ section  paragraph  table  code_block  list  blockquote  image  frontmatter
 | paragraph | `chunk_text` | retrieval_content | як зараз |
 | **section** | `nav_summary` | **skeleton_nav** | НЕ retrieval-point у MVP |
 | table | `payload_raw_embed_context` | retrieval_content | raw цілою |
-| code_block | `payload_raw_embed_context` | retrieval_content | + `lang`, не різати по реченнях |
+| code_block ((≥2 рядків І ≥12 ток.) АБО ≥16 ток.) | `payload_raw_embed_context` | retrieval_content | + `lang`, не різати по реченнях |
+| code_block (tiny: менше за поріг) | `merge_with_parent` | — (інлайн у прозі) | §7.2.1 |
 | list (prose) | `chunk_text` | retrieval_content | |
 | list (checklist/steps) | `payload_raw_embed_context` | retrieval_content | кроки не зливати |
 | blockquote | `chunk_text` / `payload+context` за розміром | retrieval_content | |
@@ -324,6 +328,22 @@ section  paragraph  table  code_block  list  blockquote  image  frontmatter
 | collection | `nav_summary` | skeleton_nav | collection summary |
 
 Конфлікт із v1 усунено: **section не дає retrieval-point**, лише nav-вузол.
+
+### 7.2.1 Tiny-code правило (зафіксовано 2026-06-10, vault-валідоване)
+
+Емпірика реального Obsidian-корпусу (49 файлів): 3364 fence-блоки, з них 84% —
+однорядкові, 73% — ОДНЕ слово ("LTS", "PATH", "nvm use") — інлайн-терміни,
+оформлені як fence. Без захисту індекс отримав би ~2.5 тис. одно-слівних точок.
+
+Правило (відкалібровано 2026-06-10 за ручним ground-truth підрахунком на
+другому корпусі — ціль 60–65 сутностей, перша версія правила давала 93,
+фінальна дає 65): code_block стає сутністю при
+**(≥ CODE_ENTITY_MIN_LINES (2) рядків І ≥ CODE_ENTITY_MIN_TOKENS (12) токенів)
+АБО ≥ CODE_ENTITY_ONELINE_TOKENS (16) токенів**; менше —
+`merge_with_parent`: текст вливається у prose-чанк (шукається sparse-ногою),
+окремої точки і плейсхолдера немає. `lang` НЕ використовується для рішення —
+автодетект реальних експортів дає сміття ("apache"/"arduino" на shell-командах).
+Ordinals структурні (з парсингу): зміна порогів не зсуває node_id сусідів.
 
 > **Не плутати два розміри:** розмір прозового чанка (`chunk_text`, скільки токенів
 > у paragraph-чанку) — окремий параметр, який ще підбираємо бенчмарком. `boundedRaw`
@@ -459,6 +479,14 @@ table/code вилучаються з тексту батьківського pro
 [table node: guide.md#sec-3/table-1 — directives and meanings]
 [code block node: guide.md#sec-3/code-1 — example service startup command]
 ```
+
+**Кріплення плейсхолдера (зафіксовано 2026-06-10, реалізовано):** рівно ОДИН
+плейсхолдер на сутність, пріоритет кріплення:
+1) попередній prose-акумулятор (читається природно: "...директиви: [table node: ...]");
+2) останній emitted prose-чанк цієї ж секції (post-hoc, для серій сутність-за-сутністю);
+3) наступний prose-run (сутність на початку секції);
+4) нікуди — сутність стоїть сама (≈3% на реальному корпусі, прийнятно).
+Плейсхолдери ніколи не перетинають межі секцій.
 
 **Правило (зафіксовано):** плейсхолдер — НЕ контент. Якщо після вилучення table/code
 прозовий вузол складається **лише з плейсхолдерів** (нема значущого тексту поза ними),
@@ -784,6 +812,11 @@ embedding чи LLM виклику. Це також основа для UI з ф�
 7. **Skeleton = universal index (§17.1):** один індекс обслуговує агентів, людей
    (UI/фільтри/mind map) і програмні інструменти. Mind map — renderer поверх
    skeleton_nav, не окрема модель даних.
+8. **Tiny-code → merge_with_parent (§7.2.1)** — vault-валідоване, реалізоване.
+9. **Point ID skeleton-чанків — похідна node_id з першого дня** (без
+   перехідного chunkIndex-етапу; обґрунтування — у статус-блоці impl-спеки).
+10. **Ordinals структурні** (парс-тайм): стабільність node_id не залежить від
+    policy-порогів.
 
 ---
 
