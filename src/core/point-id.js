@@ -11,7 +11,9 @@ function uuidToBytes(uuid) {
 }
 
 // RFC 4122 §4.3 UUIDv5: SHA-1(namespace bytes + name bytes), then set version/variant.
-function uuidv5(name) {
+// Exported for makeNodeId (src/core/node-id.js) — same UUIDv5 implementation,
+// different name-spacing contract. Do not change without bumping schema versions.
+export function uuidv5(name) {
   const nsBytes  = uuidToBytes(NAMESPACE);
   const nameBytes = Buffer.from(name, 'utf8');
   const hash = createHash('sha1').update(nsBytes).update(nameBytes).digest();

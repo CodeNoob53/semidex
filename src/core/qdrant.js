@@ -141,7 +141,7 @@ export async function getStoredMeta(collection, sourceFile) {
     collection,
     { must: [{ key: 'source_file', match: { value: sourceFile } }] },
     1,
-    ['file_hash', 'dense_provider', 'dense_model', 'sparse_provider', 'embedding_schema_version', 'vector_size', 'chunking_schema_version', 'token_count_mode']
+    ['file_hash', 'dense_provider', 'dense_model', 'sparse_provider', 'embedding_schema_version', 'vector_size', 'chunking_schema_version', 'token_count_mode', 'chunking_model', 'indexing_schema_version']
   );
   const p = points[0]?.payload;
   return p ? {
@@ -153,6 +153,9 @@ export async function getStoredMeta(collection, sourceFile) {
     vectorSize:             p.vector_size              ?? null,
     chunkingSchemaVersion:  p.chunking_schema_version  ?? null,
     tokenCountMode:         p.token_count_mode          ?? null,
+    // Skeleton-v1 markers (impl spec §4): absence = legacy point.
+    chunkingModel:          p.chunking_model            ?? null,
+    indexingSchemaVersion:  p.indexing_schema_version   ?? null,
   } : null;
 }
 
@@ -259,6 +262,10 @@ export async function createCollection(name, size = 1024) {
   await createPayloadIndex(name, 'source_file', 'keyword');
   await createPayloadIndex(name, 'tags', 'keyword');
   await createPayloadIndex(name, 'chunk_index', 'integer');
+  // Skeleton-first filters (impl spec §5): required before any skeleton_nav
+  // upsert so the point_kind search filter can be enforced from day one.
+  await createPayloadIndex(name, 'point_kind', 'keyword');
+  await createPayloadIndex(name, 'node_type', 'keyword');
 }
 
 export async function deleteCollection(name) {

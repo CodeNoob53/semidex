@@ -12,6 +12,9 @@ const REQUIRED_INDEXES = {
   'source_file':      'keyword',
   'tags':             'keyword',
   'chunk_index':      'integer',
+  // Skeleton-first (impl spec §5) — idempotent backfill onto existing collections.
+  'point_kind':       'keyword',
+  'node_type':        'keyword',
 };
 
 const config = loadConfig();

@@ -25,6 +25,14 @@ export function getChunkingConfig() {
 // token-count.js so both paths share the same implementation.
 const countTokens = heuristicTokenCount;
 
+// Normalize line endings before any structural parsing. CRLF input previously
+// broke frontmatter (/^---\n/) and setext-heading (/^=+$/) detection — meta
+// tags were silently lost on Windows-authored files (code review 2026-06-10,
+// finding #1). Covered by smoke section 45.
+export function normalizeEol(text) {
+  return String(text ?? '').replace(/\r\n?/g, '\n');
+}
+
 export function splitSentences(text) {
   const parts = text.match(/[^.!?\n]+[.!?\n]+|[^.!?\n]+$/g) ?? [];
   const result = parts.map(s => s.trim()).filter(Boolean);
@@ -57,7 +65,7 @@ function parseWikilinks(text) {
 // No overlap here; indexing overlap is applied after deterministic chunk finalization.
 // stripPageMarkers: strip "-- N of M --" markers emitted by pdf-parse.
 export function recursiveChunkText(text, { stripPageMarkers = false } = {}) {
-  let src = text;
+  let src = normalizeEol(text);
   if (stripPageMarkers) src = src.replace(/--\s*\d+\s*of\s*\d+\s*--/g, '');
   src = src.replace(/\n{3,}/g, '\n\n').trim();
   if (!src) return [];
@@ -413,6 +421,7 @@ function chunkSections(sections, sourceFile, meta = {}, links = []) {
 }
 
 export function chunkFile(filePath, text, sourceFile) {
+  text = normalizeEol(text);
   const ext = extname(filePath).toLowerCase();
   const chunks = [];
 
@@ -469,7 +478,7 @@ async function _splitLevelAsync(text, levels, countFn) {
 }
 
 async function recursiveChunkTextAsync(text, countFn, { stripPageMarkers = false } = {}) {
-  let src = text;
+  let src = normalizeEol(text);
   if (stripPageMarkers) src = src.replace(/--\s*\d+\s*of\s*\d+\s*--/g, '');
   src = src.replace(/\n{3,}/g, '\n\n').trim();
   if (!src) return [];
@@ -526,6 +535,7 @@ async function chunkSectionsAsync(sections, sourceFile, meta = {}, links = [], c
  * @param {(text: string) => Promise<number>} countFn
  */
 export async function chunkFileAsync(filePath, text, sourceFile, countFn = heuristicTokenCount) {
+  text = normalizeEol(text);
   const ext = extname(filePath).toLowerCase();
   const chunks = [];
 
@@ -567,6 +577,25 @@ export async function chunkFileFromPath(filePath, sourceFile) {
       process.stderr.write('[chunk] token counter: bge-m3 tokenizer\n');
       tokenCounterLogShown = true;
     }
+  }
+
+  // ── Skeleton-first path (impl spec §1): opt-in via SKELETON_CHUNKING=1,
+  // Markdown only. Lazy imports keep remark out of the legacy hot path.
+  // Everything below this block is the legacy pipeline, byte-identical when
+  // the flag is unset (smoke section 45 guards this).
+  if (process.env.SKELETON_CHUNKING === '1' && ext === '.md') {
+    const [skeletonMod, chunkMod, warnMod] = await Promise.all([
+      import('./skeleton.js'),
+      import('./skeleton-chunk.js'),
+      import('../skeleton-warnings.js'),
+    ]);
+    const raw = readFileSync(filePath, 'utf8');
+    const skel = skeletonMod.parseSkeleton(raw, { sourceFile });
+    const events = skeletonMod.collectSkeletonWarnings(skel, {
+      collection: process.env.COLLECTION ?? '', sourceFile,
+    });
+    for (const e of events) warnMod.logSkeletonWarning(e);
+    return chunkMod.chunkFromSkeleton(skel, { sourceFile });
   }
 
   if (ext === '.pdf') {
@@ -624,8 +653,7 @@ export async function chunkFileFromPath(filePath, sourceFile) {
   }
 
   const raw = readFileSync(filePath, 'utf8');
-  const text = raw.replace(/\r\n?/g, '\n');
   return useAsync
-    ? chunkFileAsync(filePath, text, sourceFile, countFn)
-    : chunkFile(filePath, text, sourceFile);
+    ? chunkFileAsync(filePath, raw, sourceFile, countFn)
+    : chunkFile(filePath, raw, sourceFile);
 }

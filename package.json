@@ -63,6 +63,10 @@
     "@opendocsg/pdf2md": "^0.2.6",
     "dotenv": "^16.0.0",
     "onnxruntime-node": "1.24.3",
-    "pdf-parse": "^2.4.5"
+    "pdf-parse": "^2.4.5",
+    "remark-frontmatter": "^5.0.0",
+    "remark-gfm": "^4.0.1",
+    "remark-parse": "^11.0.0",
+    "unified": "^11.0.5"
   }
 }

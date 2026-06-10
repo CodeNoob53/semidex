@@ -23,6 +23,7 @@ import { CHUNKING_SCHEMA_VERSION, getTokenCounter, resolveTokenCountMode } from 
 import { Semaphore } from './semaphore.js';
 import { SerialQueue } from './serial-queue.js';
 import { envInt } from '../core/env.js';
+import { expectedChunkingMeta, skeletonPayloadFields, isSkeletonChunk } from './skeleton-payload.js';
 
 const BATCH_SIZE   = envInt('LLM_BATCH_SIZE', 3, 1, 64, '[indexer] ');
 const COLLECTION   = process.env.COLLECTION;
@@ -54,10 +55,15 @@ async function stageA(filePath, rootPath, collection, profiler) {
   const fileHash   = await hashFile(filePath);
   const storedMeta = await getStoredMeta(collection, sourceFile);
   const storedHash = storedMeta?.hash ?? null;
+  // B1: chunking-model agreement is part of the skip tuple — toggling
+  // SKELETON_CHUNKING must reindex, never silently mix point models.
+  const chunkMeta = expectedChunkingMeta(process.env, filePath);
 
   if (
     !process.env.FORCE_REINDEX &&
     storedHash === fileHash &&
+    storedMeta?.chunkingModel          === chunkMeta.chunkingModel &&
+    storedMeta?.indexingSchemaVersion  === chunkMeta.indexingSchemaVersion &&
     storedMeta?.denseProvider          === embedCfg.denseProvider &&
     storedMeta?.denseModel             === embedCfg.denseModel &&
     storedMeta?.sparseProvider         === embedCfg.sparseProvider &&
@@ -97,6 +103,8 @@ async function stageA(filePath, rootPath, collection, profiler) {
     if (storedMeta?.chunkingSchemaVersion  !== CHUNKING_SCHEMA_VERSION) reasons.push(`chunkingSchemaVersion: ${storedMeta?.chunkingSchemaVersion} → ${CHUNKING_SCHEMA_VERSION}`);
     if (storedMeta?.tokenCountMode         !== tokenCountMode)          reasons.push(`tokenCountMode: ${storedMeta?.tokenCountMode} → ${tokenCountMode}`);
     if ((storedMeta?.vectorSize ?? configVectorSize) !== configVectorSize) reasons.push(`vectorSize: ${storedMeta?.vectorSize} → ${configVectorSize}`);
+    if (storedMeta?.chunkingModel          !== chunkMeta.chunkingModel)          reasons.push(`chunkingModel: ${storedMeta?.chunkingModel ?? 'legacy'} → ${chunkMeta.chunkingModel ?? 'legacy'}`);
+    if (storedMeta?.indexingSchemaVersion  !== chunkMeta.indexingSchemaVersion)  reasons.push(`indexingSchemaVersion: ${storedMeta?.indexingSchemaVersion} → ${chunkMeta.indexingSchemaVersion}`);
     deleteReason = reasons.length ? reasons.join(', ') : 'content changed';
     console.log(`  ~ ${deleteReason}, reindexing...`);
   }
@@ -200,7 +208,10 @@ async function stageB(prepared, ollamaSem = null) {
   }
 
   // Defensive guard: empty-section chunks must not reach Qdrant.
-  const emptySectionChunks = taggedChunks.filter(isEmptySectionChunk);
+  // Skipped for skeleton-v1 chunks — emptiness is impossible by construction
+  // there (isContentBearing gate), and the legacy "(empty section: ...)"
+  // marker never occurs in skeleton output (impl spec §6).
+  const emptySectionChunks = taggedChunks.filter(c => !isSkeletonChunk(c) && isEmptySectionChunk(c));
   if (emptySectionChunks.length > 0) {
     throw new Error(
       `${emptySectionChunks.length} empty-section chunk(s) reached the upsert gate — ` +
@@ -277,6 +288,7 @@ async function stageC(withTagged) {
           vector_size: configVectorSize,
           chunking_schema_version: CHUNKING_SCHEMA_VERSION,
           token_count_mode: tokenCountMode,
+          ...skeletonPayloadFields(chunk),   // additive; {} for legacy chunks
           ...meta,
         },
       },
