@@ -1,4 +1,5 @@
 import { scroll } from '../../core/qdrant.js';
+import { withNavExcluded, isNavPoint } from './filters.js';
 
 export const schema = {
   name: 'qdrant_find_by_tag',
@@ -21,6 +22,7 @@ export const schema = {
 export function groupByFile(points) {
   const byFile = new Map();
   for (const p of points) {
+    if (isNavPoint(p)) continue;   // nav nodes never count as content
     const sf = p.payload?.source_file ?? '(unknown)';
     if (!byFile.has(sf)) byFile.set(sf, { sections: [], chunkCount: 0 });
     const entry = byFile.get(sf);
@@ -44,7 +46,7 @@ export async function handle({ collection, tag, tags, match = 'any', limit = 200
       : { should: effectiveTags.map(t => ({ key: 'tags', match: { value: t } })) };
   }
 
-  const raw = await scroll(collection, filter, limit + 1);
+  const raw = await scroll(collection, withNavExcluded(filter), limit + 1);
   const truncated = raw.length > limit;
   const points = truncated ? raw.slice(0, limit) : raw;
 

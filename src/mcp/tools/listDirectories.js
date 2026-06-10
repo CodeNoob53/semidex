@@ -1,4 +1,5 @@
 import { scrollAllPoints } from '../../core/qdrant.js';
+import { isNavPoint } from './filters.js';
 
 export const schema = {
   name: 'qdrant_list_directories',
@@ -35,6 +36,7 @@ export function aggregateDirectories(points, sourcePrefix = null, depth = 1) {
   const dirChunks = new Map(); // dir → chunk count
 
   for (const p of points) {
+    if (isNavPoint(p)) continue;   // nav nodes must not inflate chunk counts (B2)
     const sf = (p.payload?.source_file ?? '').replace(/\\/g, '/');
     if (!sf) continue;
     if (normalizedPrefix && !sf.startsWith(normalizedPrefix)) continue;
@@ -64,7 +66,7 @@ export function aggregateDirectories(points, sourcePrefix = null, depth = 1) {
 export async function handle({ collection, source_prefix, depth = 1, limit = 100 }) {
   depth = Math.max(1, Math.min(5, parseInt(depth) || 1));
 
-  const points = await scrollAllPoints(collection, ['source_file']);
+  const points = await scrollAllPoints(collection, ['source_file', 'point_kind']);
 
   const dirs = aggregateDirectories(points, source_prefix ?? null, depth);
   const totalFound = dirs.length;

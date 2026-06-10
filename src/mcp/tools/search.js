@@ -2,6 +2,7 @@ import { hybridSearch, fetchWindowChunks } from '../../core/qdrant.js';
 import { embedForSearch } from '../../core/embeddings.js';
 import { rerankResults } from '../../core/rerank.js';
 import { ceRerank, withCETimeout, RERANK_CE_TIMEOUT_MS } from '../../core/ce-rerank.js';
+import { withNavExcluded } from './filters.js';
 
 import { envInt } from '../../core/env.js';
 
@@ -61,6 +62,9 @@ export async function handle({ query, collection, top = 5, tags, source_file, wi
     if (tags?.length) must.push({ should: tags.map(t => ({ key: 'tags', match: { value: t } })) });
     filter = { must };
   }
+  // skeleton_nav points never appear in search (impl spec task 5);
+  // a no-op for legacy collections — the field does not exist there.
+  filter = withNavExcluded(filter);
 
   // Pipeline (docs/en/ce-rerank-design.md §4):
   //   hybridSearch(prefetch N) → [Stage 1: det-rerank] → [Stage 2: CE rerank] → slice(top)

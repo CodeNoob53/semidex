@@ -1,4 +1,5 @@
 import { scrollAllPoints } from '../../core/qdrant.js';
+import { isNavPoint } from './filters.js';
 
 export const schema = {
   name: 'qdrant_list_tags',
@@ -28,6 +29,7 @@ export function aggregateTags(points, sourcePrefix = null, minCount = 1, tagPref
   const tagFiles  = new Map();  // tag → Set of source_files
 
   for (const p of points) {
+    if (isNavPoint(p)) continue;   // nav nodes carry no content tags (B2)
     const sf   = (p.payload?.source_file ?? '').replace(/\\/g, '/');
     const tags = p.payload?.tags;
     if (!Array.isArray(tags) || tags.length === 0) continue;
@@ -60,7 +62,7 @@ export async function handle({ collection, source_prefix, tag_prefix, contains, 
     : '';
   const effectiveSourcePrefix = source_prefix ?? prefix ?? null;
 
-  const points = await scrollAllPoints(collection, ['source_file', 'tags']);
+  const points = await scrollAllPoints(collection, ['source_file', 'tags', 'point_kind']);
 
   const tags = aggregateTags(points, effectiveSourcePrefix, min_count, tag_prefix ?? null, contains ?? null);
   const totalFound = tags.length;

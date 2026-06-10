@@ -1,4 +1,5 @@
 import { scrollAllPoints } from '../../core/qdrant.js';
+import { isNavPoint } from './filters.js';
 
 export const schema = {
   name: 'qdrant_list_files',
@@ -28,6 +29,7 @@ export function aggregateFiles(points, sourcePrefix = null, tags = null, tagMatc
   const fileMap = new Map();
 
   for (const p of points) {
+    if (isNavPoint(p)) continue;   // nav nodes must not inflate chunkCount (B2)
     const sf = (p.payload?.source_file ?? '').replace(/\\/g, '/');
     if (!sf) continue;
     if (normalizedPrefix && !sf.startsWith(normalizedPrefix)) continue;
@@ -87,7 +89,7 @@ export async function handle({ collection, source_prefix, tags, tag_match = 'any
     : '';
   const effectiveSourcePrefix = source_prefix ?? prefix ?? null;
 
-  const payloadFields = ['source_file', 'chunk_index', 'section'];
+  const payloadFields = ['source_file', 'chunk_index', 'section', 'point_kind'];
   if (tags && tags.length > 0) payloadFields.push('tags');
 
   const points = await scrollAllPoints(collection, payloadFields);
