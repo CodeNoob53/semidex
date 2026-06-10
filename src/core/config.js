@@ -1,7 +1,8 @@
 import 'dotenv/config';
-import { readFileSync, writeFileSync, existsSync } from 'fs';
+import { readFileSync, writeFileSync, renameSync, existsSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { assertProviderCombo } from './env.js';
 
 const CONFIG_PATH = resolve(dirname(fileURLToPath(import.meta.url)), '../../config.json');
 
@@ -11,7 +12,9 @@ export function loadConfig() {
 }
 
 export function saveConfig(config) {
-  writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), 'utf-8');
+  const tmp = `${CONFIG_PATH}.tmp`;
+  writeFileSync(tmp, JSON.stringify(config, null, 2), 'utf-8');
+  renameSync(tmp, CONFIG_PATH);
 }
 
 /**
@@ -19,16 +22,6 @@ export function saveConfig(config) {
  * SPARSE_PROVIDER, EMBED_MODEL). Used by sync and indexer when creating new
  * collection entries.
  */
-const VALID_PROVIDER_COMBOS = new Set(['ollama:hashed-tf', 'bge-m3-onnx:bge-m3-onnx']);
-
-function assertProviderCombo(denseProvider, sparseProvider) {
-  if (!VALID_PROVIDER_COMBOS.has(`${denseProvider}:${sparseProvider}`)) {
-    throw new Error(
-      `Invalid provider combination: DENSE_PROVIDER="${denseProvider}", SPARSE_PROVIDER="${sparseProvider}". ` +
-      `Valid combinations: ollama+hashed-tf, bge-m3-onnx+bge-m3-onnx.`
-    );
-  }
-}
 
 export function resolveEnvProviders() {
   // Explicit new-style env vars take precedence

@@ -44,7 +44,9 @@ export async function handle({ collection, tag, tags, match = 'any', limit = 200
       : { should: effectiveTags.map(t => ({ key: 'tags', match: { value: t } })) };
   }
 
-  const points = await scroll(collection, filter, limit);
+  const raw = await scroll(collection, filter, limit + 1);
+  const truncated = raw.length > limit;
+  const points = truncated ? raw.slice(0, limit) : raw;
 
   if (!points.length) {
     const tagLabel = effectiveTags.length === 1
@@ -65,9 +67,10 @@ export async function handle({ collection, tag, tags, match = 'any', limit = 200
     ? `\`${effectiveTags[0]}\``
     : `[${effectiveTags.map(t => `\`${t}\``).join(', ')}] (${match})`;
 
+  const truncationNote = truncated ? ` (showing first ${limit} — increase \`limit\` to see more)` : '';
   const lines = [
     `## Chunks tagged ${tagLabel}`,
-    `Found ${totalChunks} chunk${totalChunks === 1 ? '' : 's'} across ${sorted.length} file${sorted.length === 1 ? '' : 's'}`,
+    `Found ${totalChunks} chunk${totalChunks === 1 ? '' : 's'} across ${sorted.length} file${sorted.length === 1 ? '' : 's'}${truncationNote}`,
     '',
   ];
 

@@ -2,14 +2,10 @@ import { hybridSearch, fetchWindowChunks } from '../../core/qdrant.js';
 import { embedForSearch } from '../../core/embeddings.js';
 import { rerankResults } from '../../core/rerank.js';
 
-function envInt(name, defaultVal, min, max) {
-  const v = parseInt(process.env[name] ?? '');
-  if (!Number.isFinite(v) || v < min || v > max) return defaultVal;
-  return v;
-}
+import { envInt } from '../../core/env.js';
 
 const RERANK_ENABLED        = process.env.RERANK_ENABLED === '1';
-const RERANK_PREFETCH_MULT  = envInt('RERANK_PREFETCH_MULT', 4, 1, 100);
+const RERANK_PREFETCH_MULT  = envInt('RERANK_PREFETCH_MULT', 4, 1, 100, '[search] ');
 
 export function assembleWindowChunks(wPoints, matchedChunkIndex, window_format, seenChunks = new Set()) {
   const result = [];
@@ -51,6 +47,7 @@ export const schema = {
 };
 
 export async function handle({ query, collection, top = 5, tags, source_file, window = 0, window_format = 'full' }) {
+  top = Math.min(Math.max(1, parseInt(top) || 5), 20);
   window = Math.max(0, Math.min(2, parseInt(window) || 0));
 
   const { dense, sparse } = await embedForSearch(collection, query);
@@ -73,10 +70,21 @@ export async function handle({ query, collection, top = 5, tags, source_file, wi
   }
   if (!results.length) return 'No results found.';
 
+  // Fetch all window chunks in parallel (one request per result instead of N sequential).
+  const windowPointsList = window > 0
+    ? await Promise.all(results.map(r => {
+        const chunkIndex = r.payload.chunk_index;
+        return Number.isInteger(chunkIndex)
+          ? fetchWindowChunks(collection, r.payload.source_file, chunkIndex, window)
+          : Promise.resolve([]);
+      }))
+    : results.map(() => []);
+
   const formattedResults = [];
   const seenChunks = new Set();
 
-  for (const r of results) {
+  for (let i = 0; i < results.length; i++) {
+    const r = results[i];
     const p = r.payload;
     const chunkIndex = Number.isInteger(p.chunk_index) ? p.chunk_index : '?';
     const totalChunks = Number.isInteger(p.total_chunks) ? p.total_chunks : '?';
@@ -84,8 +92,7 @@ export async function handle({ query, collection, top = 5, tags, source_file, wi
 
     let windowChunksJSON = null;
     if (window > 0 && chunkIndex !== '?') {
-      const wPoints = await fetchWindowChunks(collection, p.source_file, chunkIndex, window);
-      windowChunksJSON = assembleWindowChunks(wPoints, chunkIndex, window_format, seenChunks);
+      windowChunksJSON = assembleWindowChunks(windowPointsList[i], chunkIndex, window_format, seenChunks);
     }
 
     const lines = [

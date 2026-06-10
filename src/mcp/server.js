@@ -6,6 +6,7 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 
+import { sanitiseErrorMessage } from '../core/doctor-checks.js';
 import * as search from './tools/search.js';
 import * as collections from './tools/collections.js';
 import * as getChunk from './tools/getChunk.js';
@@ -34,7 +35,7 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
     const text = await handler(args ?? {});
     return { content: [{ type: 'text', text }] };
   } catch (err) {
-    return { content: [{ type: 'text', text: `Error: ${err.message}` }] };
+    return { content: [{ type: 'text', text: `Error: ${sanitiseErrorMessage(err.message, process.env.QDRANT_KEY)}` }] };
   }
 });
 

@@ -60,8 +60,7 @@ function onWorkerError(err) {
 }
 
 function onWorkerExit(code) {
-  if (code === 0) return;
-  const err = new Error(`tag-onnx worker exited with code ${code}`);
+  const err = new Error(`tag-onnx worker exited unexpectedly (code ${code})`);
   for (const { reject } of _pending.values()) reject(err);
   _pending.clear();
   _workerReady = false;
@@ -105,7 +104,7 @@ async function ensureWorker() {
 
     _workerReady = true;
     process.stderr.write('[tag-onnx] worker ready\n');
-  })();
+  })().catch(e => { _initPromise = null; throw e; });
 
   await _initPromise;
 }
