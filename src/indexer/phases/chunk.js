@@ -5,26 +5,17 @@ import { promisify } from 'util';
 import { createRequire } from 'module';
 import pdf2md from '@opendocsg/pdf2md';
 import { heuristicTokenCount, getTokenCounter, resolveTokenCountMode } from '../../core/token-count.js';
+import { envInt } from '../../core/env.js';
 
 const require = createRequire(import.meta.url);
 const { PDFParse } = require('pdf-parse');
 
 const execFileAsync = promisify(execFile);
 
-function envInt(name, defaultVal, min, max) {
-  const v = parseInt(process.env[name] ?? '');
-  if (!Number.isFinite(v) || v < min || v > max) {
-    if (process.env[name] !== undefined)
-      console.warn(`[chunk] ${name}="${process.env[name]}" is invalid — using default ${defaultVal}`);
-    return defaultVal;
-  }
-  return v;
-}
-
-const MAX_TOKENS       = envInt('MAX_CHUNK_TOKENS',  512, 1, 100000);
-const MIN_TOKENS       = envInt('MIN_CHUNK_TOKENS',  160, 0, 100000);
-export const OVERLAP_SENTENCES   = envInt('OVERLAP_SENTENCES',    2, 0, 100);
-const CHUNK_OVERLAP_TOKENS = envInt('CHUNK_OVERLAP_TOKENS', 80, 0, 100000);
+const MAX_TOKENS             = envInt('MAX_CHUNK_TOKENS',    512, 1, 100000, '[chunk] ');
+const MIN_TOKENS             = envInt('MIN_CHUNK_TOKENS',    160, 0, 100000, '[chunk] ');
+export const OVERLAP_SENTENCES = envInt('OVERLAP_SENTENCES',   2, 0, 100,    '[chunk] ');
+const CHUNK_OVERLAP_TOKENS   = envInt('CHUNK_OVERLAP_TOKENS',  80, 0, 100000, '[chunk] ');
 
 export function getChunkingConfig() {
   return { maxTokens: MAX_TOKENS, minTokens: MIN_TOKENS, overlapTokens: CHUNK_OVERLAP_TOKENS, overlapSentences: OVERLAP_SENTENCES };
@@ -618,14 +609,22 @@ export async function chunkFileFromPath(filePath, sourceFile) {
   }
 
   if (PANDOC_FORMATS.has(ext)) {
-    const { stdout } = await execFileAsync('pandoc', [filePath, '-t', 'markdown', '--wrap=none']);
+    let stdout;
+    try {
+      ({ stdout } = await execFileAsync('pandoc', [filePath, '-t', 'markdown', '--wrap=none'], { maxBuffer: 50 * 1024 * 1024 }));
+    } catch (err) {
+      if (err.code === 'ENOENT') throw new Error(`pandoc is not installed or not on PATH — required to index ${ext} files. Install from https://pandoc.org/installing.html`);
+      throw err;
+    }
     const mdPath = filePath.replace(/\.[^.]+$/, '.md');
+    const pandocText = stdout.replace(/\r\n?/g, '\n');
     return useAsync
-      ? chunkFileAsync(mdPath, stdout, sourceFile, countFn)
-      : chunkFile(mdPath, stdout, sourceFile);
+      ? chunkFileAsync(mdPath, pandocText, sourceFile, countFn)
+      : chunkFile(mdPath, pandocText, sourceFile);
   }
 
-  const text = readFileSync(filePath, 'utf8');
+  const raw = readFileSync(filePath, 'utf8');
+  const text = raw.replace(/\r\n?/g, '\n');
   return useAsync
     ? chunkFileAsync(filePath, text, sourceFile, countFn)
     : chunkFile(filePath, text, sourceFile);

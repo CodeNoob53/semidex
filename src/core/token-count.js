@@ -6,7 +6,7 @@ import { mkdirSync } from 'fs';
 import { ONNX_CACHE_DIR } from './onnx-paths.js';
 
 const MODEL_ID = 'aapot/bge-m3-onnx';
-export const CHUNKING_SCHEMA_VERSION = 3;
+export const CHUNKING_SCHEMA_VERSION = 4;
 
 // ── heuristic (sync, always available) ────────────────────────────────────
 
