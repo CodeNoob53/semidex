@@ -22,8 +22,9 @@ import { ensureOllamaPreflight } from './preflight.js';
 import { CHUNKING_SCHEMA_VERSION, getTokenCounter, resolveTokenCountMode } from '../core/token-count.js';
 import { Semaphore } from './semaphore.js';
 import { SerialQueue } from './serial-queue.js';
+import { envInt } from '../core/env.js';
 
-const BATCH_SIZE   = parseInt(process.env.LLM_BATCH_SIZE || '3');
+const BATCH_SIZE   = envInt('LLM_BATCH_SIZE', 3, 1, 64, '[indexer] ');
 const COLLECTION   = process.env.COLLECTION;
 const VECTOR_SIZE  = parseInt(process.env.VECTOR_SIZE || '1024');
 const SOURCE_ROOT  = process.env.SOURCE_ROOT ? resolve(process.env.SOURCE_ROOT) : null;
@@ -295,7 +296,11 @@ async function stageD(withPoints) {
   const { taggedChunks, pointsWithDense, collection, rawChunks,
           sourceFile, needsDelete, profiler } = withPoints;
 
-  console.log('  [4/4] upserting...');
+  console.log('  [4/5] upserting...');
+
+  if (pointsWithDense.length === 0 && rawChunks.length > 0) {
+    throw new Error(`stageD: refusing to commit 0 points for ${sourceFile} (${rawChunks.length} raw chunks)`);
+  }
 
   if (needsDelete) {
     await deleteBySourceFile(collection, sourceFile);
@@ -412,22 +417,26 @@ async function main() {
   if (pipelineMode) {
     const parsedOllama = parseInt(process.env.OLLAMA_STAGE_CONCURRENCY ?? '1', 10);
     const parsedEmbed  = parseInt(process.env.EMBED_STAGE_CONCURRENCY  ?? '1', 10);
+    const parsedStageA = parseInt(process.env.STAGEA_CONCURRENCY       ?? '4', 10);
     const ollamaConcurrency = (Number.isInteger(parsedOllama) && parsedOllama >= 1) ? parsedOllama : 1;
     const embedConcurrency  = (Number.isInteger(parsedEmbed)  && parsedEmbed  >= 1) ? parsedEmbed  : 1;
+    const stageAConcurrency = (Number.isInteger(parsedStageA) && parsedStageA >= 1) ? parsedStageA : 4;
     if (parsedOllama !== ollamaConcurrency) console.warn(`[pipeline] invalid OLLAMA_STAGE_CONCURRENCY, using 1`);
     if (parsedEmbed  !== embedConcurrency)  console.warn(`[pipeline] invalid EMBED_STAGE_CONCURRENCY, using 1`);
+    if (parsedStageA !== stageAConcurrency) console.warn(`[pipeline] invalid STAGEA_CONCURRENCY, using 4`);
 
-    console.log(`[pipeline] enabled: ollama=${ollamaConcurrency} embed=${embedConcurrency} commit=serial`);
+    console.log(`[pipeline] enabled: stageA=${stageAConcurrency} ollama=${ollamaConcurrency} embed=${embedConcurrency} commit=serial`);
 
-    const ollamaSem  = new Semaphore(ollamaConcurrency);
-    const embedSem   = new Semaphore(embedConcurrency);
+    const stageASem   = new Semaphore(stageAConcurrency);
+    const ollamaSem   = new Semaphore(ollamaConcurrency);
+    const embedSem    = new Semaphore(embedConcurrency);
     const commitQueue = new SerialQueue();
 
     const settlements = await Promise.allSettled(files.map(async filePath => {
       console.log(`\n→ ${filePath}`);
       const profiler = new Profiler();
 
-      const preparedA = await stageA(filePath, rootPath, COLLECTION, profiler);
+      const preparedA = await stageASem.run(() => stageA(filePath, rootPath, COLLECTION, profiler));
       if (preparedA.status === 'skipped') return 'skipped';
 
       // ONNX split-sem path: only active when tags actually go to the ONNX worker.
