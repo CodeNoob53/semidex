@@ -24,7 +24,7 @@ import { Semaphore } from './semaphore.js';
 import { SerialQueue } from './serial-queue.js';
 import { envInt } from '../core/env.js';
 import { expectedChunkingMeta, skeletonPayloadFields, isSkeletonChunk, makeSkeletonPointId, buildNavPointPayload } from './skeleton-payload.js';
-import { generateNavSummaries, buildCollectionSummary } from './phases/skeleton-summary.js';
+import { generateNavSummaries, buildCollectionSummary, resolveRunNumCtx, estTokens } from './phases/skeleton-summary.js';
 import { makeNodeId } from '../core/node-id.js';
 import { scroll } from '../core/qdrant.js';
 
@@ -196,7 +196,9 @@ async function stageB(prepared, ollamaSem = null) {
     let navPoints = prepared.navPoints ?? [];
     if (navPoints.length > 0 && process.env.SKELETON_SUMMARY === 'llm') {
       console.log(`  [3.5/5] nav summaries (llm, ${navPoints.length} node(s))...`);
-      navPoints = await generateNavSummaries(navPoints, taggedChunks);
+      navPoints = await generateNavSummaries(navPoints, taggedChunks, {
+        numCtx: prepared.runNumCtx ?? undefined,
+      });
     }
 
     return { ...prepared, taggedChunks, navPoints };
@@ -439,13 +441,14 @@ async function stageD(withPoints) {
 }
 
 // ── Sequential indexFile (default, PIPELINE_MODE unset) ───────────────────────
-async function indexFile(filePath, rootPath, collection) {
+async function indexFile(filePath, rootPath, collection, { runNumCtx = null } = {}) {
   console.log(`\n→ ${filePath}`);
   const profiler = new Profiler();
 
   const preparedA = await stageA(filePath, rootPath, collection, profiler);
   if (preparedA.status === 'skipped') return 'skipped';
 
+  if (runNumCtx != null) preparedA.runNumCtx = runNumCtx;
   const preparedB = await stageB(preparedA);
   const preparedC = await stageC(preparedB);
   await stageD(preparedC);
@@ -532,6 +535,25 @@ async function main() {
   if (files.length) console.log(`Found ${files.length} file(s) to process`);
   let indexed = 0, skipped = 0;
 
+  // Pre-run num_ctx: read all skeleton-eligible files once, find the largest,
+  // resolve a single num_ctx for the whole run. Ollama loads the model once
+  // at that size and never reloads mid-run (reloads happen on num_ctx change).
+  let runNumCtx = null;
+  if (process.env.SKELETON_SUMMARY === 'llm') {
+    const contextModel = process.env.CONTEXT_MODEL || 'gemma3:4b';
+    const { readFileSync } = await import('fs');
+    let maxTokens = 0;
+    for (const f of files) {
+      if (!f.endsWith('.md')) continue;
+      try {
+        const tokens = estTokens(readFileSync(f, 'utf8'));
+        if (tokens > maxTokens) maxTokens = tokens;
+      } catch { /* unreadable file — stageA will handle it */ }
+    }
+    runNumCtx = await resolveRunNumCtx(contextModel, maxTokens);
+    console.log(`[summary] run num_ctx=${runNumCtx} (largest file ~${maxTokens} tokens)`);
+  }
+
   const pipelineMode = process.env.PIPELINE_MODE === '1';
 
   if (pipelineMode) {
@@ -559,6 +581,7 @@ async function main() {
       const preparedA = await stageASem.run(() => stageA(filePath, rootPath, COLLECTION, profiler));
       if (preparedA.status === 'skipped') return 'skipped';
 
+      if (runNumCtx != null) preparedA.runNumCtx = runNumCtx;
       // ONNX split-sem path: only active when tags actually go to the ONNX worker.
       // COMBINED_LLM=1 and disabled tags both bypass the ONNX lane inside stageB, so
       // they must keep the default ollamaSem.run() wrapper to gate Ollama correctly.
@@ -587,7 +610,7 @@ async function main() {
     }
   } else {
     for (const filePath of files) {
-      const status = await indexFile(filePath, rootPath, COLLECTION);
+      const status = await indexFile(filePath, rootPath, COLLECTION, { runNumCtx });
       if (status === 'skipped') skipped++; else indexed++;
     }
   }
@@ -634,6 +657,7 @@ async function main() {
 
       const { summary, children } = await buildCollectionSummary(COLLECTION, fileNodes, {
         llm: process.env.SKELETON_SUMMARY === 'llm',
+        numCtx: runNumCtx ?? undefined,
       });
 
       const collectionNodeId = makeNodeId({

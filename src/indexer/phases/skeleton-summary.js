@@ -29,14 +29,39 @@ export function summaryWindowTokens(env = process.env) {
   return v;
 }
 
-// Resolve the effective num_ctx to pass in every generate() options block.
-// Uses the model's real context_length (cached after first call) so Ollama
-// actually allocates the full window instead of defaulting to 4096.
-// Falls back to summaryWindowTokens() when Ollama is unreachable.
-export async function resolveNumCtx(model, env = process.env) {
+// Next power of 2 >= n, clamped to [min, max].
+function nextPow2Clamped(n, min, max) {
+  let p = min;
+  while (p < n && p < max) p *= 2;
+  return Math.min(p, max);
+}
+
+/**
+ * Resolve the num_ctx to use for an entire indexing run.
+ *
+ * Strategy: find the largest prompt we'll ever send (maxPromptTokens), add
+ * 15% headroom, round up to the next power of 2, clamp to [4096, modelMax].
+ * Ollama then loads the model ONCE for the whole run — no mid-run reloads.
+ *
+ * When SUMMARY_WINDOW_TOKENS is set explicitly we trust it as-is (CI/offline).
+ * When maxPromptTokens is 0/unknown we fall back to the model's full context.
+ *
+ * @param {string} model
+ * @param {number} maxPromptTokens — largest prompt (tokens) across all files in this run
+ * @param {NodeJS.ProcessEnv} env
+ */
+export async function resolveRunNumCtx(model, maxPromptTokens = 0, env = process.env) {
   const envVal = parseInt(env.SUMMARY_WINDOW_TOKENS ?? '', 10);
   if (Number.isFinite(envVal) && envVal >= 500) return envVal;
-  return getModelContextLength(model);
+  const modelMax = await getModelContextLength(model);
+  if (!maxPromptTokens || maxPromptTokens <= 0) return modelMax;
+  const needed = Math.ceil(maxPromptTokens * 1.15);
+  return nextPow2Clamped(needed, 4096, modelMax);
+}
+
+// Kept for backwards-compat (smoke tests inject generateFn without maxPromptTokens).
+export async function resolveNumCtx(model, env = process.env) {
+  return resolveRunNumCtx(model, 0, env);
 }
 
 // Heuristic token estimate — same chars/4 convention as length-bucket.js.
