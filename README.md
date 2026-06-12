@@ -49,7 +49,7 @@ leave your environment.
 | Problem | How semidex addresses it |
 |---------|--------------------------|
 | Context windows are too small | Indexes large document sets; the agent retrieves only relevant chunks |
-| Agents guess when context is missing | Seven read-only MCP tools give on-demand access to indexed project knowledge |
+| Agents guess when context is missing | Read-only MCP tools give on-demand access to indexed project knowledge and skeleton maps |
 | Semantic search misses exact terms | Sparse lexical vectors retrieve identifiers like `ONNX_EMBED`, env vars, and function names |
 | Keyword search misses meaning | Dense vectors retrieve paraphrases, related concepts, and mixed-language queries |
 | Chunks lose meaning in isolation | A local LLM summarizes each chunk's role in its document; the vector is computed from summary + text combined |
@@ -122,10 +122,12 @@ Windows:
 claude mcp add --scope user semidex -- node C:\absolute\path\to\semidex\src\mcp\server.js
 ```
 
-Reconnect MCP servers in your client and run `/mcp`. The server exposes seven
+Reconnect MCP servers in your client and run `/mcp`. The server exposes
 read-only tools, all prefixed `qdrant_` (`qdrant_search`,
 `qdrant_collection_info`, `qdrant_get_chunk`, `qdrant_find_by_tag`,
-`qdrant_list_files`, `qdrant_list_tags`, `qdrant_list_directories`).
+`qdrant_list_files`, `qdrant_list_tags`, `qdrant_list_directories`,
+`qdrant_get_skeleton`, `qdrant_get_skeleton_node`,
+`qdrant_get_skeleton_children`).
 
 <table><tr>
 <td><img src="assets/avif/mcp_connected.avif" alt="MCP connected"/></td>
@@ -312,7 +314,7 @@ Implemented:
 - LLM context summaries; optional payload tags
 - Dense + sparse hybrid retrieval with Qdrant RRF fusion
 - BGE-M3 ONNX multilingual provider; Ollama + hashed-TF fallback
-- Seven read-only MCP tools
+- Read-only MCP tools for retrieval and skeleton navigation
 - SHA-256 skip for unchanged files; deterministic point IDs
 - Opt-in stale-file cleanup (`PRUNE_STALE=1` against the full source root)
 - Optional deterministic reranker (default off)

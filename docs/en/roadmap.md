@@ -150,8 +150,8 @@ The implementation contract and task-by-task decomposition live in:
 
 ### Explicitly NOT in MVP
 
-- LLM-generated navigation summaries (file/section/collection) — Stage 2;
-- `qdrant_get_skeleton` / `qdrant_get_content` MCP tools — Stage 2;
+- advanced LLM-generated navigation summaries (file/section/collection) — Stage 2;
+- `qdrant_get_content` and deeper skeleton traversal controls — Stage 2;
 - separate `embedding_text` construction for tables/code — follows the LLM
   context work, after Stage 1;
 - collection-level summaries, callouts/admonitions, math, footnotes, OCR;
@@ -175,7 +175,7 @@ The implementation contract and task-by-task decomposition live in:
 Everything in this section is **post-MVP**. It is ordered by dependency: the
 foundation stages first, then product tracks that build on them.
 
-### Stage 2 — Skeleton Navigation Layer (future)
+### Stage 2 — Skeleton Navigation Layer (in progress)
 
 **Goal:** let agents understand a large collection progressively, without
 forcing navigation summaries into topical search results.
@@ -186,16 +186,21 @@ The skeleton has two distinct roles:
 2. `skeleton_nav` — collection, file, and section map nodes used only for
    navigation.
 
-Planned work (the payload model and search filter ship in the MVP; this stage
-builds on them):
+Shipped foundation:
 
-- upsert navigation nodes — only after the search filter is active;
-- add paginated `qdrant_get_skeleton(collection, source_file?, node_id?, depth?)`;
+- upsert navigation nodes after the search filter is active;
+- expose read-only skeleton MCP tools:
+  `qdrant_get_skeleton`, `qdrant_get_skeleton_node`,
+  `qdrant_get_skeleton_children`;
+- keep navigation summaries out of default `qdrant_search`.
+
+Remaining work:
+
 - add anchored content assembly through
   `qdrant_get_content(collection, anchor_node_id, scope="section"|"file")`;
 - generate summaries at useful navigation levels: file, major section, table,
   code block, and later collection;
-- keep navigation summaries out of default `qdrant_search`.
+- add pagination/depth controls for very large skeleton reads.
 
 Expected agent flow:
 

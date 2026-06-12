@@ -27,14 +27,20 @@ For unknown collection structure:
 
 ```text
 qdrant_collection_info
-  -> qdrant_list_directories(collection, depth=1)                               # map top-level areas
-  -> qdrant_list_directories(collection, source_prefix="<area>/", depth=1|2)   # drill into a known area
-  -> qdrant_list_files(collection, source_prefix="<area>/")                    # list files in that area
+  -> qdrant_get_skeleton(collection)                                            # skeleton map, if available
+  -> qdrant_get_skeleton_children(collection, node_path="<area node>")          # drill into a skeleton area
+  -> qdrant_list_directories(collection, depth=1)                               # fallback when no skeleton exists
+  -> qdrant_list_files(collection, source_prefix="<area>/")                    # exact source_file paths
   -> qdrant_search(query, collection, top=3, window=1, window_format="compact")
   -> qdrant_get_chunk (if broader context is needed)
 ```
 
-Always call `list_directories` at depth=1 first to orient, then drill with `source_prefix` before listing files. Do not guess `source_file` paths.
+Use skeleton tools as the collection map when available. Skeleton nodes are
+navigation summaries for collection, directory, file, and section structure;
+they are not retrieval evidence. Use `qdrant_search` and `qdrant_get_chunk` for
+facts you will cite in an answer. If no skeleton exists, call
+`list_directories` at depth=1 first to orient, then drill with `source_prefix`
+before listing files. Do not guess `source_file` paths.
 
 For tag discovery and breadth expansion:
 
@@ -84,6 +90,31 @@ source-navigation results look unexpectedly low-ranked:
 - Use `qdrant_list_files` or `qdrant_list_directories` if you need to enumerate
   files by path rather than retrieve by semantic query.
 
+### Skeleton Navigation
+
+Skeleton-enabled collections include a separate navigation layer:
+
+- `retrieval_content` points are searched by `qdrant_search`.
+- `skeleton_nav` points are hidden from search and exposed only through
+  skeleton tools.
+
+Use skeleton navigation when the task requires understanding the shape of a
+large collection, choosing an area before search, or drilling from collection
+to directory, file, and section summaries. Do not use skeleton summaries as the
+final evidence for factual answers; they are a map, not the source text.
+
+Typical flow:
+
+```text
+qdrant_get_skeleton(collection)
+  -> qdrant_get_skeleton_children(collection, node_path="<directory node_path>")
+  -> qdrant_get_skeleton_node(collection, node_path="<file or section node_path>")
+  -> qdrant_search(query, collection, source_file="<file from skeleton>", top=3, window=1, window_format="compact")
+```
+
+If `qdrant_get_skeleton` reports that no skeleton exists, use
+`qdrant_list_directories` and `qdrant_list_files` instead.
+
 ### Retrieval Safety
 
 Before answering from retrieved evidence, verify that the evidence matches the query's scope:
@@ -106,6 +137,9 @@ Raw/unstructured corpus chunks may contain distractor values, stale config, or c
 | `qdrant_search` | `query`, `collection`, `top?`, `tags?[]`, `source_file?`, `window?`, `window_format?` | Hybrid search with optional tag/source filters and context window |
 | `qdrant_collection_info` | none | Lists collections with point counts, provider metadata, descriptions |
 | `qdrant_get_chunk` | `collection`, `source_file`, `chunk_index`, `window?` | Retrieves one chunk and optional neighbors. Heading shows explicit `chunk_index` and display position. |
+| `qdrant_get_skeleton` | `collection` | Returns the collection skeleton root and immediate children. Use as the map for skeleton-enabled collections. |
+| `qdrant_get_skeleton_node` | `collection`, exactly one of `node_id` or `node_path` | Returns one skeleton navigation node with summary, parent, children, source file, and heading path. |
+| `qdrant_get_skeleton_children` | `collection`, exactly one of `node_id` or `node_path`, `limit?` | Resolves immediate child skeleton nodes with truncation metadata. |
 | `qdrant_find_by_tag` | `collection`, `tag?`, `tags?[]`, `match?`, `limit?` | Lists chunks matching tag(s), grouped by file and sorted by density |
 | `qdrant_list_directories` | `collection`, `source_prefix?`, `depth?`, `limit?` | Lists directory prefixes with file and chunk counts. Use to explore structure before listing files. |
 | `qdrant_list_files` | `collection`, `source_prefix?`, `tags?[]`, `tag_match?`, `limit?` | Lists unique source files with chunk counts, first section, and optional tag filtering |
@@ -160,5 +194,9 @@ Required Qdrant payload indexes:
 - `source_file` (keyword)
 - `tags` (keyword)
 - `chunk_index` (integer)
+- `point_kind` (keyword)
+- `node_type` (keyword)
+- `node_id` (keyword)
+- `node_path` (keyword)
 
 `npm run index` creates these for new collections. `npm run sync` ensures them for existing collections.

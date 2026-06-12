@@ -29,13 +29,19 @@ Start every investigation with:
 
 ```text
 qdrant_collection_info
-  -> qdrant_list_directories(collection, depth=1)
-  -> qdrant_list_directories(collection, source_prefix="<area>/", depth=1|2)
-  -> qdrant_list_files(collection, source_prefix="<area>/")
+  -> qdrant_get_skeleton(collection) if available
+  -> qdrant_get_skeleton_children(collection, node_path="<area node>")
+  -> qdrant_list_directories(collection, depth=1) if no skeleton exists
+  -> qdrant_list_files(collection, source_prefix="<area>/") when you need exact source_file paths
   -> qdrant_search(query, collection, top=3, window=1, window_format="compact")
 ```
 
-Always call `list_directories` at depth=1 first to orient, then drill with `source_prefix` before listing files. Do not guess `source_file` paths.
+Use skeleton tools as the project map when the collection has `skeleton_nav`
+nodes. The skeleton is for orientation and drill-down only; it is not evidence
+for factual answers. Use `qdrant_search` / `qdrant_get_chunk` for answer
+evidence. If no skeleton exists, fall back to `qdrant_list_directories` at
+depth=1, then drill with `source_prefix` before listing files. Do not guess
+`source_file` paths.
 
 For tag discovery and breadth expansion:
 
@@ -59,6 +65,9 @@ MCP tools reference:
 | Goal | Tool |
 |------|------|
 | List collections and provider metadata | `qdrant_collection_info()` |
+| Open the collection skeleton map | `qdrant_get_skeleton(collection)` |
+| Read one skeleton node | `qdrant_get_skeleton_node(collection, node_id? XOR node_path?)` |
+| Drill into skeleton children | `qdrant_get_skeleton_children(collection, node_id? XOR node_path?, limit?)` |
 | Explore folder structure | `qdrant_list_directories(collection, source_prefix?, depth?)` |
 | List files in a folder | `qdrant_list_files(collection, source_prefix?, tags?, tag_match?)` |
 | List tags with counts | `qdrant_list_tags(collection, source_prefix?, tag_prefix?, contains?, min_count?)` |
@@ -87,6 +96,8 @@ Use `qdrant_search(..., window=1, window_format="compact", top=3)` as the recomm
 - If a result is relevant but too narrow, call `qdrant_get_chunk` with a window before acting on it.
 - If multiple documents are likely related, use `qdrant_search` with a scoped `source_file` filter to gather evidence across them.
 - If multiple collections exist, use collection descriptions and source files to choose the right one.
+- Use skeleton tools to understand collection/file/section structure before search on large or unfamiliar collections.
+- Do not cite skeleton summaries as final evidence; they are navigation summaries. Verify with retrieval chunks.
 - For ambiguous tasks, gather at least two supporting hits or one hit plus its surrounding chunks before making a claim.
 - Prefer `source_file` filters once a likely file is known. Do not invent a `source_file` filter when no scope is given.
 

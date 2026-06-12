@@ -1,7 +1,7 @@
 ---
 name: semidex
 description: "Use when working with semidex: indexing documents, configuring retrieval, debugging search results, checking env vars, or understanding architecture. Prefer live semidex MCP search over loading static docs into context."
-allowed-tools: mcp__qdrant__qdrant_search, mcp__qdrant__qdrant_collection_info, mcp__qdrant__qdrant_get_chunk, mcp__qdrant__qdrant_find_by_tag, mcp__qdrant__qdrant_list_files, mcp__qdrant__qdrant_list_tags, mcp__qdrant__qdrant_list_directories
+allowed-tools: mcp__qdrant__qdrant_search, mcp__qdrant__qdrant_collection_info, mcp__qdrant__qdrant_get_chunk, mcp__qdrant__qdrant_find_by_tag, mcp__qdrant__qdrant_list_files, mcp__qdrant__qdrant_list_tags, mcp__qdrant__qdrant_list_directories, mcp__qdrant__qdrant_get_skeleton, mcp__qdrant__qdrant_get_skeleton_node, mcp__qdrant__qdrant_get_skeleton_children
 ---
 
 semidex is a local-first RAG indexer and MCP server backed by Qdrant.
@@ -42,9 +42,10 @@ Start with collection metadata:
 
 ```text
 qdrant_collection_info()
-  -> qdrant_list_directories(collection, depth=1)
-  -> qdrant_list_directories(collection, source_prefix="<area>/", depth=1|2)
-  -> qdrant_list_files(collection, source_prefix="<area>/")
+  -> qdrant_get_skeleton(collection) if available
+  -> qdrant_get_skeleton_children(collection, node_path="<area node>")
+  -> qdrant_list_directories(collection, depth=1) if no skeleton exists
+  -> qdrant_list_files(collection, source_prefix="<area>/") when exact source_file paths are needed
   -> qdrant_search(query, collection, top=3, window=1, window_format="compact")
 ```
 
@@ -60,7 +61,12 @@ qdrant_list_tags(collection, contains="...", source_prefix="<known-area>/")
   -> qdrant_find_by_tag(collection, tags=[...])
 ```
 
-Always call `list_directories` at depth=1 first, then drill with `source_prefix`. Do not guess `source_file` paths. Tags are best used for breadth expansion after search, not as a first step.
+Use skeleton tools as the collection map when available. Skeleton summaries help
+orientation and drill-down; do not cite them as answer evidence. Verify claims
+with `qdrant_search` or `qdrant_get_chunk`. If no skeleton exists, call
+`list_directories` at depth=1 first, then drill with `source_prefix`. Do not
+guess `source_file` paths. Tags are best used for breadth expansion after
+search, not as a first step.
 
 For most work, search with compact neighbors:
 
@@ -83,6 +89,9 @@ function names, config keys, CLI flags, model names.
 | Goal | Tool |
 |------|------|
 | List collections and provider metadata | `qdrant_collection_info()` |
+| Open the collection skeleton map | `qdrant_get_skeleton(collection)` |
+| Read one skeleton node | `qdrant_get_skeleton_node(collection, node_id? XOR node_path?)` |
+| Drill into skeleton children | `qdrant_get_skeleton_children(collection, node_id? XOR node_path?, limit?)` |
 | Explore folder structure | `qdrant_list_directories(collection, source_prefix?, depth?)` |
 | List files in a folder | `qdrant_list_files(collection, source_prefix?, tags?, tag_match?)` |
 | List available tags | `qdrant_list_tags(collection, source_prefix?, tag_prefix?, contains?, min_count?)` |
