@@ -17,7 +17,8 @@
 // CONTEXT_MODEL. All prompts instruct the model to answer in the content's
 // own language, 1-2 sentences, no preamble.
 
-import { generate, getModelContextLength } from '../../core/ollama.js';
+import { generate, getModelContextLength, isThinkingModel } from '../../core/ollama.js';
+import { franc } from 'franc-min';
 
 // Model window budget for summary prompts. When SUMMARY_WINDOW_TOKENS is not
 // set we derive it at runtime from the model's actual context_length via
@@ -64,9 +65,21 @@ export async function resolveNumCtx(model, env = process.env) {
   return resolveRunNumCtx(model, 0, env);
 }
 
-// Heuristic token estimate — same chars/4 convention as length-bucket.js.
+// Heuristic token estimate, script-aware. ASCII ≈ 4 chars/token, but BPE
+// tokenizers cut Cyrillic ~2× finer (≈2 chars/token) — the flat chars/4
+// convention underestimated Ukrainian files 2-3×, so oversized prompts
+// "fit" the budget, overflowed the real window, and Ollama silently cut the
+// TRAILING rules → degenerate outputs on exactly the biggest files.
 export function estTokens(text) {
-  return Math.ceil(String(text ?? '').length / 4);
+  const s = String(text ?? '');
+  if (!s) return 0;
+  let cyr = 0;
+  for (let i = 0; i < s.length; i++) {
+    const c = s.charCodeAt(i);
+    if (c >= 0x0400 && c <= 0x04ff) cyr++;
+  }
+  const charsPerToken = 4 - 2 * (cyr / s.length); // 4 (latin) → 2 (cyrillic)
+  return Math.ceil(s.length / charsPerToken);
 }
 
 /**
@@ -96,32 +109,108 @@ export function chooseSource(fullText, parts, budget) {
 // Build per-call generation options. num_ctx is resolved once per run and
 // passed explicitly so Ollama allocates the full model window (not 4096).
 // num_predict caps output to stop runaway loops; sanitizer rejects truncated junk.
-function genOptions(numCtx) {
-  return { temperature: 0, num_predict: 160, num_ctx: numCtx };
+// Thinking models (gemma4, qwq, etc.) emit a <think> block before the answer —
+// capping num_predict cuts the response before the actual summary, so we skip
+// the cap for them and rely on the sanitizer to catch degenerate output.
+function genOptions(numCtx, thinking = false) {
+  const opts = { temperature: 0, num_ctx: numCtx };
+  if (!thinking) opts.num_predict = 160;
+  return opts;
 }
 
 // gemma3:4b calibration (live run 2026-06-11, 12 files: 7 clean / 3
 // conversational / 2 degenerate): small models follow TRAILING instructions
 // far better than leading ones — so every prompt is content-first,
 // rules-last, ending with an explicit "SUMMARY:" cue.
-const SUMMARY_RULES =
-  'TASK: Summarize the content above.\n' +
-  'RULES: 1-2 sentences, at most 50 words, in the SAME LANGUAGE as the ' +
-  'content. Plain text only — no markdown, no lists, no quotes, no preamble ' +
-  'like "Here is" or "Okay". Start directly with the summary.\n' +
-  'SUMMARY:';
+// Detect the content language to give the model an EXPLICIT output language.
+// A bare "SAME LANGUAGE as the content" rule drifts to English on small
+// models because the prompt scaffolding itself is English (live run
+// 2026-06-11: most Ukrainian files got English summaries).
+//
+// Detection = franc-min restricted to a whitelist: the `only` filter is what
+// makes trigram lang-id reliable on conspectus-sized samples. Belarusian and
+// Bulgarian are deliberately absent — franc systematically confuses them
+// with Ukrainian, and they are rare in practice. Samples under 100 chars are
+// too short for trigram stats → fall back to the generic same-language rule.
+const LANG_NAMES = {
+  ukr: 'Ukrainian', rus: 'Russian', eng: 'English', deu: 'German',
+  pol: 'Polish', fra: 'French', spa: 'Spanish', ita: 'Italian',
+  por: 'Portuguese', nld: 'Dutch', ces: 'Czech', ron: 'Romanian',
+  hun: 'Hungarian', tur: 'Turkish', swe: 'Swedish', dan: 'Danish',
+  fin: 'Finnish', ell: 'Greek', heb: 'Hebrew', arb: 'Arabic',
+  hin: 'Hindi', jpn: 'Japanese', kor: 'Korean', cmn: 'Chinese',
+  vie: 'Vietnamese', ind: 'Indonesian',
+};
+const LANG_ONLY = Object.keys(LANG_NAMES);
+
+// ISO 639-1 aliases for SUMMARY_LANG convenience (en, uk, de, ...).
+const LANG_ALIASES = {
+  uk: 'ukr', en: 'eng', ru: 'rus', de: 'deu', pl: 'pol', fr: 'fra',
+  es: 'spa', it: 'ita', pt: 'por', nl: 'nld', cs: 'ces', ro: 'ron',
+  hu: 'hun', tr: 'tur', sv: 'swe', da: 'dan', fi: 'fin', el: 'ell',
+  he: 'heb', ar: 'arb', hi: 'hin', ja: 'jpn', ko: 'kor', zh: 'cmn',
+  vi: 'vie', id: 'ind',
+};
+
+/**
+ * SUMMARY_LANG policy (explicit beats detection):
+ *   unset | 'auto'  → franc auto-detect (whitelist above);
+ *   'en' / 'eng' / 'English' / any free-form name → FORCE that language for
+ *   every summary — no detection at all. This is also the escape hatch for
+ *   languages excluded from the auto whitelist (e.g. SUMMARY_LANG=Belarusian)
+ *   and the agent-optimized mode (SUMMARY_LANG=en) when summaries are read
+ *   by LLM agents rather than humans browsing the source language.
+ */
+export function resolveForcedLang(env = process.env) {
+  const v = String(env.SUMMARY_LANG ?? '').trim();
+  if (!v || v.toLowerCase() === 'auto') return null;
+  const key = v.toLowerCase();
+  const iso3 = LANG_ALIASES[key] ?? key;
+  if (LANG_NAMES[iso3]) return LANG_NAMES[iso3];
+  return v[0].toUpperCase() + v.slice(1); // free-form name, used verbatim
+}
+
+function langHint(text, env = process.env) {
+  const forced = resolveForcedLang(env);
+  if (forced) return forced;
+  // Code skews trigram stats toward English — sample prose only.
+  const sample = String(text ?? '')
+    .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/`[^`\n]*`/g, ' ')
+    .slice(0, 4000);
+  if (sample.trim().length < 100) return null;
+  const code = franc(sample, { only: LANG_ONLY });
+  return LANG_NAMES[code] ?? null;
+}
+
+function langRule(lang, what) {
+  return lang
+    ? `Write in ${lang} — the language of the ${what}.`
+    : `Write in the SAME LANGUAGE as the ${what}.`;
+}
+
+function summaryRules(lang) {
+  return 'TASK: Summarize the content above.\n' +
+    `RULES: 1-2 sentences, at most 50 words. ${langRule(lang, 'content')} ` +
+    'Plain text only — no markdown, no lists, no quotes, no preamble ' +
+    'like "Here is" or "Okay". Start directly with the summary.\n' +
+    'SUMMARY:';
+}
 
 function sectionPrompt(label, body) {
-  return `Content of ${label}:\n\n${body}\n\n${SUMMARY_RULES}`;
+  return `Content of ${label}:\n\n${body}\n\n${summaryRules(langHint(body))}`;
 }
 // Roll-up framing matters: "these are summaries, combine them" made gemma
 // ANALYZE the notes as foreign text (conversational mode). State the job as
-// describing the whole, and forbid commenting on the notes.
+// describing the whole, and forbid commenting on the notes. Language is
+// detected from the notes — once section summaries come out Ukrainian, the
+// file and collection roll-ups follow automatically.
 function rollupPrompt(label, lines) {
-  return `Notes describing the parts of ${label}:\n\n${lines.join('\n')}\n\n` +
+  const joined = lines.join('\n');
+  return `Notes describing the parts of ${label}:\n\n${joined}\n\n` +
     `TASK: Based only on these notes, summarize ${label} as a whole.\n` +
-    'RULES: 1-2 sentences, at most 50 words, in the SAME LANGUAGE as the ' +
-    'notes. Plain text only — no markdown, no lists, no quotes, no preamble. ' +
+    `RULES: 1-2 sentences, at most 50 words. ${langRule(langHint(joined), 'notes')} ` +
+    'Plain text only — no markdown, no lists, no quotes, no preamble. ' +
     'Do NOT analyze or comment on the notes themselves.\n' +
     'SUMMARY:';
 }
@@ -151,6 +240,7 @@ export function sanitizeSummary(raw) {
   if (PREAMBLE_RE.test(s)) return null;                   // conversational mode
   if (/^#{1,6}\s|\*\*|^\s*[-*>]\s/m.test(s)) return null; // markdown answer
   s = s.replace(/\s+/g, ' ').trim();
+  if (s.length < 20) return null;                         // too short — model gave up
   if (s.length > MAX_SUMMARY_CHARS) return null;          // blow-up / truncated loop
   const words = s.toLowerCase().split(/\s+/);
   if (words.length >= 25 && new Set(words).size / words.length < 0.4) {
@@ -159,9 +249,9 @@ export function sanitizeSummary(raw) {
   return s;
 }
 
-async function summarizeWithRule(label, fullText, parts, { generateFn, model, budget, numCtx }) {
+async function summarizeWithRule(label, fullText, parts, { generateFn, model, budget, numCtx, thinking }) {
   const src = chooseSource(fullText, parts, budget);
-  const gen = (prompt) => generateFn(model, prompt, { options: genOptions(numCtx) });
+  const gen = (prompt) => generateFn(model, prompt, { options: genOptions(numCtx, thinking) });
   if (src.mode === 'full')  return (await gen(sectionPrompt(label, fullText))).trim();
   if (src.mode === 'parts') return (await gen(rollupPrompt(label, parts))).trim();
   // batched: part summaries first, then final roll-up (one extra level is
@@ -171,6 +261,21 @@ async function summarizeWithRule(label, fullText, parts, { generateFn, model, bu
     partSummaries.push((await gen(rollupPrompt(`a part of ${label}`, batch))).trim());
   }
   return (await gen(rollupPrompt(label, partSummaries))).trim();
+}
+
+// Run summarizeWithRule, sanitize, retry once on rejection, return null on
+// second failure. Keeps retry logic in one place so both generateNavSummaries
+// and buildCollectionSummary benefit automatically.
+async function summarizeWithRetry(label, fullText, parts, ctx) {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const raw   = await summarizeWithRule(label, fullText, parts, ctx);
+    const clean = sanitizeSummary(raw);
+    if (clean) return clean;
+    if (attempt === 0) {
+      process.stderr.write(`[skeleton-summary] "${label}" attempt 1 rejected (raw: ${JSON.stringify(raw.slice(0, 120))}) — retrying\n`);
+    }
+  }
+  return null;
 }
 
 /**
@@ -191,6 +296,9 @@ export async function generateNavSummaries(navPoints, chunks, opts = {}) {
   // Resolve once: the model's real context window, then pass as num_ctx on
   // every generate() call so Ollama allocates the full window (not 4096).
   const numCtx = opts.numCtx ?? await resolveNumCtx(model, process.env);
+  // Thinking models (gemma4, qwq, etc.) emit a <think> block before the answer.
+  // Skip num_predict cap for them — detected once, used for all calls in this run.
+  const thinking = opts.thinking ?? (opts.generateFn ? false : await isThinkingModel(model));
   // Reserve a margin for the prompt scaffolding + output.
   const budget = Math.max(500, Math.floor(windowTokens * 0.8));
 
@@ -201,16 +309,19 @@ export async function generateNavSummaries(navPoints, chunks, opts = {}) {
   for (const nav of navPoints.filter(n => n.node_type === 'section')) {
     const own = chunks.filter(c => c.parent_id === nav.node_id);
     const fullText = own.map(c => c.text).join('\n\n');
-    const lead = own.find(c => c.node_type === 'paragraph')?.text ?? '';
     const heading = nav.heading_path?.at(-1) ?? nav.node_path;
     let summary = nav.summary; // inventory fallback
     try {
       if (fullText.trim()) {
-        const clean = sanitizeSummary(await summarizeWithRule(
+        // Parts = the section's own chunk texts, NOT [lead, inventory]:
+        // an oversized section must go through the batched hierarchical
+        // reduction of design §12.1, not collapse to its first paragraph
+        // (a 37KB section once became "uv" exactly that way).
+        const clean = await summarizeWithRetry(
           `section "${heading}"`, fullText,
-          [lead, nav.summary].filter(Boolean), { generateFn, model, budget, numCtx }));
+          own.map(c => c.text).filter(Boolean), { generateFn, model, budget, numCtx, thinking });
         if (clean) summary = clean;
-        else process.stderr.write(`[skeleton-summary] section "${heading}" output rejected by sanitizer — keeping inventory\n`);
+        else process.stderr.write(`[skeleton-summary] section "${heading}" rejected after retry — keeping inventory\n`);
       }
     } catch (err) {
       process.stderr.write(`[skeleton-summary] section "${heading}" failed (${err.message}) — keeping inventory\n`);
@@ -225,12 +336,12 @@ export async function generateNavSummaries(navPoints, chunks, opts = {}) {
     let summary = nav.summary;
     try {
       if (fullText.trim()) {
-        const clean = sanitizeSummary(await summarizeWithRule(
+        const clean = await summarizeWithRetry(
           `the document "${nav.source_file}"`, fullText,
           sectionSummaries.length ? sectionSummaries : [nav.summary],
-          { generateFn, model, budget, numCtx }));
+          { generateFn, model, budget, numCtx, thinking });
         if (clean) summary = clean;
-        else process.stderr.write(`[skeleton-summary] file "${nav.source_file}" output rejected by sanitizer — keeping inventory\n`);
+        else process.stderr.write(`[skeleton-summary] file "${nav.source_file}" rejected after retry — keeping inventory\n`);
       }
     } catch (err) {
       process.stderr.write(`[skeleton-summary] file "${nav.source_file}" failed (${err.message}) — keeping inventory\n`);
@@ -265,13 +376,14 @@ export async function buildCollectionSummary(collection, fileNodes, opts = {}) {
   const model        = opts.model ?? (process.env.CONTEXT_MODEL || 'gemma3:4b');
   const windowTokens = opts.windowTokens ?? summaryWindowTokens(process.env);
   const numCtx = opts.numCtx ?? await resolveNumCtx(model, process.env);
+  const thinking = opts.thinking ?? (opts.generateFn ? false : await isThinkingModel(model));
   const budget = Math.max(500, Math.floor(windowTokens * 0.8));
   try {
-    const clean = sanitizeSummary(await summarizeWithRule(
+    const clean = await summarizeWithRetry(
       `the collection "${collection}"`, lines.join('\n'), lines,
-      { generateFn, model, budget, numCtx }));
+      { generateFn, model, budget, numCtx, thinking });
     if (!clean) {
-      process.stderr.write('[skeleton-summary] collection summary rejected by sanitizer — keeping inventory\n');
+      process.stderr.write('[skeleton-summary] collection summary rejected after retry — keeping inventory\n');
       return { summary: inventory, children };
     }
     return { summary: clean, children };

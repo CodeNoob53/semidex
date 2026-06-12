@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "description": "Skeleton-v1 qrel overrides for queries where legacy chunk boundaries drifted during skeleton chunking. Auto-migration in skeleton-bench.js handles most cases; this file covers the remainder that require manual verification.",
+  "baseFile": "queries.json",
+  "chunkingModel": "skeleton-v1",
+  "overrides": [
+    {
+      "queryId": "c09",
+      "legacyChunkId": "qdrant.md#2",
+      "skeletonChunkId": "qdrant.md#5",
+      "relevance": 3,
+      "reason": "Legacy qdrant.md#2 (Hybrid Search and RRF section) was split by skeleton; the HYBRID_PREFETCH_LIMIT content migrated to qdrant.md#5.",
+      "verificationTokens": ["HYBRID_PREFETCH_LIMIT", "prefetch"]
+    },
+    {
+      "queryId": "c15",
+      "legacyChunkId": "chunking.md#1",
+      "skeletonChunkId": "chunking.md#4",
+      "relevance": 3,
+      "reason": "Legacy chunking.md#1 (Parameters table) was split by skeleton; OVERLAP_SENTENCES default value migrated to chunking.md#4.",
+      "verificationTokens": ["OVERLAP_SENTENCES", "overlap"]
+    }
+  ]
+}

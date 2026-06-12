@@ -2,21 +2,11 @@ import 'dotenv/config';
 
 const OLLAMA_URL = process.env.OLLAMA_URL || 'http://localhost:11434';
 
-// Cache: model name → context length (tokens). Avoids repeated /api/show calls
-// within a single indexer run. Cleared only on process restart.
-const _ctxCache = new Map();
+// Cache: model name → /api/show response. Avoids repeated calls per process.
+const _showCache = new Map();
 
-/**
- * Return the model's maximum context length by reading model_info from Ollama.
- * Falls back to `fallback` (default 4096) when unreachable or field missing.
- * Result is cached per model name for the lifetime of the process.
- *
- * Why this matters: Ollama defaults to 4096 tokens regardless of the model's
- * architecture limit unless `num_ctx` is passed in the request options. A
- * gemma3:4b that supports 128k will still truncate at 4096 without this.
- */
-export async function getModelContextLength(model, fallback = 4096) {
-  if (_ctxCache.has(model)) return _ctxCache.get(model);
+async function showModel(model) {
+  if (_showCache.has(model)) return _showCache.get(model);
   try {
     const r = await fetch(`${OLLAMA_URL}/api/show`, {
       method: 'POST',
@@ -24,19 +14,37 @@ export async function getModelContextLength(model, fallback = 4096) {
       body: JSON.stringify({ name: model }),
       signal: AbortSignal.timeout(10_000),
     });
-    if (!r.ok) { _ctxCache.set(model, fallback); return fallback; }
+    if (!r.ok) { _showCache.set(model, null); return null; }
     const data = await r.json();
-    const info = data.model_info ?? {};
-    // Field name varies by architecture: gemma3.context_length, llama.context_length, etc.
-    const entry = Object.entries(info).find(([k]) => k.endsWith('.context_length'));
-    const val = entry ? Number(entry[1]) : NaN;
-    const ctx = Number.isFinite(val) && val > 0 ? val : fallback;
-    _ctxCache.set(model, ctx);
-    return ctx;
+    _showCache.set(model, data);
+    return data;
   } catch {
-    _ctxCache.set(model, fallback);
-    return fallback;
+    _showCache.set(model, null);
+    return null;
   }
+}
+
+/**
+ * Return the model's maximum context length.
+ * Falls back to `fallback` (default 4096) when unreachable or field missing.
+ */
+export async function getModelContextLength(model, fallback = 4096) {
+  const data = await showModel(model);
+  if (!data) return fallback;
+  const info  = data.model_info ?? {};
+  const entry = Object.entries(info).find(([k]) => k.endsWith('.context_length'));
+  const val   = entry ? Number(entry[1]) : NaN;
+  return Number.isFinite(val) && val > 0 ? val : fallback;
+}
+
+/**
+ * Return true if the model has the "thinking" capability (e.g. gemma4, qwq).
+ * Thinking models generate a <think> block before their answer — num_predict
+ * must not be capped or the response is truncated before the actual answer.
+ */
+export async function isThinkingModel(model) {
+  const data = await showModel(model);
+  return Array.isArray(data?.capabilities) && data.capabilities.includes('thinking');
 }
 
 export async function embed(text, model) {
@@ -44,7 +52,6 @@ export async function embed(text, model) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ model, input: text.slice(0, 8000) }),
-    // Note: input is truncated to 8000 chars (not tokens) — long chunks lose their tail.
   });
   if (!r.ok) throw new Error(`Ollama embed failed: ${await r.text()}`);
   const data = await r.json();
@@ -54,7 +61,7 @@ export async function embed(text, model) {
 export async function generate(model, prompt, { format, options } = {}) {
   const body = { model, prompt, stream: false };
   if (format) body.format = format;
-  if (options) body.options = options;  // e.g. { temperature, num_predict }
+  if (options) body.options = options;
   const r = await fetch(`${OLLAMA_URL}/api/generate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

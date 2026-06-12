@@ -6,5 +6,6 @@ diagnostics/
 .env
 config.json
 models/
+demo/
 .bench-indexing-corpus/
 .bench-combined-probe-corpus/

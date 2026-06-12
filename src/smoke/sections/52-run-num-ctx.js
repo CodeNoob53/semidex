@@ -144,4 +144,26 @@ Restart the service gracefully to apply configuration changes without downtime.
   ok('run 1 uses its own numCtx throughout', ctx1.every(v => v === 8192));
   ok('run 2 uses its own numCtx throughout', ctx2.every(v => v === 65536));
   ok('runs are isolated (no cross-contamination)', !ctx1.some(v => v === 65536) && !ctx2.some(v => v === 8192));
+
+  // ── retry on rejected output ─────────────────────────────────────────────
+  // First call returns too-short "x" (rejected), second returns valid summary.
+  let retryCallCount = 0;
+  const retryStderr = [];
+  const origWrite = process.stderr.write.bind(process.stderr);
+  process.stderr.write = (s) => { retryStderr.push(String(s)); return true; };
+  const retried = await generateNavSummaries(navPoints, chunks, {
+    generateFn: async () => {
+      retryCallCount++;
+      return retryCallCount % 2 === 1
+        ? 'x'  // rejected (too short) on odd calls → triggers retry
+        : 'Covers deployment and environment setup for Python projects.';
+    },
+    windowTokens: 8000,
+  });
+  process.stderr.write = origWrite;
+  ok('retry: valid summary used after first rejection',
+     retried.some(n => n.summary === 'Covers deployment and environment setup for Python projects.'));
+  ok('retry: attempt-1-rejected logged', retryStderr.some(s => s.includes('attempt 1 rejected')));
+  ok('retry: no inventory fallback when retry succeeds',
+     retried.some(n => n.summary === 'Covers deployment and environment setup for Python projects.'));
 }
