@@ -9,7 +9,7 @@ export default async function ({ ok }) {
   const { isSemidexPayload } = await import('../../core/qdrant.js');
   const { isNavPoint } = await import('../../mcp/tools/filters.js');
   const { parseSkeleton } = await import('../../indexer/phases/skeleton.js');
-  const { buildFileSkeleton } = await import('../../indexer/phases/skeleton-index.js');
+  const { buildDirectoryNavPoints, buildFileSkeleton } = await import('../../indexer/phases/skeleton-index.js');
 
   const md = '# Guide\n\nIntro prose with enough meaningful words here.\n\n## Setup\n\nSetup prose with enough meaningful words too.\n';
   const { navPoints } = buildFileSkeleton(parseSkeleton(md, { sourceFile: 'g.md' }), { sourceFile: 'g.md' });
@@ -60,4 +60,30 @@ export default async function ({ ok }) {
   ok('default passes nav points through', pick({}).length === navPoints.length);
   ok('side-channel is non-enumerable', !Object.keys(chunksArr).includes('__navPoints') &&
      JSON.stringify(chunksArr) === '[]');
+
+  // ── directory nav nodes: collection -> directories -> file nav nodes ─────────────
+  const files = [
+    { source_file: 'Topic 1/Intro.md', summary: 'Intro — 2 sections' },
+    { source_file: 'Topic 1/Sub/Deep.md', summary: 'Deep — 1 section' },
+    { source_file: 'Topic 2/API.md', summary: 'API — 3 sections' },
+    { source_file: 'Root.md', summary: 'Root — 1 section' },
+  ];
+  const { directoryNodes, topChildren } = buildDirectoryNavPoints('col', files);
+  const dirPayloads = directoryNodes.map(n => buildNavPointPayload(n, ctx));
+  const topic1 = directoryNodes.find(n => n.node_path === 'col#dir/Topic 1');
+  const sub = directoryNodes.find(n => n.node_path === 'col#dir/Topic 1/Sub');
+
+  ok('directory nav nodes are emitted for nested folders', directoryNodes.length === 3);
+  ok('top children include top-level dirs and root files',
+     topChildren.includes('col#dir/Topic 1') &&
+     topChildren.includes('col#dir/Topic 2') &&
+     topChildren.includes('Root.md#file'));
+  ok('directory children include subdirs and direct files',
+     topic1.children.includes('col#dir/Topic 1/Sub') &&
+     topic1.children.includes('Topic 1/Intro.md#file'));
+  ok('nested directory parent_id points to parent directory', sub.parent_id === topic1.node_id);
+  ok('directory payload source_file is empty (does not pollute file lists)',
+     dirPayloads.every(p => p.source_file === ''));
+  ok('directory payloads pass semidex/nav contracts',
+     dirPayloads.every(isSemidexPayload) && dirPayloads.every(p => isNavPoint({ payload: p })));
 }

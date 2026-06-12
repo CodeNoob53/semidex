@@ -14,7 +14,7 @@ import { resolveCombinedLlmConfig } from '../core/doctor-checks.js';
 import { runBatched } from './batch.js';
 import { collectFiles, SUPPORTED_EXTENSIONS } from './files.js';
 import { Profiler } from './profiler.js';
-import { upsertPoints, listCollections, createCollection, getCollectionInfo, getStoredMeta, deleteBySourceFile, deleteTrailingChunks, listSourceFiles } from '../core/qdrant.js';
+import { upsertPoints, listCollections, createCollection, getCollectionInfo, getStoredMeta, deleteBySourceFile, deleteTrailingChunks, listSourceFiles, deleteByFilter } from '../core/qdrant.js';
 import { makePointId } from '../core/point-id.js';
 import { loadConfig, saveConfig, resolveEnvProviders } from '../core/config.js';
 import { embedForIndex, embedForIndexBatch, shouldUseOnnxBatching, getEmbeddingConfig, SCHEMA_VERSION } from '../core/embeddings.js';
@@ -25,6 +25,7 @@ import { SerialQueue } from './serial-queue.js';
 import { envInt } from '../core/env.js';
 import { expectedChunkingMeta, skeletonPayloadFields, isSkeletonChunk, makeSkeletonPointId, buildNavPointPayload } from './skeleton-payload.js';
 import { generateNavSummaries, buildCollectionSummary, resolveRunNumCtx, estTokens } from './phases/skeleton-summary.js';
+import { buildDirectoryNavPoints } from './phases/skeleton-index.js';
 import { makeNodeId } from '../core/node-id.js';
 import { scroll } from '../core/qdrant.js';
 
@@ -655,6 +656,39 @@ async function main() {
         .filter(f => f.source_file)
         .sort((a, b) => a.source_file.localeCompare(b.source_file));
 
+      const { directoryNodes, topChildren } = buildDirectoryNavPoints(COLLECTION, fileNodes);
+
+      await deleteByFilter(COLLECTION, {
+        must: [
+          { key: 'point_kind', match: { value: 'skeleton_nav' } },
+          { key: 'node_type',  match: { value: 'directory' } },
+        ],
+      });
+
+      if (directoryNodes.length > 0) {
+        const dirTexts = directoryNodes.map(n => n.summary);
+        const dirEmbeds = shouldUseOnnxBatching(process.env)
+          ? await embedForIndexBatch(COLLECTION, dirTexts, runBatched, BATCH_SIZE)
+          : await runBatched(dirTexts, BATCH_SIZE, text => embedForIndex(COLLECTION, text));
+        const cfgVectorSize = loadConfig().collections?.[COLLECTION]?.vectorSize ?? VECTOR_SIZE;
+        const dirPoints = directoryNodes.map((node, i) => ({
+          id: makeSkeletonPointId({
+            collection: COLLECTION,
+            nodeId: node.node_id,
+            embeddingSchemaVersion: SCHEMA_VERSION,
+          }),
+          vector: { dense: dirEmbeds[i].dense, sparse: dirEmbeds[i].sparse },
+          payload: buildNavPointPayload(node, {
+            fileHash: null,
+            vectorSize: cfgVectorSize,
+            tokenCountMode: resolveTokenCountMode(),
+            chunkingSchemaVersion: CHUNKING_SCHEMA_VERSION,
+            embedMeta: dirEmbeds[i].meta,
+          }),
+        }));
+        await upsertPoints(COLLECTION, dirPoints);
+      }
+
       const { summary, children } = await buildCollectionSummary(COLLECTION, fileNodes, {
         llm: process.env.SKELETON_SUMMARY === 'llm',
         numCtx: runNumCtx ?? undefined,
@@ -675,7 +709,8 @@ async function main() {
         payload: buildNavPointPayload({
           point_kind: 'skeleton_nav', node_type: 'collection',
           node_id: collectionNodeId, node_path: `${COLLECTION}#collection`,
-          source_file: '', heading_path: [], summary, children,
+          source_file: '', heading_path: [], summary,
+          children: topChildren.length ? topChildren : children,
         }, {
           fileHash: null, vectorSize: cfgVectorSize,
           tokenCountMode: resolveTokenCountMode(),
@@ -683,7 +718,7 @@ async function main() {
           embedMeta: meta,
         }),
       }]);
-      console.log(`\nCollection nav node updated (${fileNodes.length} file summaries).`);
+      console.log(`\nCollection nav node updated (${fileNodes.length} file summaries, ${directoryNodes.length} directory summaries).`);
     } catch (err) {
       console.warn(`\nWARN: collection nav node update failed — ${err.message}`);
     }

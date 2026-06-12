@@ -113,6 +113,115 @@ export function buildFileSkeleton(nodes, ctx = {}) {
   return { navPoints, json };
 }
 
+function splitDirParts(sourceFile) {
+  const parts = String(sourceFile ?? '').split('/').filter(Boolean);
+  parts.pop();
+  return parts;
+}
+
+function directoryNodeId(dirPath) {
+  return makeNodeId({
+    collection: '',
+    sourceFile: '',
+    structuralPath: `dir/${dirPath}`,
+    nodeType: 'directory',
+    ordinalWithinParent: 1,
+  });
+}
+
+function collectionNodeId() {
+  return makeNodeId({
+    collection: '',
+    sourceFile: '',
+    structuralPath: '',
+    nodeType: 'collection',
+    ordinalWithinParent: 1,
+  });
+}
+
+function fileNodePath(sourceFile) {
+  return `${sourceFile}#file`;
+}
+
+function dirNodePath(collection, dirPath) {
+  return `${collection}#dir/${dirPath}`;
+}
+
+/**
+ * Build directory navigation nodes from file nav summaries.
+ * Directory nodes are collection-level navigation only: source_file is empty,
+ * so they do not pollute source-file lists or PRUNE_STALE file accounting.
+ *
+ * @param {string} collection
+ * @param {Array<{ source_file: string, summary: string }>} fileNodes
+ * @returns {{ directoryNodes: object[], topChildren: string[] }}
+ */
+export function buildDirectoryNavPoints(collection, fileNodes = []) {
+  const dirs = new Map(); // dirPath -> { files:Set, childDirs:Set }
+  const ensure = (dirPath) => {
+    if (!dirs.has(dirPath)) dirs.set(dirPath, { files: new Set(), childDirs: new Set() });
+    return dirs.get(dirPath);
+  };
+
+  const rootFiles = [];
+  const topDirs = new Set();
+
+  for (const file of fileNodes) {
+    const sourceFile = file.source_file ?? '';
+    if (!sourceFile) continue;
+    const parts = splitDirParts(sourceFile);
+    if (parts.length === 0) {
+      rootFiles.push(fileNodePath(sourceFile));
+      continue;
+    }
+
+    let current = '';
+    for (let i = 0; i < parts.length; i++) {
+      const parent = current;
+      current = current ? `${current}/${parts[i]}` : parts[i];
+      ensure(current);
+      if (parent) ensure(parent).childDirs.add(current);
+      else topDirs.add(current);
+    }
+    ensure(current).files.add(sourceFile);
+  }
+
+  const collectionId = collectionNodeId();
+  const directoryNodes = [...dirs.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([dirPath, entry]) => {
+      const childDirs = [...entry.childDirs].sort((a, b) => a.localeCompare(b));
+      const files = [...entry.files].sort((a, b) => a.localeCompare(b));
+      const children = [
+        ...childDirs.map(d => dirNodePath(collection, d)),
+        ...files.map(fileNodePath),
+      ];
+      const directFileCount = files.length;
+      const directDirCount = childDirs.length;
+      const label = dirPath.split('/').at(-1) || dirPath;
+      const summary = `${label} — ${directFileCount} file${directFileCount === 1 ? '' : 's'}, ${directDirCount} director${directDirCount === 1 ? 'y' : 'ies'}`;
+      const parentPath = dirPath.includes('/') ? dirPath.slice(0, dirPath.lastIndexOf('/')) : '';
+      return {
+        point_kind: POINT_KINDS.NAV,
+        node_type: 'directory',
+        node_id: directoryNodeId(dirPath),
+        node_path: dirNodePath(collection, dirPath),
+        parent_id: parentPath ? directoryNodeId(parentPath) : collectionId,
+        source_file: '',
+        heading_path: dirPath.split('/'),
+        summary,
+        children,
+        chunking_model: 'skeleton-v1',
+      };
+    });
+
+  const topChildren = [
+    ...[...topDirs].sort((a, b) => a.localeCompare(b)).map(d => dirNodePath(collection, d)),
+    ...rootFiles.sort((a, b) => a.localeCompare(b)),
+  ];
+  return { directoryNodes, topChildren };
+}
+
 let _writeFailureLogged = false;
 
 const INSPECT_ROOT = resolve(ROOT, '.tmp', 'semidex-inspect');

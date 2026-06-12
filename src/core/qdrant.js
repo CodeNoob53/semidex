@@ -170,6 +170,15 @@ export async function deleteBySourceFile(collection, sourceFile) {
   if (!r.ok) throw new Error(`Qdrant delete failed: ${await r.text()}`);
 }
 
+export async function deleteByFilter(collection, filter) {
+  const r = await qdrantFetch(cUrl(collection, '/points/delete'), {
+    method: 'POST',
+    headers: headers(),
+    body: JSON.stringify({ filter }),
+  });
+  if (!r.ok) throw new Error(`Qdrant deleteByFilter failed: ${await r.text()}`);
+}
+
 // Delete points for sourceFile whose chunk_index >= fromChunkIndex.
 // Used after a file shrinks: deterministic IDs overwrite existing chunks 0..N-1,
 // but old points for chunk N..old_N-1 become orphans that PRUNE_STALE cannot
@@ -249,112 +258,120 @@ export async function createPayloadIndex(collection, field, type = 'keyword') {
   if (!r.ok) throw new Error(`Create index failed: ${await r.text()}`);
 }
 
-export async function createCollection(name, size = 1024) {
-  const r = await qdrantFetch(cUrl(name), {
-    method: 'PUT',
-    headers: headers(),
-    body: JSON.stringify({
-      vectors: { dense: { size, distance: 'Cosine' } },
-      sparse_vectors: { sparse: { index: { on_disk: false } } },
-    }),
-  });
-  if (!r.ok) throw new Error(`Create collection failed: ${await r.text()}`);
-  await createPayloadIndex(name, 'source_file', 'keyword');
-  await createPayloadIndex(name, 'tags', 'keyword');
-  await createPayloadIndex(name, 'chunk_index', 'integer');
-  // Skeleton-first filters (impl spec §5): required before any skeleton_nav
-  // upsert so the point_kind search filter can be enforced from day one.
-  await createPayloadIndex(name, 'point_kind', 'keyword');
-  await createPayloadIndex(name, 'node_type', 'keyword');
+// ── isSemidexPayload ──────────────────────────────────────────────────────────
+// Returns true when a payload object looks like a semidex-managed point.
+// Used by sync to skip foreign collections that happen to share a Qdrant instance.
+export function isSemidexPayload(payload) {
+  return typeof payload === 'object' && payload !== null &&
+    typeof payload.source_file === 'string' &&
+    typeof payload.chunk_index === 'number';
 }
 
-export async function deleteCollection(name) {
-  const r = await qdrantFetch(cUrl(name), {
-    method: 'DELETE',
-    headers: headers(),
-  });
-  if (!r.ok) throw new Error(`Delete collection failed: ${await r.text()}`);
+// ── fetchWindowChunks ─────────────────────────────────────────────────────────
+export async function fetchWindowChunks(collection, sourceFile, centerIndex, windowSize) {
+  const from = Math.max(0, centerIndex - windowSize);
+  const to   = centerIndex + windowSize;
+  const points = await scroll(
+    collection,
+    {
+      must: [
+        { key: 'source_file', match: { value: sourceFile } },
+        { key: 'chunk_index', range: { gte: from, lte: to } },
+      ],
+    },
+    (windowSize * 2) + 1,
+  );
+  return points.sort((a, b) => a.payload.chunk_index - b.payload.chunk_index);
 }
 
-export async function hasSparseVectors(collection) {
-  const r = await qdrantFetch(cUrl(collection, '/points/scroll'), {
-    method: 'POST',
-    headers: headers(),
-    body: JSON.stringify({ limit: 1, with_vectors: ['sparse'] }),
-  });
-  if (!r.ok) return false;
-  const data = await r.json();
-  const point = data.result?.points?.[0];
-  if (!point) return true; // empty collection, assume fine
-  const sv = point.vectors?.sparse;
-  return sv && Array.isArray(sv.indices) && sv.indices.length > 0;
-}
+// ── Skeleton nav helpers ──────────────────────────────────────────────────────
+// These helpers scroll only skeleton_nav points; they never touch retrieval
+// content chunks and never return vectors.
 
-// Discriminator fields that every semidex-indexed point carries in its payload.
-// Used by sync to distinguish semidex-managed collections from foreign ones.
-const SEMIDEX_PAYLOAD_FIELDS = [
-  'source_file', 'chunk_index', 'file_hash',
-  'dense_provider', 'dense_model', 'sparse_provider',
-  'embedding_schema_version', 'vector_size',
-  'chunking_schema_version', 'token_count_mode',
+const NAV_PAYLOAD_FIELDS = [
+  'point_kind', 'node_type', 'node_id', 'node_path', 'parent_id',
+  'summary', 'children', 'source_file', 'heading_path', 'inventory',
 ];
 
-// Pure helper — returns true when the given payload object contains all
-// semidex discriminator fields. Safe to call with null/undefined.
-export function isSemidexPayload(payload) {
-  if (!payload || typeof payload !== 'object') return false;
-  return SEMIDEX_PAYLOAD_FIELDS.every(f => f in payload);
+const NAV_FILTER_BASE = { must: [{ key: 'point_kind', match: { value: 'skeleton_nav' } }] };
+
+/**
+ * Find the single collection-level skeleton_nav node (node_type: "collection").
+ * Returns the point payload or null if not found.
+ */
+export async function getCollectionSkeletonNode(collection) {
+  const points = await scroll(
+    collection,
+    {
+      must: [
+        { key: 'point_kind', match: { value: 'skeleton_nav' } },
+        { key: 'node_type',  match: { value: 'collection' } },
+      ],
+    },
+    1,
+    NAV_PAYLOAD_FIELDS,
+  );
+  return points[0]?.payload ?? null;
 }
 
-// Fetches one point payload from the collection without pulling vectors or text.
-// Return value contract:
-//   null  → collection is empty (no points)
-//   {}    → point exists but Qdrant returned no payload or an empty payload object;
-//           isSemidexPayload({}) = false
-//   {...} → normal payload; caller may check isSemidexPayload
-// Throws on Qdrant errors so callers can handle failures conservatively.
-export async function getCollectionSamplePayload(collection) {
-  const r = await qdrantFetch(cUrl(collection, '/points/scroll'), {
-    method: 'POST',
-    headers: headers(),
-    body: JSON.stringify({
-      limit: 1,
-      with_payload: SEMIDEX_PAYLOAD_FIELDS,
-      with_vectors: false,
-    }),
-  });
-  if (!r.ok) throw new Error(`Qdrant samplePayload failed (${collection}): ${await r.text()}`);
-  const data = await r.json();
-  const point = data.result?.points?.[0];
-  if (!point) return null;          // empty collection → do not disable
-  return point.payload ?? {};       // non-empty but missing payload → {} → disabled
+/**
+ * Find a skeleton_nav node by its node_id.
+ * Returns the point payload or null.
+ */
+export async function getSkeletonNodeById(collection, nodeId) {
+  const points = await scroll(
+    collection,
+    {
+      must: [
+        { key: 'point_kind', match: { value: 'skeleton_nav' } },
+        { key: 'node_id',    match: { value: nodeId } },
+      ],
+    },
+    1,
+    NAV_PAYLOAD_FIELDS,
+  );
+  return points[0]?.payload ?? null;
 }
 
-export async function addSparseVectorSupport(name) {
-  const r = await qdrantFetch(cUrl(name), {
-    method: 'PATCH',
-    headers: headers(),
-    body: JSON.stringify({
-      sparse_vectors: { sparse: { index: { on_disk: false } } },
-    }),
-  });
-  if (!r.ok) throw new Error(`addSparseVectorSupport failed: ${await r.text()}`);
+/**
+ * Find a skeleton_nav node by its node_path.
+ * Returns the point payload or null.
+ */
+export async function getSkeletonNodeByPath(collection, nodePath) {
+  const points = await scroll(
+    collection,
+    {
+      must: [
+        { key: 'point_kind', match: { value: 'skeleton_nav' } },
+        { key: 'node_path',  match: { value: nodePath } },
+      ],
+    },
+    1,
+    NAV_PAYLOAD_FIELDS,
+  );
+  return points[0]?.payload ?? null;
 }
 
-export async function fetchWindowChunks(collection, source_file, chunk_index, window) {
-  const idx = parseInt(chunk_index, 10);
-  if (!Number.isFinite(idx) || idx < 0) return [];
-  window = Math.max(0, parseInt(window) || 0);
-  const from = Math.max(0, idx - window);
-  const to = idx + window;
-
-  const points = await scroll(collection, {
-    must: [
-      { key: 'source_file', match: { value: source_file } },
-      { key: 'chunk_index', range: { gte: from, lte: to } },
-    ],
-  }, to - from + 1);
-
-  points.sort((a, b) => a.payload.chunk_index - b.payload.chunk_index);
-  return points;
+/**
+ * Fetch skeleton_nav children of a node by their node_path values.
+ * childPaths: string[] from parent.children
+ * Returns an array of payloads in the same order as childPaths (missing paths skipped).
+ */
+export async function getSkeletonChildren(collection, childPaths, limit = 50) {
+  if (!childPaths || childPaths.length === 0) return [];
+  const capped = childPaths.slice(0, limit);
+  const points = await scroll(
+    collection,
+    {
+      must: [
+        { key: 'point_kind', match: { value: 'skeleton_nav' } },
+        { key: 'node_path',  match: { any: capped } },
+      ],
+    },
+    capped.length,
+    NAV_PAYLOAD_FIELDS,
+  );
+  // Restore order from childPaths
+  const byPath = new Map(points.map(p => [p.payload?.node_path, p.payload]));
+  return capped.map(path => byPath.get(path)).filter(Boolean);
 }
