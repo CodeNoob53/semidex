@@ -14,8 +14,11 @@ import * as findByTag from './tools/findByTag.js';
 import * as listFiles from './tools/listFiles.js';
 import * as listTags from './tools/listTags.js';
 import * as listDirectories from './tools/listDirectories.js';
+import * as getSkeleton from './tools/getSkeleton.js';
+import * as getSkeletonNode from './tools/getSkeletonNode.js';
+import * as getSkeletonChildren from './tools/getSkeletonChildren.js';
 
-const tools = [search, collections, getChunk, findByTag, listFiles, listTags, listDirectories];
+const tools = [search, collections, getChunk, findByTag, listFiles, listTags, listDirectories, getSkeleton, getSkeletonNode, getSkeletonChildren];
 const toolMap = Object.fromEntries(tools.map(t => [t.schema.name, t.handle]));
 
 const server = new Server(

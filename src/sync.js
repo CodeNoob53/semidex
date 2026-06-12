@@ -15,6 +15,8 @@ const REQUIRED_INDEXES = {
   // Skeleton-first (impl spec §5) — idempotent backfill onto existing collections.
   'point_kind':       'keyword',
   'node_type':        'keyword',
+  'node_id':          'keyword',
+  'node_path':        'keyword',
 };
 
 const config = loadConfig();

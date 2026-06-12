@@ -333,3 +333,93 @@ export async function fetchWindowChunks(collection, sourceFile, centerIndex, win
   );
   return points.sort((a, b) => a.payload.chunk_index - b.payload.chunk_index);
 }
+
+// ── Skeleton nav helpers ──────────────────────────────────────────────────────
+// These helpers scroll only skeleton_nav points; they never touch retrieval
+// content chunks and never return vectors.
+
+const NAV_PAYLOAD_FIELDS = [
+  'point_kind', 'node_type', 'node_id', 'node_path', 'parent_id',
+  'summary', 'children', 'source_file', 'heading_path', 'inventory',
+];
+
+/**
+ * Find the single collection-level skeleton_nav node (node_type: "collection").
+ * Returns the point payload or null if not found.
+ */
+export async function getCollectionSkeletonNode(collection) {
+  const points = await scroll(
+    collection,
+    {
+      must: [
+        { key: 'point_kind', match: { value: 'skeleton_nav' } },
+        { key: 'node_type',  match: { value: 'collection' } },
+      ],
+    },
+    1,
+    NAV_PAYLOAD_FIELDS,
+  );
+  return points[0]?.payload ?? null;
+}
+
+/**
+ * Find a skeleton_nav node by its node_id.
+ * Returns the point payload or null.
+ */
+export async function getSkeletonNodeById(collection, nodeId) {
+  const points = await scroll(
+    collection,
+    {
+      must: [
+        { key: 'point_kind', match: { value: 'skeleton_nav' } },
+        { key: 'node_id',    match: { value: nodeId } },
+      ],
+    },
+    1,
+    NAV_PAYLOAD_FIELDS,
+  );
+  return points[0]?.payload ?? null;
+}
+
+/**
+ * Find a skeleton_nav node by its node_path.
+ * Returns the point payload or null.
+ */
+export async function getSkeletonNodeByPath(collection, nodePath) {
+  const points = await scroll(
+    collection,
+    {
+      must: [
+        { key: 'point_kind', match: { value: 'skeleton_nav' } },
+        { key: 'node_path',  match: { value: nodePath } },
+      ],
+    },
+    1,
+    NAV_PAYLOAD_FIELDS,
+  );
+  return points[0]?.payload ?? null;
+}
+
+/**
+ * Fetch skeleton_nav children of a node by their node_path values.
+ * childPaths: string[] from parent.children
+ * Returns an array of payloads in the same order as childPaths (missing paths skipped).
+ */
+export async function getSkeletonChildren(collection, childPaths, limit = 50) {
+  if (!childPaths || childPaths.length === 0) return [];
+  const capped = childPaths.slice(0, limit);
+  const points = await scroll(
+    collection,
+    {
+      must: [
+        { key: 'point_kind', match: { value: 'skeleton_nav' } },
+        { key: 'node_path',  match: { any: capped } },
+      ],
+    },
+    capped.length,
+    NAV_PAYLOAD_FIELDS,
+  );
+  // Restore order from childPaths
+  const byPath = new Map(points.map(p => [p.payload?.node_path, p.payload]));
+  return capped.map(path => byPath.get(path)).filter(Boolean);
+}
