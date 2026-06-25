@@ -213,7 +213,7 @@ export default async function ({ ok }) {
     llm: true,
     generateFn: async () => 'Collection covers deployment and configuration topics for the project.',
   });
-  ok('llm mode: summary_kind=rollup',         rollup.summary_kind === 'rollup');
+  ok('llm mode: summary_kind=collection_overview', rollup.summary_kind === 'collection_overview');
   ok('llm mode: summary_version stamped',     rollup.summary_version === SUMMARY_VERSION);
 
   // ── buildNavPointPayload — new fields pass through ──────────────────────────

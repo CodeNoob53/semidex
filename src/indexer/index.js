@@ -24,7 +24,7 @@ import { Semaphore } from './semaphore.js';
 import { SerialQueue } from './serial-queue.js';
 import { envInt } from '../core/env.js';
 import { expectedChunkingMeta, skeletonPayloadFields, isSkeletonChunk, makeSkeletonPointId, buildNavPointPayload } from './skeleton-payload.js';
-import { generateNavSummaries, buildCollectionSummary, resolveRunNumCtx, estTokens } from './phases/skeleton-summary.js';
+import { generateNavSummaries, generateDirectorySummaries, buildCollectionSummary, resolveRunNumCtx, estTokens } from './phases/skeleton-summary.js';
 import { buildDirectoryNavPoints } from './phases/skeleton-index.js';
 import { makeNodeId } from '../core/node-id.js';
 import { scroll } from '../core/qdrant.js';
@@ -650,13 +650,38 @@ async function main() {
           { key: 'point_kind', match: { value: 'skeleton_nav' } },
           { key: 'node_type',  match: { value: 'file' } },
         ],
-      }, 1000, ['source_file', 'summary']);
+      }, 1000, ['source_file', 'summary', 'summary_kind', 'summary_version', 'key_topics', 'notable_terms']);
       const fileNodes = fileNavs
-        .map(p => ({ source_file: p.payload?.source_file ?? '', summary: p.payload?.summary ?? '' }))
+        .map(p => ({
+          source_file:  p.payload?.source_file  ?? '',
+          summary:      p.payload?.summary      ?? '',
+          summary_kind: p.payload?.summary_kind ?? undefined,
+          key_topics:   p.payload?.key_topics   ?? undefined,
+          notable_terms: p.payload?.notable_terms ?? undefined,
+        }))
         .filter(f => f.source_file)
         .sort((a, b) => a.source_file.localeCompare(b.source_file));
 
       const { directoryNodes, topChildren } = buildDirectoryNavPoints(COLLECTION, fileNodes);
+
+      // Build a lookup map for generateDirectorySummaries: path → enriched nav node.
+      // File nodes use the `<source_file>#file` path convention.
+      const childSummaryByPath = new Map(
+        fileNodes.map(f => [`${f.source_file}#file`, f])
+      );
+
+      // Generate directory summaries when LLM is enabled.
+      const llmEnabled = process.env.SKELETON_SUMMARY === 'llm';
+      const enrichedDirs = llmEnabled && directoryNodes.length > 0
+        ? await generateDirectorySummaries(directoryNodes, childSummaryByPath, {
+            numCtx: runNumCtx ?? undefined,
+          })
+        : directoryNodes;
+
+      // Add enriched directory nodes into the lookup so collection can use them.
+      for (const d of enrichedDirs) {
+        childSummaryByPath.set(d.node_path, d);
+      }
 
       await deleteByFilter(COLLECTION, {
         must: [
@@ -665,13 +690,13 @@ async function main() {
         ],
       });
 
-      if (directoryNodes.length > 0) {
-        const dirTexts = directoryNodes.map(n => n.summary);
+      if (enrichedDirs.length > 0) {
+        const dirTexts = enrichedDirs.map(n => n.summary);
         const dirEmbeds = shouldUseOnnxBatching(process.env)
           ? await embedForIndexBatch(COLLECTION, dirTexts, runBatched, BATCH_SIZE)
           : await runBatched(dirTexts, BATCH_SIZE, text => embedForIndex(COLLECTION, text));
         const cfgVectorSize = loadConfig().collections?.[COLLECTION]?.vectorSize ?? VECTOR_SIZE;
-        const dirPoints = directoryNodes.map((node, i) => ({
+        const dirPoints = enrichedDirs.map((node, i) => ({
           id: makeSkeletonPointId({
             collection: COLLECTION,
             nodeId: node.node_id,
@@ -689,16 +714,26 @@ async function main() {
         await upsertPoints(COLLECTION, dirPoints);
       }
 
-      const { summary, children } = await buildCollectionSummary(COLLECTION, fileNodes, {
-        llm: process.env.SKELETON_SUMMARY === 'llm',
+      // Top-level nodes for collection overview: enriched dirs + root files.
+      const rootFilePaths = new Set(
+        topChildren.filter(p => p.endsWith('#file'))
+      );
+      const topLevelNodes = [
+        ...enrichedDirs.filter(d => topChildren.includes(d.node_path)),
+        ...fileNodes.filter(f => rootFilePaths.has(`${f.source_file}#file`)),
+      ];
+
+      const collResult = await buildCollectionSummary(COLLECTION, fileNodes, {
+        llm: llmEnabled,
         numCtx: runNumCtx ?? undefined,
+        topLevelNodes: topLevelNodes.length ? topLevelNodes : undefined,
       });
 
       const collectionNodeId = makeNodeId({
         collection: '', sourceFile: '', structuralPath: '',
         nodeType: 'collection', ordinalWithinParent: 1,
       });
-      const { dense, sparse, meta } = await embedForIndex(COLLECTION, summary);
+      const { dense, sparse, meta } = await embedForIndex(COLLECTION, collResult.summary);
       const cfgVectorSize = loadConfig().collections?.[COLLECTION]?.vectorSize ?? VECTOR_SIZE;
       await upsertPoints(COLLECTION, [{
         id: makeSkeletonPointId({
@@ -709,8 +744,12 @@ async function main() {
         payload: buildNavPointPayload({
           point_kind: 'skeleton_nav', node_type: 'collection',
           node_id: collectionNodeId, node_path: `${COLLECTION}#collection`,
-          source_file: '', heading_path: [], summary,
-          children: topChildren.length ? topChildren : children,
+          source_file: '', heading_path: [], summary: collResult.summary,
+          summary_kind:    collResult.summary_kind,
+          summary_version: collResult.summary_version,
+          ...(collResult.key_topics    ? { key_topics:    collResult.key_topics }    : {}),
+          ...(collResult.notable_terms ? { notable_terms: collResult.notable_terms } : {}),
+          children: topChildren.length ? topChildren : collResult.children,
         }, {
           fileHash: null, vectorSize: cfgVectorSize,
           tokenCountMode: resolveTokenCountMode(),
@@ -718,7 +757,7 @@ async function main() {
           embedMeta: meta,
         }),
       }]);
-      console.log(`\nCollection nav node updated (${fileNodes.length} file summaries, ${directoryNodes.length} directory summaries).`);
+      console.log(`\nCollection nav node updated (${fileNodes.length} file summaries, ${enrichedDirs.length} directory summaries).`);
     } catch (err) {
       console.warn(`\nWARN: collection nav node update failed — ${err.message}`);
     }

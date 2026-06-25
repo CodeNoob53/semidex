@@ -11,7 +11,9 @@
 //   section    : full section content if it fits, else lead chunk + inventory;
 //   file       : full file content if it fits, else section summaries,
 //                else hierarchical reduction (batch → part summaries → final);
-//   collection : file summaries (always), same batching rule when huge.
+//   directory  : direct children summaries (file or sub-directory);
+//   collection : top-level nav summaries (dirs when present, else files),
+//                same batching rule when huge.
 //
 // Adaptive tier policy (2026-06-25):
 //   small  (<  SUMMARY_SMALL_TOKENS  tokens): 1-sentence plain summary
@@ -19,14 +21,18 @@
 //   large  (>= SUMMARY_MEDIUM_TOKENS tokens): structured JSON block:
 //                                             summary, key_topics, notable_terms,
 //                                             child_overview (for file nodes)
-//   rollup (collection/file from parts)     : plain roll-up, same as before
+//   rollup     (multiple children)           : plain roll-up from child summaries
+//   collection_overview                      : collection-level map overview
+//   propagated (exactly 1 semantic child)    : child summary copied, no LLM call
 //
 // summary_kind field stamps which tier was used:
 //   'inventory'      — no LLM, structural count string
-//   'llm_short'      — small tier
-//   'llm_medium'     — medium tier
-//   'llm_structured' — large tier
-//   'rollup'         — collection/file roll-up from parts
+//   'llm_short'      — small tier (section/file direct content)
+//   'llm_medium'     — medium tier (section/file direct content)
+//   'llm_structured' — large tier (section/file direct content)
+//   'rollup'         — LLM rollup from multiple child summaries
+//   'collection_overview' — LLM overview for the collection root
+//   'propagated'     — copied from the only child; no LLM call
 //
 // generateFn is injectable for tests; defaults to Ollama generate() with
 // CONTEXT_MODEL. All prompts instruct the model to answer in the content's
@@ -53,6 +59,7 @@ const MAX_KEY_TOPICS     = 6;
 const MAX_NOTABLE_TERMS  = 8;
 const MAX_CHILD_OVERVIEW = 10;
 const MAX_SUMMARY_CHARS  = 600;
+const MAX_COLLECTION_SUMMARY_CHARS = 1200;
 const MAX_FIELD_CHARS    = 120;  // per key_topics / notable_terms item
 
 // Model window budget for summary prompts. When SUMMARY_WINDOW_TOKENS is not
@@ -149,6 +156,12 @@ function genOptionsStructured(numCtx, thinking = false) {
   return opts;
 }
 
+function genOptionsCollection(numCtx, thinking = false) {
+  const opts = { temperature: 0, num_ctx: numCtx };
+  if (!thinking) opts.num_predict = 700;
+  return opts;
+}
+
 const LANG_NAMES = {
   ukr: 'Ukrainian', rus: 'Russian', eng: 'English', deu: 'German',
   pol: 'Polish', fra: 'French', spa: 'Spanish', ita: 'Italian',
@@ -238,6 +251,19 @@ function rollupRules(lang) {
     'SUMMARY:';
 }
 
+function collectionOverviewRules(lang) {
+  return 'TASK: Build a collection-level overview for an AI agent entering this knowledge base.\n' +
+    `RULES: ${langRule(lang, 'notes')} ` +
+    'Output ONLY valid JSON, no text before or after. Use this exact shape:\n' +
+    '{\n' +
+    '  "summary": "3-5 sentences, max 140 words. Explain what the collection is about, its main areas, and when an agent should drill into it.",\n' +
+    '  "key_topics": ["up to 8 broad topics or areas covered, each max 5 words"],\n' +
+    '  "notable_terms": ["up to 12 exact identifiers, commands, names, or terms useful for navigation"]\n' +
+    '}\n' +
+    'Do not invent facts. Do not include markdown. Output ONLY the JSON object.\n' +
+    'JSON:';
+}
+
 function shortPrompt(label, body) {
   return `Content of ${label}:\n\n${body}\n\n${shortRules(langHint(body))}`;
 }
@@ -255,12 +281,17 @@ function rollupPrompt(label, lines) {
   return `Notes describing the parts of ${label}:\n\n${joined}\n\n${rollupRules(langHint(joined))}`;
 }
 
+function collectionOverviewPrompt(collection, lines) {
+  const joined = lines.join('\n');
+  return `Navigation notes for collection "${collection}":\n\n${joined}\n\n${collectionOverviewRules(langHint(joined))}`;
+}
+
 // ── Sanitizers ────────────────────────────────────────────────────────────────
 
 const PREAMBLE_RE =
   /^(okay|ok[,!\s]|sure|certainly|of course|great[,!]|here[‘’]?s\b|here is\b|let me\b|let[‘’]?s\b|i[‘’]?ll\b|i can\b|as an ai|ось |звичайно|гаразд[,!]|давай)/i;
 
-export function sanitizeSummary(raw) {
+export function sanitizeSummary(raw, maxChars = MAX_SUMMARY_CHARS) {
   if (typeof raw !== 'string') return null;
   let s = raw.trim().replace(/^summary\s*:\s*/i, '');
   s = s.replace(/^["'«]+|["'»]+$/g, '').trim();
@@ -269,7 +300,7 @@ export function sanitizeSummary(raw) {
   if (/^#{1,6}\s|\*\*|^\s*[-*>]\s/m.test(s)) return null;
   s = s.replace(/\s+/g, ' ').trim();
   if (s.length < 20) return null;
-  if (s.length > MAX_SUMMARY_CHARS) return null;
+  if (s.length > maxChars) return null;
   const words = s.toLowerCase().split(/\s+/);
   if (words.length >= 25 && new Set(words).size / words.length < 0.4) return null;
   return s;
@@ -279,7 +310,12 @@ export function sanitizeSummary(raw) {
  * Parse and validate structured JSON output from LLM.
  * Returns { summary, key_topics, notable_terms, child_overview? } or null on failure.
  */
-export function sanitizeStructured(raw) {
+export function sanitizeStructured(
+  raw,
+  summaryMaxChars = MAX_SUMMARY_CHARS,
+  maxKeyTopics = MAX_KEY_TOPICS,
+  maxNotableTerms = MAX_NOTABLE_TERMS
+) {
   if (typeof raw !== 'string') return null;
   // Strip markdown code fences if model wrapped the JSON.
   let s = raw.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
@@ -292,7 +328,7 @@ export function sanitizeStructured(raw) {
     return null;
   }
   if (typeof parsed !== 'object' || parsed === null) return null;
-  const summary = sanitizeSummary(String(parsed.summary ?? ''));
+  const summary = sanitizeSummary(String(parsed.summary ?? ''), summaryMaxChars);
   if (!summary) return null;
 
   const clampArr = (arr, max, maxChars) => {
@@ -305,8 +341,8 @@ export function sanitizeStructured(raw) {
 
   const result = {
     summary,
-    key_topics:    clampArr(parsed.key_topics,    MAX_KEY_TOPICS,    MAX_FIELD_CHARS),
-    notable_terms: clampArr(parsed.notable_terms, MAX_NOTABLE_TERMS, MAX_FIELD_CHARS),
+    key_topics:    clampArr(parsed.key_topics,    maxKeyTopics,    MAX_FIELD_CHARS),
+    notable_terms: clampArr(parsed.notable_terms, maxNotableTerms, MAX_FIELD_CHARS),
   };
   if (Array.isArray(parsed.child_overview)) {
     result.child_overview = clampArr(parsed.child_overview, MAX_CHILD_OVERVIEW, MAX_FIELD_CHARS);
@@ -450,6 +486,49 @@ async function generateRollupWithRetry(label, lines, ctx) {
   return null;
 }
 
+async function generateCollectionOverviewWithRetry(collection, lines, ctx) {
+  const { generateFn, model, budget, numCtx, thinking } = ctx;
+  const src = chooseSource(lines.join('\n'), lines, budget);
+  const genStructured = (prompt) => generateFn(model, prompt, { options: genOptionsCollection(numCtx, thinking) });
+  const genPlain = (prompt) => generateFn(model, prompt, { options: genOptions(numCtx, thinking) });
+
+  const overviewFrom = async (inputLines) => {
+    const raw = await genStructured(collectionOverviewPrompt(collection, inputLines));
+    const parsed = sanitizeStructured(raw, MAX_COLLECTION_SUMMARY_CHARS, 8, 12);
+    if (parsed) {
+      return {
+        summary: parsed.summary,
+        key_topics: parsed.key_topics.length ? parsed.key_topics.slice(0, 8) : undefined,
+        notable_terms: parsed.notable_terms.length ? parsed.notable_terms.slice(0, 12) : undefined,
+      };
+    }
+    const plain = sanitizeSummary(raw, MAX_COLLECTION_SUMMARY_CHARS);
+    return plain ? { summary: plain } : null;
+  };
+
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      if (src.mode !== 'batched') {
+        const result = await overviewFrom(lines);
+        if (result) return result;
+      } else {
+        const partSummaries = [];
+        for (const batch of src.batches) {
+          partSummaries.push((await genPlain(rollupPrompt(`a part of collection "${collection}"`, batch))).trim());
+        }
+        const result = await overviewFrom(partSummaries);
+        if (result) return result;
+      }
+    } catch (err) {
+      process.stderr.write(`[skeleton-summary] collection overview "${collection}" attempt ${attempt + 1} error: ${err.message}\n`);
+    }
+    if (attempt === 0) {
+      process.stderr.write(`[skeleton-summary] collection overview "${collection}" attempt 1 rejected — retrying\n`);
+    }
+  }
+  return null;
+}
+
 // ── Public API ────────────────────────────────────────────────────────────────
 
 /**
@@ -479,10 +558,11 @@ export async function generateNavSummaries(navPoints, chunks, opts = {}) {
   const ctx = { generateFn, model, budget, numCtx, thinking };
 
   const out = [];
+  const sectionNodes = navPoints.filter(n => n.node_type === 'section');
   const sectionSummaries = [];
 
   // Sections first (file node needs their summaries as fallback source).
-  for (const nav of navPoints.filter(n => n.node_type === 'section')) {
+  for (const nav of sectionNodes) {
     const own = chunks.filter(c => c.parent_id === nav.node_id);
     const fullText = own.map(c => c.text).join('\n\n');
     const heading = nav.heading_path?.at(-1) ?? nav.node_path;
@@ -512,11 +592,40 @@ export async function generateNavSummaries(navPoints, chunks, opts = {}) {
     out.push({ ...nav, inventory: nav.summary, summary, ...extra });
   }
 
-  // File node: full content if it fits, else section summaries (already semantic).
+  // File node: single-section propagation or full adaptive generation.
   for (const nav of navPoints.filter(n => n.node_type === 'file')) {
+    const fileSections = sectionNodes.filter(
+      s => (s.source_file ?? s.node_path.split('#')[0]) ===
+           (nav.source_file ?? nav.node_path.split('#')[0])
+    );
     const fullText = chunks.map(c => c.text).join('\n\n');
     let extra = {};
     let summary = nav.summary;
+
+    // Single-child propagation: one section AND no meaningful preamble chunks
+    // (chunks whose parent_id is NOT the section — i.e. root/preamble prose).
+    // If preamble exists, the file has content the section doesn't cover, so
+    // propagation would silently drop it. Run a full file summary instead.
+    const hasPreamble = fileSections.length === 1 && chunks.some(
+      c => c.source_file === nav.source_file &&
+           c.parent_id  !== fileSections[0].node_id &&
+           (c.text ?? '').trim().length > 0
+    );
+    if (fileSections.length === 1 && !hasPreamble) {
+      const secOut = out.find(n => n.node_id === fileSections[0].node_id);
+      if (secOut && secOut.summary !== secOut.inventory) {
+        summary = secOut.summary;
+        extra = {
+          summary_kind:    'propagated',
+          summary_version: SUMMARY_VERSION,
+          ...(secOut.key_topics    ? { key_topics:    secOut.key_topics }    : {}),
+          ...(secOut.notable_terms ? { notable_terms: secOut.notable_terms } : {}),
+        };
+        out.push({ ...nav, inventory: nav.summary, summary, ...extra });
+        continue;
+      }
+    }
+
     try {
       if (fullText.trim()) {
         const result = await generateAdaptiveSummary(
@@ -546,21 +655,163 @@ export async function generateNavSummaries(navPoints, chunks, opts = {}) {
 }
 
 /**
- * Build the collection-level nav point from file summaries.
+ * Generate semantic summaries for directory nav nodes from their direct children.
+ *
+ * Single-child propagation: if a directory has exactly one child (file or subdir)
+ * whose summary is already semantic, copies it — no LLM call.
+ *
+ * Multiple children: rollup from child summaries (same batching logic as collection).
+ *
+ * @param {Object[]} directoryNodes — from buildDirectoryNavPoints
+ * @param {Map<string, { summary: string, summary_kind?: string, key_topics?: string[],
+ *                       notable_terms?: string[] }>} childSummaryByPath
+ *   Map from node_path → enriched nav payload. Includes file + directory nodes.
+ * @param {{ generateFn?: Function, model?: string, windowTokens?: number,
+ *            numCtx?: number, thinking?: boolean }} [opts]
+ * @returns {Promise<Object[]>} new array; input not mutated
+ */
+export async function generateDirectorySummaries(directoryNodes, childSummaryByPath, opts = {}) {
+  if (!directoryNodes.length) return directoryNodes;
+
+  const generateFn   = opts.generateFn ?? generate;
+  const model        = opts.model ?? (process.env.CONTEXT_MODEL || 'gemma3:4b');
+  const windowTokens = opts.windowTokens ?? summaryWindowTokens(process.env);
+  const numCtx = opts.numCtx ?? await resolveNumCtx(model, process.env);
+  const thinking = opts.thinking ?? (opts.generateFn ? false : await isThinkingModel(model));
+  const budget = Math.max(500, Math.floor(windowTokens * 0.8));
+  const ctx = { generateFn, model, budget, numCtx, thinking };
+
+  // Process leaf-first (sort by depth descending so parents see enriched children).
+  const sorted = [...directoryNodes].sort(
+    (a, b) => b.node_path.split('/').length - a.node_path.split('/').length
+  );
+
+  // Result map: node_path → enriched node (so parents can read children).
+  const enriched = new Map();
+
+  for (const dir of sorted) {
+    const inventory = dir.summary; // original inventory string
+    const label = dir.heading_path?.at(-1) ?? dir.node_path;
+
+    // Collect direct children summaries from the map.
+    const childPaths = Array.isArray(dir.children) ? dir.children : [];
+    const childEntries = childPaths
+      .map(p => enriched.get(p) ?? childSummaryByPath.get(p))
+      .filter(Boolean);
+
+    // No resolvable children — keep inventory.
+    if (childEntries.length === 0) {
+      enriched.set(dir.node_path, { ...dir });
+      continue;
+    }
+
+    // Single-child propagation.
+    if (childEntries.length === 1) {
+      const child = childEntries[0];
+      const childSummary = child.summary ?? '';
+      const childKind    = child.summary_kind;
+      const isSemantic   = childKind && childKind !== 'inventory';
+      if (isSemantic && childSummary) {
+        const node = {
+          ...dir,
+          inventory,
+          summary:         childSummary,
+          summary_kind:    'propagated',
+          summary_version: SUMMARY_VERSION,
+          ...(child.key_topics    ? { key_topics:    child.key_topics }    : {}),
+          ...(child.notable_terms ? { notable_terms: child.notable_terms } : {}),
+        };
+        enriched.set(dir.node_path, node);
+        continue;
+      }
+      // Child is inventory-only — keep directory inventory too.
+      enriched.set(dir.node_path, { ...dir });
+      continue;
+    }
+
+    // Multiple children — rollup.
+    const lines = childEntries.map(c => {
+      const name = c.source_file ?? c.node_path ?? '';
+      return `- ${name}: ${c.summary ?? ''}`;
+    });
+    try {
+      const clean = await generateRollupWithRetry(`directory "${label}"`, lines, ctx);
+      if (clean) {
+        const node = {
+          ...dir,
+          inventory,
+          summary:         clean,
+          summary_kind:    'rollup',
+          summary_version: SUMMARY_VERSION,
+        };
+        enriched.set(dir.node_path, node);
+        continue;
+      }
+      process.stderr.write(`[skeleton-summary] directory "${label}" rollup rejected — keeping inventory\n`);
+    } catch (err) {
+      process.stderr.write(`[skeleton-summary] directory "${label}" failed (${err.message}) — keeping inventory\n`);
+    }
+    enriched.set(dir.node_path, { ...dir });
+  }
+
+  // Return in original order.
+  return directoryNodes.map(d => enriched.get(d.node_path) ?? d);
+}
+
+/**
+ * Build the collection-level nav point summary.
+ *
+ * Uses top-level nav nodes (directory summaries when present, else file summaries)
+ * to generate a dedicated collection overview — describes the collection through
+ * its map, not a flat list of all files. Unlike file/directory summaries, the
+ * collection root is never propagated from a single child: it is the entry point
+ * for agents and must explain the collection as a whole.
  *
  * @param {string} collection
  * @param {Array<{ source_file: string, summary: string }>} fileNodes
- * @param {{ generateFn?: Function, model?: string, windowTokens?: number, llm?: boolean }} [opts]
- * @returns {Promise<{ summary: string, summary_kind: string, children: string[] }>}
+ * @param {{ generateFn?: Function, model?: string, windowTokens?: number, llm?: boolean,
+ *            topLevelNodes?: Array<{ node_path: string, summary: string, summary_kind?: string,
+ *                                   key_topics?: string[], notable_terms?: string[] }> }} [opts]
+ *   topLevelNodes: enriched top-level directory/file nav nodes. When provided, used
+ *   instead of raw fileNodes for the rollup source.
+ * @returns {Promise<{ summary: string, summary_kind: string, summary_version?: number,
+ *                     key_topics?: string[], notable_terms?: string[], children: string[] }>}
  */
 export async function buildCollectionSummary(collection, fileNodes, opts = {}) {
   const children  = fileNodes.map(f => `${f.source_file}#file`);
-  const lines     = fileNodes.map(f => `- ${f.source_file}: ${f.summary}`);
-  const inventory = `${collection} — ${fileNodes.length} file${fileNodes.length === 1 ? '' : 's'}`;
+  const fileCount = fileNodes.length;
+  const inventory = `${collection} — ${fileCount} file${fileCount === 1 ? '' : 's'}`;
 
-  if (!opts.llm || fileNodes.length === 0) {
+  if (!opts.llm || fileCount === 0) {
     return { summary: inventory, summary_kind: 'inventory', children };
   }
+
+  // Prefer top-level nav nodes (dirs or root files) over flat file list.
+  const topNodes = Array.isArray(opts.topLevelNodes) && opts.topLevelNodes.length
+    ? opts.topLevelNodes
+    : fileNodes.map(f => ({ node_path: `${f.source_file}#file`, summary: f.summary, summary_kind: f.summary_kind }));
+
+  const topLines = topNodes.map(n => {
+    const name = n.source_file ?? n.node_path ?? '';
+    return `- ${name}: ${n.summary ?? ''}`;
+  });
+  const fileLines = fileNodes.map(f => `- ${f.source_file}: ${f.summary ?? ''}`);
+  const lines = [
+    `Collection: ${collection}`,
+    `Files: ${fileCount}`,
+    'Top-level map:',
+    ...topLines,
+  ];
+
+  // If top-level map is a directory rollup, keep file-level notes as supporting
+  // detail so the collection overview does not collapse into a too-short copy of
+  // the only directory summary.
+  const topCoversFiles = topNodes.length === fileNodes.length &&
+    topNodes.every(n => n.source_file);
+  if (!topCoversFiles && fileLines.length) {
+    lines.push('File notes:', ...fileLines);
+  }
+
   const generateFn   = opts.generateFn ?? generate;
   const model        = opts.model ?? (process.env.CONTEXT_MODEL || 'gemma3:4b');
   const windowTokens = opts.windowTokens ?? summaryWindowTokens(process.env);
@@ -569,14 +820,21 @@ export async function buildCollectionSummary(collection, fileNodes, opts = {}) {
   const budget = Math.max(500, Math.floor(windowTokens * 0.8));
   const ctx = { generateFn, model, budget, numCtx, thinking };
   try {
-    const clean = await generateRollupWithRetry(`the collection "${collection}"`, lines, ctx);
-    if (!clean) {
-      process.stderr.write('[skeleton-summary] collection summary rejected after retry — keeping inventory\n');
+    const overview = await generateCollectionOverviewWithRetry(collection, lines, ctx);
+    if (!overview) {
+      process.stderr.write('[skeleton-summary] collection overview rejected after retry — keeping inventory\n');
       return { summary: inventory, summary_kind: 'inventory', children };
     }
-    return { summary: clean, summary_kind: 'rollup', summary_version: SUMMARY_VERSION, children };
+    return {
+      summary: overview.summary,
+      summary_kind: 'collection_overview',
+      summary_version: SUMMARY_VERSION,
+      children,
+      ...(overview.key_topics    ? { key_topics:    overview.key_topics }    : {}),
+      ...(overview.notable_terms ? { notable_terms: overview.notable_terms } : {}),
+    };
   } catch (err) {
-    process.stderr.write(`[skeleton-summary] collection summary failed (${err.message}) — keeping inventory\n`);
+    process.stderr.write(`[skeleton-summary] collection overview failed (${err.message}) — keeping inventory\n`);
     return { summary: inventory, summary_kind: 'inventory', children };
   }
 }
