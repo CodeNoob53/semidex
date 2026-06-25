@@ -71,6 +71,8 @@ If implementation requires even broader context, follow up with `qdrant_get_chun
 
 **Structured-data trigger:** If a compact snippet shows a table header, checklist, YAML/JSON block, or any structure that appears cut mid-row or mid-item, call `qdrant_get_chunk(collection, source_file, chunk_index)` directly. Compact snippets are capped at 150 characters and will always truncate multi-row tables. Do not summarize structured content from a truncated snippet — retrieve the full chunk first.
 
+**Structural node placeholders:** Search results and skeleton nodes may surface placeholders like `[table node: ...]` or `[code_block node: ...]`. Resolve these with `qdrant_get_node(collection, node_path="<path from placeholder>")`. The tool returns a bounded preview (default 2000 chars) and metadata. If the node path resolves to a nav node, the tool returns `reason: "nav_node_not_content"` — use `qdrant_get_skeleton_node` instead.
+
 ### Source-Navigation Queries
 
 Queries that ask *where* something lives in the codebase — file paths, function
@@ -140,6 +142,7 @@ Raw/unstructured corpus chunks may contain distractor values, stale config, or c
 | `qdrant_get_skeleton` | `collection` | Returns the collection skeleton root and immediate children. Use as the map for skeleton-enabled collections. |
 | `qdrant_get_skeleton_node` | `collection`, exactly one of `node_id` or `node_path` | Returns one skeleton navigation node with summary, parent, children, source file, and heading path. |
 | `qdrant_get_skeleton_children` | `collection`, exactly one of `node_id` or `node_path`, `limit?` | Resolves immediate child skeleton nodes with truncation metadata. |
+| `qdrant_get_node` | `collection`, exactly one of `node_id` or `node_path`, `preview_chars?` | Resolves a structural content node (table, code_block, checklist, image, paragraph…) by ID or path. Returns metadata and a bounded content preview (default 2000 chars, max 8000). Does not return nav nodes — use `qdrant_get_skeleton_node` for those. |
 | `qdrant_find_by_tag` | `collection`, `tag?`, `tags?[]`, `match?`, `limit?` | Lists chunks matching tag(s), grouped by file and sorted by density |
 | `qdrant_list_directories` | `collection`, `source_prefix?`, `depth?`, `limit?` | Lists directory prefixes with file and chunk counts. Use to explore structure before listing files. |
 | `qdrant_list_files` | `collection`, `source_prefix?`, `tags?[]`, `tag_match?`, `limit?` | Lists unique source files with chunk counts, first section, and optional tag filtering |

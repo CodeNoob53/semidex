@@ -52,6 +52,7 @@ import section52 from './sections/52-run-num-ctx.js';
 import section53 from './sections/53-skeleton-nav-tools.js';
 import section54 from './sections/54-adaptive-skeleton-summaries.js';
 import section55 from './sections/55-hierarchical-skeleton-summaries.js';
+import section56 from './sections/56-get-node-tool.js';
 
 let passed = 0;
 let failed = 0;
@@ -105,6 +106,7 @@ const sections = [
   section53,
   section54,
   section55,
+  section56,
 ];
 
 for (const section of sections) {

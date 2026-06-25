@@ -424,3 +424,66 @@ export async function getSkeletonChildren(collection, childPaths, limit = 50) {
   const byPath = new Map(points.map(p => [p.payload?.node_path, p.payload]));
   return capped.map(path => byPath.get(path)).filter(Boolean);
 }
+
+const CONTENT_NODE_FIELDS = [
+  'point_kind', 'node_type', 'node_id', 'node_path', 'parent_id',
+  'source_file', 'heading_path', 'chunk_index', 'section',
+  'lang', 'context', 'summary', 'text', 'raw_content', 'rawContent',
+];
+
+/**
+ * Find a non-nav content node (table, code_block, checklist, image, etc.) by node_id.
+ * Returns the point payload or null. Never returns skeleton_nav points.
+ */
+export async function getContentNodeById(collection, nodeId) {
+  const points = await scroll(
+    collection,
+    { must: [{ key: 'node_id', match: { value: nodeId } }] },
+    2,
+    CONTENT_NODE_FIELDS,
+  );
+  const payload = points.find(p => p.payload?.point_kind !== 'skeleton_nav')?.payload ?? null;
+  return payload;
+}
+
+/**
+ * Find a non-nav content node by node_path.
+ * Returns the point payload or null. Never returns skeleton_nav points.
+ */
+export async function getContentNodeByPath(collection, nodePath) {
+  const points = await scroll(
+    collection,
+    { must: [{ key: 'node_path', match: { value: nodePath } }] },
+    2,
+    CONTENT_NODE_FIELDS,
+  );
+  const payload = points.find(p => p.payload?.point_kind !== 'skeleton_nav')?.payload ?? null;
+  return payload;
+}
+
+/**
+ * Find any node by node_id without filtering — used to detect nav vs content.
+ * Returns the raw payload or null.
+ */
+export async function getAnyNodeById(collection, nodeId) {
+  const points = await scroll(
+    collection,
+    { must: [{ key: 'node_id', match: { value: nodeId } }] },
+    2,
+    [...CONTENT_NODE_FIELDS, ...NAV_PAYLOAD_FIELDS],
+  );
+  return points[0]?.payload ?? null;
+}
+
+/**
+ * Find any node by node_path without filtering.
+ */
+export async function getAnyNodeByPath(collection, nodePath) {
+  const points = await scroll(
+    collection,
+    { must: [{ key: 'node_path', match: { value: nodePath } }] },
+    2,
+    [...CONTENT_NODE_FIELDS, ...NAV_PAYLOAD_FIELDS],
+  );
+  return points[0]?.payload ?? null;
+}
