@@ -133,6 +133,13 @@ export function buildNavPointPayload(navPoint, ctx = {}) {
     chunking_model:          SKELETON_CHUNKING_MODEL,
     indexing_schema_version: INDEXING_SCHEMA_VERSION,
 
+    // Adaptive summary metadata (additive, absent on inventory-only nodes).
+    ...(navPoint.summary_kind    ? { summary_kind:    navPoint.summary_kind }    : {}),
+    ...(navPoint.summary_version ? { summary_version: navPoint.summary_version } : {}),
+    ...(navPoint.key_topics      ? { key_topics:      navPoint.key_topics }      : {}),
+    ...(navPoint.notable_terms   ? { notable_terms:   navPoint.notable_terms }   : {}),
+    ...(navPoint.child_overview  ? { child_overview:  navPoint.child_overview }  : {}),
+
     // semidex discriminator fields (isSemidexPayload contract).
     source_file:             navPoint.source_file,
     chunk_index:             -1,               // nav contract: outside all ranges

@@ -43,6 +43,10 @@ export function formatChildren(parentNode, children, totalChildPaths) {
       summary:     c.summary ?? '',
       source_file: c.source_file ?? '',
       child_count: Array.isArray(c.children) ? c.children.length : 0,
+      // Compact adaptive metadata — orientation hints for the agent.
+      ...(c.summary_kind  !== undefined ? { summary_kind:  c.summary_kind }  : {}),
+      ...(c.key_topics    !== undefined ? { key_topics:    c.key_topics }    : {}),
+      ...(c.notable_terms !== undefined ? { notable_terms: c.notable_terms } : {}),
     })),
     total_children:    total,
     returned_children: children.length,

@@ -19,6 +19,8 @@ export default async function ({ ok }) {
     parent_id:   null,
     summary:     'Test collection summary',
     inventory:   '3 topics, 10 files',
+    summary_kind:    'rollup',
+    summary_version: 2,
     children:    ['col#dir/Topic 1', 'col#dir/Topic 2'],
     source_file: '',
     heading_path: null,
@@ -32,6 +34,7 @@ export default async function ({ ok }) {
     parent_id:   'col-uuid',
     summary:     'Topic 1 directory',
     inventory:   null,
+    summary_kind: 'inventory',
     children:    ['Topic 1/Intro.md#file', 'Topic 1/Guide.md#file'],
     source_file: '',
     heading_path: null,
@@ -57,9 +60,28 @@ export default async function ({ ok }) {
     node_path:   'Topic 1/Intro.md#file',
     parent_id:   'dir1-uuid',
     summary:     'Intro file summary',
-    inventory:   null,
+    inventory:   'Intro — 2 sections, 10 paragraphs',
+    summary_kind:    'llm_structured',
+    summary_version: 2,
+    key_topics:      ['asyncio', 'event loop', 'coroutines'],
+    notable_terms:   ['gather()', 'create_task()', 'await'],
+    child_overview:  ['Overview: intro to async', 'Examples: code patterns'],
     children:    ['Topic 1/Intro.md#sec/Overview'],
     source_file: 'Topic 1/Intro.md',
+    heading_path: null,
+  };
+
+  // Inventory-only node (no LLM fields — pre-adaptive or fallback).
+  const inventoryFileNode = {
+    point_kind:  'skeleton_nav',
+    node_type:   'file',
+    node_id:     'file3-uuid',
+    node_path:   'Topic 1/Legacy.md#file',
+    parent_id:   'dir1-uuid',
+    summary:     'Legacy — 1 section, 5 paragraphs',
+    inventory:   null,
+    children:    [],
+    source_file: 'Topic 1/Legacy.md',
     heading_path: null,
   };
 
@@ -180,4 +202,49 @@ export default async function ({ ok }) {
   const noTotal = formatChildren(dirNode1, [fileNode]);
   ok('formatChildren: omitting totalChildPaths falls back to children.length',
      noTotal.total_children === 1 && noTotal.returned_children === 1 && noTotal.truncated === false);
+
+  // ── adaptive fields: formatNode ──────────────────────────────────────────────
+
+  const adaptiveNode = formatNode(fileNode);
+  ok('formatNode: summary_kind present on adaptive node',    adaptiveNode.summary_kind    === 'llm_structured');
+  ok('formatNode: summary_version present on adaptive node', adaptiveNode.summary_version === 2);
+  ok('formatNode: key_topics present on adaptive node',      Array.isArray(adaptiveNode.key_topics) && adaptiveNode.key_topics[0] === 'asyncio');
+  ok('formatNode: notable_terms present on adaptive node',   Array.isArray(adaptiveNode.notable_terms) && adaptiveNode.notable_terms.includes('await'));
+  ok('formatNode: child_overview present on adaptive node',  Array.isArray(adaptiveNode.child_overview) && adaptiveNode.child_overview.length === 2);
+  ok('formatNode: inventory present on adaptive node',       adaptiveNode.inventory === 'Intro — 2 sections, 10 paragraphs');
+
+  // Inventory-only node — adaptive fields must be absent (not undefined/null)
+  const legacyNode = formatNode(inventoryFileNode);
+  ok('formatNode: summary_kind absent on inventory-only node',    !('summary_kind'    in legacyNode));
+  ok('formatNode: summary_version absent on inventory-only node', !('summary_version' in legacyNode));
+  ok('formatNode: key_topics absent on inventory-only node',      !('key_topics'      in legacyNode));
+  ok('formatNode: notable_terms absent on inventory-only node',   !('notable_terms'   in legacyNode));
+  ok('formatNode: child_overview absent on inventory-only node',  !('child_overview'  in legacyNode));
+
+  // ── adaptive fields: formatChildren ──────────────────────────────────────────
+
+  const adaptiveChildren = formatChildren(dirNode1, [fileNode, inventoryFileNode], 2);
+
+  ok('formatChildren: child with adaptive — summary_kind present', adaptiveChildren.children[0].summary_kind === 'llm_structured');
+  ok('formatChildren: child with adaptive — key_topics present',   Array.isArray(adaptiveChildren.children[0].key_topics));
+  ok('formatChildren: child with adaptive — notable_terms present', Array.isArray(adaptiveChildren.children[0].notable_terms));
+  ok('formatChildren: inventory-only child — summary_kind absent', !('summary_kind' in adaptiveChildren.children[1]));
+
+  // child_overview is not in compact children output (too noisy)
+  ok('formatChildren: child_overview absent from children output', !('child_overview' in adaptiveChildren.children[0]));
+
+  // ── adaptive fields: formatSkeleton ──────────────────────────────────────────
+
+  const skeletonAdaptive = formatSkeleton(colNode, [dirNode1, dirNode2]);
+
+  ok('formatSkeleton: collection summary_kind present',    skeletonAdaptive.summary_kind    === 'rollup');
+  ok('formatSkeleton: collection summary_version present', skeletonAdaptive.summary_version === 2);
+  ok('formatSkeleton: child with summary_kind shows it',   skeletonAdaptive.children[0].summary_kind === 'inventory');
+  ok('formatSkeleton: child without summary_kind — absent', !('summary_kind' in skeletonAdaptive.children[1]));
+
+  // Collection node without adaptive fields — they must be absent
+  const colNoAdaptive = { ...colNode, summary_kind: undefined, summary_version: undefined };
+  const skeletonNoAdaptive = formatSkeleton(colNoAdaptive, []);
+  ok('formatSkeleton: summary_kind absent when undefined on collection',    !('summary_kind'    in skeletonNoAdaptive));
+  ok('formatSkeleton: summary_version absent when undefined on collection', !('summary_version' in skeletonNoAdaptive));
 }

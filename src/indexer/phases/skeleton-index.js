@@ -63,18 +63,19 @@ export function buildFileSkeleton(nodes, ctx = {}) {
   const sectionNodes = sections.map(s => {
     const entry = bySection.get(s.structuralPath);
     return {
-      point_kind: POINT_KINDS.NAV,
-      node_type: 'section',
+      point_kind:   POINT_KINDS.NAV,
+      node_type:    'section',
       // Parity with chunkFromSkeleton parent_id derivation (ordinal fixed at 1).
       node_id: makeNodeId({
         collection: '', sourceFile,
         structuralPath: s.structuralPath, nodeType: 'section', ordinalWithinParent: 1,
       }),
-      node_path: `${sourceFile}#${s.structuralPath}`,
-      source_file: sourceFile,
+      node_path:    `${sourceFile}#${s.structuralPath}`,
+      source_file:  sourceFile,
       heading_path: s.headingPath,
-      summary: `${s.text} — ${inventoryLabel(entry.counts)}`,
-      children: entry.childPaths,
+      summary:      `${s.text} — ${inventoryLabel(entry.counts)}`,
+      summary_kind: 'inventory',
+      children:     entry.childPaths,
       chunking_model: 'skeleton-v1',
     };
   });
@@ -88,16 +89,17 @@ export function buildFileSkeleton(nodes, ctx = {}) {
     totals[n.nodeType] = (totals[n.nodeType] ?? 0) + 1;
   }
   const fileNode = {
-    point_kind: POINT_KINDS.NAV,
-    node_type: 'file',
+    point_kind:   POINT_KINDS.NAV,
+    node_type:    'file',
     node_id: makeNodeId({
       collection: '', sourceFile, structuralPath: '', nodeType: 'file', ordinalWithinParent: 1,
     }),
-    node_path: `${sourceFile}#file`,
-    source_file: sourceFile,
+    node_path:    `${sourceFile}#file`,
+    source_file:  sourceFile,
     heading_path: [],
-    summary: `${title || sourceFile} — ${inventoryLabel(totals)}`,
-    children: sectionNodes.map(s => s.node_path),
+    summary:      `${title || sourceFile} — ${inventoryLabel(totals)}`,
+    summary_kind: 'inventory',
+    children:     sectionNodes.map(s => s.node_path),
     chunking_model: 'skeleton-v1',
   };
 

@@ -25,6 +25,9 @@ export function formatSkeleton(collectionNode, children) {
     node_path:   collectionNode.node_path,
     summary:     collectionNode.summary ?? '',
     inventory:   collectionNode.inventory ?? null,
+    // Adaptive metadata on collection node when present.
+    ...(collectionNode.summary_kind    !== undefined ? { summary_kind:    collectionNode.summary_kind }    : {}),
+    ...(collectionNode.summary_version !== undefined ? { summary_version: collectionNode.summary_version } : {}),
     child_count: Array.isArray(collectionNode.children) ? collectionNode.children.length : 0,
     children:    children.map(c => ({
       node_type:   c.node_type,
@@ -32,6 +35,8 @@ export function formatSkeleton(collectionNode, children) {
       node_path:   c.node_path,
       summary:     c.summary ?? '',
       child_count: Array.isArray(c.children) ? c.children.length : 0,
+      // Orientation hint per child.
+      ...(c.summary_kind !== undefined ? { summary_kind: c.summary_kind } : {}),
     })),
   };
 }

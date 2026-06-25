@@ -37,6 +37,12 @@ export function formatNode(node) {
     heading_path: node.heading_path ?? null,
     inventory:    node.inventory ?? null,
     children:     Array.isArray(node.children) ? node.children : [],
+    // Adaptive summary metadata — present only when stored.
+    ...(node.summary_kind    !== undefined ? { summary_kind:    node.summary_kind }    : {}),
+    ...(node.summary_version !== undefined ? { summary_version: node.summary_version } : {}),
+    ...(node.key_topics      !== undefined ? { key_topics:      node.key_topics }      : {}),
+    ...(node.notable_terms   !== undefined ? { notable_terms:   node.notable_terms }   : {}),
+    ...(node.child_overview  !== undefined ? { child_overview:  node.child_overview }  : {}),
   };
 }
 

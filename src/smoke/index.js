@@ -50,6 +50,7 @@ import section50 from './sections/50-nav-upsert.js';
 import section51 from './sections/51-skeleton-summary.js';
 import section52 from './sections/52-run-num-ctx.js';
 import section53 from './sections/53-skeleton-nav-tools.js';
+import section54 from './sections/54-adaptive-skeleton-summaries.js';
 
 let passed = 0;
 let failed = 0;
@@ -101,6 +102,7 @@ const sections = [
   section40, section41, section42, section43, section44, section45, section46,
   section47, section48, section49, section50, section51, section52,
   section53,
+  section54,
 ];
 
 for (const section of sections) {
