@@ -341,6 +341,7 @@ export async function fetchWindowChunks(collection, sourceFile, centerIndex, win
 const NAV_PAYLOAD_FIELDS = [
   'point_kind', 'node_type', 'node_id', 'node_path', 'parent_id',
   'summary', 'children', 'source_file', 'heading_path', 'inventory',
+  'summary_kind', 'summary_version', 'key_topics', 'notable_terms', 'child_overview',
 ];
 
 /**

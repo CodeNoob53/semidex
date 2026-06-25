@@ -28,6 +28,8 @@ export function formatSkeleton(collectionNode, children) {
     // Adaptive metadata on collection node when present.
     ...(collectionNode.summary_kind    !== undefined ? { summary_kind:    collectionNode.summary_kind }    : {}),
     ...(collectionNode.summary_version !== undefined ? { summary_version: collectionNode.summary_version } : {}),
+    ...(collectionNode.key_topics      !== undefined ? { key_topics:      collectionNode.key_topics }      : {}),
+    ...(collectionNode.notable_terms   !== undefined ? { notable_terms:   collectionNode.notable_terms }   : {}),
     child_count: Array.isArray(collectionNode.children) ? collectionNode.children.length : 0,
     children:    children.map(c => ({
       node_type:   c.node_type,

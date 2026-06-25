@@ -21,6 +21,8 @@ export default async function ({ ok }) {
     inventory:   '3 topics, 10 files',
     summary_kind:    'rollup',
     summary_version: 2,
+    key_topics:      ['Python', 'FastAPI'],
+    notable_terms:   ['uvicorn', 'SQLAlchemy'],
     children:    ['col#dir/Topic 1', 'col#dir/Topic 2'],
     source_file: '',
     heading_path: null,
@@ -239,12 +241,22 @@ export default async function ({ ok }) {
 
   ok('formatSkeleton: collection summary_kind present',    skeletonAdaptive.summary_kind    === 'rollup');
   ok('formatSkeleton: collection summary_version present', skeletonAdaptive.summary_version === 2);
+  ok('formatSkeleton: collection key_topics present',      Array.isArray(skeletonAdaptive.key_topics) && skeletonAdaptive.key_topics.includes('FastAPI'));
+  ok('formatSkeleton: collection notable_terms present',   Array.isArray(skeletonAdaptive.notable_terms) && skeletonAdaptive.notable_terms.includes('SQLAlchemy'));
   ok('formatSkeleton: child with summary_kind shows it',   skeletonAdaptive.children[0].summary_kind === 'inventory');
   ok('formatSkeleton: child without summary_kind — absent', !('summary_kind' in skeletonAdaptive.children[1]));
 
   // Collection node without adaptive fields — they must be absent
-  const colNoAdaptive = { ...colNode, summary_kind: undefined, summary_version: undefined };
+  const colNoAdaptive = {
+    ...colNode,
+    summary_kind: undefined,
+    summary_version: undefined,
+    key_topics: undefined,
+    notable_terms: undefined,
+  };
   const skeletonNoAdaptive = formatSkeleton(colNoAdaptive, []);
   ok('formatSkeleton: summary_kind absent when undefined on collection',    !('summary_kind'    in skeletonNoAdaptive));
   ok('formatSkeleton: summary_version absent when undefined on collection', !('summary_version' in skeletonNoAdaptive));
+  ok('formatSkeleton: key_topics absent when undefined on collection',      !('key_topics'      in skeletonNoAdaptive));
+  ok('formatSkeleton: notable_terms absent when undefined on collection',   !('notable_terms'   in skeletonNoAdaptive));
 }
