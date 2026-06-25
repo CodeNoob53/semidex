@@ -24,7 +24,7 @@ comparisons.
 | **Shipped baseline** | Hybrid retrieval MVP: indexing, hybrid search, MCP tools, diagnostics | ✅ Working today |
 | **MVP scope** | Skeleton-first chunking (Stage 1) behind a feature flag | 🚧 Next implementation work |
 | **Future — foundation** | Skeleton navigation (Stage 2), validation & performance baseline (Stage 3) | 🔭 Planned, dependency-ordered |
-| **Future — product tracks** | Assistant Runtime, Codebase Memory, extended ingestion, Control Panel, Agent Memory | 🔭 Planned, post-foundation |
+| **Future — product tracks** | Assistant Runtime, Codebase Memory, extended ingestion, Qdrant-native operations, Control Panel, Agent Memory | 🔭 Planned, post-foundation |
 | **Conditional research** | MMR, ColBERT, query expansion, scoped global search, adapters | 🔬 Trigger-gated, not milestones |
 
 Everything below the MVP line is **future work**: it is documented so that MVP
@@ -323,7 +323,26 @@ Deployment profiles: **semidex Local** (current primary), **semidex Light**
 (planned resource-conserving profile with optional external providers),
 **semidex Codebase** (planned specialization via Track B).
 
-#### Track E — Agent Memory Overlay
+#### Track E — Qdrant-native Operations
+
+**Goal:** use Qdrant's native control-plane capabilities for safe MVP/demo
+operations instead of managing collections through ad hoc scripts or the Web UI.
+
+- official JavaScript client integration for control-plane operations;
+- collection aliases for safe reindex and rollback;
+- snapshots before prune, schema migration, destructive cleanup, and Qdrant
+  upgrades;
+- collection health checks: version, vector schema, payload indexes, optimizer
+  status, point counts, alias target, and snapshot inventory;
+- future evaluation of native Qdrant Query API features after the operational
+  layer is stable.
+
+This track is important for the first public demo and for any grant discussion:
+semidex should show a safe operational story around Qdrant, not only a search
+demo. Detailed plan:
+[Qdrant native operations roadmap](../design/qdrant-native-operations-roadmap.md).
+
+#### Track F — Agent Memory Overlay
 
 **Goal:** allow agents to record useful working knowledge without
 contaminating the authoritative document index.
