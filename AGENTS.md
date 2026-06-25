@@ -107,6 +107,9 @@ Use `qdrant_search(..., window=1, window_format="compact", top=3)` as the recomm
 # Recommended (quality / multilingual)
 ONNX_EMBED=1 COLLECTION=my-docs npm run index ./docs
 
+# With skeleton nav (Markdown collections — enables drill-down via skeleton tools)
+SKELETON_CHUNKING=1 SKELETON_NAV=1 ONNX_EMBED=1 COLLECTION=my-docs npm run index ./docs
+
 # Prune stale files after deletes/renames (full root only)
 PRUNE_STALE=1 ONNX_EMBED=1 COLLECTION=my-docs npm run index ./docs
 
@@ -119,6 +122,7 @@ COLLECTION=my-docs npm run backfill:tags
 
 - Always set `COLLECTION`. The indexer exits with a usage error if it is unset.
 - Use `ONNX_EMBED=1` for serious indexing — it uses `bge-m3-onnx` for both dense and sparse vectors.
+- Use `SKELETON_CHUNKING=1 SKELETON_NAV=1` for Markdown collections to enable skeleton navigation tools (`qdrant_get_skeleton` etc.). Both flags are required — `SKELETON_NAV=1` alone does not generate collection/directory nav nodes.
 - Do not mix providers in one collection. Changing provider, model, or schema version requires reindexing.
 - Run `npm run sync` after upgrading semidex or when adopting an existing remote collection.
 - Use `PRUNE_STALE=1` only against the full source root, never a subset.

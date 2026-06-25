@@ -117,12 +117,14 @@ function names, config keys, CLI flags, model names.
 
 ```bash
 ONNX_EMBED=1 COLLECTION=my-docs npm run index ./docs
+SKELETON_CHUNKING=1 SKELETON_NAV=1 ONNX_EMBED=1 COLLECTION=my-docs npm run index ./docs  # with skeleton nav
 PRUNE_STALE=1 ONNX_EMBED=1 COLLECTION=my-docs npm run index ./docs  # full-root stale cleanup only
 npm run sync          # after upgrading or adopting a remote collection
 npm run doctor        # environment health check
 ```
 
 - Always set `COLLECTION`. Use `ONNX_EMBED=1` for serious indexing.
+- Use `SKELETON_CHUNKING=1 SKELETON_NAV=1` for Markdown collections to enable skeleton navigation. Both flags required — `SKELETON_NAV=1` alone does not generate collection/directory nav nodes.
 - Do not mix providers in one collection. Provider/schema changes require reindexing.
 - Use `PRUNE_STALE=1` only against the full source root, never a subset.
 
