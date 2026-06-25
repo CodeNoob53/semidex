@@ -450,6 +450,30 @@ vision processor -> diagram summary / labels / relationships
 The original image remains authoritative. OCR/vision output enriches retrieval,
 but does not replace the raw visual object.
 
+Future optional enrichment may add external context after OCR/VLM has produced
+an identification candidate. Example: a public artwork image could get a
+Wikipedia/web-derived child node with author/date/location/style context. This
+is not part of the source document and must be modeled separately:
+
+```jsonc
+{
+  "node_type": "image_external_context",
+  "parent_id": "image-node-id",
+  "source_kind": "external",
+  "source_url": "https://...",
+  "retrieved_at": "2026-06-25T00:00:00Z",
+  "confidence": 0.0,
+  "provenance": {
+    "trigger": "ocr | vision | alt_text | user_request",
+    "processor": "web_lookup"
+  }
+}
+```
+
+Rules: external image context is opt-in, disabled for private collections by
+default, clearly labeled as external, and never mixed with local document
+evidence without provenance.
+
 ## 11. Safety Rules
 
 Hard rules:
@@ -463,6 +487,9 @@ Hard rules:
   tables/code manually.
 - every rendered fragment carries provenance: collection, source file, node id,
   heading path, and line/row range when available.
+- OCR, vision, and external image enrichment are derived evidence surfaces; the
+  original image remains authoritative, and external context requires source URL
+  and retrieval timestamp.
 
 ## 12. Proposed Tool Set
 

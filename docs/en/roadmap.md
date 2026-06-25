@@ -302,6 +302,12 @@ against the clean fallback before enabling it by default.
 
 OCR and vision are complementary; neither output becomes the source of truth.
 
+Later opt-in enrichment may add external context for public/non-sensitive
+images, for example Wikipedia or web lookup after OCR/VLM identification. This
+must remain a separate derived layer with `source_kind=external`, source URL,
+retrieval date, confidence/provenance, and privacy controls. It must never be
+merged into local document evidence without explicit labeling.
+
 #### Track D — Control Panel and Deployment Profiles
 
 **Goal:** make setup and operation approachable without changing retrieval
