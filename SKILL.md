@@ -2,7 +2,7 @@
 name: semidex
 description: "Use when working with semidex: indexing documents, configuring retrieval, debugging search results, checking env vars, or understanding architecture. Prefer live semidex MCP search over loading static docs into context."
 argument-hint: "question or task"
-allowed-tools: mcp__qdrant__qdrant_search, mcp__qdrant__qdrant_collection_info, mcp__qdrant__qdrant_get_chunk, mcp__qdrant__qdrant_find_by_tag, mcp__qdrant__qdrant_list_files, mcp__qdrant__qdrant_list_tags, mcp__qdrant__qdrant_list_directories, mcp__qdrant__qdrant_get_skeleton, mcp__qdrant__qdrant_get_skeleton_node, mcp__qdrant__qdrant_get_skeleton_children
+allowed-tools: mcp__qdrant__qdrant_search, mcp__qdrant__qdrant_collection_info, mcp__qdrant__qdrant_get_chunk, mcp__qdrant__qdrant_find_by_tag, mcp__qdrant__qdrant_list_files, mcp__qdrant__qdrant_list_tags, mcp__qdrant__qdrant_list_directories, mcp__qdrant__qdrant_get_skeleton, mcp__qdrant__qdrant_get_skeleton_node, mcp__qdrant__qdrant_get_skeleton_children, mcp__qdrant__qdrant_get_node
 ---
 
 semidex is a local-first RAG indexer and MCP server backed by Qdrant.
@@ -101,9 +101,11 @@ function names, config keys, CLI flags, model names.
 | Filter by tags | `qdrant_search(query, collection, tags=[...], top=5)` |
 | Read a chunk and neighbors | `qdrant_get_chunk(collection, source_file, chunk_index, window=1)` |
 | Find chunks by tag(s) | `qdrant_find_by_tag(collection, tags=[...], match="any"\|"all")` |
+| Get full original table or code block | `qdrant_get_node(collection, node_id? XOR node_path?, preview_chars?)` |
 
 - `qdrant_search` always uses hybrid dense+sparse RRF.
 - If a compact snippet shows a table, checklist, or YAML/JSON block cut mid-row, call `qdrant_get_chunk` directly — compact snippets are capped at 150 chars.
+- **Structural content (table, code_block):** `qdrant_search` is the default retrieval path — structural chunks are embedded and return at rank 1–2 for exact-token queries. Call `qdrant_get_node` only when the user needs the full original rendered content, or when a `node_path` is already known (from skeleton navigation or a placeholder). Do not use `qdrant_get_node` as a fallback when search returns poor results.
 - **Truncation:** `Found N … showing M` means the list is truncated. Narrow with `source_prefix`, `tag_prefix`, or `contains` and re-call.
 
 ## Retrieval Safety Rules

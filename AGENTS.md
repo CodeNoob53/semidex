@@ -68,7 +68,7 @@ MCP tools reference:
 | Open the collection skeleton map | `qdrant_get_skeleton(collection)` |
 | Read one skeleton node | `qdrant_get_skeleton_node(collection, node_id? XOR node_path?)` |
 | Drill into skeleton children | `qdrant_get_skeleton_children(collection, node_id? XOR node_path?, limit?)` |
-| Resolve structural node placeholder | `qdrant_get_node(collection, node_id? XOR node_path?, preview_chars?)` |
+| Get full original table or code block (display / known path) | `qdrant_get_node(collection, node_id? XOR node_path?, preview_chars?)` |
 | Explore folder structure | `qdrant_list_directories(collection, source_prefix?, depth?)` |
 | List files in a folder | `qdrant_list_files(collection, source_prefix?, tags?, tag_match?)` |
 | List tags with counts | `qdrant_list_tags(collection, source_prefix?, tag_prefix?, contains?, min_count?)` |
