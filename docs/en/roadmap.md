@@ -22,7 +22,7 @@ comparisons.
 | Layer | Scope | Status |
 |-------|-------|--------|
 | **Shipped baseline** | Hybrid retrieval MVP: indexing, hybrid search, MCP tools, diagnostics | ✅ Working today |
-| **MVP scope** | Skeleton-first chunking (Stage 1) behind a feature flag | 🚧 Next implementation work |
+| **Skeleton-first (main direction)** | Skeleton-first chunking active; structural carryover shipped; legacy chunking is compatibility/fallback | ✅ Active direction |
 | **Future — foundation** | Skeleton navigation (Stage 2), validation & performance baseline (Stage 3) | 🔭 Planned, dependency-ordered |
 | **Future — product tracks** | Assistant Runtime, Codebase Memory, extended ingestion, Qdrant-native operations, Control Panel, Agent Memory | 🔭 Planned, post-foundation |
 | **Conditional research** | MMR, ColBERT, query expansion, scoped global search, adapters | 🔬 Trigger-gated, not milestones |
@@ -109,10 +109,15 @@ system.
 
 ---
 
-## MVP Scope — Skeleton-first Chunking (Stage 1)
+## Skeleton-first Chunking — Main Direction
 
-**This is the only stage inside the MVP boundary.** Everything after it is
-future work.
+**Skeleton-first indexing is the primary semidex direction.** Legacy chunking
+(`SKELETON_CHUNKING` unset) remains supported as a compatibility/fallback path
+for existing collections, but new document-structure work targets skeleton first.
+
+New structure-aware features (carryover, summaries, navigation) are built on top
+of the skeleton model. The Stage 3 benchmark gate is required before switching
+skeleton-first on by default for all collections.
 
 **Goal:** replace "text below a heading" as the only knowledge unit with a
 typed structural model of the document.

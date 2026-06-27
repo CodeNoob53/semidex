@@ -95,10 +95,25 @@ export default async function ({ ok }) {
      chunks.every(c => typeof c.context === 'string' && c.context.length > 0));
   ok('paragraph context = heading path',
      byType('paragraph').some(c => c.context === 'Install'));
-  ok('entity context carries heading + type + neighbor sentence',
-     byType('table')[0].context.includes('Install') &&
-     byType('table')[0].context.includes('table') &&
-     /directives/.test(byType('table')[0].context));
+
+  // structural carryover: entity context includes cleaned prose from same section
+  const tableCtx = byType('table')[0].context;
+  ok('table context carries heading path',   tableCtx.includes('Install'));
+  ok('table context carries node type',      tableCtx.includes('table'));
+  ok('table context carries nearby prose',   /directives/.test(tableCtx));
+  ok('table context has no placeholder lines', !/\[table node:/.test(tableCtx) && !/\[code block node:/.test(tableCtx));
+
+  const codeCtx = byType('code_block')[0].context;
+  ok('code_block context carries heading path',  codeCtx.includes('Install'));
+  ok('code_block context carries node type',     codeCtx.includes('code block'));
+  ok('code_block context carries nearby prose',  /directives/.test(codeCtx));
+  ok('code_block context has no placeholder lines', !/\[code block node:/.test(codeCtx) && !/\[table node:/.test(codeCtx));
+
+  // raw content preserved — carryover only affects context
+  ok('table text is raw markdown',     byType('table')[0].text.includes('ExecStart'));
+  ok('table raw_content is raw markdown', byType('table')[0].raw_content.includes('ExecStart'));
+  ok('code_block text is raw source',  byType('code_block')[0].text.includes('svc.start'));
+  ok('code_block raw_content is raw source', byType('code_block')[0].raw_content.includes('svc.start'));
 
   // empty section: no chunk emitted for it, heading-only never becomes content
   ok('empty section emits nothing', !chunks.some(c => c.section === 'Empty Section'));

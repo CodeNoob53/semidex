@@ -53,6 +53,7 @@ import section53 from './sections/53-skeleton-nav-tools.js';
 import section54 from './sections/54-adaptive-skeleton-summaries.js';
 import section55 from './sections/55-hierarchical-skeleton-summaries.js';
 import section56 from './sections/56-get-node-tool.js';
+import section57 from './sections/57-skeleton-carryover.js';
 
 let passed = 0;
 let failed = 0;
@@ -107,6 +108,7 @@ const sections = [
   section54,
   section55,
   section56,
+  section57,
 ];
 
 for (const section of sections) {

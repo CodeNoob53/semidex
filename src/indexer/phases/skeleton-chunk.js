@@ -44,17 +44,32 @@ function placeholderFor(sourceFile, n) {
 // context would COST MORE than legacy, not less. Instead, context is built
 // deterministically from what the skeleton already knows:
 //   prose  : heading path ("Тема › Розділ") — locational signal in the vector;
-//   entity : heading path + node type + the closing sentence of the adjacent
-//            prose (the same prose that carries this entity's placeholder).
+//   entity : heading path + node type + short nearby prose carryover from the
+//            same section (placeholder lines stripped, capped at
+//            SKELETON_CARRYOVER_CHARS, default 500).
 // Result: 0 LLM calls per skeleton file (vs N in legacy). LLM context stays
 // available as an explicit opt-in (SKELETON_CONTEXT=llm) for Stage-3 A/B runs.
 
-function lastSentenceOf(text, maxChars = 180) {
+const CARRYOVER_DEFAULT = 500;
+const CARRYOVER_MAX     = 2000;
+
+function carryoverLimit() {
+  const v = parseInt(process.env.SKELETON_CARRYOVER_CHARS ?? '', 10);
+  if (!Number.isFinite(v) || v <= 0) return CARRYOVER_DEFAULT;
+  return Math.min(v, CARRYOVER_MAX);
+}
+
+function cleanedCarryover(text) {
+  const limit = carryoverLimit();
   const t = String(text ?? '').trim();
   if (!t) return '';
-  const noPh = t.split('\n').filter(l => !/^\[[^\]]*node: /.test(l.trim())).join(' ').trim();
-  const sentences = noPh.match(/[^.!?]+[.!?]+|[^.!?]+$/g) ?? [];
-  return (sentences.at(-1) ?? '').trim().slice(0, maxChars);
+  // Strip placeholder lines ([code block node: ...] / [table node: ...])
+  const stripped = t.split('\n')
+    .filter(l => !/^\[[^\]]*node: /.test(l.trim()))
+    .join(' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return stripped.slice(0, limit);
 }
 
 function proseContext(headingPath) {
@@ -64,7 +79,7 @@ function proseContext(headingPath) {
 function entityContext(headingPath, nodeType, neighborProse) {
   const where = (headingPath ?? []).join(' › ');
   const label = nodeType === 'code_block' ? 'code block' : nodeType;
-  const near  = lastSentenceOf(neighborProse);
+  const near  = cleanedCarryover(neighborProse);
   return [where, label, near].filter(Boolean).join(' — ');
 }
 

@@ -17,7 +17,10 @@ export const SKELETON_CHUNKING_MODEL = 'skeleton-v1';
 // Indexing schema (impl spec §9): versions the point model + chunking behavior,
 // separate from embedding_schema_version (vectors/providers, unchanged) and
 // from chunking_schema_version (legacy chunker behavior).
-export const INDEXING_SCHEMA_VERSION = 3;
+// v4: deterministic structural carryover — entityContext() now uses full cleaned
+//     prose block instead of last sentence only, changing embedding input for
+//     all structural chunks (table / code_block / checklist).
+export const INDEXING_SCHEMA_VERSION = 4;
 
 export function isSkeletonChunk(chunk) {
   return chunk?.chunking_model === SKELETON_CHUNKING_MODEL;

@@ -200,3 +200,50 @@ change is ready to promote when:
    the other.
 3. The `npm run smoke` suite passes with the new parameters.
 4. The 21-query regression benchmark shows no regressions.
+
+## Skeleton-first Chunking and Structural Carryover
+
+Skeleton-first chunking (`SKELETON_CHUNKING=1`) is the main semidex indexing
+direction. Legacy chunking remains supported as a compatibility/fallback path.
+
+### Structural nodes: raw content preserved, context enriched
+
+Tables, code blocks, and checklists are indexed as individual structural chunks
+(`point_kind = retrieval_content`, `node_type = table / code_block / checklist`).
+Their `text` and `raw_content` fields always contain the unmodified source content.
+
+Each structural chunk's `context` field — which becomes part of the embedding
+input alongside `text` — includes a short excerpt of the nearby prose from the
+same section. This is **deterministic structural carryover**:
+
+```
+<heading path> — <node type> — <cleaned nearby prose excerpt>
+```
+
+The prose excerpt is taken from the prose run that immediately precedes the
+structural node in the same section (or from the last emitted prose chunk in the
+section if no active run is present). Placeholder lines
+(`[code block node: ...]`, `[table node: ...]`) are stripped from the excerpt.
+The excerpt is capped at `SKELETON_CARRYOVER_CHARS` characters (default: 500,
+max: 2000). Invalid or missing env values fall back to the default silently.
+
+This does not add LLM calls. No LLM-generated summary is created per structural
+node unless `SKELETON_CONTEXT=llm` is explicitly set.
+
+### Why carryover matters
+
+Structural nodes — especially short tables and brief code blocks — have limited
+semantic content on their own. Without the surrounding prose explanation, a
+natural-language query ("which table tracks completion status?") may not retrieve
+the table directly. Carryover embeds the prose context that a human reader would
+use to understand what the structure means.
+
+Synthetic smoke evidence (`57-skeleton-carryover.js`) confirms that placeholder
+lines are stripped and prose is carried across entity boundaries without crossing
+section headings. Production retrieval impact (NL structural recall before/after)
+is pending reindex validation of a private skeleton collection.
+
+### Heading boundary rule
+
+Carryover never crosses a section boundary. A structural node at the start of a
+new section inherits no prose from the previous section.
