@@ -2,9 +2,9 @@
 
 **Date:** 2026-06-27
 **Collection:** `<private-skeleton-collection>`
-**Source:** `<private-fullstack-python-source>` (91 files, skeleton-chunked)
+**Source:** `<private-skeleton-source>` (91 files, skeleton-chunked)
 **Smoke:** 1293 passed, 0 failed
-**Verdict:** SKELETON_CARRYOVER_NEEDS_REINDEX_VALIDATION
+**Verdict:** SKELETON_CARRYOVER_ACCEPT — see `2026-06-28-skeleton-carryover-v4-clean-validation.md`
 
 ---
 
@@ -99,11 +99,8 @@ which was not reindexed for this change.
 
 ### NL structural retrieval — before / after carryover
 
-The `<private-fullstack-python-source>` collection was not reindexed in this
-benchmark session (a wrong source path was passed to the indexer; the reindex
-targeted a different collection). The after-carryover NL retrieval numbers below
-are therefore **PENDING** — they will be measured on the next scheduled reindex
-of `<private-skeleton-collection>`.
+After-carryover validation was deferred to the v4 reindex report
+(`2026-06-27-skeleton-carryover-v4-reindex-validation.md`).
 
 **Before carryover** (prior index, 2026-06-26 benchmark):
 
@@ -113,7 +110,7 @@ of `<private-skeleton-collection>`.
 | Code (8)   | 4/8 | 4/8 | 5/8 | 5/8 | 5/8 | 7/8 |
 | Total (13) | 5/13 | 6/13 | 8/13 | 7/13 | 8/13 | 11/13 |
 
-**After carryover:** PENDING (reindex required).
+**After carryover:** see `2026-06-28-skeleton-carryover-v4-clean-validation.md` — exact-token @10=10/13 on clean collection (no regression vs pre-carryover baseline).
 
 **Expected direction:** Carryover extends the context from a single closing
 sentence to the full cleaned prose block. The primary beneficiaries are sparse
