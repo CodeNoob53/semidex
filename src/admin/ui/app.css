@@ -219,3 +219,88 @@ td.mono { font-family: var(--mono); font-size: 12px; }
 .main .panel:nth-child(5) { animation-delay: .20s; }
 
 ::selection { background: rgba(232,163,61,.3); }
+
+/* ── Phase 2B: search playground ─────────────────────────────────────────── */
+.search-form { display: flex; flex-direction: column; gap: 10px; }
+.q-input {
+  width: 100%; padding: 9px 12px;
+  background: var(--bg-inset); border: 1px solid var(--line); border-radius: 3px;
+  color: var(--ink); font-family: var(--mono); font-size: 13px;
+}
+.q-input:focus { outline: none; border-color: var(--amber-dim); }
+.q-input::placeholder { color: var(--ink-faint); }
+
+.search-controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.ctl {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; text-transform: uppercase; letter-spacing: .14em; color: var(--ink-dim);
+}
+.ctl select {
+  background: var(--bg-inset); color: var(--ink);
+  border: 1px solid var(--line); border-radius: 3px;
+  font-family: var(--mono); font-size: 12px; padding: 4px 6px;
+}
+
+.segmented { display: inline-flex; border: 1px solid var(--line); border-radius: 3px; overflow: hidden; }
+.segmented button {
+  background: var(--bg-inset); color: var(--ink-dim); border: 0;
+  font-family: var(--mono); font-size: 11px; padding: 5px 10px; cursor: pointer;
+}
+.segmented button + button { border-left: 1px solid var(--line); }
+.segmented button.on { background: var(--bg-raise); color: var(--amber); }
+
+.btn-amber {
+  background: transparent; color: var(--amber);
+  border: 1px solid var(--amber-dim); border-radius: 3px;
+  font-family: var(--mono); font-size: 12px; padding: 6px 16px; cursor: pointer;
+  margin-left: auto;
+}
+.btn-amber:hover:not(:disabled) { background: rgba(232,163,61,.08); }
+.btn-amber:disabled { opacity: .5; cursor: default; }
+
+.filter-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 6px 3px 10px; border: 1px dashed var(--amber-dim); border-radius: 3px;
+  color: var(--amber); font-size: 11px; max-width: 340px;
+}
+.filter-chip .mono { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.filter-chip button {
+  background: none; border: 0; color: var(--amber); cursor: pointer;
+  font-size: 14px; line-height: 1; padding: 0 2px;
+}
+
+.mini-btn {
+  background: transparent; color: var(--ink-dim);
+  border: 1px solid var(--line); border-radius: 3px;
+  font-family: var(--mono); font-size: 10px; padding: 2px 8px; cursor: pointer;
+}
+.mini-btn:hover { color: var(--amber); border-color: var(--amber-dim); }
+td.actions { text-align: right; }
+
+#search-status { margin-top: 12px; }
+#search-status.error-box { margin-top: 12px; margin-bottom: 0; }
+
+.result-card {
+  border: 1px solid var(--line-soft); border-radius: 3px;
+  margin-top: 10px; overflow: hidden;
+}
+.result-head {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 7px 10px; background: var(--bg-inset);
+  border-bottom: 1px solid var(--line-soft); font-size: 12px;
+}
+.rank {
+  font-family: var(--mono); font-size: 12px; color: var(--amber);
+  min-width: 26px;
+}
+.score { color: var(--ink-dim); }
+.result-head .mini-btn { margin-left: auto; }
+
+.win-chunks { border-top: 1px dashed var(--line-soft); padding: 8px 10px; display: grid; gap: 6px; }
+.win-chunk {
+  border: 1px solid var(--line-soft); border-radius: 3px; padding: 6px 8px;
+  font-size: 12px;
+}
+.win-chunk.match { border-color: var(--amber-dim); background: rgba(232,163,61,.05); }
+.win-head { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; }
+.win-text { color: var(--ink-dim); white-space: pre-wrap; word-break: break-word; font-family: var(--mono); font-size: 11px; }

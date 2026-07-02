@@ -1,4 +1,4 @@
-// semidex admin console — Phase 2A read-only shell.
+// semidex admin console — Phase 2A shell + Phase 2B search playground.
 // Vanilla JS, hash routing, Local API only. No frameworks, no build step.
 // Talks exclusively to /api/* — never to any storage backend directly.
 'use strict';
@@ -8,6 +8,23 @@ const $ = (sel, root = document) => root.querySelector(sel);
 // ── tiny fetch client ─────────────────────────────────────────────────────
 async function api(path) {
   const res = await fetch(path);
+  let body = null;
+  try { body = await res.json(); } catch { /* non-JSON is a bug upstream */ }
+  if (!res.ok) {
+    const message = body?.error?.message ?? `HTTP ${res.status}`;
+    const err = new Error(message);
+    err.status = res.status;
+    throw err;
+  }
+  return body;
+}
+
+async function apiPost(path, payload) {
+  const res = await fetch(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
   let body = null;
   try { body = await res.json(); } catch { /* non-JSON is a bug upstream */ }
   if (!res.ok) {
@@ -147,8 +164,10 @@ function schemaBadge(schema) {
 async function renderCollection(main, name) {
   main.innerHTML = `
     <h1 class="view-title">${esc(name)}</h1>
-    <p class="view-sub">Collection detail — metadata, indexed documents, skeleton navigation.</p>
+    <p class="view-sub">Collection detail — metadata, search playground, indexed documents, skeleton navigation.</p>
     <div class="panel"><div class="panel-head">Metadata</div><div class="panel-body" id="col-meta">…</div></div>
+    <div class="panel"><div class="panel-head"><span>Search playground</span><span class="mono" id="search-mode"></span></div>
+      <div class="panel-body" id="search-panel">…</div></div>
     <div class="grid-2">
       <div class="panel"><div class="panel-head"><span>Documents</span><span id="doc-count"></span></div>
         <div class="panel-body" id="col-docs">…</div></div>
@@ -159,6 +178,8 @@ async function renderCollection(main, name) {
       <div class="panel-head"><span>Chunk preview</span><span class="mono" id="chunk-title"></span></div>
       <div class="panel-body" id="col-chunks"></div>
     </div>`;
+
+  initSearchPanel(name);
 
   let detail;
   try {
@@ -204,27 +225,34 @@ async function loadDocuments(name) {
       return;
     }
     box.innerHTML = `
-      <table class="data"><thead><tr><th>source file</th><th class="num">chunks</th></tr></thead><tbody>
+      <table class="data"><thead><tr><th>source file</th><th class="num">chunks</th><th></th></tr></thead><tbody>
       ${documents.map(d => `
         <tr class="rowlink doc-row" data-sf="${esc(d.sourceFile)}">
           <td class="mono">${esc(d.sourceFile)}</td>
           <td class="num">${d.chunkCount}</td>
+          <td class="actions"><button type="button" class="mini-btn doc-search" data-sf="${esc(d.sourceFile)}" title="Search only inside this file">search in file</button></td>
         </tr>`).join('')}
       </tbody></table>`;
     for (const row of box.querySelectorAll('.doc-row')) {
       row.addEventListener('click', () => loadChunkPreview(name, row.dataset.sf));
     }
+    for (const btn of box.querySelectorAll('.doc-search')) {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        setSearchFile(btn.dataset.sf);
+      });
+    }
   } catch (err) { box.innerHTML = errorBox(err); }
 }
 
-async function loadChunkPreview(name, sourceFile) {
+async function loadChunkPreview(name, sourceFile, chunkIndex = 0) {
   const panel = $('#chunk-panel');
   const box = $('#col-chunks');
   panel.style.display = '';
-  $('#chunk-title').textContent = sourceFile;
+  $('#chunk-title').textContent = `${sourceFile} · from chunk ${chunkIndex}`;
   box.innerHTML = '<div class="empty">loading…</div>';
   try {
-    const qs = `sourceFile=${encodeURIComponent(sourceFile)}&chunkIndex=0&window=2`;
+    const qs = `sourceFile=${encodeURIComponent(sourceFile)}&chunkIndex=${chunkIndex}&window=2`;
     const { chunks } = await api(`/api/collections/${encodeURIComponent(name)}/chunks?${qs}`);
     if (!chunks.length) {
       box.innerHTML = '<div class="empty">No chunks found for this file.</div>';
@@ -241,6 +269,149 @@ async function loadChunkPreview(name, sourceFile) {
       </div>`).join('');
     panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   } catch (err) { box.innerHTML = errorBox(err); }
+}
+
+// ── search playground ─────────────────────────────────────────────────────
+// Results here are retrieval EVIDENCE (actual indexed chunks + scores).
+// Skeleton summaries elsewhere on this page are navigation only — the UI
+// copy keeps that distinction explicit.
+let searchSourceFile = null;
+
+function initSearchPanel(name) {
+  searchSourceFile = null;
+  const box = $('#search-panel');
+  box.innerHTML = `
+    <form class="search-form" id="search-form" autocomplete="off">
+      <input type="text" id="q-input" class="q-input"
+        placeholder="Test retrieval against this collection…">
+      <div class="search-controls">
+        <label class="ctl">top
+          <select id="q-top">${[1, 2, 3, 5, 10, 20].map(n =>
+            `<option value="${n}" ${n === 3 ? 'selected' : ''}>${n}</option>`).join('')}</select>
+        </label>
+        <label class="ctl">window
+          <select id="q-window">${[0, 1, 2, 3, 4, 5].map(n =>
+            `<option value="${n}" ${n === 1 ? 'selected' : ''}>${n}</option>`).join('')}</select>
+        </label>
+        <div class="segmented" id="q-format" role="group" aria-label="window format">
+          <button type="button" data-v="compact" class="on">compact</button>
+          <button type="button" data-v="full">full</button>
+        </div>
+        <span class="filter-chip" id="q-file-chip" style="display:none">
+          <span class="mono" id="q-file-label"></span>
+          <button type="button" id="q-file-clear" title="Clear file filter">×</button>
+        </span>
+        <button type="submit" class="btn-amber" id="q-submit">search</button>
+      </div>
+    </form>
+    <div id="search-status" class="empty">Results are retrieval evidence — real indexed chunks with scores.
+      Skeleton summaries below are navigation only.</div>
+    <div id="search-results"></div>`;
+
+  $('#q-format').addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-v]');
+    if (!btn) return;
+    for (const b of $('#q-format').querySelectorAll('button')) b.classList.toggle('on', b === btn);
+  });
+
+  $('#q-file-clear').addEventListener('click', () => clearSearchFile());
+
+  $('#search-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    runSearch(name);
+  });
+}
+
+function setSearchFile(sourceFile) {
+  searchSourceFile = sourceFile;
+  $('#q-file-label').textContent = sourceFile;
+  $('#q-file-chip').style.display = '';
+  $('#search-panel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  $('#q-input').focus();
+}
+
+function clearSearchFile() {
+  searchSourceFile = null;
+  $('#q-file-chip').style.display = 'none';
+}
+
+async function runSearch(name) {
+  const status = $('#search-status');
+  const resultsBox = $('#search-results');
+  const submit = $('#q-submit');
+
+  const query = $('#q-input').value.trim();
+  if (!query) {
+    status.className = 'error-box';
+    status.textContent = 'Enter a query first.';
+    return;
+  }
+
+  const top = Number($('#q-top').value);
+  const window = Number($('#q-window').value);
+  const windowFormat = $('#q-format .on')?.dataset.v ?? 'compact';
+
+  const payload = { collection: name, query, top, window };
+  if (window > 0) payload.windowFormat = windowFormat;
+  if (searchSourceFile) payload.sourceFile = searchSourceFile;
+
+  submit.disabled = true;
+  status.className = 'empty';
+  status.textContent = 'searching…';
+  resultsBox.innerHTML = '';
+
+  try {
+    const body = await apiPost('/api/search', payload);
+    $('#search-mode').textContent = body.searchMode ? `mode: ${body.searchMode}` : '';
+    if (!body.results.length) {
+      status.textContent = searchSourceFile
+        ? 'No results in the filtered file — try clearing the file filter.'
+        : 'No results for this query.';
+      return;
+    }
+    status.textContent = `${body.results.length} result${body.results.length > 1 ? 's' : ''}`
+      + (searchSourceFile ? ` · filtered to one file` : '');
+    resultsBox.innerHTML = body.results.map((r, i) => renderResult(r, i)).join('');
+    for (const btn of resultsBox.querySelectorAll('.result-open')) {
+      btn.addEventListener('click', () =>
+        loadChunkPreview(name, btn.dataset.sf, Number(btn.dataset.ci)));
+    }
+  } catch (err) {
+    status.className = 'error-box';
+    status.textContent = err.message;
+  } finally {
+    submit.disabled = false;
+  }
+}
+
+function renderResult(r, i) {
+  const canOpen = r.sourceFile && Number.isInteger(r.chunkIndex);
+  return `
+  <div class="result-card">
+    <div class="result-head">
+      <span class="rank">#${i + 1}</span>
+      ${typeof r.score === 'number' ? `<span class="mono score" title="RRF score — compare rank order, not absolute value">${r.score.toFixed(4)}</span>` : ''}
+      <span class="mono">${esc(r.sourceFile ?? '?')}</span>
+      <span class="mono muted">chunk ${r.chunkIndex ?? '?'}${r.totalChunks ? ` / ${r.totalChunks}` : ''}</span>
+      <span class="muted">${esc(r.section || 'intro')}</span>
+      ${r.nodeType ? `<span class="badge badge-amber">${esc(r.nodeType)}</span>` : ''}
+      ${canOpen ? `<button type="button" class="mini-btn result-open" data-sf="${esc(r.sourceFile)}" data-ci="${r.chunkIndex}">preview chunk</button>` : ''}
+    </div>
+    ${r.context ? `<div class="chunk-context">${esc(r.context)}</div>` : ''}
+    <pre class="chunk-text">${esc(r.text ?? '')}</pre>
+    ${Array.isArray(r.windowChunks) && r.windowChunks.length ? `
+      <div class="win-chunks">
+        ${r.windowChunks.map(w => `
+          <div class="win-chunk ${w.isMatch ? 'match' : ''}">
+            <div class="win-head">
+              <span class="mono muted">#${w.chunkIndex ?? '?'}</span>
+              ${w.isMatch ? '<span class="badge badge-amber">match</span>' : ''}
+              <span class="muted">${esc(w.section || '')}</span>
+            </div>
+            <div class="win-text">${esc(w.textSnippet ?? w.text ?? '')}</div>
+          </div>`).join('')}
+      </div>` : ''}
+  </div>`;
 }
 
 // ── skeleton navigation panel ─────────────────────────────────────────────

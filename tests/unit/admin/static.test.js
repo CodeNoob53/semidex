@@ -122,3 +122,39 @@ describe('resolveStaticPath — traversal guard', () => {
     assert.equal(resolveStaticPath('/data.json5'), null);
   });
 });
+
+// ── Phase 2B: search playground presence ────────────────────────────────────
+// Browser-level tests are out of scope (no DOM runner in the toolchain);
+// these assert the served app.js wires the playground to the right endpoint
+// and keeps the evidence-vs-navigation copy. Behavior of /api/search itself
+// is covered in search.test.js.
+describe('search playground (served app.js)', () => {
+  it('app.js posts to /api/search and renders a search panel', async () => {
+    await withServer(async (base) => {
+      const res = await fetch(base + '/app.js');
+      assert.equal(res.status, 200);
+      const js = await res.text();
+      assert.match(js, /apiPost\('\/api\/search'/, 'playground must call POST /api/search');
+      assert.match(js, /search-panel/, 'collection view must render the search panel container');
+      assert.match(js, /windowFormat/, 'playground must send windowFormat');
+      assert.match(js, /sourceFile/, 'playground must support the file filter');
+    });
+  });
+
+  it('app.js keeps evidence-vs-navigation copy', async () => {
+    await withServer(async (base) => {
+      const js = await (await fetch(base + '/app.js')).text();
+      assert.match(js, /retrieval evidence/i, 'results must be framed as evidence');
+      assert.match(js, /navigation (only|map)/i, 'skeleton summaries must be framed as navigation');
+    });
+  });
+
+  it('app.js escapes rendered strings (esc used on result fields)', async () => {
+    await withServer(async (base) => {
+      const js = await (await fetch(base + '/app.js')).text();
+      assert.match(js, /esc\(r\.sourceFile/, 'result sourceFile must go through esc()');
+      assert.match(js, /esc\(r\.text/, 'result text must go through esc()');
+      assert.match(js, /esc\(w\.textSnippet/, 'window snippets must go through esc()');
+    });
+  });
+});
