@@ -5,19 +5,9 @@
 import 'dotenv/config';
 import { loadConfig, saveConfig, resolveEnvProviders } from './core/config.js';
 import { listCollections, getCollectionInfo, createPayloadIndex, addSparseVectorSupport, hasSparseVectors } from './core/qdrant.js';
+import { REQUIRED_PAYLOAD_INDEXES } from './core/qdrant/schema.js';
 import { SCHEMA_VERSION } from './core/embeddings.js';
 
-// Required indexes for MCP filters and hash-based skip to work correctly.
-const REQUIRED_INDEXES = {
-  'source_file':      'keyword',
-  'tags':             'keyword',
-  'chunk_index':      'integer',
-  // Skeleton-first (impl spec §5) — idempotent backfill onto existing collections.
-  'point_kind':       'keyword',
-  'node_type':        'keyword',
-  'node_id':          'keyword',
-  'node_path':        'keyword',
-};
 
 const config = loadConfig();
 if (!config.collections) config.collections = {};
@@ -91,7 +81,7 @@ for (const name of remote) {
     }
   }
 
-  for (const [field, schema] of Object.entries(REQUIRED_INDEXES)) {
+  for (const [field, schema] of Object.entries(REQUIRED_PAYLOAD_INDEXES)) {
     await createPayloadIndex(name, field, schema);
     console.log(`  ✓ index "${field}" (${schema}) on ${name}`);
   }

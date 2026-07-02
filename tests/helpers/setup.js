@@ -6,8 +6,11 @@
 // dotenv only fills in variables that are still unset. Setting explicit values
 // here guarantees they survive the dotenv pass.
 
-// src/core/qdrant.js throws at import time when QDRANT_URL is missing.
-// No test in tests/unit/ ever performs a real network call.
+// src/core/qdrant.js creates its SDK client lazily and no longer needs
+// QDRANT_URL at import time. The default below is kept anyway so that any
+// test accidentally reaching a lazy client constructor gets a predictable
+// local URL instead of a developer's cloud instance from .env.
+// (tests/unit/core/qdrant-lazy.test.js skips this file on purpose.)
 process.env.QDRANT_URL ??= 'http://localhost:6333';
 
 // Force optional reranker paths off regardless of local .env contents, so

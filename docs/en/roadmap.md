@@ -333,7 +333,9 @@ Deployment profiles: **semidex Local** (current primary), **semidex Light**
 **Goal:** use Qdrant's native control-plane capabilities for safe MVP/demo
 operations instead of managing collections through ad hoc scripts or the Web UI.
 
-- official JavaScript client integration for control-plane operations;
+- ✅ official JavaScript client integration — done: the entire Qdrant access
+  layer (`src/core/qdrant.js`) now runs on `@qdrant/js-client-rest` with lazy
+  client initialization; aliases/snapshots below can build on it directly;
 - collection aliases for safe reindex and rollback;
 - snapshots before prune, schema migration, destructive cleanup, and Qdrant
   upgrades;

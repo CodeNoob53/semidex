@@ -46,6 +46,14 @@ The light/fallback mode uses `ollama` + `hashed-tf`. It requires Ollama running 
 | `QDRANT_URL` | unset | Qdrant instance URL |
 | `QDRANT_KEY` | unset | Qdrant API key |
 
+Both variables are read lazily at the first Qdrant call (via the official
+`@qdrant/js-client-rest` SDK), not at process start. A missing `QDRANT_URL`
+produces `QDRANT_URL is not set. Add it to your .env file.` only when a
+network operation is attempted; offline commands (`npm test`, `npm run smoke`)
+do not require it. If `QDRANT_URL` has no explicit port, the protocol default
+(443 for https, 80 for http) is used — include `:6333` explicitly for a
+standard local Qdrant.
+
 ## Models
 
 | Variable | Default | Description |

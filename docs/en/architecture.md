@@ -37,7 +37,18 @@ layer is written for the `qdrant_get_skeleton*` navigation tools. See
 
 ## Qdrant Data Model
 
-semidex uses Qdrant as its primary retrieval index and storage backend.
+semidex uses Qdrant as its primary retrieval index and storage backend. All
+Qdrant access goes through the adapter in `src/core/qdrant/` (stable facade:
+`src/core/qdrant.js`), backed by the official `@qdrant/js-client-rest` SDK.
+The adapter separates concerns: `client.js` (lazy SDK client + env),
+`store.js` (network operations), `payload.js` (pure helpers), `schema.js`
+(canonical vector schema and payload indexes). The client is created lazily
+on the first network call: importing the module does not require
+`QDRANT_URL`, so offline consumers can import it safely. Read operations use
+a 30 s timeout and writes 60 s, matching the pre-SDK wrapper. Indexer, MCP
+tools, sync, and benchmarks never call the SDK directly — only through this
+adapter, which centralizes future Qdrant-native decisions (aliases,
+snapshots, richer query APIs) in one place.
 
 - **Collection**: Represents a single semidex knowledge base.
 - **Point**: Represents exactly one indexed chunk from a document.

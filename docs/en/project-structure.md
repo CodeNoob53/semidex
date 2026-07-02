@@ -44,7 +44,13 @@ src/core/
   onnx-paths.js        - ONNX model cache path resolution
   onnx-provider-probe.js - execution-provider (cpu/dml/cuda) probing
   ollama.js            - Ollama REST client for embeddings and LLM generation
-  qdrant.js            - Qdrant REST helpers: upsert, search, scroll, indexes, skeleton lookups
+  qdrant.js            - stable facade over the Qdrant adapter (re-exports src/core/qdrant/)
+  qdrant/
+    client.js          - lazy @qdrant/js-client-rest client, cache reset, error helpers
+    store.js           - all network operations: upsert, search, scroll, indexes, skeleton lookups
+    payload.js         - pure payload helpers (isSemidexPayload) and field constants
+    schema.js          - canonical vector schema + required payload indexes (single source of truth)
+    index.js           - adapter public surface
   sparse.js            - zero-dependency hashed sparse TF fallback
   rerank.js            - optional deterministic reranker
   ce-rerank.js         - optional cross-encoder reranker (RERANK_CE_ENABLED=1)

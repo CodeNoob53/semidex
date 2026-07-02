@@ -2,8 +2,8 @@
 
 semidex uses the built-in Node.js test runner (`node:test`) for unit tests.
 No test framework dependency is required — this matches the project's
-minimal-dependency philosophy. Requires Node ≥ 18.13 (declared in
-`package.json` `engines`).
+minimal-dependency philosophy. Requires Node ≥ 18.17 (declared in
+`package.json` `engines`; matches the `@qdrant/js-client-rest` requirement).
 
 ## Test Tiers
 
@@ -48,10 +48,12 @@ tests/
 ## Conventions
 
 1. **Import `tests/helpers/setup.js` before any `src/` import.** Several src
-   modules read env at import time (`qdrant.js` throws without `QDRANT_URL`;
-   `search.js` snapshots `RERANK_ENABLED`). The setup module provides safe
-   defaults so tests never depend on a developer's `.env` or fail in a bare CI
-   environment.
+   modules read env at import time (e.g. `search.js` snapshots
+   `RERANK_ENABLED`). The setup module provides safe defaults so tests never
+   depend on a developer's `.env` or fail in a bare CI environment.
+   (`qdrant.js` itself no longer needs env at import time — the SDK client is
+   created lazily; `qdrant-lazy.test.js` deliberately skips setup.js to verify
+   that.)
 2. **One src module (or one behavior cluster) per test file.** Name the file
    after the module under test: `point-id.test.js` tests `src/core/point-id.js`.
 3. **Use `node:assert/strict`.** Prefer `assert.equal` / `assert.deepEqual` /
