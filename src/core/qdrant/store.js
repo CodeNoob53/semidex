@@ -34,6 +34,11 @@ export async function createCollection(name, size = 1024) {
   }
 }
 
+export async function deleteCollection(name) {
+  const client = getQdrantClient({ write: true });
+  await qdrantCall('Delete collection failed', () => client.deleteCollection(name));
+}
+
 export async function createPayloadIndex(collection, field, type = 'keyword') {
   const client = getQdrantClient({ write: true });
   await qdrantCall('Create index failed', () => client.createPayloadIndex(collection, {

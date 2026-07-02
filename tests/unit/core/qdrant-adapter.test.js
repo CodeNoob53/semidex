@@ -52,7 +52,7 @@ describe('facade re-exports the full public surface', () => {
     // client
     'getQdrantClient', 'resetQdrantClientCache',
     // store
-    'listCollections', 'getCollectionInfo', 'createCollection', 'createPayloadIndex',
+    'listCollections', 'getCollectionInfo', 'createCollection', 'deleteCollection', 'createPayloadIndex',
     'addSparseVectorSupport', 'hasSparseVectors', 'upsertPoints', 'updatePayload',
     'deleteBySourceFile', 'deleteByFilter', 'deleteTrailingChunks',
     'search', 'hybridSearch', 'mmrSearch', 'scroll', 'getStoredMeta',
@@ -60,6 +60,8 @@ describe('facade re-exports the full public surface', () => {
     'getCollectionSkeletonNode', 'getSkeletonNodeById', 'getSkeletonNodeByPath',
     'getSkeletonChildren', 'getContentNodeById', 'getContentNodeByPath',
     'getAnyNodeById', 'getAnyNodeByPath',
+    // ensure-schema
+    'ensureCollectionSchema',
     // payload
     'isSemidexPayload',
   ];

@@ -4,8 +4,8 @@
 
 import 'dotenv/config';
 import { loadConfig, saveConfig, resolveEnvProviders } from './core/config.js';
-import { listCollections, getCollectionInfo, createPayloadIndex, addSparseVectorSupport, hasSparseVectors } from './core/qdrant.js';
-import { REQUIRED_PAYLOAD_INDEXES } from './core/qdrant/schema.js';
+import { listCollections, getCollectionInfo, ensureCollectionSchema } from './core/qdrant.js';
+import { classifyVectorSchema } from './core/doctor-checks.js';
 import { SCHEMA_VERSION } from './core/embeddings.js';
 
 
@@ -24,10 +24,10 @@ for (const name of remote) {
   // Flat-vector schema: Qdrant stores { size, distance } directly instead of
   // { dense: { size, distance } }. Named vectors are required for hybrid search.
   // This cannot be repaired in-place — the collection must be recreated and reindexed.
-  const isFlatSchema = typeof vectorsCfg.size === 'number';
+  const isFlatSchema = classifyVectorSchema(vectorsCfg) === 'flat';
 
   // semidex-compatible schema = has a named 'dense' vector (not flat-schema).
-  const hasDenseNamed = !isFlatSchema && typeof vectorsCfg.dense === 'object' && vectorsCfg.dense !== null;
+  const hasDenseNamed = classifyVectorSchema(vectorsCfg) === 'named';
 
   if (isFlatSchema) {
     flatSchemaCollections.push(name);
@@ -81,27 +81,27 @@ for (const name of remote) {
     }
   }
 
-  for (const [field, schema] of Object.entries(REQUIRED_PAYLOAD_INDEXES)) {
-    await createPayloadIndex(name, field, schema);
-    console.log(`  ✓ index "${field}" (${schema}) on ${name}`);
+  // Pass the already-fetched info to avoid a redundant getCollectionInfo call;
+  // ensureCollectionSchema derives the same flat/foreign classification from
+  // it, so its own LEGACY/FOREIGN SCHEMA warnings would duplicate the ones
+  // already printed above — skip only those two, keep the rest verbatim,
+  // except the sparse-vectors-missing warning, where sync.js prints its own
+  // CLI-specific remediation command instead of the adapter's generic text
+  // (ensureCollectionSchema has no notion of "npm run index", so it can't
+  // phrase that instruction itself).
+  const { repaired, warnings } = await ensureCollectionSchema(name, { collectionInfo: info });
+  for (const action of repaired) {
+    console.log(`  ✓ ${action} on ${name}`);
   }
-
-  if (isFlatSchema) {
-    console.log(`  ~ skipping sparse vector check on "${name}" (legacy flat schema — reindex required)`);
-  } else {
-    try {
-      await addSparseVectorSupport(name);
-      console.log(`  ✓ sparse vector support on ${name}`);
-    } catch (e) {
-      console.log(`  ~ sparse vector already exists on ${name}`);
-    }
-
-    const hasSparsePts = await hasSparseVectors(name);
-    if (!hasSparsePts) {
+  for (const warning of warnings) {
+    if (warning.includes('LEGACY SCHEMA') || warning.includes('FOREIGN SCHEMA')) continue;
+    if (warning.includes('has no sparse vectors on existing points')) {
       console.log(`  ⚠ WARNING: "${name}" has no sparse vectors on existing points.`);
       console.log(`    Hybrid search will behave as dense-only until you re-index:`);
       console.log(`    COLLECTION=${name} npm run index <path>`);
+      continue;
     }
+    console.log(`  ⚠ ${warning}`);
   }
 }
 
