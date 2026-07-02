@@ -11,6 +11,10 @@ import { createStorageAdapter } from '../core/storage/factory.js';
 import { createRouter } from './router.js';
 import { registerHealthRoutes } from './api/health.js';
 import { registerCollectionsRoutes } from './api/collections.js';
+import { registerDocumentsRoutes } from './api/documents.js';
+import { registerChunksRoutes } from './api/chunks.js';
+import { registerSkeletonRoutes } from './api/skeleton.js';
+import { registerNodeRoutes } from './api/node.js';
 
 const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '::1']);
 
@@ -40,6 +44,10 @@ export function createApp({ adapter = createStorageAdapter() } = {}) {
   const router = createRouter();
   registerHealthRoutes(router, adapter);
   registerCollectionsRoutes(router, adapter);
+  registerDocumentsRoutes(router, adapter);
+  registerChunksRoutes(router, adapter);
+  registerSkeletonRoutes(router, adapter);
+  registerNodeRoutes(router, adapter);
   return createServer((req, res) => {
     router.handleRequest(req, res);
   });

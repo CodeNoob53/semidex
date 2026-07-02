@@ -151,6 +151,317 @@ describe('POST /api/collections/:name/sync-schema', () => {
   });
 });
 
+describe('GET /api/collections/:name/documents', () => {
+  it('returns docs for an existing collection', async () => {
+    const adapter = makeStubAdapter({
+      listSourceDocuments: async () => [{ sourceFile: 'a.md', chunkCount: 3, firstSection: 'Intro', tags: [] }],
+    });
+    await withServer(adapter, async (base) => {
+      const res = await fetch(base + '/api/collections/demo/documents');
+      const body = await res.json();
+      assert.equal(res.status, 200);
+      assert.equal(body.collection, 'demo');
+      assert.equal(body.documents.length, 1);
+    });
+  });
+
+  it('returns 404 for a missing collection', async () => {
+    await withServer(makeStubAdapter(), async (base) => {
+      const res = await fetch(base + '/api/collections/missing/documents');
+      assert.equal(res.status, 404);
+    });
+  });
+
+  it('forwards prefix to the adapter', async () => {
+    let received = null;
+    const adapter = makeStubAdapter({
+      listSourceDocuments: async (name, opts) => { received = opts; return []; },
+    });
+    await withServer(adapter, async (base) => {
+      await fetch(base + '/api/collections/demo/documents?prefix=docs/');
+      assert.equal(received.prefix, 'docs/');
+    });
+  });
+
+  it('defaults limit to 100', async () => {
+    let received = null;
+    const adapter = makeStubAdapter({
+      listSourceDocuments: async (name, opts) => { received = opts; return []; },
+    });
+    await withServer(adapter, async (base) => {
+      await fetch(base + '/api/collections/demo/documents');
+      assert.equal(received.limit, 100);
+    });
+  });
+
+  it('rejects limit < 1 with 400', async () => {
+    await withServer(makeStubAdapter(), async (base) => {
+      const res = await fetch(base + '/api/collections/demo/documents?limit=0');
+      assert.equal(res.status, 400);
+      const body = await res.json();
+      assert.equal(body.error.code, 'bad_request');
+    });
+  });
+
+  it('clamps limit > 1000 to 1000 rather than rejecting', async () => {
+    let received = null;
+    const adapter = makeStubAdapter({
+      listSourceDocuments: async (name, opts) => { received = opts; return []; },
+    });
+    await withServer(adapter, async (base) => {
+      const res = await fetch(base + '/api/collections/demo/documents?limit=5000');
+      assert.equal(res.status, 200);
+      assert.equal(received.limit, 1000);
+    });
+  });
+});
+
+describe('GET /api/collections/:name/chunks', () => {
+  it('returns the chunk list', async () => {
+    const adapter = makeStubAdapter({
+      getChunk: async (name, sourceFile, chunkIndex) => [{ sourceFile, chunkIndex, text: 'hi' }],
+    });
+    await withServer(adapter, async (base) => {
+      const res = await fetch(base + '/api/collections/demo/chunks?sourceFile=a.md&chunkIndex=4');
+      const body = await res.json();
+      assert.equal(res.status, 200);
+      assert.equal(body.sourceFile, 'a.md');
+      assert.equal(body.chunkIndex, 4);
+      assert.equal(body.window, 0);
+      assert.equal(body.chunks.length, 1);
+    });
+  });
+
+  it('requires sourceFile', async () => {
+    await withServer(makeStubAdapter(), async (base) => {
+      const res = await fetch(base + '/api/collections/demo/chunks?chunkIndex=4');
+      assert.equal(res.status, 400);
+    });
+  });
+
+  it('requires chunkIndex', async () => {
+    await withServer(makeStubAdapter(), async (base) => {
+      const res = await fetch(base + '/api/collections/demo/chunks?sourceFile=a.md');
+      assert.equal(res.status, 400);
+    });
+  });
+
+  it('rejects a non-integer chunkIndex', async () => {
+    await withServer(makeStubAdapter(), async (base) => {
+      const res = await fetch(base + '/api/collections/demo/chunks?sourceFile=a.md&chunkIndex=abc');
+      assert.equal(res.status, 400);
+    });
+  });
+
+  it('rejects a negative chunkIndex', async () => {
+    await withServer(makeStubAdapter(), async (base) => {
+      const res = await fetch(base + '/api/collections/demo/chunks?sourceFile=a.md&chunkIndex=-1');
+      assert.equal(res.status, 400);
+    });
+  });
+
+  it('defaults window to 0', async () => {
+    let received = null;
+    const adapter = makeStubAdapter({
+      getChunk: async (name, sourceFile, chunkIndex, opts) => { received = opts; return []; },
+    });
+    await withServer(adapter, async (base) => {
+      await fetch(base + '/api/collections/demo/chunks?sourceFile=a.md&chunkIndex=0');
+      assert.equal(received.window, 0);
+    });
+  });
+
+  it('rejects a negative window', async () => {
+    await withServer(makeStubAdapter(), async (base) => {
+      const res = await fetch(base + '/api/collections/demo/chunks?sourceFile=a.md&chunkIndex=0&window=-1');
+      assert.equal(res.status, 400);
+    });
+  });
+
+  it('rejects a window above the max (5) rather than clamping it', async () => {
+    await withServer(makeStubAdapter(), async (base) => {
+      const res = await fetch(base + '/api/collections/demo/chunks?sourceFile=a.md&chunkIndex=0&window=99');
+      assert.equal(res.status, 400);
+      const body = await res.json();
+      assert.match(body.error.message, /must be <= 5/);
+    });
+  });
+
+  it('returns 200 with an empty chunks array rather than 404 when the adapter finds nothing', async () => {
+    const adapter = makeStubAdapter({ getChunk: async () => [] });
+    await withServer(adapter, async (base) => {
+      const res = await fetch(base + '/api/collections/demo/chunks?sourceFile=missing.md&chunkIndex=0');
+      const body = await res.json();
+      assert.equal(res.status, 200);
+      assert.deepEqual(body.chunks, []);
+    });
+  });
+});
+
+describe('GET /api/collections/:name/skeleton', () => {
+  it('returns the skeleton root', async () => {
+    const adapter = makeStubAdapter({ getSkeletonRoot: async () => ({ nodeType: 'collection', nodeId: 'root' }) });
+    await withServer(adapter, async (base) => {
+      const res = await fetch(base + '/api/collections/demo/skeleton');
+      const body = await res.json();
+      assert.equal(res.status, 200);
+      assert.equal(body.skeleton.nodeId, 'root');
+    });
+  });
+
+  it('returns skeleton: null when the collection has no skeleton layer', async () => {
+    await withServer(makeStubAdapter(), async (base) => {
+      const res = await fetch(base + '/api/collections/demo/skeleton');
+      const body = await res.json();
+      assert.equal(res.status, 200);
+      assert.equal(body.skeleton, null);
+    });
+  });
+
+  it('returns 404 for a missing collection', async () => {
+    await withServer(makeStubAdapter(), async (base) => {
+      const res = await fetch(base + '/api/collections/missing/skeleton');
+      assert.equal(res.status, 404);
+    });
+  });
+});
+
+describe('GET /api/collections/:name/skeleton/node', () => {
+  const nodeAdapter = makeStubAdapter({
+    getSkeletonNode: async (name, opts) => (opts.nodeId === 'n1' || opts.nodePath === 'p1' ? { nodeType: 'section', ...opts } : null),
+  });
+
+  it('works with nodeId', async () => {
+    await withServer(nodeAdapter, async (base) => {
+      const res = await fetch(base + '/api/collections/demo/skeleton/node?nodeId=n1');
+      const body = await res.json();
+      assert.equal(res.status, 200);
+      assert.equal(body.node.nodeId, 'n1');
+    });
+  });
+
+  it('works with nodePath', async () => {
+    await withServer(nodeAdapter, async (base) => {
+      const res = await fetch(base + '/api/collections/demo/skeleton/node?nodePath=p1');
+      const body = await res.json();
+      assert.equal(res.status, 200);
+      assert.equal(body.node.nodePath, 'p1');
+    });
+  });
+
+  it('rejects when neither nodeId nor nodePath is provided', async () => {
+    await withServer(nodeAdapter, async (base) => {
+      const res = await fetch(base + '/api/collections/demo/skeleton/node');
+      assert.equal(res.status, 400);
+    });
+  });
+
+  it('rejects when both nodeId and nodePath are provided', async () => {
+    await withServer(nodeAdapter, async (base) => {
+      const res = await fetch(base + '/api/collections/demo/skeleton/node?nodeId=n1&nodePath=p1');
+      assert.equal(res.status, 400);
+    });
+  });
+
+  it('returns 404 when the adapter returns null', async () => {
+    await withServer(nodeAdapter, async (base) => {
+      const res = await fetch(base + '/api/collections/demo/skeleton/node?nodeId=missing');
+      assert.equal(res.status, 404);
+    });
+  });
+});
+
+describe('GET /api/collections/:name/skeleton/children', () => {
+  it('works with nodeId', async () => {
+    const adapter = makeStubAdapter({ getSkeletonChildren: async (name, opts) => [{ nodeType: 'file', parent: opts.nodeId }] });
+    await withServer(adapter, async (base) => {
+      const res = await fetch(base + '/api/collections/demo/skeleton/children?nodeId=n1');
+      const body = await res.json();
+      assert.equal(res.status, 200);
+      assert.equal(body.children[0].parent, 'n1');
+    });
+  });
+
+  it('works with nodePath', async () => {
+    const adapter = makeStubAdapter({ getSkeletonChildren: async (name, opts) => [{ nodeType: 'file', parent: opts.nodePath }] });
+    await withServer(adapter, async (base) => {
+      const res = await fetch(base + '/api/collections/demo/skeleton/children?nodePath=p1');
+      const body = await res.json();
+      assert.equal(body.children[0].parent, 'p1');
+    });
+  });
+
+  it('defaults limit to 50', async () => {
+    let received = null;
+    const adapter = makeStubAdapter({ getSkeletonChildren: async (name, opts) => { received = opts; return []; } });
+    await withServer(adapter, async (base) => {
+      await fetch(base + '/api/collections/demo/skeleton/children?nodeId=n1');
+      assert.equal(received.limit, 50);
+    });
+  });
+
+  it('rejects an invalid limit', async () => {
+    await withServer(makeStubAdapter(), async (base) => {
+      const res = await fetch(base + '/api/collections/demo/skeleton/children?nodeId=n1&limit=0');
+      assert.equal(res.status, 400);
+    });
+  });
+
+  it('returns a children array', async () => {
+    const adapter = makeStubAdapter({ getSkeletonChildren: async () => [{ nodeType: 'file' }, { nodeType: 'file' }] });
+    await withServer(adapter, async (base) => {
+      const res = await fetch(base + '/api/collections/demo/skeleton/children?nodeId=n1');
+      const body = await res.json();
+      assert.equal(body.children.length, 2);
+    });
+  });
+});
+
+describe('GET /api/collections/:name/node', () => {
+  const structAdapter = makeStubAdapter({
+    getStructuralNode: async (name, opts) => (opts.nodeId === 'n1' || opts.nodePath === 'p1' ? { nodeType: 'table', ...opts } : null),
+  });
+
+  it('works with nodeId', async () => {
+    await withServer(structAdapter, async (base) => {
+      const res = await fetch(base + '/api/collections/demo/node?nodeId=n1');
+      const body = await res.json();
+      assert.equal(res.status, 200);
+      assert.equal(body.node.nodeId, 'n1');
+    });
+  });
+
+  it('works with nodePath', async () => {
+    await withServer(structAdapter, async (base) => {
+      const res = await fetch(base + '/api/collections/demo/node?nodePath=p1');
+      const body = await res.json();
+      assert.equal(res.status, 200);
+      assert.equal(body.node.nodePath, 'p1');
+    });
+  });
+
+  it('rejects when neither nodeId nor nodePath is provided', async () => {
+    await withServer(structAdapter, async (base) => {
+      const res = await fetch(base + '/api/collections/demo/node');
+      assert.equal(res.status, 400);
+    });
+  });
+
+  it('rejects when both nodeId and nodePath are provided', async () => {
+    await withServer(structAdapter, async (base) => {
+      const res = await fetch(base + '/api/collections/demo/node?nodeId=n1&nodePath=p1');
+      assert.equal(res.status, 400);
+    });
+  });
+
+  it('returns 404 when the adapter returns null', async () => {
+    await withServer(structAdapter, async (base) => {
+      const res = await fetch(base + '/api/collections/demo/node?nodeId=missing');
+      assert.equal(res.status, 404);
+    });
+  });
+});
+
 describe('unknown routes and methods', () => {
   it('returns 404 with a JSON error envelope for an unknown path', async () => {
     await withServer(makeStubAdapter(), async (base) => {
