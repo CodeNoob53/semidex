@@ -45,8 +45,8 @@ semidex розв'язує це так: бібліотека індексуєть
 ## Як це працює для користувача
 
 1. Ви вказуєте папку з документами і запускаєте індексацію.
-2. semidex готує матеріали до retrieval (розбиває на чанки, додає короткі резюме й
-   теґи, будує граф зв'язків) і складає у векторну базу Qdrant.
+2. semidex готує матеріали до retrieval (розбиває на чанки, додає короткі резюме
+   й опційні теґи) і складає у векторну базу Qdrant.
 3. Ви під'єднуєте semidex як MCP-сервер до свого AI-агента.
 4. Під час діалогу агент сам користується інструментами semidex.
 
@@ -54,12 +54,17 @@ semidex розв'язує це так: бібліотека індексуєть
 
 - **Classic RAG** — фіксований конвеєр: `query → retrieve → augment → generate`.
   Один пошук, один набір чанків, одна відповідь.
-- **MCP-agent workflow у semidex** — агент **сам вирішує**, які інструменти викликати:
+- **MCP-agent workflow** — агент **сам вирішує**, які інструменти викликати:
   може зробити кілька кроків пошуку й навігації, переглянути структуру бібліотеки,
-  піти за посиланнями між документами, дочитати сусідній контекст і зібрати достатньо
-  матеріалу, перш ніж відповісти.
+  дочитати сусідній контекст і зібрати достатньо матеріалу, перш ніж відповісти.
 
-Це опис поточного фокусу semidex, а не заява про унікальність підходу.
+**Чесне позиціонування:** сам підхід не унікальний — локальні RAG-індексатори,
+Qdrant-backed MCP-сервери та agentic retrieval існують і поза semidex. Внесок
+semidex — конкретна комбінація (повністю локальний конвеєр, read-only
+MCP-інструменти, skeleton-навігація структурою документів, дефолти лише через
+бенчмарк-гейт) плюс окремі нечасті рішення на кшталт детермінованого
+structural carryover. Заяв про перевагу над іншими RAG-системами немає —
+докази для них ще не зібрані.
 
 ## Приклади застосування
 
@@ -77,15 +82,17 @@ semidex розв'язує це так: бібліотека індексуєть
 - tokenizer-aware chunking (межі за реальним токенайзером BGE-M3);
 - локальна генерація context через Ollama; теґи опційні (`TAG_GEN=1` або `backfill:tags`);
 - гібридний пошук dense + sparse з RRF-fusion;
-- 9 read-only MCP-інструментів;
+- skeleton-first chunking (opt-in `SKELETON_CHUNKING=1`): таблиці, блоки коду й
+  чеклісти як типізовані структурні чанки + skeleton-навігація для агентів;
+- 11 read-only MCP-інструментів;
 - сховище: локальний Qdrant **або** Qdrant Cloud;
 - повністю локальний режим (без зовнішніх API для контенту);
 - SHA-256 skip — незмінені файли не переобробляються;
 - `PRUNE_STALE` — прибирання точок для видалених файлів;
 - verified-платформа: **Windows 10/11**.
 
-Усе, що не в цьому списку (skeleton-first chunking, OCR, профілі, зовнішні API,
-Agent Memory, Codebase Memory), — це [дорожня карта](#дорожня-карта), а не готові
+Усе, що не в цьому списку (OCR, профілі, зовнішні API, Agent Memory,
+Codebase Memory), — це [дорожня карта](#дорожня-карта), а не готові
 можливості.
 
 ## Local-first і приватність
@@ -130,15 +137,19 @@ Runtime на CPU або DirectML, Ollama на доступному GPU-backend).
   ├─ [1] Chunk          — заголовки → речення; межі за токенайзером BGE-M3
   ├─ [2] Contextualize  — локальний LLM пише 1–2 речення резюме чанку в контексті документа
   ├─ [3] Tag            — опційні payload-теґи (`TAG_GEN=1` або `backfill:tags`)
-  ├─ [4] Embed + Upsert — dense + sparse вектори → Qdrant named vectors + payload
-  └─ [5] Link           — семантичний граф: top-N сусідів між колекціями, двосторонньо
+  └─ [4] Embed + Upsert — dense + sparse вектори → Qdrant named vectors + payload
          │
          ▼
     Колекція Qdrant (dense · sparse · text · context · section · tags · source_file)
          │
          ▼
-    MCP-інструменти (7) ── AI-агент отримує знайдений контекст
+    MCP-інструменти (11) ── AI-агент отримує знайдений контекст
 ```
+
+З `SKELETON_CHUNKING=1` (opt-in) Markdown парситься через AST: таблиці, блоки
+коду й чеклісти стають типізованими структурними чанками, контекст будується
+детерміновано (без LLM-викликів), а окремий шар `skeleton_nav`-точок живить
+навігаційні інструменти `qdrant_get_skeleton*`.
 
 Вектор обчислюється з `context + text` разом, тому LLM-резюме може допомогти
 знайти короткий фрагмент коду за природномовним запитом.
@@ -230,13 +241,17 @@ claude mcp add --scope user semidex -- node /absolute/path/to/semidex/src/mcp/se
 
 ## MCP-інструменти та workflow
 
-semidex надає 9 read-only інструментів:
+semidex надає 11 read-only інструментів:
 
 | Інструмент | Аргументи | Опис |
 |------------|-----------|------|
 | `qdrant_search` | `query`, `collection`, `top?`, `tags?[]`, `source_file?`, `window?`, `window_format?` | Гібридний пошук (dense + sparse + RRF) з фільтрами та контекстним вікном |
 | `qdrant_collection_info` | — | Список колекцій з кількістю точок, провайдером, описом |
 | `qdrant_get_chunk` | `collection`, `source_file`, `chunk_index`, `window?` | Один чанк (+опційні сусіди) за точним розташуванням |
+| `qdrant_get_skeleton` | `collection` | Кореневий вузол skeleton-карти колекції та його діти |
+| `qdrant_get_skeleton_node` | `collection`, `node_id?` XOR `node_path?` | Один навігаційний skeleton-вузол із резюме та зв'язками |
+| `qdrant_get_skeleton_children` | `collection`, `node_id?` XOR `node_path?`, `limit?` | Дочірні skeleton-вузли |
+| `qdrant_get_node` | `collection`, `node_id?` XOR `node_path?`, `preview_chars?` | Повний оригінальний вміст структурного вузла (таблиця, блок коду тощо) |
 | `qdrant_find_by_tag` | `collection`, `tag?`, `tags?[]`, `match?`, `limit?` | Чанки за теґом/теґами, згруповані за файлом |
 | `qdrant_list_directories` | `collection`, `source_prefix?`, `depth?`, `limit?` | Префікси директорій з кількістю файлів/чанків |
 | `qdrant_list_files` | `collection`, `source_prefix?`, `tags?[]`, `tag_match?`, `limit?` | Унікальні файли з кількістю чанків і першою секцією |
@@ -246,12 +261,16 @@ semidex надає 9 read-only інструментів:
 
 ```
 qdrant_collection_info
-  → qdrant_list_directories(collection, depth=1)                  # карта верхніх областей
-  → qdrant_list_directories(collection, source_prefix="<area>/")  # заглиблення
+  → qdrant_get_skeleton(collection)                               # skeleton-карта, якщо є
+  → qdrant_get_skeleton_children(collection, node_path="<area>")  # заглиблення по skeleton
+  → qdrant_list_directories(collection, depth=1)                  # fallback без skeleton
   → qdrant_list_files(collection, source_prefix="<area>/")        # файли в області
   → qdrant_search(query, top=3, window=1, window_format="compact")
   → qdrant_get_chunk (якщо потрібен ширший контекст)
 ```
+
+Skeleton-резюме — це карта для навігації, а не доказ для відповіді: факти
+перевіряйте через `qdrant_search` / `qdrant_get_chunk`.
 
 Теґи — для розширення охоплення **після** першого пошуку: `qdrant_list_tags`
 (звужуйте через `tag_prefix`/`contains`) → `qdrant_find_by_tag`.
@@ -369,8 +388,9 @@ storage/inference. Не готова функція.
   основним шляхом.
 - **Storage adapters** *(майбутнє)* — Qdrant лишається reference backend і
   підтримуваним default; адаптери інших vector DB — після parity-check.
-- skeleton-first chunking, retrieval-grade розбиття великих документів, OCR зображень,
-  кращі діагностики — також у плані.
+- retrieval-grade розбиття великих документів, OCR зображень, кращі
+  діагностики — також у плані (skeleton-first chunking уже реалізовано як
+  opt-in; лишається зробити його типовим режимом після бенчмарк-гейту).
 
 Повний напрям: [docs/en/roadmap.md](../en/roadmap.md). Backlog перекладів deep-dive
 docs: [translation-backlog.md](translation-backlog.md).

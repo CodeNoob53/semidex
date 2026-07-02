@@ -127,7 +127,7 @@ read-only tools, all prefixed `qdrant_` (`qdrant_search`,
 `qdrant_collection_info`, `qdrant_get_chunk`, `qdrant_find_by_tag`,
 `qdrant_list_files`, `qdrant_list_tags`, `qdrant_list_directories`,
 `qdrant_get_skeleton`, `qdrant_get_skeleton_node`,
-`qdrant_get_skeleton_children`).
+`qdrant_get_skeleton_children`, `qdrant_get_node`).
 
 <table><tr>
 <td><img src="assets/avif/mcp_connected.avif" alt="MCP connected"/></td>
@@ -291,11 +291,13 @@ The roadmap separates a focused MVP from clearly labeled future work.
 **MVP** = the shipped retrieval baseline plus one structural upgrade:
 **skeleton-first chunking** — parsing Markdown through an AST so that tables,
 code blocks, and lists become typed, intact structural nodes instead of prose
-fragments. It ships behind a feature flag and is benchmarked against the
-current chunker before any default changes.
+fragments. It is implemented behind the `SKELETON_CHUNKING=1` feature flag
+(with skeleton navigation and deterministic structural carryover) and is being
+benchmarked against the legacy chunker before any default changes.
 
-**Future (post-MVP)**, in dependency order: hierarchical skeleton navigation
-for agents, cross-domain validation and external datasets, and then separate
+**Future (post-MVP)**, in dependency order: completing the skeleton navigation
+layer (anchored content assembly, pagination for very large skeleton reads),
+cross-domain validation and external datasets, and then separate
 product tracks — Assistant Runtime (HTTP answer API), Codebase Memory,
 extended ingestion with OCR/vision, a local Control Panel, and opt-in Agent
 Memory. Retrieval experiments such as MMR or ColBERT remain conditional
@@ -306,10 +308,23 @@ gates, and non-goals.
 
 ## Project Status
 
+**Positioning, honestly:** semidex is not a unique category of software.
+Local RAG indexers, Qdrant-backed MCP servers, and agentic retrieval
+frameworks all exist. What semidex offers is a particular combination —
+fully local pipeline, MCP-native read-only tools, skeleton navigation over
+document structure, and benchmark-gated defaults — with some individual
+decisions (deterministic structural carryover, nav/retrieval point
+separation) that are uncommon but not exclusive. No claim of superiority
+over other RAG systems is made or currently supported by evidence.
+
 Implemented:
 
 - Local-first indexing pipeline with staged, failure-safe commits
 - Heading-aware, tokenizer-aware chunking with section-boundary preservation
+- Skeleton-first structural-node chunking behind `SKELETON_CHUNKING=1` (tables,
+  code blocks, checklists as typed nodes with deterministic carryover context)
+- Skeleton navigation layer: hierarchical nav nodes and summaries plus the
+  `qdrant_get_skeleton*` / `qdrant_get_node` MCP tools
 - Real BGE-M3 token counting by default (`TOKEN_COUNT=heuristic` opt-out)
 - LLM context summaries; optional payload tags
 - Dense + sparse hybrid retrieval with Qdrant RRF fusion
@@ -322,8 +337,9 @@ Implemented:
 
 Not implemented yet:
 
-- Skeleton-first structural-node chunking (current MVP work — see roadmap)
-- Hierarchical skeleton navigation and grounded answer API
+- Skeleton-first chunking as the default mode (still opt-in, pending the
+  benchmark gate — see roadmap)
+- Anchored content assembly (`qdrant_get_content`) and grounded answer API
 - External dataset evaluation and direct workflow comparisons
 - ColBERT / late-interaction runtime integration
 - True BM25/SPLADE fallback for Node-only sparse retrieval
