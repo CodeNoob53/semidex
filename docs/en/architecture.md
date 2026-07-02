@@ -28,6 +28,13 @@ Documents (md, pdf, docx, epub, txt, ...)
   AI agent retrieves precise context
 ```
 
+With `SKELETON_CHUNKING=1` (opt-in), Markdown files are parsed through an AST
+instead: tables, code blocks, and checklists become typed structural chunks,
+phase 2 uses deterministic context (heading path + structural carryover, no
+LLM calls unless `SKELETON_CONTEXT=llm`), and a separate `skeleton_nav` point
+layer is written for the `qdrant_get_skeleton*` navigation tools. See
+[chunking-quality.md](chunking-quality.md#skeleton-first-chunking-and-structural-carryover).
+
 ## Qdrant Data Model
 
 semidex uses Qdrant as its primary retrieval index and storage backend.
@@ -38,7 +45,7 @@ semidex uses Qdrant as its primary retrieval index and storage backend.
   - `dense`: Captures semantic meaning for paraphrase and conceptual search.
   - `sparse`: Captures exact lexical tokens for keyword matching.
 - **Payload Schema**: In addition to vectors, Qdrant stores a JSON payload for each point (containing the raw `text`, LLM `context`, `section`, `source_file`, `tags`, `links` (Wikilink targets from source), `chunk_index`, `total_chunks`, `file_hash`, and provider metadata). This payload is crucial because it provides all the text and metadata the MCP server needs to answer queries without reading files from disk.
-- **Payload Indexes**: To efficiently filter searches by specific attributes, Qdrant relies on payload indexes. semidex requires indexes on `source_file` (keyword), `tags` (keyword), and `chunk_index` (integer) to support accurate context windows and agent MCP tools.
+- **Payload Indexes**: To efficiently filter searches by specific attributes, Qdrant relies on payload indexes. semidex requires indexes on `source_file` (keyword), `tags` (keyword), `chunk_index` (integer), plus `point_kind`, `node_type`, `node_id`, and `node_path` (keyword) for skeleton navigation and structural-node lookup. `npm run index` creates all of them for new collections; `npm run sync` ensures them on existing ones.
 - **Reindexing**: Changing the embedding providers (`denseProvider`, `sparseProvider`), embedding models (`denseModel`), embedding schema version, or `vectorSize` fundamentally alters the vector schema. Because query vectors must perfectly match stored point vectors, any such change requires a full collection reindex. Conversely, changes to a `file_hash` trigger an automatic reindex of only the affected file.
 - **Deterministic Point IDs**: Every point ID is derived from `uuidv5(collection + source_file + chunk_index + embeddingSchemaVersion)`. This makes every upsert idempotent — reindexing the same logical chunk overwrites the existing point rather than inserting a new one, preventing duplicate accumulation across repeated indexing runs. `file_hash`, tags, context, and model names are intentionally excluded from the ID formula so that content changes overwrite in place without orphaning the old point. After each file is indexed, any trailing points whose `chunk_index` exceeds the new chunk count are deleted to handle files that shrank between indexing runs.
 

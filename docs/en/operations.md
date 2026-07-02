@@ -223,7 +223,7 @@ The `sync` command ensures that the Qdrant collection is correctly configured fo
 **Operational Note:**
 
 - **When to run**: Always run `npm run sync` after upgrading semidex.
-- **Required indexes**: It ensures existing or older collections have payload indexes on `source_file`, `tags`, and `chunk_index`. These are strictly necessary for search filters, context window chunks, and agent MCP tools.
+- **Required indexes**: It ensures existing or older collections have payload indexes on `source_file`, `tags`, `chunk_index`, `point_kind`, `node_type`, `node_id`, and `node_path`. These are strictly necessary for search filters, context window chunks, skeleton navigation, and agent MCP tools.
 - **Safety**: Do not manually mutate the Qdrant schema unless you know exactly what you are doing. `npm run sync` is safe to re-run.
 
 ## Documentation Self-Index

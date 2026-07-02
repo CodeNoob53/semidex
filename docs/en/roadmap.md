@@ -23,7 +23,7 @@ comparisons.
 |-------|-------|--------|
 | **Shipped baseline** | Hybrid retrieval MVP: indexing, hybrid search, MCP tools, diagnostics | ✅ Working today |
 | **Skeleton-first (main direction)** | Skeleton-first chunking active; structural carryover shipped; legacy chunking is compatibility/fallback | ✅ Active direction |
-| **Future — foundation** | Skeleton navigation (Stage 2), validation & performance baseline (Stage 3) | 🔭 Planned, dependency-ordered |
+| **Future — foundation** | Skeleton navigation (Stage 2 — nav tools and summaries shipped; content assembly remaining), validation & performance baseline (Stage 3) | 🚧 Stage 2 in progress; Stage 3 planned |
 | **Future — product tracks** | Assistant Runtime, Codebase Memory, extended ingestion, Qdrant-native operations, Control Panel, Agent Memory | 🔭 Planned, post-foundation |
 | **Conditional research** | MMR, ColBERT, query expansion, scoped global search, adapters | 🔬 Trigger-gated, not milestones |
 
