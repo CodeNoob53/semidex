@@ -16,6 +16,7 @@ import { registerChunksRoutes } from './api/chunks.js';
 import { registerSkeletonRoutes } from './api/skeleton.js';
 import { registerNodeRoutes } from './api/node.js';
 import { registerSearchRoutes } from './api/search.js';
+import { handleStatic } from './static.js';
 
 const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '::1']);
 
@@ -53,6 +54,18 @@ export function createApp({ adapter = createStorageAdapter(), embedQuery } = {})
   // ONNX/Ollama); production default lives in api/search.js.
   registerSearchRoutes(router, adapter, embedQuery ? { embedQuery } : {});
   return createServer((req, res) => {
+    // /api/* belongs to the router; everything else is the static UI shell.
+    // Malformed URLs fall through to the router, whose handleRequest already
+    // converts them into a clean 400/404 JSON response.
+    let pathname = null;
+    try {
+      pathname = new URL(req.url, 'http://localhost').pathname;
+    } catch { /* router handles it */ }
+
+    if (pathname !== null && !pathname.startsWith('/api')) {
+      handleStatic(req, res, pathname);
+      return;
+    }
     router.handleRequest(req, res);
   });
 }
