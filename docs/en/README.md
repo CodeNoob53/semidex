@@ -11,6 +11,7 @@ Other languages: [Українська](../ua/README.md)
 | [mcp-tools.md](mcp-tools.md) | MCP tool reference and agent workflows |
 | [configuration.md](configuration.md) | Environment variables, formats, provider config, indexes |
 | [chunking-quality.md](chunking-quality.md) | Chunking guarantees, failure modes, quality metrics, large-doc benchmark plan |
+| [testing.md](testing.md) | Unit tests (node:test), conventions, smoke→unit migration plan |
 | [benchmarking.md](benchmarking.md) | Smoke tests, retrieval benchmark, metrics, regression workflow |
 | [benchmark-dataset-plan.md](benchmark-dataset-plan.md) | Three-tier benchmark strategy: custom-50 dev loop, custom-150 validation, holdout-50 blind test |
 | [roadmap.md](roadmap.md) | Product direction, near-term priorities, and non-goals |
