@@ -69,6 +69,42 @@ describe('lazy env reads', () => {
   });
 });
 
+describe('URL path/prefix handling', () => {
+  // The SDK never reads pathname off `url` — only via a separate `prefix`
+  // option — so a path in QDRANT_URL must be forwarded explicitly and
+  // normalized (no trailing slash, else the SDK's own request paths get a
+  // double slash, e.g. .../qdrant//collections).
+  it('preserves a path component (no trailing slash) in the client REST URI', () => {
+    process.env.QDRANT_URL = 'https://example.com/qdrant';
+    const client = qdrant.getQdrantClient();
+    assert.equal(client._restUri, 'https://example.com/qdrant');
+  });
+
+  it('strips a trailing slash from a path component', () => {
+    process.env.QDRANT_URL = 'https://example.com/qdrant/';
+    const client = qdrant.getQdrantClient();
+    assert.equal(client._restUri, 'https://example.com/qdrant');
+  });
+
+  it('preserves a multi-segment path with a trailing slash', () => {
+    process.env.QDRANT_URL = 'https://example.com/a/b/';
+    const client = qdrant.getQdrantClient();
+    assert.equal(client._restUri, 'https://example.com/a/b');
+  });
+
+  it('root path produces no prefix', () => {
+    process.env.QDRANT_URL = 'https://example.com/';
+    const client = qdrant.getQdrantClient();
+    assert.equal(client._restUri, 'https://example.com');
+  });
+
+  it('explicit port is preserved alongside a path prefix', () => {
+    process.env.QDRANT_URL = 'http://localhost:6333/qdrant';
+    const client = qdrant.getQdrantClient();
+    assert.equal(client._restUri, 'http://localhost:6333/qdrant');
+  });
+});
+
 describe('client caching', () => {
   it('same env returns the same cached instance', () => {
     process.env.QDRANT_URL = 'http://localhost:6333';

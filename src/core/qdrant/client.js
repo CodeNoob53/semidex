@@ -32,7 +32,8 @@ export function getQdrantClient({ write = false } = {}) {
     // from host + port + `prefix`. Strip the path from `url` and forward it
     // as `prefix` so QDRANT_URLs like https://host/qdrant keep working
     // (the SDK also throws if both `url`'s pathname and `prefix` are set).
-    const prefix = parsed.pathname !== '/' ? parsed.pathname : undefined;
+    const trimmedPathname = parsed.pathname.replace(/\/+$/, '');
+    const prefix = trimmedPathname !== '' ? trimmedPathname : undefined;
     parsed.pathname = '/';
     const strippedUrl = parsed.toString().replace(/\/$/, '') || parsed.toString();
     const make = (timeout) => new QdrantClient({
