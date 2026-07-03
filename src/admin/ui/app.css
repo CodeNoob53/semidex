@@ -304,3 +304,45 @@ td.actions { text-align: right; }
 .win-chunk.match { border-color: var(--amber-dim); background: rgba(232,163,61,.05); }
 .win-head { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; }
 .win-text { color: var(--ink-dim); white-space: pre-wrap; word-break: break-word; font-family: var(--mono); font-size: 11px; }
+
+/* ── Phase 2C: indexing jobs ────────────────────────────────────────────── */
+.nav-list { list-style: none; margin: 12px 0 0; padding: 0 8px; }
+.nav-list a {
+  display: block; padding: 6px 8px; border-radius: 3px;
+  color: var(--amber); text-decoration: none;
+  font-size: 12px; letter-spacing: .02em;
+  border-left: 2px solid transparent;
+}
+.nav-list a:hover { background: var(--bg-inset); }
+.nav-list a.active { background: var(--bg-inset); border-left-color: var(--amber); }
+
+.form-row { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; font-size: 11px; color: var(--ink-dim); }
+.form-row .q-input { font-size: 13px; }
+
+.idx-options { display: flex; flex-wrap: wrap; gap: 14px; margin: 4px 0 10px; }
+.idx-check {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; color: var(--ink);
+}
+.idx-check input { accent-color: var(--amber); }
+.idx-check.warn { color: var(--warn); }
+
+#idx-status { margin-top: 10px; }
+
+.job-card {
+  border: 1px solid var(--line-soft); border-radius: 3px;
+  margin-bottom: 10px; overflow: hidden;
+}
+.job-head {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 7px 10px; background: var(--bg-inset);
+  border-bottom: 1px solid var(--line-soft); font-size: 12px;
+}
+.job-head .mini-btn { margin-left: auto; }
+.job-times { padding: 6px 10px; font-size: 11px; }
+.job-log {
+  margin: 0; padding: 8px 10px; white-space: pre-wrap; word-break: break-word;
+  font-family: var(--mono); font-size: 11px; color: var(--ink-dim);
+  max-height: 220px; overflow-y: auto;
+  border-top: 1px dashed var(--line-soft);
+}

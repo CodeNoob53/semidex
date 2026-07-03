@@ -40,6 +40,10 @@ export function notFound(message) {
   return new HttpError(404, 'not_found', message);
 }
 
+export function conflict(message) {
+  return new HttpError(409, 'conflict', message);
+}
+
 /**
  * Read and JSON-parse a request body, capped to avoid unbounded memory use
  * from a misbehaving client. Returns {} for an empty body (POST endpoints in

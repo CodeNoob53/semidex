@@ -97,6 +97,7 @@ function markActive() {
     a.classList.toggle('active',
       current.view === 'collection' && a.dataset.name === current.name);
   }
+  $('#nav-index')?.classList.toggle('active', current.view === 'index');
 }
 
 // ── views ─────────────────────────────────────────────────────────────────
@@ -494,11 +495,196 @@ function shortPath(node) {
   return tail.length > 60 ? tail.slice(0, 57) + '…' : tail;
 }
 
+// ── indexing jobs view ────────────────────────────────────────────────────
+// The one write-capable screen in this shell: starts the existing indexer
+// CLI as a child process via the Local API (POST /api/jobs/index). The UI
+// never composes env vars or shell commands — it sends a typed options
+// object and the server translates that at spawn time.
+let indexPollTimer = null;
+
+function stopIndexPolling() {
+  if (indexPollTimer) { clearTimeout(indexPollTimer); indexPollTimer = null; }
+}
+
+async function renderIndexingView(main) {
+  stopIndexPolling();
+  main.innerHTML = `
+    <h1 class="view-title">index a folder</h1>
+    <p class="view-sub">Indexing writes to the selected collection.</p>
+    <div class="panel">
+      <div class="panel-head">Start an indexing job</div>
+      <div class="panel-body">
+        <form id="index-form" autocomplete="off">
+          <label class="form-row">
+            <span>collection</span>
+            <input type="text" id="idx-collection" class="q-input" placeholder="my-docs" required>
+          </label>
+          <label class="form-row">
+            <span>source path</span>
+            <input type="text" id="idx-path" class="q-input" placeholder="C:\\path\\to\\docs or ./docs" required>
+          </label>
+          <div class="idx-options">
+            <label class="idx-check"><input type="checkbox" id="opt-onnx" checked> ONNX embeddings</label>
+            <label class="idx-check"><input type="checkbox" id="opt-skel-chunk" checked> Skeleton chunking</label>
+            <label class="idx-check"><input type="checkbox" id="opt-skel-nav" checked> Skeleton navigation</label>
+            <label class="idx-check"><input type="checkbox" id="opt-prune"> Prune stale</label>
+            <label class="idx-check"><input type="checkbox" id="opt-tags"> Generate tags</label>
+          </div>
+          <p class="skel-note">Prune stale should be used only with the full source root.</p>
+          <button type="submit" class="btn-amber" id="idx-submit">start indexing</button>
+        </form>
+        <div id="idx-status" class="empty"></div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-head">Jobs</div>
+      <div class="panel-body" id="idx-jobs">…</div>
+    </div>`;
+
+  $('#opt-prune').addEventListener('change', (e) => {
+    e.target.closest('label').classList.toggle('warn', e.target.checked);
+  });
+
+  $('#index-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    startIndexJob();
+  });
+
+  await loadJobs();
+}
+
+async function startIndexJob() {
+  const status = $('#idx-status');
+  const submit = $('#idx-submit');
+
+  const collection = $('#idx-collection').value.trim();
+  const path = $('#idx-path').value.trim();
+  if (!collection || !path) {
+    status.className = 'error-box';
+    status.textContent = 'Collection and source path are both required.';
+    return;
+  }
+
+  const payload = {
+    collection,
+    path,
+    options: {
+      onnxEmbed: $('#opt-onnx').checked,
+      skeletonChunking: $('#opt-skel-chunk').checked,
+      skeletonNav: $('#opt-skel-nav').checked,
+      pruneStale: $('#opt-prune').checked,
+      tagGen: $('#opt-tags').checked,
+    },
+  };
+
+  submit.disabled = true;
+  status.className = 'empty';
+  status.textContent = 'starting…';
+
+  try {
+    await apiPost('/api/jobs/index', payload);
+    status.textContent = 'Job started.';
+    await loadJobs();
+  } catch (err) {
+    status.className = 'error-box';
+    status.textContent = err.status === 409
+      ? `${err.message} Wait for it to finish, or cancel it below.`
+      : err.message;
+  } finally {
+    submit.disabled = false;
+  }
+}
+
+function jobStatusBadge(state) {
+  const map = {
+    queued: 'badge', running: 'badge badge-amber', cancelling: 'badge badge-warn',
+    succeeded: 'badge badge-ok', failed: 'badge badge-fail', cancelled: 'badge',
+  };
+  return `<span class="${map[state] ?? 'badge'}">${esc(state)}</span>`;
+}
+
+async function loadJobs() {
+  const box = $('#idx-jobs');
+  let jobs;
+  try {
+    ({ jobs } = await api('/api/jobs'));
+  } catch (err) {
+    box.innerHTML = errorBox(err);
+    return;
+  }
+
+  if (!jobs.length) {
+    box.innerHTML = '<div class="empty">No indexing jobs yet.</div>';
+  } else {
+    box.innerHTML = jobs.map(j => `
+      <div class="job-card" data-id="${esc(j.id)}">
+        <div class="job-head">
+          ${jobStatusBadge(j.state)}
+          <span class="mono">${esc(j.collection)}</span>
+          <span class="mono muted">${esc(j.path)}</span>
+          ${j.exitCode !== null && j.exitCode !== 0 ? `<span class="mono muted">exit ${j.exitCode}</span>` : ''}
+          ${(j.state === 'queued' || j.state === 'running')
+            ? `<button type="button" class="mini-btn job-cancel" data-id="${esc(j.id)}">cancel</button>` : ''}
+          ${j.state === 'cancelling' ? '<span class="mono muted">stopping…</span>' : ''}
+        </div>
+        <div class="mono muted job-times">
+          started ${j.startedAt ? new Date(j.startedAt).toLocaleString() : '—'}
+          ${j.finishedAt ? ` · ended ${new Date(j.finishedAt).toLocaleString()}` : ''}
+        </div>
+        <pre class="job-log" id="job-log-${esc(j.id)}">…</pre>
+      </div>`).join('');
+
+    for (const btn of box.querySelectorAll('.job-cancel')) {
+      btn.addEventListener('click', () => cancelJob(btn.dataset.id));
+    }
+    for (const card of box.querySelectorAll('.job-card')) {
+      loadJobLog(card.dataset.id);
+    }
+  }
+
+  // Keep polling while any job is still active, so status/logs update
+  // without a manual refresh; stop once nothing is queued/running/cancelling.
+  const stillActive = jobs.some(j => j.state === 'queued' || j.state === 'running' || j.state === 'cancelling');
+  stopIndexPolling();
+  if (stillActive) {
+    indexPollTimer = setTimeout(async () => {
+      if (currentRoute().view !== 'index') return; // navigated away
+      await loadJobs();
+    }, 1500);
+  } else if (jobs.some(j => j.state === 'succeeded')) {
+    // A job finished since the last load — the sidebar/collections list may
+    // now be stale (new points, possibly a new collection).
+    loadSidebar();
+  }
+}
+
+async function loadJobLog(id) {
+  const pre = $(`#job-log-${CSS.escape(id)}`);
+  if (!pre) return;
+  try {
+    const { job } = await api(`/api/jobs/${encodeURIComponent(id)}`);
+    pre.textContent = job.log.slice(-30).join('\n') || '(no output yet)';
+  } catch (err) {
+    pre.textContent = err.message;
+  }
+}
+
+async function cancelJob(id) {
+  try {
+    await apiPost(`/api/jobs/${encodeURIComponent(id)}/cancel`, {});
+    await loadJobs();
+  } catch (err) {
+    $('#idx-status').className = 'error-box';
+    $('#idx-status').textContent = err.message;
+  }
+}
+
 // ── router ────────────────────────────────────────────────────────────────
 function currentRoute() {
   const hash = location.hash || '#/';
   const m = hash.match(/^#\/collections\/(.+)$/);
   if (m) return { view: 'collection', name: decodeURIComponent(m[1]) };
+  if (hash === '#/index') return { view: 'index' };
   return { view: 'overview' };
 }
 
@@ -507,6 +693,7 @@ async function route() {
   const r = currentRoute();
   markActive();
   if (r.view === 'collection') await renderCollection(main, r.name);
+  else if (r.view === 'index') await renderIndexingView(main);
   else await renderOverview(main);
 }
 

@@ -16,6 +16,8 @@ import { registerChunksRoutes } from './api/chunks.js';
 import { registerSkeletonRoutes } from './api/skeleton.js';
 import { registerNodeRoutes } from './api/node.js';
 import { registerSearchRoutes } from './api/search.js';
+import { registerJobsRoutes } from './api/jobs.js';
+import { createJobRegistry } from './jobs/registry.js';
 import { handleStatic } from './static.js';
 
 const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '::1']);
@@ -42,7 +44,7 @@ export function resolvePortConfig(env = process.env) {
   return port;
 }
 
-export function createApp({ adapter = createStorageAdapter(), embedQuery } = {}) {
+export function createApp({ adapter = createStorageAdapter(), embedQuery, jobRegistry } = {}) {
   const router = createRouter();
   registerHealthRoutes(router, adapter);
   registerCollectionsRoutes(router, adapter);
@@ -53,6 +55,9 @@ export function createApp({ adapter = createStorageAdapter(), embedQuery } = {})
   // embedQuery is optional DI (tests inject a stub so unit tests never load
   // ONNX/Ollama); production default lives in api/search.js.
   registerSearchRoutes(router, adapter, embedQuery ? { embedQuery } : {});
+  // jobRegistry is optional DI (tests inject one built with a fake spawnFn so
+  // unit tests never launch a real indexer child process).
+  registerJobsRoutes(router, jobRegistry ?? createJobRegistry());
   return createServer((req, res) => {
     // /api/* belongs to the router; everything else is the static UI shell.
     // Malformed URLs fall through to the router, whose handleRequest already

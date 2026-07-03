@@ -158,3 +158,59 @@ describe('search playground (served app.js)', () => {
     });
   });
 });
+
+// ── Phase 2C: indexing jobs UI presence ──────────────────────────────────────
+// Same served-file-level approach as Phase 2B: no DOM runner in this
+// toolchain, so these assert the served app.js/index.html wire the indexing
+// view to the right endpoints and keep the required safety copy. Job
+// manager/API behavior itself is covered in jobs.test.js.
+describe('indexing jobs view (served app.js / index.html)', () => {
+  it('index.html links to the indexing view', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      assert.match(html, /#\/index/, 'sidebar must link to the indexing view');
+    });
+  });
+
+  it('app.js posts to /api/jobs/index with the five typed options', async () => {
+    await withServer(async (base) => {
+      const js = await (await fetch(base + '/app.js')).text();
+      assert.match(js, /apiPost\('\/api\/jobs\/index'/, 'must POST to /api/jobs/index');
+      assert.match(js, /onnxEmbed/);
+      assert.match(js, /skeletonChunking/);
+      assert.match(js, /skeletonNav/);
+      assert.match(js, /pruneStale/);
+      assert.match(js, /tagGen/);
+    });
+  });
+
+  it('app.js fetches the job list and a single job\'s detail/log', async () => {
+    await withServer(async (base) => {
+      const js = await (await fetch(base + '/app.js')).text();
+      assert.match(js, /api\('\/api\/jobs'\)/, 'must GET the job list');
+      assert.match(js, /\/api\/jobs\/\$\{/, 'must GET a single job by id');
+    });
+  });
+
+  it('app.js supports cancelling a job via POST /api/jobs/:id/cancel', async () => {
+    await withServer(async (base) => {
+      const js = await (await fetch(base + '/app.js')).text();
+      assert.match(js, /\/cancel/);
+    });
+  });
+
+  it('app.js keeps the required safety copy', async () => {
+    await withServer(async (base) => {
+      const js = await (await fetch(base + '/app.js')).text();
+      assert.match(js, /Indexing writes to the selected collection/);
+      assert.match(js, /Prune stale should be used only with the full source root/);
+    });
+  });
+
+  it('app.js refreshes the sidebar after a job succeeds', async () => {
+    await withServer(async (base) => {
+      const js = await (await fetch(base + '/app.js')).text();
+      assert.match(js, /loadSidebar\(\)/);
+    });
+  });
+});
