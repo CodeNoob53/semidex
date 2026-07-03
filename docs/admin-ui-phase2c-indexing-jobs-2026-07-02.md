@@ -46,8 +46,8 @@ chunks,skeleton,node,search}.js` are untouched. No indexer file under
   finishedAt, exitCode } }` (job summary shape — no log, no child handle, no
   env).
 - Conflict: `409 { error: { code: "conflict", message } }` when a job is
-  already `queued`/`running` — the second request is rejected outright, not
-  queued.
+  already `queued`, `running`, or `cancelling` — the second request is
+  rejected outright, not queued.
 - Validation failures: `400 bad_request`.
 
 **`GET /api/jobs`** → `200 { jobs: [JobSummary, ...] }`, newest first.
@@ -123,13 +123,23 @@ New **"index a folder"** screen (`#/index`, linked from the sidebar):
   queued/running/cancelling gets `409`, never silently queued or dropped —
   `cancelling` counts as active specifically so a job mid-shutdown can't be
   raced by a new start before its process has actually exited.
-- **No env dump, no secrets in logs or responses.** `toJobSummary`/
-  `toJobDetail` (`src/admin/api/jobs.js`) explicitly allow-list the fields
-  serialized to the client (`id, collection, path, options, state,
-  startedAt, finishedAt, exitCode`, `log` for detail only) — the raw `env`
-  object built in `registry.js` never leaves that function's local scope,
-  and `job.child` (the actual child_process handle) is never touched by the
-  API layer's response builders.
+- **No env dump.** `toJobSummary`/`toJobDetail` (`src/admin/api/jobs.js`)
+  explicitly allow-list the fields serialized to the client (`id,
+  collection, path, options, state, startedAt, finishedAt, exitCode`, `log`
+  for detail only) — the raw `env` object built in `registry.js` never
+  leaves that function's local scope, and `job.child` (the actual
+  child_process handle) is never touched by the API layer's response
+  builders.
+- **Captured log lines are redacted at capture time, not just at response
+  time.** `appendLog()` (`registry.js`) runs every stdout/stderr line through
+  `sanitiseErrorMessage()` (`src/core/doctor-checks.js`) before it's stored
+  in `job.log`, so a secret the indexer/Qdrant/Ollama print on an error path
+  is redacted before it ever sits in memory, not just before it's returned
+  by the API. This covers two specific cases: a literal match of the
+  configured `QDRANT_KEY` value, and any URL with embedded credentials or a
+  query string (reduced to its host-only form). It does not scan for
+  arbitrary secret patterns beyond those two — a differently-named secret
+  printed in a shape neither helper recognizes could still leak.
 - **Localhost-only remains the boundary.** No new host/port logic was
   added; jobs endpoints are behind the same `resolveHostConfig` loopback
   guard as every other route.
