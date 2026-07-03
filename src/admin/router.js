@@ -76,6 +76,7 @@ export function createRouter() {
   return {
     get(path, handler) { add('GET', path, handler); },
     post(path, handler) { add('POST', path, handler); },
+    delete(path, handler) { add('DELETE', path, handler); },
     handleRequest,
   };
 }

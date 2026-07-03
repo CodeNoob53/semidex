@@ -346,3 +346,23 @@ td.actions { text-align: right; }
   max-height: 220px; overflow-y: auto;
   border-top: 1px dashed var(--line-soft);
 }
+
+/* ── Phase 2D: collection maintenance panel ───────────────────────────────── */
+.maint-actions { margin: 12px 0; }
+.maint-section {
+  margin-top: 16px; padding-top: 14px;
+  border-top: 1px dashed var(--line-soft);
+}
+.maint-danger { border-top-color: rgba(224,93,93,.3); }
+
+.btn-danger {
+  background: transparent; color: var(--fail);
+  border: 1px solid rgba(224,93,93,.4); border-radius: 3px;
+  font-family: var(--mono); font-size: 12px; padding: 6px 16px; cursor: pointer;
+  margin-top: 8px;
+}
+.btn-danger:hover:not(:disabled) { background: rgba(224,93,93,.08); }
+.btn-danger:disabled { opacity: .4; cursor: default; }
+
+#maint-sync-result, #maint-reindex-result, #maint-delete-result { margin-top: 10px; }
+#maint-reindex-result a, #maint-sync-result a { color: var(--amber); }

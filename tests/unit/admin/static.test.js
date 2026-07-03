@@ -214,3 +214,78 @@ describe('indexing jobs view (served app.js / index.html)', () => {
     });
   });
 });
+
+// ── Phase 2D: collection maintenance panel presence ──────────────────────────
+// Same served-file-level approach: no DOM runner, so these assert the served
+// app.js wires the maintenance panel to the right endpoints and keeps the
+// required safety behavior/copy. API behavior is covered in server.test.js.
+describe('collection maintenance panel (served app.js)', () => {
+  it('collection detail view renders a maintenance panel container', async () => {
+    await withServer(async (base) => {
+      const js = await (await fetch(base + '/app.js')).text();
+      assert.match(js, /col-maint/, 'collection detail must render a maintenance panel container');
+      assert.match(js, /initMaintenancePanel/);
+    });
+  });
+
+  it('app.js posts to /api/collections/:name/sync-schema from the maintenance panel', async () => {
+    await withServer(async (base) => {
+      const js = await (await fetch(base + '/app.js')).text();
+      assert.match(js, /apiPost\(`\/api\/collections\/\$\{encodeURIComponent\(name\)\}\/sync-schema`/);
+    });
+  });
+
+  it('app.js can start /api/jobs/index from maintenance with the current collection name prefilled', async () => {
+    await withServer(async (base) => {
+      const js = await (await fetch(base + '/app.js')).text();
+      assert.match(js, /runMaintenanceReindex/);
+      // collection is taken from the current view's `name`, never a second
+      // text input the user would have to retype.
+      assert.match(js, /collection:\s*name,[\s\S]{0,80}path,/);
+    });
+  });
+
+  it('app.js requires a source path before starting a maintenance reindex', async () => {
+    await withServer(async (base) => {
+      const js = await (await fetch(base + '/app.js')).text();
+      assert.match(js, /Source path is required/);
+    });
+  });
+
+  it('app.js requires exact collection-name confirmation before enabling delete', async () => {
+    await withServer(async (base) => {
+      const js = await (await fetch(base + '/app.js')).text();
+      assert.match(js, /deleteBtn\.disabled = confirmInput\.value !== name/);
+    });
+  });
+
+  it('app.js calls DELETE /api/collections/:name with the typed confirmation, not the known collection name', async () => {
+    await withServer(async (base) => {
+      const js = await (await fetch(base + '/app.js')).text();
+      assert.match(js, /method:\s*'DELETE'/);
+      assert.match(js, /apiDelete\(`\/api\/collections\/\$\{encodeURIComponent\(name\)\}`/);
+      // The confirm value sent to the server must come from what the user
+      // actually typed into the input, not be silently substituted with the
+      // already-known-good collection name — otherwise a wrongly-enabled
+      // button would still send a valid confirm regardless of input content.
+      assert.match(js, /const confirm = \$\('#maint-delete-confirm'\)\.value/);
+      assert.match(js, /apiDelete\(`\/api\/collections\/\$\{encodeURIComponent\(name\)\}`,\s*\{\s*confirm\s*\}\)/);
+      assert.ok(!/\{\s*confirm:\s*name\s*\}/.test(js), 'must not send the known collection name as confirm instead of the typed value');
+    });
+  });
+
+  it('app.js keeps the required reindex/prune-stale safety copy', async () => {
+    await withServer(async (base) => {
+      const js = await (await fetch(base + '/app.js')).text();
+      assert.match(js, /Reindex starts a background job and writes to this collection/);
+      assert.match(js, /Use prune stale only with the full source root/);
+    });
+  });
+
+  it('app.js navigates away from the deleted collection after a successful delete', async () => {
+    await withServer(async (base) => {
+      const js = await (await fetch(base + '/app.js')).text();
+      assert.match(js, /runDeleteCollection[\s\S]{0,800}location\.hash = '#\/'/);
+    });
+  });
+});

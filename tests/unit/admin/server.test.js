@@ -151,6 +151,72 @@ describe('POST /api/collections/:name/sync-schema', () => {
   });
 });
 
+describe('DELETE /api/collections/:name', () => {
+  it('returns 404 for a missing collection without calling adapter.deleteCollection', async () => {
+    let deleteCalled = false;
+    const adapter = makeStubAdapter({
+      deleteCollection: async () => { deleteCalled = true; },
+    });
+    await withServer(adapter, async (base) => {
+      const res = await fetch(base + '/api/collections/missing', {
+        method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirm: 'missing' }),
+      });
+      assert.equal(res.status, 404);
+      assert.equal((await res.json()).error.code, 'not_found');
+      assert.equal(deleteCalled, false);
+    });
+  });
+
+  it('rejects a missing confirm field without calling adapter.deleteCollection', async () => {
+    let deleteCalled = false;
+    const adapter = makeStubAdapter({
+      deleteCollection: async () => { deleteCalled = true; },
+    });
+    await withServer(adapter, async (base) => {
+      const res = await fetch(base + '/api/collections/demo', {
+        method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      assert.equal(res.status, 400);
+      assert.equal((await res.json()).error.code, 'bad_request');
+      assert.equal(deleteCalled, false);
+    });
+  });
+
+  it('rejects a confirm value that does not exactly match the collection name', async () => {
+    let deleteCalled = false;
+    const adapter = makeStubAdapter({
+      deleteCollection: async () => { deleteCalled = true; },
+    });
+    await withServer(adapter, async (base) => {
+      const res = await fetch(base + '/api/collections/demo', {
+        method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirm: 'wrong-name' }),
+      });
+      assert.equal(res.status, 400);
+      assert.equal(deleteCalled, false);
+    });
+  });
+
+  it('calls adapter.deleteCollection and returns a clean domain response when confirm matches', async () => {
+    let deletedWith = null;
+    const adapter = makeStubAdapter({
+      deleteCollection: async (name) => { deletedWith = name; },
+    });
+    await withServer(adapter, async (base) => {
+      const res = await fetch(base + '/api/collections/demo', {
+        method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirm: 'demo' }),
+      });
+      assert.equal(res.status, 200);
+      const body = await res.json();
+      assert.deepEqual(body, { collection: 'demo', deleted: true });
+      assert.equal(deletedWith, 'demo');
+    });
+  });
+});
+
 describe('GET /api/collections/:name/documents', () => {
   it('returns docs for an existing collection', async () => {
     const adapter = makeStubAdapter({
@@ -474,7 +540,8 @@ describe('unknown routes and methods', () => {
 
   it('returns 404 for a known path called with an unsupported method (consistent with unknown-route status)', async () => {
     await withServer(makeStubAdapter(), async (base) => {
-      const res = await fetch(base + '/api/collections/demo', { method: 'DELETE' });
+      // PUT is not registered anywhere in this API (only GET/POST/DELETE are).
+      const res = await fetch(base + '/api/collections/demo', { method: 'PUT' });
       const body = await res.json();
       assert.equal(res.status, 404);
       assert.equal(body.error.code, 'not_found');

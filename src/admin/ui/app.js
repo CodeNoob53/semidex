@@ -36,6 +36,23 @@ async function apiPost(path, payload) {
   return body;
 }
 
+async function apiDelete(path, payload) {
+  const res = await fetch(path, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  let body = null;
+  try { body = await res.json(); } catch { /* non-JSON is a bug upstream */ }
+  if (!res.ok) {
+    const message = body?.error?.message ?? `HTTP ${res.status}`;
+    const err = new Error(message);
+    err.status = res.status;
+    throw err;
+  }
+  return body;
+}
+
 function esc(value) {
   return String(value ?? '')
     .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
@@ -167,6 +184,7 @@ async function renderCollection(main, name) {
     <h1 class="view-title">${esc(name)}</h1>
     <p class="view-sub">Collection detail — metadata, search playground, indexed documents, skeleton navigation.</p>
     <div class="panel"><div class="panel-head">Metadata</div><div class="panel-body" id="col-meta">…</div></div>
+    <div class="panel"><div class="panel-head">Maintenance</div><div class="panel-body" id="col-maint">…</div></div>
     <div class="panel"><div class="panel-head"><span>Search playground</span><span class="mono" id="search-mode"></span></div>
       <div class="panel-body" id="search-panel">…</div></div>
     <div class="grid-2">
@@ -188,6 +206,7 @@ async function renderCollection(main, name) {
     detail = body.collection;
   } catch (err) {
     $('#col-meta').innerHTML = errorBox(err);
+    $('#col-maint').innerHTML = '<div class="empty">—</div>';
     $('#col-docs').innerHTML = '<div class="empty">—</div>';
     $('#col-skel').innerHTML = '<div class="empty">—</div>';
     return;
@@ -212,8 +231,175 @@ async function renderCollection(main, name) {
     </dl>
     ${(detail.warnings ?? []).map(w => `<div class="error-box" style="margin-top:12px">${esc(w)}</div>`).join('')}`;
 
+  initMaintenancePanel(name, detail);
   loadDocuments(name);
   loadSkeleton(name, detail.hasSkeleton);
+}
+
+// ── maintenance panel ─────────────────────────────────────────────────────
+// Semidex-level actions only: schema sync (existing endpoint), reindex (the
+// Phase 2C jobs system), delete (type-to-confirm). No Qdrant raw JSON, no
+// filter DSL, no backend-specific controls here — everything is rendered
+// from the same domain-shaped Collection object the metadata panel uses.
+function initMaintenancePanel(name, detail) {
+  const box = $('#col-maint');
+  const v = detail.vectorSchema ?? {};
+  const p = detail.provider ?? {};
+  const ver = detail.versions ?? {};
+  const warnings = detail.warnings ?? [];
+  const healthBadge = warnings.length
+    ? `<span class="badge badge-warn">${warnings.length} warning${warnings.length > 1 ? 's' : ''}</span>`
+    : '<span class="badge badge-ok">healthy</span>';
+
+  box.innerHTML = `
+    <dl class="kv">
+      <dt>health</dt><dd>${healthBadge}</dd>
+      <dt>dense vector</dt><dd>${v.dense?.size ?? '—'} · ${esc(v.dense?.distance ?? '—')}</dd>
+      <dt>sparse vector</dt><dd>${v.sparse ? 'yes' : 'no'}</dd>
+      <dt>provider</dt><dd>${esc(p.denseProvider ?? '—')}${p.denseModel ? ` / ${esc(p.denseModel)}` : ''}, sparse: ${esc(p.sparseProvider ?? '—')}</dd>
+      <dt>versions</dt><dd>embed v${ver.embeddingSchema ?? '?'} · chunk v${ver.chunkingSchema ?? '?'}</dd>
+    </dl>
+    <div class="maint-actions">
+      <button type="button" class="btn-amber" id="maint-sync">sync schema</button>
+    </div>
+    <div id="maint-sync-result"></div>
+
+    <div class="maint-section">
+      <p class="skel-note" style="margin-top:0">Reindex starts a background job and writes to this collection.</p>
+      <form id="maint-reindex-form" autocomplete="off">
+        <label class="form-row">
+          <span>source path</span>
+          <input type="text" id="maint-path" class="q-input" placeholder="C:\\path\\to\\docs or ./docs" required>
+        </label>
+        <div class="idx-options">
+          <label class="idx-check"><input type="checkbox" id="maint-opt-onnx" checked> ONNX embeddings</label>
+          <label class="idx-check"><input type="checkbox" id="maint-opt-skel-chunk" checked> Skeleton chunking</label>
+          <label class="idx-check"><input type="checkbox" id="maint-opt-skel-nav" checked> Skeleton navigation</label>
+          <label class="idx-check"><input type="checkbox" id="maint-opt-prune"> Prune stale</label>
+          <label class="idx-check"><input type="checkbox" id="maint-opt-tags"> Generate tags</label>
+        </div>
+        <p class="skel-note">Use prune stale only with the full source root.</p>
+        <button type="submit" class="btn-amber" id="maint-reindex-submit">reindex collection</button>
+      </form>
+      <div id="maint-reindex-result"></div>
+    </div>
+
+    <div class="maint-section maint-danger">
+      <p class="skel-note" style="margin-top:0">Deleting a collection permanently removes it from storage. This cannot be undone.</p>
+      <label class="form-row">
+        <span>type <b class="mono">${esc(name)}</b> to confirm</span>
+        <input type="text" id="maint-delete-confirm" class="q-input" placeholder="${esc(name)}" autocomplete="off">
+      </label>
+      <button type="button" class="btn-danger" id="maint-delete-submit" disabled>delete collection</button>
+      <div id="maint-delete-result"></div>
+    </div>`;
+
+  $('#maint-sync').addEventListener('click', () => runSyncSchema(name));
+  $('#maint-reindex-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    runMaintenanceReindex(name);
+  });
+  $('#maint-opt-prune').addEventListener('change', (e) => {
+    e.target.closest('label').classList.toggle('warn', e.target.checked);
+  });
+
+  const confirmInput = $('#maint-delete-confirm');
+  const deleteBtn = $('#maint-delete-submit');
+  confirmInput.addEventListener('input', () => {
+    deleteBtn.disabled = confirmInput.value !== name;
+  });
+  deleteBtn.addEventListener('click', () => runDeleteCollection(name));
+}
+
+async function runSyncSchema(name) {
+  const btn = $('#maint-sync');
+  const result = $('#maint-sync-result');
+  btn.disabled = true;
+  result.className = 'empty';
+  result.textContent = 'syncing…';
+
+  try {
+    const body = await apiPost(`/api/collections/${encodeURIComponent(name)}/sync-schema`, {});
+    const parts = [];
+    if (body.repaired?.length) parts.push(`repaired: ${body.repaired.join(', ')}`);
+    if (body.warnings?.length) parts.push(`warnings: ${body.warnings.join(' · ')}`);
+    result.className = body.warnings?.length ? 'error-box' : 'empty';
+    result.textContent = parts.length ? parts.join(' — ') : 'Schema already up to date.';
+    // Metadata may change (e.g. new indexes, sparse support) — refresh the view.
+    renderCollection($('#main'), name);
+  } catch (err) {
+    result.className = 'error-box';
+    result.textContent = err.message;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function runMaintenanceReindex(name) {
+  const submit = $('#maint-reindex-submit');
+  const result = $('#maint-reindex-result');
+
+  const path = $('#maint-path').value.trim();
+  if (!path) {
+    result.className = 'error-box';
+    result.textContent = 'Source path is required.';
+    return;
+  }
+
+  const payload = {
+    collection: name,
+    path,
+    options: {
+      onnxEmbed: $('#maint-opt-onnx').checked,
+      skeletonChunking: $('#maint-opt-skel-chunk').checked,
+      skeletonNav: $('#maint-opt-skel-nav').checked,
+      pruneStale: $('#maint-opt-prune').checked,
+      tagGen: $('#maint-opt-tags').checked,
+    },
+  };
+
+  submit.disabled = true;
+  result.className = 'empty';
+  result.textContent = 'starting…';
+
+  try {
+    const body = await apiPost('/api/jobs/index', payload);
+    result.className = 'empty';
+    result.innerHTML = `Job started (<span class="mono">${esc(body.job.id)}</span>).
+      <a href="#/index">Watch it on the indexing jobs view</a>.`;
+  } catch (err) {
+    result.className = 'error-box';
+    result.textContent = err.status === 409
+      ? `${err.message} Wait for it to finish, or cancel it from the indexing jobs view.`
+      : err.message;
+  } finally {
+    submit.disabled = false;
+  }
+}
+
+async function runDeleteCollection(name) {
+  const btn = $('#maint-delete-submit');
+  const result = $('#maint-delete-result');
+  // Send exactly what the user typed, not the known-good `name` — the
+  // button's disabled state is a UI convenience, not the source of truth.
+  // If it were ever wrongly enabled, the server must still see (and reject)
+  // whatever the user actually confirmed, not a value the client silently
+  // substituted on their behalf.
+  const confirm = $('#maint-delete-confirm').value;
+
+  btn.disabled = true;
+  result.className = 'empty';
+  result.textContent = 'deleting…';
+
+  try {
+    await apiDelete(`/api/collections/${encodeURIComponent(name)}`, { confirm });
+    location.hash = '#/';
+    loadSidebar();
+  } catch (err) {
+    result.className = 'error-box';
+    result.textContent = err.message;
+    btn.disabled = false;
+  }
 }
 
 async function loadDocuments(name) {
