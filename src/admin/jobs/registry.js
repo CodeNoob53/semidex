@@ -30,9 +30,12 @@ const STATES = Object.freeze({
  * strings. Never composed by the UI — only here, at spawn time (design doc
  * §9). PRUNE_STALE/TAG_GEN are set only when true (task spec: "PRUNE_STALE=1
  * only when true", "TAG_GEN=1 only when true" — omitted otherwise, matching
- * how the indexer already treats an unset var as off).
+ * how the indexer already treats an unset var as off). `llmSummaries` maps
+ * to SKELETON_SUMMARY=llm (the indexer's existing opt-in for LLM-generated
+ * nav-node summaries instead of deterministic ones) — omitted when false,
+ * same "unset = off" convention as the other optional flags.
  *
- * @param {{ onnxEmbed?: boolean, skeletonChunking?: boolean, skeletonNav?: boolean, pruneStale?: boolean, tagGen?: boolean }} options
+ * @param {{ onnxEmbed?: boolean, skeletonChunking?: boolean, skeletonNav?: boolean, llmSummaries?: boolean, pruneStale?: boolean, tagGen?: boolean }} options
  */
 export function buildJobEnv(collection, options = {}) {
   const env = {
@@ -41,6 +44,7 @@ export function buildJobEnv(collection, options = {}) {
     SKELETON_CHUNKING: options.skeletonChunking ? '1' : '0',
     SKELETON_NAV: options.skeletonNav ? '1' : '0',
   };
+  if (options.llmSummaries) env.SKELETON_SUMMARY = 'llm';
   if (options.pruneStale) env.PRUNE_STALE = '1';
   if (options.tagGen) env.TAG_GEN = '1';
   return env;

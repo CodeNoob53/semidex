@@ -36,6 +36,7 @@ describe('schema.js is the single source of truth', () => {
       node_type:   'keyword',
       node_id:     'keyword',
       node_path:   'keyword',
+      parent_id:   'keyword',
     });
   });
 

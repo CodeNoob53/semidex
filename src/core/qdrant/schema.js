@@ -27,4 +27,8 @@ export const REQUIRED_PAYLOAD_INDEXES = {
   node_type:   'keyword',
   node_id:     'keyword',
   node_path:   'keyword',
+  // Admin UI (Phase 2E): resolving a section nav node to its first content
+  // chunk (getFirstContentChunkByParent) filters by parent_id — without an
+  // index this degrades to a full collection scan on every sidebar click.
+  parent_id:   'keyword',
 };

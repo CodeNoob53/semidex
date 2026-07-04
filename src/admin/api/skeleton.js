@@ -1,6 +1,7 @@
 // GET /api/collections/:name/skeleton
 // GET /api/collections/:name/skeleton/node
 // GET /api/collections/:name/skeleton/children
+// GET /api/collections/:name/skeleton/anchor
 // StorageAdapter-only.
 import { sendJson, notFound } from '../http.js';
 import { requireExactlyOne, parseIntParam } from './query-params.js';
@@ -43,5 +44,20 @@ export function registerSkeletonRoutes(router, adapter) {
 
     const children = await adapter.getSkeletonChildren(params.name, { ...opts, limit });
     sendJson(res, 200, { collection: params.name, children });
+  });
+
+  // Resolves a section (or any nav node) to the earliest real content chunk
+  // anchored under it — used by the Admin UI sidebar to open the actual
+  // section text instead of guessing chunkIndex 0 for the whole file.
+  router.get('/api/collections/:name/skeleton/anchor', async ({ res, params, query }) => {
+    const existing = await adapter.getCollection(params.name);
+    if (!existing) throw notFound(`Collection "${params.name}" not found`);
+
+    const { key, value } = requireExactlyOne(query, ['nodeId', 'nodePath']);
+    const opts = key === 'nodeId' ? { nodeId: value } : { nodePath: value };
+
+    const chunk = await adapter.getSectionAnchor(params.name, opts);
+    if (!chunk) throw notFound(`No content chunk anchored under ${key}="${value}"`);
+    sendJson(res, 200, { collection: params.name, chunk });
   });
 }

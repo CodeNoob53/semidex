@@ -237,11 +237,24 @@ export async function listSourceFiles(collection) {
  * payloadFields: string[] of payload field names, e.g. ['source_file', 'tags']
  */
 export async function scrollAllPoints(collection, payloadFields, pageSize = 250) {
+  return scrollAllFiltered(collection, null, payloadFields, pageSize);
+}
+
+/**
+ * Paginate through all points matching a filter, requesting only the
+ * specified payload fields (no vectors). Returns the full flat array of
+ * points — unlike scroll(), this follows next_page_offset until exhausted
+ * instead of stopping at a single page, so callers that need every match
+ * (not just the first `limit`) don't silently miss points past the first
+ * page.
+ */
+export async function scrollAllFiltered(collection, filter, payloadFields, pageSize = 250) {
   const client = getQdrantClient();
   const points = [];
   let offset = null;
   while (true) {
-    const result = await qdrantCall('Qdrant scrollAllPoints failed', () => client.scroll(collection, {
+    const result = await qdrantCall('Qdrant scrollAllFiltered failed', () => client.scroll(collection, {
+      ...(filter && { filter }),
       limit: pageSize,
       with_payload: payloadFields,
       with_vector: false,
@@ -412,4 +425,27 @@ export async function getAnyNodeByPath(collection, nodePath) {
     [...CONTENT_NODE_FIELDS, ...NAV_PAYLOAD_FIELDS],
   );
   return points[0]?.payload ?? null;
+}
+
+/**
+ * Find the earliest (lowest chunk_index) content chunk whose parent_id
+ * matches the given skeleton nav node id. A section nav node and its
+ * content chunks are separate points linked only via parent_id (nav node_id
+ * === content chunk parent_id, by construction — see skeleton-index.js) —
+ * this is how "open this section" resolves to an actual readable chunk
+ * instead of guessing chunk_index 0 for the whole file.
+ * Returns the point payload or null if the section has no content chunks
+ * (e.g. an empty section, or a legacy/non-skeleton collection).
+ */
+export async function getFirstContentChunkByParent(collection, parentId) {
+  const points = await scrollAllFiltered(
+    collection,
+    { must: [{ key: 'parent_id', match: { value: parentId } }] },
+    CONTENT_NODE_FIELDS,
+  );
+  const content = points
+    .map(p => p.payload)
+    .filter(p => p && p.point_kind !== 'skeleton_nav' && Number.isInteger(p.chunk_index));
+  if (!content.length) return null;
+  return content.reduce((min, p) => (p.chunk_index < min.chunk_index ? p : min));
 }

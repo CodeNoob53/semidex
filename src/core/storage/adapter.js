@@ -28,6 +28,7 @@
  * @property {(name: string, opts: { nodeId?: string, nodePath?: string }) => Promise<Object|null>} getSkeletonNode
  * @property {(name: string, opts: { nodeId?: string, nodePath?: string, limit?: number }) => Promise<Object[]>} getSkeletonChildren
  * @property {(name: string, opts: { nodeId?: string, nodePath?: string }) => Promise<Object|null>} getStructuralNode
+ * @property {(name: string, opts: { nodeId?: string, nodePath?: string }) => Promise<Object|null>} getSectionAnchor
  */
 
 // Every method a conforming StorageAdapter must expose. Kept as a flat list
@@ -48,6 +49,7 @@ export const REQUIRED_ADAPTER_METHODS = [
   'getSkeletonNode',
   'getSkeletonChildren',
   'getStructuralNode',
+  'getSectionAnchor',
 ];
 
 /**

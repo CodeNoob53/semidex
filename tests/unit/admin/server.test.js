@@ -27,6 +27,7 @@ function makeStubAdapter(overrides = {}) {
     getSkeletonNode: async () => null,
     getSkeletonChildren: async () => [],
     getStructuralNode: async () => null,
+    getSectionAnchor: async () => null,
     ...overrides,
   };
 }
@@ -158,57 +159,21 @@ describe('DELETE /api/collections/:name', () => {
       deleteCollection: async () => { deleteCalled = true; },
     });
     await withServer(adapter, async (base) => {
-      const res = await fetch(base + '/api/collections/missing', {
-        method: 'DELETE', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ confirm: 'missing' }),
-      });
+      const res = await fetch(base + '/api/collections/missing', { method: 'DELETE' });
       assert.equal(res.status, 404);
       assert.equal((await res.json()).error.code, 'not_found');
       assert.equal(deleteCalled, false);
     });
   });
 
-  it('rejects a missing confirm field without calling adapter.deleteCollection', async () => {
-    let deleteCalled = false;
-    const adapter = makeStubAdapter({
-      deleteCollection: async () => { deleteCalled = true; },
-    });
-    await withServer(adapter, async (base) => {
-      const res = await fetch(base + '/api/collections/demo', {
-        method: 'DELETE', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
-      });
-      assert.equal(res.status, 400);
-      assert.equal((await res.json()).error.code, 'bad_request');
-      assert.equal(deleteCalled, false);
-    });
-  });
-
-  it('rejects a confirm value that does not exactly match the collection name', async () => {
-    let deleteCalled = false;
-    const adapter = makeStubAdapter({
-      deleteCollection: async () => { deleteCalled = true; },
-    });
-    await withServer(adapter, async (base) => {
-      const res = await fetch(base + '/api/collections/demo', {
-        method: 'DELETE', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ confirm: 'wrong-name' }),
-      });
-      assert.equal(res.status, 400);
-      assert.equal(deleteCalled, false);
-    });
-  });
-
-  it('calls adapter.deleteCollection and returns a clean domain response when confirm matches', async () => {
+  it('calls adapter.deleteCollection and returns a clean domain response, no request body required', async () => {
     let deletedWith = null;
     const adapter = makeStubAdapter({
       deleteCollection: async (name) => { deletedWith = name; },
     });
     await withServer(adapter, async (base) => {
-      const res = await fetch(base + '/api/collections/demo', {
-        method: 'DELETE', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ confirm: 'demo' }),
-      });
+      // No body at all — confirmation is a UI-level modal, not an API contract.
+      const res = await fetch(base + '/api/collections/demo', { method: 'DELETE' });
       assert.equal(res.status, 200);
       const body = await res.json();
       assert.deepEqual(body, { collection: 'demo', deleted: true });

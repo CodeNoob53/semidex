@@ -1,11 +1,24 @@
 # Admin UI — Phase 2D Collection Maintenance Panel Report (2026-07-03)
 
+> **Superseded by Phase 2E** (`docs/admin-ui-phase2e-navigation-redesign-2026-07-03.md`).
+> This report describes the delete-confirmation contract as it existed at the
+> end of Phase 2D: exact-name type-to-confirm, both in the UI (a text input
+> the user had to retype) and in the API (`DELETE /api/collections/:name`
+> required a `{ confirm: "<exact name>" }` body). **That contract no longer
+> exists.** Phase 2E removed typed confirmation entirely, at both layers: the
+> UI now uses a plain modal (Cancel/Delete buttons, no text input), and the
+> API's `DELETE /api/collections/:name` takes no request body at all. Every
+> `{ confirm: ... }`, "type-to-confirm", and "missing confirm" reference below
+> describes historical behavior only — do not treat it as the current
+> contract. See the Phase 2E report for the current delete flow.
+
 Adds a maintenance panel to the collection detail page: schema health at a
 glance, a sync-schema action, a reindex action (via the existing Phase 2C
-jobs system), and a delete action gated by exact-name confirmation. This is
-**semidex maintenance UI, not a Qdrant dashboard** — every action speaks
-domain shapes (`Collection`, job summaries) through the existing
-`StorageAdapter`; no Qdrant filter DSL or raw internals are exposed.
+jobs system), and a delete action gated by exact-name confirmation *(as of
+Phase 2D — since replaced, see notice above)*. This is **semidex
+maintenance UI, not a Qdrant dashboard** — every action speaks domain shapes
+(`Collection`, job summaries) through the existing `StorageAdapter`; no
+Qdrant filter DSL or raw internals are exposed.
 
 ## What changed
 

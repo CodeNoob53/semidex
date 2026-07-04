@@ -287,5 +287,20 @@ export function createQdrantStorageAdapter() {
         : await store.getContentNodeByPath(name, nodePath);
       return toStructuralNodeChunk(node);
     },
+
+    // Resolves a skeleton nav node (e.g. a section) to the earliest content
+    // chunk anchored under it, so "open this section" can jump to a real
+    // chunkIndex instead of guessing chunk 0 for the whole file. A section
+    // nav node and its content chunks are separate Qdrant points linked only
+    // by parent_id === section's node_id (design: skeleton-index.js) — this
+    // is the one place that link is followed.
+    async getSectionAnchor(name, { nodeId, nodePath } = {}) {
+      const navNode = nodeId
+        ? await store.getSkeletonNodeById(name, nodeId)
+        : await store.getSkeletonNodeByPath(name, nodePath);
+      if (!navNode?.node_id) return null;
+      const chunk = await store.getFirstContentChunkByParent(name, navNode.node_id);
+      return chunk ? toChunk({ payload: chunk }) : null;
+    },
   };
 }

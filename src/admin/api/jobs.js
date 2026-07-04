@@ -48,6 +48,7 @@ function parseOptions(body) {
     onnxEmbed: bool('onnxEmbed'),
     skeletonChunking: bool('skeletonChunking'),
     skeletonNav: bool('skeletonNav'),
+    llmSummaries: bool('llmSummaries'),
     pruneStale: bool('pruneStale'),
     tagGen: bool('tagGen'),
   };

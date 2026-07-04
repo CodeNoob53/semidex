@@ -90,16 +90,22 @@ describe('buildJobEnv', () => {
     assert.equal(env.SKELETON_NAV, '1');
   });
 
-  it('omits PRUNE_STALE and TAG_GEN entirely when false/unset (not "0")', () => {
-    const env = buildJobEnv('demo', { pruneStale: false, tagGen: false });
+  it('omits PRUNE_STALE, TAG_GEN, and SKELETON_SUMMARY entirely when false/unset (not "0")', () => {
+    const env = buildJobEnv('demo', { pruneStale: false, tagGen: false, llmSummaries: false });
     assert.equal('PRUNE_STALE' in env, false);
     assert.equal('TAG_GEN' in env, false);
+    assert.equal('SKELETON_SUMMARY' in env, false);
   });
 
   it('sets PRUNE_STALE=1 and TAG_GEN=1 only when true', () => {
     const env = buildJobEnv('demo', { pruneStale: true, tagGen: true });
     assert.equal(env.PRUNE_STALE, '1');
     assert.equal(env.TAG_GEN, '1');
+  });
+
+  it('sets SKELETON_SUMMARY=llm only when llmSummaries is true', () => {
+    const env = buildJobEnv('demo', { llmSummaries: true });
+    assert.equal(env.SKELETON_SUMMARY, 'llm');
   });
 });
 
@@ -340,7 +346,7 @@ function makeStubAdapter() {
     deleteCollection: async () => {}, ensureCollectionSchema: async () => ({ repaired: [], warnings: [] }),
     listSourceDocuments: async () => [], getChunk: async () => [], searchHybrid: async () => [],
     getSkeletonRoot: async () => null, getSkeletonNode: async () => null, getSkeletonChildren: async () => [],
-    getStructuralNode: async () => null,
+    getStructuralNode: async () => null, getSectionAnchor: async () => null,
   };
 }
 
@@ -383,6 +389,18 @@ describe('POST /api/jobs/index — validation', () => {
         body: JSON.stringify({ collection: 'demo', path: './x', options: { onnxEmbed: 'yes' } }),
       });
       assert.equal(res.status, 400);
+    });
+  });
+
+  it('accepts llmSummaries as a boolean option', async () => {
+    const calls = [];
+    await withJobApp(makeNeverExitingSpawn(calls), async (base) => {
+      const res = await fetch(base + '/api/jobs/index', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ collection: 'demo', path: './x', options: { llmSummaries: true } }),
+      });
+      assert.equal(res.status, 202);
+      assert.equal(calls[0].opts.env.SKELETON_SUMMARY, 'llm');
     });
   });
 
