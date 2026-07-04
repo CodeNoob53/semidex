@@ -40,8 +40,8 @@ The MVP answers four user questions without CLI knowledge:
    renderer for them.
 2. **"What is indexed?"** — collections list and detail: point count, vector
    schema, provider metadata, schema/chunking/indexing versions, source file
-   list, tag summary. Create collection (safe name only), delete behind an
-   explicit typed confirmation, run sync.
+   list, tag summary. Create collection (safe name only), delete behind a
+   modal confirmation (Cancel/Delete — no typed name, see §7/§8), run sync.
 3. **"Index this folder."** — pick path + collection + options
    (`ONNX_EMBED`, `SKELETON_CHUNKING`, `SKELETON_NAV`, `PRUNE_STALE`,
    `TAG_GEN`), watch live logs, get a final summary (files indexed/skipped,
@@ -71,6 +71,78 @@ Server stays minimal: `node:http` with no web framework. The UI stays vanilla
 HTML/JS/CSS, but uses a Vite build so the source can be split into modules and
 HTML partials. Runtime serves the built files from `src/admin/ui/`; editable
 source lives in `src/admin/ui-src/`.
+
+**UI source layout:**
+
+```text
+src/admin/ui-src/
+  index.html           - source of truth for the base static layout (topbar,
+                         sidebar container, main content root). A normal
+                         static HTML document — the layout is NOT injected
+                         by JS at runtime. Also declares <load src="..."/>
+                         tags that pull in reusable <template> partials
+                         (see below), resolved at build/serve time by
+                         vite-plugin-html-inject.
+  main.js              - imports app.css, calls startAdminApp(). Does not
+                         inject any HTML — no document.body.innerHTML = ...
+                         anywhere in this project.
+  app.js               - app logic: routing, API calls, dynamic rendering.
+  app.css
+  partials/
+    overview-shell.html, collection-shell.html, settings-shell.html,
+    index-view.html    - static per-route view shells (the parts of a route
+                         view that never depend on runtime data — panel/
+                         form structure, loading placeholders). Imported by
+                         app.js as raw text (Vite's `?raw` suffix) and
+                         swapped into `main.innerHTML` when that route
+                         renders; the dynamic content that fills the
+                         placeholder ids inside them is still rendered from
+                         JS, unchanged from before.
+    templates/
+      delete-modal.html, search-result.html (+ nested window-chunk
+      template), chunk-card.html, job-row.html, empty-state.html,
+      error-state.html
+                       - reusable <template id="tpl-...">...</template>
+                         blocks for repeating/dynamic-content UI. Injected
+                         into index.html itself (not per-view) via <load>,
+                         so exactly one copy of each template exists in the
+                         page regardless of how many times it's rendered.
+                         app.js clones them (`document.getElementById(id)
+                         .content.cloneNode(true)`) and fills fields with
+                         `textContent`/`dataset`/`setAttribute` — never
+                         `innerHTML` with user/API content.
+src/admin/ui/          - GENERATED build output (`npm run admin:build`).
+                         Never hand-edit. Fully overwritten
+                         (`emptyOutDir: true`) on every build.
+```
+
+**UI dev/build workflow:**
+
+```text
+npm run admin:dev    - Vite dev server (127.0.0.1). index.html itself is
+                        covered by Vite's own dev-server reload (editing it
+                        reloads automatically, verified). Editing any file
+                        under ui-src/partials/**/*.html triggers a full page
+                        reload via vite-plugin-html-inject — necessary
+                        because plain .html files aren't part of Vite's
+                        ES-module HMR graph, so nothing would happen on an
+                        edit without it. For UI development only — talks to
+                        the Local API on its own port, no static-file
+                        serving from src/admin/server.js involved.
+npm run admin:build  - `vite build`; compiles src/admin/ui-src/ into
+                        src/admin/ui/ (index.html, app.js, app.css).
+npm run admin        - `node src/admin/server.js` — serves the *built*
+                        files from src/admin/ui/ (src/admin/static.js) plus
+                        the /api/* routes. No dev server, no build step at
+                        runtime; this is the production/normal-use path.
+```
+
+**Rule:** edit only `src/admin/ui-src/*` (JS, CSS, HTML, partials/templates).
+Never hand-edit `src/admin/ui/*` — it's Vite's build output. Run the build
+after every `ui-src` change before testing against `npm run admin` or
+committing — `src/admin/ui/` is checked into git as the servable artifact,
+so a stale build silently serves old behavior even though the source is
+correct.
 
 ```text
 src/core/storage/
@@ -261,7 +333,7 @@ configurable via `ADMIN_PORT`). JSON in/out; errors as
 | `GET  /api/collections/:name` | full `Collection` detail |
 | `GET  /api/collections/:name/documents?prefix=&limit=` | `SourceDocument[]` |
 | `POST /api/collections` | `{ name, vectorSize? }` — create with full semidex schema |
-| `DELETE /api/collections/:name` | body `{ confirm: "<name>" }` required; 400 otherwise |
+| `DELETE /api/collections/:name` | no request body; 404 if the collection doesn't exist. Confirmation is a UI-only concern (a modal Cancel/Delete button), not part of this contract — see §8 |
 | `POST /api/sync` | run schema ensure across collections; returns per-collection results |
 | `POST /api/jobs/index` | `{ path, collection, options }` → `{ jobId }` |
 | `GET  /api/jobs` | job list (newest first) |
@@ -288,7 +360,7 @@ is one helper: `if (!caps.snapshots) hide(panel)`.
 |---|---|
 | **Dashboard home** (`#/`) | health cards (Qdrant/Ollama/ONNX/env), collection count + total points, last indexing jobs, misconfiguration warnings |
 | **Collections** (`#/collections`) | table: name, points, provider, schema status badge; "New collection", "Run sync" |
-| **Collection detail** (`#/collections/:name`) | metadata panel (schema, provider, versions, warnings), documents list with prefix filter, buttons: index into this collection, open search playground, delete (typed confirmation modal: user must re-type the collection name) |
+| **Collection detail** (`#/collections/:name`) | metadata panel (schema, provider, versions, warnings), documents list with prefix filter, buttons: index into this collection, open search playground, delete (modal confirmation: Cancel/Delete buttons only — no typed collection name; see §7) |
 | **Indexing** (`#/index`) | form: path input, collection select/create, option toggles with one-line explanations mirroring docs (e.g. "SKELETON_CHUNKING — tables/code as structural nodes"), live log pane (SSE), final summary card |
 | **Search playground** (`#/search`) | collection select, query input, top/window controls (defaults 5 / 1), result cards: score rank, source_file § section, chunk_index/total, context, text, tag chips, "open window", "open structural node" when node_path present |
 | **Skeleton viewer** (`#/collections/:name/skeleton`) | tree drill-down (collection → directory → file → section) using summaries; leaf actions: "search in this file" (prefills playground), "open raw node" |
@@ -350,8 +422,11 @@ is one helper: `if (!caps.snapshots) hide(panel)`.
   rejects obviously malformed input; it never echoes secrets.
 - `QDRANT_KEY` is never returned by any endpoint; health/env views use the
   existing redaction helpers.
-- Destructive actions: `DELETE /api/collections/:name` requires
-  `{ confirm: "<name>" }`; the UI implements type-to-confirm. Sync and
+- Destructive actions: `DELETE /api/collections/:name` takes no request
+  body — confirmation is a UI-only concern (a modal with Cancel/Delete
+  buttons, no typed collection name). This is intentional: typed
+  confirmation is not part of the Qdrant API and the loopback bind is
+  already the trust boundary for this single-user local tool. Sync and
   indexing are non-destructive by design (sync repairs, never drops;
   `PRUNE_STALE` stays a per-job opt-in with the full-root guard the indexer
   already enforces).

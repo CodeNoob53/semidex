@@ -1,6 +1,7 @@
 import './app.css';
-import shell from './partials/app-shell.html?raw';
 import { startAdminApp } from './app.js';
 
-document.body.innerHTML = shell;
+// The static layout (topbar/sidebar/main containers) lives directly in
+// index.html — this file only wires up styles and starts the app. It does
+// not inject any HTML into the page.
 startAdminApp();

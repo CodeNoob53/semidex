@@ -5,6 +5,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import vm from 'node:vm';
+import { parseHTML } from 'linkedom';
 import { createApp } from '../../../src/admin/server.js';
 import { resolveStaticPath } from '../../../src/admin/static.js';
 import { createJobRegistry } from '../../../src/admin/jobs/registry.js';
@@ -14,9 +15,9 @@ import { createJobRegistry } from '../../../src/admin/jobs/registry.js';
 // slicing technique already used elsewhere in this file) and evaluates just
 // those snippets in an isolated vm context. This lets tests assert on actual
 // rendering behavior for given inputs, not just regex-match the source text
-// — without needing a DOM/browser runner, and without risking the module-
-// level side effects (loadTopbar()/loadSidebar()/route()) that running the
-// whole file would trigger.
+// — without needing a browser, and without risking the module-level side
+// effects (loadTopbar()/loadSidebar()/route()) that running the whole file
+// would trigger.
 function extractBetween(src, startMarker, endMarker) {
   const start = src.indexOf(startMarker);
   if (start === -1) throw new Error(`marker not found: ${startMarker}`);
@@ -34,11 +35,24 @@ function loadSidebarLabelHelpers(js) {
   return context;
 }
 
-function loadChunkRenderHelpers(js) {
-  const src = extractBetween(js, 'function esc(value)', 'function errorBox(err)')
-    + extractBetween(js, 'const STRUCTURAL_NODE_TYPES', 'function fileViewLoadMoreButton');
-  const context = {};
+// renderResult()/renderFileChunks()/renderJobRow() clone <template> elements
+// via document.getElementById(...).content.cloneNode(true) — a plain vm
+// context has no `document`, so these need a real (if minimal) DOM. linkedom
+// is a small, fast DOM implementation used here for tests only; it is never
+// a runtime dependency of the shipped UI. The templates come from the same
+// served index.html the browser actually gets, not a hand-copied duplicate,
+// so a template/JS drift would show up as a querySelector miss here too.
+function loadDomRenderHelpers(js, html) {
+  const { document } = parseHTML(html);
+  const context = { document };
   vm.createContext(context);
+  // End markers are other function/const declarations, not comments — Vite's
+  // build strips comments even with minify:false, so a comment-based marker
+  // (fine for the dev source) would silently not match the served bundle.
+  const src = extractBetween(js, 'function esc(value)', 'async function loadTopbar')
+    + extractBetween(js, 'function renderResult(', 'let fileViewState')
+    + extractBetween(js, 'const STRUCTURAL_NODE_TYPES', 'function fileViewLoadMoreButton')
+    + extractBetween(js, 'const JOB_STATUS_BADGE_CLASS', 'async function loadJobs(');
   vm.runInContext(src, context);
   return context;
 }
@@ -95,6 +109,44 @@ describe('static UI serving', () => {
       const html = await res.text();
       assert.match(html, /semidex/);
       assert.match(html, /app\.js/);
+    });
+  });
+
+  it('GET / contains the real static layout directly in the body — not an empty shell relying on runtime injection', async () => {
+    // Regression guard for the app-shell.html indirection this project
+    // deliberately removed: the layout must be baked into index.html by
+    // Vite (via src/admin/ui-src/index.html directly, not a document.body.
+    // innerHTML = ... call at runtime). An empty <body> that only gets
+    // filled in by JS would still pass every other test in this file (they
+    // fetch app.js source, not a rendered DOM) but would defeat the whole
+    // point of moving the shell out of JS.
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const bodyMatch = html.match(/<body>([\s\S]*)<\/body>/);
+      assert.ok(bodyMatch, 'index.html must have a <body> tag');
+      const body = bodyMatch[1];
+      assert.match(body, /<header class="topbar">/, 'topbar must be present in the raw served HTML');
+      assert.match(body, /<nav class="sidebar">/, 'sidebar must be present in the raw served HTML');
+      assert.match(body, /<main class="main" id="main">/, 'main content root must be present in the raw served HTML');
+      assert.match(body, /id="health-lamp"/);
+      assert.match(body, /id="collection-list"/);
+      // The templates (delete modal, search result, chunk card, job row,
+      // empty/error state) are also inlined here by vite-plugin-html-inject
+      // — confirms <load> tags resolved, not left as literal <load> elements.
+      assert.match(body, /<template id="tpl-delete-modal">/);
+      assert.match(body, /<template id="tpl-search-result">/);
+      assert.match(body, /<template id="tpl-chunk-card">/);
+      assert.match(body, /<template id="tpl-job-row">/);
+      assert.match(body, /<template id="tpl-empty-state">/);
+      assert.match(body, /<template id="tpl-error-state">/);
+      assert.ok(!/<load\s/.test(body), 'the <load> include tags must be resolved at build time, not shipped literally');
+    });
+  });
+
+  it('main.js/app.js never assign document.body.innerHTML (the layout lives in index.html, not injected at runtime)', async () => {
+    await withServer(async (base) => {
+      const js = await (await fetch(base + '/app.js')).text();
+      assert.ok(!/document\.body\.innerHTML/.test(js), 'no full-body innerHTML injection should remain in the bundle');
     });
   });
 
@@ -236,12 +288,25 @@ describe('search this collection (served app.js)', () => {
     });
   });
 
-  it('app.js escapes rendered strings (esc used on result fields)', async () => {
+  it('search result rendering never lets API/user content become live markup (XSS-safe by construction)', async () => {
+    // renderResult() fills result fields via textContent, not innerHTML/string
+    // concatenation — this is a stronger guarantee than esc()+innerHTML
+    // (there is no escaping step to forget), so this test proves the
+    // behavior directly: a sourceFile/text/window-snippet containing HTML
+    // must render as inert text, never as a parsed element.
     await withServer(async (base) => {
       const js = await (await fetch(base + '/app.js')).text();
-      assert.match(js, /esc\(r\.sourceFile/, 'result sourceFile must go through esc()');
-      assert.match(js, /esc\(r\.text/, 'result text must go through esc()');
-      assert.match(js, /esc\(w\.textSnippet/, 'window snippets must go through esc()');
+      const html = await (await fetch(base + '/')).text();
+      const { renderResult } = loadDomRenderHelpers(js, html);
+      const malicious = '<img src=x onerror="window.__pwned=true">';
+      const card = renderResult({
+        sourceFile: malicious, text: malicious, section: malicious,
+        chunkIndex: 0, windowChunks: [{ chunkIndex: 1, textSnippet: malicious, isMatch: true }],
+      }, 0, false);
+      assert.equal(card.querySelector('.result-source').textContent, malicious);
+      assert.equal(card.querySelector('.chunk-text').textContent, malicious);
+      assert.equal(card.querySelectorAll('img').length, 0, 'malicious markup must never be parsed into a real element');
+      assert.equal(card.querySelector('.win-text').textContent, malicious);
     });
   });
 });
@@ -593,52 +658,59 @@ describe('sidebar node labels (served app.js, evaluated behavior)', () => {
   });
 });
 
-describe('chunk view rendering (served app.js, evaluated behavior)', () => {
+describe('chunk view rendering (served app.js + index.html, evaluated behavior)', () => {
   it('renderFileChunks includes a node_type badge for every chunk', async () => {
     await withServer(async (base) => {
       const js = await (await fetch(base + '/app.js')).text();
-      const { renderFileChunks } = loadChunkRenderHelpers(js);
-      const html = renderFileChunks([
+      const html = await (await fetch(base + '/')).text();
+      const { renderFileChunks } = loadDomRenderHelpers(js, html);
+      const frag = renderFileChunks([
         { chunkIndex: 0, section: 'Intro', nodeType: 'paragraph', text: 'hello', context: 'Intro' },
       ]);
-      assert.match(html, /badge badge-amber/);
-      assert.match(html, />paragraph</);
+      const badge = frag.querySelector('.chunk-node-type');
+      assert.equal(badge.hidden, false);
+      assert.equal(badge.textContent, 'paragraph');
+      assert.match(badge.className, /badge-amber/);
     });
   });
 
   it('labels structural node types (table/code/checklist) distinctly', async () => {
     await withServer(async (base) => {
       const js = await (await fetch(base + '/app.js')).text();
-      const { renderFileChunks } = loadChunkRenderHelpers(js);
+      const html = await (await fetch(base + '/')).text();
+      const { renderFileChunks } = loadDomRenderHelpers(js, html);
       const table = renderFileChunks([{ chunkIndex: 1, nodeType: 'table', text: '| a | b |', context: 'Intro — table' }]);
       const code = renderFileChunks([{ chunkIndex: 2, nodeType: 'code_block', text: 'console.log(1)', context: 'Intro — code block' }]);
       const checklist = renderFileChunks([{ chunkIndex: 3, nodeType: 'checklist', text: '- [ ] todo', context: 'Intro — checklist' }]);
-      assert.match(table, />table</);
-      assert.match(code, />code</);
-      assert.match(checklist, />checklist</);
+      assert.equal(table.querySelector('.chunk-node-type').textContent, 'table');
+      assert.equal(code.querySelector('.chunk-node-type').textContent, 'code');
+      assert.equal(checklist.querySelector('.chunk-node-type').textContent, 'checklist');
     });
   });
 
   it('labels context as "retrieval context" for structural chunks and "section path" for plain prose', async () => {
     await withServer(async (base) => {
       const js = await (await fetch(base + '/app.js')).text();
-      const { renderFileChunks } = loadChunkRenderHelpers(js);
+      const html = await (await fetch(base + '/')).text();
+      const { renderFileChunks } = loadDomRenderHelpers(js, html);
       const prose = renderFileChunks([{ chunkIndex: 0, nodeType: 'paragraph', text: 'hello', context: 'Intro › Details' }]);
       const table = renderFileChunks([{ chunkIndex: 1, nodeType: 'table', text: '| a |', context: 'Intro — table' }]);
-      assert.match(prose, /section path/i);
-      assert.ok(!/retrieval context/i.test(prose), 'a plain prose chunk must not be labeled as retrieval context');
-      assert.match(table, /retrieval context/i);
-      assert.ok(!/section path/i.test(table), 'a structural chunk must not be labeled as a plain section path');
+      assert.match(prose.querySelector('.chunk-context-label').textContent, /section path/i);
+      assert.doesNotMatch(prose.querySelector('.chunk-context-label').textContent, /retrieval context/i);
+      assert.match(table.querySelector('.chunk-context-label').textContent, /retrieval context/i);
+      assert.doesNotMatch(table.querySelector('.chunk-context-label').textContent, /^section path/i);
     });
   });
 
   it('the context annotation is visually secondary (a distinct label class), not ordinary chunk content', async () => {
     await withServer(async (base) => {
       const js = await (await fetch(base + '/app.js')).text();
-      const { renderFileChunks } = loadChunkRenderHelpers(js);
-      const html = renderFileChunks([{ chunkIndex: 0, nodeType: 'paragraph', text: 'hello', context: 'Intro' }]);
-      assert.match(html, /class="chunk-context-label"/);
-      assert.match(html, /class="chunk-context"/);
+      const html = await (await fetch(base + '/')).text();
+      const { renderFileChunks } = loadDomRenderHelpers(js, html);
+      const frag = renderFileChunks([{ chunkIndex: 0, nodeType: 'paragraph', text: 'hello', context: 'Intro' }]);
+      const contextEl = frag.querySelector('.chunk-context');
+      assert.equal(contextEl.hidden, false);
+      assert.ok(contextEl.querySelector('.chunk-context-label'), 'context must carry a distinct label element, not just plain text');
     });
   });
 });

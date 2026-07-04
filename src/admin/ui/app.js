@@ -35,7 +35,52 @@
     fetch(link.href, fetchOpts);
   }
 })();
-const shell = '<header class="topbar">\n  <div class="brand">\n    <span class="brand-bracket">[</span>semidex<span class="brand-bracket">]</span>\n    <span class="brand-sub">admin console</span>\n  </div>\n  <div class="topbar-status" id="topbar-status">\n    <span class="lamp lamp-unknown" id="health-lamp" title="storage status"></span>\n    <span class="mono" id="health-text">probing...</span>\n    <span class="cap-summary mono" id="cap-summary"></span>\n  </div>\n</header>\n\n<div class="layout">\n  <nav class="sidebar">\n    <ul class="nav-list">\n      <li><a href="#/index" id="nav-index">Create a collection</a></li>\n    </ul>\n    <div class="panel-label">Collections</div>\n    <ul class="collection-list" id="collection-list">\n      <li class="muted">loading...</li>\n    </ul>\n    <div class="sidebar-foot mono">local - 127.0.0.1</div>\n  </nav>\n\n  <main class="main" id="main">\n    <!-- views rendered by app.js -->\n  </main>\n</div>\n';
+const overviewShell = '<h1 class="view-title">overview</h1>\n<p class="view-sub">Local semidex instance — storage health, backend capabilities, indexed collections.</p>\n<div class="grid-2">\n  <div class="panel"><div class="panel-head">Storage health</div><div class="panel-body" id="ov-health">…</div></div>\n  <div class="panel"><div class="panel-head">Backend capabilities</div><div class="panel-body" id="ov-caps">…</div></div>\n</div>\n<div class="panel"><div class="panel-head">Collections</div><div class="panel-body" id="ov-collections">…</div></div>\n';
+const collectionShell = '<div class="col-header" id="col-header">…</div>\n<div class="panel">\n  <div class="panel-head"><span>Search this collection</span><span class="mono" id="search-mode"></span></div>\n  <div class="panel-body" id="search-panel">…</div>\n</div>\n<div class="panel" id="collection-content-panel" style="display:none">\n  <div class="panel-head"><span id="content-title">Results</span></div>\n  <div class="panel-body" id="collection-content"></div>\n</div>\n';
+const settingsShell = '<div class="col-header-top">\n  <h1 class="view-title" id="settings-title">…</h1>\n  <a href="#" class="btn-ghost" id="settings-back-link">back to collection</a>\n</div>\n<div class="panel" id="settings-health">…</div>\n\n<div class="panel">\n  <div class="panel-head">Reindex</div>\n  <div class="panel-body">\n    <p class="skel-note" style="margin-top:0">Reindex starts a background job and writes to this collection.</p>\n    <form id="settings-reindex-form" autocomplete="off">\n      <div id="settings-source-path-field"></div>\n      <div class="opt-group">\n        <div class="opt-group-label">Quality</div>\n        <label class="idx-check"><input type="checkbox" id="opt-onnx" checked> ONNX embeddings</label>\n        <label class="idx-check"><input type="checkbox" id="opt-llm-summaries"> LLM summaries <span class="mono muted">(context summaries via a local LLM)</span></label>\n      </div>\n      <div class="opt-group">\n        <div class="opt-group-label">Structure</div>\n        <label class="idx-check"><input type="checkbox" id="opt-skel-chunk" checked> Skeleton chunking</label>\n        <label class="idx-check"><input type="checkbox" id="opt-skel-nav" checked> Skeleton navigation</label>\n      </div>\n      <div class="opt-group">\n        <div class="opt-group-label">Optional enrichment</div>\n        <label class="idx-check"><input type="checkbox" id="opt-tags"> Generate tags</label>\n      </div>\n      <div class="opt-group">\n        <div class="opt-group-label">Maintenance</div>\n        <label class="idx-check"><input type="checkbox" id="opt-prune"> Prune stale</label>\n        <p class="skel-note">Use prune stale only with the full source root.</p>\n      </div>\n      <button type="submit" class="btn-amber" id="settings-reindex-submit">Reindex collection</button>\n    </form>\n    <div id="settings-reindex-result"></div>\n  </div>\n</div>\n\n<div class="panel">\n  <div class="panel-head">Repair collection compatibility</div>\n  <div class="panel-body">\n    <p class="skel-note" style="margin-top:0" title="Checks and repairs semidex metadata, vector names, and payload indexes for this collection. It does not reindex files or update document content.">\n      Checks and repairs semidex metadata, vector names, and payload indexes for this collection.\n      It does not reindex files or update document content.\n    </p>\n    <button type="button" class="btn-amber" id="settings-repair">Repair collection compatibility</button>\n    <div id="settings-repair-result"></div>\n  </div>\n</div>\n\n<details class="panel advanced-panel">\n  <summary class="panel-head">Advanced diagnostics</summary>\n  <div class="panel-body" id="settings-diagnostics">…</div>\n</details>\n\n<div class="panel maint-danger">\n  <div class="panel-head">Delete collection</div>\n  <div class="panel-body">\n    <p class="skel-note" style="margin-top:0">Deleting a collection permanently removes it from storage. This cannot be undone.</p>\n    <button type="button" class="btn-danger" id="settings-delete-btn">Delete collection</button>\n  </div>\n</div>\n<div id="delete-modal-slot"></div>\n';
+const indexViewShell = `<h1 class="view-title">Create a collection</h1>
+<p class="view-sub">Choose a folder on your computer to index into a new or existing collection. Indexing writes to the selected collection.</p>
+<div class="panel">
+  <div class="panel-head">Start an indexing job</div>
+  <div class="panel-body">
+    <form id="index-form" autocomplete="off">
+      <label class="form-row">
+        <span>collection name</span>
+        <input type="text" id="idx-collection" class="q-input" placeholder="Основи Node.js" required>
+      </label>
+      <label class="form-row">
+        <span>folder to index</span>
+        <div class="path-picker-row">
+          <input type="text" id="idx-path" class="q-input" placeholder="Choose a folder, or type a path" style="display:none">
+          <button type="button" class="btn-ghost" id="idx-choose-folder">Choose folder…</button>
+        </div>
+        <div id="idx-path-fallback" style="display:none">
+          <p class="skel-note" style="margin-top:6px">
+            The folder picker isn't available here — enter the path manually.
+          </p>
+          <input type="text" id="idx-path-manual" class="q-input" placeholder="C:\\path\\to\\docs or ./docs">
+        </div>
+      </label>
+      <div class="idx-options">
+        <label class="idx-check"><input type="checkbox" id="opt-onnx" checked> ONNX embeddings</label>
+        <label class="idx-check"><input type="checkbox" id="opt-llm-summaries"> LLM summaries <span class="mono muted">(requires Ollama)</span></label>
+        <label class="idx-check"><input type="checkbox" id="opt-skel-chunk" checked> Skeleton chunking</label>
+        <label class="idx-check"><input type="checkbox" id="opt-skel-nav" checked> Skeleton navigation</label>
+        <label class="idx-check"><input type="checkbox" id="opt-prune"> Prune stale</label>
+        <label class="idx-check"><input type="checkbox" id="opt-tags"> Generate tags</label>
+      </div>
+      <div id="idx-ollama-status" style="display:none"></div>
+      <p class="skel-note">Prune stale should be used only with the full source root.</p>
+      <button type="submit" class="btn-amber" id="idx-submit">start indexing</button>
+    </form>
+    <div id="idx-status" class="empty"></div>
+  </div>
+</div>
+<div class="panel">
+  <div class="panel-head">Jobs</div>
+  <div class="panel-body" id="idx-jobs">…</div>
+</div>
+`;
 const $ = (sel, root = document) => root.querySelector(sel);
 async function api(path) {
   var _a;
@@ -92,8 +137,20 @@ async function apiDelete(path) {
 function esc(value) {
   return String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#39;");
 }
+function cloneTemplate(id) {
+  const tpl = document.getElementById(id);
+  if (!tpl) throw new Error(`template #${id} not found — check index.html <load> tags`);
+  return tpl.content.cloneNode(true);
+}
 function errorBox(err) {
-  return `<div class="error-box">${esc(err.message)}</div>`;
+  const frag = cloneTemplate("tpl-error-state");
+  frag.querySelector(".error-box").textContent = err.message;
+  return frag.firstElementChild.outerHTML;
+}
+function emptyBox(message) {
+  const frag = cloneTemplate("tpl-empty-state");
+  frag.querySelector(".empty").textContent = message;
+  return frag.firstElementChild.outerHTML;
 }
 async function loadTopbar() {
   const lamp = $("#health-lamp");
@@ -292,14 +349,7 @@ function markActive() {
   (_a = $("#nav-index")) == null ? void 0 : _a.classList.toggle("active", current.view === "index");
 }
 async function renderOverview(main) {
-  main.innerHTML = `
-    <h1 class="view-title">overview</h1>
-    <p class="view-sub">Local semidex instance — storage health, backend capabilities, indexed collections.</p>
-    <div class="grid-2">
-      <div class="panel"><div class="panel-head">Storage health</div><div class="panel-body" id="ov-health">…</div></div>
-      <div class="panel"><div class="panel-head">Backend capabilities</div><div class="panel-body" id="ov-caps">…</div></div>
-    </div>
-    <div class="panel"><div class="panel-head">Collections</div><div class="panel-body" id="ov-collections">…</div></div>`;
+  main.innerHTML = overviewShell;
   try {
     const health = await api("/api/health");
     $("#ov-health").innerHTML = `
@@ -323,7 +373,7 @@ async function renderOverview(main) {
   try {
     const { collections } = await api("/api/collections");
     if (!collections.length) {
-      $("#ov-collections").innerHTML = '<div class="empty">No collections indexed yet.</div>';
+      $("#ov-collections").innerHTML = emptyBox("No collections indexed yet.");
       return;
     }
     $("#ov-collections").innerHTML = `
@@ -357,16 +407,7 @@ async function renderCollection(main, name) {
     expandedCollection = name;
     renderSidebarList(collectionsCache);
   }
-  main.innerHTML = `
-    <div class="col-header" id="col-header">…</div>
-    <div class="panel">
-      <div class="panel-head"><span>Search this collection</span><span class="mono" id="search-mode"></span></div>
-      <div class="panel-body" id="search-panel">…</div>
-    </div>
-    <div class="panel" id="collection-content-panel" style="display:none">
-      <div class="panel-head"><span id="content-title">Results</span></div>
-      <div class="panel-body" id="collection-content"></div>
-    </div>`;
+  main.innerHTML = collectionShell;
   initSearchPanel(name);
   let detail;
   try {
@@ -478,7 +519,7 @@ async function runSearch(name) {
       return;
     }
     status.textContent = `${body.results.length} result${body.results.length > 1 ? "s" : ""}` + (searchSourceFile ? ` · filtered to one file` : "");
-    resultsBox.innerHTML = body.results.map((r, i) => renderResult(r, i, showScore)).join("");
+    resultsBox.replaceChildren(...body.results.map((r, i) => renderResult(r, i, showScore)));
     for (const btn of resultsBox.querySelectorAll(".result-open")) {
       btn.addEventListener("click", () => openFileView(name, btn.dataset.sf, null, Number(btn.dataset.ci)));
     }
@@ -491,32 +532,50 @@ async function runSearch(name) {
 }
 function renderResult(r, i, showScore) {
   const canOpen = r.sourceFile && Number.isInteger(r.chunkIndex);
-  return `
-  <div class="result-card">
-    <div class="result-head">
-      <span class="rank">#${i + 1}</span>
-      ${showScore && typeof r.score === "number" ? `<span class="mono score" title="Rank score — compare order, not absolute value">${r.score.toFixed(4)}</span>` : ""}
-      <span class="mono">${esc(r.sourceFile ?? "?")}</span>
-      <span class="mono muted">chunk ${r.chunkIndex ?? "?"}${r.totalChunks ? ` / ${r.totalChunks}` : ""}</span>
-      <span class="muted">${esc(r.section || "intro")}</span>
-      ${r.nodeType ? `<span class="badge badge-amber">${esc(r.nodeType)}</span>` : ""}
-      ${canOpen ? `<button type="button" class="mini-btn result-open" data-sf="${esc(r.sourceFile)}" data-ci="${r.chunkIndex}">open</button>` : ""}
-    </div>
-    ${r.context ? `<div class="chunk-context">${esc(r.context)}</div>` : ""}
-    <pre class="chunk-text">${esc(r.text ?? "")}</pre>
-    ${Array.isArray(r.windowChunks) && r.windowChunks.length ? `
-      <div class="win-chunks">
-        ${r.windowChunks.map((w) => `
-          <div class="win-chunk ${w.isMatch ? "match" : ""}">
-            <div class="win-head">
-              <span class="mono muted">#${w.chunkIndex ?? "?"}</span>
-              ${w.isMatch ? '<span class="badge badge-amber">match</span>' : ""}
-              <span class="muted">${esc(w.section || "")}</span>
-            </div>
-            <div class="win-text">${esc(w.textSnippet ?? w.text ?? "")}</div>
-          </div>`).join("")}
-      </div>` : ""}
-  </div>`;
+  const frag = cloneTemplate("tpl-search-result");
+  const card = frag.querySelector(".result-card");
+  card.querySelector(".rank").textContent = `#${i + 1}`;
+  const scoreEl = card.querySelector(".score");
+  if (showScore && typeof r.score === "number") {
+    scoreEl.textContent = r.score.toFixed(4);
+    scoreEl.hidden = false;
+  }
+  card.querySelector(".result-source").textContent = r.sourceFile ?? "?";
+  card.querySelector(".result-chunk-index").textContent = `chunk ${r.chunkIndex ?? "?"}${r.totalChunks ? ` / ${r.totalChunks}` : ""}`;
+  card.querySelector(".result-section").textContent = r.section || "intro";
+  const nodeTypeEl = card.querySelector(".result-node-type");
+  if (r.nodeType) {
+    nodeTypeEl.textContent = r.nodeType;
+    nodeTypeEl.hidden = false;
+  }
+  const openBtn = card.querySelector(".result-open");
+  if (canOpen) {
+    openBtn.dataset.sf = r.sourceFile;
+    openBtn.dataset.ci = String(r.chunkIndex);
+    openBtn.hidden = false;
+  }
+  const contextEl = card.querySelector(".chunk-context");
+  if (r.context) {
+    contextEl.textContent = r.context;
+    contextEl.hidden = false;
+  }
+  card.querySelector(".chunk-text").textContent = r.text ?? "";
+  if (Array.isArray(r.windowChunks) && r.windowChunks.length) {
+    const winBox = card.querySelector(".win-chunks");
+    winBox.hidden = false;
+    for (const w of r.windowChunks) {
+      const wFrag = cloneTemplate("tpl-window-chunk");
+      const wEl = wFrag.querySelector(".win-chunk");
+      wEl.classList.toggle("match", Boolean(w.isMatch));
+      wEl.querySelector(".win-chunk-index").textContent = `#${w.chunkIndex ?? "?"}`;
+      const wBadge = wEl.querySelector(".badge");
+      wBadge.hidden = !w.isMatch;
+      wEl.querySelector(".win-section").textContent = w.section || "";
+      wEl.querySelector(".win-text").textContent = w.textSnippet ?? w.text ?? "";
+      winBox.appendChild(wFrag);
+    }
+  }
+  return card;
 }
 let fileViewState = null;
 function hideCollectionContent() {
@@ -530,7 +589,7 @@ async function openSectionView(name, node) {
   if (!panel || !box) return;
   panel.style.display = "";
   title.textContent = nodeDisplayLabel(node);
-  box.innerHTML = '<div class="empty">loading…</div>';
+  box.innerHTML = emptyBox("loading…");
   panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
   try {
     const qs = `nodePath=${encodeURIComponent(node.nodePath)}`;
@@ -553,18 +612,19 @@ async function openFileView(name, sourceFile, nodePath, chunkIndex = 0) {
   if (!panel || !box) return;
   panel.style.display = "";
   title.textContent = sourceFile;
-  box.innerHTML = '<div class="empty">loading…</div>';
+  box.innerHTML = emptyBox("loading…");
   panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
   fileViewState = { name, sourceFile, chunkIndex, loaded: 0 };
   try {
     const qs = `sourceFile=${encodeURIComponent(sourceFile)}&chunkIndex=${chunkIndex}&window=3`;
     const { chunks } = await api(`/api/collections/${encodeURIComponent(name)}/chunks?${qs}`);
     if (!chunks.length) {
-      box.innerHTML = '<div class="empty">No chunks found for this file/section.</div>';
+      box.innerHTML = emptyBox("No chunks found for this file/section.");
       return;
     }
     fileViewState.loaded = chunks.length;
-    box.innerHTML = renderFileChunks(chunks) + fileViewLoadMoreButton();
+    box.replaceChildren(renderFileChunks(chunks));
+    box.insertAdjacentHTML("beforeend", fileViewLoadMoreButton());
     wireFileViewButtons(box);
   } catch (err) {
     box.innerHTML = errorBox(err);
@@ -587,20 +647,30 @@ function nodeTypeBadgeLabel(nodeType) {
   return NODE_TYPE_BADGE_LABEL[nodeType] ?? nodeType;
 }
 function renderFileChunks(chunks) {
-  return chunks.map((c) => {
+  const out = document.createDocumentFragment();
+  for (const c of chunks) {
     const isStructural = STRUCTURAL_NODE_TYPES.has(c.nodeType);
     const contextLabel = isStructural ? "retrieval context" : "section path";
-    return `
-    <div class="chunk">
-      <div class="chunk-head">
-        <span>chunk ${c.chunkIndex}${c.totalChunks ? ` / ${c.totalChunks}` : ""}</span>
-        <span>${esc(c.section || "intro")}</span>
-        ${c.nodeType ? `<span class="badge badge-amber" title="node_type: ${esc(c.nodeType)}">${esc(nodeTypeBadgeLabel(c.nodeType))}</span>` : ""}
-      </div>
-      ${c.context ? `<div class="chunk-context"><span class="chunk-context-label">${esc(contextLabel)}:</span> ${esc(c.context)}</div>` : ""}
-      <pre class="chunk-text">${esc(c.text ?? "")}</pre>
-    </div>`;
-  }).join("");
+    const frag = cloneTemplate("tpl-chunk-card");
+    const card = frag.querySelector(".chunk");
+    card.querySelector(".chunk-index-label").textContent = `chunk ${c.chunkIndex}${c.totalChunks ? ` / ${c.totalChunks}` : ""}`;
+    card.querySelector(".chunk-section").textContent = c.section || "intro";
+    const nodeTypeEl = card.querySelector(".chunk-node-type");
+    if (c.nodeType) {
+      nodeTypeEl.textContent = nodeTypeBadgeLabel(c.nodeType);
+      nodeTypeEl.title = `node_type: ${c.nodeType}`;
+      nodeTypeEl.hidden = false;
+    }
+    const contextEl = card.querySelector(".chunk-context");
+    if (c.context) {
+      card.querySelector(".chunk-context-label").textContent = `${contextLabel}:`;
+      card.querySelector(".chunk-context-text").textContent = c.context;
+      contextEl.hidden = false;
+    }
+    card.querySelector(".chunk-text").textContent = c.text ?? "";
+    out.appendChild(frag);
+  }
+  return out;
 }
 function fileViewLoadMoreButton() {
   return '<button type="button" class="mini-btn" id="file-load-more">load more</button>';
@@ -625,7 +695,7 @@ async function loadMoreFileChunks() {
       return;
     }
     fileViewState.loaded = Math.max(loaded, ...newOnes.map((c) => c.chunkIndex + 1));
-    btn == null ? void 0 : btn.insertAdjacentHTML("beforebegin", renderFileChunks(newOnes));
+    btn == null ? void 0 : btn.before(renderFileChunks(newOnes));
     if (btn) btn.disabled = false;
   } catch (err) {
     box.insertAdjacentHTML("beforeend", errorBox(err));
@@ -647,79 +717,13 @@ function rememberSourcePath(path) {
   }
 }
 async function renderSettingsView(main, name) {
-  main.innerHTML = `
-    <div class="col-header-top">
-      <h1 class="view-title">${esc(name)} · settings</h1>
-      <a href="#/collections/${encodeURIComponent(name)}" class="btn-ghost">back to collection</a>
-    </div>
-    <div class="panel" id="settings-health">…</div>
-
-    <div class="panel">
-      <div class="panel-head">Reindex</div>
-      <div class="panel-body">
-        <p class="skel-note" style="margin-top:0">Reindex starts a background job and writes to this collection.</p>
-        <form id="settings-reindex-form" autocomplete="off">
-          ${renderSourcePathField()}
-          <div class="opt-group">
-            <div class="opt-group-label">Quality</div>
-            <label class="idx-check"><input type="checkbox" id="opt-onnx" checked> ONNX embeddings</label>
-            <label class="idx-check"><input type="checkbox" id="opt-llm-summaries"> LLM summaries <span class="mono muted">(context summaries via a local LLM)</span></label>
-          </div>
-          <div class="opt-group">
-            <div class="opt-group-label">Structure</div>
-            <label class="idx-check"><input type="checkbox" id="opt-skel-chunk" checked> Skeleton chunking</label>
-            <label class="idx-check"><input type="checkbox" id="opt-skel-nav" checked> Skeleton navigation</label>
-          </div>
-          <div class="opt-group">
-            <div class="opt-group-label">Optional enrichment</div>
-            <label class="idx-check"><input type="checkbox" id="opt-tags"> Generate tags</label>
-          </div>
-          <div class="opt-group">
-            <div class="opt-group-label">Maintenance</div>
-            <label class="idx-check"><input type="checkbox" id="opt-prune"> Prune stale</label>
-            <p class="skel-note">Use prune stale only with the full source root.</p>
-          </div>
-          <button type="submit" class="btn-amber" id="settings-reindex-submit">Reindex collection</button>
-        </form>
-        <div id="settings-reindex-result"></div>
-      </div>
-    </div>
-
-    <div class="panel">
-      <div class="panel-head">Repair collection compatibility</div>
-      <div class="panel-body">
-        <p class="skel-note" style="margin-top:0" title="Checks and repairs semidex metadata, vector names, and payload indexes for this collection. It does not reindex files or update document content.">
-          Checks and repairs semidex metadata, vector names, and payload indexes for this collection.
-          It does not reindex files or update document content.
-        </p>
-        <button type="button" class="btn-amber" id="settings-repair">Repair collection compatibility</button>
-        <div id="settings-repair-result"></div>
-      </div>
-    </div>
-
-    <details class="panel advanced-panel">
-      <summary class="panel-head">Advanced diagnostics</summary>
-      <div class="panel-body" id="settings-diagnostics">…</div>
-    </details>
-
-    <div class="panel maint-danger">
-      <div class="panel-head">Delete collection</div>
-      <div class="panel-body">
-        <p class="skel-note" style="margin-top:0">Deleting a collection permanently removes it from storage. This cannot be undone.</p>
-        <button type="button" class="btn-danger" id="settings-delete-btn">Delete collection</button>
-      </div>
-    </div>
-    <div class="modal-backdrop" id="delete-modal-backdrop" style="display:none">
-      <div class="modal">
-        <h2 class="modal-title">Delete collection?</h2>
-        <p>You are about to permanently delete <b class="mono">${esc(name)}</b>. This cannot be undone.</p>
-        <div class="modal-actions">
-          <button type="button" class="btn-ghost" id="delete-modal-cancel">Cancel</button>
-          <button type="button" class="btn-danger" id="delete-modal-confirm">Delete collection</button>
-        </div>
-        <div id="settings-delete-result"></div>
-      </div>
-    </div>`;
+  main.innerHTML = settingsShell;
+  $("#settings-title").textContent = `${name} · settings`;
+  $("#settings-back-link").setAttribute("href", `#/collections/${encodeURIComponent(name)}`);
+  $("#settings-source-path-field").innerHTML = renderSourcePathField();
+  const modal = cloneTemplate("tpl-delete-modal");
+  modal.querySelector("#delete-modal-name").textContent = name;
+  $("#delete-modal-slot").replaceChildren(modal);
   $("#opt-prune").addEventListener("change", (e) => {
     e.target.closest("label").classList.toggle("warn", e.target.checked);
   });
@@ -921,49 +925,7 @@ function stopIndexPolling() {
 }
 async function renderIndexingView(main) {
   stopIndexPolling();
-  main.innerHTML = `
-    <h1 class="view-title">Create a collection</h1>
-    <p class="view-sub">Choose a folder on your computer to index into a new or existing collection. Indexing writes to the selected collection.</p>
-    <div class="panel">
-      <div class="panel-head">Start an indexing job</div>
-      <div class="panel-body">
-        <form id="index-form" autocomplete="off">
-          <label class="form-row">
-            <span>collection name</span>
-            <input type="text" id="idx-collection" class="q-input" placeholder="Основи Node.js" required>
-          </label>
-          <label class="form-row">
-            <span>folder to index</span>
-            <div class="path-picker-row">
-              <input type="text" id="idx-path" class="q-input" placeholder="Choose a folder, or type a path" style="display:none">
-              <button type="button" class="btn-ghost" id="idx-choose-folder">Choose folder…</button>
-            </div>
-            <div id="idx-path-fallback" style="display:none">
-              <p class="skel-note" style="margin-top:6px">
-                The folder picker isn't available here — enter the path manually.
-              </p>
-              <input type="text" id="idx-path-manual" class="q-input" placeholder="C:\\path\\to\\docs or ./docs">
-            </div>
-          </label>
-          <div class="idx-options">
-            <label class="idx-check"><input type="checkbox" id="opt-onnx" checked> ONNX embeddings</label>
-            <label class="idx-check"><input type="checkbox" id="opt-llm-summaries"> LLM summaries <span class="mono muted">(requires Ollama)</span></label>
-            <label class="idx-check"><input type="checkbox" id="opt-skel-chunk" checked> Skeleton chunking</label>
-            <label class="idx-check"><input type="checkbox" id="opt-skel-nav" checked> Skeleton navigation</label>
-            <label class="idx-check"><input type="checkbox" id="opt-prune"> Prune stale</label>
-            <label class="idx-check"><input type="checkbox" id="opt-tags"> Generate tags</label>
-          </div>
-          <div id="idx-ollama-status" style="display:none"></div>
-          <p class="skel-note">Prune stale should be used only with the full source root.</p>
-          <button type="submit" class="btn-amber" id="idx-submit">start indexing</button>
-        </form>
-        <div id="idx-status" class="empty"></div>
-      </div>
-    </div>
-    <div class="panel">
-      <div class="panel-head">Jobs</div>
-      <div class="panel-body" id="idx-jobs">…</div>
-    </div>`;
+  main.innerHTML = indexViewShell;
   $("#opt-prune").addEventListener("change", (e) => {
     e.target.closest("label").classList.toggle("warn", e.target.checked);
   });
@@ -1069,16 +1031,39 @@ async function startIndexJob() {
     submit.disabled = false;
   }
 }
-function jobStatusBadge(state) {
-  const map = {
-    queued: "badge",
-    running: "badge badge-amber",
-    cancelling: "badge badge-warn",
-    succeeded: "badge badge-ok",
-    failed: "badge badge-fail",
-    cancelled: "badge"
-  };
-  return `<span class="${map[state] ?? "badge"}">${esc(state)}</span>`;
+const JOB_STATUS_BADGE_CLASS = {
+  queued: "badge",
+  running: "badge badge-amber",
+  cancelling: "badge badge-warn",
+  succeeded: "badge badge-ok",
+  failed: "badge badge-fail",
+  cancelled: "badge"
+};
+function renderJobRow(j) {
+  const frag = cloneTemplate("tpl-job-row");
+  const card = frag.querySelector(".job-card");
+  card.dataset.id = j.id;
+  const badge = card.querySelector(".job-status-badge");
+  badge.className = JOB_STATUS_BADGE_CLASS[j.state] ?? "badge";
+  badge.textContent = j.state;
+  card.querySelector(".job-collection").textContent = j.collection;
+  card.querySelector(".job-path").textContent = j.path;
+  const exitEl = card.querySelector(".job-exit-code");
+  if (j.exitCode !== null && j.exitCode !== 0) {
+    exitEl.textContent = `exit ${j.exitCode}`;
+    exitEl.hidden = false;
+  }
+  const cancelBtn = card.querySelector(".job-cancel");
+  if (j.state === "queued" || j.state === "running") {
+    cancelBtn.dataset.id = j.id;
+    cancelBtn.hidden = false;
+  }
+  card.querySelector(".job-cancelling").hidden = j.state !== "cancelling";
+  card.querySelector(".job-started").textContent = `started ${j.startedAt ? new Date(j.startedAt).toLocaleString() : "—"}`;
+  if (j.finishedAt) {
+    card.querySelector(".job-ended").textContent = ` · ended ${new Date(j.finishedAt).toLocaleString()}`;
+  }
+  return card;
 }
 async function loadJobs() {
   const box = $("#idx-jobs");
@@ -1090,29 +1075,14 @@ async function loadJobs() {
     return;
   }
   if (!jobs.length) {
-    box.innerHTML = '<div class="empty">No indexing jobs yet.</div>';
+    box.innerHTML = emptyBox("No indexing jobs yet.");
   } else {
-    box.innerHTML = jobs.map((j) => `
-      <div class="job-card" data-id="${esc(j.id)}">
-        <div class="job-head">
-          ${jobStatusBadge(j.state)}
-          <span class="mono">${esc(j.collection)}</span>
-          <span class="mono muted">${esc(j.path)}</span>
-          ${j.exitCode !== null && j.exitCode !== 0 ? `<span class="mono muted">exit ${j.exitCode}</span>` : ""}
-          ${j.state === "queued" || j.state === "running" ? `<button type="button" class="mini-btn job-cancel" data-id="${esc(j.id)}">cancel</button>` : ""}
-          ${j.state === "cancelling" ? '<span class="mono muted">stopping…</span>' : ""}
-        </div>
-        <div class="mono muted job-times">
-          started ${j.startedAt ? new Date(j.startedAt).toLocaleString() : "—"}
-          ${j.finishedAt ? ` · ended ${new Date(j.finishedAt).toLocaleString()}` : ""}
-        </div>
-        <pre class="job-log" id="job-log-${esc(j.id)}">…</pre>
-      </div>`).join("");
+    box.replaceChildren(...jobs.map(renderJobRow));
     for (const btn of box.querySelectorAll(".job-cancel")) {
       btn.addEventListener("click", () => cancelJob(btn.dataset.id));
     }
     for (const card of box.querySelectorAll(".job-card")) {
-      loadJobLog(card.dataset.id);
+      loadJobLog(card);
     }
   }
   const stillActive = jobs.some((j) => j.state === "queued" || j.state === "running" || j.state === "cancelling");
@@ -1126,9 +1096,10 @@ async function loadJobs() {
     loadSidebar();
   }
 }
-async function loadJobLog(id) {
-  const pre = $(`#job-log-${CSS.escape(id)}`);
+async function loadJobLog(card) {
+  const pre = card.querySelector(".job-log");
   if (!pre) return;
+  const id = card.dataset.id;
   try {
     const { job } = await api(`/api/jobs/${encodeURIComponent(id)}`);
     pre.textContent = job.log.slice(-30).join("\n") || "(no output yet)";
@@ -1173,5 +1144,4 @@ function startAdminApp() {
   loadSidebar();
   route();
 }
-document.body.innerHTML = shell;
 startAdminApp();

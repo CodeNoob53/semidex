@@ -1,0 +1,17 @@
+<template id="tpl-job-row">
+  <div class="job-card">
+    <div class="job-head">
+      <span class="badge job-status-badge"></span>
+      <span class="mono job-collection"></span>
+      <span class="mono muted job-path"></span>
+      <span class="mono muted job-exit-code" hidden></span>
+      <button type="button" class="mini-btn job-cancel" hidden>cancel</button>
+      <span class="mono muted job-cancelling" hidden>stopping…</span>
+    </div>
+    <div class="mono muted job-times">
+      <span class="job-started"></span>
+      <span class="job-ended"></span>
+    </div>
+    <pre class="job-log">…</pre>
+  </div>
+</template>

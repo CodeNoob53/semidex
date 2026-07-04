@@ -8,5 +8,118 @@
   <link rel="stylesheet" crossorigin href="/app.css">
 </head>
 <body>
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-bracket">[</span>semidex<span class="brand-bracket">]</span>
+    <span class="brand-sub">admin console</span>
+  </div>
+  <div class="topbar-status" id="topbar-status">
+    <span class="lamp lamp-unknown" id="health-lamp" title="storage status"></span>
+    <span class="mono" id="health-text">probing…</span>
+    <span class="cap-summary mono" id="cap-summary"></span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="sidebar">
+    <ul class="nav-list">
+      <li><a href="#/index" id="nav-index">Create a collection</a></li>
+    </ul>
+    <div class="panel-label">Collections</div>
+    <ul class="collection-list" id="collection-list">
+      <li class="muted">loading…</li>
+    </ul>
+    <div class="sidebar-foot mono">local · 127.0.0.1</div>
+  </nav>
+
+  <main class="main" id="main">
+    <!-- views rendered by app.js -->
+  </main>
+</div>
+
+<template id="tpl-delete-modal">
+  <div class="modal-backdrop" id="delete-modal-backdrop" style="display:none">
+    <div class="modal">
+      <h2 class="modal-title">Delete collection?</h2>
+      <p>You are about to permanently delete <b class="mono" id="delete-modal-name"></b>. This cannot be undone.</p>
+      <div class="modal-actions">
+        <button type="button" class="btn-ghost" id="delete-modal-cancel">Cancel</button>
+        <button type="button" class="btn-danger" id="delete-modal-confirm">Delete collection</button>
+      </div>
+      <div id="settings-delete-result"></div>
+    </div>
+  </div>
+</template>
+
+<template id="tpl-search-result">
+  <div class="result-card">
+    <div class="result-head">
+      <span class="rank"></span>
+      <span class="mono score" title="Rank score — compare order, not absolute value" hidden></span>
+      <span class="mono result-source"></span>
+      <span class="mono muted result-chunk-index"></span>
+      <span class="muted result-section"></span>
+      <span class="badge badge-amber result-node-type" hidden></span>
+      <button type="button" class="mini-btn result-open" hidden>open</button>
+    </div>
+    <div class="chunk-context" hidden></div>
+    <pre class="chunk-text"></pre>
+    <div class="win-chunks" hidden></div>
+  </div>
+</template>
+
+<template id="tpl-window-chunk">
+  <div class="win-chunk">
+    <div class="win-head">
+      <span class="mono muted win-chunk-index"></span>
+      <span class="badge badge-amber" hidden>match</span>
+      <span class="muted win-section"></span>
+    </div>
+    <div class="win-text"></div>
+  </div>
+</template>
+
+<template id="tpl-chunk-card">
+  <div class="chunk">
+    <div class="chunk-head">
+      <span class="chunk-index-label"></span>
+      <span class="chunk-section"></span>
+      <span class="badge badge-amber chunk-node-type" hidden></span>
+    </div>
+    <div class="chunk-context" hidden>
+      <span class="chunk-context-label"></span>
+      <span class="chunk-context-text"></span>
+    </div>
+    <pre class="chunk-text"></pre>
+  </div>
+</template>
+
+<template id="tpl-job-row">
+  <div class="job-card">
+    <div class="job-head">
+      <span class="badge job-status-badge"></span>
+      <span class="mono job-collection"></span>
+      <span class="mono muted job-path"></span>
+      <span class="mono muted job-exit-code" hidden></span>
+      <button type="button" class="mini-btn job-cancel" hidden>cancel</button>
+      <span class="mono muted job-cancelling" hidden>stopping…</span>
+    </div>
+    <div class="mono muted job-times">
+      <span class="job-started"></span>
+      <span class="job-ended"></span>
+    </div>
+    <pre class="job-log">…</pre>
+  </div>
+</template>
+
+<template id="tpl-empty-state">
+  <div class="empty"></div>
+</template>
+
+<template id="tpl-error-state">
+  <div class="error-box"></div>
+</template>
+
+
 </body>
 </html>

@@ -6,6 +6,42 @@
 <title>semidex admin</title>
 </head>
 <body>
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-bracket">[</span>semidex<span class="brand-bracket">]</span>
+    <span class="brand-sub">admin console</span>
+  </div>
+  <div class="topbar-status" id="topbar-status">
+    <span class="lamp lamp-unknown" id="health-lamp" title="storage status"></span>
+    <span class="mono" id="health-text">probing…</span>
+    <span class="cap-summary mono" id="cap-summary"></span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="sidebar">
+    <ul class="nav-list">
+      <li><a href="#/index" id="nav-index">Create a collection</a></li>
+    </ul>
+    <div class="panel-label">Collections</div>
+    <ul class="collection-list" id="collection-list">
+      <li class="muted">loading…</li>
+    </ul>
+    <div class="sidebar-foot mono">local · 127.0.0.1</div>
+  </nav>
+
+  <main class="main" id="main">
+    <!-- views rendered by app.js -->
+  </main>
+</div>
+
+<load src="partials/templates/delete-modal.html" />
+<load src="partials/templates/search-result.html" />
+<load src="partials/templates/chunk-card.html" />
+<load src="partials/templates/job-row.html" />
+<load src="partials/templates/empty-state.html" />
+<load src="partials/templates/error-state.html" />
+
 <script type="module" src="/main.js"></script>
 </body>
 </html>

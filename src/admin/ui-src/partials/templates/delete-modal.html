@@ -1,0 +1,13 @@
+<template id="tpl-delete-modal">
+  <div class="modal-backdrop" id="delete-modal-backdrop" style="display:none">
+    <div class="modal">
+      <h2 class="modal-title">Delete collection?</h2>
+      <p>You are about to permanently delete <b class="mono" id="delete-modal-name"></b>. This cannot be undone.</p>
+      <div class="modal-actions">
+        <button type="button" class="btn-ghost" id="delete-modal-cancel">Cancel</button>
+        <button type="button" class="btn-danger" id="delete-modal-confirm">Delete collection</button>
+      </div>
+      <div id="settings-delete-result"></div>
+    </div>
+  </div>
+</template>
