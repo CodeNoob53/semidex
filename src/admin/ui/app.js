@@ -231,12 +231,50 @@ async function fetchSkeletonChildren(name, node) {
 function sidebarNodeRow(n, i, depth) {
   const isLeaf = n.nodeType === 'section' || n.nodeType === 'file' && !(n.childCount > 0);
   const icon = n.nodeType === 'directory' ? '📁' : n.nodeType === 'file' ? '📄' : '§';
+  const label = nodeDisplayLabel(n);
+  const tooltip = [n.summary, n.nodePath].filter(Boolean).join(' — ');
   return `
     <div class="tree-row tree-node ${isLeaf ? 'tree-leaf' : ''}" data-i="${i}" style="--depth:${depth + 1}">
       <span class="tree-caret">${n.childCount > 0 ? '▸' : ''}</span>
       <span class="tree-icon">${icon}</span>
-      <span class="tree-label" title="${esc(n.summary ?? '')}">${esc(shortLabel(n.nodePath ?? n.nodeId ?? '?'))}</span>
+      <span class="tree-label" title="${esc(tooltip)}">${esc(label)}</span>
     </div>`;
+}
+
+/**
+ * Human-readable label for a skeleton node, per node type — node_path is a
+ * synthetic key ("<file>#file", "<collection>#dir/<path>",
+ * "<file>#<slug>") meant for API lookups, not for display; showing it
+ * directly used to render literal fragments like "file" for every file node
+ * (the tail after the "#" in "pitch-en.md#file" is just the string "file").
+ * node_path/node_id remain available only via the tooltip (see sidebarNodeRow).
+ *   - file:      basename of sourceFile (or the node_path's file segment)
+ *   - section:   last entry of heading_path, falling back to summary/node_path
+ *   - directory: last path segment of the directory's own path
+ *   - anything else: shortLabel(node_path) as before
+ */
+function nodeDisplayLabel(n) {
+  if (n.nodeType === 'file') {
+    const src = n.sourceFile || String(n.nodePath ?? '').replace(/#file$/, '');
+    return basename(src) || shortLabel(n.nodePath ?? n.nodeId ?? '?');
+  }
+  if (n.nodeType === 'section') {
+    const last = Array.isArray(n.headingPath) ? n.headingPath.at(-1) : null;
+    if (last) return shortLabel(last);
+    return shortLabel(n.summary || n.nodePath || n.nodeId || '?');
+  }
+  if (n.nodeType === 'directory') {
+    // node_path is "<collection>#dir/<dirPath>" where dirPath may itself
+    // contain "/" for nested directories — the display name is just the
+    // last segment of dirPath, not the whole nested path.
+    const dirPath = String(n.nodePath ?? '').replace(/^[^#]*#dir\//, '');
+    return basename(dirPath) || shortLabel(n.nodePath ?? n.nodeId ?? '?');
+  }
+  return shortLabel(n.nodePath ?? n.nodeId ?? '?');
+}
+
+function basename(path) {
+  return String(path ?? '').split('/').filter(Boolean).at(-1) ?? '';
 }
 
 function shortLabel(path) {
@@ -577,7 +615,7 @@ async function openSectionView(name, node) {
   if (!panel || !box) return;
 
   panel.style.display = '';
-  title.textContent = shortLabel(node.nodePath ?? node.summary ?? 'section');
+  title.textContent = nodeDisplayLabel(node);
   box.innerHTML = '<div class="empty">loading…</div>';
   panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
@@ -626,16 +664,44 @@ async function openFileView(name, sourceFile, nodePath, chunkIndex = 0) {
   }
 }
 
+// Structural node types get an inline chunk annotated with their own type +
+// nearby prose (see entityContext() in the indexer) rather than a plain
+// section-path breadcrumb — labeled distinctly so it doesn't read as if it
+// were more prose content.
+const STRUCTURAL_NODE_TYPES = new Set(['table', 'code_block', 'checklist']);
+
+const NODE_TYPE_BADGE_LABEL = {
+  code_block: 'code',
+  table: 'table',
+  checklist: 'checklist',
+  list: 'list',
+  paragraph: 'paragraph',
+  blockquote: 'blockquote',
+  image: 'image',
+  section: 'section',
+  file: 'file',
+  directory: 'directory',
+};
+
+function nodeTypeBadgeLabel(nodeType) {
+  return NODE_TYPE_BADGE_LABEL[nodeType] ?? nodeType;
+}
+
 function renderFileChunks(chunks) {
-  return chunks.map(c => `
+  return chunks.map(c => {
+    const isStructural = STRUCTURAL_NODE_TYPES.has(c.nodeType);
+    const contextLabel = isStructural ? 'retrieval context' : 'section path';
+    return `
     <div class="chunk">
       <div class="chunk-head">
         <span>chunk ${c.chunkIndex}${c.totalChunks ? ` / ${c.totalChunks}` : ''}</span>
         <span>${esc(c.section || 'intro')}</span>
+        ${c.nodeType ? `<span class="badge badge-amber" title="node_type: ${esc(c.nodeType)}">${esc(nodeTypeBadgeLabel(c.nodeType))}</span>` : ''}
       </div>
-      ${c.context ? `<div class="chunk-context">${esc(c.context)}</div>` : ''}
+      ${c.context ? `<div class="chunk-context"><span class="chunk-context-label">${esc(contextLabel)}:</span> ${esc(c.context)}</div>` : ''}
       <pre class="chunk-text">${esc(c.text ?? '')}</pre>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 function fileViewLoadMoreButton() {

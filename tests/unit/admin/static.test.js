@@ -4,9 +4,44 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
+import vm from 'node:vm';
 import { createApp } from '../../../src/admin/server.js';
 import { resolveStaticPath } from '../../../src/admin/static.js';
 import { createJobRegistry } from '../../../src/admin/jobs/registry.js';
+
+// Pulls the small, pure rendering helpers directly out of the served app.js
+// source (by name, between two known adjacent function declarations — same
+// slicing technique already used elsewhere in this file) and evaluates just
+// those snippets in an isolated vm context. This lets tests assert on actual
+// rendering behavior for given inputs, not just regex-match the source text
+// — without needing a DOM/browser runner, and without risking the module-
+// level side effects (loadTopbar()/loadSidebar()/route()) that running the
+// whole file would trigger.
+function extractBetween(src, startMarker, endMarker) {
+  const start = src.indexOf(startMarker);
+  if (start === -1) throw new Error(`marker not found: ${startMarker}`);
+  const end = src.indexOf(endMarker, start);
+  if (end === -1) throw new Error(`end marker not found after start: ${endMarker}`);
+  return src.slice(start, end);
+}
+
+function loadSidebarLabelHelpers(js) {
+  const src = extractBetween(js, 'function esc(value)', 'function errorBox(err)')
+    + extractBetween(js, 'function sidebarNodeRow(', 'async function onSidebarNodeClick');
+  const context = {};
+  vm.createContext(context);
+  vm.runInContext(src, context);
+  return context;
+}
+
+function loadChunkRenderHelpers(js) {
+  const src = extractBetween(js, 'function esc(value)', 'function errorBox(err)')
+    + extractBetween(js, 'const STRUCTURAL_NODE_TYPES', 'function fileViewLoadMoreButton');
+  const context = {};
+  vm.createContext(context);
+  vm.runInContext(src, context);
+  return context;
+}
 
 function makeFakeChildForSpawn() {
   const child = new EventEmitter();
@@ -469,6 +504,141 @@ describe('sidebar navigation tree (served app.js)', () => {
       assert.match(fn, /addEventListener\('click', \(\) => openFileView/);
       assert.ok(!/return openFileView\(name, node\.sourceFile, node\.nodePath, 0\);/.test(fn),
         'a 404 from skeleton/anchor must not automatically open chunk 0 of the file');
+    });
+  });
+});
+
+// ── skeleton node labels and chunk display clarity ───────────────────────────
+describe('sidebar node labels (served app.js, evaluated behavior)', () => {
+  it('a file node with nodePath "pitch-en.md#file" renders as "pitch-en.md", not "file"', async () => {
+    await withServer(async (base) => {
+      const js = await (await fetch(base + '/app.js')).text();
+      const { nodeDisplayLabel } = loadSidebarLabelHelpers(js);
+      const label = nodeDisplayLabel({ nodeType: 'file', nodePath: 'pitch-en.md#file', sourceFile: 'pitch-en.md' });
+      assert.equal(label, 'pitch-en.md');
+      assert.notEqual(label, 'file');
+    });
+  });
+
+  it('a file node under a subfolder renders only the basename, not the folder path', async () => {
+    await withServer(async (base) => {
+      const js = await (await fetch(base + '/app.js')).text();
+      const { nodeDisplayLabel } = loadSidebarLabelHelpers(js);
+      const label = nodeDisplayLabel({
+        nodeType: 'file',
+        nodePath: 'Тема 10. Процеси в Linux/1. Вступ.md#file',
+        sourceFile: 'Тема 10. Процеси в Linux/1. Вступ.md',
+      });
+      assert.equal(label, '1. Вступ.md');
+    });
+  });
+
+  it('a section node uses the last heading_path entry, not the raw nodePath', async () => {
+    await withServer(async (base) => {
+      const js = await (await fetch(base + '/app.js')).text();
+      const { nodeDisplayLabel } = loadSidebarLabelHelpers(js);
+      const label = nodeDisplayLabel({
+        nodeType: 'section',
+        nodePath: 'pitch-en.md#intro/details',
+        headingPath: ['Introduction', 'Details'],
+        summary: 'Details — 3 paragraphs',
+      });
+      assert.equal(label, 'Details');
+    });
+  });
+
+  it('a section node with no heading_path falls back to summary, not the raw nodePath', async () => {
+    await withServer(async (base) => {
+      const js = await (await fetch(base + '/app.js')).text();
+      const { nodeDisplayLabel } = loadSidebarLabelHelpers(js);
+      const label = nodeDisplayLabel({
+        nodeType: 'section', nodePath: 'pitch-en.md#вступ', headingPath: [], summary: 'Вступ',
+      });
+      assert.equal(label, 'Вступ');
+    });
+  });
+
+  it('a directory node renders its own directory name, not the full nested path', async () => {
+    await withServer(async (base) => {
+      const js = await (await fetch(base + '/app.js')).text();
+      const { nodeDisplayLabel } = loadSidebarLabelHelpers(js);
+      const label = nodeDisplayLabel({
+        nodeType: 'directory',
+        nodePath: 'demo#dir/Тема 10. Процеси в Linux (ps, top, kill, htop)',
+      });
+      assert.equal(label, 'Тема 10. Процеси в Linux (ps, top, kill, htop)');
+    });
+  });
+
+  it('a nested directory node renders only its own segment, not the parent path', async () => {
+    await withServer(async (base) => {
+      const js = await (await fetch(base + '/app.js')).text();
+      const { nodeDisplayLabel } = loadSidebarLabelHelpers(js);
+      const label = nodeDisplayLabel({ nodeType: 'directory', nodePath: 'demo#dir/parent/child' });
+      assert.equal(label, 'child');
+    });
+  });
+
+  it('sidebarNodeRow keeps node_path and summary in the tooltip only, not the visible label', async () => {
+    await withServer(async (base) => {
+      const js = await (await fetch(base + '/app.js')).text();
+      const { sidebarNodeRow } = loadSidebarLabelHelpers(js);
+      const html = sidebarNodeRow({
+        nodeType: 'file', nodePath: 'pitch-en.md#file', sourceFile: 'pitch-en.md', summary: 'Pitch deck', childCount: 0,
+      }, 0, 0);
+      assert.match(html, /title="Pitch deck — pitch-en\.md#file"/);
+      assert.match(html, />pitch-en\.md</);
+      assert.ok(!html.includes('>pitch-en.md#file<'), 'raw node_path must not be the visible label text');
+    });
+  });
+});
+
+describe('chunk view rendering (served app.js, evaluated behavior)', () => {
+  it('renderFileChunks includes a node_type badge for every chunk', async () => {
+    await withServer(async (base) => {
+      const js = await (await fetch(base + '/app.js')).text();
+      const { renderFileChunks } = loadChunkRenderHelpers(js);
+      const html = renderFileChunks([
+        { chunkIndex: 0, section: 'Intro', nodeType: 'paragraph', text: 'hello', context: 'Intro' },
+      ]);
+      assert.match(html, /badge badge-amber/);
+      assert.match(html, />paragraph</);
+    });
+  });
+
+  it('labels structural node types (table/code/checklist) distinctly', async () => {
+    await withServer(async (base) => {
+      const js = await (await fetch(base + '/app.js')).text();
+      const { renderFileChunks } = loadChunkRenderHelpers(js);
+      const table = renderFileChunks([{ chunkIndex: 1, nodeType: 'table', text: '| a | b |', context: 'Intro — table' }]);
+      const code = renderFileChunks([{ chunkIndex: 2, nodeType: 'code_block', text: 'console.log(1)', context: 'Intro — code block' }]);
+      const checklist = renderFileChunks([{ chunkIndex: 3, nodeType: 'checklist', text: '- [ ] todo', context: 'Intro — checklist' }]);
+      assert.match(table, />table</);
+      assert.match(code, />code</);
+      assert.match(checklist, />checklist</);
+    });
+  });
+
+  it('labels context as "retrieval context" for structural chunks and "section path" for plain prose', async () => {
+    await withServer(async (base) => {
+      const js = await (await fetch(base + '/app.js')).text();
+      const { renderFileChunks } = loadChunkRenderHelpers(js);
+      const prose = renderFileChunks([{ chunkIndex: 0, nodeType: 'paragraph', text: 'hello', context: 'Intro › Details' }]);
+      const table = renderFileChunks([{ chunkIndex: 1, nodeType: 'table', text: '| a |', context: 'Intro — table' }]);
+      assert.match(prose, /section path/i);
+      assert.ok(!/retrieval context/i.test(prose), 'a plain prose chunk must not be labeled as retrieval context');
+      assert.match(table, /retrieval context/i);
+      assert.ok(!/section path/i.test(table), 'a structural chunk must not be labeled as a plain section path');
+    });
+  });
+
+  it('the context annotation is visually secondary (a distinct label class), not ordinary chunk content', async () => {
+    await withServer(async (base) => {
+      const js = await (await fetch(base + '/app.js')).text();
+      const { renderFileChunks } = loadChunkRenderHelpers(js);
+      const html = renderFileChunks([{ chunkIndex: 0, nodeType: 'paragraph', text: 'hello', context: 'Intro' }]);
+      assert.match(html, /class="chunk-context-label"/);
+      assert.match(html, /class="chunk-context"/);
     });
   });
 });

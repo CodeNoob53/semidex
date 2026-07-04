@@ -165,6 +165,10 @@ td.mono { font-family: var(--mono); font-size: 12px; }
   display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap;
 }
 .chunk-context { padding: 8px 10px; color: var(--ink-dim); font-size: 12px; font-style: italic; }
+.chunk-context-label {
+  font-style: normal; font-weight: 600; text-transform: uppercase;
+  letter-spacing: .03em; font-size: 10px; color: var(--ink-faint); margin-right: 4px;
+}
 .chunk-text {
   margin: 0; padding: 10px; white-space: pre-wrap; word-break: break-word;
   font-family: var(--mono); font-size: 12px; color: var(--ink);
