@@ -3,8 +3,11 @@
 // needed here (jobs are a process-management concern, not storage), but the
 // endpoints still speak semidex domain shapes only — no indexer internals,
 // no raw child_process objects, ever serialized to the client.
-import { sendJson, badRequest, notFound, conflict } from '../http.js';
+import { sendJson, badRequest, notFound, conflict, dependencyUnavailable } from '../http.js';
 import { readJsonBody } from '../http.js';
+import { checkOllama } from '../system/ollama.js';
+
+const DEFAULT_CONTEXT_MODEL = process.env.CONTEXT_MODEL || 'gemma3:4b';
 
 const MAX_LOG_LINES_IN_RESPONSE = 200;
 
@@ -14,6 +17,23 @@ function requireStringField(body, name) {
     throw badRequest(`Body field "${name}" is required and must be a non-empty string`);
   }
   return v;
+}
+
+// Collection names can now be human-readable (spaces, Cyrillic, etc. — the
+// UI/API already round-trip these fine via encodeURIComponent), but "/" and
+// "\" are still rejected: the router matches route segments literally, so a
+// name containing either would either fail to match ":name" as a single
+// segment or, if percent-encoded, create a collection whose name can't be
+// cleanly round-tripped back through GET/DELETE /api/collections/:name.
+const PATH_SEPARATOR_RE = /[/\\]/;
+
+function requireCollectionNameField(body, name) {
+  const raw = requireStringField(body, name);
+  const trimmed = raw.trim();
+  if (PATH_SEPARATOR_RE.test(trimmed)) {
+    throw badRequest(`Body field "${name}" must not contain "/" or "\\": "${trimmed}"`);
+  }
+  return trimmed;
 }
 
 // This MVP indexes local paths only (task spec: "Do not accept remote URLs
@@ -31,6 +51,13 @@ function requireLocalPathField(body, name) {
   }
   return v;
 }
+
+// Known option names — used both to build the validated options object and
+// to detect the misnesting mistake below (sending these at the top level
+// of the body instead of under "options").
+const KNOWN_OPTION_NAMES = [
+  'onnxEmbed', 'skeletonChunking', 'skeletonNav', 'llmSummaries', 'pruneStale', 'tagGen',
+];
 
 function parseOptions(body) {
   const o = body?.options;
@@ -54,11 +81,25 @@ function parseOptions(body) {
   };
 }
 
+// A known option sent at the top level of the body (instead of nested
+// under "options") used to be silently ignored — parseOptions() only reads
+// body.options, so the request would "succeed" with every option at its
+// default, producing a wrong-shape collection (e.g. skeletonChunking
+// silently off) with no indication anything was misconfigured. Reject it
+// loudly instead.
+function requireOptionsNotMisnested(body) {
+  const misnested = KNOWN_OPTION_NAMES.filter((name) => name in body);
+  if (misnested.length) {
+    throw badRequest(`Indexing options must be nested under "options" (found at top level: ${misnested.join(', ')}).`);
+  }
+}
+
 export function parseIndexJobRequest(body) {
   if (typeof body !== 'object' || body === null || Array.isArray(body)) {
     throw badRequest('Request body must be a JSON object');
   }
-  const collection = requireStringField(body, 'collection');
+  requireOptionsNotMisnested(body);
+  const collection = requireCollectionNameField(body, 'collection');
   const path = requireLocalPathField(body, 'path');
   const options = parseOptions(body);
   return { collection, path, options };
@@ -84,10 +125,22 @@ export function toJobDetail(job) {
   return { ...toJobSummary(job), log: lines };
 }
 
-export function registerJobsRoutes(router, registry) {
+export function registerJobsRoutes(router, registry, { checkOllamaFn = checkOllama } = {}) {
   router.post('/api/jobs/index', async ({ req, res }) => {
     const body = await readJsonBody(req);
     const { collection, path, options } = parseIndexJobRequest(body);
+
+    // LLM summaries need Ollama running with the context model pulled — the
+    // indexer's own preflight only discovers this *after* the job has
+    // already been spawned (failure buried in job logs). Check here first
+    // (read-only — never starts Ollama) so the user gets an actionable 503
+    // instead of a job that starts and immediately fails.
+    if (options.llmSummaries) {
+      const ollama = await checkOllamaFn({ requiredModel: DEFAULT_CONTEXT_MODEL });
+      if (ollama.status !== 'available') {
+        throw dependencyUnavailable(`LLM summaries require Ollama: ${ollama.message}`);
+      }
+    }
 
     let started;
     try {

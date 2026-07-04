@@ -44,6 +44,10 @@ export function conflict(message) {
   return new HttpError(409, 'conflict', message);
 }
 
+export function dependencyUnavailable(message) {
+  return new HttpError(503, 'dependency_unavailable', message);
+}
+
 /**
  * Read and JSON-parse a request body, capped to avoid unbounded memory use
  * from a misbehaving client. Returns {} for an empty body (POST endpoints in

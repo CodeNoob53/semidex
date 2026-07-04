@@ -290,6 +290,9 @@ td.actions { text-align: right; }
 .form-row { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; font-size: 11px; color: var(--ink-dim); }
 .form-row .q-input { font-size: 13px; }
 
+.path-picker-row { display: flex; gap: 8px; align-items: center; }
+.path-picker-row .q-input { flex: 1; }
+
 .idx-options { display: flex; flex-wrap: wrap; gap: 14px; margin: 4px 0 10px; }
 .idx-check {
   display: flex; align-items: center; gap: 6px;

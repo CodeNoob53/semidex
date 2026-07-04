@@ -795,31 +795,48 @@ function renderSourcePathField() {
   const options = recent.map(p => `<option value="${esc(p)}">${esc(p)}</option>`).join('');
   return `
     <label class="form-row">
-      <span>source path ${recent.length ? '' : '(no recent paths yet — enter one below)'}</span>
+      <span>source path ${recent.length ? '' : '(no recent paths yet — choose a folder below)'}</span>
       ${recent.length ? `
         <select id="settings-path-recent" class="q-input">
           <option value="">— choose a recent source root —</option>
           ${options}
-          <option value="__manual__">Other (enter manually)…</option>
+          <option value="__manual__">Choose a different folder…</option>
         </select>` : ''}
-      <input type="text" id="settings-path-manual" class="q-input"
-        placeholder="C:\\path\\to\\docs or ./docs"
-        style="${recent.length ? 'display:none;margin-top:6px' : ''}">
+      <div class="path-picker-row" style="${recent.length ? 'display:none;margin-top:6px' : ''}" id="settings-path-manual-row">
+        <input type="text" id="settings-path-manual" class="q-input" placeholder="Choose a folder, or type a path">
+        <button type="button" class="btn-ghost" id="settings-choose-folder">Choose folder…</button>
+      </div>
     </label>`;
 }
 
 function wireSourcePathField() {
   const select = $('#settings-path-recent');
   const manual = $('#settings-path-manual');
-  if (!select) return;
-  select.addEventListener('change', () => {
-    if (select.value === '__manual__' || select.value === '') {
-      manual.style.display = '';
-      manual.style.marginTop = '6px';
-      if (select.value === '__manual__') manual.focus();
-    } else {
-      manual.style.display = 'none';
-      manual.value = select.value;
+  const manualRow = $('#settings-path-manual-row');
+  if (select) {
+    select.addEventListener('change', () => {
+      if (select.value === '__manual__' || select.value === '') {
+        manualRow.style.display = '';
+        manualRow.style.marginTop = '6px';
+        if (select.value === '__manual__') manual.focus();
+      } else {
+        manualRow.style.display = 'none';
+        manual.value = select.value;
+      }
+    });
+  }
+  $('#settings-choose-folder')?.addEventListener('click', async () => {
+    const btn = $('#settings-choose-folder');
+    btn.disabled = true;
+    const originalLabel = btn.textContent;
+    btn.textContent = 'Choosing…';
+    try {
+      const { path, cancelled } = await apiPost('/api/system/pick-folder', {});
+      if (!cancelled && path) manual.value = path;
+    } catch { /* picker unavailable — manual input stays available as-is */ }
+    finally {
+      btn.disabled = false;
+      btn.textContent = originalLabel;
     }
   });
 }
@@ -972,28 +989,38 @@ function stopIndexPolling() {
 async function renderIndexingView(main) {
   stopIndexPolling();
   main.innerHTML = `
-    <h1 class="view-title">index a folder</h1>
-    <p class="view-sub">Indexing writes to the selected collection.</p>
+    <h1 class="view-title">Create a collection</h1>
+    <p class="view-sub">Choose a folder on your computer to index into a new or existing collection. Indexing writes to the selected collection.</p>
     <div class="panel">
       <div class="panel-head">Start an indexing job</div>
       <div class="panel-body">
         <form id="index-form" autocomplete="off">
           <label class="form-row">
-            <span>collection</span>
-            <input type="text" id="idx-collection" class="q-input" placeholder="my-docs" required>
+            <span>collection name</span>
+            <input type="text" id="idx-collection" class="q-input" placeholder="Основи Node.js" required>
           </label>
           <label class="form-row">
-            <span>source path</span>
-            <input type="text" id="idx-path" class="q-input" placeholder="C:\\path\\to\\docs or ./docs" required>
+            <span>folder to index</span>
+            <div class="path-picker-row">
+              <input type="text" id="idx-path" class="q-input" placeholder="Choose a folder, or type a path" style="display:none">
+              <button type="button" class="btn-ghost" id="idx-choose-folder">Choose folder…</button>
+            </div>
+            <div id="idx-path-fallback" style="display:none">
+              <p class="skel-note" style="margin-top:6px">
+                The folder picker isn't available here — enter the path manually.
+              </p>
+              <input type="text" id="idx-path-manual" class="q-input" placeholder="C:\\path\\to\\docs or ./docs">
+            </div>
           </label>
           <div class="idx-options">
             <label class="idx-check"><input type="checkbox" id="opt-onnx" checked> ONNX embeddings</label>
-            <label class="idx-check"><input type="checkbox" id="opt-llm-summaries"> LLM summaries</label>
+            <label class="idx-check"><input type="checkbox" id="opt-llm-summaries"> LLM summaries <span class="mono muted">(requires Ollama)</span></label>
             <label class="idx-check"><input type="checkbox" id="opt-skel-chunk" checked> Skeleton chunking</label>
             <label class="idx-check"><input type="checkbox" id="opt-skel-nav" checked> Skeleton navigation</label>
             <label class="idx-check"><input type="checkbox" id="opt-prune"> Prune stale</label>
             <label class="idx-check"><input type="checkbox" id="opt-tags"> Generate tags</label>
           </div>
+          <div id="idx-ollama-status" style="display:none"></div>
           <p class="skel-note">Prune stale should be used only with the full source root.</p>
           <button type="submit" class="btn-amber" id="idx-submit">start indexing</button>
         </form>
@@ -1009,6 +1036,12 @@ async function renderIndexingView(main) {
     e.target.closest('label').classList.toggle('warn', e.target.checked);
   });
 
+  $('#opt-llm-summaries').addEventListener('change', (e) => {
+    if (e.target.checked) loadOllamaStatus(); else $('#idx-ollama-status').style.display = 'none';
+  });
+
+  $('#idx-choose-folder').addEventListener('click', chooseIndexFolder);
+
   $('#index-form').addEventListener('submit', (e) => {
     e.preventDefault();
     startIndexJob();
@@ -1017,15 +1050,71 @@ async function renderIndexingView(main) {
   await loadJobs();
 }
 
+function currentIndexPathValue() {
+  const manual = $('#idx-path-manual');
+  const main = $('#idx-path');
+  if (manual && manual.offsetParent !== null) return manual.value.trim();
+  return main.value.trim();
+}
+
+async function chooseIndexFolder() {
+  const btn = $('#idx-choose-folder');
+  const pathInput = $('#idx-path');
+  const fallback = $('#idx-path-fallback');
+  btn.disabled = true;
+  const originalLabel = btn.textContent;
+  btn.textContent = 'Choosing…';
+
+  try {
+    const { path, cancelled } = await apiPost('/api/system/pick-folder', {});
+    if (!cancelled && path) {
+      pathInput.style.display = '';
+      pathInput.value = path;
+      fallback.style.display = 'none';
+    }
+  } catch (err) {
+    // Picker unavailable (non-Windows, powershell.exe missing, timed out,
+    // etc.) — fall back to manual entry instead of leaving the user stuck
+    // with a broken button and no way to proceed.
+    fallback.style.display = '';
+    $('#idx-path-manual').focus();
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalLabel;
+  }
+}
+
+const OLLAMA_STATUS_BADGE = {
+  available: 'badge badge-ok',
+  missing: 'badge badge-fail',
+  model_missing: 'badge badge-warn',
+};
+
+async function loadOllamaStatus() {
+  const box = $('#idx-ollama-status');
+  if (!box) return;
+  box.style.display = '';
+  box.innerHTML = '<span class="mono muted">checking Ollama…</span>';
+  try {
+    const { status, message } = await api('/api/system/ollama-status');
+    const badgeClass = OLLAMA_STATUS_BADGE[status] ?? 'badge';
+    box.innerHTML = `LLM summaries require Ollama:
+      <span class="${badgeClass}">${esc(status)}</span>
+      <span class="skel-note" style="display:inline;margin:0 0 0 6px">${esc(message)}</span>`;
+  } catch (err) {
+    box.innerHTML = errorBox(err);
+  }
+}
+
 async function startIndexJob() {
   const status = $('#idx-status');
   const submit = $('#idx-submit');
 
   const collection = $('#idx-collection').value.trim();
-  const path = $('#idx-path').value.trim();
+  const path = currentIndexPathValue();
   if (!collection || !path) {
     status.className = 'error-box';
-    status.textContent = 'Collection and source path are both required.';
+    status.textContent = 'Collection name and folder to index are both required.';
     return;
   }
 
@@ -1052,9 +1141,14 @@ async function startIndexJob() {
     await loadJobs();
   } catch (err) {
     status.className = 'error-box';
-    status.textContent = err.status === 409
-      ? `${err.message} Wait for it to finish, or cancel it below.`
-      : err.message;
+    if (err.status === 409) {
+      status.textContent = `${err.message} Wait for it to finish, or cancel it below.`;
+    } else if (err.status === 503) {
+      status.textContent = err.message;
+      loadOllamaStatus();
+    } else {
+      status.textContent = err.message;
+    }
   } finally {
     submit.disabled = false;
   }

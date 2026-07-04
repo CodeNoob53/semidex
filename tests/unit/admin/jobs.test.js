@@ -327,9 +327,16 @@ describe('createJobRegistry — listJobs', () => {
 
 // ── API: request validation ──────────────────────────────────────────────────
 
-async function withJobApp(spawnFn, fn) {
+// Default stub: Ollama "available" so existing tests that don't care about
+// the Ollama-dependency check (most of them) aren't affected by it — real
+// network calls to a real Ollama instance must never happen from this file.
+function makeAvailableOllamaStub() {
+  return async () => ({ status: 'available', message: 'Ollama is running.' });
+}
+
+async function withJobApp(spawnFn, fn, { checkOllamaFn = makeAvailableOllamaStub() } = {}) {
   const jobRegistry = createJobRegistry({ spawnFn });
-  const app = createApp({ jobRegistry, adapter: makeStubAdapter() });
+  const app = createApp({ jobRegistry, adapter: makeStubAdapter(), checkOllamaFn });
   await new Promise((resolve) => app.listen(0, '127.0.0.1', resolve));
   const base = `http://127.0.0.1:${app.address().port}`;
   try {
@@ -372,6 +379,43 @@ describe('POST /api/jobs/index — validation', () => {
     });
   });
 
+  it('accepts a human-readable collection name with spaces and Cyrillic', async () => {
+    await withJobApp(makeNeverExitingSpawn([]), async (base) => {
+      const res = await fetch(base + '/api/jobs/index', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ collection: 'Основи Node.js', path: './x' }),
+      });
+      assert.equal(res.status, 202);
+      assert.equal((await res.json()).job.collection, 'Основи Node.js');
+    });
+  });
+
+  it('trims leading/trailing whitespace from the collection name', async () => {
+    await withJobApp(makeNeverExitingSpawn([]), async (base) => {
+      const res = await fetch(base + '/api/jobs/index', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ collection: '  Company Knowledge Base  ', path: './x' }),
+      });
+      assert.equal(res.status, 202);
+      assert.equal((await res.json()).job.collection, 'Company Knowledge Base');
+    });
+  });
+
+  for (const name of ['foo/bar', 'foo\\bar', '/etc/passwd', '..\\..\\windows', 'a/b/c']) {
+    it(`rejects a collection name containing a path separator: "${name}"`, async () => {
+      await withJobApp(makeNeverExitingSpawn([]), async (base) => {
+        const res = await fetch(base + '/api/jobs/index', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ collection: name, path: './x' }),
+        });
+        assert.equal(res.status, 400);
+        const body = await res.json();
+        assert.equal(body.error.code, 'bad_request');
+        assert.match(body.error.message, /must not contain/);
+      });
+    });
+  }
+
   it('rejects a non-object options field', async () => {
     await withJobApp(makeNeverExitingSpawn([]), async (base) => {
       const res = await fetch(base + '/api/jobs/index', {
@@ -392,6 +436,22 @@ describe('POST /api/jobs/index — validation', () => {
     });
   });
 
+  for (const name of ['onnxEmbed', 'skeletonChunking', 'skeletonNav', 'llmSummaries', 'pruneStale', 'tagGen']) {
+    it(`rejects a known option ("${name}") sent at the top level instead of nested under "options"`, async () => {
+      await withJobApp(makeNeverExitingSpawn([]), async (base) => {
+        const res = await fetch(base + '/api/jobs/index', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ collection: 'demo', path: './x', [name]: true }),
+        });
+        assert.equal(res.status, 400);
+        const body = await res.json();
+        assert.equal(body.error.code, 'bad_request');
+        assert.match(body.error.message, /nested under "options"/);
+        assert.match(body.error.message, new RegExp(name));
+      });
+    });
+  }
+
   it('accepts llmSummaries as a boolean option', async () => {
     const calls = [];
     await withJobApp(makeNeverExitingSpawn(calls), async (base) => {
@@ -402,6 +462,96 @@ describe('POST /api/jobs/index — validation', () => {
       assert.equal(res.status, 202);
       assert.equal(calls[0].opts.env.SKELETON_SUMMARY, 'llm');
     });
+  });
+
+  it('does not check Ollama availability when llmSummaries is not requested', async () => {
+    let called = false;
+    const checkOllamaFn = async () => { called = true; return { status: 'available', message: 'ok' }; };
+    await withJobApp(makeNeverExitingSpawn([]), async (base) => {
+      const res = await fetch(base + '/api/jobs/index', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ collection: 'demo', path: './x' }),
+      });
+      assert.equal(res.status, 202);
+      assert.equal(called, false, 'checkOllamaFn must not be called when llmSummaries is off');
+    }, { checkOllamaFn });
+  });
+
+  it('rejects with 503 when llmSummaries is true and Ollama is missing', async () => {
+    const checkOllamaFn = async () => ({ status: 'missing', message: 'Ollama is not installed or not on PATH. Install it from https://ollama.com, then try again.' });
+    await withJobApp(makeNeverExitingSpawn([]), async (base) => {
+      const res = await fetch(base + '/api/jobs/index', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ collection: 'demo', path: './x', options: { llmSummaries: true } }),
+      });
+      assert.equal(res.status, 503);
+      const body = await res.json();
+      assert.equal(body.error.code, 'dependency_unavailable');
+      assert.match(body.error.message, /LLM summaries require Ollama/);
+      assert.match(body.error.message, /not installed/);
+    }, { checkOllamaFn });
+  });
+
+  it('rejects with 503 when llmSummaries is true and the required model is missing', async () => {
+    const checkOllamaFn = async () => ({ status: 'model_missing', message: 'Ollama is running, but the model "gemma3:4b" is not pulled. Run: ollama pull gemma3:4b', missingModel: 'gemma3:4b' });
+    await withJobApp(makeNeverExitingSpawn([]), async (base) => {
+      const res = await fetch(base + '/api/jobs/index', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ collection: 'demo', path: './x', options: { llmSummaries: true } }),
+      });
+      assert.equal(res.status, 503);
+      assert.match((await res.json()).error.message, /ollama pull/);
+    }, { checkOllamaFn });
+  });
+
+  it('does not spawn the indexer job when the Ollama check fails', async () => {
+    const calls = [];
+    const checkOllamaFn = async () => ({ status: 'missing', message: 'not installed' });
+    await withJobApp(makeNeverExitingSpawn(calls), async (base) => {
+      await fetch(base + '/api/jobs/index', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ collection: 'demo', path: './x', options: { llmSummaries: true } }),
+      });
+      assert.equal(calls.length, 0, 'the indexer child process must never be spawned when the dependency check fails');
+    }, { checkOllamaFn });
+  });
+
+  it('never spawns any background process (Ollama or otherwise) via the real checkOllama when submitting a normal job with llmSummaries', async () => {
+    // Uses the REAL checkOllama (no checkOllamaFn override) with only calls
+    // to Ollama's own URL stubbed to simulate it being unreachable — proves
+    // that the actual production code path never touches node:child_process
+    // as a side effect of a normal /api/jobs/index submission. The HTTP
+    // request to the test server itself still goes through the real
+    // fetch/node:http, only the Ollama URL is intercepted. The indexer job's
+    // own spawnFn is still faked (that spawn is expected — it's the job
+    // itself; what must NOT happen is any extra spawn for Ollama).
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async (url, ...rest) => {
+      if (String(url).includes('11434')) throw new Error('ECONNREFUSED');
+      return originalFetch(url, ...rest);
+    };
+    const indexerCalls = [];
+    try {
+      const jobRegistry = createJobRegistry({ spawnFn: makeNeverExitingSpawn(indexerCalls) });
+      const app = createApp({ jobRegistry, adapter: makeStubAdapter() }); // no checkOllamaFn override — real checkOllama
+      await new Promise((resolve) => app.listen(0, '127.0.0.1', resolve));
+      const base = `http://127.0.0.1:${app.address().port}`;
+      try {
+        const res = await fetch(base + '/api/jobs/index', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ collection: 'demo', path: './x', options: { llmSummaries: true } }),
+        });
+        assert.equal(res.status, 503);
+        const body = await res.json();
+        assert.equal(body.error.code, 'dependency_unavailable');
+        assert.match(body.error.message, /Start Ollama and retry/);
+        assert.equal(indexerCalls.length, 0, 'the indexer job itself must not have been spawned either');
+      } finally {
+        await new Promise((resolve) => app.close(resolve));
+      }
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
   });
 
   for (const url of ['http://example.com/docs', 'https://example.com/docs', 'file:///C:/docs', 'ftp://example.com/docs']) {

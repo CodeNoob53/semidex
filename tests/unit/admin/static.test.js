@@ -3,8 +3,18 @@
 // that /api routes keep working with static serving enabled.
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import { EventEmitter } from 'node:events';
 import { createApp } from '../../../src/admin/server.js';
 import { resolveStaticPath } from '../../../src/admin/static.js';
+import { createJobRegistry } from '../../../src/admin/jobs/registry.js';
+
+function makeFakeChildForSpawn() {
+  const child = new EventEmitter();
+  child.stdout = new EventEmitter();
+  child.stderr = new EventEmitter();
+  child.kill = () => { setTimeout(() => child.emit('exit', null, 'SIGTERM'), 1); };
+  return child;
+}
 
 function makeStubAdapter() {
   return {
@@ -255,6 +265,156 @@ describe('indexing jobs view (served app.js / index.html)', () => {
       const js = await (await fetch(base + '/app.js')).text();
       assert.match(js, /loadSidebar\(\)/);
     });
+  });
+});
+
+// ── folder picker + human collection naming (developer-form redesign) ───────
+describe('folder picker (served app.js)', () => {
+  it('has a primary "Choose folder" button wired to POST /api/system/pick-folder', async () => {
+    await withServer(async (base) => {
+      const js = await (await fetch(base + '/app.js')).text();
+      assert.match(js, /idx-choose-folder/);
+      assert.match(js, /apiPost\('\/api\/system\/pick-folder'/);
+    });
+  });
+
+  it('has a manual-path fallback state that is shown when the picker fails', async () => {
+    await withServer(async (base) => {
+      const js = await (await fetch(base + '/app.js')).text();
+      assert.match(js, /idx-path-fallback/);
+      assert.match(js, /idx-path-manual/);
+      // The fallback must actually be revealed on picker failure, not just present in markup.
+      const fnStart = js.indexOf('async function chooseIndexFolder');
+      assert.ok(fnStart !== -1, 'chooseIndexFolder should be defined');
+      const fn = js.slice(fnStart, fnStart + 800);
+      assert.match(fn, /catch/);
+      assert.match(fn, /fallback\.style\.display\s*=\s*''/);
+    });
+  });
+
+  it('the settings reindex form also offers a folder-picker button, not manual-only', async () => {
+    await withServer(async (base) => {
+      const js = await (await fetch(base + '/app.js')).text();
+      assert.match(js, /settings-choose-folder/);
+    });
+  });
+});
+
+describe('POST /api/system/pick-folder — response shape', () => {
+  it('returns a domain-shaped { path, cancelled } response, not a raw dialog/OS object', async () => {
+    const pickFolderFn = async () => ({ path: 'C:\\Users\\demo\\Docs', cancelled: false });
+    const app = createApp({ adapter: makeStubAdapter(), embedQuery: async () => ({ dense: [], sparse: {} }), pickFolderFn });
+    await new Promise((resolve) => app.listen(0, '127.0.0.1', resolve));
+    const base = `http://127.0.0.1:${app.address().port}`;
+    try {
+      const res = await fetch(base + '/api/system/pick-folder', { method: 'POST' });
+      assert.equal(res.status, 200);
+      const body = await res.json();
+      assert.deepEqual(Object.keys(body).sort(), ['cancelled', 'path']);
+    } finally {
+      await new Promise((resolve) => app.close(resolve));
+    }
+  });
+});
+
+describe('LLM summaries — Ollama dependency status (served app.js)', () => {
+  it('shows "LLM summaries require Ollama" copy with a status badge, not a silent checkbox', async () => {
+    await withServer(async (base) => {
+      const js = await (await fetch(base + '/app.js')).text();
+      assert.match(js, /LLM summaries require Ollama/);
+      assert.match(js, /idx-ollama-status/);
+      assert.match(js, /\/api\/system\/ollama-status/);
+    });
+  });
+
+  it('checking the LLM summaries checkbox triggers an Ollama status check', async () => {
+    await withServer(async (base) => {
+      const js = await (await fetch(base + '/app.js')).text();
+      assert.match(js, /opt-llm-summaries['"]\)\s*\n?\s*\.addEventListener\('change'|opt-llm-summaries.*addEventListener\('change'/s);
+      assert.match(js, /loadOllamaStatus/);
+    });
+  });
+
+  it('maps each Ollama status (available/missing/model_missing) to a distinct badge class', async () => {
+    await withServer(async (base) => {
+      const js = await (await fetch(base + '/app.js')).text();
+      assert.match(js, /available:\s*'badge badge-ok'/);
+      assert.match(js, /missing:\s*'badge badge-fail'/);
+      assert.match(js, /model_missing:\s*'badge badge-warn'/);
+    });
+  });
+
+  it('surfaces a 503 dependency error from job start back through the Ollama status check, not a generic failure', async () => {
+    await withServer(async (base) => {
+      const js = await (await fetch(base + '/app.js')).text();
+      const start = js.indexOf('async function startIndexJob');
+      const fn = js.slice(start, start + 1500);
+      assert.match(fn, /err\.status === 503/);
+      assert.match(fn, /loadOllamaStatus/);
+    });
+  });
+});
+
+describe('collection naming (served app.js)', () => {
+  it('does not suggest lowercase-hyphen slug names anywhere in the served UI', async () => {
+    await withServer(async (base) => {
+      const js = await (await fetch(base + '/app.js')).text();
+      const html = await (await fetch(base + '/')).text();
+      assert.ok(!/my-docs/.test(js), 'app.js must not use the old slug placeholder "my-docs"');
+      assert.ok(!/lowercase-hyphen|lowercase and hyphens|use lowercase/i.test(js + html), 'no lowercase-hyphen guidance should remain');
+    });
+  });
+
+  it('uses a human-readable example as the collection-name placeholder', async () => {
+    await withServer(async (base) => {
+      const js = await (await fetch(base + '/app.js')).text();
+      assert.match(js, /idx-collection/);
+      const start = js.indexOf('id="idx-collection"');
+      const tag = js.slice(start - 20, start + 120);
+      assert.match(tag, /placeholder="[^"]*[А-ЯҐЄІЇа-яґєії ][^"]*"/, 'placeholder should look like a human name, not a slug');
+    });
+  });
+});
+
+describe('POST /api/collections/:name — names with spaces (served API)', () => {
+  it('starts an indexing job for a collection name containing spaces', async () => {
+    const calls = [];
+    const spawnFn = (command, args, opts) => { calls.push({ command, args, opts }); return makeFakeChildForSpawn(); };
+    const jobRegistry = createJobRegistry({ spawnFn });
+    const app = createApp({ adapter: makeStubAdapter(), embedQuery: async () => ({ dense: [], sparse: {} }), jobRegistry });
+    await new Promise((resolve) => app.listen(0, '127.0.0.1', resolve));
+    const base = `http://127.0.0.1:${app.address().port}`;
+    try {
+      const res = await fetch(base + '/api/jobs/index', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ collection: 'Company Knowledge Base', path: './docs' }),
+      });
+      assert.equal(res.status, 202);
+      const body = await res.json();
+      assert.equal(body.job.collection, 'Company Knowledge Base');
+      assert.equal(calls[0].opts.env.COLLECTION, 'Company Knowledge Base');
+    } finally {
+      await new Promise((resolve) => app.close(resolve));
+    }
+  });
+
+  it('GET /api/collections/:name round-trips a name with spaces through URL encoding', async () => {
+    const name = 'Основи Node.js';
+    const adapter = makeStubAdapter();
+    let seenName = null;
+    adapter.getCollection = async (n) => { seenName = n; return { name: n, pointCount: 0 }; };
+    const app = createApp({ adapter, embedQuery: async () => ({ dense: [], sparse: {} }) });
+    await new Promise((resolve) => app.listen(0, '127.0.0.1', resolve));
+    const base = `http://127.0.0.1:${app.address().port}`;
+    try {
+      const res = await fetch(base + `/api/collections/${encodeURIComponent(name)}`);
+      assert.equal(res.status, 200);
+      assert.equal(seenName, name);
+      const body = await res.json();
+      assert.equal(body.collection.name, name);
+    } finally {
+      await new Promise((resolve) => app.close(resolve));
+    }
   });
 });
 

@@ -1,44 +1,31 @@
-// Pure validation helper — testable without network.
-// required: string[] of model names needed (e.g. ['gemma3:4b', 'gemma3:4b'])
-// available: string[] of model names returned by GET /api/tags (name field)
-// Returns null if ok, or an array of missing model names (deduped).
-// Exact match only — if you pull gemma3:4b, set CONTEXT_MODEL=gemma3:4b.
-export function validateOllamaModels(required, available) {
-  const availSet = new Set(available);
-  const missing = [];
-  for (const model of new Set(required)) {
-    if (!availSet.has(model)) missing.push(model);
-  }
-  return missing.length ? missing : null;
-}
+// Ollama reachability/model-list logic lives in src/core/ollama.js, shared
+// with the admin API's pre-job-start check (src/admin/api/jobs.js) — this
+// file only adds the indexer-specific "throw with an actionable CLI message"
+// framing around that shared logic.
+import { isOllamaReachable, listOllamaModels, validateOllamaModels } from '../core/ollama.js';
+
+export { validateOllamaModels };
 
 // Impure: fetches /api/version and /api/tags, throws with actionable message on failure.
 export async function checkOllamaPreflight(ollamaUrl, contextModel, tagModel) {
   const base = ollamaUrl.replace(/\/$/, '');
 
   // 1. Reachability check
-  try {
-    const r = await fetch(`${base}/api/version`, { signal: AbortSignal.timeout(5000) });
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-  } catch (err) {
+  if (!(await isOllamaReachable(base))) {
     const isLocalhost = /localhost/i.test(base);
     const hint = isLocalhost
       ? `\n  Tip: on Windows, Node.js may route localhost through a proxy.\n  Try: OLLAMA_URL=http://127.0.0.1:11434`
       : '';
     throw new Error(
       `[preflight] Ollama unreachable at ${base}\n` +
-      `  Start Ollama with: ollama serve${hint}\n` +
-      `  Original error: ${err.message}`
+      `  Start Ollama with: ollama serve${hint}`
     );
   }
 
   // 2. Model availability check
   let available;
   try {
-    const r = await fetch(`${base}/api/tags`, { signal: AbortSignal.timeout(5000) });
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    const data = await r.json();
-    available = (data.models ?? []).map(m => m.name);
+    available = await listOllamaModels(base);
   } catch (err) {
     throw new Error(`[preflight] Could not list Ollama models from ${base}/api/tags: ${err.message}`);
   }

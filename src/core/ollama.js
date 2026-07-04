@@ -2,6 +2,49 @@ import 'dotenv/config';
 
 const OLLAMA_URL = process.env.OLLAMA_URL || 'http://localhost:11434';
 
+// ── Reachability / model-list checks ────────────────────────────────────────
+// Shared by the indexer's preflight (src/indexer/preflight.js) and the admin
+// API's pre-job-start check (src/admin/api/jobs.js) — one place for "is
+// Ollama up, and does it have the model we need", instead of two near-
+// identical implementations drifting apart.
+
+/**
+ * True if Ollama responds to GET /api/version within timeoutMs.
+ */
+export async function isOllamaReachable(baseUrl = OLLAMA_URL, timeoutMs = 5000) {
+  try {
+    const r = await fetch(`${baseUrl.replace(/\/$/, '')}/api/version`, { signal: AbortSignal.timeout(timeoutMs) });
+    return r.ok;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * List installed model names via GET /api/tags. Throws on a non-OK response
+ * or network failure — callers that want a boolean should use
+ * isOllamaReachable() first.
+ */
+export async function listOllamaModels(baseUrl = OLLAMA_URL, timeoutMs = 5000) {
+  const r = await fetch(`${baseUrl.replace(/\/$/, '')}/api/tags`, { signal: AbortSignal.timeout(timeoutMs) });
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  const data = await r.json();
+  return (data.models ?? []).map((m) => m.name);
+}
+
+// required: string[] of model names needed (e.g. ['gemma3:4b', 'gemma3:4b'])
+// available: string[] of model names returned by GET /api/tags (name field)
+// Returns null if ok, or an array of missing model names (deduped).
+// Exact match only — if you pull gemma3:4b, set CONTEXT_MODEL=gemma3:4b.
+export function validateOllamaModels(required, available) {
+  const availSet = new Set(available);
+  const missing = [];
+  for (const model of new Set(required)) {
+    if (!availSet.has(model)) missing.push(model);
+  }
+  return missing.length ? missing : null;
+}
+
 // Cache: model name → /api/show response. Avoids repeated calls per process.
 const _showCache = new Map();
 
