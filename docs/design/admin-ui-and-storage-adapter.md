@@ -67,9 +67,10 @@ The MVP answers four user questions without CLI knowledge:
 
 ## 3. Proposed folder/file structure
 
-Zero new dependencies. Server: `node:http`. UI: static vanilla HTML/JS/CSS
-served by the same server, no build step (matches the project's
-minimal-dependency philosophy and keeps Windows-first support trivial).
+Server stays minimal: `node:http` with no web framework. The UI stays vanilla
+HTML/JS/CSS, but uses a Vite build so the source can be split into modules and
+HTML partials. Runtime serves the built files from `src/admin/ui/`; editable
+source lives in `src/admin/ui-src/`.
 
 ```text
 src/core/storage/
@@ -274,7 +275,9 @@ configurable via `ADMIN_PORT`). JSON in/out; errors as
 | `GET  /api/collections/:name/skeleton/children?nodeId=\|nodePath=&limit=` | children |
 | `GET  /api/collections/:name/node?nodeId=\|nodePath=` | structural content node |
 
-Static UI served at `/` from `src/admin/ui/`. No other routes.
+Static UI served at `/` from built files in `src/admin/ui/`. Source files live
+under `src/admin/ui-src/` and are compiled with `npm run admin:build`. No other
+routes.
 
 ## 8. UI screens/components draft
 

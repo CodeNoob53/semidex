@@ -1,6 +1,6 @@
-// Static file serving for the Admin UI shell. Deliberately separate from the
-// API router: the router owns /api/*, this module owns everything else.
-// node:fs/node:path only — no framework, no build step (design doc §3).
+// Static file serving for the built Admin UI shell. Deliberately separate from
+// the API router: the router owns /api/*, this module owns everything else.
+// UI source lives in src/admin/ui-src and is built into src/admin/ui by Vite.
 import { readFile } from 'node:fs/promises';
 import { extname, join, normalize, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';

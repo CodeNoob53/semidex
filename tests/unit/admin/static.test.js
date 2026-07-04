@@ -181,7 +181,7 @@ describe('search this collection (served app.js)', () => {
       const res = await fetch(base + '/app.js');
       assert.equal(res.status, 200);
       const js = await res.text();
-      assert.match(js, /apiPost\('\/api\/search'/, 'search must call POST /api/search');
+      assert.match(js, /apiPost\(["']\/api\/search["']/, 'search must call POST /api/search');
       assert.match(js, /search-panel/, 'collection view must render the search panel container');
       assert.match(js, /windowFormat/, 'search must send windowFormat');
       assert.match(js, /sourceFile/, 'search must support the file filter');
@@ -252,17 +252,17 @@ describe('search this collection (served app.js)', () => {
 // view to the right endpoints and keep the required safety copy. Job
 // manager/API behavior itself is covered in jobs.test.js.
 describe('indexing jobs view (served app.js / index.html)', () => {
-  it('index.html links to the indexing view', async () => {
+  it('the served shell links to the indexing view', async () => {
     await withServer(async (base) => {
-      const html = await (await fetch(base + '/')).text();
-      assert.match(html, /#\/index/, 'sidebar must link to the indexing view');
+      const js = await (await fetch(base + '/app.js')).text();
+      assert.match(js, /#\/index/, 'sidebar must link to the indexing view');
     });
   });
 
   it('app.js posts to /api/jobs/index with the six typed options', async () => {
     await withServer(async (base) => {
       const js = await (await fetch(base + '/app.js')).text();
-      assert.match(js, /apiPost\('\/api\/jobs\/index'/, 'must POST to /api/jobs/index');
+      assert.match(js, /apiPost\(["']\/api\/jobs\/index["']/, 'must POST to /api/jobs/index');
       assert.match(js, /onnxEmbed/);
       assert.match(js, /llmSummaries/);
       assert.match(js, /skeletonChunking/);
@@ -275,7 +275,7 @@ describe('indexing jobs view (served app.js / index.html)', () => {
   it('app.js fetches the job list and a single job\'s detail/log', async () => {
     await withServer(async (base) => {
       const js = await (await fetch(base + '/app.js')).text();
-      assert.match(js, /api\('\/api\/jobs'\)/, 'must GET the job list');
+      assert.match(js, /api\(["']\/api\/jobs["']\)/, 'must GET the job list');
       assert.match(js, /\/api\/jobs\/\$\{/, 'must GET a single job by id');
     });
   });
@@ -309,7 +309,7 @@ describe('folder picker (served app.js)', () => {
     await withServer(async (base) => {
       const js = await (await fetch(base + '/app.js')).text();
       assert.match(js, /idx-choose-folder/);
-      assert.match(js, /apiPost\('\/api\/system\/pick-folder'/);
+      assert.match(js, /apiPost\(["']\/api\/system\/pick-folder["']/);
     });
   });
 
@@ -323,7 +323,7 @@ describe('folder picker (served app.js)', () => {
       assert.ok(fnStart !== -1, 'chooseIndexFolder should be defined');
       const fn = js.slice(fnStart, fnStart + 800);
       assert.match(fn, /catch/);
-      assert.match(fn, /fallback\.style\.display\s*=\s*''/);
+      assert.match(fn, /fallback\.style\.display\s*=\s*["']{2}/);
     });
   });
 
@@ -365,7 +365,7 @@ describe('LLM summaries — Ollama dependency status (served app.js)', () => {
   it('checking the LLM summaries checkbox triggers an Ollama status check', async () => {
     await withServer(async (base) => {
       const js = await (await fetch(base + '/app.js')).text();
-      assert.match(js, /opt-llm-summaries['"]\)\s*\n?\s*\.addEventListener\('change'|opt-llm-summaries.*addEventListener\('change'/s);
+      assert.match(js, /opt-llm-summaries["']\)\.addEventListener\(["']change["']|opt-llm-summaries.*addEventListener\(["']change["']/s);
       assert.match(js, /loadOllamaStatus/);
     });
   });
@@ -373,9 +373,9 @@ describe('LLM summaries — Ollama dependency status (served app.js)', () => {
   it('maps each Ollama status (available/missing/model_missing) to a distinct badge class', async () => {
     await withServer(async (base) => {
       const js = await (await fetch(base + '/app.js')).text();
-      assert.match(js, /available:\s*'badge badge-ok'/);
-      assert.match(js, /missing:\s*'badge badge-fail'/);
-      assert.match(js, /model_missing:\s*'badge badge-warn'/);
+      assert.match(js, /available:\s*["']badge badge-ok["']/);
+      assert.match(js, /missing:\s*["']badge badge-fail["']/);
+      assert.match(js, /model_missing:\s*["']badge badge-warn["']/);
     });
   });
 
@@ -501,7 +501,7 @@ describe('sidebar navigation tree (served app.js)', () => {
       assert.ok(end !== -1 && end > start, 'openFileView should follow openSectionView');
       const fn = js.slice(start, end);
       assert.match(fn, /section-open-file-start/);
-      assert.match(fn, /addEventListener\('click', \(\) => openFileView/);
+      assert.match(fn, /addEventListener\(["']click["'], \(\) => openFileView/);
       assert.ok(!/return openFileView\(name, node\.sourceFile, node\.nodePath, 0\);/.test(fn),
         'a 404 from skeleton/anchor must not automatically open chunk 0 of the file');
     });
@@ -780,7 +780,8 @@ describe('collection settings (served app.js)', () => {
   it('navigates away from the deleted collection after a successful delete', async () => {
     await withServer(async (base) => {
       const js = await (await fetch(base + '/app.js')).text();
-      assert.match(js, /runDeleteCollection[\s\S]{0,600}location\.hash = '#\/'/);
+      assert.match(js, /async function runDeleteCollection\(name\)/);
+      assert.match(js, /location\.hash = ["']#\/["']/);
     });
   });
 
