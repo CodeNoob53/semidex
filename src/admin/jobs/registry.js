@@ -10,6 +10,7 @@ import { randomUUID } from 'node:crypto';
 import { spawn as nodeSpawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { sanitiseErrorMessage } from '../../core/doctor-checks.js';
+import { parseProgressLine } from '../../indexer/progress-event.js';
 
 // Absolute path to src/indexer/index.js, resolved once at module load —
 // spawning by absolute path avoids any dependency on the child process's cwd.
@@ -55,15 +56,58 @@ export function buildJobEnv(collection, options = {}) {
 // secrets to stdout/stderr on error paths this registry doesn't control, and
 // job.log is served back through the API verbatim, so redaction has to
 // happen at capture time, not just at response time.
-function appendLog(job, stream, text) {
-  const sanitised = sanitiseErrorMessage(text, process.env.QDRANT_KEY);
-  for (const line of sanitised.split(/\r?\n/)) {
-    if (line === '') continue;
-    job.log.push({ stream, line });
+//
+// [semidex:progress] lines are parsed into job.progress and never pushed to
+// job.log at all — they're machine-readable state, not something a user
+// reads as a log line, and duplicating them into the log would just be
+// console-like noise fighting the progress UI they're meant to replace.
+function appendLine(job, stream, line) {
+  const progress = parseProgressLine(line);
+  if (progress) {
+    job.progress = {
+      processedFiles: Number.isInteger(progress.processedFiles) ? progress.processedFiles : null,
+      totalFiles: Number.isInteger(progress.totalFiles) ? progress.totalFiles : null,
+      currentFile: typeof progress.currentFile === 'string' ? progress.currentFile : null,
+    };
+    return;
   }
+  const sanitised = sanitiseErrorMessage(line, process.env.QDRANT_KEY);
+  job.log.push({ stream, line: sanitised });
   if (job.log.length > MAX_LOG_LINES) {
     job.log.splice(0, job.log.length - MAX_LOG_LINES);
   }
+}
+
+// child_process stdout/stderr 'data' events are not guaranteed to align
+// with line boundaries — a single JSON progress line can arrive split
+// across two chunks. This buffers partial trailing text per stream and
+// only hands complete lines to appendLine(), so parseProgressLine() never
+// sees a truncated JSON body.
+//
+// The last line of output very often has no trailing newline at all (the
+// child process just exits right after writing it) — write() alone would
+// leave that final line stuck in `carry` forever. Callers must call
+// flush() once the child has exited, which sends any remaining buffered
+// text through appendLine() as a line of its own. An empty carry (nothing
+// buffered, or already flushed) is a no-op.
+function makeLineSplitter(job, stream) {
+  let carry = '';
+  return {
+    write(chunk) {
+      carry += chunk.toString('utf-8');
+      const lines = carry.split(/\r?\n/);
+      carry = lines.pop() ?? '';
+      for (const line of lines) {
+        if (line === '') continue;
+        appendLine(job, stream, line);
+      }
+    },
+    flush() {
+      if (carry === '') return;
+      appendLine(job, stream, carry);
+      carry = '';
+    },
+  };
 }
 
 /**
@@ -111,6 +155,10 @@ export function createJobRegistry({ spawnFn = nodeSpawn } = {}) {
       finishedAt: null,
       exitCode: null,
       log: [],
+      // null until the first [semidex:progress] line arrives — the indexer
+      // may not emit one at all (e.g. zero files found), so "no progress
+      // data yet" must stay distinguishable from "progress at 0/0".
+      progress: null,
       child: null,
     };
     jobs.set(id, job);
@@ -123,19 +171,32 @@ export function createJobRegistry({ spawnFn = nodeSpawn } = {}) {
     job.child = child;
     job.state = STATES.RUNNING;
 
-    child.stdout?.on('data', (chunk) => appendLog(job, 'stdout', chunk.toString('utf-8')));
-    child.stderr?.on('data', (chunk) => appendLog(job, 'stderr', chunk.toString('utf-8')));
+    const stdoutSplitter = makeLineSplitter(job, 'stdout');
+    const stderrSplitter = makeLineSplitter(job, 'stderr');
+    child.stdout?.on('data', (chunk) => stdoutSplitter.write(chunk));
+    child.stderr?.on('data', (chunk) => stderrSplitter.write(chunk));
 
     child.on('error', (err) => {
-      // spawn-level failure (e.g. ENOENT) — never reached a real exit.
+      // spawn-level failure (e.g. ENOENT) — never reached a real exit. stdout/
+      // stderr are unlikely to have emitted anything at this point, but flush
+      // defensively so a partial line is never silently dropped either way.
+      stdoutSplitter.flush();
+      stderrSplitter.flush();
       job.state = STATES.FAILED;
       job.finishedAt = new Date().toISOString();
       job.exitCode = null;
-      appendLog(job, 'stderr', `[job] failed to start: ${err.message}`);
+      appendLine(job, 'stderr', `[job] failed to start: ${err.message}`);
       if (activeJobId === id) activeJobId = null;
     });
 
     child.on('exit', (code, signal) => {
+      // The child is done writing by the time 'exit' fires — flush before
+      // deciding the final state so a last line with no trailing newline
+      // (very common: the process just exits right after writing it) still
+      // makes it into job.log/job.progress instead of being stuck in the
+      // splitter's internal buffer forever.
+      stdoutSplitter.flush();
+      stderrSplitter.flush();
       job.finishedAt = new Date().toISOString();
       job.exitCode = code;
       if (job.state === STATES.CANCELLING) {
@@ -144,7 +205,7 @@ export function createJobRegistry({ spawnFn = nodeSpawn } = {}) {
         job.state = STATES.CANCELLED;
       } else if (signal) {
         job.state = STATES.FAILED;
-        appendLog(job, 'stderr', `[job] terminated by signal ${signal}`);
+        appendLine(job, 'stderr', `[job] terminated by signal ${signal}`);
       } else {
         job.state = code === 0 ? STATES.SUCCEEDED : STATES.FAILED;
       }
@@ -173,7 +234,7 @@ export function createJobRegistry({ spawnFn = nodeSpawn } = {}) {
     if (!isActive(job)) return job;
 
     job.state = STATES.CANCELLING;
-    appendLog(job, 'stderr', '[job] cancel requested');
+    appendLine(job, 'stderr', '[job] cancel requested');
     job.child?.kill();
     return job;
   }

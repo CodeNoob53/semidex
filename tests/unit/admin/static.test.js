@@ -368,6 +368,159 @@ describe('indexing jobs view (served app.js / index.html)', () => {
   });
 });
 
+// ── indexing progress redesign: user-facing progress, not a raw job console ─
+describe('indexing progress panel (served app.js / index.html, redesigned)', () => {
+  it('the panel is labeled "Indexing progress", not the internal word "Jobs"', async () => {
+    await withServer(async (base) => {
+      const indexView = await (await fetch(base + '/app.js')).text();
+      assert.match(indexView, /Indexing progress/);
+      // "Jobs" as a standalone panel heading must not remain user-visible —
+      // internal ids/dataset keys/comments containing "job" are fine (and
+      // expected), this only guards the *visible panel heading* text.
+      assert.ok(!/panel-head['"]>Jobs</.test(indexView), 'the primary panel heading must not read just "Jobs"');
+    });
+  });
+
+  it('has a collapsed "Show details" section instead of the log being the primary UI', async () => {
+    await withServer(async (base) => {
+      // The job-row <template> (with the "Show details" <summary>) lives in
+      // partials/templates/job-row.html, inlined into index.html by
+      // vite-plugin-html-inject — not in app.js, which only clones/fills it.
+      const html = await (await fetch(base + '/')).text();
+      assert.match(html, /Show details/);
+      assert.match(html, /class="job-details"/);
+    });
+  });
+
+  it('a running job never shows "ended", and shows progress bar/current file/count', async () => {
+    await withServer(async (base) => {
+      const js = await (await fetch(base + '/app.js')).text();
+      const html = await (await fetch(base + '/')).text();
+      const { renderJobRow } = loadDomRenderHelpers(js, html);
+      const startedAt = new Date(Date.now() - 5000).toISOString();
+      const card = renderJobRow({
+        id: 'job-1', collection: 'demo', path: './docs', state: 'running',
+        startedAt, finishedAt: null, exitCode: null,
+        progress: { processedFiles: 2, totalFiles: 5, currentFile: 'b.md', percent: 40 },
+      });
+      const statusLine = card.querySelector('.job-status-line');
+      assert.doesNotMatch(statusLine.textContent + card.querySelector('.job-times').textContent, /ended/);
+      assert.equal(card.querySelector('.job-progress-bar').hidden, false);
+      assert.match(card.querySelector('.job-progress-fill').style.width, /40%/);
+      assert.match(card.querySelector('.job-progress-current').textContent, /Current file: b\.md/);
+      assert.match(card.querySelector('.job-progress-count').textContent, /2 \/ 5 files processed/);
+    });
+  });
+
+  it('tickRunningJobRows fills in "Running · Xs elapsed" / "Queued · Xs elapsed" wording for active jobs', async () => {
+    await withServer(async (base) => {
+      const js = await (await fetch(base + '/app.js')).text();
+      const html = await (await fetch(base + '/')).text();
+      const { document } = (await import('linkedom')).parseHTML(html);
+      const context = { document };
+      const vmMod = await import('node:vm');
+      vmMod.createContext(context);
+      const src = extractBetween(js, 'function esc(value)', 'async function loadTopbar')
+        + extractBetween(js, 'function renderResult(', 'let fileViewState')
+        + extractBetween(js, 'const STRUCTURAL_NODE_TYPES', 'function fileViewLoadMoreButton')
+        + extractBetween(js, 'const JOB_STATUS_BADGE_CLASS', 'async function loadJobs(')
+        + 'const $ = (sel, root = document) => root.querySelector(sel);';
+      vmMod.runInContext(src, context);
+
+      const container = document.createElement('div');
+      container.id = 'idx-jobs';
+      document.body.appendChild(container);
+      const startedAt = new Date(Date.now() - 5000).toISOString();
+      const runningCard = context.renderJobRow({
+        id: 'job-1', collection: 'demo', path: './docs', state: 'running',
+        startedAt, finishedAt: null, exitCode: null,
+        progress: { processedFiles: 2, totalFiles: 5, currentFile: 'b.md', percent: 40 },
+      });
+      container.appendChild(runningCard);
+
+      context.tickRunningJobRows();
+      assert.match(runningCard.querySelector('.job-status-line').textContent, /^Running · \d+s elapsed$/);
+      assert.doesNotMatch(runningCard.querySelector('.job-status-line').textContent, /ended/);
+    });
+  });
+
+  it('finished (succeeded) job shows "Completed in <duration>" using actual finishedAt, not forecast wording', async () => {
+    await withServer(async (base) => {
+      const js = await (await fetch(base + '/app.js')).text();
+      const html = await (await fetch(base + '/')).text();
+      const { renderJobRow } = loadDomRenderHelpers(js, html);
+      const startedAt = new Date(Date.now() - 134_000).toISOString(); // 2m 14s ago
+      const finishedAt = new Date().toISOString();
+      const card = renderJobRow({
+        id: 'job-2', collection: 'demo', path: './docs', state: 'succeeded',
+        startedAt, finishedAt, exitCode: 0,
+        progress: { processedFiles: 124, totalFiles: 124, currentFile: null, percent: 100 },
+      });
+      assert.match(card.querySelector('.job-title').textContent, /^Indexed demo/);
+      assert.match(card.querySelector('.job-status-line').textContent, /^Completed in 2m 14s$/);
+      assert.doesNotMatch(card.querySelector('.job-status-line').textContent, /will finish|estimated|forecast/i);
+      assert.match(card.querySelector('.job-progress-count').textContent, /124 \/ 124 files processed/);
+      // The actual finished timestamp only shows inside the collapsed
+      // details ("Show details"), not as a primary-UI "ended" label.
+      assert.match(card.querySelector('.job-times').textContent, /ended/);
+    });
+  });
+
+  it('failed job shows "Failed after <duration>" and an error summary', async () => {
+    await withServer(async (base) => {
+      const js = await (await fetch(base + '/app.js')).text();
+      const html = await (await fetch(base + '/')).text();
+      const { renderJobRow } = loadDomRenderHelpers(js, html);
+      const startedAt = new Date(Date.now() - 31_000).toISOString();
+      const finishedAt = new Date().toISOString();
+      const card = renderJobRow({
+        id: 'job-3', collection: 'demo', path: './docs', state: 'failed',
+        startedAt, finishedAt, exitCode: 1,
+        progress: { processedFiles: 37, totalFiles: 124, currentFile: null, percent: 29.8 },
+      });
+      assert.equal(card.querySelector('.job-title').textContent, 'Indexing failed');
+      assert.match(card.querySelector('.job-status-line').textContent, /^Failed after 31s$/);
+      assert.match(card.querySelector('.job-progress-count').textContent, /37 \/ 124 files processed/);
+      // Details auto-expand on failure so the error is visible without an extra click.
+      assert.equal(card.querySelector('.job-details').open, true);
+    });
+  });
+
+  it('shows an indeterminate progress indicator (not a fake 0%/100% bar) when totalFiles is unknown', async () => {
+    await withServer(async (base) => {
+      const js = await (await fetch(base + '/app.js')).text();
+      const html = await (await fetch(base + '/')).text();
+      const { renderJobRow } = loadDomRenderHelpers(js, html);
+      const card = renderJobRow({
+        id: 'job-4', collection: 'demo', path: './docs', state: 'running',
+        startedAt: new Date().toISOString(), finishedAt: null, exitCode: null,
+        progress: { processedFiles: null, totalFiles: null, currentFile: null, percent: null },
+      });
+      assert.equal(card.querySelector('.job-progress-bar').hidden, true);
+      assert.equal(card.querySelector('.job-progress-indeterminate').hidden, false);
+    });
+  });
+
+  it('shows a cancel button while running/queued, not once finished', async () => {
+    await withServer(async (base) => {
+      const js = await (await fetch(base + '/app.js')).text();
+      const html = await (await fetch(base + '/')).text();
+      const { renderJobRow } = loadDomRenderHelpers(js, html);
+      const running = renderJobRow({
+        id: 'job-5', collection: 'demo', path: './docs', state: 'running',
+        startedAt: new Date().toISOString(), finishedAt: null, exitCode: null, progress: null,
+      });
+      assert.equal(running.querySelector('.job-cancel').hidden, false);
+
+      const done = renderJobRow({
+        id: 'job-6', collection: 'demo', path: './docs', state: 'succeeded',
+        startedAt: new Date().toISOString(), finishedAt: new Date().toISOString(), exitCode: 0, progress: null,
+      });
+      assert.equal(done.querySelector('.job-cancel').hidden, true);
+    });
+  });
+});
+
 // ── folder picker + human collection naming (developer-form redesign) ───────
 describe('folder picker (served app.js)', () => {
   it('has a primary "Choose folder" button wired to POST /api/system/pick-folder', async () => {

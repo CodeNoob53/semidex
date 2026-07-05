@@ -316,8 +316,56 @@ td.actions { text-align: right; }
   padding: 7px 10px; background: var(--bg-inset);
   border-bottom: 1px solid var(--line-soft); font-size: 12px;
 }
+.job-title { font-weight: 600; }
 .job-head .mini-btn { margin-left: auto; }
-.job-times { padding: 6px 10px; font-size: 11px; }
+
+.job-body { padding: 10px; }
+.job-progress-line {
+  display: flex; justify-content: space-between; align-items: baseline;
+  gap: 10px; font-size: 12px; margin-bottom: 6px;
+}
+.job-progress-count { color: var(--ink); }
+.job-progress-current {
+  font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  max-width: 60%;
+}
+
+/* Determinate progress: a percentage bar (task's "[████░░░░] 30%" made real). */
+.job-progress-bar {
+  height: 6px; border-radius: 3px; background: var(--bg-inset);
+  border: 1px solid var(--line-soft); overflow: hidden; margin-bottom: 8px;
+}
+.job-progress-fill {
+  height: 100%; background: var(--amber); border-radius: 2px;
+  transition: width .2s ease;
+}
+
+/* Indeterminate progress: total unknown yet — a moving band, not a fake percent. */
+.job-progress-indeterminate {
+  height: 6px; border-radius: 3px; background: var(--bg-inset);
+  border: 1px solid var(--line-soft); overflow: hidden; margin-bottom: 8px;
+  position: relative;
+}
+.job-progress-indeterminate-fill {
+  position: absolute; top: 0; bottom: 0; width: 30%; background: var(--amber);
+  border-radius: 2px; animation: job-progress-sweep 1.2s ease-in-out infinite;
+}
+@keyframes job-progress-sweep {
+  0%   { left: -30%; }
+  100% { left: 100%; }
+}
+
+.job-status-line { font-size: 11px; }
+.job-error-summary { margin-top: 8px; font-size: 12px; }
+
+.job-details { border-top: 1px solid var(--line-soft); }
+.job-details summary {
+  cursor: pointer; padding: 6px 10px; font-size: 11px; color: var(--ink-dim);
+  background: var(--bg-inset);
+}
+.job-details summary::-webkit-details-marker { display: none; }
+.job-details .job-path { padding: 6px 10px 0; }
+.job-times { padding: 2px 10px 6px; font-size: 11px; }
 .job-log {
   margin: 0; padding: 8px 10px; white-space: pre-wrap; word-break: break-word;
   font-family: var(--mono); font-size: 11px; color: var(--ink-dim);

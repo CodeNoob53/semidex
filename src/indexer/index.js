@@ -28,11 +28,23 @@ import { generateNavSummaries, generateDirectorySummaries, buildCollectionSummar
 import { buildDirectoryNavPoints } from './phases/skeleton-index.js';
 import { makeNodeId } from '../core/node-id.js';
 import { scroll } from '../core/qdrant.js';
+import { PROGRESS_EVENT_PREFIX } from './progress-event.js';
 
 const BATCH_SIZE   = envInt('LLM_BATCH_SIZE', 3, 1, 64, '[indexer] ');
 const COLLECTION   = process.env.COLLECTION;
 const VECTOR_SIZE  = parseInt(process.env.VECTOR_SIZE || '1024');
 const SOURCE_ROOT  = process.env.SOURCE_ROOT ? resolve(process.env.SOURCE_ROOT) : null;
+
+// Machine-readable progress channel for the admin UI's job registry
+// (src/admin/jobs/registry.js), which spawns this script as a child process
+// and only has stdout/stderr text to observe. A single fixed-prefix JSON
+// line is far cheaper to parse reliably than scraping arbitrary human-
+// readable log output, and keeps progress data (processed/total/current
+// file) fully separate from free-form log lines. Never include env vars,
+// tokens, or file contents here — only counts and a relative file path.
+function emitProgress({ processedFiles, totalFiles, currentFile }) {
+  console.log(PROGRESS_EVENT_PREFIX + JSON.stringify({ processedFiles, totalFiles, currentFile }));
+}
 
 function hashFile(filePath) {
   return new Promise((resolve, reject) => {
@@ -575,12 +587,23 @@ async function main() {
     const embedSem    = new Semaphore(embedConcurrency);
     const commitQueue = new SerialQueue();
 
+    // Pipeline mode runs files concurrently (out of order), so unlike the
+    // sequential loop there's no single well-defined "current file" — but
+    // processedFiles/totalFiles is still meaningful and is exactly what
+    // keeps the admin UI's progress bar determinate instead of falling back
+    // to an indeterminate spinner whenever PIPELINE_MODE=1 is set in the
+    // admin server's own environment (inherited by every spawned job).
+    // currentFile reports the most recently *started* file, not "the" file
+    // being worked on — still useful context, just not exclusive.
+    let pipelineProcessed = 0;
     const settlements = await Promise.allSettled(files.map(async filePath => {
       console.log(`\n→ ${filePath}`);
+      const currentFile = relative(effectiveRoot, filePath).replace(/\\/g, '/');
+      emitProgress({ processedFiles: pipelineProcessed, totalFiles: files.length, currentFile });
       const profiler = new Profiler();
 
       const preparedA = await stageASem.run(() => stageA(filePath, rootPath, COLLECTION, profiler));
-      if (preparedA.status === 'skipped') return 'skipped';
+      if (preparedA.status === 'skipped') { pipelineProcessed++; return 'skipped'; }
 
       if (runNumCtx != null) preparedA.runNumCtx = runNumCtx;
       // ONNX split-sem path: only active when tags actually go to the ONNX worker.
@@ -594,6 +617,8 @@ async function main() {
         : await ollamaSem.run(() => stageB(preparedA));
       const preparedC = await embedSem.run(() => stageC(preparedB));
       await commitQueue.run(() => stageD(preparedC));
+      pipelineProcessed++;
+      emitProgress({ processedFiles: pipelineProcessed, totalFiles: files.length, currentFile: null });
       return 'indexed';
     }));
 
@@ -610,9 +635,14 @@ async function main() {
       throw new Error(`[pipeline] ${failures.length} file(s) failed — see errors above`);
     }
   } else {
-    for (const filePath of files) {
+    for (const [i, filePath] of files.entries()) {
+      const currentFile = relative(effectiveRoot, filePath).replace(/\\/g, '/');
+      emitProgress({ processedFiles: i, totalFiles: files.length, currentFile });
       const status = await indexFile(filePath, rootPath, COLLECTION, { runNumCtx });
       if (status === 'skipped') skipped++; else indexed++;
+    }
+    if (files.length) {
+      emitProgress({ processedFiles: files.length, totalFiles: files.length, currentFile: null });
     }
   }
 

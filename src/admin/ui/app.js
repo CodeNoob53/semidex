@@ -77,7 +77,7 @@ const indexViewShell = `<h1 class="view-title">Create a collection</h1>
   </div>
 </div>
 <div class="panel">
-  <div class="panel-head">Jobs</div>
+  <div class="panel-head">Indexing progress</div>
   <div class="panel-body" id="idx-jobs">…</div>
 </div>
 `;
@@ -925,6 +925,7 @@ function stopIndexPolling() {
 }
 async function renderIndexingView(main) {
   stopIndexPolling();
+  stopJobElapsedTicker();
   main.innerHTML = indexViewShell;
   $("#opt-prune").addEventListener("change", (e) => {
     e.target.closest("label").classList.toggle("warn", e.target.checked);
@@ -1039,31 +1040,94 @@ const JOB_STATUS_BADGE_CLASS = {
   failed: "badge badge-fail",
   cancelled: "badge"
 };
+function formatDuration(ms) {
+  const totalSeconds = Math.max(0, Math.round(ms / 1e3));
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor(totalSeconds % 3600 / 60);
+  const s = totalSeconds % 60;
+  if (h > 0) return `${h}h ${String(m).padStart(2, "0")}m`;
+  if (m > 0) return `${m}m ${String(s).padStart(2, "0")}s`;
+  return `${s}s`;
+}
+function formatStartedLabel(startedAtIso) {
+  if (!startedAtIso) return null;
+  const started = new Date(startedAtIso);
+  const now = /* @__PURE__ */ new Date();
+  const sameDay = started.getFullYear() === now.getFullYear() && started.getMonth() === now.getMonth() && started.getDate() === now.getDate();
+  const time = started.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  return sameDay ? `Started ${time}` : `Started ${started.toLocaleDateString()} ${time}`;
+}
+function jobFilesLabel(progress) {
+  if (!progress) return "";
+  if (progress.totalFiles === null) {
+    return progress.processedFiles !== null ? `${progress.processedFiles} files processed` : "";
+  }
+  return `${progress.processedFiles ?? 0} / ${progress.totalFiles} files processed`;
+}
 function renderJobRow(j) {
+  var _a;
   const frag = cloneTemplate("tpl-job-row");
   const card = frag.querySelector(".job-card");
   card.dataset.id = j.id;
+  card.dataset.startedAt = j.startedAt ?? "";
   const badge = card.querySelector(".job-status-badge");
-  badge.className = JOB_STATUS_BADGE_CLASS[j.state] ?? "badge";
+  badge.className = `job-status-badge ${JOB_STATUS_BADGE_CLASS[j.state] ?? "badge"}`;
   badge.textContent = j.state;
-  card.querySelector(".job-collection").textContent = j.collection;
-  card.querySelector(".job-path").textContent = j.path;
-  const exitEl = card.querySelector(".job-exit-code");
-  if (j.exitCode !== null && j.exitCode !== 0) {
-    exitEl.textContent = `exit ${j.exitCode}`;
-    exitEl.hidden = false;
+  const isRunning = j.state === "queued" || j.state === "running" || j.state === "cancelling";
+  const titlePrefix = j.state === "succeeded" ? "Indexed" : j.state === "failed" ? "Indexing failed" : j.state === "cancelled" ? "Indexing cancelled" : `Indexing`;
+  card.querySelector(".job-title").textContent = j.state === "failed" ? titlePrefix : `${titlePrefix} ${j.collection}`;
+  card.querySelector(".job-progress-count").textContent = jobFilesLabel(j.progress);
+  const currentFileEl = card.querySelector(".job-progress-current");
+  if (isRunning && ((_a = j.progress) == null ? void 0 : _a.currentFile)) {
+    currentFileEl.textContent = `Current file: ${j.progress.currentFile}`;
+  }
+  const hasKnownTotal = j.progress && typeof j.progress.percent === "number";
+  card.querySelector(".job-progress-bar").hidden = !hasKnownTotal;
+  card.querySelector(".job-progress-indeterminate").hidden = !isRunning || hasKnownTotal;
+  if (hasKnownTotal) {
+    card.querySelector(".job-progress-fill").style.width = `${Math.min(100, Math.max(0, j.progress.percent))}%`;
   }
   const cancelBtn = card.querySelector(".job-cancel");
   if (j.state === "queued" || j.state === "running") {
     cancelBtn.dataset.id = j.id;
     cancelBtn.hidden = false;
   }
-  card.querySelector(".job-cancelling").hidden = j.state !== "cancelling";
-  card.querySelector(".job-started").textContent = `started ${j.startedAt ? new Date(j.startedAt).toLocaleString() : "—"}`;
-  if (j.finishedAt) {
-    card.querySelector(".job-ended").textContent = ` · ended ${new Date(j.finishedAt).toLocaleString()}`;
+  const statusLine = card.querySelector(".job-status-line");
+  if (j.state === "cancelling") {
+    statusLine.textContent = "Cancelling…";
+  } else if (j.state === "succeeded") {
+    statusLine.textContent = j.finishedAt && j.startedAt ? `Completed in ${formatDuration(new Date(j.finishedAt) - new Date(j.startedAt))}` : "Completed";
+  } else if (j.state === "failed") {
+    statusLine.textContent = j.finishedAt && j.startedAt ? `Failed after ${formatDuration(new Date(j.finishedAt) - new Date(j.startedAt))}` : "Failed";
+  } else if (j.state === "cancelled") {
+    statusLine.textContent = j.finishedAt && j.startedAt ? `Cancelled after ${formatDuration(new Date(j.finishedAt) - new Date(j.startedAt))}` : "Cancelled";
   }
+  card.querySelector(".job-details").open = j.state === "failed";
+  card.querySelector(".job-path").textContent = j.path;
+  const startedLabel = formatStartedLabel(j.startedAt);
+  const endedLabel = j.finishedAt ? `ended ${new Date(j.finishedAt).toLocaleString()}` : null;
+  card.querySelector(".job-times").textContent = [startedLabel, endedLabel].filter(Boolean).join(" · ");
   return card;
+}
+let jobElapsedTimer = null;
+function stopJobElapsedTicker() {
+  if (jobElapsedTimer) {
+    clearInterval(jobElapsedTimer);
+    jobElapsedTimer = null;
+  }
+}
+function tickRunningJobRows() {
+  const box = $("#idx-jobs");
+  if (!box) return;
+  for (const card of box.querySelectorAll(".job-card")) {
+    const badge = card.querySelector(".job-status-badge");
+    const state = badge == null ? void 0 : badge.textContent;
+    if (state !== "running" && state !== "queued") continue;
+    const startedAt = card.dataset.startedAt;
+    if (!startedAt) continue;
+    const elapsed = formatDuration(Date.now() - new Date(startedAt).getTime());
+    card.querySelector(".job-status-line").textContent = state === "queued" ? `Queued · ${elapsed} elapsed` : `Running · ${elapsed} elapsed`;
+  }
 }
 async function loadJobs() {
   const box = $("#idx-jobs");
@@ -1087,7 +1151,10 @@ async function loadJobs() {
   }
   const stillActive = jobs.some((j) => j.state === "queued" || j.state === "running" || j.state === "cancelling");
   stopIndexPolling();
+  stopJobElapsedTicker();
   if (stillActive) {
+    tickRunningJobRows();
+    jobElapsedTimer = setInterval(tickRunningJobRows, 1e3);
     indexPollTimer = setTimeout(async () => {
       if (currentRoute().view !== "index") return;
       await loadJobs();
@@ -1103,6 +1170,14 @@ async function loadJobLog(card) {
   try {
     const { job } = await api(`/api/jobs/${encodeURIComponent(id)}`);
     pre.textContent = job.log.slice(-30).join("\n") || "(no output yet)";
+    if (job.state === "failed") {
+      const lastErrorLine = [...job.log].reverse().find((l) => l.startsWith("[stderr]"));
+      if (lastErrorLine) {
+        const errorEl = card.querySelector(".job-error-summary");
+        errorEl.textContent = lastErrorLine.replace(/^\[stderr\]\s*/, "");
+        errorEl.hidden = false;
+      }
+    }
   } catch (err) {
     pre.textContent = err.message;
   }

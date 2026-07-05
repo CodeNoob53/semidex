@@ -105,6 +105,22 @@ export function parseIndexJobRequest(body) {
   return { collection, path, options };
 }
 
+// Derives the { processedFiles, totalFiles, currentFile, percent } shape
+// from the registry's raw job.progress. percent is computed here (not
+// stored) so there's exactly one place that decides "known total" vs
+// "indeterminate" — only every() reduce to a percent when totalFiles is a
+// positive number; otherwise percent stays null and the UI shows an
+// indeterminate progress indicator instead of a fabricated 0%.
+function toProgressSummary(progress) {
+  const processedFiles = progress?.processedFiles ?? null;
+  const totalFiles = progress?.totalFiles ?? null;
+  const currentFile = progress?.currentFile ?? null;
+  const percent = (typeof totalFiles === 'number' && totalFiles > 0 && typeof processedFiles === 'number')
+    ? (processedFiles / totalFiles) * 100
+    : null;
+  return { processedFiles, totalFiles, currentFile, percent };
+}
+
 // snake_case-free domain shape (design doc §4 IndexingJob), no `child`
 // process handle, no raw env, no secrets — only what a UI needs to render.
 export function toJobSummary(job) {
@@ -117,6 +133,7 @@ export function toJobSummary(job) {
     startedAt: job.startedAt,
     finishedAt: job.finishedAt,
     exitCode: job.exitCode,
+    progress: toProgressSummary(job.progress),
   };
 }
 

@@ -187,6 +187,133 @@ describe('createJobRegistry — log capture', () => {
   });
 });
 
+// ── registry: progress parsing ───────────────────────────────────────────────
+
+describe('createJobRegistry — progress parsing', () => {
+  it('starts with job.progress === null before any progress line arrives', () => {
+    const registry = createJobRegistry({ spawnFn: makeNeverExitingSpawn([]) });
+    const { id } = registry.startIndexJob({ collection: 'demo', path: './x' });
+    assert.equal(registry.getJob(id).progress, null);
+  });
+
+  it('parses a [semidex:progress] {...} line into job.progress', async () => {
+    const line = `[semidex:progress] ${JSON.stringify({ processedFiles: 3, totalFiles: 10, currentFile: 'a.md' })}\n`;
+    const registry = createJobRegistry({ spawnFn: makeScriptedSpawn({ delayMs: 5, stdout: line }) });
+    const { id } = registry.startIndexJob({ collection: 'demo', path: './x' });
+    await waitFor(() => registry.getJob(id).state !== 'running');
+    assert.deepEqual(registry.getJob(id).progress, { processedFiles: 3, totalFiles: 10, currentFile: 'a.md' });
+  });
+
+  it('progress lines are never duplicated into job.log', async () => {
+    const line = `[semidex:progress] ${JSON.stringify({ processedFiles: 1, totalFiles: 2, currentFile: 'x.md' })}\n`;
+    const registry = createJobRegistry({
+      spawnFn: makeScriptedSpawn({ delayMs: 5, stdout: line + 'a normal log line\n' }),
+    });
+    const { id } = registry.startIndexJob({ collection: 'demo', path: './x' });
+    await waitFor(() => registry.getJob(id).state !== 'running');
+    const job = registry.getJob(id);
+    assert.equal(job.log.length, 1, 'only the ordinary log line should be stored, not the progress line');
+    assert.equal(job.log[0].line, 'a normal log line');
+    assert.ok(!job.log.some(l => l.line.includes('semidex:progress')), 'progress line must not appear anywhere in job.log');
+  });
+
+  it('invalid progress JSON does not crash the job and is treated as an ordinary log line', async () => {
+    const registry = createJobRegistry({
+      spawnFn: makeScriptedSpawn({ delayMs: 5, stdout: '[semidex:progress] {not valid json\n' }),
+    });
+    const { id } = registry.startIndexJob({ collection: 'demo', path: './x' });
+    await waitFor(() => registry.getJob(id).state !== 'running');
+    const job = registry.getJob(id);
+    assert.equal(job.state, 'succeeded');
+    assert.equal(job.progress, null, 'malformed progress payload must not populate job.progress');
+  });
+
+  it('preserves a Unicode currentFile path exactly', async () => {
+    const currentFile = 'Тема 13. Контроль відповідності вимогам (Compliance-by-Design)/1. Вступ.md';
+    const line = `[semidex:progress] ${JSON.stringify({ processedFiles: 0, totalFiles: 4, currentFile })}\n`;
+    const registry = createJobRegistry({ spawnFn: makeScriptedSpawn({ delayMs: 5, stdout: line }) });
+    const { id } = registry.startIndexJob({ collection: 'demo', path: './x' });
+    await waitFor(() => registry.getJob(id).state !== 'running');
+    assert.equal(registry.getJob(id).progress.currentFile, currentFile);
+  });
+
+  it('reassembles a progress line split across two stdout chunks', async () => {
+    const payload = JSON.stringify({ processedFiles: 5, totalFiles: 8, currentFile: 'split.md' });
+    const full = `[semidex:progress] ${payload}\n`;
+    const splitAt = Math.floor(full.length / 2);
+    const spawnFn = () => {
+      const child = makeFakeChild();
+      setTimeout(() => {
+        child.stdout.emit('data', Buffer.from(full.slice(0, splitAt)));
+        child.stdout.emit('data', Buffer.from(full.slice(splitAt)));
+        child.emit('exit', 0, null);
+      }, 5);
+      return child;
+    };
+    const registry = createJobRegistry({ spawnFn });
+    const { id } = registry.startIndexJob({ collection: 'demo', path: './x' });
+    await waitFor(() => registry.getJob(id).state !== 'running');
+    assert.deepEqual(registry.getJob(id).progress, { processedFiles: 5, totalFiles: 8, currentFile: 'split.md' });
+  });
+
+  // Regression: the line splitter used to buffer a trailing partial line
+  // forever if the child never sent a final newline — very common, since a
+  // process typically exits immediately after its last console.log() with
+  // no guarantee of a trailing "\n" before the pipe closes. flush() (called
+  // from child.on('exit')/child.on('error')) must push that leftover text
+  // through appendLine() instead of silently dropping it.
+  it('a final stdout line with no trailing newline still appears in job.log after exit', async () => {
+    const registry = createJobRegistry({
+      spawnFn: makeScriptedSpawn({ delayMs: 5, stdout: 'last line without newline' }),
+    });
+    const { id } = registry.startIndexJob({ collection: 'demo', path: './x' });
+    await waitFor(() => registry.getJob(id).state !== 'running');
+    const job = registry.getJob(id);
+    assert.equal(job.state, 'succeeded');
+    assert.deepEqual(job.log, [{ stream: 'stdout', line: 'last line without newline' }]);
+  });
+
+  it('a final stderr line with no trailing newline still appears in job.log after a failed exit', async () => {
+    const registry = createJobRegistry({
+      spawnFn: makeScriptedSpawn({ delayMs: 5, exitCode: 1, stderr: 'error without newline' }),
+    });
+    const { id } = registry.startIndexJob({ collection: 'demo', path: './x' });
+    await waitFor(() => registry.getJob(id).state !== 'running');
+    const job = registry.getJob(id);
+    assert.equal(job.state, 'failed');
+    assert.deepEqual(job.log, [{ stream: 'stderr', line: 'error without newline' }]);
+  });
+
+  it('a progress line with no trailing newline still updates job.progress', async () => {
+    const line = `[semidex:progress] ${JSON.stringify({ processedFiles: 4, totalFiles: 9, currentFile: 'last.md' })}`; // no trailing \n
+    const registry = createJobRegistry({ spawnFn: makeScriptedSpawn({ delayMs: 5, stdout: line }) });
+    const { id } = registry.startIndexJob({ collection: 'demo', path: './x' });
+    await waitFor(() => registry.getJob(id).state !== 'running');
+    const job = registry.getJob(id);
+    assert.deepEqual(job.progress, { processedFiles: 4, totalFiles: 9, currentFile: 'last.md' });
+    assert.equal(job.log.length, 0, 'the flushed progress line must still be recognized as progress, not logged');
+  });
+
+  it('a progress line split across chunks with no final newline still updates job.progress', async () => {
+    const payload = JSON.stringify({ processedFiles: 6, totalFiles: 9, currentFile: 'tail.md' });
+    const full = `[semidex:progress] ${payload}`; // no trailing \n anywhere
+    const splitAt = Math.floor(full.length / 2);
+    const spawnFn = () => {
+      const child = makeFakeChild();
+      setTimeout(() => {
+        child.stdout.emit('data', Buffer.from(full.slice(0, splitAt)));
+        child.stdout.emit('data', Buffer.from(full.slice(splitAt)));
+        child.emit('exit', 0, null);
+      }, 5);
+      return child;
+    };
+    const registry = createJobRegistry({ spawnFn });
+    const { id } = registry.startIndexJob({ collection: 'demo', path: './x' });
+    await waitFor(() => registry.getJob(id).state !== 'running');
+    assert.deepEqual(registry.getJob(id).progress, { processedFiles: 6, totalFiles: 9, currentFile: 'tail.md' });
+  });
+});
+
 // ── registry: concurrency (one job at a time) ────────────────────────────────
 
 describe('createJobRegistry — one active job at a time', () => {
@@ -611,6 +738,55 @@ describe('POST /api/jobs/index — success and conflict', () => {
       });
       assert.equal(res.status, 409);
       assert.equal((await res.json()).error.code, 'conflict');
+    });
+  });
+
+  it('includes an all-null progress object in the summary before any progress line arrives', async () => {
+    await withJobApp(makeNeverExitingSpawn([]), async (base) => {
+      const res = await fetch(base + '/api/jobs/index', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ collection: 'demo', path: './x' }),
+      });
+      const { job } = await res.json();
+      assert.deepEqual(job.progress, {
+        processedFiles: null, totalFiles: null, currentFile: null, percent: null,
+      });
+    });
+  });
+
+  it('computes percent from processedFiles/totalFiles once a progress line arrives', async () => {
+    const line = `[semidex:progress] ${JSON.stringify({ processedFiles: 3, totalFiles: 12, currentFile: 'c.md' })}\n`;
+    await withJobApp(makeScriptedSpawn({ delayMs: 5, stdout: line }), async (base) => {
+      const start = await fetch(base + '/api/jobs/index', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ collection: 'demo', path: './x' }),
+      });
+      const { job } = await start.json();
+      await new Promise((r) => setTimeout(r, 40));
+
+      const res = await fetch(base + `/api/jobs/${job.id}`);
+      const body = await res.json();
+      assert.equal(body.job.progress.processedFiles, 3);
+      assert.equal(body.job.progress.totalFiles, 12);
+      assert.equal(body.job.progress.currentFile, 'c.md');
+      assert.equal(body.job.progress.percent, 25);
+    });
+  });
+
+  it('leaves percent null when totalFiles is unknown (indeterminate progress)', async () => {
+    const line = `[semidex:progress] ${JSON.stringify({ processedFiles: 3, totalFiles: null, currentFile: 'c.md' })}\n`;
+    await withJobApp(makeScriptedSpawn({ delayMs: 5, stdout: line }), async (base) => {
+      const start = await fetch(base + '/api/jobs/index', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ collection: 'demo', path: './x' }),
+      });
+      const { job } = await start.json();
+      await new Promise((r) => setTimeout(r, 40));
+
+      const res = await fetch(base + `/api/jobs/${job.id}`);
+      const body = await res.json();
+      assert.equal(body.job.progress.totalFiles, null);
+      assert.equal(body.job.progress.percent, null);
     });
   });
 });

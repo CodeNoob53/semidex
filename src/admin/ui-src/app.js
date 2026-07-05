@@ -1049,7 +1049,11 @@ async function runDeleteCollection(name) {
   }
 }
 
-// ── indexing jobs view (unchanged from Phase 2C/2D) ────────────────────────
+// ── indexing progress view ─────────────────────────────────────────────────
+// Renamed from the earlier raw "Jobs" panel: this is meant to read as user-
+// facing indexing progress (collection, files processed, current file,
+// elapsed/duration, a real progress bar), not a debug/job console. Logs stay
+// available but collapsed behind "Show details".
 let indexPollTimer = null;
 
 function stopIndexPolling() {
@@ -1058,6 +1062,7 @@ function stopIndexPolling() {
 
 async function renderIndexingView(main) {
   stopIndexPolling();
+  stopJobElapsedTicker();
   main.innerHTML = indexViewShell;
 
   $('#opt-prune').addEventListener('change', (e) => {
@@ -1187,23 +1192,79 @@ const JOB_STATUS_BADGE_CLASS = {
   succeeded: 'badge badge-ok', failed: 'badge badge-fail', cancelled: 'badge',
 };
 
-// Builds a job-card element from the tpl-job-row template.
+// "31s", "4m 12s", "1h 03m" — short, human duration. Never shows raw
+// timestamps; that's what "Show details" is for.
+function formatDuration(ms) {
+  const totalSeconds = Math.max(0, Math.round(ms / 1000));
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+  if (h > 0) return `${h}h ${String(m).padStart(2, '0')}m`;
+  if (m > 0) return `${m}m ${String(s).padStart(2, '0')}s`;
+  return `${s}s`;
+}
+
+// "Started 14:19" for same-day jobs; only falls back to a full date if the
+// job actually started on a different calendar day than "now" — per the
+// task's explicit rule that a bare time is enough for the common case and
+// a full date should not be forced onto every row.
+function formatStartedLabel(startedAtIso) {
+  if (!startedAtIso) return null;
+  const started = new Date(startedAtIso);
+  const now = new Date();
+  const sameDay = started.getFullYear() === now.getFullYear()
+    && started.getMonth() === now.getMonth()
+    && started.getDate() === now.getDate();
+  const time = started.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return sameDay ? `Started ${time}` : `Started ${started.toLocaleDateString()} ${time}`;
+}
+
+function jobFilesLabel(progress) {
+  if (!progress) return '';
+  if (progress.totalFiles === null) {
+    return progress.processedFiles !== null ? `${progress.processedFiles} files processed` : '';
+  }
+  return `${progress.processedFiles ?? 0} / ${progress.totalFiles} files processed`;
+}
+
+// Builds a job-card element from the tpl-job-row template. Progress is
+// never forecast — "ended"/"Completed in" only ever comes from the job's
+// own finishedAt once the process has actually exited; a running job never
+// shows an end time, only elapsed-so-far.
 function renderJobRow(j) {
   const frag = cloneTemplate('tpl-job-row');
   const card = frag.querySelector('.job-card');
   card.dataset.id = j.id;
+  card.dataset.startedAt = j.startedAt ?? '';
 
   const badge = card.querySelector('.job-status-badge');
-  badge.className = JOB_STATUS_BADGE_CLASS[j.state] ?? 'badge';
+  // "job-status-badge" must survive this assignment — tickRunningJobRows()
+  // re-selects this element by that class on every tick to check the
+  // current state, so overwriting className with just the color classes
+  // (as a naive `badge.className = colorClass` would) breaks it after the
+  // very first render.
+  badge.className = `job-status-badge ${JOB_STATUS_BADGE_CLASS[j.state] ?? 'badge'}`;
   badge.textContent = j.state;
 
-  card.querySelector('.job-collection').textContent = j.collection;
-  card.querySelector('.job-path').textContent = j.path;
+  const isRunning = j.state === 'queued' || j.state === 'running' || j.state === 'cancelling';
+  const titlePrefix = j.state === 'succeeded' ? 'Indexed'
+    : j.state === 'failed' ? 'Indexing failed'
+    : j.state === 'cancelled' ? 'Indexing cancelled'
+    : `Indexing`;
+  card.querySelector('.job-title').textContent =
+    j.state === 'failed' ? titlePrefix : `${titlePrefix} ${j.collection}`;
 
-  const exitEl = card.querySelector('.job-exit-code');
-  if (j.exitCode !== null && j.exitCode !== 0) {
-    exitEl.textContent = `exit ${j.exitCode}`;
-    exitEl.hidden = false;
+  card.querySelector('.job-progress-count').textContent = jobFilesLabel(j.progress);
+  const currentFileEl = card.querySelector('.job-progress-current');
+  if (isRunning && j.progress?.currentFile) {
+    currentFileEl.textContent = `Current file: ${j.progress.currentFile}`;
+  }
+
+  const hasKnownTotal = j.progress && typeof j.progress.percent === 'number';
+  card.querySelector('.job-progress-bar').hidden = !hasKnownTotal;
+  card.querySelector('.job-progress-indeterminate').hidden = !isRunning || hasKnownTotal;
+  if (hasKnownTotal) {
+    card.querySelector('.job-progress-fill').style.width = `${Math.min(100, Math.max(0, j.progress.percent))}%`;
   }
 
   const cancelBtn = card.querySelector('.job-cancel');
@@ -1212,15 +1273,62 @@ function renderJobRow(j) {
     cancelBtn.hidden = false;
   }
 
-  card.querySelector('.job-cancelling').hidden = j.state !== 'cancelling';
-
-  card.querySelector('.job-started').textContent =
-    `started ${j.startedAt ? new Date(j.startedAt).toLocaleString() : '—'}`;
-  if (j.finishedAt) {
-    card.querySelector('.job-ended').textContent = ` · ended ${new Date(j.finishedAt).toLocaleString()}`;
+  const statusLine = card.querySelector('.job-status-line');
+  if (j.state === 'cancelling') {
+    statusLine.textContent = 'Cancelling…';
+  } else if (j.state === 'succeeded') {
+    statusLine.textContent = j.finishedAt && j.startedAt
+      ? `Completed in ${formatDuration(new Date(j.finishedAt) - new Date(j.startedAt))}`
+      : 'Completed';
+  } else if (j.state === 'failed') {
+    statusLine.textContent = j.finishedAt && j.startedAt
+      ? `Failed after ${formatDuration(new Date(j.finishedAt) - new Date(j.startedAt))}`
+      : 'Failed';
+  } else if (j.state === 'cancelled') {
+    statusLine.textContent = j.finishedAt && j.startedAt
+      ? `Cancelled after ${formatDuration(new Date(j.finishedAt) - new Date(j.startedAt))}`
+      : 'Cancelled';
   }
+  // 'running'/'queued' elapsed text is filled in by tickRunningJobRows()
+  // below (needs to update every second without a full re-render).
+
+  // The error summary itself needs job.log, which only the per-job detail
+  // endpoint returns (GET /api/jobs, used for the list, is summary-only) —
+  // loadJobLog() fills .job-error-summary in once that detail request
+  // resolves. Auto-expand details on failure so the error/log is visible
+  // without an extra click — but logs still start collapsed for every
+  // other state.
+  card.querySelector('.job-details').open = j.state === 'failed';
+
+  card.querySelector('.job-path').textContent = j.path;
+  const startedLabel = formatStartedLabel(j.startedAt);
+  const endedLabel = j.finishedAt ? `ended ${new Date(j.finishedAt).toLocaleString()}` : null;
+  card.querySelector('.job-times').textContent =
+    [startedLabel, endedLabel].filter(Boolean).join(' · ');
 
   return card;
+}
+
+// Running/queued jobs show a live "Xs elapsed" — recomputed on an interval
+// rather than re-fetching /api/jobs, since elapsed time doesn't need a
+// network round trip to update.
+let jobElapsedTimer = null;
+function stopJobElapsedTicker() {
+  if (jobElapsedTimer) { clearInterval(jobElapsedTimer); jobElapsedTimer = null; }
+}
+function tickRunningJobRows() {
+  const box = $('#idx-jobs');
+  if (!box) return;
+  for (const card of box.querySelectorAll('.job-card')) {
+    const badge = card.querySelector('.job-status-badge');
+    const state = badge?.textContent;
+    if (state !== 'running' && state !== 'queued') continue;
+    const startedAt = card.dataset.startedAt;
+    if (!startedAt) continue;
+    const elapsed = formatDuration(Date.now() - new Date(startedAt).getTime());
+    card.querySelector('.job-status-line').textContent =
+      state === 'queued' ? `Queued · ${elapsed} elapsed` : `Running · ${elapsed} elapsed`;
+  }
 }
 
 async function loadJobs() {
@@ -1248,7 +1356,10 @@ async function loadJobs() {
 
   const stillActive = jobs.some(j => j.state === 'queued' || j.state === 'running' || j.state === 'cancelling');
   stopIndexPolling();
+  stopJobElapsedTicker();
   if (stillActive) {
+    tickRunningJobRows();
+    jobElapsedTimer = setInterval(tickRunningJobRows, 1000);
     indexPollTimer = setTimeout(async () => {
       if (currentRoute().view !== 'index') return; // navigated away
       await loadJobs();
@@ -1265,6 +1376,15 @@ async function loadJobLog(card) {
   try {
     const { job } = await api(`/api/jobs/${encodeURIComponent(id)}`);
     pre.textContent = job.log.slice(-30).join('\n') || '(no output yet)';
+
+    if (job.state === 'failed') {
+      const lastErrorLine = [...job.log].reverse().find(l => l.startsWith('[stderr]'));
+      if (lastErrorLine) {
+        const errorEl = card.querySelector('.job-error-summary');
+        errorEl.textContent = lastErrorLine.replace(/^\[stderr\]\s*/, '');
+        errorEl.hidden = false;
+      }
+    }
   } catch (err) {
     pre.textContent = err.message;
   }

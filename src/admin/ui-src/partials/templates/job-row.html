@@ -2,16 +2,28 @@
   <div class="job-card">
     <div class="job-head">
       <span class="badge job-status-badge"></span>
-      <span class="mono job-collection"></span>
-      <span class="mono muted job-path"></span>
-      <span class="mono muted job-exit-code" hidden></span>
+      <span class="job-title"></span>
       <button type="button" class="mini-btn job-cancel" hidden>cancel</button>
-      <span class="mono muted job-cancelling" hidden>stopping…</span>
     </div>
-    <div class="mono muted job-times">
-      <span class="job-started"></span>
-      <span class="job-ended"></span>
+    <div class="job-body">
+      <div class="job-progress-line">
+        <span class="job-progress-count"></span>
+        <span class="job-progress-current mono muted"></span>
+      </div>
+      <div class="job-progress-bar" hidden>
+        <div class="job-progress-fill"></div>
+      </div>
+      <div class="job-progress-indeterminate" hidden>
+        <div class="job-progress-indeterminate-fill"></div>
+      </div>
+      <div class="job-status-line mono muted"></div>
+      <div class="job-error-summary error-box" hidden></div>
     </div>
-    <pre class="job-log">…</pre>
+    <details class="job-details">
+      <summary>Show details</summary>
+      <div class="mono muted job-path"></div>
+      <div class="mono muted job-times"></div>
+      <pre class="job-log">…</pre>
+    </details>
   </div>
 </template>
