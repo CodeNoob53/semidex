@@ -67,6 +67,41 @@ describe('pickFolder', () => {
     assert.deepEqual(result, { path: 'C:\\Users\\demo\\Documents', cancelled: false });
   });
 
+  it('decodes a non-ASCII (Cyrillic) path correctly from UTF-8 stdout bytes', async () => {
+    const cyrillicPath = 'C:\\docs\\Тема 13. Контроль конфіденційності даних (Compliance-by-Design)';
+    const spawnFn = () => {
+      const child = makeFakeChild();
+      setTimeout(() => {
+        child.stdout.emit('data', Buffer.from(cyrillicPath, 'utf-8'));
+        child.emit('exit', 0);
+      }, 5);
+      return child;
+    };
+    const result = await pickFolder({ spawnFn, platform: 'win32' });
+    assert.deepEqual(result, { path: cyrillicPath, cancelled: false });
+  });
+
+  it('forces PowerShell console output to UTF-8 before writing the path', async () => {
+    // Regression: without [Console]::OutputEncoding = UTF8, Windows
+    // PowerShell 5.1 writes console output using the active console
+    // codepage (e.g. CP866 on a Cyrillic-locale Windows install), not
+    // UTF-8 — a Cyrillic path comes back as mojibake bytes, which then
+    // fails downstream with ENOENT because the decoded "path" never
+    // existed on disk. Verified live against a real powershell.exe process
+    // during triage; this test guards the fix at the spawn-args level.
+    const calls = [];
+    const spawnFn = (cmd, args) => {
+      calls.push({ cmd, args });
+      const child = makeFakeChild();
+      setTimeout(() => child.emit('exit', 0), 5);
+      return child;
+    };
+    await pickFolder({ spawnFn, platform: 'win32' });
+    assert.equal(calls.length, 1);
+    const script = calls[0].args[calls[0].args.indexOf('-Command') + 1];
+    assert.match(script, /\[Console\]::OutputEncoding\s*=\s*\[System\.Text\.Encoding\]::UTF8/);
+  });
+
   it('resolves { path: null, cancelled: true } when the dialog is cancelled (empty stdout)', async () => {
     const spawnFn = () => {
       const child = makeFakeChild();

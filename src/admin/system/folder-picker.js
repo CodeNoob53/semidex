@@ -10,7 +10,18 @@ import { platform as osPlatform } from 'node:os';
 
 // -NoProfile/-NonInteractive: don't load the user's PS profile or prompt
 // for anything else. STA is required for WinForms dialogs.
+//
+// [Console]::OutputEncoding is forced to UTF-8 before writing the path.
+// Without it, Windows PowerShell 5.1 writes console output using the
+// *active console codepage* (e.g. CP866 on a Cyrillic-locale Windows
+// install), not UTF-8 — a path like "Тема 13. ..." comes back as mojibake
+// bytes that decode() below (which always assumes UTF-8) turns into
+// garbage, and downstream fs calls on that garbled path then fail with
+// ENOENT. Setting OutputEncoding makes PowerShell itself emit real UTF-8
+// bytes regardless of the console's codepage, so the Node-side utf-8
+// decode is always correct.
 const PICKER_SCRIPT = `
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 Add-Type -AssemblyName System.Windows.Forms | Out-Null
 $dialog = New-Object System.Windows.Forms.FolderBrowserDialog
 $dialog.Description = 'Choose a folder to index'
