@@ -61,6 +61,17 @@ export function buildJobEnv(collection, options = {}) {
 // job.log at all — they're machine-readable state, not something a user
 // reads as a log line, and duplicating them into the log would just be
 // console-like noise fighting the progress UI they're meant to replace.
+// Clamps an intra-file progress fraction to the 0..1 range a percent
+// calculation can trust. A non-number (missing field, bad JSON value, NaN)
+// becomes null — "unknown", not "zero" — so the API layer can tell "no
+// intra-file estimate yet" apart from "just started".
+function clampFileProgress(value) {
+  if (typeof value !== 'number' || Number.isNaN(value)) return null;
+  if (value < 0) return 0;
+  if (value > 1) return 1;
+  return value;
+}
+
 function appendLine(job, stream, line) {
   const progress = parseProgressLine(line);
   if (progress) {
@@ -68,6 +79,8 @@ function appendLine(job, stream, line) {
       processedFiles: Number.isInteger(progress.processedFiles) ? progress.processedFiles : null,
       totalFiles: Number.isInteger(progress.totalFiles) ? progress.totalFiles : null,
       currentFile: typeof progress.currentFile === 'string' ? progress.currentFile : null,
+      currentStep: typeof progress.currentStep === 'string' ? progress.currentStep : null,
+      currentFileProgress: clampFileProgress(progress.currentFileProgress),
     };
     return;
   }

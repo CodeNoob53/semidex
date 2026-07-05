@@ -1065,7 +1065,7 @@ function jobFilesLabel(progress) {
   return `${progress.processedFiles ?? 0} / ${progress.totalFiles} files processed`;
 }
 function renderJobRow(j) {
-  var _a;
+  var _a, _b;
   const frag = cloneTemplate("tpl-job-row");
   const card = frag.querySelector(".job-card");
   card.dataset.id = j.id;
@@ -1080,6 +1080,11 @@ function renderJobRow(j) {
   const currentFileEl = card.querySelector(".job-progress-current");
   if (isRunning && ((_a = j.progress) == null ? void 0 : _a.currentFile)) {
     currentFileEl.textContent = `Current file: ${j.progress.currentFile}`;
+  }
+  const stepEl = card.querySelector(".job-progress-step");
+  if (isRunning && ((_b = j.progress) == null ? void 0 : _b.currentStep)) {
+    stepEl.textContent = `Step: ${j.progress.currentStep}`;
+    stepEl.hidden = false;
   }
   const hasKnownTotal = j.progress && typeof j.progress.percent === "number";
   card.querySelector(".job-progress-bar").hidden = !hasKnownTotal;

@@ -330,6 +330,10 @@ td.actions { text-align: right; }
   max-width: 60%;
 }
 
+/* Phase-aware step label ("Step: Generating summaries") — the reason the
+   bar moves within a single file, not just between files. */
+.job-progress-step { font-size: 11px; margin-bottom: 6px; }
+
 /* Determinate progress: a percentage bar (task's "[████░░░░] 30%" made real). */
 .job-progress-bar {
   height: 6px; border-radius: 3px; background: var(--bg-inset);

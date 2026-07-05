@@ -22,3 +22,76 @@ export function parseProgressLine(line) {
     return null;
   }
 }
+
+// ── Phase-aware intra-file progress (MVP estimate, not a measured ETA) ──────
+//
+// Design intent (see task discussion): different files/phases cost very
+// different amounts of wall time — a "mathematically perfect" percentage
+// isn't attainable without profiling every run, and isn't worth chasing.
+// Instead each phase is given a fixed, stable weight representing roughly
+// "how far through a typical file are we once this phase starts" — honest
+// and useful for the user (the bar moves, they see what's happening),
+// without pretending to be an exact ETA.
+//
+// Weights are 0..1, monotonically increasing, ending at 1.0 for "done".
+// currentFileProgress in the emitted event is one of these weights, taken
+// at the moment each phase *starts* (matches indexFile()'s reporter.step()
+// calls — see index.js). Skipped phases are simply never reported for that
+// file, so progress can visibly jump over them (e.g. no "tagging" step at
+// all when TAG_GEN is off) rather than showing a step that didn't happen.
+export const FILE_PROGRESS_WEIGHTS = {
+  preparing:   0.05,
+  chunking:    0.15,
+  summarizing: 0.45,
+  tagging:     0.55,
+  embedding:   0.80,
+  writing:     0.95,
+  done:        1.0,
+};
+
+export const FILE_PROGRESS_STEP_LABELS = {
+  preparing:   'Preparing file',
+  chunking:    'Chunking document',
+  summarizing: 'Generating summaries',
+  tagging:     'Generating tags',
+  embedding:   'Embedding chunks',
+  writing:     'Writing to Qdrant',
+  done:        'Done',
+};
+
+/**
+ * Small helper so callers don't scatter raw emitProgress()-shaped calls
+ * across every stage function. One reporter per file being indexed.
+ *
+ * @param {{ emit: (payload: object) => void, fileIndex: number, totalFiles: number, currentFile: string }} opts
+ *   `emit` is injected (rather than importing console.log/PROGRESS_EVENT_PREFIX
+ *   here) so this module has zero I/O of its own and stays trivially testable.
+ * @returns {{ step: (key: keyof FILE_PROGRESS_WEIGHTS, label?: string) => void, done: () => void }}
+ */
+export function createFileProgressReporter({ emit, fileIndex, totalFiles, currentFile }) {
+  return {
+    // `label` lets a call site override the default wording for a step key
+    // when the generic label doesn't fit (e.g. skeleton's deterministic
+    // context phase reports step('summarizing', 'Building navigation
+    // context') instead of the default "Generating summaries" — that work
+    // is real, it's just not an LLM call).
+    step(key, label) {
+      emit({
+        processedFiles: fileIndex,
+        totalFiles,
+        currentFile,
+        currentStep: label ?? FILE_PROGRESS_STEP_LABELS[key] ?? null,
+        currentFileProgress: FILE_PROGRESS_WEIGHTS[key] ?? null,
+      });
+    },
+    done() {
+      emit({
+        processedFiles: fileIndex + 1,
+        totalFiles,
+        currentFile: null,
+        currentStep: null,
+        currentFileProgress: 0,
+      });
+    },
+  };
+}

@@ -105,20 +105,32 @@ export function parseIndexJobRequest(body) {
   return { collection, path, options };
 }
 
-// Derives the { processedFiles, totalFiles, currentFile, percent } shape
-// from the registry's raw job.progress. percent is computed here (not
-// stored) so there's exactly one place that decides "known total" vs
-// "indeterminate" — only every() reduce to a percent when totalFiles is a
-// positive number; otherwise percent stays null and the UI shows an
-// indeterminate progress indicator instead of a fabricated 0%.
+// Derives the { processedFiles, totalFiles, currentFile, currentStep,
+// currentFileProgress, percent } shape from the registry's raw
+// job.progress. percent is computed here (not stored) so there's exactly
+// one place that decides "known enough to show a real bar" vs
+// "indeterminate": processedFiles/totalFiles/currentFileProgress must ALL
+// be numbers and totalFiles > 0, or percent stays null and the UI falls
+// back to an indeterminate indicator instead of a fabricated number.
+//
+// This is an estimate, not a measured ETA — currentFileProgress is a fixed
+// phase weight (see progress-event.js), not profiled per-run timing. The
+// bar moves smoothly and honestly reflects "roughly how far into this file
+// are we", which is the whole point for small collections with a few large
+// files, where processedFiles/totalFiles alone would jump in big, confusing
+// steps (e.g. 0% → 25% → 50%).
 function toProgressSummary(progress) {
   const processedFiles = progress?.processedFiles ?? null;
   const totalFiles = progress?.totalFiles ?? null;
   const currentFile = progress?.currentFile ?? null;
-  const percent = (typeof totalFiles === 'number' && totalFiles > 0 && typeof processedFiles === 'number')
-    ? (processedFiles / totalFiles) * 100
-    : null;
-  return { processedFiles, totalFiles, currentFile, percent };
+  const currentStep = progress?.currentStep ?? null;
+  const currentFileProgress = typeof progress?.currentFileProgress === 'number' ? progress.currentFileProgress : null;
+  const percent = (
+    typeof totalFiles === 'number' && totalFiles > 0
+    && typeof processedFiles === 'number'
+    && typeof currentFileProgress === 'number'
+  ) ? ((processedFiles + currentFileProgress) / totalFiles) * 100 : null;
+  return { processedFiles, totalFiles, currentFile, currentStep, currentFileProgress, percent };
 }
 
 // snake_case-free domain shape (design doc §4 IndexingJob), no `child`

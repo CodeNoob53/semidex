@@ -28,7 +28,7 @@ import { generateNavSummaries, generateDirectorySummaries, buildCollectionSummar
 import { buildDirectoryNavPoints } from './phases/skeleton-index.js';
 import { makeNodeId } from '../core/node-id.js';
 import { scroll } from '../core/qdrant.js';
-import { PROGRESS_EVENT_PREFIX } from './progress-event.js';
+import { PROGRESS_EVENT_PREFIX, createFileProgressReporter } from './progress-event.js';
 
 const BATCH_SIZE   = envInt('LLM_BATCH_SIZE', 3, 1, 64, '[indexer] ');
 const COLLECTION   = process.env.COLLECTION;
@@ -41,9 +41,12 @@ const SOURCE_ROOT  = process.env.SOURCE_ROOT ? resolve(process.env.SOURCE_ROOT) 
 // line is far cheaper to parse reliably than scraping arbitrary human-
 // readable log output, and keeps progress data (processed/total/current
 // file) fully separate from free-form log lines. Never include env vars,
-// tokens, or file contents here — only counts and a relative file path.
-function emitProgress({ processedFiles, totalFiles, currentFile }) {
-  console.log(PROGRESS_EVENT_PREFIX + JSON.stringify({ processedFiles, totalFiles, currentFile }));
+// tokens, or file contents here — only counts, a relative file path, and a
+// user-facing phase label (see progress-event.js for the phase-weight model).
+function emitProgress({ processedFiles, totalFiles, currentFile, currentStep = null, currentFileProgress = null }) {
+  console.log(PROGRESS_EVENT_PREFIX + JSON.stringify({
+    processedFiles, totalFiles, currentFile, currentStep, currentFileProgress,
+  }));
 }
 
 function hashFile(filePath) {
@@ -57,7 +60,7 @@ function hashFile(filePath) {
 // Non-destructive: no Qdrant deletes.
 // Returns { status: 'skipped' } or a prepared object carrying needsDelete/deleteReason
 // so later stages can act on them at the right time.
-async function stageA(filePath, rootPath, collection, profiler) {
+async function stageA(filePath, rootPath, collection, profiler, reporter = null) {
   const effectiveRoot = SOURCE_ROOT ?? rootPath;
   const sourceFile = relative(effectiveRoot, filePath).replace(/\\/g, '/');
   if (SOURCE_ROOT && (sourceFile.startsWith('../') || sourceFile === '..' || isAbsolute(sourceFile))) {
@@ -141,6 +144,7 @@ async function stageA(filePath, rootPath, collection, profiler) {
   profiler.mark('pre');
 
   console.log('  [1/5] chunking...');
+  reporter?.step('chunking');
   const rawChunks = await chunkFileFromPath(filePath, sourceFile);
   console.log(`        ${rawChunks.length} chunks`);
   profiler.mark('chunk');
@@ -163,8 +167,9 @@ async function stageA(filePath, rootPath, collection, profiler) {
 // In default mode: guarded by ollamaSem in pipeline mode (caller wraps with sem.run).
 // In TAG_PROVIDER=onnx mode: caller passes ollamaSem so context alone acquires it
 // while ONNX tags run outside — both start after chunk finalization, freeing the
-// semaphore sooner.
-async function stageB(prepared, ollamaSem = null) {
+// semaphore sooner. `reporter` (sequential mode only, null in pipeline mode) —
+// see progress-event.js.
+async function stageB(prepared, ollamaSem = null, reporter = null) {
   const { rawChunks, combinedCfg, profiler } = prepared;
 
   if (combinedCfg.warning) console.warn(`  [combined] ${combinedCfg.warning}`);
@@ -185,18 +190,26 @@ async function stageB(prepared, ollamaSem = null) {
       console.warn('  [skeleton] COMBINED_LLM=1 ignored for skeleton files — deterministic context owns the context phase');
     }
     console.log('  [2/5] contextualizing skipped (skeleton deterministic context)');
+    // Deterministic context is real work (heading-path assembly), just not
+    // an LLM call — report it under the "summarizing" weight with wording
+    // that doesn't imply an LLM ran, per the task's explicit requirement.
+    reporter?.step('summarizing', 'Building navigation context');
     let taggedChunks;
     if (genTags && tagViaOnnx) {
       console.log('  [3/5] tagging (onnx)...');
+      reporter?.step('tagging');
       taggedChunks = await addTagsOnnxBatch(rawChunks);
     } else if (genTags) {
       console.log('  [3/5] tagging (ollama)...');
+      reporter?.step('tagging');
       const tagged = [];
       for (let i = 0; i < rawChunks.length; i += BATCH_SIZE) {
         tagged.push(...await addTagsBatch(rawChunks.slice(i, i + BATCH_SIZE)));
       }
       taggedChunks = tagged;
     } else {
+      // TAG_GEN off — no "Generating tags" step reported at all; progress
+      // simply jumps from summarizing straight to embedding.
       console.log('  [3/5] tagging skipped (TAG_GEN not enabled)');
       taggedChunks = rawChunks.map(ch => ({ ...ch, tags: ch.tags ?? [] }));
     }
@@ -209,6 +222,7 @@ async function stageB(prepared, ollamaSem = null) {
     let navPoints = prepared.navPoints ?? [];
     if (navPoints.length > 0 && process.env.SKELETON_SUMMARY === 'llm') {
       console.log(`  [3.5/5] nav summaries (llm, ${navPoints.length} node(s))...`);
+      reporter?.step('summarizing', 'Generating summaries');
       navPoints = await generateNavSummaries(navPoints, taggedChunks, {
         numCtx: prepared.runNumCtx ?? undefined,
       });
@@ -224,12 +238,17 @@ async function stageB(prepared, ollamaSem = null) {
       console.warn('  [tag-onnx] TAG_PROVIDER=onnx is ignored when COMBINED_LLM=1 — combined mode owns context+tags');
     }
     console.log(`  [2/5] ${genTags ? 'contextualizing + tagging' : 'contextualizing'} (combined)...`);
+    reporter?.step('summarizing');
     const merged = rawChunks;
     console.log(`        ${merged.length} finalized chunks`);
     profiler.mark('context');
 
     if (genTags) {
       console.log('  [3/5] (combined — no separate tag phase)');
+      // Same underlying LLM call as "summarizing" above (COMBINED_LLM=1
+      // does both at once) — still worth its own step so the user sees tag
+      // generation was part of what just happened, not skipped.
+      reporter?.step('tagging');
       taggedChunks = await runBatched(merged, BATCH_SIZE, chunk => addContextAndTags(chunk, combinedCfg.model, merged));
     } else {
       // TAG_GEN is opt-in: run a pure context prompt and force tags: [].
@@ -248,8 +267,13 @@ async function stageB(prepared, ollamaSem = null) {
     // Full context→embed overlap requires returning the tag Promise from stageB and
     // awaiting it lazily in stageD — a larger contract change tracked separately.
     console.log('  [2/5] contextualizing...');
+    reporter?.step('summarizing');
     const merged = rawChunks;
     console.log(`        ${merged.length} finalized chunks  [3/5] tagging (onnx, parallel)`);
+    // Both run concurrently from here — report tagging right away too rather
+    // than waiting for it to finish, since there's no meaningful "tagging
+    // starts after summarizing" boundary in this branch.
+    reporter?.step('tagging');
 
     const tContextStart = Date.now();
     const tTagStart     = Date.now();
@@ -268,6 +292,7 @@ async function stageB(prepared, ollamaSem = null) {
     }));
   } else {
     console.log('  [2/5] contextualizing...');
+    reporter?.step('summarizing');
     const merged = rawChunks;
     const contextChunks = await runBatched(merged, BATCH_SIZE, addContext);
     console.log(`        ${merged.length} finalized chunks`);
@@ -275,6 +300,7 @@ async function stageB(prepared, ollamaSem = null) {
 
     if (genTags) {
       console.log('  [3/5] tagging...');
+      reporter?.step('tagging');
       const tagged = [];
       for (let i = 0; i < contextChunks.length; i += BATCH_SIZE) {
         tagged.push(...await addTagsBatch(contextChunks.slice(i, i + BATCH_SIZE)));
@@ -307,11 +333,12 @@ async function stageB(prepared, ollamaSem = null) {
 // No Qdrant mutations here — produces pointsWithDense for stageD to commit.
 // Keeping embed separate from Qdrant writes allows ONNX to overlap with the
 // serialised commit phase of a previous file.
-async function stageC(withTagged) {
+async function stageC(withTagged, reporter = null) {
   const { taggedChunks, collection, sourceFile, fileHash,
           embedCfg, tokenCountMode, configVectorSize, profiler } = withTagged;
 
   console.log('  [4/5] embedding...');
+  reporter?.step('embedding');
   // BENCH_EMBED_INPUT=text — benchmark/ablation only, not a stable config option.
   const embedTexts = process.env.BENCH_EMBED_INPUT === 'text'
     ? taggedChunks.map(chunk => chunk.text)
@@ -419,11 +446,12 @@ async function stageC(withTagged) {
 // All Qdrant mutations are here, serialised.
 // Order: deleteBySourceFile → upsertPoints → deleteTrailingChunks
 // Serialisation prevents stageC of file B from racing with the commit of file A.
-async function stageD(withPoints) {
+async function stageD(withPoints, reporter = null) {
   const { taggedChunks, pointsWithDense, collection, rawChunks,
           sourceFile, needsDelete, profiler } = withPoints;
 
   console.log('  [4/5] upserting...');
+  reporter?.step('writing');
 
   if (pointsWithDense.length === 0 && rawChunks.length > 0) {
     throw new Error(`stageD: refusing to commit 0 points for ${sourceFile} (${rawChunks.length} raw chunks)`);
@@ -454,17 +482,21 @@ async function stageD(withPoints) {
 }
 
 // ── Sequential indexFile (default, PIPELINE_MODE unset) ───────────────────────
-async function indexFile(filePath, rootPath, collection, { runNumCtx = null } = {}) {
+// `reporter` (see progress-event.js's createFileProgressReporter) is optional
+// — callers that don't care about phase-aware progress (e.g. any future
+// direct caller) simply omit it, and every reporter?.step(...) below is a
+// no-op.
+async function indexFile(filePath, rootPath, collection, { runNumCtx = null, reporter = null } = {}) {
   console.log(`\n→ ${filePath}`);
   const profiler = new Profiler();
 
-  const preparedA = await stageA(filePath, rootPath, collection, profiler);
+  const preparedA = await stageA(filePath, rootPath, collection, profiler, reporter);
   if (preparedA.status === 'skipped') return 'skipped';
 
   if (runNumCtx != null) preparedA.runNumCtx = runNumCtx;
-  const preparedB = await stageB(preparedA);
-  const preparedC = await stageC(preparedB);
-  await stageD(preparedC);
+  const preparedB = await stageB(preparedA, null, reporter);
+  const preparedC = await stageC(preparedB, reporter);
+  await stageD(preparedC, reporter);
 }
 
 export function computeStaleSourceFiles(indexedSourceFiles, storedSourceFiles) {
@@ -588,13 +620,28 @@ async function main() {
     const commitQueue = new SerialQueue();
 
     // Pipeline mode runs files concurrently (out of order), so unlike the
-    // sequential loop there's no single well-defined "current file" — but
-    // processedFiles/totalFiles is still meaningful and is exactly what
-    // keeps the admin UI's progress bar determinate instead of falling back
-    // to an indeterminate spinner whenever PIPELINE_MODE=1 is set in the
-    // admin server's own environment (inherited by every spawned job).
-    // currentFile reports the most recently *started* file, not "the" file
-    // being worked on — still useful context, just not exclusive.
+    // sequential loop there's no single well-defined "current file". It still
+    // reports processedFiles/totalFiles/currentFile (currentFile is the most
+    // recently *started* file, not "the" file being worked on — useful
+    // context, just not exclusive).
+    //
+    // Deliberately no phase-aware (createFileProgressReporter) instrumentation
+    // here: stageB/stageC/stageD below are called without a `reporter`
+    // argument, so their reporter?.step(...) calls are no-ops and
+    // currentStep/currentFileProgress stay null for pipeline-mode jobs.
+    // Multiple files run concurrent phases at once in this mode, so a single
+    // "current phase" wouldn't describe what's actually happening; building a
+    // correct multi-file phase model is out of scope here (task non-goals).
+    //
+    // Trade-off, by design: the admin API's percent formula requires
+    // currentFileProgress to be a number (see src/admin/api/jobs.js), so
+    // pipeline-mode jobs now always show percent: null (indeterminate
+    // progress), even though totalFiles is known. An earlier iteration made
+    // pipeline mode show a coarse file-count percent instead — this task's
+    // stricter, explicitly-specified percent rule intentionally supersedes
+    // that. The admin UI never sets PIPELINE_MODE=1 itself, so this only
+    // affects an operator who exports it into the admin server's own
+    // environment before running `npm run admin`.
     let pipelineProcessed = 0;
     const settlements = await Promise.allSettled(files.map(async filePath => {
       console.log(`\n→ ${filePath}`);
@@ -637,12 +684,13 @@ async function main() {
   } else {
     for (const [i, filePath] of files.entries()) {
       const currentFile = relative(effectiveRoot, filePath).replace(/\\/g, '/');
-      emitProgress({ processedFiles: i, totalFiles: files.length, currentFile });
-      const status = await indexFile(filePath, rootPath, COLLECTION, { runNumCtx });
+      const reporter = createFileProgressReporter({
+        emit: emitProgress, fileIndex: i, totalFiles: files.length, currentFile,
+      });
+      reporter.step('preparing');
+      const status = await indexFile(filePath, rootPath, COLLECTION, { runNumCtx, reporter });
       if (status === 'skipped') skipped++; else indexed++;
-    }
-    if (files.length) {
-      emitProgress({ processedFiles: files.length, totalFiles: files.length, currentFile: null });
+      reporter.done();
     }
   }
 

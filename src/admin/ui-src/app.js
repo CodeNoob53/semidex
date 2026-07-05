@@ -1260,6 +1260,17 @@ function renderJobRow(j) {
     currentFileEl.textContent = `Current file: ${j.progress.currentFile}`;
   }
 
+  // currentStep is the human-facing phase label (e.g. "Generating
+  // summaries") — omitted entirely (not shown empty) when the backend
+  // hasn't reported one, which covers both "not running yet" and old
+  // progress payloads from before this field existed (see task's backward-
+  // compatibility requirement).
+  const stepEl = card.querySelector('.job-progress-step');
+  if (isRunning && j.progress?.currentStep) {
+    stepEl.textContent = `Step: ${j.progress.currentStep}`;
+    stepEl.hidden = false;
+  }
+
   const hasKnownTotal = j.progress && typeof j.progress.percent === 'number';
   card.querySelector('.job-progress-bar').hidden = !hasKnownTotal;
   card.querySelector('.job-progress-indeterminate').hidden = !isRunning || hasKnownTotal;

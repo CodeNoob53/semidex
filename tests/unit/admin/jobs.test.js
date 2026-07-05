@@ -201,8 +201,34 @@ describe('createJobRegistry — progress parsing', () => {
     const registry = createJobRegistry({ spawnFn: makeScriptedSpawn({ delayMs: 5, stdout: line }) });
     const { id } = registry.startIndexJob({ collection: 'demo', path: './x' });
     await waitFor(() => registry.getJob(id).state !== 'running');
-    assert.deepEqual(registry.getJob(id).progress, { processedFiles: 3, totalFiles: 10, currentFile: 'a.md' });
+    assert.deepEqual(registry.getJob(id).progress, {
+      processedFiles: 3, totalFiles: 10, currentFile: 'a.md', currentStep: null, currentFileProgress: null,
+    });
   });
+
+  it('parses currentStep and currentFileProgress from a phase-aware progress line', async () => {
+    const line = `[semidex:progress] ${JSON.stringify({
+      processedFiles: 1, totalFiles: 4, currentFile: 'b.md', currentStep: 'Generating summaries', currentFileProgress: 0.45,
+    })}\n`;
+    const registry = createJobRegistry({ spawnFn: makeScriptedSpawn({ delayMs: 5, stdout: line }) });
+    const { id } = registry.startIndexJob({ collection: 'demo', path: './x' });
+    await waitFor(() => registry.getJob(id).state !== 'running');
+    assert.deepEqual(registry.getJob(id).progress, {
+      processedFiles: 1, totalFiles: 4, currentFile: 'b.md', currentStep: 'Generating summaries', currentFileProgress: 0.45,
+    });
+  });
+
+  for (const [input, expected] of [[-0.5, 0], [1.5, 1], ['not a number', null], [null, null], [undefined, null]]) {
+    it(`clamps currentFileProgress=${JSON.stringify(input)} to ${JSON.stringify(expected)}`, async () => {
+      const line = `[semidex:progress] ${JSON.stringify({
+        processedFiles: 1, totalFiles: 4, currentFile: 'b.md', currentStep: 'x', currentFileProgress: input,
+      })}\n`;
+      const registry = createJobRegistry({ spawnFn: makeScriptedSpawn({ delayMs: 5, stdout: line }) });
+      const { id } = registry.startIndexJob({ collection: 'demo', path: './x' });
+      await waitFor(() => registry.getJob(id).state !== 'running');
+      assert.equal(registry.getJob(id).progress.currentFileProgress, expected);
+    });
+  }
 
   it('progress lines are never duplicated into job.log', async () => {
     const line = `[semidex:progress] ${JSON.stringify({ processedFiles: 1, totalFiles: 2, currentFile: 'x.md' })}\n`;
@@ -253,7 +279,9 @@ describe('createJobRegistry — progress parsing', () => {
     const registry = createJobRegistry({ spawnFn });
     const { id } = registry.startIndexJob({ collection: 'demo', path: './x' });
     await waitFor(() => registry.getJob(id).state !== 'running');
-    assert.deepEqual(registry.getJob(id).progress, { processedFiles: 5, totalFiles: 8, currentFile: 'split.md' });
+    assert.deepEqual(registry.getJob(id).progress, {
+      processedFiles: 5, totalFiles: 8, currentFile: 'split.md', currentStep: null, currentFileProgress: null,
+    });
   });
 
   // Regression: the line splitter used to buffer a trailing partial line
@@ -290,7 +318,9 @@ describe('createJobRegistry — progress parsing', () => {
     const { id } = registry.startIndexJob({ collection: 'demo', path: './x' });
     await waitFor(() => registry.getJob(id).state !== 'running');
     const job = registry.getJob(id);
-    assert.deepEqual(job.progress, { processedFiles: 4, totalFiles: 9, currentFile: 'last.md' });
+    assert.deepEqual(job.progress, {
+      processedFiles: 4, totalFiles: 9, currentFile: 'last.md', currentStep: null, currentFileProgress: null,
+    });
     assert.equal(job.log.length, 0, 'the flushed progress line must still be recognized as progress, not logged');
   });
 
@@ -310,7 +340,9 @@ describe('createJobRegistry — progress parsing', () => {
     const registry = createJobRegistry({ spawnFn });
     const { id } = registry.startIndexJob({ collection: 'demo', path: './x' });
     await waitFor(() => registry.getJob(id).state !== 'running');
-    assert.deepEqual(registry.getJob(id).progress, { processedFiles: 6, totalFiles: 9, currentFile: 'tail.md' });
+    assert.deepEqual(registry.getJob(id).progress, {
+      processedFiles: 6, totalFiles: 9, currentFile: 'tail.md', currentStep: null, currentFileProgress: null,
+    });
   });
 });
 
@@ -749,12 +781,39 @@ describe('POST /api/jobs/index — success and conflict', () => {
       });
       const { job } = await res.json();
       assert.deepEqual(job.progress, {
-        processedFiles: null, totalFiles: null, currentFile: null, percent: null,
+        processedFiles: null, totalFiles: null, currentFile: null,
+        currentStep: null, currentFileProgress: null, percent: null,
       });
     });
   });
 
-  it('computes percent from processedFiles/totalFiles once a progress line arrives', async () => {
+  it('computes percent with intra-file progress: processedFiles=1, totalFiles=4, currentFileProgress=0.8 -> percent=45', async () => {
+    const line = `[semidex:progress] ${JSON.stringify({
+      processedFiles: 1, totalFiles: 4, currentFile: 'c.md', currentStep: 'Embedding chunks', currentFileProgress: 0.8,
+    })}\n`;
+    await withJobApp(makeScriptedSpawn({ delayMs: 5, stdout: line }), async (base) => {
+      const start = await fetch(base + '/api/jobs/index', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ collection: 'demo', path: './x' }),
+      });
+      const { job } = await start.json();
+      await new Promise((r) => setTimeout(r, 40));
+
+      const res = await fetch(base + `/api/jobs/${job.id}`);
+      const body = await res.json();
+      assert.equal(body.job.progress.processedFiles, 1);
+      assert.equal(body.job.progress.totalFiles, 4);
+      assert.equal(body.job.progress.currentFile, 'c.md');
+      assert.equal(body.job.progress.currentStep, 'Embedding chunks');
+      assert.equal(body.job.progress.currentFileProgress, 0.8);
+      assert.equal(body.job.progress.percent, 45);
+    });
+  });
+
+  it('leaves percent null when currentFileProgress is missing, even though processedFiles/totalFiles are known', async () => {
+    // Old-schema-shaped payload (no currentFileProgress at all) — proves the
+    // new, stricter percent rule doesn't fall back to the old
+    // processedFiles/totalFiles-only formula.
     const line = `[semidex:progress] ${JSON.stringify({ processedFiles: 3, totalFiles: 12, currentFile: 'c.md' })}\n`;
     await withJobApp(makeScriptedSpawn({ delayMs: 5, stdout: line }), async (base) => {
       const start = await fetch(base + '/api/jobs/index', {
@@ -768,8 +827,8 @@ describe('POST /api/jobs/index — success and conflict', () => {
       const body = await res.json();
       assert.equal(body.job.progress.processedFiles, 3);
       assert.equal(body.job.progress.totalFiles, 12);
-      assert.equal(body.job.progress.currentFile, 'c.md');
-      assert.equal(body.job.progress.percent, 25);
+      assert.equal(body.job.progress.currentFileProgress, null);
+      assert.equal(body.job.progress.percent, null);
     });
   });
 

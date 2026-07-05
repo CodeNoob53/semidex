@@ -501,6 +501,58 @@ describe('indexing progress panel (served app.js / index.html, redesigned)', () 
     });
   });
 
+  it('renders "Step: Generating summaries" for a running job with a currentStep', async () => {
+    await withServer(async (base) => {
+      const js = await (await fetch(base + '/app.js')).text();
+      const html = await (await fetch(base + '/')).text();
+      const { renderJobRow } = loadDomRenderHelpers(js, html);
+      const card = renderJobRow({
+        id: 'job-7', collection: 'demo', path: './docs', state: 'running',
+        startedAt: new Date().toISOString(), finishedAt: null, exitCode: null,
+        progress: {
+          processedFiles: 1, totalFiles: 4, currentFile: 'Тема 13...', currentStep: 'Generating summaries',
+          currentFileProgress: 0.45, percent: 36.25,
+        },
+      });
+      const stepEl = card.querySelector('.job-progress-step');
+      assert.equal(stepEl.hidden, false);
+      assert.equal(stepEl.textContent, 'Step: Generating summaries');
+    });
+  });
+
+  it('omits the step line (keeps it hidden) when currentStep is null', async () => {
+    await withServer(async (base) => {
+      const js = await (await fetch(base + '/app.js')).text();
+      const html = await (await fetch(base + '/')).text();
+      const { renderJobRow } = loadDomRenderHelpers(js, html);
+      const card = renderJobRow({
+        id: 'job-8', collection: 'demo', path: './docs', state: 'running',
+        startedAt: new Date().toISOString(), finishedAt: null, exitCode: null,
+        progress: {
+          processedFiles: 2, totalFiles: 5, currentFile: 'b.md', currentStep: null,
+          currentFileProgress: null, percent: null,
+        },
+      });
+      assert.equal(card.querySelector('.job-progress-step').hidden, true);
+    });
+  });
+
+  it('still renders an old-shaped progress payload (no currentStep/currentFileProgress keys at all) without throwing', async () => {
+    await withServer(async (base) => {
+      const js = await (await fetch(base + '/app.js')).text();
+      const html = await (await fetch(base + '/')).text();
+      const { renderJobRow } = loadDomRenderHelpers(js, html);
+      const card = renderJobRow({
+        id: 'job-9', collection: 'demo', path: './docs', state: 'running',
+        startedAt: new Date().toISOString(), finishedAt: null, exitCode: null,
+        progress: { processedFiles: 2, totalFiles: 5, currentFile: 'b.md', percent: 40 },
+      });
+      assert.equal(card.querySelector('.job-progress-step').hidden, true);
+      assert.match(card.querySelector('.job-progress-count').textContent, /2 \/ 5 files processed/);
+      assert.match(card.querySelector('.job-progress-current').textContent, /Current file: b\.md/);
+    });
+  });
+
   it('shows a cancel button while running/queued, not once finished', async () => {
     await withServer(async (base) => {
       const js = await (await fetch(base + '/app.js')).text();
