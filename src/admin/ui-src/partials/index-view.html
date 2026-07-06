@@ -26,11 +26,14 @@
         <label class="idx-check"><input type="checkbox" id="opt-llm-summaries"> LLM summaries <span class="mono muted">(requires Ollama)</span></label>
         <label class="idx-check"><input type="checkbox" id="opt-skel-chunk" checked> Skeleton chunking</label>
         <label class="idx-check"><input type="checkbox" id="opt-skel-nav" checked> Skeleton navigation</label>
-        <label class="idx-check"><input type="checkbox" id="opt-prune"> Prune stale</label>
-        <label class="idx-check"><input type="checkbox" id="opt-tags"> Generate tags</label>
+        <details class="advanced-box">
+          <summary>Advanced options</summary>
+          <label class="idx-check"><input type="checkbox" id="opt-prune"> Prune stale</label>
+          <label class="idx-check"><input type="checkbox" id="opt-tags"> Generate tags</label>
+          <p class="skel-note">Prune stale should be used only with the full source root.</p>
+        </details>
       </div>
       <div id="idx-ollama-status" style="display:none"></div>
-      <p class="skel-note">Prune stale should be used only with the full source root.</p>
       <button type="submit" class="btn-amber" id="idx-submit">start indexing</button>
     </form>
     <div id="idx-status" class="empty"></div>

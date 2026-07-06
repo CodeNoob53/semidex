@@ -368,6 +368,61 @@ describe('indexing jobs view (served app.js / index.html)', () => {
   });
 });
 
+// ── Phase 3A0: simplified create-collection form (happy-path defaults visible,
+// prune-stale/generate-tags collapsed behind an Advanced disclosure) ────────
+describe('simplified indexing form — advanced options collapsed (served app.js)', () => {
+  // The create-collection form's markup is inlined into app.js via Vite's
+  // `?raw` import (src/admin/ui-src/app.js imports partials/index-view.html
+  // as a string) — so it's found in the served JS bundle, not a separate
+  // static HTML file. Locate the disclosure by class, not exact whitespace,
+  // since Vite's raw-string inlining is not guaranteed byte-stable.
+  function findAdvancedBoxRange(js) {
+    const detailsStart = js.indexOf('<details class="advanced-box">');
+    if (detailsStart === -1) return null;
+    const detailsEnd = js.indexOf('</details>', detailsStart);
+    if (detailsEnd === -1) return null;
+    return [detailsStart, detailsEnd];
+  }
+
+  it('collapses prune-stale and generate-tags behind an "Advanced options" disclosure', async () => {
+    await withServer(async (base) => {
+      const js = await (await fetch(base + '/app.js')).text();
+      const range = findAdvancedBoxRange(js);
+      assert.ok(range, 'the create-collection form must have an Advanced options disclosure');
+      const inside = js.slice(range[0], range[1]);
+      assert.match(inside, /Advanced options/);
+      assert.match(inside, /id="opt-prune"/, 'prune-stale must be inside the disclosure');
+      assert.match(inside, /id="opt-tags"/, 'generate-tags must be inside the disclosure');
+    });
+  });
+
+  it('keeps ONNX embeddings, LLM summaries, skeleton chunking, and skeleton nav visible above the disclosure', async () => {
+    await withServer(async (base) => {
+      const js = await (await fetch(base + '/app.js')).text();
+      const range = findAdvancedBoxRange(js);
+      assert.ok(range);
+      const [detailsStart] = range;
+      const onnxIdx = js.indexOf('id="opt-onnx"');
+      const llmIdx = js.indexOf('id="opt-llm-summaries"');
+      const chunkIdx = js.indexOf('id="opt-skel-chunk"');
+      const navIdx = js.indexOf('id="opt-skel-nav"');
+      for (const [name, idx] of [['opt-onnx', onnxIdx], ['opt-llm-summaries', llmIdx], ['opt-skel-chunk', chunkIdx], ['opt-skel-nav', navIdx]]) {
+        assert.ok(idx !== -1, `${name} must be present`);
+        assert.ok(idx < detailsStart, `${name} must appear before the Advanced options disclosure, not inside/after it`);
+      }
+    });
+  });
+
+  it('keeps the prune-stale safety caveat, now scoped inside the disclosure with the checkbox it explains', async () => {
+    await withServer(async (base) => {
+      const js = await (await fetch(base + '/app.js')).text();
+      const range = findAdvancedBoxRange(js);
+      const inside = js.slice(range[0], range[1]);
+      assert.match(inside, /Prune stale should be used only with the full source root/);
+    });
+  });
+});
+
 // ── indexing progress redesign: user-facing progress, not a raw job console ─
 describe('indexing progress panel (served app.js / index.html, redesigned)', () => {
   it('the panel is labeled "Indexing progress", not the internal word "Jobs"', async () => {
