@@ -67,14 +67,46 @@ html, body {
 
 /* ── Layout ─────────────────────────────────────────────────────────────── */
 .layout {
-  display: grid; grid-template-columns: 240px 1fr;
+  display: grid; grid-template-columns: var(--sidebar-width, 320px) 6px 1fr;
   height: calc(100% - 52px);
 }
 .sidebar {
-  border-right: 1px solid var(--line);
   background: var(--bg-raise);
   display: flex; flex-direction: column;
   overflow-y: auto;
+}
+/* Resizable divider between sidebar and main — a dedicated grid column
+   (not an absolutely-positioned overlay) so its hit area is never clipped
+   by either neighbor's overflow-y:auto. The visible line is its own
+   ::after (2px), narrower than the 6px column, giving forgiving drag
+   margin on both sides without visually widening the divider. This
+   replaces .sidebar's old border-right — keeping both would double the line. */
+.sidebar-resize-handle {
+  cursor: col-resize;
+  background: transparent;
+  position: relative;
+}
+.sidebar-resize-handle::after {
+  content: '';
+  position: absolute;
+  top: 0; bottom: 0; left: 2px; width: 2px;
+  background: var(--line);
+}
+.sidebar-resize-handle:hover::after,
+.sidebar-resize-handle.is-dragging::after {
+  background: var(--ink-dim);
+}
+/* Keyboard-focus indicator — accent-colored divider line, no outline/
+   layout shift, so it reads as "this control is active" without adding
+   visual noise to a control that's otherwise a thin, mostly-invisible
+   divider. :focus-visible (not :focus) so it only shows for keyboard
+   navigation, not after a pointer drag/click. */
+.sidebar-resize-handle:focus-visible {
+  outline: none;
+}
+.sidebar-resize-handle:focus-visible::after {
+  left: 1px; width: 4px;
+  background: var(--amber);
 }
 .main { padding: 22px 26px; overflow-y: auto; }
 

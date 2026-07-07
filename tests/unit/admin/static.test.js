@@ -80,6 +80,20 @@ function loadSidebarLabelHelpers(js) {
   return context;
 }
 
+// clampSidebarWidth/readSidebarWidth/writeSidebarWidth/nextSidebarWidth are
+// pure (no DOM) — the range also picks up applySidebarWidth (touches
+// `document`, but only defined here, never called by these tests) since
+// it sits between writeSidebarWidth and nextSidebarWidth in the source;
+// stops before updateSidebarResizeAria, which calls handle.setAttribute
+// and needs a real element.
+function loadSidebarResizeHelper(js) {
+  const src = extractBetween(js, 'const SIDEBAR_MIN_WIDTH', 'function updateSidebarResizeAria');
+  const context = {};
+  vm.createContext(context);
+  vm.runInContext(src, context);
+  return context;
+}
+
 // currentRoute() is a pure function (hash string in, route object out) —
 // deliberately refactored to take an explicit `hash` parameter instead of
 // reading location.hash internally, specifically so it's testable with zero
@@ -909,6 +923,186 @@ describe('sidebar navigation tree (ui-src/app.js source)', () => {
     assert.match(fn, /addEventListener\(["']click["'], \(\) => openFileView/);
     assert.ok(!/return openFileView\(name, node\.sourceFile, node\.nodePath, 0\);/.test(fn),
       'a 404 from skeleton/anchor must not automatically open chunk 0 of the file');
+  });
+});
+
+// ── Phase 3B: resizable sidebar (long file/section names need more room
+// than the old fixed 240px column) ──────────────────────────────────────────
+describe('sidebar resize — pure helpers (ui-src/app.js source, evaluated behavior)', () => {
+  it('clampSidebarWidth clamps below-min up to the minimum', () => {
+    const js = readUiSource('app.js');
+    const { clampSidebarWidth } = loadSidebarResizeHelper(js);
+    assert.equal(clampSidebarWidth(100), 240);
+  });
+
+  it('clampSidebarWidth clamps above-max down to the maximum', () => {
+    const js = readUiSource('app.js');
+    const { clampSidebarWidth } = loadSidebarResizeHelper(js);
+    assert.equal(clampSidebarWidth(900), 520);
+  });
+
+  it('clampSidebarWidth falls back to the default for NaN/non-number input', () => {
+    const js = readUiSource('app.js');
+    const { clampSidebarWidth } = loadSidebarResizeHelper(js);
+    assert.equal(clampSidebarWidth(NaN), 320);
+    assert.equal(clampSidebarWidth('abc'), 320);
+    assert.equal(clampSidebarWidth(undefined), 320);
+    assert.equal(clampSidebarWidth(null), 320);
+  });
+
+  it('clampSidebarWidth passes an in-range value through unchanged', () => {
+    const js = readUiSource('app.js');
+    const { clampSidebarWidth } = loadSidebarResizeHelper(js);
+    assert.equal(clampSidebarWidth(400), 400);
+  });
+
+  function makeFakeStorage() {
+    const store = {};
+    return { getItem: (k) => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = v; }, _store: store };
+  }
+
+  it('readSidebarWidth/writeSidebarWidth round-trip through a storage-like object', () => {
+    const js = readUiSource('app.js');
+    const { readSidebarWidth, writeSidebarWidth } = loadSidebarResizeHelper(js);
+    const storage = makeFakeStorage();
+    writeSidebarWidth(storage, 400);
+    assert.equal(readSidebarWidth(storage), 400);
+  });
+
+  it('readSidebarWidth returns the default when no width has been stored', () => {
+    const js = readUiSource('app.js');
+    const { readSidebarWidth } = loadSidebarResizeHelper(js);
+    assert.equal(readSidebarWidth(makeFakeStorage()), 320);
+  });
+
+  it('readSidebarWidth falls back to the default (not clamped garbage) for a corrupted non-numeric stored value', () => {
+    const js = readUiSource('app.js');
+    const { readSidebarWidth } = loadSidebarResizeHelper(js);
+    const storage = makeFakeStorage();
+    storage._store['semidex-admin-sidebar-width'] = 'not-a-number';
+    assert.equal(readSidebarWidth(storage), 320);
+  });
+
+  it('readSidebarWidth/writeSidebarWidth never throw even if storage access throws (e.g. private-mode quota)', () => {
+    const js = readUiSource('app.js');
+    const { readSidebarWidth, writeSidebarWidth } = loadSidebarResizeHelper(js);
+    const throwingStorage = {
+      getItem: () => { throw new Error('quota exceeded'); },
+      setItem: () => { throw new Error('quota exceeded'); },
+    };
+    assert.doesNotThrow(() => readSidebarWidth(throwingStorage));
+    assert.equal(readSidebarWidth(throwingStorage), 320);
+    assert.doesNotThrow(() => writeSidebarWidth(throwingStorage, 400));
+  });
+
+  it('nextSidebarWidth steps left/right by the small step (16px)', () => {
+    const js = readUiSource('app.js');
+    const { nextSidebarWidth } = loadSidebarResizeHelper(js);
+    assert.equal(nextSidebarWidth(320, 'ArrowLeft', false), 304);
+    assert.equal(nextSidebarWidth(320, 'ArrowRight', false), 336);
+  });
+
+  it('nextSidebarWidth steps left/right by the large step (48px) with shiftKey', () => {
+    const js = readUiSource('app.js');
+    const { nextSidebarWidth } = loadSidebarResizeHelper(js);
+    assert.equal(nextSidebarWidth(320, 'ArrowLeft', true), 272);
+    assert.equal(nextSidebarWidth(320, 'ArrowRight', true), 368);
+  });
+
+  it('nextSidebarWidth: Home/End jump to min/max (unclamped result — caller clamps)', () => {
+    const js = readUiSource('app.js');
+    const { nextSidebarWidth } = loadSidebarResizeHelper(js);
+    assert.equal(nextSidebarWidth(320, 'Home', false), 240);
+    assert.equal(nextSidebarWidth(320, 'End', false), 520);
+  });
+
+  it('nextSidebarWidth: Enter or Space reset to the default width', () => {
+    const js = readUiSource('app.js');
+    const { nextSidebarWidth } = loadSidebarResizeHelper(js);
+    assert.equal(nextSidebarWidth(450, 'Enter', false), 320);
+    assert.equal(nextSidebarWidth(450, ' ', false), 320);
+  });
+
+  it('nextSidebarWidth returns null for keys it does not handle (caller must not preventDefault those)', () => {
+    const js = readUiSource('app.js');
+    const { nextSidebarWidth } = loadSidebarResizeHelper(js);
+    assert.equal(nextSidebarWidth(320, 'Tab', false), null);
+    assert.equal(nextSidebarWidth(320, 'a', false), null);
+  });
+
+  it('nextSidebarWidth result still needs clampSidebarWidth applied at the boundaries', () => {
+    const js = readUiSource('app.js');
+    const { nextSidebarWidth, clampSidebarWidth } = loadSidebarResizeHelper(js);
+    // one more ArrowLeft below the minimum must clamp, not go negative/out-of-range
+    assert.equal(clampSidebarWidth(nextSidebarWidth(240, 'ArrowLeft', false)), 240);
+    assert.equal(clampSidebarWidth(nextSidebarWidth(520, 'ArrowRight', false)), 520);
+  });
+});
+
+describe('sidebar resize — markup and CSS (ui-src source)', () => {
+  it('index.html has an accessible resize handle', () => {
+    const html = readUiSource('index.html');
+    assert.match(html, /id="sidebar-resize-handle"/);
+    assert.match(html, /role="separator"/);
+    assert.match(html, /aria-orientation="vertical"/);
+  });
+
+  it('app.css sizes the sidebar column via a CSS custom property, not a fixed 240px', () => {
+    const css = readUiSource('app.css');
+    assert.match(css, /grid-template-columns:\s*var\(--sidebar-width,/);
+    assert.ok(!/grid-template-columns:\s*240px 1fr/.test(css), 'the old fixed 240px column must be gone');
+  });
+
+  it('the handle is focusable (tabindex="0")', () => {
+    const html = readUiSource('index.html');
+    assert.match(html, /id="sidebar-resize-handle"[^>]*tabindex="0"/);
+  });
+
+  it('ARIA value attributes are not hardcoded in HTML — set dynamically from the JS width constants', () => {
+    const html = readUiSource('index.html');
+    assert.ok(!/aria-valuemin/.test(html), 'aria-valuemin must be set from JS, not hardcoded in HTML');
+    assert.ok(!/aria-valuemax/.test(html), 'aria-valuemax must be set from JS, not hardcoded in HTML');
+    assert.ok(!/aria-valuenow/.test(html), 'aria-valuenow must be set from JS, not hardcoded in HTML');
+  });
+
+  it('app.js sets aria-valuemin/aria-valuemax/aria-valuenow from the width constants', () => {
+    const js = readUiSource('app.js');
+    assert.match(js, /setAttribute\(['"]aria-valuemin['"],\s*String\(SIDEBAR_MIN_WIDTH\)\)/);
+    assert.match(js, /setAttribute\(['"]aria-valuemax['"],\s*String\(SIDEBAR_MAX_WIDTH\)\)/);
+    assert.match(js, /setAttribute\(['"]aria-valuenow['"]/);
+    assert.match(js, /aria-valuetext/);
+  });
+
+  it('keyboard handler is wired on the resize handle and handles ArrowLeft/ArrowRight/Home/End/Enter/Space', () => {
+    const js = readUiSource('app.js');
+    assert.match(js, /addEventListener\(['"]keydown['"]/);
+    assert.match(js, /ArrowLeft/);
+    assert.match(js, /ArrowRight/);
+    assert.match(js, /['"]Home['"]/);
+    assert.match(js, /['"]End['"]/);
+    assert.match(js, /['"]Enter['"]/);
+  });
+
+  it('keyboard handler calls preventDefault only for keys the resize control actually handles', () => {
+    const js = readUiSource('app.js');
+    const start = js.indexOf("addEventListener('keydown'");
+    assert.ok(start !== -1, 'keydown handler should be defined on the resize handle');
+    const fn = js.slice(start, start + 400);
+    assert.match(fn, /nextSidebarWidth/);
+    assert.match(fn, /if \(next === null\) return;/, 'unhandled keys must return early, not preventDefault');
+    assert.match(fn, /preventDefault/);
+  });
+
+  it('app.css has a :focus-visible rule for the resize handle', () => {
+    const css = readUiSource('app.css');
+    assert.match(css, /\.sidebar-resize-handle:focus-visible/);
+  });
+
+  it('drag-end, double-click, and keyboard all funnel through the same shared setSidebarWidth helper', () => {
+    const js = readUiSource('app.js');
+    const matches = js.match(/setSidebarWidth\(/g) ?? [];
+    // init + drag-end + dblclick + keyboard = at least 4 call sites sharing one path
+    assert.ok(matches.length >= 4, `expected setSidebarWidth to be reused across input methods, found ${matches.length} call sites`);
   });
 });
 
