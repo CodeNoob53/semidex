@@ -7,13 +7,13 @@ audit. Not a redesign — the IA from Phase 3A is unchanged.
 
 ## What was already correct (verified, not rewritten)
 
-- **Advanced controls mostly collapsed**: `window`/`format`/`score`/file-
-  filter are inside `<details class="advanced-box">` in `search.js`,
+- **Advanced controls mostly collapsed**: score display and file-filter
+  controls are inside `<details class="advanced-box">` in `search.js`,
   collapsed by default. `top` is the one control outside it, in the
   always-visible main row next to the query input and Search button —
   kept visible deliberately: it's a single, low-noise, non-technical
-  control ("how many results"), not a debug knob the way window/format/
-  score are.
+  control ("how many results"). The old `window`/`format` controls were
+  removed later in this task (see "Window-chunk removal").
 - **RRF/score wording**: the score span already carried "Rank score —
   compare order, not absolute value" before this task. The new score bar
   reuses the identical tooltip string, verified by a test asserting both
@@ -251,7 +251,7 @@ one untracked file:
    state" was true only for the single most recent search, not a real
    history. Resolved (per explicit direction) by using `pushState` for a
    genuinely new query and `replaceState` for everything else (re-running
-   the same query with different top/window/format/file-filter, or a
+   the same query with different `top`/file-filter settings, or a
    URL-driven sync restoring a query the URL already carries) — pushing
    on every filter tweak or keystroke-adjacent re-search would flood
    history with one entry per action rather than one per distinct
@@ -412,8 +412,7 @@ parses without error but does not affect rendered UI state.
   above); flagged for the user to weigh in on rather than silently
   changed.
 - **`<select>.value` is not independently verifiable in this test
-  harness for two specific scenarios** (restoring `top`/`window` from a
-  URL, and omitting `&format=` when `window=0`) — the vm/linkedom test
+  harness for restoring `top` from a URL** — the vm/linkedom test
   environment (linkedom 0.18.x) has a confirmed limitation where
   `<select>.value = ...` does not update the selected `<option>`, and the
   `.value` getter also stops reflecting reality once an `<option>.selected`
