@@ -3,7 +3,7 @@
 // in the sidebar tree loads its chunks directly into the main content area,
 // with "load more" pagination and a scoped search-within-file shortcut.
 // No separate document list lives in the main panel anymore.
-import { $, cloneTemplate, errorBox, emptyBox } from './dom.js';
+import { $, cloneTemplate, errorBox, emptyBox, prefersReducedMotion } from './dom.js';
 import { api } from './api.js';
 import { nodeDisplayLabel } from './format.js';
 
@@ -12,6 +12,10 @@ let fileViewState = null; // { name, sourceFile, chunkIndex, loaded }
 export function hideCollectionContent() {
   const panel = $('#collection-content-panel');
   if (panel) panel.style.display = 'none';
+}
+
+function scrollToPanel(panel) {
+  panel.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'nearest' });
 }
 
 // hideCollectionContent() (above) and hideSearchResults() are the mutual-
@@ -43,7 +47,7 @@ export async function openSectionView(name, node) {
   panel.style.display = '';
   title.textContent = nodeDisplayLabel(node);
   box.innerHTML = emptyBox('loading…');
-  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  scrollToPanel(panel);
 
   try {
     const qs = `nodePath=${encodeURIComponent(node.nodePath)}`;
@@ -72,7 +76,7 @@ export async function openFileView(name, sourceFile, nodePath, chunkIndex = 0) {
   panel.style.display = '';
   title.textContent = sourceFile;
   box.innerHTML = emptyBox('loading…');
-  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  scrollToPanel(panel);
 
   fileViewState = { name, sourceFile, chunkIndex, loaded: 0 };
 

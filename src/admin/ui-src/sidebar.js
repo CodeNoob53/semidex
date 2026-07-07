@@ -136,6 +136,13 @@ async function renderSidebarSkeletonLevel(box, name, node, depth) {
   for (const el of box.querySelectorAll(':scope > .tree-node')) {
     const node2 = children[Number(el.dataset.i)];
     el.addEventListener('click', () => onSidebarNodeClick(name, node2, el, depth));
+    // .tree-node is a <div role="button">, not a native <button>/<a> — Enter
+    // and Space don't trigger "click" on it automatically, so wire them here.
+    el.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      e.preventDefault();
+      onSidebarNodeClick(name, node2, el, depth);
+    });
   }
 }
 
@@ -156,8 +163,11 @@ export function sidebarNodeRow(n, i, depth) {
   const icon = n.nodeType === 'directory' ? '📁' : n.nodeType === 'file' ? '📄' : '§';
   const label = nodeDisplayLabel(n);
   const tooltip = [n.summary, n.nodePath].filter(Boolean).join(' — ');
+  // tabindex="0" + role="button": unlike .tree-collection-row/.tree-file
+  // (real <a> tags, natively focusable), this is a plain <div> with a
+  // click handler — without these it was unreachable by keyboard entirely.
   return `
-    <div class="tree-row tree-node ${isLeaf ? 'tree-leaf' : ''}" data-i="${i}" data-path="${esc(n.nodePath ?? '')}" style="--depth:${depth + 1}">
+    <div class="tree-row tree-node ${isLeaf ? 'tree-leaf' : ''}" data-i="${i}" data-path="${esc(n.nodePath ?? '')}" style="--depth:${depth + 1}" tabindex="0" role="button" aria-label="${esc(label)}">
       <span class="tree-caret">${n.childCount > 0 ? '▸' : ''}</span>
       <span class="tree-icon">${icon}</span>
       <span class="tree-label" title="${esc(tooltip)}">${esc(label)}</span>

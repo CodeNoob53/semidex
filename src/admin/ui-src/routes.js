@@ -2,15 +2,37 @@
 // Split out of router.js so sidebar.js/jobs-view.js can read the current
 // route without importing router.js itself (router.js imports from both of
 // them), avoiding a circular import.
+
+// Parses the "?q=...&top=...&window=...&format=...&file=..." query string a
+// collection route may carry (the search-permalink state, Phase 3B) — kept
+// separate from currentRoute() itself so path-matching never has to worry
+// about a query string leaking into a capture group (e.g. f/(.+) would
+// otherwise swallow a trailing "?q=..." into the sourceFile match).
+function parseSearchQuery(queryString) {
+  if (!queryString) return undefined;
+  const params = new URLSearchParams(queryString);
+  const search = {};
+  if (params.has('q')) search.q = params.get('q');
+  if (params.has('top')) search.top = Number(params.get('top'));
+  if (params.has('window')) search.window = Number(params.get('window'));
+  if (params.has('format')) search.format = params.get('format');
+  if (params.has('file')) search.sourceFile = params.get('file');
+  return Object.keys(search).length ? search : undefined;
+}
+
 export function currentRoute(hash = location.hash || '#/') {
-  let m = hash.match(/^#\/c\/([^/]+)\/settings$/);
+  const queryIndex = hash.indexOf('?');
+  const path = queryIndex === -1 ? hash : hash.slice(0, queryIndex);
+  const search = queryIndex === -1 ? undefined : parseSearchQuery(hash.slice(queryIndex + 1));
+
+  let m = path.match(/^#\/c\/([^/]+)\/settings$/);
   if (m) return { view: 'settings', name: decodeURIComponent(m[1]) };
-  m = hash.match(/^#\/c\/([^/]+)\/f\/(.+)$/);
-  if (m) return { view: 'collection', name: decodeURIComponent(m[1]), openFile: decodeURIComponent(m[2]) };
-  m = hash.match(/^#\/c\/([^/]+)\/n\/(.+)$/);
-  if (m) return { view: 'collection', name: decodeURIComponent(m[1]), openNodePath: decodeURIComponent(m[2]) };
-  m = hash.match(/^#\/c\/(.+)$/);
-  if (m) return { view: 'collection', name: decodeURIComponent(m[1]) };
-  if (hash === '#/index') return { view: 'index' };
+  m = path.match(/^#\/c\/([^/]+)\/f\/(.+)$/);
+  if (m) return { view: 'collection', name: decodeURIComponent(m[1]), openFile: decodeURIComponent(m[2]), ...(search && { search }) };
+  m = path.match(/^#\/c\/([^/]+)\/n\/(.+)$/);
+  if (m) return { view: 'collection', name: decodeURIComponent(m[1]), openNodePath: decodeURIComponent(m[2]), ...(search && { search }) };
+  m = path.match(/^#\/c\/(.+)$/);
+  if (m) return { view: 'collection', name: decodeURIComponent(m[1]), ...(search && { search }) };
+  if (path === '#/index') return { view: 'index' };
   return { view: 'overview' };
 }

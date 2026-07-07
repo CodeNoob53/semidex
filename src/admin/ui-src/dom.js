@@ -36,3 +36,10 @@ export function emptyBox(message) {
   frag.querySelector('.empty').textContent = message;
   return frag.firstElementChild.outerHTML;
 }
+
+// Guards the few `scrollIntoView({behavior:'smooth'})` call sites
+// (search.js, file-view.js) — matchMedia is undefined in some bare test
+// contexts, so this degrades to "assume motion is fine" rather than throw.
+export function prefersReducedMotion() {
+  return typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+}

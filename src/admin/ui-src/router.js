@@ -6,6 +6,7 @@ import { markActive } from './sidebar.js';
 import { renderCollection, renderOverview } from './collection-view.js';
 import { renderSettingsView } from './settings-view.js';
 import { renderIndexingView } from './jobs-view.js';
+import { applySearchStateFromUrl, syncSearchStateFromUrl } from './search.js';
 import { currentRoute } from './routes.js';
 
 export { currentRoute };
@@ -30,8 +31,25 @@ export async function route() {
   if (r.view === 'settings') await renderSettingsView(main, r.name);
   else if (r.view === 'collection') {
     await renderCollection(main, r.name);
-    if (r.openFile) await openFileView(r.name, r.openFile);
-    else if (r.openNodePath) await openNodeFromPath(r.name, r.openNodePath);
+    if (r.openFile) {
+      await openFileView(r.name, r.openFile);
+      // Keep the search form's fields in sync with "?q=..." even on a
+      // file route (e.g. back/forward between two #/c/name/f/x?q=cats and
+      // ?q=dogs states) — but never re-run the search here, since that
+      // would call hideCollectionContent() and immediately hide the file
+      // view this route just opened.
+      applySearchStateFromUrl(r.name);
+    } else if (r.openNodePath) {
+      await openNodeFromPath(r.name, r.openNodePath);
+      applySearchStateFromUrl(r.name);
+    } else {
+      // Bare collection route: no open file/section to protect, so a
+      // genuinely new "?q=..." should actually run the search.
+      // syncSearchStateFromUrl no-ops if the URL's search params haven't
+      // changed since search.js last saw them, so this is safe on every
+      // bare-collection navigation, not just the first mount.
+      syncSearchStateFromUrl(r.name);
+    }
   } else if (r.view === 'index') await renderIndexingView(main);
   else await renderOverview(main);
   // Re-run after the branch above resolves: the sidebar's skeleton-tree/
