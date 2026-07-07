@@ -36,20 +36,11 @@ export default defineConfig({
     fullReload(['partials/**/*.html'], { root: 'src/admin/ui-src' }),
   ],
   build: {
-    outDir: '../ui',
+    // Repo-root dist/, outside Vite's own root (src/admin/ui-src) — three
+    // levels up (ui-src -> admin -> src -> repo root), then into dist/admin-ui.
+    outDir: '../../../dist/admin-ui',
+    // Default would already be true here since outDir is outside root, but
+    // kept explicit to document intent regardless of future root/outDir changes.
     emptyOutDir: true,
-    minify: false,
-    sourcemap: false,
-    cssCodeSplit: false,
-    rollupOptions: {
-      output: {
-        entryFileNames: 'app.js',
-        chunkFileNames: 'chunks/[name].js',
-        assetFileNames: (assetInfo) => {
-          if (assetInfo.name?.endsWith('.css')) return 'app.css';
-          return 'assets/[name][extname]';
-        },
-      },
-    },
   },
 });

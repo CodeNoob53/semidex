@@ -9,3 +9,4 @@ models/
 demo/
 .bench-indexing-corpus/
 .bench-combined-probe-corpus/
+dist/
