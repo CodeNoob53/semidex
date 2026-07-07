@@ -154,7 +154,9 @@ export function loadSidebarResizeHelpers() {
 // shape here is plain string data, so this loses nothing.
 export function loadRouterHelper() {
   const src = stripExports(readUiSource('routes.js'));
-  const context = {};
+  // vm.createContext's realm doesn't inherit Node's global URLSearchParams
+  // — routes.js's query-string parsing (Phase 3B) needs it injected.
+  const context = { URLSearchParams };
   vm.createContext(context);
   vm.runInContext(src, context);
   return { currentRoute: (hash) => JSON.parse(JSON.stringify(context.currentRoute(hash))) };
@@ -187,7 +189,7 @@ export function loadToastHelpers() {
 // time — ui-src/index.html on disk still has literal <load src="..."> tags),
 // so `html` must come from the real built/served index.html, unlike the
 // pure-logic helpers above.
-export function loadSearchRenderHelpers(html) {
+export function loadSearchRenderHelpers(html, { hash = '#/', storage, apiPostImpl } = {}) {
   const { document, Element } = parseHTML(html);
   // initSearchPanel()/setSearchFile() need #search-panel (the mount point)
   // and #search-scope (the "Searching in: ..." label) to exist — these
@@ -196,9 +198,35 @@ export function loadSearchRenderHelpers(html) {
   document.getElementById('main').insertAdjacentHTML('beforeend',
     '<span id="search-scope"></span><span id="search-mode"></span><div id="search-panel"></div>');
   Element.prototype.scrollIntoView = () => {};
-  const context = { document };
+  const memoryStorage = storage ?? (() => {
+    const map = new Map();
+    return {
+      getItem: (k) => (map.has(k) ? map.get(k) : null),
+      setItem: (k, v) => map.set(k, String(v)),
+      removeItem: (k) => map.delete(k),
+    };
+  })();
+  // A minimal history stack — real enough for tests to assert "did this
+  // action push a new entry or replace the current one" (the pushState-
+  // for-a-new-query / replaceState-for-everything-else distinction in
+  // search.js's updateSearchUrl), without implementing real browser
+  // session-history semantics (no actual back()/forward() traversal).
+  const historyStack = [hash];
+  const context = {
+    document,
+    URLSearchParams,
+    localStorage: memoryStorage,
+    location: { hash },
+    history: {
+      pushState: (_state, _title, url) => { context.location.hash = url; historyStack.push(url); },
+      replaceState: (_state, _title, url) => { context.location.hash = url; historyStack[historyStack.length - 1] = url; },
+      get length() { return historyStack.length; },
+    },
+    __apiPostImpl: apiPostImpl ?? (async () => ({ results: [] })),
+  };
   vm.createContext(context);
   const src = stripExports(readUiSource('dom.js')).replace(/^import .*$/gm, '')
+    + stripExports(readUiSource('routes.js')).replace(/^import .*$/gm, '')
     + stripExports(readUiSource('search.js')).replace(/^import .*$/gm, '')
       // search.js imports openFileView/hideCollectionContent from
       // file-view.js and apiPost from api.js — renderResult() itself never
@@ -206,7 +234,7 @@ export function loadSearchRenderHelpers(html) {
       // so stub them out rather than pulling in the full file-view.js graph.
       .replace(/openFileView\(/g, '(()=>{})(')
       .replace(/hideCollectionContent\(\)/g, '')
-    + '\nconst apiPost = async () => ({});\n';
+    + '\nconst apiPost = __apiPostImpl;\n';
   vm.runInContext(src, context);
   return context;
 }
@@ -288,6 +316,84 @@ export function loadJobsViewRenderHelpers(html) {
       // (confirmed by direct read) — safe to eval whole-file.
     + '\nconst api = async () => ({}); const apiPost = async () => ({});'
     + ' const loadSidebar = async () => {}; const currentRoute = () => ({ view: "index" });\n';
+  vm.runInContext(src, context);
+  return context;
+}
+
+// Evaluates the REAL route()/renderCollection()/openFileView()/
+// initSearchPanel() call graph together (dom.js, api.js, format.js,
+// state.js, toasts.js, routes.js, file-view.js, search.js, sidebar.js,
+// collection-view.js, router.js) against a minimal shell, so tests can
+// assert on the actual end-to-end flow a URL navigation triggers — not
+// just source-text regex matches, which (by construction) can't see across
+// module boundaries and previously missed a real bug: initSearchPanel()
+// calling syncSearchStateFromUrl() internally, bypassing router.js's
+// file/section-aware apply-vs-sync split on a route's FIRST visit.
+// settings-view.js/jobs-view.js are stubbed out (imported by router.js but
+// only reachable via the 'settings'/'index' route views, not exercised
+// here) to keep the graph to what a collection-route navigation actually
+// touches.
+export function loadRouteIntegrationHelpers(html, { hash = '#/', apiResponses = {} } = {}) {
+  const { document, Element } = parseHTML(html);
+  Element.prototype.scrollIntoView = () => {};
+  document.getElementById('main').insertAdjacentHTML('beforeend', '<ul id="collection-list"></ul><nav id="nav-index"></nav>');
+  const apiCalls = [];
+  const context = {
+    document,
+    URLSearchParams,
+    localStorage: { getItem: () => null, setItem: () => {}, removeItem: () => {} },
+    matchMedia: undefined,
+    location: { hash },
+    history: {
+      pushState: (_s, _t, url) => { context.location.hash = url; },
+      replaceState: (_s, _t, url) => { context.location.hash = url; },
+    },
+    api: async (url) => {
+      apiCalls.push(url);
+      for (const [key, value] of Object.entries(apiResponses)) {
+        if (url.includes(key)) {
+          const resolved = typeof value === 'function' ? value(url) : value;
+          if (resolved instanceof Error) throw resolved;
+          return resolved;
+        }
+      }
+      throw new Error(`no stub api() response configured for ${url}`);
+    },
+    apiPost: async (url) => { apiCalls.push(url); return { results: [] }; },
+    __apiCalls: apiCalls,
+  };
+  vm.createContext(context);
+  // stripExports only strips the `export` keyword off individual
+  // declarations (export function/const/etc.) — collection-view.js and
+  // router.js also end with a trailing re-export statement
+  // ("export { a, b };"), a form vm.runInContext still can't parse, so
+  // strip that separately here.
+  const stripImports = (src) => stripExports(src).replace(/^import .*$/gm, '').replace(/^export \{[^}]*\};?\s*$/gm, '');
+  const src = [
+    stripImports(readUiSource('dom.js')),
+    // api.js's real functions call fetch(), unavailable in this vm context —
+    // api/apiPost are supplied directly on `context` instead (below), so
+    // api.js's own source is deliberately NOT evaluated here.
+    stripImports(readUiSource('format.js')),
+    stripImports(readUiSource('state.js')),
+    stripImports(readUiSource('toasts.js')),
+    stripImports(readUiSource('routes.js')),
+    stripImports(readUiSource('file-view.js')),
+    stripImports(readUiSource('search.js')),
+    stripImports(readUiSource('sidebar.js')),
+    // collection-view.js's ?raw partial imports become plain consts —
+    // real partial content, so markup-dependent behavior (e.g. #col-header,
+    // #search-panel existing after mount) matches production exactly.
+    `const overviewShell = ${JSON.stringify(readUiSource('partials/overview-shell.html'))};`,
+    `const collectionShell = ${JSON.stringify(readUiSource('partials/collection-shell.html'))};`,
+    stripImports(readUiSource('collection-view.js')),
+    stripImports(readUiSource('router.js'))
+      // router.js imports renderSettingsView/renderIndexingView for the
+      // 'settings'/'index' route views — not exercised by these
+      // collection-route tests, stubbed to avoid pulling in their modules.
+      .replace(/renderSettingsView\(/g, '(async()=>{})(')
+      .replace(/renderIndexingView\(/g, '(async()=>{})('),
+  ].join('\n');
   vm.runInContext(src, context);
   return context;
 }

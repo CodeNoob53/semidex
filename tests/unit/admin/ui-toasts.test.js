@@ -55,4 +55,18 @@ describe('collection warning delivery (ui-src/toasts.js source, evaluated behavi
     const badgeIdx = fn.indexOf('healthBadge');
     assert.ok(badgeIdx > -1 && badgeIdx < detailsIdx, 'health badge must render before/outside the Details disclosure');
   });
+
+  it('#toast-host is announced to assistive tech via aria-live="polite" (Phase 3B audit)', () => {
+    const indexHtml = readUiSource('index.html');
+    const tagStart = indexHtml.indexOf('id="toast-host"');
+    assert.ok(tagStart > -1, '#toast-host must exist in index.html');
+    const tag = indexHtml.slice(indexHtml.lastIndexOf('<', tagStart), indexHtml.indexOf('>', tagStart) + 1);
+    assert.match(tag, /aria-live="polite"/, 'the toast host must be a polite live region so new toasts are announced without stealing focus');
+  });
+
+  it('there is exactly one toast host in index.html (single shared instance, not per-view duplicates)', () => {
+    const indexHtml = readUiSource('index.html');
+    const matches = indexHtml.match(/id="toast-host"/g) ?? [];
+    assert.equal(matches.length, 1);
+  });
 });

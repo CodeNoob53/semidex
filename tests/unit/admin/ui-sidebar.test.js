@@ -120,6 +120,24 @@ describe('sidebar node labels (ui-src/sidebar.js source, evaluated behavior)', (
     const html = sidebarNodeRow({ nodeType: 'section', nodePath: 'readme.md#intro', childCount: 0 }, 0, 0);
     assert.match(html, /data-path="readme\.md#intro"/);
   });
+
+  it('sidebarNodeRow is keyboard-focusable (tabindex + role=button + accessible name) — it is a <div>, not a native control', () => {
+    const { sidebarNodeRow } = loadSidebarLabelHelpers(readUiSource('sidebar.js'));
+    const html = sidebarNodeRow({ nodeType: 'section', nodePath: 'readme.md#intro', childCount: 0 }, 0, 0);
+    assert.match(html, /tabindex="0"/);
+    assert.match(html, /role="button"/);
+    assert.match(html, /aria-label="/);
+  });
+
+  it('a skeleton tree row responds to Enter/Space, not click alone', () => {
+    const js = readUiSource('sidebar.js');
+    const start = js.indexOf('async function renderSidebarSkeletonLevel');
+    const end = js.indexOf('async function fetchSkeletonChildren');
+    const fn = js.slice(start, end);
+    assert.match(fn, /addEventListener\('click', \(\) => onSidebarNodeClick/);
+    assert.match(fn, /addEventListener\('keydown'/);
+    assert.match(fn, /e\.key !== 'Enter' && e\.key !== ' '/);
+  });
 });
 
 // ── Phase 3A: sidebar active state extends to the open file/section ────────
