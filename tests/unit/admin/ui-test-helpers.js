@@ -103,6 +103,32 @@ export function loadSidebarLabelHelpers(js) {
   return context;
 }
 
+// Exercises markActive()'s actual DOM behavior (Phase 3A: highlighting the
+// open file/section row, not just the collection row) against a small
+// hand-built tree fragment shaped like renderSidebarList()/sidebarNodeRow()'s
+// real output — a collection row, a fallback file row (data-sf), and a
+// skeleton section row (data-path).
+export function loadSidebarActiveStateHelpers() {
+  const { document } = parseHTML(`<ul id="collection-list">
+    <li class="tree-collection">
+      <a href="#/c/my-docs" data-name="my-docs" class="tree-row tree-collection-row"></a>
+      <div class="tree-children">
+        <a class="tree-row tree-file" data-sf="readme.md"></a>
+        <div class="tree-row tree-node" data-path="readme.md#intro"></div>
+      </div>
+    </li>
+  </ul><nav id="nav-index"></nav>`);
+  const context = {
+    document,
+    $: (sel, root = document) => root.querySelector(sel),
+    currentRoute: () => ({ view: 'overview' }),
+  };
+  vm.createContext(context);
+  const src = stripExports(readUiSource('sidebar.js')).replace(/^import .*$/gm, '');
+  vm.runInContext(src, context);
+  return context;
+}
+
 // clampSidebarWidth/readSidebarWidth/writeSidebarWidth/nextSidebarWidth are
 // pure (no DOM) — sidebar-resize.js also exports applySidebarWidth/
 // updateSidebarResizeAria/initSidebarResize which touch `document`, but
@@ -162,7 +188,14 @@ export function loadToastHelpers() {
 // so `html` must come from the real built/served index.html, unlike the
 // pure-logic helpers above.
 export function loadSearchRenderHelpers(html) {
-  const { document } = parseHTML(html);
+  const { document, Element } = parseHTML(html);
+  // initSearchPanel()/setSearchFile() need #search-panel (the mount point)
+  // and #search-scope (the "Searching in: ..." label) to exist — these
+  // normally come from collection-shell.html, not the base index.html shell
+  // these tests parse — so inject a minimal stand-in into #main.
+  document.getElementById('main').insertAdjacentHTML('beforeend',
+    '<span id="search-scope"></span><span id="search-mode"></span><div id="search-panel"></div>');
+  Element.prototype.scrollIntoView = () => {};
   const context = { document };
   vm.createContext(context);
   const src = stripExports(readUiSource('dom.js')).replace(/^import .*$/gm, '')
@@ -188,6 +221,56 @@ export function loadFileViewRenderHelpers(html) {
     + stripExports(readUiSource('file-view.js')).replace(/^import .*$/gm, '')
       .replace(/nodeDisplayLabel\(/g, '(x=>String(x))(')
     + '\nconst api = async () => ({});\n';
+  vm.runInContext(src, context);
+  return context;
+}
+
+// Exercises openFileView()/openSectionView()'s actual DOM behavior (panel
+// visibility, title text, and — the mutual-exclusion mechanism — clearing
+// #search-results) against the real served index.html (needed for the
+// <template> tags cloneTemplate()/emptyBox()/errorBox() depend on) with the
+// collection-shell IDs injected into #main. Takes an `apiResponses` map from
+// URL substring -> response object/thrown error, since these functions call
+// the real api() with different query strings.
+export function loadFileViewBehaviorHelpers(html, apiResponses = {}) {
+  const { document, Element } = parseHTML(html);
+  // linkedom doesn't implement scrollIntoView (a no-op layout affordance in
+  // real browsers) — openFileView()/openSectionView() call it on the
+  // content panel after showing it, so every element needs a stub.
+  Element.prototype.scrollIntoView = () => {};
+  document.getElementById('main').innerHTML = `
+    <div class="col-header" id="col-header"></div>
+    <div class="panel">
+      <div class="panel-head"><span id="search-mode"></span></div>
+      <div class="panel-body" id="search-panel">
+        <div id="search-status">3 results</div>
+        <div id="search-results"><div class="result-card">stale result</div></div>
+      </div>
+    </div>
+    <div class="panel" id="collection-content-panel" style="display:none">
+      <div class="panel-head"><span id="content-title">Results</span></div>
+      <div class="panel-body" id="collection-content"></div>
+    </div>`;
+  const context = {
+    document,
+    nodeDisplayLabel: (n) => n.nodePath ?? '',
+    api: async (url) => {
+      for (const [key, value] of Object.entries(apiResponses)) {
+        if (url.includes(key)) {
+          // A function stub gets the full request URL, so a test can vary
+          // its response by query string (e.g. asserting the exact
+          // chunkIndex a follow-up "load more" call requests).
+          const resolved = typeof value === 'function' ? value(url) : value;
+          if (resolved instanceof Error) throw resolved;
+          return resolved;
+        }
+      }
+      throw new Error(`no stub api() response configured for ${url}`);
+    },
+  };
+  vm.createContext(context);
+  const src = stripExports(readUiSource('dom.js')).replace(/^import .*$/gm, '')
+    + stripExports(readUiSource('file-view.js')).replace(/^import .*$/gm, '');
   vm.runInContext(src, context);
   return context;
 }

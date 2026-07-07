@@ -2,7 +2,7 @@
 // server.test.js/jobs.test.js.
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { readUiSource, loadSidebarLabelHelpers } from './ui-test-helpers.js';
+import { readUiSource, loadSidebarLabelHelpers, loadSidebarActiveStateHelpers } from './ui-test-helpers.js';
 
 describe('sidebar navigation tree (ui-src/sidebar.js source)', () => {
   it('renders collections as an expandable tree, not a flat link list', () => {
@@ -113,5 +113,41 @@ describe('sidebar node labels (ui-src/sidebar.js source, evaluated behavior)', (
     assert.match(html, /title="Pitch deck — pitch-en\.md#file"/);
     assert.match(html, />pitch-en\.md</);
     assert.ok(!html.includes('>pitch-en.md#file<'), 'raw node_path must not be the visible label text');
+  });
+
+  it('sidebarNodeRow carries a stable data-path attribute (for active-state lookup by markActive)', () => {
+    const { sidebarNodeRow } = loadSidebarLabelHelpers(readUiSource('sidebar.js'));
+    const html = sidebarNodeRow({ nodeType: 'section', nodePath: 'readme.md#intro', childCount: 0 }, 0, 0);
+    assert.match(html, /data-path="readme\.md#intro"/);
+  });
+});
+
+// ── Phase 3A: sidebar active state extends to the open file/section ────────
+describe('markActive() highlights the open file/section row, not just the collection row', () => {
+  it('highlights the .tree-file row matching route.openFile', () => {
+    const { document, markActive } = loadSidebarActiveStateHelpers();
+    markActive({ view: 'collection', name: 'my-docs', openFile: 'readme.md' });
+    assert.ok(document.querySelector('.tree-file[data-sf="readme.md"]').classList.contains('active'));
+    assert.ok(!document.querySelector('.tree-node[data-path="readme.md#intro"]').classList.contains('active'));
+  });
+
+  it('highlights the .tree-node row matching route.openNodePath', () => {
+    const { document, markActive } = loadSidebarActiveStateHelpers();
+    markActive({ view: 'collection', name: 'my-docs', openNodePath: 'readme.md#intro' });
+    assert.ok(document.querySelector('.tree-node[data-path="readme.md#intro"]').classList.contains('active'));
+    assert.ok(!document.querySelector('.tree-file[data-sf="readme.md"]').classList.contains('active'));
+  });
+
+  it('clears prior file/section active state when navigating to a route with neither', () => {
+    const { document, markActive } = loadSidebarActiveStateHelpers();
+    markActive({ view: 'collection', name: 'my-docs', openFile: 'readme.md' });
+    markActive({ view: 'collection', name: 'my-docs' });
+    assert.ok(!document.querySelector('.tree-file[data-sf="readme.md"]').classList.contains('active'));
+  });
+
+  it('still highlights the collection row alongside the file/section row', () => {
+    const { document, markActive } = loadSidebarActiveStateHelpers();
+    markActive({ view: 'collection', name: 'my-docs', openFile: 'readme.md' });
+    assert.ok(document.querySelector('.tree-collection-row[data-name="my-docs"]').classList.contains('active'));
   });
 });

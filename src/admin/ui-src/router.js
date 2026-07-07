@@ -34,4 +34,9 @@ export async function route() {
     else if (r.openNodePath) await openNodeFromPath(r.name, r.openNodePath);
   } else if (r.view === 'index') await renderIndexingView(main);
   else await renderOverview(main);
+  // Re-run after the branch above resolves: the sidebar's skeleton-tree/
+  // file-list rows for the target collection render asynchronously
+  // (loadSidebarTree), so the first markActive(r) call above (made before
+  // those awaits) can't yet find the row to highlight.
+  markActive(r);
 }

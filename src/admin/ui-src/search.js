@@ -9,9 +9,11 @@ import { apiPost } from './api.js';
 import { openFileView, hideCollectionContent } from './file-view.js';
 
 let searchSourceFile = null;
+let searchCollectionName = null;
 
 export function initSearchPanel(name) {
   searchSourceFile = null;
+  searchCollectionName = name;
   const box = $('#search-panel');
   box.innerHTML = `
     <form class="search-form" id="search-form" autocomplete="off">
@@ -60,12 +62,23 @@ export function initSearchPanel(name) {
     e.preventDefault();
     runSearch(name);
   });
+
+  updateSearchScopeLabel();
+}
+
+function updateSearchScopeLabel() {
+  const scope = $('#search-scope');
+  if (!scope) return;
+  scope.textContent = searchSourceFile
+    ? `Searching in: ${searchSourceFile}`
+    : `Searching in: ${searchCollectionName}`;
 }
 
 export function setSearchFile(sourceFile) {
   searchSourceFile = sourceFile;
   $('#q-file-label').textContent = sourceFile;
   $('#q-file-chip').style.display = '';
+  updateSearchScopeLabel();
   $('#search-panel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   $('#q-input').focus();
 }
@@ -73,6 +86,7 @@ export function setSearchFile(sourceFile) {
 export function clearSearchFile() {
   searchSourceFile = null;
   $('#q-file-chip').style.display = 'none';
+  updateSearchScopeLabel();
 }
 
 export async function runSearch(name) {

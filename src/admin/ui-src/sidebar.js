@@ -157,7 +157,7 @@ export function sidebarNodeRow(n, i, depth) {
   const label = nodeDisplayLabel(n);
   const tooltip = [n.summary, n.nodePath].filter(Boolean).join(' — ');
   return `
-    <div class="tree-row tree-node ${isLeaf ? 'tree-leaf' : ''}" data-i="${i}" style="--depth:${depth + 1}">
+    <div class="tree-row tree-node ${isLeaf ? 'tree-leaf' : ''}" data-i="${i}" data-path="${esc(n.nodePath ?? '')}" style="--depth:${depth + 1}">
       <span class="tree-caret">${n.childCount > 0 ? '▸' : ''}</span>
       <span class="tree-icon">${icon}</span>
       <span class="tree-label" title="${esc(tooltip)}">${esc(label)}</span>
@@ -196,4 +196,23 @@ export function markActive(route = currentRoute()) {
     a.classList.toggle('active', route.view !== 'index' && a.dataset.name === route.name);
   }
   $('#nav-index')?.classList.toggle('active', route.view === 'index');
+
+  // Extend active-state sync to the open file/section row inside the
+  // expanded tree (Phase 3A) — file fallback rows carry data-sf, skeleton
+  // tree rows carry data-path (added alongside this).
+  for (const row of document.querySelectorAll('.tree-file, .tree-node')) {
+    row.classList.remove('active');
+  }
+  if (route.openFile) {
+    document.querySelector(`.tree-file[data-sf="${cssEscapeAttr(route.openFile)}"]`)?.classList.add('active');
+  } else if (route.openNodePath) {
+    document.querySelector(`.tree-node[data-path="${cssEscapeAttr(route.openNodePath)}"]`)?.classList.add('active');
+  }
+}
+
+// Minimal CSS.escape-alike for building an attribute-value selector from
+// arbitrary sourceFile/nodePath strings (which may contain quotes/backslashes)
+// — avoids pulling in the full CSS.escape polyfill for one narrow use.
+function cssEscapeAttr(value) {
+  return String(value).replace(/["\\]/g, '\\$&');
 }

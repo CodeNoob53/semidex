@@ -14,6 +14,17 @@ export function hideCollectionContent() {
   if (panel) panel.style.display = 'none';
 }
 
+// hideCollectionContent() (above) and hideSearchResults() are the mutual-
+// exclusion mechanism between search and file/section view: runSearch()
+// calls the former, openSectionView()/openFileView() call the latter, so
+// main ever shows one content surface at a time, never both stacked.
+export function hideSearchResults() {
+  const status = $('#search-status');
+  const results = $('#search-results');
+  if (status) status.innerHTML = '';
+  if (results) results.innerHTML = '';
+}
+
 /**
  * Resolve a section nav node to its actual first content chunk via
  * GET .../skeleton/anchor, then open the file view there. If the section
@@ -28,6 +39,7 @@ export async function openSectionView(name, node) {
   const box = $('#collection-content');
   if (!panel || !box) return;
 
+  hideSearchResults();
   panel.style.display = '';
   title.textContent = nodeDisplayLabel(node);
   box.innerHTML = emptyBox('loading…');
@@ -56,6 +68,7 @@ export async function openFileView(name, sourceFile, nodePath, chunkIndex = 0) {
   const box = $('#collection-content');
   if (!panel || !box) return;
 
+  hideSearchResults();
   panel.style.display = '';
   title.textContent = sourceFile;
   box.innerHTML = emptyBox('loading…');
@@ -70,7 +83,16 @@ export async function openFileView(name, sourceFile, nodePath, chunkIndex = 0) {
       box.innerHTML = emptyBox('No chunks found for this file/section.');
       return;
     }
-    fileViewState.loaded = chunks.length;
+    // `loaded` tracks the next not-yet-shown chunk index, not a count — the
+    // /chunks endpoint centers its window on chunkIndex (returns
+    // [chunkIndex-window, chunkIndex+window]), so when chunkIndex > 0 the
+    // returned chunks don't start at 0 and chunks.length would under-count
+    // how far into the file we actually are, making loadMoreFileChunks()
+    // re-fetch and duplicate chunks already shown instead of continuing.
+    fileViewState.loaded = Math.max(...chunks.map(c => c.chunkIndex + 1));
+    title.textContent = typeof chunks[0].totalChunks === 'number'
+      ? `${sourceFile} — ${chunks[0].totalChunks} chunks`
+      : sourceFile;
     box.replaceChildren(renderFileChunks(chunks));
     box.insertAdjacentHTML('beforeend', fileViewLoadMoreButton());
     wireFileViewButtons(box);

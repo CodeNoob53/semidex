@@ -51,6 +51,15 @@ describe('search this collection (ui-src/search.js source)', () => {
     assert.match(js, /navigation only/i, 'sidebar tree must be framed as navigation');
   });
 
+  it('still calls hideCollectionContent() before rendering results (mutual-exclusion regression guard)', () => {
+    // Companion to file-view.js's hideSearchResults() — the two calls
+    // together are what keep main to one content surface at a time
+    // (Phase 3A). This guards runSearch() from silently losing its half of
+    // that pair in a future edit.
+    const js = readUiSource('search.js');
+    assert.match(js, /hideCollectionContent\(\)/, 'runSearch must still hide the file/section panel before showing results');
+  });
+
   it('search result rendering never lets API/user content become live markup (XSS-safe by construction)', async () => {
     // renderResult() fills result fields via textContent, not innerHTML/string
     // concatenation — this is a stronger guarantee than esc()+innerHTML
@@ -69,6 +78,29 @@ describe('search this collection (ui-src/search.js source)', () => {
       assert.equal(card.querySelector('.chunk-text').textContent, malicious);
       assert.equal(card.querySelectorAll('img').length, 0, 'malicious markup must never be parsed into a real element');
       assert.equal(card.querySelector('.win-text').textContent, malicious);
+    });
+  });
+});
+
+describe('search scope label ("Searching in: ...")', () => {
+  it('initSearchPanel() sets the scope label to the collection name', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const { document, initSearchPanel } = loadSearchRenderHelpers(html);
+      initSearchPanel('my-docs');
+      assert.equal(document.querySelector('#search-scope').textContent, 'Searching in: my-docs');
+    });
+  });
+
+  it('setSearchFile() narrows the scope label to the file, clearSearchFile() restores the collection scope', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const { document, initSearchPanel, setSearchFile, clearSearchFile } = loadSearchRenderHelpers(html);
+      initSearchPanel('my-docs');
+      setSearchFile('readme.md');
+      assert.equal(document.querySelector('#search-scope').textContent, 'Searching in: readme.md');
+      clearSearchFile();
+      assert.equal(document.querySelector('#search-scope').textContent, 'Searching in: my-docs');
     });
   });
 });
