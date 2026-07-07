@@ -91,6 +91,40 @@ function errorBox(err) {
   return frag.firstElementChild.outerHTML;
 }
 
+// ── toasts ────────────────────────────────────────────────────────────────
+// Minimal by design: one shared host (#toast-host, mounted once in
+// index.html, outside #main so it survives every view swap), no queue
+// beyond simple stacking, one variant (warn). A fuller toast system
+// (variants, action buttons, a real queue) is the design doc's own
+// Phase 3C — this only needs to carry collection-open warnings.
+const TOAST_AUTO_DISMISS_MS = 8000;
+
+function showToast(message, { variant = 'warn' } = {}) {
+  const host = $('#toast-host');
+  if (!host) return; // toast host missing (e.g. a bare test fixture) — never throw over a UI nicety
+  const el = document.createElement('div');
+  el.className = `toast toast-${variant}`;
+  el.textContent = message;
+  host.appendChild(el);
+  setTimeout(() => el.remove(), TOAST_AUTO_DISMISS_MS);
+}
+
+// Dedupe key is (collection name, warning text) — session-lifetime (an
+// in-memory Set, not localStorage): re-selecting the same collection later
+// in the same page session must not re-spam a warning already shown, but a
+// fresh page load is a fresh session, matching how the rest of this app's
+// client-side state (expandedCollection, fileViewState) already behaves.
+const shownCollectionWarnings = new Set();
+
+function showCollectionWarnings(name, warnings) {
+  for (const w of warnings ?? []) {
+    const key = JSON.stringify([name, w]);
+    if (shownCollectionWarnings.has(key)) continue;
+    shownCollectionWarnings.add(key);
+    showToast(w);
+  }
+}
+
 // Same idea as errorBox() for the empty-state template.
 function emptyBox(message) {
   const frag = cloneTemplate('tpl-empty-state');
@@ -149,7 +183,7 @@ function renderSidebarList(collections) {
   const list = $('#collection-list');
   list.innerHTML = collections.map(c => `
     <li class="tree-collection">
-      <a href="#/collections/${encodeURIComponent(c.name)}" data-name="${esc(c.name)}" class="tree-row tree-collection-row">
+      <a href="#/c/${encodeURIComponent(c.name)}" data-name="${esc(c.name)}" class="tree-row tree-collection-row">
         <span class="tree-caret">${expandedCollection === c.name ? '▾' : '▸'}</span>
         <span class="tree-label">${esc(c.name)}</span>
         <span class="count">${Number(c.pointCount ?? 0).toLocaleString('en-US')}</span>
@@ -161,7 +195,7 @@ function renderSidebarList(collections) {
     row.addEventListener('click', (e) => {
       e.preventDefault();
       const name = row.dataset.name;
-      location.hash = `#/collections/${encodeURIComponent(name)}`;
+      location.hash = `#/c/${encodeURIComponent(name)}`;
       toggleSidebarTree(name);
     });
   }
@@ -222,16 +256,14 @@ async function loadSidebarFileList(name, box) {
       return;
     }
     box.innerHTML = documents.map(d => `
-      <a href="#/collections/${encodeURIComponent(name)}/file/${encodeURIComponent(d.sourceFile)}"
+      <a href="#/c/${encodeURIComponent(name)}/f/${encodeURIComponent(d.sourceFile)}"
          class="tree-row tree-file" data-sf="${esc(d.sourceFile)}" style="--depth:1">
         <span class="tree-label mono">${esc(shortLabel(d.sourceFile))}</span>
       </a>`).join('');
-    for (const a of box.querySelectorAll('.tree-file')) {
-      a.addEventListener('click', (e) => {
-        e.preventDefault();
-        openFileView(name, a.dataset.sf);
-      });
-    }
+    // Left as plain <a href="#/c/...">: no click handler needed — the
+    // browser's default navigation already updates location.hash and
+    // hashchange -> route() opens the file, same single path used
+    // everywhere else (back/forward, sidebar clicks, pasted URLs).
   } catch (err) {
     box.innerHTML = `<div class="tree-loading">${esc(err.message)}</div>`;
   }
@@ -318,14 +350,16 @@ function shortLabel(path) {
 
 async function onSidebarNodeClick(name, node, el, depth) {
   if (node.nodeType === 'section') {
-    // A section nav node and its content chunks are separate points —
-    // resolve to the actual first chunk under this section instead of
-    // guessing chunkIndex 0 for the whole file (that would silently open
-    // the wrong place whenever a file has more than one section).
-    return openSectionView(name, node);
+    // Route through the hash (not a direct openSectionView call) so this
+    // navigation is a single code path with clicking back/forward or
+    // pasting a URL — route() resolves #/c/:name/n/:nodePath the same way,
+    // including the anchor resolution to the section's first content chunk.
+    location.hash = `#/c/${encodeURIComponent(name)}/n/${encodeURIComponent(node.nodePath)}`;
+    return;
   }
   if (node.nodeType === 'file' && !(node.childCount > 0)) {
-    return openFileView(name, node.sourceFile ?? node.nodePath, node.nodePath);
+    location.hash = `#/c/${encodeURIComponent(name)}/f/${encodeURIComponent(node.sourceFile ?? node.nodePath)}`;
+    return;
   }
   // directory or file-with-children: expand/collapse inline, indented.
   let sub = el.nextElementSibling;
@@ -383,7 +417,7 @@ async function renderOverview(main) {
         <th>name</th><th class="num">points</th><th>schema</th>
       </tr></thead><tbody>
       ${collections.map(c => `
-        <tr class="rowlink" data-href="#/collections/${encodeURIComponent(c.name)}">
+        <tr class="rowlink" data-href="#/c/${encodeURIComponent(c.name)}">
           <td class="mono">${esc(c.name)}</td>
           <td class="num">${Number(c.pointCount ?? 0).toLocaleString('en-US')}</td>
           <td>${schemaBadge(c.vectorSchema)}</td>
@@ -407,14 +441,23 @@ function schemaBadge(schema) {
 // point/file count, settings button. No dense/sparse/provider/schema-version
 // strings here — those are "Advanced diagnostics" inside Collection settings.
 async function renderCollection(main, name) {
+  // Navigating to a file/section within the collection already on screen
+  // now goes through the same hash -> route() -> renderCollection() path as
+  // switching collections (so back/forward works uniformly) — but a full
+  // main.innerHTML/initSearchPanel reset on every file/section click would
+  // silently wipe the user's in-progress search. Only reset the shell when
+  // we're actually landing on a different collection than what's showing.
+  const alreadyOnThisCollection = expandedCollection === name && main.querySelector('#col-header');
+
   if (expandedCollection !== name) {
     expandedCollection = name;
     renderSidebarList(collectionsCache);
   }
 
-  main.innerHTML = collectionShell;
-
-  initSearchPanel(name);
+  if (!alreadyOnThisCollection) {
+    main.innerHTML = collectionShell;
+    initSearchPanel(name);
+  }
 
   let detail;
   try {
@@ -425,6 +468,13 @@ async function renderCollection(main, name) {
   }
 
   renderCollectionHeader(name, detail);
+
+  // Fire warning toasts only on an actual collection open (same condition
+  // as the shell-reset guard above), not on every in-collection file/section
+  // navigation — the detail fetch/header refresh above runs on both, but
+  // toasts should not re-announce warnings just because the user clicked a
+  // different file in a collection they already have open.
+  if (!alreadyOnThisCollection) showCollectionWarnings(name, detail.warnings);
 }
 
 function renderCollectionHeader(name, detail) {
@@ -437,17 +487,20 @@ function renderCollectionHeader(name, detail) {
   $('#col-header').innerHTML = `
     <div class="col-header-top">
       <h1 class="view-title">${esc(name)}</h1>
+      ${healthBadge}
       <button type="button" class="btn-ghost" id="col-settings-btn">settings</button>
     </div>
-    <p class="view-sub">${esc(detail.description || fileCountLabel)}</p>
-    <div class="col-header-meta">
-      ${healthBadge}
-      <span class="mono muted">${Number(detail.pointCount ?? 0).toLocaleString('en-US')} points</span>
-    </div>
-    ${warnings.length ? warnings.map(w => `<div class="error-box" style="margin-top:10px">${esc(w)}</div>`).join('') : ''}`;
+    <details class="panel advanced-panel" style="margin-top:8px">
+      <summary class="panel-head">Details</summary>
+      <div class="panel-body">
+        <p class="view-sub" style="margin:0 0 10px">${esc(detail.description || fileCountLabel)}</p>
+        <span class="mono muted">${Number(detail.pointCount ?? 0).toLocaleString('en-US')} points</span>
+        ${warnings.length ? warnings.map(w => `<div class="error-box" style="margin-top:10px">${esc(w)}</div>`).join('') : ''}
+      </div>
+    </details>`;
 
   $('#col-settings-btn').addEventListener('click', () => {
-    location.hash = `#/collections/${encodeURIComponent(name)}/settings`;
+    location.hash = `#/c/${encodeURIComponent(name)}/settings`;
   });
 }
 
@@ -828,7 +881,7 @@ function rememberSourcePath(path) {
 async function renderSettingsView(main, name) {
   main.innerHTML = settingsShell;
   $('#settings-title').textContent = `${name} · settings`;
-  $('#settings-back-link').setAttribute('href', `#/collections/${encodeURIComponent(name)}`);
+  $('#settings-back-link').setAttribute('href', `#/c/${encodeURIComponent(name)}`);
   $('#settings-source-path-field').innerHTML = renderSourcePathField();
 
   const modal = cloneTemplate('tpl-delete-modal');
@@ -1412,16 +1465,30 @@ async function cancelJob(id) {
 }
 
 // ── router ────────────────────────────────────────────────────────────────
-function currentRoute() {
-  const hash = location.hash || '#/';
-  let m = hash.match(/^#\/collections\/([^/]+)\/settings$/);
+function currentRoute(hash = location.hash || '#/') {
+  let m = hash.match(/^#\/c\/([^/]+)\/settings$/);
   if (m) return { view: 'settings', name: decodeURIComponent(m[1]) };
-  m = hash.match(/^#\/collections\/([^/]+)\/file\/(.+)$/);
+  m = hash.match(/^#\/c\/([^/]+)\/f\/(.+)$/);
   if (m) return { view: 'collection', name: decodeURIComponent(m[1]), openFile: decodeURIComponent(m[2]) };
-  m = hash.match(/^#\/collections\/(.+)$/);
+  m = hash.match(/^#\/c\/([^/]+)\/n\/(.+)$/);
+  if (m) return { view: 'collection', name: decodeURIComponent(m[1]), openNodePath: decodeURIComponent(m[2]) };
+  m = hash.match(/^#\/c\/(.+)$/);
   if (m) return { view: 'collection', name: decodeURIComponent(m[1]) };
   if (hash === '#/index') return { view: 'index' };
   return { view: 'overview' };
+}
+
+// Resolves a bare nodePath (arrived via URL/back-forward, no live sidebar
+// DOM node to hand off) into a full skeleton node object, then reuses the
+// same anchor-resolution/content-loading path a sidebar click already uses.
+async function openNodeFromPath(name, nodePath) {
+  try {
+    const { node } = await api(`/api/collections/${encodeURIComponent(name)}/skeleton/node?nodePath=${encodeURIComponent(nodePath)}`);
+    return openSectionView(name, node);
+  } catch (err) {
+    const box = $('#collection-content');
+    if (box) box.innerHTML = errorBox(err);
+  }
 }
 
 async function route() {
@@ -1432,6 +1499,7 @@ async function route() {
   else if (r.view === 'collection') {
     await renderCollection(main, r.name);
     if (r.openFile) await openFileView(r.name, r.openFile);
+    else if (r.openNodePath) await openNodeFromPath(r.name, r.openNodePath);
   } else if (r.view === 'index') await renderIndexingView(main);
   else await renderOverview(main);
 }

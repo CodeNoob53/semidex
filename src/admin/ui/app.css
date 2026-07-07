@@ -185,6 +185,24 @@ td.mono { font-family: var(--mono); font-size: 12px; }
 }
 .empty { color: var(--ink-faint); font-size: 12px; padding: 6px 0; }
 
+/* Minimal toast host — one shared instance, mounted outside #main so it
+   survives every main.innerHTML view swap. Deliberately small (no queueing
+   beyond stacking, no variants beyond warn/error) since this only needs to
+   carry collection-open warnings today; a fuller toast system is design-doc
+   Phase 3C's job, not this follow-up's. */
+.toast-host {
+  position: fixed; right: 18px; bottom: 18px; z-index: 500;
+  display: flex; flex-direction: column; gap: 8px; max-width: 360px;
+}
+.toast {
+  border: 1px solid rgba(232,163,61,.4); border-radius: 4px;
+  background: var(--bg-raise); color: var(--ink);
+  padding: 10px 14px; font-size: 12px; box-shadow: 0 4px 16px rgba(0,0,0,.28);
+  word-break: break-word;
+}
+.toast-warn { border-color: rgba(232,163,61,.4); }
+.toast-warn::before { content: '⚠ '; color: var(--warn); }
+
 /* staggered load-in for panels */
 @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 .main .panel { animation: rise .28s ease both; }

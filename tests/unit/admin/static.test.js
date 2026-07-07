@@ -35,6 +35,47 @@ function loadSidebarLabelHelpers(js) {
   return context;
 }
 
+// currentRoute() is a pure function (hash string in, route object out) —
+// deliberately refactored to take an explicit `hash` parameter instead of
+// reading location.hash internally, specifically so it's testable with zero
+// DOM/location mocking. The extracted range also picks up openNodeFromPath()
+// and route() (adjacent in the source), which reference api()/$()/document
+// and are never called by these tests — only defined, which is harmless.
+//
+// The route object vm.runInContext returns is a cross-realm object (its own
+// Object.prototype, distinct from this file's) — assert/strict's deepEqual
+// compares prototypes, so it fails on structurally-identical cross-realm
+// objects. Re-serializing through JSON strips realm identity; every route
+// shape here is plain string data, so this loses nothing.
+function loadRouterHelper(js) {
+  const src = extractBetween(js, 'function currentRoute(', 'function startAdminApp');
+  const context = {};
+  vm.createContext(context);
+  vm.runInContext(src, context);
+  return { currentRoute: (hash) => JSON.parse(JSON.stringify(context.currentRoute(hash))) };
+}
+
+// showToast()/showCollectionWarnings() need a real `document` (createElement,
+// querySelector via `$`) and a fake `#toast-host` to append into — same
+// linkedom-backed vm approach as loadDomRenderHelpers below, but with its own
+// minimal HTML fixture rather than the full served index.html, since toasts
+// don't depend on any served template.
+function loadToastHelpers(js) {
+  const { document } = parseHTML('<div id="toast-host"></div>');
+  // Real setTimeout would schedule an 8s auto-dismiss per toast and keep the
+  // test process's event loop alive until it fires — tests only care about
+  // the toast existing right after showToast() returns, never the dismiss
+  // timing, so a stub that never actually fires is sufficient here.
+  const context = {
+    document, $: (sel, root = document) => root.querySelector(sel),
+    setTimeout: () => 0, clearTimeout: () => {},
+  };
+  vm.createContext(context);
+  const src = extractBetween(js, 'const TOAST_AUTO_DISMISS_MS', 'async function renderCollection(');
+  vm.runInContext(src, context);
+  return context;
+}
+
 // renderResult()/renderFileChunks()/renderJobRow() clone <template> elements
 // via document.getElementById(...).content.cloneNode(true) — a plain vm
 // context has no `document`, so these need a real (if minimal) DOM. linkedom
@@ -975,6 +1016,75 @@ describe('chunk view rendering (served app.js + index.html, evaluated behavior)'
   });
 });
 
+// ── Phase 3A follow-up: warning delivery (toasts, deduped) ───────────────────
+describe('collection warning delivery (served app.js, evaluated behavior)', () => {
+  it('showToast() appends a visible, readable toast into #toast-host', async () => {
+    await withServer(async (base) => {
+      const js = await (await fetch(base + '/app.js')).text();
+      const { showToast, document } = loadToastHelpers(js);
+      showToast('legacy flat vector schema — hybrid search unavailable');
+      const toasts = document.querySelectorAll('#toast-host .toast');
+      assert.equal(toasts.length, 1);
+      assert.match(toasts[0].textContent, /hybrid search unavailable/);
+    });
+  });
+
+  it('showCollectionWarnings() shows one toast per distinct warning text', async () => {
+    await withServer(async (base) => {
+      const js = await (await fetch(base + '/app.js')).text();
+      const { showCollectionWarnings, document } = loadToastHelpers(js);
+      showCollectionWarnings('demo', ['warning A', 'warning B']);
+      const toasts = document.querySelectorAll('#toast-host .toast');
+      assert.equal(toasts.length, 2);
+    });
+  });
+
+  it('does not spam a duplicate toast for the same collection + warning text seen again', async () => {
+    await withServer(async (base) => {
+      const js = await (await fetch(base + '/app.js')).text();
+      const { showCollectionWarnings, document } = loadToastHelpers(js);
+      showCollectionWarnings('demo', ['no vector schema found on this collection']);
+      showCollectionWarnings('demo', ['no vector schema found on this collection']);
+      const toasts = document.querySelectorAll('#toast-host .toast');
+      assert.equal(toasts.length, 1, 're-showing the same collection+warning must not add a second toast');
+    });
+  });
+
+  it('the same warning text on a different collection is not deduped away', async () => {
+    await withServer(async (base) => {
+      const js = await (await fetch(base + '/app.js')).text();
+      const { showCollectionWarnings, document } = loadToastHelpers(js);
+      showCollectionWarnings('demo-a', ['no vector schema found on this collection']);
+      showCollectionWarnings('demo-b', ['no vector schema found on this collection']);
+      const toasts = document.querySelectorAll('#toast-host .toast');
+      assert.equal(toasts.length, 2, 'dedupe key must be scoped per collection, not warning text alone');
+    });
+  });
+
+  it('renderCollection() triggers warning toasts on collection open', async () => {
+    await withServer(async (base) => {
+      const js = await (await fetch(base + '/app.js')).text();
+      assert.match(js, /showCollectionWarnings\(name, detail\.warnings\)/,
+        'opening a collection must route its warnings through the toast dedupe path, not render them ad hoc');
+    });
+  });
+
+  it('the collapsed Details panel is not the only place warning text appears — toasts exist as a separate delivery path', async () => {
+    await withServer(async (base) => {
+      const js = await (await fetch(base + '/app.js')).text();
+      assert.match(js, /function showToast/, 'a toast mechanism must exist');
+      assert.match(js, /id="toast-host"|toast-host/, 'a toast host must be wired');
+      // The badge itself (health summary) must still be visible outside Details —
+      // regression guard for the Phase 3A header collapsibility this builds on.
+      const start = js.indexOf('function renderCollectionHeader');
+      const fn = js.slice(start, start + 1200);
+      const detailsIdx = fn.indexOf('<details');
+      const badgeIdx = fn.indexOf('healthBadge');
+      assert.ok(badgeIdx > -1 && badgeIdx < detailsIdx, 'health badge must render before/outside the Details disclosure');
+    });
+  });
+});
+
 describe('collection header (served app.js)', () => {
   it('renders name, summary, health badge, and point count — no dense/sparse/provider strings', async () => {
     await withServer(async (base) => {
@@ -986,11 +1096,91 @@ describe('collection header (served app.js)', () => {
     });
   });
 
-  it('has a settings button that navigates to the settings route', async () => {
+  it('has a settings button that navigates to the settings route using the #/c/ URL scheme', async () => {
     await withServer(async (base) => {
       const js = await (await fetch(base + '/app.js')).text();
       assert.match(js, /col-settings-btn/);
-      assert.match(js, /\/settings`/);
+      assert.match(js, /#\/c\/\$\{encodeURIComponent\(name\)\}\/settings/);
+    });
+  });
+
+  it('keeps name, health badge, and settings button always visible; collapses description/point-count/warnings behind a "Details" disclosure', async () => {
+    await withServer(async (base) => {
+      const js = await (await fetch(base + '/app.js')).text();
+      const start = js.indexOf('function renderCollectionHeader');
+      const fn = js.slice(start, start + 1200);
+      const topLineEnd = fn.indexOf('col-header-top');
+      const detailsStart = fn.indexOf('<details class="panel advanced-panel"');
+      assert.ok(detailsStart > -1, 'collection header must have a collapsible Details panel');
+      assert.ok(fn.indexOf('col-settings-btn') < detailsStart, 'settings button must be outside/above the disclosure');
+      assert.ok(fn.indexOf('healthBadge') < detailsStart || topLineEnd < detailsStart,
+        'health badge must render on the always-visible top line, not inside the disclosure');
+      const inside = fn.slice(detailsStart);
+      assert.match(inside, /pointCount/, 'point count must be inside the collapsed Details panel');
+    });
+  });
+});
+
+// ── Phase 3A: #/c/ URL scheme (renamed from #/collections/) ─────────────────
+describe('router — currentRoute() (served app.js, evaluated behavior)', () => {
+  it('parses collection home: #/c/:name', async () => {
+    await withServer(async (base) => {
+      const js = await (await fetch(base + '/app.js')).text();
+      const { currentRoute } = loadRouterHelper(js);
+      assert.deepEqual(currentRoute('#/c/my-docs'), { view: 'collection', name: 'my-docs' });
+    });
+  });
+
+  it('parses file view: #/c/:name/f/:sourceFile, including an encoded slash in the path', async () => {
+    await withServer(async (base) => {
+      const js = await (await fetch(base + '/app.js')).text();
+      const { currentRoute } = loadRouterHelper(js);
+      const r = currentRoute(`#/c/my-docs/f/${encodeURIComponent('sub/dir/readme.md')}`);
+      assert.deepEqual(r, { view: 'collection', name: 'my-docs', openFile: 'sub/dir/readme.md' });
+    });
+  });
+
+  it('parses section/node view: #/c/:name/n/:nodePath', async () => {
+    await withServer(async (base) => {
+      const js = await (await fetch(base + '/app.js')).text();
+      const { currentRoute } = loadRouterHelper(js);
+      const r = currentRoute(`#/c/my-docs/n/${encodeURIComponent('readme.md#intro')}`);
+      assert.deepEqual(r, { view: 'collection', name: 'my-docs', openNodePath: 'readme.md#intro' });
+    });
+  });
+
+  it('parses settings: #/c/:name/settings', async () => {
+    await withServer(async (base) => {
+      const js = await (await fetch(base + '/app.js')).text();
+      const { currentRoute } = loadRouterHelper(js);
+      assert.deepEqual(currentRoute('#/c/my-docs/settings'), { view: 'settings', name: 'my-docs' });
+    });
+  });
+
+  it('parses the indexing view and falls back to overview for everything else', async () => {
+    await withServer(async (base) => {
+      const js = await (await fetch(base + '/app.js')).text();
+      const { currentRoute } = loadRouterHelper(js);
+      assert.deepEqual(currentRoute('#/index'), { view: 'index' });
+      assert.deepEqual(currentRoute('#/'), { view: 'overview' });
+      assert.deepEqual(currentRoute(''), { view: 'overview' });
+    });
+  });
+
+  it('decodes a URI-encoded Cyrillic collection name', async () => {
+    await withServer(async (base) => {
+      const js = await (await fetch(base + '/app.js')).text();
+      const { currentRoute } = loadRouterHelper(js);
+      const r = currentRoute(`#/c/${encodeURIComponent('Основи Node.js')}`);
+      assert.deepEqual(r, { view: 'collection', name: 'Основи Node.js' });
+    });
+  });
+
+  it('no longer recognizes the old #/collections/:name scheme (falls through to overview)', async () => {
+    await withServer(async (base) => {
+      const js = await (await fetch(base + '/app.js')).text();
+      const { currentRoute } = loadRouterHelper(js);
+      assert.deepEqual(currentRoute('#/collections/my-docs'), { view: 'overview' });
     });
   });
 });
@@ -1001,6 +1191,13 @@ describe('old flat technical panels are removed (served app.js)', () => {
       const js = await (await fetch(base + '/app.js')).text();
       assert.ok(!/col-docs/.test(js), 'old standalone Documents panel container must be gone');
       assert.ok(!/async function loadDocuments/.test(js), 'old loadDocuments() must be removed');
+    });
+  });
+
+  it('no longer uses the old #/collections/ URL scheme anywhere in the served bundle', async () => {
+    await withServer(async (base) => {
+      const js = await (await fetch(base + '/app.js')).text();
+      assert.ok(!/#\/collections\//.test(js), 'old #/collections/ URL scheme must be fully removed');
     });
   });
 

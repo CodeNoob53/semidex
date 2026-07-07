@@ -150,6 +150,25 @@ function errorBox(err) {
   frag.querySelector(".error-box").textContent = err.message;
   return frag.firstElementChild.outerHTML;
 }
+const TOAST_AUTO_DISMISS_MS = 8e3;
+function showToast(message, { variant = "warn" } = {}) {
+  const host = $("#toast-host");
+  if (!host) return;
+  const el = document.createElement("div");
+  el.className = `toast toast-${variant}`;
+  el.textContent = message;
+  host.appendChild(el);
+  setTimeout(() => el.remove(), TOAST_AUTO_DISMISS_MS);
+}
+const shownCollectionWarnings = /* @__PURE__ */ new Set();
+function showCollectionWarnings(name, warnings) {
+  for (const w of warnings ?? []) {
+    const key = JSON.stringify([name, w]);
+    if (shownCollectionWarnings.has(key)) continue;
+    shownCollectionWarnings.add(key);
+    showToast(w);
+  }
+}
 function emptyBox(message) {
   const frag = cloneTemplate("tpl-empty-state");
   frag.querySelector(".empty").textContent = message;
@@ -197,7 +216,7 @@ function renderSidebarList(collections) {
   const list = $("#collection-list");
   list.innerHTML = collections.map((c) => `
     <li class="tree-collection">
-      <a href="#/collections/${encodeURIComponent(c.name)}" data-name="${esc(c.name)}" class="tree-row tree-collection-row">
+      <a href="#/c/${encodeURIComponent(c.name)}" data-name="${esc(c.name)}" class="tree-row tree-collection-row">
         <span class="tree-caret">${expandedCollection === c.name ? "▾" : "▸"}</span>
         <span class="tree-label">${esc(c.name)}</span>
         <span class="count">${Number(c.pointCount ?? 0).toLocaleString("en-US")}</span>
@@ -208,7 +227,7 @@ function renderSidebarList(collections) {
     row.addEventListener("click", (e) => {
       e.preventDefault();
       const name = row.dataset.name;
-      location.hash = `#/collections/${encodeURIComponent(name)}`;
+      location.hash = `#/c/${encodeURIComponent(name)}`;
       toggleSidebarTree(name);
     });
   }
@@ -254,16 +273,10 @@ async function loadSidebarFileList(name, box) {
       return;
     }
     box.innerHTML = documents.map((d) => `
-      <a href="#/collections/${encodeURIComponent(name)}/file/${encodeURIComponent(d.sourceFile)}"
+      <a href="#/c/${encodeURIComponent(name)}/f/${encodeURIComponent(d.sourceFile)}"
          class="tree-row tree-file" data-sf="${esc(d.sourceFile)}" style="--depth:1">
         <span class="tree-label mono">${esc(shortLabel(d.sourceFile))}</span>
       </a>`).join("");
-    for (const a of box.querySelectorAll(".tree-file")) {
-      a.addEventListener("click", (e) => {
-        e.preventDefault();
-        openFileView(name, a.dataset.sf);
-      });
-    }
   } catch (err) {
     box.innerHTML = `<div class="tree-loading">${esc(err.message)}</div>`;
   }
@@ -326,10 +339,12 @@ function shortLabel(path) {
 }
 async function onSidebarNodeClick(name, node, el, depth) {
   if (node.nodeType === "section") {
-    return openSectionView(name, node);
+    location.hash = `#/c/${encodeURIComponent(name)}/n/${encodeURIComponent(node.nodePath)}`;
+    return;
   }
   if (node.nodeType === "file" && !(node.childCount > 0)) {
-    return openFileView(name, node.sourceFile ?? node.nodePath, node.nodePath);
+    location.hash = `#/c/${encodeURIComponent(name)}/f/${encodeURIComponent(node.sourceFile ?? node.nodePath)}`;
+    return;
   }
   let sub = el.nextElementSibling;
   if (sub == null ? void 0 : sub.classList.contains("tree-subtree")) {
@@ -384,7 +399,7 @@ async function renderOverview(main) {
         <th>name</th><th class="num">points</th><th>schema</th>
       </tr></thead><tbody>
       ${collections.map((c) => `
-        <tr class="rowlink" data-href="#/collections/${encodeURIComponent(c.name)}">
+        <tr class="rowlink" data-href="#/c/${encodeURIComponent(c.name)}">
           <td class="mono">${esc(c.name)}</td>
           <td class="num">${Number(c.pointCount ?? 0).toLocaleString("en-US")}</td>
           <td>${schemaBadge(c.vectorSchema)}</td>
@@ -406,12 +421,15 @@ function schemaBadge(schema) {
   return `<span class="badge">${esc(schema ?? "?")}</span>`;
 }
 async function renderCollection(main, name) {
+  const alreadyOnThisCollection = expandedCollection === name && main.querySelector("#col-header");
   if (expandedCollection !== name) {
     expandedCollection = name;
     renderSidebarList(collectionsCache);
   }
-  main.innerHTML = collectionShell;
-  initSearchPanel(name);
+  if (!alreadyOnThisCollection) {
+    main.innerHTML = collectionShell;
+    initSearchPanel(name);
+  }
   let detail;
   try {
     detail = (await api(`/api/collections/${encodeURIComponent(name)}`)).collection;
@@ -420,6 +438,7 @@ async function renderCollection(main, name) {
     return;
   }
   renderCollectionHeader(name, detail);
+  if (!alreadyOnThisCollection) showCollectionWarnings(name, detail.warnings);
 }
 function renderCollectionHeader(name, detail) {
   const warnings = detail.warnings ?? [];
@@ -428,16 +447,19 @@ function renderCollectionHeader(name, detail) {
   $("#col-header").innerHTML = `
     <div class="col-header-top">
       <h1 class="view-title">${esc(name)}</h1>
+      ${healthBadge}
       <button type="button" class="btn-ghost" id="col-settings-btn">settings</button>
     </div>
-    <p class="view-sub">${esc(detail.description || fileCountLabel)}</p>
-    <div class="col-header-meta">
-      ${healthBadge}
-      <span class="mono muted">${Number(detail.pointCount ?? 0).toLocaleString("en-US")} points</span>
-    </div>
-    ${warnings.length ? warnings.map((w) => `<div class="error-box" style="margin-top:10px">${esc(w)}</div>`).join("") : ""}`;
+    <details class="panel advanced-panel" style="margin-top:8px">
+      <summary class="panel-head">Details</summary>
+      <div class="panel-body">
+        <p class="view-sub" style="margin:0 0 10px">${esc(detail.description || fileCountLabel)}</p>
+        <span class="mono muted">${Number(detail.pointCount ?? 0).toLocaleString("en-US")} points</span>
+        ${warnings.length ? warnings.map((w) => `<div class="error-box" style="margin-top:10px">${esc(w)}</div>`).join("") : ""}
+      </div>
+    </details>`;
   $("#col-settings-btn").addEventListener("click", () => {
-    location.hash = `#/collections/${encodeURIComponent(name)}/settings`;
+    location.hash = `#/c/${encodeURIComponent(name)}/settings`;
   });
 }
 let searchSourceFile = null;
@@ -722,7 +744,7 @@ function rememberSourcePath(path) {
 async function renderSettingsView(main, name) {
   main.innerHTML = settingsShell;
   $("#settings-title").textContent = `${name} · settings`;
-  $("#settings-back-link").setAttribute("href", `#/collections/${encodeURIComponent(name)}`);
+  $("#settings-back-link").setAttribute("href", `#/c/${encodeURIComponent(name)}`);
   $("#settings-source-path-field").innerHTML = renderSourcePathField();
   const modal = cloneTemplate("tpl-delete-modal");
   modal.querySelector("#delete-modal-name").textContent = name;
@@ -1199,16 +1221,26 @@ async function cancelJob(id) {
     $("#idx-status").textContent = err.message;
   }
 }
-function currentRoute() {
-  const hash = location.hash || "#/";
-  let m = hash.match(/^#\/collections\/([^/]+)\/settings$/);
+function currentRoute(hash = location.hash || "#/") {
+  let m = hash.match(/^#\/c\/([^/]+)\/settings$/);
   if (m) return { view: "settings", name: decodeURIComponent(m[1]) };
-  m = hash.match(/^#\/collections\/([^/]+)\/file\/(.+)$/);
+  m = hash.match(/^#\/c\/([^/]+)\/f\/(.+)$/);
   if (m) return { view: "collection", name: decodeURIComponent(m[1]), openFile: decodeURIComponent(m[2]) };
-  m = hash.match(/^#\/collections\/(.+)$/);
+  m = hash.match(/^#\/c\/([^/]+)\/n\/(.+)$/);
+  if (m) return { view: "collection", name: decodeURIComponent(m[1]), openNodePath: decodeURIComponent(m[2]) };
+  m = hash.match(/^#\/c\/(.+)$/);
   if (m) return { view: "collection", name: decodeURIComponent(m[1]) };
   if (hash === "#/index") return { view: "index" };
   return { view: "overview" };
+}
+async function openNodeFromPath(name, nodePath) {
+  try {
+    const { node } = await api(`/api/collections/${encodeURIComponent(name)}/skeleton/node?nodePath=${encodeURIComponent(nodePath)}`);
+    return openSectionView(name, node);
+  } catch (err) {
+    const box = $("#collection-content");
+    if (box) box.innerHTML = errorBox(err);
+  }
 }
 async function route() {
   const main = $("#main");
@@ -1218,6 +1250,7 @@ async function route() {
   else if (r.view === "collection") {
     await renderCollection(main, r.name);
     if (r.openFile) await openFileView(r.name, r.openFile);
+    else if (r.openNodePath) await openNodeFromPath(r.name, r.openNodePath);
   } else if (r.view === "index") await renderIndexingView(main);
   else await renderOverview(main);
 }
