@@ -313,25 +313,6 @@ td.mono { font-family: var(--mono); font-size: 12px; }
 .q-input:focus { outline: none; border-color: var(--amber-dim); }
 .q-input::placeholder { color: var(--ink-faint); }
 
-.search-controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.ctl {
-  display: flex; align-items: center; gap: 6px;
-  font-size: 11px; text-transform: uppercase; letter-spacing: .14em; color: var(--ink-dim);
-}
-.ctl select {
-  background: var(--bg-inset); color: var(--ink);
-  border: 1px solid var(--line); border-radius: 3px;
-  font-family: var(--mono); font-size: 12px; padding: 4px 6px;
-}
-
-.segmented { display: inline-flex; border: 1px solid var(--line); border-radius: 3px; overflow: hidden; }
-.segmented button {
-  background: var(--bg-inset); color: var(--ink-dim); border: 0;
-  font-family: var(--mono); font-size: 11px; padding: 5px 10px; cursor: pointer;
-}
-.segmented button + button { border-left: 1px solid var(--line); }
-.segmented button.on { background: var(--bg-raise); color: var(--amber); }
-
 .btn-amber {
   background: transparent; color: var(--amber);
   border: 1px solid var(--amber-dim); border-radius: 3px;
@@ -387,6 +368,14 @@ td.actions { text-align: right; }
 }
 .score-bar-fill { display: block; height: 100%; background: var(--amber-dim); }
 .result-head .mini-btn { margin-left: auto; }
+
+/* "Show more" — reveals more of an already-fetched result batch (search
+   always requests a fixed larger limit up front; this never re-runs
+   retrieval — see search.js's SEARCH_FETCH_LIMIT/SEARCH_PAGE_SIZE comment).
+   Same .mini-btn look as file-view.js's "load more", centered under the
+   result list rather than left-aligned like that one. */
+#search-show-more { display: block; margin: 10px auto 0; }
+#search-show-more[hidden] { display: none; }
 
 /* ── Phase 2C: indexing jobs ────────────────────────────────────────────── */
 .nav-list { list-style: none; margin: 12px 0 0; padding: 0 8px; }
@@ -554,16 +543,7 @@ td.actions { text-align: right; }
 }
 .btn-ghost:hover { color: var(--ink); border-color: var(--ink-dim); }
 
-/* advanced/details disclosure (search controls, diagnostics panel) */
-.advanced-box { margin-top: 8px; }
-.advanced-box summary {
-  cursor: pointer; font-size: 11px; color: var(--ink-dim);
-  text-transform: uppercase; letter-spacing: .14em;
-  padding: 4px 0;
-}
-.advanced-box summary:hover { color: var(--amber); }
-.advanced-box[open] summary { margin-bottom: 8px; }
-
+/* advanced/details disclosure (collection header diagnostics panel) */
 .advanced-panel summary.panel-head { cursor: pointer; }
 .advanced-panel summary.panel-head::-webkit-details-marker { display: none; }
 .advanced-panel[open] summary.panel-head { border-bottom: 1px solid var(--line-soft); }

@@ -1,18 +1,41 @@
 // ── search: "Search this collection" ───────────────────────────────────────
-// Default view is minimal: query + top-k + submit. Score display and the
-// file-scope filter live inside a native <details> "advanced" block so a
-// first-time user sees a plain search box. Admin search always sends
-// window: 0 — the dashboard shows one clean matched chunk per result, not
-// an MCP-style "Nearby context" window of neighboring chunks (that
-// window/compact-vs-full-format UI was removed; the API still accepts a
-// non-zero window for other callers, this UI just never asks for one).
+// Default view is deliberately just query + Search button — no visible top-k
+// selector, no Advanced disclosure, no score opt-in checkbox. Rank/score is
+// shown on every result by default (framed as "compare order, not absolute
+// value", never hidden behind a toggle). A file-scope filter still exists as
+// internal state (set via setSearchFile(), e.g. from a "search in this file"
+// entry point elsewhere in the UI, or restored from an old permalink's
+// &file=) and shows as a small clearable chip when active — but there is no
+// manual file-path input control for a user to type into.
+//
+// runSearch() always fetches SEARCH_FETCH_LIMIT results in one request and
+// renders them in batches of SEARCH_PAGE_SIZE via "Show more" — no repeated
+// retrieval calls with an increasing top, which could reorder results if the
+// index changes between clicks (see SEARCH_FETCH_LIMIT below).
+//
+// Admin search always sends window: 0 — the dashboard shows one clean
+// matched chunk per result, not an MCP-style "Nearby context" window of
+// neighboring chunks (that window/compact-vs-full-format UI was removed;
+// the API still accepts a non-zero window for other callers, this UI just
+// never asks for one).
 import { $, esc, cloneTemplate, prefersReducedMotion } from './dom.js';
 import { apiPost } from './api.js';
 import { openFileView, hideCollectionContent, nodeTypeBadgeIcon } from './file-view.js';
 import { currentRoute } from './routes.js';
 
+// The backend's /api/search caps `top` at 20 (src/admin/api/search.js's
+// TOP_MAX) — this fetches that whole cap in one request so "Show more" is
+// just revealing already-fetched results, never a second retrieval call.
+const SEARCH_FETCH_LIMIT = 20;
+const SEARCH_PAGE_SIZE = 5;
+
 let searchSourceFile = null;
 let searchCollectionName = null;
+// The full fetched result set from the last successful search, and how many
+// of them are currently rendered — "Show more" advances the latter without
+// re-fetching. Reset on every fresh runSearch() call.
+let lastSearchResults = [];
+let visibleResultCount = 0;
 
 // Snapshot of the last URL search-params this module itself synced to (via
 // syncSearchStateFromUrl) or wrote (via updateSearchUrl) — lets
@@ -66,33 +89,26 @@ export function initSearchPanel(name) {
   searchCollectionName = name;
   lastSyncedSearchParamsKey = null;
   lastPushedQuery = null;
+  lastSearchResults = [];
+  visibleResultCount = 0;
   const box = $('#search-panel');
   box.innerHTML = `
     <form class="search-form" id="search-form" autocomplete="off">
       <div class="search-main-row">
         <input type="text" id="q-input" class="q-input"
           placeholder="Ask a question about this collection…">
-        <label class="ctl" title="Number of results to return">top
-          <select id="q-top">${[3, 5, 10, 20].map(n =>
-            `<option value="${n}" ${n === 5 ? 'selected' : ''}>${n}</option>`).join('')}</select>
-        </label>
         <button type="submit" class="btn-amber" id="q-submit">Search</button>
       </div>
+      <span class="filter-chip" id="q-file-chip" style="display:none">
+        <span class="mono" id="q-file-label"></span>
+        <button type="button" id="q-file-clear" title="Clear file filter" aria-label="Clear file filter">×</button>
+      </span>
       <div class="q-recent" id="q-recent" hidden></div>
-      <details class="advanced-box">
-        <summary>Advanced</summary>
-        <div class="search-controls">
-          <label class="ctl" title="Show the retrieval rank score on each result"><input type="checkbox" id="q-show-score"> score</label>
-          <span class="filter-chip" id="q-file-chip" style="display:none">
-            <span class="mono" id="q-file-label"></span>
-            <button type="button" id="q-file-clear" title="Clear file filter" aria-label="Clear file filter">×</button>
-          </span>
-        </div>
-      </details>
     </form>
     <div id="search-status" class="empty">Results are retrieval evidence — real indexed chunks with scores.
       The sidebar tree is navigation only.</div>
-    <div id="search-results"></div>`;
+    <div id="search-results"></div>
+    <button type="button" class="mini-btn" id="search-show-more" hidden>Show more</button>`;
 
   $('#q-file-clear').addEventListener('click', () => clearSearchFile());
 
@@ -100,6 +116,8 @@ export function initSearchPanel(name) {
     e.preventDefault();
     runSearch(name);
   });
+
+  $('#search-show-more').addEventListener('click', () => showMoreResults(name));
 
   updateSearchScopeLabel();
   renderRecentSearches(name);
@@ -121,16 +139,19 @@ export function initSearchPanel(name) {
 // collection sub-route it's attached to. window/format are deliberately
 // no longer part of normal UI state (the "Nearby context" window-chunks
 // feature was removed from the admin dashboard — see search.js's window=0
-// default in runSearch()) — routes.js still parses ?window=/?format= for
-// backward compatibility with an old bookmarked/shared URL, but this
-// module no longer reads or writes them.
+// default in runSearch()) — routes.js still parses ?window=/?format=/?top=
+// for backward compatibility with an old bookmarked/shared URL, but this
+// module no longer reads or writes any of them: `top` is no longer a user-
+// facing control (search always fetches SEARCH_FETCH_LIMIT results — see
+// the module-level comment above), so an old permalink's &top= is simply
+// ignored rather than applied to anything.
 //
 // Split in two so file/section routes stay in sync too, without the file/
 // section view getting clobbered by a re-run search:
 //   - applySearchStateFromUrl(name): always updates the form fields (query/
-//     top/file-filter) to match the URL — safe to call on every
-//     collection-route navigation, file/section routes included, since it
-//     never touches #search-results/#collection-content.
+//     file-filter) to match the URL — safe to call on every collection-
+//     route navigation, file/section routes included, since it never
+//     touches #search-results/#collection-content.
 //   - syncSearchStateFromUrl(name): the above, PLUS actually runs the
 //     search — reserved for bare collection routes only (called from
 //     router.js). Running a search calls hideCollectionContent(), so
@@ -150,8 +171,17 @@ export function applySearchStateFromUrl(name) {
 
   if (!search?.q) return false;
   $('#q-input').value = search.q;
-  if (search.top && [3, 5, 10, 20].includes(search.top)) $('#q-top').value = String(search.top);
-  if (search.sourceFile) setSearchFile(search.sourceFile);
+  // Sync the file filter exactly to what the URL says — set it when the
+  // URL carries &file=, but also CLEAR it when the URL doesn't, rather than
+  // leaving a stale searchSourceFile from a prior state. Without the clear
+  // branch, a URL that had once carried &file=readme.md and then navigated
+  // (e.g. browser Back) to a query with no &file= at all left the old file
+  // scope active in memory — the next search silently stayed scoped to a
+  // file the visible UI no longer indicated. Uses the quiet setter (no
+  // scroll/focus) since this runs on every route sync, not just a real
+  // user-initiated "search in this file" click.
+  if (search.sourceFile) setSearchFileQuiet(search.sourceFile);
+  else clearSearchFile();
   // The query text is already current in the URL (we just read it from
   // there) — mark it as "already pushed" so the runSearch() this triggers
   // (in syncSearchStateFromUrl) replaces this same entry instead of
@@ -175,29 +205,28 @@ export function syncSearchStateFromUrl(name) {
 // asked).
 let lastPushedQuery = null;
 
-// Writes the current query/top/file-filter into the URL — deliberately
-// NOT window/format, which are no longer part of normal admin UI search
-// state (see the "Nearby context" removal note above runsearch()'s
-// window=0 default). Uses history.pushState for a genuinely new query
-// text (so Back steps through prior searches one at a time — standard
-// browser-search history UX) and history.replaceState for everything else
-// (re-running the same query with a different top/file-filter, or a
-// URL-driven sync re-writing the query that's already current — neither
-// is "a new search" from the user's point of view, and pushing on every
-// one would flood history). NOT location.hash, which would fire a
-// hashchange and re-run route() recursively (this app's router listens on
-// hashchange for all navigation) — both push/replace update the URL
-// bar/history silently.
+// Writes the current query/file-filter into the URL — deliberately NOT
+// top/window/format, none of which are part of normal admin UI search state
+// any more (search always fetches a fixed SEARCH_FETCH_LIMIT; see the
+// "Nearby context" removal note above runSearch()'s window=0 default). Uses
+// history.pushState for a genuinely new query text (so Back steps through
+// prior searches one at a time — standard browser-search history UX) and
+// history.replaceState for everything else (re-running the same query with
+// a different file-filter, or a URL-driven sync re-writing the query that's
+// already current — neither is "a new search" from the user's point of
+// view, and pushing on every one would flood history). NOT location.hash,
+// which would fire a hashchange and re-run route() recursively (this app's
+// router listens on hashchange for all navigation) — both push/replace
+// update the URL bar/history silently.
 //
 // The base path (everything before "?") is read from the current hash, not
 // rebuilt as a bare "#/c/:name" — searching while a file/section is open
 // (hash is "#/c/:name/f/..." or "#/c/:name/n/...") must not overwrite that
 // path and silently kick the user back to the collection's search-only
 // view; only the query string changes.
-function updateSearchUrl(name, { query, top, sourceFile }) {
+function updateSearchUrl(name, { query, sourceFile }) {
   const params = new URLSearchParams();
   if (query) params.set('q', query);
-  params.set('top', String(top));
   if (sourceFile) params.set('file', sourceFile);
   const qs = params.toString();
   const currentHash = location.hash || `#/c/${encodeURIComponent(name)}`;
@@ -221,11 +250,20 @@ function updateSearchScopeLabel() {
     : `Searching in: ${searchCollectionName}`;
 }
 
-export function setSearchFile(sourceFile) {
+// Sets the chip/state only — no scroll/focus. Shared by setSearchFile()
+// (a real user-initiated "search in this file" action, where jumping focus
+// to the search box is the point) and applySearchStateFromUrl() (a silent
+// URL restore, e.g. on every route navigation, where yanking scroll/focus
+// on each sync would be disruptive and wrong).
+function setSearchFileQuiet(sourceFile) {
   searchSourceFile = sourceFile;
   $('#q-file-label').textContent = sourceFile;
   $('#q-file-chip').style.display = '';
   updateSearchScopeLabel();
+}
+
+export function setSearchFile(sourceFile) {
+  setSearchFileQuiet(sourceFile);
   $('#search-panel').scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'nearest' });
   $('#q-input').focus();
 }
@@ -248,23 +286,27 @@ export async function runSearch(name) {
     return;
   }
 
-  const top = Number($('#q-top').value);
-  const showScore = $('#q-show-score').checked;
-
   // Admin dashboard search is ranked-hits evidence, not an MCP-style
   // context-window view — window is always 0 here (the API/adapter still
   // supports a non-zero window for other callers, e.g. the MCP tool; this
   // UI simply never asks for one). See tpl-search-result's absence of any
-  // "Nearby context"/windowChunks rendering below.
-  const payload = { collection: name, query, top, window: 0 };
+  // "Nearby context"/windowChunks rendering below. `top` is always the
+  // fixed fetch cap (SEARCH_FETCH_LIMIT) — "Show more" below reveals more
+  // of this same already-fetched batch, it never re-runs retrieval with a
+  // larger top (which could reorder results if the index changed between
+  // clicks).
+  const payload = { collection: name, query, top: SEARCH_FETCH_LIMIT, window: 0 };
   if (searchSourceFile) payload.sourceFile = searchSourceFile;
 
-  updateSearchUrl(name, { query, top, sourceFile: searchSourceFile });
+  updateSearchUrl(name, { query, sourceFile: searchSourceFile });
 
   submit.disabled = true;
   status.className = 'empty';
   status.textContent = 'searching…';
   resultsBox.innerHTML = '';
+  lastSearchResults = [];
+  visibleResultCount = 0;
+  $('#search-show-more').hidden = true;
   hideCollectionContent();
 
   try {
@@ -282,23 +324,52 @@ export async function runSearch(name) {
         : 'No results for this query.';
       return;
     }
-    status.textContent = `${body.results.length} result${body.results.length > 1 ? 's' : ''}`
-      + (searchSourceFile ? ` · filtered to one file` : '');
-    // Bar width is normalized against the top-ranked result's own score,
-    // never an absolute confidence reading — results already arrive
-    // rank-sorted, so body.results[0] is always the top score.
-    const topScore = body.results[0]?.score;
-    resultsBox.replaceChildren(...body.results.map((r, i) => renderResult(r, i, showScore, topScore)));
-    for (const btn of resultsBox.querySelectorAll('.result-open')) {
-      btn.addEventListener('click', () =>
-        openFileView(name, btn.dataset.sf, null, Number(btn.dataset.ci)));
-    }
+    lastSearchResults = body.results;
+    renderVisibleResults(name, Math.min(SEARCH_PAGE_SIZE, lastSearchResults.length));
   } catch (err) {
     status.className = 'error-box';
     status.textContent = err.message;
   } finally {
     submit.disabled = false;
   }
+}
+
+// Renders lastSearchResults[0..count) into #search-results (replacing
+// whatever was there), updates the status line to match what's actually on
+// screen, and wires each card's "open" button — shared by the initial
+// runSearch() render and showMoreResults() below so both go through the
+// same render/status/wiring path (a "Show more" click must update the
+// status text too — "20 results" sitting above only 5 visible cards would
+// read as broken, and staying "5 of 20" forever after revealing the rest
+// would be just as wrong the other way).
+function renderVisibleResults(name, count) {
+  const status = $('#search-status');
+  const resultsBox = $('#search-results');
+  visibleResultCount = count;
+  const total = lastSearchResults.length;
+  // Bar width is normalized against the top-ranked result's own score,
+  // never an absolute confidence reading — results already arrive
+  // rank-sorted, so lastSearchResults[0] is always the top score.
+  const topScore = lastSearchResults[0]?.score;
+  const visible = lastSearchResults.slice(0, count);
+  resultsBox.replaceChildren(...visible.map((r, i) => renderResult(r, i, topScore)));
+  for (const btn of resultsBox.querySelectorAll('.result-open')) {
+    btn.addEventListener('click', () =>
+      openFileView(name, btn.dataset.sf, null, Number(btn.dataset.ci)));
+  }
+  status.textContent = (count < total ? `Showing ${count} of ${total} results` : `${total} result${total > 1 ? 's' : ''}`)
+    + (searchSourceFile ? ` · filtered to one file` : '');
+  const showMoreBtn = $('#search-show-more');
+  showMoreBtn.hidden = visibleResultCount >= total;
+}
+
+// "Show more" reveals the next SEARCH_PAGE_SIZE results already sitting in
+// lastSearchResults — no new /api/search request, so clicking it can never
+// reorder results relative to what's already on screen (see the
+// SEARCH_FETCH_LIMIT/SEARCH_PAGE_SIZE module comment).
+function showMoreResults(name) {
+  const nextCount = Math.min(visibleResultCount + SEARCH_PAGE_SIZE, lastSearchResults.length);
+  renderVisibleResults(name, nextCount);
 }
 
 // Builds a result-card element from the tpl-search-result template — all
@@ -313,15 +384,21 @@ export async function runSearch(name) {
 // The API may still return windowChunks (runSearch() always sends
 // window: 0, so in practice the field is absent/empty), but even if a
 // caller passed a non-zero window somehow, this function ignores it.
-export function renderResult(r, i, showScore, topScore) {
+//
+// Score/rank is shown unconditionally now (no showScore opt-in checkbox —
+// see the module-level comment) — the numeric score and the bar each still
+// carry the "compare order, not absolute value" tooltip from
+// tpl-search-result, so the safety framing survives even though the toggle
+// that used to gate it doesn't exist any more.
+export function renderResult(r, i, topScore) {
   const canOpen = r.sourceFile && Number.isInteger(r.chunkIndex);
   const frag = cloneTemplate('tpl-search-result');
   const card = frag.querySelector('.result-card');
 
   card.querySelector('.rank').textContent = `#${i + 1}`;
 
-  const scoreEl = card.querySelector('.score');
-  if (showScore && typeof r.score === 'number') {
+  if (typeof r.score === 'number') {
+    const scoreEl = card.querySelector('.score');
     scoreEl.textContent = r.score.toFixed(4);
     scoreEl.hidden = false;
 

@@ -20,7 +20,7 @@ describe('search this collection (ui-src/search.js source)', () => {
     assert.ok(!/Search playground/.test(js), 'old "Search playground" label must not remain');
   });
 
-  it('always sends window: 0 in the actual /api/search request payload', async () => {
+  it('always sends window: 0 and the fixed fetch-limit top in the actual /api/search request payload', async () => {
     // Behavioral, not source-regex — a source-text match on "window: 0"
     // could false-pass against an explanatory comment elsewhere in the
     // file, so this captures the real payload runSearch() sends.
@@ -36,6 +36,10 @@ describe('search this collection (ui-src/search.js source)', () => {
       await helpers.runSearch('my-docs');
       assert.ok(capturedPayload, 'apiPost must have been called');
       assert.equal(capturedPayload.window, 0, `default admin search request must use window: 0, got ${capturedPayload.window}`);
+      // 20 is the backend's own TOP_MAX cap (src/admin/api/search.js) — a
+      // request for anything above it would be rejected outright, so the
+      // UI's fixed fetch limit must sit exactly at that cap, not "20 or 25".
+      assert.equal(capturedPayload.top, 20, 'the UI must fetch the backend\'s max allowed top in one request, not repeatedly re-search with an increasing top');
     });
   });
 
@@ -50,22 +54,46 @@ describe('search this collection (ui-src/search.js source)', () => {
     assert.ok(!/id="q-format"/.test(js), 'the compact/full segmented control must not be in the mounted markup');
   });
 
-  it('defaults the score display to off (an advanced/debug opt-in, not shown by default)', () => {
+  it('no longer renders a visible TOP selector', () => {
     const js = readUiSource('search.js');
-    const checkboxTag = js.slice(js.indexOf('id="q-show-score"') - 40, js.indexOf('id="q-show-score"') + 30);
-    assert.ok(!/\bchecked\b/.test(checkboxTag), `score checkbox must not be checked by default: ${checkboxTag}`);
+    assert.ok(!/id="q-top"/.test(js), 'the #q-top <select> must not exist in the mounted markup anymore');
   });
 
-  it('hides remaining advanced controls (score, file filter) behind a collapsible disclosure', () => {
+  it('no longer renders an Advanced disclosure or a score opt-in checkbox', () => {
     const js = readUiSource('search.js');
-    assert.match(js, /<details class="advanced-box">/);
-    assert.match(js, /<summary>Advanced<\/summary>/);
+    assert.ok(!/<details class="advanced-box">/.test(js), 'the Advanced disclosure must be removed');
+    assert.ok(!/<summary>Advanced<\/summary>/.test(js), 'the Advanced disclosure must be removed');
+    assert.ok(!/id="q-show-score"/.test(js), 'the score opt-in checkbox must be removed — score shows by default now');
   });
 
-  it('the default visible controls are just query, top-k, and submit', () => {
-    const js = readUiSource('search.js');
-    assert.match(js, /search-main-row/);
-    assert.match(js, /id="q-top"/);
+  it('the default visible controls are exactly query input and Search button', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const { document, initSearchPanel } = loadSearchRenderHelpers(html);
+      initSearchPanel('my-docs');
+      const mainRow = document.querySelector('.search-main-row');
+      assert.ok(mainRow.querySelector('#q-input'), 'query input must be present');
+      assert.ok(mainRow.querySelector('#q-submit'), 'Search button must be present');
+      // Nothing else lives in the always-visible main row — no top-k
+      // select, no score checkbox, no manual file-path input.
+      assert.equal(mainRow.querySelectorAll('select').length, 0, 'no <select> control in the main row');
+      assert.equal(mainRow.querySelectorAll('input[type="checkbox"]').length, 0, 'no checkbox in the main row');
+    });
+  });
+
+  it('a source-file filter is internal state with a clearable chip, not a manual text input', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const { document, initSearchPanel, setSearchFile } = loadSearchRenderHelpers(html);
+      initSearchPanel('my-docs');
+      // Before setSearchFile() is ever called, the chip must be hidden and
+      // there must be no free-text input for a source file anywhere.
+      assert.equal(document.querySelectorAll('input[type="text"]').length, 1, 'only the query input, no manual file-path input');
+      setSearchFile('readme.md');
+      assert.equal(document.querySelector('#q-file-chip').style.display, '', 'the chip becomes visible once a file scope is set programmatically');
+      assert.equal(document.querySelector('#q-file-label').textContent, 'readme.md');
+      assert.ok(document.querySelector('#q-file-clear'), 'the chip must still be clearable');
+    });
   });
 
   it('search.js keeps evidence-vs-navigation copy', () => {
@@ -95,7 +123,7 @@ describe('search this collection (ui-src/search.js source)', () => {
       const malicious = '<img src=x onerror="window.__pwned=true">';
       const card = renderResult({
         sourceFile: malicious, text: malicious, section: malicious, chunkIndex: 0,
-      }, 0, false);
+      }, 0);
       assert.equal(card.querySelector('.result-source').textContent, malicious);
       assert.equal(card.querySelector('.chunk-text').textContent, malicious);
       assert.equal(card.querySelectorAll('img').length, 0, 'malicious markup must never be parsed into a real element');
@@ -119,7 +147,7 @@ describe('search result cards show only the matched chunk (no windowChunks rende
           { chunkIndex: 5, text: 'the matched chunk text', isMatch: true },
           { chunkIndex: 6, text: 'chunk after', isMatch: false },
         ],
-      }, 0, false);
+      }, 0);
       const occurrences = card.textContent.split('the matched chunk text').length - 1;
       assert.equal(occurrences, 1, `matched text must appear exactly once in the card, found ${occurrences} times`);
       assert.equal(card.querySelector('.chunk-text').textContent, 'the matched chunk text');
@@ -135,7 +163,7 @@ describe('search result cards show only the matched chunk (no windowChunks rende
       const card = renderResult({
         sourceFile: 'readme.md', chunkIndex: 5, text: 'matched',
         windowChunks: [{ chunkIndex: 4, text: 'before', isMatch: false }],
-      }, 0, false);
+      }, 0);
       assert.equal(card.querySelector('.win-chunks'), null);
       assert.equal(card.querySelector('.win-chunk'), null);
       assert.equal(card.textContent.includes('Nearby context'), false);
@@ -156,7 +184,7 @@ describe('search result cards show only the matched chunk (no windowChunks rende
       const card = renderResult({
         sourceFile: 'readme.md', chunkIndex: 3, totalChunks: 10, section: 'Introduction',
         nodeType: 'paragraph', context: 'some context', text: 'the matched text',
-      }, 0, false);
+      }, 0);
       assert.equal(card.querySelector('.rank').textContent, '#1');
       assert.equal(card.querySelector('.result-source').textContent, 'readme.md');
       assert.equal(card.querySelector('.result-chunk-index').textContent, 'chunk 3 / 10');
@@ -194,9 +222,216 @@ describe('search scope label ("Searching in: ...")', () => {
   });
 });
 
+// ── Show more: fetch once (top=20), render in batches of 5 ─────────────────
+describe('"Show more" — batched rendering of an already-fetched result set', () => {
+  function makeResults(count) {
+    return Array.from({ length: count }, (_, i) => ({
+      sourceFile: `file-${i}.md`, chunkIndex: i, score: 1 - i * 0.01, text: `text ${i}`,
+    }));
+  }
+
+  it('renders only the first 5 results even when the backend returns more', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const helpers = loadSearchRenderHelpers(html, {
+        hash: '#/c/my-docs',
+        apiPostImpl: async () => ({ results: makeResults(20) }),
+      });
+      helpers.initSearchPanel('my-docs');
+      helpers.document.querySelector('#q-input').value = 'test';
+      await helpers.runSearch('my-docs');
+      assert.equal(helpers.document.querySelectorAll('.result-card').length, 5,
+        'only the first page (5) must be rendered initially, even though 20 were fetched');
+    });
+  });
+
+  it('"Show more" is hidden when there are 5 or fewer results total', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const helpers = loadSearchRenderHelpers(html, {
+        hash: '#/c/my-docs',
+        apiPostImpl: async () => ({ results: makeResults(5) }),
+      });
+      helpers.initSearchPanel('my-docs');
+      helpers.document.querySelector('#q-input').value = 'test';
+      await helpers.runSearch('my-docs');
+      assert.equal(helpers.document.querySelectorAll('.result-card').length, 5);
+      assert.equal(helpers.document.querySelector('#search-show-more').hidden, true,
+        '"Show more" must stay hidden when there is nothing more to reveal');
+    });
+  });
+
+  it('"Show more" is visible when there are more than 5 results', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const helpers = loadSearchRenderHelpers(html, {
+        hash: '#/c/my-docs',
+        apiPostImpl: async () => ({ results: makeResults(20) }),
+      });
+      helpers.initSearchPanel('my-docs');
+      helpers.document.querySelector('#q-input').value = 'test';
+      await helpers.runSearch('my-docs');
+      assert.equal(helpers.document.querySelector('#search-show-more').hidden, false);
+    });
+  });
+
+  it('the first click reveals results 6–10 without re-fetching', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      let fetchCount = 0;
+      const helpers = loadSearchRenderHelpers(html, {
+        hash: '#/c/my-docs',
+        apiPostImpl: async () => { fetchCount++; return { results: makeResults(20) }; },
+      });
+      helpers.initSearchPanel('my-docs');
+      helpers.document.querySelector('#q-input').value = 'test';
+      await helpers.runSearch('my-docs');
+      assert.equal(fetchCount, 1);
+
+      helpers.document.querySelector('#search-show-more').click();
+      assert.equal(helpers.document.querySelectorAll('.result-card').length, 10,
+        'a single click must reveal exactly 5 more results (10 total)');
+      assert.equal(fetchCount, 1, 'revealing more results must not trigger a second /api/search request');
+      const sources = [...helpers.document.querySelectorAll('.result-source')].map(el => el.textContent);
+      assert.deepEqual(sources, Array.from({ length: 10 }, (_, i) => `file-${i}.md`),
+        'results 1-10 must be in original rank order, not re-ordered by a second fetch');
+    });
+  });
+
+  it('the second click reveals results 11–15', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const helpers = loadSearchRenderHelpers(html, {
+        hash: '#/c/my-docs',
+        apiPostImpl: async () => ({ results: makeResults(20) }),
+      });
+      helpers.initSearchPanel('my-docs');
+      helpers.document.querySelector('#q-input').value = 'test';
+      await helpers.runSearch('my-docs');
+
+      helpers.document.querySelector('#search-show-more').click();
+      helpers.document.querySelector('#search-show-more').click();
+      assert.equal(helpers.document.querySelectorAll('.result-card').length, 15);
+      assert.equal(helpers.document.querySelector('#search-show-more').hidden, false,
+        '5 more (of the fetched 20) remain, so the button must still be visible');
+    });
+  });
+
+  it('"Show more" disappears once all fetched results are visible, even mid-batch', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const helpers = loadSearchRenderHelpers(html, {
+        hash: '#/c/my-docs',
+        // 7 results: first click shows 5, second click should reveal the
+        // remaining 2 (not a full 5) and hide the button — there is nothing
+        // left after that, even though 7 isn't a clean multiple of 5.
+        apiPostImpl: async () => ({ results: makeResults(7) }),
+      });
+      helpers.initSearchPanel('my-docs');
+      helpers.document.querySelector('#q-input').value = 'test';
+      await helpers.runSearch('my-docs');
+      assert.equal(helpers.document.querySelectorAll('.result-card').length, 5);
+      assert.equal(helpers.document.querySelector('#search-show-more').hidden, false);
+
+      helpers.document.querySelector('#search-show-more').click();
+      assert.equal(helpers.document.querySelectorAll('.result-card').length, 7,
+        'the final click must reveal only the remaining 2, not overshoot');
+      assert.equal(helpers.document.querySelector('#search-show-more').hidden, true,
+        '"Show more" must disappear once every fetched result is visible');
+    });
+  });
+
+  it('a fresh search resets the visible count back to 5 and re-hides/re-shows "Show more" as appropriate', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const helpers = loadSearchRenderHelpers(html, {
+        hash: '#/c/my-docs',
+        apiPostImpl: async () => ({ results: makeResults(20) }),
+      });
+      helpers.initSearchPanel('my-docs');
+      helpers.document.querySelector('#q-input').value = 'first query';
+      await helpers.runSearch('my-docs');
+      helpers.document.querySelector('#search-show-more').click();
+      assert.equal(helpers.document.querySelectorAll('.result-card').length, 10);
+
+      helpers.document.querySelector('#q-input').value = 'second query';
+      await helpers.runSearch('my-docs');
+      assert.equal(helpers.document.querySelectorAll('.result-card').length, 5,
+        'a new search must reset back to the first page, not keep the previous expanded count');
+    });
+  });
+
+  it('open buttons on results revealed by "Show more" are wired the same as the first page', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      let openedWith = null;
+      const helpers = loadSearchRenderHelpers(html, {
+        hash: '#/c/my-docs',
+        apiPostImpl: async () => ({ results: makeResults(10) }),
+        openFileViewImpl: (name, sf, nodePath, ci) => { openedWith = { name, sf, ci }; },
+      });
+      helpers.initSearchPanel('my-docs');
+      helpers.document.querySelector('#q-input').value = 'test';
+      await helpers.runSearch('my-docs');
+      helpers.document.querySelector('#search-show-more').click();
+
+      const cards = helpers.document.querySelectorAll('.result-card');
+      cards[9].querySelector('.result-open').click();
+      assert.ok(openedWith, 'the open button on a "Show more"-revealed card must be wired');
+      assert.equal(openedWith.sf, 'file-9.md');
+      assert.equal(openedWith.ci, 9);
+    });
+  });
+
+  it('the status line shows "Showing 5 of 20 results" when more are available, not just the fetched total', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const helpers = loadSearchRenderHelpers(html, {
+        hash: '#/c/my-docs',
+        apiPostImpl: async () => ({ results: makeResults(20) }),
+      });
+      helpers.initSearchPanel('my-docs');
+      helpers.document.querySelector('#q-input').value = 'test';
+      await helpers.runSearch('my-docs');
+      assert.equal(helpers.document.querySelector('#search-status').textContent, 'Showing 5 of 20 results',
+        'the status text must match what is actually visible, not silently overclaim the full fetched count');
+    });
+  });
+
+  it('the status line updates to "Showing 10 of 20 results" after one "Show more" click', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const helpers = loadSearchRenderHelpers(html, {
+        hash: '#/c/my-docs',
+        apiPostImpl: async () => ({ results: makeResults(20) }),
+      });
+      helpers.initSearchPanel('my-docs');
+      helpers.document.querySelector('#q-input').value = 'test';
+      await helpers.runSearch('my-docs');
+      helpers.document.querySelector('#search-show-more').click();
+      assert.equal(helpers.document.querySelector('#search-status').textContent, 'Showing 10 of 20 results');
+    });
+  });
+
+  it('the status line drops the "Showing X of Y" wording once every fetched result is visible', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const helpers = loadSearchRenderHelpers(html, {
+        hash: '#/c/my-docs',
+        apiPostImpl: async () => ({ results: makeResults(5) }),
+      });
+      helpers.initSearchPanel('my-docs');
+      helpers.document.querySelector('#q-input').value = 'test';
+      await helpers.runSearch('my-docs');
+      assert.equal(helpers.document.querySelector('#search-status').textContent, '5 results',
+        'with nothing left to reveal, the plain total is clearer than "Showing 5 of 5"');
+    });
+  });
+});
+
 // ── Phase 3B: search query permalink (URL is the source of truth) ─────────
 describe('search URL permalink (pushState for new queries, replaceState otherwise; not localStorage)', () => {
-  it('a successful search rewrites the hash to include q/top, but NOT window or format', async () => {
+  it('a successful search rewrites the hash to include q, but NOT top, window, or format', async () => {
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
       const { document, initSearchPanel, runSearch, location } = loadSearchRenderHelpers(html, { hash: '#/c/my-docs' });
@@ -206,7 +441,7 @@ describe('search URL permalink (pushState for new queries, replaceState otherwis
       assert.match(location.hash, /^#\/c\/my-docs\?/);
       const qs = new URLSearchParams(location.hash.split('?')[1]);
       assert.equal(qs.get('q'), 'refund policy');
-      assert.equal(qs.get('top'), '5');
+      assert.equal(qs.get('top'), null, 'top is no longer user-facing state and must not be written');
       assert.equal(qs.get('window'), null, 'window must not be written as a noisy default');
       assert.equal(qs.get('format'), null, 'format must not be written as a noisy default');
     });
@@ -222,6 +457,47 @@ describe('search URL permalink (pushState for new queries, replaceState otherwis
       await runSearch('my-docs');
       const qs = new URLSearchParams(location.hash.split('?')[1]);
       assert.equal(qs.get('file'), 'readme.md');
+    });
+  });
+
+  it('applySearchStateFromUrl() clears a stale file filter when the new URL carries no &file= (regression)', async () => {
+    // Regression: a prior URL/search state had set searchSourceFile
+    // (e.g. via a "search in this file" flow, or an earlier permalink with
+    // &file=readme.md). Navigating (e.g. browser Back) to a URL with a
+    // different ?q= and NO &file= must clear that stale scope — otherwise
+    // the next search silently stays scoped to a file the visible UI (chip
+    // gone) no longer indicates.
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      let capturedPayload = null;
+      const helpers = loadSearchRenderHelpers(html, {
+        hash: '#/c/my-docs?q=install&file=readme.md',
+        apiPostImpl: async (_path, payload) => { capturedPayload = payload; return { results: [] }; },
+      });
+      helpers.initSearchPanel('my-docs');
+      helpers.syncSearchStateFromUrl('my-docs');
+      assert.equal(helpers.document.querySelector('#q-file-chip').style.display, '',
+        'sanity: the file chip is visible after the first sync');
+
+      // Simulate Back landing on a URL with a different query and no &file=.
+      helpers.location.hash = '#/c/my-docs?q=dogs';
+      helpers.syncSearchStateFromUrl('my-docs');
+      assert.equal(helpers.document.querySelector('#q-file-chip').style.display, 'none',
+        'the file chip must be hidden once the URL no longer carries &file=');
+      assert.equal(capturedPayload.sourceFile, undefined,
+        'the re-run search must NOT still be scoped to the stale file filter');
+    });
+  });
+
+  it('applySearchStateFromUrl() syncing the file filter does not scroll or steal focus (uses the quiet setter, not setSearchFile)', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const helpers = loadSearchRenderHelpers(html, { hash: '#/c/my-docs?q=install&file=readme.md' });
+      helpers.initSearchPanel('my-docs');
+      let scrollCalled = false;
+      helpers.document.getElementById('search-panel').scrollIntoView = () => { scrollCalled = true; };
+      helpers.applySearchStateFromUrl('my-docs');
+      assert.equal(scrollCalled, false, 'a URL-driven sync must not scroll the page — only a real user-initiated setSearchFile() call should');
     });
   });
 
@@ -262,7 +538,7 @@ describe('search URL permalink (pushState for new queries, replaceState otherwis
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
       const { initSearchPanel, history, syncSearchStateFromUrl, location } = loadSearchRenderHelpers(html, {
-        hash: '#/c/my-docs?q=cats&top=5',
+        hash: '#/c/my-docs?q=cats',
       });
       initSearchPanel('my-docs');
       const lengthAfterMount = history.length;
@@ -272,7 +548,7 @@ describe('search URL permalink (pushState for new queries, replaceState otherwis
     });
   });
 
-  it('restores query text and top from the URL when router.js syncs after mount', async () => {
+  it('restores query text from the URL when router.js syncs after mount', async () => {
     // initSearchPanel() itself no longer applies URL state (see the
     // "initSearchPanel() does NOT" test below) — router.js is the sole
     // decision point, so tests call syncSearchStateFromUrl explicitly
@@ -280,7 +556,7 @@ describe('search URL permalink (pushState for new queries, replaceState otherwis
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
       const { document, initSearchPanel, syncSearchStateFromUrl } = loadSearchRenderHelpers(html, {
-        hash: '#/c/my-docs?q=refund&top=10',
+        hash: '#/c/my-docs?q=refund',
       });
       initSearchPanel('my-docs');
       syncSearchStateFromUrl('my-docs');
@@ -288,11 +564,11 @@ describe('search URL permalink (pushState for new queries, replaceState otherwis
     });
   });
 
-  it('an old permalink containing window=1/format=full is still parsed by routes.js but does not affect the UI', async () => {
-    // routes.js keeps parsing ?window=/?format= for backward compatibility
-    // with an old bookmarked/shared link — but search.js's
-    // applySearchStateFromUrl never reads search.window/search.format, so
-    // a URL like this must not surface or depend on either.
+  it('an old permalink containing top=10/window=1/format=full is still parsed by routes.js but does not affect the UI', async () => {
+    // routes.js keeps parsing ?top=/?window=/?format= for backward
+    // compatibility with an old bookmarked/shared link — but search.js's
+    // applySearchStateFromUrl never reads any of them, since none of them
+    // are user-facing controls in this UI anymore.
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
       const { document, initSearchPanel, syncSearchStateFromUrl } = loadSearchRenderHelpers(html, {
@@ -301,16 +577,16 @@ describe('search URL permalink (pushState for new queries, replaceState otherwis
       initSearchPanel('my-docs');
       syncSearchStateFromUrl('my-docs');
       assert.equal(document.querySelector('#q-input').value, 'refund');
-      assert.equal(document.querySelector('#q-top').value, '5', 'top select is a real <select> — see limitation note below; value is unaffected either way since this UI does not read/write window/format');
-      // No #q-window/#q-format elements exist to be affected in the first place.
+      // No #q-top/#q-window/#q-format elements exist to be affected in the first place.
+      assert.equal(document.querySelector('#q-top'), null);
       assert.equal(document.querySelector('#q-window'), null);
       assert.equal(document.querySelector('#q-format'), null);
     });
   });
 
-  it('applySearchStateFromUrl assigns #q-top from route.search, and does NOT reference #q-window/#q-format (source-level check)', () => {
+  it('applySearchStateFromUrl does NOT reference #q-top/#q-window/#q-format (source-level check)', () => {
     const js = readUiSource('search.js');
-    assert.match(js, /\$\('#q-top'\)\.value = String\(search\.top\)/);
+    assert.ok(!/\$\('#q-top'\)/.test(js));
     assert.ok(!/\$\('#q-window'\)/.test(js));
     assert.ok(!/\$\('#q-format'\)/.test(js));
   });
@@ -321,7 +597,6 @@ describe('search URL permalink (pushState for new queries, replaceState otherwis
       const { document, initSearchPanel } = loadSearchRenderHelpers(html, { hash: '#/c/my-docs' });
       initSearchPanel('my-docs');
       assert.equal(document.querySelector('#q-input').value, '');
-      assert.equal(document.querySelector('#q-top').value, '5');
     });
   });
 
@@ -395,13 +670,13 @@ describe('search URL permalink (pushState for new queries, replaceState otherwis
   it('syncSearchStateFromUrl() re-runs the search when the URL search params actually change (real back/forward)', async () => {
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
-      const helpers = loadSearchRenderHelpers(html, { hash: '#/c/my-docs?q=cats&top=5' });
+      const helpers = loadSearchRenderHelpers(html, { hash: '#/c/my-docs?q=cats' });
       helpers.initSearchPanel('my-docs');
       helpers.syncSearchStateFromUrl('my-docs'); // first sync — runs "cats"
       assert.equal(helpers.document.querySelector('#q-input').value, 'cats');
 
       // Simulate browser back/forward landing on a different search state.
-      helpers.location.hash = '#/c/my-docs?q=dogs&top=5';
+      helpers.location.hash = '#/c/my-docs?q=dogs';
       helpers.syncSearchStateFromUrl('my-docs');
       assert.equal(helpers.document.querySelector('#q-input').value, 'dogs',
         'a real change in the URL search params must restore the new state');
@@ -417,7 +692,7 @@ describe('search URL permalink (pushState for new queries, replaceState otherwis
     // (which isn't reachable from outside the vm context here).
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
-      const helpers = loadSearchRenderHelpers(html, { hash: '#/c/my-docs?q=cats&top=5' });
+      const helpers = loadSearchRenderHelpers(html, { hash: '#/c/my-docs?q=cats' });
       helpers.initSearchPanel('my-docs');
       helpers.syncSearchStateFromUrl('my-docs'); // first sync — runs "cats"
       helpers.document.querySelector('#search-results').innerHTML = '<div id="marker"></div>';
@@ -599,21 +874,33 @@ describe('recent searches (localStorage, scoped per collection)', () => {
   });
 });
 
-describe('score bar (normalized relative to the top-1 result, not absolute confidence)', () => {
-  it('is hidden when showScore is false, regardless of topScore', async () => {
+describe('score/rank shown by default (no checkbox opt-in)', () => {
+  it('a result with a numeric score shows both the numeric score and the score bar without any opt-in', async () => {
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
       const { renderResult } = loadSearchRenderHelpers(html);
-      const card = renderResult({ sourceFile: 'a.md', chunkIndex: 0, score: 0.8 }, 0, false, 0.8);
-      assert.equal(card.querySelector('.score-bar').hidden, true);
+      const card = renderResult({ sourceFile: 'a.md', chunkIndex: 0, score: 0.8 }, 0, 0.8);
+      assert.equal(card.querySelector('.score').hidden, false, 'the numeric score must be shown by default');
+      assert.equal(card.querySelector('.score').textContent, '0.8000');
+      assert.equal(card.querySelector('.score-bar').hidden, false, 'the score bar must be shown by default');
     });
   });
 
-  it('is hidden when showScore is true but the result has no numeric score', async () => {
+  it('the rank number always renders, independent of score', async () => {
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
       const { renderResult } = loadSearchRenderHelpers(html);
-      const card = renderResult({ sourceFile: 'a.md', chunkIndex: 0 }, 0, true, 0.8);
+      const card = renderResult({ sourceFile: 'a.md', chunkIndex: 0 }, 2);
+      assert.equal(card.querySelector('.rank').textContent, '#3');
+    });
+  });
+
+  it('the score/score-bar stay hidden when a result genuinely has no numeric score (not an opt-in toggle, just missing data)', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const { renderResult } = loadSearchRenderHelpers(html);
+      const card = renderResult({ sourceFile: 'a.md', chunkIndex: 0 }, 0, 0.8);
+      assert.equal(card.querySelector('.score').hidden, true);
       assert.equal(card.querySelector('.score-bar').hidden, true);
     });
   });
@@ -622,7 +909,7 @@ describe('score bar (normalized relative to the top-1 result, not absolute confi
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
       const { renderResult } = loadSearchRenderHelpers(html);
-      const card = renderResult({ sourceFile: 'a.md', chunkIndex: 0, score: 0.8 }, 0, true, 0.8);
+      const card = renderResult({ sourceFile: 'a.md', chunkIndex: 0, score: 0.8 }, 0, 0.8);
       assert.equal(card.querySelector('.score-bar').hidden, false);
       assert.equal(card.querySelector('.score-bar-fill').style.width, '100%');
     });
@@ -632,7 +919,7 @@ describe('score bar (normalized relative to the top-1 result, not absolute confi
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
       const { renderResult } = loadSearchRenderHelpers(html);
-      const card = renderResult({ sourceFile: 'a.md', chunkIndex: 0, score: 0.4 }, 1, true, 0.8);
+      const card = renderResult({ sourceFile: 'a.md', chunkIndex: 0, score: 0.4 }, 1, 0.8);
       assert.equal(card.querySelector('.score-bar-fill').style.width, '50%');
     });
   });
@@ -641,5 +928,11 @@ describe('score bar (normalized relative to the top-1 result, not absolute confi
     const html = readUiSource('partials/templates/search-result.html');
     const matches = html.match(/title="Rank score — compare order, not absolute value"/g) ?? [];
     assert.equal(matches.length, 2, 'both .score and .score-bar must carry the RRF-order-not-confidence tooltip');
+  });
+
+  it('renderResult() no longer takes a showScore parameter (source-level check on the exported signature)', () => {
+    const js = readUiSource('search.js');
+    assert.match(js, /export function renderResult\(r, i, topScore\)/,
+      'renderResult must be (r, i, topScore) — no showScore boolean gating it anymore');
   });
 });

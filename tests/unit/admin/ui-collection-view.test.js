@@ -343,7 +343,7 @@ describe('old flat technical panels are removed (ui-src source)', () => {
 });
 
 describe('search panel stays present and default-simple alongside the redesigned header', () => {
-  it('renders the query input, top selector, search button, and an Advanced disclosure', async () => {
+  it('renders exactly the query input and search button — no top selector, no Advanced disclosure', async () => {
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
       const helpers = loadRouteIntegrationHelpers(html, {
@@ -355,21 +355,17 @@ describe('search panel stays present and default-simple alongside the redesigned
       });
       await helpers.route();
       assert.ok(helpers.document.getElementById('q-input'), 'query input must be present');
-      assert.ok(helpers.document.getElementById('q-top'), 'top selector must be present');
       assert.ok(helpers.document.getElementById('q-submit'), 'search button must be present');
-      assert.ok(helpers.document.querySelector('#search-panel details.advanced-box'), 'Advanced disclosure must be present');
+      assert.equal(helpers.document.getElementById('q-top'), null, 'the top selector must no longer exist');
+      assert.equal(helpers.document.querySelector('#search-panel details.advanced-box'), null,
+        'the Advanced disclosure must no longer exist');
     });
   });
 
-  it('does not reintroduce a window/format selector or a default-visible score/source-file input', () => {
+  it('does not reintroduce a window/format/top selector or a score opt-in checkbox anywhere in the source', () => {
     const js = readUiSource('search.js');
-    assert.ok(!/id="q-window"|id="q-format"/.test(js), 'window/format selectors must not be reintroduced');
-    // q-show-score/q-file-chip may exist, but only inside the Advanced disclosure.
-    const advStart = js.indexOf("<details class=\"advanced-box\">");
-    const advEnd = js.indexOf('</details>', advStart);
-    assert.ok(advStart > -1 && advEnd > advStart, 'Advanced disclosure markup must exist');
-    const beforeAdvanced = js.slice(js.indexOf('function initSearchPanel'), advStart);
-    assert.ok(!/id="q-show-score"|id="q-file-chip"/.test(beforeAdvanced),
-      'score checkbox and file-filter chip must live inside Advanced, not the default-visible row');
+    assert.ok(!/id="q-window"|id="q-format"|id="q-top"|id="q-show-score"/.test(js),
+      'window/format/top selectors and the score checkbox must not be reintroduced — score shows by default now, top is a fixed internal fetch limit');
+    assert.ok(!/<details class="advanced-box">/.test(js), 'the Advanced disclosure must not be reintroduced');
   });
 });

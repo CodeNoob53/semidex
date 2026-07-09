@@ -226,7 +226,7 @@ export function loadToastHelpers() {
 // time — ui-src/index.html on disk still has literal <load src="..."> tags),
 // so `html` must come from the real built/served index.html, unlike the
 // pure-logic helpers above.
-export function loadSearchRenderHelpers(html, { hash = '#/', storage, apiPostImpl } = {}) {
+export function loadSearchRenderHelpers(html, { hash = '#/', storage, apiPostImpl, openFileViewImpl } = {}) {
   const { document, Element } = parseHTML(html);
   // initSearchPanel()/setSearchFile() need #search-panel (the mount point)
   // and #search-scope (the "Searching in: ..." label) to exist — these
@@ -260,6 +260,7 @@ export function loadSearchRenderHelpers(html, { hash = '#/', storage, apiPostImp
       get length() { return historyStack.length; },
     },
     __apiPostImpl: apiPostImpl ?? (async () => ({ results: [] })),
+    __openFileViewImpl: openFileViewImpl ?? (() => {}),
   };
   vm.createContext(context);
   const src = stripExports(readUiSource('dom.js')).replace(/^import .*$/gm, '')
@@ -267,11 +268,12 @@ export function loadSearchRenderHelpers(html, { hash = '#/', storage, apiPostImp
     + stripExports(readUiSource('search.js')).replace(/^import .*$/gm, '')
       // search.js imports openFileView/hideCollectionContent/
       // nodeTypeBadgeIcon from file-view.js and apiPost from api.js —
-      // renderResult() itself only calls nodeTypeBadgeIcon (openFileView/
-      // hideCollectionContent are only reachable via runSearch, which these
-      // tests don't exercise) — stub the unused two, provide the real
-      // icons.js-backed implementation for the one renderResult() does call.
-      .replace(/openFileView\(/g, '(()=>{})(')
+      // renderResult() itself only calls nodeTypeBadgeIcon directly; the
+      // "Show more" open-button-wiring tests need a real (test-supplied)
+      // openFileView to assert on, so it's a caller-provided stub (default
+      // a no-op) rather than always inlined away — hideCollectionContent()
+      // still isn't exercised by these tests, so that one stays a no-op.
+      .replace(/openFileView\(/g, '__openFileViewImpl(')
       .replace(/hideCollectionContent\(\)/g, '')
     + '\nconst apiPost = __apiPostImpl;\n'
     + stripExports(readUiSource('icons.js'))
