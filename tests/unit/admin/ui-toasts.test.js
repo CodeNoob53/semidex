@@ -46,14 +46,19 @@ describe('collection warning delivery (ui-src/toasts.js source, evaluated behavi
     assert.match(toastsJs, /function showToast/, 'a toast mechanism must exist');
     const indexHtml = readUiSource('index.html');
     assert.match(indexHtml, /toast-host/, 'a toast host must be wired');
-    // The badge itself (health summary) must still be visible outside Details —
-    // regression guard for the Phase 3A header collapsibility this builds on.
+    // The badge itself (health summary) must still be visible outside Details
+    // — regression guard for the Phase 3A header collapsibility this builds
+    // on. Phase 3E moved the Details markup into its own
+    // collectionDetailsPanel() function (called from renderCollectionHeader,
+    // not inlined there), so this checks the call graph rather than raw
+    // byte-offsets within renderCollectionHeader's own body.
     const collectionViewJs = readUiSource('collection-view.js');
-    const start = collectionViewJs.indexOf('function renderCollectionHeader');
-    const fn = collectionViewJs.slice(start, start + 1200);
-    const detailsIdx = fn.indexOf('<details');
-    const badgeIdx = fn.indexOf('healthBadge');
-    assert.ok(badgeIdx > -1 && badgeIdx < detailsIdx, 'health badge must render before/outside the Details disclosure');
+    const headerStart = collectionViewJs.indexOf('function renderCollectionHeader');
+    const headerFn = collectionViewJs.slice(headerStart, collectionViewJs.indexOf('export {', headerStart));
+    const detailsCallIdx = headerFn.indexOf('collectionDetailsPanel(detail)');
+    const badgeIdx = headerFn.indexOf('healthBadge');
+    assert.ok(badgeIdx > -1 && detailsCallIdx > -1 && badgeIdx < detailsCallIdx,
+      'health badge must render before/outside the Details disclosure');
   });
 
   it('#toast-host is announced to assistive tech via aria-live="polite" (Phase 3B audit)', () => {

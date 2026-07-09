@@ -75,9 +75,13 @@ function schemaBadge(schema) {
 }
 
 // ── collection overview (main panel default for a selected collection) ───
-// Header is deliberately thin: name, one-line summary, health badge,
-// point/file count, settings button. No dense/sparse/provider/schema-version
-// strings here — those are "Advanced diagnostics" inside Collection settings.
+// Header (Phase 3E): name/health/settings on top, an optional description
+// line, then compact user-facing fact chips (points, provider/model,
+// hybrid/dense-only, skeleton-nav status) — see collectionFactChips() and
+// renderCollectionHeader() below. The more technical/debug-ish facts (dense
+// vector size/distance, sparse yes/no, both providers, schema/chunk/token
+// versions, semidex-managed) live only in the collapsed Details disclosure
+// (collectionDetailsPanel()), not duplicated in the header body itself.
 async function renderCollection(main, name) {
   // Navigating to a file/section within the collection already on screen
   // now goes through the same hash -> route() -> renderCollection() path as
@@ -122,20 +126,64 @@ async function renderCollection(main, name) {
   if (!alreadyOnThisCollection) showCollectionWarnings(name, detail.warnings);
 }
 
-// Compact "provider/schema" chip row shown always-visible under the header
-// (not buried in the collapsed Details panel) — per Phase 3C's brief, this is
-// a secondary informational row, not the header's main content. Omitted
-// entirely for a never-indexed/legacy collection where denseProvider is
-// null, rather than showing a row of empty/"?" chips.
-function collectionMetaRow(detail) {
+// Compact fact chips shown always-visible under the description line (Phase
+// 3E) — a user-facing "what is this collection, what state is it in" summary,
+// not the technical metadata table (that stays in the collapsed Details
+// below). Each fact is its own chip so a missing one can be omitted
+// individually — a collection that's never been indexed still gets a clean,
+// non-broken-looking header instead of a row of empty/"?" chips.
+function collectionFactChips(detail) {
+  const chips = [];
+  chips.push(`<span class="chip mono">${Number(detail.pointCount ?? 0).toLocaleString('en-US')} points</span>`);
+
   const denseProvider = detail.provider?.denseProvider;
-  if (!denseProvider) return '';
-  const parts = [esc(denseProvider)];
-  if (detail.provider?.denseModel) parts.push(esc(detail.provider.denseModel));
-  const dims = detail.vectorSchema?.dense?.size;
-  if (dims) parts.push(`${dims}d`);
-  parts.push(detail.vectorSchema?.sparse ? 'hybrid' : 'dense-only');
-  return `<p class="col-header-meta-row mono muted">${parts.join(' · ')}</p>`;
+  if (denseProvider) {
+    const providerLabel = detail.provider?.denseModel
+      ? `${esc(denseProvider)} · ${esc(detail.provider.denseModel)}`
+      : esc(denseProvider);
+    chips.push(`<span class="chip mono">${providerLabel}</span>`);
+    chips.push(`<span class="chip mono">${detail.vectorSchema?.sparse ? 'hybrid' : 'dense-only'}</span>`);
+  }
+
+  chips.push(`<span class="chip mono">${detail.hasSkeleton ? 'skeleton nav on' : 'flat file list'}</span>`);
+  return chips.join('');
+}
+
+// Collapsed-by-default "Details" disclosure — the one place the more
+// technical/debug-ish facts live (dense vector size/distance, sparse yes/no,
+// both providers, schema/chunk/token versions, semidex-managed, skeleton nav
+// status again in full technical terms, and any warnings). Deliberately the
+// ONLY place these appear — collectionFactChips() above shows a user-facing
+// summary of some of the same underlying data, not a duplicate technical
+// table.
+function collectionDetailsPanel(detail) {
+  const warnings = detail.warnings ?? [];
+  const rows = [
+    ['points', Number(detail.pointCount ?? 0).toLocaleString('en-US')],
+    ['dense vector', detail.vectorSchema?.dense?.size
+      ? `${detail.vectorSchema.dense.size}d${detail.vectorSchema.dense.distance ? ` · ${detail.vectorSchema.dense.distance}` : ''}`
+      : 'unknown'],
+    ['sparse vector', detail.vectorSchema?.sparse ? 'yes' : 'no'],
+    ['dense provider', detail.provider?.denseProvider ? `${detail.provider.denseProvider}${detail.provider.denseModel ? ` (${detail.provider.denseModel})` : ''}` : 'unknown'],
+    ['sparse provider', detail.provider?.sparseProvider ?? 'unknown'],
+    ['skeleton navigation', detail.hasSkeleton ? 'enabled' : 'disabled'],
+    ['semidex-managed', detail.semidexManaged ? 'yes' : 'no'],
+    ['embedding schema', detail.versions?.embeddingSchema ?? 'unknown'],
+    ['chunking schema', detail.versions?.chunkingSchema ?? 'unknown'],
+    ['indexing schema', detail.versions?.indexingSchema ?? 'unknown'],
+    ['token count mode', detail.versions?.tokenCountMode ?? 'unknown'],
+  ];
+
+  return `
+    <details class="panel advanced-panel">
+      <summary class="panel-head">Details</summary>
+      <div class="panel-body">
+        <dl class="kv">
+          ${rows.map(([label, value]) => `<dt>${esc(label)}</dt><dd>${esc(String(value))}</dd>`).join('')}
+        </dl>
+        ${warnings.length ? warnings.map(w => `<div class="error-box" style="margin-top:10px">${esc(w)}</div>`).join('') : ''}
+      </div>
+    </details>`;
 }
 
 function renderCollectionHeader(name, detail) {
@@ -143,7 +191,16 @@ function renderCollectionHeader(name, detail) {
   const healthBadge = warnings.length
     ? `<span class="badge badge-warn">${warnings.length} warning${warnings.length > 1 ? 's' : ''}</span>`
     : '<span class="badge badge-ok">healthy</span>';
-  const fileCountLabel = detail.hasSkeleton ? 'skeleton map available' : 'flat file list';
+
+  // Description is the collection's own user-facing summary (config-level,
+  // set by whoever indexed it) — shown directly under the name now, not
+  // buried in Details, per Phase 3E's "explain what this collection is"
+  // brief. Omitted entirely (no fallback filler text) when not set, rather
+  // than showing generic noise like "flat file list" where a real summary
+  // should go — that fact still shows up as a chip below.
+  const descriptionLine = detail.description
+    ? `<p class="col-header-desc">${esc(detail.description)}</p>`
+    : '';
 
   $('#col-header').innerHTML = `
     <div class="col-header-top">
@@ -151,15 +208,9 @@ function renderCollectionHeader(name, detail) {
       ${healthBadge}
       <button type="button" class="btn-ghost" id="col-settings-btn">settings</button>
     </div>
-    ${collectionMetaRow(detail)}
-    <details class="panel advanced-panel" style="margin-top:8px">
-      <summary class="panel-head">Details</summary>
-      <div class="panel-body">
-        <p class="view-sub" style="margin:0 0 10px">${esc(detail.description || fileCountLabel)}</p>
-        <span class="mono muted">${Number(detail.pointCount ?? 0).toLocaleString('en-US')} points</span>
-        ${warnings.length ? warnings.map(w => `<div class="error-box" style="margin-top:10px">${esc(w)}</div>`).join('') : ''}
-      </div>
-    </details>`;
+    ${descriptionLine}
+    <div class="col-header-facts">${collectionFactChips(detail)}</div>
+    ${collectionDetailsPanel(detail)}`;
 
   $('#col-settings-btn').addEventListener('click', () => {
     location.hash = `#/c/${encodeURIComponent(name)}/settings`;

@@ -532,14 +532,19 @@ td.actions { text-align: right; }
 .tree-leaf .tree-caret { visibility: hidden; }
 .tree-subtree { padding: 0; }
 
-/* collection header (main panel) */
+/* collection header (main panel) — Phase 3E: a user-facing overview, not a
+   debug dump. Top line (name/health/settings) -> optional description line
+   -> compact fact chips -> collapsed Details for the technical/debug facts. */
 .col-header-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .col-header-top .view-title { margin: 0; }
-.col-header-meta { display: flex; align-items: center; gap: 10px; margin-top: 6px; }
-/* Provider/schema chip line (Phase 3C) — compact, always-visible, secondary
-   to the name/health-badge/settings row above; omitted entirely (see
-   collectionMetaRow() in collection-view.js) when no provider data exists. */
-.col-header-meta-row { margin: 4px 0 0; font-size: 11px; }
+.col-header-desc { color: var(--ink-dim); margin: 6px 0 0; font-size: 13px; }
+.col-header-facts { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+/* Reuses the same visual language as .cap (capability chips on the overview
+   page) — a plain fact chip, not an action/filter control. */
+.chip {
+  font-size: 11px; padding: 2px 8px;
+  border-radius: 3px; border: 1px solid var(--line-soft); color: var(--ink-dim);
+}
 
 .btn-ghost {
   background: transparent; color: var(--ink-dim);

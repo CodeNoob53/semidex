@@ -423,6 +423,11 @@ export function loadRouteIntegrationHelpers(html, { hash = '#/', apiResponses = 
     localStorage: { getItem: () => null, setItem: () => {}, removeItem: () => {} },
     matchMedia: undefined,
     location: { hash },
+    // renderCollection() -> showCollectionWarnings() -> showToast() schedules
+    // an 8s auto-dismiss via setTimeout whenever a collection has warnings —
+    // unstubbed, that's a ReferenceError in this vm context (no real timers
+    // exist here at all, unlike a browser).
+    setTimeout: () => 0, clearTimeout: () => {},
     history: {
       pushState: (_s, _t, url) => { context.location.hash = url; },
       replaceState: (_s, _t, url) => { context.location.hash = url; },
