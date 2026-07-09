@@ -1,7 +1,7 @@
 // ── router ────────────────────────────────────────────────────────────────
 import { $, errorBox } from './dom.js';
 import { api } from './api.js';
-import { openFileView, openSectionView } from './file-view.js';
+import { openFileView, openSectionView, hideCollectionContent } from './file-view.js';
 import { markActive } from './sidebar.js';
 import { renderCollection, renderOverview } from './collection-view.js';
 import { renderSettingsView } from './settings-view.js';
@@ -48,6 +48,19 @@ export async function route() {
       // syncSearchStateFromUrl no-ops if the URL's search params haven't
       // changed since search.js last saw them, so this is safe on every
       // bare-collection navigation, not just the first mount.
+      //
+      // But syncSearchStateFromUrl() only clears the file/section view as a
+      // side effect of actually running a search (runSearch() calls
+      // hideCollectionContent()) — it never runs one when the URL has no
+      // "?q=" at all. Without this, navigating back (browser Back, or a
+      // sidebar click to the bare collection) from an open file/section to
+      // a query-less bare collection route left the previous file/section
+      // content on screen indefinitely, since renderCollection() itself
+      // deliberately skips resetting #collection-content while staying on
+      // the same collection (to avoid wiping an in-progress search on every
+      // file/section click). Explicitly clear it here for the one case
+      // syncSearchStateFromUrl doesn't cover.
+      if (!currentRoute().search?.q) hideCollectionContent();
       syncSearchStateFromUrl(r.name);
     }
   } else if (r.view === 'index') await renderIndexingView(main);

@@ -71,7 +71,14 @@ html, body {
 
 /* Active-job chip (Phase 3C): a small always-reachable-from-any-route
    indicator, not a full job center — that stays at #/index. Hidden with
-   zero active jobs (see renderJobChip() in topbar.js). */
+   zero active jobs (see renderJobChip() in topbar.js) via the "hidden"
+   attribute — but "display: flex" below applies unconditionally unless
+   explicitly suppressed for [hidden], since a same-specificity class
+   selector loaded after the UA stylesheet overrides the browser's default
+   "[hidden] { display: none }" rule. Without the rule below, the chip was
+   never actually hidden — it just looked empty (zero content, so visually
+   inconspicuous) whenever no job was active, while still occupying layout
+   space and being interactive. */
 .job-chip {
   display: flex; align-items: center; gap: 6px;
   background: var(--bg-inset); border: 1px solid var(--line-soft);
@@ -79,6 +86,7 @@ html, body {
   font: inherit; font-size: 11px; color: var(--ink);
   cursor: pointer;
 }
+.job-chip[hidden] { display: none; }
 .job-chip:hover { border-color: var(--amber); }
 .job-chip-dot {
   width: 6px; height: 6px; border-radius: 50%; background: var(--amber);
@@ -144,7 +152,8 @@ button:focus-visible,
 a:focus-visible,
 input:focus-visible,
 select:focus-visible,
-.tree-row:focus-visible {
+.tree-row:focus-visible,
+.tree-caret[data-caret]:focus-visible {
   outline: 2px solid var(--amber);
   outline-offset: 1px;
 }
@@ -496,6 +505,15 @@ td.actions { text-align: right; }
 .tree-file.active,
 .tree-node.active { background: var(--bg-inset); border-left-color: var(--amber); }
 .tree-caret { width: 12px; flex: none; color: var(--ink-faint); font-size: 10px; }
+/* Clickable carets (directory / file-with-sections rows — Phase 3D) are
+   their own expand/collapse target, separate from the row's open/navigate
+   click — a bare 12px glyph is too small a mouse target, so pad the
+   clickable ones out to a comfortable hit area without shifting layout
+   (negative margin balances the padding). */
+.tree-caret[data-caret] {
+  cursor: pointer; padding: 4px; margin: -4px; border-radius: 3px;
+}
+.tree-caret[data-caret]:hover { background: var(--bg-inset); color: var(--ink); }
 /* Icon column (Phase 3C): fixed width so caret/icon/label stay aligned
    across rows regardless of which icon (or none) a given node has; the SVG
    itself inherits row color via stroke="currentColor", dimmed slightly so it
@@ -549,8 +567,14 @@ td.actions { text-align: right; }
 .search-main-row .q-input { flex: 1; }
 
 /* Recent-searches chip row (Phase 3B) — a normal search affordance, not a
-   debug control, so it sits with the main row, not inside Advanced. */
+   debug control, so it sits with the main row, not inside Advanced. Same
+   [hidden] fix as .job-chip above: an unconditional "display: flex" here
+   overrides the browser's default "[hidden] { display: none }", so
+   renderRecentSearches()'s box.hidden = true was never actually hiding
+   anything (harmless in practice — the row has zero children when hidden,
+   so it collapses to zero height — but not correct). */
 .q-recent { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.q-recent[hidden] { display: none; }
 
 /* reindex option groups */
 .opt-group { margin-bottom: 14px; }

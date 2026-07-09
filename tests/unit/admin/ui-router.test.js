@@ -179,6 +179,91 @@ describe('route() end-to-end: navigating straight to a file route with ?q= (firs
   });
 });
 
+// ── Phase 3D: browser-verified regressions ──────────────────────────────────
+describe('route() end-to-end: returning to a bare (query-less) collection route from an open section', () => {
+  it('clears the previously-open section/file content — does not leave stale chunks on screen', async () => {
+    // Regression, found via a real-browser Playwright pass: clicking a
+    // section, then browser Back to the bare "#/c/name" route (no "?q="),
+    // left the section's chunk cards on screen indefinitely. The bare-route
+    // branch in router.js only clears #collection-content as a side effect
+    // of syncSearchStateFromUrl() actually running a search — which it
+    // never does when there's no "?q=" at all — so that case was silently
+    // never handled.
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const helpers = loadRouteIntegrationHelpers(html, {
+        hash: '#/c/my-docs/n/readme.md%23intro',
+        apiResponses: {
+          // Order matters: the test helper's api() stub matches by substring
+          // in insertion order, so the more specific "/skeleton/..." keys
+          // must come before the bare "/api/collections/my-docs" key (which
+          // would otherwise substring-match those URLs too and win first).
+          '/skeleton/node?': { node: { nodePath: 'readme.md#intro', nodeType: 'section', sourceFile: 'readme.md' } },
+          '/skeleton/anchor?': { chunk: { sourceFile: 'readme.md', chunkIndex: 0 } },
+          '/chunks?': { chunks: [{ chunkIndex: 0, text: 'hi', totalChunks: 1 }] },
+          '/api/collections/my-docs': { collection: { pointCount: 1, warnings: [] } },
+          '/api/collections?': { collections: [] },
+        },
+      });
+      await helpers.route();
+      assert.equal(helpers.document.querySelectorAll('.chunk').length, 1, 'sanity: the section view opened with one chunk');
+
+      helpers.location.hash = '#/c/my-docs';
+      await helpers.route();
+      const panel = helpers.document.querySelector('#collection-content-panel');
+      assert.equal(panel?.style.display, 'none', 'the file/section content panel must be hidden on a bare-route return');
+    });
+  });
+});
+
+describe('route() end-to-end: switching collections via two sequential route() calls', () => {
+  it('resets the search form and results — a stale query/results from the previous collection must not leak', async () => {
+    // Regression, found via a real-browser Playwright pass: sidebar.js's
+    // collection-row click handler sets location.hash (async hashchange ->
+    // route()) and then immediately calls toggleSidebarTree() ->
+    // setExpandedCollection(name) SYNCHRONOUSLY, ahead of route()'s own
+    // async renderCollection(). renderCollection() used
+    // getExpandedCollection() to decide "is this the same collection
+    // already on screen" — but by the time it ran, that value had already
+    // advanced to the NEW collection name, while #main still held the OLD
+    // collection's shell. That made a genuine collection switch look like a
+    // same-collection re-render, so initSearchPanel() (which resets the
+    // query input and #search-results) was skipped entirely.
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const helpers = loadRouteIntegrationHelpers(html, {
+        hash: '#/c/docs-a?q=hello',
+        apiResponses: {
+          '/api/collections/docs-a': { collection: { pointCount: 1, warnings: [] } },
+          '/api/collections/docs-b': { collection: { pointCount: 1, warnings: [] } },
+          '/api/collections?': { collections: [] },
+        },
+      });
+      await helpers.route();
+      assert.equal(helpers.document.querySelector('#q-input').value, 'hello', 'sanity: query synced from ?q= on first collection');
+      // Simulate a search having actually rendered results (apiPost is a
+      // fixed stub in this helper, not per-collection-aware, so drive the
+      // "stale results on screen" state directly — the router/search-panel
+      // reset behavior under test doesn't depend on what's inside them).
+      helpers.document.querySelector('#search-results').innerHTML = '<div class="result-card">stale result from docs-a</div>';
+
+      // Reproduce the exact race: sidebar.js's collection-row click handler
+      // sets location.hash (fires hashchange -> route() asynchronously) and
+      // then calls toggleSidebarTree() -> setExpandedCollection(name)
+      // SYNCHRONOUSLY, immediately after — so by the time route()'s async
+      // renderCollection() actually runs, getExpandedCollection() has
+      // already advanced to the new collection name, even though #main
+      // still holds the OLD collection's shell.
+      helpers.location.hash = '#/c/docs-b';
+      helpers.setExpandedCollection('docs-b');
+      await helpers.route();
+
+      assert.equal(helpers.document.querySelector('#q-input').value, '', 'switching collections must reset the query input, not carry over docs-a\'s query');
+      assert.equal(helpers.document.querySelector('#search-results').innerHTML, '', 'switching collections must clear stale results from the previous collection');
+    });
+  });
+});
+
 // ── import-cycle guard ────────────────────────────────────────────────────
 // router.js depends on sidebar.js and jobs-view.js (for markActive/
 // renderIndexingView) — currentRoute() lives in the leaf module routes.js

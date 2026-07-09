@@ -2,7 +2,7 @@
 // server.test.js/jobs.test.js.
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { readUiSource, loadSidebarLabelHelpers, loadSidebarActiveStateHelpers } from './ui-test-helpers.js';
+import { readUiSource, loadSidebarLabelHelpers, loadSidebarActiveStateHelpers, loadSidebarNodeInteractionHelpers } from './ui-test-helpers.js';
 
 describe('sidebar navigation tree (ui-src/sidebar.js source)', () => {
   it('renders collections as an expandable tree, not a flat link list', () => {
@@ -49,6 +49,100 @@ describe('sidebar navigation tree (ui-src/sidebar.js source)', () => {
     assert.match(fn, /addEventListener\(["']click["'], \(\) => openFileView/);
     assert.ok(!/return openFileView\(name, node\.sourceFile, node\.nodePath, 0\);/.test(fn),
       'a 404 from skeleton/anchor must not automatically open chunk 0 of the file');
+  });
+});
+
+// ── Phase 3D: a file WITH sections still opens directly on row click ────────
+// Prior behavior treated a file-with-children exactly like a directory: the
+// row click only expanded/collapsed its sections, never opened the file
+// itself — the caret and the row body were the same click target. Since
+// nearly every real markdown file has at least one section, this made
+// "click a file, see its chunks" almost unreachable for skeleton-enabled
+// collections. The caret is now its own click target for expand/collapse;
+// the row body always opens the file.
+describe('sidebar file rows: row click opens the file, caret click expands sections', () => {
+  it('row click on a file-with-sections navigates to the file route, not an expand', async () => {
+    const helpers = loadSidebarNodeInteractionHelpers({
+      apiResponses: {
+        root: [{ nodeType: 'file', nodePath: 'sql/SELECT.md#file', sourceFile: 'sql/SELECT.md', childCount: 3 }],
+      },
+    });
+    const box = helpers.document.getElementById('root');
+    await helpers.renderSidebarSkeletonLevel(box, 'my-docs', { nodePath: 'root', childCount: 1 }, 0);
+
+    const row = box.querySelector('.tree-node');
+    assert.ok(row, 'sanity: the file row rendered');
+    row.click();
+    await Promise.resolve(); // onSidebarNodeClick is async but the hash write itself is synchronous
+
+    assert.equal(helpers.location.hash, `#/c/my-docs/f/${encodeURIComponent('sql/SELECT.md')}`,
+      'clicking the row body must open the file, not just expand its sections');
+    assert.equal(box.querySelector('.tree-subtree'), null,
+      'a row click must not also expand the sections subtree');
+  });
+
+  it('caret click on a file-with-sections expands the sections subtree, without navigating', async () => {
+    const helpers = loadSidebarNodeInteractionHelpers({
+      apiResponses: {
+        root: [{ nodeType: 'file', nodePath: 'sql/SELECT.md#file', sourceFile: 'sql/SELECT.md', childCount: 3 }],
+        'sql/SELECT.md#file': [{ nodeType: 'section', nodePath: 'sql/SELECT.md#intro', childCount: 0 }],
+      },
+    });
+    const box = helpers.document.getElementById('root');
+    await helpers.renderSidebarSkeletonLevel(box, 'my-docs', { nodePath: 'root', childCount: 1 }, 0);
+
+    const caret = box.querySelector('.tree-caret[data-caret]');
+    assert.ok(caret, 'a file with childCount > 0 must render a clickable caret');
+    caret.click();
+    await Promise.resolve();
+    await Promise.resolve(); // toggleSidebarNodeExpand's own api() await
+
+    assert.equal(helpers.location.hash, '#/', 'caret click must never navigate/open the file');
+    assert.ok(box.querySelector('.tree-subtree'), 'caret click must expand the sections subtree');
+  });
+
+  it('a file with NO sections (childCount 0) renders no clickable caret at all', () => {
+    const helpers = loadSidebarNodeInteractionHelpers();
+    const { sidebarNodeRow } = helpers;
+    const html = sidebarNodeRow({ nodeType: 'file', nodePath: 'WHERE.md#file', sourceFile: 'WHERE.md', childCount: 0 }, 0, 0);
+    assert.ok(!html.includes('data-caret'), 'a leaf file has nothing to expand, so its caret must not be a separate click target');
+  });
+
+  it('a directory caret still expands on caret click, same as before', async () => {
+    const helpers = loadSidebarNodeInteractionHelpers({
+      apiResponses: {
+        root: [{ nodeType: 'directory', nodePath: 'my-docs#dir/sql', childCount: 2 }],
+      },
+    });
+    const box = helpers.document.getElementById('root');
+    await helpers.renderSidebarSkeletonLevel(box, 'my-docs', { nodePath: 'root', childCount: 1 }, 0);
+
+    const caret = box.querySelector('.tree-caret[data-caret]');
+    assert.ok(caret, 'a directory must render a clickable caret');
+    caret.click();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    assert.equal(helpers.location.hash, '#/', 'caret click on a directory must not navigate');
+    assert.ok(box.querySelector('.tree-subtree'), 'caret click must expand the directory');
+  });
+
+  it('clicking a directory row body (not the caret) also still expands — directories have no separate "open" action', async () => {
+    const helpers = loadSidebarNodeInteractionHelpers({
+      apiResponses: {
+        root: [{ nodeType: 'directory', nodePath: 'my-docs#dir/sql', childCount: 2 }],
+      },
+    });
+    const box = helpers.document.getElementById('root');
+    await helpers.renderSidebarSkeletonLevel(box, 'my-docs', { nodePath: 'root', childCount: 1 }, 0);
+
+    const row = box.querySelector('.tree-node');
+    row.click();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    assert.equal(helpers.location.hash, '#/', 'a directory row click must not navigate');
+    assert.ok(box.querySelector('.tree-subtree'), 'a directory row click must still expand (no caret-vs-row split for directories)');
   });
 });
 

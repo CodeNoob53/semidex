@@ -584,6 +584,19 @@ describe('recent searches (localStorage, scoped per collection)', () => {
       assert.equal(helpers2.document.querySelector('#q-input').value, 'refund policy');
     });
   });
+
+  it('app.css has an explicit .q-recent[hidden] override, not just an unconditional "display: flex"', () => {
+    // Regression, confirmed live via Playwright: .q-recent sets
+    // "display: flex" unconditionally, which overrides the browser's
+    // default "[hidden] { display: none }" rule in the cascade — so
+    // renderRecentSearches()'s box.hidden = true (search.js) never actually
+    // hid the element. Harmless in practice here (the row has zero
+    // children when hidden, collapsing to zero height anyway) but not
+    // correct — same bug pattern as topbar.js's .job-chip.
+    const css = readUiSource('app.css');
+    assert.match(css, /\.q-recent\[hidden\]\s*\{\s*display:\s*none;?\s*\}/,
+      '.q-recent must have an explicit [hidden] rule that actually hides it');
+  });
 });
 
 describe('score bar (normalized relative to the top-1 result, not absolute confidence)', () => {

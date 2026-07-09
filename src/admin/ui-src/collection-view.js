@@ -9,7 +9,20 @@ import { refreshSidebarList } from './sidebar.js';
 import { initSearchPanel } from './search.js';
 import { showCollectionWarnings } from './toasts.js';
 
+// Tracks which collection's shell is actually mounted in #main right now —
+// deliberately separate from state.js's getExpandedCollection(), which is
+// sidebar-tree UI state (which row is expanded) and can be mutated by
+// sidebar.js's toggleSidebarTree() synchronously, ahead of this module's own
+// async renderCollection() call for the SAME click (location.hash triggers
+// hashchange -> route() asynchronously, but the sidebar click handler calls
+// toggleSidebarTree() synchronously right after setting the hash). Using
+// getExpandedCollection() here to decide "is this a same-collection
+// navigation" was reading a value already advanced to the new collection
+// name before the DOM/search panel had actually been reset for it.
+let renderedCollectionName = null;
+
 async function renderOverview(main) {
+  renderedCollectionName = null;
   main.innerHTML = overviewShell;
 
   try {
@@ -71,8 +84,14 @@ async function renderCollection(main, name) {
   // switching collections (so back/forward works uniformly) — but a full
   // main.innerHTML/initSearchPanel reset on every file/section click would
   // silently wipe the user's in-progress search. Only reset the shell when
-  // we're actually landing on a different collection than what's showing.
-  const alreadyOnThisCollection = getExpandedCollection() === name && main.querySelector('#col-header');
+  // we're actually landing on a different collection than what's showing —
+  // tracked via renderedCollectionName (this module's own record of what's
+  // actually mounted), not getExpandedCollection() (sidebar-tree UI state
+  // that a sidebar click's synchronous toggleSidebarTree() call can advance
+  // to the new name before this async function even starts, which
+  // previously made a genuine collection switch look like a same-collection
+  // re-render and left the old collection's search results on screen).
+  const alreadyOnThisCollection = renderedCollectionName === name && main.querySelector('#col-header');
 
   if (getExpandedCollection() !== name) {
     setExpandedCollection(name);
@@ -82,6 +101,7 @@ async function renderCollection(main, name) {
   if (!alreadyOnThisCollection) {
     main.innerHTML = collectionShell;
     initSearchPanel(name);
+    renderedCollectionName = name;
   }
 
   let detail;

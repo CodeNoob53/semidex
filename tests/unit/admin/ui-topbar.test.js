@@ -3,7 +3,7 @@
 // jobs list at #/index.
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { loadTopbarHelpers, withServer } from './ui-test-helpers.js';
+import { loadTopbarHelpers, readUiSource, withServer } from './ui-test-helpers.js';
 
 describe('topbar job chip', () => {
   it('stays hidden when there are no active jobs', async () => {
@@ -132,6 +132,25 @@ describe('topbar job chip', () => {
       await assert.doesNotReject(() => pollJobChip());
       assert.equal(document.getElementById('job-chip').hidden, true);
     });
+  });
+});
+
+// ── Phase 3D: CSS actually honors the "hidden" attribute (browser-verified) ─
+describe('app.css — .job-chip[hidden] actually hides the chip', () => {
+  it('has an explicit [hidden] override rule, not just an unconditional "display: flex"', () => {
+    // Regression, confirmed live via Playwright: .job-chip sets
+    // "display: flex" unconditionally, which — because a same-specificity
+    // class selector loaded after the UA stylesheet wins the cascade —
+    // overrides the browser's default "[hidden] { display: none }" rule.
+    // renderJobChip()'s chip.hidden = true was setting the DOM attribute
+    // correctly the whole time, but the chip stayed visually
+    // display:flex'd regardless (an empty, near-invisible flex box when no
+    // job was active, which is why this went unnoticed until checked with
+    // getComputedStyle in a real browser). The same bug pattern also hit
+    // .q-recent (search.js's recent-searches row) — both are covered here.
+    const css = readUiSource('app.css');
+    assert.match(css, /\.job-chip\[hidden\]\s*\{\s*display:\s*none;?\s*\}/,
+      '.job-chip must have an explicit [hidden] rule that actually hides it');
   });
 });
 

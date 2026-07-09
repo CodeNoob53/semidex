@@ -133,6 +133,39 @@ export function loadSidebarActiveStateHelpers() {
   return context;
 }
 
+// Drives renderSidebarSkeletonLevel() (unexported, but reachable as a plain
+// vm-context top-level function) against a real document + a real click-
+// event dispatch, so tests can assert on ACTUAL row/caret click wiring —
+// not just source-text regex matches. apiResponses maps a nodePath (the
+// "nodePath=" query value) to the children array /skeleton/children should
+// return for it.
+export function loadSidebarNodeInteractionHelpers({ apiResponses = {} } = {}) {
+  const { document } = parseHTML('<div id="root"></div>');
+  const context = {
+    document,
+    $: (sel, root = document) => root.querySelector(sel),
+    esc(value) {
+      return String(value ?? '')
+        .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;').replaceAll("'", '&#39;');
+    },
+    currentRoute: () => ({ view: 'overview' }),
+    location: { hash: '#/' },
+    api: async (url) => {
+      const nodePath = new URL(url, 'http://x').searchParams.get('nodePath');
+      if (nodePath in apiResponses) return { children: apiResponses[nodePath] };
+      return { children: [] };
+    },
+  };
+  vm.createContext(context);
+  const format = readUiSource('format.js');
+  const src = stripExports(readUiSource('icons.js')) + '\n'
+    + stripExports(format).replace(/^import .*$/gm, '') + '\n'
+    + stripExports(readUiSource('sidebar.js')).replace(/^import .*$/gm, '');
+  vm.runInContext(src, context);
+  return context;
+}
+
 // clampSidebarWidth/readSidebarWidth/writeSidebarWidth/nextSidebarWidth are
 // pure (no DOM) — sidebar-resize.js also exports applySidebarWidth/
 // updateSidebarResizeAria/initSidebarResize which touch `document`, but

@@ -138,11 +138,26 @@ async function renderSidebarSkeletonLevel(box, name, node, depth) {
 
   for (const el of box.querySelectorAll(':scope > .tree-node')) {
     const node2 = children[Number(el.dataset.i)];
+    const caret = el.querySelector('.tree-caret[data-caret]');
+    // Caret gets its own click target (a directory/file-with-sections
+    // expand toggle, independent of the row's own open/navigate action) —
+    // stopPropagation so clicking it never also fires the row's handler.
+    caret?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      onSidebarCaretClick(name, node2, el, depth);
+    });
+    caret?.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      e.preventDefault();
+      e.stopPropagation();
+      onSidebarCaretClick(name, node2, el, depth);
+    });
     el.addEventListener('click', () => onSidebarNodeClick(name, node2, el, depth));
     // .tree-node is a <div role="button">, not a native <button>/<a> — Enter
     // and Space don't trigger "click" on it automatically, so wire them here.
     el.addEventListener('keydown', (e) => {
       if (e.key !== 'Enter' && e.key !== ' ') return;
+      if (e.target === caret) return; // caret has its own keydown handler above
       e.preventDefault();
       onSidebarNodeClick(name, node2, el, depth);
     });
@@ -165,31 +180,37 @@ export function sidebarNodeRow(n, i, depth) {
   const isLeaf = n.nodeType === 'section' || n.nodeType === 'file' && !(n.childCount > 0);
   const label = nodeDisplayLabel(n);
   const tooltip = [n.summary, n.nodePath].filter(Boolean).join(' — ');
+  // A file node with sections has BOTH a real action (open the whole file)
+  // and an expand affordance (browse its sections) — those used to be the
+  // same click target, which meant a file with any sections could never be
+  // opened directly from the sidebar (every real file in a skeleton
+  // collection has at least one section, so this made "click a file, see
+  // its chunks" almost unreachable). The caret is now its own click target
+  // (data-caret) for expand/collapse; clicking the row body always opens
+  // the node when it's a file, and only expands for a directory.
+  const caretIsClickable = n.nodeType === 'directory' || n.nodeType === 'file' && n.childCount > 0;
   // tabindex="0" + role="button": unlike .tree-collection-row/.tree-file
   // (real <a> tags, natively focusable), this is a plain <div> with a
   // click handler — without these it was unreachable by keyboard entirely.
+  //
+  // KNOWN A11Y DEBT (flagged in code review, not blocking): when
+  // caretIsClickable, this nests a role="button" <span> (the caret) inside
+  // a role="button" <div> (the row) — invalid ARIA nesting (interactive
+  // roles must not nest). Works fine today for mouse/keyboard/tests since
+  // the caret's own click/keydown handlers stopPropagation() before the
+  // row's, but a screen reader may announce this oddly. A future cleanup
+  // should restructure the row as a non-interactive container holding two
+  // real sibling controls (an expand <button> + the file/section action),
+  // rather than a role="button" wrapping another role="button".
   return `
     <div class="tree-row tree-node ${isLeaf ? 'tree-leaf' : ''}" data-i="${i}" data-path="${esc(n.nodePath ?? '')}" style="--depth:${depth + 1}" tabindex="0" role="button" aria-label="${esc(label)}">
-      <span class="tree-caret">${n.childCount > 0 ? '▸' : ''}</span>
+      <span class="tree-caret"${caretIsClickable ? ' data-caret="1" role="button" tabindex="0" aria-label="Expand"' : ''}>${n.childCount > 0 ? '▸' : ''}</span>
       <span class="tree-icon">${iconForNodeType(n.nodeType)}</span>
       <span class="tree-label" title="${esc(tooltip)}">${esc(label)}</span>
     </div>`;
 }
 
-export async function onSidebarNodeClick(name, node, el, depth) {
-  if (node.nodeType === 'section') {
-    // Route through the hash (not a direct openSectionView call) so this
-    // navigation is a single code path with clicking back/forward or
-    // pasting a URL — route() resolves #/c/:name/n/:nodePath the same way,
-    // including the anchor resolution to the section's first content chunk.
-    location.hash = `#/c/${encodeURIComponent(name)}/n/${encodeURIComponent(node.nodePath)}`;
-    return;
-  }
-  if (node.nodeType === 'file' && !(node.childCount > 0)) {
-    location.hash = `#/c/${encodeURIComponent(name)}/f/${encodeURIComponent(node.sourceFile ?? node.nodePath)}`;
-    return;
-  }
-  // directory or file-with-children: expand/collapse inline, indented.
+async function toggleSidebarNodeExpand(name, node, el, depth) {
   let sub = el.nextElementSibling;
   if (sub?.classList.contains('tree-subtree')) {
     sub.remove();
@@ -201,6 +222,33 @@ export async function onSidebarNodeClick(name, node, el, depth) {
   sub.className = 'tree-subtree';
   el.insertAdjacentElement('afterend', sub);
   await renderSidebarSkeletonLevel(sub, name, node, depth + 1);
+}
+
+export async function onSidebarNodeClick(name, node, el, depth) {
+  if (node.nodeType === 'section') {
+    // Route through the hash (not a direct openSectionView call) so this
+    // navigation is a single code path with clicking back/forward or
+    // pasting a URL — route() resolves #/c/:name/n/:nodePath the same way,
+    // including the anchor resolution to the section's first content chunk.
+    location.hash = `#/c/${encodeURIComponent(name)}/n/${encodeURIComponent(node.nodePath)}`;
+    return;
+  }
+  if (node.nodeType === 'file') {
+    // A file always opens on a row-body click, whether or not it has
+    // sections — expanding to browse sections is the caret's job now (see
+    // onSidebarCaretClick), not this handler's.
+    location.hash = `#/c/${encodeURIComponent(name)}/f/${encodeURIComponent(node.sourceFile ?? node.nodePath)}`;
+    return;
+  }
+  // directory: expand/collapse inline, indented.
+  await toggleSidebarNodeExpand(name, node, el, depth);
+}
+
+export async function onSidebarCaretClick(name, node, el, depth) {
+  // Caret click must never also trigger the row's own open/navigate
+  // behavior — expand/collapse only, for directories and files-with-
+  // sections alike.
+  await toggleSidebarNodeExpand(name, node, el, depth);
 }
 
 export function markActive(route = currentRoute()) {

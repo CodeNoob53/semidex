@@ -45,12 +45,20 @@ describe('text contrast (WCAG AA, 4.5:1 for normal text)', () => {
 describe('keyboard focus states', () => {
   it('a global :focus-visible rule covers buttons, links, inputs, selects, and sidebar tree rows', () => {
     const src = css();
-    assert.match(src, /button:focus-visible,[\s\S]{0,200}\.tree-row:focus-visible\s*\{/,
+    assert.match(src, /button:focus-visible,[\s\S]{0,200}\.tree-row:focus-visible,?[\s\S]{0,80}\{/,
       'expected one shared :focus-visible rule spanning the common interactive elements');
   });
 
   it('the sidebar resize handle keeps its own dedicated focus-visible indicator (regression guard)', () => {
     assert.match(css(), /\.sidebar-resize-handle:focus-visible/);
+  });
+
+  it('the sidebar caret (independently clickable for a directory/file-with-sections — Phase 3D) shares the same focus-visible rule', () => {
+    // The caret split into its own click target so a file-with-sections row
+    // can be opened directly instead of only expanding — that made the
+    // caret an independently focusable/actionable element, needing its own
+    // visible focus indicator alongside .tree-row's.
+    assert.match(css(), /\.tree-caret\[data-caret\]:focus-visible/);
   });
 });
 
