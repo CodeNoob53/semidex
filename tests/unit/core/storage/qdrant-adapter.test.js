@@ -230,3 +230,23 @@ describe('createQdrantStorageAdapter().listCollections — return shape includes
     assert.match(method, /resolveConfigProvider/);
   });
 });
+
+describe('createQdrantStorageAdapter().getCollection — description is read from config, not hardcoded null', () => {
+  it('joins config.collections[name].description the same way listCollections() does', () => {
+    // Regression test: getCollection() used to hardcode `description: null`
+    // even though listCollections() (same file) already correctly read it
+    // from config — silently breaking any collection description from ever
+    // reaching the admin UI's collection header. Source-string check, same
+    // rationale as the listCollections() test above (needs live Qdrant +
+    // config.json to exercise end to end).
+    const src = readFileSync(
+      fileURLToPath(new URL('../../../../src/core/storage/qdrant-adapter.js', import.meta.url)),
+      'utf-8',
+    );
+    const method = src.slice(src.indexOf('async getCollection('), src.indexOf('async createCollection('));
+    assert.match(method, /const config = loadConfig\(\)/);
+    assert.match(method, /config\.collections\?\.\[name\]/);
+    assert.match(method, /description:\s*col\?\.description \|\| null/);
+    assert.ok(!/description:\s*null,/.test(method), 'description must not be hardcoded to null anymore');
+  });
+});

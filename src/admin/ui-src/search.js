@@ -8,7 +8,7 @@
 // non-zero window for other callers, this UI just never asks for one).
 import { $, esc, cloneTemplate, prefersReducedMotion } from './dom.js';
 import { apiPost } from './api.js';
-import { openFileView, hideCollectionContent } from './file-view.js';
+import { openFileView, hideCollectionContent, nodeTypeBadgeIcon } from './file-view.js';
 import { currentRoute } from './routes.js';
 
 let searchSourceFile = null;
@@ -340,7 +340,11 @@ export function renderResult(r, i, showScore, topScore) {
 
   const nodeTypeEl = card.querySelector('.result-node-type');
   if (r.nodeType) {
-    nodeTypeEl.textContent = r.nodeType;
+    // innerHTML (not textContent) so a structural-type icon (table/code/
+    // checklist) can sit alongside the label — nodeTypeBadgeIcon() only
+    // ever returns icons.js's own static SVG strings, r.nodeType (the only
+    // untrusted piece here) is still escaped.
+    nodeTypeEl.innerHTML = nodeTypeBadgeIcon(r.nodeType) + esc(r.nodeType);
     nodeTypeEl.hidden = false;
   }
 

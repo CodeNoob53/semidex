@@ -9,6 +9,7 @@ import { api } from './api.js';
 import { nodeDisplayLabel, shortLabel } from './format.js';
 import { currentRoute } from './routes.js';
 import { getExpandedCollection, setExpandedCollection } from './state.js';
+import { iconCollection, iconFile, iconForNodeType } from './icons.js';
 
 let collectionsCache = [];
 
@@ -34,6 +35,7 @@ export function renderSidebarList(collections) {
     <li class="tree-collection">
       <a href="#/c/${encodeURIComponent(c.name)}" data-name="${esc(c.name)}" class="tree-row tree-collection-row">
         <span class="tree-caret">${getExpandedCollection() === c.name ? '▾' : '▸'}</span>
+        <span class="tree-icon">${iconCollection()}</span>
         <span class="tree-label">${esc(c.name)}</span>
         <span class="count">${Number(c.pointCount ?? 0).toLocaleString('en-US')}</span>
       </a>
@@ -116,6 +118,7 @@ export async function loadSidebarFileList(name, box) {
     box.innerHTML = documents.map(d => `
       <a href="#/c/${encodeURIComponent(name)}/f/${encodeURIComponent(d.sourceFile)}"
          class="tree-row tree-file" data-sf="${esc(d.sourceFile)}" style="--depth:1">
+        <span class="tree-icon">${iconFile()}</span>
         <span class="tree-label mono">${esc(shortLabel(d.sourceFile))}</span>
       </a>`).join('');
     // Left as plain <a href="#/c/...">: no click handler needed — the
@@ -160,7 +163,6 @@ async function fetchSkeletonChildren(name, node) {
 
 export function sidebarNodeRow(n, i, depth) {
   const isLeaf = n.nodeType === 'section' || n.nodeType === 'file' && !(n.childCount > 0);
-  const icon = n.nodeType === 'directory' ? '📁' : n.nodeType === 'file' ? '📄' : '§';
   const label = nodeDisplayLabel(n);
   const tooltip = [n.summary, n.nodePath].filter(Boolean).join(' — ');
   // tabindex="0" + role="button": unlike .tree-collection-row/.tree-file
@@ -169,7 +171,7 @@ export function sidebarNodeRow(n, i, depth) {
   return `
     <div class="tree-row tree-node ${isLeaf ? 'tree-leaf' : ''}" data-i="${i}" data-path="${esc(n.nodePath ?? '')}" style="--depth:${depth + 1}" tabindex="0" role="button" aria-label="${esc(label)}">
       <span class="tree-caret">${n.childCount > 0 ? '▸' : ''}</span>
-      <span class="tree-icon">${icon}</span>
+      <span class="tree-icon">${iconForNodeType(n.nodeType)}</span>
       <span class="tree-label" title="${esc(tooltip)}">${esc(label)}</span>
     </div>`;
 }

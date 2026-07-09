@@ -5,7 +5,7 @@
 
 import { initSidebarResize } from './sidebar-resize.js';
 import { loadSidebar } from './sidebar.js';
-import { loadTopbar } from './topbar.js';
+import { loadTopbar, initJobChip } from './topbar.js';
 import { route } from './router.js';
 
 export function startAdminApp() {
@@ -13,6 +13,7 @@ export function startAdminApp() {
   window.addEventListener('hashchange', route);
 
   loadTopbar();
+  initJobChip();
   loadSidebar();
   route();
 }

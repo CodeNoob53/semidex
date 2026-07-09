@@ -4,7 +4,10 @@
 // can't/doesn't want to drag) and remembered across sessions.
 export const SIDEBAR_MIN_WIDTH = 240;
 export const SIDEBAR_MAX_WIDTH = 520;
-export const SIDEBAR_DEFAULT_WIDTH = 320;
+// 340, not the old 320 — tree rows now carry an icon (Phase 3C) in addition
+// to the caret + label + count, and the extra column needs a little more
+// room before long file/section names start truncating too eagerly.
+export const SIDEBAR_DEFAULT_WIDTH = 340;
 export const SIDEBAR_WIDTH_KEY = 'semidex-admin-sidebar-width';
 export const SIDEBAR_STEP = 16;
 export const SIDEBAR_LARGE_STEP = 48;

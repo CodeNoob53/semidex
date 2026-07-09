@@ -13,21 +13,30 @@ describe('chunk view rendering (ui-src source + built index.html, evaluated beha
       ]);
       const badge = frag.querySelector('.chunk-node-type');
       assert.equal(badge.hidden, false);
-      assert.equal(badge.textContent, 'paragraph');
+      // .trim() — non-structural badges (paragraph here) get no icon prefix,
+      // but the badge is filled via innerHTML now (to support the icon
+      // prefix on structural types below), so textContent can pick up
+      // incidental whitespace from the surrounding markup.
+      assert.equal(badge.textContent.trim(), 'paragraph');
       assert.match(badge.className, /badge-amber/);
     });
   });
 
-  it('labels structural node types (table/code/checklist) distinctly', async () => {
+  it('labels structural node types (table/code/checklist) distinctly, each with an icon prefix', async () => {
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
       const { renderFileChunks } = loadFileViewRenderHelpers(html);
       const table = renderFileChunks([{ chunkIndex: 1, nodeType: 'table', text: '| a | b |', context: 'Intro — table' }]);
       const code = renderFileChunks([{ chunkIndex: 2, nodeType: 'code_block', text: 'console.log(1)', context: 'Intro — code block' }]);
       const checklist = renderFileChunks([{ chunkIndex: 3, nodeType: 'checklist', text: '- [ ] todo', context: 'Intro — checklist' }]);
-      assert.equal(table.querySelector('.chunk-node-type').textContent, 'table');
-      assert.equal(code.querySelector('.chunk-node-type').textContent, 'code');
-      assert.equal(checklist.querySelector('.chunk-node-type').textContent, 'checklist');
+      assert.equal(table.querySelector('.chunk-node-type').textContent.trim(), 'table');
+      assert.equal(code.querySelector('.chunk-node-type').textContent.trim(), 'code');
+      assert.equal(checklist.querySelector('.chunk-node-type').textContent.trim(), 'checklist');
+      // Each structural badge carries its own icon (Phase 3C) — a real
+      // node-type-specific icon, not just the generic file/section fallback.
+      assert.match(table.querySelector('.chunk-node-type').innerHTML, /data-icon="table"/);
+      assert.match(code.querySelector('.chunk-node-type').innerHTML, /data-icon="code_block"/);
+      assert.match(checklist.querySelector('.chunk-node-type').innerHTML, /data-icon="checklist"/);
     });
   });
 

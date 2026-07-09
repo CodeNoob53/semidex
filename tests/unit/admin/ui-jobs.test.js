@@ -271,6 +271,39 @@ describe('indexing progress panel (ui-src source + built index.html, redesigned)
       assert.equal(done.querySelector('.job-cancel').hidden, true);
     });
   });
+
+  it('loadJobs() preserves a user-opened <details> on a still-running job across a poll re-render', async () => {
+    // Regression test: renderJobRow() always rebuilds a fresh <details>,
+    // auto-opening it only for a failed job — every poll tick was silently
+    // closing a user-opened details panel on a still-running job.
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const job = {
+        id: 'job-7', collection: 'demo', path: './docs', state: 'running',
+        startedAt: new Date().toISOString(), finishedAt: null, exitCode: null,
+        progress: { processedFiles: 1, totalFiles: 5, currentFile: 'a.md', percent: 20 },
+      };
+      const { document, renderIndexingView, loadJobs } = loadJobsViewRenderHelpers(html, {
+        apiImpl: async (url) => (url.startsWith('/api/jobs/') ? { log: '' } : { jobs: [job] }),
+      });
+      await renderIndexingView(document.getElementById('main')); // mounts #idx-jobs via index-view.html
+      await loadJobs();
+      const details = document.querySelector('.job-details');
+      // linkedom doesn't implement <details>.open as a real IDL-property/
+      // attribute reflection (confirmed independently of this app's code —
+      // setting .open=true never sets the actual "open" attribute, and even
+      // a literal open attribute in markup doesn't read back via .open) —
+      // so this test observes/drives state via hasAttribute/setAttribute
+      // directly rather than the .open property, which is what the
+      // production fix's own `[open]` CSS-selector check relies on too.
+      assert.equal(details.hasAttribute('open'), false, 'a running job must not auto-open its details');
+      details.setAttribute('open', ''); // simulate the user manually expanding it
+
+      await loadJobs(); // a second poll tick, same job data
+      assert.equal(document.querySelector('.job-details').hasAttribute('open'), true,
+        'the user-opened details must survive a poll re-render');
+    });
+  });
 });
 
 // ── folder picker (developer-form redesign) ──────────────────────────────

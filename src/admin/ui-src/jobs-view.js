@@ -310,7 +310,23 @@ async function loadJobs() {
   if (!jobs.length) {
     box.innerHTML = emptyBox('No indexing jobs yet.');
   } else {
+    // renderJobRow() always rebuilds a fresh <details>, only auto-opening it
+    // for a failed job — every poll tick otherwise silently closes a
+    // user-opened details panel on a still-running job. Capture which job
+    // IDs were open before the full replaceChildren() below, then reapply.
+    const openIds = new Set(
+      [...box.querySelectorAll('.job-details[open]')]
+        .map(el => el.closest('.job-card')?.dataset.id)
+        .filter(Boolean),
+    );
     box.replaceChildren(...jobs.map(renderJobRow));
+    for (const card of box.querySelectorAll('.job-card')) {
+      // setAttribute, not `.open = true` — both work in a real browser, but
+      // setAttribute doesn't depend on the <details> IDL-property/attribute
+      // reflection some DOM implementations (including this project's test
+      // harness, linkedom) don't fully support.
+      if (openIds.has(card.dataset.id)) card.querySelector('.job-details').setAttribute('open', '');
+    }
 
     for (const btn of box.querySelectorAll('.job-cancel')) {
       btn.addEventListener('click', () => cancelJob(btn.dataset.id));

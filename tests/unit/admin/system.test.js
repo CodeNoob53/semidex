@@ -102,6 +102,18 @@ describe('pickFolder', () => {
     assert.match(script, /\[Console\]::OutputEncoding\s*=\s*\[System\.Text\.Encoding\]::UTF8/);
   });
 
+  it('sets windowsHide: true on the powershell.exe spawn — hides the console flash without hiding the folder dialog itself', async () => {
+    const calls = [];
+    const spawnFn = (cmd, args, opts) => {
+      calls.push({ cmd, args, opts });
+      const child = makeFakeChild();
+      setTimeout(() => child.emit('exit', 0), 5);
+      return child;
+    };
+    await pickFolder({ spawnFn, platform: 'win32' });
+    assert.equal(calls[0].opts?.windowsHide, true);
+  });
+
   it('resolves { path: null, cancelled: true } when the dialog is cancelled (empty stdout)', async () => {
     const spawnFn = () => {
       const child = makeFakeChild();

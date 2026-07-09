@@ -84,8 +84,11 @@ export function loadFormatHelpers() {
 export function loadSidebarLabelHelpers(js) {
   // Drop import lines — the vm context supplies $ / esc / nodeDisplayLabel
   // directly instead of via ES module resolution (vm.runInContext has no
-  // module loader).
-  const withoutImports = stripExports(js).replace(/^import .*$/gm, '');
+  // module loader). icons.js itself has no imports of its own, so its real
+  // source is prepended (not stubbed) — sidebarNodeRow() calls
+  // iconForNodeType() directly.
+  const withoutImports = stripExports(readUiSource('icons.js')) + '\n'
+    + stripExports(js).replace(/^import .*$/gm, '');
   const format = loadFormatHelpers();
   const context = {
     $: (sel, root = context.document) => root.querySelector(sel),
@@ -124,7 +127,8 @@ export function loadSidebarActiveStateHelpers() {
     currentRoute: () => ({ view: 'overview' }),
   };
   vm.createContext(context);
-  const src = stripExports(readUiSource('sidebar.js')).replace(/^import .*$/gm, '');
+  const src = stripExports(readUiSource('icons.js')) + '\n'
+    + stripExports(readUiSource('sidebar.js')).replace(/^import .*$/gm, '');
   vm.runInContext(src, context);
   return context;
 }
@@ -228,13 +232,19 @@ export function loadSearchRenderHelpers(html, { hash = '#/', storage, apiPostImp
   const src = stripExports(readUiSource('dom.js')).replace(/^import .*$/gm, '')
     + stripExports(readUiSource('routes.js')).replace(/^import .*$/gm, '')
     + stripExports(readUiSource('search.js')).replace(/^import .*$/gm, '')
-      // search.js imports openFileView/hideCollectionContent from
-      // file-view.js and apiPost from api.js — renderResult() itself never
-      // calls them (only runSearch does, which these tests don't exercise),
-      // so stub them out rather than pulling in the full file-view.js graph.
+      // search.js imports openFileView/hideCollectionContent/
+      // nodeTypeBadgeIcon from file-view.js and apiPost from api.js —
+      // renderResult() itself only calls nodeTypeBadgeIcon (openFileView/
+      // hideCollectionContent are only reachable via runSearch, which these
+      // tests don't exercise) — stub the unused two, provide the real
+      // icons.js-backed implementation for the one renderResult() does call.
       .replace(/openFileView\(/g, '(()=>{})(')
       .replace(/hideCollectionContent\(\)/g, '')
-    + '\nconst apiPost = __apiPostImpl;\n';
+    + '\nconst apiPost = __apiPostImpl;\n'
+    + stripExports(readUiSource('icons.js'))
+    + `\nfunction nodeTypeBadgeIcon(nodeType) {
+      return { table: iconTable, code_block: iconCodeBlock, checklist: iconChecklist }[nodeType]?.() ?? '';
+    }\n`;
   vm.runInContext(src, context);
   return context;
 }
@@ -246,6 +256,7 @@ export function loadFileViewRenderHelpers(html) {
   const context = { document };
   vm.createContext(context);
   const src = stripExports(readUiSource('dom.js')).replace(/^import .*$/gm, '')
+    + stripExports(readUiSource('icons.js'))
     + stripExports(readUiSource('file-view.js')).replace(/^import .*$/gm, '')
       .replace(/nodeDisplayLabel\(/g, '(x=>String(x))(')
     + '\nconst api = async () => ({});\n';
@@ -298,6 +309,7 @@ export function loadFileViewBehaviorHelpers(html, apiResponses = {}) {
   };
   vm.createContext(context);
   const src = stripExports(readUiSource('dom.js')).replace(/^import .*$/gm, '')
+    + stripExports(readUiSource('icons.js'))
     + stripExports(readUiSource('file-view.js')).replace(/^import .*$/gm, '');
   vm.runInContext(src, context);
   return context;
@@ -305,17 +317,51 @@ export function loadFileViewBehaviorHelpers(html, apiResponses = {}) {
 
 // Same idea, for jobs-view.js's renderJobRow/formatDuration/
 // formatStartedLabel/jobFilesLabel/tickRunningJobRows/JOB_STATUS_BADGE_CLASS.
-export function loadJobsViewRenderHelpers(html) {
+export function loadJobsViewRenderHelpers(html, { apiImpl } = {}) {
   const { document } = parseHTML(html);
-  const context = { document };
+  const context = {
+    document,
+    __apiImpl: apiImpl ?? (async () => ({})),
+    // loadJobs() schedules a poll timer + an elapsed-time ticker whenever a
+    // job is still active — real timers would keep the test process alive
+    // and fire unpredictably, so these are no-op stubs; tests call
+    // loadJobs() directly for each "tick" instead of waiting on real timers.
+    setInterval: () => 0, clearInterval: () => {},
+    setTimeout: () => 0, clearTimeout: () => {},
+  };
   vm.createContext(context);
   const src = stripExports(readUiSource('dom.js')).replace(/^import .*$/gm, '')
+    // jobs-view.js's `?raw` import of index-view.html becomes a plain const
+    // — needed so renderIndexingView() (which callers may invoke to mount
+    // #idx-jobs before calling loadJobs()) has real markup to inject.
+    + `const indexViewShell = ${JSON.stringify(readUiSource('partials/index-view.html'))};\n`
     + stripExports(readUiSource('jobs-view.js'))
       .replace(/^import .*$/gm, '')
       // jobs-view.js's top-level statements only declare functions/consts
       // (confirmed by direct read) — safe to eval whole-file.
-    + '\nconst api = async () => ({}); const apiPost = async () => ({});'
+    + '\nconst api = __apiImpl; const apiPost = async () => ({});'
     + ' const loadSidebar = async () => {}; const currentRoute = () => ({ view: "index" });\n';
+  vm.runInContext(src, context);
+  return context;
+}
+
+// Evaluates topbar.js against a real DOM but stubbed api()/timers — tests
+// call pollJobChip()/renderJobChip() directly per "tick" rather than waiting
+// on real setTimeout, and can inspect/override __route to simulate being on
+// (or off) the #/index route.
+export function loadTopbarHelpers(html, { apiImpl, route = { view: 'overview' } } = {}) {
+  const { document } = parseHTML(html);
+  const context = {
+    document,
+    __apiImpl: apiImpl ?? (async () => ({ jobs: [] })),
+    __route: route,
+    location: { hash: '#/' },
+    setTimeout: () => 0, clearTimeout: () => {},
+  };
+  vm.createContext(context);
+  const src = stripExports(readUiSource('dom.js')).replace(/^import .*$/gm, '')
+    + stripExports(readUiSource('topbar.js')).replace(/^import .*$/gm, '')
+    + '\nconst api = __apiImpl; const currentRoute = () => __route;\n';
   vm.runInContext(src, context);
   return context;
 }
@@ -378,6 +424,7 @@ export function loadRouteIntegrationHelpers(html, { hash = '#/', apiResponses = 
     stripImports(readUiSource('state.js')),
     stripImports(readUiSource('toasts.js')),
     stripImports(readUiSource('routes.js')),
+    stripImports(readUiSource('icons.js')),
     stripImports(readUiSource('file-view.js')),
     stripImports(readUiSource('search.js')),
     stripImports(readUiSource('sidebar.js')),

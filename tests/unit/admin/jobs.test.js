@@ -127,6 +127,13 @@ describe('createJobRegistry — spawns without a shell', () => {
     assert.equal(opts.shell, undefined, 'must never set shell:true');
   });
 
+  it('sets windowsHide: true — no-op off Windows, prevents a console window flash on Windows', () => {
+    const calls = [];
+    const registry = createJobRegistry({ spawnFn: makeNeverExitingSpawn(calls) });
+    registry.startIndexJob({ collection: 'demo', path: './docs' });
+    assert.equal(calls[0].opts.windowsHide, true);
+  });
+
   it('passes the built env vars through to the child process env', () => {
     const calls = [];
     const registry = createJobRegistry({ spawnFn: makeNeverExitingSpawn(calls) });

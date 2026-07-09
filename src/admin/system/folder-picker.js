@@ -56,9 +56,13 @@ export function pickFolder({ spawnFn = nodeSpawn, platform = osPlatform(), timeo
     let settled = false;
     let child;
     try {
+      // windowsHide only suppresses the console/terminal window powershell.exe
+      // itself would otherwise flash — it does not touch the separate GUI
+      // window the WinForms FolderBrowserDialog opens, so the picker dialog
+      // stays fully visible.
       child = spawnFn('powershell.exe', [
         '-NoProfile', '-NonInteractive', '-STA', '-ExecutionPolicy', 'Bypass', '-Command', PICKER_SCRIPT,
-      ]);
+      ], { windowsHide: true });
     } catch (err) {
       const wrapped = new Error(`Could not start the folder picker: ${err.message}`);
       wrapped.code = 'PICKER_UNAVAILABLE';

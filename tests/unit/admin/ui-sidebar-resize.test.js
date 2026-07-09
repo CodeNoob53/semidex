@@ -18,10 +18,10 @@ describe('sidebar resize — pure helpers (ui-src/sidebar-resize.js source, eval
 
   it('clampSidebarWidth falls back to the default for NaN/non-number input', () => {
     const { clampSidebarWidth } = loadSidebarResizeHelpers();
-    assert.equal(clampSidebarWidth(NaN), 320);
-    assert.equal(clampSidebarWidth('abc'), 320);
-    assert.equal(clampSidebarWidth(undefined), 320);
-    assert.equal(clampSidebarWidth(null), 320);
+    assert.equal(clampSidebarWidth(NaN), 340);
+    assert.equal(clampSidebarWidth('abc'), 340);
+    assert.equal(clampSidebarWidth(undefined), 340);
+    assert.equal(clampSidebarWidth(null), 340);
   });
 
   it('clampSidebarWidth passes an in-range value through unchanged', () => {
@@ -43,14 +43,14 @@ describe('sidebar resize — pure helpers (ui-src/sidebar-resize.js source, eval
 
   it('readSidebarWidth returns the default when no width has been stored', () => {
     const { readSidebarWidth } = loadSidebarResizeHelpers();
-    assert.equal(readSidebarWidth(makeFakeStorage()), 320);
+    assert.equal(readSidebarWidth(makeFakeStorage()), 340);
   });
 
   it('readSidebarWidth falls back to the default (not clamped garbage) for a corrupted non-numeric stored value', () => {
     const { readSidebarWidth } = loadSidebarResizeHelpers();
     const storage = makeFakeStorage();
     storage._store['semidex-admin-sidebar-width'] = 'not-a-number';
-    assert.equal(readSidebarWidth(storage), 320);
+    assert.equal(readSidebarWidth(storage), 340);
   });
 
   it('readSidebarWidth/writeSidebarWidth never throw even if storage access throws (e.g. private-mode quota)', () => {
@@ -60,7 +60,7 @@ describe('sidebar resize — pure helpers (ui-src/sidebar-resize.js source, eval
       setItem: () => { throw new Error('quota exceeded'); },
     };
     assert.doesNotThrow(() => readSidebarWidth(throwingStorage));
-    assert.equal(readSidebarWidth(throwingStorage), 320);
+    assert.equal(readSidebarWidth(throwingStorage), 340);
     assert.doesNotThrow(() => writeSidebarWidth(throwingStorage, 400));
   });
 
@@ -84,8 +84,8 @@ describe('sidebar resize — pure helpers (ui-src/sidebar-resize.js source, eval
 
   it('nextSidebarWidth: Enter or Space reset to the default width', () => {
     const { nextSidebarWidth } = loadSidebarResizeHelpers();
-    assert.equal(nextSidebarWidth(450, 'Enter', false), 320);
-    assert.equal(nextSidebarWidth(450, ' ', false), 320);
+    assert.equal(nextSidebarWidth(450, 'Enter', false), 340);
+    assert.equal(nextSidebarWidth(450, ' ', false), 340);
   });
 
   it('nextSidebarWidth returns null for keys it does not handle (caller must not preventDefault those)', () => {

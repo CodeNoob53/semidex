@@ -102,6 +102,22 @@ async function renderCollection(main, name) {
   if (!alreadyOnThisCollection) showCollectionWarnings(name, detail.warnings);
 }
 
+// Compact "provider/schema" chip row shown always-visible under the header
+// (not buried in the collapsed Details panel) — per Phase 3C's brief, this is
+// a secondary informational row, not the header's main content. Omitted
+// entirely for a never-indexed/legacy collection where denseProvider is
+// null, rather than showing a row of empty/"?" chips.
+function collectionMetaRow(detail) {
+  const denseProvider = detail.provider?.denseProvider;
+  if (!denseProvider) return '';
+  const parts = [esc(denseProvider)];
+  if (detail.provider?.denseModel) parts.push(esc(detail.provider.denseModel));
+  const dims = detail.vectorSchema?.dense?.size;
+  if (dims) parts.push(`${dims}d`);
+  parts.push(detail.vectorSchema?.sparse ? 'hybrid' : 'dense-only');
+  return `<p class="col-header-meta-row mono muted">${parts.join(' · ')}</p>`;
+}
+
 function renderCollectionHeader(name, detail) {
   const warnings = detail.warnings ?? [];
   const healthBadge = warnings.length
@@ -115,6 +131,7 @@ function renderCollectionHeader(name, detail) {
       ${healthBadge}
       <button type="button" class="btn-ghost" id="col-settings-btn">settings</button>
     </div>
+    ${collectionMetaRow(detail)}
     <details class="panel advanced-panel" style="margin-top:8px">
       <summary class="panel-head">Details</summary>
       <div class="panel-body">

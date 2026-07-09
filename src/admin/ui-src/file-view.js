@@ -3,9 +3,10 @@
 // in the sidebar tree loads its chunks directly into the main content area,
 // with "load more" pagination and a scoped search-within-file shortcut.
 // No separate document list lives in the main panel anymore.
-import { $, cloneTemplate, errorBox, emptyBox, prefersReducedMotion } from './dom.js';
+import { $, esc, cloneTemplate, errorBox, emptyBox, prefersReducedMotion } from './dom.js';
 import { api } from './api.js';
 import { nodeDisplayLabel } from './format.js';
+import { iconTable, iconCodeBlock, iconChecklist } from './icons.js';
 
 let fileViewState = null; // { name, sourceFile, chunkIndex, loaded }
 
@@ -128,6 +129,19 @@ export function nodeTypeBadgeLabel(nodeType) {
   return NODE_TYPE_BADGE_LABEL[nodeType] ?? nodeType;
 }
 
+// Icon prefix for structural node-type badges only (table/code/checklist) —
+// the rest (paragraph, list, blockquote, image, section, file, directory)
+// stay plain text badges, matching the icon set actually built in icons.js.
+const STRUCTURAL_NODE_TYPE_ICON = {
+  table: iconTable,
+  code_block: iconCodeBlock,
+  checklist: iconChecklist,
+};
+
+export function nodeTypeBadgeIcon(nodeType) {
+  return STRUCTURAL_NODE_TYPE_ICON[nodeType]?.() ?? '';
+}
+
 // Builds a DocumentFragment of chunk-card elements from the tpl-chunk-card
 // template. Returns a fragment (not an HTML string) so callers can append it
 // directly or insert it before an existing element.
@@ -145,7 +159,11 @@ export function renderFileChunks(chunks) {
 
     const nodeTypeEl = card.querySelector('.chunk-node-type');
     if (c.nodeType) {
-      nodeTypeEl.textContent = nodeTypeBadgeLabel(c.nodeType);
+      // innerHTML (not textContent) so the structural-type icon can sit
+      // alongside the label — the label text itself is still escaped, and
+      // nodeTypeBadgeIcon() only ever returns this module's own static SVG
+      // strings (never chunk/user data), so this stays safe.
+      nodeTypeEl.innerHTML = nodeTypeBadgeIcon(c.nodeType) + esc(nodeTypeBadgeLabel(c.nodeType));
       nodeTypeEl.title = `node_type: ${c.nodeType}`;
       nodeTypeEl.hidden = false;
     }

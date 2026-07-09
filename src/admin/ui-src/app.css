@@ -69,9 +69,30 @@ html, body {
 .lamp-fail { background: var(--fail); box-shadow: 0 0 8px 1px rgba(224,93,93,.55); }
 .lamp-unknown { background: var(--ink-faint); }
 
+/* Active-job chip (Phase 3C): a small always-reachable-from-any-route
+   indicator, not a full job center — that stays at #/index. Hidden with
+   zero active jobs (see renderJobChip() in topbar.js). */
+.job-chip {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--bg-inset); border: 1px solid var(--line-soft);
+  border-radius: 999px; padding: 3px 10px 3px 8px;
+  font: inherit; font-size: 11px; color: var(--ink);
+  cursor: pointer;
+}
+.job-chip:hover { border-color: var(--amber); }
+.job-chip-dot {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--amber);
+  box-shadow: 0 0 6px 1px rgba(224,166,74,.5);
+  animation: job-progress-sweep-dot 1.2s ease-in-out infinite;
+}
+@keyframes job-progress-sweep-dot {
+  0%, 100% { opacity: .4; }
+  50% { opacity: 1; }
+}
+
 /* ── Layout ─────────────────────────────────────────────────────────────── */
 .layout {
-  display: grid; grid-template-columns: var(--sidebar-width, 320px) 6px 1fr;
+  display: grid; grid-template-columns: var(--sidebar-width, 340px) 6px 1fr;
   height: calc(100% - 52px);
 }
 .sidebar {
@@ -475,7 +496,14 @@ td.actions { text-align: right; }
 .tree-file.active,
 .tree-node.active { background: var(--bg-inset); border-left-color: var(--amber); }
 .tree-caret { width: 12px; flex: none; color: var(--ink-faint); font-size: 10px; }
-.tree-icon { flex: none; font-size: 11px; }
+/* Icon column (Phase 3C): fixed width so caret/icon/label stay aligned
+   across rows regardless of which icon (or none) a given node has; the SVG
+   itself inherits row color via stroke="currentColor", dimmed slightly so it
+   doesn't outweigh the label text next to it. */
+.tree-icon { flex: none; width: 14px; display: inline-flex; color: var(--ink-dim); }
+.tree-icon-svg { display: block; }
+.tree-row.active .tree-icon,
+.tree-row:hover .tree-icon { color: var(--ink); }
 .tree-label {
   flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
@@ -490,6 +518,10 @@ td.actions { text-align: right; }
 .col-header-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .col-header-top .view-title { margin: 0; }
 .col-header-meta { display: flex; align-items: center; gap: 10px; margin-top: 6px; }
+/* Provider/schema chip line (Phase 3C) — compact, always-visible, secondary
+   to the name/health-badge/settings row above; omitted entirely (see
+   collectionMetaRow() in collection-view.js) when no provider data exists. */
+.col-header-meta-row { margin: 4px 0 0; font-size: 11px; }
 
 .btn-ghost {
   background: transparent; color: var(--ink-dim);

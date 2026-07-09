@@ -164,6 +164,8 @@ export function createQdrantStorageAdapter() {
       const collections = await store.listCollections();
       if (!collections.includes(name)) return null;
 
+      const config = loadConfig();
+      const col = config.collections?.[name];
       const info = await store.getCollectionInfo(name);
       const vectorsCfg = info.config?.params?.vectors ?? {};
       const vectorSchemaKind = classifyVectorSchema(vectorsCfg);
@@ -197,7 +199,7 @@ export function createQdrantStorageAdapter() {
           indexingSchema: samplePayload?.indexing_schema_version ?? null,
           tokenCountMode: samplePayload?.token_count_mode ?? null,
         },
-        description: null,
+        description: col?.description || null,
         semidexManaged: isSemidexPayload(samplePayload),
         hasSkeleton: Boolean(await store.getCollectionSkeletonNode(name)),
         warnings,

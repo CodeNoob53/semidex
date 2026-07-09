@@ -180,7 +180,10 @@ export function createJobRegistry({ spawnFn = nodeSpawn } = {}) {
     const env = { ...process.env, ...buildJobEnv(collection, options) };
     // No shell string interpolation: argument list is a plain array, the
     // path is never concatenated into a command string.
-    const child = spawnFn(process.execPath, [INDEXER_ENTRY, path], { env });
+    // windowsHide: true — no-op on non-Windows, but on Windows this admin
+    // server is often run from a GUI launcher, and without it every indexing
+    // job flashes a visible console window on top of everything else.
+    const child = spawnFn(process.execPath, [INDEXER_ENTRY, path], { env, windowsHide: true });
     job.child = child;
     job.state = STATES.RUNNING;
 
