@@ -28,6 +28,39 @@ describe('collection header — top line (always visible)', () => {
     });
   });
 
+  it('a long collection name still renders the health badge and settings button as sibling elements (Phase 3I wrap fix)', async () => {
+    // linkedom has no layout engine, so this can't assert actual pixel
+    // wrapping (see the live Playwright check in the Phase 3I report for
+    // that) — but it does confirm the long name doesn't break the DOM
+    // structure itself, and app.css's source-string check below pins the
+    // actual CSS fix (min-width: 0 + overflow-wrap: anywhere on
+    // .col-header-top .view-title) as a regression guard.
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const longName = 'НадзвичайноДовгаНазваКолекціїБезПробілівЯкаМожеЗламатиМакетГоловноїСторінки';
+      const helpers = loadRouteIntegrationHelpers(html, {
+        hash: `#/c/${encodeURIComponent(longName)}`,
+        apiResponses: {
+          [`/api/collections/${encodeURIComponent(longName)}`]: { collection: { pointCount: 1, warnings: [] } },
+          '/api/collections?': { collections: [] },
+        },
+      });
+      await helpers.route();
+      const header = helpers.document.getElementById('col-header');
+      assert.match(header.querySelector('.view-title').textContent, new RegExp(longName));
+      assert.ok(header.querySelector('.badge-ok'), 'the health badge must still render alongside a long name');
+      assert.ok(header.querySelector('#col-settings-btn'), 'the settings button must still render alongside a long name');
+    });
+  });
+
+  it('app.css lets a long collection name wrap instead of pushing the settings button off-screen', () => {
+    const js = readUiSource('app.css');
+    assert.match(js, /\.col-header-top \.view-title\s*\{[^}]*min-width:\s*0/,
+      'the title must be allowed to shrink below its intrinsic width inside the flex row');
+    assert.match(js, /\.col-header-top \.view-title\s*\{[^}]*overflow-wrap:\s*anywhere/,
+      'a long unbroken name (common in non-Latin scripts) must be allowed to break, not overflow');
+  });
+
   it('shows a warning badge (not "healthy") when the collection has warnings', async () => {
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
@@ -119,7 +152,7 @@ describe('collection header — summary block (Phase 3G: skeleton overview > con
       await helpers.route();
       const desc = helpers.document.querySelector('#col-header .col-header-desc');
       assert.ok(desc, 'an empty-state summary element must still render, not be entirely absent');
-      assert.match(desc.textContent, /No overview yet/);
+      assert.match(desc.textContent, /No collection summary yet/);
       assert.ok(desc.classList.contains('col-header-desc-empty'), 'empty state must carry a distinct quiet-styling class');
     });
   });
@@ -269,6 +302,29 @@ describe('collection header — compact fact chips (Phase 3G: semidex vocabulary
       assert.doesNotMatch(header.textContent, /(?<![\w-])\?(?![\w-])/, 'no bare "?" placeholder in the visible header');
     });
   });
+
+  it('does not throw when the collection detail object is entirely empty (every optional field missing)', async () => {
+    // Phase 3I acceptance: "UI does not crash when optional metadata is
+    // missing" — exercised here with a completely bare object (not even
+    // pointCount/warnings), the most degraded shape a StorageAdapter could
+    // plausibly return, rather than a partially-filled fixture like the
+    // test above.
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const helpers = loadRouteIntegrationHelpers(html, {
+        hash: '#/c/my-docs',
+        apiResponses: {
+          '/api/collections/my-docs': { collection: {} },
+          '/api/collections?': { collections: [] },
+        },
+      });
+      await assert.doesNotReject(helpers.route());
+      const header = helpers.document.getElementById('col-header');
+      assert.ok(header.querySelector('.view-title'), 'the header must still render a title element');
+      assert.ok(header.querySelector('.badge-ok'), 'an empty warnings array must still read as healthy');
+      assert.match(header.querySelector('.col-header-desc').textContent, /No collection summary yet/);
+    });
+  });
 });
 
 describe('collection header — Details disclosure (collapsed, technical facts only)', () => {
@@ -351,6 +407,46 @@ describe('collection header — Details disclosure (collapsed, technical facts o
         .map(n => n.textContent ?? '').join(' ');
       assert.doesNotMatch(outsideDetailsText, /embeddingSchema|chunkingSchema|indexingSchema|tokenCountMode|bge-m3\b/,
         'schema-version internals must only appear inside the collapsed Details panel');
+    });
+  });
+});
+
+describe('collection header — Phase 3I: name and summary are escaped, never parsed as markup', () => {
+  it('a collection name containing HTML renders as inert text, never a real element', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const malicious = '<img src=x onerror="window.__pwned=true">';
+      const helpers = loadRouteIntegrationHelpers(html, {
+        hash: `#/c/${encodeURIComponent(malicious)}`,
+        apiResponses: {
+          [`/api/collections/${encodeURIComponent(malicious)}`]: { collection: { pointCount: 1, warnings: [] } },
+          '/api/collections?': { collections: [] },
+        },
+      });
+      await helpers.route();
+      const header = helpers.document.getElementById('col-header');
+      assert.equal(header.querySelectorAll('img').length, 0, 'malicious markup in the collection name must never be parsed into a real element');
+      assert.match(header.querySelector('.view-title').textContent, /<img/,
+        'the malicious string must still appear as literal inert text, not be silently stripped');
+    });
+  });
+
+  it('an overviewSummary containing HTML renders as inert text, never a real element', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const malicious = '<img src=x onerror="window.__pwned=true">';
+      const helpers = loadRouteIntegrationHelpers(html, {
+        hash: '#/c/my-docs',
+        apiResponses: {
+          '/api/collections/my-docs': { collection: { pointCount: 1, warnings: [], overviewSummary: malicious } },
+          '/api/collections?': { collections: [] },
+        },
+      });
+      await helpers.route();
+      const header = helpers.document.getElementById('col-header');
+      assert.equal(header.querySelectorAll('img').length, 0, 'malicious markup in overviewSummary must never be parsed into a real element');
+      assert.match(header.querySelector('.col-header-desc').textContent, /<img/,
+        'the malicious string must still appear as literal inert text, not be silently stripped');
     });
   });
 });

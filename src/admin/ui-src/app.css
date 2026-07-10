@@ -545,8 +545,15 @@ td.actions { text-align: right; }
 /* collection header (main panel) — Phase 3E: a user-facing overview, not a
    debug dump. Top line (name/health/settings) -> optional description line
    -> compact fact chips -> collapsed Details for the technical/debug facts. */
-.col-header-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.col-header-top .view-title { margin: 0; }
+.col-header-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+/* min-width: 0 lets this flex item shrink below its content's natural
+   width — without it, a long/unbroken collection name pushes the health
+   badge and settings button off-screen instead of wrapping (flex items
+   default to min-width: auto, which is the content's intrinsic width).
+   overflow-wrap: anywhere covers names with no natural break points
+   (a single long word/token, common in non-Latin scripts) that
+   word-break's default line-breaking rules would otherwise let overflow. */
+.col-header-top .view-title { margin: 0; flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
 .col-header-desc { color: var(--ink-dim); margin: 6px 0 0; font-size: 13px; }
 /* Phase 3G: quiet empty state when no skeleton/config summary exists yet —
    italic + dimmer than a real summary so it reads as "nothing here yet",

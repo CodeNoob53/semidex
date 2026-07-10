@@ -220,7 +220,7 @@ function renderCollectionHeader(name, detail) {
   const summaryText = detail.overviewSummary || detail.description || null;
   const summaryBlock = summaryText
     ? `<p class="col-header-desc">${esc(summaryText)}</p>`
-    : '<p class="col-header-desc col-header-desc-empty">No overview yet. Reindex with LLM summaries to generate one.</p>';
+    : '<p class="col-header-desc col-header-desc-empty">No collection summary yet. Reindex with LLM summaries to generate one.</p>';
 
   $('#col-header').innerHTML = `
     <div class="col-header-top">
