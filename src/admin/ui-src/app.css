@@ -234,6 +234,19 @@ td.mono { font-family: var(--mono); font-size: 12px; }
 
 .skel-note { font-size: 11px; color: var(--ink-faint); margin-top: 10px; }
 
+/* File/section browse header (Phase 3H): sits above the chunk cards inside
+   #collection-content, distinct from the small uppercase .panel-head label
+   above it — this is the "what is actually open" block (file/section name,
+   relative path, chunk count, collection as secondary context), not a
+   replacement for the panel's own head row. */
+.file-view-header { margin-bottom: 14px; }
+.file-view-title-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.file-view-icon { flex: none; width: 16px; display: inline-flex; color: var(--ink-dim); }
+.file-view-icon svg { width: 16px; height: 16px; }
+.file-view-name { font-size: 14px; color: var(--ink); overflow-wrap: anywhere; }
+.file-view-count { flex: none; }
+.file-view-meta { font-size: 11px; color: var(--ink-dim); margin-top: 4px; }
+
 /* chunk preview */
 .chunk {
   border: 1px solid var(--line-soft); border-radius: 3px;

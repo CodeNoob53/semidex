@@ -5,8 +5,8 @@
 // No separate document list lives in the main panel anymore.
 import { $, esc, cloneTemplate, errorBox, emptyBox, prefersReducedMotion } from './dom.js';
 import { api } from './api.js';
-import { nodeDisplayLabel } from './format.js';
-import { iconTable, iconCodeBlock, iconChecklist } from './icons.js';
+import { nodeDisplayLabel, basename } from './format.js';
+import { iconTable, iconCodeBlock, iconChecklist, iconFile, iconSection } from './icons.js';
 
 // Whole-file mode (no target chunkIndex — a plain sidebar file click) fetches
 // every chunk once via getFileChunks and pages through it client-side, the
@@ -41,13 +41,64 @@ export function hideSearchResults() {
   if (results) results.innerHTML = '';
 }
 
+// A chunk belongs to a section node if its own node_path is the section's
+// node_path, or a descendant of it ("<section path>/<child>"). This is an
+// exact structural match (parent/child node_path is authoritative, set by
+// the indexer at index time), not a fuzzy label/string comparison — chunks
+// don't carry a heading_path array (only skeleton nav nodes do), but they
+// do carry the same node_path lineage as everything else in the skeleton
+// tree, which is the reliable key to filter on.
+export function chunksBelongToSection(chunks, sectionNodePath) {
+  if (!sectionNodePath) return [];
+  const prefix = `${sectionNodePath}/`;
+  return chunks.filter(c => c.nodePath === sectionNodePath || c.nodePath?.startsWith(prefix));
+}
+
+function renderExactSectionMatch(box, title, name, sourceFile, node, sectionChunks) {
+  fileViewState = { name, sourceFile, mode: 'whole', allChunks: sectionChunks, visibleCount: 0 };
+  title.textContent = nodeDisplayLabel(node);
+  const headingPath = Array.isArray(node.headingPath) && node.headingPath.length
+    ? node.headingPath.join(' › ')
+    : null;
+  const header = fileViewHeader({
+    nodeType: 'section', name: nodeDisplayLabel(node), sourceFile, collectionName: name,
+    count: sectionChunks.length, metaExtra: headingPath ? `${headingPath} · exact section match` : 'exact section match',
+  });
+  renderVisibleFileChunks(box, Math.min(FILE_PAGE_SIZE, sectionChunks.length), header);
+}
+
 /**
- * Resolve a section nav node to its actual first content chunk via
- * GET .../skeleton/anchor, then open the file view there. If the section
- * has no content chunks (e.g. an empty section), this does NOT silently
- * open chunk 0 of the file — that would look identical to a resolved
- * section and hide the fact that the section itself is empty. Instead it
- * shows an explicit message with an opt-in "Open file from start" button.
+ * Open a section node. Tries an exact match first: fetch every chunk in the
+ * section's file (the existing whole-file /chunks endpoint — no new backend
+ * needed) and keep only the ones whose node_path falls under the section's
+ * own node_path. This is exact, not heuristic, because node_path lineage is
+ * a structural fact the indexer sets, not a label comparison.
+ *
+ * This exact-match attempt runs BEFORE the /skeleton/anchor lookup, not
+ * after — the backend's anchor resolver only finds chunks whose parent_id
+ * is directly this section's node_id (getFirstContentChunkByParent), so a
+ * section with no direct prose/table/code of its own but with content
+ * nested under a CHILD section (a real, common shape: "## Setup" with no
+ * prose of its own, just "### Step 1"/"### Step 2" subsections) would 404
+ * out of the anchor call before chunksBelongToSection() — which explicitly
+ * treats descendants as belonging to the section — ever got a chance to
+ * run. Whole-file + prefix-filter has no such parent_id restriction, so it
+ * must run first; /skeleton/anchor is now purely the fallback for when the
+ * exact attempt finds nothing (either no sourceFile is known yet, or
+ * filtering came up empty).
+ *
+ * If the exact attempt finds nothing, falls back to the existing
+ * anchor-resolution + windowed-fetch + highlight behavior (GET
+ * .../skeleton/anchor -> openFileView with a chunkIndex), which was already
+ * correct and remains the safety net rather than inventing a fragile
+ * secondary matching heuristic. The fallback header calls this out
+ * explicitly ("showing nearby chunks") so the user knows they're looking at
+ * a neighborhood, not a guaranteed-exact section slice — this is the
+ * documented limitation the task's "if exact section filtering is not
+ * reliable, document the limitation" instruction asks for. Only if BOTH the
+ * exact attempt and the anchor fallback come up empty (a genuinely
+ * content-free section) does this show the "no indexed content" empty
+ * state.
  */
 export async function openSectionView(name, node) {
   const panel = $('#collection-content-panel');
@@ -62,8 +113,43 @@ export async function openSectionView(name, node) {
   scrollToPanel(panel);
 
   try {
+    // Exact-match attempt first: only possible when the node already tells
+    // us its file (sidebar section nodes carry sourceFile from the skeleton
+    // API; a bare nodePath-only node, e.g. from a URL/back-forward restore,
+    // does not — that case skips straight to the anchor fallback below).
+    if (node.sourceFile) {
+      const fileQs = `sourceFile=${encodeURIComponent(node.sourceFile)}`;
+      const { chunks: fileChunks } = await api(`/api/collections/${encodeURIComponent(name)}/chunks?${fileQs}`);
+      const sectionChunks = chunksBelongToSection(fileChunks, node.nodePath);
+      if (sectionChunks.length) {
+        renderExactSectionMatch(box, title, name, node.sourceFile, node, sectionChunks);
+        return;
+      }
+    }
+
+    // Exact attempt found nothing (or sourceFile wasn't known yet) — fall
+    // back to anchor resolution. A 404 here means genuinely no content
+    // anywhere under this section, handled in the catch block below.
     const qs = `nodePath=${encodeURIComponent(node.nodePath)}`;
     const { chunk } = await api(`/api/collections/${encodeURIComponent(name)}/skeleton/anchor?${qs}`);
+
+    // sourceFile wasn't available on the node itself (the skip-straight-to-
+    // anchor path above) — now that the anchor resolved it, retry the exact
+    // match once more before falling back to the windowed view, so a
+    // sourceFile-less node still gets the same exact-match treatment.
+    if (!node.sourceFile) {
+      const fileQs = `sourceFile=${encodeURIComponent(chunk.sourceFile)}`;
+      const { chunks: fileChunks } = await api(`/api/collections/${encodeURIComponent(name)}/chunks?${fileQs}`);
+      const sectionChunks = chunksBelongToSection(fileChunks, node.nodePath);
+      if (sectionChunks.length) {
+        renderExactSectionMatch(box, title, name, chunk.sourceFile, node, sectionChunks);
+        return;
+      }
+    }
+
+    // No chunk's node_path fell under this section — fall back to the
+    // anchor-resolved windowed view rather than showing a false "empty"
+    // section when the anchor lookup itself already found real content.
     return openFileView(name, chunk.sourceFile, node.nodePath, chunk.chunkIndex);
   } catch (err) {
     if (err.status === 404) {
@@ -92,7 +178,7 @@ export async function openFileView(name, sourceFile, nodePath, chunkIndex) {
 
   hideSearchResults();
   panel.style.display = '';
-  title.textContent = sourceFile;
+  title.textContent = basename(sourceFile) || sourceFile;
   box.innerHTML = emptyBox('loading…');
   scrollToPanel(panel);
 
@@ -108,12 +194,20 @@ export async function openFileView(name, sourceFile, nodePath, chunkIndex) {
       const qs = `sourceFile=${encodeURIComponent(sourceFile)}`;
       const { chunks } = await api(`/api/collections/${encodeURIComponent(name)}/chunks?${qs}`);
       if (!chunks.length) {
-        box.innerHTML = emptyBox('No chunks found for this file.');
+        // Exact wording per the file/section-view cleanup brief: a file can
+        // legitimately have zero retrieval chunks (e.g. it's entirely
+        // frontmatter/metadata, or a type the indexer doesn't chunk) — this
+        // is a normal, expected state, not an error, so it gets a plain
+        // explanatory sentence rather than raw API/debug text.
+        box.innerHTML = emptyBox('No searchable chunks in this file. It may only contain navigation/metadata or unsupported content.');
         return;
       }
       fileViewState.allChunks = chunks;
-      title.textContent = `${sourceFile} — ${chunks.length} chunk${chunks.length > 1 ? 's' : ''}`;
-      renderVisibleFileChunks(box, Math.min(FILE_PAGE_SIZE, chunks.length));
+      title.textContent = basename(sourceFile) || sourceFile;
+      const header = fileViewHeader({
+        nodeType: 'file', name: basename(sourceFile) || sourceFile, sourceFile, collectionName: name, count: chunks.length,
+      });
+      renderVisibleFileChunks(box, Math.min(FILE_PAGE_SIZE, chunks.length), header);
     } catch (err) {
       box.innerHTML = errorBox(err);
     }
@@ -135,10 +229,13 @@ export async function openFileView(name, sourceFile, nodePath, chunkIndex) {
     // how far into the file we actually are, making loadMoreFileChunks()
     // re-fetch and duplicate chunks already shown instead of continuing.
     fileViewState.loaded = Math.max(...chunks.map(c => c.chunkIndex + 1));
-    title.textContent = typeof chunks[0].totalChunks === 'number'
-      ? `${sourceFile} — ${chunks[0].totalChunks} chunks`
-      : sourceFile;
-    box.replaceChildren(renderFileChunks(chunks, chunkIndex));
+    const totalChunks = typeof chunks[0].totalChunks === 'number' ? chunks[0].totalChunks : null;
+    title.textContent = basename(sourceFile) || sourceFile;
+    const header = fileViewHeader({
+      nodeType: 'file', name: basename(sourceFile) || sourceFile, sourceFile, collectionName: name,
+      count: totalChunks, metaExtra: 'showing nearby chunks',
+    });
+    box.replaceChildren(header, renderFileChunks(chunks, chunkIndex));
     box.insertAdjacentHTML('beforeend', fileViewLoadMoreButton());
     wireFileViewButtons(box);
     box.querySelector('.chunk-target')?.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'center' });
@@ -151,8 +248,10 @@ export async function openFileView(name, sourceFile, nodePath, chunkIndex) {
 // #collection-content, plus a "load more" button when more remain — the
 // same fetch-once/reveal-in-batches shape as search.js's
 // renderVisibleResults(), reused here for a consistent feel between the two
-// surfaces.
-function renderVisibleFileChunks(box, count) {
+// surfaces. The header (built once by the caller) is preserved by
+// prepending it back in, rather than being part of the chunk render itself,
+// since "load more" only ever changes the chunk cards below it.
+function renderVisibleFileChunks(box, count, headerEl) {
   fileViewState.visibleCount = count;
   const visible = fileViewState.allChunks.slice(0, count);
   box.replaceChildren(renderFileChunks(visible));
@@ -160,6 +259,39 @@ function renderVisibleFileChunks(box, count) {
     box.insertAdjacentHTML('beforeend', fileViewLoadMoreButton());
     wireFileViewButtons(box);
   }
+  if (headerEl) box.prepend(headerEl);
+}
+
+// Builds the "what is actually open" header block (Phase 3H): file/section
+// icon + name, a chunk-count badge, and a meta line giving the relative
+// source path and collection name as secondary context — sits above the
+// chunk cards, distinct from the small uppercase .panel-head label in the
+// panel chrome above it. All user/API-derived text goes through
+// textContent, never string-concatenated into markup, since source paths
+// and collection names are untrusted API content.
+//
+// `count` is `undefined`/non-numeric to hide the badge, or a number once
+// known. `metaExtra` is an optional extra phrase appended to the meta line
+// (e.g. "exact section match" for an exact section view, or "showing
+// nearby chunks" for any windowed/fallback open) — plain text, same
+// escaping rule.
+function fileViewHeader({ nodeType, name, sourceFile, collectionName, count, metaExtra }) {
+  const frag = cloneTemplate('tpl-file-view-header');
+  const root = frag.querySelector('.file-view-header');
+  frag.querySelector('.file-view-icon').innerHTML = nodeType === 'section' ? iconSection() : iconFile();
+  frag.querySelector('.file-view-name').textContent = name;
+
+  const countEl = frag.querySelector('.file-view-count');
+  if (typeof count === 'number') {
+    countEl.textContent = `${count} chunk${count === 1 ? '' : 's'}`;
+  } else {
+    countEl.hidden = true;
+  }
+
+  const metaParts = [sourceFile, collectionName ? `in ${collectionName}` : null, metaExtra].filter(Boolean);
+  frag.querySelector('.file-view-meta').textContent = metaParts.join(' · ');
+
+  return root;
 }
 
 // Structural node types get an inline chunk annotated with their own type +
@@ -264,8 +396,12 @@ export async function loadMoreFileChunks() {
   // same as search.js's showMoreResults(), no network call at all.
   if (fileViewState.mode === 'whole') {
     const box = $('#collection-content');
+    // renderVisibleFileChunks() replaces every child of box (chunk cards +
+    // load-more button), so the header built in openFileView() must be
+    // detached and handed back in, or "load more" would silently drop it.
+    const header = box.querySelector('.file-view-header');
     const nextCount = Math.min(fileViewState.visibleCount + FILE_PAGE_SIZE, fileViewState.allChunks.length);
-    renderVisibleFileChunks(box, nextCount);
+    renderVisibleFileChunks(box, nextCount, header);
     return;
   }
 

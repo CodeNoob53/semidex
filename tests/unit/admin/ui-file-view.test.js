@@ -1,7 +1,40 @@
 // Tests for src/admin/ui-src/file-view.js's rendering (renderFileChunks).
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { loadFileViewRenderHelpers, loadFileViewBehaviorHelpers, withServer } from './ui-test-helpers.js';
+import { loadFileViewRenderHelpers, loadFileViewBehaviorHelpers, withServer, readUiSource } from './ui-test-helpers.js';
+
+// ── Phase 3H: file/section browse cards are evidence-free — this is browse
+// mode, not search-evidence mode. Search results (tpl-search-result) show
+// rank/score/score-bar; file/section browse cards (tpl-chunk-card) never do
+// — they're two separate templates, not one template with a toggled field,
+// so there's no risk of a stray flag leaking rank/score into browse mode.
+describe('file/section browse cards never show search rank/score (this is browse mode, not search-evidence mode)', () => {
+  it('tpl-chunk-card has no rank/score/score-bar fields at all', () => {
+    const templateHtml = readUiSource('partials/templates/chunk-card.html');
+    assert.doesNotMatch(templateHtml, /class="rank"/);
+    assert.doesNotMatch(templateHtml, /class="[^"]*\bscore\b[^"]*"/);
+    assert.doesNotMatch(templateHtml, /score-bar/);
+  });
+
+  it('a rendered browse chunk card has no .rank/.score/.score-bar element, even though tpl-search-result (a different template) does', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const { renderFileChunks } = loadFileViewRenderHelpers(html);
+      const frag = renderFileChunks([{ chunkIndex: 0, section: 'Intro', nodeType: 'paragraph', text: 'hello' }]);
+      const card = frag.querySelector('.chunk');
+      assert.equal(card.querySelector('.rank'), null);
+      assert.equal(card.querySelector('.score'), null);
+      assert.equal(card.querySelector('.score-bar'), null);
+      // Confirm the search template really does carry these fields, so this
+      // test is proving "browse mode omits them," not "no template anywhere
+      // has them by coincidence."
+      const { document } = loadFileViewRenderHelpers(html);
+      const searchTplHtml = document.getElementById('tpl-search-result').innerHTML;
+      assert.match(searchTplHtml, /class="rank"/);
+      assert.match(searchTplHtml, /class="mono score"/);
+    });
+  });
+});
 
 describe('chunk view rendering (ui-src source + built index.html, evaluated behavior)', () => {
   it('renderFileChunks includes a node_type badge for every chunk', async () => {
@@ -95,14 +128,19 @@ describe('opening a file/section clears prior search results (single-content-sur
 });
 
 describe('file view shows a visible total chunk count (not a silent 3-chunk window)', () => {
-  it('openFileView() sets the content title to "sourceFile — N chunks" when totalChunks is known', async () => {
+  it('openFileView() shows the chunk count in the header badge (Phase 3H) when totalChunks is known', async () => {
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
       const { document, openFileView } = loadFileViewBehaviorHelpers(html, {
         '/chunks?': { chunks: [{ chunkIndex: 0, text: 'hello', totalChunks: 13 }] },
       });
       await openFileView('my-docs', 'pitch-en.md', null, 0);
-      assert.equal(document.querySelector('#content-title').textContent, 'pitch-en.md — 13 chunks');
+      // Phase 3H moved the chunk count out of #content-title (now just the
+      // plain filename, matching the sidebar's own file label) and into a
+      // dedicated header badge above the chunk cards, alongside the
+      // relative path and collection name — see file-view-header.html.
+      assert.equal(document.querySelector('#content-title').textContent, 'pitch-en.md');
+      assert.equal(document.querySelector('.file-view-count').textContent, '13 chunks');
     });
   });
 
@@ -206,14 +244,18 @@ describe('openFileView() with no chunkIndex — whole-file mode (getFileChunks, 
     });
   });
 
-  it('sets the content title to "sourceFile — N chunks" using the real fetched count', async () => {
+  it('shows the real fetched count in the header badge, and the relative path + collection name in the meta line', async () => {
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
       const { document, openFileView } = loadFileViewBehaviorHelpers(html, {
         '/chunks?': { chunks: makeChunks(7) },
       });
-      await openFileView('my-docs', 'readme.md');
-      assert.equal(document.querySelector('#content-title').textContent, 'readme.md — 7 chunks');
+      await openFileView('my-docs', 'docs/readme.md');
+      assert.equal(document.querySelector('#content-title').textContent, 'readme.md');
+      assert.equal(document.querySelector('.file-view-count').textContent, '7 chunks');
+      const meta = document.querySelector('.file-view-meta').textContent;
+      assert.match(meta, /docs\/readme\.md/, 'meta line must show the relative source path, not just the basename');
+      assert.match(meta, /my-docs/, 'meta line must show the collection name as secondary context');
     });
   });
 
@@ -241,14 +283,17 @@ describe('openFileView() with no chunkIndex — whole-file mode (getFileChunks, 
     });
   });
 
-  it('shows an empty-state message (not an error) when the file genuinely has zero chunks', async () => {
+  it('shows a clean, non-technical empty-state message when the file genuinely has zero chunks', async () => {
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
       const { document, openFileView } = loadFileViewBehaviorHelpers(html, {
         '/chunks?': { chunks: [] },
       });
       await openFileView('my-docs', 'empty.md');
-      assert.match(document.querySelector('#collection-content').textContent, /No chunks found for this file/);
+      const text = document.querySelector('#collection-content').textContent;
+      assert.match(text, /No searchable chunks in this file/);
+      assert.match(text, /navigation\/metadata or unsupported content/,
+        'must explain the file may only contain navigation/metadata, not raw API/debug text');
     });
   });
 
@@ -299,6 +344,154 @@ describe('openFileView() with an explicit chunkIndex highlights the resolved tar
       });
       await openFileView('my-docs', 'readme.md');
       assert.equal(document.querySelectorAll('#collection-content .chunk-target').length, 0);
+    });
+  });
+});
+
+// ── Phase 3H: the new file/section header never lets API/collection-name
+// content become live markup, and long names don't break layout ──────────
+describe('file-view header (Phase 3H): API content is escaped, never parsed as markup', () => {
+  it('a sourceFile/collection name containing HTML renders as inert text in the header, never a real element', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const malicious = '<img src=x onerror="window.__pwned=true">';
+      const { document, openFileView } = loadFileViewBehaviorHelpers(html, {
+        '/chunks?': { chunks: [{ chunkIndex: 0, text: 'hello', totalChunks: 1 }] },
+      });
+      await openFileView(malicious, malicious, null, undefined);
+      const header = document.querySelector('.file-view-header');
+      assert.equal(header.querySelectorAll('img').length, 0, 'malicious markup must never be parsed into a real element');
+      assert.match(header.querySelector('.file-view-meta').textContent, /<img/,
+        'the malicious string must still appear as literal inert text, not be silently stripped');
+    });
+  });
+
+  it('a long Cyrillic source path renders fully in the header meta line without truncation or mangling', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const longPath = 'Тема 10. Stateful аутентифікація. Управління сесіями та файлами cookie/дуже-довга-назва-файлу-для-перевірки.md';
+      const { document, openFileView } = loadFileViewBehaviorHelpers(html, {
+        '/chunks?': { chunks: [{ chunkIndex: 0, text: 'hello' }] },
+      });
+      await openFileView('nodejs-basics', longPath, null, undefined);
+      assert.equal(document.querySelector('#content-title').textContent, 'дуже-довга-назва-файлу-для-перевірки.md');
+      assert.match(document.querySelector('.file-view-meta').textContent, new RegExp(longPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+    });
+  });
+});
+
+// ── Phase 3H: section clicks try an exact node_path match before falling
+// back to the windowed anchor view ──────────────────────────────────────
+describe('openSectionView() — exact section match via node_path filtering', () => {
+  it('code-review fix: tries the exact match BEFORE /skeleton/anchor when node.sourceFile is already known', async () => {
+    // Regression: the backend's anchor resolver only finds chunks whose
+    // parent_id is DIRECTLY this section's node_id
+    // (getFirstContentChunkByParent) — a parent section with no prose/
+    // table/code of its own, only nested child sections that DO have
+    // content, 404s out of /skeleton/anchor. chunksBelongToSection()
+    // explicitly treats descendants (not just direct children) as
+    // belonging to the section, so the exact-match attempt must run first
+    // and succeed here even though the anchor call would 404 if it were
+    // tried.
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      let anchorCalled = false;
+      const { document, openSectionView } = loadFileViewBehaviorHelpers(html, {
+        '/skeleton/anchor?': () => { anchorCalled = true; throw Object.assign(new Error('not found'), { status: 404 }); },
+        '/chunks?': {
+          chunks: [
+            { chunkIndex: 0, nodePath: 'readme.md#setup/child-section/paragraph-1', text: 'nested step detail' },
+            { chunkIndex: 1, nodePath: 'readme.md#other/paragraph-1', text: 'unrelated section' },
+          ],
+        },
+      });
+      await openSectionView('my-docs', {
+        nodePath: 'readme.md#setup', nodeType: 'section', sourceFile: 'readme.md', headingPath: ['Setup'],
+      });
+      assert.equal(anchorCalled, false, '/skeleton/anchor must not be called at all when the exact match already succeeded');
+      const cards = document.querySelectorAll('#collection-content .chunk');
+      assert.equal(cards.length, 1, 'the descendant chunk under the child section must render');
+      assert.match(document.querySelector('#collection-content').textContent, /nested step detail/);
+      assert.doesNotMatch(document.querySelector('#collection-content').textContent, /unrelated section/);
+      assert.doesNotMatch(document.querySelector('#collection-content').textContent, /no indexed content/i,
+        'must not show the empty-state — the exact match found real content');
+    });
+  });
+
+  it('renders only chunks whose node_path falls under the section node_path, not the whole file', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const { document, openSectionView } = loadFileViewBehaviorHelpers(html, {
+        '/skeleton/anchor?': { chunk: { sourceFile: 'readme.md', chunkIndex: 3 } },
+        '/chunks?': (url) => {
+          // openSectionView's exact-match path fetches the whole file (no
+          // chunkIndex param) — a windowed request (with chunkIndex) would
+          // indicate it fell back instead, which this test must not do.
+          assert.equal(new URL(url, 'http://x').searchParams.has('chunkIndex'), false,
+            'an exact section match must not also make a windowed fallback request');
+          return {
+            chunks: [
+              { chunkIndex: 0, nodePath: 'readme.md#intro/paragraph-1', text: 'intro text' },
+              { chunkIndex: 3, nodePath: 'readme.md#setup/paragraph-1', text: 'setup step 1' },
+              { chunkIndex: 4, nodePath: 'readme.md#setup/code_block-1', text: 'setup code' },
+              { chunkIndex: 5, nodePath: 'readme.md#other/paragraph-1', text: 'unrelated section' },
+            ],
+          };
+        },
+      });
+      await openSectionView('my-docs', { nodePath: 'readme.md#setup', nodeType: 'section', headingPath: ['Setup'] });
+      const cards = document.querySelectorAll('#collection-content .chunk');
+      assert.equal(cards.length, 2, 'only the 2 chunks under readme.md#setup must render');
+      const text = document.querySelector('#collection-content').textContent;
+      assert.match(text, /setup step 1/);
+      assert.match(text, /setup code/);
+      assert.doesNotMatch(text, /intro text/);
+      assert.doesNotMatch(text, /unrelated section/);
+    });
+  });
+
+  it('the header badge shows the exact matched count and labels it an exact section match', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const { document, openSectionView } = loadFileViewBehaviorHelpers(html, {
+        '/skeleton/anchor?': { chunk: { sourceFile: 'readme.md', chunkIndex: 3 } },
+        '/chunks?': {
+          chunks: [
+            { chunkIndex: 3, nodePath: 'readme.md#setup/paragraph-1', text: 'a' },
+            { chunkIndex: 4, nodePath: 'readme.md#setup/paragraph-2', text: 'b' },
+          ],
+        },
+      });
+      await openSectionView('my-docs', { nodePath: 'readme.md#setup', nodeType: 'section', headingPath: ['Setup'] });
+      assert.equal(document.querySelector('.file-view-count').textContent, '2 chunks');
+      assert.match(document.querySelector('.file-view-meta').textContent, /exact section match/);
+    });
+  });
+
+  it('falls back to the windowed anchor view with a "nearby chunks" disclosure when no chunk node_path matches the section', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const requestedUrls = [];
+      const { document, openSectionView } = loadFileViewBehaviorHelpers(html, {
+        '/skeleton/anchor?': { chunk: { sourceFile: 'readme.md', chunkIndex: 3 } },
+        '/chunks?': (url) => {
+          requestedUrls.push(url);
+          const hasChunkIndex = new URL(url, 'http://x').searchParams.has('chunkIndex');
+          if (!hasChunkIndex) {
+            // First call: whole-file fetch for the exact-match attempt —
+            // none of these node_paths fall under readme.md#setup.
+            return { chunks: [{ chunkIndex: 3, nodePath: 'readme.md#other/paragraph-1', text: 'unrelated' }] };
+          }
+          // Second call: the windowed fallback fetch.
+          return { chunks: [{ chunkIndex: 3, text: 'the target', totalChunks: 10 }] };
+        },
+      });
+      await openSectionView('my-docs', { nodePath: 'readme.md#setup', nodeType: 'section', headingPath: ['Setup'] });
+      assert.equal(requestedUrls.length, 2, 'must attempt the exact match, then fall back to a second windowed request');
+      const targets = document.querySelectorAll('#collection-content .chunk-target');
+      assert.equal(targets.length, 1, 'the fallback must still highlight the resolved anchor chunk');
+      assert.match(document.querySelector('.file-view-meta').textContent, /nearby chunks/,
+        'the fallback header must disclose that this is a neighborhood, not an exact section slice');
     });
   });
 });

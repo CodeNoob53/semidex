@@ -294,7 +294,7 @@ export function loadFileViewRenderHelpers(html) {
     + stripExports(readUiSource('icons.js'))
     + stripExports(readUiSource('file-view.js')).replace(/^import .*$/gm, '')
       .replace(/nodeDisplayLabel\(/g, '(x=>String(x))(')
-    + '\nconst api = async () => ({});\n';
+    + '\nconst api = async () => ({});\nfunction basename(p) { return String(p ?? "").split("/").filter(Boolean).at(-1) ?? ""; }\n';
   vm.runInContext(src, context);
   return context;
 }
@@ -328,6 +328,7 @@ export function loadFileViewBehaviorHelpers(html, apiResponses = {}) {
   const context = {
     document,
     nodeDisplayLabel: (n) => n.nodePath ?? '',
+    basename: (p) => String(p ?? '').split('/').filter(Boolean).at(-1) ?? '',
     api: async (url) => {
       for (const [key, value] of Object.entries(apiResponses)) {
         if (url.includes(key)) {
