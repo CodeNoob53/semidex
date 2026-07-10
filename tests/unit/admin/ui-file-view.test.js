@@ -159,3 +159,167 @@ describe('file view shows a visible total chunk count (not a silent 3-chunk wind
     });
   });
 });
+
+// ── Phase 3F: whole-file mode (a plain sidebar file click, no target chunk) ─
+describe('openFileView() with no chunkIndex — whole-file mode (getFileChunks, not the windowed endpoint)', () => {
+  function makeChunks(count) {
+    return Array.from({ length: count }, (_, i) => ({ chunkIndex: i, text: `chunk ${i}`, section: 'Intro' }));
+  }
+
+  it('requests the /chunks endpoint with no chunkIndex/window query params at all', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      let requestedUrl = null;
+      const { openFileView } = loadFileViewBehaviorHelpers(html, {
+        '/chunks?': (url) => { requestedUrl = url; return { chunks: makeChunks(2) }; },
+      });
+      await openFileView('my-docs', 'readme.md');
+      const qs = new URL(requestedUrl, 'http://x').searchParams;
+      assert.equal(qs.get('sourceFile'), 'readme.md');
+      assert.equal(qs.has('chunkIndex'), false, 'whole-file mode must not send chunkIndex');
+      assert.equal(qs.has('window'), false, 'whole-file mode must not send window');
+    });
+  });
+
+  it('renders every chunk up to the first page (5) when the file has more than one page', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const { document, openFileView } = loadFileViewBehaviorHelpers(html, {
+        '/chunks?': { chunks: makeChunks(12) },
+      });
+      await openFileView('my-docs', 'readme.md');
+      assert.equal(document.querySelectorAll('#collection-content .chunk').length, 5,
+        'whole-file mode pages the client-side render, same as search.js\'s Show more');
+    });
+  });
+
+  it('renders every chunk directly (no "load more") when the file has 5 or fewer chunks', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const { document, openFileView } = loadFileViewBehaviorHelpers(html, {
+        '/chunks?': { chunks: makeChunks(3) },
+      });
+      await openFileView('my-docs', 'readme.md');
+      assert.equal(document.querySelectorAll('#collection-content .chunk').length, 3);
+      assert.equal(document.querySelector('#file-load-more'), null,
+        '"load more" must not render when everything is already visible');
+    });
+  });
+
+  it('sets the content title to "sourceFile — N chunks" using the real fetched count', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const { document, openFileView } = loadFileViewBehaviorHelpers(html, {
+        '/chunks?': { chunks: makeChunks(7) },
+      });
+      await openFileView('my-docs', 'readme.md');
+      assert.equal(document.querySelector('#content-title').textContent, 'readme.md — 7 chunks');
+    });
+  });
+
+  it('"load more" reveals the next page from memory, with zero additional network requests', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      let fetchCount = 0;
+      const { document, openFileView, loadMoreFileChunks } = loadFileViewBehaviorHelpers(html, {
+        '/chunks?': () => { fetchCount++; return { chunks: makeChunks(12) }; },
+      });
+      await openFileView('my-docs', 'readme.md');
+      assert.equal(fetchCount, 1);
+      assert.equal(document.querySelectorAll('#collection-content .chunk').length, 5);
+
+      await loadMoreFileChunks();
+      assert.equal(fetchCount, 1, 'whole-file "load more" must not trigger a second /chunks request');
+      assert.equal(document.querySelectorAll('#collection-content .chunk').length, 10);
+
+      await loadMoreFileChunks();
+      assert.equal(fetchCount, 1);
+      assert.equal(document.querySelectorAll('#collection-content .chunk').length, 12,
+        'the final click reveals only the remaining 2, not overshooting past what was fetched');
+      assert.equal(document.querySelector('#file-load-more'), null,
+        '"load more" must disappear once every fetched chunk is visible');
+    });
+  });
+
+  it('shows an empty-state message (not an error) when the file genuinely has zero chunks', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const { document, openFileView } = loadFileViewBehaviorHelpers(html, {
+        '/chunks?': { chunks: [] },
+      });
+      await openFileView('my-docs', 'empty.md');
+      assert.match(document.querySelector('#collection-content').textContent, /No chunks found for this file/);
+    });
+  });
+
+  it('a fresh whole-file open of a DIFFERENT file resets the page back to the first 5, not the previous file\'s expanded count', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const { document, openFileView, loadMoreFileChunks } = loadFileViewBehaviorHelpers(html, {
+        '/chunks?': (url) => {
+          const sourceFile = new URL(url, 'http://x').searchParams.get('sourceFile');
+          return { chunks: makeChunks(sourceFile === 'first.md' ? 12 : 3) };
+        },
+      });
+      await openFileView('my-docs', 'first.md');
+      await loadMoreFileChunks();
+      assert.equal(document.querySelectorAll('#collection-content .chunk').length, 10);
+
+      await openFileView('my-docs', 'second.md');
+      assert.equal(document.querySelectorAll('#collection-content .chunk').length, 3,
+        'opening a new file must not carry over the previous file\'s visible-count state');
+    });
+  });
+});
+
+// ── Phase 3F: section-anchored opens highlight their target chunk ──────────
+describe('openFileView() with an explicit chunkIndex highlights the resolved target chunk', () => {
+  it('the chunk matching the requested chunkIndex gets the .chunk-target class, others do not', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const { document, openFileView } = loadFileViewBehaviorHelpers(html, {
+        '/chunks?': { chunks: [
+          { chunkIndex: 4, text: 'before' },
+          { chunkIndex: 5, text: 'the target' },
+          { chunkIndex: 6, text: 'after' },
+        ] },
+      });
+      await openFileView('my-docs', 'readme.md', null, 5);
+      const targets = document.querySelectorAll('#collection-content .chunk-target');
+      assert.equal(targets.length, 1, 'exactly one chunk must be marked as the target');
+      assert.match(targets[0].textContent, /the target/);
+    });
+  });
+
+  it('whole-file mode (no chunkIndex) never marks any chunk as .chunk-target', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const { document, openFileView } = loadFileViewBehaviorHelpers(html, {
+        '/chunks?': { chunks: [{ chunkIndex: 0, text: 'a' }, { chunkIndex: 1, text: 'b' }] },
+      });
+      await openFileView('my-docs', 'readme.md');
+      assert.equal(document.querySelectorAll('#collection-content .chunk-target').length, 0);
+    });
+  });
+});
+
+// ── Phase 3F: "open file from start" (empty section) uses whole-file mode ──
+describe('openSectionView() "Open file from start" fallback', () => {
+  it('clicking it opens the file in whole-file mode, not a chunkIndex=0 windowed fetch', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      let requestedUrl = null;
+      const { document, openSectionView } = loadFileViewBehaviorHelpers(html, {
+        '/skeleton/anchor?': Object.assign(new Error('not found'), { status: 404 }),
+        '/chunks?': (url) => { requestedUrl = url; return { chunks: [{ chunkIndex: 0, text: 'hi' }] }; },
+      });
+      await openSectionView('my-docs', { nodePath: 'readme.md#intro', nodeType: 'section', sourceFile: 'readme.md' });
+      const startBtn = document.querySelector('#section-open-file-start');
+      assert.ok(startBtn, 'the "Open file from start" button must render for a section with no content');
+      startBtn.click();
+      await new Promise((resolve) => setTimeout(resolve, 0)); // let the click handler's async openFileView settle
+      const qs = new URL(requestedUrl, 'http://x').searchParams;
+      assert.equal(qs.has('chunkIndex'), false, '"Open file from start" must use whole-file mode, not a windowed chunkIndex=0 fetch');
+    });
+  });
+});

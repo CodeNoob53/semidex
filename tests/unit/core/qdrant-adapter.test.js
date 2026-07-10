@@ -57,7 +57,7 @@ describe('facade re-exports the full public surface', () => {
     'addSparseVectorSupport', 'hasSparseVectors', 'upsertPoints', 'updatePayload',
     'deleteBySourceFile', 'deleteByFilter', 'deleteTrailingChunks',
     'search', 'hybridSearch', 'mmrSearch', 'scroll', 'getStoredMeta',
-    'listSourceFiles', 'scrollAllPoints', 'fetchWindowChunks',
+    'listSourceFiles', 'scrollAllPoints', 'fetchWindowChunks', 'getFileChunks',
     'getCollectionSkeletonNode', 'getSkeletonNodeById', 'getSkeletonNodeByPath',
     'getSkeletonChildren', 'getContentNodeById', 'getContentNodeByPath',
     'getAnyNodeById', 'getAnyNodeByPath',

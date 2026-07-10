@@ -8,7 +8,18 @@ import { api } from './api.js';
 import { nodeDisplayLabel } from './format.js';
 import { iconTable, iconCodeBlock, iconChecklist } from './icons.js';
 
-let fileViewState = null; // { name, sourceFile, chunkIndex, loaded }
+// Whole-file mode (no target chunkIndex — a plain sidebar file click) fetches
+// every chunk once via getFileChunks and pages through it client-side, the
+// same "fetch once, reveal in batches" shape as search.js's Show more —
+// FILE_PAGE_SIZE mirrors search.js's SEARCH_PAGE_SIZE for a consistent feel.
+// Section-targeted opens (an explicit chunkIndex, from openSectionView's
+// anchor resolution) keep the existing windowed fetch instead: the point
+// there is "show me this one chunk in its immediate neighborhood," not "the
+// whole file," and a file can be far too large to fetch in full just to
+// jump to one chunk.
+const FILE_PAGE_SIZE = 5;
+
+let fileViewState = null; // { name, sourceFile, mode: 'whole' | 'windowed', allChunks, visibleCount } | { ..., mode: 'windowed', loaded }
 
 export function hideCollectionContent() {
   const panel = $('#collection-content-panel');
@@ -60,14 +71,20 @@ export async function openSectionView(name, node) {
         + (node.sourceFile ? ' <button type="button" class="mini-btn" id="section-open-file-start">Open file from start</button>' : '')
         + '</div>';
       const btn = box.querySelector('#section-open-file-start');
-      btn?.addEventListener('click', () => openFileView(name, node.sourceFile, node.nodePath, 0));
+      // No chunkIndex -> whole-file mode: "open file from start" means
+      // "let me read the file since this section has nothing," which is a
+      // genuine "browse the whole file" intent, not a jump to one specific
+      // chunk — the file view already renders top-to-bottom in order, so
+      // whole-file mode already reads "from the start" without needing a
+      // targeted chunkIndex=0 window fetch.
+      btn?.addEventListener('click', () => openFileView(name, node.sourceFile));
       return;
     }
     box.innerHTML = errorBox(err);
   }
 }
 
-export async function openFileView(name, sourceFile, nodePath, chunkIndex = 0) {
+export async function openFileView(name, sourceFile, nodePath, chunkIndex) {
   const panel = $('#collection-content-panel');
   const title = $('#content-title');
   const box = $('#collection-content');
@@ -79,8 +96,31 @@ export async function openFileView(name, sourceFile, nodePath, chunkIndex = 0) {
   box.innerHTML = emptyBox('loading…');
   scrollToPanel(panel);
 
-  fileViewState = { name, sourceFile, chunkIndex, loaded: 0 };
+  // No target chunk given (a plain file click) -> whole-file mode: fetch
+  // every chunk once, page through client-side. A target chunk given (a
+  // section click, resolved to its anchor chunk) -> windowed mode: fetch a
+  // small neighborhood around that one chunk and highlight it, matching
+  // what a "jump to this specific part of a possibly-huge file" action
+  // should do rather than pulling the entire file just to show one chunk.
+  if (chunkIndex === undefined || chunkIndex === null) {
+    fileViewState = { name, sourceFile, mode: 'whole', allChunks: [], visibleCount: 0 };
+    try {
+      const qs = `sourceFile=${encodeURIComponent(sourceFile)}`;
+      const { chunks } = await api(`/api/collections/${encodeURIComponent(name)}/chunks?${qs}`);
+      if (!chunks.length) {
+        box.innerHTML = emptyBox('No chunks found for this file.');
+        return;
+      }
+      fileViewState.allChunks = chunks;
+      title.textContent = `${sourceFile} — ${chunks.length} chunk${chunks.length > 1 ? 's' : ''}`;
+      renderVisibleFileChunks(box, Math.min(FILE_PAGE_SIZE, chunks.length));
+    } catch (err) {
+      box.innerHTML = errorBox(err);
+    }
+    return;
+  }
 
+  fileViewState = { name, sourceFile, mode: 'windowed', chunkIndex, loaded: 0 };
   try {
     const qs = `sourceFile=${encodeURIComponent(sourceFile)}&chunkIndex=${chunkIndex}&window=3`;
     const { chunks } = await api(`/api/collections/${encodeURIComponent(name)}/chunks?${qs}`);
@@ -98,11 +138,27 @@ export async function openFileView(name, sourceFile, nodePath, chunkIndex = 0) {
     title.textContent = typeof chunks[0].totalChunks === 'number'
       ? `${sourceFile} — ${chunks[0].totalChunks} chunks`
       : sourceFile;
-    box.replaceChildren(renderFileChunks(chunks));
+    box.replaceChildren(renderFileChunks(chunks, chunkIndex));
     box.insertAdjacentHTML('beforeend', fileViewLoadMoreButton());
     wireFileViewButtons(box);
+    box.querySelector('.chunk-target')?.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'center' });
   } catch (err) {
     box.innerHTML = errorBox(err);
+  }
+}
+
+// Renders fileViewState.allChunks[0..count) (whole-file mode) into
+// #collection-content, plus a "load more" button when more remain — the
+// same fetch-once/reveal-in-batches shape as search.js's
+// renderVisibleResults(), reused here for a consistent feel between the two
+// surfaces.
+function renderVisibleFileChunks(box, count) {
+  fileViewState.visibleCount = count;
+  const visible = fileViewState.allChunks.slice(0, count);
+  box.replaceChildren(renderFileChunks(visible));
+  if (count < fileViewState.allChunks.length) {
+    box.insertAdjacentHTML('beforeend', fileViewLoadMoreButton());
+    wireFileViewButtons(box);
   }
 }
 
@@ -145,13 +201,23 @@ export function nodeTypeBadgeIcon(nodeType) {
 // Builds a DocumentFragment of chunk-card elements from the tpl-chunk-card
 // template. Returns a fragment (not an HTML string) so callers can append it
 // directly or insert it before an existing element.
-export function renderFileChunks(chunks) {
+//
+// targetChunkIndex (optional) marks the one chunk a section click actually
+// resolved to — openFileView() scrolls to it and gives it a distinct
+// ".chunk-target" class so it's visually obvious which of several
+// same-looking chunk cards is "the" section content, not just "some chunk
+// near the top of a window." Whole-file opens (no target) render every
+// chunk plainly, since there's no one "the" chunk to single out.
+export function renderFileChunks(chunks, targetChunkIndex) {
   const out = document.createDocumentFragment();
   for (const c of chunks) {
     const isStructural = STRUCTURAL_NODE_TYPES.has(c.nodeType);
     const contextLabel = isStructural ? 'retrieval context' : 'section path';
     const frag = cloneTemplate('tpl-chunk-card');
     const card = frag.querySelector('.chunk');
+    if (targetChunkIndex !== undefined && c.chunkIndex === targetChunkIndex) {
+      card.classList.add('chunk-target');
+    }
 
     card.querySelector('.chunk-index-label').textContent =
       `chunk ${c.chunkIndex}${c.totalChunks ? ` / ${c.totalChunks}` : ''}`;
@@ -192,6 +258,20 @@ export function wireFileViewButtons(box) {
 
 export async function loadMoreFileChunks() {
   if (!fileViewState) return;
+
+  // Whole-file mode: everything is already fetched (getFileChunks ran once
+  // in openFileView) — "load more" just reveals the next page from memory,
+  // same as search.js's showMoreResults(), no network call at all.
+  if (fileViewState.mode === 'whole') {
+    const box = $('#collection-content');
+    const nextCount = Math.min(fileViewState.visibleCount + FILE_PAGE_SIZE, fileViewState.allChunks.length);
+    renderVisibleFileChunks(box, nextCount);
+    return;
+  }
+
+  // Windowed mode (a section-anchored open): each "load more" click still
+  // fetches the next window from the server, since the initial open
+  // deliberately did NOT fetch the whole file.
   const { name, sourceFile, loaded } = fileViewState;
   const box = $('#collection-content');
   const btn = $('#file-load-more');

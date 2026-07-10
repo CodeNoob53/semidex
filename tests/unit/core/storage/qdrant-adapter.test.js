@@ -250,3 +250,22 @@ describe('createQdrantStorageAdapter().getCollection — description is read fro
     assert.ok(!/description:\s*null,/.test(method), 'description must not be hardcoded to null anymore');
   });
 });
+
+describe('createQdrantStorageAdapter().getFileChunks — a distinct primitive from windowed getChunk()', () => {
+  it('calls store.getFileChunks (not store.fetchWindowChunks) and maps every point through toChunk', () => {
+    // Phase 3F: the admin UI's file view needs "every chunk for this file,
+    // in order" as its own primitive, not an approximation built by
+    // windowing getChunk() around chunk 0. Source-string check for the same
+    // reason as the description regression test above — the real call
+    // needs a live Qdrant to exercise end to end.
+    const src = readFileSync(
+      fileURLToPath(new URL('../../../../src/core/storage/qdrant-adapter.js', import.meta.url)),
+      'utf-8',
+    );
+    const method = src.slice(src.indexOf('async getFileChunks('), src.indexOf('async searchHybrid('));
+    assert.ok(method, 'getFileChunks must be defined');
+    assert.match(method, /store\.getFileChunks\(/);
+    assert.match(method, /\.map\(toChunk\)/);
+    assert.ok(!/fetchWindowChunks/.test(method), 'getFileChunks must not go through the windowed fetchWindowChunks path');
+  });
+});

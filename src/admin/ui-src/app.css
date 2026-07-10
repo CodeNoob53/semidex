@@ -239,6 +239,14 @@ td.mono { font-family: var(--mono); font-size: 12px; }
   border: 1px solid var(--line-soft); border-radius: 3px;
   margin-bottom: 10px; overflow: hidden;
 }
+/* Marks the one chunk a section click actually resolved to (Phase 3F) — a
+   windowed file-open fetches a small neighborhood of chunks around it, so
+   without this the target chunk looked identical to its neighbors and the
+   "not blindly chunk 0" fix was invisible to the user even though it was
+   correct under the hood. Left border (not a full background wash) so it
+   reads as "this one" without fighting the amber accent already used for
+   active sidebar rows. */
+.chunk-target { border-color: var(--amber-dim); border-left: 3px solid var(--amber); }
 .chunk-head {
   padding: 6px 10px; background: var(--bg-inset);
   font-family: var(--mono); font-size: 11px; color: var(--ink-dim);

@@ -1,6 +1,6 @@
 // GET /api/collections/:name/chunks — StorageAdapter-only.
 import { sendJson, notFound } from '../http.js';
-import { requireIntParam, parseIntParam, requireStringParam } from './query-params.js';
+import { parseIntParam, requireStringParam } from './query-params.js';
 
 export function registerChunksRoutes(router, adapter) {
   router.get('/api/collections/:name/chunks', async ({ res, params, query }) => {
@@ -9,8 +9,20 @@ export function registerChunksRoutes(router, adapter) {
 
     const sourceFile = requireStringParam(query, 'sourceFile');
     // chunkIndex has no natural upper bound (it's per-file) and no sensible
-    // clamp target, so it's required and rejects (never clamps) if negative.
-    const chunkIndex = requireIntParam(query, 'chunkIndex', { min: 0, belowMin: 'reject' });
+    // clamp target, so when present it rejects (never clamps) if negative.
+    // Omitting it entirely switches this endpoint to "give me the whole
+    // file" mode (getFileChunks) — the admin UI's file view needs the real,
+    // complete chunk list for a file it just opened, not an approximation
+    // built from a retrieval-context window centered on chunk 0. Windowed
+    // mode (an explicit chunkIndex + optional window) is unchanged and
+    // still what section-anchor / "load more" callers use.
+    const chunkIndex = parseIntParam(query, 'chunkIndex', { min: 0, belowMin: 'reject' });
+    if (chunkIndex === undefined) {
+      const chunks = await adapter.getFileChunks(params.name, sourceFile);
+      sendJson(res, 200, { collection: params.name, sourceFile, chunkIndex: null, window: null, chunks });
+      return;
+    }
+
     // window: reject out-of-range on both sides — a silently-clamped window
     // could confuse a caller comparing requested vs. returned chunk counts.
     const window = parseIntParam(query, 'window', {

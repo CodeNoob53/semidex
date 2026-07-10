@@ -22,6 +22,7 @@ function makeStubAdapter(overrides = {}) {
     ensureCollectionSchema: async () => ({ repaired: ['index x'], warnings: [] }),
     listSourceDocuments: async () => [],
     getChunk: async () => [],
+    getFileChunks: async () => [],
     searchHybrid: async () => [],
     getSkeletonRoot: async () => null,
     getSkeletonNode: async () => null,
@@ -270,10 +271,52 @@ describe('GET /api/collections/:name/chunks', () => {
     });
   });
 
-  it('requires chunkIndex', async () => {
-    await withServer(makeStubAdapter(), async (base) => {
+  it('omitting chunkIndex switches to whole-file mode (getFileChunks), not a 400', async () => {
+    // Phase 3F: chunkIndex used to be required, forcing every caller
+    // (including "open this file fresh, no specific chunk in mind") to
+    // approximate "the whole file" as a window centered on chunk 0. It's
+    // now optional — omitting it entirely asks for the real, complete
+    // chunk list for the file via adapter.getFileChunks(), a distinct
+    // adapter method from the windowed adapter.getChunk().
+    let receivedSourceFile = null;
+    const adapter = makeStubAdapter({
+      getFileChunks: async (name, sourceFile) => { receivedSourceFile = sourceFile; return [{ sourceFile, chunkIndex: 0, text: 'hi' }, { sourceFile, chunkIndex: 1, text: 'bye' }]; },
+    });
+    await withServer(adapter, async (base) => {
       const res = await fetch(base + '/api/collections/demo/chunks?sourceFile=a.md');
-      assert.equal(res.status, 400);
+      const body = await res.json();
+      assert.equal(res.status, 200);
+      assert.equal(receivedSourceFile, 'a.md');
+      assert.equal(body.chunkIndex, null, 'chunkIndex is null in whole-file mode, not the requested-but-absent value');
+      assert.equal(body.window, null);
+      assert.equal(body.chunks.length, 2);
+    });
+  });
+
+  it('whole-file mode (no chunkIndex) never calls the windowed getChunk adapter method', async () => {
+    let getChunkCalled = false;
+    const adapter = makeStubAdapter({
+      getChunk: async () => { getChunkCalled = true; return []; },
+      getFileChunks: async () => [],
+    });
+    await withServer(adapter, async (base) => {
+      await fetch(base + '/api/collections/demo/chunks?sourceFile=a.md');
+      assert.equal(getChunkCalled, false, 'whole-file mode must go through getFileChunks, not getChunk');
+    });
+  });
+
+  it('an explicit chunkIndex still uses the windowed getChunk adapter method, not getFileChunks', async () => {
+    let getFileChunksCalled = false;
+    const adapter = makeStubAdapter({
+      getChunk: async (name, sourceFile, chunkIndex) => [{ sourceFile, chunkIndex, text: 'hi' }],
+      getFileChunks: async () => { getFileChunksCalled = true; return []; },
+    });
+    await withServer(adapter, async (base) => {
+      const res = await fetch(base + '/api/collections/demo/chunks?sourceFile=a.md&chunkIndex=4');
+      const body = await res.json();
+      assert.equal(res.status, 200);
+      assert.equal(body.chunkIndex, 4, 'an explicit chunkIndex must be echoed back as a real number, unchanged from before');
+      assert.equal(getFileChunksCalled, false, 'a windowed request must not also call getFileChunks');
     });
   });
 

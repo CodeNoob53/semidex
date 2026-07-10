@@ -32,6 +32,7 @@ function makeStubAdapter(overrides = {}) {
     ensureCollectionSchema: async () => ({ repaired: [], warnings: [] }),
     listSourceDocuments: async () => [],
     getChunk: async () => [],
+    getFileChunks: async () => [],
     searchHybrid: async () => [HIT],
     getSkeletonRoot: async () => null,
     getSkeletonNode: async () => null,

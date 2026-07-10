@@ -11,6 +11,7 @@ import { getQdrantClient, qdrantCall, errText } from './client.js';
 import { NAV_PAYLOAD_FIELDS, CONTENT_NODE_FIELDS } from './payload.js';
 import { collectionVectorSchema, SPARSE_VECTOR_SCHEMA, REQUIRED_PAYLOAD_INDEXES } from './schema.js';
 import { envInt } from '../env.js';
+import { withNavExcluded, isNavPoint } from './nav-filter.js';
 
 // ── Collections ───────────────────────────────────────────────────────────────
 
@@ -274,15 +275,33 @@ export async function fetchWindowChunks(collection, sourceFile, centerIndex, win
   const to   = centerIndex + windowSize;
   const points = await scroll(
     collection,
-    {
+    withNavExcluded({
       must: [
         { key: 'source_file', match: { value: sourceFile } },
         { key: 'chunk_index', range: { gte: from, lte: to } },
       ],
-    },
+    }),
     (windowSize * 2) + 1,
   );
   return points.sort((a, b) => a.payload.chunk_index - b.payload.chunk_index);
+}
+
+// ── getFileChunks ────────────────────────────────────────────────────────────
+// Returns every retrieval-content chunk for one source file, sorted by
+// chunk_index — the "whole file" primitive the admin UI's file view needs,
+// distinct from fetchWindowChunks() above (a retrieval-context window
+// centered on a specific chunk). Exhaustively paginated via
+// scrollAllFiltered (not scroll()'s single-page limit), since a file can
+// have more chunks than fit in one Qdrant scroll page.
+export async function getFileChunks(collection, sourceFile) {
+  const points = await scrollAllFiltered(
+    collection,
+    withNavExcluded({ must: [{ key: 'source_file', match: { value: sourceFile } }] }),
+    CONTENT_NODE_FIELDS,
+  );
+  return points
+    .filter(p => !isNavPoint(p) && Number.isInteger(p.payload?.chunk_index))
+    .sort((a, b) => a.payload.chunk_index - b.payload.chunk_index);
 }
 
 // ── Skeleton nav helpers ──────────────────────────────────────────────────────

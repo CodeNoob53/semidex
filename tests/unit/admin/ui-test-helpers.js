@@ -508,6 +508,7 @@ export function makeStubAdapter() {
     ensureCollectionSchema: async () => ({ repaired: [], warnings: [] }),
     listSourceDocuments: async () => [],
     getChunk: async () => [],
+    getFileChunks: async () => [],
     searchHybrid: async () => [],
     getSkeletonRoot: async () => null,
     getSkeletonNode: async () => null,

@@ -255,6 +255,16 @@ export function createQdrantStorageAdapter() {
       return points.map(toChunk);
     },
 
+    // Every retrieval-content chunk for one file, in order — the primitive
+    // the admin UI's file view needs to open a file directly and see its
+    // real content, rather than approximating "the whole file" with a
+    // window centered on chunk 0 (getChunk() above, which is a genuinely
+    // different retrieval-context concept, not a file-listing one).
+    async getFileChunks(name, sourceFile) {
+      const points = await store.getFileChunks(name, sourceFile);
+      return points.map(toChunk);
+    },
+
     async searchHybrid(name, { dense, sparse, limit = 5, filter } = {}) {
       const qdrantFilter = translateSearchFilter(filter);
       const points = await store.hybridSearch(name, dense, sparse, limit, qdrantFilter);

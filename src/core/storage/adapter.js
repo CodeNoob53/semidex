@@ -21,6 +21,7 @@
  *
  * @property {(name: string, opts?: { prefix?: string, limit?: number }) => Promise<Object[]>} listSourceDocuments
  * @property {(name: string, sourceFile: string, chunkIndex: number, opts?: { window?: number }) => Promise<Object[]>} getChunk
+ * @property {(name: string, sourceFile: string) => Promise<Object[]>} getFileChunks
  *
  * @property {(name: string, opts: { dense: number[], sparse?: Object, limit?: number, filter?: Object }) => Promise<Object[]>} searchHybrid
  *
@@ -44,6 +45,7 @@ export const REQUIRED_ADAPTER_METHODS = [
   'ensureCollectionSchema',
   'listSourceDocuments',
   'getChunk',
+  'getFileChunks',
   'searchHybrid',
   'getSkeletonRoot',
   'getSkeletonNode',
