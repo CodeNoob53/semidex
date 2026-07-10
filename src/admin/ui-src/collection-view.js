@@ -79,7 +79,7 @@ function schemaBadge(schema) {
 // name/health/settings on top, a summary block (skeleton-generated overview
 // preferred, falling back to config description, then a quiet empty state),
 // then compact user-facing fact chips (chunk count, model/local, hybrid
-// search, navigation map) — see collectionFactChips() and
+// search, skeleton nav) — see collectionFactChips() and
 // renderCollectionHeader() below. The more technical/debug-ish facts (dense
 // vector size/distance, sparse yes/no, both providers, schema/chunk/token
 // versions, semidex-managed) live only in the collapsed Details disclosure
@@ -162,7 +162,13 @@ function collectionFactChips(detail) {
     chips.push(`<span class="chip mono">${detail.vectorSchema?.sparse ? 'hybrid search' : 'dense search'}</span>`);
   }
 
-  chips.push(`<span class="chip mono">${detail.hasSkeleton ? 'navigation map' : 'flat file list'}</span>`);
+  // "skeleton nav" (Phase 3M), not "navigation map" — matches the label
+  // already used elsewhere in this admin UI for the same concept
+  // (settings-view.js's collection detail table, collectionDetailsPanel()
+  // below), so a user sees one consistent term for "this collection has a
+  // structured browse tree" rather than two different phrasings depending
+  // on which panel they're looking at.
+  chips.push(`<span class="chip mono">${detail.hasSkeleton ? 'skeleton nav' : 'flat file list'}</span>`);
   return chips.join('');
 }
 

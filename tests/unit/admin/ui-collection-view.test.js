@@ -268,7 +268,7 @@ describe('collection header — compact fact chips (Phase 3G: semidex vocabulary
     });
   });
 
-  it('shows a "navigation map" chip reflecting hasSkeleton', async () => {
+  it('shows a "skeleton nav" chip reflecting hasSkeleton: true (Phase 3M — consistent with settings-view.js\'s own label for the same concept)', async () => {
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
       const helpers = loadRouteIntegrationHelpers(html, {
@@ -280,7 +280,7 @@ describe('collection header — compact fact chips (Phase 3G: semidex vocabulary
       });
       await helpers.route();
       const text = helpers.document.querySelector('#col-header .col-header-facts').textContent;
-      assert.match(text, /navigation map/);
+      assert.match(text, /skeleton nav/);
     });
   });
 
