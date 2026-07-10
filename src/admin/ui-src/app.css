@@ -247,7 +247,18 @@ td.mono { font-family: var(--mono); font-size: 12px; }
 .file-view-count { flex: none; }
 .file-view-meta { font-size: 11px; color: var(--ink-dim); margin-top: 4px; }
 
-/* chunk preview */
+/* chunk preview (Phase 3P: three tiers, quiet-to-loud in the opposite order
+   of the old layout — a shaded metadata bar used to be the first, most
+   prominent thing in every card, competing with the actual evidence text
+   below it for attention. Same "primary / evidence / meta" tiering as
+   Phase 3O's search-result cards, adapted for a document-reading context:
+     .chunk-primary  — a plain (no background fill) section label + node-
+                       type badge. Identity, not a technical header bar.
+     .chunk-evidence — the actual chunk content: an optional context lead-
+                       in above the text, which is the dominant reading
+                       surface of the card.
+     .chunk-meta     — the chunk index, secondary and small at the bottom
+                       — implementation detail, not a headline. */
 .chunk {
   border: 1px solid var(--line-soft); border-radius: 3px;
   margin-bottom: 10px; overflow: hidden;
@@ -258,15 +269,19 @@ td.mono { font-family: var(--mono); font-size: 12px; }
    "not blindly chunk 0" fix was invisible to the user even though it was
    correct under the hood. Left border (not a full background wash) so it
    reads as "this one" without fighting the amber accent already used for
-   active sidebar rows. */
+   active sidebar rows — kept deliberately subtle (Phase 3P: not made any
+   louder), the ask was "improve without making it noisy." */
 .chunk-target { border-color: var(--amber-dim); border-left: 3px solid var(--amber); }
-.chunk-head {
-  padding: 6px 10px; background: var(--bg-inset);
-  font-family: var(--mono); font-size: 11px; color: var(--ink-dim);
-  border-bottom: 1px solid var(--line-soft);
-  display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+.chunk-primary {
+  padding: 8px 10px 4px;
+  font-size: 12px; color: var(--ink-dim);
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
 }
-.chunk-context { padding: 8px 10px; color: var(--ink-dim); font-size: 12px; font-style: italic; }
+.chunk-evidence { padding: 0 10px 8px; }
+.chunk-evidence .chunk-context {
+  margin: 0 0 6px; padding: 0; border: 0;
+  color: var(--ink-dim); font-size: 12px; font-style: italic;
+}
 .chunk-context-label {
   font-style: normal; font-weight: 600; text-transform: uppercase;
   letter-spacing: .03em; font-size: 10px; color: var(--ink-faint); margin-right: 4px;
@@ -275,6 +290,15 @@ td.mono { font-family: var(--mono); font-size: 12px; }
   margin: 0; padding: 10px; white-space: pre-wrap; word-break: break-word;
   font-family: var(--mono); font-size: 12px; color: var(--ink);
   max-height: 300px; overflow-y: auto;
+}
+/* .chunk-text is shared with tpl-search-result (search.js's evidence
+   block) — .chunk-evidence's own horizontal padding would double up with
+   .chunk-text's base padding, so it's zeroed out here, scoped to this
+   template only. Search-result cards keep the base padding above, since
+   .result-evidence has no horizontal padding of its own. */
+.chunk-evidence .chunk-text { padding: 0; }
+.chunk-meta {
+  padding: 5px 10px; font-size: 11px; color: var(--ink-faint);
   border-top: 1px dashed var(--line-soft);
 }
 

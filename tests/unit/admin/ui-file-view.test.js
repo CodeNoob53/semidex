@@ -147,6 +147,95 @@ describe('chunk view rendering (ui-src source + built index.html, evaluated beha
   });
 });
 
+// ── Phase 3P: chunk cards read as document evidence, not a debug dump ──────
+// The old layout put a shaded ".chunk-head" bar with the chunk index FIRST —
+// the most prominent element in the card, ahead of the actual content. This
+// mirrors the exact problem Phase 3O fixed for search-result cards: three
+// tiers, quiet-to-loud — .chunk-primary (identity), .chunk-evidence (the
+// dominant reading surface), .chunk-meta (secondary, chunk index only).
+describe('chunk cards (Phase 3P): chunk index is secondary metadata, not the headline', () => {
+  it('.chunk-index-label lives inside .chunk-meta, never inside .chunk-primary', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const { renderFileChunks } = loadFileViewRenderHelpers(html);
+      const frag = renderFileChunks([{ chunkIndex: 4, totalChunks: 9, section: 'Intro', nodeType: 'paragraph', text: 'hello' }]);
+      const card = frag.querySelector('.chunk');
+      const meta = card.querySelector('.chunk-meta');
+      const primary = card.querySelector('.chunk-primary');
+      assert.ok(meta, 'card must have a .chunk-meta wrapper');
+      assert.ok(primary, 'card must have a .chunk-primary wrapper');
+      assert.ok(meta.querySelector('.chunk-index-label'), '.chunk-index-label must live inside .chunk-meta');
+      assert.equal(primary.querySelector('.chunk-index-label'), null, '.chunk-index-label must not live inside .chunk-primary');
+      assert.equal(meta.querySelector('.chunk-index-label').textContent, 'chunk 4 / 9');
+    });
+  });
+
+  it('.chunk-primary carries the section label and node-type badge (identity), not the evidence text', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const { renderFileChunks } = loadFileViewRenderHelpers(html);
+      const frag = renderFileChunks([{ chunkIndex: 0, section: 'Setup', nodeType: 'paragraph', text: 'install steps here' }]);
+      const primary = frag.querySelector('.chunk').querySelector('.chunk-primary');
+      assert.ok(primary.querySelector('.chunk-section'), '.chunk-primary must carry the section label');
+      assert.equal(primary.querySelector('.chunk-section').textContent, 'Setup');
+      assert.doesNotMatch(primary.textContent, /install steps here/, 'evidence text must not appear in the identity row');
+    });
+  });
+
+  it('.chunk-evidence carries the context lead-in and the chunk text (the dominant reading surface)', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const { renderFileChunks } = loadFileViewRenderHelpers(html);
+      const frag = renderFileChunks([{ chunkIndex: 0, nodeType: 'paragraph', text: 'install steps here', context: 'Setup › Prereqs' }]);
+      const evidence = frag.querySelector('.chunk').querySelector('.chunk-evidence');
+      assert.ok(evidence, 'card must have a .chunk-evidence wrapper');
+      assert.ok(evidence.querySelector('.chunk-text'), '.chunk-evidence must carry the chunk text');
+      assert.equal(evidence.querySelector('.chunk-text').textContent, 'install steps here');
+      assert.ok(evidence.querySelector('.chunk-context'), '.chunk-evidence must carry the context lead-in');
+    });
+  });
+});
+
+// Raw structural content (a markdown table or code block) must render as
+// inert text via .textContent, never parsed as markup — a chunk's text is
+// untrusted API/indexed content, and an HTML-like table/code snippet must
+// not become real DOM elements (XSS-safety), matching the same guarantee
+// Phase 3O already established for search-result evidence text.
+describe('chunk cards (Phase 3P): raw table/code content stays plain text, never parsed as HTML', () => {
+  it('a table chunk containing HTML-like text renders as inert text, not a real element', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const { renderFileChunks } = loadFileViewRenderHelpers(html);
+      const adversarial = '| <img src=x onerror=alert(1)> | <script>alert(2)</script> |';
+      const frag = renderFileChunks([{ chunkIndex: 0, nodeType: 'table', text: adversarial, context: 'Intro — table' }]);
+      const textEl = frag.querySelector('.chunk-text');
+      assert.equal(textEl.textContent, adversarial, 'the raw table text must be preserved verbatim as text');
+      assert.equal(textEl.querySelector('img'), null, 'must never parse into a real <img> element');
+      assert.equal(textEl.querySelector('script'), null, 'must never parse into a real <script> element');
+    });
+  });
+
+  it('a code_block chunk containing HTML-like text renders as inert text, not a real element', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const { renderFileChunks } = loadFileViewRenderHelpers(html);
+      const adversarial = 'const x = "<div onclick=alert(1)>";';
+      const frag = renderFileChunks([{ chunkIndex: 0, nodeType: 'code_block', text: adversarial, context: 'Intro — code block' }]);
+      const textEl = frag.querySelector('.chunk-text');
+      assert.equal(textEl.textContent, adversarial);
+      assert.equal(textEl.querySelector('div'), null);
+    });
+  });
+
+  it('.chunk-text keeps its scroll/wrap containment (max-height + overflow) so large raw content cannot break page layout', () => {
+    const css = readUiSource('app.css');
+    const chunkTextBlock = css.match(/\.chunk-text\s*\{[^}]*\}/)?.[0] ?? '';
+    assert.match(chunkTextBlock, /max-height:\s*300px/);
+    assert.match(chunkTextBlock, /overflow-y:\s*auto/);
+    assert.match(chunkTextBlock, /word-break:\s*break-word/);
+  });
+});
+
 // ── Phase 3A: main shows one content surface at a time ──────────────────────
 describe('opening a file/section clears prior search results (single-content-surface)', () => {
   it('openFileView() clears #search-results and #search-status', async () => {

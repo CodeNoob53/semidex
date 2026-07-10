@@ -1,14 +1,18 @@
 <template id="tpl-chunk-card">
   <div class="chunk">
-    <div class="chunk-head">
-      <span class="chunk-index-label"></span>
+    <div class="chunk-primary">
       <span class="chunk-section"></span>
       <span class="badge badge-amber chunk-node-type" hidden></span>
     </div>
-    <div class="chunk-context" hidden>
-      <span class="chunk-context-label"></span>
-      <span class="chunk-context-text"></span>
+    <div class="chunk-evidence">
+      <p class="chunk-context" hidden>
+        <span class="chunk-context-label"></span>
+        <span class="chunk-context-text"></span>
+      </p>
+      <pre class="chunk-text"></pre>
     </div>
-    <pre class="chunk-text"></pre>
+    <div class="chunk-meta">
+      <span class="chunk-index-label"></span>
+    </div>
   </div>
 </template>
