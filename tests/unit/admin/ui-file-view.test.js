@@ -36,6 +36,55 @@ describe('file/section browse cards never show search rank/score (this is browse
   });
 });
 
+// ── Phase 3L: nav points must never render as file-view content ────────────
+// The actual exclusion happens two layers below the UI — server-side
+// (withNavExcluded, store.js's getFileChunks/fetchWindowChunks — see
+// tests/unit/core/qdrant-store-nav-exclusion.test.js) and at the adapter
+// boundary (toChunk() in qdrant-adapter.js maps a raw Qdrant point to a
+// domain Chunk shape that never carries point_kind/node_id-as-nav-marker
+// through at all — see src/core/storage/qdrant-adapter.js's own header
+// comment: "Callers above this layer... must never see point_kind, node_type
+// snake_case fields"). file-view.js's renderFileChunks() therefore has no
+// nav-awareness of its own to test — there is no field for it to check. This
+// test instead confirms the render layer's side of that contract: it
+// renders exactly what it's given, one card per chunk object, with no
+// hidden filtering OR accidental pass-through of raw snake_case fields —
+// proving the boundary is real (nothing downstream re-adds a nav concept),
+// not just that this one call happens to look clean.
+describe('file-view chunk rendering trusts the adapter boundary — no nav-point concept exists at this layer', () => {
+  it('renders exactly one card per chunk passed in, with no snake_case/point_kind field ever appearing in the output', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const { renderFileChunks } = loadFileViewRenderHelpers(html);
+      // A domain Chunk never has point_kind — this shape is intentionally
+      // adversarial (as if a nav point's raw payload had leaked past the
+      // adapter unmapped) to prove renderFileChunks does not special-case
+      // or accidentally surface it if it ever did arrive.
+      const chunks = [
+        { chunkIndex: 0, section: 'Intro', nodeType: 'paragraph', text: 'real content', point_kind: 'skeleton_nav' },
+        { chunkIndex: 1, section: 'Body', nodeType: 'paragraph', text: 'more real content' },
+      ];
+      const frag = renderFileChunks(chunks);
+      const cards = frag.querySelectorAll('.chunk');
+      assert.equal(cards.length, 2, 'every chunk object passed in renders exactly one card — no implicit filtering by this layer');
+      const html2 = [...cards].map(c => c.outerHTML).join('');
+      assert.doesNotMatch(html2, /point_kind/, 'a raw payload field must never surface in the rendered card even if present on the input object');
+      assert.doesNotMatch(html2, /skeleton_nav/);
+    });
+  });
+
+  it('getFileChunks (the whole-file backend primitive) is the one place nav-exclusion actually happens — confirmed server-side, not re-implemented here', () => {
+    // Cross-reference, not a duplicate: the real guarantee lives in
+    // tests/unit/core/qdrant-store-nav-exclusion.test.js's
+    // "getFileChunks() — whole-file primitive..." test, which asserts
+    // withNavExcluded()/isNavPoint() are both used. This test just pins
+    // that file-view.js's whole-file fetch actually calls the /chunks
+    // endpoint backed by that primitive (no separate, unaudited fetch path).
+    const js = readUiSource('file-view.js');
+    assert.match(js, /api\(`\/api\/collections\/\$\{encodeURIComponent\(name\)\}\/chunks\?\$\{qs\}`\)/);
+  });
+});
+
 describe('chunk view rendering (ui-src source + built index.html, evaluated behavior)', () => {
   it('renderFileChunks includes a node_type badge for every chunk', async () => {
     await withServer(async (base) => {

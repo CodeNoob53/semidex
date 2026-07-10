@@ -101,6 +101,28 @@ describe('sidebar file rows: row click opens the file, caret click expands secti
     assert.ok(box.querySelector('.tree-subtree'), 'caret click must expand the sections subtree');
   });
 
+  // ── Phase 3L: confirm a section ROW click still navigates via the hash,
+  // same single code path as a file click — this was previously only
+  // covered indirectly (route-parsing tests + openSectionView()'s own
+  // rendering tests), never as an actual simulated row click. ────────────
+  it('row click on a section node navigates to the section route, not an expand', async () => {
+    const helpers = loadSidebarNodeInteractionHelpers({
+      apiResponses: {
+        root: [{ nodeType: 'section', nodePath: 'sql/SELECT.md#intro', sourceFile: 'sql/SELECT.md', childCount: 0 }],
+      },
+    });
+    const box = helpers.document.getElementById('root');
+    await helpers.renderSidebarSkeletonLevel(box, 'my-docs', { nodePath: 'root', childCount: 1 }, 0);
+
+    const row = box.querySelector('.tree-node');
+    assert.ok(row, 'sanity: the section row rendered');
+    row.click();
+    await Promise.resolve();
+
+    assert.equal(helpers.location.hash, `#/c/my-docs/n/${encodeURIComponent('sql/SELECT.md#intro')}`,
+      'clicking a section row must route through the same #/c/:name/n/:nodePath hash as a pasted/back-forward URL');
+  });
+
   it('a file with NO sections (childCount 0) renders no clickable caret at all', () => {
     const helpers = loadSidebarNodeInteractionHelpers();
     const { sidebarNodeRow } = helpers;
