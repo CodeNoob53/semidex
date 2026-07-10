@@ -427,6 +427,111 @@ describe('indexing progress panel (ui-src source + built index.html, redesigned)
         'a job that transitions to failed must auto-expand if the user never manually toggled it');
     });
   });
+
+  // ── Phase 3N: the remaining task-listed scenarios not yet directly
+  // exercised — a manual close on a RUNNING (not failed) job, per-job-id
+  // keying with two independent jobs, and log-duplication across renders.
+  it('a user manually closing a RUNNING job\'s details stays closed across polling (distinct from the "never touched" case)', async () => {
+    // Deliberately opens then closes, rather than just leaving it closed —
+    // this exercises the actual manual-close code path (jobDetailsManualState
+    // set to false) rather than merely the "no entry yet" default, which the
+    // "left untouched" test above already covers for a running job.
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const job = {
+        id: 'job-11', collection: 'demo', path: './docs', state: 'running',
+        startedAt: new Date().toISOString(), finishedAt: null, exitCode: null,
+        progress: { processedFiles: 1, totalFiles: 5, currentFile: 'a.md', percent: 20 },
+      };
+      const { document, renderIndexingView, loadJobs } = loadJobsViewRenderHelpers(html, {
+        apiImpl: async (url) => (url.startsWith('/api/jobs/') ? { log: '' } : { jobs: [job] }),
+      });
+      await renderIndexingView(document.getElementById('main'));
+      await loadJobs();
+      const details = document.querySelector('.job-details');
+
+      simulateToggle(document, details, true); // user opens it
+      await loadJobs();
+      assert.equal(document.querySelector('.job-details').hasAttribute('open'), true, 'sanity check: open after the user opened it');
+
+      simulateToggle(document, document.querySelector('.job-details'), false); // user closes it again
+      job.progress = { ...job.progress, processedFiles: 3, percent: 60 };
+      await loadJobs();
+      assert.equal(document.querySelector('.job-details').hasAttribute('open'), false,
+        'a manual close on a running job must stay closed across further polling, even as progress changes');
+    });
+  });
+
+  it('open/closed state is keyed per job id — two jobs never share or overwrite each other\'s state', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const jobs = [
+        { id: 'job-a', collection: 'demo-a', path: './a', state: 'running', startedAt: new Date().toISOString(), finishedAt: null, exitCode: null, progress: null },
+        { id: 'job-b', collection: 'demo-b', path: './b', state: 'running', startedAt: new Date().toISOString(), finishedAt: null, exitCode: null, progress: null },
+      ];
+      const { document, renderIndexingView, loadJobs } = loadJobsViewRenderHelpers(html, {
+        apiImpl: async (url) => (url.startsWith('/api/jobs/') ? { log: '' } : { jobs }),
+      });
+      await renderIndexingView(document.getElementById('main'));
+      await loadJobs();
+
+      const cardFor = (id) => [...document.querySelectorAll('.job-card')].find(c => c.dataset.id === id);
+      // Open job-a's details only — job-b must remain untouched/closed.
+      simulateToggle(document, cardFor('job-a').querySelector('.job-details'), true);
+
+      await loadJobs(); // poll tick — both jobs re-rendered
+      assert.equal(cardFor('job-a').querySelector('.job-details').hasAttribute('open'), true,
+        'job-a must stay open — it was explicitly opened');
+      assert.equal(cardFor('job-b').querySelector('.job-details').hasAttribute('open'), false,
+        'job-b must stay closed — opening job-a must not affect it');
+
+      // Now close job-a and open job-b — confirm each job's state is
+      // independently keyed, not e.g. a single shared "last toggled" flag.
+      simulateToggle(document, cardFor('job-a').querySelector('.job-details'), false);
+      simulateToggle(document, cardFor('job-b').querySelector('.job-details'), true);
+      await loadJobs();
+      assert.equal(cardFor('job-a').querySelector('.job-details').hasAttribute('open'), false, 'job-a: closed');
+      assert.equal(cardFor('job-b').querySelector('.job-details').hasAttribute('open'), true, 'job-b: open');
+    });
+  });
+
+  it('logs are not duplicated between renders — the log <pre> is replaced, not appended to, on each poll', async () => {
+    // loadJobLog() is fire-and-forget from loadJobs() (not awaited — see
+    // the source's `for (const card ...) loadJobLog(card);` with no
+    // `await`), so tests need one microtask tick after loadJobs() resolves
+    // before the log <pre> actually has its fetched content. job.log itself
+    // is an array of pre-formatted "[stream] line" strings in the real API
+    // (src/admin/api/jobs.js), not a raw joined string — matched here.
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const job = {
+        id: 'job-12', collection: 'demo', path: './docs', state: 'running',
+        startedAt: new Date().toISOString(), finishedAt: null, exitCode: null,
+        progress: { processedFiles: 1, totalFiles: 5, currentFile: 'a.md', percent: 20 },
+      };
+      let logLines = ['[stdout] line one', '[stdout] line two'];
+      const { document, renderIndexingView, loadJobs } = loadJobsViewRenderHelpers(html, {
+        apiImpl: async (url) => (url.startsWith('/api/jobs/') ? { job: { log: logLines, state: 'running' } } : { jobs: [job] }),
+      });
+      await renderIndexingView(document.getElementById('main'));
+      await loadJobs();
+      await Promise.resolve(); await Promise.resolve(); // let the un-awaited loadJobLog() fetch settle
+      const firstLog = document.querySelector('.job-log').textContent;
+      assert.equal(firstLog, '[stdout] line one\n[stdout] line two');
+
+      // New lines arrive on the next poll — the full log (job.log.slice(-30))
+      // is authoritative each time, not appended client-side, so the log
+      // element's content must reflect exactly the new fetch, not the old
+      // text plus the new text concatenated.
+      logLines = ['[stdout] line one', '[stdout] line two', '[stdout] line three'];
+      await loadJobs();
+      await Promise.resolve(); await Promise.resolve();
+      const secondLog = document.querySelector('.job-log').textContent;
+      assert.equal(secondLog, '[stdout] line one\n[stdout] line two\n[stdout] line three',
+        'the log must be replaced with the authoritative server copy, not have new lines appended onto stale client-side text');
+      assert.equal((secondLog.match(/line one/g) ?? []).length, 1, 'each line must appear exactly once — no duplication across renders');
+    });
+  });
 });
 
 // ── folder picker (developer-form redesign) ──────────────────────────────
