@@ -365,11 +365,25 @@ td.actions { text-align: right; }
 #search-status { margin-top: 12px; }
 #search-status.error-box { margin-top: 12px; margin-bottom: 0; }
 
+/* Phase 3O: search result cards read as evidence, not a debug row. Three
+   tiers, most-to-least prominent:
+     .result-primary  — identity: rank, source file, section, node-type
+                         badge, the "Open ..." action. What IS this result.
+     .result-evidence — the actual matched content: an optional context
+                         lead-in (only when it says something the evidence
+                         text doesn't already show — see search.js's
+                         shouldShowContext()) above the evidence text
+                         itself, which is the visually dominant part of
+                         the card.
+     .result-meta      — secondary/service row: chunk index, a structural-
+                         evidence hint for table/code/checklist hits, and
+                         score/score-bar last — a ranking signal, not the
+                         headline. Small, muted, easy to skim past. */
 .result-card {
   border: 1px solid var(--line-soft); border-radius: 3px;
   margin-top: 10px; overflow: hidden;
 }
-.result-head {
+.result-primary {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
   padding: 7px 10px; background: var(--bg-inset);
   border-bottom: 1px solid var(--line-soft); font-size: 12px;
@@ -378,17 +392,40 @@ td.actions { text-align: right; }
   font-family: var(--mono); font-size: 12px; color: var(--amber);
   min-width: 26px;
 }
+.result-primary .result-open { margin-left: auto; }
+
+.result-evidence { padding: 2px 0; }
+/* The context lead-in reads as a subtitle above the evidence, not a
+   second equally-weighted block — smaller and dimmer than .chunk-text,
+   with no border of its own (the card's existing chunk-text top border
+   already separates "identity" from "evidence" cleanly). */
+.result-evidence .chunk-context {
+  margin: 8px 10px 0; padding: 0; border: 0;
+  color: var(--ink-dim); font-size: 12px; font-style: italic;
+}
+
+.result-meta {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 5px 10px; font-size: 11px; color: var(--ink-dim);
+  border-top: 1px dashed var(--line-soft);
+}
+.result-structural-hint {
+  font-size: 10px; text-transform: uppercase; letter-spacing: .03em;
+  color: var(--ink-faint);
+}
+.result-meta-spacer { flex: 1; }
 .score { color: var(--ink-dim); }
 /* Normalized relative to the top-1 result's score (never an absolute
-   confidence reading — same "compare order, not absolute value" framing
-   as the numeric .score span's tooltip, repeated here since the bar is
-   the more visually prominent element). */
+   confidence reading — same "used for ranking, compare order not absolute
+   value" framing as the numeric .score span's tooltip, repeated here since
+   the bar is the more visually prominent element). Sits in the secondary
+   .result-meta row, not the card's primary identity row — a ranking
+   signal, not the headline. */
 .score-bar {
   display: inline-block; width: 48px; height: 6px; border-radius: 3px;
   background: var(--bg-inset); border: 1px solid var(--line-soft); overflow: hidden;
 }
 .score-bar-fill { display: block; height: 100%; background: var(--amber-dim); }
-.result-head .mini-btn { margin-left: auto; }
 
 /* "Show more" — reveals more of an already-fetched result batch (search
    always requests a fixed larger limit up front; this never re-runs

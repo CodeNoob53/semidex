@@ -195,6 +195,146 @@ describe('search result cards show only the matched chunk (no windowChunks rende
       assert.equal(card.querySelector('.chunk-context').textContent, 'some context');
       assert.equal(card.querySelector('.chunk-text').textContent, 'the matched text');
       assert.equal(card.querySelector('.result-open').hidden, false);
+      assert.equal(card.querySelector('.result-open').textContent, 'Open file section',
+        'a plain prose hit opens as part of its file section, not an isolated chunk');
+    });
+  });
+});
+
+// ── Phase 3O: search results read as evidence, not a raw debug dump ────────
+describe('search result cards — evidence layout (Phase 3O)', () => {
+  it('does not show context as a second equally-weighted block when its words already appear in the evidence text', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const { renderResult } = loadSearchRenderHelpers(html);
+      const card = renderResult({
+        sourceFile: 'readme.md', chunkIndex: 0, nodeType: 'paragraph',
+        context: 'Setup', text: 'Setup: run npm install before starting the server.',
+      }, 0);
+      assert.equal(card.querySelector('.chunk-context').hidden, true,
+        'context whose words already appear in the evidence text must not be duplicated as its own block');
+      assert.equal(card.querySelector('.chunk-text').textContent, 'Setup: run npm install before starting the server.');
+    });
+  });
+
+  it('still shows context as a lead-in when it adds real information the evidence text does not already state', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const { renderResult } = loadSearchRenderHelpers(html);
+      const card = renderResult({
+        sourceFile: 'readme.md', chunkIndex: 0, nodeType: 'paragraph',
+        context: 'Deployment › Docker › Production config', text: 'Set NODE_ENV=production before building the image.',
+      }, 0);
+      assert.equal(card.querySelector('.chunk-context').hidden, false,
+        'a real breadcrumb/lead-in with information not in the evidence text must still render');
+      assert.equal(card.querySelector('.chunk-context').textContent, 'Deployment › Docker › Production config');
+    });
+  });
+
+  it('does not show an empty/whitespace-only context as a block at all', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const { renderResult } = loadSearchRenderHelpers(html);
+      const card = renderResult({ sourceFile: 'a.md', chunkIndex: 0, context: '   ', text: 'some evidence' }, 0);
+      assert.equal(card.querySelector('.chunk-context').hidden, true);
+    });
+  });
+
+  it('a table hit shows a "table evidence" structural hint distinct from the node-type badge', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const { renderResult } = loadSearchRenderHelpers(html);
+      const card = renderResult({ sourceFile: 'a.md', chunkIndex: 0, nodeType: 'table', text: '| a | b |\n|---|---|\n| 1 | 2 |' }, 0);
+      const hint = card.querySelector('.result-structural-hint');
+      assert.equal(hint.hidden, false);
+      assert.equal(hint.textContent, 'table evidence');
+      assert.equal(card.querySelector('.result-open').textContent, 'Open chunk',
+        'a structural hit is one specific excerpt, not part of a larger prose section');
+    });
+  });
+
+  it('a code_block hit shows a "code evidence" structural hint', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const { renderResult } = loadSearchRenderHelpers(html);
+      const card = renderResult({ sourceFile: 'a.md', chunkIndex: 0, nodeType: 'code_block', text: 'const x = 1;' }, 0);
+      assert.equal(card.querySelector('.result-structural-hint').textContent, 'code evidence');
+    });
+  });
+
+  it('a checklist hit shows a "checklist evidence" structural hint', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const { renderResult } = loadSearchRenderHelpers(html);
+      const card = renderResult({ sourceFile: 'a.md', chunkIndex: 0, nodeType: 'checklist', text: '- [ ] todo' }, 0);
+      assert.equal(card.querySelector('.result-structural-hint').textContent, 'checklist evidence');
+    });
+  });
+
+  it('a plain prose hit (paragraph) never shows the structural evidence hint', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const { renderResult } = loadSearchRenderHelpers(html);
+      const card = renderResult({ sourceFile: 'a.md', chunkIndex: 0, nodeType: 'paragraph', text: 'just prose' }, 0);
+      assert.equal(card.querySelector('.result-structural-hint').hidden, true);
+    });
+  });
+
+  it('score/score-bar sit in the secondary meta row, not the primary identity row', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const { renderResult } = loadSearchRenderHelpers(html);
+      const card = renderResult({ sourceFile: 'a.md', chunkIndex: 0, score: 0.5 }, 0, 0.5);
+      const primaryRow = card.querySelector('.result-primary');
+      const metaRow = card.querySelector('.result-meta');
+      assert.equal(primaryRow.querySelector('.score'), null, 'score must not appear in the primary identity row');
+      assert.equal(primaryRow.querySelector('.score-bar'), null, 'score-bar must not appear in the primary identity row');
+      assert.ok(metaRow.querySelector('.score'), 'score belongs in the secondary meta row');
+      assert.ok(metaRow.querySelector('.score-bar'), 'score-bar belongs in the secondary meta row');
+    });
+  });
+
+  it('the rank/source/section/node-type/open-button all sit in the primary identity row', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const { renderResult } = loadSearchRenderHelpers(html);
+      const card = renderResult({ sourceFile: 'a.md', chunkIndex: 0, section: 'Intro', nodeType: 'paragraph' }, 0);
+      const primaryRow = card.querySelector('.result-primary');
+      assert.ok(primaryRow.querySelector('.rank'));
+      assert.ok(primaryRow.querySelector('.result-source'));
+      assert.ok(primaryRow.querySelector('.result-section'));
+      assert.ok(primaryRow.querySelector('.result-node-type'));
+      assert.ok(primaryRow.querySelector('.result-open'));
+    });
+  });
+
+  it('rendering never lets raw table/code markdown inject HTML — evidence text is always plain text, never parsed', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const { renderResult } = loadSearchRenderHelpers(html);
+      const maliciousLookingMarkdown = '| <img src=x onerror=alert(1)> | b |\n|---|---|';
+      const card = renderResult({ sourceFile: 'a.md', chunkIndex: 0, nodeType: 'table', text: maliciousLookingMarkdown }, 0);
+      assert.equal(card.querySelectorAll('img').length, 0, 'raw table markdown must never be parsed into a real element');
+      assert.equal(card.querySelector('.chunk-text').textContent, maliciousLookingMarkdown);
+    });
+  });
+});
+
+describe('search empty-state copy is actionable, not a dead end (Phase 3O)', () => {
+  it('a query with zero results suggests trying different wording or a different scope', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const { document, initSearchPanel, runSearch } = loadSearchRenderHelpers(html, {
+        apiPostImpl: async () => ({ results: [] }),
+      });
+      initSearchPanel('my-docs');
+      document.getElementById('q-input').value = 'nonexistent thing';
+      await runSearch('my-docs');
+      const text = document.getElementById('search-status').textContent;
+      assert.match(text, /No results/);
+      assert.match(text, /different wording|different file|collection/i,
+        'the empty state must suggest a concrete next step, not just report absence');
+      assert.doesNotMatch(text, /HTTP \d|undefined|null|Error:/i, 'must not read like a technical/debug message');
     });
   });
 });
@@ -924,9 +1064,9 @@ describe('score/rank shown by default (no checkbox opt-in)', () => {
     });
   });
 
-  it('the score-bar keeps the same "compare order, not absolute value" tooltip as the numeric score', () => {
+  it('the score-bar keeps the same "used for ranking, compare order not absolute value" tooltip as the numeric score (Phase 3O copy)', () => {
     const html = readUiSource('partials/templates/search-result.html');
-    const matches = html.match(/title="Rank score — compare order, not absolute value"/g) ?? [];
+    const matches = html.match(/title="Used for ranking; compare order, not absolute value\."/g) ?? [];
     assert.equal(matches.length, 2, 'both .score and .score-bar must carry the RRF-order-not-confidence tooltip');
   });
 

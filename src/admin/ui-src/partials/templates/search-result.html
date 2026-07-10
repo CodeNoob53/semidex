@@ -1,16 +1,22 @@
 <template id="tpl-search-result">
   <div class="result-card">
-    <div class="result-head">
+    <div class="result-primary">
       <span class="rank"></span>
-      <span class="mono score" title="Rank score — compare order, not absolute value" hidden></span>
-      <span class="score-bar" title="Rank score — compare order, not absolute value" hidden><span class="score-bar-fill"></span></span>
       <span class="mono result-source"></span>
-      <span class="mono muted result-chunk-index"></span>
       <span class="muted result-section"></span>
       <span class="badge badge-amber result-node-type" hidden></span>
-      <button type="button" class="mini-btn result-open" hidden>open</button>
+      <button type="button" class="mini-btn result-open" hidden></button>
     </div>
-    <div class="chunk-context" hidden></div>
-    <pre class="chunk-text"></pre>
+    <div class="result-evidence">
+      <p class="chunk-context" hidden></p>
+      <pre class="chunk-text"></pre>
+    </div>
+    <div class="result-meta">
+      <span class="mono muted result-chunk-index"></span>
+      <span class="muted result-structural-hint" hidden></span>
+      <span class="result-meta-spacer"></span>
+      <span class="mono score" title="Used for ranking; compare order, not absolute value." hidden></span>
+      <span class="score-bar" title="Used for ranking; compare order, not absolute value." hidden><span class="score-bar-fill"></span></span>
+    </div>
   </div>
 </template>

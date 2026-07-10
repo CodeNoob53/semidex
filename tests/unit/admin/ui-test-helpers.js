@@ -324,19 +324,21 @@ export function loadSearchRenderHelpers(html, { hash = '#/', storage, apiPostImp
     + stripExports(readUiSource('routes.js')).replace(/^import .*$/gm, '')
     + stripExports(readUiSource('search.js')).replace(/^import .*$/gm, '')
       // search.js imports openFileView/hideCollectionContent/
-      // nodeTypeBadgeIcon from file-view.js and apiPost from api.js —
-      // renderResult() itself only calls nodeTypeBadgeIcon directly; the
-      // "Show more" open-button-wiring tests need a real (test-supplied)
-      // openFileView to assert on, so it's a caller-provided stub (default
-      // a no-op) rather than always inlined away — hideCollectionContent()
-      // still isn't exercised by these tests, so that one stays a no-op.
+      // nodeTypeBadgeIcon/STRUCTURAL_NODE_TYPES from file-view.js and
+      // apiPost from api.js — renderResult() itself only calls
+      // nodeTypeBadgeIcon/STRUCTURAL_NODE_TYPES directly; the "Show more"
+      // open-button-wiring tests need a real (test-supplied) openFileView
+      // to assert on, so it's a caller-provided stub (default a no-op)
+      // rather than always inlined away — hideCollectionContent() still
+      // isn't exercised by these tests, so that one stays a no-op.
       .replace(/openFileView\(/g, '__openFileViewImpl(')
       .replace(/hideCollectionContent\(\)/g, '')
     + '\nconst apiPost = __apiPostImpl;\n'
     + stripExports(readUiSource('icons.js'))
     + `\nfunction nodeTypeBadgeIcon(nodeType) {
       return { table: iconTable, code_block: iconCodeBlock, checklist: iconChecklist }[nodeType]?.() ?? '';
-    }\n`;
+    }
+    const STRUCTURAL_NODE_TYPES = new Set(['table', 'code_block', 'checklist']);\n`;
   vm.runInContext(src, context);
   return context;
 }

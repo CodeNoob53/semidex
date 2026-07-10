@@ -20,7 +20,7 @@
 // never asks for one).
 import { $, esc, cloneTemplate, prefersReducedMotion } from './dom.js';
 import { apiPost } from './api.js';
-import { openFileView, hideCollectionContent, nodeTypeBadgeIcon } from './file-view.js';
+import { openFileView, hideCollectionContent, nodeTypeBadgeIcon, STRUCTURAL_NODE_TYPES } from './file-view.js';
 import { currentRoute } from './routes.js';
 
 // The backend's /api/search caps `top` at 20 (src/admin/api/search.js's
@@ -319,9 +319,12 @@ export async function runSearch(name) {
     renderRecentSearches(name);
     $('#search-mode').textContent = body.searchMode ? `mode: ${body.searchMode}` : '';
     if (!body.results.length) {
+      // Actionable, not just "nothing found" — the filtered case already
+      // named its one fix (clear the file scope); the general case gets
+      // the same treatment (Phase 3O) rather than a dead-end sentence.
       status.textContent = searchSourceFile
         ? 'No results in the filtered file — try clearing the file filter.'
-        : 'No results for this query.';
+        : 'No results for this query — try different wording, or search a different file/collection.';
       return;
     }
     lastSearchResults = body.results;
@@ -372,6 +375,52 @@ function showMoreResults(name) {
   renderVisibleResults(name, nextCount);
 }
 
+// Normalizes whitespace/case for the context-vs-text similarity check below
+// — "almost identical" should catch trivial formatting differences (extra
+// spaces, a trailing period, case), not just byte-for-byte equality.
+function normalizeForCompare(s) {
+  return String(s ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+// Phase 3O: a search result's `context` (a short section-path breadcrumb,
+// e.g. "Setup › Install") and `text` (the actual matched chunk) used to
+// always render as two equally-weighted blocks — for a short/plain-prose
+// chunk, that reads as duplicated information rather than two distinct
+// pieces of evidence. This decides whether `context` earns its own visible
+// line: only when it's both present AND says something `text` doesn't
+// already show at a glance.
+//
+//   - context is empty/whitespace-only -> never show it (nothing to add).
+//   - context, once normalized, is a substring of the (also normalized)
+//     text -> the same words already appear in the evidence itself,
+//     showing both would just repeat it.
+//   - context is "too short to be a real lead-in" (a bare word or two, e.g.
+//     just a section name with no real breadcrumb) AND text already starts
+//     with something similar -> same call, narrower trigger.
+//   - otherwise -> show it as a subtitle/lead-in above the evidence text,
+//     not a second equally-weighted block.
+function shouldShowContext(context, text) {
+  const c = normalizeForCompare(context);
+  if (!c) return false;
+  const t = normalizeForCompare(text);
+  if (!t) return true; // no text to compare against — context is all we have
+  if (t.includes(c)) return false; // context's words already appear verbatim in the evidence
+  return true;
+}
+
+// table/code_block/checklist chunks carry their own inline "retrieval
+// context" annotation (see file-view.js's STRUCTURAL_NODE_TYPES /
+// entityContext() in the indexer) rather than a prose section-path — the
+// evidence itself is a structural excerpt (raw table/code markdown), so it
+// gets a distinct short label ("table evidence" / "code evidence" /
+// "checklist evidence") instead of being announced only by the node-type
+// badge up in the primary row, which is easy to miss at a glance.
+const STRUCTURAL_EVIDENCE_LABEL = {
+  table: 'table evidence',
+  code_block: 'code evidence',
+  checklist: 'checklist evidence',
+};
+
 // Builds a result-card element from the tpl-search-result template — all
 // user/API content (source file, section, score, chunk text) is filled via
 // textContent/dataset, never string-concatenated into markup. Returns the
@@ -387,15 +436,59 @@ function showMoreResults(name) {
 //
 // Score/rank is shown unconditionally now (no showScore opt-in checkbox —
 // see the module-level comment) — the numeric score and the bar each still
-// carry the "compare order, not absolute value" tooltip from
-// tpl-search-result, so the safety framing survives even though the toggle
-// that used to gate it doesn't exist any more.
+// carry the "used for ranking, compare order not absolute value" tooltip
+// from tpl-search-result, so the safety framing survives even though the
+// toggle that used to gate it doesn't exist any more. Score/rank sit in the
+// card's secondary meta row (Phase 3O), not the primary identity row — a
+// ranking signal, not the headline of the card.
 export function renderResult(r, i, topScore) {
   const canOpen = r.sourceFile && Number.isInteger(r.chunkIndex);
   const frag = cloneTemplate('tpl-search-result');
   const card = frag.querySelector('.result-card');
+  const isStructural = STRUCTURAL_NODE_TYPES.has(r.nodeType);
 
   card.querySelector('.rank').textContent = `#${i + 1}`;
+  card.querySelector('.result-source').textContent = r.sourceFile ?? '?';
+  card.querySelector('.result-section').textContent = r.section || 'intro';
+  card.querySelector('.result-chunk-index').textContent =
+    `chunk ${r.chunkIndex ?? '?'}${r.totalChunks ? ` / ${r.totalChunks}` : ''}`;
+
+  const nodeTypeEl = card.querySelector('.result-node-type');
+  if (r.nodeType) {
+    // innerHTML (not textContent) so a structural-type icon (table/code/
+    // checklist) can sit alongside the label — nodeTypeBadgeIcon() only
+    // ever returns icons.js's own static SVG strings, r.nodeType (the only
+    // untrusted piece here) is still escaped.
+    nodeTypeEl.innerHTML = nodeTypeBadgeIcon(r.nodeType) + esc(r.nodeType);
+    nodeTypeEl.hidden = false;
+  }
+
+  // "Open chunk" vs "Open file section": a structural hit (table/code/
+  // checklist) is one specific excerpt, so "Open chunk" is the accurate
+  // verb; a plain prose hit is part of a larger section, so "Open file
+  // section" better sets the expectation that the file view opens nearby
+  // context, not just this one isolated line.
+  const openBtn = card.querySelector('.result-open');
+  if (canOpen) {
+    openBtn.dataset.sf = r.sourceFile;
+    openBtn.dataset.ci = String(r.chunkIndex);
+    openBtn.textContent = isStructural ? 'Open chunk' : 'Open file section';
+    openBtn.hidden = false;
+  }
+
+  const contextEl = card.querySelector('.chunk-context');
+  if (shouldShowContext(r.context, r.text)) {
+    contextEl.textContent = r.context;
+    contextEl.hidden = false;
+  }
+
+  card.querySelector('.chunk-text').textContent = r.text ?? '';
+
+  const structuralHintEl = card.querySelector('.result-structural-hint');
+  if (isStructural) {
+    structuralHintEl.textContent = STRUCTURAL_EVIDENCE_LABEL[r.nodeType] ?? `${r.nodeType} evidence`;
+    structuralHintEl.hidden = false;
+  }
 
   if (typeof r.score === 'number') {
     const scoreEl = card.querySelector('.score');
@@ -409,36 +502,6 @@ export function renderResult(r, i, topScore) {
       barEl.hidden = false;
     }
   }
-
-  card.querySelector('.result-source').textContent = r.sourceFile ?? '?';
-  card.querySelector('.result-chunk-index').textContent =
-    `chunk ${r.chunkIndex ?? '?'}${r.totalChunks ? ` / ${r.totalChunks}` : ''}`;
-  card.querySelector('.result-section').textContent = r.section || 'intro';
-
-  const nodeTypeEl = card.querySelector('.result-node-type');
-  if (r.nodeType) {
-    // innerHTML (not textContent) so a structural-type icon (table/code/
-    // checklist) can sit alongside the label — nodeTypeBadgeIcon() only
-    // ever returns icons.js's own static SVG strings, r.nodeType (the only
-    // untrusted piece here) is still escaped.
-    nodeTypeEl.innerHTML = nodeTypeBadgeIcon(r.nodeType) + esc(r.nodeType);
-    nodeTypeEl.hidden = false;
-  }
-
-  const openBtn = card.querySelector('.result-open');
-  if (canOpen) {
-    openBtn.dataset.sf = r.sourceFile;
-    openBtn.dataset.ci = String(r.chunkIndex);
-    openBtn.hidden = false;
-  }
-
-  const contextEl = card.querySelector('.chunk-context');
-  if (r.context) {
-    contextEl.textContent = r.context;
-    contextEl.hidden = false;
-  }
-
-  card.querySelector('.chunk-text').textContent = r.text ?? '';
 
   return card;
 }
