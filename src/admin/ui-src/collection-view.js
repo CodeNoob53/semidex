@@ -75,9 +75,11 @@ function schemaBadge(schema) {
 }
 
 // ── collection overview (main panel default for a selected collection) ───
-// Header (Phase 3E): name/health/settings on top, an optional description
-// line, then compact user-facing fact chips (points, provider/model,
-// hybrid/dense-only, skeleton-nav status) — see collectionFactChips() and
+// Header (Phase 3E, reworked Phase 3G into a "library overview"):
+// name/health/settings on top, a summary block (skeleton-generated overview
+// preferred, falling back to config description, then a quiet empty state),
+// then compact user-facing fact chips (chunk count, model/local, hybrid
+// search, navigation map) — see collectionFactChips() and
 // renderCollectionHeader() below. The more technical/debug-ish facts (dense
 // vector size/distance, sparse yes/no, both providers, schema/chunk/token
 // versions, semidex-managed) live only in the collapsed Details disclosure
@@ -126,26 +128,41 @@ async function renderCollection(main, name) {
   if (!alreadyOnThisCollection) showCollectionWarnings(name, detail.warnings);
 }
 
-// Compact fact chips shown always-visible under the description line (Phase
-// 3E) — a user-facing "what is this collection, what state is it in" summary,
-// not the technical metadata table (that stays in the collapsed Details
-// below). Each fact is its own chip so a missing one can be omitted
-// individually — a collection that's never been indexed still gets a clean,
-// non-broken-looking header instead of a row of empty/"?" chips.
+// Compact fact chips shown always-visible under the summary block (Phase
+// 3E, reworded Phase 3G) — a user-facing "what is this collection, what
+// state is it in" summary, not the technical metadata table (that stays in
+// the collapsed Details below). Each fact is its own chip so a missing one
+// can be omitted individually — a collection that's never been indexed
+// still gets a clean, non-broken-looking header instead of a row of
+// empty/"?" chips. Labeled in semidex vocabulary ("chunks", "navigation
+// map", "flat file list") rather than Qdrant terms ("points") — Details
+// still uses "points" since that panel is explicitly the technical/advanced
+// view.
 function collectionFactChips(detail) {
   const chips = [];
-  chips.push(`<span class="chip mono">${Number(detail.pointCount ?? 0).toLocaleString('en-US')} points</span>`);
+  // chunkCount (server-side, nav-points excluded) is what "chunks" must mean
+  // here — detail.pointCount is Qdrant's raw total and includes skeleton_nav
+  // points on any collection with skeleton navigation on, which would
+  // overstate real content. Never fall back to pointCount for this label:
+  // if chunkCount is genuinely missing, showing 0 is more honest than
+  // silently mislabeling a nav-inflated number as "chunks".
+  chips.push(`<span class="chip mono">${Number(detail.chunkCount ?? 0).toLocaleString('en-US')} chunks</span>`);
 
   const denseProvider = detail.provider?.denseProvider;
   if (denseProvider) {
+    // "local" vs the raw provider id is the one semidex-level distinction a
+    // user actually cares about here (does this call out to a cloud API or
+    // not) — the exact provider/model string is still available in Details
+    // for anyone who needs it.
     const providerLabel = detail.provider?.denseModel
-      ? `${esc(denseProvider)} · ${esc(detail.provider.denseModel)}`
+      ? esc(detail.provider.denseModel)
       : esc(denseProvider);
-    chips.push(`<span class="chip mono">${providerLabel}</span>`);
-    chips.push(`<span class="chip mono">${detail.vectorSchema?.sparse ? 'hybrid' : 'dense-only'}</span>`);
+    const localHint = /onnx|ollama|local/i.test(denseProvider) ? ' local' : '';
+    chips.push(`<span class="chip mono">${providerLabel}${localHint}</span>`);
+    chips.push(`<span class="chip mono">${detail.vectorSchema?.sparse ? 'hybrid search' : 'dense search'}</span>`);
   }
 
-  chips.push(`<span class="chip mono">${detail.hasSkeleton ? 'skeleton nav on' : 'flat file list'}</span>`);
+  chips.push(`<span class="chip mono">${detail.hasSkeleton ? 'navigation map' : 'flat file list'}</span>`);
   return chips.join('');
 }
 
@@ -192,15 +209,18 @@ function renderCollectionHeader(name, detail) {
     ? `<span class="badge badge-warn">${warnings.length} warning${warnings.length > 1 ? 's' : ''}</span>`
     : '<span class="badge badge-ok">healthy</span>';
 
-  // Description is the collection's own user-facing summary (config-level,
-  // set by whoever indexed it) — shown directly under the name now, not
-  // buried in Details, per Phase 3E's "explain what this collection is"
-  // brief. Omitted entirely (no fallback filler text) when not set, rather
-  // than showing generic noise like "flat file list" where a real summary
-  // should go — that fact still shows up as a chip below.
-  const descriptionLine = detail.description
-    ? `<p class="col-header-desc">${esc(detail.description)}</p>`
-    : '';
+  // Phase 3G: the header's job is "let the user understand this library
+  // before they search or browse it" — so the summary block prefers the
+  // skeleton root's generated overview (built from the actual indexed
+  // content) over the config-level `description` (typed once at index time,
+  // often stale or never set), and falls back to a quiet empty-state hint
+  // rather than silently showing nothing when neither exists. A missing
+  // summary is not an error — it just means the collection hasn't been
+  // indexed with LLM summaries, which is common and not broken-looking.
+  const summaryText = detail.overviewSummary || detail.description || null;
+  const summaryBlock = summaryText
+    ? `<p class="col-header-desc">${esc(summaryText)}</p>`
+    : '<p class="col-header-desc col-header-desc-empty">No overview yet. Reindex with LLM summaries to generate one.</p>';
 
   $('#col-header').innerHTML = `
     <div class="col-header-top">
@@ -208,7 +228,7 @@ function renderCollectionHeader(name, detail) {
       ${healthBadge}
       <button type="button" class="btn-ghost" id="col-settings-btn">settings</button>
     </div>
-    ${descriptionLine}
+    ${summaryBlock}
     <div class="col-header-facts">${collectionFactChips(detail)}</div>
     ${collectionDetailsPanel(detail)}`;
 

@@ -68,60 +68,103 @@ describe('collection header — top line (always visible)', () => {
   });
 });
 
-describe('collection header — description line', () => {
-  it('shows the collection description directly under the name when present', async () => {
+describe('collection header — summary block (Phase 3G: skeleton overview > config description > quiet empty state)', () => {
+  it('shows the skeleton-generated overviewSummary directly under the name when present', async () => {
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
       const helpers = loadRouteIntegrationHelpers(html, {
         hash: '#/c/my-docs',
         apiResponses: {
-          '/api/collections/my-docs': { collection: { pointCount: 1, warnings: [], description: 'Internal API reference docs' } },
+          '/api/collections/my-docs': {
+            collection: { pointCount: 1, warnings: [], overviewSummary: 'A library of internal API reference docs.', description: 'stale config text' },
+          },
           '/api/collections?': { collections: [] },
         },
       });
       await helpers.route();
       const desc = helpers.document.querySelector('#col-header .col-header-desc');
-      assert.ok(desc, 'a description line must render when detail.description is set');
-      assert.match(desc.textContent, /Internal API reference docs/);
+      assert.ok(desc, 'a summary line must render when overviewSummary is set');
+      assert.match(desc.textContent, /A library of internal API reference docs\./);
+      assert.doesNotMatch(desc.textContent, /stale config text/, 'overviewSummary must take priority over description');
     });
   });
 
-  it('omits the description line entirely (no filler text) when description is not set', async () => {
+  it('falls back to the config description when overviewSummary is not set', async () => {
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
       const helpers = loadRouteIntegrationHelpers(html, {
         hash: '#/c/my-docs',
         apiResponses: {
-          '/api/collections/my-docs': { collection: { pointCount: 1, warnings: [], description: null } },
+          '/api/collections/my-docs': { collection: { pointCount: 1, warnings: [], overviewSummary: null, description: 'Internal API reference docs' } },
           '/api/collections?': { collections: [] },
         },
       });
       await helpers.route();
-      assert.equal(helpers.document.querySelector('#col-header .col-header-desc'), null,
-        'no description element (not even an empty one) must render when there is no description');
+      const desc = helpers.document.querySelector('#col-header .col-header-desc');
+      assert.ok(desc, 'a summary line must render from description when overviewSummary is absent');
+      assert.match(desc.textContent, /Internal API reference docs/);
     });
   });
-});
 
-describe('collection header — compact fact chips', () => {
-  it('always shows a points chip, even at zero', async () => {
+  it('shows a quiet empty-state hint (not nothing, not technical noise) when neither summary exists', async () => {
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
       const helpers = loadRouteIntegrationHelpers(html, {
         hash: '#/c/my-docs',
         apiResponses: {
-          '/api/collections/my-docs': { collection: { pointCount: 0, warnings: [] } },
+          '/api/collections/my-docs': { collection: { pointCount: 1, warnings: [], overviewSummary: null, description: null } },
+          '/api/collections?': { collections: [] },
+        },
+      });
+      await helpers.route();
+      const desc = helpers.document.querySelector('#col-header .col-header-desc');
+      assert.ok(desc, 'an empty-state summary element must still render, not be entirely absent');
+      assert.match(desc.textContent, /No overview yet/);
+      assert.ok(desc.classList.contains('col-header-desc-empty'), 'empty state must carry a distinct quiet-styling class');
+    });
+  });
+});
+
+describe('collection header — compact fact chips (Phase 3G: semidex vocabulary, not Qdrant terms)', () => {
+  it('always shows a chunks chip, even at zero', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const helpers = loadRouteIntegrationHelpers(html, {
+        hash: '#/c/my-docs',
+        apiResponses: {
+          '/api/collections/my-docs': { collection: { pointCount: 0, chunkCount: 0, warnings: [] } },
           '/api/collections?': { collections: [] },
         },
       });
       await helpers.route();
       const facts = helpers.document.querySelector('#col-header .col-header-facts');
       assert.ok(facts, 'a fact-chip row must always render');
-      assert.match(facts.textContent, /0 points/);
+      assert.match(facts.textContent, /0 chunks/);
     });
   });
 
-  it('shows provider/model and hybrid status chips when provider data is present', async () => {
+  it('shows chunkCount, not pointCount, in the chunks chip — chunkCount excludes skeleton_nav points, pointCount does not', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const helpers = loadRouteIntegrationHelpers(html, {
+        hash: '#/c/my-docs',
+        apiResponses: {
+          // A collection with skeleton nav on: pointCount (raw Qdrant total)
+          // includes nav points, chunkCount (server-side nav-excluded count)
+          // does not. If the header ever regresses to pointCount, this test
+          // catches it by making the two numbers deliberately different.
+          '/api/collections/my-docs': { collection: { pointCount: 1450, chunkCount: 1200, warnings: [], hasSkeleton: true } },
+          '/api/collections?': { collections: [] },
+        },
+      });
+      await helpers.route();
+      const text = helpers.document.querySelector('#col-header .col-header-facts').textContent;
+      assert.match(text, /1,200 chunks/, 'the chunks chip must show chunkCount (nav-excluded)');
+      assert.doesNotMatch(text, /1,450/, 'the raw nav-inflated pointCount must never appear in the chunks chip');
+    });
+  });
+
+  it('shows a simplified model/local chip and "hybrid search" when provider data is present', async () => {
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
       const helpers = loadRouteIntegrationHelpers(html, {
@@ -129,7 +172,7 @@ describe('collection header — compact fact chips', () => {
         apiResponses: {
           '/api/collections/my-docs': {
             collection: {
-              pointCount: 42, warnings: [],
+              pointCount: 42, chunkCount: 42, warnings: [],
               provider: { denseProvider: 'onnx', denseModel: 'bge-m3-onnx', sparseProvider: 'bm25' },
               vectorSchema: { dense: { size: 1024, distance: 'cosine' }, sparse: true },
             },
@@ -139,13 +182,13 @@ describe('collection header — compact fact chips', () => {
       });
       await helpers.route();
       const text = helpers.document.querySelector('#col-header .col-header-facts').textContent;
-      assert.match(text, /onnx/);
       assert.match(text, /bge-m3-onnx/);
-      assert.match(text, /hybrid/);
+      assert.match(text, /local/);
+      assert.match(text, /hybrid search/);
     });
   });
 
-  it('shows "dense-only" (not "hybrid") when the collection has no sparse vectors', async () => {
+  it('shows "dense search" (not "hybrid search") when the collection has no sparse vectors', async () => {
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
       const helpers = loadRouteIntegrationHelpers(html, {
@@ -153,7 +196,7 @@ describe('collection header — compact fact chips', () => {
         apiResponses: {
           '/api/collections/my-docs': {
             collection: {
-              pointCount: 1, warnings: [],
+              pointCount: 1, chunkCount: 1, warnings: [],
               provider: { denseProvider: 'ollama', denseModel: 'mxbai-embed-large', sparseProvider: null },
               vectorSchema: { dense: { size: 1024, distance: 'cosine' }, sparse: false },
             },
@@ -163,12 +206,12 @@ describe('collection header — compact fact chips', () => {
       });
       await helpers.route();
       const text = helpers.document.querySelector('#col-header .col-header-facts').textContent;
-      assert.match(text, /dense-only/);
-      assert.doesNotMatch(text, /hybrid/);
+      assert.match(text, /dense search/);
+      assert.doesNotMatch(text, /hybrid search/);
     });
   });
 
-  it('omits the provider/hybrid chips (but still shows points + skeleton status) when there is no provider data', async () => {
+  it('omits the provider/search-mode chips (but still shows chunks + navigation status) when there is no provider data', async () => {
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
       const helpers = loadRouteIntegrationHelpers(html, {
@@ -176,7 +219,7 @@ describe('collection header — compact fact chips', () => {
         apiResponses: {
           '/api/collections/my-docs': {
             collection: {
-              pointCount: 0, warnings: [], hasSkeleton: false,
+              pointCount: 0, chunkCount: 0, warnings: [], hasSkeleton: false,
               provider: { denseProvider: null, denseModel: null, sparseProvider: null },
               vectorSchema: { dense: { size: null, distance: null }, sparse: false },
             },
@@ -186,25 +229,25 @@ describe('collection header — compact fact chips', () => {
       });
       await helpers.route();
       const text = helpers.document.querySelector('#col-header .col-header-facts').textContent;
-      assert.doesNotMatch(text, /hybrid|dense-only/, 'no provider chip must render when denseProvider is null');
-      assert.match(text, /0 points/);
+      assert.doesNotMatch(text, /hybrid search|dense search/, 'no search-mode chip must render when denseProvider is null');
+      assert.match(text, /0 chunks/);
       assert.match(text, /flat file list/);
     });
   });
 
-  it('shows a skeleton-navigation status chip reflecting hasSkeleton', async () => {
+  it('shows a "navigation map" chip reflecting hasSkeleton', async () => {
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
       const helpers = loadRouteIntegrationHelpers(html, {
         hash: '#/c/my-docs',
         apiResponses: {
-          '/api/collections/my-docs': { collection: { pointCount: 1, warnings: [], hasSkeleton: true } },
+          '/api/collections/my-docs': { collection: { pointCount: 1, chunkCount: 1, warnings: [], hasSkeleton: true } },
           '/api/collections?': { collections: [] },
         },
       });
       await helpers.route();
       const text = helpers.document.querySelector('#col-header .col-header-facts').textContent;
-      assert.match(text, /skeleton nav on/);
+      assert.match(text, /navigation map/);
     });
   });
 
@@ -308,6 +351,77 @@ describe('collection header — Details disclosure (collapsed, technical facts o
         .map(n => n.textContent ?? '').join(' ');
       assert.doesNotMatch(outsideDetailsText, /embeddingSchema|chunkingSchema|indexingSchema|tokenCountMode|bge-m3\b/,
         'schema-version internals must only appear inside the collapsed Details panel');
+    });
+  });
+});
+
+describe('collection header — Phase 3G library-overview acceptance checks', () => {
+  it('never exposes raw snake_case payload fields anywhere in the header, even with a full technical detail object', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const helpers = loadRouteIntegrationHelpers(html, {
+        hash: '#/c/my-docs',
+        apiResponses: {
+          '/api/collections/my-docs': {
+            collection: {
+              pointCount: 99, warnings: [], hasSkeleton: true, semidexManaged: true,
+              overviewSummary: 'A library of internal API reference docs.',
+              provider: { denseProvider: 'onnx', denseModel: 'bge-m3-onnx', sparseProvider: 'bm25' },
+              vectorSchema: { dense: { size: 1024, distance: 'cosine' }, sparse: true },
+              versions: { embeddingSchema: 2, chunkingSchema: 4, indexingSchema: 4, tokenCountMode: 'bge-m3' },
+            },
+          },
+          '/api/collections?': { collections: [] },
+        },
+      });
+      await helpers.route();
+      const header = helpers.document.getElementById('col-header');
+      assert.doesNotMatch(header.textContent, /point_kind|node_type|dense_provider|sparse_provider|chunk_index|source_file/,
+        'raw Qdrant snake_case payload field names must never leak into the rendered header');
+    });
+  });
+
+  it('renders correctly for a collection name containing spaces and Cyrillic characters', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const name = 'Курсова робота';
+      const helpers = loadRouteIntegrationHelpers(html, {
+        hash: `#/c/${encodeURIComponent(name)}`,
+        apiResponses: {
+          [`/api/collections/${encodeURIComponent(name)}`]: {
+            collection: { pointCount: 296, warnings: [], overviewSummary: 'Матеріали курсової роботи.' },
+          },
+          '/api/collections?': { collections: [] },
+        },
+      });
+      await helpers.route();
+      const header = helpers.document.getElementById('col-header');
+      assert.match(header.querySelector('.view-title').textContent, /Курсова робота/);
+      assert.match(header.querySelector('.col-header-desc').textContent, /Матеріали курсової роботи\./);
+      assert.ok(header.querySelector('#col-settings-btn'), 'settings button must still render');
+    });
+  });
+
+  it('updates the summary/chips correctly when switching from one collection to another', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const helpers = loadRouteIntegrationHelpers(html, {
+        hash: '#/c/docs-a',
+        apiResponses: {
+          '/api/collections/docs-a': { collection: { pointCount: 10, chunkCount: 10, warnings: [], overviewSummary: 'Docs A summary.' } },
+          '/api/collections/docs-b': { collection: { pointCount: 20, chunkCount: 20, warnings: [], overviewSummary: 'Docs B summary.' } },
+          '/api/collections?': { collections: [] },
+        },
+      });
+      await helpers.route();
+      assert.match(helpers.document.querySelector('#col-header .col-header-desc').textContent, /Docs A summary\./);
+
+      helpers.location.hash = '#/c/docs-b';
+      await helpers.route();
+      const desc = helpers.document.querySelector('#col-header .col-header-desc').textContent;
+      assert.match(desc, /Docs B summary\./);
+      assert.doesNotMatch(desc, /Docs A summary/);
+      assert.match(helpers.document.querySelector('#col-header .col-header-facts').textContent, /20 chunks/);
     });
   });
 });

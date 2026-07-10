@@ -176,6 +176,13 @@ export function createQdrantStorageAdapter() {
 
       const samplePoints = await store.scroll(name, null, 1, true);
       const samplePayload = samplePoints[0]?.payload ?? null;
+      const skeletonRoot = await store.getCollectionSkeletonNode(name);
+      // info.points_count is Qdrant's raw total and includes skeleton_nav
+      // points on any collection with skeleton navigation on — using it to
+      // label "N chunks" in the admin UI would overstate real content by
+      // however many nav points exist. chunkCount is the exact server-side
+      // count of real content points only.
+      const chunkCount = await store.countContentPoints(name);
 
       const warnings = [];
       if (vectorSchemaKind === 'flat') warnings.push('legacy flat vector schema — hybrid search unavailable');
@@ -184,6 +191,7 @@ export function createQdrantStorageAdapter() {
       return {
         name,
         pointCount: info.points_count ?? 0,
+        chunkCount,
         vectorSchema: {
           dense: { size: denseSize, distance: vectorsCfg.dense?.distance ?? vectorsCfg.distance ?? null },
           sparse: hasSparse,
@@ -200,8 +208,24 @@ export function createQdrantStorageAdapter() {
           tokenCountMode: samplePayload?.token_count_mode ?? null,
         },
         description: col?.description || null,
+        // The skeleton root's own generated summary is a better
+        // library-overview description than the config-level `description`
+        // above when both exist, since it's generated from the actual
+        // indexed content rather than typed once at index time and often
+        // left stale/unset. But the root's `summary` field is not always a
+        // real overview — skeleton-summary.js stamps summary_kind, and only
+        // 'collection_overview' means an actual generated blurb (LLM rollup
+        // or a single-child propagation); 'inventory' means a plain fallback
+        // like "N files" with no real narrative content. Only surface the
+        // former as overviewSummary — an inventory-kind summary is worse
+        // than the admin UI's own "no overview yet" empty state, and must
+        // not shadow a real config description. See collection-view.js for
+        // the fallback chain (overviewSummary -> description -> empty state).
+        overviewSummary: skeletonRoot?.summary_kind === 'collection_overview'
+          ? skeletonRoot.summary ?? null
+          : null,
         semidexManaged: isSemidexPayload(samplePayload),
-        hasSkeleton: Boolean(await store.getCollectionSkeletonNode(name)),
+        hasSkeleton: Boolean(skeletonRoot),
         warnings,
       };
     },

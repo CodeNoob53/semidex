@@ -44,3 +44,19 @@ describe('getFileChunks() — whole-file primitive for the admin UI file view (P
     assert.match(fn, /sort\(/, 'must return chunks in chunk_index order');
   });
 });
+
+describe('countContentPoints() — exact nav-excluded count for the admin UI collection header (Phase 3G)', () => {
+  it('is defined and counts through withNavExcluded, not the raw collection total', () => {
+    // Code-review fix: Qdrant's getCollectionInfo().points_count is a raw
+    // total that includes skeleton_nav points on any collection with
+    // skeleton navigation on. The admin header's "N chunks" chip needs an
+    // honest count of real content points only — this is that primitive.
+    const start = src.indexOf('export async function countContentPoints');
+    assert.ok(start > -1, 'countContentPoints must be defined');
+    const end = src.indexOf('\n}\n', start);
+    const fn = src.slice(start, end);
+    assert.match(fn, /withNavExcluded\(/, 'must exclude nav points via the shared withNavExcluded filter, same as every other content-facing query');
+    assert.match(fn, /client\.count\(/, 'must use Qdrant\'s server-side count endpoint, not scroll+length (cheap, no payload/vector transfer)');
+    assert.match(fn, /exact:\s*true/, 'must request an exact count, not an approximate one');
+  });
+});

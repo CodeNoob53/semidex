@@ -188,6 +188,21 @@ export async function scroll(collection, filter, limit = 100, withPayload = true
   return result.points ?? [];
 }
 
+// Server-side exact count of real content chunks (excludes skeleton_nav
+// points) — cheap, no payload/vector transfer. Qdrant's raw
+// getCollectionInfo().points_count includes skeleton_nav points on
+// collections with skeleton navigation, so it overstates "how many chunks
+// does this collection have" whenever skeleton nav is on; this gives the
+// admin UI header an honest number to label "chunks".
+export async function countContentPoints(collection) {
+  const client = getQdrantClient();
+  const result = await qdrantCall('Qdrant count failed', () => client.count(collection, {
+    filter: withNavExcluded(null),
+    exact: true,
+  }));
+  return result.count ?? 0;
+}
+
 export async function getStoredMeta(collection, sourceFile) {
   const points = await scroll(
     collection,

@@ -251,6 +251,50 @@ describe('createQdrantStorageAdapter().getCollection — description is read fro
   });
 });
 
+describe('createQdrantStorageAdapter().getCollection — overviewSummary reads the skeleton root summary (Phase 3G)', () => {
+  it('reuses the same skeleton-root lookup as hasSkeleton, and only surfaces summary_kind === collection_overview', () => {
+    // Phase 3G: the admin UI header prefers a skeleton-generated overview
+    // over the config-level description (see collection-view.js). Fetching
+    // the skeleton root once and reusing it for both hasSkeleton and
+    // overviewSummary (rather than two separate calls) keeps this from
+    // doubling getCollection()'s network round-trips.
+    //
+    // Code-review fix: the root's `summary` field is not always a real
+    // overview — skeleton-summary.js also stamps summary_kind: 'inventory'
+    // for a plain "N files" fallback with no narrative content. Gating on
+    // summary_kind === 'collection_overview' stops an inventory fallback
+    // from shadowing a real config description with worse text. Source-
+    // string check, same rationale as the description regression test above.
+    const src = readFileSync(
+      fileURLToPath(new URL('../../../../src/core/storage/qdrant-adapter.js', import.meta.url)),
+      'utf-8',
+    );
+    const method = src.slice(src.indexOf('async getCollection('), src.indexOf('async createCollection('));
+    assert.match(method, /const skeletonRoot = await store\.getCollectionSkeletonNode\(name\)/);
+    assert.match(method, /skeletonRoot\?\.summary_kind === 'collection_overview'/);
+    assert.match(method, /hasSkeleton:\s*Boolean\(skeletonRoot\)/);
+    const callCount = (method.match(/getCollectionSkeletonNode\(/g) ?? []).length;
+    assert.equal(callCount, 1, 'getCollectionSkeletonNode must be called once and reused for both overviewSummary and hasSkeleton');
+  });
+});
+
+describe('createQdrantStorageAdapter().getCollection — chunkCount is a nav-excluded exact count, not the raw Qdrant total (Phase 3G)', () => {
+  it('calls store.countContentPoints (not info.points_count) for chunkCount', () => {
+    // Code-review fix: info.points_count is Qdrant's raw total and includes
+    // skeleton_nav points on any collection with skeleton navigation on —
+    // labeling that "N chunks" in the admin UI would overstate real content.
+    // chunkCount must come from a nav-excluded server-side count instead.
+    const src = readFileSync(
+      fileURLToPath(new URL('../../../../src/core/storage/qdrant-adapter.js', import.meta.url)),
+      'utf-8',
+    );
+    const method = src.slice(src.indexOf('async getCollection('), src.indexOf('async createCollection('));
+    assert.match(method, /const chunkCount = await store\.countContentPoints\(name\)/);
+    assert.match(method, /chunkCount,/);
+    assert.match(method, /pointCount:\s*info\.points_count \?\? 0/, 'pointCount must stay the raw Qdrant total (used by the technical Details panel)');
+  });
+});
+
 describe('createQdrantStorageAdapter().getFileChunks — a distinct primitive from windowed getChunk()', () => {
   it('calls store.getFileChunks (not store.fetchWindowChunks) and maps every point through toChunk', () => {
     // Phase 3F: the admin UI's file view needs "every chunk for this file,
