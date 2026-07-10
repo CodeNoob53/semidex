@@ -2,7 +2,7 @@
 // server.test.js/jobs.test.js.
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { readUiSource, loadSidebarLabelHelpers, loadSidebarActiveStateHelpers, loadSidebarNodeInteractionHelpers } from './ui-test-helpers.js';
+import { readUiSource, loadSidebarLabelHelpers, loadSidebarActiveStateHelpers, loadSidebarNodeInteractionHelpers, loadSidebarTreeHelpers } from './ui-test-helpers.js';
 
 describe('sidebar navigation tree (ui-src/sidebar.js source)', () => {
   it('renders collections as an expandable tree, not a flat link list', () => {
@@ -261,5 +261,159 @@ describe('markActive() highlights the open file/section row, not just the collec
     const { document, markActive } = loadSidebarActiveStateHelpers();
     markActive({ view: 'collection', name: 'my-docs', openFile: 'readme.md' });
     assert.ok(document.querySelector('.tree-collection-row[data-name="my-docs"]').classList.contains('active'));
+  });
+});
+
+// ── Phase 3K: sidebar empty/loading/error/fallback states (behavioral,
+// not source-regex) — none of loadSidebar()/loadSidebarTree()/
+// loadSidebarFileList()'s fetch-failure or empty-result branches had DOM-
+// level test coverage before this phase. ────────────────────────────────
+describe('sidebar collection list — empty and error states', () => {
+  it('shows a calm, actionable message when there are no collections at all', async () => {
+    const { document, loadSidebar } = loadSidebarTreeHelpers({
+      apiResponses: { '/api/collections': { collections: [] } },
+    });
+    await loadSidebar();
+    const item = document.querySelector('#collection-list li');
+    assert.match(item.textContent, /No collections yet/);
+    assert.doesNotMatch(item.textContent, /HTTP \d|Error|undefined/i, 'must not read like a technical/debug message');
+  });
+
+  it('shows a distinct, non-raw error message (not err.message) when the collection list fetch fails', async () => {
+    const { document, loadSidebar } = loadSidebarTreeHelpers({
+      apiResponses: { '/api/collections': new Error('ECONNREFUSED 127.0.0.1:6333') },
+    });
+    await loadSidebar();
+    const item = document.querySelector('#collection-list li');
+    assert.doesNotMatch(item.textContent, /ECONNREFUSED/, 'the raw error message must not leak into the visible text');
+    assert.match(item.textContent, /Couldn't load|try again/i);
+    assert.ok(item.classList.contains('tree-error'), 'a failed fetch must be visually distinct from an empty state');
+    assert.equal(item.getAttribute('title'), 'ECONNREFUSED 127.0.0.1:6333', 'the real error stays available via title for anyone who needs it');
+  });
+
+  it('renders each collection\'s pointCount as a formatted, always-visible count badge — no extra fetch needed', async () => {
+    const { document, loadSidebar } = loadSidebarTreeHelpers({
+      apiResponses: {
+        '/api/collections': { collections: [{ name: 'big-collection', pointCount: 12345 }, { name: 'empty-collection', pointCount: 0 }] },
+      },
+    });
+    await loadSidebar();
+    const rows = document.querySelectorAll('.tree-collection-row');
+    assert.equal(rows.length, 2);
+    assert.equal(rows[0].querySelector('.count').textContent, '12,345',
+      'the count must come straight from the already-fetched /api/collections list (locale-formatted), not a separate per-collection fetch');
+    assert.equal(rows[1].querySelector('.count').textContent, '0',
+      'a collection with zero points must still show a "0" count, not omit the badge or show blank/undefined');
+  });
+});
+
+describe('sidebar tree — loading/empty/error states for a selected collection', () => {
+  function withTreeContainer(document, name) {
+    const box = document.createElement('div');
+    box.id = `tree-${name}`;
+    document.body.appendChild(box);
+    return box;
+  }
+
+  it('falls back to a flat file list when the collection has no skeleton (hasSkeleton: false)', async () => {
+    const { document, loadSidebarTree } = loadSidebarTreeHelpers({
+      apiResponses: {
+        '/api/collections/my-docs': { collection: { hasSkeleton: false } },
+        '/api/collections/my-docs/documents?limit=': { documents: [{ sourceFile: 'readme.md' }, { sourceFile: 'guide.md' }] },
+      },
+    });
+    withTreeContainer(document, 'my-docs');
+    await loadSidebarTree('my-docs');
+    const rows = document.querySelectorAll('#tree-my-docs .tree-file');
+    assert.equal(rows.length, 2);
+    assert.match(rows[0].querySelector('.tree-label').textContent, /readme\.md/);
+  });
+
+  it('falls back to a flat file list when the skeleton root is null (200 response, no skeleton layer)', async () => {
+    const { document, loadSidebarTree } = loadSidebarTreeHelpers({
+      apiResponses: {
+        '/api/collections/my-docs': { collection: { hasSkeleton: true } },
+        '/api/collections/my-docs/skeleton': { skeleton: null },
+        '/api/collections/my-docs/documents?limit=': { documents: [{ sourceFile: 'a.md' }] },
+      },
+    });
+    withTreeContainer(document, 'my-docs');
+    await loadSidebarTree('my-docs');
+    assert.equal(document.querySelectorAll('#tree-my-docs .tree-file').length, 1,
+      'a null skeleton (not an error) must still fall back to the flat file list, not an error state');
+  });
+
+  it('falls back to a flat file list when the skeleton fetch itself throws', async () => {
+    const { document, loadSidebarTree } = loadSidebarTreeHelpers({
+      apiResponses: {
+        '/api/collections/my-docs': { collection: { hasSkeleton: true } },
+        '/api/collections/my-docs/skeleton': new Error('boom'),
+        '/api/collections/my-docs/documents?limit=': { documents: [{ sourceFile: 'a.md' }] },
+      },
+    });
+    withTreeContainer(document, 'my-docs');
+    await loadSidebarTree('my-docs');
+    assert.equal(document.querySelectorAll('#tree-my-docs .tree-file').length, 1,
+      'a broken skeleton fetch must degrade to the flat file list, not show a raw error');
+  });
+
+  it('shows a clean "No documents" message (not raw API text) when the flat file list is genuinely empty', async () => {
+    const { document, loadSidebarTree } = loadSidebarTreeHelpers({
+      apiResponses: {
+        '/api/collections/my-docs': { collection: { hasSkeleton: false } },
+        '/api/collections/my-docs/documents?limit=': { documents: [] },
+      },
+    });
+    const box = withTreeContainer(document, 'my-docs');
+    await loadSidebarTree('my-docs');
+    assert.match(box.textContent, /No documents/);
+    assert.doesNotMatch(box.textContent, /HTTP \d|undefined|null/i);
+    assert.ok(!box.querySelector('.tree-error'), 'a genuinely empty file list must not read as an error');
+  });
+
+  it('shows a distinct error state (not the collection detail\'s raw message) when the collection detail fetch fails', async () => {
+    const { document, loadSidebarTree } = loadSidebarTreeHelpers({
+      apiResponses: {
+        '/api/collections/my-docs': new Error('Collection "my-docs" not found'),
+      },
+    });
+    const box = withTreeContainer(document, 'my-docs');
+    await loadSidebarTree('my-docs');
+    assert.doesNotMatch(box.textContent, /not found/i, 'the raw backend error text must not be shown verbatim');
+    assert.match(box.textContent, /Couldn't load|try again/i);
+    assert.ok(box.querySelector('.tree-error'), 'a failed collection-detail fetch must be visually distinct from empty/loading');
+  });
+
+  it('shows a distinct error state (not raw text) when the flat file list fetch itself fails', async () => {
+    const { document, loadSidebarTree } = loadSidebarTreeHelpers({
+      apiResponses: {
+        '/api/collections/my-docs': { collection: { hasSkeleton: false } },
+        '/api/collections/my-docs/documents?limit=': new Error('HTTP 500'),
+      },
+    });
+    const box = withTreeContainer(document, 'my-docs');
+    await loadSidebarTree('my-docs');
+    assert.doesNotMatch(box.textContent, /HTTP 500/, 'the raw status-code fallback text must not be shown verbatim');
+    assert.match(box.textContent, /Couldn't load|try again/i);
+    assert.ok(box.querySelector('.tree-error'));
+  });
+});
+
+// ── Phase 3K: a long/unbroken tree label must actually truncate, not push
+// the trailing count badge off-screen ────────────────────────────────────
+describe('app.css: .tree-label truncates instead of overflowing its flex row', () => {
+  it('.tree-label sets min-width: 0 alongside its existing overflow/ellipsis rules', () => {
+    // Regression: a flex item's default min-width is its own intrinsic
+    // (unwrapped) content width, not 0 — this silently defeats
+    // overflow:hidden/text-overflow:ellipsis for any label with no natural
+    // break points, forcing the row wider than the sidebar and pushing
+    // .tree-collection .count off-screen. The identical bug was already
+    // found and fixed for .col-header-top .view-title (Phase 3I); this
+    // pins the same fix for .tree-label.
+    const css = readUiSource('app.css');
+    const rule = css.match(/\.tree-label\s*\{([^}]*)\}/)?.[1] ?? '';
+    assert.match(rule, /min-width:\s*0/, '.tree-label must set min-width: 0 or long names will overflow the row');
+    assert.match(rule, /overflow:\s*hidden/);
+    assert.match(rule, /text-overflow:\s*ellipsis/);
   });
 });

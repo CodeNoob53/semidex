@@ -13,19 +13,34 @@ import { iconCollection, iconFile, iconForNodeType } from './icons.js';
 
 let collectionsCache = [];
 
+// A calm, non-technical message for a failed fetch inside the sidebar tree
+// — sidebar.js used to render the raw err.message (an internal server
+// string, or the bare fallback "HTTP 500" from api.js) directly into the
+// tree with the exact same styling as a legitimate "nothing here yet"
+// empty state, which read like leaked debug output and gave the user no
+// way to tell "this collection is empty" apart from "this failed to
+// load." The real error is still in the DOM (title attribute) for anyone
+// who needs it, but the visible text and styling are now both distinct
+// from an empty state.
+function treeErrorBox(err) {
+  // .tree-loading for layout (padding/indent, shared with the loading/
+  // empty states so nothing shifts), .tree-error for the distinct color.
+  return `<div class="tree-loading tree-error" title="${esc(err.message)}">Couldn't load this. Try again.</div>`;
+}
+
 export async function loadSidebar() {
   const list = $('#collection-list');
   try {
     const { collections } = await api('/api/collections');
     collectionsCache = collections;
     if (!collections.length) {
-      list.innerHTML = '<li class="muted">no collections yet</li>';
+      list.innerHTML = '<li class="muted">No collections yet. Create one to get started.</li>';
       return;
     }
     renderSidebarList(collections);
     markActive();
   } catch (err) {
-    list.innerHTML = `<li class="muted">${esc(err.message)}</li>`;
+    list.innerHTML = `<li class="muted tree-error" title="${esc(err.message)}">Couldn't load collections. Try again.</li>`;
   }
 }
 
@@ -91,7 +106,7 @@ export async function loadSidebarTree(name) {
   try {
     detail = (await api(`/api/collections/${encodeURIComponent(name)}`)).collection;
   } catch (err) {
-    box.innerHTML = `<div class="tree-loading">${esc(err.message)}</div>`;
+    box.innerHTML = treeErrorBox(err);
     return;
   }
 
@@ -112,7 +127,7 @@ export async function loadSidebarFileList(name, box) {
   try {
     const { documents } = await api(`/api/collections/${encodeURIComponent(name)}/documents?limit=200`);
     if (!documents.length) {
-      box.innerHTML = '<div class="tree-loading">No documents.</div>';
+      box.innerHTML = '<div class="tree-loading">No documents indexed in this collection yet.</div>';
       return;
     }
     box.innerHTML = documents.map(d => `
@@ -126,7 +141,7 @@ export async function loadSidebarFileList(name, box) {
     // hashchange -> route() opens the file, same single path used
     // everywhere else (back/forward, sidebar clicks, pasted URLs).
   } catch (err) {
-    box.innerHTML = `<div class="tree-loading">${esc(err.message)}</div>`;
+    box.innerHTML = treeErrorBox(err);
   }
 }
 

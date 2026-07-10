@@ -533,12 +533,27 @@ td.actions { text-align: right; }
 .tree-row.active .tree-icon,
 .tree-row:hover .tree-icon { color: var(--ink); }
 .tree-label {
-  flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  /* min-width: 0 — a flex item's default min-width is its intrinsic
+     (unwrapped) content width, not 0, which overrides overflow:hidden/
+     text-overflow:ellipsis entirely for a long, unbroken label. Without
+     this, a long collection/file/folder name doesn't actually truncate —
+     it forces the row wider than its container, pushing the trailing
+     .count badge (on the collection row) off-screen. Same bug class
+     already found and fixed for .col-header-top .view-title; applying the
+     identical fix here. */
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .tree-collection-row .tree-label { font-size: 13px; }
 .tree-collection .count { font-family: var(--mono); font-size: 10px; color: var(--ink-dim); flex: none; }
 .tree-children { padding: 2px 0 4px; }
 .tree-loading { padding: 4px 8px calc(4px) calc(8px + 14px); color: var(--ink-faint); font-size: 11px; }
+/* A failed fetch inside the sidebar tree — visually distinct from
+   .tree-loading (used for both the loading state and legitimate empty
+   states like "No documents.") so a broken load doesn't look identical to
+   an empty collection. Muted warm-red tone (not the full .error-box
+   treatment, which is sized for the main content panel, not this dense
+   list) — enough to read as "something went wrong," not a wall of red. */
+.tree-error { color: var(--fail); }
 .tree-leaf .tree-caret { visibility: hidden; }
 .tree-subtree { padding: 0; }
 

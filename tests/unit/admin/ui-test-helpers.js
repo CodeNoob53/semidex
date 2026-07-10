@@ -166,6 +166,63 @@ export function loadSidebarNodeInteractionHelpers({ apiResponses = {} } = {}) {
   return context;
 }
 
+// Drives loadSidebar()/loadSidebarTree()/loadSidebarFileList() against a
+// real document + a URL-substring-keyed api() stub (same convention as
+// loadFileViewBehaviorHelpers/loadRouteIntegrationHelpers), so tests can
+// assert on the ACTUAL rendered empty/error/loading DOM — not just source-
+// text regex matches (Phase 3K: sidebar.js's fetch-failure/empty-state
+// branches had no behavioral coverage at all before this). A stub value can
+// be a response object, a function (called with the full URL, for varying
+// the response by query string), or an Error instance (thrown, simulating
+// a rejected api() call).
+export function loadSidebarTreeHelpers({ apiResponses = {} } = {}) {
+  const { document } = parseHTML(`<ul id="collection-list"></ul><nav id="nav-index"></nav>`);
+  let expanded = null;
+  const context = {
+    document,
+    $: (sel, root = document) => root.querySelector(sel),
+    esc(value) {
+      return String(value ?? '')
+        .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;').replaceAll("'", '&#39;');
+    },
+    currentRoute: () => ({ view: 'overview' }),
+    // renderSidebarList() reads/writes the expanded-collection state via
+    // these (normally imported from state.js) — stubbed as simple closures
+    // over `expanded` so a real (unexpanded, by default) sidebar list can
+    // render without crashing on an undefined import inside the vm context.
+    getExpandedCollection: () => expanded,
+    setExpandedCollection: (name) => { expanded = name; },
+    api: async (url) => {
+      // Best (longest) matching key wins — e.g. the bare collection-detail
+      // URL "/api/collections/my-docs" is itself a substring of
+      // "/api/collections/my-docs/documents?limit=200", so a naive
+      // first-match-wins scan would let a broad detail-endpoint key shadow
+      // a more specific /documents or /skeleton key entirely. Picking the
+      // longest key that actually appears in the URL (not just the longest
+      // key overall) correctly prefers whichever stub is the closer match.
+      let best = null;
+      for (const [key, value] of Object.entries(apiResponses)) {
+        if (url.includes(key) && (!best || key.length > best[0].length)) best = [key, value];
+      }
+      if (best) {
+        const [, value] = best;
+        const resolved = typeof value === 'function' ? value(url) : value;
+        if (resolved instanceof Error) throw resolved;
+        return resolved;
+      }
+      throw new Error(`no stub api() response configured for ${url}`);
+    },
+  };
+  vm.createContext(context);
+  const format = readUiSource('format.js');
+  const src = stripExports(readUiSource('icons.js')) + '\n'
+    + stripExports(format).replace(/^import .*$/gm, '') + '\n'
+    + stripExports(readUiSource('sidebar.js')).replace(/^import .*$/gm, '');
+  vm.runInContext(src, context);
+  return context;
+}
+
 // clampSidebarWidth/readSidebarWidth/writeSidebarWidth/nextSidebarWidth are
 // pure (no DOM) — sidebar-resize.js also exports applySidebarWidth/
 // updateSidebarResizeAria/initSidebarResize which touch `document`, but
