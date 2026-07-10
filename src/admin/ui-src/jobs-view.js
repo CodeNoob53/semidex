@@ -15,6 +15,29 @@ function stopIndexPolling() {
   if (indexPollTimer) { clearTimeout(indexPollTimer); indexPollTimer = null; }
 }
 
+// Tracks every EXPLICIT user open/close of a job's details disclosure,
+// keyed by job id — distinct from the auto-open-on-failure default below.
+// renderJobRow() rebuilds a fresh <details> element on every poll tick (see
+// loadJobs()'s replaceChildren()), so DOM state alone (an element's current
+// `open` attribute) can't tell "the user never touched this" apart from
+// "the user explicitly closed it" — both look identical (no `open`
+// attribute) to a naive re-render. Without this map, a user manually
+// closing a FAILED job's details got it silently reopened on the very next
+// poll, because renderJobRow() unconditionally re-applies
+// `open = state === 'failed'` to every fresh element it builds. Cleared per
+// job id once a job is no longer in the list (see loadJobs()) so this
+// doesn't grow unbounded across a long admin session.
+const jobDetailsManualState = new Map();
+
+// What a job's <details> should be open/closed to on this render: the
+// user's own last explicit toggle if they've ever touched it, otherwise the
+// auto-open-on-failure default (open only for a freshly-failed job the user
+// has never interacted with). This is the ONE place that default lives.
+function resolveJobDetailsOpenState(job) {
+  if (jobDetailsManualState.has(job.id)) return jobDetailsManualState.get(job.id);
+  return job.state === 'failed';
+}
+
 export async function renderIndexingView(main) {
   stopIndexPolling();
   stopJobElapsedTicker();
@@ -263,8 +286,24 @@ function renderJobRow(j) {
   // loadJobLog() fills .job-error-summary in once that detail request
   // resolves. Auto-expand details on failure so the error/log is visible
   // without an extra click — but logs still start collapsed for every
-  // other state.
-  card.querySelector('.job-details').open = j.state === 'failed';
+  // other state, UNLESS the user has already explicitly toggled this job's
+  // details at some point (resolveJobDetailsOpenState() above), in which
+  // case their choice always wins over the auto-open default, including a
+  // manual close on a job that's already failed.
+  const detailsEl = card.querySelector('.job-details');
+  const shouldBeOpen = resolveJobDetailsOpenState(j);
+  if (shouldBeOpen) detailsEl.setAttribute('open', '');
+  else detailsEl.removeAttribute('open');
+  // Record every future user toggle (both opening and closing) — a plain
+  // native <details> "toggle" event fires for both directions and for
+  // both mouse and keyboard activation, so one listener covers all of it.
+  // Not attached in the branch above on purpose: this must fire even when
+  // the details element was just programmatically opened/closed by this
+  // same render, so a toggle the USER performs after that point is always
+  // captured, no matter what state the row started in.
+  detailsEl.addEventListener('toggle', () => {
+    jobDetailsManualState.set(j.id, detailsEl.hasAttribute('open'));
+  });
 
   card.querySelector('.job-path').textContent = j.path;
   const startedLabel = formatStartedLabel(j.startedAt);
@@ -310,23 +349,13 @@ async function loadJobs() {
   if (!jobs.length) {
     box.innerHTML = emptyBox('No indexing jobs yet.');
   } else {
-    // renderJobRow() always rebuilds a fresh <details>, only auto-opening it
-    // for a failed job — every poll tick otherwise silently closes a
-    // user-opened details panel on a still-running job. Capture which job
-    // IDs were open before the full replaceChildren() below, then reapply.
-    const openIds = new Set(
-      [...box.querySelectorAll('.job-details[open]')]
-        .map(el => el.closest('.job-card')?.dataset.id)
-        .filter(Boolean),
-    );
+    // renderJobRow() itself now resolves each job's correct open/closed
+    // state (resolveJobDetailsOpenState() — user's own last explicit toggle,
+    // falling back to auto-open-on-failure only when the user has never
+    // touched this job's details) and applies it directly to the fresh
+    // <details> element it builds, so no separate DOM-snapshot/reapply pass
+    // is needed here the way an earlier version of this function required.
     box.replaceChildren(...jobs.map(renderJobRow));
-    for (const card of box.querySelectorAll('.job-card')) {
-      // setAttribute, not `.open = true` — both work in a real browser, but
-      // setAttribute doesn't depend on the <details> IDL-property/attribute
-      // reflection some DOM implementations (including this project's test
-      // harness, linkedom) don't fully support.
-      if (openIds.has(card.dataset.id)) card.querySelector('.job-details').setAttribute('open', '');
-    }
 
     for (const btn of box.querySelectorAll('.job-cancel')) {
       btn.addEventListener('click', () => cancelJob(btn.dataset.id));
@@ -334,6 +363,17 @@ async function loadJobs() {
     for (const card of box.querySelectorAll('.job-card')) {
       loadJobLog(card);
     }
+  }
+
+  // Forget manual-toggle state for any job id no longer in the list (e.g.
+  // trimmed from an old registry, or a fresh server restart) — otherwise
+  // this map would grow forever across a long admin session, and a stale
+  // entry could theoretically collide if job ids were ever reused (they
+  // aren't today — randomUUID() — but there's no reason to keep dead
+  // entries around regardless).
+  const liveIds = new Set(jobs.map(j => j.id));
+  for (const id of jobDetailsManualState.keys()) {
+    if (!liveIds.has(id)) jobDetailsManualState.delete(id);
   }
 
   const stillActive = jobs.some(j => j.state === 'queued' || j.state === 'running' || j.state === 'cancelling');

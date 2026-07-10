@@ -653,7 +653,15 @@ export async function chunkFileFromPath(filePath, sourceFile) {
   if (PANDOC_FORMATS.has(ext)) {
     let stdout;
     try {
-      ({ stdout } = await execFileAsync('pandoc', [filePath, '-t', 'markdown', '--wrap=none'], { maxBuffer: 50 * 1024 * 1024 }));
+      // windowsHide: true (no-op on non-Windows) — this runs once per
+      // .docx/.odt/.rtf/.epub/.html/.htm file in a job, inside the already-
+      // windowsHide'd indexer child process (registry.js). A child process
+      // spawned from a hidden parent still gets its own console window on
+      // Windows unless it's also told to hide it — without this, indexing
+      // a folder with several such files flashed one console per file.
+      ({ stdout } = await execFileAsync('pandoc', [filePath, '-t', 'markdown', '--wrap=none'], {
+        maxBuffer: 50 * 1024 * 1024, windowsHide: true,
+      }));
     } catch (err) {
       if (err.code === 'ENOENT') throw new Error(`pandoc is not installed or not on PATH — required to index ${ext} files. Install from https://pandoc.org/installing.html`);
       throw err;

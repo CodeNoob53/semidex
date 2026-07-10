@@ -186,8 +186,10 @@ describe('indexing progress panel (ui-src source + built index.html, redesigned)
       assert.equal(card.querySelector('.job-title').textContent, 'Indexing failed');
       assert.match(card.querySelector('.job-status-line').textContent, /^Failed after 31s$/);
       assert.match(card.querySelector('.job-progress-count').textContent, /37 \/ 124 files processed/);
-      // Details auto-expand on failure so the error is visible without an extra click.
-      assert.equal(card.querySelector('.job-details').open, true);
+      // Details auto-expand on failure so the error is visible without an
+      // extra click. hasAttribute (not the .open IDL property) — see the
+      // linkedom note on the "manual close" tests below.
+      assert.equal(card.querySelector('.job-details').hasAttribute('open'), true);
     });
   });
 
@@ -272,7 +274,55 @@ describe('indexing progress panel (ui-src source + built index.html, redesigned)
     });
   });
 
-  it('loadJobs() preserves a user-opened <details> on a still-running job across a poll re-render', async () => {
+  // ── Phase 3J: job details open/closed state must survive polling ────────
+  // linkedom doesn't implement <details>.open as a real IDL-property/
+  // attribute reflection (setting .open=true never sets the actual "open"
+  // attribute, and a literal open attribute in markup doesn't read back via
+  // .open — confirmed independently of this app's code), and it does not
+  // fire native `toggle` events on attribute mutation, click, or `new
+  // Event('toggle')` dispatch either (linkedom's dispatchEvent throws on a
+  // plain Event instance). document.createEvent + initEvent is the one
+  // dispatch path that actually works in this harness — simulateToggle()
+  // below is the one place that workaround lives, so every test uses the
+  // exact same "a real user opened/closed this" simulation the production
+  // toggle listener (jobs-view.js's `detailsEl.addEventListener('toggle', ...)`)
+  // is written to receive from a real browser.
+  //
+  // Order matters: in a real browser, clicking <summary> changes the
+  // open/closed state FIRST, and the `toggle` event fires after — the
+  // listener reads the already-updated state. This mirrors that order
+  // (attribute change, then dispatch), not the reverse.
+  function simulateToggle(document, detailsEl, nextOpen) {
+    if (nextOpen) detailsEl.setAttribute('open', '');
+    else detailsEl.removeAttribute('open');
+    const ev = document.createEvent('Event');
+    ev.initEvent('toggle', false, false);
+    detailsEl.dispatchEvent(ev);
+  }
+
+  it('a running job with details left untouched (never manually toggled) stays closed across polling, including as progress changes', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const job = {
+        id: 'job-7', collection: 'demo', path: './docs', state: 'running',
+        startedAt: new Date().toISOString(), finishedAt: null, exitCode: null,
+        progress: { processedFiles: 1, totalFiles: 5, currentFile: 'a.md', percent: 20 },
+      };
+      const { document, renderIndexingView, loadJobs } = loadJobsViewRenderHelpers(html, {
+        apiImpl: async (url) => (url.startsWith('/api/jobs/') ? { log: '' } : { jobs: [job] }),
+      });
+      await renderIndexingView(document.getElementById('main'));
+      await loadJobs();
+      assert.equal(document.querySelector('.job-details').hasAttribute('open'), false);
+
+      job.progress = { ...job.progress, processedFiles: 3, percent: 60 }; // progress changed
+      await loadJobs();
+      assert.equal(document.querySelector('.job-details').hasAttribute('open'), false,
+        'an untouched running job must stay closed even as its progress updates');
+    });
+  });
+
+  it('a user-opened <details> on a still-running job survives a poll re-render, including as progress/log content changes', async () => {
     // Regression test: renderJobRow() always rebuilds a fresh <details>,
     // auto-opening it only for a failed job — every poll tick was silently
     // closing a user-opened details panel on a still-running job.
@@ -284,24 +334,97 @@ describe('indexing progress panel (ui-src source + built index.html, redesigned)
         progress: { processedFiles: 1, totalFiles: 5, currentFile: 'a.md', percent: 20 },
       };
       const { document, renderIndexingView, loadJobs } = loadJobsViewRenderHelpers(html, {
-        apiImpl: async (url) => (url.startsWith('/api/jobs/') ? { log: '' } : { jobs: [job] }),
+        apiImpl: async (url) => (url.startsWith('/api/jobs/') ? { log: 'line one\nline two' } : { jobs: [job] }),
       });
       await renderIndexingView(document.getElementById('main')); // mounts #idx-jobs via index-view.html
       await loadJobs();
       const details = document.querySelector('.job-details');
-      // linkedom doesn't implement <details>.open as a real IDL-property/
-      // attribute reflection (confirmed independently of this app's code —
-      // setting .open=true never sets the actual "open" attribute, and even
-      // a literal open attribute in markup doesn't read back via .open) —
-      // so this test observes/drives state via hasAttribute/setAttribute
-      // directly rather than the .open property, which is what the
-      // production fix's own `[open]` CSS-selector check relies on too.
       assert.equal(details.hasAttribute('open'), false, 'a running job must not auto-open its details');
-      details.setAttribute('open', ''); // simulate the user manually expanding it
+      simulateToggle(document, details, true); // simulate the user clicking <summary> to expand it
 
-      await loadJobs(); // a second poll tick, same job data
+      await loadJobs(); // a second poll tick — progress changed, new log lines
       assert.equal(document.querySelector('.job-details').hasAttribute('open'), true,
-        'the user-opened details must survive a poll re-render');
+        'the user-opened details must survive a poll re-render with new progress');
+
+      job.progress = { ...job.progress, processedFiles: 4, currentFile: 'd.md', percent: 80 };
+      await loadJobs(); // a third tick — progress changed again
+      assert.equal(document.querySelector('.job-details').hasAttribute('open'), true,
+        'new progress/log content must not collapse an already-open details block');
+    });
+  });
+
+  it('a failed job auto-expands details when the user has never manually toggled it', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const job = {
+        id: 'job-8', collection: 'demo', path: './docs', state: 'failed',
+        startedAt: new Date(Date.now() - 5000).toISOString(), finishedAt: new Date().toISOString(), exitCode: 1,
+        progress: { processedFiles: 2, totalFiles: 5, currentFile: null, percent: 40 },
+      };
+      const { document, renderIndexingView, loadJobs } = loadJobsViewRenderHelpers(html, {
+        apiImpl: async (url) => (url.startsWith('/api/jobs/') ? { log: '[stderr] boom' } : { jobs: [job] }),
+      });
+      await renderIndexingView(document.getElementById('main'));
+      await loadJobs();
+      assert.equal(document.querySelector('.job-details').hasAttribute('open'), true,
+        'a failed job must auto-expand its details when the user has no prior manual state');
+    });
+  });
+
+  it('a user manually closing a failed job\'s details is respected — polling does not reopen it', async () => {
+    // The bug this fix targets: renderJobRow() used to unconditionally set
+    // `.open = state === 'failed'` on every rebuilt <details>, so a manual
+    // close on an already-failed job was silently undone on the very next
+    // poll tick, even though the user just closed it.
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const job = {
+        id: 'job-9', collection: 'demo', path: './docs', state: 'failed',
+        startedAt: new Date(Date.now() - 5000).toISOString(), finishedAt: new Date().toISOString(), exitCode: 1,
+        progress: { processedFiles: 2, totalFiles: 5, currentFile: null, percent: 40 },
+      };
+      const { document, renderIndexingView, loadJobs } = loadJobsViewRenderHelpers(html, {
+        apiImpl: async (url) => (url.startsWith('/api/jobs/') ? { log: '[stderr] boom' } : { jobs: [job] }),
+      });
+      await renderIndexingView(document.getElementById('main'));
+      await loadJobs();
+      const details = document.querySelector('.job-details');
+      assert.equal(details.hasAttribute('open'), true, 'sanity check: auto-opened on first load since it starts failed');
+
+      simulateToggle(document, details, false); // simulate the user clicking <summary> to collapse it
+
+      await loadJobs(); // a second poll tick — same failed job, same state
+      assert.equal(document.querySelector('.job-details').hasAttribute('open'), false,
+        'a manual close on a failed job must not be reopened by the next poll');
+    });
+  });
+
+  it('a running job that fails between polls still auto-expands if the user never manually touched it', async () => {
+    // The auto-open-on-failure default only applies while jobDetailsManualState
+    // has no entry for this job id — this confirms a state TRANSITION
+    // (running -> failed) between two polls still gets the auto-open
+    // behavior when nothing manual happened in between, distinct from the
+    // "user already closed it" case above.
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const job = {
+        id: 'job-10', collection: 'demo', path: './docs', state: 'running',
+        startedAt: new Date().toISOString(), finishedAt: null, exitCode: null,
+        progress: { processedFiles: 1, totalFiles: 5, currentFile: 'a.md', percent: 20 },
+      };
+      const { document, renderIndexingView, loadJobs } = loadJobsViewRenderHelpers(html, {
+        apiImpl: async (url) => (url.startsWith('/api/jobs/') ? { log: '' } : { jobs: [job] }),
+      });
+      await renderIndexingView(document.getElementById('main'));
+      await loadJobs();
+      assert.equal(document.querySelector('.job-details').hasAttribute('open'), false);
+
+      job.state = 'failed';
+      job.finishedAt = new Date().toISOString();
+      job.exitCode = 1;
+      await loadJobs();
+      assert.equal(document.querySelector('.job-details').hasAttribute('open'), true,
+        'a job that transitions to failed must auto-expand if the user never manually toggled it');
     });
   });
 });
