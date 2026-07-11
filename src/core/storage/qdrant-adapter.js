@@ -28,6 +28,23 @@ const QDRANT_CAPABILITIES = mergeCapabilities({
 // Kept as small pure functions so tests can assert on mapping without a
 // live Qdrant instance.
 
+// Maps a raw entity_refs payload entry (snake_case, as stored by
+// skeletonPayloadFields()) to the camelCase domain shape returned by
+// toChunk(), so no raw entity_refs/node_id snake_case field reaches a
+// caller above this adapter. Structural entity chunks never carry refs.
+function toEntityRef(ref) {
+  return {
+    nodeId:      ref?.node_id ?? null,
+    nodePath:    ref?.node_path ?? null,
+    nodeType:    ref?.node_type ?? null,
+    placeholder: ref?.placeholder ?? null,
+  };
+}
+
+function toEntityRefs(payload) {
+  return Array.isArray(payload?.entity_refs) ? payload.entity_refs.map(toEntityRef) : [];
+}
+
 export function toChunk(point) {
   const p = point?.payload ?? {};
   return {
@@ -43,6 +60,7 @@ export function toChunk(point) {
     nodeType:     p.node_type ?? null,
     nodeId:       p.node_id ?? null,
     nodePath:     p.node_path ?? null,
+    entityRefs:   toEntityRefs(p),
     score:        typeof point?.score === 'number' ? point.score : null,
     isMatch:      null,
   };

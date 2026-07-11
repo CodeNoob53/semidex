@@ -20,6 +20,18 @@ export const SKELETON_CHUNKING_MODEL = 'skeleton-v1';
 // v4: deterministic structural carryover — entityContext() now uses full cleaned
 //     prose block instead of last sentence only, changing embedding input for
 //     all structural chunks (table / code_block / checklist).
+//
+// Phase 3U (entity_refs) deliberately does NOT bump this to v5. The version
+// exists to flag changes that affect embedding INPUT or point/chunk
+// boundaries — the reasons a collection would need reindexing, not just a
+// payload patch. entity_refs is purely additive metadata derived from
+// content that's already in the payload (raw_content/node_path of chunks
+// already indexed) — it changes neither the text handed to the embedder nor
+// how many points/chunks a file produces. Any existing skeleton-v1
+// collection can receive entity_refs via `npm run backfill:entity-refs`
+// (payload-only, no re-embed, no vector touch) instead of a full reindex —
+// bumping the schema version would have forced exactly the reindex this
+// backfill path exists to avoid, for a field that doesn't need one.
 export const INDEXING_SCHEMA_VERSION = 4;
 
 export function isSkeletonChunk(chunk) {
@@ -65,6 +77,12 @@ export function skeletonPayloadFields(chunk) {
     indexing_schema_version: INDEXING_SCHEMA_VERSION,
   };
   if (chunk.lang !== undefined && chunk.lang !== null) fields.lang = chunk.lang;
+  // Phase 3U: additive, written only when references exist — a prose chunk
+  // with no recognized placeholder gets no entity_refs key at all (not an
+  // empty array), matching this file's existing convention for `lang`. No
+  // payload index is created for this field (see docs/admin-ui-phase3u-...
+  // .md's Schema Decision — it is never used as a Qdrant filter).
+  if (Array.isArray(chunk.entity_refs) && chunk.entity_refs.length) fields.entity_refs = chunk.entity_refs;
   return fields;
 }
 

@@ -17,6 +17,7 @@
 // independent streams.
 
 import { envInt } from '../../core/env.js';
+import { PLACEHOLDER_LINE_RE } from '../entity-reference.js';
 
 export const POINT_KINDS = Object.freeze({
   RETRIEVAL: 'retrieval_content',
@@ -100,7 +101,10 @@ const STRUCTURAL_CONTENT_TYPES = new Set(['table', 'code_block', 'checklist']);
 
 // Placeholder lines produced by parent-prose extraction (design §11) — never
 // counted as content, so placeholder-only prose can't become a search chunk.
-const PLACEHOLDER_RE = /^\[(?:table|code block|checklist|list|image) node: [^\]]*\]$/;
+// PLACEHOLDER_LINE_RE (imported above, from entity-reference.js) is the
+// single source of truth for the placeholder format — this module must not
+// keep its own copy of the pattern.
+const PLACEHOLDER_RE = PLACEHOLDER_LINE_RE;
 
 // Bare heading line (defensive — heading-only sections never reach prose in
 // the skeleton model, but the gate must hold even on malformed input).

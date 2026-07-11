@@ -138,7 +138,7 @@ describe('domain mapping — no raw Qdrant snake_case leaks through', () => {
       sourceFile: 'docs/a.md', chunkIndex: 2, totalChunks: 5, section: 'Intro',
       text: 'hello', rawContent: null, lang: null, context: 'ctx', tags: ['t1'],
       nodeType: 'table', nodeId: 'n1', nodePath: 'a.md#Intro/table-1',
-      score: 0.87, isMatch: null,
+      entityRefs: [], score: 0.87, isMatch: null,
     });
     const keys = Object.keys(chunk);
     assert.ok(!keys.some(k => k.includes('_')), `expected only camelCase keys, got: ${keys.join(', ')}`);
@@ -148,7 +148,7 @@ describe('domain mapping — no raw Qdrant snake_case leaks through', () => {
     assert.deepEqual(toChunk({}), {
       sourceFile: null, chunkIndex: null, totalChunks: null, section: null,
       text: null, rawContent: null, lang: null, context: null, tags: [],
-      nodeType: null, nodeId: null, nodePath: null, score: null, isMatch: null,
+      nodeType: null, nodeId: null, nodePath: null, entityRefs: [], score: null, isMatch: null,
     });
   });
 
@@ -186,6 +186,37 @@ describe('domain mapping — no raw Qdrant snake_case leaks through', () => {
     const keys = Object.keys(chunk);
     assert.ok(!keys.some(k => k.includes('_')), `expected only camelCase keys, got: ${keys.join(', ')}`);
     assert.ok(keys.includes('rawContent') && keys.includes('lang'));
+  });
+
+  it('toChunk maps entity_refs to camelCase entityRefs, preserving order', () => {
+    const point = {
+      payload: {
+        source_file: 'guide.md', chunk_index: 0, section: 'Setup',
+        text: 'Configuration options:\n\n[table node: guide.md#setup/table-1 — Option | Default]',
+        node_type: 'paragraph',
+        entity_refs: [
+          { node_id: 'n1', node_path: 'guide.md#setup/table-1', node_type: 'table', placeholder: '[table node: guide.md#setup/table-1 — Option | Default]' },
+          { node_id: 'n2', node_path: 'guide.md#setup/code_block-1', node_type: 'code_block', placeholder: '[code block node: guide.md#setup/code_block-1 — x = 1]' },
+        ],
+      },
+    };
+    const chunk = toChunk(point);
+    assert.deepEqual(chunk.entityRefs, [
+      { nodeId: 'n1', nodePath: 'guide.md#setup/table-1', nodeType: 'table', placeholder: '[table node: guide.md#setup/table-1 — Option | Default]' },
+      { nodeId: 'n2', nodePath: 'guide.md#setup/code_block-1', nodeType: 'code_block', placeholder: '[code block node: guide.md#setup/code_block-1 — x = 1]' },
+    ]);
+    const keys = chunk.entityRefs.flatMap(r => Object.keys(r));
+    assert.ok(!keys.some(k => k.includes('_')), `expected only camelCase keys inside entityRefs, got: ${keys.join(', ')}`);
+  });
+
+  it('toChunk maps a prose chunk with no entity_refs field to an empty array, not undefined/null', () => {
+    const chunk = toChunk({ payload: { source_file: 'a.md', node_type: 'paragraph', text: 'plain prose, no placeholder' } });
+    assert.deepEqual(chunk.entityRefs, []);
+  });
+
+  it('toChunk ignores a malformed entity_refs field (not an array) rather than throwing', () => {
+    const chunk = toChunk({ payload: { entity_refs: 'not-an-array' } });
+    assert.deepEqual(chunk.entityRefs, []);
   });
 
   it('toSourceDocument maps an aggregation entry to camelCase', () => {

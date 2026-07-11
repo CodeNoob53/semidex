@@ -88,6 +88,22 @@ export async function updatePayload(collection, id, payload) {
   }));
 }
 
+// Removes specific payload KEYS from a point entirely (Qdrant's
+// deletePayload, distinct from setPayload/updatePayload above, which only
+// ever ADDS/overwrites keys and can never remove one). Needed wherever a
+// field's ABSENCE is meaningful and must be reproduced exactly — e.g. the
+// entity_refs backfill script clearing a now-stale reference must leave the
+// point byte-equivalent to one that was freshly indexed and never had the
+// key at all, not one carrying an explicit empty array.
+export async function deletePayloadKeys(collection, id, keys) {
+  const client = getQdrantClient({ write: true });
+  await qdrantCall('Qdrant deletePayloadKeys failed', () => client.deletePayload(collection, {
+    keys,
+    points: [id],
+    wait: false,
+  }));
+}
+
 export async function deleteBySourceFile(collection, sourceFile) {
   const client = getQdrantClient({ write: true });
   await qdrantCall('Qdrant delete failed', () => client.delete(collection, {

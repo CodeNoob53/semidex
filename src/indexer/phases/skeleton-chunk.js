@@ -24,6 +24,7 @@
 import { recursiveChunkText } from './chunk.js';
 import { applyNodePolicy, isContentBearing, POINT_KINDS } from './node-policy.js';
 import { makeNodeId } from '../../core/node-id.js';
+import { placeholderForReference, attachEntityRefs } from '../entity-reference.js';
 
 const CHUNKING_MODEL = 'skeleton-v1';
 
@@ -32,10 +33,11 @@ function nodePathOf(sourceFile, n) {
   return `${sourceFile}#${base}${n.nodeType}-${n.ordinalWithinParent}`;
 }
 
+// Thin wrapper: entity-reference.js owns the actual placeholder FORMAT
+// (placeholderForReference) — this only supplies the precomputed node_path,
+// so there is exactly one place that builds a placeholder string.
 function placeholderFor(sourceFile, n) {
-  const label = n.nodeType === 'code_block' ? 'code block' : n.nodeType;
-  const hint = String(n.text ?? '').trim().split('\n')[0].slice(0, 60);
-  return `[${label} node: ${nodePathOf(sourceFile, n)}${hint ? ` — ${hint}` : ''}]`;
+  return placeholderForReference(sourceFile, n, nodePathOf(sourceFile, n));
 }
 
 // ── Deterministic context (design §12, re-decided 2026-06-10) ───────────────
@@ -245,6 +247,37 @@ export function chunkFromSkeleton(nodes, ctx = {}) {
   }
   flushProse();
 
+  // Entity-reference attachment (Phase 3U) runs as a SECOND pass over the
+  // fully-assembled chunk array, not interleaved into the forward walk
+  // above — entity_refs must describe the chunk's FINAL text, including
+  // placeholders appended post-hoc to an already-emitted prose chunk (the
+  // "last emitted prose chunk of this section" branch above, step 2 of the
+  // "Attachment order" comment) — a forward walk can't know that append
+  // will happen at the time it first emits that chunk.
+  const { chunks: withRefs, orphans } = attachEntityRefs(out);
+
+  // Orphans (a recognized-format placeholder with no matching structural
+  // chunk) are an internal invariant violation here, not a legitimate
+  // runtime case: chunkFromSkeleton's own construction guarantees every
+  // placeholder it emits (placeholderFor(), above) has a matching entity in
+  // this SAME call's `out` array — the two are built from the same walk
+  // over the same node list. An orphan surfacing here means this file has a
+  // bug (e.g. a placeholder built against the wrong node_path, or an entity
+  // silently dropped upstream) — fail loudly with a clear, actionable error
+  // instead of shipping an incomplete payload that would look fine at index
+  // time and only misbehave later at assembly time. Contrast with the
+  // backfill script, which reconstructs chunks from potentially-partial
+  // STORED payloads (a genuinely different, expected source of orphans) and
+  // reports them instead of throwing.
+  if (orphans.length) {
+    const sample = orphans[0];
+    throw new Error(
+      `[skeleton-chunk] internal invariant violated: ${orphans.length} orphan placeholder(s) `
+      + `found during fresh indexing of "${sourceFile}" — every placeholder chunkFromSkeleton `
+      + `emits must resolve to an entity chunk from the same call. First orphan: ${sample.placeholder}`,
+    );
+  }
+
   // chunkIndex / totalChunks at the end (impl spec §3.4).
-  return out.map((c, i) => ({ ...c, chunkIndex: i, totalChunks: out.length }));
+  return withRefs.map((c, i) => ({ ...c, chunkIndex: i, totalChunks: withRefs.length }));
 }
