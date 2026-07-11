@@ -325,9 +325,25 @@ td.mono { font-family: var(--mono); font-size: 12px; }
   background: var(--bg-raise); color: var(--ink);
   padding: 10px 14px; font-size: 12px; box-shadow: 0 4px 16px rgba(0,0,0,.28);
   word-break: break-word;
+  display: flex; align-items: center; gap: 10px;
 }
+.toast-text { flex: 1; }
 .toast-warn { border-color: rgba(232,163,61,.4); }
-.toast-warn::before { content: '⚠ '; color: var(--warn); }
+.toast-warn .toast-text::before { content: '⚠ '; color: var(--warn); }
+/* Phase 3S: success/error variants for operation completion toasts —
+   .toast-warn's existing border/icon pattern extended with two more, same
+   visual language (border-tint + a leading glyph on the text), not a new
+   toast shape. */
+.toast-success { border-color: rgba(111,191,115,.4); }
+.toast-success .toast-text::before { content: '✓ '; color: var(--ok); }
+.toast-error { border-color: rgba(224,93,93,.4); }
+.toast-error .toast-text::before { content: '✕ '; color: var(--fail); }
+.toast-action {
+  flex: none; background: transparent; border: 1px solid var(--line);
+  border-radius: 3px; color: var(--amber); font-size: 11px;
+  padding: 4px 10px; cursor: pointer;
+}
+.toast-action:hover { background: var(--bg-inset); }
 
 /* staggered load-in for panels */
 @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
@@ -723,3 +739,29 @@ td.actions { text-align: right; }
 }
 .modal-title { margin: 0 0 10px; font-size: 15px; font-family: var(--mono); color: var(--fail); }
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; }
+
+/* global operation status modal (Phase 3S) — mounted at the shell level
+   (index.html, outside #main), reuses .modal/.modal-backdrop above for the
+   frame but is wider (the operation card is denser than a plain
+   confirmation dialog) and needs its own title color (not the delete
+   modal's danger red — most operations here are routine, not destructive). */
+.op-modal { max-width: 480px; }
+.op-modal .modal-title { color: var(--ink); }
+.op-modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.op-modal-head .modal-title { margin: 0; }
+.op-modal-close {
+  font-size: 18px; line-height: 1; padding: 2px 8px; margin-left: 10px;
+}
+.op-modal-history { margin-top: 16px; border-top: 1px solid var(--line-soft); padding-top: 12px; }
+.op-modal-history-label {
+  font-size: 10px; text-transform: uppercase; letter-spacing: .18em;
+  color: var(--ink-faint); margin-bottom: 6px;
+}
+.op-history-list { list-style: none; margin: 0; padding: 0; max-height: 160px; overflow-y: auto; }
+.op-history-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 4px; border-radius: 3px; cursor: pointer; font-size: 12px;
+}
+.op-history-row:hover, .op-history-row:focus-visible { background: var(--bg-inset); }
+.op-history-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.op-history-duration { flex: none; }

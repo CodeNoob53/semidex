@@ -122,4 +122,59 @@ describe('createRouter — error handling', () => {
     await router.handleRequest(fakeReq('GET', '/api/async-fail'), res);
     assert.equal(res.statusCode, 400);
   });
+
+  // Regression (P1, code review): an UNEXPECTED thrown error (not a
+  // deliberate HttpError — a raw exception from a StorageAdapter/Qdrant
+  // client call, the kind api/collections.js's sync-schema route can
+  // surface from ensureCollectionSchema()) reached this 500 handler
+  // completely unredacted, even though every other admin-API error path
+  // that touches raw Qdrant/process output (jobs/registry.js's
+  // appendLine(), task-registry.js's runTracked()) already sanitises at
+  // capture time. Confirmed live: a credentialed Qdrant URL or QDRANT_KEY
+  // embedded in an unexpected error message would reach the client verbatim
+  // through this one path.
+  it('redacts a literal QDRANT_KEY occurrence in an unexpected error message before sending it', async () => {
+    const originalKey = process.env.QDRANT_KEY;
+    process.env.QDRANT_KEY = 'sk-super-secret-token';
+    try {
+      const router = createRouter();
+      router.get('/api/boom', () => { throw new Error('auth failed with key sk-super-secret-token'); });
+      const res = fakeRes();
+      await router.handleRequest(fakeReq('GET', '/api/boom'), res);
+      assert.equal(res.statusCode, 500);
+      const body = JSON.parse(res.body);
+      assert.doesNotMatch(body.error.message, /sk-super-secret-token/, 'the raw key must never reach the HTTP response');
+      assert.match(body.error.message, /\[REDACTED\]/);
+    } finally {
+      process.env.QDRANT_KEY = originalKey;
+    }
+  });
+
+  it('redacts credentials/query string out of a URL embedded in an unexpected error message', async () => {
+    const router = createRouter();
+    router.get('/api/boom', () => {
+      throw new Error('connecting to https://user:pass@qdrant.example.com/collections?api_key=sk-live-abc123');
+    });
+    const res = fakeRes();
+    await router.handleRequest(fakeReq('GET', '/api/boom'), res);
+    assert.equal(res.statusCode, 500);
+    const body = JSON.parse(res.body);
+    assert.doesNotMatch(body.error.message, /user:pass|api_key=sk-live-abc123/, 'credentials and query params must not survive in the response');
+    assert.match(body.error.message, /https:\/\/qdrant\.example\.com/, 'the host-only form should still be present');
+  });
+
+  it('a deliberate HttpError (already-safe, fixed wording) is NOT run through redaction — it has nothing to redact and must reach the client verbatim', async () => {
+    // Guards against an overzealous fix: HttpError messages (badRequest/
+    // notFound/conflict/etc.) are always static, developer-authored
+    // strings, never raw external error text — sanitiseErrorMessage()
+    // must only apply to the UNEXPECTED-error branch, not this one, or a
+    // legitimate message could be mangled by the URL-credential regex.
+    const router = createRouter();
+    const { notFound } = await import('../../../src/admin/http.js');
+    router.get('/api/collections/:name', () => { throw notFound('Collection "https://example.com/x" not found'); });
+    const res = fakeRes();
+    await router.handleRequest(fakeReq('GET', '/api/collections/x'), res);
+    const body = JSON.parse(res.body);
+    assert.equal(body.error.message, 'Collection "https://example.com/x" not found');
+  });
 });

@@ -18,6 +18,8 @@ import { registerNodeRoutes } from './api/node.js';
 import { registerSearchRoutes } from './api/search.js';
 import { registerJobsRoutes } from './api/jobs.js';
 import { createJobRegistry } from './jobs/registry.js';
+import { createTaskRegistry } from './jobs/task-registry.js';
+import { registerOperationsRoutes } from './api/operations.js';
 import { registerSystemRoutes } from './api/system.js';
 import { handleStatic } from './static.js';
 
@@ -45,10 +47,17 @@ export function resolvePortConfig(env = process.env) {
   return port;
 }
 
-export function createApp({ adapter = createStorageAdapter(), embedQuery, jobRegistry, pickFolderFn, checkOllamaFn } = {}) {
+export function createApp({ adapter = createStorageAdapter(), embedQuery, jobRegistry, taskRegistry, pickFolderFn, checkOllamaFn } = {}) {
   const router = createRouter();
   registerHealthRoutes(router, adapter);
-  registerCollectionsRoutes(router, adapter);
+  // taskRegistry is optional DI (tests inject a fake with a pinned clock, or
+  // a stub that captures the tracked fn without actually running it) — same
+  // convention as jobRegistry below. Defaulted once here so the SAME
+  // instance is shared between the repair route (writes) and the operations
+  // route (reads) — two independently-constructed registries would each
+  // track their own separate, half-empty view of what's running.
+  const tasks = taskRegistry ?? createTaskRegistry();
+  registerCollectionsRoutes(router, adapter, { taskRegistry: tasks });
   registerDocumentsRoutes(router, adapter);
   registerChunksRoutes(router, adapter);
   registerSkeletonRoutes(router, adapter);
@@ -59,7 +68,9 @@ export function createApp({ adapter = createStorageAdapter(), embedQuery, jobReg
   // jobRegistry/checkOllamaFn are optional DI (tests inject a fake spawnFn-
   // backed registry and a stub Ollama check so unit tests never launch a
   // real indexer child process or probe a real Ollama instance).
-  registerJobsRoutes(router, jobRegistry ?? createJobRegistry(), checkOllamaFn ? { checkOllamaFn } : {});
+  const jobs = jobRegistry ?? createJobRegistry();
+  registerJobsRoutes(router, jobs, checkOllamaFn ? { checkOllamaFn } : {});
+  registerOperationsRoutes(router, { jobRegistry: jobs, taskRegistry: tasks });
   // pickFolderFn/checkOllamaFn are optional DI (tests inject stubs so unit
   // tests never spawn a real powershell.exe/dialog or probe a real Ollama
   // instance).

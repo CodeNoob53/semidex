@@ -135,6 +135,12 @@ describe('POST /api/collections/:name/sync-schema', () => {
       assert.equal(body.collection, 'demo');
       assert.deepEqual(body.repaired, ['index x']);
       assert.deepEqual(body.warnings, []);
+      // Phase 3S: the task id lets the frontend open the operation modal on
+      // this exact repair deterministically (settings-view.js's
+      // runSettingsRepair()) instead of guessing "the newest operation in
+      // the store."
+      assert.equal(typeof body.id, 'string');
+      assert.ok(body.id.length > 0);
     });
   });
 
@@ -150,6 +156,39 @@ describe('POST /api/collections/:name/sync-schema', () => {
       assert.equal(body.error.code, 'not_found');
       assert.equal(ensureCalled, false);
     });
+  });
+
+  // Regression (P1, code review): task-registry.js correctly redacts
+  // task.error for GET /api/operations, but ensureCollectionSchema()
+  // rejecting is a genuinely UNEXPECTED error from this route's own point
+  // of view (not a deliberate HttpError) — it propagates straight to
+  // router.js's catch-all 500 handler, bypassing task-registry.js's
+  // redaction entirely. This test targets the actual POST /sync-schema
+  // HTTP response body directly (settings-view.js's runSettingsRepair()
+  // displays err.message from exactly this response verbatim in the
+  // settings page's inline error box) — not GET /api/operations, which
+  // task-registry.test.js/operations.test.js already cover for the
+  // (separately redacted) task.error field.
+  it('does not leak a credentialed Qdrant URL/key in the POST /sync-schema response itself when ensureCollectionSchema rejects', async () => {
+    const originalKey = process.env.QDRANT_KEY;
+    process.env.QDRANT_KEY = 'sk-super-secret-token';
+    try {
+      const adapter = makeStubAdapter({
+        ensureCollectionSchema: async () => {
+          throw new Error('auth failed with key sk-super-secret-token at https://user:pass@qdrant.example.com/x');
+        },
+      });
+      await withServer(adapter, async (base) => {
+        const res = await fetch(base + '/api/collections/demo/sync-schema', { method: 'POST' });
+        const body = await res.json();
+        assert.equal(res.status, 500);
+        assert.doesNotMatch(body.error.message, /sk-super-secret-token|user:pass/,
+          'the raw key/credentials must never reach the sync-schema POST response, the exact response settings-view.js displays to the user');
+        assert.match(body.error.message, /\[REDACTED\]/);
+      });
+    } finally {
+      process.env.QDRANT_KEY = originalKey;
+    }
   });
 });
 

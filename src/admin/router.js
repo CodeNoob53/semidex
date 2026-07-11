@@ -3,6 +3,7 @@
 // needs. Route params (":name") are URL-decoded before being handed to
 // handlers, so a handler never has to think about percent-encoding.
 import { sendError, HttpError } from './http.js';
+import { sanitiseErrorMessage } from '../core/doctor-checks.js';
 
 /**
  * @typedef {(ctx: { req, res, params: Object, query: URLSearchParams }) => Promise<void>|void} RouteHandler
@@ -69,7 +70,20 @@ export function createRouter() {
       if (err instanceof URIError) {
         return sendError(res, 400, 'bad_request', 'Malformed URL (invalid percent-encoding)');
       }
-      return sendError(res, 500, 'internal_error', err?.message ?? String(err));
+      // A route handler that throws something other than a deliberate
+      // HttpError (badRequest/notFound/conflict/etc., all pre-composed with
+      // safe, fixed wording — see http.js) is, by construction, an
+      // UNEXPECTED failure: a raw exception from a StorageAdapter call, a
+      // Qdrant client error, or similar — the kind of message that can
+      // legitimately contain a connection URL with embedded credentials or
+      // a literal QDRANT_KEY (confirmed live via api/collections.js's
+      // sync-schema route, whose ensureCollectionSchema() rejection used to
+      // reach this exact branch verbatim). Every OTHER admin-API error path
+      // that touches raw Qdrant/process output already redacts at capture
+      // time (jobs/registry.js's appendLine(), task-registry.js's
+      // runTracked()) — this is the one remaining path that didn't: any
+      // route handler's uncaught exception, not just repair's.
+      return sendError(res, 500, 'internal_error', sanitiseErrorMessage(err?.message ?? String(err), process.env.QDRANT_KEY));
     }
   }
 

@@ -1,7 +1,8 @@
-// ── top bar: health + capabilities + active-job chip ─────────────────────
+// ── top bar: health + capabilities + active-operation chip ────────────────
 import { $, esc } from './dom.js';
 import { api } from './api.js';
-import { currentRoute } from './routes.js';
+import { subscribe, getActiveOperation } from './operation-store.js';
+import { openOperationModal } from './operation-modal.js';
 
 export async function loadTopbar() {
   const lamp = $('#health-lamp');
@@ -24,71 +25,40 @@ export async function loadTopbar() {
   } catch { /* capability summary is decorative; health already reported */ }
 }
 
-const JOB_CHIP_ACTIVE_STATES = new Set(['queued', 'running', 'cancelling']);
-const JOB_CHIP_ACTIVE_POLL_MS = 1500;
-const JOB_CHIP_IDLE_POLL_MS = 5000;
-
-let jobChipTimer = null;
+const KIND_CHIP_LABEL = { index: 'Indexing', reindex: 'Reindexing', repair: 'Repairing' };
 
 /**
- * Small always-visible-when-relevant indicator that an indexing job is in
- * flight, reachable from any route — not a full job center (the jobs list
- * itself lives at #/index). Hidden with zero active jobs; shows the
- * collection name of the first active job otherwise. Click navigates to
- * #/index. Deliberately skips its own poll tick while already on #/index,
- * since jobs-view.js runs its own faster (1.5s) poller there — polling from
- * both places at once would double the request rate for no benefit.
+ * Reachable-from-any-route indicator that an operation (indexing,
+ * reindexing, or repair) is in flight. Phase 3S: subscribes to the shared
+ * operation-store.js instead of polling /api/jobs on its own timer — the
+ * store already polls continuously (started once at app boot, see app.js),
+ * so this is a pure render-on-event subscriber, never a second poller.
+ * Clicking it opens the global operation modal in place — it no longer
+ * navigates to #/index, since #/index is collection-creation only now (the
+ * jobs list that used to live there is gone; see jobs-view.js).
  */
 export function initJobChip() {
-  pollJobChip();
-}
-
-async function pollJobChip() {
-  clearTimeout(jobChipTimer);
   const chip = $('#job-chip');
   if (!chip) return;
-
-  if (currentRoute().view === 'index') {
-    // jobs-view.js already polls faster and renders the full list while
-    // this route is active — but the chip itself must not just go stale:
-    // without this, clicking the chip to reach #/index and then having that
-    // job finish would leave "Indexing ..." showing indefinitely until the
-    // user navigates away. Hide it here (the jobs list itself is the
-    // source of truth while on this route) and just recheck on our own
-    // slower cadence so the chip catches up once the user navigates away.
-    chip.hidden = true;
-    chip.textContent = '';
-    jobChipTimer = setTimeout(pollJobChip, JOB_CHIP_IDLE_POLL_MS);
-    return;
-  }
-
-  let activeJobs = [];
-  try {
-    const { jobs } = await api('/api/jobs');
-    activeJobs = jobs.filter(j => JOB_CHIP_ACTIVE_STATES.has(j.state));
-  } catch {
-    // Transient API errors shouldn't flip a visible chip on/off; keep
-    // whatever state was last shown and just try again next tick.
-    jobChipTimer = setTimeout(pollJobChip, JOB_CHIP_IDLE_POLL_MS);
-    return;
-  }
-
-  renderJobChip(chip, activeJobs);
-  jobChipTimer = setTimeout(pollJobChip, activeJobs.length ? JOB_CHIP_ACTIVE_POLL_MS : JOB_CHIP_IDLE_POLL_MS);
+  chip.addEventListener('click', () => openOperationModal(getActiveOperation()?.id));
+  subscribe((event) => {
+    if (event.type === 'update') renderJobChip(chip, getActiveOperation());
+  });
 }
 
-export function renderJobChip(chip, activeJobs) {
-  if (!activeJobs.length) {
+export function renderJobChip(chip, activeOp) {
+  if (!activeOp) {
     chip.hidden = true;
     chip.textContent = '';
     return;
   }
-  const job = activeJobs[0];
-  const extra = activeJobs.length > 1 ? ` +${activeJobs.length - 1}` : '';
   chip.hidden = false;
-  // job.collection is a user-controlled collection name (the API only
-  // rejects "/" and "\", not HTML) — esc() it, same as every other place
-  // in this codebase that interpolates a collection/file name into HTML.
-  chip.innerHTML = `<span class="job-chip-dot"></span>Indexing ${esc(job.collection)}${esc(extra)}`;
-  chip.onclick = () => { location.hash = '#/index'; };
+  const label = KIND_CHIP_LABEL[activeOp.kind] ?? 'Working on';
+  const percent = typeof activeOp.progress?.percent === 'number'
+    ? ` ${Math.round(activeOp.progress.percent)}%`
+    : ''; // no known percentage -> the CSS dot's indeterminate pulse is the only progress signal, no fabricated number
+  // activeOp.collection is a user-controlled collection name (the API only
+  // rejects "/" and "\", not HTML) — esc() it, same as every other place in
+  // this codebase that interpolates a collection/file name into HTML.
+  chip.innerHTML = `<span class="job-chip-dot"></span>${esc(label)} ${esc(activeOp.collection)}${esc(percent)}`;
 }

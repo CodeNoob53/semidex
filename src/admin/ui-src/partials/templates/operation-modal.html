@@ -1,0 +1,23 @@
+<template id="tpl-operation-modal">
+  <div class="modal-backdrop" id="op-modal-backdrop" style="display:none">
+    <div class="modal op-modal" role="dialog" aria-modal="true" aria-labelledby="op-modal-title" id="op-modal">
+      <div class="op-modal-head">
+        <h2 class="modal-title" id="op-modal-title">Operation status</h2>
+        <button type="button" class="btn-ghost op-modal-close" id="op-modal-close" aria-label="Close">×</button>
+      </div>
+      <div id="op-modal-body"><!-- current operation card, rendered from tpl-job-row --></div>
+      <div class="op-modal-history">
+        <div class="op-modal-history-label">Recent operations</div>
+        <ul class="op-history-list" id="op-history-list"></ul>
+      </div>
+    </div>
+  </div>
+</template>
+
+<template id="tpl-op-history-row">
+  <li class="op-history-row" tabindex="0" role="button">
+    <span class="badge op-history-badge"></span>
+    <span class="op-history-label"></span>
+    <span class="mono muted op-history-duration"></span>
+  </li>
+</template>

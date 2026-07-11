@@ -94,6 +94,20 @@ function requireOptionsNotMisnested(body) {
   }
 }
 
+// 'kind' is an optional display-label hint (Phase 3S — distinguishes a
+// brand-new collection from a reindex of an existing one in the operation
+// modal; both run identically otherwise). Defaults to 'index' so every
+// pre-existing caller (and every old client that's never heard of this
+// field) keeps behaving exactly as before.
+function parseKind(body) {
+  const v = body?.kind;
+  if (v === undefined) return 'index';
+  if (v !== 'index' && v !== 'reindex') {
+    throw badRequest('Body field "kind" must be "index" or "reindex" when provided');
+  }
+  return v;
+}
+
 export function parseIndexJobRequest(body) {
   if (typeof body !== 'object' || body === null || Array.isArray(body)) {
     throw badRequest('Request body must be a JSON object');
@@ -102,7 +116,8 @@ export function parseIndexJobRequest(body) {
   const collection = requireCollectionNameField(body, 'collection');
   const path = requireLocalPathField(body, 'path');
   const options = parseOptions(body);
-  return { collection, path, options };
+  const kind = parseKind(body);
+  return { collection, path, options, kind };
 }
 
 // Derives the { processedFiles, totalFiles, currentFile, currentStep,
@@ -141,6 +156,7 @@ export function toJobSummary(job) {
     collection: job.collection,
     path: job.path,
     options: job.options,
+    kind: job.kind ?? 'index', // ?? covers a job created before this field existed (in-memory registry, so only matters within one server process's lifetime)
     state: job.state,
     startedAt: job.startedAt,
     finishedAt: job.finishedAt,
@@ -157,7 +173,7 @@ export function toJobDetail(job) {
 export function registerJobsRoutes(router, registry, { checkOllamaFn = checkOllama } = {}) {
   router.post('/api/jobs/index', async ({ req, res }) => {
     const body = await readJsonBody(req);
-    const { collection, path, options } = parseIndexJobRequest(body);
+    const { collection, path, options, kind } = parseIndexJobRequest(body);
 
     // LLM summaries need Ollama running with the context model pulled — the
     // indexer's own preflight only discovers this *after* the job has
@@ -173,7 +189,7 @@ export function registerJobsRoutes(router, registry, { checkOllamaFn = checkOlla
 
     let started;
     try {
-      started = registry.startIndexJob({ collection, path, options });
+      started = registry.startIndexJob({ collection, path, options, kind });
     } catch (err) {
       if (err.code === 'JOB_ALREADY_RUNNING') throw conflict(err.message);
       throw err;

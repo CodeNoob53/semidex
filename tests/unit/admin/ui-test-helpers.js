@@ -420,53 +420,52 @@ export function loadFileViewBehaviorHelpers(html, apiResponses = {}) {
   return context;
 }
 
-// Same idea, for jobs-view.js's renderJobRow/formatDuration/
-// formatStartedLabel/jobFilesLabel/tickRunningJobRows/JOB_STATUS_BADGE_CLASS.
-export function loadJobsViewRenderHelpers(html, { apiImpl } = {}) {
+// For operation-render.js's renderOperationCard/formatDuration/
+// formatStartedLabel/tickElapsedRows (Phase 3S — replaces the deleted
+// jobs-view.js renderJobRow(), which this module's tests used to target;
+// see docs/admin-ui-phase3s-unified-operation-status-2026-07-11.md for the
+// architecture this replaced). Needs the real built index.html (tpl-job-row
+// lives in partials/templates/job-row.html, reused as-is by the modal).
+export function loadOperationRenderHelpers(html) {
   const { document } = parseHTML(html);
-  const context = {
-    document,
-    __apiImpl: apiImpl ?? (async () => ({})),
-    // loadJobs() schedules a poll timer + an elapsed-time ticker whenever a
-    // job is still active — real timers would keep the test process alive
-    // and fire unpredictably, so these are no-op stubs; tests call
-    // loadJobs() directly for each "tick" instead of waiting on real timers.
-    setInterval: () => 0, clearInterval: () => {},
-    setTimeout: () => 0, clearTimeout: () => {},
-  };
+  const context = { document };
   vm.createContext(context);
   const src = stripExports(readUiSource('dom.js')).replace(/^import .*$/gm, '')
-    // jobs-view.js's `?raw` import of index-view.html becomes a plain const
-    // — needed so renderIndexingView() (which callers may invoke to mount
-    // #idx-jobs before calling loadJobs()) has real markup to inject.
-    + `const indexViewShell = ${JSON.stringify(readUiSource('partials/index-view.html'))};\n`
-    + stripExports(readUiSource('jobs-view.js'))
-      .replace(/^import .*$/gm, '')
-      // jobs-view.js's top-level statements only declare functions/consts
-      // (confirmed by direct read) — safe to eval whole-file.
-    + '\nconst api = __apiImpl; const apiPost = async () => ({});'
-    + ' const loadSidebar = async () => {}; const currentRoute = () => ({ view: "index" });\n';
+    + stripExports(readUiSource('operation-render.js')).replace(/^import .*$/gm, '');
   vm.runInContext(src, context);
   return context;
 }
 
-// Evaluates topbar.js against a real DOM but stubbed api()/timers — tests
-// call pollJobChip()/renderJobChip() directly per "tick" rather than waiting
-// on real setTimeout, and can inspect/override __route to simulate being on
-// (or off) the #/index route.
-export function loadTopbarHelpers(html, { apiImpl, route = { view: 'overview' } } = {}) {
+// Evaluates topbar.js against a real DOM, with operation-store.js's
+// subscribe()/getActiveOperation() and operation-modal.js's
+// openOperationModal() stubbed (Phase 3S: topbar.js no longer polls on its
+// own — it subscribes to the shared store, so these tests drive it by
+// calling the test's own __emit() directly rather than waiting on a real
+// poller or network timers).
+export function loadTopbarHelpers(html, { apiImpl, openOperationModalImpl } = {}) {
   const { document } = parseHTML(html);
+  let listener = null;
+  let active = null;
   const context = {
     document,
-    __apiImpl: apiImpl ?? (async () => ({ jobs: [] })),
-    __route: route,
+    __apiImpl: apiImpl ?? (async () => ({ storage: { backend: 'stub' }, ok: true })),
+    __openOperationModalImpl: openOperationModalImpl ?? (() => {}),
     location: { hash: '#/' },
     setTimeout: () => 0, clearTimeout: () => {},
+    // Test-facing handles, set after vm.runInContext below.
+    __setActive: (op) => { active = op; },
+    __emitUpdate: () => listener?.({ type: 'update' }),
   };
   vm.createContext(context);
   const src = stripExports(readUiSource('dom.js')).replace(/^import .*$/gm, '')
     + stripExports(readUiSource('topbar.js')).replace(/^import .*$/gm, '')
-    + '\nconst api = __apiImpl; const currentRoute = () => __route;\n';
+    + `\nconst api = __apiImpl;
+    const openOperationModal = __openOperationModalImpl;
+    function subscribe(fn) { __registerListener(fn); return () => {}; }
+    function getActiveOperation() { return __getActive(); }
+    `;
+  context.__registerListener = (fn) => { listener = fn; };
+  context.__getActive = () => active;
   vm.runInContext(src, context);
   return context;
 }
@@ -597,6 +596,151 @@ export async function withServer(fn) {
   } finally {
     await new Promise((resolve) => app.close(resolve));
   }
+}
+
+// For operation-store.js — no DOM/template dependency at all (pure state +
+// api() calls), so this just needs api() stubbed and setTimeout captured
+// (not run for real — tests advance polling by calling __flushTimers()
+// themselves, which invokes whatever callback the store's own poll loop
+// most recently scheduled, rather than waiting on a real 1.5s/5s delay).
+export function loadOperationStoreHelpers({ apiImpl } = {}) {
+  let scheduled = null;
+  const context = {
+    __apiImpl: apiImpl ?? (async () => ({ operations: [] })),
+    setTimeout: (fn, ms) => { scheduled = { fn, ms }; return 1; },
+    clearTimeout: () => { scheduled = null; },
+  };
+  vm.createContext(context);
+  const src = stripExports(readUiSource('operation-store.js')).replace(/^import .*$/gm, '')
+    + '\nconst api = __apiImpl;\n';
+  vm.runInContext(src, context);
+  // Runs whatever the store's poll loop most recently scheduled via
+  // setTimeout, then waits for the resulting api()/notify chain to settle —
+  // the store's pollOnce() is async, so the scheduled callback kicks it off
+  // but doesn't itself wait for it to finish.
+  context.__flushTimers = async () => {
+    const next = scheduled;
+    scheduled = null;
+    next?.fn();
+    await new Promise((resolve) => setImmediate(resolve));
+    await new Promise((resolve) => setImmediate(resolve));
+  };
+  context.__lastScheduledDelay = () => scheduled?.ms ?? null;
+  return context;
+}
+
+// For operation-modal.js — needs the real built index.html (the modal
+// template) plus operation-store.js's real subscribe()/getOperations()
+// (evaluated together, not stubbed, since these tests exercise the actual
+// store<->modal wiring) with api()/apiPost() stubbed and timers captured
+// the same way loadOperationStoreHelpers does, so tests control both the
+// store's poll loop and the modal's elapsed-time ticker deterministically.
+export function loadOperationModalHelpers(html, { apiImpl, apiPostImpl } = {}) {
+  const { document, Element } = parseHTML(html);
+  const intervals = [];
+  const timeouts = [];
+  // linkedom does not implement document.activeElement at all — .focus()
+  // only dispatches a 'focus' event, it never updates any "currently
+  // focused" tracking (confirmed directly against node_modules/linkedom).
+  // operation-modal.js's focus-return behavior (closeOperationModal()
+  // reads document.activeElement to know what to refocus) is real,
+  // correct, browser behavior — untestable through this harness without a
+  // minimal activeElement shim. Patching Element.prototype.focus to record
+  // the most-recently-focused element mirrors real DOM behavior closely
+  // enough for this purpose; it does not change production code, only this
+  // test harness's document object.
+  document.activeElement = null;
+  const originalFocus = Element.prototype.focus;
+  Element.prototype.focus = function focus(...args) {
+    document.activeElement = this;
+    return originalFocus.apply(this, args);
+  };
+  const context = {
+    document,
+    __apiImpl: apiImpl ?? (async () => ({ operations: [] })),
+    __apiPostImpl: apiPostImpl ?? (async () => ({})),
+    setInterval: (fn) => { intervals.push(fn); return intervals.length; },
+    clearInterval: () => {},
+    setTimeout: (fn) => { timeouts.push(fn); return timeouts.length; },
+    clearTimeout: () => {},
+  };
+  vm.createContext(context);
+  const src = stripExports(readUiSource('dom.js')).replace(/^import .*$/gm, '')
+    + stripExports(readUiSource('operation-store.js')).replace(/^import .*$/gm, '')
+    + stripExports(readUiSource('operation-render.js')).replace(/^import .*$/gm, '')
+    + stripExports(readUiSource('toasts.js')).replace(/^import .*$/gm, '')
+    + stripExports(readUiSource('operation-modal.js')).replace(/^import .*$/gm, '')
+    + '\nconst api = __apiImpl; const apiPost = __apiPostImpl;\n';
+  vm.runInContext(src, context);
+  context.__runTimeouts = () => { const t = timeouts.splice(0); t.forEach(fn => fn()); };
+  context.__tickElapsed = () => { intervals.forEach(fn => fn()); };
+  context.__settle = async () => {
+    await new Promise((resolve) => setImmediate(resolve));
+    await new Promise((resolve) => setImmediate(resolve));
+  };
+  return context;
+}
+
+// For settings-view.js's runSettingsRepair() specifically (code-review P1:
+// repair must actually integrate with the operation modal/store, not just
+// call the sync-schema endpoint and stop) — layers settings-view.js on top
+// of the same real operation-store.js/operation-modal.js/operation-render.js/
+// toasts.js stack loadOperationModalHelpers uses, plus stubs for
+// settings-view.js's own remaining dependencies (state.js, sidebar.js,
+// the settings-shell.html ?raw import) that aren't relevant to this specific
+// behavior. apiPostImpl backs BOTH apiPost (the sync-schema call this test
+// cares about) and api (the settings-view.js's post-repair health/diagnostics
+// refetch) — tests supply whichever shape each call site expects by URL.
+export function loadSettingsRepairHelpers(html, { apiPostImpl, apiImpl } = {}) {
+  const { document, Element } = parseHTML(html);
+  const intervals = [];
+  const timeouts = [];
+  document.activeElement = null;
+  const originalFocus = Element.prototype.focus;
+  Element.prototype.focus = function focus(...args) {
+    document.activeElement = this;
+    return originalFocus.apply(this, args);
+  };
+  const context = {
+    document,
+    localStorage: { getItem: () => null, setItem: () => {}, removeItem: () => {} },
+    __apiImpl: apiImpl ?? (async () => ({ operations: [] })),
+    __apiPostImpl: apiPostImpl ?? (async () => ({})),
+    __apiDeleteImpl: async () => ({}),
+    __loadSidebarImpl: async () => {},
+    __getExpandedCollectionImpl: () => null,
+    __setExpandedCollectionImpl: () => {},
+    setInterval: (fn) => { intervals.push(fn); return intervals.length; },
+    clearInterval: () => {},
+    setTimeout: (fn) => { timeouts.push(fn); return timeouts.length; },
+    clearTimeout: () => {},
+  };
+  vm.createContext(context);
+  const settingsShellHtml = readUiSource('partials/settings-shell.html');
+  const src = stripExports(readUiSource('dom.js')).replace(/^import .*$/gm, '')
+    + stripExports(readUiSource('operation-store.js')).replace(/^import .*$/gm, '')
+    + stripExports(readUiSource('operation-render.js')).replace(/^import .*$/gm, '')
+    + stripExports(readUiSource('toasts.js')).replace(/^import .*$/gm, '')
+    + stripExports(readUiSource('operation-modal.js')).replace(/^import .*$/gm, '')
+    + `const settingsShell = ${JSON.stringify(settingsShellHtml)};\n`
+    + stripExports(readUiSource('settings-view.js')).replace(/^import .*$/gm, '')
+      .replace(/\bapiDelete\(/g, '__apiDeleteImpl(')
+      .replace(/\bloadSidebar\(\)/g, '__loadSidebarImpl()')
+      .replace(/\bgetExpandedCollection\(\)/g, '__getExpandedCollectionImpl()')
+      .replace(/\bsetExpandedCollection\(/g, '__setExpandedCollectionImpl(')
+    + '\nconst api = __apiImpl; const apiPost = __apiPostImpl;\n';
+  // settings-view.js's own top-level runSettingsRepair (a `function`
+  // declaration, hoisted, sloppy-mode global attach) is reachable as
+  // context.runSettingsRepair directly after vm.runInContext — same
+  // convention as every other vm-loaded module in this file (e.g.
+  // loadOperationModalHelpers exposing context.openOperationModal).
+  vm.runInContext(src, context);
+  context.__runTimeouts = () => { const t = timeouts.splice(0); t.forEach(fn => fn()); };
+  context.__settle = async () => {
+    await new Promise((resolve) => setImmediate(resolve));
+    await new Promise((resolve) => setImmediate(resolve));
+  };
+  return context;
 }
 
 export { createApp, createJobRegistry };

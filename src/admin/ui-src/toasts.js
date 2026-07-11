@@ -1,18 +1,37 @@
-// Minimal by design: one shared host (#toast-host, mounted once in
-// index.html, outside #main so it survives every view swap), no queue
-// beyond simple stacking, one variant (warn). A fuller toast system
-// (variants, action buttons, a real queue) is the design doc's own
-// Phase 3C — this only needs to carry collection-open warnings.
-import { $ } from './dom.js';
+// One shared host (#toast-host, mounted once in index.html, outside #main
+// so it survives every view swap), no queue beyond simple stacking.
+// Extended in Phase 3S with variants + an optional action button (the
+// design doc's own Phase 3C ask: "success toast ... with a View action;
+// failure toast ... and a View details action"). Deliberately takes an
+// onClick CALLBACK, not a route/hash string — this module must not import
+// operation-modal.js (that module already imports toasts.js for the
+// completion-toast call, and a back-import would be circular); the caller
+// (operation-modal.js itself) supplies the actual "open the modal" behavior.
+import { $, esc } from './dom.js';
 
 const TOAST_AUTO_DISMISS_MS = 8000;
 
-export function showToast(message, { variant = 'warn' } = {}) {
+/**
+ * @param {string} message
+ * @param {{ variant?: 'warn'|'success'|'error', action?: { label: string, onClick: () => void } }} [opts]
+ */
+export function showToast(message, { variant = 'warn', action } = {}) {
   const host = $('#toast-host');
   if (!host) return; // toast host missing (e.g. a bare test fixture) — never throw over a UI nicety
   const el = document.createElement('div');
   el.className = `toast toast-${variant}`;
-  el.textContent = message;
+  const text = document.createElement('span');
+  text.className = 'toast-text';
+  text.textContent = message;
+  el.appendChild(text);
+  if (action) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'toast-action';
+    btn.textContent = action.label;
+    btn.addEventListener('click', () => { action.onClick(); el.remove(); });
+    el.appendChild(btn);
+  }
   host.appendChild(el);
   setTimeout(() => el.remove(), TOAST_AUTO_DISMISS_MS);
 }

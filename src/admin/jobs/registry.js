@@ -145,11 +145,11 @@ export function createJobRegistry({ spawnFn = nodeSpawn } = {}) {
   }
 
   /**
-   * @param {{ collection: string, path: string, options?: object }} params
+   * @param {{ collection: string, path: string, options?: object, kind?: 'index' | 'reindex' }} params
    * @returns {{ id: string }}
    * @throws if a job is already queued/running
    */
-  function startIndexJob({ collection, path, options = {} }) {
+  function startIndexJob({ collection, path, options = {}, kind = 'index' }) {
     const active = getActiveJob();
     if (active) {
       const err = new Error(`An indexing job is already ${active.state} (id: ${active.id}). Only one job may run at a time.`);
@@ -163,6 +163,12 @@ export function createJobRegistry({ spawnFn = nodeSpawn } = {}) {
       collection,
       path,
       options,
+      // 'index' (a brand-new collection) vs 'reindex' (an existing one,
+      // e.g. from settings-view.js's reindex form) — purely a display-label
+      // distinction for the operation modal (Phase 3S); both run through
+      // the exact same indexer spawn/env/progress-parsing path below, no
+      // behavioral difference at all.
+      kind,
       state: STATES.QUEUED,
       startedAt: new Date().toISOString(),
       finishedAt: null,

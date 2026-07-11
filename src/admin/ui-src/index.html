@@ -40,11 +40,16 @@
 
 <div id="toast-host" class="toast-host" aria-live="polite" aria-atomic="false"></div>
 
+<!-- Application-shell-level modal mount point (Phase 3S) — outside #main,
+     same "survives every view swap" placement as #toast-host above. -->
+<div id="operation-modal-host"></div>
+
 <load src="partials/templates/delete-modal.html" />
 <load src="partials/templates/search-result.html" />
 <load src="partials/templates/chunk-card.html" />
 <load src="partials/templates/file-view-header.html" />
 <load src="partials/templates/job-row.html" />
+<load src="partials/templates/operation-modal.html" />
 <load src="partials/templates/empty-state.html" />
 <load src="partials/templates/error-state.html" />
 

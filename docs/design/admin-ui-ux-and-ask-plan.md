@@ -129,17 +129,48 @@ Exit gate: contrast/focus/reduced-motion pass on the new shell; toast host
 reachable from any view; a search URL pasted into a new tab reproduces the
 search.
 
-### Phase 3C — Unified job status (needs 3B's toasts)
+### Phase 3C — Unified job status — **shipped 2026-07-11 (Phase 3S)**
 
-Scope: F3. One `JobStatusModal` for index/reindex/repair driven by the job
-registry's **structured progress** (`[semidex:progress]` → `job.progress`,
-phase-aware) — rendering phases and counts directly from the contract, no
-output parsing; minimize → topbar chip (progress ring); completion/failed
-toast with "view" action.
+Scope: F3. One global operation status modal for index/reindex/repair driven
+by the job registry's **structured progress** (`[semidex:progress]` →
+`job.progress`, phase-aware) — rendering phases and counts directly from the
+contract, no output parsing; topbar chip subscribes to a shared client-side
+store instead of polling independently; completion/failed toast with a
+"View"/"View details" action.
 
 Exit gate: all three operations run through the one modal; start → navigate
 away → return via toast works; legacy per-operation progress UIs are deleted
-(not hidden); the modal renders every phase the progress contract emits.
+(not hidden); the modal renders every phase the progress contract emits. **All
+met** — see `docs/admin-ui-phase3s-unified-operation-status-2026-07-11.md`
+for the full report. Implemented contract, where it differs from the
+original sketch above:
+
+- **No `JobStatusModal` class** — plain functions in
+  `operation-modal.js`/`operation-render.js`/`operation-store.js`, matching
+  this codebase's existing module style (no class-based UI components
+  anywhere else in `src/admin/ui-src/`).
+- **No progress ring** — the topbar chip reuses the existing pulsing-dot +
+  text pattern (`.job-chip-dot`), now also showing a live percentage when
+  known (e.g. "Indexing my-docs 43%") and an indeterminate dot alone when
+  not, rather than a new ring widget.
+- **Repair is a genuine tracked operation, not a synthetic one.** A new
+  `src/admin/jobs/task-registry.js` (running/succeeded/failed only — no
+  queued/cancelling, since an in-process function has no OS-scheduling
+  delay and no genuine cancel point) tracks repair calls; `GET
+  /api/operations` merges it with the existing job registry into one shape.
+  `POST /api/collections/:name/sync-schema` keeps its original synchronous
+  200-with-result contract (repair is fast — a handful of Qdrant round
+  trips) while ALSO being visible in the shared operation feed for its
+  duration.
+- **`kind: 'index' | 'reindex'` is a new optional field** on `POST
+  /api/jobs/index`'s request body (defaults to `'index'`) — purely a
+  display-label distinction for the modal; both run through the identical
+  spawn/env/progress path.
+- One shared poller (`operation-store.js`, started once at app boot,
+  independent of route lifecycle) is the sole thing that calls `GET
+  /api/operations` — the modal and topbar chip both subscribe to it
+  (pub/sub), neither polls on its own. This is what makes an operation
+  survive navigation and keeps the chip and modal from double-polling.
 
 ### Phase 3D — Entity rendering in chunks (unblocks the chat track)
 

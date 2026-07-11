@@ -1,136 +1,119 @@
-// Tests for src/admin/ui-src/topbar.js's active-job chip (Phase 3C) — a
-// small always-reachable-from-any-route indicator, distinct from the full
-// jobs list at #/index.
+// Tests for src/admin/ui-src/topbar.js's active-operation chip. Phase 3S:
+// the chip no longer polls /api/jobs on its own timer — it subscribes to
+// the shared operation-store.js (one poller for the whole app) and clicking
+// it opens the global operation modal in place, instead of navigating to
+// #/index (which is collection-creation only now — the jobs list that used
+// to live there is gone; see ui-jobs.test.js).
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadTopbarHelpers, readUiSource, withServer } from './ui-test-helpers.js';
 
-describe('topbar job chip', () => {
-  it('stays hidden when there are no active jobs', async () => {
+describe('topbar operation chip — subscribes to the shared store, never polls on its own', () => {
+  it('initJobChip() subscribes to the store instead of calling api(\'/api/jobs\') itself', () => {
+    const js = readUiSource('topbar.js');
+    assert.match(js, /import\s*\{\s*subscribe,\s*getActiveOperation\s*\}\s*from ['"]\.\/operation-store\.js['"]/);
+    assert.ok(!/api\(['"]\/api\/jobs['"]\)/.test(js), 'topbar.js must not poll /api/jobs directly — operation-store.js owns that');
+    assert.ok(!/setTimeout/.test(js), 'no independent poll-scheduling timer should exist in this module at all');
+  });
+
+  it('stays hidden when the store reports no active operation', async () => {
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
-      const { document, pollJobChip } = loadTopbarHelpers(html, {
-        apiImpl: async () => ({ jobs: [] }),
-      });
-      await pollJobChip();
+      const { document, initJobChip, __emitUpdate } = loadTopbarHelpers(html);
+      initJobChip();
+      __emitUpdate();
       assert.equal(document.getElementById('job-chip').hidden, true);
     });
   });
 
-  it('becomes visible and shows the collection name with exactly one active job', async () => {
+  it('becomes visible and shows the collection name + kind label with an active operation', async () => {
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
-      const { document, pollJobChip } = loadTopbarHelpers(html, {
-        apiImpl: async () => ({ jobs: [{ id: 'j1', collection: 'my-docs', state: 'running' }] }),
-      });
-      await pollJobChip();
+      const { document, initJobChip, __emitUpdate, __setActive } = loadTopbarHelpers(html);
+      initJobChip();
+      __setActive({ id: 'op1', kind: 'index', collection: 'my-docs', state: 'running', progress: null });
+      __emitUpdate();
       const chip = document.getElementById('job-chip');
       assert.equal(chip.hidden, false);
       assert.match(chip.textContent, /my-docs/);
+      assert.match(chip.textContent, /Indexing/);
     });
   });
 
-  it('filters out terminal-state jobs (succeeded/failed/cancelled) — only queued/running/cancelling count as active', async () => {
+  it('shows a percentage when the operation has known progress', async () => {
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
-      const { document, pollJobChip } = loadTopbarHelpers(html, {
-        apiImpl: async () => ({
-          jobs: [
-            { id: 'j1', collection: 'done-docs', state: 'succeeded' },
-            { id: 'j2', collection: 'failed-docs', state: 'failed' },
-            { id: 'j3', collection: 'cancelled-docs', state: 'cancelled' },
-          ],
-        }),
-      });
-      await pollJobChip();
-      assert.equal(document.getElementById('job-chip').hidden, true);
+      const { document, initJobChip, __emitUpdate, __setActive } = loadTopbarHelpers(html);
+      initJobChip();
+      __setActive({ id: 'op1', kind: 'index', collection: 'my-docs', state: 'running', progress: { percent: 42.7 } });
+      __emitUpdate();
+      assert.match(document.getElementById('job-chip').textContent, /43%/);
     });
   });
 
-  it('shows a "+N" suffix when more than one job is active', async () => {
+  it('shows no fabricated percentage when progress is unknown (indeterminate) — the dot alone signals activity', async () => {
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
-      const { document, pollJobChip } = loadTopbarHelpers(html, {
-        apiImpl: async () => ({
-          jobs: [
-            { id: 'j1', collection: 'a-docs', state: 'running' },
-            { id: 'j2', collection: 'b-docs', state: 'queued' },
-          ],
-        }),
-      });
-      await pollJobChip();
-      assert.match(document.getElementById('job-chip').textContent, /\+1/);
+      const { document, initJobChip, __emitUpdate, __setActive } = loadTopbarHelpers(html);
+      initJobChip();
+      __setActive({ id: 'op1', kind: 'repair', collection: 'my-docs', state: 'running', progress: null });
+      __emitUpdate();
+      assert.doesNotMatch(document.getElementById('job-chip').textContent, /%/);
     });
   });
 
-  it('clicking the chip navigates to #/index', async () => {
+  it('labels a reindex operation distinctly from a fresh index', async () => {
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
-      const helpers = loadTopbarHelpers(html, {
-        apiImpl: async () => ({ jobs: [{ id: 'j1', collection: 'my-docs', state: 'running' }] }),
-      });
-      await helpers.pollJobChip();
-      helpers.document.getElementById('job-chip').onclick();
-      assert.equal(helpers.location.hash, '#/index');
+      const { document, initJobChip, __emitUpdate, __setActive } = loadTopbarHelpers(html);
+      initJobChip();
+      __setActive({ id: 'op1', kind: 'reindex', collection: 'my-docs', state: 'running', progress: null });
+      __emitUpdate();
+      assert.match(document.getElementById('job-chip').textContent, /Reindexing/);
     });
   });
 
-  it('does not call /api/jobs while already on the #/index route (jobs-view.js owns polling there)', async () => {
+  it('labels a repair operation distinctly', async () => {
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
-      let calls = 0;
-      const { pollJobChip } = loadTopbarHelpers(html, {
-        apiImpl: async () => { calls++; return { jobs: [] }; },
-        route: { view: 'index' },
-      });
-      await pollJobChip();
-      assert.equal(calls, 0, 'topbar must not double-poll /api/jobs while jobs-view.js is already polling on #/index');
+      const { document, initJobChip, __emitUpdate, __setActive } = loadTopbarHelpers(html);
+      initJobChip();
+      __setActive({ id: 'op1', kind: 'repair', collection: 'my-docs', state: 'running', progress: null });
+      __emitUpdate();
+      assert.match(document.getElementById('job-chip').textContent, /Repairing/);
     });
   });
 
-  it('hides a stale chip when the user navigates to #/index while a job is showing', async () => {
-    // Regression: the chip must not just stop polling on #/index — without
-    // clearing it, clicking the chip to reach #/index and then having that
-    // job finish would leave "Indexing ..." showing indefinitely, since the
-    // chip's own poll loop never runs on this route to notice.
+  it('clicking the chip opens the operation modal on the active operation, without navigating anywhere', async () => {
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
-      let onIndex = false;
-      const { document, pollJobChip } = loadTopbarHelpers(html, {
-        apiImpl: async () => ({ jobs: [{ id: 'j1', collection: 'my-docs', state: 'running' }] }),
-        route: { get view() { return onIndex ? 'index' : 'overview'; } },
+      let openedWith = null;
+      const { document, initJobChip, __emitUpdate, __setActive } = loadTopbarHelpers(html, {
+        openOperationModalImpl: (id) => { openedWith = id; },
       });
-      await pollJobChip();
-      assert.equal(document.getElementById('job-chip').hidden, false, 'sanity: chip is visible before navigating');
-
-      onIndex = true;
-      await pollJobChip();
-      assert.equal(document.getElementById('job-chip').hidden, true, 'chip must hide once the user is on #/index');
+      initJobChip();
+      __setActive({ id: 'op1', kind: 'index', collection: 'my-docs', state: 'running', progress: null });
+      __emitUpdate();
+      document.getElementById('job-chip').click();
+      assert.equal(openedWith, 'op1');
+      assert.equal(document.location, undefined, 'topbar.js has no location import at all — it must never navigate');
     });
+  });
+
+  it('never writes to location.hash anywhere in source (regression: used to navigate to #/index on chip click)', () => {
+    const js = readUiSource('topbar.js');
+    assert.ok(!/location\.hash\s*=/.test(js), 'topbar.js must never navigate — clicking the chip only opens the modal in place');
   });
 
   it('renderJobChip escapes an untrusted collection name (XSS-safe)', async () => {
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
       const malicious = '<img src=x onerror="window.__pwned=true">';
-      const { document, pollJobChip } = loadTopbarHelpers(html, {
-        apiImpl: async () => ({ jobs: [{ id: 'j1', collection: malicious, state: 'running' }] }),
-      });
-      await pollJobChip();
+      const { document, renderJobChip } = loadTopbarHelpers(html);
       const chip = document.getElementById('job-chip');
+      renderJobChip(chip, { id: 'op1', kind: 'index', collection: malicious, state: 'running', progress: null });
       assert.equal(chip.querySelectorAll('img').length, 0, 'malicious collection name must never be parsed into a real element');
       assert.match(chip.textContent, /<img/, 'the malicious text must render as inert text, not markup');
-    });
-  });
-
-  it('a transient /api/jobs error does not throw and leaves the chip in its prior state', async () => {
-    await withServer(async (base) => {
-      const html = await (await fetch(base + '/')).text();
-      const { document, pollJobChip } = loadTopbarHelpers(html, {
-        apiImpl: async () => { throw new Error('network error'); },
-      });
-      await assert.doesNotReject(() => pollJobChip());
-      assert.equal(document.getElementById('job-chip').hidden, true);
     });
   });
 });
@@ -138,31 +121,21 @@ describe('topbar job chip', () => {
 // ── Phase 3D: CSS actually honors the "hidden" attribute (browser-verified) ─
 describe('app.css — .job-chip[hidden] actually hides the chip', () => {
   it('has an explicit [hidden] override rule, not just an unconditional "display: flex"', () => {
-    // Regression, confirmed live via Playwright: .job-chip sets
-    // "display: flex" unconditionally, which — because a same-specificity
-    // class selector loaded after the UA stylesheet wins the cascade —
-    // overrides the browser's default "[hidden] { display: none }" rule.
-    // renderJobChip()'s chip.hidden = true was setting the DOM attribute
-    // correctly the whole time, but the chip stayed visually
-    // display:flex'd regardless (an empty, near-invisible flex box when no
-    // job was active, which is why this went unnoticed until checked with
-    // getComputedStyle in a real browser). The same bug pattern also hit
-    // .q-recent (search.js's recent-searches row) — both are covered here.
     const css = readUiSource('app.css');
     assert.match(css, /\.job-chip\[hidden\]\s*\{\s*display:\s*none;?\s*\}/,
       '.job-chip must have an explicit [hidden] rule that actually hides it');
   });
 });
 
-describe('topbar job chip — renderJobChip() pure rendering', () => {
-  it('hides and clears the chip for an empty active-jobs list', async () => {
+describe('topbar operation chip — renderJobChip() pure rendering', () => {
+  it('hides and clears the chip for no active operation (null)', async () => {
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
       const { document, renderJobChip } = loadTopbarHelpers(html);
       const chip = document.getElementById('job-chip');
       chip.hidden = false;
       chip.textContent = 'stale';
-      renderJobChip(chip, []);
+      renderJobChip(chip, null);
       assert.equal(chip.hidden, true);
       assert.equal(chip.textContent, '');
     });
@@ -173,7 +146,7 @@ describe('topbar job chip — renderJobChip() pure rendering', () => {
       const html = await (await fetch(base + '/')).text();
       const { document, renderJobChip } = loadTopbarHelpers(html);
       const chip = document.getElementById('job-chip');
-      renderJobChip(chip, [{ id: 'j1', collection: 'my-docs', state: 'running' }]);
+      renderJobChip(chip, { id: 'op1', kind: 'index', collection: 'my-docs', state: 'running', progress: null });
       assert.ok(chip.querySelector('.job-chip-dot'), 'chip must render its indicator dot element');
     });
   });
