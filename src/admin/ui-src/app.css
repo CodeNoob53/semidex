@@ -562,7 +562,12 @@ td.actions { text-align: right; }
 .tree-collection { margin: 1px 0; }
 .tree-row {
   display: flex; align-items: center; gap: 6px;
-  padding: 5px 8px 5px calc(8px + var(--depth, 0) * 14px);
+  /* Phase 3R: 5px -> 7px vertical padding — the old row was tight enough
+     that a mouse target barely taller than the text itself made a long
+     skeleton tree feel cramped/hard to scan, without changing anything
+     structural (indentation math, icon column, truncation) that the rest
+     of the tree relies on. */
+  padding: 7px 8px 7px calc(8px + var(--depth, 0) * 14px);
   border-radius: 3px; cursor: pointer;
   color: var(--ink); text-decoration: none; font-size: 12px;
   border-left: 2px solid transparent;
@@ -641,6 +646,16 @@ td.actions { text-align: right; }
 .chip {
   font-size: 11px; padding: 2px 8px;
   border-radius: 3px; border: 1px solid var(--line-soft); color: var(--ink-dim);
+}
+
+/* Details disclosure sub-sections (Phase 3Q) — groups the technical fact
+   rows under a small uppercase label (Overview/Indexing/Storage) instead of
+   one flat undifferentiated list, so a reader can jump to "why does search
+   work this way" vs "how much is in here" instead of scanning every row. */
+.details-subsection + .details-subsection { margin-top: 14px; }
+.details-subsection-label {
+  font-size: 10px; text-transform: uppercase; letter-spacing: .18em;
+  color: var(--ink-faint); margin-bottom: 6px;
 }
 
 .btn-ghost {

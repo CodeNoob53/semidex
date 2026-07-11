@@ -168,6 +168,63 @@ describe('sidebar file rows: row click opens the file, caret click expands secti
   });
 });
 
+// ── Phase 3R: revealSidebarPath() expands whatever collapsed ancestor
+// directories stand between the tree root and a file, so a file opened from
+// somewhere other than a direct sidebar click (currently: a search-result
+// "Open" button) can still be highlighted — markActive() alone only toggles
+// .active on rows already present in the DOM, it can't reveal a row buried
+// inside a collapsed folder.
+describe('revealSidebarPath(): expands collapsed ancestor folders to reveal a file', () => {
+  it('expands a single collapsed ancestor directory and leaves the file row present in the DOM', async () => {
+    const helpers = loadSidebarNodeInteractionHelpers({
+      apiResponses: {
+        'my-docs#dir/sql': [{ nodeType: 'file', nodePath: 'sql/SELECT.md#file', sourceFile: 'sql/SELECT.md', childCount: 0 }],
+      },
+    });
+    const doc = helpers.document;
+    // Build the top-level tree exactly as renderSidebarList()'s
+    // `<div class="tree-children" id="tree-${cssId(name)}">` container, with
+    // one collapsed directory row already rendered inside it (as if the
+    // collection had already been expanded once, but this particular
+    // subfolder never was).
+    const treeBox = doc.createElement('div');
+    treeBox.id = 'tree-my-docs';
+    doc.body.appendChild(treeBox);
+    treeBox.innerHTML = helpers.sidebarNodeRow({ nodeType: 'directory', nodePath: 'my-docs#dir/sql', childCount: 1 }, 0, 0);
+
+    assert.equal(treeBox.querySelector('.tree-subtree'), null, 'sanity: the directory starts collapsed');
+    await helpers.revealSidebarPath('my-docs', 'sql/SELECT.md');
+
+    const fileRow = treeBox.querySelector('.tree-node[data-path="sql/SELECT.md#file"]');
+    assert.ok(fileRow, 'the file row must exist in the DOM after revealing its path');
+    assert.ok(treeBox.querySelector('.tree-subtree'), 'the ancestor directory must now be expanded');
+  });
+
+  it('a file at the collection root (no directory segments) is a no-op — nothing to expand', async () => {
+    const helpers = loadSidebarNodeInteractionHelpers();
+    const doc = helpers.document;
+    const treeBox = doc.createElement('div');
+    treeBox.id = 'tree-my-docs';
+    doc.body.appendChild(treeBox);
+    treeBox.innerHTML = '<div class="tree-node" data-path="readme.md#file"></div>';
+
+    await assert.doesNotReject(helpers.revealSidebarPath('my-docs', 'readme.md'));
+    assert.equal(treeBox.querySelectorAll('.tree-subtree').length, 0, 'a root-level file must not trigger any expansion');
+  });
+
+  it('gives up quietly (no throw) when an ancestor directory is not present in the currently-rendered level', async () => {
+    const helpers = loadSidebarNodeInteractionHelpers();
+    const doc = helpers.document;
+    const treeBox = doc.createElement('div');
+    treeBox.id = 'tree-my-docs';
+    doc.body.appendChild(treeBox);
+    treeBox.innerHTML = '<div class="tree-node" data-path="my-docs#dir/other"></div>'; // "sql" is not here
+
+    await assert.doesNotReject(helpers.revealSidebarPath('my-docs', 'sql/SELECT.md'),
+      'a best-effort reveal must never throw just because the tree has not been expanded down to that point yet');
+  });
+});
+
 // ── skeleton node labels and chunk display clarity ───────────────────────────
 describe('sidebar node labels (ui-src/sidebar.js source, evaluated behavior)', () => {
   it('a file node with nodePath "pitch-en.md#file" renders as "pitch-en.md", not "file"', () => {
@@ -283,6 +340,26 @@ describe('markActive() highlights the open file/section row, not just the collec
     const { document, markActive } = loadSidebarActiveStateHelpers();
     markActive({ view: 'collection', name: 'my-docs', openFile: 'readme.md' });
     assert.ok(document.querySelector('.tree-collection-row[data-name="my-docs"]').classList.contains('active'));
+  });
+
+  // ── Phase 3R: route.openFile must also highlight a SKELETON tree's own
+  // file row, not just the flat-fallback-mode .tree-file row. A skeleton
+  // file node's data-path is always "<sourceFile>#file" (the indexer's own
+  // node_path convention for file nodes, skeleton-index.js), so this is a
+  // stable derivation from route.openFile, not a heuristic. Before this
+  // fix, opening a file in a skeleton-nav collection (the common case) left
+  // the sidebar tree showing no active row at all.
+  it('highlights a skeleton tree\'s own .tree-node file row (data-path="<sourceFile>#file") matching route.openFile', () => {
+    const { document, markActive } = loadSidebarActiveStateHelpers();
+    markActive({ view: 'collection', name: 'my-docs', openFile: 'readme.md' });
+    assert.ok(document.querySelector('.tree-node[data-path="readme.md#file"]').classList.contains('active'),
+      'a skeleton file row must be highlighted too, not just the flat-mode .tree-file row');
+  });
+
+  it('does not cross-highlight a skeleton file row for an unrelated openFile', () => {
+    const { document, markActive } = loadSidebarActiveStateHelpers();
+    markActive({ view: 'collection', name: 'my-docs', openFile: 'other.md' });
+    assert.ok(!document.querySelector('.tree-node[data-path="readme.md#file"]').classList.contains('active'));
   });
 });
 
@@ -437,5 +514,19 @@ describe('app.css: .tree-label truncates instead of overflowing its flex row', (
     assert.match(rule, /min-width:\s*0/, '.tree-label must set min-width: 0 or long names will overflow the row');
     assert.match(rule, /overflow:\s*hidden/);
     assert.match(rule, /text-overflow:\s*ellipsis/);
+  });
+});
+
+// ── Phase 3R: tree rows get a slightly taller, more comfortable hit area —
+// a small, isolated density tweak (not a layout-infrastructure change: the
+// existing --depth indentation math, resizable sidebar width, and icon
+// column are all untouched).
+describe('app.css: .tree-row has a comfortable clickable height (Phase 3R density pass)', () => {
+  it('.tree-row vertical padding is at least 7px (up from the original 5px)', () => {
+    const css = readUiSource('app.css');
+    const rule = css.match(/\.tree-row\s*\{([^}]*)\}/)?.[1] ?? '';
+    const match = rule.match(/padding:\s*(\d+)px/);
+    assert.ok(match, '.tree-row must set an explicit padding');
+    assert.ok(Number(match[1]) >= 7, `.tree-row vertical padding must be at least 7px for a comfortable click target, got ${match[1]}px`);
   });
 });

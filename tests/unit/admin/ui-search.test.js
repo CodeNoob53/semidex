@@ -523,6 +523,57 @@ describe('"Show more" — batched rendering of an already-fetched result set', (
     });
   });
 
+  // ── Phase 3R: opening a search result must keep the sidebar's active-row
+  // highlight in sync, the same way a direct sidebar click already does (via
+  // location.hash -> hashchange -> route() -> markActive()). Before this
+  // fix, the "Open chunk"/"Open file section" button called openFileView()
+  // directly with no hash update at all, so markActive() never ran and the
+  // sidebar silently went stale the moment a search result was opened.
+  it('clicking a result\'s open button updates the URL hash to the file route and calls markActive()', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      let markActiveCalled = 0;
+      const helpers = loadSearchRenderHelpers(html, {
+        hash: '#/c/my-docs',
+        apiPostImpl: async () => ({ results: makeResults(3) }),
+        markActiveImpl: () => { markActiveCalled += 1; },
+      });
+      helpers.initSearchPanel('my-docs');
+      helpers.document.querySelector('#q-input').value = 'test';
+      await helpers.runSearch('my-docs');
+
+      helpers.document.querySelectorAll('.result-card')[0].querySelector('.result-open').click();
+      // openResultInFileView is async (it awaits revealSidebarPath before
+      // calling markActive) but the click handler itself doesn't await it —
+      // same fire-and-forget shape as every other DOM event handler in this
+      // codebase — so the hash update (synchronous, happens first) can be
+      // asserted immediately, but markActive (after the awaited stub) needs
+      // a microtask flush first.
+      assert.equal(helpers.location.hash, `#/c/my-docs/f/${encodeURIComponent('file-0.md')}`,
+        'the hash must update to the file route so back/forward and a page refresh land on the same open file');
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      assert.equal(markActiveCalled, 1, 'markActive() must be called so the sidebar highlight reflects the newly-opened file');
+    });
+  });
+
+  it('opening a search result does not push a duplicate/extra history entry beyond the one file-route entry', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const helpers = loadSearchRenderHelpers(html, {
+        hash: '#/c/my-docs',
+        apiPostImpl: async () => ({ results: makeResults(2) }),
+      });
+      helpers.initSearchPanel('my-docs');
+      helpers.document.querySelector('#q-input').value = 'test';
+      await helpers.runSearch('my-docs');
+      const before = helpers.history.length;
+
+      helpers.document.querySelectorAll('.result-card')[0].querySelector('.result-open').click();
+
+      assert.equal(helpers.history.length, before + 1, 'opening a result must push exactly one history entry, not zero and not several');
+    });
+  });
+
   it('the status line shows "Showing 5 of 20 results" when more are available, not just the fetched total', async () => {
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();

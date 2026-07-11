@@ -179,10 +179,35 @@ function collectionFactChips(detail) {
 // ONLY place these appear — collectionFactChips() above shows a user-facing
 // summary of some of the same underlying data, not a duplicate technical
 // table.
+//
+// Phase 3Q: grouped into three labeled sub-sections (Overview/Indexing/
+// Storage) instead of one flat 11-row list, matching the task's requested
+// structure — same field-level facts as before, just organized so a reader
+// can find "why does search work this way" (Indexing) separately from "how
+// much is in here" (Storage) instead of scanning one undifferentiated list.
+// The Overview sub-section deliberately does NOT repeat overviewSummary/
+// description text — that already renders prominently in the header body
+// above (renderCollectionHeader's summaryBlock) — showing it twice would be
+// the exact "duplicate metadata block" the task asks to avoid. Overview here
+// only ever shows the friendly empty-state line, and only when the header
+// itself has nothing (no overviewSummary, no description) — a small
+// "not indexed with a summary yet" note that fits naturally next to the
+// other collection-level facts for anyone who skipped straight to Details.
+function collectionDetailsSubsection(label, rows) {
+  return `
+    <div class="details-subsection">
+      <div class="details-subsection-label">${esc(label)}</div>
+      <dl class="kv">
+        ${rows.map(([field, value]) => `<dt>${esc(field)}</dt><dd>${esc(String(value))}</dd>`).join('')}
+      </dl>
+    </div>`;
+}
+
 function collectionDetailsPanel(detail) {
   const warnings = detail.warnings ?? [];
-  const rows = [
-    ['points', Number(detail.pointCount ?? 0).toLocaleString('en-US')],
+  const hasSummary = Boolean(detail.overviewSummary || detail.description);
+
+  const indexingRows = [
     ['dense vector', detail.vectorSchema?.dense?.size
       ? `${detail.vectorSchema.dense.size}d${detail.vectorSchema.dense.distance ? ` · ${detail.vectorSchema.dense.distance}` : ''}`
       : 'unknown'],
@@ -190,20 +215,23 @@ function collectionDetailsPanel(detail) {
     ['dense provider', detail.provider?.denseProvider ? `${detail.provider.denseProvider}${detail.provider.denseModel ? ` (${detail.provider.denseModel})` : ''}` : 'unknown'],
     ['sparse provider', detail.provider?.sparseProvider ?? 'unknown'],
     ['skeleton navigation', detail.hasSkeleton ? 'enabled' : 'disabled'],
-    ['semidex-managed', detail.semidexManaged ? 'yes' : 'no'],
     ['embedding schema', detail.versions?.embeddingSchema ?? 'unknown'],
     ['chunking schema', detail.versions?.chunkingSchema ?? 'unknown'],
     ['indexing schema', detail.versions?.indexingSchema ?? 'unknown'],
     ['token count mode', detail.versions?.tokenCountMode ?? 'unknown'],
+  ];
+  const storageRows = [
+    ['points', Number(detail.pointCount ?? 0).toLocaleString('en-US')],
+    ['semidex-managed', detail.semidexManaged ? 'yes' : 'no'],
   ];
 
   return `
     <details class="panel advanced-panel">
       <summary class="panel-head">Details</summary>
       <div class="panel-body">
-        <dl class="kv">
-          ${rows.map(([label, value]) => `<dt>${esc(label)}</dt><dd>${esc(String(value))}</dd>`).join('')}
-        </dl>
+        ${hasSummary ? '' : collectionDetailsSubsection('Overview', [['summary', 'No collection summary indexed yet.']])}
+        ${collectionDetailsSubsection('Indexing', indexingRows)}
+        ${collectionDetailsSubsection('Storage', storageRows)}
         ${warnings.length ? warnings.map(w => `<div class="error-box" style="margin-top:10px">${esc(w)}</div>`).join('') : ''}
       </div>
     </details>`;

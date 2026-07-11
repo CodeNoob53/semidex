@@ -117,6 +117,7 @@ export function loadSidebarActiveStateHelpers() {
       <a href="#/c/my-docs" data-name="my-docs" class="tree-row tree-collection-row"></a>
       <div class="tree-children">
         <a class="tree-row tree-file" data-sf="readme.md"></a>
+        <div class="tree-row tree-node" data-path="readme.md#file"></div>
         <div class="tree-row tree-node" data-path="readme.md#intro"></div>
       </div>
     </li>
@@ -283,7 +284,7 @@ export function loadToastHelpers() {
 // time — ui-src/index.html on disk still has literal <load src="..."> tags),
 // so `html` must come from the real built/served index.html, unlike the
 // pure-logic helpers above.
-export function loadSearchRenderHelpers(html, { hash = '#/', storage, apiPostImpl, openFileViewImpl } = {}) {
+export function loadSearchRenderHelpers(html, { hash = '#/', storage, apiPostImpl, openFileViewImpl, markActiveImpl, revealSidebarPathImpl } = {}) {
   const { document, Element } = parseHTML(html);
   // initSearchPanel()/setSearchFile() need #search-panel (the mount point)
   // and #search-scope (the "Searching in: ..." label) to exist — these
@@ -318,21 +319,30 @@ export function loadSearchRenderHelpers(html, { hash = '#/', storage, apiPostImp
     },
     __apiPostImpl: apiPostImpl ?? (async () => ({ results: [] })),
     __openFileViewImpl: openFileViewImpl ?? (() => {}),
+    __markActiveImpl: markActiveImpl ?? (() => {}),
+    __revealSidebarPathImpl: revealSidebarPathImpl ?? (async () => {}),
   };
   vm.createContext(context);
   const src = stripExports(readUiSource('dom.js')).replace(/^import .*$/gm, '')
     + stripExports(readUiSource('routes.js')).replace(/^import .*$/gm, '')
     + stripExports(readUiSource('search.js')).replace(/^import .*$/gm, '')
       // search.js imports openFileView/hideCollectionContent/
-      // nodeTypeBadgeIcon/STRUCTURAL_NODE_TYPES from file-view.js and
-      // apiPost from api.js — renderResult() itself only calls
-      // nodeTypeBadgeIcon/STRUCTURAL_NODE_TYPES directly; the "Show more"
-      // open-button-wiring tests need a real (test-supplied) openFileView
-      // to assert on, so it's a caller-provided stub (default a no-op)
-      // rather than always inlined away — hideCollectionContent() still
-      // isn't exercised by these tests, so that one stays a no-op.
+      // nodeTypeBadgeIcon/STRUCTURAL_NODE_TYPES from file-view.js,
+      // markActive/revealSidebarPath from sidebar.js, and apiPost from
+      // api.js — renderResult() itself only calls nodeTypeBadgeIcon/
+      // STRUCTURAL_NODE_TYPES directly; the "Show more" open-button-wiring
+      // tests need a real (test-supplied) openFileView to assert on, so
+      // it's a caller-provided stub (default a no-op) rather than always
+      // inlined away — hideCollectionContent() still isn't exercised by
+      // these tests, so that one stays a no-op. markActive/revealSidebarPath
+      // (Phase 3R: keeps the sidebar's active-row highlight in sync, and
+      // expands collapsed ancestor folders, when a search result is opened)
+      // are caller-provided stubs the same way, so tests can assert they
+      // were actually called (and in what order) on an "Open" click.
       .replace(/openFileView\(/g, '__openFileViewImpl(')
       .replace(/hideCollectionContent\(\)/g, '')
+      .replace(/markActive\(\)/g, '__markActiveImpl()')
+      .replace(/revealSidebarPath\(/g, '__revealSidebarPathImpl(')
     + '\nconst apiPost = __apiPostImpl;\n'
     + stripExports(readUiSource('icons.js'))
     + `\nfunction nodeTypeBadgeIcon(nodeType) {

@@ -22,6 +22,7 @@ import { $, esc, cloneTemplate, prefersReducedMotion } from './dom.js';
 import { apiPost } from './api.js';
 import { openFileView, hideCollectionContent, nodeTypeBadgeIcon, STRUCTURAL_NODE_TYPES } from './file-view.js';
 import { currentRoute } from './routes.js';
+import { markActive, revealSidebarPath } from './sidebar.js';
 
 // The backend's /api/search caps `top` at 20 (src/admin/api/search.js's
 // TOP_MAX) — this fetches that whole cap in one request so "Show more" is
@@ -242,6 +243,37 @@ function updateSearchUrl(name, { query, sourceFile }) {
   lastSyncedSearchParamsKey = JSON.stringify(currentRoute().search ?? null);
 }
 
+// Opens a search result's chunk in the file view AND keeps the sidebar tree
+// in sync with what's now open (Phase 3R) — a plain sidebar click already
+// gets this for free (it sets location.hash, which fires hashchange ->
+// route() -> markActive()), but this "Open chunk"/"Open file section" button
+// used to call openFileView() directly with no hash update at all, so the
+// sidebar kept showing whichever row (if any) was active before the search,
+// silently going stale the moment a user opened a result. Uses
+// history.pushState (not `location.hash =`) for the same reason
+// updateSearchUrl() above does: setting location.hash fires a real
+// hashchange, which would re-run route() recursively and re-open this exact
+// view a second time (plus clobber the search results this click is trying
+// to keep visible in browser history). markActive() is called directly
+// afterward instead, the same targeted sync route()'s own second
+// markActive() call performs once the sidebar tree has settled.
+//
+// revealSidebarPath() additionally expands whatever collapsed ancestor
+// directories stand between the tree root and this file (a search result
+// can open a file buried several folders deep that was never clicked open
+// in the sidebar) — markActive() alone only toggles .active on rows that
+// already exist in the DOM, it cannot reveal a row hidden inside a
+// collapsed directory. Best-effort: a flat-file-list collection (no
+// skeleton) or a row that genuinely isn't found yet just leaves markActive()
+// with nothing extra to highlight, same as before this fix existed.
+async function openResultInFileView(name, sourceFile, chunkIndex) {
+  const url = `#/c/${encodeURIComponent(name)}/f/${encodeURIComponent(sourceFile)}`;
+  history.pushState(null, '', url);
+  openFileView(name, sourceFile, null, chunkIndex);
+  await revealSidebarPath(name, sourceFile);
+  markActive();
+}
+
 function updateSearchScopeLabel() {
   const scope = $('#search-scope');
   if (!scope) return;
@@ -357,8 +389,7 @@ function renderVisibleResults(name, count) {
   const visible = lastSearchResults.slice(0, count);
   resultsBox.replaceChildren(...visible.map((r, i) => renderResult(r, i, topScore)));
   for (const btn of resultsBox.querySelectorAll('.result-open')) {
-    btn.addEventListener('click', () =>
-      openFileView(name, btn.dataset.sf, null, Number(btn.dataset.ci)));
+    btn.addEventListener('click', () => openResultInFileView(name, btn.dataset.sf, Number(btn.dataset.ci)));
   }
   status.textContent = (count < total ? `Showing ${count} of ${total} results` : `${total} result${total > 1 ? 's' : ''}`)
     + (searchSourceFile ? ` · filtered to one file` : '');

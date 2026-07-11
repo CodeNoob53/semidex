@@ -266,6 +266,50 @@ export async function onSidebarCaretClick(name, node, el, depth) {
   await toggleSidebarNodeExpand(name, node, el, depth);
 }
 
+// Expands whatever collapsed ancestor directories stand between the
+// sidebar tree's root and a given sourceFile, then highlights that file's
+// row — the "minimal expansion required to reveal the active file" the
+// task asks for (Phase 3R), used when a file is opened from somewhere
+// other than a direct sidebar click (currently: search-result "Open").
+// A plain sidebar click never needs this — the row the user clicked is
+// already visible by definition.
+//
+// Directory node_path follows the indexer's own fixed convention
+// ("<collection>#dir/<dirPath>", skeleton-index.js) — derivable purely
+// from sourceFile's own directory segments, no extra API round-trip needed
+// to discover the ancestor chain itself. Each level is still expanded one
+// at a time via the real skeleton/children fetch (not guessed/skipped),
+// since which nodes actually exist under a given ancestor is only known
+// once that level has been fetched.
+export async function revealSidebarPath(name, sourceFile) {
+  const segments = String(sourceFile).split('/').filter(Boolean);
+  segments.pop(); // drop the filename itself — only directory segments expand
+  if (!segments.length) return; // file lives at the collection root — nothing to expand
+
+  const box = $(`#tree-${cssId(name)}`);
+  if (!box) return;
+
+  let container = box;
+  let depth = 0;
+  let dirPath = '';
+  for (const segment of segments) {
+    dirPath = dirPath ? `${dirPath}/${segment}` : segment;
+    const targetPath = `${name}#dir/${dirPath}`;
+    let row = container.querySelector(`:scope > .tree-node[data-path="${cssEscapeAttr(targetPath)}"]`);
+    if (!row) return; // this ancestor isn't in the currently-rendered level — give up quietly, no error UI for a best-effort reveal
+    let sub = row.nextElementSibling;
+    if (!sub?.classList.contains('tree-subtree')) {
+      row.querySelector('.tree-caret').textContent = '▾';
+      sub = document.createElement('div');
+      sub.className = 'tree-subtree';
+      row.insertAdjacentElement('afterend', sub);
+      await renderSidebarSkeletonLevel(sub, name, { nodePath: targetPath, childCount: 1 }, depth + 1);
+    }
+    container = sub;
+    depth += 1;
+  }
+}
+
 export function markActive(route = currentRoute()) {
   for (const a of document.querySelectorAll('.tree-collection-row')) {
     a.classList.toggle('active', route.view !== 'index' && a.dataset.name === route.name);
@@ -279,7 +323,19 @@ export function markActive(route = currentRoute()) {
     row.classList.remove('active');
   }
   if (route.openFile) {
+    // A route.openFile (an "#/c/:name/f/:sourceFile" URL — a plain file
+    // open with no section target) can be showing in either sidebar mode:
+    // the flat-fallback file list (.tree-file, keyed by the raw sourceFile
+    // in data-sf) or a skeleton tree's own file row (.tree-node, keyed by
+    // its nodePath in data-path). Both are tried — at most one will ever
+    // match, since a given collection only ever renders one mode at a time
+    // — rather than requiring the caller to know which mode is active.
+    // "<sourceFile>#file" is the indexer's own file-node-path convention
+    // (skeleton-index.js), not a guess: every skeleton file node's
+    // node_path is built exactly this way, so this is a stable derivation,
+    // not a heuristic.
     document.querySelector(`.tree-file[data-sf="${cssEscapeAttr(route.openFile)}"]`)?.classList.add('active');
+    document.querySelector(`.tree-node[data-path="${cssEscapeAttr(`${route.openFile}#file`)}"]`)?.classList.add('active');
   } else if (route.openNodePath) {
     document.querySelector(`.tree-node[data-path="${cssEscapeAttr(route.openNodePath)}"]`)?.classList.add('active');
   }

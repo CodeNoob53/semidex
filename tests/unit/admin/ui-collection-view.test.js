@@ -411,6 +411,105 @@ describe('collection header — Details disclosure (collapsed, technical facts o
   });
 });
 
+// ── Phase 3Q: Details is grouped into labeled sub-sections (Overview/
+// Indexing/Storage), not one flat undifferentiated list — and the
+// overviewSummary/description text itself is never duplicated between the
+// header body and Details, since it already reads prominently up top.
+describe('collection header — Details disclosure (Phase 3Q: grouped sub-sections, not one flat list)', () => {
+  it('groups the technical facts under Indexing and Storage sub-section labels', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const helpers = loadRouteIntegrationHelpers(html, {
+        hash: '#/c/my-docs',
+        apiResponses: {
+          '/api/collections/my-docs': {
+            collection: {
+              pointCount: 99, warnings: [], hasSkeleton: true, semidexManaged: true,
+              overviewSummary: 'A library of internal API reference docs.',
+              provider: { denseProvider: 'onnx', denseModel: 'bge-m3-onnx', sparseProvider: 'bm25' },
+              vectorSchema: { dense: { size: 1024, distance: 'cosine' }, sparse: true },
+              versions: { embeddingSchema: 2, chunkingSchema: 4, indexingSchema: 4, tokenCountMode: 'bge-m3' },
+            },
+          },
+          '/api/collections?': { collections: [] },
+        },
+      });
+      await helpers.route();
+      const details = helpers.document.querySelector('#col-header details.advanced-panel');
+      const labels = [...details.querySelectorAll('.details-subsection-label')].map(el => el.textContent);
+      assert.ok(labels.includes('Indexing'), 'must have an Indexing sub-section label');
+      assert.ok(labels.includes('Storage'), 'must have a Storage sub-section label');
+
+      const indexingSection = [...details.querySelectorAll('.details-subsection')]
+        .find(el => el.querySelector('.details-subsection-label')?.textContent === 'Indexing');
+      const storageSection = [...details.querySelectorAll('.details-subsection')]
+        .find(el => el.querySelector('.details-subsection-label')?.textContent === 'Storage');
+      assert.match(indexingSection.textContent, /bge-m3-onnx/, 'provider facts must live under Indexing');
+      assert.match(indexingSection.textContent, /skeleton navigation/, 'skeleton nav status must live under Indexing');
+      assert.match(storageSection.textContent, /^points|points/, 'point count must live under Storage');
+      assert.match(storageSection.textContent, /semidex-managed/, 'semidex-managed flag must live under Storage');
+    });
+  });
+
+  it('does not duplicate the overviewSummary/description text inside Details when the header already shows it', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const helpers = loadRouteIntegrationHelpers(html, {
+        hash: '#/c/my-docs',
+        apiResponses: {
+          '/api/collections/my-docs': {
+            collection: { pointCount: 1, warnings: [], overviewSummary: 'A library of internal API reference docs.' },
+          },
+          '/api/collections?': { collections: [] },
+        },
+      });
+      await helpers.route();
+      const header = helpers.document.getElementById('col-header');
+      const details = header.querySelector('details.advanced-panel');
+      assert.doesNotMatch(details.textContent, /A library of internal API reference docs\./,
+        'the summary text already shown in the header body must not be repeated inside Details');
+      // Confirm it's a real absence, not a false negative from an empty header.
+      assert.match(header.querySelector('.col-header-desc').textContent, /A library of internal API reference docs\./);
+    });
+  });
+
+  it('shows a friendly "no summary indexed yet" Overview line inside Details, but only when the header has no summary at all', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const helpers = loadRouteIntegrationHelpers(html, {
+        hash: '#/c/my-docs',
+        apiResponses: {
+          '/api/collections/my-docs': { collection: { pointCount: 1, warnings: [], overviewSummary: null, description: null } },
+          '/api/collections?': { collections: [] },
+        },
+      });
+      await helpers.route();
+      const details = helpers.document.querySelector('#col-header details.advanced-panel');
+      const overviewSection = [...details.querySelectorAll('.details-subsection')]
+        .find(el => el.querySelector('.details-subsection-label')?.textContent === 'Overview');
+      assert.ok(overviewSection, 'an Overview sub-section must render inside Details when no summary exists anywhere');
+      assert.match(overviewSection.textContent, /No collection summary indexed yet\./);
+    });
+  });
+
+  it('omits the Overview sub-section from Details when the header already has a summary (no duplicate "Overview" block)', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const helpers = loadRouteIntegrationHelpers(html, {
+        hash: '#/c/my-docs',
+        apiResponses: {
+          '/api/collections/my-docs': { collection: { pointCount: 1, warnings: [], overviewSummary: 'A summary.' } },
+          '/api/collections?': { collections: [] },
+        },
+      });
+      await helpers.route();
+      const details = helpers.document.querySelector('#col-header details.advanced-panel');
+      const labels = [...details.querySelectorAll('.details-subsection-label')].map(el => el.textContent);
+      assert.ok(!labels.includes('Overview'), 'Details must not render its own Overview sub-section when the header summary already covers it');
+    });
+  });
+});
+
 describe('collection header — Phase 3I: name and summary are escaped, never parsed as markup', () => {
   it('a collection name containing HTML renders as inert text, never a real element', async () => {
     await withServer(async (base) => {
