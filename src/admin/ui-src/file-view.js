@@ -7,6 +7,7 @@ import { $, esc, cloneTemplate, errorBox, emptyBox, prefersReducedMotion } from 
 import { api } from './api.js';
 import { nodeDisplayLabel, basename } from './format.js';
 import { iconTable, iconCodeBlock, iconChecklist, iconFile, iconSection } from './icons.js';
+import { renderChunkContent } from './structural-renderer.js';
 
 // Whole-file mode (no target chunkIndex — a plain sidebar file click) fetches
 // every chunk once via getFileChunks and pages through it client-side, the
@@ -373,7 +374,7 @@ export function renderFileChunks(chunks, targetChunkIndex) {
       contextEl.hidden = false;
     }
 
-    card.querySelector('.chunk-text').textContent = c.text ?? '';
+    renderChunkContent(card.querySelector('.chunk-text'), c);
     out.appendChild(frag);
   }
   return out;

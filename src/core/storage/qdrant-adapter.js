@@ -36,6 +36,8 @@ export function toChunk(point) {
     totalChunks:  Number.isInteger(p.total_chunks) ? p.total_chunks : null,
     section:      p.section ?? null,
     text:         p.text ?? null,
+    rawContent:   p.raw_content ?? null,
+    lang:         p.lang ?? null,
     context:      p.context ?? null,
     tags:         Array.isArray(p.tags) ? p.tags : [],
     nodeType:     p.node_type ?? null,
@@ -79,7 +81,13 @@ export function toStructuralNodeChunk(payload) {
     chunkIndex:   Number.isInteger(payload.chunk_index) ? payload.chunk_index : null,
     totalChunks:  null,
     section:      payload.section ?? null,
-    text:         payload.text ?? payload.raw_content ?? payload.rawContent ?? null,
+    // Structural content nodes (table/code_block/checklist) may not always
+    // carry a separate `text` field the way retrieval chunks do — fall back
+    // to raw_content so callers still get displayable content, but rawContent
+    // below is always the byte-exact source regardless of this fallback.
+    text:         payload.text ?? payload.raw_content ?? null,
+    rawContent:   payload.raw_content ?? null,
+    lang:         payload.lang ?? null,
     context:      payload.context ?? null,
     tags:         [],
     nodeType:     payload.node_type ?? null,

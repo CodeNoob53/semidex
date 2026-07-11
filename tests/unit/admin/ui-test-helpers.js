@@ -9,6 +9,12 @@ import { parseHTML } from 'linkedom';
 import { createApp } from '../../../src/admin/server.js';
 import { createJobRegistry } from '../../../src/admin/jobs/registry.js';
 
+// Keep the shared helper free of the heavy unified/remark/highlight graph.
+// Structural-renderer tests inject the real implementation explicitly.
+function renderChunkContentPlain(container, chunk) {
+  container.textContent = chunk?.rawContent ?? chunk?.text ?? '';
+}
+
 // Production builds are minified (Vite/esbuild renames every top-level
 // function/variable identifier — confirmed empirically, `--keep-names`
 // doesn't help either, since it only attaches a runtime `.name` string
@@ -284,7 +290,7 @@ export function loadToastHelpers() {
 // time — ui-src/index.html on disk still has literal <load src="..."> tags),
 // so `html` must come from the real built/served index.html, unlike the
 // pure-logic helpers above.
-export function loadSearchRenderHelpers(html, { hash = '#/', storage, apiPostImpl, openFileViewImpl, markActiveImpl, revealSidebarPathImpl } = {}) {
+export function loadSearchRenderHelpers(html, { hash = '#/', storage, apiPostImpl, openFileViewImpl, markActiveImpl, revealSidebarPathImpl, renderChunkContentImpl } = {}) {
   const { document, Element } = parseHTML(html);
   // initSearchPanel()/setSearchFile() need #search-panel (the mount point)
   // and #search-scope (the "Searching in: ..." label) to exist — these
@@ -321,6 +327,9 @@ export function loadSearchRenderHelpers(html, { hash = '#/', storage, apiPostImp
     __openFileViewImpl: openFileViewImpl ?? (() => {}),
     __markActiveImpl: markActiveImpl ?? (() => {}),
     __revealSidebarPathImpl: revealSidebarPathImpl ?? (async () => {}),
+    // The import is stripped below. Most tests use the lightweight plain
+    // renderer; structural integration tests inject the real ES module.
+    renderChunkContent: renderChunkContentImpl ?? renderChunkContentPlain,
   };
   vm.createContext(context);
   const src = stripExports(readUiSource('dom.js')).replace(/^import .*$/gm, '')
@@ -355,9 +364,9 @@ export function loadSearchRenderHelpers(html, { hash = '#/', storage, apiPostImp
 
 // Same idea as loadSearchRenderHelpers, for file-view.js's renderFileChunks/
 // nodeTypeBadgeLabel/wireFileViewButtons.
-export function loadFileViewRenderHelpers(html) {
+export function loadFileViewRenderHelpers(html, { renderChunkContentImpl } = {}) {
   const { document } = parseHTML(html);
-  const context = { document };
+  const context = { document, renderChunkContent: renderChunkContentImpl ?? renderChunkContentPlain };
   vm.createContext(context);
   const src = stripExports(readUiSource('dom.js')).replace(/^import .*$/gm, '')
     + stripExports(readUiSource('icons.js'))
@@ -375,7 +384,7 @@ export function loadFileViewRenderHelpers(html) {
 // collection-shell IDs injected into #main. Takes an `apiResponses` map from
 // URL substring -> response object/thrown error, since these functions call
 // the real api() with different query strings.
-export function loadFileViewBehaviorHelpers(html, apiResponses = {}) {
+export function loadFileViewBehaviorHelpers(html, apiResponses = {}, { renderChunkContentImpl } = {}) {
   const { document, Element } = parseHTML(html);
   // linkedom doesn't implement scrollIntoView (a no-op layout affordance in
   // real browsers) — openFileView()/openSectionView() call it on the
@@ -411,6 +420,7 @@ export function loadFileViewBehaviorHelpers(html, apiResponses = {}) {
       }
       throw new Error(`no stub api() response configured for ${url}`);
     },
+    renderChunkContent: renderChunkContentImpl ?? renderChunkContentPlain,
   };
   vm.createContext(context);
   const src = stripExports(readUiSource('dom.js')).replace(/^import .*$/gm, '')
@@ -483,7 +493,7 @@ export function loadTopbarHelpers(html, { apiImpl, openOperationModalImpl } = {}
 // only reachable via the 'settings'/'index' route views, not exercised
 // here) to keep the graph to what a collection-route navigation actually
 // touches.
-export function loadRouteIntegrationHelpers(html, { hash = '#/', apiResponses = {} } = {}) {
+export function loadRouteIntegrationHelpers(html, { hash = '#/', apiResponses = {}, renderChunkContentImpl } = {}) {
   const { document, Element } = parseHTML(html);
   Element.prototype.scrollIntoView = () => {};
   document.getElementById('main').insertAdjacentHTML('beforeend', '<ul id="collection-list"></ul><nav id="nav-index"></nav>');
@@ -516,6 +526,7 @@ export function loadRouteIntegrationHelpers(html, { hash = '#/', apiResponses = 
     },
     apiPost: async (url) => { apiCalls.push(url); return { results: [] }; },
     __apiCalls: apiCalls,
+    renderChunkContent: renderChunkContentImpl ?? renderChunkContentPlain,
   };
   vm.createContext(context);
   // stripExports only strips the `export` keyword off individual

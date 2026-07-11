@@ -74,6 +74,7 @@
     "@qdrant/js-client-rest": "^1.18.0",
     "dotenv": "^16.0.0",
     "franc-min": "^6.2.0",
+    "highlight.js": "^11.11.1",
     "onnxruntime-node": "1.24.3",
     "pdf-parse": "^2.4.5",
     "remark-frontmatter": "^5.0.0",

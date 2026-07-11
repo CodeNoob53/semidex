@@ -23,6 +23,7 @@ import { apiPost } from './api.js';
 import { openFileView, hideCollectionContent, nodeTypeBadgeIcon, STRUCTURAL_NODE_TYPES } from './file-view.js';
 import { currentRoute } from './routes.js';
 import { markActive, revealSidebarPath } from './sidebar.js';
+import { renderChunkContent } from './structural-renderer.js';
 
 // The backend's /api/search caps `top` at 20 (src/admin/api/search.js's
 // TOP_MAX) — this fetches that whole cap in one request so "Show more" is
@@ -513,7 +514,7 @@ export function renderResult(r, i, topScore) {
     contextEl.hidden = false;
   }
 
-  card.querySelector('.chunk-text').textContent = r.text ?? '';
+  renderChunkContent(card.querySelector('.chunk-text'), r);
 
   const structuralHintEl = card.querySelector('.result-structural-hint');
   if (isStructural) {

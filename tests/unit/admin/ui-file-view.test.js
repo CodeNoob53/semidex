@@ -2,6 +2,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadFileViewRenderHelpers, loadFileViewBehaviorHelpers, withServer, readUiSource } from './ui-test-helpers.js';
+import { renderChunkContent } from '../../../src/admin/ui-src/structural-renderer.js';
 
 // ── Phase 3H: file/section browse cards are evidence-free — this is browse
 // mode, not search-evidence mode. Search results (tpl-search-result) show
@@ -22,9 +23,9 @@ describe('file/section browse cards never show search rank/score (this is browse
       const { renderFileChunks } = loadFileViewRenderHelpers(html);
       const frag = renderFileChunks([{ chunkIndex: 0, section: 'Intro', nodeType: 'paragraph', text: 'hello' }]);
       const card = frag.querySelector('.chunk');
-      assert.equal(card.querySelector('.rank'), null);
-      assert.equal(card.querySelector('.score'), null);
-      assert.equal(card.querySelector('.score-bar'), null);
+      assert.equal(Boolean(card.querySelector('.rank')), false);
+      assert.equal(Boolean(card.querySelector('.score')), false);
+      assert.equal(Boolean(card.querySelector('.score-bar')), false);
       // Confirm the search template really does carry these fields, so this
       // test is proving "browse mode omits them," not "no template anywhere
       // has them by coincidence."
@@ -165,7 +166,7 @@ describe('chunk cards (Phase 3P): chunk index is secondary metadata, not the hea
       assert.ok(meta, 'card must have a .chunk-meta wrapper');
       assert.ok(primary, 'card must have a .chunk-primary wrapper');
       assert.ok(meta.querySelector('.chunk-index-label'), '.chunk-index-label must live inside .chunk-meta');
-      assert.equal(primary.querySelector('.chunk-index-label'), null, '.chunk-index-label must not live inside .chunk-primary');
+      assert.equal(Boolean(primary.querySelector('.chunk-index-label')), false, '.chunk-index-label must not live inside .chunk-primary');
       assert.equal(meta.querySelector('.chunk-index-label').textContent, 'chunk 4 / 9');
     });
   });
@@ -201,29 +202,50 @@ describe('chunk cards (Phase 3P): chunk index is secondary metadata, not the hea
 // untrusted API/indexed content, and an HTML-like table/code snippet must
 // not become real DOM elements (XSS-safety), matching the same guarantee
 // Phase 3O already established for search-result evidence text.
-describe('chunk cards (Phase 3P): raw table/code content stays plain text, never parsed as HTML', () => {
-  it('a table chunk containing HTML-like text renders as inert text, not a real element', async () => {
+describe('chunk cards (Phase 3P/3T): raw table/code content never parses into live HTML elements', () => {
+  it('a table chunk containing HTML-like text (not a valid GFM table) falls back to inert raw text', async () => {
+    // No header-separator row ("|---|") — not a parseable GFM table, so
+    // structural-renderer.js falls back to its raw-only path (same
+    // .chunk-text-bearing shape as before Phase 3T) rather than throwing.
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
-      const { renderFileChunks } = loadFileViewRenderHelpers(html);
+      const { renderFileChunks } = loadFileViewRenderHelpers(html, { renderChunkContentImpl: renderChunkContent });
       const adversarial = '| <img src=x onerror=alert(1)> | <script>alert(2)</script> |';
       const frag = renderFileChunks([{ chunkIndex: 0, nodeType: 'table', text: adversarial, context: 'Intro — table' }]);
       const textEl = frag.querySelector('.chunk-text');
       assert.equal(textEl.textContent, adversarial, 'the raw table text must be preserved verbatim as text');
-      assert.equal(textEl.querySelector('img'), null, 'must never parse into a real <img> element');
-      assert.equal(textEl.querySelector('script'), null, 'must never parse into a real <script> element');
+      assert.equal(Boolean(textEl.querySelector('img')), false, 'must never parse into a real <img> element');
+      assert.equal(Boolean(textEl.querySelector('script')), false, 'must never parse into a real <script> element');
     });
   });
 
-  it('a code_block chunk containing HTML-like text renders as inert text, not a real element', async () => {
+  it('a valid GFM table with an HTML-like cell renders through the structural renderer with no live element', async () => {
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
-      const { renderFileChunks } = loadFileViewRenderHelpers(html);
+      const { renderFileChunks } = loadFileViewRenderHelpers(html, { renderChunkContentImpl: renderChunkContent });
+      const adversarial = '| A | B |\n| --- | --- |\n| <img src=x onerror=alert(1)> | <script>alert(2)</script> |';
+      const frag = renderFileChunks([{ chunkIndex: 0, nodeType: 'table', text: adversarial, context: 'Intro — table' }]);
+      assert.equal(Boolean(frag.querySelector('img')), false, 'must never parse into a real <img> element');
+      assert.equal(Boolean(frag.querySelector('script')), false, 'must never parse into a real <script> element');
+      assert.ok(frag.querySelector('table'), 'a valid GFM table renders as a real <table>');
+    });
+  });
+
+  it('a code_block chunk containing HTML-like text renders as inert text, not a real element (Phase 3T: through the highlighter, still never live markup)', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const { renderFileChunks } = loadFileViewRenderHelpers(html, { renderChunkContentImpl: renderChunkContent });
       const adversarial = 'const x = "<div onclick=alert(1)>";';
       const frag = renderFileChunks([{ chunkIndex: 0, nodeType: 'code_block', text: adversarial, context: 'Intro — code block' }]);
-      const textEl = frag.querySelector('.chunk-text');
-      assert.equal(textEl.textContent, adversarial);
-      assert.equal(textEl.querySelector('div'), null);
+      const codeEl = frag.querySelector('code');
+      assert.ok(codeEl, 'code_block renders through the structural renderer');
+      // Scoped to inside <code> specifically — the card itself legitimately
+      // contains a real <div class="chunk"> wrapper (the template root), so
+      // a query against the whole fragment for "div" would false-positive
+      // on that unrelated element rather than checking the adversarial
+      // string was never parsed into markup.
+      assert.equal(Boolean(codeEl.querySelector('div')), false, 'must never parse into a real <div> element inside the code output');
+      assert.equal(codeEl.textContent, adversarial, 'the raw code text must be preserved verbatim as text');
     });
   });
 
@@ -377,7 +399,7 @@ describe('openFileView() with no chunkIndex — whole-file mode (getFileChunks, 
       });
       await openFileView('my-docs', 'readme.md');
       assert.equal(document.querySelectorAll('#collection-content .chunk').length, 3);
-      assert.equal(document.querySelector('#file-load-more'), null,
+      assert.equal(Boolean(document.querySelector('#file-load-more')), false,
         '"load more" must not render when everything is already visible');
     });
   });
@@ -416,7 +438,7 @@ describe('openFileView() with no chunkIndex — whole-file mode (getFileChunks, 
       assert.equal(fetchCount, 1);
       assert.equal(document.querySelectorAll('#collection-content .chunk').length, 12,
         'the final click reveals only the remaining 2, not overshooting past what was fetched');
-      assert.equal(document.querySelector('#file-load-more'), null,
+      assert.equal(Boolean(document.querySelector('#file-load-more')), false,
         '"load more" must disappear once every fetched chunk is visible');
     });
   });

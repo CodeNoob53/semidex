@@ -764,4 +764,87 @@ td.actions { text-align: right; }
 }
 .op-history-row:hover, .op-history-row:focus-visible { background: var(--bg-inset); }
 .op-history-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+
+/* ── Phase 3T: shared structural entity renderer (table/code) ───────────── */
+/* Sits directly inside the existing .chunk-evidence/.result-evidence
+   content area (structural-renderer.js's renderChunkContent() replaces the
+   plain .chunk-text <pre> in place) — deliberately no extra card/border
+   wrapping it, per the task's "do not wrap the renderer in another
+   decorative card" instruction. */
+.structural-render-root { display: flex; flex-direction: column; gap: 6px; }
+
+.structural-toggle {
+  display: inline-flex; align-self: flex-start;
+  border: 1px solid var(--line); border-radius: 3px; overflow: hidden;
+}
+.structural-toggle-btn {
+  background: transparent; border: 0; color: var(--ink-dim);
+  font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: .05em;
+  padding: 3px 9px; cursor: pointer;
+}
+.structural-toggle-btn + .structural-toggle-btn { border-left: 1px solid var(--line); }
+.structural-toggle-btn:hover { color: var(--ink); background: var(--bg-inset); }
+.structural-toggle-btn.active { color: var(--amber); background: var(--bg-inset); }
+.structural-toggle-btn:focus-visible { outline: 2px solid var(--amber-dim); outline-offset: -2px; }
+
+.structural-raw { margin: 0; }
+
+/* Table */
+.structural-table-wrapper {
+  overflow-x: auto; max-width: 100%;
+  border: 1px solid var(--line-soft); border-radius: 3px;
+}
+.structural-table {
+  border-collapse: collapse; width: 100%; font-size: 12px; font-family: var(--mono);
+}
+.structural-table th, .structural-table td {
+  padding: 5px 10px; border-bottom: 1px solid var(--line-soft);
+  white-space: nowrap;
+}
+.structural-table th {
+  background: var(--bg-inset); color: var(--ink); font-weight: 600;
+  text-align: left; border-bottom: 1px solid var(--line);
+}
+.structural-table td { color: var(--ink-dim); }
+.structural-table tbody tr:last-child td { border-bottom: 0; }
+
+/* Code */
+.structural-code-wrapper { display: flex; flex-direction: column; gap: 4px; }
+.structural-code-lang-badge {
+  align-self: flex-start;
+  font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: .05em;
+  padding: 1px 8px; border-radius: 3px; border: 1px solid var(--line);
+}
+.structural-code-lang-explicit { color: var(--amber); border-color: var(--amber-dim); }
+.structural-code-lang-guessed { color: var(--ink-faint); }
+.structural-code-wrapper pre {
+  margin: 0; padding: 10px; border-radius: 3px; background: var(--bg-inset);
+  overflow-x: auto; max-width: 100%;
+}
+.structural-code-wrapper code {
+  font-family: var(--mono); font-size: 12px; color: var(--ink); white-space: pre;
+}
+
+/* highlight.js token colors mapped onto the existing dark/amber palette —
+   deliberately not a stock highlight.js theme stylesheet import, to avoid
+   pulling in an unrelated color system next to this tool's own. */
+.hljs-comment, .hljs-quote { color: var(--ink-faint); font-style: italic; }
+.hljs-keyword, .hljs-selector-tag, .hljs-literal, .hljs-section, .hljs-link {
+  color: var(--amber);
+}
+.hljs-string, .hljs-attr, .hljs-template-tag, .hljs-addition { color: var(--ok); }
+.hljs-number, .hljs-symbol, .hljs-bullet { color: var(--warn); }
+.hljs-title, .hljs-name, .hljs-selector-id, .hljs-selector-class, .hljs-type { color: var(--ink); font-weight: 600; }
+.hljs-variable, .hljs-template-variable, .hljs-attribute { color: var(--ink-dim); }
+.hljs-deletion, .hljs-regexp, .hljs-meta { color: var(--fail); }
+.hljs-emphasis { font-style: italic; }
+.hljs-strong { font-weight: 700; }
+
+@media (prefers-reduced-motion: reduce) {
+  /* No animation is used by the structural renderer itself (a Rendered/Raw
+     click is an instant DOM swap) — this rule exists only to document that
+     intentional absence, per the task's explicit reduced-motion checklist
+     item, rather than leaving it unaddressed. */
+  .structural-toggle-btn { transition: none; }
+}
 .op-history-duration { flex: none; }

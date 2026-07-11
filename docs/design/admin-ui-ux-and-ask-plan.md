@@ -172,7 +172,7 @@ original sketch above:
   (pub/sub), neither polls on its own. This is what makes an operation
   survive navigation and keeps the chip and modal from double-polling.
 
-### Phase 3D — Entity rendering in chunks (unblocks the chat track)
+### Phase 3D — Entity rendering in chunks (unblocks the chat track) — **shipped 2026-07-11 (Phase 3T)**
 
 Scope: F5 + F6-L0/L1. Shared entity renderer (table + code) used by search
 results, chunk view, and file view in the new main surface; rendered/raw
@@ -183,7 +183,34 @@ unlabeled-lang rate on real collections → decision input for F6-L2.
 
 Exit gate: table renders as HTML and toggles to byte-exact raw; fenced code
 highlights with the right language; XSS attempt in cell/code renders inert;
-renderer covered by linkedom-based unit tests.
+renderer covered by linkedom-based unit tests. **All met** — see
+`docs/admin-ui-phase3t-structural-entity-renderer-2026-07-11.md` for the full
+report. Implemented contract, where it differs from the original sketch
+above:
+
+- **The indexer already persisted `raw_content`/`lang`** — confirmed in the
+  production write path (`skeleton-chunk.js`/`skeleton-payload.js`) before
+  any code change; no payload/schema change was needed. Only the storage
+  adapter's read-side domain mapping (`toChunk()`/`toStructuralNodeChunk()`
+  in `qdrant-adapter.js`) was missing `rawContent`/`lang` — that's the one
+  mapping this phase actually added.
+- **`checklist` is unchanged this phase** — `STRUCTURAL_RENDER_TYPES` (the
+  new module's own type set) covers `table`/`code_block` only, matching the
+  task's explicit scope; checklist chunks keep rendering as plain text via
+  the existing (Phase 3O/3P) `STRUCTURAL_NODE_TYPES` badge/label path.
+- **F6-L2 decision input measured on real data**: a 25-file sample of a real
+  Python/web course collection showed only ~29% of fenced code blocks carry
+  an explicit, curated-grammar-resolvable `lang` — most either have no
+  fence label at all, or carry a label that isn't a real language name
+  (author/tooling noise). Autodetection across the curated 15-language
+  subset is doing real, necessary work on real content, not just covering a
+  rare edge case.
+- **Bundle-size cost is real and worth naming explicitly**: adding
+  `unified`+`remark-parse`+`remark-gfm`+`highlight.js` (core + 15 curated
+  grammars) grew the admin UI's JS bundle from 56.3 kB to 256.2 kB raw
+  (16.2 kB → 76.5 kB gzip) — see the Phase 3T report for the full before/
+  after breakdown and confirmation that only the curated grammar set is
+  bundled (no CDN/dynamic remote import).
 
 ### Phase 3E — Assembly & stitching (closes roadmap Stage 2 "content assembly")
 

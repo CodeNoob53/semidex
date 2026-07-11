@@ -3,6 +3,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { readUiSource, loadSearchRenderHelpers, withServer } from './ui-test-helpers.js';
+import { renderChunkContent } from '../../../src/admin/ui-src/structural-renderer.js';
 
 describe('search this collection (ui-src/search.js source)', () => {
   it('search.js posts to /api/search and file-view.js wires the panel container', () => {
@@ -164,8 +165,8 @@ describe('search result cards show only the matched chunk (no windowChunks rende
         sourceFile: 'readme.md', chunkIndex: 5, text: 'matched',
         windowChunks: [{ chunkIndex: 4, text: 'before', isMatch: false }],
       }, 0);
-      assert.equal(card.querySelector('.win-chunks'), null);
-      assert.equal(card.querySelector('.win-chunk'), null);
+      assert.equal(Boolean(card.querySelector('.win-chunks')), false);
+      assert.equal(Boolean(card.querySelector('.win-chunk')), false);
       assert.equal(card.textContent.includes('Nearby context'), false);
     });
   });
@@ -287,8 +288,8 @@ describe('search result cards — evidence layout (Phase 3O)', () => {
       const card = renderResult({ sourceFile: 'a.md', chunkIndex: 0, score: 0.5 }, 0, 0.5);
       const primaryRow = card.querySelector('.result-primary');
       const metaRow = card.querySelector('.result-meta');
-      assert.equal(primaryRow.querySelector('.score'), null, 'score must not appear in the primary identity row');
-      assert.equal(primaryRow.querySelector('.score-bar'), null, 'score-bar must not appear in the primary identity row');
+      assert.equal(Boolean(primaryRow.querySelector('.score')), false, 'score must not appear in the primary identity row');
+      assert.equal(Boolean(primaryRow.querySelector('.score-bar')), false, 'score-bar must not appear in the primary identity row');
       assert.ok(metaRow.querySelector('.score'), 'score belongs in the secondary meta row');
       assert.ok(metaRow.querySelector('.score-bar'), 'score-bar belongs in the secondary meta row');
     });
@@ -308,14 +309,20 @@ describe('search result cards — evidence layout (Phase 3O)', () => {
     });
   });
 
-  it('rendering never lets raw table/code markdown inject HTML — evidence text is always plain text, never parsed', async () => {
+  it('rendering never lets raw table/code markdown inject HTML — a malicious cell renders as inert text, never a real element (Phase 3T)', async () => {
+    // Phase 3T: table chunks now render as a real <table> via
+    // structural-renderer.js (see ui-structural-renderer.test.js for full
+    // coverage) — this card-level test only re-confirms the search-card
+    // integration still carries the same security property the old plain-
+    // text-only rendering had, not the specific (now superseded) plain-
+    // <pre>-with-raw-textContent shape.
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
-      const { renderResult } = loadSearchRenderHelpers(html);
+      const { renderResult } = loadSearchRenderHelpers(html, { renderChunkContentImpl: renderChunkContent });
       const maliciousLookingMarkdown = '| <img src=x onerror=alert(1)> | b |\n|---|---|';
       const card = renderResult({ sourceFile: 'a.md', chunkIndex: 0, nodeType: 'table', text: maliciousLookingMarkdown }, 0);
       assert.equal(card.querySelectorAll('img').length, 0, 'raw table markdown must never be parsed into a real element');
-      assert.equal(card.querySelector('.chunk-text').textContent, maliciousLookingMarkdown);
+      assert.ok(card.querySelector('.structural-render-root'), 'a table chunk renders through the shared structural renderer');
     });
   });
 });
@@ -769,9 +776,9 @@ describe('search URL permalink (pushState for new queries, replaceState otherwis
       syncSearchStateFromUrl('my-docs');
       assert.equal(document.querySelector('#q-input').value, 'refund');
       // No #q-top/#q-window/#q-format elements exist to be affected in the first place.
-      assert.equal(document.querySelector('#q-top'), null);
-      assert.equal(document.querySelector('#q-window'), null);
-      assert.equal(document.querySelector('#q-format'), null);
+      assert.equal(Boolean(document.querySelector('#q-top')), false);
+      assert.equal(Boolean(document.querySelector('#q-window')), false);
+      assert.equal(Boolean(document.querySelector('#q-format')), false);
     });
   });
 

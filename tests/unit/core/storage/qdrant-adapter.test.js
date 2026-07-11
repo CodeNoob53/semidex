@@ -136,7 +136,7 @@ describe('domain mapping — no raw Qdrant snake_case leaks through', () => {
     const chunk = toChunk(point);
     assert.deepEqual(chunk, {
       sourceFile: 'docs/a.md', chunkIndex: 2, totalChunks: 5, section: 'Intro',
-      text: 'hello', context: 'ctx', tags: ['t1'],
+      text: 'hello', rawContent: null, lang: null, context: 'ctx', tags: ['t1'],
       nodeType: 'table', nodeId: 'n1', nodePath: 'a.md#Intro/table-1',
       score: 0.87, isMatch: null,
     });
@@ -147,9 +147,45 @@ describe('domain mapping — no raw Qdrant snake_case leaks through', () => {
   it('toChunk handles a missing/empty payload without throwing', () => {
     assert.deepEqual(toChunk({}), {
       sourceFile: null, chunkIndex: null, totalChunks: null, section: null,
-      text: null, context: null, tags: [],
+      text: null, rawContent: null, lang: null, context: null, tags: [],
       nodeType: null, nodeId: null, nodePath: null, score: null, isMatch: null,
     });
+  });
+
+  it('toChunk maps raw_content and lang for a structural retrieval chunk (table)', () => {
+    const point = {
+      score: 0.5,
+      payload: {
+        source_file: 'docs/a.md', chunk_index: 3, section: 'Setup',
+        text: '| a | b |\n| - | - |\n| 1 | 2 |',
+        raw_content: '| a | b |\n| - | - |\n| 1 | 2 |',
+        node_type: 'table', node_id: 'n2', node_path: 'a.md#Setup/table-1',
+      },
+    };
+    const chunk = toChunk(point);
+    assert.equal(chunk.rawContent, '| a | b |\n| - | - |\n| 1 | 2 |');
+    assert.equal(chunk.lang, null);
+    assert.equal(chunk.text, chunk.rawContent, 'text and rawContent are preserved as separate but equal fields for this payload');
+  });
+
+  it('toChunk maps raw_content and lang for a fenced code_block chunk', () => {
+    const point = {
+      payload: {
+        source_file: 'docs/a.md', chunk_index: 4, section: 'Setup',
+        text: "console.log('hi')", raw_content: "console.log('hi')", lang: 'js',
+        node_type: 'code_block', node_id: 'n3', node_path: 'a.md#Setup/code-1',
+      },
+    };
+    const chunk = toChunk(point);
+    assert.equal(chunk.rawContent, "console.log('hi')");
+    assert.equal(chunk.lang, 'js');
+  });
+
+  it('toChunk never leaks raw_content/lang snake_case keys onto the domain Chunk', () => {
+    const chunk = toChunk({ payload: { raw_content: 'x', lang: 'py' } });
+    const keys = Object.keys(chunk);
+    assert.ok(!keys.some(k => k.includes('_')), `expected only camelCase keys, got: ${keys.join(', ')}`);
+    assert.ok(keys.includes('rawContent') && keys.includes('lang'));
   });
 
   it('toSourceDocument maps an aggregation entry to camelCase', () => {
@@ -179,8 +215,29 @@ describe('domain mapping — no raw Qdrant snake_case leaks through', () => {
       raw_content: '| a | b |', node_type: 'table', node_id: 'n1', node_path: 'a.md#Setup/table-1',
     });
     assert.equal(chunk.text, '| a | b |');
+    assert.equal(chunk.rawContent, '| a | b |');
     assert.equal(chunk.sourceFile, 'a.md');
     assert.ok(!Object.keys(chunk).some(k => k.includes('_')));
+  });
+
+  it('toStructuralNodeChunk maps lang for a code_block content node, null when absent', () => {
+    const withLang = toStructuralNodeChunk({
+      source_file: 'a.md', raw_content: "print('hi')", lang: 'python',
+      node_type: 'code_block', node_id: 'n2', node_path: 'a.md#Setup/code-1',
+    });
+    assert.equal(withLang.lang, 'python');
+
+    const withoutLang = toStructuralNodeChunk({
+      source_file: 'a.md', raw_content: "print('hi')",
+      node_type: 'code_block', node_id: 'n3', node_path: 'a.md#Setup/code-2',
+    });
+    assert.equal(withoutLang.lang, null);
+  });
+
+  it('toStructuralNodeChunk keeps text and rawContent as distinct fields, both null when payload has neither', () => {
+    const chunk = toStructuralNodeChunk({ source_file: 'a.md', node_type: 'table', node_id: 'n4', node_path: 'a.md#x' });
+    assert.equal(chunk.text, null);
+    assert.equal(chunk.rawContent, null);
   });
 
   it('toStructuralNodeChunk returns null for a missing node', () => {
