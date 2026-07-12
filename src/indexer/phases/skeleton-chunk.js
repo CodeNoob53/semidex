@@ -24,7 +24,7 @@
 import { recursiveChunkText } from './chunk.js';
 import { applyNodePolicy, isContentBearing, POINT_KINDS } from './node-policy.js';
 import { makeNodeId } from '../../core/node-id.js';
-import { placeholderForReference, attachEntityRefs } from '../entity-reference.js';
+import { placeholderForReference, attachEntityRefs } from '../../core/entity-reference.js';
 
 const CHUNKING_MODEL = 'skeleton-v1';
 

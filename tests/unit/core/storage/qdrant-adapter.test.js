@@ -138,6 +138,7 @@ describe('domain mapping — no raw Qdrant snake_case leaks through', () => {
       sourceFile: 'docs/a.md', chunkIndex: 2, totalChunks: 5, section: 'Intro',
       text: 'hello', rawContent: null, lang: null, context: 'ctx', tags: ['t1'],
       nodeType: 'table', nodeId: 'n1', nodePath: 'a.md#Intro/table-1',
+      parentId: null, headingPath: null,
       entityRefs: [], score: 0.87, isMatch: null,
     });
     const keys = Object.keys(chunk);
@@ -148,7 +149,8 @@ describe('domain mapping — no raw Qdrant snake_case leaks through', () => {
     assert.deepEqual(toChunk({}), {
       sourceFile: null, chunkIndex: null, totalChunks: null, section: null,
       text: null, rawContent: null, lang: null, context: null, tags: [],
-      nodeType: null, nodeId: null, nodePath: null, entityRefs: [], score: null, isMatch: null,
+      nodeType: null, nodeId: null, nodePath: null, parentId: null, headingPath: null,
+      entityRefs: [], score: null, isMatch: null,
     });
   });
 

@@ -335,6 +335,26 @@ export async function getFileChunks(collection, sourceFile) {
     .sort((a, b) => a.payload.chunk_index - b.payload.chunk_index);
 }
 
+// ── getSectionChunks ─────────────────────────────────────────────────────────
+// Returns every retrieval-content chunk anchored directly under one skeleton
+// section node (content chunk parent_id === section nav node_id, by
+// construction — see skeleton-index.js), sorted by chunk_index. The
+// "whole section" primitive the assembly service's section scope needs —
+// exact parent identity, never a heading-text or chunk-index-range guess
+// (headings can repeat within a file; parent_id cannot). Same projection,
+// nav exclusion, and exhaustive pagination as getFileChunks above. Never
+// fetches vectors.
+export async function getSectionChunks(collection, parentId) {
+  const points = await scrollAllFiltered(
+    collection,
+    withNavExcluded({ must: [{ key: 'parent_id', match: { value: parentId } }] }),
+    CONTENT_NODE_FIELDS,
+  );
+  return points
+    .filter(p => !isNavPoint(p) && Number.isInteger(p.payload?.chunk_index))
+    .sort((a, b) => a.payload.chunk_index - b.payload.chunk_index);
+}
+
 // ── Skeleton nav helpers ──────────────────────────────────────────────────────
 // These helpers scroll only skeleton_nav points; they never touch retrieval
 // content chunks and never return vectors.

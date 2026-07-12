@@ -38,7 +38,7 @@ function makeStubAdapter(overrides = {}) {
     name: () => 'stub', capabilities: () => ({}), ping: async () => ({ ok: true, detail: '' }),
     listCollections: async () => [], getCollection: async () => ({ name: 'my-docs' }), createCollection: async () => {},
     deleteCollection: async () => {}, ensureCollectionSchema: async () => ({ repaired: ['index x'], warnings: [] }),
-    listSourceDocuments: async () => [], getChunk: async () => [], getFileChunks: async () => [], searchHybrid: async () => [],
+    listSourceDocuments: async () => [], getChunk: async () => [], getFileChunks: async () => [], getSectionChunks: async () => null, searchHybrid: async () => [],
     getSkeletonRoot: async () => null, getSkeletonNode: async () => null, getSkeletonChildren: async () => [],
     getStructuralNode: async () => null, getSectionAnchor: async () => null,
     ...overrides,

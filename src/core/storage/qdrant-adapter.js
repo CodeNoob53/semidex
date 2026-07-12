@@ -60,6 +60,8 @@ export function toChunk(point) {
     nodeType:     p.node_type ?? null,
     nodeId:       p.node_id ?? null,
     nodePath:     p.node_path ?? null,
+    parentId:     p.parent_id ?? null,
+    headingPath:  Array.isArray(p.heading_path) ? p.heading_path : null,
     entityRefs:   toEntityRefs(p),
     score:        typeof point?.score === 'number' ? point.score : null,
     isMatch:      null,
@@ -312,6 +314,23 @@ export function createQdrantStorageAdapter() {
     // different retrieval-context concept, not a file-listing one).
     async getFileChunks(name, sourceFile) {
       const points = await store.getFileChunks(name, sourceFile);
+      return points.map(toChunk);
+    },
+
+    // Every retrieval-content chunk anchored under one skeleton section
+    // node, in chunk_index order — the section-scope primitive for the
+    // assembly service. Section identity is the skeleton nav node itself
+    // (resolved by nodeId or nodePath), never a heading-text match; chunks
+    // are matched by exact parent_id === section node_id in the store.
+    // Returns null when the nav node doesn't exist (unknown section, or a
+    // collection with no skeleton) — distinct from [] (real section with
+    // zero content chunks), so the API can 404 the former honestly.
+    async getSectionChunks(name, { nodeId, nodePath } = {}) {
+      const navNode = nodeId
+        ? await store.getSkeletonNodeById(name, nodeId)
+        : await store.getSkeletonNodeByPath(name, nodePath);
+      if (!navNode?.node_id) return null;
+      const points = await store.getSectionChunks(name, navNode.node_id);
       return points.map(toChunk);
     },
 

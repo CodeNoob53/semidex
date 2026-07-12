@@ -25,9 +25,13 @@ export const NAV_PAYLOAD_FIELDS = [
 ];
 
 // Payload fields returned for structural content nodes (table, code_block,
-// checklist, image, paragraph …).
+// checklist, image, paragraph …). entity_refs is here because getFileChunks/
+// getSectionChunks project through this list — without it, prose chunks'
+// stored structural references (Phase 3U) would silently never reach the
+// adapter's toChunk() mapping, even though toChunk() supports them.
 export const CONTENT_NODE_FIELDS = [
   'point_kind', 'node_type', 'node_id', 'node_path', 'parent_id',
   'source_file', 'heading_path', 'chunk_index', 'section',
   'lang', 'context', 'summary', 'text', 'raw_content', 'rawContent',
+  'entity_refs',
 ];

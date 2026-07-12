@@ -17,7 +17,7 @@
 // independent streams.
 
 import { envInt } from '../../core/env.js';
-import { PLACEHOLDER_LINE_RE } from '../entity-reference.js';
+import { PLACEHOLDER_LINE_RE } from '../../core/entity-reference.js';
 
 export const POINT_KINDS = Object.freeze({
   RETRIEVAL: 'retrieval_content',

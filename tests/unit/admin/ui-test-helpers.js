@@ -589,6 +589,7 @@ export function makeStubAdapter() {
     listSourceDocuments: async () => [],
     getChunk: async () => [],
     getFileChunks: async () => [],
+    getSectionChunks: async () => null,
     searchHybrid: async () => [],
     getSkeletonRoot: async () => null,
     getSkeletonNode: async () => null,

@@ -13,6 +13,7 @@ import { registerHealthRoutes } from './api/health.js';
 import { registerCollectionsRoutes } from './api/collections.js';
 import { registerDocumentsRoutes } from './api/documents.js';
 import { registerChunksRoutes } from './api/chunks.js';
+import { registerAssemblyRoutes } from './api/assembly.js';
 import { registerSkeletonRoutes } from './api/skeleton.js';
 import { registerNodeRoutes } from './api/node.js';
 import { registerSearchRoutes } from './api/search.js';
@@ -47,7 +48,7 @@ export function resolvePortConfig(env = process.env) {
   return port;
 }
 
-export function createApp({ adapter = createStorageAdapter(), embedQuery, jobRegistry, taskRegistry, pickFolderFn, checkOllamaFn } = {}) {
+export function createApp({ adapter = createStorageAdapter(), embedQuery, jobRegistry, taskRegistry, pickFolderFn, checkOllamaFn, assemblyLogFn } = {}) {
   const router = createRouter();
   registerHealthRoutes(router, adapter);
   // taskRegistry is optional DI (tests inject a fake with a pinned clock, or
@@ -60,6 +61,7 @@ export function createApp({ adapter = createStorageAdapter(), embedQuery, jobReg
   registerCollectionsRoutes(router, adapter, { taskRegistry: tasks });
   registerDocumentsRoutes(router, adapter);
   registerChunksRoutes(router, adapter);
+  registerAssemblyRoutes(router, adapter, assemblyLogFn ? { logFn: assemblyLogFn } : {});
   registerSkeletonRoutes(router, adapter);
   registerNodeRoutes(router, adapter);
   // embedQuery is optional DI (tests inject a stub so unit tests never load

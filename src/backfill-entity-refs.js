@@ -14,7 +14,7 @@
 import { pathToFileURL } from 'url';
 import { isNavPoint } from './core/qdrant/nav-filter.js';
 import { isSkeletonChunk } from './indexer/skeleton-payload.js';
-import { attachEntityRefs } from './indexer/entity-reference.js';
+import { attachEntityRefs } from './core/entity-reference.js';
 
 export const PAYLOAD_FIELDS = [
   'point_kind', 'node_type', 'node_id', 'node_path', 'section',

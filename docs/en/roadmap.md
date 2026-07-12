@@ -23,7 +23,7 @@ comparisons.
 |-------|-------|--------|
 | **Shipped baseline** | Hybrid retrieval MVP: indexing, hybrid search, MCP tools, diagnostics | ✅ Working today |
 | **Skeleton-first (main direction)** | Skeleton-first chunking active; structural carryover shipped; legacy chunking is compatibility/fallback | ✅ Active direction |
-| **Future — foundation** | Skeleton navigation (Stage 2 — nav tools and summaries shipped; content assembly remaining), validation & performance baseline (Stage 3) | 🚧 Stage 2 in progress; Stage 3 planned |
+| **Future — foundation** | Skeleton navigation (Stage 2 — nav tools, summaries, and the content assembly backend/Local API shipped; MCP assembly tool and stitched UI remaining), validation & performance baseline (Stage 3) | 🚧 Stage 2 in progress; Stage 3 planned |
 | **Future — product tracks** | Assistant Runtime, Codebase Memory, extended ingestion, Qdrant-native operations, Control Panel, Agent Memory | 🔭 Planned, post-foundation |
 | **Conditional research** | MMR, ColBERT, query expansion, scoped global search, adapters | 🔬 Trigger-gated, not milestones |
 
@@ -197,15 +197,27 @@ Shipped foundation:
 - expose read-only skeleton MCP tools:
   `qdrant_get_skeleton`, `qdrant_get_skeleton_node`,
   `qdrant_get_skeleton_children`;
-- keep navigation summaries out of default `qdrant_search`.
+- keep navigation summaries out of default `qdrant_search`;
+- structural entity references (`entity_refs` payload metadata linking prose
+  placeholders to their table/code/checklist entities, with a payload-only
+  backfill for existing collections);
+- the content assembly backend: a storage-independent core service
+  (`src/core/assembly/`) plus the admin Local API endpoint
+  `GET /api/collections/:name/assembly?scope=file|section`, preserving
+  authoritative raw tables/code blocks/checklists in original order, with
+  explicit fallback for un-backfilled collections and clean legacy
+  degradation.
 
 Remaining work:
 
-- add anchored content assembly through
-  `qdrant_get_content(collection, anchor_node_id, scope="section"|"file")`;
+- expose anchored content assembly over MCP through
+  `qdrant_get_content(collection, anchor_node_id, scope="section"|"file")` —
+  consuming the same core assembly service the Local API uses;
+- the stitched file/section UI consuming the assembly endpoint (not shipped);
 - generate summaries at useful navigation levels: file, major section, table,
   code block, and later collection;
-- add pagination/depth controls for very large skeleton reads.
+- add pagination/depth controls for very large skeleton reads and assembly
+  responses.
 
 Expected agent flow:
 

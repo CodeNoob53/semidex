@@ -1,5 +1,12 @@
 // Structural entity references (design §11 follow-on, Phase 3U) — the data
-// foundation for document assembly. A prose chunk's placeholder line (e.g.
+// foundation for document assembly. Lives in core/ (moved from indexer/ in
+// Phase 3V) because it is pure (no env, no network, no SDK) and is consumed
+// from both sides of the pipeline: the indexer (skeleton-chunk.js,
+// node-policy.js), the backfill script, AND the core assembly service's
+// placeholder fallback — one placeholder format, one matching
+// implementation, one file.
+//
+// A prose chunk's placeholder line (e.g.
 // "[table node: guide.md#setup/table-1 — Option | Default]") is the ONLY
 // link between a piece of prose and the structural entity (table/code_block/
 // checklist) it interrupted; today that link only exists as a string a human
@@ -75,7 +82,10 @@ const NODE_TYPE_LABEL = Object.freeze({
   checklist: 'checklist',
 });
 
-const STRUCTURAL_TYPES = new Set(['table', 'code_block', 'checklist']);
+// The structural entity types placeholders can reference — exported so the
+// assembly service (core/assembly/) classifies chunks with the SAME
+// authoritative set this module resolves against, not its own copy.
+export const STRUCTURAL_TYPES = new Set(['table', 'code_block', 'checklist']);
 
 // Recognizes "this looks like a placeholder" for locating candidate SPANS
 // in the prose text and for ORPHAN REPORTING when a span's node_path can't
