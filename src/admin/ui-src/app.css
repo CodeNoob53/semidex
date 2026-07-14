@@ -103,6 +103,14 @@ html, body {
   display: grid; grid-template-columns: var(--sidebar-width, 340px) 6px 1fr;
   height: calc(100% - 52px);
 }
+/* Narrow viewports (Phase 3W): the fixed sidebar width would otherwise
+   consume the whole viewport and squeeze .main to zero — cap it to a
+   viewport fraction so the document reader keeps a readable column. A
+   deliberate minimal accommodation, not a mobile nav redesign. */
+@media (max-width: 720px) {
+  .layout { grid-template-columns: min(var(--sidebar-width, 340px), 38vw) 6px 1fr; }
+  .main { padding: 14px 12px; }
+}
 .sidebar {
   background: var(--bg-raise);
   display: flex; flex-direction: column;
@@ -246,6 +254,52 @@ td.mono { font-family: var(--mono); font-size: 12px; }
 .file-view-name { font-size: 14px; color: var(--ink); overflow-wrap: anywhere; }
 .file-view-count { flex: none; }
 .file-view-meta { font-size: 11px; color: var(--ink-dim); margin-top: 4px; }
+
+/* ── document reader (Phase 3W) ─────────────────────────────────────────────
+   Continuous assembled document: unframed prose at a restrained reading
+   measure, entities (tables/code/checklists) kept distinct through spacing
+   and the structural renderer's own chrome — never cards nested inside
+   cards. The mode toggle reuses the structural Rendered/Raw toggle's visual
+   language so the header stays quiet. */
+.reader-mode-toggle {
+  display: inline-flex; margin-left: auto;
+  border: 1px solid var(--line); border-radius: 3px; overflow: hidden;
+}
+.reader-mode-btn {
+  background: transparent; border: 0; color: var(--ink-dim);
+  font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: .05em;
+  padding: 3px 9px; cursor: pointer;
+}
+.reader-mode-btn + .reader-mode-btn { border-left: 1px solid var(--line); }
+.reader-mode-btn:hover { color: var(--ink); background: var(--bg-inset); }
+.reader-mode-btn.active { color: var(--amber); background: var(--bg-inset); }
+.reader-mode-btn:focus-visible { outline: 2px solid var(--amber-dim); outline-offset: -2px; }
+
+.assembly-doc { max-width: 72ch; }
+.assembly-segment { position: relative; padding-left: 10px; }
+/* Chunk identity stays in the DOM (data-chunk-index) with only a subtle
+   gutter marker — visible on hover, stronger when targeted — never a
+   technical card border or a "chunk N" label. */
+.assembly-segment::before {
+  content: ""; position: absolute; left: 0; top: 2px; bottom: 2px; width: 2px;
+  background: transparent; border-radius: 1px;
+}
+.assembly-segment:hover::before { background: var(--line); }
+.assembly-prose .assembly-segment-body {
+  white-space: pre-wrap; overflow-wrap: anywhere;
+  font-size: 14px; line-height: 1.65; color: var(--ink);
+  margin: 0 0 14px;
+}
+.assembly-entity { margin: 4px 0 18px; }
+.assembly-target { background: rgba(232, 163, 61, .06); border-radius: 3px; }
+.assembly-target::before { background: var(--amber); }
+
+.assembly-warning {
+  max-width: 72ch; margin: 0 0 12px; padding: 6px 10px;
+  border: 1px solid var(--line); border-left: 3px solid var(--warn);
+  border-radius: 3px; font-size: 12px; color: var(--ink-dim);
+  background: var(--bg-inset);
+}
 
 /* chunk preview (Phase 3P: three tiers, quiet-to-loud in the opposite order
    of the old layout — a shaded metadata bar used to be the first, most

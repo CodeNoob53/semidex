@@ -195,18 +195,23 @@ describe('route() end-to-end: returning to a bare (query-less) collection route 
         hash: '#/c/my-docs/n/readme.md%23intro',
         apiResponses: {
           // Order matters: the test helper's api() stub matches by substring
-          // in insertion order, so the more specific "/skeleton/..." keys
-          // must come before the bare "/api/collections/my-docs" key (which
-          // would otherwise substring-match those URLs too and win first).
+          // in insertion order, so the more specific "/skeleton/..." and
+          // "/assembly" keys must come before the bare
+          // "/api/collections/my-docs" key (which would otherwise
+          // substring-match those URLs too and win first).
           '/skeleton/node?': { node: { nodePath: 'readme.md#intro', nodeType: 'section', sourceFile: 'readme.md' } },
-          '/skeleton/anchor?': { chunk: { sourceFile: 'readme.md', chunkIndex: 0 } },
-          '/chunks?': { chunks: [{ chunkIndex: 0, text: 'hi', totalChunks: 1 }] },
+          '/assembly?': {
+            collection: 'my-docs', scope: 'section', sourceFile: 'readme.md', nodePath: 'readme.md#intro',
+            assemblyMode: 'entity_refs', warnings: [],
+            segments: [{ kind: 'prose', chunkIndex: 0, nodeType: 'paragraph', text: 'hi' }],
+          },
           '/api/collections/my-docs': { collection: { pointCount: 1, warnings: [] } },
           '/api/collections?': { collections: [] },
         },
       });
       await helpers.route();
-      assert.equal(helpers.document.querySelectorAll('.chunk').length, 1, 'sanity: the section view opened with one chunk');
+      assert.equal(helpers.document.querySelectorAll('.assembly-segment').length, 1,
+        'sanity: the section view opened with one assembled segment (Phase 3W Document reader)');
 
       helpers.location.hash = '#/c/my-docs';
       await helpers.route();

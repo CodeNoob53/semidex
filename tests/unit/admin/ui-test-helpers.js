@@ -370,6 +370,7 @@ export function loadFileViewRenderHelpers(html, { renderChunkContentImpl } = {})
   vm.createContext(context);
   const src = stripExports(readUiSource('dom.js')).replace(/^import .*$/gm, '')
     + stripExports(readUiSource('icons.js'))
+    + stripExports(readUiSource('assembly-view.js')).replace(/^import .*$/gm, '')
     + stripExports(readUiSource('file-view.js')).replace(/^import .*$/gm, '')
       .replace(/nodeDisplayLabel\(/g, '(x=>String(x))(')
     + '\nconst api = async () => ({});\nfunction basename(p) { return String(p ?? "").split("/").filter(Boolean).at(-1) ?? ""; }\n';
@@ -421,10 +422,16 @@ export function loadFileViewBehaviorHelpers(html, apiResponses = {}, { renderChu
       throw new Error(`no stub api() response configured for ${url}`);
     },
     renderChunkContent: renderChunkContentImpl ?? renderChunkContentPlain,
+    // file-view.js surfaces non-blocking failures (e.g. a rejected lazy
+    // /chunks fetch) through showToast — captured here so tests can assert
+    // on the toast without the real #toast-host/timer machinery.
+    __toasts: [],
+    showToast: (message, opts = {}) => { context.__toasts.push({ message, ...opts }); },
   };
   vm.createContext(context);
   const src = stripExports(readUiSource('dom.js')).replace(/^import .*$/gm, '')
     + stripExports(readUiSource('icons.js'))
+    + stripExports(readUiSource('assembly-view.js')).replace(/^import .*$/gm, '')
     + stripExports(readUiSource('file-view.js')).replace(/^import .*$/gm, '');
   vm.runInContext(src, context);
   return context;
@@ -545,6 +552,7 @@ export function loadRouteIntegrationHelpers(html, { hash = '#/', apiResponses = 
     stripImports(readUiSource('toasts.js')),
     stripImports(readUiSource('routes.js')),
     stripImports(readUiSource('icons.js')),
+    stripImports(readUiSource('assembly-view.js')),
     stripImports(readUiSource('file-view.js')),
     stripImports(readUiSource('search.js')),
     stripImports(readUiSource('sidebar.js')),
