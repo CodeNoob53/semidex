@@ -5,6 +5,7 @@ diagnostics/
 .tmp-gemma-fixtures/
 .env
 config.json
+settings.json
 models/
 demo/
 .bench-indexing-corpus/
