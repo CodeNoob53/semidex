@@ -86,9 +86,14 @@ function createSentinelGuard(onToken) {
  *   embedQuery?: Function,
  *   countTokens: (text: string) => number|Promise<number>,
  *   generationProvider: import('../generation/provider.js').GenerationProvider,
+ *   settingsService?: ReturnType<typeof import('../settings/service.js').createSettingsService>,
  * }} deps
+ *   settingsService is optional DI, forwarded to buildEvidence() so
+ *   HYBRID_PREFETCH_LIMIT/RRF_K apply to Ask's own retrieval (code review
+ *   finding — Ask previously always used qdrant/store.js's own direct env
+ *   reads, silently ignoring a settings.json override).
  */
-export function createAskCoordinator({ adapter, embedQuery, countTokens, generationProvider }) {
+export function createAskCoordinator({ adapter, embedQuery, countTokens, generationProvider, settingsService }) {
   let busy = false;
 
   /**
@@ -124,7 +129,12 @@ export function createAskCoordinator({ adapter, embedQuery, countTokens, generat
         return { status: 'provider_unavailable', reason: readiness.reason ?? 'Generation provider is not ready.' };
       }
 
-      const evidence = await buildEvidence({ adapter, embedQuery, countTokens, collection, question, sourceFile, top });
+      // Cross-process propagation: a settings.json change saved via the
+      // admin UI while this process has been running must be picked up
+      // without a restart — same reasoning as MCP's search tool handler
+      // and admin /api/search's route handler.
+      settingsService?.refreshIfChanged();
+      const evidence = await buildEvidence({ adapter, embedQuery, countTokens, collection, question, sourceFile, top, settingsService });
       if (evidence.error) {
         return { status: 'error', code: evidence.error, message: evidence.message };
       }

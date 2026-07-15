@@ -347,9 +347,9 @@ export function createQdrantStorageAdapter() {
       return points.map(toChunk);
     },
 
-    async searchHybrid(name, { dense, sparse, limit = 5, filter } = {}) {
+    async searchHybrid(name, { dense, sparse, limit = 5, filter, settingsService } = {}) {
       const qdrantFilter = translateSearchFilter(filter);
-      const points = await store.hybridSearch(name, dense, sparse, limit, qdrantFilter);
+      const points = await store.hybridSearch(name, dense, sparse, limit, qdrantFilter, { settingsService });
       return points.map(toChunk);
     },
 

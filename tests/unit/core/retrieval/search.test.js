@@ -73,6 +73,15 @@ describe('runHybridSearch', () => {
     assert.deepEqual(result.hits, hits);
     assert.deepEqual(fakeAdapter.lastCall.opts, {
       dense: [0.1, 0.2], sparse: { indices: [1], values: [0.5] }, limit: 7, filter: { excludeNav: true },
+      settingsService: undefined,
     });
+  });
+
+  test('forwards a supplied settingsService through to searchHybrid (so HYBRID_PREFETCH_LIMIT/RRF_K apply to admin search and Ask, not just MCP)', async () => {
+    const adapter = fakeAdapter();
+    const embedQuery = async () => ({ dense: [1], sparse: {} });
+    const fakeSettingsService = { getActiveValue: () => 42, refreshIfChanged: () => {} };
+    await runHybridSearch({ adapter, embedQuery, collection: 'c', query: 'q', top: 5, settingsService: fakeSettingsService });
+    assert.equal(fakeAdapter.lastCall.opts.settingsService, fakeSettingsService);
   });
 });

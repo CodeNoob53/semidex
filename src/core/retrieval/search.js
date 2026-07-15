@@ -40,10 +40,16 @@ export function resolveSearchMode(capabilities) {
  *   query: string,
  *   top: number,
  *   filters?: { sourceFile?: string, tags?: string[] },
+ *   settingsService?: ReturnType<typeof import('../settings/service.js').createSettingsService>,
  * }} opts
+ *   settingsService is optional DI, forwarded to adapter.searchHybrid() so
+ *   HYBRID_PREFETCH_LIMIT/RRF_K (next_search settings) apply to admin
+ *   /api/search and Ask the same way they already do for MCP search (see
+ *   mcp/tools/search.js) — without it, this service silently fell back to
+ *   qdrant/store.js's own direct envInt() reads (code review finding).
  * @returns {Promise<{ searchMode: string, hits: Object[] } | RetrievalError>}
  */
-export async function runHybridSearch({ adapter, embedQuery = embedForSearch, collection, query, top, filters = {} }) {
+export async function runHybridSearch({ adapter, embedQuery = embedForSearch, collection, query, top, filters = {}, settingsService } = {}) {
   const searchMode = resolveSearchMode(adapter.capabilities());
   if (searchMode === null) {
     return { error: 'not_implemented', message: 'This storage backend does not support hybrid search.' };
@@ -63,7 +69,7 @@ export async function runHybridSearch({ adapter, embedQuery = embedForSearch, co
 
   const { sourceFile, tags } = filters;
   const filter = { ...(sourceFile && { sourceFile }), ...(tags && { tags }), excludeNav: true };
-  const hits = await adapter.searchHybrid(collection, { dense: vectors.dense, sparse: vectors.sparse, limit: top, filter });
+  const hits = await adapter.searchHybrid(collection, { dense: vectors.dense, sparse: vectors.sparse, limit: top, filter, settingsService });
 
   return { searchMode, hits };
 }

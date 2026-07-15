@@ -61,22 +61,42 @@ function tokenHits(str, tokens) {
 // Diversity penalty applied during greedy selection: 1st reuse, 2nd reuse, 3rd+ reuse.
 const DIVERSITY_PENALTIES = [0.05, 0.10, 0.15];
 
-const BOOST_SOURCE_FILE  = envFloat('RERANK_BOOST_SOURCE_FILE', 0.08, 0, 10);
-const BOOST_SECTION      = envFloat('RERANK_BOOST_SECTION',     0.06, 0, 10);
-const BOOST_TAGS         = envFloat('RERANK_BOOST_TAGS',        0.05, 0, 10);
-const BOOST_TEXT         = envFloat('RERANK_BOOST_TEXT',        0.01, 0, 10);
-const BASE_WEIGHT        = envFloat('RERANK_BASE_WEIGHT',       1.00, 0, 10);
-// Minimum score advantage rerank must gain over rank-1 to displace it.
-const PROTECT_TOP1_DELTA = envFloat('RERANK_PROTECT_TOP1_DELTA', 0.05, 0, 10);
-// Experimental: bonus when ≥1 non-stopword query token (technical ones weighted higher) appears
-// in first TEXT_LEAD_CHARS of chunk text. Rewards chunks that answer the query up-front.
-const BOOST_TEXT_LEAD    = envFloat('RERANK_BOOST_TEXT_LEAD',   0.00, 0, 10);
-const TEXT_LEAD_CHARS    = envInt('RERANK_TEXT_LEAD_CHARS',     200,  1, 10000, '[rerank] ');
-// Experimental: small penalty for chunk_index=0 when query has ≥2 technical tokens.
-// Discourages overview/intro chunks from ranking above specific content for technical queries.
-const PENALTY_INTRO_CHUNK  = envFloat('RERANK_PENALTY_INTRO_CHUNK',  0.02, 0, 10);
-const INTRO_CHUNK_TECH_MIN = envInt('RERANK_INTRO_CHUNK_TECH_MIN',   2,    1, 100, '[rerank] ');
-const DEBUG              = process.env.RERANK_DEBUG === '1';
+const DEFAULT_WEIGHTS = Object.freeze({
+  BOOST_SOURCE_FILE:  envFloat('RERANK_BOOST_SOURCE_FILE', 0.08, 0, 10),
+  BOOST_SECTION:      envFloat('RERANK_BOOST_SECTION',     0.06, 0, 10),
+  BOOST_TAGS:         envFloat('RERANK_BOOST_TAGS',        0.05, 0, 10),
+  BOOST_TEXT:         envFloat('RERANK_BOOST_TEXT',        0.01, 0, 10),
+  BASE_WEIGHT:        envFloat('RERANK_BASE_WEIGHT',       1.00, 0, 10),
+  PROTECT_TOP1_DELTA: envFloat('RERANK_PROTECT_TOP1_DELTA', 0.05, 0, 10),
+  BOOST_TEXT_LEAD:    envFloat('RERANK_BOOST_TEXT_LEAD',   0.00, 0, 10),
+  TEXT_LEAD_CHARS:    envInt('RERANK_TEXT_LEAD_CHARS',     200,  1, 10000, '[rerank] '),
+  PENALTY_INTRO_CHUNK:    envFloat('RERANK_PENALTY_INTRO_CHUNK',  0.02, 0, 10),
+  INTRO_CHUNK_TECH_MIN:   envInt('RERANK_INTRO_CHUNK_TECH_MIN',   2,    1, 100, '[rerank] '),
+});
+const DEBUG = process.env.RERANK_DEBUG === '1';
+
+// Weight keys -> the settings registry key each maps to (core/settings/
+// definitions.js) — used only when a settingsService is supplied.
+const WEIGHT_SETTING_KEYS = Object.freeze({
+  BOOST_SOURCE_FILE: 'RERANK_BOOST_SOURCE_FILE', BOOST_SECTION: 'RERANK_BOOST_SECTION',
+  BOOST_TAGS: 'RERANK_BOOST_TAGS', BOOST_TEXT: 'RERANK_BOOST_TEXT', BASE_WEIGHT: 'RERANK_BASE_WEIGHT',
+  PROTECT_TOP1_DELTA: 'RERANK_PROTECT_TOP1_DELTA', BOOST_TEXT_LEAD: 'RERANK_BOOST_TEXT_LEAD',
+  TEXT_LEAD_CHARS: 'RERANK_TEXT_LEAD_CHARS', PENALTY_INTRO_CHUNK: 'RERANK_PENALTY_INTRO_CHUNK',
+  INTRO_CHUNK_TECH_MIN: 'RERANK_INTRO_CHUNK_TECH_MIN',
+});
+
+// Resolves the weights to use for one rerankResults() call — falls back to
+// the original module-load-time envFloat/envInt values (DEFAULT_WEIGHTS)
+// unchanged when no settingsService is supplied, matching this module's
+// pre-existing behavior exactly for any caller that doesn't opt in.
+function resolveWeights(settingsService) {
+  if (!settingsService) return DEFAULT_WEIGHTS;
+  const resolved = {};
+  for (const [localKey, settingKey] of Object.entries(WEIGHT_SETTING_KEYS)) {
+    resolved[localKey] = settingsService.getActiveValue(settingKey);
+  }
+  return resolved;
+}
 
 /**
  * Rerank results using deterministic signals on top of Qdrant RRF.
@@ -85,12 +105,22 @@ const DEBUG              = process.env.RERANK_DEBUG === '1';
  * @param {string} query       - The search query
  * @param {Object} opts
  * @param {number} opts.finalLimit   - How many to return (default: results.length)
+ * @param {Object} [depsOpts]
+ * @param {Object} [depsOpts.settingsService] - optional SettingsService; when
+ *   supplied, every RERANK_* weight below is resolved live via
+ *   getActiveValue() instead of the module-load-time envFloat/envInt
+ *   defaults, so a settings.json change takes effect on the next search
+ *   without a restart (RERANK_* weights are next_search settings).
  * @returns {Array} Reranked, trimmed to finalLimit.
  */
-export function rerankResults(results, query, { finalLimit } = {}) {
+export function rerankResults(results, query, { finalLimit } = {}, { settingsService } = {}) {
   if (!results.length) return results;
   const limit = finalLimit ?? results.length;
   const tokens = queryTokens(query); // Map<lowerToken, isTechnical>
+  const {
+    BOOST_SOURCE_FILE, BOOST_SECTION, BOOST_TAGS, BOOST_TEXT, BASE_WEIGHT, PROTECT_TOP1_DELTA,
+    BOOST_TEXT_LEAD, TEXT_LEAD_CHARS, PENALTY_INTRO_CHUNK, INTRO_CHUNK_TECH_MIN,
+  } = resolveWeights(settingsService);
 
   // Phase 1: score each candidate (base + boosts, no diversity yet).
   const scored = results.map((r, rank) => {

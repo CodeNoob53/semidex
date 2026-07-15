@@ -47,17 +47,63 @@ function envEnum(name, defaultVal, allowed) {
   return v;
 }
 
-export const RERANK_CE_MODEL      = process.env.RERANK_CE_MODEL || 'cross-encoder/mmarco-mMiniLMv2-L12-H384-v1';
+// RERANK_CE_MODEL/RERANK_CE_DEVICE/RERANK_CE_CACHE_DIR are next_restart
+// settings (core/settings/definitions.js): read once, at process startup,
+// via a SettingsService — NOT "left reading raw env forever," which was an
+// earlier, incorrect reading of next_restart (code review finding). `let`
+// (not const) so applyCeRerankSettings() below can re-resolve them from a
+// SettingsService before the first real model load — _realLoad() below
+// (called lazily, once, from loadCEModel()) is exactly the "process
+// startup, before first use" moment next_restart fields are meant to be
+// resolved at, matching indexer/run.js's chunk.js/context.js/tag.js
+// pattern (applyXSettings(), called once before any real work starts).
+let RERANK_CE_MODEL      = process.env.RERANK_CE_MODEL || 'cross-encoder/mmarco-mMiniLMv2-L12-H384-v1';
+let RERANK_CE_DEVICE     = envEnum('RERANK_CE_DEVICE', 'cpu', ['cpu', 'dml', 'cuda']);
+let RERANK_CE_CACHE_DIR  = process.env.RERANK_CE_CACHE_DIR || './models';
 export const RERANK_CE_INPUT      = envEnum('RERANK_CE_INPUT', 'text+meta', ['text', 'text+section', 'text+meta']);
 export const RERANK_CE_TOP_N      = envInt('RERANK_CE_TOP_N', 40, 1, 500);
 export const RERANK_CE_TIMEOUT_MS = envInt('RERANK_CE_TIMEOUT_MS', 10000, 100, 120000);
-export const RERANK_CE_DEVICE     = envEnum('RERANK_CE_DEVICE', 'cpu', ['cpu', 'dml', 'cuda']);
-export const RERANK_CE_CACHE_DIR  = process.env.RERANK_CE_CACHE_DIR || './models';
 export const RERANK_CE_BATCH_SIZE = envInt('RERANK_CE_BATCH_SIZE', 16, 1, 256);
 const DEBUG = process.env.RERANK_CE_DEBUG === '1';
 
+export { RERANK_CE_MODEL, RERANK_CE_DEVICE, RERANK_CE_CACHE_DIR };
+
+/**
+ * Re-resolves RERANK_CE_MODEL/RERANK_CE_DEVICE/RERANK_CE_CACHE_DIR from a
+ * SettingsService. Must be called BEFORE the first loadCEModel() call for
+ * the new values to take effect — once the model is loaded, these are
+ * cached in-process for the session (see _realLoad()'s own module-state
+ * caching), matching their next_restart classification exactly. Real
+ * entry points (MCP server's warmup branch, indexer, admin's Ask/search
+ * path) call this once, right after constructing their SettingsService.
+ * @param {Object} settingsService
+ */
+export function applyCeRerankSettings(settingsService) {
+  RERANK_CE_MODEL = settingsService.getActiveValue('RERANK_CE_MODEL');
+  RERANK_CE_DEVICE = settingsService.getActiveValue('RERANK_CE_DEVICE');
+  RERANK_CE_CACHE_DIR = settingsService.getActiveValue('RERANK_CE_CACHE_DIR');
+}
+
 function debug(msg) {
   if (DEBUG) process.stderr.write(`[ce-rerank] ${msg}\n`);
+}
+
+/**
+ * Resolves the per-call CE config (input format, top-N cap, timeout,
+ * batch size) — falls back to this module's own env-derived exports
+ * unchanged when no settingsService is supplied.
+ * @param {{ settingsService?: Object }} [opts]
+ */
+export function getCeRerankConfig({ settingsService } = {}) {
+  if (!settingsService) {
+    return { input: RERANK_CE_INPUT, topN: RERANK_CE_TOP_N, timeoutMs: RERANK_CE_TIMEOUT_MS, batchSize: RERANK_CE_BATCH_SIZE };
+  }
+  return {
+    input: settingsService.getActiveValue('RERANK_CE_INPUT'),
+    topN: settingsService.getActiveValue('RERANK_CE_TOP_N'),
+    timeoutMs: settingsService.getActiveValue('RERANK_CE_TIMEOUT_MS'),
+    batchSize: settingsService.getActiveValue('RERANK_CE_BATCH_SIZE'),
+  };
 }
 
 // ── Module state ──────────────────────────────────────────────────────────────
@@ -175,11 +221,11 @@ function extractScores(logits, batchSize) {
   return scores;
 }
 
-async function _scoreAll(query, candidates) {
+async function _scoreAll(query, candidates, { input, batchSize }) {
   const rawScores = [];
-  for (let i = 0; i < candidates.length; i += RERANK_CE_BATCH_SIZE) {
-    const batch    = candidates.slice(i, i + RERANK_CE_BATCH_SIZE);
-    const passages = batch.map(r => buildPassage(r.payload));
+  for (let i = 0; i < candidates.length; i += batchSize) {
+    const batch    = candidates.slice(i, i + batchSize);
+    const passages = batch.map(r => buildPassage(r.payload, input));
     const queries  = Array(batch.length).fill(query);
     const inputs = _ceTokenizer(queries, {
       text_pair: passages, truncation: true, max_length: 512,
@@ -206,9 +252,11 @@ async function _scoreAll(query, candidates) {
  * @param {Array}  candidates — hybrid/det-rerank results (with .payload)
  * @param {string} query
  * @param {{ finalLimit?: number }} opts
+ * @param {{ settingsService?: Object }} [depsOpts] — see getCeRerankConfig()
  */
-export async function ceRerank(candidates, query, { finalLimit } = {}) {
+export async function ceRerank(candidates, query, { finalLimit } = {}, { settingsService } = {}) {
   const limit = finalLimit ?? candidates.length;
+  const { input, topN, batchSize } = getCeRerankConfig({ settingsService });
 
   if (!candidates.length) {
     debug('empty candidate pool — skipping CE inference');
@@ -234,15 +282,15 @@ export async function ceRerank(candidates, query, { finalLimit } = {}) {
     }
 
     let pool = candidates;
-    if (pool.length > RERANK_CE_TOP_N) {
-      debug(`truncated pool from ${pool.length} to ${RERANK_CE_TOP_N} candidates (RERANK_CE_TOP_N cap)`);
-      pool = pool.slice(0, RERANK_CE_TOP_N);
+    if (pool.length > topN) {
+      debug(`truncated pool from ${pool.length} to ${topN} candidates (RERANK_CE_TOP_N cap)`);
+      pool = pool.slice(0, topN);
     }
     if (pool.length < limit) {
       debug(`pool size ${pool.length} < top=${limit} — returning all scored candidates`);
     }
 
-    const scores = await _scoreAll(query, pool);
+    const scores = await _scoreAll(query, pool, { input, batchSize });
     if (DEBUG) {
       pool.forEach((r, i) => debug(
         `${r.payload?.source_file}#${r.payload?.chunk_index}  ce=${scores[i].toFixed(4)}`));

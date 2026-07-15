@@ -78,6 +78,7 @@ async function truncateToBudget(text, maxTokens, countTokens) {
  *   sourceFile?: string,
  *   top?: number,
  *   perSourceTokenBudget?: number,
+ *   settingsService?: ReturnType<typeof import('../settings/service.js').createSettingsService>,
  * }} opts
  * @returns {Promise<{ error: string, message: string } | { sources: Array<Object>, searchMode: string }>}
  *   Each source: { n, sourceFile, chunkIndex, section, snippet, nodeId,
@@ -85,14 +86,16 @@ async function truncateToBudget(text, maxTokens, countTokens) {
  *   hits — the caller (coordinator) treats [] as a deterministic refusal,
  *   never a reason to call the LLM. `searchMode` reflects the retrieval
  *   mode that ran (currently always 'hybrid' on success), independent of
- *   whether any hits came back.
+ *   whether any hits came back. settingsService is optional DI, forwarded
+ *   to runHybridSearch() so HYBRID_PREFETCH_LIMIT/RRF_K apply to Ask's own
+ *   retrieval too (code review finding).
  */
 export async function buildEvidence({
   adapter, embedQuery, countTokens, collection, question, sourceFile, top = DEFAULT_TOP,
-  perSourceTokenBudget = DEFAULT_PER_SOURCE_TOKEN_BUDGET,
+  perSourceTokenBudget = DEFAULT_PER_SOURCE_TOKEN_BUDGET, settingsService,
 }) {
   const result = await runHybridSearch({
-    adapter, embedQuery, collection, query: question, top, filters: { sourceFile },
+    adapter, embedQuery, collection, query: question, top, filters: { sourceFile }, settingsService,
   });
   if (result.error) return result;
 

@@ -145,10 +145,20 @@ export async function search(collection, vector, limit = 5, filter = null) {
   }));
 }
 
-export async function hybridSearch(collection, denseVector, sparseVector, limit = 5, filter = null) {
+// settingsService is optional DI (HYBRID_PREFETCH_LIMIT/RRF_K are
+// next_search settings — see core/settings/definitions.js — resolved fresh
+// on every call, same as this function's own pre-existing per-call envInt()
+// reads). When omitted, falls back to the original direct envInt() reads
+// unchanged — every existing caller that doesn't pass a settingsService
+// keeps its exact current behavior.
+export async function hybridSearch(collection, denseVector, sparseVector, limit = 5, filter = null, { settingsService } = {}) {
   const client = getQdrantClient();
-  const prefetchMult = envInt('HYBRID_PREFETCH_LIMIT', 2, 1, 100, '[qdrant] ');
-  const rrfK         = envInt('RRF_K', 60, 1, 10000, '[qdrant] ');
+  const prefetchMult = settingsService
+    ? settingsService.getActiveValue('HYBRID_PREFETCH_LIMIT')
+    : envInt('HYBRID_PREFETCH_LIMIT', 2, 1, 100, '[qdrant] ');
+  const rrfK = settingsService
+    ? settingsService.getActiveValue('RRF_K')
+    : envInt('RRF_K', 60, 1, 10000, '[qdrant] ');
   const prefetchLimit = Math.max(limit * prefetchMult, limit + 1);
   const prefetch = [
     { query: sparseVector, using: 'sparse', limit: prefetchLimit, ...(filter && { filter }) },
