@@ -34,5 +34,9 @@ export function currentRoute(hash = location.hash || '#/') {
   m = path.match(/^#\/c\/(.+)$/);
   if (m) return { view: 'collection', name: decodeURIComponent(m[1]), ...(search && { search }) };
   if (path === '#/index') return { view: 'index' };
+  // Phase 4A.5b: the global runtime-settings screen — distinct `view` value
+  // ('global-settings') from collection settings ('settings' above), so
+  // router.js/sidebar.js's active-state logic never conflates the two.
+  if (path === '#/settings') return { view: 'global-settings' };
   return { view: 'overview' };
 }

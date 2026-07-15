@@ -68,6 +68,47 @@ describe('GET /api/health', () => {
       assert.equal(body.storage.detail, 'connection refused');
     });
   });
+
+  it('redacts a QDRANT_KEY value embedded in a failing ping()\'s detail', async () => {
+    // Regression: qdrant-adapter.js's ping() returns { detail: err.message }
+    // verbatim on failure — a raw Qdrant client error can embed the literal
+    // configured key, and this endpoint (unlike a thrown HttpError) was
+    // never routed through any redaction path. The new #/settings screen
+    // now surfaces this detail text directly to the user (code review
+    // finding).
+    const originalKey = process.env.QDRANT_KEY;
+    process.env.QDRANT_KEY = 'super-secret-test-key';
+    try {
+      const adapter = makeStubAdapter({
+        ping: async () => ({ ok: false, detail: 'auth failed with key super-secret-test-key rejected' }),
+      });
+      await withServer(adapter, async (base) => {
+        const res = await fetch(base + '/api/health');
+        const text = await res.text();
+        assert.ok(!text.includes('super-secret-test-key'), `leaked key: ${text}`);
+        assert.match(text, /\[REDACTED\]/);
+      });
+    } finally {
+      if (originalKey === undefined) delete process.env.QDRANT_KEY;
+      else process.env.QDRANT_KEY = originalKey;
+    }
+  });
+
+  it('redacts credentials and a query string out of a URL embedded in a failing ping()\'s detail', async () => {
+    const adapter = makeStubAdapter({
+      ping: async () => ({
+        ok: false,
+        detail: 'fetch failed: https://user:pass@my-cluster.qdrant.io/collections?api_key=leak-me',
+      }),
+    });
+    await withServer(adapter, async (base) => {
+      const res = await fetch(base + '/api/health');
+      const text = await res.text();
+      assert.ok(!text.includes('user:pass'), `leaked credentials: ${text}`);
+      assert.ok(!text.includes('api_key=leak-me'), `leaked query string: ${text}`);
+      assert.match(text, /https:\/\/my-cluster\.qdrant\.io/, 'host-only form should survive');
+    });
+  });
 });
 
 describe('GET /api/capabilities', () => {

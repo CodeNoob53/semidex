@@ -127,7 +127,7 @@ export function loadSidebarActiveStateHelpers() {
         <div class="tree-row tree-node" data-path="readme.md#intro"></div>
       </div>
     </li>
-  </ul><nav id="nav-index"></nav>`);
+  </ul><nav id="nav-index"></nav><a id="nav-global-settings"></a>`);
   const context = {
     document,
     $: (sel, root = document) => root.querySelector(sel),
@@ -475,6 +475,7 @@ export function loadTopbarHelpers(html, { apiImpl, openOperationModalImpl } = {}
   };
   vm.createContext(context);
   const src = stripExports(readUiSource('dom.js')).replace(/^import .*$/gm, '')
+    + stripExports(readUiSource('icons.js'))
     + stripExports(readUiSource('topbar.js')).replace(/^import .*$/gm, '')
     + `\nconst api = __apiImpl;
     const openOperationModal = __openOperationModalImpl;
@@ -563,10 +564,12 @@ export function loadRouteIntegrationHelpers(html, { hash = '#/', apiResponses = 
     `const collectionShell = ${JSON.stringify(readUiSource('partials/collection-shell.html'))};`,
     stripImports(readUiSource('collection-view.js')),
     stripImports(readUiSource('router.js'))
-      // router.js imports renderSettingsView/renderIndexingView for the
-      // 'settings'/'index' route views — not exercised by these
-      // collection-route tests, stubbed to avoid pulling in their modules.
+      // router.js imports renderSettingsView/renderGlobalSettingsView/
+      // renderIndexingView for the 'settings'/'global-settings'/'index'
+      // route views — not exercised by these collection-route tests,
+      // stubbed to avoid pulling in their modules.
       .replace(/renderSettingsView\(/g, '(async()=>{})(')
+      .replace(/renderGlobalSettingsView\(/g, '(async()=>{})(')
       .replace(/renderIndexingView\(/g, '(async()=>{})('),
   ].join('\n');
   vm.runInContext(src, context);
@@ -760,6 +763,41 @@ export function loadSettingsRepairHelpers(html, { apiPostImpl, apiImpl } = {}) {
     await new Promise((resolve) => setImmediate(resolve));
     await new Promise((resolve) => setImmediate(resolve));
   };
+  return context;
+}
+
+// For global-settings-view.js (#/settings, Phase 4A.5b) — the view only
+// depends on dom.js/api.js plus its own ?raw partial, so this needs just a
+// real DOM (for querySelector/innerHTML) and a URL-substring-keyed api()
+// stub (same convention as loadFileViewBehaviorHelpers/
+// loadRouteIntegrationHelpers) that can resolve OR throw per endpoint, so
+// tests can exercise "health ok, generation fails" and vice versa
+// independently — the exact behavior Promise.allSettled() exists to
+// guarantee.
+export function loadGlobalSettingsHelpers({ apiResponses = {} } = {}) {
+  const { document } = parseHTML('<main id="main"></main>');
+  const apiCalls = [];
+  const context = {
+    document,
+    __apiCalls: apiCalls,
+    api: async (url) => {
+      apiCalls.push(url);
+      for (const [key, value] of Object.entries(apiResponses)) {
+        if (url.includes(key)) {
+          const resolved = typeof value === 'function' ? value(url) : value;
+          if (resolved instanceof Error) throw resolved;
+          return resolved;
+        }
+      }
+      throw new Error(`no stub api() response configured for ${url}`);
+    },
+  };
+  vm.createContext(context);
+  const shellHtml = readUiSource('partials/global-settings-shell.html');
+  const src = stripExports(readUiSource('dom.js')).replace(/^import .*$/gm, '')
+    + `const globalSettingsShell = ${JSON.stringify(shellHtml)};\n`
+    + stripExports(readUiSource('global-settings-view.js')).replace(/^import .*$/gm, '');
+  vm.runInContext(src, context);
   return context;
 }
 

@@ -262,20 +262,33 @@ detail. No UI work from this plan's later phases has started.
 
 ### Phase 4A.5 — Settings + external provider configuration
 
-**Status (2026-07-15): 4A.5a (runtime/config/status backend) done; Settings
-UI and cloud adapters not started.** See
-`docs/admin-api-phase4a5a-generation-runtime-2026-07-15.md` for the
-implementation report. What exists now: `resolveGenerationRuntimeConfig()`
-(pure config resolver with OS-env/`.env`/default provenance), the
-generation runtime service (`src/core/generation/runtime.js`, wraps the
-registry, never crashes admin startup on bad config), `GET
-/api/generation/status` (backend-neutral, redacted), and the explicit admin
-bootstrap (`src/admin/bootstrap.js`, `npm run admin`'s real entry point —
-snapshots OS env before any `dotenv/config` import can mutate it). Ask and
-the status endpoint now share one `generationRuntime` instance per server
-process. Still entirely deferred to a later 4A.5 slice: the Settings UI
-itself, cloud/API adapters, API-key persistence, session provider
-switching, local config-file writes.
+**Status (2026-07-15): 4A.5a (runtime/config/status backend) and 4A.5b
+(global runtime settings screen, read-only) both done; cloud adapters and
+editable Settings not started.** 4A.5a: see
+`docs/admin-api-phase4a5a-generation-runtime-2026-07-15.md`. What exists:
+`resolveGenerationRuntimeConfig()` (pure config resolver with OS-env/
+`.env`/default provenance), the generation runtime service
+(`src/core/generation/runtime.js`, wraps the registry, never crashes admin
+startup on bad config), `GET /api/generation/status` (backend-neutral,
+redacted), and the explicit admin bootstrap (`src/admin/bootstrap.js`,
+`npm run admin`'s real entry point — snapshots OS env before any
+`dotenv/config` import can mutate it). Ask and the status endpoint share
+one `generationRuntime` instance per server process.
+
+4A.5b: see `docs/admin-ui-phase4a5b-global-runtime-settings-2026-07-15.md`.
+Adds `#/settings` — a thin, **read-only** screen
+(`src/admin/ui-src/global-settings-view.js`) over exactly `GET /api/health`
+and `GET /api/generation/status`, reached via a gear icon in the top bar.
+Shows storage connectivity, generation provider/model/readiness, effective
+context size, device policy, and an unavailable reason when applicable;
+configuration provenance (OS env / `.env` / default) is a secondary,
+collapsed details block. Distinct from collection settings
+(`#/c/:name/settings`, `settings-view.js`), which is unchanged.
+
+**Still entirely deferred** to a later 4A.5 slice: any settings that can be
+**edited** (provider selection, `.env` editing, API-key inputs, session
+provider switching, local config-file writes), cloud/API adapters,
+API-key persistence.
 
 Scope: F13 + F14. Add a dashboard Settings surface and provider/runtime
 registry.

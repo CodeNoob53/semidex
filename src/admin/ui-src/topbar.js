@@ -3,6 +3,16 @@ import { $, esc } from './dom.js';
 import { api } from './api.js';
 import { subscribe, getActiveOperation } from './operation-store.js';
 import { openOperationModal } from './operation-modal.js';
+import { iconGear } from './icons.js';
+
+// Renders the existing iconGear() SVG into the static topbar link (Phase
+// 4A.5b) — the icon markup itself lives in icons.js (one source of truth,
+// same convention every sidebar row icon already follows), not duplicated
+// as hardcoded SVG in index.html.
+export function initGlobalSettingsLink() {
+  const link = $('#nav-global-settings');
+  if (link) link.innerHTML = iconGear();
+}
 
 export async function loadTopbar() {
   const lamp = $('#health-lamp');
@@ -58,7 +68,13 @@ export function renderJobChip(chip, activeOp) {
     ? ` ${Math.round(activeOp.progress.percent)}%`
     : ''; // no known percentage -> the CSS dot's indeterminate pulse is the only progress signal, no fabricated number
   // activeOp.collection is a user-controlled collection name (the API only
-  // rejects "/" and "\", not HTML) — esc() it, same as every other place in
-  // this codebase that interpolates a collection/file name into HTML.
-  chip.innerHTML = `<span class="job-chip-dot"></span>${esc(label)} ${esc(activeOp.collection)}${esc(percent)}`;
+  // rejects "/" and "\", not HTML, and enforces no length limit) — esc() it,
+  // same as every other place in this codebase that interpolates a
+  // collection/file name into HTML. The label+collection+percent text is
+  // wrapped in its own span (not raw text nodes alongside .job-chip-dot) so
+  // app.css can truncate just the text with ellipsis while .job-chip itself
+  // stays bounded by a max-width — a long collection name previously had no
+  // truncation mechanism at all and could grow the chip (and the whole
+  // topbar row) past the viewport (code review finding).
+  chip.innerHTML = `<span class="job-chip-dot"></span><span class="job-chip-text">${esc(label)} ${esc(activeOp.collection)}${esc(percent)}</span>`;
 }

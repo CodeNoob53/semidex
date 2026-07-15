@@ -118,12 +118,139 @@ describe('topbar operation chip — subscribes to the shared store, never polls 
   });
 });
 
+// ── Phase 4A.5b: global runtime settings gear link ─────────────────────────
+// Full behavioral coverage (readiness/unavailable/provenance rendering,
+// hostile-string handling) lives in ui-global-settings.test.js — these
+// tests cover the specific piece that lives in topbar.js itself: rendering
+// the shared iconGear() SVG into the real, served link element.
+describe('topbar — global settings gear link (#/settings)', () => {
+  it('initGlobalSettingsLink() renders the real iconGear() SVG into #nav-global-settings', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const { document, initGlobalSettingsLink } = loadTopbarHelpers(html);
+      const link = document.getElementById('nav-global-settings');
+      assert.ok(link, 'index.html must serve a #nav-global-settings element');
+      initGlobalSettingsLink();
+      assert.ok(link.querySelector('svg[data-icon="gear"]'), 'the real iconGear() SVG must be rendered into the link');
+    });
+  });
+
+  it('the served link points at #/settings and carries accessible name + title', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const { document } = loadTopbarHelpers(html);
+      const link = document.getElementById('nav-global-settings');
+      assert.equal(link.getAttribute('href'), '#/settings');
+      assert.equal(link.getAttribute('aria-label'), 'Semidex settings');
+      assert.equal(link.getAttribute('title'), 'Semidex settings');
+    });
+  });
+
+  it('is a real <a> element, keyboard-focusable and activatable like any other nav link', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const { document } = loadTopbarHelpers(html);
+      const link = document.getElementById('nav-global-settings');
+      assert.equal(link.tagName.toLowerCase(), 'a');
+    });
+  });
+});
+
 // ── Phase 3D: CSS actually honors the "hidden" attribute (browser-verified) ─
 describe('app.css — .job-chip[hidden] actually hides the chip', () => {
   it('has an explicit [hidden] override rule, not just an unconditional "display: flex"', () => {
     const css = readUiSource('app.css');
     assert.match(css, /\.job-chip\[hidden\]\s*\{\s*display:\s*none;?\s*\}/,
       '.job-chip must have an explicit [hidden] rule that actually hides it');
+  });
+});
+
+// ── Phase 4A.5b code review: the topbar previously had no narrow-viewport
+// handling at all (the sole existing media query only ever touched
+// .layout/.main) — adding the settings gear link left zero slack in a
+// fixed-height, non-wrapping flex row. These assertions can't replace a
+// real rendered-pixel check (no headless browser is installed in this
+// project — see the Phase 4A.5b report's documented limitation), but they
+// do pin the actual CSS mechanism a real narrow viewport depends on: the
+// brand text can shrink/truncate instead of refusing to shrink, decorative
+// content sheds at a defined breakpoint, the health-status text is bounded
+// so it can never alone force the row wider than the viewport, and (round
+// 2 — the first pass missed this) the active-job chip's own dynamic,
+// user-controlled collection-name text is independently bounded too, since
+// .topbar-status's flex-shrink: 0 only protects the row from shrinking
+// itself, not from one of its own children growing unboundedly.
+describe('app.css — topbar does not force horizontal overflow at narrow viewports', () => {
+  it('.brand can shrink below its natural content width (min-width: 0) and truncates instead of overflowing', () => {
+    const css = readUiSource('app.css');
+    const brandRule = css.match(/\.brand\s*\{[^}]*\}/)?.[0] ?? '';
+    assert.match(brandRule, /min-width:\s*0/);
+    assert.match(brandRule, /text-overflow:\s*ellipsis/);
+  });
+
+  it('has a narrow-viewport rule that hides decorative topbar content (.brand-sub, .cap-summary)', () => {
+    const css = readUiSource('app.css');
+    const mediaBlock = css.match(/@media[^{]*\{[^}]*\.brand-sub[^}]*\}/s)?.[0] ?? '';
+    assert.match(mediaBlock, /\.brand-sub/);
+    assert.match(mediaBlock, /\.cap-summary/);
+    assert.match(mediaBlock, /display:\s*none/);
+  });
+
+  it('#health-text is bounded (max-width + truncation), never allowed to grow unbounded', () => {
+    const css = readUiSource('app.css');
+    const rule = css.match(/#health-text\s*\{[^}]*\}/)?.[0] ?? '';
+    assert.match(rule, /max-width/);
+    assert.match(rule, /text-overflow:\s*ellipsis/);
+  });
+
+  it('.topbar-status itself does not shrink relative to .brand (the row keeps its controls, .brand gives way first)', () => {
+    const css = readUiSource('app.css');
+    const rule = css.match(/\.topbar-status\s*\{[^}]*\}/)?.[0] ?? '';
+    assert.match(rule, /flex-shrink:\s*0/);
+  });
+
+  // Round-2 code review: .topbar-status having flex-shrink: 0 does NOT
+  // bound an unboundedly long *active-operation collection name* inside
+  // the job chip — that chip has its own dynamic, user-controlled text
+  // content (topbar.js's renderJobChip()) with no length limit enforced
+  // anywhere (the API only rejects "/" and "\"). Without its own
+  // max-width + truncation, a long collection name could grow the chip
+  // (and therefore the whole topbar row) past the viewport on its own,
+  // independent of whatever the brand/health-text side was doing.
+  it('.job-chip is bounded by a max-width, not just an unbounded flex child of .topbar-status', () => {
+    const css = readUiSource('app.css');
+    const rule = css.match(/\.job-chip\s*\{[^}]*\}/)?.[0] ?? '';
+    assert.match(rule, /max-width/);
+    assert.match(rule, /min-width:\s*0/, '.job-chip must be able to actually shrink to its max-width inside the flex row, not just declare one');
+  });
+
+  it('the job chip\'s label/collection/percent text truncates with ellipsis instead of growing the chip unboundedly', () => {
+    const css = readUiSource('app.css');
+    const rule = css.match(/\.job-chip-text\s*\{[^}]*\}/)?.[0] ?? '';
+    assert.match(rule, /overflow:\s*hidden/);
+    assert.match(rule, /text-overflow:\s*ellipsis/);
+    assert.match(rule, /white-space:\s*nowrap/);
+  });
+
+  it('narrows the job chip further at the narrow-viewport breakpoint, same as the rest of the topbar', () => {
+    const css = readUiSource('app.css');
+    const mediaBlock = css.match(/@media[^{]*max-width:\s*640px[^{]*\{[^}]*\.job-chip[^}]*\}/s)?.[0] ?? '';
+    assert.match(mediaBlock, /\.job-chip/);
+    assert.match(mediaBlock, /max-width/);
+  });
+});
+
+describe('renderJobChip() — long collection name is wrapped for CSS truncation, not raw text', () => {
+  it('wraps label/collection/percent in a .job-chip-text element (not bare text nodes) so app.css can truncate it', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const longName = 'a-very-long-collection-name-that-would-otherwise-overflow-the-topbar-chip-and-the-page-itself';
+      const { document, renderJobChip } = loadTopbarHelpers(html);
+      const chip = document.getElementById('job-chip');
+      renderJobChip(chip, { id: 'op1', kind: 'index', collection: longName, state: 'running', progress: null });
+      const textEl = chip.querySelector('.job-chip-text');
+      assert.ok(textEl, 'renderJobChip must wrap its text content in .job-chip-text for CSS truncation to apply');
+      assert.match(textEl.textContent, /a-very-long-collection-name/);
+    });
   });
 });
 

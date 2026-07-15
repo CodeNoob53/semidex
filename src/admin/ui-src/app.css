@@ -43,21 +43,50 @@ html, body {
 /* ── Top bar ────────────────────────────────────────────────────────────── */
 .topbar {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 0 20px; height: 52px;
+  gap: 10px; padding: 0 20px; height: 52px;
   border-bottom: 1px solid var(--line);
   background: var(--bg-raise);
 }
 .brand {
   font-family: var(--mono); font-size: 16px; letter-spacing: .02em;
   color: var(--ink);
+  /* Phase 4A.5b code review: .brand and .topbar-status previously had no
+     min-width/shrink handling at all — on a narrow viewport with the gear
+     link added, the row had no slack left and would force horizontal
+     overflow (confirmed against the existing sole topbar media query,
+     which only ever touched .layout/.main, never .topbar itself). min-width
+     0 lets this flex child actually shrink below its content's natural
+     width instead of refusing to, which text-overflow below depends on. */
+  min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
 }
 .brand-bracket { color: var(--amber); }
 .brand-sub {
   margin-left: 10px; font-size: 10px; text-transform: uppercase;
   letter-spacing: .22em; color: var(--ink-dim);
 }
-.topbar-status { display: flex; align-items: center; gap: 10px; color: var(--ink-dim); }
+.topbar-status {
+  display: flex; align-items: center; gap: 10px; color: var(--ink-dim);
+  flex-shrink: 0;
+}
 .cap-summary { color: var(--ink-faint); }
+
+/* Narrow viewports (Phase 4A.5b code review — the topbar previously had NO
+   narrow-viewport handling at all, unlike .layout/.main below): shed
+   decorative/secondary content first (the "admin console" subtitle, the
+   capability-count summary) so the remaining essential controls (health
+   lamp/status, job chip, settings gear) always fit without forcing
+   horizontal scroll on the page. #health-text still shrinks+truncates via
+   .brand's sibling rule below as a final safety net even if content is
+   unexpectedly long. */
+@media (max-width: 640px) {
+  .brand-sub, .cap-summary { display: none; }
+  .topbar { padding: 0 12px; gap: 6px; }
+  .topbar-status { gap: 6px; }
+}
+#health-text {
+  min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  max-width: 40vw;
+}
 
 /* status lamp with glow — the one instrument-panel flourish */
 .lamp {
@@ -85,9 +114,37 @@ html, body {
   border-radius: 999px; padding: 3px 10px 3px 8px;
   font: inherit; font-size: 11px; color: var(--ink);
   cursor: pointer;
+  /* Phase 4A.5b code review, round 2: an active operation's collection name
+     is user-controlled with no length limit (the API only rejects "/" and
+     "\") — without a bound here, a long name could grow this chip (and the
+     whole topbar row, alongside the settings gear link and #health-text)
+     past the viewport width. min-width: 0 lets the chip actually shrink
+     inside the flex row instead of refusing to (a flex item's default
+     min-width is auto = its content's natural width, which is exactly what
+     defeated the max-width below without this). */
+  max-width: 220px; min-width: 0;
 }
 .job-chip[hidden] { display: none; }
 .job-chip:hover { border-color: var(--amber); }
+.job-chip-text {
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  min-width: 0;
+}
+@media (max-width: 640px) {
+  .job-chip { max-width: 120px; }
+}
+
+/* Topbar gear link -> #/settings (Phase 4A.5b, global runtime settings).
+   Compact icon-only link, same visual weight as the health lamp/cap-summary
+   it sits beside — not a full nav item. */
+.topbar-gear-link {
+  display: flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; border-radius: 4px;
+  color: var(--ink-dim); text-decoration: none;
+  border: 1px solid transparent;
+}
+.topbar-gear-link:hover { color: var(--ink); border-color: var(--line-soft); }
+.topbar-gear-link.active { color: var(--amber); border-color: var(--amber-dim); }
 .job-chip-dot {
   width: 6px; height: 6px; border-radius: 50%; background: var(--amber);
   box-shadow: 0 0 6px 1px rgba(224,166,74,.5);
@@ -740,6 +797,30 @@ td.actions { text-align: right; }
 .advanced-panel summary.panel-head { cursor: pointer; }
 .advanced-panel summary.panel-head::-webkit-details-marker { display: none; }
 .advanced-panel[open] summary.panel-head { border-bottom: 1px solid var(--line-soft); }
+
+/* Global runtime settings (#/settings, Phase 4A.5b) — an actionable-detail
+   line (e.g. an unavailable-provider reason) and a secondary details
+   block for config provenance. Deliberately understated: this screen must
+   read as a small status summary, not a diagnostics dump. Long model/
+   reason/endpoint strings must wrap, never force horizontal scroll. */
+.gs-detail {
+  margin: 10px 0 0; font-size: 12px; color: var(--fail);
+  overflow-wrap: anywhere;
+}
+.gs-detail-sub {
+  margin: 4px 0 0; font-size: 11px; color: var(--ink-dim);
+  font-family: var(--mono); overflow-wrap: anywhere;
+}
+.gs-provenance { margin-top: 12px; }
+.gs-provenance summary {
+  cursor: pointer; font-size: 11px; color: var(--ink-dim);
+  list-style: none;
+}
+.gs-provenance summary::-webkit-details-marker { display: none; }
+.gs-provenance summary::before { content: '▸ '; }
+.gs-provenance[open] summary::before { content: '▾ '; }
+.gs-provenance .kv { margin-top: 8px; grid-template-columns: 140px 1fr; }
+.gs-provenance .kv dd { overflow-wrap: anywhere; }
 
 .search-main-row { display: flex; align-items: center; gap: 10px; }
 .search-main-row .q-input { flex: 1; }

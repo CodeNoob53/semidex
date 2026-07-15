@@ -314,6 +314,27 @@ describe('sidebar node labels (ui-src/sidebar.js source, evaluated behavior)', (
 });
 
 // ── Phase 3A: sidebar active state extends to the open file/section ────────
+describe('markActive() — global settings gear link (#nav-global-settings, Phase 4A.5b)', () => {
+  it('marks the gear link active on the global-settings route', () => {
+    const { document, markActive } = loadSidebarActiveStateHelpers();
+    markActive({ view: 'global-settings' });
+    assert.ok(document.getElementById('nav-global-settings').classList.contains('active'));
+  });
+
+  it('does not mark the gear link active on any other route', () => {
+    const { document, markActive } = loadSidebarActiveStateHelpers();
+    markActive({ view: 'collection', name: 'my-docs' });
+    assert.ok(!document.getElementById('nav-global-settings').classList.contains('active'));
+  });
+
+  it('clears the gear link active state when navigating away from #/settings', () => {
+    const { document, markActive } = loadSidebarActiveStateHelpers();
+    markActive({ view: 'global-settings' });
+    markActive({ view: 'overview' });
+    assert.ok(!document.getElementById('nav-global-settings').classList.contains('active'));
+  });
+});
+
 describe('markActive() highlights the open file/section row, not just the collection row', () => {
   it('highlights the .tree-file row matching route.openFile', () => {
     const { document, markActive } = loadSidebarActiveStateHelpers();

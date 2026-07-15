@@ -6,7 +6,7 @@
 import { $ } from './dom.js';
 import { initSidebarResize } from './sidebar-resize.js';
 import { loadSidebar } from './sidebar.js';
-import { loadTopbar, initJobChip } from './topbar.js';
+import { loadTopbar, initJobChip, initGlobalSettingsLink } from './topbar.js';
 import { route } from './router.js';
 import { mountOperationModal } from './operation-modal.js';
 import { startPolling } from './operation-store.js';
@@ -25,6 +25,7 @@ export function startAdminApp() {
 
   loadTopbar();
   initJobChip();
+  initGlobalSettingsLink();
   loadSidebar();
   route();
 }

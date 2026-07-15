@@ -5,6 +5,7 @@ import { openFileView, openSectionView, hideCollectionContent } from './file-vie
 import { markActive } from './sidebar.js';
 import { renderCollection, renderOverview } from './collection-view.js';
 import { renderSettingsView } from './settings-view.js';
+import { renderGlobalSettingsView } from './global-settings-view.js';
 import { renderIndexingView } from './jobs-view.js';
 import { applySearchStateFromUrl, syncSearchStateFromUrl } from './search.js';
 import { currentRoute } from './routes.js';
@@ -29,6 +30,7 @@ export async function route() {
   const r = currentRoute();
   markActive(r);
   if (r.view === 'settings') await renderSettingsView(main, r.name);
+  else if (r.view === 'global-settings') await renderGlobalSettingsView(main);
   else if (r.view === 'collection') {
     await renderCollection(main, r.name);
     if (r.openFile) {

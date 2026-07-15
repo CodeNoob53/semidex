@@ -26,6 +26,14 @@ describe('router — currentRoute() (ui-src/router.js source, evaluated behavior
     assert.deepEqual(currentRoute('#/c/my-docs/settings'), { view: 'settings', name: 'my-docs' });
   });
 
+  it('parses the global runtime settings screen: #/settings, distinct from collection settings (Phase 4A.5b)', () => {
+    const { currentRoute } = loadRouterHelper();
+    assert.deepEqual(currentRoute('#/settings'), { view: 'global-settings' });
+    // A collection literally named "settings" must still resolve to
+    // collection settings, not collide with the global route.
+    assert.deepEqual(currentRoute('#/c/settings/settings'), { view: 'settings', name: 'settings' });
+  });
+
   it('parses the indexing view and falls back to overview for everything else', () => {
     const { currentRoute } = loadRouterHelper();
     assert.deepEqual(currentRoute('#/index'), { view: 'index' });
@@ -294,5 +302,10 @@ describe('router.js / sidebar.js / jobs-view.js — no circular import', () => {
   it('routes.js (home of currentRoute) has no local imports of its own', () => {
     assert.deepEqual(importsOf('routes.js'), [],
       'routes.js must stay a dependency-free leaf so it can never participate in a cycle');
+  });
+
+  it('global-settings-view.js (Phase 4A.5b) does not import router.js', () => {
+    assert.ok(!importsOf('global-settings-view.js').includes('router'),
+      'global-settings-view.js must not import router.js — that would recreate a global-settings<->router cycle');
   });
 });

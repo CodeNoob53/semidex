@@ -315,6 +315,10 @@ export function markActive(route = currentRoute()) {
     a.classList.toggle('active', route.view !== 'index' && a.dataset.name === route.name);
   }
   $('#nav-index')?.classList.toggle('active', route.view === 'index');
+  // Phase 4A.5b: topbar gear link -> #/settings (global runtime settings) —
+  // lives outside the sidebar tree but shares this same active-state pass
+  // since router.js already calls markActive() on every navigation.
+  $('#nav-global-settings')?.classList.toggle('active', route.view === 'global-settings');
 
   // Extend active-state sync to the open file/section row inside the
   // expanded tree (Phase 3A) — file fallback rows carry data-sf, skeleton
