@@ -16,5 +16,6 @@ jobs:
         with:
           node-version: lts/*
       - run: npm ci
+      - run: npm run admin:build
       - run: npm test
       - run: npm run smoke
