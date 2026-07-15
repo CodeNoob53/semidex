@@ -1,7 +1,7 @@
 ---
 name: semidex
 description: "Use when working with semidex: indexing documents, configuring retrieval, debugging search results, checking env vars, or understanding architecture. Prefer live semidex MCP search over loading static docs into context."
-allowed-tools: mcp__qdrant__qdrant_search, mcp__qdrant__qdrant_collection_info, mcp__qdrant__qdrant_get_chunk, mcp__qdrant__qdrant_find_by_tag, mcp__qdrant__qdrant_list_files, mcp__qdrant__qdrant_list_tags, mcp__qdrant__qdrant_list_directories, mcp__qdrant__qdrant_get_skeleton, mcp__qdrant__qdrant_get_skeleton_node, mcp__qdrant__qdrant_get_skeleton_children, mcp__qdrant__qdrant_get_node
+allowed-tools: mcp__qdrant__qdrant_search, mcp__qdrant__qdrant_collection_info, mcp__qdrant__qdrant_get_chunk, mcp__qdrant__qdrant_find_by_tag, mcp__qdrant__qdrant_list_files, mcp__qdrant__qdrant_list_tags, mcp__qdrant__qdrant_list_directories, mcp__qdrant__qdrant_get_skeleton, mcp__qdrant__qdrant_get_skeleton_node, mcp__qdrant__qdrant_get_skeleton_children, mcp__qdrant__qdrant_get_node, mcp__qdrant__qdrant_get_content
 ---
 
 semidex is a local-first RAG indexer and MCP server backed by Qdrant.
@@ -101,11 +101,20 @@ function names, config keys, CLI flags, model names.
 | Read a chunk and neighbors | `qdrant_get_chunk(collection, source_file, chunk_index, window=1)` |
 | Find chunks by tag(s) | `qdrant_find_by_tag(collection, tags=[...], match="any"\|"all")` |
 | Get full original table or code block | `qdrant_get_node(collection, node_id? XOR node_path?, preview_chars?)` |
+| Bounded coherent context around a search hit | `qdrant_get_content(collection, anchor_node_id, scope="section"\|"file", max_tokens?, cursor?, format?)` |
 
 - `qdrant_search` always uses hybrid dense+sparse RRF.
 - If a compact snippet shows a table, checklist, or YAML/JSON block cut mid-row, call `qdrant_get_chunk` directly — compact snippets are capped at 150 chars.
 - **Structural content (table, code_block):** `qdrant_search` is the default retrieval path — structural chunks are embedded and return at rank 1–2 for exact-token queries. Call `qdrant_get_node` only when the user needs the full original rendered content, or when a `node_path` is already known (from skeleton navigation or a placeholder). Do not use `qdrant_get_node` as a fallback when search returns poor results.
 - **Truncation:** `Found N … showing M` means the list is truncated. Narrow with `source_prefix`, `tag_prefix`, or `contains` and re-call.
+- **Bounded coherent context around a hit:**
+  ```text
+  qdrant_search(...)
+    -> if more coherent context is needed and node_id is available:
+       qdrant_get_content(collection, anchor_node_id=<hit's node_id>, scope="section", max_tokens=<bounded>)
+    -> use scope="file" only when section context is insufficient
+  ```
+  `qdrant_get_content` assembles bounded contextual evidence (prose continuous, tables/code/checklists at their original position, authoritative raw content) — not a full-document dump; paginate with `cursor_before`/`cursor_after`. `qdrant_get_node` is for one full original entity, mainly for explicit user display. Skeleton summaries stay navigation-only, never a valid anchor. Legacy collections without skeleton node identity cannot use `qdrant_get_content` — reindex with `SKELETON_CHUNKING=1` first.
 
 ## Retrieval Safety Rules
 

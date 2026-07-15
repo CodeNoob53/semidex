@@ -221,16 +221,58 @@ describe('assembleDocument — entity_refs mode (stored refs)', () => {
   });
 
   it('segment field contract: prose and entity segments carry exactly the documented keys', () => {
+    // Phase 3X (additive): prose segments now carry nodeId/nodePath, the
+    // same stable identity entity segments always had — bounded anchored
+    // retrieval needs every segment addressable, prose included.
     const table = entity({ chunkIndex: 1, nodeType: 'table', rawContent: '| A | B |' });
     const p = prose({ chunkIndex: 0, text: `Options:\n\n${TABLE_PH}`, entityRefs: [refTo(table, TABLE_PH)] });
     const out = assembleDocument({ collection: 'c', scope: 'file', sourceFile: 'guide.md', chunks: [p, table] });
 
     assert.deepEqual(Object.keys(out.segments[0]).sort(),
-      ['chunkIndex', 'context', 'headingPath', 'kind', 'nodeType', 'section', 'text']);
+      ['chunkIndex', 'context', 'headingPath', 'kind', 'nodeId', 'nodePath', 'nodeType', 'section', 'text']);
     assert.deepEqual(Object.keys(out.segments[1]).sort(),
       ['chunkIndex', 'context', 'headingPath', 'kind', 'lang', 'nodeId', 'nodePath', 'nodeType', 'rawContent', 'section']);
     assert.deepEqual(Object.keys(out).sort(),
       ['assemblyMode', 'collection', 'nodePath', 'scope', 'segments', 'sourceFile', 'warnings']);
+  });
+
+  it('a prose segment carries its own node identity (nodeId/nodePath), the same shape an entity segment already had', () => {
+    const p = prose({ chunkIndex: 0, text: 'Plain prose with no entities.' });
+    const out = assembleDocument({ collection: 'c', scope: 'file', sourceFile: 'a.md', chunks: [p] });
+    assert.equal(out.segments[0].nodeId, p.nodeId);
+    assert.equal(out.segments[0].nodePath, p.nodePath);
+    assert.ok(out.segments[0].nodeId, 'sanity: the fixture really has a node id to propagate');
+  });
+
+  it('prose segment identity is null for legacy (plain_chunks) input, never fabricated', () => {
+    const legacy = { sourceFile: 'old.md', chunkIndex: 0, section: 'Intro', text: 'legacy prose', nodeType: null, entityRefs: [] };
+    const out = assembleDocument({ collection: 'legacy', scope: 'file', sourceFile: 'old.md', chunks: [legacy] });
+    assert.equal(out.assemblyMode, 'plain_chunks');
+    assert.equal(out.segments[0].nodeId, null);
+    assert.equal(out.segments[0].nodePath, null);
+  });
+
+  // Phase 3X (bounded anchored content, MCP): every segment kind must carry
+  // enough identity to be used as a qdrant_get_content anchor_node_id —
+  // table identity was already covered above; code_block and checklist are
+  // pinned explicitly here since they're the other two structural types the
+  // task calls out by name.
+  it('a code_block entity segment carries its own nodeId/nodePath', () => {
+    const code = entity({ chunkIndex: 1, nodeType: 'code_block', rawContent: 'const x = 1;' });
+    const p = prose({ chunkIndex: 0, text: `See:\n\n${CODE_PH}`, entityRefs: [refTo(code, CODE_PH)] });
+    const out = assembleDocument({ collection: 'c', scope: 'file', sourceFile: 'guide.md', chunks: [p, code] });
+    const codeSeg = out.segments.find(s => s.nodeType === 'code_block');
+    assert.equal(codeSeg.nodeId, code.nodeId);
+    assert.equal(codeSeg.nodePath, code.nodePath);
+  });
+
+  it('a checklist entity segment carries its own nodeId/nodePath', () => {
+    const checklist = entity({ chunkIndex: 1, nodeType: 'checklist', rawContent: '- [x] done' });
+    const p = prose({ chunkIndex: 0, text: `See:\n\n${CHECK_PH}`, entityRefs: [refTo(checklist, CHECK_PH)] });
+    const out = assembleDocument({ collection: 'c', scope: 'file', sourceFile: 'guide.md', chunks: [p, checklist] });
+    const clSeg = out.segments.find(s => s.nodeType === 'checklist');
+    assert.equal(clSeg.nodeId, checklist.nodeId);
+    assert.equal(clSeg.nodePath, checklist.nodePath);
   });
 
   it('never mutates the input array or any input chunk object', () => {

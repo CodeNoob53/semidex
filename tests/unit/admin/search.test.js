@@ -38,7 +38,7 @@ function makeStubAdapter(overrides = {}) {
     getSkeletonRoot: async () => null,
     getSkeletonNode: async () => null,
     getSkeletonChildren: async () => [],
-    getStructuralNode: async () => null,
+    getContentNode: async () => null,
     getSectionAnchor: async () => null,
     ...overrides,
   };

@@ -28,7 +28,7 @@ function makeStubAdapter(overrides = {}) {
     getSkeletonRoot: async () => null,
     getSkeletonNode: async () => null,
     getSkeletonChildren: async () => [],
-    getStructuralNode: async () => null,
+    getContentNode: async () => null,
     getSectionAnchor: async () => null,
     ...overrides,
   };
@@ -533,7 +533,7 @@ describe('GET /api/collections/:name/skeleton/children', () => {
 
 describe('GET /api/collections/:name/node', () => {
   const structAdapter = makeStubAdapter({
-    getStructuralNode: async (name, opts) => (opts.nodeId === 'n1' || opts.nodePath === 'p1' ? { nodeType: 'table', ...opts } : null),
+    getContentNode: async (name, opts) => (opts.nodeId === 'n1' || opts.nodePath === 'p1' ? { nodeType: 'table', ...opts } : null),
   });
 
   it('works with nodeId', async () => {

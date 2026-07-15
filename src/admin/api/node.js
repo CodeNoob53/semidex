@@ -11,8 +11,8 @@ export function registerNodeRoutes(router, adapter) {
     const { key, value } = requireExactlyOne(query, ['nodeId', 'nodePath']);
     const opts = key === 'nodeId' ? { nodeId: value } : { nodePath: value };
 
-    const node = await adapter.getStructuralNode(params.name, opts);
-    if (!node) throw notFound(`Structural node not found for ${key}="${value}"`);
+    const node = await adapter.getContentNode(params.name, opts);
+    if (!node) throw notFound(`Content node not found for ${key}="${value}"`);
     sendJson(res, 200, { collection: params.name, node });
   });
 }

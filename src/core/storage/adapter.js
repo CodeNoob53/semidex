@@ -29,7 +29,7 @@
  * @property {(name: string) => Promise<Object|null>} getSkeletonRoot
  * @property {(name: string, opts: { nodeId?: string, nodePath?: string }) => Promise<Object|null>} getSkeletonNode
  * @property {(name: string, opts: { nodeId?: string, nodePath?: string, limit?: number }) => Promise<Object[]>} getSkeletonChildren
- * @property {(name: string, opts: { nodeId?: string, nodePath?: string }) => Promise<Object|null>} getStructuralNode
+ * @property {(name: string, opts: { nodeId?: string, nodePath?: string }) => Promise<Object|null>} getContentNode
  * @property {(name: string, opts: { nodeId?: string, nodePath?: string }) => Promise<Object|null>} getSectionAnchor
  */
 
@@ -52,7 +52,7 @@ export const REQUIRED_ADAPTER_METHODS = [
   'getSkeletonRoot',
   'getSkeletonNode',
   'getSkeletonChildren',
-  'getStructuralNode',
+  'getContentNode',
   'getSectionAnchor',
 ];
 

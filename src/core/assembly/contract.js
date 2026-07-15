@@ -44,6 +44,11 @@ export const ASSEMBLY_WARNINGS = Object.freeze({
 /**
  * @typedef {Object} ProseSegment
  * @property {'prose'} kind
+ * @property {string|null} nodeId — Phase 3X (additive): the prose chunk's
+ *   own stable node identity (a real skeleton node_id, same as an entity
+ *   segment's), null for legacy (plain_chunks) collections with no node
+ *   identity at all
+ * @property {string|null} nodePath — Phase 3X (additive), same null rule
  * @property {number|null} chunkIndex
  * @property {string|null} nodeType
  * @property {string} text — final prose with resolved standalone placeholder
@@ -88,4 +93,67 @@ export const ASSEMBLY_WARNINGS = Object.freeze({
  * @property {string} assemblyMode — one of ASSEMBLY_MODES
  * @property {Array<ProseSegment|EntitySegment>} segments
  * @property {AssemblyWarning[]} warnings
+ */
+
+// ── Bounded assembly window (Phase 3X) ───────────────────────────────────────
+// buildAssemblyWindow() (./window.js) projects an already-assembled
+// AssemblyResult down to a token-bounded, anchor-centered page — for MCP's
+// qdrant_get_content, which must never load an entire large document into an
+// agent's context window. Lives in contract.js alongside the rest of this
+// module's shared vocabulary; the algorithm itself is in window.js so this
+// file stays pure constants/typedefs.
+
+export const CURSOR_VERSION = 1;
+
+/**
+ * @typedef {Object} WindowItem
+ * A bounded-window item is a normal ProseSegment/EntitySegment, UNLESS the
+ * segment alone exceeds the token budget — then it is replaced by an
+ * OversizedDescriptor (see below). Every item that made it into `items`
+ * counts toward `returnedTokens`.
+ */
+
+/**
+ * @typedef {Object} OversizedDescriptor
+ * A single structural entity that alone exceeds maxTokens is never dumped or
+ * truncated mid-row/mid-block — it is replaced by this bounded descriptor.
+ * `content` is always null; the full entity is only ever available through
+ * the separate qdrant_get_node tool (primarily for user display, not
+ * evidence assembly).
+ * @property {true} oversized
+ * @property {string|null} nodeId
+ * @property {string|null} nodePath
+ * @property {number|null} chunkIndex
+ * @property {string|null} nodeType
+ * @property {number} tokenCount — the segment's OWN (excluded) token count
+ *   (diagnostic metadata; this number itself does not count against
+ *   maxTokens — but a separate, small, FIXED cost for the descriptor's own
+ *   note text does count against maxTokens, same as any other included
+ *   item; see window.js's OVERSIZED_NOTE — code review, round 1: this used
+ *   to be silently ~0, letting an unbounded run of oversized entities ride
+ *   for free)
+ * @property {null} content
+ * @property {string} note — human-readable explanation of the oversized
+ *   policy and how to retrieve the full entity
+ */
+
+/**
+ * @typedef {Object} AssemblyWindowResult
+ * @property {Array<WindowItem|OversizedDescriptor>} items — ordered
+ *   (source order), the bounded page actually returned
+ * @property {string|null} anchorNodeId
+ * @property {number} totalTokens — exact token count of the full serialized
+ *   assembled scope (diagnostic metadata only — NOT bounded by maxTokens)
+ * @property {number} returnedTokens — exact token count of the page's
+ *   serialized budget representation: normal segment content plus the fixed
+ *   note text substituted for each oversized descriptor. This is counted in
+ *   one tokenizer call because BPE tokenization is not additive; it never
+ *   exceeds maxTokens. With no oversized descriptors it equals the token
+ *   count of the reconstructed response text.
+ * @property {boolean} hasMoreBefore
+ * @property {boolean} hasMoreAfter
+ * @property {string|null} cursorBefore — opaque, base64url; null when
+ *   hasMoreBefore is false
+ * @property {string|null} cursorAfter — opaque, base64url; null when
+ *   hasMoreAfter is false
  */

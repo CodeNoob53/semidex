@@ -10,6 +10,18 @@ const RERANK_ENABLED        = process.env.RERANK_ENABLED === '1';
 const RERANK_CE_ENABLED     = process.env.RERANK_CE_ENABLED === '1';
 const RERANK_PREFETCH_MULT  = envInt('RERANK_PREFETCH_MULT', 4, 1, 100, '[search] ');
 
+// Phase 3X: node_id is qdrant_get_content's anchor_node_id input — every
+// window chunk that carries one (skeleton-aware collections) exposes it so
+// an agent can expand context around ANY window chunk, not just the primary
+// hit. Legacy collections never had node_id at all; the field is OMITTED
+// entirely for those points (never invented as null, which would look like
+// "checked, absent" rather than "this collection predates node identity").
+function anchorFields(payload) {
+  return payload.node_id
+    ? { node_id: payload.node_id, node_path: payload.node_path ?? null, node_type: payload.node_type ?? null }
+    : {};
+}
+
 export function assembleWindowChunks(wPoints, matchedChunkIndex, window_format, seenChunks = new Set()) {
   const result = [];
   for (const wp of wPoints) {
@@ -25,6 +37,7 @@ export function assembleWindowChunks(wPoints, matchedChunkIndex, window_format, 
       chunk_index: wp.payload.chunk_index,
       section: wp.payload.section || '',
       is_match,
+      ...anchorFields(wp.payload),
       ...(window_format === 'compact' ? { text_snippet } : { text: wp.payload.text }),
     });
   }
@@ -124,6 +137,23 @@ export async function handle({ query, collection, top = 5, tags, source_file, wi
       `**Tags:** ${(p.tags || []).join(', ')}`,
       `**Context:** ${p.context || ''}`,
     ];
+
+    // Phase 3X: node_id/node_path/node_type are the anchor identity
+    // qdrant_get_content needs to expand this hit into coherent
+    // section/file context — the documented contract is all three fields,
+    // matching what assembleWindowChunks() already exposes on window
+    // chunks (code review: the primary hit line previously omitted
+    // node_path, leaving it inconsistent with its own window-chunk
+    // sibling). Omitted entirely (never a fabricated/null placeholder) for
+    // legacy collections that predate skeleton node identity — anchored
+    // assembly is unavailable for those until they are reindexed with
+    // skeleton chunking.
+    if (p.node_id) {
+      const parts = [`node_id=${p.node_id}`];
+      if (p.node_path) parts.push(`node_path=${p.node_path}`);
+      if (p.node_type) parts.push(`node_type=${p.node_type}`);
+      lines.push(`**Node:** ${parts.join(' ')}`);
+    }
 
     if (windowChunksJSON) {
       lines.push(`\n**Window Chunks:**\n~~~~json\n${JSON.stringify({ window_chunks: windowChunksJSON }, null, 2)}\n~~~~`);

@@ -54,6 +54,40 @@ qdrant_search(...)                                                    # inspect 
 Unfiltered `qdrant_list_tags` can return hundreds of tags on large collections. Use `tag_prefix` or `contains` to narrow by tag name. When the relevant directory is already known from `list_directories`, add `source_prefix` to scope tag counts to that area. Tags are most useful for breadth expansion after an initial search, not as the first step. This workflow was live-tested on a large collection and eliminated blind prefix guessing.
 
 Search results return the matched chunk plus `source_file` and `chunk_index`.
+On skeleton-aware collections, a hit also returns `node_id`/`node_type` (see
+**Bounded Anchored Content** below) — omitted on legacy collections that
+predate skeleton chunking.
+
+### Bounded Anchored Content (`qdrant_get_content`)
+
+When a search hit needs more coherent surrounding context than the hit
+itself (or its `window` neighbors) provides — without loading the entire
+file into context — expand it with `qdrant_get_content`:
+
+```text
+qdrant_search(...)
+  -> if more coherent context is needed and node_id is available:
+     qdrant_get_content(collection, anchor_node_id=<hit's node_id>, scope="section", max_tokens=<bounded>)
+  -> use scope="file" only when section context is insufficient
+```
+
+- `anchor_node_id` must come from a `qdrant_search` hit or window chunk's
+  `node_id` — never guessed or invented.
+- `qdrant_get_content` assembles bounded contextual evidence: prose reads
+  continuously, tables/code/checklists appear at their original position
+  with authoritative raw content, placeholder lines are resolved away — the
+  same assembly the admin document reader uses. It is not a full-document
+  dump; it returns at most `max_tokens` of assembled content per call and
+  paginates via `cursor_before`/`cursor_after` for more.
+- `qdrant_get_node` remains for retrieving one full original entity by ID
+  or path, primarily for explicit user display — not for building assembled
+  evidence.
+- Skeleton summaries remain navigation-only evidence; a navigation node can
+  never be used as an `anchor_node_id`.
+- Legacy collections without skeleton node identity cannot use
+  `qdrant_get_content` — reindex with `SKELETON_CHUNKING=1` first.
+
+See the Tool Reference below for the full parameter list.
 
 ### `qdrant_search` Window Modes
 
@@ -143,6 +177,7 @@ Raw/unstructured corpus chunks may contain distractor values, stale config, or c
 | `qdrant_get_skeleton_node` | `collection`, exactly one of `node_id` or `node_path` | Returns one skeleton navigation node with summary, parent, children, source file, and heading path. |
 | `qdrant_get_skeleton_children` | `collection`, exactly one of `node_id` or `node_path`, `limit?` | Resolves immediate child skeleton nodes with truncation metadata. |
 | `qdrant_get_node` | `collection`, exactly one of `node_id` or `node_path`, `preview_chars?` | Returns full original content of a structural node (table, code_block, checklist, image, paragraph…) by ID or path. Use when the user needs the raw/complete original, or when a `node_path` is already known. Default evidence path for table/code is `qdrant_search` — do not use `get_node` as a search fallback. Does not return nav nodes — use `qdrant_get_skeleton_node` for those. |
+| `qdrant_get_content` | `collection`, `anchor_node_id`, `scope?` (`"section"` default or `"file"`), `max_tokens?` (default 2000, 200-8000), `cursor?`, `format?` (`"text"` default or `"nodes"`) | Assembles bounded, coherent section/file context around a search-hit anchor — reuses the admin UI's document assembly, never a second implementation. Token-bounded: never returns more than `max_tokens` of assembled content in one call; paginate with the returned `cursor_before`/`cursor_after`. Rejects a missing or navigation-node anchor. An oversized single table/code/checklist entity is never truncated inline — it comes back as a bounded descriptor pointing at `qdrant_get_node`. Legacy collections without skeleton node identity cannot use this tool. |
 | `qdrant_find_by_tag` | `collection`, `tag?`, `tags?[]`, `match?`, `limit?` | Lists chunks matching tag(s), grouped by file and sorted by density |
 | `qdrant_list_directories` | `collection`, `source_prefix?`, `depth?`, `limit?` | Lists directory prefixes with file and chunk counts. Use to explore structure before listing files. |
 | `qdrant_list_files` | `collection`, `source_prefix?`, `tags?[]`, `tag_match?`, `limit?` | Lists unique source files with chunk counts, first section, and optional tag filtering |

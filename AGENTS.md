@@ -59,6 +59,21 @@ Search patterns by task:
 - **Implementation or explanation:** `qdrant_search(query, collection, top=3, window=1, window_format="compact")`
 - **Structured data in compact output:** If a compact snippet shows a table, checklist, or YAML/JSON block cut mid-row, call `qdrant_get_chunk` directly — compact snippets are capped at 150 chars.
 - **Deep context:** `qdrant_get_chunk(collection, source_file, chunk_index, window=1)`
+- **Coherent section/file context around a hit, bounded:**
+  ```text
+  qdrant_search(...)
+    -> if more coherent context is needed and node_id is available:
+       qdrant_get_content(collection, anchor_node_id=<hit's node_id>, scope="section", max_tokens=<bounded>)
+    -> use scope="file" only when section context is insufficient
+  ```
+  `qdrant_get_content` assembles bounded contextual evidence (prose
+  continuous, tables/code/checklists at their original position with
+  authoritative raw content) — it is not a full-document dump; paginate
+  with `cursor_before`/`cursor_after`. `qdrant_get_node` remains for
+  retrieving one full original entity by ID/path, mainly for explicit user
+  display. Skeleton summaries remain navigation-only evidence, never a
+  valid `anchor_node_id`. Legacy collections without skeleton node identity
+  cannot use `qdrant_get_content` — reindex with `SKELETON_CHUNKING=1` first.
 
 MCP tools reference:
 
@@ -78,6 +93,7 @@ MCP tools reference:
 | Read a chunk with neighbors | `qdrant_get_chunk(collection, source_file, chunk_index, window=1)` |
 | Find chunks with a tag | `qdrant_find_by_tag(collection, tag)` |
 | Find chunks matching multiple tags | `qdrant_find_by_tag(collection, tags=[...], match="any"\|"all")` |
+| Bounded coherent context around a search hit | `qdrant_get_content(collection, anchor_node_id, scope="section"\|"file", max_tokens?, cursor?, format?)` |
 
 **Truncation rule:** When a tool output says `Found N … showing M` where M < N, the list is truncated — narrow the query with `source_prefix`, `tag_prefix`, or `contains` and re-call.
 

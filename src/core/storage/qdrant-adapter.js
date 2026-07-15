@@ -94,7 +94,13 @@ export function toSkeletonNode(payload) {
   };
 }
 
-export function toStructuralNodeChunk(payload) {
+// Maps ANY non-nav content point (table/code_block/checklist/paragraph/
+// list/blockquote/image/…) — the underlying store primitives
+// (getContentNodeById/getContentNodeByPath) never filter by node_type, only
+// by point_kind !== 'skeleton_nav'. Named toContentNodeChunk (not
+// toStructuralNodeChunk) because "structural" would wrongly imply this
+// rejects prose; it does not — a prose node_id/node_path resolves here too.
+export function toContentNodeChunk(payload) {
   if (!payload) return null;
   return {
     sourceFile:   payload.source_file ?? null,
@@ -113,6 +119,13 @@ export function toStructuralNodeChunk(payload) {
     nodeType:     payload.node_type ?? null,
     nodeId:       payload.node_id ?? null,
     nodePath:     payload.node_path ?? null,
+    // parentId (Phase 3X): needed to resolve an anchor node's own containing
+    // section without a new adapter method — getContentNode() -> parentId
+    // -> getSkeletonNode({ nodeId: parentId }) is the whole chain MCP's
+    // bounded content assembly needs to go from "one search-hit node_id" to
+    // "the exact section it lives in."
+    parentId:     payload.parent_id ?? null,
+    headingPath:  Array.isArray(payload.heading_path) ? payload.heading_path : null,
     score:        null,
     isMatch:      null,
   };
@@ -362,11 +375,16 @@ export function createQdrantStorageAdapter() {
       return children.map(toSkeletonNode);
     },
 
-    async getStructuralNode(name, { nodeId, nodePath } = {}) {
+    // Resolves ANY non-nav content node by identity — table/code_block/
+    // checklist/paragraph/list/blockquote/image, whatever the indexer
+    // stamped a node_id/node_path onto. Not "structural" — a prose node_id
+    // resolves here exactly like a table's does (see getContentNodeById's
+    // own contract: it filters by point_kind, never node_type).
+    async getContentNode(name, { nodeId, nodePath } = {}) {
       const node = nodeId
         ? await store.getContentNodeById(name, nodeId)
         : await store.getContentNodeByPath(name, nodePath);
-      return toStructuralNodeChunk(node);
+      return toContentNodeChunk(node);
     },
 
     // Resolves a skeleton nav node (e.g. a section) to the earliest content

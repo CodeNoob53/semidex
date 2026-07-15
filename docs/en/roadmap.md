@@ -23,7 +23,7 @@ comparisons.
 |-------|-------|--------|
 | **Shipped baseline** | Hybrid retrieval MVP: indexing, hybrid search, MCP tools, diagnostics | ✅ Working today |
 | **Skeleton-first (main direction)** | Skeleton-first chunking active; structural carryover shipped; legacy chunking is compatibility/fallback | ✅ Active direction |
-| **Future — foundation** | Skeleton navigation (Stage 2 — nav tools, summaries, content assembly backend/Local API, and the stitched document reader UI shipped; MCP assembly tool remaining), validation & performance baseline (Stage 3) | 🚧 Stage 2 in progress; Stage 3 planned |
+| **Future — foundation** | Skeleton navigation (Stage 2 — nav tools, summaries, content assembly backend/Local API, the stitched document reader UI, and bounded anchored content over MCP all shipped), validation & performance baseline (Stage 3) | 🚧 Stage 2 nearly complete; Stage 3 planned |
 | **Future — product tracks** | Assistant Runtime, Codebase Memory, extended ingestion, Qdrant-native operations, Control Panel, Agent Memory | 🔭 Planned, post-foundation |
 | **Conditional research** | MMR, ColBERT, query expansion, scoped global search, adapters | 🔬 Trigger-gated, not milestones |
 
@@ -210,18 +210,26 @@ Shipped foundation:
 - the stitched document reader in the admin UI: file/section opens render
   the assembled continuous document by default (prose as one document,
   entities at their original positions through the shared structural
-  renderer), with the chunk-card view kept as an alternate reader mode.
+  renderer), with the chunk-card view kept as an alternate reader mode;
+- bounded anchored content assembly over MCP:
+  `qdrant_get_content(collection, anchor_node_id, scope="section"|"file",
+  max_tokens?, cursor?, format?)` — resolves a search-hit `node_id` through
+  StorageAdapter, assembles via the same `core/assembly/` service the Local
+  API and admin reader use, and returns a token-bounded, anchor-centered,
+  cursor-paginated slice (never the whole document, never silently over
+  budget; an oversized single table/code/checklist becomes a bounded
+  descriptor pointing at `qdrant_get_node` instead of being truncated).
+  `qdrant_search` hits and window chunks now expose `node_id`/`node_path`/
+  `node_type` (omitted, never fabricated, on legacy collections).
 
 Remaining work:
 
-- expose anchored content assembly over MCP through
-  `qdrant_get_content(collection, anchor_node_id, scope="section"|"file")` —
-  consuming the same core assembly service the Local API and admin reader
-  use;
 - generate summaries at useful navigation levels: file, major section, table,
   code block, and later collection;
-- add pagination/depth controls for very large skeleton reads and assembly
-  responses.
+- add pagination/depth controls for very large skeleton reads and file/
+  section assembly responses (the MCP path already has bounded pagination
+  via `qdrant_get_content`; the Local API's unbounded `/assembly` endpoint
+  does not yet).
 
 Expected agent flow:
 

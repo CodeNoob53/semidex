@@ -14,7 +14,7 @@ import {
   toChunk,
   toSourceDocument,
   toSkeletonNode,
-  toStructuralNodeChunk,
+  toContentNodeChunk,
   resolveConfigProvider,
 } from '../../../../src/core/storage/qdrant-adapter.js';
 
@@ -242,8 +242,8 @@ describe('domain mapping — no raw Qdrant snake_case leaks through', () => {
     assert.ok(!Object.keys(node).some(k => k.includes('_')));
   });
 
-  it('toStructuralNodeChunk maps a content-node payload and prefers raw_content for text', () => {
-    const chunk = toStructuralNodeChunk({
+  it('toContentNodeChunk maps a content-node payload and prefers raw_content for text', () => {
+    const chunk = toContentNodeChunk({
       source_file: 'a.md', chunk_index: 4, section: 'Setup',
       raw_content: '| a | b |', node_type: 'table', node_id: 'n1', node_path: 'a.md#Setup/table-1',
     });
@@ -253,28 +253,69 @@ describe('domain mapping — no raw Qdrant snake_case leaks through', () => {
     assert.ok(!Object.keys(chunk).some(k => k.includes('_')));
   });
 
-  it('toStructuralNodeChunk maps lang for a code_block content node, null when absent', () => {
-    const withLang = toStructuralNodeChunk({
+  it('toContentNodeChunk maps lang for a code_block content node, null when absent', () => {
+    const withLang = toContentNodeChunk({
       source_file: 'a.md', raw_content: "print('hi')", lang: 'python',
       node_type: 'code_block', node_id: 'n2', node_path: 'a.md#Setup/code-1',
     });
     assert.equal(withLang.lang, 'python');
 
-    const withoutLang = toStructuralNodeChunk({
+    const withoutLang = toContentNodeChunk({
       source_file: 'a.md', raw_content: "print('hi')",
       node_type: 'code_block', node_id: 'n3', node_path: 'a.md#Setup/code-2',
     });
     assert.equal(withoutLang.lang, null);
   });
 
-  it('toStructuralNodeChunk keeps text and rawContent as distinct fields, both null when payload has neither', () => {
-    const chunk = toStructuralNodeChunk({ source_file: 'a.md', node_type: 'table', node_id: 'n4', node_path: 'a.md#x' });
+  it('toContentNodeChunk keeps text and rawContent as distinct fields, both null when payload has neither', () => {
+    const chunk = toContentNodeChunk({ source_file: 'a.md', node_type: 'table', node_id: 'n4', node_path: 'a.md#x' });
     assert.equal(chunk.text, null);
     assert.equal(chunk.rawContent, null);
   });
 
-  it('toStructuralNodeChunk returns null for a missing node', () => {
-    assert.equal(toStructuralNodeChunk(null), null);
+  it('toContentNodeChunk returns null for a missing node', () => {
+    assert.equal(toContentNodeChunk(null), null);
+  });
+
+  // Phase 3X: getContentNode() (renamed from getStructuralNode — the
+  // underlying store primitives never filtered by node_type, only by
+  // point_kind !== 'skeleton_nav', so the old name wrongly implied
+  // structural-only) must resolve prose nodes exactly like structural ones,
+  // and must carry parentId — the field qdrant_get_content's anchor
+  // resolution uses to find the anchor's containing section.
+  it('toContentNodeChunk resolves a PROSE (paragraph) content node — not structural-only, despite the old name', () => {
+    const chunk = toContentNodeChunk({
+      source_file: 'a.md', chunk_index: 0, section: 'Setup', text: 'Some prose.',
+      node_type: 'paragraph', node_id: 'p0', node_path: 'a.md#setup/paragraph-0', parent_id: 'sec-1',
+    });
+    assert.equal(chunk.nodeType, 'paragraph');
+    assert.equal(chunk.text, 'Some prose.');
+  });
+
+  it('toContentNodeChunk maps parentId and headingPath (Phase 3X: needed to resolve an anchor\'s containing section)', () => {
+    const chunk = toContentNodeChunk({
+      source_file: 'a.md', node_type: 'table', node_id: 'n1', node_path: 'a.md#x',
+      parent_id: 'sec-1', heading_path: ['Setup', 'Details'],
+    });
+    assert.equal(chunk.parentId, 'sec-1');
+    assert.deepEqual(chunk.headingPath, ['Setup', 'Details']);
+    assert.ok(!Object.keys(chunk).some(k => k.includes('_')), 'no raw snake_case leaks through');
+  });
+
+  it('toContentNodeChunk defaults parentId to null and headingPath to null when absent', () => {
+    const chunk = toContentNodeChunk({ source_file: 'a.md', node_type: 'table', node_id: 'n1', node_path: 'a.md#x' });
+    assert.equal(chunk.parentId, null);
+    assert.equal(chunk.headingPath, null);
+  });
+});
+
+describe('createQdrantStorageAdapter().getContentNode — StorageAdapter contract (Phase 3X rename)', () => {
+  it('the adapter exposes getContentNode, not getStructuralNode', () => {
+    assert.ok(REQUIRED_ADAPTER_METHODS.includes('getContentNode'));
+    assert.ok(!REQUIRED_ADAPTER_METHODS.includes('getStructuralNode'), 'no compatibility alias left behind — no real external consumer required one');
+    const adapter = createQdrantStorageAdapter();
+    assert.equal(typeof adapter.getContentNode, 'function');
+    assert.equal(typeof adapter.getStructuralNode, 'undefined');
   });
 });
 

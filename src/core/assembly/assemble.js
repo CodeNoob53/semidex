@@ -109,6 +109,18 @@ function removeListedPlaceholders(text, refs, chunkIndex, warnings) {
 function proseSegment(chunk, text) {
   return {
     kind: SEGMENT_KINDS.PROSE,
+    // Phase 3X (additive): prose segments now carry the same stable node
+    // identity entity segments always have — a prose chunk IS a real
+    // skeleton node (a paragraph/list/blockquote node_id + node_path,
+    // stamped by the indexer the same way a table/code_block node is), it
+    // just wasn't surfaced here before because nothing needed to anchor on
+    // it. Bounded anchored retrieval (core/assembly's windowing) needs every
+    // segment — prose included — addressable by nodeId, so an MCP search hit
+    // landing on a prose chunk can be used as a qdrant_get_content anchor
+    // exactly like a structural hit can. null on legacy (plain_chunks)
+    // chunks, which never had node_id/node_path to begin with.
+    nodeId:      chunk.nodeId ?? null,
+    nodePath:    chunk.nodePath ?? null,
     chunkIndex:  chunk.chunkIndex ?? null,
     nodeType:    chunk.nodeType ?? null,
     text,

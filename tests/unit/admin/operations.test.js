@@ -40,7 +40,7 @@ function makeStubAdapter(overrides = {}) {
     deleteCollection: async () => {}, ensureCollectionSchema: async () => ({ repaired: ['index x'], warnings: [] }),
     listSourceDocuments: async () => [], getChunk: async () => [], getFileChunks: async () => [], getSectionChunks: async () => null, searchHybrid: async () => [],
     getSkeletonRoot: async () => null, getSkeletonNode: async () => null, getSkeletonChildren: async () => [],
-    getStructuralNode: async () => null, getSectionAnchor: async () => null,
+    getContentNode: async () => null, getSectionAnchor: async () => null,
     ...overrides,
   };
 }
