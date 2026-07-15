@@ -2,26 +2,59 @@
 // Never mutates Qdrant, config.json, or any local file (except writing the report).
 // Exit code: 0 = PASS/WARN/SKIP only; 1 = any FAIL.
 
-import 'dotenv/config';
-import { existsSync, readdirSync, mkdirSync, writeFileSync } from 'fs';
-import { resolve, dirname, relative, join } from 'path';
-import { fileURLToPath } from 'url';
+// bootstrapEnv() must run before any import below could transitively load
+// .env via a static 'dotenv/config' import — same reasoning as sync.js.
+//
+// doctor.js DOES construct a SettingsService and applies its write-back
+// before any check runs (code review fix — an earlier version of this file
+// deliberately skipped this, reasoning that doctor should show "raw
+// environment truth" rather than an effective value; that was wrong: a
+// settings.json-saved OLLAMA_URL/CONTEXT_MODEL/etc. IS what the rest of the
+// system will actually use, so a doctor run that only checked raw env
+// could diagnose entirely the wrong endpoint/model — the opposite of
+// "accurate diagnosis"). Every check below still reads process.env.X same
+// as before; applyEnvWriteBack() makes those reads reflect the resolved
+// EFFECTIVE value (env > dotenv > settings.json > default), and the new
+// provenance line for each field states which tier actually won, so a
+// stray/misconfigured OS env var is still fully visible, not hidden by
+// settings.json.
+const { bootstrapEnv } = await import('./core/env-bootstrap.js');
+const { osEnv, dotenvValues } = bootstrapEnv();
+const { createSettingsService, applyEnvWriteBack } = await import('./core/settings/service.js');
+const settingsService = createSettingsService({ osEnv, dotenvValues });
+applyEnvWriteBack(settingsService);
 
-import {
+const { existsSync, readdirSync, mkdirSync, writeFileSync } = await import('fs');
+const { resolve, dirname, relative, join } = await import('path');
+const { fileURLToPath } = await import('url');
+
+const {
   redactKey, redactUrl, sanitiseErrorMessage,
   makeResult, aggregateExitCode, formatResult,
   checkNodeVersion, classifyVectorSchema,
   checkProviderAgreement, checkSchemaVersion,
   missingModelCommands, formatCudaProbeFailure, STATUS,
   resolveCombinedLlmConfig,
-} from './core/doctor-checks.js';
-import { loadConfig } from './core/config.js';
-import { SCHEMA_VERSION } from './core/embeddings.js';
-import { getOnnxModelPath } from './core/onnx-paths.js';
-import { probeOnnxProvider } from './core/onnx-provider-probe.js';
+} = await import('./core/doctor-checks.js');
+const { loadConfig } = await import('./core/config.js');
+const { SCHEMA_VERSION } = await import('./core/embeddings.js');
+const { getOnnxModelPath } = await import('./core/onnx-paths.js');
+const { probeOnnxProvider } = await import('./core/onnx-provider-probe.js');
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const KEY  = process.env.QDRANT_KEY ?? '';
+
+// Human-readable provenance label for a settings-registry field, used to
+// annotate the [A] runtime-environment checks below with WHERE the
+// effective value came from (os_env / dotenv / config_json / default) —
+// makes a settings.json override visible instead of silently blended in.
+const PROVENANCE_LABEL = {
+  os_env: 'OS environment', dotenv: '.env file', config_json: 'saved setting (settings.json)', default: 'built-in default',
+};
+function provenance(key) {
+  const entry = settingsService.get(key);
+  return entry ? PROVENANCE_LABEL[entry.source] ?? entry.source : null;
+}
 
 // Sanitise an error message before printing — strip the API key literal if present.
 function safe(msg) { return sanitiseErrorMessage(String(msg ?? ''), KEY); }
@@ -66,7 +99,7 @@ report('A', checkNodeVersion(process.version));
   const url = process.env.QDRANT_URL;
   const key = process.env.QDRANT_KEY;
   report('A', url
-    ? makeResult(STATUS.PASS, `QDRANT_URL: ${redactUrl(url)}`)
+    ? makeResult(STATUS.PASS, `QDRANT_URL: ${redactUrl(url)} (source: ${provenance('QDRANT_URL') ?? 'unknown'})`)
     : makeResult(STATUS.FAIL, 'QDRANT_URL not set', 'Add QDRANT_URL=https://... to .env'));
   report('A', key
     ? makeResult(STATUS.PASS, `QDRANT_KEY: ${redactKey(key)}`)
@@ -76,7 +109,7 @@ report('A', checkNodeVersion(process.version));
 {
   const ollamaUrl = process.env.OLLAMA_URL;
   report('A', ollamaUrl
-    ? makeResult(STATUS.PASS, `OLLAMA_URL: ${redactUrl(ollamaUrl)}`)
+    ? makeResult(STATUS.PASS, `OLLAMA_URL: ${redactUrl(ollamaUrl)} (source: ${provenance('OLLAMA_URL') ?? 'unknown'})`)
     : makeResult(STATUS.WARN, `OLLAMA_URL not set (will default to http://localhost:11434)`));
 }
 
@@ -87,11 +120,16 @@ report('A', checkNodeVersion(process.version));
   const tagGen = process.env.TAG_GEN === '1' ? 'enabled (TAG_GEN=1)' : 'disabled (default)';
   const onnx   = process.env.ONNX_EMBED    ?? '(not set)';
   const ep     = process.env.ONNX_EXECUTION_PROVIDER ?? '(not set — default cpu)';
-  report('A', makeResult(STATUS.PASS, `CONTEXT_MODEL: ${ctx}`));
-  report('A', makeResult(STATUS.PASS, `TAG_MODEL: ${tag}`));
-  report('A', makeResult(STATUS.PASS, `TAG_GEN: ${tagGen}`));
+  // Provenance is shown for every field the settings registry actually
+  // resolves (CONTEXT_MODEL/TAG_MODEL/TAG_GEN/ONNX_EXECUTION_PROVIDER) —
+  // ONNX_EMBED has no registry entry (legacy shorthand, deliberately
+  // excluded from the registry — see core/settings/definitions.js), so it
+  // stays a plain env read with no provenance line, same as before.
+  report('A', makeResult(STATUS.PASS, `CONTEXT_MODEL: ${ctx} (source: ${provenance('CONTEXT_MODEL') ?? 'unknown'})`));
+  report('A', makeResult(STATUS.PASS, `TAG_MODEL: ${tag} (source: ${provenance('TAG_MODEL') ?? 'unknown'})`));
+  report('A', makeResult(STATUS.PASS, `TAG_GEN: ${tagGen} (source: ${provenance('TAG_GEN') ?? 'unknown'})`));
   report('A', makeResult(STATUS.PASS, `ONNX_EMBED: ${onnx}`));
-  report('A', makeResult(STATUS.PASS, `ONNX_EXECUTION_PROVIDER: ${ep}`));
+  report('A', makeResult(STATUS.PASS, `ONNX_EXECUTION_PROVIDER: ${ep} (source: ${provenance('ONNX_EXECUTION_PROVIDER') ?? 'unknown'})`));
 
   const combinedCfg = resolveCombinedLlmConfig(process.env);
   if (combinedCfg.enabled) {
@@ -415,12 +453,12 @@ const lines = [
   '## Environment summary',
   '',
   `- Node.js: ${process.version}`,
-  `- QDRANT_URL: ${redactUrl(process.env.QDRANT_URL)}`,
+  `- QDRANT_URL: ${redactUrl(process.env.QDRANT_URL)} (source: ${provenance('QDRANT_URL') ?? 'unknown'})`,
   `- QDRANT_KEY: ${redactKey(process.env.QDRANT_KEY)}`,
-  `- OLLAMA_URL: ${redactUrl(process.env.OLLAMA_URL ?? 'http://localhost:11434')}`,
-  `- CONTEXT_MODEL: ${process.env.CONTEXT_MODEL ?? 'gemma3:4b (default)'}`,
-  `- TAG_MODEL: ${process.env.TAG_MODEL ?? `CONTEXT_MODEL (${process.env.CONTEXT_MODEL ?? 'gemma3:4b'})`}`,
-  `- TAG_GEN: ${process.env.TAG_GEN === '1' ? 'enabled (TAG_GEN=1)' : 'disabled (default)'}`,
+  `- OLLAMA_URL: ${redactUrl(process.env.OLLAMA_URL ?? 'http://localhost:11434')} (source: ${provenance('OLLAMA_URL') ?? 'unknown'})`,
+  `- CONTEXT_MODEL: ${process.env.CONTEXT_MODEL ?? 'gemma3:4b (default)'} (source: ${provenance('CONTEXT_MODEL') ?? 'unknown'})`,
+  `- TAG_MODEL: ${process.env.TAG_MODEL ?? `CONTEXT_MODEL (${process.env.CONTEXT_MODEL ?? 'gemma3:4b'})`} (source: ${provenance('TAG_MODEL') ?? 'unknown'})`,
+  `- TAG_GEN: ${process.env.TAG_GEN === '1' ? 'enabled (TAG_GEN=1)' : 'disabled (default)'} (source: ${provenance('TAG_GEN') ?? 'unknown'})`,
   `- ONNX_EMBED: ${process.env.ONNX_EMBED ?? '(not set)'}`,
   '',
   '## Check results',

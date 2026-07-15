@@ -1,5 +1,19 @@
-import 'dotenv/config';
-
+// No static 'dotenv/config' import here (Global Settings phase) — this
+// file exports pure functions (resolveRepoRoot, getBootstrapSources,
+// buildIndexerEnv, checkCollisionGuard, applyManagedConfig) imported
+// directly by src/smoke/sections/15-bootstrap-docs.js. core/config.js and
+// core/qdrant.js/core/embeddings.js (both dotenv-tainted — they do
+// `import 'dotenv/config'` transitively) are imported DYNAMICALLY, inside
+// main() only, and only after main()'s own bootstrapEnv() call — a static
+// import of either at the top of this file would hoist above the
+// isMainModule guard and load .env before bootstrapEnv() ever ran, making
+// its OS-env snapshot meaningless (the exact bug this restructuring
+// fixes). applyManagedConfig() below takes loadConfig/saveConfig/
+// resolveEnvProviders/SCHEMA_VERSION as explicit parameters instead of
+// importing them itself, so it stays a pure, dependency-free function
+// safely callable from the smoke test without loading any dotenv-tainted
+// module.
+//
 // Bootstrap semidex's own documentation into a reserved `semidex-docs` collection.
 // Usage: npm run bootstrap:docs
 //
@@ -11,9 +25,6 @@ import { existsSync } from 'fs';
 import { resolve, dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import { spawnSync } from 'child_process';
-import { loadConfig, saveConfig, resolveEnvProviders } from './core/config.js';
-import { listCollections } from './core/qdrant.js';
-import { SCHEMA_VERSION } from './core/embeddings.js';
 
 const COLLECTION = 'semidex-docs';
 const DESCRIPTION = 'semidex usage docs: providers, indexing, retrieval, MCP tools, troubleshooting, architecture';
@@ -39,7 +50,16 @@ export function buildIndexerEnv(baseEnv = process.env, repoRoot = resolveRepoRoo
   };
 }
 
-function resolveProvidersFromEnv(env) {
+// core/config.js is dotenv-tainted (transitively `import 'dotenv/config'`)
+// — imported dynamically here, not at this file's top level, so importing
+// bootstrap-docs.js itself (e.g. from the smoke test) never eagerly loads
+// .env. This function is only ever called from applyManagedConfig() below,
+// which is itself pure aside from this one dynamic import — safe for the
+// smoke test to call directly, since by the time any real CLI run reaches
+// here, main() has already called bootstrapEnv() first (see the
+// isMainModule guard at the bottom of this file).
+async function resolveProvidersFromEnv(env) {
+  const { resolveEnvProviders } = await import('./core/config.js');
   const keys = ['ONNX_EMBED', 'DENSE_PROVIDER', 'SPARSE_PROVIDER', 'DENSE_MODEL', 'EMBED_MODEL'];
   const saved = new Map(keys.map(k => [k, process.env[k]]));
   for (const key of keys) {
@@ -56,13 +76,14 @@ function resolveProvidersFromEnv(env) {
   }
 }
 
-export function applyManagedConfig(config, env = process.env) {
+export async function applyManagedConfig(config, env = process.env) {
+  const { SCHEMA_VERSION } = await import('./core/embeddings.js');
   const cfg = {
     ...config,
     collections: { ...(config.collections ?? {}) },
   };
   const entry = { ...(cfg.collections[COLLECTION] ?? {}) };
-  const { denseProvider, denseModel, sparseProvider } = resolveProvidersFromEnv(env);
+  const { denseProvider, denseModel, sparseProvider } = await resolveProvidersFromEnv(env);
   cfg.collections[COLLECTION] = {
     ...entry,
     denseProvider,
@@ -103,6 +124,13 @@ function runIndexer(sourcePath, env) {
 }
 
 async function main() {
+  // core/config.js and core/qdrant.js are dotenv-tainted — dynamically
+  // imported here, AFTER the isMainModule guard's bootstrapEnv() call
+  // below has already run, so .env is loaded only once OS-env has been
+  // safely snapshotted.
+  const { loadConfig, saveConfig } = await import('./core/config.js');
+  const { listCollections } = await import('./core/qdrant.js');
+
   const repoRoot = resolveRepoRoot();
   const sources  = getBootstrapSources(repoRoot);
 
@@ -135,7 +163,7 @@ async function main() {
 
   // Mark the reserved collection before indexing. If indexing is interrupted
   // after Qdrant collection creation, a retry will still be allowed.
-  saveConfig(applyManagedConfig(config, env));
+  saveConfig(await applyManagedConfig(config, env));
 
   console.log(`\nbootstrap:docs: indexing ${sources.length} source(s) into "${COLLECTION}"...`);
   console.log(`  provider: ${env.ONNX_EMBED === '1' ? 'bge-m3-onnx (ONNX_EMBED=1)' : 'ollama/hashed-tf (ONNX_EMBED=0)'}`);
@@ -146,7 +174,7 @@ async function main() {
   }
 
   // Re-apply metadata in case the indexer updated provider fields.
-  saveConfig(applyManagedConfig(loadConfig(), env));
+  saveConfig(await applyManagedConfig(loadConfig(), env));
 
   console.log(`\nbootstrap:docs: done. "${COLLECTION}" is ready.`);
   console.log(`  semidexManaged: true written to config.json`);
@@ -154,5 +182,15 @@ async function main() {
 }
 
 if (process.argv[1] && (process.argv[1].endsWith('bootstrap-docs.js') || process.argv[1].endsWith('bootstrap-docs'))) {
+  const { bootstrapEnv } = await import('./core/env-bootstrap.js');
+  const { osEnv, dotenvValues } = bootstrapEnv();
+  // main()'s own listCollections()/loadConfig() calls (before the indexer
+  // child is even spawned) need QDRANT_URL and the embedding-provider
+  // fields resolved the same way every other real entry point resolves
+  // them — write-back before main() runs, not just inside the spawned
+  // child's own separate bootstrap.
+  const { createSettingsService, applyEnvWriteBack } = await import('./core/settings/service.js');
+  const settingsService = createSettingsService({ osEnv, dotenvValues });
+  applyEnvWriteBack(settingsService);
   main().catch(err => { console.error(err); process.exit(1); });
 }

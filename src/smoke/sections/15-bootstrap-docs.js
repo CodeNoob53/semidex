@@ -34,14 +34,16 @@ export default async function ({ ok, withConfig }) {
   }
 
   // 15d. applyManagedConfig writes provider + management metadata
+  // (async — dynamically loads core/config.js/core/embeddings.js
+  // internally, see bootstrap-docs.js's own header comment for why)
   {
-    const cfg = applyManagedConfig({ collections: {} }, buildIndexerEnv({}, root));
+    const cfg = await applyManagedConfig({ collections: {} }, buildIndexerEnv({}, root));
     const entry = cfg.collections?.['semidex-docs'];
     ok('applyManagedConfig writes semidexManaged:true', entry?.semidexManaged === true);
     ok('applyManagedConfig writes ONNX denseProvider by default', entry?.denseProvider === 'bge-m3-onnx');
     ok('applyManagedConfig writes ONNX sparseProvider by default', entry?.sparseProvider === 'bge-m3-onnx');
 
-    const fallback = applyManagedConfig({ collections: {} }, buildIndexerEnv({ ONNX_EMBED: '0' }, root));
+    const fallback = await applyManagedConfig({ collections: {} }, buildIndexerEnv({ ONNX_EMBED: '0' }, root));
     ok('applyManagedConfig respects ONNX_EMBED=0 dense fallback',
       fallback.collections?.['semidex-docs']?.denseProvider === 'ollama');
     ok('applyManagedConfig respects ONNX_EMBED=0 sparse fallback',

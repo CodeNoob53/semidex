@@ -2,12 +2,31 @@
 // indexes exist on every collection. Safe to re-run: index creation is idempotent.
 // Usage: npm run sync
 
-import 'dotenv/config';
-import { loadConfig, saveConfig, resolveEnvProviders } from './core/config.js';
-import { listCollections, getCollectionInfo, ensureCollectionSchema } from './core/qdrant.js';
-import { classifyVectorSchema } from './core/doctor-checks.js';
-import { SCHEMA_VERSION } from './core/embeddings.js';
+// bootstrapEnv() must run before any import below could transitively load
+// .env via a static 'dotenv/config' import — static imports hoist above all
+// other code, so dynamic import() is the only way to guarantee this
+// ordering (same pattern as src/admin/bootstrap.js / src/mcp/server.js).
+// This is not imported by any test (confirmed), so it's safe for this file
+// to be a top-level script with no isMainModule guard.
+//
+// sync.js DOES consume settings-registry fields: resolveEnvProviders()
+// below (DENSE_PROVIDER/SPARSE_PROVIDER/DENSE_MODEL/EMBED_MODEL) and every
+// Qdrant call (via QDRANT_URL, read by core/qdrant/client.js) — a
+// settings.json-saved value for any of these must be visible to `npm run
+// sync` the same way it is to the indexer/admin/MCP (code review finding:
+// this file previously called resolveEnvProviders() with no SettingsService
+// at all, so a settings.json override was silently invisible here even
+// though sync.js's whole job is to reconcile config.json against reality).
+const { bootstrapEnv } = await import('./core/env-bootstrap.js');
+const { osEnv, dotenvValues } = bootstrapEnv();
+const { createSettingsService, applyEnvWriteBack } = await import('./core/settings/service.js');
+const settingsService = createSettingsService({ osEnv, dotenvValues });
+applyEnvWriteBack(settingsService);
 
+const { loadConfig, saveConfig, resolveEnvProviders } = await import('./core/config.js');
+const { listCollections, getCollectionInfo, ensureCollectionSchema } = await import('./core/qdrant.js');
+const { classifyVectorSchema } = await import('./core/doctor-checks.js');
+const { SCHEMA_VERSION } = await import('./core/embeddings.js');
 
 const config = loadConfig();
 if (!config.collections) config.collections = {};

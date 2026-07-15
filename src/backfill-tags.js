@@ -3,11 +3,29 @@
 // This does not re-embed or reindex documents. It reads existing point payloads,
 // generates tags from text/context, then updates only the `tags` payload field.
 
-import 'dotenv/config';
+// bootstrapEnv() must run before any import below could transitively load
+// .env via a static 'dotenv/config' import — same reasoning as sync.js.
+// This script genuinely consumes TAG_PROVIDER/TAG_MODEL/CONTEXT_MODEL (via
+// isOnnxTagProvider/addTagsBatch below), so a real SettingsService is
+// constructed and applied, matching indexer/index.js's own
+// applyTagSettings() pattern — a backfill run should honor the same
+// settings.json-tiered TAG_* values an indexing run would.
+const { bootstrapEnv } = await import('./core/env-bootstrap.js');
+const { createSettingsService, applyEnvWriteBack } = await import('./core/settings/service.js');
+const { osEnv, dotenvValues } = bootstrapEnv();
+const settingsService = createSettingsService({ osEnv, dotenvValues });
 
-import { scrollAllPoints, updatePayload } from './core/qdrant.js';
-import { addTagsBatch } from './indexer/phases/tag.js';
-import { addTagsOnnxBatch, isOnnxTagProvider, shutdownOnnxTagWorker } from './indexer/phases/tag-onnx.js';
+const { scrollAllPoints, updatePayload } = await import('./core/qdrant.js');
+const { addTagsBatch, applyTagSettings } = await import('./indexer/phases/tag.js');
+const { addTagsOnnxBatch, isOnnxTagProvider, shutdownOnnxTagWorker } = await import('./indexer/phases/tag-onnx.js');
+
+applyTagSettings(settingsService);
+// Writes every writable setting's active value into process.env — TAG_*/
+// QDRANT_URL/etc. — so isOnnxTagProvider(process.env) below, tag-onnx.js's
+// own resolveWorkerConfig(process.env), and core/qdrant/client.js's
+// QDRANT_URL read all observe the resolved value (same shared mechanism
+// every other real entry point uses; see core/settings/service.js).
+applyEnvWriteBack(settingsService);
 
 const COLLECTION = process.env.COLLECTION;
 const FORCE_TAGS = process.env.FORCE_TAGS === '1';

@@ -207,8 +207,19 @@ export async function runBackfill({
 const isMainModule = process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url;
 
 if (isMainModule) {
-  const { default: dotenv } = await import('dotenv');
-  dotenv.config();
+  // bootstrapEnv() must run before any import below could transitively load
+  // .env via a static 'dotenv/config' import — same reasoning as sync.js/
+  // backfill-tags.js. This script reads QDRANT_URL/QDRANT_KEY (via
+  // core/qdrant.js) but no chunking/tagging/embedding settings, so
+  // applyEnvWriteBack() only ever needs to make the resolved QDRANT_URL
+  // reachable (code review finding, P2: this file previously called raw
+  // dotenv.config() and never constructed a SettingsService at all, so a
+  // settings.json-saved QDRANT_URL was invisible to it).
+  const { bootstrapEnv } = await import('./core/env-bootstrap.js');
+  const { osEnv, dotenvValues } = bootstrapEnv();
+  const { createSettingsService, applyEnvWriteBack } = await import('./core/settings/service.js');
+  const settingsService = createSettingsService({ osEnv, dotenvValues });
+  applyEnvWriteBack(settingsService);
 
   const { scrollAllPoints, updatePayload, deletePayloadKeys } = await import('./core/qdrant.js');
 
