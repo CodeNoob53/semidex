@@ -7,6 +7,20 @@
 > (entity cards), Phase 4A.5 settings (provider readiness display).
 > The groundedness gate (4E) still decides when chat becomes the default
 > landing surface; until then it is a first-class tab, not the home screen.
+>
+> **Phase 4A backend status (2026-07-15): implemented.** `POST /api/ask` and
+> the `src/core/generation/`, `src/core/ask/`, `src/core/retrieval/` modules
+> described below exist and are tested — see
+> `docs/admin-api-phase4a-ask-backend-2026-07-15.md` for the implementation
+> report. §5.1's module list gained one file not listed below,
+> `src/core/ask/coordinator.js` (orchestrates evidence -> prompt -> provider
+> -> citation validation and owns the single-generation lock — the task that
+> commissioned this phase required it explicitly). §5.1's evidence.js reuses
+> the Phase 3X bounded-assembly primitive `getAnchoredContent()` for
+> skeleton hits (section-scope expansion, per-source token budget), not a
+> plain retrieval-only implementation — see that module's own comments.
+> Everything in §6 (frontend) remains unbuilt — this status note covers the
+> backend only.
 
 ## 1. Product definition
 
@@ -153,12 +167,27 @@ event: done           (exactly once, last on success)
 data: { "citations": [1,3], "invalidCitations": [],
         "entityRefs": ["docs/a.md#table-2"], "strippedMarkers": [],
         "refused": false, "model": "gemma3:4b", "provider": "ollama",
-        "elapsedMs": 6120, "promptTokens": 2810, "evidenceCount": 5 }
+        "elapsedMs": 6120, "promptTokens": 2810, "completionTokens": 340,
+        "evidenceCount": 5 }
+        // zero-evidence refusal instead sends only:
+        // { "citations": [], "invalidCitations": [], "entityRefs": [],
+        //   "strippedMarkers": [], "refused": true,
+        //   "refusalReason": "no_evidence", "evidenceCount": 0 }
+        // (no provider/model/elapsedMs/token counts — the provider was
+        // never called)
 
 event: error          (terminal, replaces done on failure)
-data: { "code": "generation_failed" | "provider_unavailable" | "stream_aborted",
-        "message": "..." }
+data: { "code": "generation_failed" | "stream_aborted", "message": "..." }
+        // provider_unavailable is NOT an SSE `error` event — it is a
+        // plain JSON 503 sent before any stream starts (see Rules below).
 ```
+
+**Implementation note (2026-07-15):** the event/field names above are
+exactly what `src/admin/api/ask.js` sends today; `promptTokens`/
+`completionTokens` map to the coordinator's `tokensIn`/`tokensOut`, which
+in turn come from Ollama's `prompt_eval_count`/`eval_count` — both
+`undefined` when the provider stream ends without a final `done: true`
+frame (e.g. an aborted stream), so clients must treat them as optional.
 
 Rules:
 
@@ -188,12 +217,26 @@ src/core/generation/
   ollama-provider.js - first implementation over src/core/ollama.js
 src/core/ask/
   evidence.js        - retrieval → numbered evidence blocks (uses the same
-                       search service as /api/search; excludeNav always on)
-  prompt.js          - grounded prompt assembly + token budgeting (pure)
+                       search service as /api/search; excludeNav always on).
+                       For a skeleton hit (nodeId present), expands to
+                       section scope via the Phase 3X primitive
+                       getAnchoredContent() (bounded per-source token
+                       budget); legacy hits with no node identity fall back
+                       to the hit's own chunk text, truncated to the same
+                       budget. Hits resolving to the same section are
+                       deduplicated to one evidence block.
+  prompt.js          - grounded prompt assembly + the deterministic refusal
+                       sentinel (pure)
   citations.js       - pure post-processing: [n] validation, [node:] marker
-                       validation against the evidence set
+                       validation against the evidence set, refusal-sentinel
+                       detection
+  coordinator.js     - orchestrates evidence → prompt → provider.generate()
+                       → citation validation; owns the single-generation-
+                       at-a-time lock (busy 429), always released in
+                       finally{} on every exit path
 src/admin/api/ask.js - route: validation, SSE framing, event sequencing;
-                       DI: { adapter, embedQuery, generationProvider }
+                       DI: { askCoordinator } (adapter/embedQuery flow into
+                       the coordinator via createApp(), not the route itself)
 ```
 
 Layering: `ask` service sits **above** StorageAdapter (retrieval via the
@@ -201,18 +244,20 @@ existing search service) and **beside** embeddings (generation is provider
 logic). Nothing under `src/admin/` imports Ollama/ONNX directly — the
 layering test extends to forbid `core/ollama.js` imports in `src/admin/`.
 
-### 5.2 Prompt design (v1, deterministic template)
+### 5.2 Prompt design (v1, deterministic template) — as implemented
 
 ```text
 System:
   You answer questions using ONLY the numbered evidence below.
   Rules:
   - Every factual claim must carry an inline citation like [1] or [2][4].
-  - If the evidence does not contain the answer, say so plainly and do not
-    guess. Do not use outside knowledge.
+  - If the evidence does not contain the answer, respond with exactly
+    [[INSUFFICIENT_EVIDENCE]] and nothing else. Do not guess. Do not use
+    outside knowledge.
   - Answer in the language of the question.
   - To show an original table or code block from the evidence, emit
-    [node: <node_path>] on its own line instead of re-typing it.
+    [node: <node_path>] on its own line instead of re-typing it. Only use
+    a node_path that appears in the evidence below.
   - Be concise.
 
 Evidence:
@@ -229,16 +274,43 @@ structural nodes (don't teach a tool that can't fire). The template is a
 pure function → unit-testable snapshot-free (assert on structure, not full
 string).
 
-### 5.3 Context budgeting (pure, tested)
+**Refusal sentinel (implemented, supersedes "say so plainly"):** the model
+is instructed to emit the exact literal `[[INSUFFICIENT_EVIDENCE]]` and
+nothing else when evidence is insufficient — a fixed, language-independent
+marker (`src/core/ask/prompt.js`'s `REFUSAL_SENTINEL`) rather than free-form
+refusal prose. This lets `citations.js` detect model refusal with an exact
+string match instead of guessing refusal phrasing per language. The
+sentinel is stripped from `text` before it reaches the client; `done`'s
+`refused: true` is the only client-visible refusal signal.
 
-- Budget = `num_ctx − reserved` (reserved ≈ system prompt + question +
-  answer headroom, default answer headroom 1024 tokens).
-- Evidence packing: take hits in rank order; per-chunk cap (default 700
-  tokens, real tokenizer via existing `token-count.js`); stop when budget
-  is exhausted; **never truncate mid-chunk silently** — a truncated chunk is
-  marked `…[truncated]` in the evidence and flagged in `done` metadata.
+### 5.3 Context budgeting (pure, tested) — as implemented
+
+- Evidence packing: take hits in rank order; per-source token cap (default
+  `DEFAULT_PER_SOURCE_TOKEN_BUDGET = 700`, real BGE-M3 tokenizer via
+  existing `token-count.js`, same instance the Phase 3X assembly window
+  uses); a skeleton hit's cap is enforced by `getAnchoredContent()`'s own
+  bounded window, a legacy hit's cap by a simple char-ratio trim in
+  `evidence.js`. **Never truncated mid-chunk silently** — every source
+  carries its own `truncated: boolean` flag.
+- Whole-prompt enforcement is active. The Ollama provider reports an
+  effective `numCtx = min(DEFAULT_ASK_NUM_CTX, modelMax)` and the coordinator
+  passes that same value as `options.num_ctx` on the generation request.
+  `fitEvidenceToContextBudget()` reconstructs and counts the complete prompt
+  (rules + evidence + question), reserves
+  `RESERVED_HEADROOM_TOKENS = 1024` for generation, and drops the
+  lowest-ranked sources until the prompt fits. If no source fits, the turn
+  becomes a `no_evidence` refusal instead of exceeding the configured
+  context window.
+- **Honesty boundary (bounded estimate, not exact generation-tokenizer
+  accounting):** evidence and reconstructed-prompt counts use the real
+  BGE-M3 tokenizer, which is exact for the indexed text it measures but is
+  only a proxy for the generation model's own tokenizer (for example,
+  Gemma's SentencePiece vocabulary differs from BGE-M3's). The implementation
+  therefore enforces one consistent estimated budget and runtime `num_ctx`,
+  but does not claim exact Gemma token accounting. See `evidence.js` and
+  `prompt.js` for the same boundary.
 - Defaults sized for gemma3:4b @ 8k ctx: top=5 × ≤700 ≈ 3.5k evidence
-  tokens. All knobs surface in Settings (4A.5), none require code edits.
+  tokens, same target as originally planned.
 
 ### 5.4 Grounding enforcement (server-side, deterministic)
 

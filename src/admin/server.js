@@ -17,12 +17,25 @@ import { registerAssemblyRoutes } from './api/assembly.js';
 import { registerSkeletonRoutes } from './api/skeleton.js';
 import { registerNodeRoutes } from './api/node.js';
 import { registerSearchRoutes } from './api/search.js';
+import { registerAskRoutes } from './api/ask.js';
 import { registerJobsRoutes } from './api/jobs.js';
 import { createJobRegistry } from './jobs/registry.js';
 import { createTaskRegistry } from './jobs/task-registry.js';
 import { registerOperationsRoutes } from './api/operations.js';
 import { registerSystemRoutes } from './api/system.js';
 import { handleStatic } from './static.js';
+import { createGenerationProvider } from '../core/generation/registry.js';
+import { createAskCoordinator } from '../core/ask/coordinator.js';
+import { getTokenCounter } from '../core/token-count.js';
+
+// Lazily resolves the real BGE-M3 tokenizer on first Ask request, never at
+// import/startup time — importing server.js (e.g. for its route wiring in
+// a test) must not eagerly load the ONNX tokenizer model. Mirrors
+// getContent.js's own lazy-resolution pattern for the same tokenizer.
+async function defaultCountTokens(text) {
+  const counter = await getTokenCounter({ mode: 'bge-m3' });
+  return counter(text);
+}
 
 const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '::1']);
 
@@ -48,7 +61,10 @@ export function resolvePortConfig(env = process.env) {
   return port;
 }
 
-export function createApp({ adapter = createStorageAdapter(), embedQuery, jobRegistry, taskRegistry, pickFolderFn, checkOllamaFn, assemblyLogFn } = {}) {
+export function createApp({
+  adapter = createStorageAdapter(), embedQuery, jobRegistry, taskRegistry, pickFolderFn, checkOllamaFn,
+  assemblyLogFn, generationProvider, askCoordinator, countTokens,
+} = {}) {
   const router = createRouter();
   registerHealthRoutes(router, adapter);
   // taskRegistry is optional DI (tests inject a fake with a pinned clock, or
@@ -67,6 +83,17 @@ export function createApp({ adapter = createStorageAdapter(), embedQuery, jobReg
   // embedQuery is optional DI (tests inject a stub so unit tests never load
   // ONNX/Ollama); production default lives in api/search.js.
   registerSearchRoutes(router, adapter, embedQuery ? { embedQuery } : {});
+  // generationProvider/askCoordinator/countTokens are optional DI — tests
+  // inject stubs so unit tests never initialize Ollama or the real BGE-M3
+  // tokenizer. Defaulted here (not inside ask.js) so the same coordinator
+  // instance holds the single-generation-at-a-time lock for the whole
+  // server process, matching jobRegistry/taskRegistry's shared-instance
+  // convention above.
+  const generation = generationProvider ?? createGenerationProvider();
+  const ask = askCoordinator ?? createAskCoordinator({
+    adapter, embedQuery, countTokens: countTokens ?? defaultCountTokens, generationProvider: generation,
+  });
+  registerAskRoutes(router, adapter, { askCoordinator: ask });
   // jobRegistry/checkOllamaFn are optional DI (tests inject a fake spawnFn-
   // backed registry and a stub Ollama check so unit tests never launch a
   // real indexer child process or probe a real Ollama instance).

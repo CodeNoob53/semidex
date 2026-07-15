@@ -1,11 +1,11 @@
-// POST /api/search — StorageAdapter-only storage access.
-//
-// Layering (design doc §5/§7): embedding is provider logic, not storage
-// logic, so the query is embedded ABOVE the adapter boundary via
-// src/core/embeddings.js, and only the resulting vectors cross into
-// adapter.searchHybrid(). No MCP tool modules and no Qdrant store/client/SDK
-// are imported here — window expansion is reimplemented on domain Chunk
-// shapes using adapter.getChunk().
+// POST /api/search — thin HTTP adapter over the shared retrieval service
+// (src/core/retrieval/search.js). This file owns only HTTP concerns: body
+// validation, translating the service's typed { error } results into
+// HttpErrors, and window expansion (a search-route-only concern the Ask
+// evidence pipeline does not need — it uses core getAnchoredContent()
+// instead). The core service owns mode resolution, the collection-exists
+// check, query embedding, and the excludeNav filter, so /api/search and Ask
+// see identical ranking/filtering behavior from one implementation.
 //
 // Search mode is capability-driven: hybrid requires
 // caps.hybridSearch && caps.sparseVectors. The StorageAdapter contract has
@@ -15,6 +15,9 @@
 import { sendJson, badRequest, notFound, HttpError } from '../http.js';
 import { readJsonBody } from '../http.js';
 import { embedForSearch } from '../../core/embeddings.js';
+import { runHybridSearch, resolveSearchMode } from '../../core/retrieval/search.js';
+
+export { resolveSearchMode };
 
 const TOP_DEFAULT = 3;
 const TOP_MIN = 1;
@@ -89,13 +92,6 @@ export function parseSearchRequest(body) {
   return { collection, query, top, window, windowFormat, sourceFile, tags };
 }
 
-// ── Search mode ───────────────────────────────────────────────────────────────
-
-export function resolveSearchMode(capabilities) {
-  if (capabilities.hybridSearch && capabilities.sparseVectors) return 'hybrid';
-  return null; // no supported mode on this adapter (Phase 1C: hybrid only)
-}
-
 // ── Window expansion (domain shapes only) ────────────────────────────────────
 // Mirrors the MCP compact/full window semantics — matched chunk always kept,
 // duplicate neighbors across results emitted once, compact snippets capped —
@@ -158,36 +154,15 @@ export function registerSearchRoutes(router, adapter, { embedQuery = embedForSea
     const body = await readJsonBody(req);
     const { collection, query, top, window, windowFormat, sourceFile, tags } = parseSearchRequest(body);
 
-    const searchMode = resolveSearchMode(adapter.capabilities());
-    if (searchMode === null) {
-      throw new HttpError(501, 'not_implemented',
-        'This storage backend does not support hybrid search, and no other search mode is implemented yet (Phase 1C limitation)');
-    }
-
-    const existing = await adapter.getCollection(collection);
-    if (!existing) throw notFound(`Collection "${collection}" not found`);
-
-    let vectors;
-    try {
-      vectors = await embedQuery(collection, query);
-    } catch (err) {
-      throw new HttpError(500, 'embedding_failed',
-        `Failed to embed query with the collection's provider: ${err?.message ?? err}`);
-    }
-
-    const filter = {
-      ...(sourceFile && { sourceFile }),
-      ...(tags && { tags }),
-      excludeNav: true,
-    };
-
-    const hits = await adapter.searchHybrid(collection, {
-      dense: vectors.dense,
-      sparse: vectors.sparse,
-      limit: top,
-      filter,
+    const result = await runHybridSearch({
+      adapter, embedQuery, collection, query, top, filters: { sourceFile, tags },
     });
 
+    if (result.error === 'not_implemented') throw new HttpError(501, result.error, result.message);
+    if (result.error === 'collection_not_found') throw notFound(result.message);
+    if (result.error === 'embedding_failed') throw new HttpError(500, result.error, result.message);
+
+    const { searchMode, hits } = result;
     const results = window > 0
       ? await expandWindows(adapter, collection, hits, { window, windowFormat })
       : hits.map(h => ({ ...h, isMatch: true }));

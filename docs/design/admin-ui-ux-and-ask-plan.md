@@ -255,6 +255,11 @@ critical path (F13 → F14) extends 4A's seam; it does not precede it.
 Exit gate: stub-provider unit tests for prompt assembly, citation extraction,
 refusal path, SSE framing; live manual check against Ollama documented.
 
+**Status (2026-07-15): backend exit gate met.** See
+`docs/admin-api-phase4a-ask-backend-2026-07-15.md` for the implementation
+report and `docs/design/ask-chat.md`'s own status note for the module-level
+detail. No UI work from this plan's later phases has started.
+
 ### Phase 4A.5 — Settings + external provider configuration
 
 Scope: F13 + F14. Add a dashboard Settings surface and provider/runtime

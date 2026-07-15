@@ -6,7 +6,7 @@ import { describe, it, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import {
-  isOllamaReachable, listOllamaModels, validateOllamaModels,
+  isOllamaReachable, listOllamaModels, validateOllamaModels, generateStream, getModelContextLength,
 } from '../../../src/core/ollama.js';
 import { checkOllamaPreflight } from '../../../src/indexer/preflight.js';
 import { checkOllama } from '../../../src/admin/system/ollama.js';
@@ -62,6 +62,184 @@ describe('listOllamaModels', () => {
   it('throws on a non-ok response (callers should check isOllamaReachable first)', async () => {
     globalThis.fetch = async () => ({ ok: false, status: 503 });
     await assert.rejects(() => listOllamaModels('http://localhost:11434'));
+  });
+});
+
+describe('getModelContextLength', () => {
+  let originalFetch;
+  beforeEach(() => { originalFetch = globalThis.fetch; });
+  afterEach(() => { globalThis.fetch = originalFetch; });
+
+  it('requests /api/show against the given baseUrl, not the module-level default', async () => {
+    // Regression: showModel() always used the module-level OLLAMA_URL,
+    // ignoring any baseUrl a caller passed — a GenerationProvider
+    // constructed with a non-default baseUrl had its /api/show call
+    // (and therefore its numCtx) silently resolved against the wrong
+    // Ollama instance (code review finding, confirmed live).
+    let requestedUrl;
+    globalThis.fetch = async (url) => {
+      requestedUrl = url;
+      return { ok: true, json: async () => ({ model_info: { 'x.context_length': 8192 } }) };
+    };
+    await getModelContextLength('gemma3:4b', 4096, 'http://custom-host:11500');
+    assert.equal(requestedUrl, 'http://custom-host:11500/api/show');
+  });
+
+  it('caches by baseUrl + model, not model alone — two different baseUrls never collide', async () => {
+    const responses = {
+      'http://host-a:11434': { model_info: { 'x.context_length': 4096 } },
+      'http://host-b:11434': { model_info: { 'x.context_length': 32768 } },
+    };
+    globalThis.fetch = async (url) => {
+      const base = url.replace(/\/api\/show$/, '');
+      return { ok: true, json: async () => responses[base] };
+    };
+    const a = await getModelContextLength('gemma3:4b', 4096, 'http://host-a:11434');
+    const b = await getModelContextLength('gemma3:4b', 4096, 'http://host-b:11434');
+    assert.equal(a, 4096);
+    assert.equal(b, 32768);
+  });
+
+  it('falls back to the given default when /api/show is unreachable', async () => {
+    globalThis.fetch = async () => { throw new Error('ECONNREFUSED'); };
+    const result = await getModelContextLength('gemma3:4b', 2048, 'http://unreachable:11434');
+    assert.equal(result, 2048);
+  });
+});
+
+// ── generateStream ────────────────────────────────────────────────────────
+// A real fetch() Response.body is a web ReadableStream yielding Uint8Array
+// chunks (NOT Node Buffers) — string-concatenating a Uint8Array directly
+// calls its default toString(), producing a comma-separated byte list, not
+// UTF-8 text. This is exactly the bug the manual live-Ollama check caught
+// (2026-07-15): every stub in ollama-provider.test.js replaces
+// generateStreamFn wholesale, so nothing exercised the real NDJSON-over-
+// bytes parsing loop below until a live run against real Ollama returned
+// zero tokens and an empty answer. fakeStreamResponse() reproduces the
+// exact chunk shape (Uint8Array, not Buffer, not string) so this class of
+// bug is caught by the unit suite going forward, without a live server.
+function fakeStreamResponse(lines) {
+  const encoder = new TextEncoder();
+  return {
+    ok: true,
+    body: {
+      [Symbol.asyncIterator]: async function* () {
+        for (const line of lines) yield encoder.encode(line);
+      },
+    },
+  };
+}
+
+describe('generateStream', () => {
+  let originalFetch;
+  beforeEach(() => { originalFetch = globalThis.fetch; });
+  afterEach(() => { globalThis.fetch = originalFetch; });
+
+  it('decodes real Uint8Array chunks (not Buffers) into UTF-8 text, not a byte-value list', async () => {
+    globalThis.fetch = async () => fakeStreamResponse([
+      '{"response":"Hel","done":false}\n',
+      '{"response":"lo","done":false}\n',
+      '{"response":"","done":true,"prompt_eval_count":12,"eval_count":2}\n',
+    ]);
+    const tokens = [];
+    const result = await generateStream('gemma3:4b', 'hi', { onToken: (t) => tokens.push(t) });
+    assert.deepEqual(tokens, ['Hel', 'lo']);
+    assert.equal(result.text, 'Hello');
+    assert.equal(result.tokensIn, 12);
+    assert.equal(result.tokensOut, 2);
+    assert.equal(result.aborted, false);
+  });
+
+  it('handles a UTF-8 multi-byte character split across two chunk boundaries', async () => {
+    // "привіт" (Cyrillic) — encode as one JSON line, then split the raw
+    // bytes mid-character to exercise TextDecoder's stream:true carry-over.
+    const encoder = new TextEncoder();
+    const line = JSON.stringify({ response: 'привіт', done: false }) + '\n'
+      + JSON.stringify({ response: '', done: true }) + '\n';
+    const bytes = encoder.encode(line);
+    const splitAt = Math.floor(bytes.length / 2);
+    globalThis.fetch = async () => ({
+      ok: true,
+      body: {
+        [Symbol.asyncIterator]: async function* () {
+          yield bytes.slice(0, splitAt);
+          yield bytes.slice(splitAt);
+        },
+      },
+    });
+    const result = await generateStream('gemma3:4b', 'hi');
+    assert.equal(result.text, 'привіт');
+  });
+
+  it('handles a JSON line split across two chunks (partial line buffered until newline)', async () => {
+    globalThis.fetch = async () => fakeStreamResponse([
+      '{"resp',
+      'onse":"ok","done":false}\n{"response":"","done":true}\n',
+    ]);
+    const result = await generateStream('gemma3:4b', 'hi');
+    assert.equal(result.text, 'ok');
+  });
+
+  it('an aborted signal mid-stream returns partial text and aborted: true, not a throw', async () => {
+    const controller = new AbortController();
+    globalThis.fetch = async () => ({
+      ok: true,
+      body: {
+        [Symbol.asyncIterator]: async function* () {
+          yield new TextEncoder().encode('{"response":"partial","done":false}\n');
+          controller.abort();
+          throw new Error('simulated abort during read');
+        },
+      },
+    });
+    const result = await generateStream('gemma3:4b', 'hi', { signal: controller.signal });
+    assert.equal(result.aborted, true);
+    assert.equal(result.text, 'partial');
+  });
+
+  it('targets the given baseUrl, not the module-level OLLAMA_URL default, when one is passed', async () => {
+    // Regression: ollama-provider.js's generate() passed baseUrl through to
+    // generateStream(), but generateStream() itself ignored it and always
+    // built the request URL from the module-level OLLAMA_URL constant — a
+    // provider constructed with a non-default baseUrl silently generated
+    // against the wrong Ollama instance (code review finding, confirmed
+    // live: baseUrl=http://example.invalid:9999 actually hit
+    // localhost:11434).
+    let requestedUrl;
+    globalThis.fetch = async (url) => { requestedUrl = url; return fakeStreamResponse(['{"response":"","done":true}\n']); };
+    await generateStream('gemma3:4b', 'hi', { baseUrl: 'http://custom-host:11500' });
+    assert.equal(requestedUrl, 'http://custom-host:11500/api/generate');
+  });
+
+  it('strips a trailing slash from baseUrl before building the request URL', async () => {
+    let requestedUrl;
+    globalThis.fetch = async (url) => { requestedUrl = url; return fakeStreamResponse(['{"response":"","done":true}\n']); };
+    await generateStream('gemma3:4b', 'hi', { baseUrl: 'http://custom-host:11500/' });
+    assert.equal(requestedUrl, 'http://custom-host:11500/api/generate');
+  });
+
+  it('awaits onToken before reading the next frame (real backpressure, not fire-and-forget)', async () => {
+    const order = [];
+    let resolveSlowToken;
+    globalThis.fetch = async () => fakeStreamResponse([
+      '{"response":"a","done":false}\n',
+      '{"response":"b","done":false}\n',
+      '{"response":"","done":true}\n',
+    ]);
+    const onToken = async (t) => {
+      order.push(`onToken-start:${t}`);
+      if (t === 'a') {
+        await new Promise((resolve) => { resolveSlowToken = resolve; });
+      }
+      order.push(`onToken-end:${t}`);
+    };
+    // Resolve the slow first onToken shortly after the call starts —if
+    // generateStream() did NOT await onToken, it would already have moved
+    // on to processing "b" before "onToken-end:a" is recorded.
+    setTimeout(() => resolveSlowToken?.(), 5);
+    const result = await generateStream('gemma3:4b', 'hi', { onToken });
+    assert.deepEqual(order, ['onToken-start:a', 'onToken-end:a', 'onToken-start:b', 'onToken-end:b']);
+    assert.equal(result.text, 'ab');
   });
 });
 

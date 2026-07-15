@@ -636,11 +636,12 @@ describe('resolvePortConfig', () => {
   });
 });
 
-describe('layering — src/admin/ never imports Qdrant directly', () => {
+describe('layering — src/admin/ never imports Qdrant or Ollama directly', () => {
   const FORBIDDEN = [
     /from\s+['"][^'"]*core\/qdrant\/store\.js['"]/,
     /from\s+['"]@qdrant\/js-client-rest['"]/,
     /from\s+['"][^'"]*core\/qdrant\/client\.js['"]/,
+    /from\s+['"][^'"]*core\/ollama\.js['"]/,
   ];
 
   function walk(dir) {
@@ -653,13 +654,24 @@ describe('layering — src/admin/ never imports Qdrant directly', () => {
     return out;
   }
 
-  it('no file under src/admin/ imports the Qdrant store, client, or SDK directly', () => {
+  // system/ollama.js predates the generation-provider seam (Phase 4A): it is
+  // a narrow, already-established readiness-check wrapper used only for the
+  // indexer job-preflight check (injected via checkOllamaFn DI), not for
+  // generation. The layering rule this test enforces is about the NEW
+  // seam — no route or ask module may bypass GenerationProvider to call
+  // core/ollama.js for generation — so this one pre-existing, non-generation
+  // wrapper is an intentional, narrow exemption, not a gap.
+  const EXEMPT = new Set(['system/ollama.js']);
+
+  it('no file under src/admin/ imports the Qdrant store/client/SDK or core/ollama.js directly', () => {
     const dir = fileURLToPath(new URL('../../../src/admin/', import.meta.url)).replace(/\/$/, '');
     const offenders = [];
     for (const file of walk(dir)) {
+      const relative = file.slice(dir.length + 1).replace(/\\/g, '/');
+      if (EXEMPT.has(relative)) continue;
       const content = readFileSync(file, 'utf-8');
       if (FORBIDDEN.some((re) => re.test(content))) offenders.push(file);
     }
-    assert.deepEqual(offenders, [], `src/admin/ must depend on StorageAdapter only: ${offenders.join(', ')}`);
+    assert.deepEqual(offenders, [], `src/admin/ must depend on StorageAdapter/GenerationProvider only: ${offenders.join(', ')}`);
   });
 });

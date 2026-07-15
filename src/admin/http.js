@@ -48,6 +48,10 @@ export function dependencyUnavailable(message) {
   return new HttpError(503, 'dependency_unavailable', message);
 }
 
+export function tooManyRequests(message) {
+  return new HttpError(429, 'busy', message);
+}
+
 /**
  * Read and JSON-parse a request body, capped to avoid unbounded memory use
  * from a misbehaving client. Returns {} for an empty body (POST endpoints in
