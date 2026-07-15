@@ -131,10 +131,14 @@ npm run admin:dev    - Vite dev server (127.0.0.1). index.html itself is
                         serving from src/admin/server.js involved.
 npm run admin:build  - `vite build`; compiles src/admin/ui-src/ into
                         src/admin/ui/ (index.html, app.js, app.css).
-npm run admin        - `node src/admin/server.js` — serves the *built*
-                        files from src/admin/ui/ (src/admin/static.js) plus
-                        the /api/* routes. No dev server, no build step at
-                        runtime; this is the production/normal-use path.
+npm run admin        - `node src/admin/bootstrap.js` (Phase 4A.5a; was
+                        `node src/admin/server.js` before the explicit
+                        admin bootstrap was added) — snapshots the OS
+                        environment, loads .env explicitly, then starts the
+                        server, serving the *built* files from
+                        src/admin/ui/ (src/admin/static.js) plus the /api/*
+                        routes. No dev server, no build step at runtime;
+                        this is the production/normal-use path.
 ```
 
 **Rule:** edit only `src/admin/ui-src/*` (JS, CSS, HTML, partials/templates).
@@ -152,7 +156,21 @@ src/core/storage/
   qdrant-adapter.js     - QdrantStorageAdapter: implements the interface by
                           delegating to src/core/qdrant/ (store.js, schema.js)
 src/admin/
-  server.js             - HTTP entry point (npm run admin), binds 127.0.0.1
+  bootstrap.js           - real npm run admin entry point (Phase 4A.5a):
+                          snapshots OS env before any dotenv-mutating
+                          import, loads .env explicitly, then starts the
+                          server (binds 127.0.0.1)
+  server.js              - createApp() factory only: no self-start block,
+                          no top-level 'dotenv/config' import, never calls
+                          server.listen() or loads a generation/embedding
+                          model on import — but NOT free of all transitive
+                          import-time side effects (createStorageAdapter()
+                          pulls in core/qdrant/client.js, which still does
+                          `import 'dotenv/config'`, intentionally not
+                          refactored in this phase). bootstrap.js snapshots
+                          the OS env before dynamically importing this
+                          file, so that transitive dotenv/config never runs
+                          before the snapshot is taken.
   router.js             - tiny method+path router (no framework)
   api/
     health.js           - GET /api/health, /api/capabilities

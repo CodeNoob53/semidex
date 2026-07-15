@@ -1,12 +1,26 @@
-// Semidex Local API — HTTP entry point (npm run admin).
+// Semidex Local API — createApp() factory. No self-start block here: the
+// real process entry point is src/admin/bootstrap.js (npm run admin),
+// which snapshots the OS environment BEFORE importing this file, then
+// constructs a generationRuntime and passes it into createApp(). This file
+// itself has no top-level 'dotenv/config' import and never calls
+// server.listen() — but it is NOT free of transitive import-time side
+// effects: createStorageAdapter() (imported below) pulls in
+// core/qdrant/client.js, which still does `import 'dotenv/config'` (that
+// bootstrap predates this file and is intentionally NOT refactored here,
+// per this phase's own scope). Functional correctness does not depend on
+// this file being side-effect-free — bootstrap.js's snapshot happens
+// before it dynamically imports this file at all, so the snapshot is
+// already taken by the time any transitive dotenv/config runs. What this
+// file DOES guarantee is narrower: importing it never starts a server and
+// never loads a generation/embedding model, so tests (and any other
+// caller) can import it freely without binding a port or touching Ollama/
+// ONNX.
 //
 // Design doc §7/§10: JSON-only, localhost-only by default, no CORS, no auth
 // (the loopback bind IS the auth boundary for MVP). Every route handler
 // depends on the StorageAdapter contract only — no direct Qdrant SDK or
 // src/core/qdrant/store.js import anywhere under src/admin/.
-import 'dotenv/config';
 import { createServer } from 'node:http';
-import { pathToFileURL } from 'node:url';
 import { createStorageAdapter } from '../core/storage/factory.js';
 import { createRouter } from './router.js';
 import { registerHealthRoutes } from './api/health.js';
@@ -18,13 +32,14 @@ import { registerSkeletonRoutes } from './api/skeleton.js';
 import { registerNodeRoutes } from './api/node.js';
 import { registerSearchRoutes } from './api/search.js';
 import { registerAskRoutes } from './api/ask.js';
+import { registerGenerationRoutes } from './api/generation.js';
 import { registerJobsRoutes } from './api/jobs.js';
 import { createJobRegistry } from './jobs/registry.js';
 import { createTaskRegistry } from './jobs/task-registry.js';
 import { registerOperationsRoutes } from './api/operations.js';
 import { registerSystemRoutes } from './api/system.js';
 import { handleStatic } from './static.js';
-import { createGenerationProvider } from '../core/generation/registry.js';
+import { createGenerationRuntime } from '../core/generation/runtime.js';
 import { createAskCoordinator } from '../core/ask/coordinator.js';
 import { getTokenCounter } from '../core/token-count.js';
 
@@ -63,7 +78,7 @@ export function resolvePortConfig(env = process.env) {
 
 export function createApp({
   adapter = createStorageAdapter(), embedQuery, jobRegistry, taskRegistry, pickFolderFn, checkOllamaFn,
-  assemblyLogFn, generationProvider, askCoordinator, countTokens,
+  assemblyLogFn, generationRuntime, askCoordinator, countTokens,
 } = {}) {
   const router = createRouter();
   registerHealthRoutes(router, adapter);
@@ -83,13 +98,23 @@ export function createApp({
   // embedQuery is optional DI (tests inject a stub so unit tests never load
   // ONNX/Ollama); production default lives in api/search.js.
   registerSearchRoutes(router, adapter, embedQuery ? { embedQuery } : {});
-  // generationProvider/askCoordinator/countTokens are optional DI — tests
+  // generationRuntime/askCoordinator/countTokens are optional DI — tests
   // inject stubs so unit tests never initialize Ollama or the real BGE-M3
-  // tokenizer. Defaulted here (not inside ask.js) so the same coordinator
-  // instance holds the single-generation-at-a-time lock for the whole
-  // server process, matching jobRegistry/taskRegistry's shared-instance
-  // convention above.
-  const generation = generationProvider ?? createGenerationProvider();
+  // tokenizer. Defaulted here (not inside ask.js) so the SAME runtime/
+  // coordinator instance is shared between GET /api/generation/status and
+  // POST /api/ask — both must observe identical readiness, never two
+  // independently-resolved configs that could disagree.
+  //
+  // The default here (process.env as "osEnv", no dotenv values) is a safe
+  // fallback for direct createApp() callers that never bootstrap explicitly
+  // (e.g. a quick script, or a test that doesn't care about provenance) —
+  // it reads process.env but does NOT read any file or touch the network,
+  // so createApp() itself stays import/construction-safe. The real
+  // production entry point (bootstrap.js) always passes its own properly
+  // snapshotted generationRuntime instead, which is what makes provenance
+  // (os_env vs dotenv vs default) meaningful in practice.
+  const generation = generationRuntime ?? createGenerationRuntime({ osEnv: process.env, dotenvValues: {} });
+  registerGenerationRoutes(router, { generationRuntime: generation });
   const ask = askCoordinator ?? createAskCoordinator({
     adapter, embedQuery, countTokens: countTokens ?? defaultCountTokens, generationProvider: generation,
   });
@@ -121,16 +146,5 @@ export function createApp({
       return;
     }
     router.handleRequest(req, res);
-  });
-}
-
-const isMainModule = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
-
-if (isMainModule) {
-  const { host } = resolveHostConfig();
-  const port = resolvePortConfig();
-  const server = createApp();
-  server.listen(port, host, () => {
-    console.log(`[admin] Semidex Local API listening on http://${host}:${port}`);
   });
 }

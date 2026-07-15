@@ -262,6 +262,21 @@ detail. No UI work from this plan's later phases has started.
 
 ### Phase 4A.5 — Settings + external provider configuration
 
+**Status (2026-07-15): 4A.5a (runtime/config/status backend) done; Settings
+UI and cloud adapters not started.** See
+`docs/admin-api-phase4a5a-generation-runtime-2026-07-15.md` for the
+implementation report. What exists now: `resolveGenerationRuntimeConfig()`
+(pure config resolver with OS-env/`.env`/default provenance), the
+generation runtime service (`src/core/generation/runtime.js`, wraps the
+registry, never crashes admin startup on bad config), `GET
+/api/generation/status` (backend-neutral, redacted), and the explicit admin
+bootstrap (`src/admin/bootstrap.js`, `npm run admin`'s real entry point —
+snapshots OS env before any `dotenv/config` import can mutate it). Ask and
+the status endpoint now share one `generationRuntime` instance per server
+process. Still entirely deferred to a later 4A.5 slice: the Settings UI
+itself, cloud/API adapters, API-key persistence, session provider
+switching, local config-file writes.
+
 Scope: F13 + F14. Add a dashboard Settings surface and provider/runtime
 registry.
 Settings must separate:

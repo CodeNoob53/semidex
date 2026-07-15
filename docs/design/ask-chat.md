@@ -21,6 +21,15 @@
 > plain retrieval-only implementation — see that module's own comments.
 > Everything in §6 (frontend) remains unbuilt — this status note covers the
 > backend only.
+>
+> **Phase 4A.5a status (2026-07-15): implemented.** The generation
+> runtime/config seam described in §5.5 below now exists:
+> `src/core/generation/config.js` (pure resolver), `runtime.js` (backend-
+> neutral runtime service), `GET /api/generation/status`, and
+> `src/admin/bootstrap.js` (the real `npm run admin` entry point, replacing
+> `server.js`'s old self-start block). See
+> `docs/admin-api-phase4a5a-generation-runtime-2026-07-15.md`. Cloud
+> providers and the Settings UI itself remain unbuilt.
 
 ## 1. Product definition
 
@@ -324,13 +333,13 @@ sentinel is stripped from `text` before it reaches the client; `done`'s
   contract phrase it is instructed to use. No absolute RRF-score thresholds
   anywhere — scores are rank-only signals, per project doctrine.
 
-### 5.5 GenerationProvider contract sketch
+### 5.5 GenerationProvider contract — as implemented (Phase 4A + 4A.5a)
 
 ```js
 {
   name(): 'ollama',
   capabilities(): { streaming: true, cancellation: true },
-  ready(): Promise<{ ok, reason?, model? }>,
+  ready(): Promise<{ ok, reason?, model?, numCtx? }>,
   generate({ prompt, model, options, signal, onToken }): Promise<{
     text, tokensIn?, tokensOut?, aborted?
   }>
@@ -339,6 +348,23 @@ sentinel is stripped from `text` before it reaches the client; `done`'s
 
 Registry-shaped from day one (consolidated plan 4A note): 4A.5 registers
 cloud adapters into the same registry; the ask route never knows which.
+
+**Phase 4A.5a addition: the generation runtime seam.** `AskCoordinator` (and
+`GET /api/generation/status`) do not talk to a raw `GenerationProvider`
+directly in production — `createApp()` constructs one
+`generationRuntime` (`src/core/generation/runtime.js`) that itself
+implements this exact contract (so the coordinator needed zero code
+changes) while additionally owning: resolving `model`/`baseUrl`/`numCtx`
+from `resolveGenerationRuntimeConfig()` (OS env → `.env` → default,
+with provenance), constructing the concrete provider through
+`generation/registry.js`, and exposing a `getStatus()` used only by the
+status route. Invalid configuration (unknown backend, bad `ASK_NUM_CTX`,
+unsupported device policy) never throws at construction — `ready()`
+resolves `{ ok: false, reason }` instead, so a misconfigured `.env` cannot
+prevent the admin dashboard from starting. See
+`docs/admin-api-phase4a5a-generation-runtime-2026-07-15.md` for the full
+contract, provenance rules, and `GET /api/generation/status` response
+shape.
 
 ## 6. Frontend design
 

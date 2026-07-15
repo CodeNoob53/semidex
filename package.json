@@ -10,7 +10,7 @@
     "index": "node src/indexer/index.js",
     "mcp": "node src/mcp/server.js",
     "sync": "node src/sync.js",
-    "admin": "node src/admin/server.js",
+    "admin": "node src/admin/bootstrap.js",
     "admin:dev": "vite --host 127.0.0.1",
     "admin:build": "vite build",
     "test": "node --test \"tests/**/*.test.js\"",

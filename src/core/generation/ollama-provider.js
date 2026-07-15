@@ -1,11 +1,19 @@
-// Ollama GenerationProvider (Phase 4A) — the only generation backend today.
-// Reuses src/core/ollama.js for URL resolution, request/response handling,
-// and error text extraction; this file adds only the GenerationProvider
-// shape (name/capabilities/ready/generate) on top. Never spawns `ollama
-// serve` — readiness is a check, not a lifecycle action.
+// Ollama GenerationProvider (Phase 4A/4A.5a) — the only generation backend
+// today. Reuses src/core/ollama.js for URL resolution, request/response
+// handling, and error text extraction; this file adds only the
+// GenerationProvider shape (name/capabilities/ready/generate) on top. Never
+// spawns `ollama serve` — readiness is a check, not a lifecycle action.
+//
+// No process.env reads anywhere in this file (Phase 4A.5a) — model,
+// baseUrl, and askNumCtx are supplied by the caller (generation/runtime.js,
+// via generation/registry.js's options passthrough), which is the one place
+// resolved configuration is allowed to originate. This keeps the provider
+// itself reusable for a config source other than env vars later (e.g. a
+// future Settings UI) without touching this file.
 import { isOllamaReachable, listOllamaModels, validateOllamaModels, generateStream, getModelContextLength } from '../ollama.js';
 
-const DEFAULT_MODEL = process.env.CONTEXT_MODEL || 'gemma3:4b';
+const FALLBACK_MODEL = 'gemma3:4b';
+const FALLBACK_BASE_URL = 'http://localhost:11434';
 
 // The effective Ask context we ask Ollama to actually allocate
 // (options.num_ctx on the generation request), capped at the model's own
@@ -16,24 +24,34 @@ const DEFAULT_MODEL = process.env.CONTEXT_MODEL || 'gemma3:4b';
 // the maximum, "Context length" is a separate, request-level setting) — so
 // readiness must report the SAME number generate() actually requests, or
 // the coordinator's context-budget math (fitEvidenceToContextBudget) bounds
-// against a number Ollama was never told to honor (code review finding).
-const DEFAULT_ASK_NUM_CTX = 8192;
+// against a number Ollama was never told to honor (code review finding,
+// Phase 4A round 3). Used only when the caller doesn't supply askNumCtx —
+// the real production caller (generation/runtime.js) always does, sourced
+// from resolveGenerationRuntimeConfig()'s ASK_NUM_CTX.
+const FALLBACK_ASK_NUM_CTX = 8192;
 
 /**
  * @param {{
  *   baseUrl?: string,
  *   model?: string,
+ *   askNumCtx?: number,
  *   isOllamaReachableFn?: typeof isOllamaReachable,
  *   listOllamaModelsFn?: typeof listOllamaModels,
  *   generateStreamFn?: typeof generateStream,
  *   getModelContextLengthFn?: typeof getModelContextLength,
- * }} [opts] fn overrides are DI-only (tests stub the network; production
- *   callers never pass them, so real requests always go through ollama.js).
+ * }} [opts] baseUrl/model/askNumCtx fall back to fixed, non-env-derived
+ *   constants ONLY so this factory remains safely callable in isolation
+ *   (tests, or a future caller that hasn't resolved config yet) — the real
+ *   production path always supplies all three from
+ *   resolveGenerationRuntimeConfig(). fn overrides are DI-only (tests stub
+ *   the network; production callers never pass them, so real requests
+ *   always go through ollama.js).
  * @returns {import('./provider.js').GenerationProvider}
  */
 export function createOllamaProvider({
-  baseUrl = process.env.OLLAMA_URL || 'http://localhost:11434',
-  model = DEFAULT_MODEL,
+  baseUrl = FALLBACK_BASE_URL,
+  model = FALLBACK_MODEL,
+  askNumCtx = FALLBACK_ASK_NUM_CTX,
   isOllamaReachableFn = isOllamaReachable,
   listOllamaModelsFn = listOllamaModels,
   generateStreamFn = generateStream,
@@ -68,23 +86,22 @@ export function createOllamaProvider({
       // getModelContextLengthFn() falls back to a safe default (4096)
       // internally if /api/show is unreachable or the field is missing, so
       // this never throws; baseUrl is passed through so the /api/show call
-      // targets THIS provider's configured Ollama instance, not the
-      // module-level default.
+      // targets THIS provider's configured Ollama instance, not any other.
       const modelMax = await getModelContextLengthFn(model, undefined, baseUrl);
-      const numCtx = Math.min(DEFAULT_ASK_NUM_CTX, modelMax);
+      const numCtx = Math.min(askNumCtx, modelMax);
       return { ok: true, model, numCtx };
     },
 
     async generate({ prompt, model: requestedModel, options, signal, onToken }) {
-      // num_ctx defaults to DEFAULT_ASK_NUM_CTX when the caller doesn't
-      // specify one — but the intended caller (the Ask coordinator) always
-      // passes readiness.numCtx explicitly, since that is the exact figure
-      // its own context-budget trimming (fitEvidenceToContextBudget) bounded
-      // the prompt against. Without this default, a caller that skipped
-      // ready() (or a future caller) would silently fall back to whatever
-      // undocumented runtime default Ollama itself applies, decoupling the
-      // request from any budget guarantee.
-      const resolvedOptions = { num_ctx: DEFAULT_ASK_NUM_CTX, ...options };
+      // num_ctx defaults to this provider's own askNumCtx when the caller
+      // doesn't specify one — but the intended caller (the Ask coordinator)
+      // always passes readiness.numCtx explicitly, since that is the exact
+      // figure its own context-budget trimming (fitEvidenceToContextBudget)
+      // bounded the prompt against. Without this default, a caller that
+      // skipped ready() (or a future caller) would silently fall back to
+      // whatever undocumented runtime default Ollama itself applies,
+      // decoupling the request from any budget guarantee.
+      const resolvedOptions = { num_ctx: askNumCtx, ...options };
       return generateStreamFn(requestedModel ?? model, prompt, { baseUrl, signal, onToken, options: resolvedOptions });
     },
   };
