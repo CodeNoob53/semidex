@@ -141,6 +141,50 @@ describe('createJobRegistry — spawns without a shell', () => {
     assert.equal(calls[0].opts.env.COLLECTION, 'my-collection');
     assert.equal(calls[0].opts.env.ONNX_EMBED, '1');
   });
+
+  // Code review fix (P1): admin/bootstrap.js's applyEnvWriteBack() mutates
+  // ITS OWN process.env with resolved settings-registry values (so admin's
+  // own in-process reads, e.g. the Qdrant client, observe them). If a
+  // spawned indexing job inherited that SAME mutated process.env, every
+  // next_index_job/new_collection field admin resolved at its own startup
+  // (e.g. MAX_CHUNK_TOKENS, DENSE_PROVIDER) would look like a genuine
+  // os_env override to the child's own SettingsService, permanently
+  // shadowing settings.json until admin itself restarts — defeating
+  // next_index_job's entire contract. baseEnv lets the caller supply a
+  // clean, pre-write-back snapshot instead of live process.env.
+  it('baseEnv (not live process.env) is the base the child env is built from, when supplied', () => {
+    const calls = [];
+    const registry = createJobRegistry({
+      spawnFn: makeNeverExitingSpawn(calls),
+      baseEnv: { MAX_CHUNK_TOKENS: 'clean-snapshot-value', CUSTOM_MARKER: 'from-base-env' },
+    });
+    registry.startIndexJob({ collection: 'demo', path: './x' });
+    assert.equal(calls[0].opts.env.CUSTOM_MARKER, 'from-base-env');
+    assert.equal(calls[0].opts.env.MAX_CHUNK_TOKENS, 'clean-snapshot-value');
+  });
+
+  it('buildJobEnv()\'s explicit per-job overrides still win over baseEnv', () => {
+    const calls = [];
+    const registry = createJobRegistry({
+      spawnFn: makeNeverExitingSpawn(calls),
+      baseEnv: { ONNX_EMBED: '0' }, // baseEnv says off
+    });
+    registry.startIndexJob({ collection: 'demo', path: './x', options: { onnxEmbed: true } }); // job form says on
+    assert.equal(calls[0].opts.env.ONNX_EMBED, '1', 'the job-start request\'s own choice must win over baseEnv');
+  });
+
+  it('defaults to live process.env when no baseEnv is supplied (backwards compatible)', () => {
+    const calls = [];
+    const marker = '__jobs_test_marker__';
+    process.env[marker] = 'present';
+    try {
+      const registry = createJobRegistry({ spawnFn: makeNeverExitingSpawn(calls) });
+      registry.startIndexJob({ collection: 'demo', path: './x' });
+      assert.equal(calls[0].opts.env[marker], 'present');
+    } finally {
+      delete process.env[marker];
+    }
+  });
 });
 
 // ── registry: log capture ────────────────────────────────────────────────────

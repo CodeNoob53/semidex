@@ -610,8 +610,8 @@ export function makeStubAdapter() {
   };
 }
 
-export async function withServer(fn) {
-  const app = createApp({ adapter: makeStubAdapter(), embedQuery: async () => ({ dense: [], sparse: {} }) });
+export async function withServer(fn, extraOptions = {}) {
+  const app = createApp({ adapter: makeStubAdapter(), embedQuery: async () => ({ dense: [], sparse: {} }), ...extraOptions });
   await new Promise((resolve) => app.listen(0, '127.0.0.1', resolve));
   const base = `http://127.0.0.1:${app.address().port}`;
   try {

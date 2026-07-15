@@ -48,8 +48,8 @@ async function embedQueryStub() {
   return { dense: [0.1, 0.2], sparse: { indices: [1], values: [0.5] } };
 }
 
-async function withServer({ adapter = makeStubAdapter(), embedQuery = embedQueryStub } = {}, fn) {
-  const app = createApp({ adapter, embedQuery });
+async function withServer({ adapter = makeStubAdapter(), embedQuery = embedQueryStub, settingsService } = {}, fn) {
+  const app = createApp({ adapter, embedQuery, ...(settingsService ? { settingsService } : {}) });
   await new Promise((resolve) => app.listen(0, '127.0.0.1', resolve));
   const base = `http://127.0.0.1:${app.address().port}`;
   try {
@@ -184,6 +184,24 @@ describe('POST /api/search — adapter contract', () => {
       assert.equal(body.results[0].sourceFile, HIT.sourceFile);
       assert.equal(body.results[0].isMatch, true);
       assert.ok(!('windowChunks' in body.results[0]), 'no windowChunks when window=0');
+    });
+  });
+
+  it('forwards the server-shared settingsService to adapter.searchHybrid (code review fix — HYBRID_PREFETCH_LIMIT/RRF_K must apply to admin search, not just MCP)', async () => {
+    let captured = null;
+    const adapter = makeStubAdapter({
+      searchHybrid: async (_c, opts) => { captured = opts; return []; },
+    });
+    const fakeSettingsService = {
+      getActiveValue: () => 1,
+      get: () => null, // createGenerationRuntime() also consults the shared settingsService — no config_json tier for this stub
+      refreshIfChanged: () => { fakeSettingsService.refreshCalled = true; },
+      refreshCalled: false,
+    };
+    await withServer({ adapter, settingsService: fakeSettingsService }, async (base) => {
+      await post(base, { collection: 'demo', query: 'x' });
+      assert.equal(captured.settingsService, fakeSettingsService, 'the real, server-shared settingsService instance must reach adapter.searchHybrid');
+      assert.equal(fakeSettingsService.refreshCalled, true, 'refreshIfChanged() must be called at the request boundary for cross-process propagation');
     });
   });
 });
