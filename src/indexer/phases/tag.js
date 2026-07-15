@@ -4,7 +4,21 @@ export function resolveTagModel(env = process.env) {
   return env.TAG_MODEL || env.CONTEXT_MODEL || 'gemma3:4b';
 }
 
-const MODEL = resolveTagModel();
+// let (not const): TAG_MODEL/CONTEXT_MODEL are next_index_job settings
+// (core/settings/definitions.js) — re-resolved once via
+// applyTagSettings() below, called by indexer/index.js at process startup.
+// Mirrors chunk.js's applyChunkingSettings() pattern exactly.
+let MODEL = resolveTagModel();
+
+/**
+ * Re-resolves MODEL from a SettingsService's TAG_MODEL/CONTEXT_MODEL
+ * (same fallback order as resolveTagModel()). Call once, at indexer
+ * process startup, before tagging any chunk.
+ * @param {Object} settingsService
+ */
+export function applyTagSettings(settingsService) {
+  MODEL = settingsService.getActiveValue('TAG_MODEL') || settingsService.getActiveValue('CONTEXT_MODEL') || 'gemma3:4b';
+}
 
 // Tags are optional navigation metadata. Generate them only when explicitly
 // requested so normal indexing does not spend LLM time on payload-only tags.

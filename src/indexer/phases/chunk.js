@@ -12,10 +12,38 @@ const { PDFParse } = require('pdf-parse');
 
 const execFileAsync = promisify(execFile);
 
-const MAX_TOKENS             = envInt('MAX_CHUNK_TOKENS',    512, 1, 100000, '[chunk] ');
-const MIN_TOKENS             = envInt('MIN_CHUNK_TOKENS',    160, 0, 100000, '[chunk] ');
-export const OVERLAP_SENTENCES = envInt('OVERLAP_SENTENCES',   2, 0, 100,    '[chunk] ');
-const CHUNK_OVERLAP_TOKENS   = envInt('CHUNK_OVERLAP_TOKENS',  80, 0, 100000, '[chunk] ');
+// let (not const): MAX_CHUNK_TOKENS/MIN_CHUNK_TOKENS/CHUNK_OVERLAP_TOKENS/
+// OVERLAP_SENTENCES are next_index_job settings (core/settings/
+// definitions.js) — a fresh indexer process reads its current effective
+// value once at startup via applyChunkingSettings() below, called by
+// indexer/index.js right after it constructs its own SettingsService and
+// before any file is chunked. This mirrors the file's own existing
+// once-at-module-load resolution timing exactly (a single indexer run
+// never needs the value to change mid-run), while letting a settings.json
+// write actually take effect on the NEXT indexer invocation without
+// requiring a source change or restart of any other process — the
+// "consumed, not copied" requirement for a settings source of truth.
+// Every internal use of these four names throughout this file (chunking
+// algorithm internals below) is unaffected — they still read the same
+// module-scoped bindings, which just become live instead of frozen at
+// import time.
+let MAX_TOKENS             = envInt('MAX_CHUNK_TOKENS',    512, 1, 100000, '[chunk] ');
+let MIN_TOKENS              = envInt('MIN_CHUNK_TOKENS',    160, 0, 100000, '[chunk] ');
+export let OVERLAP_SENTENCES = envInt('OVERLAP_SENTENCES',   2, 0, 100,    '[chunk] ');
+let CHUNK_OVERLAP_TOKENS    = envInt('CHUNK_OVERLAP_TOKENS',  80, 0, 100000, '[chunk] ');
+
+/**
+ * Re-resolves the four chunking knobs above from a SettingsService instead
+ * of the raw process.env reads captured at import time. Call once, at
+ * indexer process startup, before chunking any file — never mid-run.
+ * @param {Object} settingsService
+ */
+export function applyChunkingSettings(settingsService) {
+  MAX_TOKENS = settingsService.getActiveValue('MAX_CHUNK_TOKENS');
+  MIN_TOKENS = settingsService.getActiveValue('MIN_CHUNK_TOKENS');
+  OVERLAP_SENTENCES = settingsService.getActiveValue('OVERLAP_SENTENCES');
+  CHUNK_OVERLAP_TOKENS = settingsService.getActiveValue('CHUNK_OVERLAP_TOKENS');
+}
 
 export function getChunkingConfig() {
   return { maxTokens: MAX_TOKENS, minTokens: MIN_TOKENS, overlapTokens: CHUNK_OVERLAP_TOKENS, overlapSentences: OVERLAP_SENTENCES };
