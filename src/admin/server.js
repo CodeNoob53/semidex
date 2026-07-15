@@ -38,10 +38,12 @@ import { createJobRegistry } from './jobs/registry.js';
 import { createTaskRegistry } from './jobs/task-registry.js';
 import { registerOperationsRoutes } from './api/operations.js';
 import { registerSystemRoutes } from './api/system.js';
+import { registerSettingsRoutes } from './api/settings.js';
 import { handleStatic } from './static.js';
 import { createGenerationRuntime } from '../core/generation/runtime.js';
 import { createAskCoordinator } from '../core/ask/coordinator.js';
 import { getTokenCounter } from '../core/token-count.js';
+import { createSettingsService } from '../core/settings/service.js';
 
 // Lazily resolves the real BGE-M3 tokenizer on first Ask request, never at
 // import/startup time — importing server.js (e.g. for its route wiring in
@@ -54,9 +56,15 @@ async function defaultCountTokens(text) {
 
 const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '::1']);
 
-export function resolveHostConfig(env = process.env) {
-  const host = env.ADMIN_HOST || '127.0.0.1';
-  const allowRemote = env.ADMIN_ALLOW_REMOTE === '1';
+// settingsService is optional DI (ADMIN_HOST/ADMIN_PORT are next_restart
+// settings — see core/settings/definitions.js — so a settings.json value
+// only ever affects the NEXT process's resolution, never the currently
+// running one; passing no settingsService here falls back to env-only
+// resolution, which is correct for any caller that hasn't bootstrapped a
+// service of its own, e.g. a quick script or a test).
+export function resolveHostConfig(env = process.env, { settingsService } = {}) {
+  const host = settingsService ? settingsService.getActiveValue('ADMIN_HOST') : (env.ADMIN_HOST || '127.0.0.1');
+  const allowRemote = settingsService ? settingsService.getActiveValue('ADMIN_ALLOW_REMOTE') : env.ADMIN_ALLOW_REMOTE === '1';
   if (!LOOPBACK_HOSTS.has(host) && !allowRemote) {
     throw new Error(
       `ADMIN_HOST="${host}" is not a loopback address. Refusing to bind a non-loopback host ` +
@@ -66,7 +74,8 @@ export function resolveHostConfig(env = process.env) {
   return { host, allowRemote };
 }
 
-export function resolvePortConfig(env = process.env) {
+export function resolvePortConfig(env = process.env, { settingsService } = {}) {
+  if (settingsService) return settingsService.getActiveValue('ADMIN_PORT');
   const raw = env.ADMIN_PORT;
   if (raw === undefined || raw === '') return 8642;
   const port = Number(raw);
@@ -78,9 +87,17 @@ export function resolvePortConfig(env = process.env) {
 
 export function createApp({
   adapter = createStorageAdapter(), embedQuery, jobRegistry, taskRegistry, pickFolderFn, checkOllamaFn,
-  assemblyLogFn, generationRuntime, askCoordinator, countTokens,
+  assemblyLogFn, generationRuntime, askCoordinator, countTokens, settingsService, jobBaseEnv,
 } = {}) {
   const router = createRouter();
+  // settingsService is optional DI — tests and ad-hoc createApp() callers
+  // that don't care about settings.json provenance get a safe env-only
+  // fallback (no file I/O beyond a single settings.json read, same
+  // "import/construction-safe" contract generationRuntime's own fallback
+  // below already documents). The real production entry point
+  // (bootstrap.js) always passes its own properly bootstrapped instance.
+  const settings = settingsService ?? createSettingsService({ osEnv: process.env, dotenvValues: {} });
+  registerSettingsRoutes(router, { settingsService: settings });
   registerHealthRoutes(router, adapter);
   // taskRegistry is optional DI (tests inject a fake with a pinned clock, or
   // a stub that captures the tracked fn without actually running it) — same
@@ -96,8 +113,11 @@ export function createApp({
   registerSkeletonRoutes(router, adapter);
   registerNodeRoutes(router, adapter);
   // embedQuery is optional DI (tests inject a stub so unit tests never load
-  // ONNX/Ollama); production default lives in api/search.js.
-  registerSearchRoutes(router, adapter, embedQuery ? { embedQuery } : {});
+  // ONNX/Ollama); production default lives in api/search.js. settingsService
+  // is always passed (the same instance every other route already shares)
+  // so HYBRID_PREFETCH_LIMIT/RRF_K settings apply to admin search too, not
+  // just MCP (code review finding).
+  registerSearchRoutes(router, adapter, { ...(embedQuery ? { embedQuery } : {}), settingsService: settings });
   // generationRuntime/askCoordinator/countTokens are optional DI — tests
   // inject stubs so unit tests never initialize Ollama or the real BGE-M3
   // tokenizer. Defaulted here (not inside ask.js) so the SAME runtime/
@@ -113,16 +133,25 @@ export function createApp({
   // production entry point (bootstrap.js) always passes its own properly
   // snapshotted generationRuntime instead, which is what makes provenance
   // (os_env vs dotenv vs default) meaningful in practice.
-  const generation = generationRuntime ?? createGenerationRuntime({ osEnv: process.env, dotenvValues: {} });
+  const generation = generationRuntime ?? createGenerationRuntime({ osEnv: process.env, dotenvValues: {}, settingsService: settings });
   registerGenerationRoutes(router, { generationRuntime: generation });
   const ask = askCoordinator ?? createAskCoordinator({
     adapter, embedQuery, countTokens: countTokens ?? defaultCountTokens, generationProvider: generation,
+    settingsService: settings,
   });
   registerAskRoutes(router, adapter, { askCoordinator: ask });
   // jobRegistry/checkOllamaFn are optional DI (tests inject a fake spawnFn-
   // backed registry and a stub Ollama check so unit tests never launch a
-  // real indexer child process or probe a real Ollama instance).
-  const jobs = jobRegistry ?? createJobRegistry();
+  // real indexer child process or probe a real Ollama instance). jobBaseEnv
+  // is the env snapshot spawned indexer jobs inherit — MUST be the
+  // pre-applyEnvWriteBack() snapshot (bootstrap.js passes this explicitly);
+  // falling back to live process.env here is only safe for callers that
+  // never called applyEnvWriteBack() against it (e.g. tests, or a caller
+  // that doesn't care about settings.json provenance) — see
+  // jobs/registry.js's own createJobRegistry() header comment for why this
+  // matters (code review finding, P1: a spawned job must resolve
+  // settings.json fresh, not inherit admin's own already-resolved values).
+  const jobs = jobRegistry ?? createJobRegistry({ baseEnv: jobBaseEnv });
   registerJobsRoutes(router, jobs, checkOllamaFn ? { checkOllamaFn } : {});
   registerOperationsRoutes(router, { jobRegistry: jobs, taskRegistry: tasks });
   // pickFolderFn/checkOllamaFn are optional DI (tests inject stubs so unit

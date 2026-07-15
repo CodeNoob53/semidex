@@ -144,18 +144,29 @@ export async function expandWindows(adapter, collection, hits, { window, windowF
 /**
  * @param {Object} router
  * @param {import('../../core/storage/adapter.js').StorageAdapter} adapter
- * @param {{ embedQuery?: (collection: string, query: string) => Promise<{dense: number[], sparse: Object}> }} [deps]
+ * @param {{
+ *   embedQuery?: (collection: string, query: string) => Promise<{dense: number[], sparse: Object}>,
+ *   settingsService?: ReturnType<typeof import('../../core/settings/service.js').createSettingsService>,
+ * }} [deps]
  *   embedQuery is dependency-injectable so tests never need ONNX/Ollama.
  *   The default delegates to core/embeddings.js, which embeds with the
- *   collection's configured provider.
+ *   collection's configured provider. settingsService is optional DI,
+ *   forwarded to runHybridSearch() so HYBRID_PREFETCH_LIMIT/RRF_K apply
+ *   here too, not just to MCP search — see core/retrieval/search.js's own
+ *   JSDoc for why this matters (code review finding).
  */
-export function registerSearchRoutes(router, adapter, { embedQuery = embedForSearch } = {}) {
+export function registerSearchRoutes(router, adapter, { embedQuery = embedForSearch, settingsService } = {}) {
   router.post('/api/search', async ({ req, res }) => {
     const body = await readJsonBody(req);
     const { collection, query, top, window, windowFormat, sourceFile, tags } = parseSearchRequest(body);
 
+    // Cross-process propagation: a settings.json change saved via the admin
+    // UI while this admin process has been running must be picked up
+    // without a restart — same reasoning as MCP's search tool handler.
+    settingsService?.refreshIfChanged();
+
     const result = await runHybridSearch({
-      adapter, embedQuery, collection, query, top, filters: { sourceFile, tags },
+      adapter, embedQuery, collection, query, top, filters: { sourceFile, tags }, settingsService,
     });
 
     if (result.error === 'not_implemented') throw new HttpError(501, result.error, result.message);

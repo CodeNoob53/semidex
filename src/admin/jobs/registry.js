@@ -128,9 +128,31 @@ function makeLineSplitter(job, stream) {
  * is dependency-injectable so unit tests never launch a real indexer
  * process — tests pass a fake that returns an EventEmitter-shaped stub.
  *
- * @param {{ spawnFn?: typeof nodeSpawn }} [options]
+ * `baseEnv` is the env object spread as the FIRST layer under
+ * buildJobEnv()'s own explicit overrides when spawning the indexer child
+ * (see startIndexJob() below). Defaults to live process.env for backwards
+ * compatibility, but the real admin entry point (bootstrap.js) MUST pass
+ * its own pre-applyEnvWriteBack() snapshot instead — code review finding:
+ * admin/bootstrap.js calls applyEnvWriteBack(settingsService) against the
+ * real process.env so its OWN in-process code (e.g. core/qdrant/client.js)
+ * observes resolved settings.json values; if that same mutated process.env
+ * were spread into a spawned indexer job's env here, every settings-
+ * registry field admin resolved at ITS OWN startup (including
+ * next_index_job fields like MAX_CHUNK_TOKENS, frozen at whatever value
+ * was true when admin started) would look like genuine os_env overrides to
+ * the child's own SettingsService — permanently shadowing settings.json
+ * until admin itself restarts, defeating next_index_job's entire "next job
+ * picks up the new value with no restart needed" contract. baseEnv must be
+ * the environment as it looked right after bootstrapEnv() but BEFORE
+ * applyEnvWriteBack() ever touched it, so the child's own bootstrapEnv()/
+ * SettingsService resolves settings.json fresh, uncontaminated by admin's
+ * own resolved values — buildJobEnv()'s explicit per-job overrides
+ * (ONNX_EMBED, SKELETON_CHUNKING, etc., set from the actual job-start
+ * request) still apply on top, unaffected by this change.
+ *
+ * @param {{ spawnFn?: typeof nodeSpawn, baseEnv?: NodeJS.ProcessEnv }} [options]
  */
-export function createJobRegistry({ spawnFn = nodeSpawn } = {}) {
+export function createJobRegistry({ spawnFn = nodeSpawn, baseEnv = process.env } = {}) {
   const jobs = new Map(); // id -> job record, insertion order = start order
   let activeJobId = null;
 
@@ -183,7 +205,7 @@ export function createJobRegistry({ spawnFn = nodeSpawn } = {}) {
     jobs.set(id, job);
     activeJobId = id;
 
-    const env = { ...process.env, ...buildJobEnv(collection, options) };
+    const env = { ...baseEnv, ...buildJobEnv(collection, options) };
     // No shell string interpolation: argument list is a plain array, the
     // path is never concatenated into a command string.
     // windowsHide: true — no-op on non-Windows, but on Windows this admin

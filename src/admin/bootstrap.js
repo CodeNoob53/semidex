@@ -1,86 +1,18 @@
 // Explicit admin bootstrap (Phase 4A.5a) — the real npm run admin entry
-// point (see package.json's "admin" script). Exists to solve one problem:
-// `import 'dotenv/config'` at the top of server.js mutated process.env
-// before any code got a chance to see what the OS environment looked like
-// on its own, so provenance ("did this value come from the OS environment,
-// a .env file, or a hardcoded default?") could never be recovered later —
-// diffing an already-mutated process.env against .env's contents cannot
-// distinguish "the OS happened to set the same value dotenv would have
-// used" from "dotenv set it." This file captures the OS snapshot FIRST,
-// before importing anything that could mutate process.env, then loads
-// .env explicitly via dotenv's side-effect-free parse().
-//
-// This bootstrap does NOT change how src/core/*.js, src/indexer/*.js, or
-// src/mcp/*.js resolve .env — those keep their own `import 'dotenv/config'`
-// calls untouched (out of scope for this task). dotenv's populate() never
-// overrides an already-set process.env key by default, so once this
-// bootstrap has populated process.env from OS-env + .env, every later
-// `import 'dotenv/config'` anywhere in the import graph becomes a safe
-// no-op — this file's snapshot is the one that matters for provenance.
-import { readFileSync, existsSync } from 'node:fs';
-import { resolve } from 'node:path';
+// point (see package.json's "admin" script). The env-snapshot-before-mutate
+// logic itself now lives in src/core/env-bootstrap.js (Global Settings
+// phase), shared by every real process entry point (admin, MCP, indexer
+// child process, sync, doctor, backfill scripts) — this file re-exports
+// those functions for backwards compatibility (existing imports of
+// snapshotOsEnv/loadDotenvValues/applyDotenvValues/bootstrapEnv from here
+// keep working) and keeps only the admin-specific isMainModule startup
+// block: bootstrap env, construct the shared SettingsService, construct the
+// generation runtime, start the HTTP server.
 import { pathToFileURL } from 'node:url';
-import { parse as parseDotenv, populate as populateDotenv } from 'dotenv';
+import { bootstrapEnv } from '../core/env-bootstrap.js';
+import { createSettingsService, applyEnvWriteBack } from '../core/settings/service.js';
 
-/**
- * Captures process.env exactly as the OS/shell handed it to this process,
- * before any import has had a chance to mutate it. Must be called as the
- * very first statement of the real entry point — this module itself does
- * no import-time work, so importing bootstrap.js is always safe, but the
- * CALLER (this file's own isMainModule block, or any other real entry
- * point) must invoke this before importing server.js or anything that
- * transitively imports 'dotenv/config'.
- * @param {NodeJS.ProcessEnv} [env]
- * @returns {Record<string, string>} a plain-object snapshot (not a live
- *   reference to process.env — later mutations to process.env do not leak
- *   back into this snapshot)
- */
-export function snapshotOsEnv(env = process.env) {
-  return { ...env };
-}
-
-/**
- * Reads and parses .env WITHOUT touching process.env — dotenv.parse()
- * (unlike dotenv.config()/'dotenv/config') is a pure string-to-object
- * parse with no side effects, which is exactly what's needed to know what
- * .env itself contains, independent of anything the OS environment already
- * set.
- * @param {string} [envPath] — defaults to `.env` resolved from cwd, same
- *   default dotenv itself uses.
- * @returns {Record<string, string>} empty object if the file doesn't exist
- */
-export function loadDotenvValues(envPath = resolve(process.cwd(), '.env')) {
-  if (!existsSync(envPath)) return {};
-  return parseDotenv(readFileSync(envPath, 'utf-8'));
-}
-
-/**
- * Populates process.env from the given dotenv values, filling gaps only —
- * never overrides a key the OS environment (or an earlier populate call)
- * already set. Matches dotenv's own default (non-override) semantics
- * exactly, so this bootstrap's populate() and any later
- * `import 'dotenv/config'` elsewhere in the import graph behave
- * identically and are idempotent with each other.
- * @param {Record<string, string>} dotenvValues
- * @param {NodeJS.ProcessEnv} [env]
- */
-export function applyDotenvValues(dotenvValues, env = process.env) {
-  populateDotenv(env, dotenvValues);
-}
-
-/**
- * Runs the full bootstrap sequence and returns both snapshots for callers
- * that need them (e.g. to construct a generation runtime with explicit
- * provenance) — snapshot OS env, load .env values, apply them to
- * process.env (gap-fill only), return { osEnv, dotenvValues }.
- * @param {{ envPath?: string, env?: NodeJS.ProcessEnv }} [opts]
- */
-export function bootstrapEnv({ envPath, env = process.env } = {}) {
-  const osEnv = snapshotOsEnv(env);
-  const dotenvValues = envPath !== undefined ? loadDotenvValues(envPath) : loadDotenvValues();
-  applyDotenvValues(dotenvValues, env);
-  return { osEnv, dotenvValues };
-}
+export { snapshotOsEnv, loadDotenvValues, applyDotenvValues, bootstrapEnv } from '../core/env-bootstrap.js';
 
 const isMainModule = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 
@@ -90,13 +22,54 @@ const isMainModule = process.argv[1] && import.meta.url === pathToFileURL(proces
 // after this bootstrap already owns the OS-env/dotenv snapshots.
 if (isMainModule) {
   const { osEnv, dotenvValues } = bootstrapEnv();
+  const settingsService = createSettingsService({ osEnv, dotenvValues });
+
+  // jobBaseEnv is the REAL OS-env snapshot only — osEnv, captured by
+  // bootstrapEnv() BEFORE it gap-filled process.env with .env's contents —
+  // never process.env itself, at any point. Two separate bugs would result
+  // from using process.env here:
+  //  1. (fixed previously) process.env, if captured AFTER
+  //     applyEnvWriteBack() below, would carry every settings-registry
+  //     field admin resolved at ITS OWN startup, making a settings.json
+  //     change invisible to new jobs until admin restarts.
+  //  2. (this fix) even captured BEFORE applyEnvWriteBack(), process.env
+  //     already has .env's values gap-filled into it by bootstrapEnv()
+  //     itself (line above) — spreading that into a spawned job's env
+  //     would make the child's OWN bootstrapEnv() snapshot .env's values
+  //     as if they were genuine OS environment variables (there is no way
+  //     for the child to tell "the OS actually set this" apart from
+  //     "dotenv gap-filled this into the env object my parent handed me"),
+  //     corrupting the child's os_env vs. dotenv provenance and, since
+  //     os_env outranks config_json, silently letting a stale .env value
+  //     shadow a settings.json override. Using bare osEnv here means the
+  //     child's own bootstrapEnv() call reads the REAL .env file fresh
+  //     (picking up any edit made after admin started) and classifies it
+  //     correctly as dotenv, not os_env (code review finding, P2).
+  const jobBaseEnv = { ...osEnv };
+
+  // Writes every writable setting's active value into process.env — in
+  // particular QDRANT_URL, which core/qdrant/client.js still reads via a
+  // plain process.env.QDRANT_URL per call (code review finding: a
+  // settings.json-saved QDRANT_URL previously never reached the real
+  // client because no write-back covered it here). Must run before the
+  // dynamic import of server.js below, since createApp()'s default
+  // adapter construction can trigger a Qdrant client build. Only affects
+  // THIS process's process.env — jobBaseEnv above was already captured,
+  // so this mutation never reaches a spawned job's inherited env.
+  applyEnvWriteBack(settingsService);
+  // RERANK_CE_MODEL/RERANK_CE_DEVICE/RERANK_CE_CACHE_DIR are next_restart —
+  // must be applied before this process's first (lazy) loadCEModel() call,
+  // which can happen from an Ask or admin-search request that enables CE
+  // reranking (see admin/api/search.js / core/ask/coordinator.js).
+  const { applyCeRerankSettings } = await import('../core/ce-rerank.js');
+  applyCeRerankSettings(settingsService);
   const { resolveHostConfig, resolvePortConfig, createApp } = await import('./server.js');
   const { createGenerationRuntime } = await import('../core/generation/runtime.js');
 
-  const generationRuntime = createGenerationRuntime({ osEnv, dotenvValues });
-  const { host } = resolveHostConfig();
-  const port = resolvePortConfig();
-  const server = createApp({ generationRuntime });
+  const generationRuntime = createGenerationRuntime({ osEnv, dotenvValues, settingsService });
+  const { host } = resolveHostConfig(process.env, { settingsService });
+  const port = resolvePortConfig(process.env, { settingsService });
+  const server = createApp({ generationRuntime, settingsService, jobBaseEnv });
   server.listen(port, host, () => {
     console.log(`[admin] Semidex Local API listening on http://${host}:${port}`);
   });

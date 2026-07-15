@@ -17,11 +17,38 @@ import { resolveGenerationRuntimeConfig, GenerationConfigError, SUPPORTED_DEVICE
 import { createGenerationProvider } from './registry.js';
 import { redactUrl } from '../doctor-checks.js';
 
+// Generation settings (ASK_MODEL/OLLAMA_URL/ASK_NUM_CTX/GENERATION_DEVICE)
+// are tagged `next_restart` in core/settings/definitions.js — when a
+// SettingsService is supplied, it becomes the sole resolver for these 4
+// fields (it already implements the identical os_env > dotenv >
+// config_json > default chain, plus the next_restart freezing this runtime
+// itself needs), so config.js's pure algorithm is not duplicated or
+// forked. Falls back to config.js's own os_env > dotenv > default
+// resolution when no settingsService is supplied (existing behavior,
+// unchanged for any caller that doesn't pass one).
+const GENERATION_SETTINGS_KEYS = Object.freeze({
+  backend: 'SEMIDEX_GENERATION_BACKEND', model: 'ASK_MODEL', baseUrl: 'OLLAMA_URL',
+  numCtx: 'ASK_NUM_CTX', devicePolicy: 'GENERATION_DEVICE',
+});
+
+function applySettingsServiceTier(config, settingsService) {
+  if (!settingsService) return config;
+  const merged = { ...config };
+  for (const [field, key] of Object.entries(GENERATION_SETTINGS_KEYS)) {
+    const entry = settingsService.get(key);
+    if (entry && entry.source === 'config_json') {
+      merged[field] = { value: entry.activeValue, source: 'config_json' };
+    }
+  }
+  return merged;
+}
+
 /**
  * @param {{
  *   osEnv?: Record<string, string>,
  *   dotenvValues?: Record<string, string>,
  *   defaults?: Object,
+ *   settingsService?: ReturnType<typeof import('../settings/service.js').createSettingsService>,
  *   createGenerationProviderFn?: typeof createGenerationProvider,
  * }} [opts] osEnv/dotenvValues default to empty objects (NOT process.env) —
  *   the caller (the admin bootstrap) is responsible for supplying the real
@@ -34,14 +61,17 @@ import { redactUrl } from '../doctor-checks.js';
  * }}
  */
 export function createGenerationRuntime({
-  osEnv = {}, dotenvValues = {}, defaults = {}, createGenerationProviderFn = createGenerationProvider,
+  osEnv = {}, dotenvValues = {}, defaults = {}, settingsService, createGenerationProviderFn = createGenerationProvider,
 } = {}) {
   let config = null;
   let configError = null;
   let provider = null;
 
   try {
-    config = resolveGenerationRuntimeConfig({ osEnv, dotenvValues, defaults });
+    config = applySettingsServiceTier(
+      resolveGenerationRuntimeConfig({ osEnv, dotenvValues, defaults }),
+      settingsService
+    );
     provider = createGenerationProviderFn({
       backend: config.backend.value,
       options: { model: config.model.value, baseUrl: config.baseUrl.value, askNumCtx: config.numCtx.value },

@@ -1,14 +1,44 @@
 import { hybridSearch, fetchWindowChunks } from '../../core/qdrant.js';
 import { embedForSearch } from '../../core/embeddings.js';
 import { rerankResults } from '../../core/rerank.js';
-import { ceRerank, withCETimeout, RERANK_CE_TIMEOUT_MS } from '../../core/ce-rerank.js';
+import { ceRerank, withCETimeout, getCeRerankConfig } from '../../core/ce-rerank.js';
 import { withNavExcluded } from './filters.js';
 
 import { envInt } from '../../core/env.js';
 
-const RERANK_ENABLED        = process.env.RERANK_ENABLED === '1';
-const RERANK_CE_ENABLED     = process.env.RERANK_CE_ENABLED === '1';
-const RERANK_PREFETCH_MULT  = envInt('RERANK_PREFETCH_MULT', 4, 1, 100, '[search] ');
+// settingsService is set once by mcp/server.js at process startup
+// (setSettingsService()) — this tool module has no constructor/DI point of
+// its own (the MCP SDK calls handle(args) directly with a fixed signature),
+// so a module-level settable reference is the lowest-risk way to thread the
+// shared service in without changing every tool's call signature. When
+// unset (e.g. a test that imports this module directly), every read below
+// falls back to its original direct env read, unchanged.
+let settingsService = null;
+export function setSettingsService(service) { settingsService = service; }
+
+// next_search fields — refreshIfChanged() is called once per tool
+// invocation (not per read) so a change saved via the admin UI while this
+// MCP process has been running propagates without restarting it, per the
+// Global Settings phase's cross-process propagation requirement.
+function refreshSettingsIfNeeded() {
+  settingsService?.refreshIfChanged();
+}
+
+// Exported for direct unit testing (search-settings-service.test.js) —
+// handle() itself has no existing test harness (requires a live embed/
+// Qdrant call), so these small resolver functions are the testable seam
+// for the settingsService extraction contract.
+export function getRerankEnabled() {
+  return settingsService ? settingsService.getActiveValue('RERANK_ENABLED') : process.env.RERANK_ENABLED === '1';
+}
+export function getRerankCeEnabled() {
+  return settingsService ? settingsService.getActiveValue('RERANK_CE_ENABLED') : process.env.RERANK_CE_ENABLED === '1';
+}
+export function getRerankPrefetchMult() {
+  return settingsService
+    ? settingsService.getActiveValue('RERANK_PREFETCH_MULT')
+    : envInt('RERANK_PREFETCH_MULT', 4, 1, 100, '[search] ');
+}
 
 // Phase 3X: node_id is qdrant_get_content's anchor_node_id input — every
 // window chunk that carries one (skeleton-aware collections) exposes it so
@@ -63,6 +93,11 @@ export const schema = {
 };
 
 export async function handle({ query, collection, top = 5, tags, source_file, window = 0, window_format = 'full' }) {
+  refreshSettingsIfNeeded();
+  const RERANK_ENABLED = getRerankEnabled();
+  const RERANK_CE_ENABLED = getRerankCeEnabled();
+  const RERANK_PREFETCH_MULT = getRerankPrefetchMult();
+
   top = Math.min(Math.max(1, parseInt(top) || 5), 20);
   window = Math.max(0, Math.min(2, parseInt(window) || 0));
 
@@ -86,24 +121,25 @@ export async function handle({ query, collection, top = 5, tags, source_file, wi
   let results;
   if (RERANK_ENABLED || RERANK_CE_ENABLED) {
     const candidateLimit = Math.max(top * RERANK_PREFETCH_MULT, top + 5);
-    let pool = await hybridSearch(collection, dense, sparse, candidateLimit, filter);
+    let pool = await hybridSearch(collection, dense, sparse, candidateLimit, filter, { settingsService });
 
     if (RERANK_ENABLED) {
-      pool = rerankResults(pool, query, { finalLimit: RERANK_CE_ENABLED ? pool.length : top });
+      pool = rerankResults(pool, query, { finalLimit: RERANK_CE_ENABLED ? pool.length : top }, { settingsService });
     }
 
     if (RERANK_CE_ENABLED) {
       const preCE = pool;
+      const ceTimeoutMs = getCeRerankConfig({ settingsService }).timeoutMs;
       pool = await withCETimeout(
-        ceRerank(preCE, query, { finalLimit: top }),
-        RERANK_CE_TIMEOUT_MS,
+        ceRerank(preCE, query, { finalLimit: top }, { settingsService }),
+        ceTimeoutMs,
         () => preCE.slice(0, top),
       );
     }
 
     results = pool.slice(0, top);
   } else {
-    results = await hybridSearch(collection, dense, sparse, top, filter);
+    results = await hybridSearch(collection, dense, sparse, top, filter, { settingsService });
   }
   if (!results.length) return 'No results found.';
 
