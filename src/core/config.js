@@ -2,7 +2,8 @@ import 'dotenv/config';
 import { readFileSync, writeFileSync, renameSync, existsSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { assertProviderCombo } from './env.js';
+import { assertProviderCombo, resolveEffectiveEmbeddingBackend } from './env.js';
+import { ONNX_DENSE_MODEL_ID } from './onnx-paths.js';
 
 const CONFIG_PATH = resolve(dirname(fileURLToPath(import.meta.url)), '../../config.json');
 
@@ -24,32 +25,22 @@ export function saveConfig(config) {
  */
 
 export function resolveEnvProviders() {
-  // Explicit new-style env vars take precedence
-  if (process.env.DENSE_PROVIDER) {
-    const denseProvider  = process.env.DENSE_PROVIDER;
-    const sparseProvider = process.env.SPARSE_PROVIDER ?? 'hashed-tf';
-    const denseModel     = denseProvider === 'bge-m3-onnx'
-      ? 'aapot/bge-m3-onnx'
-      : (process.env.DENSE_MODEL ?? process.env.EMBED_MODEL ?? 'bge-m3');
+  const { denseProvider, sparseProvider } = resolveEffectiveEmbeddingBackend(
+    (name) => process.env[name]
+  );
+  if (denseProvider === 'bge-m3-onnx') {
     assertProviderCombo(denseProvider, sparseProvider);
-    return { denseProvider, denseModel, sparseProvider };
+    return { denseProvider, denseModel: ONNX_DENSE_MODEL_ID, sparseProvider };
   }
-
-  // Legacy ONNX_EMBED=1 shorthand
-  if (process.env.ONNX_EMBED === '1') {
-    return {
-      denseProvider:  'bge-m3-onnx',
-      denseModel:     'aapot/bge-m3-onnx',
-      sparseProvider: 'bge-m3-onnx',
-    };
-  }
-
-  // Default: ollama + hashed-tf
-  return {
-    denseProvider:  'ollama',
-    denseModel:     process.env.EMBED_MODEL ?? 'bge-m3',
-    sparseProvider: 'hashed-tf',
-  };
+  // ollama: EMBED_MODEL is the canonical setting; DENSE_MODEL is a legacy
+  // alias, consulted only when EMBED_MODEL itself is unset (code review
+  // fix — DENSE_MODEL used to win regardless, so a stale DENSE_MODEL
+  // silently shadowed a value the Settings UI's EMBED_MODEL control had
+  // just saved, since the UI now presents EMBED_MODEL as the one editable
+  // model field for this backend).
+  const denseModel = process.env.EMBED_MODEL ?? process.env.DENSE_MODEL ?? 'bge-m3';
+  assertProviderCombo(denseProvider, sparseProvider);
+  return { denseProvider, denseModel, sparseProvider };
 }
 
 // --- per-collection accessors ---

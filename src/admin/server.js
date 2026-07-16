@@ -39,6 +39,7 @@ import { createTaskRegistry } from './jobs/task-registry.js';
 import { registerOperationsRoutes } from './api/operations.js';
 import { registerSystemRoutes } from './api/system.js';
 import { registerSettingsRoutes } from './api/settings.js';
+import { registerOllamaModelsRoutes } from './api/ollama-models.js';
 import { handleStatic } from './static.js';
 import { createGenerationRuntime } from '../core/generation/runtime.js';
 import { createAskCoordinator } from '../core/ask/coordinator.js';
@@ -88,6 +89,7 @@ export function resolvePortConfig(env = process.env, { settingsService } = {}) {
 export function createApp({
   adapter = createStorageAdapter(), embedQuery, jobRegistry, taskRegistry, pickFolderFn, checkOllamaFn,
   assemblyLogFn, generationRuntime, askCoordinator, countTokens, settingsService, jobBaseEnv,
+  discoverOllamaModelsFn,
 } = {}) {
   const router = createRouter();
   // settingsService is optional DI — tests and ad-hoc createApp() callers
@@ -98,6 +100,10 @@ export function createApp({
   // (bootstrap.js) always passes its own properly bootstrapped instance.
   const settings = settingsService ?? createSettingsService({ osEnv: process.env, dotenvValues: {} });
   registerSettingsRoutes(router, { settingsService: settings });
+  // discoverOllamaModelsFn is optional DI (tests inject a stub so unit
+  // tests never probe a real Ollama instance) — same convention as
+  // checkOllamaFn below.
+  registerOllamaModelsRoutes(router, { settingsService: settings, ...(discoverOllamaModelsFn ? { discoverOllamaModelsFn } : {}) });
   registerHealthRoutes(router, adapter);
   // taskRegistry is optional DI (tests inject a fake with a pinned clock, or
   // a stub that captures the tracked fn without actually running it) — same

@@ -9,8 +9,7 @@
 // "Runtime status" is one category among several (moved here verbatim from
 // the old Phase 4A.5b read-only screen); every other category renders
 // editable rows built purely from registry metadata.
-import globalSettingsShell from './partials/global-settings-shell.html?raw';
-import { $, esc } from './dom.js';
+import { $, cloneTemplate } from './dom.js';
 import { api, apiPatch } from './api.js';
 import { showToast } from './toasts.js';
 import { renderSettingsNav, syncSidebarMode, markActive } from './sidebar.js';
@@ -23,7 +22,7 @@ const PROVENANCE_LABEL = {
 };
 
 function provenanceLabel(source) {
-  return PROVENANCE_LABEL[source] ?? esc(source ?? 'Unknown');
+  return PROVENANCE_LABEL[source] ?? String(source ?? 'Unknown');
 }
 
 const APPLIES_AT_LABEL = {
@@ -40,54 +39,61 @@ function appliesAtLabel(appliesAt) {
 
 // ── Runtime Status category (moved verbatim from Phase 4A.5b) ───────────────
 
+function templateRoot(id) {
+  return cloneTemplate(id).firstElementChild;
+}
+
+function appendKeyValueRow(list, label, value) {
+  const fragment = cloneTemplate('tpl-gs-kv-row');
+  fragment.querySelector('dt').textContent = label;
+  const valueElement = fragment.querySelector('dd');
+  if (value?.nodeType) valueElement.append(value);
+  else valueElement.textContent = String(value ?? '');
+  list.append(fragment);
+}
+
+function statusBadge(text, ok) {
+  const badge = templateRoot('tpl-gs-badge');
+  badge.textContent = text;
+  badge.classList.add(ok ? 'badge-ok' : 'badge-fail');
+  return badge;
+}
+
+function statusPanel(id, title) {
+  const panel = templateRoot('tpl-gs-status-panel');
+  panel.id = id;
+  panel.querySelector('.gs-status-title').textContent = title;
+  return panel;
+}
+
 function renderProvenance(configuration, fields) {
-  if (!configuration) return '';
-  const rows = fields
-    .map(([label, key]) => {
-      const entry = configuration[key];
-      if (!entry) return '';
-      return `<dt>${esc(label)}</dt><dd>${esc(provenanceLabel(entry.source))}</dd>`;
-    })
-    .join('');
-  if (!rows) return '';
-  return `
-    <details class="gs-provenance">
-      <summary>Where these values came from</summary>
-      <dl class="kv">${rows}</dl>
-    </details>`;
+  if (!configuration) return null;
+  const details = templateRoot('tpl-gs-provenance');
+  const list = details.querySelector('.kv');
+  for (const [label, key] of fields) {
+    const entry = configuration[key];
+    if (entry) appendKeyValueRow(list, label, provenanceLabel(entry.source));
+  }
+  return list.children.length ? details : null;
 }
 
 function renderStoragePanel(health) {
   const ok = Boolean(health?.ok);
-  const badge = ok
-    ? '<span class="badge badge-ok">Connected</span>'
-    : '<span class="badge badge-fail">Unavailable</span>';
+  const panel = statusPanel('gs-storage', 'Storage');
+  const rows = panel.querySelector('.gs-status-rows');
+  appendKeyValueRow(rows, 'status', statusBadge(ok ? 'Connected' : 'Unavailable', ok));
   const backend = health?.storage?.backend ?? 'storage';
-  const detail = !ok && health?.storage?.detail
-    ? `<p class="gs-detail">${esc(health.storage.detail)}</p>`
-    : '';
-  return `
-    <div class="panel" id="gs-storage">
-      <div class="panel-head">Storage</div>
-      <div class="panel-body">
-        <dl class="kv">
-          <dt>status</dt><dd>${badge}</dd>
-          <dt>backend</dt><dd>${esc(backend)}</dd>
-        </dl>
-        ${detail}
-      </div>
-    </div>`;
+  appendKeyValueRow(rows, 'backend', backend);
+  if (!ok && health?.storage?.detail) {
+    const message = panel.querySelector('.gs-status-message');
+    message.hidden = false;
+    message.querySelector('.gs-detail').textContent = health.storage.detail;
+  }
+  return panel;
 }
 
 function renderStorageError(err) {
-  return `
-    <div class="panel" id="gs-storage">
-      <div class="panel-head">Storage</div>
-      <div class="panel-body">
-        <dl class="kv"><dt>status</dt><dd><span class="badge badge-fail">Unavailable</span></dd></dl>
-        <p class="gs-detail">${esc(err.message)}</p>
-      </div>
-    </div>`;
+  return renderStoragePanel({ ok: false, storage: { detail: err.message } });
 }
 
 function formatContextSize(numCtx) {
@@ -97,26 +103,25 @@ function formatContextSize(numCtx) {
 
 function renderGenerationPanel(status) {
   const ready = Boolean(status?.ready);
-  const badge = ready
-    ? '<span class="badge badge-ok">Ready</span>'
-    : '<span class="badge badge-fail">Unavailable</span>';
-
-  const rows = [
-    `<dt>status</dt><dd>${badge}</dd>`,
-    `<dt>provider</dt><dd>${esc(status?.backend ?? '—')}</dd>`,
-    `<dt>model</dt><dd>${esc(status?.model ?? '—')}</dd>`,
-  ];
+  const panel = statusPanel('gs-generation', 'Answer model');
+  const rows = panel.querySelector('.gs-status-rows');
+  appendKeyValueRow(rows, 'status', statusBadge(ready ? 'Ready' : 'Unavailable', ready));
+  appendKeyValueRow(rows, 'provider', status?.backend ?? '—');
+  appendKeyValueRow(rows, 'model', status?.model ?? '—');
   if (status?.configuration) {
-    rows.push(`<dt>context size</dt><dd>${esc(formatContextSize(status?.numCtx))}</dd>`);
-    rows.push(`<dt>device</dt><dd>${esc(status?.devicePolicy?.value ?? '—')}</dd>`);
+    appendKeyValueRow(rows, 'context size', formatContextSize(status?.numCtx));
+    appendKeyValueRow(rows, 'device', status?.devicePolicy?.value ?? '—');
   }
 
-  let reasonBlock = '';
   if (!ready && status?.reason) {
-    const baseUrlLine = status?.configuration?.baseUrl?.display
-      ? `<p class="gs-detail-sub">Configured endpoint: ${esc(status.configuration.baseUrl.display)}</p>`
-      : '';
-    reasonBlock = `<p class="gs-detail">${esc(status.reason)}</p>${baseUrlLine}`;
+    const message = panel.querySelector('.gs-status-message');
+    message.hidden = false;
+    message.querySelector('.gs-detail').textContent = status.reason;
+    if (status?.configuration?.baseUrl?.display) {
+      const endpoint = message.querySelector('.gs-detail-sub');
+      endpoint.hidden = false;
+      endpoint.textContent = `Configured endpoint: ${status.configuration.baseUrl.display}`;
+    }
   }
 
   const provenance = renderProvenance(status?.configuration, [
@@ -126,31 +131,20 @@ function renderGenerationPanel(status) {
     ['Context size', 'numCtx'],
     ['Device policy', 'devicePolicy'],
   ]);
-
-  return `
-    <div class="panel" id="gs-generation">
-      <div class="panel-head">Answer model</div>
-      <div class="panel-body">
-        <dl class="kv">${rows.join('')}</dl>
-        ${reasonBlock}
-        ${provenance}
-      </div>
-    </div>`;
+  if (provenance) panel.querySelector('.gs-provenance-mount').append(provenance);
+  return panel;
 }
 
 function renderGenerationError(err) {
-  return `
-    <div class="panel" id="gs-generation">
-      <div class="panel-head">Answer model</div>
-      <div class="panel-body">
-        <dl class="kv"><dt>status</dt><dd><span class="badge badge-fail">Unavailable</span></dd></dl>
-        <p class="gs-detail">${esc(err.message)}</p>
-      </div>
-    </div>`;
+  return renderGenerationPanel({ ready: false, reason: err.message });
 }
 
 async function renderStatusCategory(container, myGeneration) {
-  container.innerHTML = '<div class="panel" id="gs-storage">…</div><div class="panel" id="gs-generation">…</div>';
+  const storageLoading = statusPanel('gs-storage', 'Storage');
+  storageLoading.querySelector('.panel-body').textContent = '…';
+  const generationLoading = statusPanel('gs-generation', 'Answer model');
+  generationLoading.querySelector('.panel-body').textContent = '…';
+  container.replaceChildren(storageLoading, generationLoading);
   const [healthResult, generationResult] = await Promise.allSettled([
     api('/api/health'),
     api('/api/generation/status'),
@@ -161,27 +155,27 @@ async function renderStatusCategory(container, myGeneration) {
     ? renderStoragePanel(healthResult.value) : renderStorageError(healthResult.reason);
   const generationHtml = generationResult.status === 'fulfilled'
     ? renderGenerationPanel(generationResult.value) : renderGenerationError(generationResult.reason);
-  container.innerHTML = storageHtml + generationHtml;
+  container.replaceChildren(storageHtml, generationHtml);
 }
 
 // ── Future provider placeholders (static, inert) ────────────────────────────
 
 function providerPlaceholder(category) {
+  let provider;
+  let detail;
   if (category === 'ai') {
-    return `
-      <div class="gs-placeholder">
-        <p><strong>Ollama</strong> — currently implemented.</p>
-        <p class="gs-field-desc">Cloud providers are planned.</p>
-      </div>`;
+    provider = 'Ollama';
+    detail = 'Cloud providers are planned.';
+  } else if (category === 'storage') {
+    provider = 'Qdrant';
+    detail = 'Additional vector databases are planned.';
+  } else {
+    return null;
   }
-  if (category === 'storage') {
-    return `
-      <div class="gs-placeholder">
-        <p><strong>Qdrant</strong> — currently implemented.</p>
-        <p class="gs-field-desc">Additional vector databases are planned.</p>
-      </div>`;
-  }
-  return '';
+  const placeholder = templateRoot('tpl-gs-provider-placeholder');
+  placeholder.querySelector('strong').textContent = provider;
+  placeholder.querySelector('.gs-field-desc').textContent = detail;
+  return placeholder;
 }
 
 // ── Editable category rendering ──────────────────────────────────────────────
@@ -195,6 +189,13 @@ function providerPlaceholder(category) {
 const pendingByCategory = new Map(); // categoryId -> Map<key, value|null>
 const invalidByCategory = new Map(); // categoryId -> Map<key, rawValue>
 let lastFetchedPayload = null; // full GET /api/settings response
+
+// Populated only when the resolved category actually contains a field with
+// dynamicOptions (avoids fetching /api/ollama-models for categories that
+// never need it, e.g. retrieval/system). null before the first fetch for a
+// category that needs it; { available, reason, models } afterward — see
+// core/ollama-models.js for the shape.
+let lastOllamaModels = null;
 
 // Monotonic request token guarding against async races: fast category
 // switching (or navigating away from Settings entirely while a fetch/save
@@ -226,6 +227,33 @@ function syncBeforeUnloadGuard() {
 
 function categoryEntries(category) {
   return lastFetchedPayload.settings.filter((s) => s.category === category);
+}
+
+// isFieldVisible reads the driver's STAGED (currentPendingValue), not its
+// last-fetched configuredValue — so switching TAG_PROVIDER/EMBEDDING_BACKEND
+// in an unsaved edit immediately updates dependent visibility before Save.
+// Fails open (visible) if the driver isn't in this payload — never hides a
+// field it can't evaluate a condition for.
+//
+// uiHidden (DENSE_PROVIDER/SPARSE_PROVIDER only): unconditionally hidden
+// from this view — they remain independently PATCHable via the raw API
+// for power users/scripts (SettingsService.setMany() still cross-validates
+// the resulting pair via assertProviderCombo(), see service.js), but the
+// UI never renders them as controls, since EMBEDDING_BACKEND is now the
+// one canonical selector and exposing the two underlying keys alongside
+// it would let a user reconstruct an invalid combination through this UI.
+function isFieldVisible(category, entry) {
+  if (entry.uiHidden) return false;
+  if (!entry.visibleWhen) return true;
+  const driver = lastFetchedPayload.settings.find((s) => s.key === entry.visibleWhen.key);
+  if (!driver) return true;
+  return currentPendingValue(category, driver) === entry.visibleWhen.equals;
+}
+
+function visibleKeySet(category) {
+  return new Set(
+    categoryEntries(category).filter((e) => isFieldVisible(category, e)).map((e) => e.key)
+  );
 }
 
 // displayValue: unset fields (configuredValue undefined — no default, no
@@ -277,111 +305,258 @@ function stagePending(category, key, value, entry) {
   syncBeforeUnloadGuard();
 }
 
-function fieldControlHtml(category, entry) {
-  const value = currentPendingValue(category, entry);
-  const disabled = entry.configuredSource === 'os_env' || entry.configuredSource === 'dotenv';
-  if (entry.type === 'boolean') {
-    return `<input type="checkbox" class="gs-field-control" data-key="${esc(entry.key)}" ${value ? 'checked' : ''} ${disabled ? 'disabled' : ''}>`;
-  }
-  if (entry.type === 'enum') {
-    const options = (entry.options ?? []).map((o) =>
-      `<option value="${esc(o.value)}" ${o.value === value ? 'selected' : ''}>${esc(o.label)}</option>`
-    ).join('');
-    return `<select class="gs-field-control q-input" data-key="${esc(entry.key)}" ${disabled ? 'disabled' : ''}>${options}</select>`;
-  }
-  if (entry.type === 'number') {
-    const minAttr = entry.min !== undefined ? ` min="${entry.min}"` : '';
-    const maxAttr = entry.max !== undefined ? ` max="${entry.max}"` : '';
-    return `<input type="number" class="gs-field-control q-input" data-key="${esc(entry.key)}" value="${esc(value)}"${minAttr}${maxAttr} ${disabled ? 'disabled' : ''}>`;
-  }
-  // string
-  return `<input type="text" class="gs-field-control q-input" data-key="${esc(entry.key)}" value="${esc(value)}" ${disabled ? 'disabled' : ''}>`;
+function requiredOllamaCapability(capability) {
+  return capability === 'generation' ? 'completion' : capability;
 }
 
-function fieldRowHtml(category, entry) {
+function modelSupportsCapability(model, capability) {
+  return Array.isArray(model?.capabilities)
+    && model.capabilities.includes(requiredOllamaCapability(capability));
+}
+
+function selectedOllamaModel(category, modelKey) {
+  const modelEntry = lastFetchedPayload.settings.find((entry) => entry.key === modelKey);
+  if (!modelEntry) return null;
+  const modelName = currentPendingValue(category, modelEntry);
+  return lastOllamaModels?.models?.find((model) => model.name === modelName) ?? null;
+}
+
+function selectOption(value, label, { selected = false, disabled = false } = {}) {
+  const option = templateRoot('tpl-gs-option');
+  option.setAttribute('value', value);
+  option.textContent = label;
+  option.toggleAttribute('selected', selected);
+  option.toggleAttribute('disabled', disabled);
+  return option;
+}
+
+// Builds a <select> for a dynamicOptions-backed string field. Never empty:
+// configured-but-not-installed values are preserved; unreachable or empty
+// discovery states get an explicit disabled option.
+function dynamicOptionsControl(entry, value, disabled) {
+  const capability = entry.dynamicOptions.capability;
+  const select = templateRoot('tpl-gs-control-select');
+  select.dataset.key = entry.key;
+  const extras = [];
+
+  if (!lastOllamaModels || !lastOllamaModels.available) {
+    if (value) select.append(selectOption(value, value, { selected: true }));
+    select.append(selectOption('', 'Ollama unreachable — models unknown', {
+      selected: !value,
+      disabled: true,
+    }));
+    select.disabled = true;
+    const reason = lastOllamaModels?.reason ?? 'Ollama models are unknown.';
+    const note = templateRoot('tpl-gs-control-note');
+    note.textContent = reason;
+    extras.push(note);
+    return { control: select, extras };
+  }
+
+  const confirmed = lastOllamaModels.models.filter((model) => modelSupportsCapability(model, capability));
+  const unverified = lastOllamaModels.models.filter((model) => model.capabilities === null);
+  const installedNames = new Set([...confirmed, ...unverified].map((m) => m.name));
+  if (value && !installedNames.has(value)) {
+    select.append(selectOption(value, `${value} (not installed)`, { selected: true }));
+  }
+  for (const model of confirmed) {
+    select.append(selectOption(model.name, model.name, { selected: model.name === value }));
+  }
+  for (const model of unverified) {
+    select.append(selectOption(
+      model.name,
+      `${model.name} (capability unverified)`,
+      { selected: model.name === value }
+    ));
+  }
+  if (!select.querySelectorAll('option').length) {
+    select.append(selectOption('', 'No installed models found', { selected: true, disabled: true }));
+  }
+  select.disabled = disabled;
+
+  const installedElsewhere = value && !installedNames.has(value)
+    && lastOllamaModels.models.some((m) => m.name === value);
+  if (installedElsewhere) {
+    const note = templateRoot('tpl-gs-control-note');
+    note.textContent = 'Configured but inactive: this model may not support the required capability.';
+    extras.push(note);
+  }
+  return { control: select, extras };
+}
+
+function fieldControl(category, entry) {
+  const value = currentPendingValue(category, entry);
+  const disabled = entry.configuredSource === 'os_env' || entry.configuredSource === 'dotenv';
+  let control;
+  if (entry.type === 'boolean') {
+    control = templateRoot('tpl-gs-control-checkbox');
+    control.checked = Boolean(value);
+  } else if (entry.type === 'enum') {
+    control = templateRoot('tpl-gs-control-select');
+    const configuredOptionExists = (entry.options ?? []).some((option) => option.value === value);
+    if (value !== '' && !configuredOptionExists) {
+      control.append(selectOption(value, `${value} (invalid configuration)`, { selected: true }));
+    }
+    for (const option of entry.options ?? []) {
+      control.append(selectOption(option.value, option.label, { selected: option.value === value }));
+    }
+  } else if (entry.dynamicOptions?.source === 'ollama_models') {
+    return dynamicOptionsControl(entry, value, disabled);
+  } else {
+    control = templateRoot('tpl-gs-control-input');
+    control.type = entry.type === 'number' ? 'number' : 'text';
+    control.value = value;
+    if (entry.min !== undefined) control.setAttribute('min', String(entry.min));
+    if (entry.max !== undefined) control.setAttribute('max', String(entry.max));
+  }
+  control.dataset.key = entry.key;
+  control.disabled = disabled;
+  return { control, extras: [] };
+}
+
+function readonlyField(entry, value, { source = '', warning = '' } = {}) {
+  const row = templateRoot('tpl-gs-field-readonly');
+  row.dataset.field = entry.key;
+  row.querySelector('.gs-field-label').textContent = entry.label;
+  row.querySelector('.gs-field-value').textContent = String(value ?? '');
+  row.querySelector('.gs-field-desc').textContent = entry.description ?? '';
+  if (source) {
+    const sourceElement = row.querySelector('.gs-field-source');
+    sourceElement.hidden = false;
+    sourceElement.textContent = source;
+  }
+  if (warning) {
+    const warningElement = row.querySelector('.gs-field-pending-restart');
+    warningElement.hidden = false;
+    warningElement.textContent = warning;
+  }
+  return row;
+}
+
+function fieldRow(category, entry) {
   if (entry.secret) {
-    const badge = entry.configured
-      ? '<span class="badge badge-ok">Configured</span>'
-      : '<span class="badge badge-fail">Not configured</span>';
-    return `
-      <div class="gs-field">
-        <label class="gs-field-label">${esc(entry.label)}</label>
-        ${badge}
-        <p class="gs-field-desc">${esc(entry.description ?? '')}</p>
-      </div>`;
+    const row = templateRoot('tpl-gs-field-secret');
+    row.dataset.field = entry.key;
+    row.querySelector('.gs-field-label').textContent = entry.label;
+    row.querySelector('.gs-field-desc').textContent = entry.description ?? '';
+    const badge = row.querySelector('.gs-secret-status');
+    badge.textContent = entry.configured ? 'Configured' : 'Not configured';
+    badge.classList.add(entry.configured ? 'badge-ok' : 'badge-fail');
+    return row;
+  }
+
+  if (entry.derivedWhen) {
+    const driver = lastFetchedPayload.settings.find((s) => s.key === entry.derivedWhen.key);
+    const driverMatches = driver && currentPendingValue(category, driver) === entry.derivedWhen.equals;
+    if (driverMatches) return readonlyField(entry, entry.derivedWhen.value);
+  }
+
+  if (entry.dynamicDerived) {
+    const driver = lastFetchedPayload.settings.find((item) => item.key === entry.dynamicDerived.key);
+    const driverMatches = driver
+      && currentPendingValue(category, driver) === entry.dynamicDerived.equals;
+    if (driverMatches) {
+      const model = selectedOllamaModel(category, entry.dynamicDerived.modelKey);
+      const value = model?.[entry.dynamicDerived.property];
+      const known = Number.isInteger(value) && value > 0;
+      return readonlyField(entry, known ? value : 'Unknown', {
+        warning: known
+          ? ''
+          : 'The selected model does not expose a verified embedding dimension. Semidex will not create a collection until it can detect the real vector size.',
+      });
+    }
   }
 
   if (!entry.writable) {
-    return `
-      <div class="gs-field">
-        <label class="gs-field-label">${esc(entry.label)}</label>
-        <p class="gs-field-value mono">${esc(entry.configuredValue)}</p>
-        <p class="gs-field-desc">${esc(entry.description ?? '')}</p>
-        <p class="gs-field-source">${esc(entry.readOnlyReason ?? '')}</p>
-      </div>`;
+    return readonlyField(entry, entry.configuredValue, { source: entry.readOnlyReason ?? '' });
   }
 
-  const control = fieldControlHtml(category, entry);
+  const row = templateRoot('tpl-gs-field');
+  row.dataset.field = entry.key;
+  row.querySelector('.gs-field-label').textContent = entry.label;
+  row.querySelector('.gs-field-desc').textContent = entry.description ?? '';
+  const { control, extras } = fieldControl(category, entry);
+  row.querySelector('.gs-field-control-mount').append(control, ...extras);
+
   const disabled = entry.configuredSource === 'os_env' || entry.configuredSource === 'dotenv';
-  const sourceLine = disabled
-    ? `<span class="badge badge-warn">locked</span> Set by ${provenanceLabel(entry.configuredSource)}; semidex cannot change this.`
+  row.querySelector('.gs-field-lock').hidden = !disabled;
+  row.querySelector('.gs-field-source-text').textContent = disabled
+    ? `Set by ${provenanceLabel(entry.configuredSource)}; semidex cannot change this.`
     : provenanceLabel(entry.configuredSource);
-  const resetButton = entry.hasLocalOverride
-    ? `<button type="button" class="btn-ghost gs-field-reset" data-key="${esc(entry.key)}" title="This clears your saved override and falls back to ${esc(provenanceLabel(entry.activeSource))}.">Use inherited value</button>`
-    : '';
-  const pendingRestartLine = entry.pendingRestart
-    ? `<p class="gs-field-pending-restart">Saved — still using the previous value (${esc(entry.activeValue)}) until semidex restarts.</p>`
-    : '';
+  const resetButton = row.querySelector('.gs-field-reset');
+  resetButton.hidden = !entry.hasLocalOverride;
+  if (entry.hasLocalOverride) {
+    resetButton.dataset.key = entry.key;
+    resetButton.title = `This clears your saved override and falls back to ${provenanceLabel(entry.activeSource)}.`;
+  }
+  const messages = [
+    ['pending-restart', entry.pendingRestart
+      ? `Saved — still using the previous value (${entry.activeValue}) until semidex restarts.`
+      : ''],
+    ['shadowed', entry.shadowedBy
+      ? `Currently overridden by the legacy "Dense model" setting (${entry.shadowedBy.value}, set via ${provenanceLabel(entry.shadowedBy.source)}) — set a value here to take precedence.`
+      : ''],
+    ['invalid-configuration', entry.invalidConfiguration ?? ''],
+  ];
+  for (const [name, text] of messages) {
+    const element = row.querySelector(`[data-message="${name}"]`);
+    element.hidden = !text;
+    element.textContent = text;
+  }
   const impactParts = [appliesAtLabel(entry.appliesAt)];
   if (entry.requiresReindex) impactParts.push('Requires reindex');
   if (entry.requiresBackfill) impactParts.push('Requires backfill');
-  const impact = impactParts.filter(Boolean).join(' · ');
-
-  return `
-    <div class="gs-field" data-field="${esc(entry.key)}">
-      <label class="gs-field-label">${esc(entry.label)}</label>
-      ${control}
-      <p class="gs-field-desc">${esc(entry.description ?? '')}</p>
-      <p class="gs-field-source">${sourceLine} ${resetButton}</p>
-      ${pendingRestartLine}
-      <span class="gs-field-impact">${esc(impact)}</span>
-    </div>`;
+  row.querySelector('.gs-field-impact').textContent = impactParts.filter(Boolean).join(' · ');
+  return row;
 }
 
-function saveBarHtml(category) {
+function saveBar(category) {
   const pending = pendingByCategory.get(category);
   const invalid = invalidByCategory.get(category);
   const dirty = Boolean(pending?.size || invalid?.size);
-  if (!dirty) return '';
+  if (!dirty) return null;
   const hasInvalid = Boolean(invalid?.size);
-  return `
-    <div class="gs-save-bar">
-      ${hasInvalid ? '<span class="gs-field-source">Fix invalid fields before saving.</span>' : ''}
-      <button type="button" class="btn-amber" id="gs-save" ${hasInvalid ? 'disabled' : ''}>Save</button>
-      <button type="button" class="btn-ghost" id="gs-cancel">Cancel</button>
-    </div>`;
+  const bar = templateRoot('tpl-gs-save-bar');
+  bar.querySelector('.gs-save-invalid').hidden = !hasInvalid;
+  bar.querySelector('#gs-save').disabled = hasInvalid;
+  return bar;
 }
 
 function renderEditableCategory(container, category) {
-  const entries = categoryEntries(category);
+  const entries = categoryEntries(category).filter((e) => isFieldVisible(category, e));
   const primary = entries.filter((e) => !e.advanced);
   const advanced = entries.filter((e) => e.advanced);
 
+  const content = document.createDocumentFragment();
+  if (categoryNeedsOllamaModels(category)) content.append(templateRoot('tpl-gs-refresh-models'));
   const placeholder = providerPlaceholder(category);
-  const primaryHtml = primary.map((e) => fieldRowHtml(category, e)).join('');
-  const advancedHtml = advanced.length
-    ? `<details class="gs-advanced"><summary>Advanced settings</summary>${advanced.map((e) => fieldRowHtml(category, e)).join('')}</details>`
-    : '';
-
-  container.innerHTML = placeholder + primaryHtml + advancedHtml + saveBarHtml(category);
+  if (placeholder) content.append(placeholder);
+  for (const entry of primary) content.append(fieldRow(category, entry));
+  if (advanced.length) {
+    const advancedBlock = templateRoot('tpl-gs-advanced');
+    const advancedFields = advancedBlock.querySelector('.gs-advanced-fields');
+    for (const entry of advanced) advancedFields.append(fieldRow(category, entry));
+    content.append(advancedBlock);
+  }
+  const currentSaveBar = saveBar(category);
+  if (currentSaveBar) content.append(currentSaveBar);
+  container.replaceChildren(content);
   wireCategoryEvents(container, category);
+
+  const refreshBtn = container.querySelector('#gs-refresh-models');
+  if (refreshBtn) {
+    refreshBtn.addEventListener('click', () => {
+      const main = container.closest('#main');
+      if (main) refreshOllamaModels(main, category, renderGeneration, { forceRefresh: true });
+    });
+  }
 }
 
 function syncSaveBar(container, category) {
   container.querySelector('.gs-save-bar')?.remove();
-  const html = saveBarHtml(category);
-  if (!html) return;
-  container.insertAdjacentHTML('beforeend', html);
+  const bar = saveBar(category);
+  if (!bar) return;
+  container.append(bar);
   wireSaveBarEvents(container, category);
 }
 
@@ -389,13 +564,30 @@ function wireCategoryEvents(container, category) {
   for (const el of container.querySelectorAll('.gs-field-control')) {
     const key = el.dataset.key;
     const entry = lastFetchedPayload.settings.find((s) => s.key === key);
+    // A dynamicOptions string field renders as a <select> (see
+    // dynamicOptionsControl) — its value is always one of the
+    // rendered options (a structural guarantee, same reasoning as a plain
+    // enum <select>), so it follows the enum branch below, not the
+    // free-text string branch's allowEmpty validation.
+    const isDynamicSelect = entry.type === 'string' && entry.dynamicOptions?.source === 'ollama_models';
     const handler = () => {
+      const beforeVisible = visibleKeySet(category);
       if (entry.type === 'boolean') {
         stagePending(category, key, el.checked, entry);
         markInvalid(category, key, false);
-      } else if (entry.type === 'enum') {
+      } else if (entry.type === 'enum' || isDynamicSelect) {
         stagePending(category, key, el.value, entry);
-        markInvalid(category, key, false);
+        if (key === 'EMBED_MODEL') {
+          const selected = lastOllamaModels?.models?.find((model) => model.name === el.value);
+          markInvalid(
+            category,
+            key,
+            !Number.isInteger(selected?.embeddingDimension) || selected.embeddingDimension <= 0,
+            el.value
+          );
+        } else {
+          markInvalid(category, key, false);
+        }
       } else if (entry.type === 'number') {
         const raw = el.value;
         // Validated directly against the registry's own min/max — not
@@ -422,15 +614,33 @@ function wireCategoryEvents(container, category) {
         }
       }
       el.toggleAttribute('aria-invalid', Boolean(invalidByCategory.get(category)?.has(key)));
-      syncSaveBar(container, category);
+
+      // Only a full rebuild (which re-wires everything, including the
+      // control just changed, from the now-current pendingByCategory
+      // state) if this change actually altered which fields are visible —
+      // never for an ordinary field, so a keystroke in a non-driving text
+      // field still only repaints the save bar (established Phase 4A.5c
+      // constraint: input events must not rebuild/replace the field being
+      // edited).
+      const drivesDynamicDerived = categoryEntries(category).some(
+        (candidate) => candidate.dynamicDerived?.modelKey === key
+      );
+      if (drivesDynamicDerived
+        || visibleKeySet(category).size !== beforeVisible.size
+        || ![...visibleKeySet(category)].every((k) => beforeVisible.has(k))) {
+        renderEditableCategory(container, category);
+      } else {
+        syncSaveBar(container, category);
+      }
     };
     el.addEventListener('change', handler);
-    if (entry.type === 'string' || entry.type === 'number') {
+    if (entry.type === 'string' && !isDynamicSelect || entry.type === 'number') {
       el.addEventListener('input', handler);
     }
   }
 
   for (const btn of container.querySelectorAll('.gs-field-reset')) {
+    if (btn.hidden) continue;
     btn.addEventListener('click', () => {
       const key = btn.dataset.key;
       const entry = lastFetchedPayload.settings.find((s) => s.key === key);
@@ -545,13 +755,37 @@ async function onSave(container, category) {
 function renderInlineCategorySelect(main, categories, category) {
   const mount = main.querySelector('#gs-inline-category-mount');
   if (!mount) return;
-  mount.innerHTML = `
-    <select class="q-input gs-inline-category-select" aria-label="Settings category">
-      ${categories.map((c) => `<option value="${esc(c.id)}" ${c.id === category ? 'selected' : ''}>${esc(c.label)}</option>`).join('')}
-    </select>`;
-  mount.querySelector('select').addEventListener('change', (e) => {
+  const select = templateRoot('tpl-gs-inline-category');
+  for (const item of categories) {
+    select.append(selectOption(item.id, item.label, { selected: item.id === category }));
+  }
+  mount.replaceChildren(select);
+  select.addEventListener('change', (e) => {
     location.hash = `#/settings/${encodeURIComponent(e.target.value)}`;
   });
+}
+
+// ── Ollama model discovery (dynamicOptions) ─────────────────────────────────
+
+function categoryNeedsOllamaModels(category) {
+  return lastFetchedPayload.settings.some(
+    (s) => s.category === category && s.dynamicOptions?.source === 'ollama_models'
+  );
+}
+
+// Fetches /api/ollama-models fresh and re-renders — reused directly by
+// both the initial category render (below) and the "Refresh models"
+// button, so there is exactly one fetch/render path for this data, never
+// two drifting implementations.
+async function refreshOllamaModels(main, category, myGeneration, { forceRefresh = false } = {}) {
+  try {
+    lastOllamaModels = await api(forceRefresh ? '/api/ollama-models?refresh=1' : '/api/ollama-models');
+  } catch (err) {
+    lastOllamaModels = { available: false, reason: err.message, models: [] };
+  }
+  if (myGeneration !== renderGeneration) return;
+  const content = main.querySelector('#gs-content');
+  if (content) renderEditableCategory(content, category);
 }
 
 // ── Top-level render ─────────────────────────────────────────────────────────
@@ -563,18 +797,31 @@ async function renderCategoryContent(main, category, payload, myGeneration) {
     return;
   }
   if (myGeneration !== renderGeneration) return;
+
+  if (categoryNeedsOllamaModels(category)) {
+    // Render once immediately with whatever's cached (or nothing, on a
+    // fresh page load) so the category isn't blocked on this fetch, then
+    // refresh in the background and re-render when it resolves — mirrors
+    // the status category's own "render skeleton, fill in async" shape.
+    renderEditableCategory(content, category);
+    await refreshOllamaModels(main, category, myGeneration);
+    return;
+  }
   renderEditableCategory(content, category);
 }
 
 export async function renderGlobalSettingsView(main, requestedCategory) {
   const myGeneration = ++renderGeneration;
-  main.innerHTML = globalSettingsShell;
+  main.replaceChildren(cloneTemplate('tpl-global-settings-shell'));
   let payload;
   try {
     payload = await api('/api/settings');
   } catch (err) {
     if (myGeneration !== renderGeneration) return;
-    main.querySelector('#gs-content').innerHTML = `<p class="gs-detail">${esc(err.message)}</p>`;
+    const message = document.createElement('p');
+    message.className = 'gs-detail';
+    message.textContent = err.message;
+    main.querySelector('#gs-content').replaceChildren(message);
     return;
   }
   if (myGeneration !== renderGeneration) return;

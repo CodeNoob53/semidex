@@ -3,9 +3,8 @@
 // inference session). TOKEN_COUNT=heuristic is an explicit fast fallback.
 
 import { mkdirSync } from 'fs';
-import { ONNX_CACHE_DIR } from './onnx-paths.js';
+import { ONNX_CACHE_DIR, ONNX_DENSE_MODEL_ID } from './onnx-paths.js';
 
-const MODEL_ID = 'aapot/bge-m3-onnx';
 export const CHUNKING_SCHEMA_VERSION = 4;
 
 // ── heuristic (sync, always available) ────────────────────────────────────
@@ -47,7 +46,7 @@ async function loadBgeTokenizer({ localFilesOnly = false } = {}) {
     const { env, AutoTokenizer } = await import('@huggingface/transformers');
     env.cacheDir = ONNX_CACHE_DIR;
     _tokenizer = await AutoTokenizer.from_pretrained(
-      MODEL_ID,
+      ONNX_DENSE_MODEL_ID,
       { local_files_only: localFilesOnly }
     );
     return _tokenizer;

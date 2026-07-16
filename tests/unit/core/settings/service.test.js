@@ -1,6 +1,6 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync, writeFileSync, readFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createSettingsService, applyEnvWriteBack } from '../../../../src/core/settings/service.js';
@@ -397,5 +397,232 @@ describe('applyEnvWriteBack — code-review fix: every writable field reaches pr
     const fakeEnv = {};
     applyEnvWriteBack(svc, fakeEnv);
     assert.equal(fakeEnv.RRF_K, '90');
+  });
+});
+
+describe('SettingsService — EMBEDDING_BACKEND (synthetic, derived field)', () => {
+  let dir;
+  test.beforeEach(() => { dir = mkdtempSync(join(tmpdir(), 'semidex-settings-test-')); });
+  test.afterEach(() => { rmSync(dir, { recursive: true, force: true }); });
+
+  test('resolves to "ollama" when DENSE_PROVIDER is unset (default)', () => {
+    const svc = createSettingsService({ osEnv: {}, dotenvValues: {}, settingsPath: tempSettingsPath(dir) });
+    const entry = svc.get('EMBEDDING_BACKEND');
+    assert.equal(entry.configuredValue, 'ollama');
+    assert.equal(entry.activeValue, 'ollama');
+    assert.equal(entry.writable, true);
+  });
+
+  test('resolves to "bge-m3-onnx" when DENSE_PROVIDER=bge-m3-onnx (os_env)', () => {
+    const svc = createSettingsService({
+      osEnv: { DENSE_PROVIDER: 'bge-m3-onnx', SPARSE_PROVIDER: 'bge-m3-onnx' },
+      dotenvValues: {}, settingsPath: tempSettingsPath(dir),
+    });
+    const entry = svc.get('EMBEDDING_BACKEND');
+    assert.equal(entry.configuredValue, 'bge-m3-onnx');
+    assert.equal(entry.activeValue, 'bge-m3-onnx');
+    assert.equal(entry.configuredSource, 'os_env');
+  });
+
+  test('getActiveValue("EMBEDDING_BACKEND") mirrors DENSE_PROVIDER\'s active value', () => {
+    const svc = createSettingsService({
+      osEnv: { DENSE_PROVIDER: 'bge-m3-onnx', SPARSE_PROVIDER: 'bge-m3-onnx' },
+      dotenvValues: {}, settingsPath: tempSettingsPath(dir),
+    });
+    assert.equal(svc.getActiveValue('EMBEDDING_BACKEND'), 'bge-m3-onnx');
+  });
+
+  test('PATCHing EMBEDDING_BACKEND expands into DENSE_PROVIDER+SPARSE_PROVIDER, never persists its own key', async () => {
+    const settingsPath = tempSettingsPath(dir);
+    const svc = createSettingsService({ osEnv: {}, dotenvValues: {}, settingsPath });
+    await svc.setMany({ EMBEDDING_BACKEND: 'bge-m3-onnx' });
+
+    assert.equal(svc.getActiveValue('DENSE_PROVIDER'), 'bge-m3-onnx');
+    assert.equal(svc.getActiveValue('SPARSE_PROVIDER'), 'bge-m3-onnx');
+    assert.equal(svc.get('EMBEDDING_BACKEND').configuredValue, 'bge-m3-onnx');
+
+    const onDisk = JSON.parse(readFileSync(settingsPath, 'utf-8'));
+    assert.equal(onDisk.DENSE_PROVIDER, 'bge-m3-onnx');
+    assert.equal(onDisk.SPARSE_PROVIDER, 'bge-m3-onnx');
+    assert.equal('EMBEDDING_BACKEND' in onDisk, false, 'EMBEDDING_BACKEND must never be written to settings.json as its own key');
+  });
+
+  test('PATCHing EMBEDDING_BACKEND=ollama expands into DENSE_PROVIDER=ollama, SPARSE_PROVIDER=hashed-tf', async () => {
+    const settingsPath = tempSettingsPath(dir);
+    writeFileSync(settingsPath, JSON.stringify({ DENSE_PROVIDER: 'bge-m3-onnx', SPARSE_PROVIDER: 'bge-m3-onnx' }), 'utf-8');
+    const svc = createSettingsService({ osEnv: {}, dotenvValues: {}, settingsPath });
+    await svc.setMany({ EMBEDDING_BACKEND: 'ollama' });
+
+    assert.equal(svc.getActiveValue('DENSE_PROVIDER'), 'ollama');
+    assert.equal(svc.getActiveValue('SPARSE_PROVIDER'), 'hashed-tf');
+  });
+
+  test('PATCHing an invalid EMBEDDING_BACKEND value is rejected with code invalid_value, nothing written', async () => {
+    const settingsPath = tempSettingsPath(dir);
+    const svc = createSettingsService({ osEnv: {}, dotenvValues: {}, settingsPath });
+    await assert.rejects(
+      () => svc.setMany({ EMBEDDING_BACKEND: 'not-a-real-backend' }),
+      (err) => err.code === 'invalid_value'
+    );
+    assert.equal(svc.getActiveValue('DENSE_PROVIDER'), 'ollama', 'DENSE_PROVIDER must remain at its default — nothing was written');
+    assert.equal(existsSync(settingsPath), false, 'settings.json must never be created by a rejected PATCH');
+  });
+
+  test('a batch containing EMBEDDING_BACKEND alongside another real key applies both atomically', async () => {
+    const settingsPath = tempSettingsPath(dir);
+    const svc = createSettingsService({ osEnv: {}, dotenvValues: {}, settingsPath });
+    await svc.setMany({ EMBEDDING_BACKEND: 'bge-m3-onnx', RRF_K: 90 });
+    assert.equal(svc.getActiveValue('DENSE_PROVIDER'), 'bge-m3-onnx');
+    assert.equal(svc.getActiveValue('RRF_K'), 90);
+  });
+
+  test('buildEntry() includes visibleWhen/dynamicOptions/derivedWhen on representative fixture entries', () => {
+    const svc = createSettingsService({ osEnv: {}, dotenvValues: {}, settingsPath: tempSettingsPath(dir) });
+    assert.deepEqual(svc.get('TAG_MODEL').visibleWhen, { key: 'TAG_PROVIDER', equals: 'ollama' });
+    assert.deepEqual(svc.get('ASK_MODEL').dynamicOptions, { source: 'ollama_models', capability: 'generation' });
+    assert.deepEqual(svc.get('VECTOR_SIZE').derivedWhen, { key: 'EMBEDDING_BACKEND', equals: 'bge-m3-onnx', value: 1024 });
+    assert.deepEqual(svc.get('VECTOR_SIZE').dynamicDerived, {
+      key: 'EMBEDDING_BACKEND',
+      equals: 'ollama',
+      source: 'ollama_models',
+      modelKey: 'EMBED_MODEL',
+      property: 'embeddingDimension',
+    });
+    assert.equal(svc.get('VECTOR_SIZE').writable, false);
+  });
+
+  test('code review fix (P1): DENSE_PROVIDER unset but ONNX_EMBED=1 (os_env) — EMBEDDING_BACKEND correctly reports "bge-m3-onnx", matching what resolveEnvProviders()/the indexer actually run', () => {
+    // Reproduces the exact scenario from code review: a real .env with
+    // ONNX_EMBED=1 and no DENSE_PROVIDER used to make this service report
+    // EMBEDDING_BACKEND: 'ollama' while the indexer itself ran bge-m3-onnx.
+    const svc = createSettingsService({ osEnv: { ONNX_EMBED: '1' }, dotenvValues: {}, settingsPath: tempSettingsPath(dir) });
+    const entry = svc.get('EMBEDDING_BACKEND');
+    assert.equal(entry.configuredValue, 'bge-m3-onnx');
+    assert.equal(entry.activeValue, 'bge-m3-onnx');
+    assert.equal(entry.configuredSource, 'os_env');
+    assert.equal(svc.getActiveValue('EMBEDDING_BACKEND'), 'bge-m3-onnx');
+  });
+
+  test('ONNX_EMBED=1 via dotenv (not os_env) is also reflected, with the correct provenance', () => {
+    const svc = createSettingsService({ osEnv: {}, dotenvValues: { ONNX_EMBED: '1' }, settingsPath: tempSettingsPath(dir) });
+    const entry = svc.get('EMBEDDING_BACKEND');
+    assert.equal(entry.configuredValue, 'bge-m3-onnx');
+    assert.equal(entry.configuredSource, 'dotenv');
+  });
+
+  test('explicit DENSE_PROVIDER still wins over ONNX_EMBED=1 when both are set (matches resolveEnvProviders() precedence)', () => {
+    const svc = createSettingsService({
+      osEnv: { ONNX_EMBED: '1', DENSE_PROVIDER: 'ollama' },
+      dotenvValues: {}, settingsPath: tempSettingsPath(dir),
+    });
+    assert.equal(svc.get('EMBEDDING_BACKEND').configuredValue, 'ollama');
+  });
+
+  test('invalid explicit providers are reported instead of silently normalized to the default backend', () => {
+    const svc = createSettingsService({
+      osEnv: { DENSE_PROVIDER: 'broken-provider', SPARSE_PROVIDER: 'hashed-tf' },
+      dotenvValues: {}, settingsPath: tempSettingsPath(dir),
+    });
+    const entry = svc.get('EMBEDDING_BACKEND');
+    assert.equal(entry.configuredValue, 'broken-provider');
+    assert.equal(entry.configuredSource, 'os_env');
+    assert.match(entry.invalidConfiguration, /Invalid provider combination/);
+  });
+
+  test('DENSE_PROVIDER saved via config_json (e.g. a prior EMBEDDING_BACKEND PATCH) still wins over ONNX_EMBED=1', () => {
+    const settingsPath = tempSettingsPath(dir);
+    const svc = createSettingsService({ osEnv: { ONNX_EMBED: '1' }, dotenvValues: {}, settingsPath });
+    // First establish a config_json-sourced DENSE_PROVIDER=ollama via the
+    // canonical PATCH path.
+    return svc.setMany({ EMBEDDING_BACKEND: 'ollama' }).then(() => {
+      // A fresh instance re-reads settings.json fresh, same osEnv.
+      const svc2 = createSettingsService({ osEnv: { ONNX_EMBED: '1' }, dotenvValues: {}, settingsPath });
+      assert.equal(svc2.get('DENSE_PROVIDER').configuredSource, 'config_json');
+      assert.equal(svc2.get('EMBEDDING_BACKEND').configuredValue, 'ollama', 'the explicit config_json DENSE_PROVIDER must still win over the ONNX_EMBED shorthand');
+    });
+  });
+});
+
+describe('SettingsService — EMBED_MODEL canonical / DENSE_MODEL legacy-alias shadow warning', () => {
+  let dir;
+  test.beforeEach(() => { dir = mkdtempSync(join(tmpdir(), 'semidex-settings-test-')); });
+  test.afterEach(() => { rmSync(dir, { recursive: true, force: true }); });
+
+  test('EMBED_MODEL unset, DENSE_MODEL explicitly set: shadowedBy reports the real legacy override', () => {
+    const svc = createSettingsService({ osEnv: { DENSE_MODEL: 'custom-legacy-model' }, dotenvValues: {}, settingsPath: tempSettingsPath(dir) });
+    const entry = svc.get('EMBED_MODEL');
+    assert.equal(entry.configuredSource, 'default');
+    assert.deepEqual(entry.shadowedBy, { key: 'DENSE_MODEL', value: 'custom-legacy-model', source: 'os_env' });
+  });
+
+  test('EMBED_MODEL explicitly set: shadowedBy is null even if DENSE_MODEL also has a value (EMBED_MODEL wins, no shadow)', () => {
+    const svc = createSettingsService({
+      osEnv: { EMBED_MODEL: 'my-model', DENSE_MODEL: 'stale-legacy-model' },
+      dotenvValues: {}, settingsPath: tempSettingsPath(dir),
+    });
+    const entry = svc.get('EMBED_MODEL');
+    assert.equal(entry.configuredValue, 'my-model');
+    assert.equal(entry.shadowedBy, null);
+  });
+
+  test('neither EMBED_MODEL nor DENSE_MODEL set: shadowedBy is null (nothing to warn about)', () => {
+    const svc = createSettingsService({ osEnv: {}, dotenvValues: {}, settingsPath: tempSettingsPath(dir) });
+    assert.equal(svc.get('EMBED_MODEL').shadowedBy, null);
+  });
+
+  test('DENSE_MODEL and EMBED_MODEL are independent, unaffected keys — saving EMBED_MODEL does not clear DENSE_MODEL as a side effect', async () => {
+    const settingsPath = tempSettingsPath(dir);
+    writeFileSync(settingsPath, JSON.stringify({ DENSE_MODEL: 'legacy-value' }), 'utf-8');
+    const svc = createSettingsService({ osEnv: {}, dotenvValues: {}, settingsPath });
+    await svc.setMany({ EMBED_MODEL: 'new-value' });
+    const onDisk = JSON.parse(readFileSync(settingsPath, 'utf-8'));
+    assert.equal(onDisk.EMBED_MODEL, 'new-value');
+    assert.equal(onDisk.DENSE_MODEL, 'legacy-value', 'DENSE_MODEL must not be silently cleared as a side effect of saving EMBED_MODEL');
+  });
+});
+
+describe('SettingsService — DENSE_PROVIDER/SPARSE_PROVIDER hidden from UI, cross-validated on direct PATCH', () => {
+  let dir;
+  test.beforeEach(() => { dir = mkdtempSync(join(tmpdir(), 'semidex-settings-test-')); });
+  test.afterEach(() => { rmSync(dir, { recursive: true, force: true }); });
+
+  test('DENSE_PROVIDER and SPARSE_PROVIDER entries carry uiHidden: true', () => {
+    const svc = createSettingsService({ osEnv: {}, dotenvValues: {}, settingsPath: tempSettingsPath(dir) });
+    assert.equal(svc.get('DENSE_PROVIDER').uiHidden, true);
+    assert.equal(svc.get('SPARSE_PROVIDER').uiHidden, true);
+  });
+
+  test('remain independently writable via direct PATCH when the resulting pair is valid', async () => {
+    const svc = createSettingsService({ osEnv: {}, dotenvValues: {}, settingsPath: tempSettingsPath(dir) });
+    await assert.doesNotReject(() => svc.setMany({ DENSE_PROVIDER: 'bge-m3-onnx', SPARSE_PROVIDER: 'bge-m3-onnx' }));
+    assert.equal(svc.getActiveValue('DENSE_PROVIDER'), 'bge-m3-onnx');
+  });
+
+  test('a direct PATCH producing an invalid pair (DENSE_PROVIDER alone, SPARSE_PROVIDER left at its incompatible existing value) is rejected', async () => {
+    const settingsPath = tempSettingsPath(dir);
+    writeFileSync(settingsPath, JSON.stringify({ SPARSE_PROVIDER: 'bge-m3-onnx' }), 'utf-8');
+    const svc = createSettingsService({ osEnv: {}, dotenvValues: {}, settingsPath });
+    // DENSE_PROVIDER defaults to 'ollama' if left unset, but here we PATCH
+    // it explicitly to 'ollama' while SPARSE_PROVIDER is already saved as
+    // 'bge-m3-onnx' — the resulting pair (ollama + bge-m3-onnx) is invalid.
+    await assert.rejects(
+      () => svc.setMany({ DENSE_PROVIDER: 'ollama' }),
+      (err) => err.code === 'invalid_value' && err.invalidKey === 'DENSE_PROVIDER'
+    );
+  });
+
+  test('a direct PATCH of both keys together producing an invalid pair is rejected atomically (nothing written)', async () => {
+    const settingsPath = tempSettingsPath(dir);
+    const svc = createSettingsService({ osEnv: {}, dotenvValues: {}, settingsPath });
+    await assert.rejects(
+      () => svc.setMany({ DENSE_PROVIDER: 'ollama', SPARSE_PROVIDER: 'bge-m3-onnx' }),
+      (err) => err.code === 'invalid_value'
+    );
+    assert.equal(existsSync(settingsPath), false, 'the invalid batch must not be written at all');
+  });
+
+  test('a PATCH that never touches DENSE_PROVIDER/SPARSE_PROVIDER is unaffected by the combo guard', async () => {
+    const svc = createSettingsService({ osEnv: {}, dotenvValues: {}, settingsPath: tempSettingsPath(dir) });
+    await assert.doesNotReject(() => svc.setMany({ RRF_K: 90 }));
   });
 });

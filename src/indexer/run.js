@@ -42,16 +42,14 @@ import { makeNodeId } from '../core/node-id.js';
 import { scroll } from '../core/qdrant.js';
 import { PROGRESS_EVENT_PREFIX, createFileProgressReporter } from './progress-event.js';
 import { applyEnvWriteBack } from '../core/settings/service.js';
+import { getOllamaEmbeddingDimension } from '../core/ollama.js';
 
-// let (not const): LLM_BATCH_SIZE and VECTOR_SIZE are settings-registry
-// fields (core/settings/definitions.js) — re-resolved once via
-// applyIndexerSettings() below, called by index.js right after
-// constructing this process's SettingsService, before main() runs.
-// VECTOR_SIZE is a new_collection-scope setting: it only takes effect for
-// a collection created by THIS run (see main()'s createCollection() call
-// below) — it never changes the vectorSize of an existing collection,
-// which stageA/main() both read from config.json instead (see
-// configVectorSize/cfgVectorSize below). COLLECTION/SOURCE_ROOT are
+// let (not const): LLM_BATCH_SIZE is re-resolved from the settings registry.
+// VECTOR_SIZE starts with the legacy/config fallback, then main() replaces it
+// with the selected embedding model's detected output dimension before a new
+// collection is created. Existing collections keep their recorded vectorSize
+// from config.json (see configVectorSize/cfgVectorSize below).
+// COLLECTION/SOURCE_ROOT are
 // one-shot CLI-run parameters, not standing configuration — intentionally
 // excluded from the settings registry, so they stay plain env reads.
 let BATCH_SIZE     = envInt('LLM_BATCH_SIZE', 3, 1, 64, '[indexer] ');
@@ -61,7 +59,8 @@ const SOURCE_ROOT  = process.env.SOURCE_ROOT ? resolve(process.env.SOURCE_ROOT) 
 
 /**
  * Re-resolves every indexer-consumed setting from a SettingsService: this
- * module's own BATCH_SIZE/VECTOR_SIZE, plus applyEnvWriteBack() (shared
+ * module's own BATCH_SIZE and the legacy VECTOR_SIZE fallback, plus
+ * applyEnvWriteBack() (shared
  * with every other real entry point — see core/settings/service.js) writes
  * every OTHER writable setting's active value into process.env, so the
  * many existing per-call `process.env.X` reads throughout stageA/stageB/
@@ -562,13 +561,29 @@ async function main() {
 
   let allCollections = await listCollections();
   if (!allCollections.includes(COLLECTION)) {
+    const providerConfig = resolveEnvProviders();
+    let newCollectionVectorSize = 1024;
+    if (providerConfig.denseProvider === 'ollama') {
+      const ollamaUrl = process.env.OLLAMA_URL || 'http://localhost:11434';
+      newCollectionVectorSize = await getOllamaEmbeddingDimension(
+        providerConfig.denseModel,
+        ollamaUrl
+      );
+      if (!newCollectionVectorSize) {
+        throw new Error(
+          `Cannot determine embedding dimension for Ollama model "${providerConfig.denseModel}". ` +
+          `Verify that the model is installed, supports embeddings, and Ollama is reachable at ${ollamaUrl}.`
+        );
+      }
+    }
+    VECTOR_SIZE = newCollectionVectorSize;
     console.log(`Collection "${COLLECTION}" not found, creating...`);
     await createCollection(COLLECTION, VECTOR_SIZE);
     allCollections = [...allCollections, COLLECTION];
     const cfg = loadConfig();
     if (!cfg.collections) cfg.collections = {};
     if (!cfg.collections[COLLECTION]) {
-      const { denseProvider, denseModel, sparseProvider } = resolveEnvProviders();
+      const { denseProvider, denseModel, sparseProvider } = providerConfig;
       cfg.collections[COLLECTION] = {
         denseProvider,
         denseModel,

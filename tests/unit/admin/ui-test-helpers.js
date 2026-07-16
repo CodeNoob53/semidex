@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import { EventEmitter } from 'node:events';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
-import { parseHTML, HTMLInputElement } from 'linkedom';
+import { parseHTML, HTMLDetailsElement, HTMLInputElement } from 'linkedom';
 import { createApp } from '../../../src/admin/server.js';
 import { createJobRegistry } from '../../../src/admin/jobs/registry.js';
 
@@ -795,7 +795,21 @@ if (!Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'checked')) {
   });
 }
 
+// linkedom also omits HTMLDetailsElement.open. Assigning `.open = true`
+// without this shim creates an unrelated own-property instead of reflecting
+// the `open` attribute; replacing a cloned <details> node in that state can
+// make linkedom retain and repeatedly traverse the detached template graph.
+// Reflect the real browser contract so settings tests stay bounded in memory.
+if (!Object.getOwnPropertyDescriptor(HTMLDetailsElement.prototype, 'open')) {
+  Object.defineProperty(HTMLDetailsElement.prototype, 'open', {
+    get() { return this.hasAttribute('open'); },
+    set(value) { if (value) this.setAttribute('open', ''); else this.removeAttribute('open'); },
+    configurable: true,
+  });
+}
+
 export function loadGlobalSettingsHelpers({ apiResponses = {}, apiPatchImpl, hash = '#/settings' } = {}) {
+  const globalSettingsTemplates = readUiSource('partials/templates/global-settings.html');
   const { document } = parseHTML(`
     <div class="layout">
       <nav class="sidebar">
@@ -812,6 +826,7 @@ export function loadGlobalSettingsHelpers({ apiResponses = {}, apiPatchImpl, has
       <main id="main"></main>
     </div>
     <a href="#/settings" id="nav-global-settings"></a>
+    ${globalSettingsTemplates}
   `);
   const apiCalls = [];
   const patchCalls = [];
@@ -836,12 +851,14 @@ export function loadGlobalSettingsHelpers({ apiResponses = {}, apiPatchImpl, has
     __toasts: toasts,
     api: async (url) => {
       apiCalls.push(url);
-      for (const [key, value] of Object.entries(apiResponses)) {
-        if (url.includes(key)) {
-          const resolved = typeof value === 'function' ? value(url) : value;
-          if (resolved instanceof Error) throw resolved;
-          return resolved;
-        }
+      const entries = Object.entries(apiResponses);
+      const matched = entries.find(([key]) => url === key)
+        ?? entries.find(([key]) => url.includes(key));
+      if (matched) {
+        const [, value] = matched;
+        const resolved = typeof value === 'function' ? value(url) : value;
+        if (resolved instanceof Error) throw resolved;
+        return resolved;
       }
       throw new Error(`no stub api() response configured for ${url}`);
     },
@@ -852,7 +869,6 @@ export function loadGlobalSettingsHelpers({ apiResponses = {}, apiPatchImpl, has
     showToast: (message, opts = {}) => { toasts.push({ message, ...opts }); },
   };
   vm.createContext(context);
-  const shellHtml = readUiSource('partials/global-settings-shell.html');
   const stripImports = (src) => stripExports(src).replace(/^import .*$/gm, '').replace(/^export \{[^}]*\};?\s*$/gm, '');
   const src = stripImports(readUiSource('dom.js'))
     + stripImports(readUiSource('format.js'))
@@ -860,7 +876,6 @@ export function loadGlobalSettingsHelpers({ apiResponses = {}, apiPatchImpl, has
     + stripImports(readUiSource('icons.js'))
     + stripImports(readUiSource('routes.js'))
     + stripImports(readUiSource('sidebar.js'))
-    + `const globalSettingsShell = ${JSON.stringify(shellHtml)};\n`
     + stripImports(readUiSource('global-settings-view.js'));
   vm.runInContext(src, context);
   context.__fireBeforeUnload = () => {

@@ -16,6 +16,8 @@
 // serialize(value): value -> JSON-safe value for settings.json (identity
 //   for every current type; exists as one place to extend later).
 
+import { ONNX_DENSE_MODEL_ID } from '../onnx-paths.js';
+
 function warnInvalid(prefix, name, raw, fallback) {
   console.warn(`${prefix}${name}="${raw}" is invalid — using default ${fallback}`);
 }
@@ -215,12 +217,15 @@ export const DEFINITIONS = {
     category: 'ai', label: 'Tag model', type: 'string', envVar: 'TAG_MODEL',
     description: 'Ollama model name used for tag generation.', advanced: true,
     appliesAt: 'next_index_job', requiresReindex: false, requiresBackfill: true,
+    visibleWhen: { key: 'TAG_PROVIDER', equals: 'ollama' },
+    dynamicOptions: { source: 'ollama_models', capability: 'generation' },
     ...stringField({ envVar: 'TAG_MODEL', defaultVal: 'gemma3:4b' }),
   },
   TAG_ONNX_MODEL: {
     category: 'ai', label: 'ONNX tag model', type: 'string', envVar: 'TAG_ONNX_MODEL',
     description: 'ONNX model identifier used for tag generation when the ONNX provider is selected.', advanced: true,
     appliesAt: 'next_index_job', requiresReindex: false, requiresBackfill: true,
+    visibleWhen: { key: 'TAG_PROVIDER', equals: 'onnx' },
     ...stringField({ envVar: 'TAG_ONNX_MODEL', defaultVal: 'onnx-community/Qwen2.5-Coder-1.5B-Instruct' }),
   },
   TAG_ONNX_THREADS: {
@@ -245,6 +250,7 @@ export const DEFINITIONS = {
     category: 'ai', label: 'Context generation model', type: 'string', envVar: 'CONTEXT_MODEL',
     description: 'Ollama model name used to generate chunk context summaries during indexing.', advanced: true,
     appliesAt: 'next_index_job', requiresReindex: true, requiresBackfill: false,
+    dynamicOptions: { source: 'ollama_models', capability: 'generation' },
     ...stringField({ envVar: 'CONTEXT_MODEL', defaultVal: 'gemma3:4b' }),
   },
   SEMIDEX_GENERATION_BACKEND: {
@@ -258,6 +264,7 @@ export const DEFINITIONS = {
     category: 'ai', label: 'Ask answer model', type: 'string', envVar: 'ASK_MODEL',
     description: 'Ollama model name used to generate answers for the Ask feature.', advanced: false,
     appliesAt: 'next_restart', requiresReindex: false, requiresBackfill: false,
+    dynamicOptions: { source: 'ollama_models', capability: 'generation' },
     ...stringField({ envVar: 'ASK_MODEL', defaultVal: 'gemma3:4b' }),
   },
   OLLAMA_URL: {
@@ -280,21 +287,48 @@ export const DEFINITIONS = {
   },
 
   // ── embeddings & hardware ───────────────────────────────────────────────
+  // EMBEDDING_BACKEND is a synthetic, derived field — not env-backed (no
+  // envVar, no settings.json key of its own). Its configuredValue/
+  // activeValue/source are resolved by the same shared provider resolver as
+  // the indexer, including the legacy ONNX_EMBED shorthand. A PATCH to this
+  // key is expanded into a combined DENSE_PROVIDER+SPARSE_PROVIDER write
+  // before the normal validate/write loop runs (see service.js's setMany()).
+  // This makes an invalid dense/sparse combination unreachable through this
+  // UI-facing control; direct writes to the underlying keys are also
+  // cross-validated by the service.
+  EMBEDDING_BACKEND: {
+    category: 'embeddings', label: 'Embedding backend', type: 'enum',
+    description: 'Which embedding provider is used for new collections. Determines dense and sparse vector generation together.',
+    advanced: false, appliesAt: 'new_collection', requiresReindex: false, requiresBackfill: false,
+    options: [{ value: 'ollama', label: 'Ollama' }, { value: 'bge-m3-onnx', label: 'BGE-M3 (ONNX)' }],
+    default: 'ollama',
+    parseExternal() { throw new Error('EMBEDDING_BACKEND is derived, not env-backed.'); },
+    validate(value) {
+      return ['ollama', 'bge-m3-onnx'].includes(value)
+        ? { ok: true }
+        : { ok: false, error: 'EMBEDDING_BACKEND must be "ollama" or "bge-m3-onnx".' };
+    },
+    serialize: (value) => value,
+  },
   EMBED_MODEL: {
     category: 'embeddings', label: 'Embedding model (Ollama)', type: 'string', envVar: 'EMBED_MODEL',
     description: 'Ollama model name used to generate embeddings for new collections.', advanced: false,
     appliesAt: 'new_collection', requiresReindex: false, requiresBackfill: false,
+    visibleWhen: { key: 'EMBEDDING_BACKEND', equals: 'ollama' },
+    dynamicOptions: { source: 'ollama_models', capability: 'embedding' },
     ...stringField({ envVar: 'EMBED_MODEL', defaultVal: 'bge-m3' }),
   },
   DENSE_PROVIDER: {
     category: 'embeddings', label: 'Dense provider', type: 'enum', envVar: 'DENSE_PROVIDER',
-    description: 'Backend used to compute dense embedding vectors for new collections.', advanced: false,
+    description: 'Backend used to compute dense embedding vectors for new collections. Internal compatibility key — use "Embedding backend" instead.',
+    advanced: true, uiHidden: true,
     appliesAt: 'new_collection', requiresReindex: false, requiresBackfill: false,
     ...enumField({ envVar: 'DENSE_PROVIDER', defaultVal: 'ollama', allowed: ['ollama', 'bge-m3-onnx'] }),
   },
   SPARSE_PROVIDER: {
     category: 'embeddings', label: 'Sparse provider', type: 'enum', envVar: 'SPARSE_PROVIDER',
-    description: 'Backend used to compute sparse embedding vectors for new collections.', advanced: false,
+    description: 'Backend used to compute sparse embedding vectors for new collections. Internal compatibility key — use "Embedding backend" instead.',
+    advanced: true, uiHidden: true,
     appliesAt: 'new_collection', requiresReindex: false, requiresBackfill: false,
     ...enumField({ envVar: 'SPARSE_PROVIDER', defaultVal: 'hashed-tf', allowed: ['hashed-tf', 'bge-m3-onnx'] }),
   },
@@ -302,30 +336,45 @@ export const DEFINITIONS = {
     category: 'embeddings', label: 'Dense model', type: 'string', envVar: 'DENSE_MODEL',
     description: 'Model identifier used for dense embeddings when the ONNX provider is selected.', advanced: true,
     appliesAt: 'new_collection', requiresReindex: false, requiresBackfill: false,
+    visibleWhen: { key: 'EMBEDDING_BACKEND', equals: 'bge-m3-onnx' },
+    derivedWhen: { key: 'EMBEDDING_BACKEND', equals: 'bge-m3-onnx', value: ONNX_DENSE_MODEL_ID },
     ...stringField({ envVar: 'DENSE_MODEL', defaultVal: 'bge-m3' }),
   },
   VECTOR_SIZE: {
     category: 'embeddings', label: 'Vector size', type: 'number', envVar: 'VECTOR_SIZE',
-    description: 'Dimensionality of the embedding vectors used for new collections.', advanced: true,
+    description: 'Detected output dimensionality of the selected embedding model.', advanced: true,
     appliesAt: 'new_collection', requiresReindex: false, requiresBackfill: false,
+    derivedWhen: { key: 'EMBEDDING_BACKEND', equals: 'bge-m3-onnx', value: 1024 },
+    dynamicDerived: {
+      key: 'EMBEDDING_BACKEND',
+      equals: 'ollama',
+      source: 'ollama_models',
+      modelKey: 'EMBED_MODEL',
+      property: 'embeddingDimension',
+    },
+    writable: false,
+    readOnlyReason: 'Detected from the embedding model; it cannot be entered manually.',
     ...intField({ envVar: 'VECTOR_SIZE', defaultVal: 1024, min: 1, max: 100000 }),
   },
   ONNX_EXECUTION_PROVIDER: {
     category: 'embeddings', label: 'ONNX execution provider', type: 'enum', envVar: 'ONNX_EXECUTION_PROVIDER',
     description: 'Hardware execution provider used for local ONNX embedding models.', advanced: true,
     appliesAt: 'next_restart', requiresReindex: false, requiresBackfill: false,
+    visibleWhen: { key: 'EMBEDDING_BACKEND', equals: 'bge-m3-onnx' },
     ...enumField({ envVar: 'ONNX_EXECUTION_PROVIDER', defaultVal: 'cpu', allowed: ['cpu', 'dml', 'cuda'] }),
   },
   ONNX_BATCH_SIZE: {
     category: 'embeddings', label: 'ONNX batch size', type: 'number', envVar: 'ONNX_BATCH_SIZE',
     description: 'Number of chunks embedded together per ONNX batch during indexing.', advanced: true,
     appliesAt: 'next_index_job', requiresReindex: false, requiresBackfill: false,
+    visibleWhen: { key: 'EMBEDDING_BACKEND', equals: 'bge-m3-onnx' },
     ...intField({ envVar: 'ONNX_BATCH_SIZE', defaultVal: 4, min: 1, max: 64, warnPrefix: '[onnx] ' }),
   },
   ONNX_CUDA_STRICT: {
     category: 'embeddings', label: 'Strict CUDA (fail instead of CPU fallback)', type: 'boolean', envVar: 'ONNX_CUDA_STRICT',
     description: 'Fail instead of silently falling back to CPU when CUDA is requested but unavailable.', advanced: true,
     appliesAt: 'next_restart', requiresReindex: false, requiresBackfill: false,
+    visibleWhen: { key: 'EMBEDDING_BACKEND', equals: 'bge-m3-onnx' },
     ...boolField({ envVar: 'ONNX_CUDA_STRICT', defaultVal: false }),
   },
 
@@ -537,7 +586,8 @@ export const DEFINITIONS = {
 };
 
 // Every definition is writable by default unless explicitly marked
-// `writable: false` above (secrets and single-implementation enums).
+// `writable: false` above (secrets, derived values, and
+// single-implementation enums).
 for (const def of Object.values(DEFINITIONS)) {
   if (def.writable === undefined) def.writable = true;
   if (def.secret === undefined) def.secret = false;

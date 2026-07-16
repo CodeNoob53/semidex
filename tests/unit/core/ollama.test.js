@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import {
   isOllamaReachable, listOllamaModels, validateOllamaModels, generateStream, getModelContextLength,
+  embeddingDimensionFromShow, getOllamaEmbeddingDimension,
 } from '../../../src/core/ollama.js';
 import { checkOllamaPreflight } from '../../../src/indexer/preflight.js';
 import { checkOllama } from '../../../src/admin/system/ollama.js';
@@ -104,6 +105,50 @@ describe('getModelContextLength', () => {
     globalThis.fetch = async () => { throw new Error('ECONNREFUSED'); };
     const result = await getModelContextLength('gemma3:4b', 2048, 'http://unreachable:11434');
     assert.equal(result, 2048);
+  });
+});
+
+describe('Ollama embedding dimension', () => {
+  let originalFetch;
+  beforeEach(() => { originalFetch = globalThis.fetch; });
+  afterEach(() => { globalThis.fetch = originalFetch; });
+
+  it('reads the architecture embedding length only for embedding-capable models', () => {
+    assert.equal(embeddingDimensionFromShow({
+      capabilities: ['embedding'],
+      model_info: {
+        'general.architecture': 'bert',
+        'bert.embedding_length': 768,
+        'bert.vision.embedding_length': 1152,
+      },
+    }), 768);
+    assert.equal(embeddingDimensionFromShow({
+      capabilities: ['completion'],
+      model_info: { 'general.architecture': 'llama', 'llama.embedding_length': 4096 },
+    }), null);
+  });
+
+  it('falls back to one /api/embed probe when /api/show metadata is incomplete', async () => {
+    const calls = [];
+    globalThis.fetch = async (url) => {
+      calls.push(url);
+      if (url.endsWith('/api/show')) {
+        return { ok: true, json: async () => ({ capabilities: ['embedding'], model_info: {} }) };
+      }
+      if (url.endsWith('/api/embed')) {
+        return { ok: true, json: async () => ({ embeddings: [Array(384).fill(0)] }) };
+      }
+      throw new Error(`unexpected fetch ${url}`);
+    };
+    const dimension = await getOllamaEmbeddingDimension(
+      'probe-model',
+      'http://dimension-probe:11434'
+    );
+    assert.equal(dimension, 384);
+    assert.deepEqual(calls, [
+      'http://dimension-probe:11434/api/show',
+      'http://dimension-probe:11434/api/embed',
+    ]);
   });
 });
 

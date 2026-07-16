@@ -9,10 +9,14 @@ import { existsSync, mkdirSync, createWriteStream, statSync } from 'fs';
 import { join, resolve } from 'path';
 import { fileURLToPath } from 'url';
 
-import { ONNX_CACHE_DIR as CACHE_DIR, ONNX_MODEL_DIR as MODEL_DIR } from './onnx-paths.js';
+import { ONNX_CACHE_DIR as CACHE_DIR, ONNX_MODEL_DIR as MODEL_DIR, ONNX_DENSE_MODEL_ID } from './onnx-paths.js';
 import { isCudaStrict, buildCudaStrictError } from './doctor-checks.js';
 
-const MODEL_ID  = 'aapot/bge-m3-onnx';
+// Re-exported for backward compatibility — the canonical declaration now
+// lives in onnx-paths.js (a dependency-free module), so consumers that
+// don't need this file's heavy onnxruntime-node/@huggingface/transformers
+// imports (e.g. the settings registry) can import the id without them.
+export { ONNX_DENSE_MODEL_ID };
 const HF_BASE   = 'https://huggingface.co';
 
 // bge-m3 sentencepiece special token ids
@@ -44,7 +48,7 @@ async function downloadFile(filename) {
   }
 
   // Try HEAD to get exact size; fall back to offline trust if network is unavailable.
-  const url = `${HF_BASE}/${MODEL_ID}/resolve/main/${filename}`;
+  const url = `${HF_BASE}/${ONNX_DENSE_MODEL_ID}/resolve/main/${filename}`;
   let total = expectedSize;
   try {
     const head = await fetch(url, { method: 'HEAD', redirect: 'follow' });
@@ -71,7 +75,7 @@ async function downloadFile(filename) {
 }
 
 async function fetchRange(filename, dest, from, total) {
-  const url     = `${HF_BASE}/${MODEL_ID}/resolve/main/${filename}`;
+  const url     = `${HF_BASE}/${ONNX_DENSE_MODEL_ID}/resolve/main/${filename}`;
   const headers = from > 0 ? { Range: `bytes=${from}-` } : {};
   const res     = await fetch(url, { redirect: 'follow', headers });
   if (!res.ok && res.status !== 206) throw new Error(`Download failed: ${res.status} ${filename}`);
@@ -126,7 +130,7 @@ export function resolveOnnxExecutionProviders(envValue) {
 async function _doLoad() {
   mkdirSync(CACHE_DIR, { recursive: true });
   process.stderr.write('[onnx] loading tokenizer...\n');
-  tokenizer = await AutoTokenizer.from_pretrained(MODEL_ID);
+  tokenizer = await AutoTokenizer.from_pretrained(ONNX_DENSE_MODEL_ID);
 
   for (const file of ['model.onnx', 'model.onnx.data']) await downloadFile(file);
 

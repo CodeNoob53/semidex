@@ -27,6 +27,7 @@ const { loadConfig, saveConfig, resolveEnvProviders } = await import('./core/con
 const { listCollections, getCollectionInfo, ensureCollectionSchema } = await import('./core/qdrant.js');
 const { classifyVectorSchema } = await import('./core/doctor-checks.js');
 const { SCHEMA_VERSION } = await import('./core/embeddings.js');
+const { ONNX_DENSE_MODEL_ID } = await import('./core/onnx-paths.js');
 
 const config = loadConfig();
 if (!config.collections) config.collections = {};
@@ -80,7 +81,7 @@ for (const name of remote) {
       changed = true;
     }
     if (!col.denseModel) {
-      col.denseModel = col.denseProvider === 'bge-m3-onnx' ? 'aapot/bge-m3-onnx' : (col.embedModel ?? denseModel);
+      col.denseModel = col.denseProvider === 'bge-m3-onnx' ? ONNX_DENSE_MODEL_ID : (col.embedModel ?? denseModel);
       changed = true;
     }
     if (!col.sparseProvider) {

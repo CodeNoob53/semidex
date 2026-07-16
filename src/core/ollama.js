@@ -52,12 +52,21 @@ export function validateOllamaModels(required, available) {
 // must go to that same baseUrl, not the module-level OLLAMA_URL default
 // (code review finding: a custom-baseUrl provider's /api/show call was
 // still hitting http://localhost:11434 regardless of its configured URL).
+//
+// Exported (not just used internally by getModelContextLength/
+// isThinkingModel) so core/ollama-models.js's capability discovery can
+// reuse this same cached /api/show call rather than re-implementing a
+// second /api/show client (code review finding: an earlier version of
+// ollama-models.js guessed capability from the model's name/family instead
+// of reading Ollama's own authoritative `capabilities` array from this
+// exact endpoint).
 const _showCache = new Map();
+const _embeddingDimensionCache = new Map();
 
-async function showModel(model, baseUrl = OLLAMA_URL) {
+export async function showModel(model, baseUrl = OLLAMA_URL, { forceRefresh = false } = {}) {
   const normalizedBaseUrl = baseUrl.replace(/\/$/, '');
   const cacheKey = `${normalizedBaseUrl}|${model}`;
-  if (_showCache.has(cacheKey)) return _showCache.get(cacheKey);
+  if (!forceRefresh && _showCache.has(cacheKey)) return _showCache.get(cacheKey);
   try {
     const r = await fetch(`${normalizedBaseUrl}/api/show`, {
       method: 'POST',
@@ -65,12 +74,77 @@ async function showModel(model, baseUrl = OLLAMA_URL) {
       body: JSON.stringify({ name: model }),
       signal: AbortSignal.timeout(10_000),
     });
-    if (!r.ok) { _showCache.set(cacheKey, null); return null; }
+    if (!r.ok) return null;
     const data = await r.json();
     _showCache.set(cacheKey, data);
     return data;
   } catch {
-    _showCache.set(cacheKey, null);
+    return null;
+  }
+}
+
+/**
+ * Read the text embedding dimension from Ollama's /api/show payload.
+ * Only embedding-capable models are accepted: generation models also expose
+ * an architecture embedding_length, but that hidden-state width is not a
+ * promise that /api/embed is supported.
+ */
+export function embeddingDimensionFromShow(data) {
+  if (!Array.isArray(data?.capabilities) || !data.capabilities.includes('embedding')) return null;
+  const info = data.model_info ?? {};
+  const architecture = info['general.architecture'];
+  const preferred = architecture ? Number(info[`${architecture}.embedding_length`]) : NaN;
+  if (Number.isInteger(preferred) && preferred > 0) return preferred;
+
+  const candidates = Object.entries(info)
+    .filter(([key]) => key.endsWith('.embedding_length')
+      && !key.includes('.vision.')
+      && !key.includes('.audio.')
+      && !key.includes('embedding_length_per_'))
+    .map(([, value]) => Number(value))
+    .filter((value) => Number.isInteger(value) && value > 0);
+  return candidates.length === 1 ? candidates[0] : null;
+}
+
+/**
+ * Resolve the actual output dimension for an Ollama embedding model before
+ * creating a Qdrant collection. /api/show is cheap and normally sufficient;
+ * the one-vector /api/embed probe is the authoritative fallback for older or
+ * incomplete model metadata.
+ */
+export async function getOllamaEmbeddingDimension(
+  model,
+  baseUrl = OLLAMA_URL,
+  { allowProbe = true, forceRefresh = false } = {}
+) {
+  const normalizedBaseUrl = baseUrl.replace(/\/$/, '');
+  const cacheKey = `${normalizedBaseUrl}|${model}`;
+  if (!forceRefresh && _embeddingDimensionCache.has(cacheKey)) {
+    return _embeddingDimensionCache.get(cacheKey);
+  }
+
+  const shown = await showModel(model, normalizedBaseUrl, { forceRefresh });
+  const metadataDimension = embeddingDimensionFromShow(shown);
+  if (metadataDimension) {
+    _embeddingDimensionCache.set(cacheKey, metadataDimension);
+    return metadataDimension;
+  }
+  if (!allowProbe) return null;
+
+  try {
+    const response = await fetch(`${normalizedBaseUrl}/api/embed`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model, input: 'semidex embedding dimension probe', truncate: true }),
+      signal: AbortSignal.timeout(60_000),
+    });
+    if (!response.ok) return null;
+    const data = await response.json();
+    const dimension = data?.embeddings?.[0]?.length;
+    if (!Number.isInteger(dimension) || dimension <= 0) return null;
+    _embeddingDimensionCache.set(cacheKey, dimension);
+    return dimension;
+  } catch {
     return null;
   }
 }

@@ -49,6 +49,9 @@ describe('static UI serving', () => {
       assert.match(body, /<template id="tpl-job-row">/);
       assert.match(body, /<template id="tpl-empty-state">/);
       assert.match(body, /<template id="tpl-error-state">/);
+      assert.match(body, /<template id="tpl-global-settings-shell">/);
+      assert.match(body, /<template id="tpl-gs-field">/);
+      assert.match(body, /<template id="tpl-gs-status-panel">/);
       assert.ok(!/<load\s/.test(body), 'the <load> include tags must be resolved at build time, not shipped literally');
     });
   });
