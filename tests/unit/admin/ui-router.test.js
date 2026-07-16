@@ -28,7 +28,7 @@ describe('router — currentRoute() (ui-src/router.js source, evaluated behavior
 
   it('parses the global runtime settings screen: #/settings, distinct from collection settings (Phase 4A.5b)', () => {
     const { currentRoute } = loadRouterHelper();
-    assert.deepEqual(currentRoute('#/settings'), { view: 'global-settings' });
+    assert.deepEqual(currentRoute('#/settings'), { view: 'global-settings', category: null });
     // A collection literally named "settings" must still resolve to
     // collection settings, not collide with the global route.
     assert.deepEqual(currentRoute('#/c/settings/settings'), { view: 'settings', name: 'settings' });

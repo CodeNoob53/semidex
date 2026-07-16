@@ -60,6 +60,24 @@ describe('GET /api/settings', () => {
     }, { settingsService });
   });
 
+  test('a representative entry carries the widened UI metadata shape (min/max/description/advanced/configuredSource/activeSource)', async () => {
+    const settingsService = createSettingsService({ osEnv: {}, dotenvValues: {}, settingsPath: tempSettingsPath(dir) });
+    await withServer(async (base) => {
+      const { json } = await httpJson(base, '/api/settings');
+      const maxChunk = json.settings.find((s) => s.key === 'MAX_CHUNK_TOKENS');
+      assert.equal(maxChunk.min, 1);
+      assert.equal(maxChunk.max, 100000);
+      assert.equal(typeof maxChunk.description, 'string');
+      assert.ok(maxChunk.description.length > 0);
+      assert.equal(maxChunk.advanced, false);
+      assert.equal(maxChunk.configuredSource, 'default');
+      assert.equal(maxChunk.activeSource, 'default');
+
+      const tagProvider = json.settings.find((s) => s.key === 'TAG_PROVIDER');
+      assert.deepEqual(tagProvider.options, [{ value: 'ollama', label: 'ollama' }, { value: 'onnx', label: 'onnx' }]);
+    }, { settingsService });
+  });
+
   test('an env-overridden key with a hidden local fallback shows source=os_env AND hasLocalOverride=true together', async () => {
     const settingsPath = tempSettingsPath(dir);
     writeFileSync(settingsPath, JSON.stringify({ RRF_K: 90 }), 'utf-8');

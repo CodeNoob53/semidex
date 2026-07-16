@@ -2,10 +2,10 @@
 import { $, errorBox } from './dom.js';
 import { api } from './api.js';
 import { openFileView, openSectionView, hideCollectionContent } from './file-view.js';
-import { markActive } from './sidebar.js';
+import { markActive, syncSidebarMode } from './sidebar.js';
 import { renderCollection, renderOverview } from './collection-view.js';
 import { renderSettingsView } from './settings-view.js';
-import { renderGlobalSettingsView } from './global-settings-view.js';
+import { renderGlobalSettingsView, invalidateGlobalSettingsRender } from './global-settings-view.js';
 import { renderIndexingView } from './jobs-view.js';
 import { applySearchStateFromUrl, syncSearchStateFromUrl } from './search.js';
 import { currentRoute } from './routes.js';
@@ -28,9 +28,16 @@ export async function openNodeFromPath(name, nodePath) {
 export async function route() {
   const main = $('#main');
   const r = currentRoute();
+  // Any in-flight Settings fetch/save that hasn't yet painted must not
+  // repaint over whatever non-settings view is about to render here — see
+  // global-settings-view.js's own renderGeneration guard. Safe to call
+  // even if Settings was never visited (a no-op bump of an unused
+  // counter); the router doesn't need to know or track the prior route.
+  if (r.view !== 'global-settings') invalidateGlobalSettingsRender();
+  syncSidebarMode(r);
   markActive(r);
   if (r.view === 'settings') await renderSettingsView(main, r.name);
-  else if (r.view === 'global-settings') await renderGlobalSettingsView(main);
+  else if (r.view === 'global-settings') await renderGlobalSettingsView(main, r.category);
   else if (r.view === 'collection') {
     await renderCollection(main, r.name);
     if (r.openFile) {

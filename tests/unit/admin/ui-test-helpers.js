@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import { EventEmitter } from 'node:events';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
-import { parseHTML } from 'linkedom';
+import { parseHTML, HTMLInputElement } from 'linkedom';
 import { createApp } from '../../../src/admin/server.js';
 import { createJobRegistry } from '../../../src/admin/jobs/registry.js';
 
@@ -533,6 +533,9 @@ export function loadRouteIntegrationHelpers(html, { hash = '#/', apiResponses = 
       throw new Error(`no stub api() response configured for ${url}`);
     },
     apiPost: async (url) => { apiCalls.push(url); return { results: [] }; },
+    // global-settings-view.js is outside this collection-route harness, but
+    // router.js invalidates its async render token on non-settings routes.
+    invalidateGlobalSettingsRender: () => {},
     __apiCalls: apiCalls,
     renderChunkContent: renderChunkContentImpl ?? renderChunkContentPlain,
   };
@@ -766,20 +769,71 @@ export function loadSettingsRepairHelpers(html, { apiPostImpl, apiImpl } = {}) {
   return context;
 }
 
-// For global-settings-view.js (#/settings, Phase 4A.5b) — the view only
-// depends on dom.js/api.js plus its own ?raw partial, so this needs just a
-// real DOM (for querySelector/innerHTML) and a URL-substring-keyed api()
-// stub (same convention as loadFileViewBehaviorHelpers/
-// loadRouteIntegrationHelpers) that can resolve OR throw per endpoint, so
-// tests can exercise "health ok, generation fails" and vice versa
-// independently — the exact behavior Promise.allSettled() exists to
-// guarantee.
-export function loadGlobalSettingsHelpers({ apiResponses = {} } = {}) {
-  const { document } = parseHTML('<main id="main"></main>');
+// For global-settings-view.js (#/settings/:category, Phase 4A.5c) — the
+// category editor. Needs a real DOM shaped like index.html's sidebar
+// (#collection-nav/#settings-nav/#settings-nav-list/.layout, since
+// sidebar.js's renderSettingsNav/syncSidebarMode/markActive are evaluated
+// for real, not stubbed — this is the actual integration the code review
+// flagged as missing in the original draft), plus URL-substring-keyed
+// api()/apiPatch() stubs (same convention as loadFileViewBehaviorHelpers)
+// that can resolve OR throw per endpoint/call, toasts captured instead of
+// timer-driven, and a minimal location/history so the inline category
+// selector's navigation and the canonicalize-URL replaceState call are
+// exercisable.
+// linkedom's HTMLInputElement has no `checked` IDL property at all (only
+// `value`/`type`/`disabled`/etc. are reflected — confirmed directly against
+// node_modules/linkedom/esm/html/input-element.js), unlike a real browser.
+// Patched once per module load (idempotent — checking for the getter avoids
+// re-defining on every helper call) so checkbox controls are actually
+// testable, the same way loadOperationModalHelpers/loadSettingsRepairHelpers
+// already patch Element.prototype.focus for a similar real-DOM gap.
+if (!Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'checked')) {
+  Object.defineProperty(HTMLInputElement.prototype, 'checked', {
+    get() { return this.hasAttribute('checked'); },
+    set(value) { if (value) this.setAttribute('checked', ''); else this.removeAttribute('checked'); },
+    configurable: true,
+  });
+}
+
+export function loadGlobalSettingsHelpers({ apiResponses = {}, apiPatchImpl, hash = '#/settings' } = {}) {
+  const { document } = parseHTML(`
+    <div class="layout">
+      <nav class="sidebar">
+        <div id="collection-nav">
+          <ul class="nav-list"><li><a href="#/index" id="nav-index">Create a collection</a></li></ul>
+          <div class="panel-label">Collections</div>
+          <ul class="collection-list" id="collection-list"></ul>
+        </div>
+        <div class="settings-nav" id="settings-nav" hidden>
+          <div class="panel-label">Settings</div>
+          <ul class="nav-list" id="settings-nav-list"></ul>
+        </div>
+      </nav>
+      <main id="main"></main>
+    </div>
+    <a href="#/settings" id="nav-global-settings"></a>
+  `);
   const apiCalls = [];
+  const patchCalls = [];
+  const toasts = [];
+  const beforeUnloadListeners = [];
   const context = {
     document,
+    location: { hash },
+    history: {
+      replaceState: (_s, _t, url) => { context.location.hash = url.replace(/^#/, ''); },
+    },
+    window: {
+      addEventListener: (type, fn) => { if (type === 'beforeunload') beforeUnloadListeners.push(fn); },
+      removeEventListener: (type, fn) => {
+        if (type !== 'beforeunload') return;
+        const i = beforeUnloadListeners.indexOf(fn);
+        if (i !== -1) beforeUnloadListeners.splice(i, 1);
+      },
+    },
     __apiCalls: apiCalls,
+    __patchCalls: patchCalls,
+    __toasts: toasts,
     api: async (url) => {
       apiCalls.push(url);
       for (const [key, value] of Object.entries(apiResponses)) {
@@ -791,13 +845,30 @@ export function loadGlobalSettingsHelpers({ apiResponses = {} } = {}) {
       }
       throw new Error(`no stub api() response configured for ${url}`);
     },
+    apiPatch: apiPatchImpl ?? (async (url, body) => {
+      patchCalls.push({ url, body });
+      return { settings: [] };
+    }),
+    showToast: (message, opts = {}) => { toasts.push({ message, ...opts }); },
   };
   vm.createContext(context);
   const shellHtml = readUiSource('partials/global-settings-shell.html');
-  const src = stripExports(readUiSource('dom.js')).replace(/^import .*$/gm, '')
+  const stripImports = (src) => stripExports(src).replace(/^import .*$/gm, '').replace(/^export \{[^}]*\};?\s*$/gm, '');
+  const src = stripImports(readUiSource('dom.js'))
+    + stripImports(readUiSource('format.js'))
+    + stripImports(readUiSource('state.js'))
+    + stripImports(readUiSource('icons.js'))
+    + stripImports(readUiSource('routes.js'))
+    + stripImports(readUiSource('sidebar.js'))
     + `const globalSettingsShell = ${JSON.stringify(shellHtml)};\n`
-    + stripExports(readUiSource('global-settings-view.js')).replace(/^import .*$/gm, '');
+    + stripImports(readUiSource('global-settings-view.js'));
   vm.runInContext(src, context);
+  context.__fireBeforeUnload = () => {
+    const e = { defaultPrevented: false, returnValue: undefined, preventDefault() { this.defaultPrevented = true; } };
+    for (const fn of beforeUnloadListeners) fn(e);
+    return e;
+  };
+  context.__beforeUnloadListenerCount = () => beforeUnloadListeners.length;
   return context;
 }
 

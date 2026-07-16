@@ -56,6 +56,53 @@ describe('settings definitions — structural validity', () => {
   });
 });
 
+describe('settings definitions — UI metadata (Phase 4A.5c registry extension)', () => {
+  test('every definition has a non-empty description', () => {
+    for (const [key, def] of Object.entries(DEFINITIONS)) {
+      assert.equal(typeof def.description, 'string', `${key}: description must be a string`);
+      assert.ok(def.description.length > 0, `${key}: description must not be empty`);
+    }
+  });
+
+  test('every definition has a boolean advanced flag', () => {
+    for (const [key, def] of Object.entries(DEFINITIONS)) {
+      assert.equal(typeof def.advanced, 'boolean', `${key}: advanced must be a boolean`);
+    }
+  });
+
+  test('every number definition has min <= max', () => {
+    for (const [key, def] of Object.entries(DEFINITIONS)) {
+      if (def.type !== 'number') continue;
+      assert.equal(typeof def.min, 'number', `${key}: min must be a number`);
+      assert.equal(typeof def.max, 'number', `${key}: max must be a number`);
+      assert.ok(def.min <= def.max, `${key}: min (${def.min}) must be <= max (${def.max})`);
+    }
+  });
+
+  test('every enum definition has options matching its validate() acceptance set', () => {
+    for (const [key, def] of Object.entries(DEFINITIONS)) {
+      if (def.type !== 'enum') continue;
+      assert.ok(Array.isArray(def.options), `${key}: options must be an array`);
+      for (const opt of def.options) {
+        assert.equal(def.validate(opt.value).ok, true, `${key}: option "${opt.value}" must be accepted by validate()`);
+      }
+    }
+  });
+
+  test('every string definition has a boolean allowEmpty consistent with parseExternal(\'\') behavior', () => {
+    for (const [key, def] of Object.entries(DEFINITIONS)) {
+      if (def.type !== 'string') continue;
+      assert.equal(typeof def.allowEmpty, 'boolean', `${key}: allowEmpty must be a boolean`);
+      if (def.allowEmpty === false) {
+        assert.equal(
+          def.parseExternal(''), def.parseExternal(undefined),
+          `${key}: with allowEmpty=false, parseExternal('') must equal parseExternal(undefined)`
+        );
+      }
+    }
+  });
+});
+
 describe('settings definitions — parseExternal preserves current bounds/behavior', () => {
   test('MAX_CHUNK_TOKENS: valid int within [1,100000] parses through; matches chunk.js default of 512', () => {
     const def = DEFINITIONS.MAX_CHUNK_TOKENS;

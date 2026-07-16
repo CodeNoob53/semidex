@@ -37,6 +37,14 @@ export function currentRoute(hash = location.hash || '#/') {
   // Phase 4A.5b: the global runtime-settings screen — distinct `view` value
   // ('global-settings') from collection settings ('settings' above), so
   // router.js/sidebar.js's active-state logic never conflates the two.
-  if (path === '#/settings') return { view: 'global-settings' };
+  // Phase 4A.5c: category-scoped sub-routes. category is left as the raw
+  // string here — it is resolved against the real category list from
+  // GET /api/settings inside global-settings-view.js, never hardcoded in
+  // this routing layer (constraint: routes.js stays free of registry
+  // knowledge). category: null on the bare route signals "use whatever
+  // category the API returns first."
+  m = path.match(/^#\/settings\/([a-z0-9-]+)$/);
+  if (m) return { view: 'global-settings', category: m[1] };
+  if (path === '#/settings') return { view: 'global-settings', category: null };
   return { view: 'overview' };
 }

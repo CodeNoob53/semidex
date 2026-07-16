@@ -43,3 +43,21 @@ export async function apiDelete(path) {
   }
   return body;
 }
+
+export async function apiPatch(path, payload) {
+  const res = await fetch(path, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  let body = null;
+  try { body = await res.json(); } catch { /* non-JSON is a bug upstream */ }
+  if (!res.ok) {
+    const message = body?.error?.message ?? `HTTP ${res.status}`;
+    const err = new Error(message);
+    err.status = res.status;
+    err.code = body?.error?.code;
+    throw err;
+  }
+  return body;
+}

@@ -310,6 +310,34 @@ export async function revealSidebarPath(name, sourceFile) {
   }
 }
 
+// Phase 4A.5c: settings category navigation, rendered into #settings-nav-list
+// (a sibling of the collection tree inside <nav class="sidebar">, see
+// index.html). Categories always come from GET /api/settings's own
+// `categories` array — never a hardcoded order here — so the sidebar and
+// the API can never drift apart.
+export function renderSettingsNav(categories, activeCategory) {
+  const list = $('#settings-nav-list');
+  if (!list) return;
+  list.innerHTML = categories.map((c) => `
+    <li><a href="#/settings/${encodeURIComponent(c.id)}" data-category="${esc(c.id)}" class="${c.id === activeCategory ? 'active' : ''}">${esc(c.label)}</a></li>
+  `).join('');
+}
+
+// Toggles which sidebar block is visible: the collection tree
+// (#collection-nav) or the settings category list (#settings-nav) — exactly
+// one of the two, based on route.view. Also toggles `.settings-compact` on
+// `.layout`, which (below the existing 720px breakpoint) hides the sidebar
+// column entirely in favor of global-settings-view.js's own inline category
+// selector — see app.css.
+export function syncSidebarMode(route) {
+  const isSettings = route.view === 'global-settings';
+  const collectionNav = document.getElementById('collection-nav');
+  const settingsNav = document.getElementById('settings-nav');
+  if (collectionNav) collectionNav.hidden = isSettings;
+  if (settingsNav) settingsNav.hidden = !isSettings;
+  document.querySelector('.layout')?.classList.toggle('settings-compact', isSettings);
+}
+
 export function markActive(route = currentRoute()) {
   for (const a of document.querySelectorAll('.tree-collection-row')) {
     a.classList.toggle('active', route.view !== 'index' && a.dataset.name === route.name);
@@ -317,8 +345,15 @@ export function markActive(route = currentRoute()) {
   $('#nav-index')?.classList.toggle('active', route.view === 'index');
   // Phase 4A.5b: topbar gear link -> #/settings (global runtime settings) —
   // lives outside the sidebar tree but shares this same active-state pass
-  // since router.js already calls markActive() on every navigation.
+  // since router.js already calls markActive() on every navigation. Now
+  // means "any settings route is active" (Phase 4A.5c), not tied to a
+  // single flat state.
   $('#nav-global-settings')?.classList.toggle('active', route.view === 'global-settings');
+  if (route.view === 'global-settings') {
+    for (const a of document.querySelectorAll('#settings-nav-list a')) {
+      a.classList.toggle('active', a.dataset.category === route.category);
+    }
+  }
 
   // Extend active-state sync to the open file/section row inside the
   // expanded tree (Phase 3A) — file fallback rows carry data-sf, skeleton

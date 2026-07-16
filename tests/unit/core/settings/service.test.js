@@ -88,6 +88,27 @@ describe('SettingsService — next_restart freezing', () => {
     assert.equal(svc.getActiveValue('RRF_K'), 90);
     assert.equal(svc.get('RRF_K').pendingRestart, false);
   });
+
+  test('configuredSource/activeSource split (code review): after PATCHing a next_restart field, configuredValue/configuredSource are live while activeValue/activeSource stay frozen — the exact scenario a single "source" field cannot express', async () => {
+    const settingsPath = tempSettingsPath(dir);
+    const svc = createSettingsService({ osEnv: {}, dotenvValues: {}, settingsPath });
+    // ASK_MODEL starts unset -> resolves from default.
+    const before = svc.get('ASK_MODEL');
+    assert.equal(before.configuredValue, 'gemma3:4b');
+    assert.equal(before.configuredSource, 'default');
+    assert.equal(before.activeSource, 'default');
+
+    await svc.setMany({ ASK_MODEL: 'llama3' });
+
+    const after = svc.get('ASK_MODEL');
+    assert.equal(after.configuredValue, 'llama3');
+    assert.equal(after.configuredSource, 'config_json');
+    assert.equal(after.activeValue, 'gemma3:4b');
+    assert.equal(after.activeSource, 'default');
+    assert.equal(after.pendingRestart, true);
+    // Deprecated alias stays equal to activeSource, never silently drops the distinction.
+    assert.equal(after.source, after.activeSource);
+  });
 });
 
 describe('SettingsService — refreshIfChanged', () => {
@@ -253,6 +274,34 @@ describe('SettingsService — null (remove local override) semantics', () => {
   test('null change for a secret key is still rejected (secrets are never writable, incl. deletion attempts)', async () => {
     const svc = createSettingsService({ osEnv: {}, dotenvValues: {}, settingsPath: tempSettingsPath(dir) });
     await assert.rejects(() => svc.setMany({ QDRANT_KEY: null }), (err) => err.code === 'not_writable');
+  });
+});
+
+describe('SettingsService — widened entry metadata (UI registry extension)', () => {
+  let dir;
+  test.beforeEach(() => { dir = mkdtempSync(join(tmpdir(), 'semidex-settings-test-')); });
+  test.afterEach(() => { rmSync(dir, { recursive: true, force: true }); });
+
+  test('a numeric entry carries min/max/description/advanced from the registry', () => {
+    const svc = createSettingsService({ osEnv: {}, dotenvValues: {}, settingsPath: tempSettingsPath(dir) });
+    const entry = svc.get('MAX_CHUNK_TOKENS');
+    assert.equal(entry.min, 1);
+    assert.equal(entry.max, 100000);
+    assert.equal(typeof entry.description, 'string');
+    assert.ok(entry.description.length > 0);
+    assert.equal(entry.advanced, false);
+  });
+
+  test('an enum entry carries options matching its validate() acceptance set', () => {
+    const svc = createSettingsService({ osEnv: {}, dotenvValues: {}, settingsPath: tempSettingsPath(dir) });
+    const entry = svc.get('TAG_PROVIDER');
+    assert.deepEqual(entry.options, [{ value: 'ollama', label: 'ollama' }, { value: 'onnx', label: 'onnx' }]);
+  });
+
+  test('a string entry carries allowEmpty', () => {
+    const svc = createSettingsService({ osEnv: {}, dotenvValues: {}, settingsPath: tempSettingsPath(dir) });
+    const entry = svc.get('QDRANT_URL');
+    assert.equal(entry.allowEmpty, false);
   });
 });
 

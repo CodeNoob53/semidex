@@ -822,6 +822,68 @@ td.actions { text-align: right; }
 .gs-provenance .kv { margin-top: 8px; grid-template-columns: 140px 1fr; }
 .gs-provenance .kv dd { overflow-wrap: anywhere; }
 
+/* Global runtime settings editor (Phase 4A.5c) — category-based editor
+   driven by GET/PATCH /api/settings. Each row is intentionally flat (no
+   nested cards): label, control, description, source line, impact line. */
+.gs-field {
+  padding: 12px 0; border-bottom: 1px solid var(--line-soft);
+}
+.gs-field:last-child { border-bottom: none; }
+.gs-field-label {
+  display: block; font-size: 13px; color: var(--ink); margin-bottom: 6px;
+}
+.gs-field-value { margin: 0 0 6px; font-size: 12px; }
+.gs-field-desc {
+  margin: 6px 0 0; font-size: 12px; color: var(--ink-dim);
+}
+.gs-field-source {
+  margin: 4px 0 0; font-size: 11px; color: var(--ink-faint);
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+.gs-field-pending-restart {
+  margin: 4px 0 0; font-size: 11px; color: var(--warn);
+}
+.gs-field-impact {
+  display: block; margin-top: 4px; font-size: 11px; color: var(--ink-faint);
+}
+.gs-field-reset {
+  font-size: 11px; padding: 2px 8px;
+}
+.gs-placeholder {
+  padding: 12px 0; border-bottom: 1px solid var(--line-soft); font-size: 12px;
+}
+.gs-placeholder p { margin: 0 0 4px; }
+.gs-advanced { margin-top: 8px; }
+.gs-advanced summary {
+  cursor: pointer; font-size: 11px; color: var(--ink-dim); list-style: none;
+}
+.gs-advanced summary::-webkit-details-marker { display: none; }
+.gs-advanced summary::before { content: '▸ '; }
+.gs-advanced[open] summary::before { content: '▾ '; }
+.gs-save-bar {
+  position: sticky; bottom: 0; display: flex; align-items: center; gap: 10px;
+  padding: 12px 0; margin-top: 8px; background: var(--bg);
+  border-top: 1px solid var(--line-soft);
+}
+
+/* Settings sidebar navigation — flat rows, same visual language as
+   .nav-list (no depth/caret, matches #nav-index rather than the nested
+   collection tree). */
+.settings-nav .nav-list { margin-top: 0; }
+
+/* Narrow-width settings navigation: below the EXISTING 720px breakpoint,
+   hide the sidebar column entirely on settings routes and show the inline
+   category selector inside #main instead — a cramped 38vw sidebar of
+   truncated category labels is not a usable navigation surface. No new
+   breakpoint values are introduced here. */
+.gs-inline-category-select { display: none; }
+@media (max-width: 720px) {
+  .layout.settings-compact .sidebar,
+  .layout.settings-compact .sidebar-resize-handle { display: none; }
+  .layout.settings-compact { grid-template-columns: 1fr; }
+  .layout.settings-compact .gs-inline-category-select { display: block; margin: 0 0 14px; }
+}
+
 .search-main-row { display: flex; align-items: center; gap: 10px; }
 .search-main-row .q-input { flex: 1; }
 

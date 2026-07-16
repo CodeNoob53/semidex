@@ -77,7 +77,16 @@ export function createSettingsService({
       label: def.label,
       type: def.type,
       default: def.default,
+      // Deprecated alias for activeSource — kept for backward compatibility
+      // with existing callers/tests that read entry.source. New code
+      // (Global Settings UI) must read configuredSource/activeSource
+      // explicitly: for a next_restart field right after a successful
+      // PATCH, configuredValue is the new settings.json value but
+      // activeValue is still the old frozen value, and a single `source`
+      // cannot honestly describe both provenances at once.
       source: active.source,
+      configuredSource: resolved.source,
+      activeSource: active.source,
       writable: def.writable,
       secret: def.secret,
       hasLocalOverride,
@@ -86,7 +95,13 @@ export function createSettingsService({
       requiresReindex: def.requiresReindex,
       requiresBackfill: def.requiresBackfill,
       readOnlyReason: def.readOnlyReason,
+      description: def.description,
+      advanced: def.advanced ?? false,
     };
+    if (def.min !== undefined) entry.min = def.min;
+    if (def.max !== undefined) entry.max = def.max;
+    if (def.options !== undefined) entry.options = def.options;
+    if (def.allowEmpty !== undefined) entry.allowEmpty = def.allowEmpty;
     if (def.secret) {
       entry.configured = active.value !== undefined && active.value !== null && active.value !== '';
     } else {
