@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import { EventEmitter } from 'node:events';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
-import { parseHTML, HTMLDetailsElement, HTMLInputElement } from 'linkedom';
+import { parseHTML, HTMLElement, HTMLInputElement } from 'linkedom';
 import { createApp } from '../../../src/admin/server.js';
 import { createJobRegistry } from '../../../src/admin/jobs/registry.js';
 
@@ -795,22 +795,55 @@ if (!Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'checked')) {
   });
 }
 
-// linkedom also omits HTMLDetailsElement.open. Assigning `.open = true`
-// without this shim creates an unrelated own-property instead of reflecting
-// the `open` attribute; replacing a cloned <details> node in that state can
-// make linkedom retain and repeatedly traverse the detached template graph.
-// Reflect the real browser contract so settings tests stay bounded in memory.
-if (!Object.getOwnPropertyDescriptor(HTMLDetailsElement.prototype, 'open')) {
-  Object.defineProperty(HTMLDetailsElement.prototype, 'open', {
-    get() { return this.hasAttribute('open'); },
-    set(value) { if (value) this.setAttribute('open', ''); else this.removeAttribute('open'); },
+// linkedom 0.18.12 exports an HTMLDetailsElement class but never actually
+// instantiates it for parsed <details> tags (confirmed directly: a parsed
+// <details>'s .constructor is plain HTMLElement, so patching
+// HTMLDetailsElement.prototype was a no-op against real documents). Patch
+// HTMLElement.prototype instead, guarded to only affect <details> tags, so
+// `.open = true` reflects the `open` attribute like a real browser rather
+// than creating an unrelated own-property. Production code never reads
+// `.open` (the <summary> disclosure toggle is native-browser-only, no JS
+// involved) — this only matters for tests that assert on the attribute
+// directly, kept for contract correctness.
+if (!Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'open')) {
+  Object.defineProperty(HTMLElement.prototype, 'open', {
     configurable: true,
+    get() {
+      return this.tagName?.toLowerCase() === 'details' ? this.hasAttribute('open') : undefined;
+    },
+    set(value) {
+      if (this.tagName?.toLowerCase() !== 'details') {
+        Object.defineProperty(this, 'open', { value, writable: true, configurable: true, enumerable: true });
+        return;
+      }
+      if (value) this.setAttribute('open', '');
+      else this.removeAttribute('open');
+    },
   });
 }
 
-export function loadGlobalSettingsHelpers({ apiResponses = {}, apiPatchImpl, hash = '#/settings' } = {}) {
-  const globalSettingsTemplates = readUiSource('partials/templates/global-settings.html');
-  const { document } = parseHTML(`
+// loadGlobalSettingsHelpers() is called 63 times across the
+// split ui-global-settings*.test.js files). Re-reading+concatenating+
+// re-parsing the same ~2000 lines of source into a brand-new vm.Script on
+// every call was the dominant per-test cost (confirmed by live memory
+// profiling during the ui-global-settings test-split investigation — see
+// docs/ for the report). The shell markup, template partial, and compiled
+// vm.Script are pure functions of on-disk source that doesn't change during
+// a test run, so they're computed once, lazily, on first use and reused —
+// only the vm.Context (and its document/state inside it) stays per-call and
+// fully isolated, which is what actually needs to be fresh per test.
+let cachedGlobalSettingsTemplates = null;
+function getGlobalSettingsTemplates() {
+  if (cachedGlobalSettingsTemplates === null) {
+    cachedGlobalSettingsTemplates = readUiSource('partials/templates/global-settings.html');
+  }
+  return cachedGlobalSettingsTemplates;
+}
+
+let cachedGlobalSettingsShellHtml = null;
+function getGlobalSettingsShellHtml() {
+  if (cachedGlobalSettingsShellHtml === null) {
+    cachedGlobalSettingsShellHtml = `
     <div class="layout">
       <nav class="sidebar">
         <div id="collection-nav">
@@ -826,8 +859,30 @@ export function loadGlobalSettingsHelpers({ apiResponses = {}, apiPatchImpl, has
       <main id="main"></main>
     </div>
     <a href="#/settings" id="nav-global-settings"></a>
-    ${globalSettingsTemplates}
-  `);
+    ${getGlobalSettingsTemplates()}
+  `;
+  }
+  return cachedGlobalSettingsShellHtml;
+}
+
+let cachedGlobalSettingsScript = null;
+function getGlobalSettingsScript() {
+  if (cachedGlobalSettingsScript === null) {
+    const stripImports = (src) => stripExports(src).replace(/^import .*$/gm, '').replace(/^export \{[^}]*\};?\s*$/gm, '');
+    const src = stripImports(readUiSource('dom.js'))
+      + stripImports(readUiSource('format.js'))
+      + stripImports(readUiSource('state.js'))
+      + stripImports(readUiSource('icons.js'))
+      + stripImports(readUiSource('routes.js'))
+      + stripImports(readUiSource('sidebar.js'))
+      + stripImports(readUiSource('global-settings-view.js'));
+    cachedGlobalSettingsScript = new vm.Script(src, { filename: 'global-settings-view-bundle.js' });
+  }
+  return cachedGlobalSettingsScript;
+}
+
+export function loadGlobalSettingsHelpers({ apiResponses = {}, apiPatchImpl, hash = '#/settings' } = {}) {
+  const { document } = parseHTML(getGlobalSettingsShellHtml());
   const apiCalls = [];
   const patchCalls = [];
   const toasts = [];
@@ -869,15 +924,7 @@ export function loadGlobalSettingsHelpers({ apiResponses = {}, apiPatchImpl, has
     showToast: (message, opts = {}) => { toasts.push({ message, ...opts }); },
   };
   vm.createContext(context);
-  const stripImports = (src) => stripExports(src).replace(/^import .*$/gm, '').replace(/^export \{[^}]*\};?\s*$/gm, '');
-  const src = stripImports(readUiSource('dom.js'))
-    + stripImports(readUiSource('format.js'))
-    + stripImports(readUiSource('state.js'))
-    + stripImports(readUiSource('icons.js'))
-    + stripImports(readUiSource('routes.js'))
-    + stripImports(readUiSource('sidebar.js'))
-    + stripImports(readUiSource('global-settings-view.js'));
-  vm.runInContext(src, context);
+  getGlobalSettingsScript().runInContext(context);
   context.__fireBeforeUnload = () => {
     const e = { defaultPrevented: false, returnValue: undefined, preventDefault() { this.defaultPrevented = true; } };
     for (const fn of beforeUnloadListeners) fn(e);

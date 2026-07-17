@@ -1,0 +1,578 @@
+// Editing, validation, persistence, and error behavior for Global Settings.
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { Event } from 'linkedom';
+import { loadGlobalSettingsHelpers } from './ui-test-helpers.js';
+import { HEALTH_OK, HEALTH_FAIL, GENERATION_READY, GENERATION_UNAVAILABLE, CATEGORIES, makeEntry, settingsPayload } from './ui-global-settings-fixtures.js';
+
+describe('renderGlobalSettingsView — type-correct editable controls', () => {
+  it('boolean -> checkbox, enum -> select with exact options, number -> input with min/max, string -> text input', async () => {
+    const settings = [
+      makeEntry({ key: 'TAG_GEN', type: 'boolean', configuredValue: true, activeValue: true, advanced: false }),
+      makeEntry({
+        key: 'TAG_PROVIDER', type: 'enum', configuredValue: 'ollama', activeValue: 'ollama',
+        options: [{ value: 'ollama', label: 'ollama' }, { value: 'onnx', label: 'onnx' }], advanced: false,
+      }),
+      makeEntry({ key: 'MAX_CHUNK_TOKENS', type: 'number', configuredValue: 512, activeValue: 512, min: 1, max: 100000, advanced: false }),
+      makeEntry({ key: 'ASK_MODEL', category: 'ai', type: 'string', configuredValue: 'gemma3:4b', activeValue: 'gemma3:4b', allowEmpty: false, advanced: false, appliesAt: 'next_restart' }),
+    ];
+    const { document, renderGlobalSettingsView } = loadGlobalSettingsHelpers({
+      apiResponses: { '/api/settings': settingsPayload(settings) },
+    });
+    await renderGlobalSettingsView(document.getElementById('main'), 'retrieval');
+
+    const checkbox = document.querySelector('[data-key="TAG_GEN"]');
+    assert.equal(checkbox.type, 'checkbox');
+    assert.equal(checkbox.checked, true);
+
+    const select = document.querySelector('[data-key="TAG_PROVIDER"]');
+    assert.equal(select.tagName.toLowerCase(), 'select');
+    assert.deepEqual([...select.options].map((o) => o.value), ['ollama', 'onnx']);
+
+    const numberInput = document.querySelector('[data-key="MAX_CHUNK_TOKENS"]');
+    assert.equal(numberInput.type, 'number');
+    assert.equal(numberInput.getAttribute('min'), '1');
+    assert.equal(numberInput.getAttribute('max'), '100000');
+  });
+});
+
+describe('renderGlobalSettingsView — advanced disclosure', () => {
+  it('primary fields render directly; advanced fields render inside a closed <details>', async () => {
+    const settings = [
+      makeEntry({ key: 'RERANK_ENABLED', type: 'boolean', configuredValue: false, activeValue: false, advanced: false }),
+      makeEntry({ key: 'RRF_K', type: 'number', configuredValue: 60, activeValue: 60, advanced: true }),
+    ];
+    const { document, renderGlobalSettingsView } = loadGlobalSettingsHelpers({
+      apiResponses: { '/api/settings': settingsPayload(settings) },
+    });
+    await renderGlobalSettingsView(document.getElementById('main'), 'retrieval');
+
+    const details = document.querySelector('.gs-advanced');
+    assert.ok(details, 'expected a .gs-advanced <details> element');
+    assert.equal(details.tagName.toLowerCase(), 'details');
+    assert.equal(details.hasAttribute('open'), false);
+    assert.ok(details.querySelector('[data-key="RRF_K"]'));
+    assert.ok(!details.contains(document.querySelector('[data-key="RERANK_ENABLED"]')));
+  });
+});
+
+describe('renderGlobalSettingsView — numeric validation', () => {
+  it('a value outside min/max is excluded from pending and disables Save', async () => {
+    const settings = [makeEntry({ key: 'MAX_CHUNK_TOKENS', type: 'number', configuredValue: 512, activeValue: 512, min: 1, max: 100000, advanced: false })];
+    const { document, renderGlobalSettingsView } = loadGlobalSettingsHelpers({
+      apiResponses: { '/api/settings': settingsPayload(settings) },
+    });
+    await renderGlobalSettingsView(document.getElementById('main'), 'retrieval');
+
+    const input = document.querySelector('[data-key="MAX_CHUNK_TOKENS"]');
+    input.value = '999999999';
+    input.dispatchEvent(new Event('input'));
+
+    const saveBtn = document.getElementById('gs-save');
+    assert.ok(saveBtn, 'Save bar should appear once the field is touched');
+    assert.equal(saveBtn.disabled, true);
+  });
+
+  it('clearing a number field to empty excludes it from pending and disables Save', async () => {
+    const settings = [makeEntry({ key: 'MAX_CHUNK_TOKENS', type: 'number', configuredValue: 512, activeValue: 512, min: 1, max: 100000, advanced: false })];
+    const { document, renderGlobalSettingsView } = loadGlobalSettingsHelpers({
+      apiResponses: { '/api/settings': settingsPayload(settings) },
+    });
+    await renderGlobalSettingsView(document.getElementById('main'), 'retrieval');
+
+    const input = document.querySelector('[data-key="MAX_CHUNK_TOKENS"]');
+    input.value = '700';
+    input.dispatchEvent(new Event('input'));
+    assert.equal(document.getElementById('gs-save').disabled, false);
+
+    document.querySelector('[data-key="MAX_CHUNK_TOKENS"]').value = '';
+    document.querySelector('[data-key="MAX_CHUNK_TOKENS"]').dispatchEvent(new Event('input'));
+    assert.equal(document.getElementById('gs-save').disabled, true);
+  });
+
+  it('a value back within range re-enables Save', async () => {
+    const settings = [makeEntry({ key: 'MAX_CHUNK_TOKENS', type: 'number', configuredValue: 512, activeValue: 512, min: 1, max: 100000, advanced: false })];
+    const { document, renderGlobalSettingsView } = loadGlobalSettingsHelpers({
+      apiResponses: { '/api/settings': settingsPayload(settings) },
+    });
+    await renderGlobalSettingsView(document.getElementById('main'), 'retrieval');
+    document.querySelector('[data-key="MAX_CHUNK_TOKENS"]').value = '999999999';
+    document.querySelector('[data-key="MAX_CHUNK_TOKENS"]').dispatchEvent(new Event('input'));
+    assert.equal(document.getElementById('gs-save').disabled, true);
+
+    document.querySelector('[data-key="MAX_CHUNK_TOKENS"]').value = '700';
+    document.querySelector('[data-key="MAX_CHUNK_TOKENS"]').dispatchEvent(new Event('input'));
+    assert.equal(document.getElementById('gs-save').disabled, false);
+  });
+
+  it('typing updates validation without replacing the active input element', async () => {
+    const settings = [makeEntry({ key: 'MAX_CHUNK_TOKENS', type: 'number', configuredValue: 512, activeValue: 512, min: 1, max: 100000, advanced: false })];
+    const { document, renderGlobalSettingsView } = loadGlobalSettingsHelpers({
+      apiResponses: { '/api/settings': settingsPayload(settings) },
+    });
+    await renderGlobalSettingsView(document.getElementById('main'), 'retrieval');
+    const input = document.querySelector('[data-key="MAX_CHUNK_TOKENS"]');
+    input.value = '700';
+    input.dispatchEvent(new Event('input'));
+    assert.equal(document.querySelector('[data-key="MAX_CHUNK_TOKENS"]'), input,
+      'input events must not rebuild and replace the field being edited');
+  });
+});
+
+describe('renderGlobalSettingsView — allowEmpty respected for string fields', () => {
+  it('allowEmpty: false — clearing to empty marks the field invalid, excludes it from pending', async () => {
+    const settings = [makeEntry({ key: 'SUMMARY_LANG', category: 'indexing', type: 'string', configuredValue: 'auto', activeValue: 'auto', allowEmpty: false, advanced: true })];
+    const { document, renderGlobalSettingsView } = loadGlobalSettingsHelpers({
+      apiResponses: { '/api/settings': settingsPayload(settings) },
+    });
+    await renderGlobalSettingsView(document.getElementById('main'), 'indexing');
+    const input = document.querySelector('[data-key="SUMMARY_LANG"]');
+    input.value = '';
+    input.dispatchEvent(new Event('input'));
+    assert.equal(document.getElementById('gs-save').disabled, true);
+  });
+
+  it('allowEmpty: true — clearing to empty stages a valid pending change', async () => {
+    const settings = [makeEntry({ key: 'ADMIN_HOST', category: 'system', type: 'string', configuredValue: '127.0.0.1', activeValue: '127.0.0.1', allowEmpty: true, advanced: true })];
+    const { document, renderGlobalSettingsView, __patchCalls } = loadGlobalSettingsHelpers({
+      apiResponses: { '/api/settings': settingsPayload(settings) },
+      apiPatchImpl: async (url, body) => { __patchCalls.push({ url, body }); return {}; },
+    });
+    await renderGlobalSettingsView(document.getElementById('main'), 'system');
+    const details = document.querySelector('.gs-advanced');
+    if (details) details.open = true;
+    const input = document.querySelector('[data-key="ADMIN_HOST"]');
+    input.value = '';
+    input.dispatchEvent(new Event('input'));
+    assert.equal(document.getElementById('gs-save').disabled, false);
+  });
+});
+
+describe('renderGlobalSettingsView — dirty tracking and batch save', () => {
+  it('editing one field reveals Save/Cancel; PATCH body omits untouched fields', async () => {
+    const settings = [
+      makeEntry({ key: 'RRF_K', type: 'number', configuredValue: 60, activeValue: 60, advanced: true }),
+      makeEntry({ key: 'HYBRID_PREFETCH_LIMIT', type: 'number', configuredValue: 2, activeValue: 2, min: 1, max: 100, advanced: true }),
+    ];
+    const patchCalls = [];
+    const { document, renderGlobalSettingsView } = loadGlobalSettingsHelpers({
+      apiResponses: { '/api/settings': settingsPayload(settings) },
+      apiPatchImpl: async (url, body) => { patchCalls.push({ url, body }); return {}; },
+    });
+    await renderGlobalSettingsView(document.getElementById('main'), 'retrieval');
+    document.querySelector('.gs-advanced').setAttribute('open', '');
+
+    document.querySelector('[data-key="RRF_K"]').value = '90';
+    document.querySelector('[data-key="RRF_K"]').dispatchEvent(new Event('input'));
+
+    assert.ok(document.getElementById('gs-save'));
+    document.getElementById('gs-save').click();
+    await new Promise((r) => setImmediate(r));
+    await new Promise((r) => setImmediate(r));
+
+    assert.equal(patchCalls.length, 1);
+    assert.deepEqual(JSON.parse(JSON.stringify(patchCalls[0].body)), { changes: { RRF_K: 90 } });
+  });
+
+  it('on save success, refetches GET and clears pending for that category', async () => {
+    const settings = [makeEntry({ key: 'RRF_K', type: 'number', configuredValue: 60, activeValue: 60, advanced: true })];
+    const refetched = settingsPayload([makeEntry({ key: 'RRF_K', type: 'number', configuredValue: 90, activeValue: 90, configuredSource: 'config_json', activeSource: 'config_json', advanced: true })]);
+    let getCallCount = 0;
+    const { document, renderGlobalSettingsView, __apiCalls } = loadGlobalSettingsHelpers({
+      apiResponses: {
+        '/api/settings': () => { getCallCount += 1; return getCallCount === 1 ? settingsPayload(settings) : refetched; },
+      },
+      apiPatchImpl: async () => ({}),
+    });
+    await renderGlobalSettingsView(document.getElementById('main'), 'retrieval');
+    document.querySelector('.gs-advanced').setAttribute('open', '');
+    document.querySelector('[data-key="RRF_K"]').value = '90';
+    document.querySelector('[data-key="RRF_K"]').dispatchEvent(new Event('input'));
+    document.getElementById('gs-save').click();
+    await new Promise((r) => setImmediate(r));
+    await new Promise((r) => setImmediate(r));
+    await new Promise((r) => setImmediate(r));
+
+    assert.equal(__apiCalls.filter((u) => u === '/api/settings').length, 2, 'expected an initial GET plus a refetch after save');
+    // Dirty bar gone — pending cleared for this category.
+    assert.equal(document.querySelector('#gs-content #gs-save'), null);
+  });
+
+  it('disables category controls while a save request is in flight', async () => {
+    const settings = [makeEntry({ key: 'RRF_K', type: 'number', configuredValue: 60, activeValue: 60, advanced: true })];
+    let resolvePatch;
+    const patchPromise = new Promise((resolve) => { resolvePatch = resolve; });
+    const { document, renderGlobalSettingsView } = loadGlobalSettingsHelpers({
+      apiResponses: { '/api/settings': settingsPayload(settings) },
+      apiPatchImpl: () => patchPromise,
+    });
+    await renderGlobalSettingsView(document.getElementById('main'), 'retrieval');
+    document.querySelector('.gs-advanced').setAttribute('open', '');
+    const input = document.querySelector('[data-key="RRF_K"]');
+    input.value = '90';
+    input.dispatchEvent(new Event('input'));
+    document.getElementById('gs-save').click();
+    assert.equal(input.disabled, true);
+    assert.equal(document.getElementById('gs-cancel').disabled, true);
+    resolvePatch({ settings: [{ ...settings[0], configuredValue: 90, activeValue: 90 }] });
+    await new Promise((r) => setImmediate(r));
+    await new Promise((r) => setImmediate(r));
+  });
+});
+
+describe('renderGlobalSettingsView — persistent pending across category switches', () => {
+  it('an edit in one category survives navigating to another category and back', async () => {
+    const retrievalSettings = [makeEntry({ key: 'RRF_K', category: 'retrieval', type: 'number', configuredValue: 60, activeValue: 60, advanced: true })];
+    const aiSettings = [makeEntry({ key: 'ASK_MODEL', category: 'ai', type: 'string', configuredValue: 'gemma3:4b', activeValue: 'gemma3:4b', allowEmpty: false, advanced: false, appliesAt: 'next_restart' })];
+    const { document, renderGlobalSettingsView } = loadGlobalSettingsHelpers({
+      apiResponses: { '/api/settings': settingsPayload([...retrievalSettings, ...aiSettings]) },
+    });
+    await renderGlobalSettingsView(document.getElementById('main'), 'retrieval');
+    document.querySelector('.gs-advanced').setAttribute('open', '');
+    document.querySelector('[data-key="RRF_K"]').value = '90';
+    document.querySelector('[data-key="RRF_K"]').dispatchEvent(new Event('input'));
+    assert.ok(document.getElementById('gs-save'));
+
+    await renderGlobalSettingsView(document.getElementById('main'), 'ai');
+    assert.equal(document.querySelector('#gs-content #gs-save'), null, 'ai category itself has no pending edits yet');
+
+    await renderGlobalSettingsView(document.getElementById('main'), 'retrieval');
+    document.querySelector('.gs-advanced').setAttribute('open', '');
+    assert.equal(document.querySelector('[data-key="RRF_K"]').value, '90', 'the unsaved edit is restored');
+    assert.ok(document.getElementById('gs-save'), 'Save/Cancel bar is still visible');
+  });
+
+  it('a beforeunload guard is registered while any category has pending edits and removed once empty', async () => {
+    const settings = [makeEntry({ key: 'RRF_K', type: 'number', configuredValue: 60, activeValue: 60, advanced: true })];
+    const { document, renderGlobalSettingsView, __fireBeforeUnload, __beforeUnloadListenerCount } = loadGlobalSettingsHelpers({
+      apiResponses: { '/api/settings': settingsPayload(settings) },
+    });
+    await renderGlobalSettingsView(document.getElementById('main'), 'retrieval');
+    assert.equal(__beforeUnloadListenerCount(), 0);
+
+    document.querySelector('.gs-advanced').open = true;
+    document.querySelector('[data-key="RRF_K"]').value = '90';
+    document.querySelector('[data-key="RRF_K"]').dispatchEvent(new Event('input'));
+    assert.equal(__beforeUnloadListenerCount(), 1);
+    const e = __fireBeforeUnload();
+    assert.equal(e.defaultPrevented, true);
+
+    document.getElementById('gs-cancel').click();
+    assert.equal(__beforeUnloadListenerCount(), 0);
+  });
+
+  it('invalidating an in-flight Settings render never mutates location.hash', () => {
+    const { location, invalidateGlobalSettingsRender } = loadGlobalSettingsHelpers({ hash: '#/c/my-docs' });
+    const before = location.hash;
+    invalidateGlobalSettingsRender();
+    assert.equal(location.hash, before);
+  });
+});
+
+describe('renderGlobalSettingsView — async race guards', () => {
+  it('a slower earlier category response does not overwrite a faster later one', async () => {
+    let resolveFirstRequest;
+    const firstResponse = new Promise((resolve) => { resolveFirstRequest = resolve; });
+    let requestCount = 0;
+    const { document, renderGlobalSettingsView } = loadGlobalSettingsHelpers({
+      apiResponses: {
+        '/api/settings': () => {
+          requestCount += 1;
+          return requestCount === 1 ? firstResponse : settingsPayload([]);
+        },
+      },
+    });
+    // First navigation starts immediately, but its HTTP response is held.
+    const aiRenderPromise = renderGlobalSettingsView(document.getElementById('main'), 'ai');
+    await Promise.resolve();
+    // Second navigation (retrieval) — resolves immediately.
+    await renderGlobalSettingsView(document.getElementById('main'), 'retrieval');
+    const activeAfterRetrieval = document.querySelector('#settings-nav-list a.active')?.dataset.category;
+    assert.equal(activeAfterRetrieval, 'retrieval');
+
+    // Now let the stale ai navigation resolve.
+    resolveFirstRequest(settingsPayload([]));
+    await aiRenderPromise;
+    // The stale response must not have repainted over retrieval.
+    const activeAfter = document.querySelector('#settings-nav-list a.active')?.dataset.category;
+    assert.equal(activeAfter, 'retrieval', 'a stale ai response must not overwrite the active retrieval render');
+  });
+
+  it('invalidateGlobalSettingsRender() stops a stale settings response from repainting after navigating away', async () => {
+    let resolveSettings;
+    const settingsPromise = new Promise((resolve) => { resolveSettings = resolve; });
+    const { document, renderGlobalSettingsView, invalidateGlobalSettingsRender } = loadGlobalSettingsHelpers({
+      apiResponses: {
+        '/api/settings': async () => { await settingsPromise; return settingsPayload([]); },
+      },
+    });
+    const renderPromise = renderGlobalSettingsView(document.getElementById('main'), 'ai');
+    // Simulate the router leaving the settings route before the slow GET resolves.
+    invalidateGlobalSettingsRender();
+    document.getElementById('main').innerHTML = '<div id="marker">collection view</div>';
+    resolveSettings();
+    await renderPromise;
+    assert.ok(document.getElementById('marker'), 'the collection view content must survive the stale settings response');
+  });
+});
+
+describe('renderGlobalSettingsView — override locking and reset', () => {
+  it('a configuredSource os_env/dotenv entry renders a disabled control with an explanatory (non-"semidex can edit") message', async () => {
+    const settings = [makeEntry({
+      key: 'RRF_K', type: 'number', configuredValue: 50, activeValue: 50,
+      configuredSource: 'os_env', activeSource: 'os_env', advanced: true,
+    })];
+    const { document, renderGlobalSettingsView } = loadGlobalSettingsHelpers({
+      apiResponses: { '/api/settings': settingsPayload(settings) },
+    });
+    await renderGlobalSettingsView(document.getElementById('main'), 'retrieval');
+    document.querySelector('.gs-advanced').open = true;
+    const input = document.querySelector('[data-key="RRF_K"]');
+    assert.equal(input.disabled, true);
+    const field = input.closest('.gs-field');
+    assert.match(field.textContent, /semidex cannot change this/);
+    assert.doesNotMatch(field.textContent, /semidex can change/i);
+  });
+
+  it('"Use inherited value" is available even while the main control is locked by an env override', async () => {
+    const settings = [makeEntry({
+      key: 'RRF_K', type: 'number', configuredValue: 50, activeValue: 50,
+      configuredSource: 'os_env', activeSource: 'os_env', hasLocalOverride: true, advanced: true,
+    })];
+    const { document, renderGlobalSettingsView } = loadGlobalSettingsHelpers({
+      apiResponses: { '/api/settings': settingsPayload(settings) },
+    });
+    await renderGlobalSettingsView(document.getElementById('main'), 'retrieval');
+    document.querySelector('.gs-advanced').open = true;
+    const resetBtn = document.querySelector('.gs-field-reset[data-key="RRF_K"]');
+    assert.ok(resetBtn);
+    assert.equal(resetBtn.disabled, false);
+  });
+
+  it('clicking "Use inherited value" stages null, included in the next Save PATCH body', async () => {
+    const settings = [makeEntry({ key: 'RRF_K', type: 'number', configuredValue: 90, activeValue: 90, configuredSource: 'config_json', activeSource: 'config_json', hasLocalOverride: true, advanced: true })];
+    const patchCalls = [];
+    const { document, renderGlobalSettingsView } = loadGlobalSettingsHelpers({
+      apiResponses: { '/api/settings': settingsPayload(settings) },
+      apiPatchImpl: async (url, body) => { patchCalls.push({ url, body }); return {}; },
+    });
+    await renderGlobalSettingsView(document.getElementById('main'), 'retrieval');
+    document.querySelector('.gs-advanced').open = true;
+    document.querySelector('.gs-field-reset[data-key="RRF_K"]').click();
+    assert.equal(document.querySelector('[data-key="RRF_K"]').value, '60',
+      'reset previews the inherited default instead of rendering null');
+    document.getElementById('gs-save').click();
+    await new Promise((r) => setImmediate(r));
+    await new Promise((r) => setImmediate(r));
+    assert.equal(patchCalls.length, 1);
+    assert.deepEqual(JSON.parse(JSON.stringify(patchCalls[0].body)), { changes: { RRF_K: null } });
+  });
+});
+
+describe('renderGlobalSettingsView — pendingRestart + configured/active split', () => {
+  it('shows configuredValue in the control and a distinct line naming the still-active old value', async () => {
+    const settings = [makeEntry({
+      key: 'ASK_MODEL', category: 'ai', type: 'string', appliesAt: 'next_restart',
+      configuredValue: 'llama3', activeValue: 'gemma3:4b',
+      configuredSource: 'config_json', activeSource: 'default',
+      pendingRestart: true, allowEmpty: false, advanced: false,
+    })];
+    const { document, renderGlobalSettingsView } = loadGlobalSettingsHelpers({
+      apiResponses: { '/api/settings': settingsPayload(settings) },
+    });
+    await renderGlobalSettingsView(document.getElementById('main'), 'ai');
+    const input = document.querySelector('[data-key="ASK_MODEL"]');
+    assert.equal(input.value, 'llama3');
+    const field = input.closest('.gs-field');
+    assert.match(field.textContent, /still using the previous value/);
+    assert.match(field.textContent, /gemma3:4b/);
+  });
+});
+
+describe('renderGlobalSettingsView — missing configuredValue (unset field)', () => {
+  it('an unset string field renders an empty control, no literal "undefined" text, and is not pending until edited', async () => {
+    const settings = [makeEntry({
+      key: 'QDRANT_URL', category: 'storage', type: 'string',
+      configuredValue: undefined, activeValue: undefined,
+      configuredSource: 'default', activeSource: 'default', allowEmpty: false, advanced: false,
+    })];
+    const { document, renderGlobalSettingsView } = loadGlobalSettingsHelpers({
+      apiResponses: { '/api/settings': settingsPayload(settings) },
+    });
+    await renderGlobalSettingsView(document.getElementById('main'), 'storage');
+    const input = document.querySelector('[data-key="QDRANT_URL"]');
+    assert.equal(input.value, '');
+    assert.doesNotMatch(document.getElementById('gs-content').textContent, /undefined/);
+    assert.equal(document.querySelector('#gs-content #gs-save'), null, 'no pending change until the user edits the field');
+  });
+});
+
+describe('renderGlobalSettingsView — combined impact toast', () => {
+  it('saving two fields with requiresReindex fires ONE toast mentioning both, not two', async () => {
+    const settings = [
+      makeEntry({ key: 'MAX_CHUNK_TOKENS', category: 'indexing', type: 'number', configuredValue: 512, activeValue: 512, min: 1, max: 100000, requiresReindex: true, appliesAt: 'next_index_job', advanced: false }),
+      makeEntry({ key: 'MIN_CHUNK_TOKENS', category: 'indexing', type: 'number', configuredValue: 160, activeValue: 160, min: 0, max: 100000, requiresReindex: true, appliesAt: 'next_index_job', advanced: true }),
+    ];
+    const refetched = settingsPayload(settings.map((s) => ({ ...s })));
+    let getCallCount = 0;
+    const { document, renderGlobalSettingsView, __toasts } = loadGlobalSettingsHelpers({
+      apiResponses: {
+        '/api/settings': () => { getCallCount += 1; return getCallCount === 1 ? settingsPayload(settings) : refetched; },
+      },
+      apiPatchImpl: async () => ({}),
+    });
+    await renderGlobalSettingsView(document.getElementById('main'), 'indexing');
+    document.querySelector('[data-key="MAX_CHUNK_TOKENS"]').value = '600';
+    document.querySelector('[data-key="MAX_CHUNK_TOKENS"]').dispatchEvent(new Event('input'));
+    document.querySelector('.gs-advanced').open = true;
+    document.querySelector('[data-key="MIN_CHUNK_TOKENS"]').value = '200';
+    document.querySelector('[data-key="MIN_CHUNK_TOKENS"]').dispatchEvent(new Event('input'));
+
+    document.getElementById('gs-save').click();
+    await new Promise((r) => setImmediate(r));
+    await new Promise((r) => setImmediate(r));
+    await new Promise((r) => setImmediate(r));
+
+    const successToasts = __toasts.filter((t) => t.variant === 'success');
+    assert.equal(successToasts.length, 1);
+    assert.match(successToasts[0].message, /2 settings/);
+  });
+});
+
+describe('renderGlobalSettingsView — secrets never rendered', () => {
+  it('a QDRANT_KEY-shaped fixture never puts a value in the DOM, only Configured/Not configured', async () => {
+    const settings = [{
+      key: 'QDRANT_KEY', category: 'storage', label: 'Qdrant API key', type: 'secret',
+      description: 'API key.', advanced: false, configured: true,
+      writable: false, secret: true, hasLocalOverride: false, pendingRestart: false,
+      appliesAt: null, requiresReindex: false, requiresBackfill: false,
+      readOnlyReason: 'Secrets are environment-only and never persisted or displayed.',
+    }];
+    const { document, renderGlobalSettingsView } = loadGlobalSettingsHelpers({
+      apiResponses: { '/api/settings': settingsPayload(settings) },
+    });
+    await renderGlobalSettingsView(document.getElementById('main'), 'storage');
+    const html = document.getElementById('gs-content').innerHTML;
+    assert.ok(!/input/.test(html));
+    assert.match(html, /Configured/);
+  });
+});
+
+describe('renderGlobalSettingsView — API error handling', () => {
+  for (const code of ['setting_overridden', 'invalid_value', 'not_writable', 'unknown_key']) {
+    it(`code ${code} produces an error toast and leaves pending untouched for that category`, async () => {
+      const settings = [makeEntry({ key: 'RRF_K', type: 'number', configuredValue: 60, activeValue: 60, advanced: true })];
+      const { document, renderGlobalSettingsView, __toasts } = loadGlobalSettingsHelpers({
+        apiResponses: { '/api/settings': settingsPayload(settings) },
+        apiPatchImpl: async () => { const err = new Error('failed'); err.code = code; throw err; },
+      });
+      await renderGlobalSettingsView(document.getElementById('main'), 'retrieval');
+      document.querySelector('.gs-advanced').open = true;
+      document.querySelector('[data-key="RRF_K"]').value = '90';
+      document.querySelector('[data-key="RRF_K"]').dispatchEvent(new Event('input'));
+      document.getElementById('gs-save').click();
+      await new Promise((r) => setImmediate(r));
+      await new Promise((r) => setImmediate(r));
+
+      const errorToasts = __toasts.filter((t) => t.variant === 'error');
+      assert.equal(errorToasts.length, 1);
+      // Pending is untouched — the Save bar (and the edited value) survive.
+      assert.ok(document.getElementById('gs-save'));
+      document.querySelector('.gs-advanced').open = true;
+      assert.equal(document.querySelector('[data-key="RRF_K"]').value, '90');
+    });
+  }
+
+  it('a failed PATCH leaves no row looking saved (DOM still shows pre-save value)', async () => {
+    const settings = [makeEntry({ key: 'RRF_K', type: 'number', configuredValue: 60, activeValue: 60, advanced: true })];
+    const { document, renderGlobalSettingsView } = loadGlobalSettingsHelpers({
+      apiResponses: { '/api/settings': settingsPayload(settings) },
+      apiPatchImpl: async () => { const err = new Error('failed'); err.code = 'invalid_value'; throw err; },
+    });
+    await renderGlobalSettingsView(document.getElementById('main'), 'retrieval');
+    document.querySelector('.gs-advanced').open = true;
+    document.querySelector('[data-key="RRF_K"]').value = '90';
+    document.querySelector('[data-key="RRF_K"]').dispatchEvent(new Event('input'));
+    document.getElementById('gs-save').click();
+    await new Promise((r) => setImmediate(r));
+    await new Promise((r) => setImmediate(r));
+    // configuredValue in the fixture (60) is what a real refetch would show
+    // absent success — the control still reflects the staged (unsaved) 90,
+    // never a silently "saved-looking" state with the Save bar gone.
+    assert.ok(document.getElementById('gs-save'), 'the dirty state must survive a failed save');
+  });
+
+  it('a successful PATCH followed by a failed refresh stays saved and uses the PATCH response', async () => {
+    const initial = makeEntry({ key: 'RRF_K', type: 'number', configuredValue: 60, activeValue: 60, advanced: true });
+    const updated = { ...initial, configuredValue: 90, activeValue: 90, configuredSource: 'config_json', activeSource: 'config_json', hasLocalOverride: true };
+    let getCount = 0;
+    const { document, renderGlobalSettingsView, __toasts, __beforeUnloadListenerCount } = loadGlobalSettingsHelpers({
+      apiResponses: {
+        '/api/settings': () => {
+          getCount += 1;
+          if (getCount > 1) throw new Error('refresh failed');
+          return settingsPayload([initial]);
+        },
+      },
+      apiPatchImpl: async () => ({ settings: [updated] }),
+    });
+    await renderGlobalSettingsView(document.getElementById('main'), 'retrieval');
+    document.querySelector('.gs-advanced').open = true;
+    document.querySelector('[data-key="RRF_K"]').value = '90';
+    document.querySelector('[data-key="RRF_K"]').dispatchEvent(new Event('input'));
+    document.getElementById('gs-save').click();
+    await new Promise((r) => setImmediate(r));
+    await new Promise((r) => setImmediate(r));
+
+    assert.equal(document.querySelector('#gs-content #gs-save'), null, 'persisted data must not remain dirty');
+    document.querySelector('.gs-advanced').open = true;
+    assert.equal(document.querySelector('[data-key="RRF_K"]').value, '90');
+    assert.equal(__beforeUnloadListenerCount(), 0);
+    assert.equal(__toasts.filter((toast) => toast.variant === 'warn').length, 1);
+  });
+});
+
+describe('renderGlobalSettingsView — cancel', () => {
+  it('reverts the DOM to last-fetched values for the current category, clears dirty state, no extra network call', async () => {
+    const settings = [makeEntry({ key: 'RRF_K', type: 'number', configuredValue: 60, activeValue: 60, advanced: true })];
+    const { document, renderGlobalSettingsView, __apiCalls } = loadGlobalSettingsHelpers({
+      apiResponses: { '/api/settings': settingsPayload(settings) },
+    });
+    await renderGlobalSettingsView(document.getElementById('main'), 'retrieval');
+    document.querySelector('.gs-advanced').open = true;
+    document.querySelector('[data-key="RRF_K"]').value = '90';
+    document.querySelector('[data-key="RRF_K"]').dispatchEvent(new Event('input'));
+    const callsBeforeCancel = __apiCalls.length;
+
+    document.getElementById('gs-cancel').click();
+    document.querySelector('.gs-advanced').open = true;
+    assert.equal(document.querySelector('[data-key="RRF_K"]').value, '60');
+    assert.equal(document.querySelector('#gs-content #gs-save'), null);
+    assert.equal(__apiCalls.length, callsBeforeCancel, 'Cancel must not make a network call');
+  });
+});
+
+describe('renderGlobalSettingsView — future provider placeholders', () => {
+  it('the ai category placeholder has zero interactive elements', async () => {
+    const { document, renderGlobalSettingsView } = loadGlobalSettingsHelpers({
+      apiResponses: { '/api/settings': settingsPayload([]) },
+    });
+    await renderGlobalSettingsView(document.getElementById('main'), 'ai');
+    const placeholder = document.querySelector('.gs-placeholder');
+    assert.ok(placeholder);
+    assert.equal(placeholder.querySelectorAll('button, input, a').length, 0);
+    assert.match(placeholder.textContent, /Ollama/);
+    assert.match(placeholder.textContent, /Cloud providers are planned/);
+  });
+
+  it('the storage category placeholder has zero interactive elements', async () => {
+    const { document, renderGlobalSettingsView } = loadGlobalSettingsHelpers({
+      apiResponses: { '/api/settings': settingsPayload([]) },
+    });
+    await renderGlobalSettingsView(document.getElementById('main'), 'storage');
+    const placeholder = document.querySelector('.gs-placeholder');
+    assert.ok(placeholder);
+    assert.equal(placeholder.querySelectorAll('button, input, a').length, 0);
+    assert.match(placeholder.textContent, /Qdrant/);
+  });
+});
