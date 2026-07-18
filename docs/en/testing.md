@@ -2,8 +2,10 @@
 
 semidex uses the built-in Node.js test runner (`node:test`) for unit tests.
 No test framework dependency is required — this matches the project's
-minimal-dependency philosophy. Requires Node ≥ 18.17 (declared in
-`package.json` `engines`; matches the `@qdrant/js-client-rest` requirement).
+minimal-dependency philosophy. Requires Node ≥ 20.16 (declared in
+`package.json` `engines`; raised from 18.17 for `pdfjs-dist`'s
+`>=20.16.0 || >=22.3.0` requirement, the strictest floor among current
+dependencies — `@google/genai` itself only requires >=20.0.0).
 
 ## Test Tiers
 

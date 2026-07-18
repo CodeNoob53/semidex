@@ -145,13 +145,24 @@ provider, a polished embeddable widget, or every messaging-channel adapter.
 
 ### Stage B - Public demo runtime
 
-- Gemini `GenerationProvider`;
-- Qdrant Cloud server-side embedding path for semidex Lite;
-- stable versioned Ask request/event schema;
-- reference web client using only the public contract;
-- deployment guide for a small CPU Google Cloud instance;
+- Stage B1 (shipped): Gemini `GenerationProvider` for Ask answer generation —
+  `src/core/generation/gemini-provider.js`, selectable via
+  `SEMIDEX_GENERATION_BACKEND=gemini`, provider-neutral model discovery
+  (`GET /api/generation/models?backend=ollama|gemini`), Global Settings UI
+  support. The Ask coordinator (`src/core/ask/`) required zero
+  provider-specific changes — the existing `GenerationProvider` seam from
+  Stage A absorbed it directly. Indexing-time context/tag generation still
+  runs through Ollama only; this stage covers Ask answer generation alone.
+  See `docs/admin-api-phase4a5d-gemini-generation-provider-2026-07-18.md`
+  for the implementation record.
+- Qdrant Cloud server-side embedding path for semidex Lite (not started);
+- stable versioned Ask request/event schema (not started);
+- reference web client using only the public contract (not started);
+- deployment guide for a small CPU Google Cloud instance (not started);
 - authentication boundary, rate limits, CORS policy, and secret handling
-  adequate for the public demo.
+  adequate for the public demo (not started — Stage B1's secret handling
+  covers GEMINI_API_KEY specifically, not the broader public-demo auth/rate-
+  limit/CORS surface this bullet describes).
 
 ### Stage C - Developer integration kit
 

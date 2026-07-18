@@ -70,6 +70,34 @@ standard local Qdrant.
 | `TAG_ONNX_ALLOW_DOWNLOAD` | `0` | Set to `1` to allow downloading the ONNX tag model on first use |
 | `VECTOR_SIZE` | `1024` | Must match dense embedding size |
 
+## Ask Generation Backend
+
+The Ask feature's answer-generation backend is independent of the indexing-time
+models above (`CONTEXT_MODEL`/`TAG_MODEL`) — indexing-time context summaries and
+tags always run through Ollama today. Only `POST /api/ask` answer generation
+supports a second backend.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SEMIDEX_GENERATION_BACKEND` | `ollama` | `ollama` or `gemini` |
+| `ASK_MODEL` | `gemma3:4b` (ollama) / `gemini-2.5-flash` (gemini) | Model used for Ask answers. For `ollama`, falls back to `CONTEXT_MODEL` when unset. For `gemini`, there is no such fallback — an Ollama model name never silently becomes the Gemini default. |
+| `ASK_NUM_CTX` | `8192` | Context window (tokens) requested for Ask answers, 256–1000000. Capped by the provider model's real input-token limit when that metadata is available (Ollama's `/api/show`, Gemini's `models.get()`). |
+| `GENERATION_DEVICE` | `auto` | Ollama-only hardware device policy. Ignored for `gemini` — a cloud API has no local device to select. |
+| `OLLAMA_URL` | `http://localhost:11434` | Ollama base URL, used only when `SEMIDEX_GENERATION_BACKEND=ollama`. Still used for `EMBED_MODEL`/`CONTEXT_MODEL`/`TAG_MODEL` discovery regardless of the Ask backend. |
+| `GEMINI_API_KEY` | unset | API key for the Gemini backend. Environment-only — resolved with the same OS env > `.env` > default precedence as every other setting, but **never** written to `settings.json` and never displayed by the Settings UI beyond a configured/missing indicator. Get one at [aistudio.google.com/apikey](https://aistudio.google.com/apikey). |
+
+Resolved values and their provenance (which layer supplied each one) are
+available at `GET /api/generation/status`. Installed/available models for the
+currently configured backend are discoverable at
+`GET /api/generation/models?backend=ollama` or `?backend=gemini` — the Global
+Settings UI's Ask answer model selector uses this endpoint and never shows an
+Ollama model as a Gemini option or vice versa.
+
+A missing `GEMINI_API_KEY`, an invalid/unavailable model, or an unreachable
+Ollama instance all report `ready: false` with a reason — Ask returns a
+pre-stream `503` in that state; semidex itself never crashes or fails to
+start over a generation-backend misconfiguration.
+
 ### TAG_GEN
 
 Tags are disabled by default. `TAG_GEN=1` enables tag generation during indexing;

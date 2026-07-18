@@ -341,18 +341,29 @@ sentinel is stripped from `text` before it reaches the client; `done`'s
   contract phrase it is instructed to use. No absolute RRF-score thresholds
   anywhere — scores are rank-only signals, per project doctrine.
 
-### 5.5 GenerationProvider contract — as implemented (Phase 4A + 4A.5a)
+### 5.5 GenerationProvider contract — as implemented (Phase 4A + 4A.5a; capabilities() split in Stage B1)
 
 ```js
 {
-  name(): 'ollama',
-  capabilities(): { streaming: true, cancellation: true },
+  name(): 'ollama' | 'gemini',
+  capabilities(): { streaming: true, clientAbort: true, upstreamCancellation: true },
   ready(): Promise<{ ok, reason?, model?, numCtx? }>,
   generate({ prompt, model, options, signal, onToken }): Promise<{
     text, tokensIn?, tokensOut?, aborted?
   }>
 }
 ```
+
+`capabilities().cancellation` (a single boolean) was split into
+`clientAbort`/`upstreamCancellation` when Gemini shipped as the second
+backend (Stage B1) — Ollama's fetch-based abort genuinely tears down the
+underlying HTTP request (`upstreamCancellation: true`), but Gemini's SDK
+only accepts the abort signal as a documented client-only hook (stops
+this process from consuming further output; does not stop Google's
+servers from generating or billing for it —
+`upstreamCancellation: false`). A flat `cancellation: true` for both would
+have overclaimed what Gemini can actually do. `clientAbort` is true for
+every current provider.
 
 Registry-shaped from day one (consolidated plan 4A note): 4A.5 registers
 cloud adapters into the same registry; the ask route never knows which.
