@@ -52,7 +52,7 @@ const countTokensStub = (text) => (text ?? '').split(/\s+/).filter(Boolean).leng
 function makeStubProvider(overrides = {}) {
   return {
     name: () => 'ollama',
-    capabilities: () => ({ streaming: true, cancellation: true }),
+    capabilities: () => ({ streaming: true, clientAbort: true, upstreamCancellation: true }),
     ready: async () => ({ ok: true, model: 'gemma3:4b' }),
     generate: async ({ onToken }) => {
       onToken?.('The value is ');

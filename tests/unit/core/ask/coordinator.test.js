@@ -22,7 +22,7 @@ const embedQuery = async () => ({ dense: [0.1], sparse: {} });
 function fakeProvider({ ready, generate } = {}) {
   return {
     name: () => 'ollama',
-    capabilities: () => ({ streaming: true, cancellation: true }),
+    capabilities: () => ({ streaming: true, clientAbort: true, upstreamCancellation: true }),
     ready: ready ?? (async () => ({ ok: true, model: 'gemma3:4b' })),
     generate: generate ?? (async ({ onToken }) => { onToken?.('answer [1]'); return { text: 'answer [1]', tokensIn: 5, tokensOut: 2, aborted: false }; }),
   };
