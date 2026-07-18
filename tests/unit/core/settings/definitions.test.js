@@ -42,10 +42,16 @@ describe('settings definitions — structural validity', () => {
   });
 
   test('single-implementation enums are read-only with a reason', () => {
-    assert.equal(DEFINITIONS.SEMIDEX_GENERATION_BACKEND.writable, false);
-    assert.match(DEFINITIONS.SEMIDEX_GENERATION_BACKEND.readOnlyReason, /only one/i);
     assert.equal(DEFINITIONS.SEMIDEX_STORAGE_BACKEND.writable, false);
     assert.match(DEFINITIONS.SEMIDEX_STORAGE_BACKEND.readOnlyReason, /only one/i);
+  });
+
+  test('SEMIDEX_GENERATION_BACKEND is writable (Stage B1: ollama and gemini are both real implementations)', () => {
+    assert.equal(DEFINITIONS.SEMIDEX_GENERATION_BACKEND.writable, true);
+    assert.deepEqual(
+      DEFINITIONS.SEMIDEX_GENERATION_BACKEND.options.map((o) => o.value).sort(),
+      ['gemini', 'ollama']
+    );
   });
 
   test('code review fix (P1): QDRANT_URL has no default value — core/qdrant/client.js has no fallback of its own and deliberately throws when unset (see tests/unit/core/qdrant-lazy.test.js\'s regression guard); a registry default here would be dishonest and would defeat applyEnvWriteBack()\'s "skip default-sourced values" rule', () => {

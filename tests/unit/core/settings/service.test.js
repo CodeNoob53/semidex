@@ -4,6 +4,8 @@ import { mkdtempSync, rmSync, writeFileSync, readFileSync, existsSync } from 'no
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createSettingsService, applyEnvWriteBack } from '../../../../src/core/settings/service.js';
+import { resolveGenerationRuntimeConfig } from '../../../../src/core/generation/config.js';
+import { createGenerationRuntime } from '../../../../src/core/generation/runtime.js';
 
 function tempSettingsPath(dir) {
   return join(dir, 'settings.json');
@@ -479,7 +481,7 @@ describe('SettingsService — EMBEDDING_BACKEND (synthetic, derived field)', () 
   test('buildEntry() includes visibleWhen/dynamicOptions/derivedWhen on representative fixture entries', () => {
     const svc = createSettingsService({ osEnv: {}, dotenvValues: {}, settingsPath: tempSettingsPath(dir) });
     assert.deepEqual(svc.get('TAG_MODEL').visibleWhen, { key: 'TAG_PROVIDER', equals: 'ollama' });
-    assert.deepEqual(svc.get('ASK_MODEL').dynamicOptions, { source: 'ollama_models', capability: 'generation' });
+    assert.deepEqual(svc.get('ASK_MODEL').dynamicOptions, { source: 'generation_models', capability: 'generation' });
     assert.deepEqual(svc.get('VECTOR_SIZE').derivedWhen, { key: 'EMBEDDING_BACKEND', equals: 'bge-m3-onnx', value: 1024 });
     assert.deepEqual(svc.get('VECTOR_SIZE').dynamicDerived, {
       key: 'EMBEDDING_BACKEND',
@@ -578,6 +580,98 @@ describe('SettingsService — EMBED_MODEL canonical / DENSE_MODEL legacy-alias s
     const onDisk = JSON.parse(readFileSync(settingsPath, 'utf-8'));
     assert.equal(onDisk.EMBED_MODEL, 'new-value');
     assert.equal(onDisk.DENSE_MODEL, 'legacy-value', 'DENSE_MODEL must not be silently cleared as a side effect of saving EMBED_MODEL');
+  });
+});
+
+describe('SettingsService — ASK_MODEL default agrees with the generation runtime\'s per-backend default', () => {
+  // Code review finding: this service used to report ASK_MODEL:'gemma3:4b'
+  // (a flat, backend-unaware stringField default) while
+  // createGenerationRuntime() resolved 'gemini-2.5-flash' for the exact
+  // same osEnv under SEMIDEX_GENERATION_BACKEND=gemini — reproduced live.
+  // Both now share core/generation/config.js's DEFAULT_MODEL_BY_BACKEND as
+  // the one provider-aware resolver.
+  let dir;
+  test.beforeEach(() => { dir = mkdtempSync(join(tmpdir(), 'semidex-settings-test-')); });
+  test.afterEach(() => { rmSync(dir, { recursive: true, force: true }); });
+
+  test('backend=gemini, ASK_MODEL not set anywhere: resolves to the Gemini default, not the Ollama one', () => {
+    const svc = createSettingsService({
+      osEnv: { SEMIDEX_GENERATION_BACKEND: 'gemini' }, dotenvValues: {}, settingsPath: tempSettingsPath(dir),
+    });
+    const entry = svc.get('ASK_MODEL');
+    assert.equal(entry.configuredValue, 'gemini-2.5-flash');
+    assert.equal(entry.configuredSource, 'default');
+  });
+
+  test('getActiveValue("ASK_MODEL") agrees with get("ASK_MODEL").configuredValue for the gemini default (both call sites, not just one)', () => {
+    const svc = createSettingsService({
+      osEnv: { SEMIDEX_GENERATION_BACKEND: 'gemini' }, dotenvValues: {}, settingsPath: tempSettingsPath(dir),
+    });
+    assert.equal(svc.getActiveValue('ASK_MODEL'), 'gemini-2.5-flash');
+  });
+
+  test('this exact scenario matches what createGenerationRuntime() resolves for the same osEnv (the original live-reproduced disagreement)', () => {
+    const osEnv = { SEMIDEX_GENERATION_BACKEND: 'gemini' };
+    const settingsService = createSettingsService({ osEnv, dotenvValues: {}, settingsPath: tempSettingsPath(dir) });
+    const runtimeModel = resolveGenerationRuntimeConfig({ osEnv, dotenvValues: {} }).model.value;
+    assert.equal(settingsService.get('ASK_MODEL').configuredValue, runtimeModel);
+  });
+
+  test('backend=ollama (default), ASK_MODEL not set anywhere: still resolves to gemma3:4b (regression guard)', () => {
+    const svc = createSettingsService({ osEnv: {}, dotenvValues: {}, settingsPath: tempSettingsPath(dir) });
+    assert.equal(svc.get('ASK_MODEL').configuredValue, 'gemma3:4b');
+  });
+
+  test('an explicit ASK_MODEL under backend=gemini is honored, never overridden by the per-backend default', () => {
+    const svc = createSettingsService({
+      osEnv: { SEMIDEX_GENERATION_BACKEND: 'gemini', ASK_MODEL: 'gemini-1.5-pro' },
+      dotenvValues: {}, settingsPath: tempSettingsPath(dir),
+    });
+    const entry = svc.get('ASK_MODEL');
+    assert.equal(entry.configuredValue, 'gemini-1.5-pro');
+    assert.equal(entry.configuredSource, 'os_env');
+  });
+
+  test('a settings.json-saved ASK_MODEL under backend=gemini is honored (config_json tier, not the default)', async () => {
+    const settingsPath = tempSettingsPath(dir);
+    const svc = createSettingsService({ osEnv: { SEMIDEX_GENERATION_BACKEND: 'gemini' }, dotenvValues: {}, settingsPath });
+    await svc.setMany({ ASK_MODEL: 'gemini-1.5-pro' });
+    // ASK_MODEL is next_restart — configuredValue moves immediately,
+    // activeValue stays frozen until a real restart (existing, unrelated
+    // behavior) — assert on configuredValue, which reflects the write.
+    assert.equal(svc.get('ASK_MODEL').configuredValue, 'gemini-1.5-pro');
+  });
+
+  test('backend saved through SettingsService selects the Gemini default in a fresh runtime when ASK_MODEL is unset', async () => {
+    const settingsPath = tempSettingsPath(dir);
+    const writer = createSettingsService({ osEnv: {}, dotenvValues: {}, settingsPath });
+    await writer.setMany({ SEMIDEX_GENERATION_BACKEND: 'gemini' });
+
+    // A fresh service/runtime pair models the required restart for these
+    // next_restart settings.
+    const restarted = createSettingsService({ osEnv: {}, dotenvValues: {}, settingsPath });
+    let providerConfig;
+    const runtime = createGenerationRuntime({
+      osEnv: {},
+      dotenvValues: {},
+      settingsService: restarted,
+      createGenerationProviderFn: (config) => {
+        providerConfig = config;
+        return {
+          name: () => config.backend,
+          capabilities: () => ({ streaming: true, clientAbort: true, upstreamCancellation: false }),
+          ready: async () => ({ ok: true, model: config.options.model, numCtx: config.options.askNumCtx }),
+          generate: async () => ({ text: '' }),
+        };
+      },
+    });
+
+    assert.equal(restarted.get('ASK_MODEL').configuredValue, 'gemini-2.5-flash');
+    assert.equal(runtime.getConfig().model.value, 'gemini-2.5-flash');
+    assert.deepEqual(providerConfig, {
+      backend: 'gemini',
+      options: { apiKey: '', model: 'gemini-2.5-flash', askNumCtx: 8192 },
+    });
   });
 });
 

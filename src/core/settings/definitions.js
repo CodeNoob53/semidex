@@ -255,35 +255,65 @@ export const DEFINITIONS = {
   },
   SEMIDEX_GENERATION_BACKEND: {
     category: 'ai', label: 'Generation backend', type: 'enum', envVar: 'SEMIDEX_GENERATION_BACKEND',
-    description: 'The generation backend semidex uses for answers and indexing-time LLM calls.', advanced: false,
-    appliesAt: null, requiresReindex: false, requiresBackfill: false,
-    writable: false, readOnlyReason: 'Only one generation backend ("ollama") is implemented.',
-    ...enumField({ envVar: 'SEMIDEX_GENERATION_BACKEND', defaultVal: 'ollama', allowed: ['ollama'] }),
+    description: 'The generation backend semidex uses for Ask answers: a local Ollama model or the Gemini API.', advanced: false,
+    appliesAt: 'next_restart', requiresReindex: false, requiresBackfill: false,
+    ...enumField({ envVar: 'SEMIDEX_GENERATION_BACKEND', defaultVal: 'ollama', allowed: ['ollama', 'gemini'] }),
   },
+  // ASK_MODEL's valid values come from whichever backend is currently
+  // selected — 'generation_models' (not the Ollama-only 'ollama_models'
+  // source TAG_MODEL/CONTEXT_MODEL/EMBED_MODEL still use) tells the UI to
+  // resolve options against GET /api/generation/models?backend=<the
+  // CURRENTLY STAGED SEMIDEX_GENERATION_BACKEND value>, re-fetching and
+  // re-rendering whenever the staged backend changes — so an Ollama model
+  // name can never silently pass as configured for Gemini or vice versa
+  // (task requirement). See global-settings-view.js's isFieldVisible/
+  // dynamicOptions handling for the resolution logic.
   ASK_MODEL: {
     category: 'ai', label: 'Ask answer model', type: 'string', envVar: 'ASK_MODEL',
-    description: 'Ollama model name used to generate answers for the Ask feature.', advanced: false,
+    description: 'Model used to generate answers for the Ask feature. Available models depend on the selected generation backend.', advanced: false,
     appliesAt: 'next_restart', requiresReindex: false, requiresBackfill: false,
-    dynamicOptions: { source: 'ollama_models', capability: 'generation' },
+    dynamicOptions: { source: 'generation_models', capability: 'generation' },
     ...stringField({ envVar: 'ASK_MODEL', defaultVal: 'gemma3:4b' }),
   },
   OLLAMA_URL: {
     category: 'ai', label: 'Ollama URL', type: 'string', envVar: 'OLLAMA_URL',
     description: 'Base URL of the Ollama server used for generation and tagging.', advanced: false,
     appliesAt: 'next_restart', requiresReindex: false, requiresBackfill: false,
+    // Ollama-only concept — a cloud API has no local base URL. Hidden from
+    // the UI entirely when SEMIDEX_GENERATION_BACKEND=gemini (task: "show
+    // Ollama URL only for Ollama"). Still independently readable/writable
+    // via direct PATCH regardless of backend — TAG_MODEL/CONTEXT_MODEL/
+    // EMBED_MODEL discovery all still depend on it even when Ask itself
+    // runs on Gemini, so it must never become read-only or disappear from
+    // settings.json, only from this one field's own visibility.
+    visibleWhen: { key: 'SEMIDEX_GENERATION_BACKEND', equals: 'ollama' },
     ...stringField({ envVar: 'OLLAMA_URL', defaultVal: 'http://localhost:11434' }),
   },
   ASK_NUM_CTX: {
     category: 'ai', label: 'Ask context size', type: 'number', envVar: 'ASK_NUM_CTX',
-    description: 'Context window size (tokens) requested from the model for Ask answers.', advanced: true,
+    description: 'Context window size (tokens) requested from the model for Ask answers. Capped by the provider model’s real input-token limit when known.', advanced: true,
     appliesAt: 'next_restart', requiresReindex: false, requiresBackfill: false,
     ...intField({ envVar: 'ASK_NUM_CTX', defaultVal: 8192, min: 256, max: 1_000_000 }),
   },
   GENERATION_DEVICE: {
     category: 'ai', label: 'Generation device policy', type: 'enum', envVar: 'GENERATION_DEVICE',
-    description: 'Hardware device policy for generation. Currently only automatic selection is supported.', advanced: true,
+    description: 'Hardware device policy for local generation. Currently only automatic selection is supported.', advanced: true,
     appliesAt: 'next_restart', requiresReindex: false, requiresBackfill: false,
+    // Local-inference-only concept — no meaning for a cloud API. Hidden for
+    // Gemini (task: "hide local generation device controls for Gemini").
+    visibleWhen: { key: 'SEMIDEX_GENERATION_BACKEND', equals: 'ollama' },
     ...enumField({ envVar: 'GENERATION_DEVICE', defaultVal: 'auto', allowed: ['auto'] }),
+  },
+  GEMINI_API_KEY: {
+    category: 'ai', label: 'Gemini API key', type: 'secret', envVar: 'GEMINI_API_KEY',
+    description: 'API key used to authenticate with the Gemini API. Environment-only — never persisted or displayed.', advanced: false,
+    appliesAt: 'next_restart', requiresReindex: false, requiresBackfill: false,
+    writable: false, secret: true, readOnlyReason: 'Secrets are environment-only and never persisted or displayed.',
+    visibleWhen: { key: 'SEMIDEX_GENERATION_BACKEND', equals: 'gemini' },
+    default: undefined,
+    parseExternal(raw) { return raw; },
+    validate() { return { ok: false, error: 'GEMINI_API_KEY is a secret and cannot be written.' }; },
+    serialize: (value) => value,
   },
 
   // ── embeddings & hardware ───────────────────────────────────────────────

@@ -10,6 +10,7 @@
 import { DEFINITIONS } from './definitions.js';
 import { readSettingsFile, writeSettingsFileAtomic, statMtime, DEFAULT_SETTINGS_PATH } from './settings-store.js';
 import { resolveEffectiveEmbeddingBackend, assertProviderCombo } from '../env.js';
+import { DEFAULT_MODEL_BY_BACKEND } from '../generation/config.js';
 
 const SOURCES = Object.freeze({
   OS_ENV: 'os_env',
@@ -39,6 +40,29 @@ const EMBEDDING_BACKEND_EXPANSION = {
   'bge-m3-onnx': { DENSE_PROVIDER: 'bge-m3-onnx', SPARSE_PROVIDER: 'bge-m3-onnx' },
 };
 
+// ASK_MODEL's static definitions.js default ('gemma3:4b') has no notion of
+// which generation backend is active — resolveGenerationRuntimeConfig()
+// (core/generation/config.js) resolves the SAME "nothing set anywhere"
+// case per-backend via DEFAULT_MODEL_BY_BACKEND. Reusing that exact map
+// here (rather than re-deriving a second copy) is what makes it
+// structurally impossible for SettingsService and the generation runtime
+// to disagree on ASK_MODEL's default again (code review finding —
+// confirmed live: this service reported 'gemma3:4b' while the runtime
+// resolved 'gemini-2.5-flash' for identical osEnv under
+// SEMIDEX_GENERATION_BACKEND=gemini). Applied inside resolveFromTiers()
+// itself (not only in buildEntry()'s post-hoc annotation) so every
+// call site — buildStoredEntry, frozenActive's construction-time
+// snapshot, and getActiveValue()'s next_restart fast path — agrees, not
+// just the Settings API's GET response shape.
+function resolveAskModelDefault({ osEnv, dotenvValues, localSettings }) {
+  // Raw registry definitions do not carry their object key. Add it here so
+  // resolveFromTiers() can see a backend persisted in settings.json instead
+  // of resolving only OS env/.env/default values.
+  const backendDef = { ...DEFINITIONS.SEMIDEX_GENERATION_BACKEND, key: 'SEMIDEX_GENERATION_BACKEND' };
+  const backend = resolveFromTiers(backendDef, { osEnv, dotenvValues, localSettings }).value;
+  return DEFAULT_MODEL_BY_BACKEND[backend] ?? DEFINITIONS.ASK_MODEL.default;
+}
+
 function resolveFromTiers(def, { osEnv, dotenvValues, localSettings }) {
   const rawOsEnv = osEnv[def.envVar];
   if (rawOsEnv !== undefined && rawOsEnv !== '') {
@@ -51,7 +75,10 @@ function resolveFromTiers(def, { osEnv, dotenvValues, localSettings }) {
   if (def.writable && Object.prototype.hasOwnProperty.call(localSettings, def.key)) {
     return { value: localSettings[def.key], source: SOURCES.CONFIG_JSON };
   }
-  return { value: def.default, source: SOURCES.DEFAULT };
+  const defaultValue = def.key === 'ASK_MODEL'
+    ? resolveAskModelDefault({ osEnv, dotenvValues, localSettings })
+    : def.default;
+  return { value: defaultValue, source: SOURCES.DEFAULT };
 }
 
 function isOverridden(def, { osEnv, dotenvValues }) {
@@ -253,6 +280,12 @@ export function createSettingsService({
     };
   }
 
+  // ASK_MODEL needs no per-key special-casing here (unlike EMBED_MODEL) —
+  // its backend-aware default is resolved once, at the root, inside
+  // resolveFromTiers() itself (see resolveAskModelDefault() above), so
+  // buildStoredEntry(), frozenActive's construction-time snapshot, and
+  // getActiveValue() all agree automatically without a second derivation
+  // layer here.
   function buildEntry(def, byKeyEntries) {
     if (def.key === 'EMBEDDING_BACKEND') {
       return deriveEmbeddingBackendEntry(def);
