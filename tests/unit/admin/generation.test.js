@@ -34,7 +34,7 @@ function makeStubAdapter(overrides = {}) {
 function fakeProvider({ name = 'ollama', ready, generate } = {}) {
   return {
     name: () => name,
-    capabilities: () => ({ streaming: true, cancellation: true }),
+    capabilities: () => ({ streaming: true, clientAbort: true, upstreamCancellation: true }),
     ready: ready ?? (async () => ({ ok: true, model: 'gemma3:4b', numCtx: 8192 })),
     generate: generate ?? (async () => ({ text: 'ok', aborted: false })),
   };
@@ -70,7 +70,7 @@ describe('GET /api/generation/status — happy path', () => {
       assert.equal(body.ready, true);
       assert.equal(body.reason, null);
       assert.equal(body.numCtx, 8192);
-      assert.deepEqual(body.capabilities, { streaming: true, cancellation: true });
+      assert.deepEqual(body.capabilities, { streaming: true, clientAbort: true, upstreamCancellation: true });
       assert.deepEqual(body.devicePolicy, { value: 'auto', supported: ['auto'] });
       assert.equal(body.configuration.model.source, 'os_env');
       assert.equal(body.configuration.baseUrl.source, 'dotenv');
