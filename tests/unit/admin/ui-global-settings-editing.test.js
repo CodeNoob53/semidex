@@ -553,16 +553,18 @@ describe('renderGlobalSettingsView — cancel', () => {
 });
 
 describe('renderGlobalSettingsView — future provider placeholders', () => {
-  it('the ai category placeholder has zero interactive elements', async () => {
+  // Stage B1: the 'ai' category no longer gets a static "Ollama · Cloud
+  // providers are planned" placeholder — that claim became false the
+  // moment Gemini shipped as a real, selectable SEMIDEX_GENERATION_BACKEND
+  // option. Generation backend choice is now fully expressed by real
+  // writable controls in this category.
+  it('the ai category renders no placeholder — generation backend choice is real, writable controls now', async () => {
     const { document, renderGlobalSettingsView } = loadGlobalSettingsHelpers({
       apiResponses: { '/api/settings': settingsPayload([]) },
     });
     await renderGlobalSettingsView(document.getElementById('main'), 'ai');
     const placeholder = document.querySelector('.gs-placeholder');
-    assert.ok(placeholder);
-    assert.equal(placeholder.querySelectorAll('button, input, a').length, 0);
-    assert.match(placeholder.textContent, /Ollama/);
-    assert.match(placeholder.textContent, /Cloud providers are planned/);
+    assert.equal(placeholder, null);
   });
 
   it('the storage category placeholder has zero interactive elements', async () => {

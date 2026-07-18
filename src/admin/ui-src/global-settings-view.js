@@ -160,22 +160,20 @@ async function renderStatusCategory(container, myGeneration) {
 
 // ── Future provider placeholders (static, inert) ────────────────────────────
 
+// The 'ai' category no longer gets a static placeholder (Stage B1) — it
+// had claimed "Ollama · Cloud providers are planned", which became false
+// the moment Gemini shipped as a real, selectable backend
+// (SEMIDEX_GENERATION_BACKEND now offers both). Generation backend choice
+// is fully expressed by the real writable controls in this category now,
+// so no placeholder is needed there at all.
 function providerPlaceholder(category) {
-  let provider;
-  let detail;
-  if (category === 'ai') {
-    provider = 'Ollama';
-    detail = 'Cloud providers are planned.';
-  } else if (category === 'storage') {
-    provider = 'Qdrant';
-    detail = 'Additional vector databases are planned.';
-  } else {
-    return null;
+  if (category === 'storage') {
+    const placeholder = templateRoot('tpl-gs-provider-placeholder');
+    placeholder.querySelector('strong').textContent = 'Qdrant';
+    placeholder.querySelector('.gs-field-desc').textContent = 'Additional vector databases are planned.';
+    return placeholder;
   }
-  const placeholder = templateRoot('tpl-gs-provider-placeholder');
-  placeholder.querySelector('strong').textContent = provider;
-  placeholder.querySelector('.gs-field-desc').textContent = detail;
-  return placeholder;
+  return null;
 }
 
 // ── Editable category rendering ──────────────────────────────────────────────
@@ -196,6 +194,15 @@ let lastFetchedPayload = null; // full GET /api/settings response
 // category that needs it; { available, reason, models } afterward — see
 // core/ollama-models.js for the shape.
 let lastOllamaModels = null;
+
+// Same shape/lifecycle as lastOllamaModels, but for the provider-neutral
+// GET /api/generation/models?backend=<...> endpoint (ASK_MODEL only,
+// Stage B1). Tracks which backend it was fetched for (lastGenerationModelsBackend)
+// so a stale Ollama-backend fetch is never rendered as if it were Gemini's
+// list or vice versa — re-fetched whenever the STAGED
+// SEMIDEX_GENERATION_BACKEND value changes, not just on category entry.
+let lastGenerationModels = null;
+let lastGenerationModelsBackend = null;
 
 // Monotonic request token guarding against async races: fast category
 // switching (or navigating away from Settings entirely while a fetch/save
@@ -309,9 +316,29 @@ function requiredOllamaCapability(capability) {
   return capability === 'generation' ? 'completion' : capability;
 }
 
-function modelSupportsCapability(model, capability) {
+// Gemini's models.list() reports supportedActions as Pascal-case action
+// names (e.g. 'generateContent'), not Ollama's lowercase capability
+// vocabulary — this maps semidex's own capability id ('generation') to
+// each backend's real field name/value, never guessing from a model name.
+function requiredCapability(backend, capability) {
+  if (backend === 'gemini') return capability === 'generation' ? 'generateContent' : capability;
+  return requiredOllamaCapability(capability);
+}
+
+function modelSupportsCapability(model, capability, backend = 'ollama') {
   return Array.isArray(model?.capabilities)
-    && model.capabilities.includes(requiredOllamaCapability(capability));
+    && model.capabilities.includes(requiredCapability(backend, capability));
+}
+
+// The STAGED SEMIDEX_GENERATION_BACKEND value, wherever it lives (the "ai"
+// category, always — generation settings are not split across categories).
+// Falls back to the last-fetched configuredValue when the field isn't
+// staged/edited, and to 'ollama' if the field is entirely absent from this
+// payload (should not happen in production, but keeps this helper total).
+function currentGenerationBackend() {
+  const entry = lastFetchedPayload?.settings.find((s) => s.key === 'SEMIDEX_GENERATION_BACKEND');
+  if (!entry) return 'ollama';
+  return currentPendingValue(entry.category, entry);
 }
 
 function selectedOllamaModel(category, modelKey) {
@@ -332,29 +359,29 @@ function selectOption(value, label, { selected = false, disabled = false } = {})
 
 // Builds a <select> for a dynamicOptions-backed string field. Never empty:
 // configured-but-not-installed values are preserved; unreachable or empty
-// discovery states get an explicit disabled option.
-function dynamicOptionsControl(entry, value, disabled) {
+// discovery states get an explicit disabled option. Generic over the
+// discovery source (Ollama's 'ollama_models' or the provider-neutral
+// 'generation_models') — the caller supplies the resolved model list,
+// backend id, and unreachable-state copy, so this function contains no
+// backend-specific branching itself.
+function dynamicOptionsControl(entry, value, disabled, { discovery, backend, unavailableLabel, unavailableReason }) {
   const capability = entry.dynamicOptions.capability;
   const select = templateRoot('tpl-gs-control-select');
   select.dataset.key = entry.key;
   const extras = [];
 
-  if (!lastOllamaModels || !lastOllamaModels.available) {
+  if (!discovery || !discovery.available) {
     if (value) select.append(selectOption(value, value, { selected: true }));
-    select.append(selectOption('', 'Ollama unreachable — models unknown', {
-      selected: !value,
-      disabled: true,
-    }));
+    select.append(selectOption('', unavailableLabel, { selected: !value, disabled: true }));
     select.disabled = true;
-    const reason = lastOllamaModels?.reason ?? 'Ollama models are unknown.';
     const note = templateRoot('tpl-gs-control-note');
-    note.textContent = reason;
+    note.textContent = discovery?.reason ?? unavailableReason;
     extras.push(note);
     return { control: select, extras };
   }
 
-  const confirmed = lastOllamaModels.models.filter((model) => modelSupportsCapability(model, capability));
-  const unverified = lastOllamaModels.models.filter((model) => model.capabilities === null);
+  const confirmed = discovery.models.filter((model) => modelSupportsCapability(model, capability, backend));
+  const unverified = discovery.models.filter((model) => model.capabilities === null);
   const installedNames = new Set([...confirmed, ...unverified].map((m) => m.name));
   if (value && !installedNames.has(value)) {
     select.append(selectOption(value, `${value} (not installed)`, { selected: true }));
@@ -363,10 +390,20 @@ function dynamicOptionsControl(entry, value, disabled) {
     select.append(selectOption(model.name, model.name, { selected: model.name === value }));
   }
   for (const model of unverified) {
+    // Shown informationally (never silently hidden), but never selectable
+    // as a NEW choice — an unverified capability is not a confirmed
+    // generateContent-capable model, and offering it as an equal-weight
+    // option next to confirmed models risks the user picking one that
+    // then fails at actual generation time (code review finding). The
+    // one exception: if this unverified model is the value ALREADY
+    // configured, it stays selected and enabled so an unrelated Save
+    // (one that doesn't touch this field) doesn't get blocked by a
+    // pre-existing configuration this control had no part in choosing.
+    const isCurrentValue = model.name === value;
     select.append(selectOption(
       model.name,
       `${model.name} (capability unverified)`,
-      { selected: model.name === value }
+      { selected: isCurrentValue, disabled: !isCurrentValue }
     ));
   }
   if (!select.querySelectorAll('option').length) {
@@ -375,7 +412,7 @@ function dynamicOptionsControl(entry, value, disabled) {
   select.disabled = disabled;
 
   const installedElsewhere = value && !installedNames.has(value)
-    && lastOllamaModels.models.some((m) => m.name === value);
+    && discovery.models.some((m) => m.name === value);
   if (installedElsewhere) {
     const note = templateRoot('tpl-gs-control-note');
     note.textContent = 'Configured but inactive: this model may not support the required capability.';
@@ -401,7 +438,20 @@ function fieldControl(category, entry) {
       control.append(selectOption(option.value, option.label, { selected: option.value === value }));
     }
   } else if (entry.dynamicOptions?.source === 'ollama_models') {
-    return dynamicOptionsControl(entry, value, disabled);
+    return dynamicOptionsControl(entry, value, disabled, {
+      discovery: lastOllamaModels,
+      backend: 'ollama',
+      unavailableLabel: 'Ollama unreachable — models unknown',
+      unavailableReason: 'Ollama models are unknown.',
+    });
+  } else if (entry.dynamicOptions?.source === 'generation_models') {
+    const backend = currentGenerationBackend();
+    return dynamicOptionsControl(entry, value, disabled, {
+      discovery: lastGenerationModelsBackend === backend ? lastGenerationModels : null,
+      backend,
+      unavailableLabel: backend === 'gemini' ? 'Gemini unavailable — models unknown' : 'Ollama unreachable — models unknown',
+      unavailableReason: backend === 'gemini' ? 'Gemini models are unknown.' : 'Ollama models are unknown.',
+    });
   } else {
     control = templateRoot('tpl-gs-control-input');
     control.type = entry.type === 'number' ? 'number' : 'text';
@@ -528,7 +578,9 @@ function renderEditableCategory(container, category) {
   const advanced = entries.filter((e) => e.advanced);
 
   const content = document.createDocumentFragment();
-  if (categoryNeedsOllamaModels(category)) content.append(templateRoot('tpl-gs-refresh-models'));
+  const needsOllamaModels = categoryNeedsOllamaModels(category);
+  const needsGenerationModels = categoryNeedsGenerationModels(category);
+  if (needsOllamaModels || needsGenerationModels) content.append(templateRoot('tpl-gs-refresh-models'));
   const placeholder = providerPlaceholder(category);
   if (placeholder) content.append(placeholder);
   for (const entry of primary) content.append(fieldRow(category, entry));
@@ -547,7 +599,13 @@ function renderEditableCategory(container, category) {
   if (refreshBtn) {
     refreshBtn.addEventListener('click', () => {
       const main = container.closest('#main');
-      if (main) refreshOllamaModels(main, category, renderGeneration, { forceRefresh: true });
+      if (!main) return;
+      // needsOllamaModels/needsGenerationModels are mutually exclusive in
+      // practice today (no category mixes both discovery sources), but the
+      // button always refreshes whichever one this category actually
+      // needs rather than assuming Ollama.
+      if (needsGenerationModels) refreshGenerationModels(main, category, renderGeneration, { forceRefresh: true });
+      else refreshOllamaModels(main, category, renderGeneration, { forceRefresh: true });
     });
   }
 }
@@ -569,7 +627,8 @@ function wireCategoryEvents(container, category) {
     // rendered options (a structural guarantee, same reasoning as a plain
     // enum <select>), so it follows the enum branch below, not the
     // free-text string branch's allowEmpty validation.
-    const isDynamicSelect = entry.type === 'string' && entry.dynamicOptions?.source === 'ollama_models';
+    const isDynamicSelect = entry.type === 'string'
+      && (entry.dynamicOptions?.source === 'ollama_models' || entry.dynamicOptions?.source === 'generation_models');
     const handler = () => {
       const beforeVisible = visibleKeySet(category);
       if (entry.type === 'boolean') {
@@ -585,6 +644,21 @@ function wireCategoryEvents(container, category) {
             !Number.isInteger(selected?.embeddingDimension) || selected.embeddingDimension <= 0,
             el.value
           );
+        } else if (key === 'SEMIDEX_GENERATION_BACKEND') {
+          // Switching backends invalidates ASK_MODEL's current value
+          // outright — an Ollama model name is never a valid Gemini model
+          // and vice versa, so this is marked invalid immediately (Save
+          // stays blocked) rather than waiting for the async model-list
+          // refetch below to resolve and discover the mismatch itself.
+          // The user must explicitly choose a real model for the new
+          // backend before Save re-enables — silently carrying the old
+          // value forward is exactly what this task forbids.
+          const askModelEntry = lastFetchedPayload.settings.find((s) => s.key === 'ASK_MODEL');
+          if (askModelEntry) {
+            const askModelValue = currentPendingValue(category, askModelEntry);
+            markInvalid(category, 'ASK_MODEL', true, askModelValue);
+          }
+          markInvalid(category, key, false);
         } else {
           markInvalid(category, key, false);
         }
@@ -625,10 +699,29 @@ function wireCategoryEvents(container, category) {
       const drivesDynamicDerived = categoryEntries(category).some(
         (candidate) => candidate.dynamicDerived?.modelKey === key
       );
+      // SEMIDEX_GENERATION_BACKEND always forces a rebuild + generation-model
+      // re-fetch on its own — never conditioned on whether OLLAMA_URL/
+      // GENERATION_DEVICE/GEMINI_API_KEY's visibility actually flipped in
+      // THIS payload (a category missing one of those fields, e.g. in a
+      // narrow test fixture, must not silently skip the re-fetch that a
+      // full production payload would trigger only as a side effect of its
+      // own visibleWhen diff).
+      const isBackendSwitch = key === 'SEMIDEX_GENERATION_BACKEND';
       if (drivesDynamicDerived
+        || isBackendSwitch
         || visibleKeySet(category).size !== beforeVisible.size
         || ![...visibleKeySet(category)].every((k) => beforeVisible.has(k))) {
         renderEditableCategory(container, category);
+        // The backend changed — lastGenerationModels/lastGenerationModelsBackend
+        // are now stale (they belong to the PREVIOUS backend, if fetched at
+        // all). Re-fetch for the new backend so ASK_MODEL's <select>
+        // eventually reflects real options instead of staying on the
+        // "unavailable" fallback until the user happens to trigger another
+        // re-render some other way.
+        if (isBackendSwitch) {
+          const main = container.closest('#main');
+          if (main) refreshGenerationModels(main, category, renderGeneration);
+        }
       } else {
         syncSaveBar(container, category);
       }
@@ -773,6 +866,12 @@ function categoryNeedsOllamaModels(category) {
   );
 }
 
+function categoryNeedsGenerationModels(category) {
+  return lastFetchedPayload.settings.some(
+    (s) => s.category === category && s.dynamicOptions?.source === 'generation_models'
+  );
+}
+
 // Fetches /api/ollama-models fresh and re-renders — reused directly by
 // both the initial category render (below) and the "Refresh models"
 // button, so there is exactly one fetch/render path for this data, never
@@ -784,6 +883,33 @@ async function refreshOllamaModels(main, category, myGeneration, { forceRefresh 
     lastOllamaModels = { available: false, reason: err.message, models: [] };
   }
   if (myGeneration !== renderGeneration) return;
+  const content = main.querySelector('#gs-content');
+  if (content) renderEditableCategory(content, category);
+}
+
+// Provider-neutral counterpart to refreshOllamaModels() — fetches
+// GET /api/generation/models?backend=<the CURRENTLY STAGED backend>, not a
+// fixed backend, so switching SEMIDEX_GENERATION_BACKEND in an unsaved
+// edit and re-triggering this (see wireCategoryEvents' backend-change
+// handler) always fetches the NEW backend's models, never the one the
+// page originally loaded with. Tracks lastGenerationModelsBackend so a
+// slow in-flight fetch for a since-abandoned backend selection can never
+// be rendered as if it belonged to the current one (an async race the
+// myGeneration check alone would not catch, since both fetches share the
+// same render generation).
+async function refreshGenerationModels(main, category, myGeneration, { forceRefresh = false } = {}) {
+  const backend = currentGenerationBackend();
+  const query = forceRefresh ? `backend=${backend}&refresh=1` : `backend=${backend}`;
+  let result;
+  try {
+    result = await api(`/api/generation/models?${query}`);
+  } catch (err) {
+    result = { available: false, reason: err.message, models: [] };
+  }
+  if (myGeneration !== renderGeneration) return;
+  if (currentGenerationBackend() !== backend) return; // stale: backend changed again while this fetch was in flight
+  lastGenerationModels = result;
+  lastGenerationModelsBackend = backend;
   const content = main.querySelector('#gs-content');
   if (content) renderEditableCategory(content, category);
 }
@@ -805,6 +931,11 @@ async function renderCategoryContent(main, category, payload, myGeneration) {
     // the status category's own "render skeleton, fill in async" shape.
     renderEditableCategory(content, category);
     await refreshOllamaModels(main, category, myGeneration);
+    return;
+  }
+  if (categoryNeedsGenerationModels(category)) {
+    renderEditableCategory(content, category);
+    await refreshGenerationModels(main, category, myGeneration);
     return;
   }
   renderEditableCategory(content, category);

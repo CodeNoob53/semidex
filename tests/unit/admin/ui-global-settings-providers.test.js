@@ -487,6 +487,54 @@ describe('dynamicOptions — unverified ("unknown") capability handling', () => 
     const unverifiedOption = [...select.querySelectorAll('option')].find((o) => o.getAttribute('value') === 'mystery-model:7b');
     assert.match(unverifiedOption.textContent, /unverified/);
   });
+
+  it('an unverified model cannot be selected as a NEW choice — its <option> is disabled (code review: capability-first must not fail-open into "selectable")', async () => {
+    const askModel = makeEntry({
+      key: 'ASK_MODEL', category: 'ai', type: 'string', advanced: false,
+      configuredValue: 'gemma3:4b', activeValue: 'gemma3:4b', allowEmpty: false,
+      appliesAt: 'next_restart', dynamicOptions: { source: 'ollama_models', capability: 'generation' },
+    });
+    const modelsWithUnknown = {
+      available: true, reason: null,
+      models: [
+        { name: 'gemma3:4b', capabilities: ['completion'], embeddingDimension: null, parameterSize: '4.3B', family: 'gemma3' },
+        { name: 'mystery-model:7b', capabilities: null, embeddingDimension: null, parameterSize: null, family: null },
+      ],
+    };
+    const { document, renderGlobalSettingsView } = loadGlobalSettingsHelpers({
+      apiResponses: { '/api/settings': settingsPayload([askModel]), '/api/ollama-models': modelsWithUnknown },
+    });
+    await renderGlobalSettingsView(document.getElementById('main'), 'ai');
+    const select = document.querySelector('[data-key="ASK_MODEL"]');
+    const unverifiedOption = select.querySelector('option[value="mystery-model:7b"]');
+    assert.equal(unverifiedOption.hasAttribute('disabled'), true, 'an unverified-capability model must not be a selectable new choice');
+    // The already-confirmed model remains fully selectable, unaffected.
+    const confirmedOption = select.querySelector('option[value="gemma3:4b"]');
+    assert.equal(confirmedOption.hasAttribute('disabled'), false);
+  });
+
+  it('an unverified model that is ALREADY the configured value stays selected and enabled — an unrelated Save must not be blocked by it', async () => {
+    const askModel = makeEntry({
+      key: 'ASK_MODEL', category: 'ai', type: 'string', advanced: false,
+      configuredValue: 'mystery-model:7b', activeValue: 'mystery-model:7b', allowEmpty: false,
+      appliesAt: 'next_restart', dynamicOptions: { source: 'ollama_models', capability: 'generation' },
+    });
+    const modelsWithUnknown = {
+      available: true, reason: null,
+      models: [
+        { name: 'gemma3:4b', capabilities: ['completion'], embeddingDimension: null, parameterSize: '4.3B', family: 'gemma3' },
+        { name: 'mystery-model:7b', capabilities: null, embeddingDimension: null, parameterSize: null, family: null },
+      ],
+    };
+    const { document, renderGlobalSettingsView } = loadGlobalSettingsHelpers({
+      apiResponses: { '/api/settings': settingsPayload([askModel]), '/api/ollama-models': modelsWithUnknown },
+    });
+    await renderGlobalSettingsView(document.getElementById('main'), 'ai');
+    const select = document.querySelector('[data-key="ASK_MODEL"]');
+    const currentOption = select.querySelector('option[value="mystery-model:7b"]');
+    assert.equal(currentOption.hasAttribute('disabled'), false, 'the currently-configured value must remain selectable even though unverified');
+    assert.equal(currentOption.hasAttribute('selected'), true);
+  });
 });
 
 describe('embedding model dimension safety', () => {
