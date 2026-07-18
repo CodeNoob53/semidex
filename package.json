@@ -4,7 +4,7 @@
   "license": "MIT",
   "type": "module",
   "engines": {
-    "node": ">=18.17.0"
+    "node": ">=20.16.0"
   },
   "scripts": {
     "index": "node src/indexer/index.js",
@@ -69,6 +69,7 @@
     "bench:custom50:skeleton": "node benchmarks/retrieval/custom-50/skeleton-bench.js"
   },
   "dependencies": {
+    "@google/genai": "^2.12.0",
     "@huggingface/transformers": "^4.2.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@opendocsg/pdf2md": "^0.2.6",
