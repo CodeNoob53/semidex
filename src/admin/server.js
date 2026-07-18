@@ -40,6 +40,7 @@ import { registerOperationsRoutes } from './api/operations.js';
 import { registerSystemRoutes } from './api/system.js';
 import { registerSettingsRoutes } from './api/settings.js';
 import { registerOllamaModelsRoutes } from './api/ollama-models.js';
+import { registerGenerationModelsRoutes } from './api/generation-models.js';
 import { handleStatic } from './static.js';
 import { createGenerationRuntime } from '../core/generation/runtime.js';
 import { createAskCoordinator } from '../core/ask/coordinator.js';
@@ -89,7 +90,7 @@ export function resolvePortConfig(env = process.env, { settingsService } = {}) {
 export function createApp({
   adapter = createStorageAdapter(), embedQuery, jobRegistry, taskRegistry, pickFolderFn, checkOllamaFn,
   assemblyLogFn, generationRuntime, askCoordinator, countTokens, settingsService, jobBaseEnv,
-  discoverOllamaModelsFn,
+  discoverOllamaModelsFn, discoverGeminiModelsFn,
 } = {}) {
   const router = createRouter();
   // settingsService is optional DI — tests and ad-hoc createApp() callers
@@ -104,6 +105,15 @@ export function createApp({
   // tests never probe a real Ollama instance) — same convention as
   // checkOllamaFn below.
   registerOllamaModelsRoutes(router, { settingsService: settings, ...(discoverOllamaModelsFn ? { discoverOllamaModelsFn } : {}) });
+  // Provider-neutral generation-model discovery (Stage B1) — same optional
+  // DI convention as discoverOllamaModelsFn above (tests inject stubs so
+  // unit tests never probe a real Ollama instance or call the real Gemini
+  // API).
+  registerGenerationModelsRoutes(router, {
+    settingsService: settings,
+    ...(discoverOllamaModelsFn ? { discoverOllamaModelsFn } : {}),
+    ...(discoverGeminiModelsFn ? { discoverGeminiModelsFn } : {}),
+  });
   registerHealthRoutes(router, adapter);
   // taskRegistry is optional DI (tests inject a fake with a pinned clock, or
   // a stub that captures the tracked fn without actually running it) — same
