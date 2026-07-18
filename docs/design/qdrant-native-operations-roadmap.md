@@ -32,9 +32,8 @@ This is important for the MVP because skeleton-first indexing and future schema
 changes will force reindexing. It is important for the first public demo because
 we need a safe story for rollback, repeatability, and operational confidence.
 
-It is also strategically important if semidex requests support or a grant from
-Qdrant: semidex should show that it uses Qdrant as a serious infrastructure
-layer, not only as a vector-search dependency.
+It also confirms that semidex uses Qdrant as a serious infrastructure layer,
+not only as a vector-search dependency.
 
 ---
 
@@ -273,7 +272,7 @@ Acceptance:
 
 ---
 
-## 9. Demo and Grant Narrative
+## 9. Demo Narrative
 
 For the first demo, Qdrant-native support should communicate three things:
 

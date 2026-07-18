@@ -15,8 +15,11 @@ Re-running the same command updates changed files and skips unchanged files.
 
 Always set `COLLECTION`. Do not create a semidex collection manually in the
 Qdrant dashboard unless you are deliberately reproducing the named-vector schema.
-The MCP server is the read side of semidex; it queries existing collections but
-does not create or index them.
+The MCP server is one read surface: it lets an external agent query existing
+collections but does not create or index them. The application server also
+reads collections through the partial Ask runtime to assemble and stream a
+grounded answer. It does not replace the indexer, and its current admin route
+is not yet a stable public integration API.
 
 `npm run sync` is safe to run after indexing, after a semidex upgrade, or when
 adopting an existing remote collection. It is not required before the first

@@ -10,8 +10,9 @@
 
 ## 0. Direction
 
-The dashboard evolves from a debug console into the primary user surface of
-semidex. **Ask (grounded local LLM) is a future primary path — it does not
+The dashboard evolves from a debug console into the primary operator and
+reference-client surface of semidex. **Ask (grounded answer runtime) is a
+future primary user path — it does not
 become the default screen until the groundedness gate (Phase 4E) passes.**
 Until then, the primary surface is the navigate-and-search experience defined
 in Phase 3A. Deterministic admin operations (index/reindex/repair/delete,
@@ -39,7 +40,7 @@ Two standing principles govern every phase:
 | F5 | Entity rendering in chunks | Typed rendering: GFM table → HTML (zero-dep mini-parser, escape-first), code → highlight.js (bundled locally, no CDN); **rendered/raw toggle** on every card |
 | F6 | Code language detection | L0: persist fence info-string in `lang` payload (index time); L1: highlight.js `highlightAuto` limited to a common-language subset, marked "guessed" (UI fallback); L2: `@vscode/vscode-languagedetection` at index time — only if measurement shows the unlabeled rate matters |
 | F7 | Chunk stitching (assembly) | **Architectural contract: explicit `entity_refs` (ordered node links) in prose-chunk payload**, written by the indexer and **backfillable** onto existing collections (payload-only — no vector reindex, same mechanism as tags). Placeholder lines remain a display/text artifact and serve only as the **fallback parser for not-yet-backfilled collections**, never the primary machine truth. One assembly service/endpoint reused by file view, chunk preview, and later chat; entities render from node `raw_content`; chunk boundaries = subtle gutter marks; **stitched/chunked toggle**; search results stay ranked cards (+ small "table →" chip only) |
-| F8 | Ask (grounded LLM) | `GenerationProvider` seam (`ollama` first, `onnx` opt-in fallback); SSE; **two-phase render** (retrieval evidence instantly → answer streams after); inline citations [1][2] → chunk cards; cite-or-refuse prompt policy; per-collection scope only |
+| F8 | Ask (grounded answer runtime) | Application-facing coordinator and versioned HTTP/SSE contract; dashboard is its reference client, not its product boundary. `GenerationProvider` seam (`ollama` first, cloud adapters later); **two-phase render** (retrieval evidence instantly → answer streams after); inline citations [1][2] → chunk cards; cite-or-refuse prompt policy; per-collection scope for the first demo. See `ask-application-runtime.md` |
 | F9 | Entity cards in chat | LLM emits node markers, UI resolves via node endpoint and renders the **original** (hallucination-proof by construction); deterministic display of structural top-hits independent of the model |
 | F10 | Images | Persist collection `sourceRoot` in config.json; guarded asset endpoint (path under sourceRoot + image-extension allow-list + traversal guard); findability via alt+caption+carryover (no vision model needed for v1) |
 | F11 | Groundedness gate | Eval on custom-50-style questions (claims covered by cited chunks) before Ask becomes the default screen |
@@ -74,6 +75,9 @@ Critical path to the semidex lite story ("small PC / local-or-cloud provider /
 usable settings"): **F13 → F14 → F8**. Provider configuration is not an
 advanced debug panel; it is part of the product surface for users who need to
 choose between local runtimes, device placement, and cloud/API providers.
+The public demo uses the same Ask contract from a reference web client;
+future website widgets and Telegram adapters must not depend on admin UI
+modules.
 
 ## 3. Phases — what first, what later
 

@@ -1,10 +1,10 @@
 # semidex Roadmap
 
-> Status: canonical product roadmap, updated 2026-06-10.
+> Status: canonical product roadmap, updated 2026-07-18.
 >
 > This document is ordered by architectural dependency, not by a speculative
-> calendar. Presentation decks and grant materials should derive their stage
-> order from this file.
+> calendar. Product plans and presentations should derive their stage order
+> from this file.
 
 semidex is a local-first RAG system for grounding AI agents in real document
 collections. Its job is to make a knowledge base searchable, inspectable, and
@@ -24,7 +24,7 @@ comparisons.
 | **Shipped baseline** | Hybrid retrieval MVP: indexing, hybrid search, MCP tools, diagnostics | ✅ Working today |
 | **Skeleton-first (main direction)** | Skeleton-first chunking active; structural carryover shipped; legacy chunking is compatibility/fallback | ✅ Active direction |
 | **Future — foundation** | Skeleton navigation (Stage 2 — nav tools, summaries, content assembly backend/Local API, the stitched document reader UI, and bounded anchored content over MCP all shipped), validation & performance baseline (Stage 3) | 🚧 Stage 2 nearly complete; Stage 3 planned |
-| **Future — product tracks** | Assistant Runtime, Codebase Memory, extended ingestion, Qdrant-native operations, Control Panel, Agent Memory | 🔭 Planned, post-foundation |
+| **Product tracks** | Assistant Runtime (partial local core shipped), Codebase Memory, extended ingestion, Qdrant-native operations, Control Panel, Agent Memory | 🚧 Ask core active; integrations and other tracks planned |
 | **Conditional research** | MMR, ColBERT, query expansion, scoped global search, adapters | 🔬 Trigger-gated, not milestones |
 
 Everything below the MVP line is **future work**: it is documented so that MVP
@@ -105,7 +105,11 @@ system.
   collection map.
 - Markdown is the primary supported format; conversion quality for other
   formats depends on third-party parsers and source document quality.
-- There is no application-facing grounded answer API yet.
+- A partial grounded Ask backend exists (`POST /api/ask` with SSE, local
+  generation, citations, and refusal behavior), but it is still an internal
+  application-server contract. There is no stable public integration API,
+  cloud generation adapter, SDK/widget, Telegram adapter, public auth, or
+  multi-tenant runtime yet.
 
 ---
 
@@ -267,8 +271,15 @@ Planned work:
   `embedding_text` — expect 2–3× payload vs legacy), MCP list-tool latency
   (scroll-based aggregations grow with point count), and per-phase wall time;
 - profile expensive phases before optimizing them;
-- add selected external evaluation datasets when their metrics match
-  semidex's purpose.
+- add external retrieval evaluation as a release and positioning gate:
+  BEIR for established English retrieval tasks, MIRACL with Ukrainian for the
+  multilingual claim, and MLDR for long-document retrieval;
+- compare semidex Local (BGE-M3 ONNX dense + learned sparse) against the
+  semidex Lite candidate (Qdrant Cloud Inference) on the same corpora, qrels,
+  metrics, and query set; measure nDCG/Recall alongside indexing latency,
+  query latency, and provider cost;
+- add grounded-answer evaluation for Ask: citation precision/recall, factual
+  claim coverage, refusal correctness, end-to-end latency, and cost.
 
 **Exit gate:** structural retrieval improves or preserves established
 regression metrics; improvements reproduce across multiple document shapes; no
@@ -285,16 +296,39 @@ is chosen by user value, available hardware, and validation results.
 #### Track A — Assistant Runtime
 
 **Goal:** make indexed collections usable by grounded assistants in websites,
-internal tools, and local workflows.
+internal tools, Telegram bots, custom applications, and local workflows.
 
-- application-facing HTTP answer API;
-- configurable retrieval policy and grounded prompt assembly;
-- streaming answers with citations back to files, sections, and structural
-  nodes;
-- local generation adapter (initially Ollama); optional external
-  generation-provider adapters;
-- evaluation of native on-device ONNX generation when the Node.js integration
-  path matures.
+**Partially shipped:** the local application server already exposes
+`POST /api/ask` with hybrid retrieval, bounded evidence assembly, Ollama
+generation, SSE streaming, citations, and cite-or-refuse behavior. The admin
+Ask screen is a reference client and operator playground; it is not the public
+product boundary.
+
+**Next demo slice:**
+
+- stabilize and version the application-facing HTTP/SSE contract;
+- deploy a stateless single-collection reference assistant on a small CPU
+  server;
+- use Qdrant Cloud for storage and server-side embedding/retrieval and Gemini
+  for answer generation, with secrets held only on the server;
+- ship one simple web client that demonstrates grounded answers, citations,
+  refusal, and source inspection;
+- benchmark Qdrant Cloud inference against the local BGE-M3 path before making
+  quality or equivalence claims.
+
+**Later integrations:**
+
+- provider-neutral `GenerationProvider` adapters for OpenAI-compatible APIs,
+  OpenRouter, Anthropic, Gemini, and local runtimes;
+- a small JavaScript/TypeScript client, embeddable website widget, and Telegram
+  adapter built on the same public Ask contract;
+- authentication, rate limits, abuse controls, sessions, observability,
+  collection authorization, and multi-tenant isolation;
+- configurable retrieval policy and evaluation of native on-device ONNX
+  generation when the Node.js integration path matures.
+
+Detailed product and API boundary:
+[Ask application runtime](../design/ask-application-runtime.md).
 
 Note: this track depends on the shipped baseline, not on the skeleton model —
 it can be re-prioritized ahead of Stages 2–3 if product validation demands it.
@@ -348,8 +382,9 @@ semantics.
 - manual search and chunk inspection; file-level graph visualization;
 - copyable CLI equivalents for UI-triggered actions.
 
-Deployment profiles: **semidex Local** (current primary), **semidex Light**
-(planned resource-conserving profile with optional external providers),
+Deployment profiles: **semidex Local** (current primary), **semidex Lite**
+(planned low-infrastructure profile: a small CPU application server, Qdrant
+Cloud storage/inference, and a cloud generation provider),
 **semidex Codebase** (planned specialization via Track B).
 
 #### Track E — Qdrant-native Operations
@@ -368,9 +403,8 @@ operations instead of managing collections through ad hoc scripts or the Web UI.
 - future evaluation of native Qdrant Query API features after the operational
   layer is stable.
 
-This track is important for the first public demo and for any grant discussion:
-semidex should show a safe operational story around Qdrant, not only a search
-demo. Detailed plan:
+This track is important for the first public demo: semidex should show a safe
+operational story around Qdrant, not only a search demo. Detailed plan:
 [Qdrant native operations roadmap](../design/qdrant-native-operations-roadmap.md).
 
 #### Track F — Agent Memory Overlay

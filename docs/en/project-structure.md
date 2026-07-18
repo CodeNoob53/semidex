@@ -11,6 +11,9 @@ src/
     index.js         - CLI entry point for indexing files and folders
   mcp/
     server.js        - MCP stdio server used by AI clients
+  admin/
+    server.js        - operator UI and application HTTP/SSE server
+    api/ask.js       - current partial Ask transport
   sync.js            - syncs config.json and Qdrant payload indexes
   smoke.js           - offline smoke tests (thin wrapper over src/smoke/)
   doctor.js          - read-only environment health check (npm run doctor)
@@ -18,8 +21,11 @@ src/
   bootstrap-docs.js  - index semidex's own docs into `semidex-docs`
 ```
 
-The indexer is the writer side. The MCP server is the reader side. Both use the
-shared modules under `src/core/`.
+The indexer is the writer side. The MCP server exposes retrieval primitives to
+external agents. The admin/application server operates collections and hosts
+the current partial Ask runtime for application clients. All three use shared
+modules under `src/core/`; external integrations must target the future public
+Ask contract rather than importing admin UI modules.
 
 ## Tests
 
@@ -59,6 +65,8 @@ src/core/
   node-id.js           - deterministic skeleton/structural node IDs
   point-id.js          - deterministic Qdrant point IDs
   doctor-checks.js     - health checks shared by doctor and MCP error sanitising
+  ask/                 - retrieval evidence, grounded prompt, citations, coordinator
+  generation/          - provider-neutral generation contract and Ollama runtime
 ```
 
 These modules are shared by indexing, MCP tools, sync, and benchmarks. Provider

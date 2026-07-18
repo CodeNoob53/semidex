@@ -10,14 +10,21 @@
 ![Qdrant](https://img.shields.io/badge/Qdrant-vector%20DB-red?logo=qdrant&logoColor=white)
 ![MCP](https://img.shields.io/badge/MCP-compatible-purple)
 
-**Local-first retrieval layer for AI agents.**
+**Local-first knowledge retrieval and grounded-answer runtime for AI agents
+and applications.**
 
-semidex turns documents, notes, and specs into an indexed knowledge collection
-that an AI assistant queries through [MCP](https://modelcontextprotocol.io).
-Instead of pasting large files into chat, the agent searches a Qdrant index of
-structured, context-enriched chunks and pulls in exactly the pieces it needs —
-paragraphs, sections, commands, configuration options — before it answers or
-edits code.
+semidex turns documents, notes, and specs into an indexed knowledge collection.
+External AI agents can query it through
+[MCP](https://modelcontextprotocol.io); websites, bots, internal tools, and
+custom applications will use the application-facing Ask runtime. Instead of
+pasting large files into chat, semidex retrieves the relevant structured,
+context-enriched evidence before an answer is generated.
+
+The Ask runtime is the product integration path, not merely a dashboard chat.
+Its local core is partially implemented today (`POST /api/ask`, hybrid
+retrieval, bounded evidence, SSE streaming, citations, and refusal behavior).
+The stable public API, cloud-provider profile, SDK/widget, Telegram adapter,
+authentication, and multi-tenant operation remain planned.
 
 Everything can run on your machine: embeddings (BGE-M3 via ONNX Runtime),
 context generation (Ollama), and storage (Qdrant). Document text never has to
@@ -50,6 +57,7 @@ leave your environment.
 |---------|--------------------------|
 | Context windows are too small | Indexes large document sets; the agent retrieves only relevant chunks |
 | Agents guess when context is missing | Read-only MCP tools give on-demand access to indexed project knowledge and skeleton maps |
+| Every product team must rebuild RAG orchestration | The partial Ask runtime centralizes retrieval, evidence assembly, answer streaming, citations, and refusal behind one future public contract |
 | Semantic search misses exact terms | Sparse lexical vectors retrieve identifiers like `ONNX_EMBED`, env vars, and function names |
 | Keyword search misses meaning | Dense vectors retrieve paraphrases, related concepts, and mixed-language queries |
 | Chunks lose meaning in isolation | A local LLM summarizes each chunk's role in its document; the vector is computed from summary + text combined |
@@ -143,7 +151,9 @@ Documents
   -> optional tags (TAG_GEN=1 or backfill:tags)
   -> dense + sparse embeddings
   -> Qdrant named vectors + payload metadata
-  -> MCP tools for AI agents
+  -> Qdrant retrieval
+       -> MCP tools: an external agent controls the search workflow
+       -> Ask runtime: semidex assembles evidence and streams a grounded answer
 ```
 
 At query time, semidex embeds the query with the same provider used during
@@ -283,6 +293,7 @@ English deep dives:
 | [roadmap.md](docs/en/roadmap.md) | MVP scope, future tracks, and explicit non-goals |
 | [project-structure.md](docs/en/project-structure.md) | Source tree, runtime entry points, generated files |
 | [operations.md](docs/en/operations.md) | Usage examples, limitations, troubleshooting |
+| [ask-application-runtime.md](docs/design/ask-application-runtime.md) | Ask product boundary, public demo, website/bot integrations, and evaluation gates |
 
 ## Roadmap: MVP and Beyond
 
@@ -295,13 +306,14 @@ fragments. It is implemented behind the `SKELETON_CHUNKING=1` feature flag
 (with skeleton navigation and deterministic structural carryover) and is being
 benchmarked against the legacy chunker before any default changes.
 
-**Future (post-MVP)**, in dependency order: completing the skeleton navigation
-layer (anchored content assembly, pagination for very large skeleton reads),
-cross-domain validation and external datasets, and then separate
-product tracks — Assistant Runtime (HTTP answer API), Codebase Memory,
-extended ingestion with OCR/vision, a local Control Panel, and opt-in Agent
-Memory. Retrieval experiments such as MMR or ColBERT remain conditional
-research with explicit triggers, not mandatory milestones.
+**Next**, the project must validate retrieval on external datasets (including
+multilingual and long-document evaluation) and turn the partially shipped Ask
+backend into a stable application-facing contract. The first demo profile is
+planned as a small CPU application server with Qdrant Cloud
+storage/inference and Gemini generation. Later clients can include a web
+widget, JavaScript/TypeScript SDK, Telegram adapter, and custom applications.
+Codebase Memory, OCR/vision, and opt-in Agent Memory remain separate product
+tracks. Retrieval experiments such as MMR or ColBERT stay trigger-gated.
 
 See [docs/en/roadmap.md](docs/en/roadmap.md) for the full breakdown, exit
 gates, and non-goals.
@@ -330,6 +342,8 @@ Implemented:
 - Dense + sparse hybrid retrieval with Qdrant RRF fusion
 - BGE-M3 ONNX multilingual provider; Ollama + hashed-TF fallback
 - Read-only MCP tools for retrieval and skeleton navigation
+- Partial grounded Ask backend: `POST /api/ask`, hybrid retrieval, bounded
+  evidence assembly, Ollama generation, SSE streaming, citations, and refusal
 - SHA-256 skip for unchanged files; deterministic point IDs
 - Opt-in stale-file cleanup (`PRUNE_STALE=1` against the full source root)
 - Optional deterministic reranker (default off)
@@ -339,8 +353,13 @@ Not implemented yet:
 
 - Skeleton-first chunking as the default mode (still opt-in, pending the
   benchmark gate — see roadmap)
-- Anchored content assembly (`qdrant_get_content`) and grounded answer API
-- External dataset evaluation and direct workflow comparisons
+- Stable public Ask API and integration kit (cloud generation adapters,
+  JavaScript/TypeScript client, website widget, Telegram adapter, auth,
+  sessions, and multi-tenant controls)
+- Qdrant Cloud inference profile for semidex Lite and its direct benchmark
+  against local BGE-M3 dense+sparse retrieval
+- External dataset evaluation and direct workflow comparisons (BEIR, MIRACL
+  including Ukrainian, and MLDR are planned retrieval gates)
 - ColBERT / late-interaction runtime integration
 - True BM25/SPLADE fallback for Node-only sparse retrieval
 - Git-aware codebase sync and same-hash rename/move fast path

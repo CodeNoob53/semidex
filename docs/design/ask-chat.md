@@ -1,4 +1,4 @@
-# Ask Chat — Detailed Design (Dashboard Main Page)
+# Ask Chat — Dashboard Reference Client Design
 
 > Status: design document, 2026-07-02. This is the detailed specification for
 > phases 4A / 4B / 4C of `admin-ui-ux-and-ask-plan.md` — it does not change
@@ -30,14 +30,22 @@
 > `server.js`'s old self-start block). See
 > `docs/admin-api-phase4a5a-generation-runtime-2026-07-15.md`. Cloud
 > providers and the Settings UI itself remain unbuilt.
+>
+> **Product-boundary clarification (2026-07-18):** Ask is an
+> application-facing runtime for websites, bots, internal tools, and custom
+> applications. This document owns only the dashboard reference client and
+> playground. The authoritative product/runtime scope, demo boundary, public
+> integration contract, and staged SDK/widget/Telegram work are defined in
+> [ask-application-runtime.md](ask-application-runtime.md).
 
 ## 1. Product definition
 
-**What it is:** a grounded question-answering chat over **one selected
-collection**. Every answer is produced exclusively from retrieved chunks of
-that collection, cites them inline, and can display original entities
-(tables, code, later images). It is the conversational face of the retrieval
-system the dashboard already exposes as search.
+**What it is:** the admin dashboard's reference client for grounded
+question-answering over **one selected collection**. Every answer is produced
+exclusively from retrieved chunks of that collection, cites them inline, and
+can display original entities (tables, code, later images). It exercises the
+same application-facing Ask runtime that external websites, bots, and custom
+applications will call; it is not the boundary those integrations depend on.
 
 **What it is not:**
 

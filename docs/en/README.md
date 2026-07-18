@@ -17,3 +17,10 @@ Other languages: [Українська](../ua/README.md)
 | [roadmap.md](roadmap.md) | Product direction, near-term priorities, and non-goals |
 | [project-structure.md](project-structure.md) | Source tree, runtime entry points, generated files |
 | [operations.md](operations.md) | Usage examples, limitations, troubleshooting |
+
+Product and architecture designs:
+
+| Document | Purpose |
+|----------|---------|
+| [Ask application runtime](../design/ask-application-runtime.md) | Public Ask boundary, demo scope, website/bot integrations, provider separation, and evaluation gates |
+| [Ask dashboard reference client](../design/ask-chat.md) | Admin Ask UI behavior built on the application runtime |

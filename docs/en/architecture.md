@@ -1,11 +1,18 @@
 # Architecture
 
-semidex has two runtime entry points:
+semidex has three runtime surfaces:
 
 - **Indexer** - writes documents into Qdrant.
-- **MCP server** - reads indexed knowledge for AI agents.
+- **MCP server** - exposes retrieval tools to external AI agents, which decide
+  how and when to search.
+- **Admin/application server** - operates collections and hosts the current
+  partial Ask HTTP/SSE runtime for grounded answers.
 
-Both share the same core provider, config, chunking, and Qdrant helpers.
+They share the same provider, configuration, retrieval, and Qdrant core. The
+dashboard is a reference client for Ask, not the integration boundary for
+websites, bots, or other applications. The target public contract and staged
+integration scope are defined in
+[Ask application runtime](../design/ask-application-runtime.md).
 
 ## Pipeline
 
@@ -21,12 +28,19 @@ Documents (md, pdf, docx, epub, txt, ...)
   Qdrant collection
   (dense, sparse, text, section, tags, context, source_file)
        |
-       v
-  MCP tools
+       +--> MCP tools --> external AI agent controls retrieval
        |
-       v
-  AI agent retrieves precise context
+       +--> Ask runtime --> generation provider --> grounded answer + citations
+                              |
+                              +--> dashboard reference client
+                              +--> future website, bot, and application clients
 ```
+
+The MCP path is the shipped agent-tooling surface. The Ask path already has a
+partial local implementation (`POST /api/ask`, SSE streaming, grounded prompt
+assembly, citations, and refusal behavior), but it is not yet a stable public
+integration API. Cloud generation adapters, public authentication, abuse
+controls, SDKs, and packaged website/Telegram integrations remain planned.
 
 With `SKELETON_CHUNKING=1` (opt-in), Markdown files are parsed through an AST
 instead: tables, code blocks, and checklists become typed structural chunks,
