@@ -19,26 +19,51 @@ import { redactUrl } from '../doctor-checks.js';
 
 // Generation settings (ASK_MODEL/OLLAMA_URL/ASK_NUM_CTX/GENERATION_DEVICE)
 // are tagged `next_restart` in core/settings/definitions.js — when a
-// SettingsService is supplied, it becomes the sole resolver for these 4
+// SettingsService is supplied, it becomes the sole resolver for these
 // fields (it already implements the identical os_env > dotenv >
 // config_json > default chain, plus the next_restart freezing this runtime
 // itself needs), so config.js's pure algorithm is not duplicated or
 // forked. Falls back to config.js's own os_env > dotenv > default
 // resolution when no settingsService is supplied (existing behavior,
 // unchanged for any caller that doesn't pass one).
+//
+// geminiApiKey is DELIBERATELY ABSENT from this map — GEMINI_API_KEY must
+// never be persisted to settings.json (task requirement), so it is never
+// eligible for the config_json tier here. It only ever resolves through
+// config.js's own os_env > dotenv > default chain, straight from
+// resolveGenerationRuntimeConfig() below, regardless of whether a
+// settingsService is supplied.
 const GENERATION_SETTINGS_KEYS = Object.freeze({
   backend: 'SEMIDEX_GENERATION_BACKEND', model: 'ASK_MODEL', baseUrl: 'OLLAMA_URL',
   numCtx: 'ASK_NUM_CTX', devicePolicy: 'GENERATION_DEVICE',
 });
+
+// Builds the options object passed to the registry's per-backend factory —
+// each backend receives ONLY the fields its own provider constructor
+// actually reads (ollama-provider.js never sees apiKey; gemini-provider.js
+// never sees baseUrl), so neither provider can accidentally branch on or
+// be confused by the other backend's fields.
+function buildProviderOptions(config) {
+  if (config.backend.value === 'gemini') {
+    return { apiKey: config.geminiApiKey.value, model: config.model.value, askNumCtx: config.numCtx.value };
+  }
+  return { model: config.model.value, baseUrl: config.baseUrl.value, askNumCtx: config.numCtx.value };
+}
 
 function applySettingsServiceTier(config, settingsService) {
   if (!settingsService) return config;
   const merged = { ...config };
   for (const [field, key] of Object.entries(GENERATION_SETTINGS_KEYS)) {
     const entry = settingsService.get(key);
-    if (entry && entry.source === 'config_json') {
-      merged[field] = { value: entry.activeValue, source: 'config_json' };
-    }
+    if (!entry) continue;
+    // SettingsService owns the complete precedence chain and next-restart
+    // snapshot. Taking only config_json values loses derived defaults, such
+    // as ASK_MODEL=gemini-2.5-flash when the backend itself came from
+    // settings.json.
+    merged[field] = {
+      value: entry.activeValue,
+      source: entry.activeSource ?? entry.source,
+    };
   }
   return merged;
 }
@@ -74,7 +99,7 @@ export function createGenerationRuntime({
     );
     provider = createGenerationProviderFn({
       backend: config.backend.value,
-      options: { model: config.model.value, baseUrl: config.baseUrl.value, askNumCtx: config.numCtx.value },
+      options: buildProviderOptions(config),
     });
   } catch (err) {
     // A GenerationConfigError (invalid user input) and an unknown-backend
@@ -95,7 +120,7 @@ export function createGenerationRuntime({
   return {
     name: () => provider?.name() ?? backendName ?? 'unknown',
 
-    capabilities: () => provider?.capabilities() ?? { streaming: false, cancellation: false },
+    capabilities: () => provider?.capabilities() ?? { streaming: false, clientAbort: false, upstreamCancellation: false },
 
     async ready() {
       if (configError) return { ok: false, reason: configError.message };
@@ -137,6 +162,9 @@ export function createGenerationRuntime({
      * resolved field (backend/model/numCtx/devicePolicy) is URL- or
      * secret-shaped, so baseUrl is the only one that needs this treatment;
      * this also avoids ever echoing a full env object or unrelated fields.
+     * geminiApiKey.configured is a boolean derived from whether the
+     * resolved value is non-empty — the key's actual value never appears
+     * anywhere in this return object.
      */
     async getStatus() {
       if (configError) {
@@ -146,7 +174,7 @@ export function createGenerationRuntime({
           ready: false,
           reason: configError.message,
           numCtx: null,
-          capabilities: { streaming: false, cancellation: false },
+          capabilities: { streaming: false, clientAbort: false, upstreamCancellation: false },
           devicePolicy: { value: null, supported: [...SUPPORTED_DEVICE_POLICIES] },
           configuration: null,
         };
@@ -164,9 +192,22 @@ export function createGenerationRuntime({
         configuration: {
           backend: { source: config.backend.source },
           model: { source: config.model.source },
-          baseUrl: { source: config.baseUrl.source, display: redactUrl(config.baseUrl.value) },
+          // baseUrl/devicePolicy are Ollama-only concepts (a cloud API has
+          // no local URL to reach and no local accelerator to pick) — only
+          // included when that's the active backend, per the task's "show
+          // Ollama URL only for Ollama" / "hide local generation device
+          // controls for Gemini" requirements. geminiApiKey is the mirror
+          // image: only included for the gemini backend, and NEVER carries
+          // the actual key value — only { configured: boolean, source }.
+          ...(config.backend.value === 'ollama'
+            ? {
+                baseUrl: { source: config.baseUrl.source, display: redactUrl(config.baseUrl.value) },
+                devicePolicy: { source: config.devicePolicy.source },
+              }
+            : {
+                geminiApiKey: { configured: config.geminiApiKey.value !== '', source: config.geminiApiKey.source },
+              }),
           numCtx: { source: config.numCtx.source },
-          devicePolicy: { source: config.devicePolicy.source },
         },
       };
     },

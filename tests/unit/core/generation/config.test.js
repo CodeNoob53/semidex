@@ -217,3 +217,74 @@ describe('resolveGenerationRuntimeConfig — purity', () => {
     assert.deepEqual(dotenvValues, dotenvCopy);
   });
 });
+
+describe('resolveGenerationRuntimeConfig — gemini backend (Stage B1)', () => {
+  test('accepts SEMIDEX_GENERATION_BACKEND=gemini', () => {
+    const result = resolveGenerationRuntimeConfig({ osEnv: { SEMIDEX_GENERATION_BACKEND: 'gemini' }, dotenvValues: {} });
+    assert.equal(result.backend.value, 'gemini');
+  });
+
+  test('resolves GEMINI_API_KEY with OS env > .env > default precedence, like every other field', () => {
+    const fromOsEnv = resolveGenerationRuntimeConfig({
+      osEnv: { GEMINI_API_KEY: 'os-key' }, dotenvValues: { GEMINI_API_KEY: 'dotenv-key' },
+    });
+    assert.deepEqual(fromOsEnv.geminiApiKey, { value: 'os-key', source: SOURCES.OS_ENV });
+
+    const fromDotenv = resolveGenerationRuntimeConfig({ osEnv: {}, dotenvValues: { GEMINI_API_KEY: 'dotenv-key' } });
+    assert.deepEqual(fromDotenv.geminiApiKey, { value: 'dotenv-key', source: SOURCES.DOTENV });
+
+    const fromDefault = resolveGenerationRuntimeConfig({ osEnv: {}, dotenvValues: {} });
+    assert.deepEqual(fromDefault.geminiApiKey, { value: '', source: SOURCES.DEFAULT });
+  });
+
+  test('switching to gemini with no ASK_MODEL set uses the gemini default model, never the ollama default', () => {
+    const result = resolveGenerationRuntimeConfig({ osEnv: { SEMIDEX_GENERATION_BACKEND: 'gemini' }, dotenvValues: {} });
+    assert.notEqual(result.model.value, DEFAULTS.model, 'must not silently reuse the flat/ollama default model');
+    assert.match(result.model.value, /^gemini-/);
+    assert.equal(result.model.source, SOURCES.DEFAULT);
+  });
+
+  test('switching to gemini never picks up CONTEXT_MODEL — an Ollama model name must not silently pass as a Gemini model', () => {
+    const result = resolveGenerationRuntimeConfig({
+      osEnv: { SEMIDEX_GENERATION_BACKEND: 'gemini', CONTEXT_MODEL: 'gemma3:4b' },
+      dotenvValues: {},
+    });
+    assert.notEqual(result.model.value, 'gemma3:4b');
+    assert.equal(result.model.source, SOURCES.DEFAULT);
+  });
+
+  test('an explicit ASK_MODEL is always honored for gemini, same as for ollama', () => {
+    const result = resolveGenerationRuntimeConfig({
+      osEnv: { SEMIDEX_GENERATION_BACKEND: 'gemini', ASK_MODEL: 'gemini-1.5-pro' },
+      dotenvValues: {},
+    });
+    assert.deepEqual(result.model, { value: 'gemini-1.5-pro', source: SOURCES.OS_ENV });
+  });
+
+  test('switching back to ollama (explicit) still honors CONTEXT_MODEL as before — no regression from adding the gemini branch', () => {
+    const result = resolveGenerationRuntimeConfig({
+      osEnv: { SEMIDEX_GENERATION_BACKEND: 'ollama', CONTEXT_MODEL: 'llama3.2:3b' },
+      dotenvValues: {},
+    });
+    assert.equal(result.model.value, 'llama3.2:3b');
+  });
+
+  test('GENERATION_DEVICE is not validated for the gemini backend (no local-inference concept applies)', () => {
+    // Must not throw, unlike the same value under ollama.
+    const result = resolveGenerationRuntimeConfig({
+      osEnv: { SEMIDEX_GENERATION_BACKEND: 'gemini', GENERATION_DEVICE: 'cuda' },
+      dotenvValues: {},
+    });
+    assert.equal(result.devicePolicy.value, 'cuda');
+  });
+
+  test('GENERATION_DEVICE is still validated for the ollama backend (regression guard)', () => {
+    assert.throws(
+      () => resolveGenerationRuntimeConfig({
+        osEnv: { SEMIDEX_GENERATION_BACKEND: 'ollama', GENERATION_DEVICE: 'cuda' },
+        dotenvValues: {},
+      }),
+      GenerationConfigError
+    );
+  });
+});

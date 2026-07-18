@@ -12,9 +12,11 @@
 // future cloud provider's registration free of assumptions about which env
 // vars exist or what they're named.
 import { createOllamaProvider } from './ollama-provider.js';
+import { createGeminiProvider } from './gemini-provider.js';
 
 const BACKENDS = {
   ollama: createOllamaProvider,
+  gemini: createGeminiProvider,
 };
 
 /**

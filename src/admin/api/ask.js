@@ -17,15 +17,18 @@ import { startSse, writeSseEvent, waitForDrain } from '../sse.js';
 import { sanitiseErrorMessage } from '../../core/doctor-checks.js';
 
 // Provider readiness reasons and mid-stream generation-failure messages
-// originate from src/core/ollama.js / ollama-provider.js and can embed a
-// raw Ollama base URL or request/response body text (e.g. "Ollama is not
-// reachable at http://host:port", or a raw fetch error body) — the
-// router's own catch-all only redacts uncaught exceptions, NOT a
-// deliberately-thrown HttpError or an SSE `error` event payload, so both
-// paths below must redact explicitly before the message leaves this
-// process (code review finding).
+// originate from src/core/ollama.js / ollama-provider.js (or, for the
+// gemini backend, gemini-provider.js) and can embed a raw Ollama base URL
+// or request/response body text (e.g. "Ollama is not reachable at
+// http://host:port", or a raw fetch error body) — the router's own
+// catch-all only redacts uncaught exceptions, NOT a deliberately-thrown
+// HttpError or an SSE `error` event payload, so both paths below must
+// redact explicitly before the message leaves this process (code review
+// finding). gemini-provider.js already redacts GEMINI_API_KEY out of any
+// message it produces — this is a second, defense-in-depth layer at the
+// route boundary, matching how QDRANT_KEY is handled here.
 function safeMessage(message) {
-  return sanitiseErrorMessage(message ?? '', process.env.QDRANT_KEY);
+  return sanitiseErrorMessage(sanitiseErrorMessage(message ?? '', process.env.QDRANT_KEY), process.env.GEMINI_API_KEY);
 }
 
 // Maps a pre-stream retrieval failure (from core/retrieval/search.js, as

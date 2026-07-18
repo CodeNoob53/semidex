@@ -60,7 +60,11 @@ export function createOllamaProvider({
   return {
     name: () => 'ollama',
 
-    capabilities: () => ({ streaming: true, cancellation: true }),
+    // upstreamCancellation: true — generate()'s fetch() call passes the
+    // caller's signal straight to Ollama's own HTTP request (see below),
+    // so aborting it genuinely tears down that connection and Ollama
+    // itself stops generating, not just this process's own consumption.
+    capabilities: () => ({ streaming: true, clientAbort: true, upstreamCancellation: true }),
 
     async ready() {
       const reachable = await isOllamaReachableFn(baseUrl);

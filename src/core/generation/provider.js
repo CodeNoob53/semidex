@@ -5,9 +5,24 @@
 // identity.
 
 /**
+ * capabilities().cancellation was a single boolean until Stage B1 added
+ * Gemini — that flattened two genuinely different guarantees into one
+ * name. Ollama's fetch-based stream passes the AbortSignal straight to
+ * the underlying HTTP request, so aborting it genuinely tears down the
+ * connection and stops Ollama's own generation (upstreamCancellation:
+ * true). Gemini's SDK accepts the signal only as `config.abortSignal`,
+ * documented by the SDK itself as client-only — it stops this process
+ * from consuming further output, but does NOT stop Google's servers from
+ * continuing to generate or from billing for it (code review finding:
+ * reporting a flat `cancellation: true` for both backends overclaimed
+ * what Gemini can actually do). clientAbort is true for every current
+ * provider (both always stop consuming/reading on abort);
+ * upstreamCancellation is the one that varies by backend and is the field
+ * a caller must check before promising a user "cancel" actually stops
+ * the underlying model run.
  * @typedef {Object} GenerationProvider
  * @property {() => string} name
- * @property {() => { streaming: boolean, cancellation: boolean }} capabilities
+ * @property {() => { streaming: boolean, clientAbort: boolean, upstreamCancellation: boolean }} capabilities
  * @property {() => Promise<{ ok: boolean, reason?: string, model?: string, numCtx?: number }>} ready
  * @property {(opts: {
  *   prompt: string,

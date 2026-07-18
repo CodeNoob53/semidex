@@ -16,15 +16,37 @@ export const SOURCES = Object.freeze({
   DEFAULT: 'default',
 });
 
-export const SUPPORTED_BACKENDS = Object.freeze(['ollama']);
+export const SUPPORTED_BACKENDS = Object.freeze(['ollama', 'gemini']);
 export const SUPPORTED_DEVICE_POLICIES = Object.freeze(['auto']);
+
+// Per-backend default model. Switching SEMIDEX_GENERATION_BACKEND must
+// never silently reuse the other backend's model name (an Ollama model
+// name like "gemma3:4b" is not a valid Gemini model, and vice versa) — see
+// resolveGenerationRuntimeConfig()'s model resolution below, which picks
+// the default from this map keyed by the RESOLVED backend, not a single
+// flat default.
+//
+// Exported so core/settings/service.js's ASK_MODEL resolution (the
+// Settings UI/API's "configuredValue when nothing is set" case) can share
+// this EXACT map — a second, independently-maintained default (e.g. a flat
+// stringField default in definitions.js) previously let the Settings API
+// report ASK_MODEL=gemma3:4b under SEMIDEX_GENERATION_BACKEND=gemini while
+// this runtime resolved gemini-2.5-flash for the same unset state (code
+// review finding — confirmed live via createSettingsService() vs
+// createGenerationRuntime() disagreeing on the same osEnv). There must be
+// exactly one provider-aware default resolver, not two.
+export const DEFAULT_MODEL_BY_BACKEND = Object.freeze({
+  ollama: 'gemma3:4b',
+  gemini: 'gemini-2.5-flash',
+});
 
 export const DEFAULTS = Object.freeze({
   backend: 'ollama',
-  model: 'gemma3:4b',
+  model: DEFAULT_MODEL_BY_BACKEND.ollama,
   baseUrl: 'http://localhost:11434',
   numCtx: 8192,
   devicePolicy: 'auto',
+  geminiApiKey: '',
 });
 
 // Documented bound for ASK_NUM_CTX — generous enough for any locally-run
@@ -85,6 +107,7 @@ function resolveWithFallbackChain(keys, { osEnv, dotenvValues, defaultValue }) {
  *   baseUrl: { value: string, source: string },
  *   numCtx: { value: number, source: string },
  *   devicePolicy: { value: string, source: string },
+ *   geminiApiKey: { value: string, source: string },
  * }}
  * @throws {GenerationConfigError} when the caller explicitly supplied an
  *   invalid value (unknown backend, out-of-bounds/non-integer ASK_NUM_CTX,
@@ -103,9 +126,31 @@ export function resolveGenerationRuntimeConfig({ osEnv, dotenvValues, defaults =
     );
   }
 
-  const model = resolveWithFallbackChain(['ASK_MODEL', 'CONTEXT_MODEL'], { osEnv, dotenvValues, defaultValue: merged.model });
+  // CONTEXT_MODEL is a legacy Ollama-only fallback name — it must never be
+  // picked up for the Gemini backend (an Ollama model name silently passing
+  // as a Gemini model would be exactly the "silently reuse
+  // CONTEXT_MODEL=gemma3:4b" failure mode this task explicitly forbids).
+  // ASK_MODEL itself is backend-neutral and always honored regardless of
+  // backend. When neither is set, the default is looked up by the RESOLVED
+  // backend (DEFAULT_MODEL_BY_BACKEND), not a single flat default — so
+  // switching backend with no explicit ASK_MODEL set never carries the old
+  // backend's default model name forward.
+  const modelKeys = backend.value === 'ollama' ? ['ASK_MODEL', 'CONTEXT_MODEL'] : ['ASK_MODEL'];
+  // defaults.model (an explicit caller override, e.g. a test) always wins;
+  // otherwise the default is looked up by the RESOLVED backend, never the
+  // flat merged.model (which is only ever Ollama's default).
+  const modelDefault = defaults.model ?? DEFAULT_MODEL_BY_BACKEND[backend.value] ?? merged.model;
+  const model = resolveWithFallbackChain(modelKeys, { osEnv, dotenvValues, defaultValue: modelDefault });
 
   const baseUrl = resolveField('OLLAMA_URL', { osEnv, dotenvValues, defaultValue: merged.baseUrl });
+
+  // GEMINI_API_KEY is environment-only by design (task requirement: "must
+  // never be persisted to settings.json") — resolved with the same OS env >
+  // .env > default precedence as every other field here, but
+  // applySettingsServiceTier() in runtime.js deliberately excludes this key
+  // from its settings-service tier (see GENERATION_SETTINGS_KEYS there), so
+  // a config_json value can never surface even if one somehow existed.
+  const geminiApiKey = resolveField('GEMINI_API_KEY', { osEnv, dotenvValues, defaultValue: merged.geminiApiKey });
 
   const numCtxRaw = resolveField('ASK_NUM_CTX', { osEnv, dotenvValues, defaultValue: String(merged.numCtx) });
   const numCtxNum = Number(numCtxRaw.value);
@@ -125,8 +170,14 @@ export function resolveGenerationRuntimeConfig({ osEnv, dotenvValues, defaults =
   }
   const numCtx = { value: numCtxNum, source: numCtxRaw.source };
 
+  // GENERATION_DEVICE is a local-inference concept (which local accelerator
+  // Ollama should use) — it has no meaning for a cloud API like Gemini, so
+  // it is validated only for the ollama backend. Gemini's resolved
+  // devicePolicy is reported as-is (value/source still resolved normally,
+  // for provenance display) but never rejected for being "unsupported",
+  // since the concept doesn't apply rather than being misconfigured.
   const devicePolicy = resolveField('GENERATION_DEVICE', { osEnv, dotenvValues, defaultValue: merged.devicePolicy });
-  if (!SUPPORTED_DEVICE_POLICIES.includes(devicePolicy.value)) {
+  if (backend.value === 'ollama' && !SUPPORTED_DEVICE_POLICIES.includes(devicePolicy.value)) {
     throw new GenerationConfigError(
       'devicePolicy',
       `Unsupported GENERATION_DEVICE="${devicePolicy.value}". The "${backend.value}" backend currently only supports: ${SUPPORTED_DEVICE_POLICIES.join(', ')}.`,
@@ -134,5 +185,5 @@ export function resolveGenerationRuntimeConfig({ osEnv, dotenvValues, defaults =
     );
   }
 
-  return { backend, model, baseUrl, numCtx, devicePolicy };
+  return { backend, model, baseUrl, numCtx, devicePolicy, geminiApiKey };
 }

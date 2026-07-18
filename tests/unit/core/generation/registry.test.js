@@ -11,10 +11,32 @@ describe('createGenerationProvider', () => {
     assert.equal(validateGenerationProvider(provider), true);
   });
 
+  test('selects the gemini backend by name', () => {
+    const provider = createGenerationProvider({ backend: 'gemini', options: { apiKey: 'k', model: 'gemini-2.5-flash' } });
+    assert.equal(provider.name(), 'gemini');
+    assert.equal(validateGenerationProvider(provider), true);
+  });
+
+  test('code review finding: ollama and gemini report genuinely different upstreamCancellation, never a flattened shared value', () => {
+    // Ollama's fetch-based generate() abort tears down the real HTTP
+    // request to Ollama; Gemini's SDK-documented config.abortSignal is
+    // client-only (stops this process consuming, never stops Google's
+    // servers from generating/billing). A prior flat `cancellation: true`
+    // for both backends made this real capability difference invisible to
+    // any caller — clientAbort/upstreamCancellation must disagree here for
+    // exactly the two backends currently registered.
+    const ollama = createGenerationProvider({ backend: 'ollama' });
+    const gemini = createGenerationProvider({ backend: 'gemini', options: { apiKey: 'k', model: 'gemini-2.5-flash' } });
+    assert.equal(ollama.capabilities().upstreamCancellation, true);
+    assert.equal(gemini.capabilities().upstreamCancellation, false);
+    assert.equal(ollama.capabilities().clientAbort, true);
+    assert.equal(gemini.capabilities().clientAbort, true);
+  });
+
   test('throws an actionable error for an unknown backend', () => {
     assert.throws(
       () => createGenerationProvider({ backend: 'nonexistent' }),
-      /unknown backend "nonexistent".*known backends: ollama/
+      /unknown backend "nonexistent".*known backends: ollama, gemini/
     );
   });
 

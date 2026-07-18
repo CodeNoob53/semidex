@@ -5,7 +5,7 @@ import { validateGenerationProvider, REQUIRED_PROVIDER_METHODS } from '../../../
 function validProvider() {
   return {
     name: () => 'fake',
-    capabilities: () => ({ streaming: true, cancellation: true }),
+    capabilities: () => ({ streaming: true, clientAbort: true, upstreamCancellation: true }),
     ready: async () => ({ ok: true }),
     generate: async () => ({ text: 'x' }),
   };

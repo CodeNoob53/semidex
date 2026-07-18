@@ -3,7 +3,7 @@ const HEALTH_FAIL = { ok: false, storage: { backend: 'qdrant', ok: false, detail
 
 const GENERATION_READY = {
   backend: 'ollama', model: 'gemma3:4b', ready: true, reason: null, numCtx: 8192,
-  capabilities: { streaming: true, cancellation: true },
+  capabilities: { streaming: true, clientAbort: true, upstreamCancellation: true },
   devicePolicy: { value: 'auto', supported: ['auto'] },
   configuration: {
     backend: { source: 'default' }, model: { source: 'os_env' },
@@ -15,7 +15,7 @@ const GENERATION_READY = {
 const GENERATION_UNAVAILABLE = {
   backend: 'ollama', model: 'gemma3:4b', ready: false,
   reason: 'Ollama is not reachable at http://localhost:11434. Start it with "ollama serve".',
-  numCtx: null, capabilities: { streaming: true, cancellation: true },
+  numCtx: null, capabilities: { streaming: true, clientAbort: true, upstreamCancellation: true },
   devicePolicy: { value: 'auto', supported: ['auto'] },
   configuration: {
     backend: { source: 'default' }, model: { source: 'dotenv' },

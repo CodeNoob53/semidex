@@ -17,8 +17,14 @@ import { sanitiseErrorMessage } from '../../core/doctor-checks.js';
 // http://host:port") or other request/response text from the provider, and
 // this route is not behind the router's uncaught-exception catch-all (it
 // never throws), so it must redact explicitly before responding.
+//
+// gemini-provider.js already redacts GEMINI_API_KEY out of any message it
+// produces before returning it — this is a second, defense-in-depth layer
+// at the route boundary (matching how QDRANT_KEY is handled here), not the
+// only place that redaction happens.
 function safeMessage(message) {
-  return message == null ? null : sanitiseErrorMessage(message, process.env.QDRANT_KEY);
+  if (message == null) return null;
+  return sanitiseErrorMessage(sanitiseErrorMessage(message, process.env.QDRANT_KEY), process.env.GEMINI_API_KEY);
 }
 
 /**
