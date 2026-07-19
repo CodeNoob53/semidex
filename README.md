@@ -139,7 +139,12 @@ npm run admin:dev
 ### 4. Configure only the models you use
 
 The recommended local embedding backend is **BGE-M3 (ONNX)**. It does not need
-Ollama. Its model files are downloaded on first use and cached under `models/`.
+Ollama. `npm install` installs the ONNX runtime and integration code, but not
+the 2.3 GB model. semidex downloads `aapot/bge-m3-onnx` from Hugging Face when
+the first embedding operation starts, stores it under `models/`, and reuses
+that cache on later runs. An interrupted model download can be resumed. The
+first ONNX indexing job therefore needs internet access and takes longer than
+subsequent jobs.
 
 Install and start Ollama only for Ollama-backed features:
 
@@ -149,8 +154,10 @@ ollama pull gemma3:4b
 ```
 
 `gemma3:4b` is the current default for local Ask answers, indexing-time LLM
-summaries, and Ollama tag generation. Pull the Ollama `bge-m3` model only when
-using the lighter Ollama embedding fallback:
+summaries, and Ollama tag generation. The Ollama embedding backend is separate
+from the ONNX backend: semidex does not download Ollama models automatically.
+Pull Ollama's `bge-m3` manually only when using the lighter Ollama embedding
+fallback:
 
 ```bash
 ollama pull bge-m3
@@ -179,8 +186,8 @@ not require a local generation model.
 
 | Component | Current provider | Installation and behavior |
 |-----------|------------------|---------------------------|
-| Recommended embeddings | BGE-M3 via ONNX Runtime | Downloads about 2.3 GB on first use; cached in `models/`; produces multilingual dense and learned sparse vectors |
-| Lightweight embedding fallback | Ollama `bge-m3` + hashed-TF sparse | Requires a running Ollama server and `ollama pull bge-m3`; not equivalent to full BGE-M3 dense+sparse |
+| Recommended embeddings | BGE-M3 via ONNX Runtime | Not included in `npm install`; semidex downloads about 2.3 GB from Hugging Face on the first embedding operation, resumes interrupted downloads, and caches the files in `models/` |
+| Lightweight embedding fallback | Ollama `bge-m3` + hashed-TF sparse | Never downloaded by semidex; requires a running Ollama server and a manual `ollama pull bge-m3`; not equivalent to full BGE-M3 dense+sparse |
 | Local Ask generation | Ollama, default `gemma3:4b` | Requires a running Ollama server and a manually pulled model |
 | Cloud Ask generation | Gemini, default `gemini-2.5-flash` | Implemented but not yet live-accepted by the project owner; requires `GEMINI_API_KEY`; no local model download |
 | Skeleton nav summaries | Ollama, opt-in with `SKELETON_SUMMARY=llm` | Deterministic summaries remain the default; unchanged files reuse existing nav data |
