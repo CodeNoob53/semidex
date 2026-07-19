@@ -2,121 +2,230 @@
 
 ![semidex](assets/avif/banner_logo.avif)
 
-![Node.js](https://img.shields.io/badge/node-%3E%3D18-brightgreen?logo=node.js&logoColor=white)
+![Node.js](https://img.shields.io/badge/node-%3E%3D20.16-brightgreen?logo=node.js&logoColor=white)
 ![npm](https://img.shields.io/badge/version-2.0.0-blue?logo=npm&logoColor=white)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Ollama](https://img.shields.io/badge/Ollama-local%20LLM-black?logo=ollama&logoColor=white)
-![ONNX Runtime](https://img.shields.io/badge/ONNX%20Runtime-local%20embeddings-blue?logo=onnx&logoColor=white)
+![Ollama](https://img.shields.io/badge/Ollama-local%20generation-black?logo=ollama&logoColor=white)
+![ONNX Runtime](https://img.shields.io/badge/ONNX%20Runtime-BGE--M3-blue?logo=onnx&logoColor=white)
 ![Qdrant](https://img.shields.io/badge/Qdrant-vector%20DB-red?logo=qdrant&logoColor=white)
 ![MCP](https://img.shields.io/badge/MCP-compatible-purple)
 
-**Local-first knowledge retrieval and grounded-answer runtime for AI agents
-and applications.**
+**Local-first document retrieval and grounded-answer runtime for AI agents and
+applications.**
 
-semidex turns documents, notes, and specs into an indexed knowledge collection.
-External AI agents can query it through
-[MCP](https://modelcontextprotocol.io); websites, bots, internal tools, and
-custom applications will use the application-facing Ask runtime. Instead of
-pasting large files into chat, semidex retrieves the relevant structured,
-context-enriched evidence before an answer is generated.
+semidex indexes documents into Qdrant, exposes retrieval tools through
+[MCP](https://modelcontextprotocol.io), and provides an early Ask runtime for
+websites, bots, internal tools, and custom applications. Instead of sending an
+entire document library to a model, a client retrieves the relevant evidence
+and can request bounded surrounding context when necessary.
 
-The Ask runtime is the product integration path, not merely a dashboard chat.
-Its local core is partially implemented today (`POST /api/ask`, hybrid
-retrieval, bounded evidence, SSE streaming, citations, and refusal behavior).
-The stable public API, cloud-provider profile, SDK/widget, Telegram adapter,
-authentication, and multi-tenant operation remain planned.
+The local stack can use BGE-M3 through ONNX Runtime for multilingual dense and
+sparse embeddings, Ollama for local generation, and Qdrant for storage. Ask can
+also use Gemini generation. External generation is optional; document indexing
+and retrieval can run without sending source text to a cloud LLM.
 
-Everything can run on your machine: embeddings (BGE-M3 via ONNX Runtime),
-context generation (Ollama), and storage (Qdrant). Document text never has to
-leave your environment.
-
-> **Status:** semidex is a working experimental retrieval MVP, not a
-> production-ready assistant platform. Its benchmark suites are internal
-> regression tools; they compare semidex against earlier semidex behavior and
-> do not establish superiority over other RAG systems. See
-> [Project Status](#project-status) and the [roadmap](docs/en/roadmap.md).
+> **Status:** semidex is a working experimental MVP, not a production-ready
+> assistant platform. Current benchmarks are primarily internal regression
+> suites; external retrieval evaluation and direct competitor comparisons are
+> still required. The current Admin UI is an early debug/administration
+> interface under active development, not the finished user dashboard. See
+> [Project Status](#project-status) and the
+> [roadmap](docs/en/roadmap.md).
 
 ## Contents
 
 - [Why semidex](#why-semidex)
+- [Requirements](#requirements)
 - [Quick Start](#quick-start)
+- [Models and Providers](#models-and-providers)
+- [CLI and MCP](#cli-and-mcp)
 - [How It Works](#how-it-works)
-- [Embedding Modes](#embedding-modes)
-- [Core Commands](#core-commands)
 - [Optional Tags](#optional-tags)
 - [Supported Formats](#supported-formats)
 - [Platform Support](#platform-support)
 - [Documentation](#documentation)
-- [Roadmap: MVP and Beyond](#roadmap-mvp-and-beyond)
+- [Roadmap](#roadmap)
 - [Project Status](#project-status)
-- [License and Acknowledgements](#license-and-acknowledgements)
 
 ## Why semidex
 
-| Problem | How semidex addresses it |
-|---------|--------------------------|
-| Context windows are too small | Indexes large document sets; the agent retrieves only relevant chunks |
-| Agents guess when context is missing | Read-only MCP tools give on-demand access to indexed project knowledge and skeleton maps |
-| Every product team must rebuild RAG orchestration | The partial Ask runtime centralizes retrieval, evidence assembly, answer streaming, citations, and refusal behind one future public contract |
-| Semantic search misses exact terms | Sparse lexical vectors retrieve identifiers like `ONNX_EMBED`, env vars, and function names |
-| Keyword search misses meaning | Dense vectors retrieve paraphrases, related concepts, and mixed-language queries |
-| Chunks lose meaning in isolation | A local LLM summarizes each chunk's role in its document; the vector is computed from summary + text combined |
-| Source scope is unclear | Directory and file listing tools let agents narrow the search area before querying |
-| Re-indexing is expensive | SHA-256 hash checks skip unchanged files; deterministic point IDs make reindexing idempotent |
-| Provider drift breaks search | Provider metadata is stored per collection; mismatches trigger a controlled reindex |
-| Private documents must stay private | Ollama, ONNX, and Qdrant all run locally; no external API is required |
+| Problem | What semidex provides |
+|---------|-----------------------|
+| Large document collections do not fit into an agent context window | Hybrid retrieval returns a small set of relevant chunks |
+| Tables and code lose meaning when flattened into prose | Optional skeleton-first chunking stores typed structural nodes and their authoritative raw content |
+| Agents need orientation before searching an unfamiliar collection | File, directory, and skeleton navigation tools provide a drill-down map |
+| Semantic search misses exact identifiers | Dense and sparse retrieval combine meaning with lexical evidence |
+| Products repeatedly rebuild RAG orchestration | The Ask runtime is becoming a reusable retrieval, evidence, generation, citation, and refusal boundary |
+| Private data should remain local | Qdrant, ONNX embeddings, Ollama generation, and the Admin UI can all run locally |
+| Indexing should be repeatable | File hashes skip unchanged files and deterministic point IDs make updates idempotent |
+
+## Requirements
+
+- Node.js **20.16 or newer** and npm.
+- Qdrant Cloud, or a local Qdrant server.
+- Internet access on the first ONNX model download.
+- Ollama only when using Ollama embeddings, LLM summaries, Ollama tags, or
+  local Ask generation.
+- Pandoc only for `.docx`, `.odt`, `.rtf`, `.epub`, and HTML conversion.
+
+Windows 10/11 is the verified platform. Linux and macOS remain experimental and
+unverified; see [Platform Support](#platform-support).
 
 ## Quick Start
 
-### 1. Install
+### 1. Install semidex
 
-```bash
+```powershell
 npm install
-cp .env.example .env        # PowerShell: Copy-Item .env.example .env
+Copy-Item .env.example .env
 ```
 
-The example env file targets local Qdrant. For Qdrant Cloud, set `QDRANT_URL`
-and `QDRANT_KEY` from your cluster dashboard.
+POSIX shells can use `cp .env.example .env` instead. The template targets a
+local Qdrant server. For Qdrant Cloud, replace `QDRANT_URL` and `QDRANT_KEY`
+with the values from the cluster dashboard.
+
+Settings resolve in this order:
+
+```text
+OS environment > .env > settings.json > built-in default
+```
+
+The Admin UI can persist non-secret settings to `settings.json`. API keys stay
+environment-only and are never displayed or written there.
 
 ### 2. Start Qdrant
 
-Use Qdrant Cloud, or run locally:
+Use an existing Qdrant Cloud cluster, or run Qdrant locally:
 
 ```bash
 docker run -d --name qdrant -p 6333:6333 qdrant/qdrant
 ```
 
-### 3. Pull local models
-
-Context generation uses Ollama in every indexing mode:
+### 3. Build and open the Admin UI
 
 ```bash
+npm run admin:build
+npm run admin
+```
+
+Open [http://127.0.0.1:8642](http://127.0.0.1:8642). The production server
+serves the Vite build from `dist/admin-ui`; rebuild after changing UI sources.
+The interface currently exposes working administration and diagnostic flows,
+but its information architecture and user experience are still being rebuilt.
+Treat it as an early debug/admin surface rather than a finished product UI.
+
+Use **Create a collection** to:
+
+1. Select a source folder with the folder picker.
+2. Enter a collection name.
+3. Select the embedding backend.
+4. Enable skeleton-first chunking for Markdown collections when structural
+   navigation and typed table/code/checklist nodes are needed.
+5. Optionally enable LLM summaries or tags.
+
+The indexer creates the Qdrant collection automatically. Re-running a job skips
+unchanged files and replaces only changed file points.
+
+For UI development, run the API and Vite as two processes:
+
+```bash
+# terminal 1
+npm run admin
+
+# terminal 2
+npm run admin:dev
+```
+
+### 4. Configure only the models you use
+
+The recommended local embedding backend is **BGE-M3 (ONNX)**. It does not need
+Ollama. Its model files are downloaded on first use and cached under `models/`.
+
+Install and start Ollama only for Ollama-backed features:
+
+```bash
+ollama serve
 ollama pull gemma3:4b
 ```
 
-For the recommended multilingual embedding path (`ONNX_EMBED=1`), the BGE-M3
-ONNX model (~2.3 GB) downloads automatically on first use. Pull `bge-m3` in
-Ollama only if you intend to use the lighter `ollama + hashed-tf` fallback:
+`gemma3:4b` is the current default for local Ask answers, indexing-time LLM
+summaries, and Ollama tag generation. Pull the Ollama `bge-m3` model only when
+using the lighter Ollama embedding fallback:
 
 ```bash
 ollama pull bge-m3
 ```
 
-### 4. Index documents
+For Gemini Ask generation, set the key in the OS environment or `.env`, then
+select Gemini and an available model under **Settings > AI providers**:
 
-```bash
-ONNX_EMBED=1 COLLECTION=my-docs npm run index ./docs/
+```dotenv
+GEMINI_API_KEY=your-key
+SEMIDEX_GENERATION_BACKEND=gemini
 ```
 
-No separate "create collection" step is needed. If `my-docs` does not exist,
-the indexer creates it with named `dense`/`sparse` vectors, the required
-payload indexes, and a matching `config.json` entry. Re-running the command
-updates changed files and skips unchanged ones.
+The model selectors discover installed Ollama models from the running Ollama
+server and available Gemini models from the configured Gemini API. semidex does
+not pull Ollama models or start Ollama automatically. The Gemini adapter and
+model discovery are implemented and covered by automated tests, but have not
+yet completed owner-run live acceptance against a real Gemini account; treat
+that backend as unverified for now.
 
-Run `npm run sync` after upgrading semidex or when adopting an existing remote
-collection. It is idempotent and safe to re-run.
+## Models and Providers
 
-### 5. Register the MCP server
+Embedding and answer generation are separate choices. Selecting Gemini for Ask
+does not change how documents are embedded, and selecting ONNX embeddings does
+not require a local generation model.
+
+| Component | Current provider | Installation and behavior |
+|-----------|------------------|---------------------------|
+| Recommended embeddings | BGE-M3 via ONNX Runtime | Downloads about 2.3 GB on first use; cached in `models/`; produces multilingual dense and learned sparse vectors |
+| Lightweight embedding fallback | Ollama `bge-m3` + hashed-TF sparse | Requires a running Ollama server and `ollama pull bge-m3`; not equivalent to full BGE-M3 dense+sparse |
+| Local Ask generation | Ollama, default `gemma3:4b` | Requires a running Ollama server and a manually pulled model |
+| Cloud Ask generation | Gemini, default `gemini-2.5-flash` | Implemented but not yet live-accepted by the project owner; requires `GEMINI_API_KEY`; no local model download |
+| Skeleton nav summaries | Ollama, opt-in with `SKELETON_SUMMARY=llm` | Deterministic summaries remain the default; unchanged files reuse existing nav data |
+| Tags | Ollama by default; optional ONNX worker | Disabled by default; generate during indexing or backfill later |
+
+Useful model rules:
+
+- The first ONNX run can be slow while model files download and initialize.
+- Do not delete `models/` unless you intentionally want to download cached
+  models again.
+- Do not mix embedding providers inside one Qdrant collection. A provider,
+  vector-size, or indexing-schema change requires reindexing.
+- LLM summaries and tags are optional. Skeleton-first Markdown indexing with
+  deterministic structural context can run with ONNX and Qdrant only.
+- Qdrant Cloud inference is planned for the Semidex Lite profile; it is not a
+  current embedding backend and must be benchmarked against local BGE-M3 before
+  becoming a recommended mode.
+
+Detailed provider and hardware settings are documented in
+[configuration.md](docs/en/configuration.md).
+
+## CLI and MCP
+
+### Index from the CLI
+
+Recommended Markdown indexing on PowerShell:
+
+```powershell
+$env:COLLECTION = 'my-docs'
+$env:ONNX_EMBED = '1'
+$env:SKELETON_CHUNKING = '1'
+npm run index -- .\docs
+```
+
+POSIX shell equivalent:
+
+```bash
+COLLECTION=my-docs ONNX_EMBED=1 SKELETON_CHUNKING=1 npm run index -- ./docs
+```
+
+Skeleton navigation points are enabled automatically for skeleton-indexed
+Markdown unless `SKELETON_NAV=0` is set. Without
+`SKELETON_CHUNKING=1`, semidex uses the legacy heading-aware chunker.
+
+### Connect an MCP client
 
 Linux / macOS:
 
@@ -126,243 +235,205 @@ claude mcp add --scope user semidex -- node /absolute/path/to/semidex/src/mcp/se
 
 Windows:
 
-```bash
+```powershell
 claude mcp add --scope user semidex -- node C:\absolute\path\to\semidex\src\mcp\server.js
 ```
 
-Reconnect MCP servers in your client and run `/mcp`. The server exposes
-read-only tools, all prefixed `qdrant_` (`qdrant_search`,
-`qdrant_collection_info`, `qdrant_get_chunk`, `qdrant_find_by_tag`,
-`qdrant_list_files`, `qdrant_list_tags`, `qdrant_list_directories`,
-`qdrant_get_skeleton`, `qdrant_get_skeleton_node`,
-`qdrant_get_skeleton_children`, `qdrant_get_node`).
+Reconnect MCP servers in the client and verify the `semidex` server. MCP tools
+are read-only: they search, navigate, and assemble bounded evidence, but do not
+index or delete documents.
 
 <table><tr>
 <td><img src="assets/avif/mcp_connected.avif" alt="MCP connected"/></td>
 <td><img src="assets/avif/mcp_status.avif" alt="MCP tools status"/></td>
 </tr></table>
 
+### Core commands
+
+| Command | Description |
+|---------|-------------|
+| `npm run admin:build` | Build the Admin UI into `dist/admin-ui` |
+| `npm run admin` | Start the local Admin API and serve the built UI on port 8642 |
+| `npm run admin:dev` | Start the Vite UI dev server; run `npm run admin` separately |
+| `COLLECTION=my-docs npm run index -- ./docs` | Index a file or folder (POSIX syntax) |
+| `PRUNE_STALE=1 COLLECTION=my-docs npm run index -- ./docs` | Remove points for files no longer under the full source root |
+| `COLLECTION=my-docs npm run backfill:tags` | Generate missing tags without rebuilding vectors |
+| `npm run mcp` | Start the MCP server over stdio |
+| `npm run sync` | Sync local collection metadata and Qdrant payload indexes |
+| `npm run doctor` | Run read-only environment diagnostics with redacted output |
+| `npm test` | Run bounded unit tests |
+| `npm run smoke` | Run the offline smoke suite |
+
+Always set `COLLECTION` for CLI indexing. Use `PRUNE_STALE=1` only when the
+target is the complete source root, never a subset.
+
 ## How It Works
 
 ```text
 Documents
-  -> heading-aware, tokenizer-aware chunking
-  -> LLM context summaries
-  -> optional tags (TAG_GEN=1 or backfill:tags)
+  -> parse and chunk
+       -> legacy: heading-aware, tokenizer-aware prose chunks
+       -> skeleton-first: typed prose/table/code/checklist nodes + nav tree
+  -> context
+       -> legacy: per-chunk Ollama context
+       -> skeleton-first: deterministic structural context by default
+  -> optional nav summaries and tags
   -> dense + sparse embeddings
-  -> Qdrant named vectors + payload metadata
-  -> Qdrant retrieval
-       -> MCP tools: an external agent controls the search workflow
-       -> Ask runtime: semidex assembles evidence and streams a grounded answer
+  -> Qdrant named vectors and payload metadata
+  -> hybrid retrieval with Qdrant RRF fusion
+       -> MCP: an external agent controls navigation and evidence retrieval
+       -> Ask: semidex retrieves evidence and streams a grounded answer
 ```
 
-At query time, semidex embeds the query with the same provider used during
-indexing, runs hybrid search in Qdrant, fuses dense and sparse results with
-RRF, optionally applies a local deterministic reranker, and returns the
-highest-ranked chunks to the AI client.
+At query time semidex uses the embedding provider recorded for the collection,
+runs dense and sparse prefetches in Qdrant, fuses their ranks with RRF, and can
+apply the optional deterministic reranker. Absolute RRF scores are not
+confidence values; rank order and source evidence matter.
 
-Each indexed chunk is a single Qdrant point:
+A skeleton retrieval point can carry fields such as:
 
 ```text
-Qdrant point
-├── id: "550e8400-..."                           ← deterministic UUID
-├── vectors:
-│   ├── dense:  [0.023, -0.14, 0.87, ...]        ← 1024 floats (context + text)
-│   └── sparse: {indices: [42, ...], values: [0.8, ...]}
-└── payload:
-    ├── text:         "super(name, salary)..."   ← raw chunk text (authoritative)
-    ├── context:      "calls the superclass..."  ← LLM summary
-    ├── section:      "4.10. Subclass constructor"
-    ├── source_file:  "docs/guide.md"
-    ├── tags:         []                          ← optional metadata
-    ├── links:        ["other_file.md"]
-    ├── chunk_index:  99
-    ├── total_chunks: 285
-    ├── file_hash:    "abc123..."
-    └── dense_provider / dense_model / sparse_provider / schema versions ...
+id                         deterministic UUID
+vectors.dense              1024-dimensional BGE-M3 vector
+vectors.sparse             token indices and learned sparse weights
+payload.text               searchable chunk text
+payload.raw_content        authoritative original table/code/checklist content
+payload.context            deterministic or generated retrieval context
+payload.node_type          paragraph, table, code_block, checklist, ...
+payload.node_id/parent_id   structural identity and relationship
+payload.heading_path       complete heading ancestry
+payload.source_file        stable source path
+payload.chunk_index        position among retrieval chunks in the file
+payload.provider/schema    compatibility metadata
 ```
 
-Vectors drive search and ranking; the payload is what the agent receives. The
-dense vector is computed from `context + text` combined, so even a terse code
-snippet like `super(name, salary)` is findable by a natural-language query —
-its generated context ("calls the superclass constructor") is baked into the
-vector.
+Navigation summaries are a project map, not final factual evidence. Agents
+should verify claims with retrieval chunks or bounded assembled content.
 
-Details: [docs/en/architecture.md](docs/en/architecture.md) and
-[docs/en/retrieval.md](docs/en/retrieval.md).
-
-## Embedding Modes
-
-| Mode | Config | Best for |
-|------|--------|----------|
-| Quality / multilingual (recommended) | `ONNX_EMBED=1` | Ukrainian, mixed-language, and exact technical terms; the strongest evaluated mode |
-| Default / light | `DENSE_PROVIDER=ollama`, `SPARSE_PROVIDER=hashed-tf` | Fast setup, low memory, Ollama-based embeddings |
-| Rerank | `RERANK_ENABLED=1` | Experimental opt-in for larger or ambiguous corpora; benchmark before adopting |
-
-Providers must not be mixed within a collection. Invalid combinations (for
-example `ollama` dense with `bge-m3-onnx` sparse) are rejected at runtime, and
-changing the provider of an existing collection triggers a controlled reindex.
-
-## Core Commands
-
-| Command | Description |
-|---------|-------------|
-| `COLLECTION=my-docs npm run index ./docs` | Index a file or folder |
-| `PRUNE_STALE=1 COLLECTION=my-docs npm run index ./docs` | Index and remove points for files no longer on disk |
-| `COLLECTION=my-docs npm run backfill:tags` | Generate missing tags for an indexed collection |
-| `FORCE_TAGS=1 COLLECTION=my-docs npm run backfill:tags` | Regenerate all tags without reindexing vectors |
-| `npm run mcp` | Start the MCP server (stdio) |
-| `npm run sync` | Sync `config.json` and Qdrant payload indexes |
-| `npm run doctor` | Read-only environment health check with redacted output |
-| `npm run smoke` | Offline smoke tests — run in CI on every push/PR |
-| `npm run smoke:retrieval-live` | Live retrieval smoke suite (requires Qdrant; not in CI) |
-| `npm run bench:retrieval` | 21-query regression benchmark (file-level) |
-| `npm run bench:custom50` | 50-query quality benchmark (chunk-level, graded) |
-| `npm run bench:retrieval:compare` | Compare default provider vs ONNX |
-
-`PRUNE_STALE=1` compares files on disk against all `source_file` values stored
-in Qdrant and deletes points whose source file is gone. Run it only against
-the full directory root used for indexing; subset targets are rejected with a
-warning when `SOURCE_ROOT` is set.
+Details: [architecture.md](docs/en/architecture.md),
+[retrieval.md](docs/en/retrieval.md), and
+[chunking-quality.md](docs/en/chunking-quality.md).
 
 ## Optional Tags
 
-Tags are disabled by default and are payload-only metadata: they do not affect
-hybrid search quality, because vectors are built from `context + text`. Enable
-them only for tag-driven workflows — `qdrant_list_tags`, `qdrant_find_by_tag`,
-tag-filtered `qdrant_search`, or manual collection auditing.
+Tags are disabled by default and remain payload metadata; they do not improve
+the embedding vectors themselves. Enable them for tag browsing, tag filters,
+or collection auditing.
 
-```bash
-# during indexing
-TAG_GEN=1 ONNX_EMBED=1 COLLECTION=my-docs npm run index ./docs
+PowerShell:
 
-# or later, without reindexing vectors
-COLLECTION=my-docs npm run backfill:tags
+```powershell
+$env:COLLECTION = 'my-docs'
+$env:TAG_GEN = '1'
+npm run index -- .\docs
+
+# or backfill an existing collection later
+$env:COLLECTION = 'my-docs'
+npm run backfill:tags
 ```
 
-Tag generation uses `CONTEXT_MODEL` by default; set `TAG_MODEL` only when you
-deliberately want a separate tagging model.
+When `TAG_MODEL` is unset, Ollama tag generation uses `CONTEXT_MODEL`. The
+optional ONNX tag worker has separate model and resource requirements; see
+[configuration.md](docs/en/configuration.md#tag_provider).
 
 ## Supported Formats
 
-Markdown is the primary input format and provides the best structural
-fidelity. Other formats are converted to text or Markdown first, so the
-resulting structure depends on the source document and the third-party parser.
+Markdown is the primary format and provides the best structural fidelity.
+Other formats are converted to text or Markdown, so output quality depends on
+the source document and the third-party parser.
 
 | Format | Method | Support level |
 |--------|--------|---------------|
-| `.md` | Native parser: headings, frontmatter, wikilinks | Primary |
-| `.txt` | Native parser | Plain text; no heading structure |
-| `.pdf` | `@opendocsg/pdf2md` → Markdown | Partial; depends on the PDF text layer |
-| `.docx`, `.odt`, `.rtf`, `.epub`, `.html`, `.htm` | `pandoc` → Markdown | Partial; depends on pandoc conversion |
+| `.md` | Native Markdown parser and AST-based skeleton parser | Primary |
+| `.txt` | Native text parser | Plain text; no Markdown structure |
+| `.pdf` | `@opendocsg/pdf2md` to Markdown | Partial; depends on the PDF text layer |
+| `.docx`, `.odt`, `.rtf`, `.epub`, `.html`, `.htm` | Pandoc to Markdown | Partial; depends on conversion quality |
 
-Pandoc is required only for the formats in the last row.
+OCR and image understanding are planned, not implemented. Pandoc is required
+only for the formats in the final row.
 
 ## Platform Support
 
-**Windows 10/11** is the verified end-to-end target: Node.js with ONNX Runtime
-on CPU or DirectML (`ONNX_EXECUTION_PROVIDER=dml`), and Ollama on the
-available GPU backend.
+**Windows 10/11** is the verified end-to-end target. ONNX embeddings support
+CPU and DirectML configuration; Ollama independently selects its available
+local hardware backend.
 
-Linux and macOS are **experimental and unverified**. The Node.js entry points
-and CPU path are intended to remain portable, but semidex does not claim
-end-to-end support until those platforms are tested on physical hardware. See
-[docs/en/configuration.md](docs/en/configuration.md#platform-support) for the
-detailed matrix.
+Linux and macOS are **experimental and unverified**. The Node.js and CPU paths
+are intended to be portable, but semidex does not claim end-to-end support on
+hardware that has not been tested. See the detailed matrix in
+[configuration.md](docs/en/configuration.md#platform-support).
 
 ## Documentation
-
-The README is intentionally short. Detailed documentation lives in `docs/`,
-grouped by language.
 
 | Language | Entry point |
 |----------|-------------|
 | English | [docs/en/README.md](docs/en/README.md) |
-| Українська | [docs/ua/README.md](docs/ua/README.md) |
-
-English deep dives:
+| Ukrainian | [docs/ua/README.md](docs/ua/README.md) |
 
 | Document | Covers |
 |----------|--------|
-| [architecture.md](docs/en/architecture.md) | Indexer pipeline, local models, Qdrant storage, source of truth |
-| [retrieval.md](docs/en/retrieval.md) | Dense + sparse vectors, RRF, providers, reranking |
+| [architecture.md](docs/en/architecture.md) | Indexing pipeline, local models, storage, source of truth |
+| [retrieval.md](docs/en/retrieval.md) | Dense and sparse vectors, RRF, providers, reranking |
 | [mcp-tools.md](docs/en/mcp-tools.md) | MCP tool reference and agent workflow |
-| [configuration.md](docs/en/configuration.md) | Environment variables, provider modes, formats, Qdrant indexes |
-| [chunking-quality.md](docs/en/chunking-quality.md) | Chunking guarantees, failure modes, quality metrics |
-| [benchmarking.md](docs/en/benchmarking.md) | Smoke tests, retrieval benchmarks, regression workflow |
-| [roadmap.md](docs/en/roadmap.md) | MVP scope, future tracks, and explicit non-goals |
-| [project-structure.md](docs/en/project-structure.md) | Source tree, runtime entry points, generated files |
-| [operations.md](docs/en/operations.md) | Usage examples, limitations, troubleshooting |
-| [ask-application-runtime.md](docs/design/ask-application-runtime.md) | Ask product boundary, public demo, website/bot integrations, and evaluation gates |
+| [configuration.md](docs/en/configuration.md) | Settings precedence, providers, models, formats, Qdrant indexes |
+| [chunking-quality.md](docs/en/chunking-quality.md) | Chunking guarantees, structural carryover, failure modes |
+| [benchmarking.md](docs/en/benchmarking.md) | Regression benchmarks and validation workflow |
+| [roadmap.md](docs/en/roadmap.md) | MVP sequence, future tracks, and non-goals |
+| [operations.md](docs/en/operations.md) | Usage, limitations, and troubleshooting |
+| [ask-application-runtime.md](docs/design/ask-application-runtime.md) | Ask runtime, demo boundary, and application integrations |
 
-## Roadmap: MVP and Beyond
+## Roadmap
 
-The roadmap separates a focused MVP from clearly labeled future work.
+Near-term work focuses on:
 
-**MVP** = the shipped retrieval baseline plus one structural upgrade:
-**skeleton-first chunking** — parsing Markdown through an AST so that tables,
-code blocks, and lists become typed, intact structural nodes instead of prose
-fragments. It is implemented behind the `SKELETON_CHUNKING=1` feature flag
-(with skeleton navigation and deterministic structural carryover) and is being
-benchmarked against the legacy chunker before any default changes.
+1. Hardening the Admin UI and Ask demo workflow.
+2. Validating local BGE-M3 and future Qdrant Cloud inference on external
+   retrieval datasets such as BEIR, MIRACL (including Ukrainian), and MLDR.
+3. Completing the provider abstraction beyond Ollama and Gemini.
+4. Promoting skeleton-first chunking only after benchmark and migration gates.
+5. Adding OCR plus image understanding for image-bearing documents.
 
-**Next**, the project must validate retrieval on external datasets (including
-multilingual and long-document evaluation) and turn the partially shipped Ask
-backend into a stable application-facing contract. The first demo profile is
-planned as a small CPU application server with Qdrant Cloud
-storage/inference and Gemini generation. Later clients can include a web
-widget, JavaScript/TypeScript SDK, Telegram adapter, and custom applications.
-Codebase Memory, OCR/vision, and opt-in Agent Memory remain separate product
-tracks. Retrieval experiments such as MMR or ColBERT stay trigger-gated.
-
-See [docs/en/roadmap.md](docs/en/roadmap.md) for the full breakdown, exit
-gates, and non-goals.
+Future product tracks include Semidex Lite, Codebase Memory, Agent Memory,
+website/bot integration kits, and broader storage backends. See
+[roadmap.md](docs/en/roadmap.md) for scope and exit gates.
 
 ## Project Status
 
-**Positioning, honestly:** semidex is not a unique category of software.
-Local RAG indexers, Qdrant-backed MCP servers, and agentic retrieval
-frameworks all exist. What semidex offers is a particular combination —
-fully local pipeline, MCP-native read-only tools, skeleton navigation over
-document structure, and benchmark-gated defaults — with some individual
-decisions (deterministic structural carryover, nav/retrieval point
-separation) that are uncommon but not exclusive. No claim of superiority
-over other RAG systems is made or currently supported by evidence.
-
 Implemented:
 
-- Local-first indexing pipeline with staged, failure-safe commits
-- Heading-aware, tokenizer-aware chunking with section-boundary preservation
-- Skeleton-first structural-node chunking behind `SKELETON_CHUNKING=1` (tables,
-  code blocks, checklists as typed nodes with deterministic carryover context)
-- Skeleton navigation layer: hierarchical nav nodes and summaries plus the
-  `qdrant_get_skeleton*` / `qdrant_get_node` MCP tools
-- Real BGE-M3 token counting by default (`TOKEN_COUNT=heuristic` opt-out)
-- LLM context summaries; optional payload tags
-- Dense + sparse hybrid retrieval with Qdrant RRF fusion
-- BGE-M3 ONNX multilingual provider; Ollama + hashed-TF fallback
-- Read-only MCP tools for retrieval and skeleton navigation
-- Partial grounded Ask backend: `POST /api/ask`, hybrid retrieval, bounded
-  evidence assembly, Ollama generation, SSE streaming, citations, and refusal
-- SHA-256 skip for unchanged files; deterministic point IDs
-- Opt-in stale-file cleanup (`PRUNE_STALE=1` against the full source root)
-- Optional deterministic reranker (default off)
-- Environment doctor, offline smoke tests (CI), retrieval regression suites
+- Local-first indexer, Qdrant storage adapter, early debug/admin UI, and
+  read-only MCP server
+- Legacy and opt-in skeleton-first Markdown chunking
+- Typed table, code, and checklist retrieval nodes with authoritative raw data
+- BGE-M3 ONNX dense+sparse embeddings and Ollama+hashed-TF fallback
+- Hybrid Qdrant retrieval with RRF fusion and an optional reranker
+- Skeleton navigation and bounded section/file evidence assembly
+- Optional Ollama nav summaries and payload tags
+- Provider-aware settings and model discovery
+- Partial Ask runtime with retrieval, bounded evidence, SSE streaming,
+  citations, and refusal behavior
+- Ollama Ask generation and a Gemini adapter that is implemented and
+  automatically tested but still awaiting owner-run live acceptance
+- Hash-based incremental indexing, deterministic IDs, and stale-file pruning
+- Offline unit/smoke tests and internal retrieval regression suites
 
-Not implemented yet:
+Not implemented or not yet validated:
 
-- Skeleton-first chunking as the default mode (still opt-in, pending the
-  benchmark gate — see roadmap)
-- Stable public Ask API and integration kit (cloud generation adapters,
-  JavaScript/TypeScript client, website widget, Telegram adapter, auth,
-  sessions, and multi-tenant controls)
-- Qdrant Cloud inference profile for semidex Lite and its direct benchmark
-  against local BGE-M3 dense+sparse retrieval
-- External dataset evaluation and direct workflow comparisons (BEIR, MIRACL
-  including Ukrainian, and MLDR are planned retrieval gates)
-- ColBERT / late-interaction runtime integration
-- True BM25/SPLADE fallback for Node-only sparse retrieval
-- Git-aware codebase sync and same-hash rename/move fast path
+- Production-stable public Ask API, SDK/widget, Telegram adapter, auth,
+  sessions, and multi-tenant controls
+- Finished user-facing dashboard UX; the current Admin UI remains an early
+  debug and administration surface
+- Qdrant Cloud inference as a Semidex Lite embedding backend
+- External dataset evaluation and direct workflow comparisons
+- Skeleton-first chunking as the default for all suitable collections
+- OCR, image description, and image-to-entity retrieval
+- Full storage portability beyond the current Qdrant-first implementation
+- Git-aware Codebase Memory sync and long-lived structural identity across
+  source edits
+
+semidex does not currently claim superiority over other RAG systems. Its value
+must be demonstrated through external benchmarks and real application demos,
+not inferred from internal regression results.
 
 ## License and Acknowledgements
 
@@ -370,7 +441,7 @@ Licensed under the [MIT License](LICENSE).
 
 Built with AI assistance throughout development:
 
-- **[Claude](https://claude.ai) (Anthropic)** — code generation, documentation
-- **[OpenAI Codex](https://openai.com/blog/openai-codex)** — code review
+- [Claude](https://claude.ai) (Anthropic): code generation and documentation
+- [OpenAI Codex](https://openai.com/codex/): code review and engineering support
 
-Pipeline design, core mechanics, concept, and testing — by the author.
+Pipeline design, product direction, core mechanics, and testing by the author.
