@@ -244,6 +244,61 @@ Qdrant направляє користувача до вкладки **Inference
 
 Це конфігураційний registry, а не hardcoded UI/source branching.
 
+## Live Cloud Console catalog snapshot
+
+> Перевірено вручну 2026-07-21 на Qdrant Cloud cluster 1.17.1. Це snapshot
+> доступного UI-каталогу, а не стабільний публічний Data API contract. Account,
+> endpoint і credentials навмисно не фіксуються.
+
+### Qdrant-hosted models
+
+| Display name | Model ID | Type | Dimensions | Context | Cost / availability |
+|---|---|---|---:|---:|---|
+| All MiniLM L6 v2 | `sentence-transformers/all-minilm-l6-v2` | dense text | 384 | 256 | Free |
+| Intfloat Multilingual E5 Small | `intfloat/multilingual-e5-small` | dense text | 384 | 512 | Free |
+| BM25 | `qdrant/bm25` | sparse text | n/a | n/a | Free |
+| Answer.AI ColBERT Small V1 | `answerdotai/answerai-colbert-small-v1` | multi-vector text | 96 | 300 | Free |
+| SPLADE PP EN v1 | Console: `prithivida/splade-pp-en-v1` | sparse text | not shown | not shown | Dedicated cluster required |
+
+Console також показує `qdrant/clip-vit-b-32-text`,
+`qdrant/clip-vit-b-32-vision` та Embed Large v1, але доступ до Qdrant-hosted
+paid models заблокований для free cluster. Їхні повні dimensions/model contract
+не треба додавати до активного Semidex catalog без окремої перевірки.
+
+Публічна Qdrant documentation використовує SPLADE ID
+`prithivida/splade_pp_en_v1`, тоді як цей Console snapshot показує
+`prithivida/splade-pp-en-v1`. Semidex не повинен мовчки нормалізувати або
+вгадувати такі ID. Versioned catalog має зберігати exact ID, а setup flow —
+перевіряти його реальним inference request.
+
+### External providers exposed through Qdrant
+
+| Provider selector | Example concrete model | Billing |
+|---|---|---|
+| `cohere/*` | `cohere/cohere-embed-v4.0` | Provider rate |
+| `jinaai/*` | `jinaai/jina-embeddings-v4` | Provider rate |
+| `openai/*` | `openai/text-embedding-3-small` | Provider rate |
+| `openrouter/*` | `openrouter/thenlper/gte-base` | Provider rate |
+
+Ці wildcard entries не є повним каталогом конкретних моделей. Dimensions,
+context limits та model availability залежать від external provider. Тому UI
+має розділяти:
+
+- Qdrant-hosted versioned presets із відомими dimensions;
+- external provider + concrete model selection;
+- manual custom model fallback із обов'язковим vector-size validation.
+
+Provider API keys передаються через inference options і мають залишатися лише
+на server side. Admin UI не повинен надсилати їх назад у browser responses або
+зберігати в collection payload.
+
+Context window є частиною compatibility contract, а не декоративною metadata.
+Semidex embedding input може містити body chunk і structural carryover/context,
+тому `MAX_CHUNK_TOKENS=512` не гарантує, що весь input поміститься в E5 context
+512, і точно не поміщається в MiniLM context 256. Під час вибору hosted model
+setup flow має обчислювати model-aware input budget, попереджати про truncation
+та вимагати reindex при зміні моделі або effective chunking profile.
+
 ## Availability, billing і регіони
 
 - Free cluster підтримує free Qdrant-hosted models і external providers.
@@ -265,8 +320,10 @@ Qdrant направляє користувача до вкладки **Inference
 Documentation research не підтверджує runtime-поведінку конкретного кластера.
 Наступний ізольований spike має перевірити:
 
-1. чи ввімкнений Inference для наявного кластера;
-2. які model IDs, vector sizes, output types і ціни показує Cloud Console;
+1. чи виконується Inference request на наявному кластері (UI toggle уже
+   підтверджений як enabled);
+2. чи відповідають live responses model IDs і vector sizes зафіксованому
+   Console catalog snapshot;
 3. один dense upsert/query через `@qdrant/js-client-rest` 1.18.0;
 4. один sparse upsert/query;
 5. один hybrid query із prefetch + RRF;

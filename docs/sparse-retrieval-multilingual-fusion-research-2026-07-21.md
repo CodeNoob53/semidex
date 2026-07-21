@@ -28,10 +28,10 @@
    `language: "none"` + `tokenizer: "multilingual"`, але не заявляє окремий
    український stemmer. Отже це multilingual tokenization/lemmatization, а не
    доказ якісної української морфології. **FACT + INFERENCE**
-4. Публічно підтверджена hosted learned-sparse модель у Qdrant Cloud —
-   `prithivida/splade_pp_en_v1`. Вона English-only за назвою та model card і не
-   є основним кандидатом для українського Semidex Lite. Повний каталог моделей
-   конкретного кластера потребує live-перевірки Cloud Console. **FACT + LIVE**
+4. Публічно підтверджена hosted learned-sparse модель у Qdrant Cloud — English
+   SPLADE PP EN v1. Public docs і live Console показують різні exact model IDs;
+   на перевіреному free cluster модель вимагає dedicated cluster. Вона не є
+   основним кандидатом для українського Semidex Lite. **FACT + LIVE**
 5. Qdrant Query API підтримує RRF, configurable `k`, weighted RRF, DBSF і
    Formula Query. Semidex зараз використовує equal-weight RRF із власним
    `RRF_K=60`, а не актуальний Qdrant default `k=2`; prefetch кожної lane за
@@ -199,16 +199,18 @@ live tokenization/retrieval test: `word`, `whitespace` і `multilingual` мож�
 
 | Model ID | Тип | Мови | Input limit | Availability | Джерело |
 |---|---|---|---|---|---|
-| `prithivida/splade_pp_en_v1` | SPLADE++ learned sparse | English | потребує перевірки model card/Console | Qdrant Cloud Inference | Qdrant Full-Text Search |
+| Public docs: `prithivida/splade_pp_en_v1`; live Console: `prithivida/splade-pp-en-v1` | SPLADE++ learned sparse | English | не показано у free-tier Console | Dedicated cluster required | Qdrant docs + Console snapshot 2026-07-21 |
 | `qdrant/bm25` | classical BM25 sparse | залежить від text processing | не neural context window | Qdrant Cluster | Qdrant BM25 docs |
 
 Qdrant також документує miniCOIL як learned contextual lexical method без
 vocabulary expansion, але публічна сторінка показує client-side FastEmbed, а не
 підтверджує його наявність у Cloud-каталозі конкретного кластера.
 
-Повний hosted catalog, ціни, dimensions і limits: **Requires live Qdrant Cloud
-account verification.** Публічно підтвердженої hosted learned-sparse моделі з
-окремою заявою про українську не знайдено.
+Live Console підтвердив free-tier `qdrant/bm25`, але SPLADE потребує dedicated
+cluster. Розбіжність exact SPLADE model ID між публічною документацією та
+Console треба вважати versioned provider-contract issue, а не виправляти
+евристикою. Публічно підтвердженої hosted learned-sparse моделі з окремою заявою
+про українську не знайдено.
 
 Qdrant може зберігати named vectors, створені різними providers. Тому hosted
 dense + client-generated BGE-M3 sparse технічно можливі, якщо під час indexing
@@ -340,7 +342,8 @@ sparse модель за сильним dense retriever.
 
 1. Які dense і sparse model IDs показує **Inference** конкретного кластера?
 2. Які dimensions, input limits, pricing і regions у кожної моделі?
-3. Чи доступний `prithivida/splade_pp_en_v1`; чи є multilingual learned sparse?
+3. Який exact SPLADE ID приймає dedicated cluster і чи є multilingual learned
+   sparse? На перевіреному free cluster SPLADE недоступний.
 4. Чи приймає JS SDK `qdrant/bm25` options `language:none` і
    `tokenizer:multilingual` під час upsert і query?
 5. Яка мінімальна server version потрібна для cluster-side BM25?
@@ -386,4 +389,3 @@ RRF, потім окремо порівняти `k=2` і поточний Semide
 - [SPLADE v2 paper](https://arxiv.org/abs/2107.05720)
 - [MIRACL paper](https://aclanthology.org/2023.tacl-1.63/)
 - [MIRACL dataset](https://huggingface.co/datasets/miracl/miracl)
-

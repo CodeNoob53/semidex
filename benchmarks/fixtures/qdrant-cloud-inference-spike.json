@@ -1,0 +1,49 @@
+{
+  "_comment": "Synthetic fixture for the Qdrant Cloud Inference capability spike. Short, self-authored documents with stable integer IDs and per-query expected targets. NOT a retrieval quality benchmark — designed only to exercise the API contract (dense inference, server-side BM25, hybrid RRF) and to make exact-token and Ukrainian-morphology queries non-trivial via close distractors. No real user data.",
+  "documents": [
+    { "id": 1, "lang": "uk", "kind": "natural", "text": "Щоб налаштувати сервер, відкрий конфігураційний файл і вкажи адресу та порт. Після цього перезапусти застосунок, аби зміни набули чинності." },
+    { "id": 2, "lang": "uk", "kind": "inflection", "text": "Налаштування серверів у різних середовищах відрізняються. Ми змінювали налаштуванням сервера вручну, а потім документували кожне налаштування окремо." },
+    { "id": 3, "lang": "uk", "kind": "natural-distractor", "text": "Щоб налаштувати клієнт, встанови залежності та передай токен доступу. Клієнтські параметри не впливають на серверну конфігурацію." },
+    { "id": 4, "lang": "mixed", "kind": "identifier", "text": "Змінна середовища QDRANT_URL задає адресу кластера Qdrant. Якщо QDRANT_URL не встановлено, застосунок кидає помилку під час старту." },
+    { "id": 5, "lang": "mixed", "kind": "identifier-distractor", "text": "Змінна QDRANT_KEY містить Database API ключ. Її ніколи не логують і не зберігають у settings.json разом з QDRANT_URL." },
+    { "id": 6, "lang": "mixed", "kind": "identifier", "text": "Параметр MAX_CHUNK_TOKENS обмежує кількість токенів у чанку перед розбиттям. Значення MAX_CHUNK_TOKENS впливає на розмір кожного retrieval-фрагмента." },
+    { "id": 7, "lang": "mixed", "kind": "path", "text": "Модуль src/core/qdrant/store.js інкапсулює всі виклики до сховища. Ніякий інший файл не імпортує Qdrant SDK напряму, лише через src/core/qdrant/store.js." },
+    { "id": 8, "lang": "mixed", "kind": "package", "text": "Semidex використовує офіційний пакет @qdrant/js-client-rest для доступу до REST API. Типи в @qdrant/js-client-rest згенеровані з Qdrant OpenAPI." },
+    { "id": 9, "lang": "mixed", "kind": "version", "text": "Issues на зависання транспорту описані для SDK v1.17.1. До відтворення дефекту на v1.17.1 не варто додавати transport workaround." },
+    { "id": 10, "lang": "mixed", "kind": "term", "text": "Semidex формує token-budgeted чанки: кожен фрагмент обмежений бюджетом токенів. token-budgeted підхід зберігає контроль над розміром контексту." },
+    { "id": 11, "lang": "mixed", "kind": "cli", "text": "Команда npm run sync адаптує наявну колекцію після оновлення або зміни схеми. Запусти npm run sync перед першим пошуком у мігрованій колекції." },
+    { "id": 12, "lang": "mixed", "kind": "cli-distractor", "text": "Команда npm run index виконує індексацію документів у колекцію. На відміну від синхронізації, індексація читає файли й створює нові точки." },
+    { "id": 13, "lang": "uk", "kind": "domain", "text": "Для українського проєкту Qdrant рекомендує мовно-нейтральну конфігурацію токенізації без англійського стемінгу. Українська морфологія не гарантована лише мультимовним токенайзером." },
+    { "id": 14, "lang": "uk", "kind": "inflection-distractor", "text": "Українські відмінки ускладнюють точний лексичний збіг. Слово у називному відмінку може не збігтися з формою в орудному чи місцевому відмінку без нормалізації." },
+    { "id": 15, "lang": "mixed", "kind": "identifier-noise", "text": "Порт за замовчуванням для локального Qdrant — 6333. Ця точка не згадує ані QDRANT_URL, ані MAX_CHUNK_TOKENS, ані store.js, лише загальні мережеві налаштування." },
+    { "id": 101, "lang": "mixed", "kind": "lifecycle-delete-sentinel", "text": "Sentinel-документ для перевірки видалення. Унікальний токен ZZDELSENTINEL9137 не зустрічається в жодному іншому документі fixture." },
+    { "id": 102, "lang": "mixed", "kind": "lifecycle-update-sentinel", "text": "Sentinel-документ для перевірки оновлення. До оновлення він містить токен ZZUPDBEFORE4471 і не містить післяоновлювального токена." },
+    { "id": 201, "lang": "mixed", "kind": "idf-shared", "text": "IDF-проба альфа. Спільний токен ZZIDFSHARED5566 присутній у трьох документах, щоб виміряти зміну BM25 score після видалення одного з них." },
+    { "id": 202, "lang": "mixed", "kind": "idf-shared", "text": "IDF-проба бета. Спільний токен ZZIDFSHARED5566 присутній тут теж. Решта тексту навмисно відрізняється, щоб довжини документів не були ідентичні." },
+    { "id": 203, "lang": "mixed", "kind": "idf-shared-victim", "text": "IDF-проба гама. Спільний токен ZZIDFSHARED5566 присутній і в цьому документі, який буде видалено під час IDF-перевірки." }
+  ],
+  "queries": [
+    { "id": "q1", "text": "Як налаштувати сервер?", "kind": "uk-natural", "expected": 1, "note": "natural UA question; doc 2 is a close inflected distractor, doc 3 a client-side distractor" },
+    { "id": "q2", "text": "налаштування серверів", "kind": "uk-inflection", "expected": 2, "note": "plural/inflected form; tests morphology vs exact-token" },
+    { "id": "q3", "text": "QDRANT_URL", "kind": "identifier-env", "expected": 4, "note": "doc 5 mentions QDRANT_URL too but is about QDRANT_KEY" },
+    { "id": "q4", "text": "MAX_CHUNK_TOKENS", "kind": "identifier-env", "expected": 6, "note": "doc 15 explicitly names MAX_CHUNK_TOKENS as a negation — distractor" },
+    { "id": "q5", "text": "src/core/qdrant/store.js", "kind": "identifier-path", "expected": 7, "note": "path with slashes and dots; tokenizer punctuation behavior" },
+    { "id": "q6", "text": "@qdrant/js-client-rest", "kind": "identifier-package", "expected": 8, "note": "scoped package name with @ / -" },
+    { "id": "q7", "text": "v1.17.1", "kind": "identifier-version", "expected": 9, "note": "version literal with dots" },
+    { "id": "q8", "text": "token-budgeted", "kind": "identifier-term", "expected": 10, "note": "hyphenated compound term" },
+    { "id": "q9", "text": "як виконати npm run sync", "kind": "uk-en-cli", "expected": 11, "note": "mixed UA question + EN command; doc 12 npm run index is the distractor" },
+    { "id": "q10", "text": "налаштування Qdrant для українського проєкту", "kind": "uk-domain", "expected": 13, "note": "natural UA multi-word; semantic more than exact-token" }
+  ],
+  "lifecycle": {
+    "_comment": "Dedicated sentinel points and unique tokens so update/delete are genuinely verifiable with before/after presence checks. These IDs are NEVER part of the retrieval `queries` scoring above.",
+    "deleteId": 101,
+    "deleteToken": "ZZDELSENTINEL9137",
+    "updateId": 102,
+    "updateTokenBefore": "ZZUPDBEFORE4471",
+    "updateTokenAfter": "ZZUPDAFTER8829",
+    "updateTextAfter": "Sentinel-документ для перевірки оновлення. Після оновлення він містить токен ZZUPDAFTER8829 і більше не містить дооновлювального токена.",
+    "idfSharedToken": "ZZIDFSHARED5566",
+    "idfSharedIds": [201, 202, 203],
+    "idfDeleteVictimId": 203
+  }
+}
