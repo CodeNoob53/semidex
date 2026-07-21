@@ -31,13 +31,17 @@ export const SUPPORTED_DEVICE_POLICIES = Object.freeze(['auto']);
 // this EXACT map — a second, independently-maintained default (e.g. a flat
 // stringField default in definitions.js) previously let the Settings API
 // report ASK_MODEL=gemma3:4b under SEMIDEX_GENERATION_BACKEND=gemini while
-// this runtime resolved gemini-2.5-flash for the same unset state (code
+// this runtime resolved a Gemini model for the same unset state (code
 // review finding — confirmed live via createSettingsService() vs
 // createGenerationRuntime() disagreeing on the same osEnv). There must be
 // exactly one provider-aware default resolver, not two.
 export const DEFAULT_MODEL_BY_BACKEND = Object.freeze({
   ollama: 'gemma3:4b',
-  gemini: 'gemini-2.5-flash',
+  // The dated gemini-2.5-flash ID returns 404 for new users as of
+  // 2026-07-20. The provider-maintained alias was verified through a real
+  // listModels + generateContentStream request. External benchmarks must
+  // still pin an exact model ID instead of using this moving alias.
+  gemini: 'gemini-flash-latest',
 });
 
 export const DEFAULTS = Object.freeze({

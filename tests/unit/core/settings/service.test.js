@@ -586,7 +586,7 @@ describe('SettingsService — EMBED_MODEL canonical / DENSE_MODEL legacy-alias s
 describe('SettingsService — ASK_MODEL default agrees with the generation runtime\'s per-backend default', () => {
   // Code review finding: this service used to report ASK_MODEL:'gemma3:4b'
   // (a flat, backend-unaware stringField default) while
-  // createGenerationRuntime() resolved 'gemini-2.5-flash' for the exact
+  // createGenerationRuntime() resolved the provider-aware Gemini default for the exact
   // same osEnv under SEMIDEX_GENERATION_BACKEND=gemini — reproduced live.
   // Both now share core/generation/config.js's DEFAULT_MODEL_BY_BACKEND as
   // the one provider-aware resolver.
@@ -599,7 +599,7 @@ describe('SettingsService — ASK_MODEL default agrees with the generation runti
       osEnv: { SEMIDEX_GENERATION_BACKEND: 'gemini' }, dotenvValues: {}, settingsPath: tempSettingsPath(dir),
     });
     const entry = svc.get('ASK_MODEL');
-    assert.equal(entry.configuredValue, 'gemini-2.5-flash');
+    assert.equal(entry.configuredValue, 'gemini-flash-latest');
     assert.equal(entry.configuredSource, 'default');
   });
 
@@ -607,7 +607,7 @@ describe('SettingsService — ASK_MODEL default agrees with the generation runti
     const svc = createSettingsService({
       osEnv: { SEMIDEX_GENERATION_BACKEND: 'gemini' }, dotenvValues: {}, settingsPath: tempSettingsPath(dir),
     });
-    assert.equal(svc.getActiveValue('ASK_MODEL'), 'gemini-2.5-flash');
+    assert.equal(svc.getActiveValue('ASK_MODEL'), 'gemini-flash-latest');
   });
 
   test('this exact scenario matches what createGenerationRuntime() resolves for the same osEnv (the original live-reproduced disagreement)', () => {
@@ -666,11 +666,11 @@ describe('SettingsService — ASK_MODEL default agrees with the generation runti
       },
     });
 
-    assert.equal(restarted.get('ASK_MODEL').configuredValue, 'gemini-2.5-flash');
-    assert.equal(runtime.getConfig().model.value, 'gemini-2.5-flash');
+    assert.equal(restarted.get('ASK_MODEL').configuredValue, 'gemini-flash-latest');
+    assert.equal(runtime.getConfig().model.value, 'gemini-flash-latest');
     assert.deepEqual(providerConfig, {
       backend: 'gemini',
-      options: { apiKey: '', model: 'gemini-2.5-flash', askNumCtx: 8192 },
+      options: { apiKey: '', model: 'gemini-flash-latest', askNumCtx: 8192 },
     });
   });
 });

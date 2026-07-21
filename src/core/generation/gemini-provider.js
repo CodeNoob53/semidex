@@ -22,7 +22,10 @@
 // difference from Ollama (whose fetch-based stream genuinely aborts the
 // underlying HTTP request via `signal`), reported honestly rather than
 // papered over.
-const FALLBACK_MODEL = 'gemini-2.5-flash';
+import { DEFAULT_MODEL_BY_BACKEND } from './config.js';
+
+// Keep direct provider construction aligned with the runtime and Settings.
+const FALLBACK_MODEL = DEFAULT_MODEL_BY_BACKEND.gemini;
 
 // Same conservative default as Ollama's FALLBACK_ASK_NUM_CTX — only used
 // when a caller constructs this provider without resolving real config

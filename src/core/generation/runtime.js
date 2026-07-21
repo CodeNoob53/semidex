@@ -58,7 +58,7 @@ function applySettingsServiceTier(config, settingsService) {
     if (!entry) continue;
     // SettingsService owns the complete precedence chain and next-restart
     // snapshot. Taking only config_json values loses derived defaults, such
-    // as ASK_MODEL=gemini-2.5-flash when the backend itself came from
+    // as a provider-aware Gemini default when the backend itself came from
     // settings.json.
     merged[field] = {
       value: entry.activeValue,

@@ -48,7 +48,7 @@ const EMBEDDING_BACKEND_EXPANSION = {
 // structurally impossible for SettingsService and the generation runtime
 // to disagree on ASK_MODEL's default again (code review finding —
 // confirmed live: this service reported 'gemma3:4b' while the runtime
-// resolved 'gemini-2.5-flash' for identical osEnv under
+// resolved a Gemini model for identical osEnv under
 // SEMIDEX_GENERATION_BACKEND=gemini). Applied inside resolveFromTiers()
 // itself (not only in buildEntry()'s post-hoc annotation) so every
 // call site — buildStoredEntry, frozenActive's construction-time
