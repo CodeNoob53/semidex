@@ -173,10 +173,9 @@ SEMIDEX_GENERATION_BACKEND=gemini
 
 The model selectors discover installed Ollama models from the running Ollama
 server and available Gemini models from the configured Gemini API. semidex does
-not pull Ollama models or start Ollama automatically. The Gemini adapter and
-model discovery are implemented and covered by automated tests, but have not
-yet completed owner-run live acceptance against a real Gemini account; treat
-that backend as unverified for now.
+not pull Ollama models or start Ollama automatically. Gemini model discovery,
+streaming generation, Ukrainian output, citations, and refusal behavior were
+verified against a real Gemini account on 2026-07-20.
 
 ## Models and Providers
 
@@ -189,7 +188,7 @@ not require a local generation model.
 | Recommended embeddings | BGE-M3 via ONNX Runtime | Not included in `npm install`; semidex downloads about 2.3 GB from Hugging Face on the first embedding operation, resumes interrupted downloads, and caches the files in `models/` |
 | Lightweight embedding fallback | Ollama `bge-m3` + hashed-TF sparse | Never downloaded by semidex; requires a running Ollama server and a manual `ollama pull bge-m3`; not equivalent to full BGE-M3 dense+sparse |
 | Local Ask generation | Ollama, default `gemma3:4b` | Requires a running Ollama server and a manually pulled model |
-| Cloud Ask generation | Gemini, default `gemini-2.5-flash` | Implemented but not yet live-accepted by the project owner; requires `GEMINI_API_KEY`; no local model download |
+| Cloud Ask generation | Gemini, default `gemini-flash-latest` | Live-verified; requires `GEMINI_API_KEY`; no local model download. Benchmarks must pin an exact model ID rather than the moving `latest` alias |
 | Skeleton nav summaries | Ollama, opt-in with `SKELETON_SUMMARY=llm` | Deterministic summaries remain the default; unchanged files reuse existing nav data |
 | Tags | Ollama by default; optional ONNX worker | Disabled by default; generate during indexing or backfill later |
 
@@ -419,8 +418,7 @@ Implemented:
 - Provider-aware settings and model discovery
 - Partial Ask runtime with retrieval, bounded evidence, SSE streaming,
   citations, and refusal behavior
-- Ollama Ask generation and a Gemini adapter that is implemented and
-  automatically tested but still awaiting owner-run live acceptance
+- Ollama Ask generation and a live-verified Gemini adapter
 - Hash-based incremental indexing, deterministic IDs, and stale-file pruning
 - Offline unit/smoke tests and internal retrieval regression suites
 

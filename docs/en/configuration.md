@@ -80,7 +80,7 @@ supports a second backend.
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `SEMIDEX_GENERATION_BACKEND` | `ollama` | `ollama` or `gemini` |
-| `ASK_MODEL` | `gemma3:4b` (ollama) / `gemini-2.5-flash` (gemini) | Model used for Ask answers. For `ollama`, falls back to `CONTEXT_MODEL` when unset. For `gemini`, there is no such fallback — an Ollama model name never silently becomes the Gemini default. |
+| `ASK_MODEL` | `gemma3:4b` (ollama) / `gemini-flash-latest` (gemini) | Model used for Ask answers. For `ollama`, falls back to `CONTEXT_MODEL` when unset. For `gemini`, there is no such fallback — an Ollama model name never silently becomes the Gemini default. The moving `latest` alias favors first-run availability; evaluation runs must pin an exact model ID for reproducibility. |
 | `ASK_NUM_CTX` | `8192` | Context window (tokens) requested for Ask answers, 256–1000000. Capped by the provider model's real input-token limit when that metadata is available (Ollama's `/api/show`, Gemini's `models.get()`). |
 | `GENERATION_DEVICE` | `auto` | Ollama-only hardware device policy. Ignored for `gemini` — a cloud API has no local device to select. |
 | `OLLAMA_URL` | `http://localhost:11434` | Ollama base URL, used only when `SEMIDEX_GENERATION_BACKEND=ollama`. Still used for `EMBED_MODEL`/`CONTEXT_MODEL`/`TAG_MODEL` discovery regardless of the Ask backend. |
