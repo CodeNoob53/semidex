@@ -1,0 +1,525 @@
+{
+  "startedAt": "2026-07-21T17:07:40.044Z",
+  "environment": {
+    "qdrantEndpoint": {
+      "configured": true,
+      "scheme": "https",
+      "provider": "aws",
+      "region": "eu-central-1-0",
+      "maskedHost": "<cluster-id>.eu-central-1-0.aws.cloud.qdrant.io"
+    },
+    "qdrantKeyConfigured": true,
+    "sdkVersion": "1.18.0",
+    "datasetStats": {
+      "corpusSize": 5183,
+      "queryCount": 300,
+      "qrelsQueryCount": 300
+    },
+    "inputPreparation": {
+      "documents": {
+        "total": 5183,
+        "truncated": 742
+      },
+      "queries": {
+        "total": 300,
+        "truncated": 0
+      },
+      "elapsedMs": 327283,
+      "cacheBytes": 15814309,
+      "wallMs": 69,
+      "fromCache": true
+    },
+    "priorPeakRssBytes": null,
+    "peakRssBytes": 4921384960
+  },
+  "runs": {
+    "local-common-512": {
+      "runId": "local-common-512",
+      "profileId": "local",
+      "regime": "common-512",
+      "rrfKs": [
+        60
+      ],
+      "collection": "semidex-beir-scifact-local-common-512-2026-07-21T17-07-40-046Z-d754e546",
+      "indexing": {
+        "wallMs": 5572550,
+        "documentsIndexed": 5183,
+        "batches": 216,
+        "errors": 0,
+        "retries": 0
+      },
+      "queryStats": {
+        "total": 300,
+        "ran": 300,
+        "errors": 0,
+        "retries": 0,
+        "latencyMs": {
+          "dense": {
+            "p50": 54,
+            "p95": 63,
+            "max": 362,
+            "count": 300
+          },
+          "sparse": {
+            "p50": 54,
+            "p95": 62,
+            "max": 91,
+            "count": 300
+          },
+          "hybrid_k60": {
+            "p50": 53,
+            "p95": 65,
+            "max": 414,
+            "count": 300
+          }
+        }
+      },
+      "truncation": {
+        "documentsTruncated": 742,
+        "documentsTotal": 5183,
+        "queriesTruncated": 0,
+        "queriesTotal": 300
+      },
+      "metrics": {
+        "dense": {
+          "queryCount": 300,
+          "ndcgAt10": 0.638008622054435,
+          "mapAt100": 0.595761519749069,
+          "recallAt10": 0.7717777777777777,
+          "recallAt100": 0.907,
+          "precisionAt10": 0.08666666666666692,
+          "mrrAt10": 0.6044060846560848,
+          "skippedForRecallMap": 0
+        },
+        "sparse": {
+          "queryCount": 300,
+          "ndcgAt10": 0.6344486539915977,
+          "mapAt100": 0.5920669435184844,
+          "recallAt10": 0.7662777777777777,
+          "recallAt100": 0.9035555555555556,
+          "precisionAt10": 0.0853333333333336,
+          "mrrAt10": 0.6007539682539683,
+          "skippedForRecallMap": 0
+        },
+        "hybrid_k60": {
+          "queryCount": 300,
+          "ndcgAt10": 0.6777751165773274,
+          "mapAt100": 0.6422680838884036,
+          "recallAt10": 0.7919444444444443,
+          "recallAt100": 0.9303333333333335,
+          "precisionAt10": 0.0890000000000003,
+          "mrrAt10": 0.6507645502645503,
+          "skippedForRecallMap": 0
+        }
+      },
+      "trecRunPaths": {
+        "dense": ".runs\\local-common-512-dense.trec",
+        "sparse": ".runs\\local-common-512-sparse.trec",
+        "hybrid_k60": ".runs\\local-common-512-hybrid_k60.trec"
+      },
+      "cleanup": {
+        "attempted": true,
+        "deleted": true,
+        "collection": "semidex-beir-scifact-local-common-512-2026-07-21T17-07-40-046Z-d754e546",
+        "error": null
+      },
+      "errors": []
+    },
+    "local-native": {
+      "runId": "local-native",
+      "profileId": "local",
+      "regime": "native",
+      "rrfKs": [
+        60
+      ],
+      "collection": "semidex-beir-scifact-local-native-2026-07-21T22-55-23-168Z-6f022b29",
+      "indexing": {
+        "wallMs": 5677802,
+        "documentsIndexed": 5183,
+        "batches": 372,
+        "errors": 0,
+        "retries": 1,
+        "batchPolicy": {
+          "regular": 24,
+          "long": 4
+        }
+      },
+      "queryStats": {
+        "total": 300,
+        "ran": 300,
+        "errors": 0,
+        "retries": 0,
+        "latencyMs": {
+          "dense": {
+            "p50": 55,
+            "p95": 65,
+            "max": 87,
+            "count": 300
+          },
+          "sparse": {
+            "p50": 53,
+            "p95": 62,
+            "max": 69,
+            "count": 300
+          },
+          "hybrid_k60": {
+            "p50": 55,
+            "p95": 66,
+            "max": 88,
+            "count": 300
+          }
+        }
+      },
+      "truncation": null,
+      "metrics": {
+        "dense": {
+          "queryCount": 300,
+          "ndcgAt10": 0.6422268186024246,
+          "mapAt100": 0.5981997658058601,
+          "recallAt10": 0.780111111111111,
+          "recallAt100": 0.9036666666666667,
+          "precisionAt10": 0.08766666666666695,
+          "mrrAt10": 0.6074378306878307,
+          "skippedForRecallMap": 0
+        },
+        "sparse": {
+          "queryCount": 300,
+          "ndcgAt10": 0.6362785887088243,
+          "mapAt100": 0.5921244263110707,
+          "recallAt10": 0.7721111111111111,
+          "recallAt100": 0.9002222222222223,
+          "precisionAt10": 0.0863333333333336,
+          "mrrAt10": 0.6015066137566139,
+          "skippedForRecallMap": 0
+        },
+        "hybrid_k60": {
+          "queryCount": 300,
+          "ndcgAt10": 0.6821795304355459,
+          "mapAt100": 0.6445064035458451,
+          "recallAt10": 0.8019444444444443,
+          "recallAt100": 0.937,
+          "precisionAt10": 0.09000000000000032,
+          "mrrAt10": 0.6536031746031745,
+          "skippedForRecallMap": 0
+        }
+      },
+      "trecRunPaths": {
+        "dense": ".runs\\local-native-dense.trec",
+        "sparse": ".runs\\local-native-sparse.trec",
+        "hybrid_k60": ".runs\\local-native-hybrid_k60.trec"
+      },
+      "cleanup": {
+        "attempted": true,
+        "deleted": true,
+        "collection": "semidex-beir-scifact-local-native-2026-07-21T22-55-23-168Z-6f022b29",
+        "error": null
+      },
+      "errors": []
+    },
+    "cloud-common-512": {
+      "runId": "cloud-common-512",
+      "profileId": "cloud",
+      "regime": "common-512",
+      "rrfKs": [
+        2,
+        60
+      ],
+      "collection": "semidex-beir-scifact-cloud-common-512-2026-07-22T00-31-10-291Z-b4e61532",
+      "indexing": {
+        "wallMs": 277614,
+        "documentsIndexed": 5183,
+        "batches": 216,
+        "errors": 0,
+        "retries": 0,
+        "batchPolicy": {
+          "regular": 24,
+          "long": null
+        }
+      },
+      "queryStats": {
+        "total": 300,
+        "ran": 300,
+        "errors": 0,
+        "retries": 0,
+        "latencyMs": {
+          "dense": {
+            "p50": 111,
+            "p95": 450,
+            "max": 1209,
+            "count": 300
+          },
+          "sparse": {
+            "p50": 55,
+            "p95": 208,
+            "max": 1362,
+            "count": 300
+          },
+          "hybrid_k2": {
+            "p50": 114,
+            "p95": 475,
+            "max": 2030,
+            "count": 300
+          },
+          "hybrid_k60": {
+            "p50": 112,
+            "p95": 455,
+            "max": 1149,
+            "count": 300
+          }
+        }
+      },
+      "truncation": {
+        "documentsTruncated": 742,
+        "documentsTotal": 5183,
+        "queriesTruncated": 0,
+        "queriesTotal": 300
+      },
+      "metrics": {
+        "dense": {
+          "queryCount": 300,
+          "ndcgAt10": 0.6785471883000563,
+          "mapAt100": 0.6370986444732518,
+          "recallAt10": 0.8065555555555556,
+          "recallAt100": 0.9243333333333333,
+          "precisionAt10": 0.09033333333333364,
+          "mrrAt10": 0.6472129629629628,
+          "skippedForRecallMap": 0
+        },
+        "sparse": {
+          "queryCount": 300,
+          "ndcgAt10": 0.6585122907270147,
+          "mapAt100": 0.6169228305581281,
+          "recallAt10": 0.7889999999999999,
+          "recallAt100": 0.8852222222222222,
+          "precisionAt10": 0.08700000000000027,
+          "mrrAt10": 0.6225105820105822,
+          "skippedForRecallMap": 0
+        },
+        "hybrid_k2": {
+          "queryCount": 300,
+          "ndcgAt10": 0.7078020868092388,
+          "mapAt100": 0.6641084634794404,
+          "recallAt10": 0.8458888888888889,
+          "recallAt100": 0.9536666666666668,
+          "precisionAt10": 0.09433333333333369,
+          "mrrAt10": 0.6717341269841268,
+          "skippedForRecallMap": 0
+        },
+        "hybrid_k60": {
+          "queryCount": 300,
+          "ndcgAt10": 0.6977298765720883,
+          "mapAt100": 0.6601239058365104,
+          "recallAt10": 0.8209444444444445,
+          "recallAt100": 0.955,
+          "precisionAt10": 0.09233333333333366,
+          "mrrAt10": 0.6657685185185185,
+          "skippedForRecallMap": 0
+        }
+      },
+      "trecRunPaths": {
+        "dense": ".runs\\cloud-common-512-dense.trec",
+        "sparse": ".runs\\cloud-common-512-sparse.trec",
+        "hybrid_k2": ".runs\\cloud-common-512-hybrid_k2.trec",
+        "hybrid_k60": ".runs\\cloud-common-512-hybrid_k60.trec"
+      },
+      "cleanup": {
+        "attempted": true,
+        "deleted": true,
+        "collection": "semidex-beir-scifact-cloud-common-512-2026-07-22T00-31-10-291Z-b4e61532",
+        "error": null
+      },
+      "errors": []
+    },
+    "cloud-native": {
+      "runId": "cloud-native",
+      "profileId": "cloud",
+      "regime": "native",
+      "rrfKs": [
+        2,
+        60
+      ],
+      "collection": "semidex-beir-scifact-cloud-native-2026-07-22T00-39-00-527Z-14bb013a",
+      "indexing": {
+        "wallMs": 302840,
+        "documentsIndexed": 5183,
+        "batches": 216,
+        "errors": 0,
+        "retries": 0,
+        "batchPolicy": {
+          "regular": 24,
+          "long": null
+        }
+      },
+      "queryStats": {
+        "total": 300,
+        "ran": 300,
+        "errors": 0,
+        "retries": 0,
+        "latencyMs": {
+          "dense": {
+            "p50": 190,
+            "p95": 589,
+            "max": 4210,
+            "count": 300
+          },
+          "sparse": {
+            "p50": 88,
+            "p95": 430,
+            "max": 2055,
+            "count": 300
+          },
+          "hybrid_k2": {
+            "p50": 178,
+            "p95": 613,
+            "max": 4362,
+            "count": 300
+          },
+          "hybrid_k60": {
+            "p50": 175,
+            "p95": 584,
+            "max": 2365,
+            "count": 300
+          }
+        }
+      },
+      "truncation": null,
+      "metrics": {
+        "dense": {
+          "queryCount": 300,
+          "ndcgAt10": 0.6769970211725778,
+          "mapAt100": 0.6350948759267587,
+          "recallAt10": 0.8065555555555556,
+          "recallAt100": 0.925,
+          "precisionAt10": 0.09033333333333364,
+          "mrrAt10": 0.6451375661375661,
+          "skippedForRecallMap": 0
+        },
+        "sparse": {
+          "queryCount": 300,
+          "ndcgAt10": 0.6591280636754376,
+          "mapAt100": 0.6176039754245871,
+          "recallAt10": 0.7898333333333333,
+          "recallAt100": 0.8825555555555555,
+          "precisionAt10": 0.08700000000000027,
+          "mrrAt10": 0.6233161375661377,
+          "skippedForRecallMap": 0
+        },
+        "hybrid_k2": {
+          "queryCount": 300,
+          "ndcgAt10": 0.7087947532298605,
+          "mapAt100": 0.6682075635572423,
+          "recallAt10": 0.8390555555555556,
+          "recallAt100": 0.9576666666666667,
+          "precisionAt10": 0.09366666666666702,
+          "mrrAt10": 0.6745912698412697,
+          "skippedForRecallMap": 0
+        },
+        "hybrid_k60": {
+          "queryCount": 300,
+          "ndcgAt10": 0.6966582118781118,
+          "mapAt100": 0.6587536950431379,
+          "recallAt10": 0.8212222222222223,
+          "recallAt100": 0.9583333333333334,
+          "precisionAt10": 0.09233333333333367,
+          "mrrAt10": 0.6634867724867725,
+          "skippedForRecallMap": 0
+        }
+      },
+      "trecRunPaths": {
+        "dense": ".runs\\cloud-native-dense.trec",
+        "sparse": ".runs\\cloud-native-sparse.trec",
+        "hybrid_k2": ".runs\\cloud-native-hybrid_k2.trec",
+        "hybrid_k60": ".runs\\cloud-native-hybrid_k60.trec"
+      },
+      "cleanup": {
+        "attempted": true,
+        "deleted": true,
+        "collection": "semidex-beir-scifact-cloud-native-2026-07-22T00-39-00-527Z-14bb013a",
+        "error": null
+      },
+      "errors": []
+    }
+  },
+  "errors": [],
+  "cleanupSummary": {
+    "attempted": 4,
+    "deleted": 4,
+    "failed": []
+  },
+  "verdict": "BEIR_SCIFACT_HARNESS_ACCEPT",
+  "benchmarkContract": {
+    "version": 1,
+    "datasetMd5": "5f7d1de60b170fc8027bb7898e2efca1",
+    "qdrantEndpointFingerprint": "8f9428ceda054cc5",
+    "documentCount": 5183,
+    "queryCount": 300,
+    "preparedCache": "scifact-inputs-c4600f955455ab268f5d.json",
+    "topK": 100,
+    "hybridPrefetchLimit": 200,
+    "bm25Options": {
+      "language": "none",
+      "tokenizer": "multilingual",
+      "ascii_folding": true
+    },
+    "runs": [
+      {
+        "runId": "local-common-512",
+        "profileId": "local",
+        "regime": "common-512",
+        "rrfKs": [
+          60
+        ],
+        "denseModelId": "aapot/bge-m3-onnx",
+        "sparseModelId": "bge-m3-onnx-lexical",
+        "denseSize": 1024
+      },
+      {
+        "runId": "local-native",
+        "profileId": "local",
+        "regime": "native",
+        "rrfKs": [
+          60
+        ],
+        "denseModelId": "aapot/bge-m3-onnx",
+        "sparseModelId": "bge-m3-onnx-lexical",
+        "denseSize": 1024
+      },
+      {
+        "runId": "cloud-common-512",
+        "profileId": "cloud",
+        "regime": "common-512",
+        "rrfKs": [
+          2,
+          60
+        ],
+        "denseModelId": "intfloat/multilingual-e5-small",
+        "sparseModelId": "qdrant/bm25",
+        "denseSize": 384
+      },
+      {
+        "runId": "cloud-native",
+        "profileId": "cloud",
+        "regime": "native",
+        "rrfKs": [
+          2,
+          60
+        ],
+        "denseModelId": "intfloat/multilingual-e5-small",
+        "sparseModelId": "qdrant/bm25",
+        "denseSize": 384
+      }
+    ]
+  },
+  "resumeEvents": [
+    {
+      "resumedAt": "2026-07-21T20:39:36.705Z"
+    },
+    {
+      "resumedAt": "2026-07-21T21:49:14.965Z"
+    },
+    {
+      "resumedAt": "2026-07-21T22:55:23.166Z"
+    }
+  ],
+  "finishedAt": "2026-07-22T00:48:07.935Z"
+}
