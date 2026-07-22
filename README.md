@@ -394,7 +394,9 @@ Near-term work focuses on:
 
 1. Hardening the Admin UI and Ask demo workflow.
 2. Validating local BGE-M3 and future Qdrant Cloud inference on external
-   retrieval datasets such as BEIR, MIRACL (including Ukrainian), and MLDR.
+   retrieval datasets such as BEIR, MIRACL (which validates its own supported
+   languages — MIRACL does not include Ukrainian), and MLDR. Ukrainian
+   retrieval quality still requires a separate, dedicated Ukrainian dataset.
 3. Completing the provider abstraction beyond Ollama and Gemini.
 4. Promoting skeleton-first chunking only after benchmark and migration gates.
 5. Adding OCR plus image understanding for image-bearing documents.

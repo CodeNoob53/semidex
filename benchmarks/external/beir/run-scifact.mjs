@@ -732,7 +732,7 @@ function renderMarkdownReport(report) {
     '',
     '- FACT: values above are measured on the official English SciFact test split.',
     '- FACT: common-512 uses one provider-neutral body; E5 prefixes only its dense lane, while BM25 receives raw text.',
-    '- HYPOTHESIS: multilingual and Ukrainian quality must be tested separately on MIRACL or another external multilingual dataset.',
+    '- HYPOTHESIS: multilingual quality must be tested separately on MIRACL (its own supported languages — MIRACL does not include Ukrainian) or another external multilingual dataset. Ukrainian quality specifically requires a separate, dedicated Ukrainian dataset — no MIRACL language substitutes for it.',
     '- No general Semidex-wide winner should be inferred from this benchmark alone.',
     '',
   );

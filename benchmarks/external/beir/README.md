@@ -23,9 +23,11 @@ SciFact is English-only. It does **not** test Semidex's primary
 multilingual/Ukrainian retrieval goal. A result here is evidence about the
 *mechanics* of the two provider configurations (do dense/sparse/hybrid all
 work, how do they compare on a well-understood English IR benchmark) — it is
-**not** a claim about which is better for Ukrainian content. That claim can
-only be made after the Ukrainian-specific benchmark (MIRACL Ukrainian, per
-the earlier research docs) runs with the same rigor.
+**not** a claim about which is better for Ukrainian content. MIRACL itself
+does not include Ukrainian (see `../miracl/README.md` for the exact languages
+it does cover and why a Russian/Cyrillic run there is multilingual evidence,
+not a Ukrainian-quality claim). A Ukrainian-quality claim can only be made
+after a separate, dedicated Ukrainian dataset runs with the same rigor.
 
 ## Files
 

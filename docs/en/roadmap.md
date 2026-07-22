@@ -272,8 +272,11 @@ Planned work:
   (scroll-based aggregations grow with point count), and per-phase wall time;
 - profile expensive phases before optimizing them;
 - add external retrieval evaluation as a release and positioning gate:
-  BEIR for established English retrieval tasks, MIRACL with Ukrainian for the
-  multilingual claim, and MLDR for long-document retrieval;
+  BEIR for established English retrieval tasks, MIRACL (its own supported
+  languages — MIRACL does not include Ukrainian; a Russian/Cyrillic run is
+  multilingual evidence only, not a Ukrainian-quality claim) for multilingual
+  evidence, and MLDR for long-document retrieval. Ukrainian quality still
+  requires a separate, dedicated Ukrainian dataset;
 - compare semidex Local (BGE-M3 ONNX dense + learned sparse) against the
   semidex Lite candidate (Qdrant Cloud Inference) on the same corpora, qrels,
   metrics, and query set; measure nDCG/Recall alongside indexing latency,

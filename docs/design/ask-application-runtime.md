@@ -186,9 +186,12 @@ provider, a polished embeddable widget, or every messaging-channel adapter.
 
 Ask has two separate quality dependencies and must report both:
 
-1. **Retrieval quality.** External datasets such as BEIR, MIRACL (including
-   Ukrainian), and MLDR compare the local BGE-M3 path with Qdrant Cloud
-   inference using the same corpus, chunks, qrels, and fusion settings.
+1. **Retrieval quality.** External datasets such as BEIR, MIRACL (its own
+   supported languages — MIRACL does not include Ukrainian; a Russian run is
+   multilingual/Cyrillic evidence only, not a Ukrainian-quality claim), and
+   MLDR compare the local BGE-M3 path with Qdrant Cloud inference using the
+   same corpus, chunks, qrels, and fusion settings. Ukrainian quality still
+   requires a separate, dedicated Ukrainian dataset.
 2. **Answer quality.** A grounded-answer suite measures answer correctness,
    citation precision/recall, claim coverage, refusal correctness, latency,
    and provider cost. Retrieval-only metrics cannot establish that the final
