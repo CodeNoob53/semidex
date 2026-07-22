@@ -300,6 +300,58 @@ function sameManifest(left, right) {
   return JSON.stringify(left) === JSON.stringify(right);
 }
 
+/**
+ * Strictly offline loader: reads ONLY the already-written subset cache file
+ * (revision/content-addressed — see subsetCachePath()) and revalidates it
+ * with validateSubset(). Never calls fetchAndValidateMiraclTopicsQrels(),
+ * fetchCorpusPassages(), or anything else that could reach the network —
+ * unlike buildAndCacheMiraclSubset() below, which always fetches topics/
+ * qrels first (a network call in principle, even though it is a no-op
+ * when a valid local cache already satisfies it) before ever consulting
+ * the subset cache. Callers that must guarantee zero network access
+ * (e.g. offline analysis tooling) should use this function, not
+ * buildAndCacheMiraclSubset().
+ *
+ * Throws a clear, actionable error if the cache is absent, corrupt, or
+ * fails validation — it never rebuilds, and never falls back to fetching.
+ */
+export function loadCachedMiraclSubset() {
+  const manifest = {
+    schemaVersion: SUBSET_SCHEMA_VERSION,
+    topicsQrelsRevision: MIRACL_TOPICS_QRELS_REVISION,
+    corpusRevision: MIRACL_CORPUS_REVISION,
+    queryCount: SUBSET_QUERY_COUNT,
+    corpusSize: SUBSET_CORPUS_SIZE,
+    selectionSeed: SELECTION_SHUFFLE_SEED,
+  };
+  const cachePath = subsetCachePath({
+    topicsQrelsRevision: MIRACL_TOPICS_QRELS_REVISION, corpusRevision: MIRACL_CORPUS_REVISION,
+    queryCount: SUBSET_QUERY_COUNT, corpusSize: SUBSET_CORPUS_SIZE, selectionSeed: SELECTION_SHUFFLE_SEED,
+  });
+
+  if (!existsSync(cachePath)) {
+    throw new Error(`[build-miracl-subset] no cached subset found at ${cachePath} — run "node benchmarks/external/miracl/build-miracl-subset.mjs" (or the full run-miracl.mjs harness) online first to produce it; this loader never fetches over the network.`);
+  }
+
+  let raw;
+  try {
+    raw = JSON.parse(readFileSync(cachePath, 'utf-8'));
+  } catch (err) {
+    throw new Error(`[build-miracl-subset] cached subset at ${cachePath} is not valid JSON (${err.message}) — regenerate it online; this loader never rebuilds or fetches.`);
+  }
+  if (!raw.manifest || !sameManifest(raw.manifest, manifest)) {
+    throw new Error(`[build-miracl-subset] cached subset at ${cachePath} has a manifest that does not match the current pinned revisions/schema — regenerate it online; this loader never rebuilds or fetches.`);
+  }
+
+  const cached = deserializeSubset(raw);
+  const validationErrors = validateSubset(cached);
+  if (validationErrors.length > 0) {
+    throw new Error(`[build-miracl-subset] cached subset at ${cachePath} failed validation: ${validationErrors.join('; ')} — regenerate it online; this loader never rebuilds or fetches.`);
+  }
+
+  return { ...cached, cachePath, fromCache: true, manifest: raw.manifest };
+}
+
 /** Full pipeline: fetch+validate topics/qrels, select the deterministic
  * query/docid subset, fetch exactly the needed passage text from the
  * corpus shards, assemble + validate, and cache. Throws on any shortfall,

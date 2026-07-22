@@ -42,7 +42,7 @@
 // since relevant docs are added before negatives — this is verified, not
 // assumed).
 import { createHash } from 'node:crypto';
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -323,6 +323,58 @@ export function validateMiniSet(miniSet, {
 
 function sameManifest(left, right) {
   return JSON.stringify(left) === JSON.stringify(right);
+}
+
+/**
+ * Strictly offline loader: reads ONLY the already-written mini-set cache
+ * file (content/revision-addressed — see miniSetCachePath()) and
+ * revalidates it with validateMiniSet(). Never calls
+ * fetchAndValidateScifact() or anything else that could reach the network
+ * — unlike buildAndCacheMiniSet() below, which always loads/validates the
+ * full SciFact dataset first (a network call in principle, even though it
+ * is a no-op when a valid local cache already satisfies it). Callers that
+ * must guarantee zero network access (e.g. offline analysis tooling)
+ * should use this function instead.
+ *
+ * Throws a clear, actionable error if the cache is absent, corrupt, or
+ * fails validation — it never rebuilds, and never falls back to fetching.
+ */
+export function loadCachedMiniSet() {
+  const sourceHashes = hardNegativeSourceHashes();
+  const manifest = {
+    schemaVersion: SELECTION_SCHEMA_VERSION,
+    datasetMd5: SCIFACT_MD5,
+    queryCount: MINI_SET_QUERY_COUNT,
+    corpusSize: MINI_SET_CORPUS_SIZE,
+    selectionSeed: SELECTION_SHUFFLE_SEED,
+    sourceHashes,
+  };
+  const cachePath = miniSetCachePath({
+    datasetMd5: SCIFACT_MD5, queryCount: MINI_SET_QUERY_COUNT, corpusSize: MINI_SET_CORPUS_SIZE,
+    selectionSeed: SELECTION_SHUFFLE_SEED, sourceHashes,
+  });
+
+  if (!existsSync(cachePath)) {
+    throw new Error(`[build-rrf-mini-set] no cached mini-set found at ${cachePath} — run "node benchmarks/external/beir/build-rrf-mini-set.mjs" (or run-rrf-mini.mjs) online first to produce it; this loader never fetches over the network.`);
+  }
+
+  let raw;
+  try {
+    raw = JSON.parse(readFileSync(cachePath, 'utf-8'));
+  } catch (err) {
+    throw new Error(`[build-rrf-mini-set] cached mini-set at ${cachePath} is not valid JSON (${err.message}) — regenerate it online; this loader never rebuilds or fetches.`);
+  }
+  if (!raw.manifest || !sameManifest(raw.manifest, manifest)) {
+    throw new Error(`[build-rrf-mini-set] cached mini-set at ${cachePath} has a manifest that does not match the current pinned dataset/selection/source hashes — regenerate it online; this loader never rebuilds or fetches.`);
+  }
+
+  const cached = deserializeMiniSet(raw);
+  const validationErrors = validateMiniSet(cached);
+  if (validationErrors.length > 0) {
+    throw new Error(`[build-rrf-mini-set] cached mini-set at ${cachePath} failed validation: ${validationErrors.join('; ')} — regenerate it online; this loader never rebuilds or fetches.`);
+  }
+
+  return { ...cached, cachePath, fromCache: true, manifest: raw.manifest };
 }
 
 /** Full pipeline: load the validated full SciFact dataset, load the two
