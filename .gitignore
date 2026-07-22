@@ -19,3 +19,10 @@ dist/
 benchmarks/external/beir/.cache/
 benchmarks/external/beir/.runs/
 benchmarks/external/results/.smoke-report.json
+
+# MIRACL external benchmark: downloaded topics/qrels/corpus shards and
+# generated run artifacts. Only the harness scripts + committed reports are
+# tracked — never the raw dataset content or generated TREC runs/logs.
+benchmarks/external/miracl/.cache/
+benchmarks/external/miracl/.runs/
+benchmarks/external/results/.miracl-smoke-report.json
