@@ -1,0 +1,169 @@
+{
+  "startedAt": "2026-07-22T06:34:34.454Z",
+  "commitHash": "53eb2c89b9a66ce8d04ae26a30413d4674bfc0bb",
+  "scope": {
+    "profile": "local",
+    "regime": "common-512",
+    "corpusSize": 1000,
+    "queryCount": 100,
+    "rrfKs": [
+      2,
+      60
+    ],
+    "topK": 100,
+    "hybridPrefetchLimit": 200,
+    "indexBatchSize": 24,
+    "denseModelId": "aapot/bge-m3-onnx",
+    "denseSize": 1024,
+    "sparseModelId": "bge-m3-onnx-lexical"
+  },
+  "miniSetStats": {
+    "selectedQueryCount": 100,
+    "relevantDocCount": 108,
+    "negativeDocCount": 892,
+    "totalCorpusSize": 1000,
+    "requestedCorpusSize": 1000,
+    "shortfall": 0,
+    "danglingQrelsRefs": []
+  },
+  "miniSetManifest": {
+    "schemaVersion": 2,
+    "datasetMd5": "5f7d1de60b170fc8027bb7898e2efca1",
+    "queryCount": 100,
+    "corpusSize": 1000,
+    "selectionSeed": "semidex-beir-scifact-rrf-mini-v1",
+    "sourceHashes": [
+      {
+        "path": ".runs\\local-common-512-dense.trec",
+        "sha256": "76e522f620a565becf163a7752033a686ca2f77c1057fb94e92349ed3e42c8c4"
+      },
+      {
+        "path": ".runs\\local-common-512-sparse.trec",
+        "sha256": "9b0b495ae06e5cc4bc181a72e7324710c716431506dadccffeb28b4decb52e6a"
+      }
+    ]
+  },
+  "environment": {
+    "qdrantEndpoint": {
+      "configured": true,
+      "scheme": "https",
+      "provider": "aws",
+      "region": "eu-central-1-0",
+      "maskedHost": "<cluster-id>.eu-central-1-0.aws.cloud.qdrant.io"
+    },
+    "qdrantKeyConfigured": true,
+    "qdrantSdkVersion": "1.18.0",
+    "preparationStats": {
+      "documents": {
+        "total": 1000,
+        "truncated": 163
+      },
+      "queries": {
+        "total": 100,
+        "truncated": 0
+      },
+      "elapsedMs": 63427,
+      "cacheBytes": 3130942
+    },
+    "peakRssBytes": 3272798208
+  },
+  "run": {
+    "collection": "semidex-beir-scifact-local-rrf-mini-2026-07-22T06-34-34-504Z-00536712",
+    "indexing": {
+      "wallMs": 1090273,
+      "documentsIndexed": 1000,
+      "batches": 42,
+      "errors": 0,
+      "retries": 0
+    },
+    "queryStats": {
+      "total": 100,
+      "ran": 100,
+      "errors": 0,
+      "retries": 0,
+      "latencyMs": {
+        "dense": {
+          "p50": 56,
+          "p95": 65,
+          "max": 67,
+          "count": 100
+        },
+        "sparse": {
+          "p50": 55,
+          "p95": 62,
+          "max": 65,
+          "count": 100
+        },
+        "hybrid_k2": {
+          "p50": 54,
+          "p95": 65,
+          "max": 68,
+          "count": 100
+        },
+        "hybrid_k60": {
+          "p50": 56,
+          "p95": 65,
+          "max": 167,
+          "count": 100
+        }
+      }
+    },
+    "metrics": {
+      "dense": {
+        "queryCount": 100,
+        "ndcgAt10": 0.6747707751988582,
+        "mapAt100": 0.6285349252497021,
+        "recallAt10": 0.826,
+        "recallAt100": 0.96,
+        "precisionAt10": 0.09799999999999985,
+        "mrrAt10": 0.6324444444444446,
+        "skippedForRecallMap": 0
+      },
+      "sparse": {
+        "queryCount": 100,
+        "ndcgAt10": 0.6836104085205134,
+        "mapAt100": 0.6478112065115903,
+        "recallAt10": 0.7979999999999999,
+        "recallAt100": 0.948,
+        "precisionAt10": 0.09499999999999986,
+        "mrrAt10": 0.6573055555555557,
+        "skippedForRecallMap": 0
+      },
+      "hybrid_k2": {
+        "queryCount": 100,
+        "ndcgAt10": 0.6976021476115357,
+        "mapAt100": 0.6662154359227636,
+        "recallAt10": 0.8005,
+        "recallAt100": 0.958,
+        "precisionAt10": 0.09499999999999986,
+        "mrrAt10": 0.6746904761904763,
+        "skippedForRecallMap": 0
+      },
+      "hybrid_k60": {
+        "queryCount": 100,
+        "ndcgAt10": 0.6930786646068958,
+        "mapAt100": 0.6552187902570575,
+        "recallAt10": 0.8155,
+        "recallAt100": 0.958,
+        "precisionAt10": 0.09699999999999985,
+        "mrrAt10": 0.6635,
+        "skippedForRecallMap": 0
+      }
+    },
+    "trecRunPaths": {
+      "dense": ".runs\\local-rrf-mini-dense.trec",
+      "sparse": ".runs\\local-rrf-mini-sparse.trec",
+      "hybrid_k2": ".runs\\local-rrf-mini-hybrid_k2.trec",
+      "hybrid_k60": ".runs\\local-rrf-mini-hybrid_k60.trec"
+    },
+    "cleanup": {
+      "attempted": true,
+      "deleted": true,
+      "collection": "semidex-beir-scifact-local-rrf-mini-2026-07-22T06-34-34-504Z-00536712",
+      "error": null
+    },
+    "errors": []
+  },
+  "verdict": "LOCAL_RRF_MINI_K2_BETTER",
+  "finishedAt": "2026-07-22T06:53:14.738Z"
+}
