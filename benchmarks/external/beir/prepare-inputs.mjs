@@ -1,4 +1,4 @@
-// One-time, provider-neutral input preparation for the SciFact benchmark.
+// One-time, provider-neutral input preparation shared by external retrieval benchmarks.
 // Model-specific prefixes are applied later, at the embedding lane boundary.
 import { AutoTokenizer } from '@huggingface/transformers';
 import { createHash } from 'node:crypto';
@@ -398,7 +398,7 @@ function manifestKey(manifest) {
 
 export function cachePathFor(manifest) {
   mkdirSync(PREPARED_CACHE_DIR, { recursive: true });
-  return resolve(PREPARED_CACHE_DIR, `scifact-inputs-${manifestKey(manifest)}.json`);
+  return resolve(PREPARED_CACHE_DIR, `prepared-inputs-${manifestKey(manifest)}.json`);
 }
 
 function serializeMap(map) {

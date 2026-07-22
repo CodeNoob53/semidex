@@ -5,11 +5,18 @@ import { unlinkSync, writeFileSync } from 'node:fs';
 import {
   boundedBatchTokenCounts,
   commonCandidateWordCount,
+  cachePathFor,
   formatForLanes,
   largestFittingWordPrefix,
   prepareInputs,
   validatePrepared,
 } from './prepare-inputs.mjs';
+
+test('prepared cache filename is dataset-neutral for shared BEIR/MIRACL use', () => {
+  const path = cachePathFor({ schemaVersion: 1, dataset: 'fixture' });
+  assert.match(path, /prepared-inputs-[a-f0-9]{20}\.json$/);
+  assert.doesNotMatch(path, /scifact/i);
+});
 
 describe('provider lane formatting', () => {
   test('Cloud E5 gets asymmetric prefixes while BM25 gets raw text', () => {
