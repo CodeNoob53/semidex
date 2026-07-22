@@ -108,6 +108,7 @@ async function fetchRange(filename, dest, from, total) {
 }
 
 const VALID_PROVIDERS = new Set(['cpu', 'dml', 'cuda']);
+const RETRIEVAL_OUTPUT_NAMES = Object.freeze(['dense_vecs', 'sparse_vecs']);
 
 // Resolve ONNX execution provider list from env value.
 // Returns an array suitable for onnxruntime executionProviders option.
@@ -161,6 +162,10 @@ async function _doLoad() {
     }
   }
 
+  const missingOutputs = RETRIEVAL_OUTPUT_NAMES.filter((name) => !session.outputNames.includes(name));
+  if (missingOutputs.length > 0) {
+    throw new Error(`[onnx] model is missing required retrieval outputs: ${missingOutputs.join(', ')}`);
+  }
   process.stderr.write(`[onnx] ready. outputs: ${session.outputNames}\n`);
 }
 
@@ -199,11 +204,12 @@ export async function embedOnnx(text) {
     ),
   };
 
-  const outputs = await session.run(feeds);
-  const names   = session.outputNames;
+  // Fetch only retrieval outputs. BGE-M3's ColBERT tensor is
+  // [batch, sequence, 1024] and can consume gigabytes for long inputs.
+  const outputs = await session.run(feeds, RETRIEVAL_OUTPUT_NAMES);
 
-  const dense     = Array.from(outputs[names[0]].data);           // dense_vecs [1, 1024]
-  const sparseRaw = Array.from(outputs[names[1]].data).map(Number); // sparse_vecs [1, seq_len, 1]
+  const dense     = Array.from(outputs.dense_vecs.data);           // dense_vecs [1, 1024]
+  const sparseRaw = Array.from(outputs.sparse_vecs.data).map(Number); // sparse_vecs [1, seq_len, 1]
   const inputIds  = Array.from(encoded.input_ids.data).map(Number);
   const attnMask  = Array.from(encoded.attention_mask.data).map(Number);
 
@@ -231,7 +237,6 @@ function processSparse(tokenWeights, inputIds, attnMask) {
  * Returns an array aligned to the input order.
  * dense stride  : 1024
  * sparse stride : input seqLen (dims[1])
- * colbert stride: colbertAll.dims[1] * 1024  ← NOT input seqLen * 1024
  *
  * Not used by the production indexer by default. Benchmark/opt-in only.
  *
@@ -262,13 +267,12 @@ export async function embedOnnxBatch(texts) {
     ),
   };
 
-  const outputs  = await session.run(feeds);
-  const names    = session.outputNames;
+  // Do not materialize colbert_vecs: its size grows with both batch and
+  // sequence length, while this API only returns dense+sparse retrieval.
+  const outputs = await session.run(feeds, RETRIEVAL_OUTPUT_NAMES);
 
-  const denseAll   = Array.from(outputs[names[0]].data);            // [batchSize * 1024]
-  const sparseAll  = Array.from(outputs[names[1]].data).map(Number); // [batchSize * seqLen]
-  // colbert_vecs dims[1] = seqLen - 1; stride differs from input seqLen
-  const colbertSeqLen = outputs[names[2]].dims[1];  // not used in return value but kept for correctness
+  const denseAll  = Array.from(outputs.dense_vecs.data);              // [batchSize * 1024]
+  const sparseAll = Array.from(outputs.sparse_vecs.data).map(Number); // [batchSize * seqLen]
 
   const inputIdsAll = Array.from(encoded.input_ids.data).map(Number);
   const attnMaskAll = Array.from(encoded.attention_mask.data).map(Number);
