@@ -1,0 +1,35 @@
+{
+  "_comment": "Hand-calculated fixture for metrics.mjs — every expected value below was computed independently by hand (see the arithmetic in the task's commit history / PR description), not derived from running metrics.mjs itself. Two tiny queries, deliberately small enough to verify nDCG/MAP/Recall/Precision/MRR arithmetic by inspection.",
+  "qrels": {
+    "q1": { "d1": 1, "d2": 1, "d3": 1 },
+    "q2": { "d1": 1 }
+  },
+  "run": {
+    "q1": ["d1", "dX", "d2", "dY", "d3"],
+    "q2": ["dZ", "dW", "d1"]
+  },
+  "expectedPerQuery": {
+    "q1": {
+      "ndcgAt10": 0.8854598815714874,
+      "recallAt10": 1,
+      "precisionAt10": 0.3,
+      "mrrAt10": 1,
+      "apAt100": 0.7555555555555555
+    },
+    "q2": {
+      "ndcgAt10": 0.5,
+      "recallAt10": 1,
+      "precisionAt10": 0.1,
+      "mrrAt10": 0.3333333333333333,
+      "apAt100": 0.3333333333333333
+    }
+  },
+  "expectedAggregate": {
+    "queryCount": 2,
+    "ndcgAt10": 0.6927299407857437,
+    "mapAt100": 0.5444444444444444,
+    "recallAt10": 1,
+    "precisionAt10": 0.2,
+    "mrrAt10": 0.6666666666666666
+  }
+}
