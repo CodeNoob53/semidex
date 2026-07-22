@@ -11,3 +11,11 @@ demo/
 .bench-indexing-corpus/
 .bench-combined-probe-corpus/
 dist/
+
+# BEIR external benchmark: downloaded datasets, tokenizer/model cache, and
+# generated run artifacts. Only the harness scripts + committed reports are
+# tracked — never the dataset itself (BEIR's own license/redistribution
+# terms) or generated TREC runs/logs.
+benchmarks/external/beir/.cache/
+benchmarks/external/beir/.runs/
+benchmarks/external/results/.smoke-report.json
