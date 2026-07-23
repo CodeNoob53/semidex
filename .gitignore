@@ -26,3 +26,8 @@ benchmarks/external/results/.smoke-report.json
 benchmarks/external/miracl/.cache/
 benchmarks/external/miracl/.runs/
 benchmarks/external/results/.miracl-smoke-report.json
+
+# Live RRF-k sweep benchmark: generated TREC runs and the smoke-mode
+# report. Only the harness scripts + the real committed report are tracked.
+benchmarks/external/fusion/.runs/
+benchmarks/external/results/.rrf-sweep-smoke-report.json

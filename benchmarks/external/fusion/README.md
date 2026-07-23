@@ -198,3 +198,60 @@ The verdict is computed from **both** aggregate rescue/harm counts and
 paired bootstrap significance — never from raw deltas alone. **This task
 does not recommend changing the production `RRF_K` default**; see the
 report's final section for what additional evidence that would require.
+
+## Live RRF-k sweep (`rrf-sweep-config.mjs` / `run-rrf-sweep.mjs`)
+
+`analyze-fusion.mjs` above is strictly offline and only ever analyzes
+`hybrid_k*` TREC files that some earlier live benchmark already produced —
+it has no `hybrid_k1`/`hybrid_k5`/`hybrid_k10`/`hybrid_k30` data to analyze
+because no prior benchmark ran Qdrant at those k values.
+
+`run-rrf-sweep.mjs` is the **live** counterpart that closes that gap: it
+issues real Qdrant hybrid queries (prefetch=200/lane, final limit 100) at
+k = `[1, 2, 5, 10, 30, 60]` across four strictly separate scopes —
+`scifact-local`, `scifact-cloud`, `miracl-local`, `miracl-cloud` — each
+using the same locked 100-query/1000-document subsets the earlier BEIR/
+MIRACL benchmarks used (`loadCachedMiniSet()` / `loadCachedMiraclSubset()`,
+never fetched or rebuilt — throws an actionable error if the required cache
+is missing).
+
+Per scope: **one** collection, **one** indexing pass, then per query one
+dense-only query, one sparse-only query, and **six** hybrid queries (one
+per sweep k) sharing the exact same prefetch specification — never one
+collection per k. Scopes run strictly sequentially, never concurrently.
+
+```bash
+# Tests only, sequential (required — never run npm test in unbounded
+# parallel mode for this module):
+node --test --test-concurrency=1 benchmarks/external/fusion/run-rrf-sweep.test.mjs
+
+# Tiny plumbing smoke (1 scope, 2 queries, 8 docs, still all 6 k values;
+# writes to a separate .rrf-sweep-smoke-report.json, never the real report):
+node benchmarks/external/fusion/run-rrf-sweep.mjs --smoke
+
+# Full 4-scope sweep (requires QDRANT_URL/QDRANT_KEY; not started
+# automatically by any task in this repo — run explicitly after reviewing
+# the smoke result):
+node benchmarks/external/fusion/run-rrf-sweep.mjs
+
+# Resume an interrupted run / restart from scratch / check resume state
+# without running anything / run a subset of scopes:
+node benchmarks/external/fusion/run-rrf-sweep.mjs --resume
+node benchmarks/external/fusion/run-rrf-sweep.mjs --restart
+node benchmarks/external/fusion/run-rrf-sweep.mjs --resume-check
+node benchmarks/external/fusion/run-rrf-sweep.mjs --scopes=scifact-local,miracl-cloud
+```
+
+Output: `benchmarks/external/results/2026-07-23-rrf-k-sweep.json` (full
+checkpoint/report) and `.md` (rendered report), plus per-scope TREC runs
+under `benchmarks/external/fusion/.runs/`. The report also compares the new
+run's k=2/k=60 rows against the previously committed BEIR/MIRACL
+provider-comparison reports (exact deltas, never overwriting the prior
+files) — local drift should be investigated, cloud drift may reflect
+hosted-model/service changes on Qdrant's side and is reported as a fact,
+not silently treated as equivalent to the prior run.
+
+This exploratory sweep does not by itself justify changing the production
+`RRF_K` default or disabling sparse globally, and no single k should be
+called a universal winner merely because it has the largest aggregate
+average on one or two scopes.
