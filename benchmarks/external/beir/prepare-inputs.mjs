@@ -1,6 +1,5 @@
 // One-time, provider-neutral input preparation shared by external retrieval benchmarks.
 // Model-specific prefixes are applied later, at the embedding lane boundary.
-import { AutoTokenizer } from '@huggingface/transformers';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
@@ -17,20 +16,29 @@ export const PREP_SCHEMA_VERSION = 8;
 
 let bgeTokenizerPromise;
 let e5TokenizerPromise;
+let autoTokenizerPromise;
 
 function releaseTokenizerReferences() {
   bgeTokenizerPromise = undefined;
   e5TokenizerPromise = undefined;
 }
 
-function getBgeTokenizer() {
+async function getAutoTokenizer() {
+  autoTokenizerPromise ??= import('@huggingface/transformers')
+    .then(({ AutoTokenizer }) => AutoTokenizer);
+  return autoTokenizerPromise;
+}
+
+async function getBgeTokenizer() {
+  const AutoTokenizer = await getAutoTokenizer();
   bgeTokenizerPromise ??= AutoTokenizer.from_pretrained(ONNX_DENSE_MODEL_ID, {
     cache_dir: ONNX_CACHE_DIR,
   });
   return bgeTokenizerPromise;
 }
 
-function getE5Tokenizer() {
+async function getE5Tokenizer() {
+  const AutoTokenizer = await getAutoTokenizer();
   e5TokenizerPromise ??= AutoTokenizer.from_pretrained(E5_MODEL_ID, {
     cache_dir: ONNX_CACHE_DIR,
   });

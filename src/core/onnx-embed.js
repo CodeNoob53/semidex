@@ -3,8 +3,8 @@
 // Activated by setting ONNX_EMBED=1 in .env — replaces Ollama for dense+sparse embed.
 // Note: sparse output is BGE-M3 lexical token weighting, not SPLADE vocabulary expansion.
 
-import { env, AutoTokenizer } from '@huggingface/transformers';
-import { existsSync, mkdirSync, createWriteStream, statSync } from 'fs';
+import { Tokenizer } from '@huggingface/tokenizers';
+import { existsSync, mkdirSync, createWriteStream, readFileSync, statSync } from 'fs';
 import { join, resolve } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -19,11 +19,10 @@ import { loadOnnxRuntime } from './onnx-runtime.js';
 export { ONNX_DENSE_MODEL_ID };
 const HF_BASE   = 'https://huggingface.co';
 const ort = loadOnnxRuntime();
+const TOKENIZER_DIR = join(CACHE_DIR, ...ONNX_DENSE_MODEL_ID.split('/'));
 
 // bge-m3 sentencepiece special token ids
 const SPECIAL_TOKENS = new Set([0, 1, 2, 3, 250001]); // pad, bos, eos, unk, mask
-
-env.cacheDir = CACHE_DIR;
 
 let tokenizer    = null;
 let session      = null;
@@ -33,11 +32,13 @@ let _loadPromise = null;
 const EXPECTED_SIZES = {
   'model.onnx':      109_000,       // ~109 kB
   'model.onnx.data': 2_270_000_000, // ~2.27 GB
+  'tokenizer.json':  17_082_821,
+  'tokenizer_config.json': 1_173,
 };
 
-async function downloadFile(filename) {
-  const dest = join(MODEL_DIR, filename);
-  mkdirSync(MODEL_DIR, { recursive: true });
+async function downloadFile(filename, targetDir = MODEL_DIR) {
+  const dest = join(targetDir, filename);
+  mkdirSync(targetDir, { recursive: true });
 
   const existingSize = existsSync(dest) ? statSync(dest).size : 0;
   const expectedSize = EXPECTED_SIZES[filename] ?? 0;
@@ -110,6 +111,61 @@ async function fetchRange(filename, dest, from, total) {
 
 const VALID_PROVIDERS = new Set(['cpu', 'dml', 'cuda']);
 const RETRIEVAL_OUTPUT_NAMES = Object.freeze(['dense_vecs', 'sparse_vecs']);
+const MAX_SEQUENCE_LENGTH = 8192;
+const PAD_TOKEN_ID = 1;
+const EOS_TOKEN_ID = 2;
+
+export function truncateTokenizerEncoding(encoding, maxLength = MAX_SEQUENCE_LENGTH) {
+  const ids = Array.from(encoding.ids, Number);
+  const attentionMask = Array.from(encoding.attention_mask ?? new Array(ids.length).fill(1), Number);
+  const tokenTypeIds = Array.from(encoding.token_type_ids ?? new Array(ids.length).fill(0), Number);
+
+  if (ids.length <= maxLength) {
+    return { ids, attentionMask, tokenTypeIds };
+  }
+
+  const truncatedIds = ids.slice(0, maxLength);
+  const truncatedAttentionMask = attentionMask.slice(0, maxLength);
+  const truncatedTokenTypeIds = tokenTypeIds.slice(0, maxLength);
+  if (ids.at(-1) === EOS_TOKEN_ID) {
+    truncatedIds[maxLength - 1] = EOS_TOKEN_ID;
+    truncatedAttentionMask[maxLength - 1] = 1;
+    truncatedTokenTypeIds[maxLength - 1] = tokenTypeIds.at(-1) ?? 0;
+  }
+  return {
+    ids: truncatedIds,
+    attentionMask: truncatedAttentionMask,
+    tokenTypeIds: truncatedTokenTypeIds,
+  };
+}
+
+export function buildTokenizerBatch(encodings, maxLength = MAX_SEQUENCE_LENGTH) {
+  const normalized = encodings.map((encoding) => truncateTokenizerEncoding(encoding, maxLength));
+  const sequenceLength = Math.max(...normalized.map((encoding) => encoding.ids.length));
+  const inputIds = [];
+  const attentionMask = [];
+  const tokenTypeIds = [];
+
+  for (const encoding of normalized) {
+    const paddingLength = sequenceLength - encoding.ids.length;
+    inputIds.push(...encoding.ids, ...new Array(paddingLength).fill(PAD_TOKEN_ID));
+    attentionMask.push(...encoding.attentionMask, ...new Array(paddingLength).fill(0));
+    tokenTypeIds.push(...encoding.tokenTypeIds, ...new Array(paddingLength).fill(0));
+  }
+
+  return {
+    dims: [normalized.length, sequenceLength],
+    inputIds,
+    attentionMask,
+    tokenTypeIds,
+  };
+}
+
+function encodeTexts(texts) {
+  return buildTokenizerBatch(
+    texts.map((text) => tokenizer.encode(text, { return_token_type_ids: true })),
+  );
+}
 
 // Resolve ONNX execution provider list from env value.
 // Returns an array suitable for onnxruntime executionProviders option.
@@ -132,7 +188,13 @@ export function resolveOnnxExecutionProviders(envValue) {
 async function _doLoad() {
   mkdirSync(CACHE_DIR, { recursive: true });
   process.stderr.write('[onnx] loading tokenizer...\n');
-  tokenizer = await AutoTokenizer.from_pretrained(ONNX_DENSE_MODEL_ID);
+  for (const file of ['tokenizer.json', 'tokenizer_config.json']) {
+    await downloadFile(file, TOKENIZER_DIR);
+  }
+  tokenizer = new Tokenizer(
+    JSON.parse(readFileSync(join(TOKENIZER_DIR, 'tokenizer.json'), 'utf-8')),
+    JSON.parse(readFileSync(join(TOKENIZER_DIR, 'tokenizer_config.json'), 'utf-8')),
+  );
 
   for (const file of ['model.onnx', 'model.onnx.data']) await downloadFile(file);
 
@@ -186,23 +248,16 @@ async function load() {
 export async function embedOnnx(text) {
   await load();
 
-  const encoded = await tokenizer(text, {
-    padding: true,
-    truncation: true,
-    max_length: 8192,
-    return_tensors: 'np',
-  });
+  const encoded = encodeTexts([text]);
 
-  const dims    = encoded.input_ids.dims;
+  const dims    = encoded.dims;
   const toInt64 = (data) => new ort.Tensor('int64',
     BigInt64Array.from(Array.from(data).map(BigInt)), dims);
 
   const feeds = {
-    input_ids:      toInt64(encoded.input_ids.data),
-    attention_mask: toInt64(encoded.attention_mask.data),
-    token_type_ids: toInt64(
-      encoded.token_type_ids?.data ?? new Array(encoded.input_ids.data.length).fill(0)
-    ),
+    input_ids:      toInt64(encoded.inputIds),
+    attention_mask: toInt64(encoded.attentionMask),
+    token_type_ids: toInt64(encoded.tokenTypeIds),
   };
 
   // Fetch only retrieval outputs. BGE-M3's ColBERT tensor is
@@ -211,8 +266,8 @@ export async function embedOnnx(text) {
 
   const dense     = Array.from(outputs.dense_vecs.data);           // dense_vecs [1, 1024]
   const sparseRaw = Array.from(outputs.sparse_vecs.data).map(Number); // sparse_vecs [1, seq_len, 1]
-  const inputIds  = Array.from(encoded.input_ids.data).map(Number);
-  const attnMask  = Array.from(encoded.attention_mask.data).map(Number);
+  const inputIds  = encoded.inputIds;
+  const attnMask  = encoded.attentionMask;
 
   return { dense, sparse: processSparse(sparseRaw, inputIds, attnMask) };
 }
@@ -248,24 +303,17 @@ export async function embedOnnxBatch(texts) {
   if (!texts.length) throw new Error('embedOnnxBatch: texts must be non-empty');
   await load();
 
-  const encoded = await tokenizer(texts, {
-    padding:        true,
-    truncation:     true,
-    max_length:     8192,
-    return_tensors: 'np',
-  });
+  const encoded = encodeTexts(texts);
 
-  const dims    = encoded.input_ids.dims;      // [batchSize, seqLen]
+  const dims    = encoded.dims;      // [batchSize, seqLen]
   const [batchSize, seqLen] = dims;
   const toInt64 = (data) => new ort.Tensor('int64',
     BigInt64Array.from(Array.from(data).map(BigInt)), dims);
 
   const feeds = {
-    input_ids:      toInt64(encoded.input_ids.data),
-    attention_mask: toInt64(encoded.attention_mask.data),
-    token_type_ids: toInt64(
-      encoded.token_type_ids?.data ?? new Array(encoded.input_ids.data.length).fill(0)
-    ),
+    input_ids:      toInt64(encoded.inputIds),
+    attention_mask: toInt64(encoded.attentionMask),
+    token_type_ids: toInt64(encoded.tokenTypeIds),
   };
 
   // Do not materialize colbert_vecs: its size grows with both batch and
@@ -275,8 +323,8 @@ export async function embedOnnxBatch(texts) {
   const denseAll  = Array.from(outputs.dense_vecs.data);              // [batchSize * 1024]
   const sparseAll = Array.from(outputs.sparse_vecs.data).map(Number); // [batchSize * seqLen]
 
-  const inputIdsAll = Array.from(encoded.input_ids.data).map(Number);
-  const attnMaskAll = Array.from(encoded.attention_mask.data).map(Number);
+  const inputIdsAll = encoded.inputIds;
+  const attnMaskAll = encoded.attentionMask;
 
   const results = [];
   for (let b = 0; b < batchSize; b++) {

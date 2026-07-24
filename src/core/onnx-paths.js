@@ -1,6 +1,6 @@
 // ONNX model path/id constants — no side effects, safe to import from
 // doctor/tools/the settings registry (unlike onnx-embed.js itself, which
-// pulls in onnxruntime-node/@huggingface/transformers at import time).
+// loads the configured ONNX runtime and tokenizer implementation).
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 

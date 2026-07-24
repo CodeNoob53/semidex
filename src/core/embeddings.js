@@ -23,8 +23,8 @@ export const SCHEMA_VERSION = 2;
 
 /**
  * Returns true only when ONNX_EMBED=1 and ONNX_EXECUTION_PROVIDER=dml.
- * All other providers (cpu, cuda, unset) return false — CPU batching regresses
- * and CUDA falls back to CPU in the current onnxruntime-node package.
+ * All other providers (cpu, cuda, unset) return false. CUDA can use a custom
+ * runtime build, while the default package remains CPU-only.
  * @param {NodeJS.ProcessEnv} env
  */
 export function shouldUseOnnxBatching(env) {
