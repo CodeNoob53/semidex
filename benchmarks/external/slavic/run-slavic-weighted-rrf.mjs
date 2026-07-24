@@ -46,7 +46,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, resolve, join } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { execSync } from 'node:child_process';
-import { AutoTokenizer } from '@huggingface/transformers';
+import { Tokenizer } from '@huggingface/tokenizers';
 
 import { bootstrapEnv } from '../../../src/core/env-bootstrap.js';
 import { embedOnnxBatch, getOnnxProviderState } from '../../../src/core/onnx-embed.js';
@@ -229,7 +229,10 @@ export async function cleanupOrphanedCollection({ client, redact, report, langua
 
 let tokenizerPromise;
 function getTokenizer() {
-  tokenizerPromise ??= AutoTokenizer.from_pretrained(ONNX_DENSE_MODEL_ID, { cache_dir: ONNX_CACHE_DIR });
+  tokenizerPromise ??= Promise.resolve(new Tokenizer(
+    JSON.parse(readFileSync(join(ONNX_CACHE_DIR, ...ONNX_DENSE_MODEL_ID.split('/'), 'tokenizer.json'), 'utf-8')),
+    JSON.parse(readFileSync(join(ONNX_CACHE_DIR, ...ONNX_DENSE_MODEL_ID.split('/'), 'tokenizer_config.json'), 'utf-8')),
+  ));
   return tokenizerPromise;
 }
 
@@ -238,19 +241,10 @@ function getTokenizer() {
  * detectTruncation() exactly. */
 async function detectTruncation(texts) {
   const tokenizer = await getTokenizer();
-  const batchSize = 64;
-  const tokenCounts = [];
-  for (let i = 0; i < texts.length; i += batchSize) {
-    const batch = texts.slice(i, i + batchSize);
-    const encoded = await tokenizer(batch, { padding: true, truncation: true, max_length: ONNX_MAX_SEQ_LENGTH + 1 });
-    const [rows, cols] = encoded.attention_mask.dims;
-    const mask = encoded.attention_mask.data;
-    for (let row = 0; row < rows; row++) {
-      let count = 0;
-      for (let col = 0; col < cols; col++) count += Number(mask[row * cols + col]);
-      tokenCounts.push(Math.min(count, ONNX_MAX_SEQ_LENGTH + 1));
-    }
-  }
+  const tokenCounts = texts.map((text) => Math.min(
+    tokenizer.encode(text, { return_token_type_ids: false }).ids.length,
+    ONNX_MAX_SEQ_LENGTH + 1,
+  ));
   const truncatedCount = tokenCounts.filter((c) => c > ONNX_MAX_SEQ_LENGTH).length;
   return { truncatedCount, total: texts.length, tokenCounts };
 }

@@ -993,4 +993,10 @@ describe('no production configuration changes', () => {
     assert.doesNotMatch(src, /settings\/definitions\.js/);
     assert.doesNotMatch(src, /RRF_K\s*=\s*\d/);
   });
+
+  test('diagnostic token counting does not import transformers and register the project ORT before the custom CUDA runtime', () => {
+    const src = readFileSync(new URL('./run-slavic-weighted-rrf.mjs', import.meta.url), 'utf-8');
+    assert.doesNotMatch(src, /@huggingface\/transformers/);
+    assert.match(src, /@huggingface\/tokenizers/);
+  });
 });

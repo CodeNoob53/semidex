@@ -1,20 +1,16 @@
 # Slavic Belebele weighted-RRF fusion matrix — feasibility and harness verification report
 
-This report covers **harness implementation and verification only**. The
-full 7-language benchmark has **not** been run — per the task's explicit
-instruction, this phase builds and validates the harness, then stops for
-manual review before the expensive full run is approved and executed
-separately.
+This report covers the harness implementation and its initial
+verification boundary. The full seven-language benchmark was executed
+after review and is recorded separately in
+`2026-07-24-slavic-weighted-rrf.md`.
 
 ## What this report is, and is not
 
-- **IS**: a record of what was built, how it was verified (unit tests,
-  syntax checks, one real-Qdrant smoke run), and an estimate of what the
-  full run would cost.
-- **IS NOT**: a report of Slavic-language weighted-RRF retrieval quality.
-  No full-scale conclusions about sparse/hybrid regression by language or
-  script group exist yet — those numbers do not exist until the full
-  7-language run is explicitly approved and executed.
+- **IS**: a record of what was built and how the harness was verified
+  before the full run.
+- **IS NOT**: the source of final Slavic-language weighted-RRF metrics.
+  Those results belong to `2026-07-24-slavic-weighted-rrf.md`.
 - **IS NOT**: a restatement or re-analysis of the completed live
   SciFact/MIRACL weighted-RRF benchmark
   (`2026-07-24-weighted-rrf-live.{json,md}`). That benchmark's own finding
@@ -131,21 +127,22 @@ comparison is made or implied anywhere in this harness or report.
   companion negative-control test confirms the fixture test is not
   vacuously true: with the cache fixture removed, the same call genuinely
   throws through the stubbed `fetch`.
-- **Full 7-language benchmark NOT run** during implementation — only the
-  harness was built and validated (unit tests + one real-Qdrant smoke
-  scope, `ukr_Cyrl` only, 3 queries/10 docs).
+- **Full 7-language benchmark was not run during initial implementation**:
+  only the harness and one real-Qdrant smoke scope were validated first.
+  After review and a CUDA runtime fix, the full run completed successfully;
+  see `2026-07-24-slavic-weighted-rrf.md`.
 
 ## Test results
 
 New test file, run bounded (`node --test --test-concurrency=1`), after a
-follow-up review round fixed three findings (see "Follow-up review round"
+follow-up review round fixed four findings (see "Follow-up review round"
 below — a non-inferiority classification bug, a shallow-freeze gap on the
 locked fusion weights, and an offline-cache test that didn't actually
 exercise `fetchAndValidateLanguage()`):
 
 ```
 benchmarks/external/slavic/run-slavic-weighted-rrf.test.mjs
-tests 95, pass 95, fail 0
+tests 96, pass 96, fail 0
 ```
 
 Covers (per the task's required minimum list): exact seven-language
@@ -176,7 +173,7 @@ weights-immutability test), bounded:
 
 ```
 node --test --test-concurrency=1 <8 files>
-tests 531, pass 531, fail 0
+tests 532, pass 532, fail 0
 ```
 
 `node --check` passed for every changed/new JavaScript file. `git diff
@@ -186,7 +183,7 @@ warning on `.gitignore`, not an error).
 ## Follow-up review round (findings fixed after initial implementation)
 
 A code review pass against the initial implementation of this harness
-found three real issues, all verified against the actual code/data before
+found four real issues, all verified against the actual code/data before
 being fixed:
 
 1. **`classifyLanguageDecisions()`'s "restores dense quality" logic was
@@ -235,6 +232,21 @@ being fixed:
    positive test is not vacuously true (removing the fixture makes the
    same call genuinely throw through the network stub).
 
+4. **The diagnostic tokenizer registered an incompatible ONNX Runtime
+   before the custom CUDA runtime**: importing `AutoTokenizer` from
+   `@huggingface/transformers` loaded the project's ONNX Runtime 1.24
+   before `src/core/onnx-embed.js` loaded the custom CUDA-enabled 1.26
+   runtime. The resulting backend-registration conflict prevented the
+   full CUDA run even though an isolated CUDA probe passed. **Fixed** by
+   loading `tokenizer.json` and `tokenizer_config.json` directly through
+   `@huggingface/tokenizers`; this path is used only for truncation
+   diagnostics and does not alter embedding or retrieval. A regression
+   test prevents reintroducing the transformers import. This is a
+   **harness-local fix**, not a project-wide resolution: production
+   tokenizer and cross-encoder paths that still import Transformers.js
+   require a separate runtime-isolation follow-up before custom Windows
+   CUDA can be treated as a generally supported Semidex configuration.
+
 ## Smoke result
 
 One real-Qdrant smoke scope was run in the foreground:
@@ -265,24 +277,11 @@ depend on the specific run just executed.)*
 ## Strict CUDA provenance
 
 The pre-flight gate (`verifyStrictCudaConfigured`) and post-hoc provenance
-check (`verifyCudaProvenance`) are the same functions the completed
-SciFact/MIRACL weighted-RRF benchmark already validated in a real run —
-extracted here unchanged into a shared module, not reimplemented. In this
-development environment (no `ONNX_EXECUTION_PROVIDER=cuda`/
-`ONNX_CUDA_STRICT=1` configured), the gate correctly refuses to start a
-non-smoke run against local (i.e. every) language in this benchmark — this
-was verified directly, not merely asserted by test, by calling
-`verifyStrictCudaConfigured()` against the real `process.env` of this shell.
-The smoke run itself is exempt from the gate (plumbing-only, never claims
-real CUDA numbers) and ran successfully on whatever provider this
-environment's ONNX session defaulted to.
-
-**Whether strict CUDA works end-to-end (gate blocks a real run without it,
-and accepts one with it correctly configured) is confirmed by source-level
-verification and the shared module's own already-proven behavior in the
-SciFact/MIRACL benchmark — this task did not re-run a full CUDA-configured
-scope, since that would mean starting real indexing work beyond the
-explicitly scoped smoke validation.**
+check (`verifyCudaProvenance`) are shared with the SciFact/MIRACL
+weighted-RRF benchmark. The completed full run used the custom
+CUDA-enabled ONNX Runtime 1.26 with strict CUDA enabled. Provenance passed
+for all seven languages; CUDA was used only as an execution accelerator
+and was never treated as a retrieval-quality variable.
 
 ## Observations from prior SciFact/MIRACL runs (context only — not evidence about Slavic languages)
 
@@ -292,16 +291,12 @@ removes most of the MIRACL regression seen under equal-weight hybrid RRF,
 but the magnitude and significance of that effect differ between SciFact
 and MIRACL and between the local and cloud providers. This motivated the
 present harness's question — whether a similar regression, and a similar
-rescue effect from dense-heavy weighting, appears (or does not appear)
-consistently across the Slavic language matrix, or instead correlates
-with specific languages/script groups. **This is a hypothesis this
-harness is built to test, not a conclusion already reached** — no Slavic
-retrieval-quality numbers exist yet.
+rescue effect from dense-heavy weighting, appears consistently across the
+Slavic language matrix. The measured answer is in the companion final
+report, not this implementation report.
 
 ## Unsupported conclusions (explicitly out of scope for this report)
 
-- No claim is made about which Slavic languages sparse retrieval helps or
-  hurts — that requires the full run.
 - No claim is made about a Cyrillic-vs-Latin script effect — even once the
   full run exists, script and language remain confounded in this 7-language
   matrix (3 Cyrillic, 3 Latin Slavic, 1 Latin control), and the harness's
@@ -313,30 +308,14 @@ retrieval-quality numbers exist yet.
 - No production fusion default (RRF_K, sparse-enablement) is changed by
   this harness or by running it.
 
-## Estimated full-run duration
+## Measured full-run duration
 
-Not measured directly (the full run was not started, per the task's
-explicit boundary). Estimated from two real data points:
+The complete sequential seven-language run finished in 2,519 seconds
+(about 42 minutes), close to the original estimate. Peak process RSS was
+about 1.51 GB. Each language indexed 488 documents and evaluated 900
+queries across all six modes.
 
-- The completed equal-RRF-only Slavic benchmark
-  (`2026-07-23-slavic-belebele-benchmark.json`): ~19–23s indexing per
-  language (488 docs), ~53ms median latency per Qdrant request, 900
-  queries × 3 requests/query (dense+sparse+1 hybrid) per language.
-- This benchmark issues 6 requests/query (dense+sparse+4 hybrid) instead
-  of 3 — roughly double the query-phase request volume per language, with
-  indexing cost unchanged (same corpus, same one-pass embedding).
-
-Extrapolating: ~300–310s (~5.1 minutes) per language × 7 languages ≈
-**35–40 minutes** total, sequential, on the same execution provider the
-equal-RRF benchmark used (CPU, in that prior run). Strict CUDA (the
-intended configuration for an eventual full run) primarily reduces
-embedding/indexing time, not the number of Qdrant round trips, so it
-would reduce this estimate somewhat but not proportionally — a
-conservative range of **35–45 minutes** is reported rather than a single
-precise number, since this is an extrapolation from a different fusion
-harness's timing, not a direct measurement of this harness's own full run.
-
-## Full-run command (for later manual approval — not executed by this task)
+## Full-run command
 
 ```bash
 node benchmarks/external/slavic/run-slavic-weighted-rrf.mjs
@@ -347,4 +326,4 @@ gate to pass, `ONNX_EXECUTION_PROVIDER=cuda` and `ONNX_CUDA_STRICT=1` set
 in the environment beforehand (a custom `ONNXRUNTIME_NODE_PATH`, if
 needed for this machine's CUDA setup, is read from whatever the existing
 runtime configuration already provides — this harness never hardcodes
-one). Not started by this task.
+one).
