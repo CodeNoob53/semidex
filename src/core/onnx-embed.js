@@ -4,13 +4,13 @@
 // Note: sparse output is BGE-M3 lexical token weighting, not SPLADE vocabulary expansion.
 
 import { env, AutoTokenizer } from '@huggingface/transformers';
-import * as ort from 'onnxruntime-node';
 import { existsSync, mkdirSync, createWriteStream, statSync } from 'fs';
 import { join, resolve } from 'path';
 import { fileURLToPath } from 'url';
 
 import { ONNX_CACHE_DIR as CACHE_DIR, ONNX_MODEL_DIR as MODEL_DIR, ONNX_DENSE_MODEL_ID } from './onnx-paths.js';
 import { isCudaStrict, buildCudaStrictError } from './doctor-checks.js';
+import { loadOnnxRuntime } from './onnx-runtime.js';
 
 // Re-exported for backward compatibility — the canonical declaration now
 // lives in onnx-paths.js (a dependency-free module), so consumers that
@@ -18,6 +18,7 @@ import { isCudaStrict, buildCudaStrictError } from './doctor-checks.js';
 // imports (e.g. the settings registry) can import the id without them.
 export { ONNX_DENSE_MODEL_ID };
 const HF_BASE   = 'https://huggingface.co';
+const ort = loadOnnxRuntime();
 
 // bge-m3 sentencepiece special token ids
 const SPECIAL_TOKENS = new Set([0, 1, 2, 3, 250001]); // pad, bos, eos, unk, mask

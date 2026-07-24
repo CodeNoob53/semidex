@@ -46,6 +46,8 @@
     "smoke:retrieval-live": "node benchmarks/retrieval/smoke-live.js",
     "smoke:prune-live": "node benchmarks/retrieval/smoke-live-prune-stale.js",
     "bench:onnx-provider": "node benchmarks/onnx-provider-bench.js",
+    "probe:onnx-cuda": "node benchmarks/onnx-cuda-registration-probe.mjs",
+    "compare:onnx-provider": "node benchmarks/compare-onnx-provider-results.mjs",
     "bench:onnx-worker-budget": "node benchmarks/onnx-worker-budget-bench.js",
     "bench:onnx-tag-provider": "node benchmarks/onnx-tag-provider-indexing-bench.js",
     "bench:onnx-tag-embed-parallel": "node benchmarks/onnx-tag-embed-parallel-bench.js",
