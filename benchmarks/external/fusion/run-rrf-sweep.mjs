@@ -138,11 +138,13 @@ function sdkVersion() {
  * used, and dataset identity, so a single global peak-RSS/commit/SDK-version
  * block is not enough to reconstruct exactly what produced one scope's
  * numbers. Captured once per scope, not just once globally. */
-function buildScopeProvenance({ scope, dataset, prepared }) {
+export function buildScopeProvenance({ scope, dataset, prepared }) {
   return {
     commitHash: currentCommitHash(),
     qdrantSdkVersion: sdkVersion(),
-    onnxExecutionProviderRequested: (process.env.ONNX_EXECUTION_PROVIDER ?? 'cpu').trim().toLowerCase() || 'cpu',
+    onnxExecutionProviderRequested: scope.provider.kind === 'local'
+      ? ((process.env.ONNX_EXECUTION_PROVIDER ?? 'cpu').trim().toLowerCase() || 'cpu')
+      : null,
     provider: {
       kind: scope.provider.kind,
       denseModelId: scope.provider.denseModelId,
@@ -1192,7 +1194,7 @@ export function renderMarkdownReport(report) {
     const p = r.provenance;
     if (!p) { lines.push(`| ${scopeId} | n/a | n/a | n/a | n/a | n/a | n/a | n/a |`); continue; }
     const seed = p.datasetIdentity?.manifest?.selectionSeed ?? 'n/a';
-    lines.push(`| ${scopeId} | ${p.commitHash?.slice(0, 12) ?? 'n/a'} | ${p.qdrantSdkVersion ?? 'n/a'} | ${p.onnxExecutionProviderRequested} | ${p.provider.denseModelId} | ${p.provider.sparseModelId} | ${p.datasetIdentity.corpusSize}/${p.datasetIdentity.queryCount} | ${seed} |`);
+    lines.push(`| ${scopeId} | ${p.commitHash?.slice(0, 12) ?? 'n/a'} | ${p.qdrantSdkVersion ?? 'n/a'} | ${p.onnxExecutionProviderRequested ?? 'n/a'} | ${p.provider.denseModelId} | ${p.provider.sparseModelId} | ${p.datasetIdentity.corpusSize}/${p.datasetIdentity.queryCount} | ${seed} |`);
   }
   lines.push('');
   lines.push('## Interpretation limits');

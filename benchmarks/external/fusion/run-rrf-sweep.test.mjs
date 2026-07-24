@@ -13,7 +13,7 @@ import {
   isCompletedScopeCheckpoint, shrinkForSmoke, normalizeDocEntries, validateResumeCheckpoint,
   executeScope, computeScopeComparisons, computePriorComparison, computeVerdict,
   computeSweepAnswers, renderMarkdownReport, cleanupOrphanedCollection,
-  rebuildReportAggregates,
+  rebuildReportAggregates, buildScopeProvenance,
 } from './run-rrf-sweep.mjs';
 
 // ── 1. Sweep k list is exactly [1, 2, 5, 10, 30, 60] ───────────────────────
@@ -880,6 +880,35 @@ describe('P1 fix: renderMarkdownReport answers the 6 required questions, not a p
 
 // ── P2 regression: per-scope provenance ────────────────────────────────────
 describe('P2 fix: per-scope provenance is attached to each scope report', () => {
+  test('reports the requested ONNX EP only for local scopes; cloud inference is n/a', () => {
+    const previous = process.env.ONNX_EXECUTION_PROVIDER;
+    process.env.ONNX_EXECUTION_PROVIDER = 'cuda';
+    const dataset = {
+      datasetMd5: 'fixture',
+      manifest: null,
+      corpus: new Map([['d1', {}]]),
+      queries: new Map([['q1', 'query']]),
+    };
+    const prepared = { cachePath: null };
+    try {
+      const local = buildScopeProvenance({
+        scope: fixtureScope({ provider: { ...fixtureScope().provider, kind: 'local' } }),
+        dataset,
+        prepared,
+      });
+      const cloud = buildScopeProvenance({
+        scope: fixtureScope({ provider: { ...fixtureScope().provider, kind: 'cloud' } }),
+        dataset,
+        prepared,
+      });
+      assert.equal(local.onnxExecutionProviderRequested, 'cuda');
+      assert.equal(cloud.onnxExecutionProviderRequested, null);
+    } finally {
+      if (previous === undefined) delete process.env.ONNX_EXECUTION_PROVIDER;
+      else process.env.ONNX_EXECUTION_PROVIDER = previous;
+    }
+  });
+
   test('executeScope callers attach provenance with peakRssBytes, models, and dataset identity distinct per scope', async () => {
     const { readFileSync } = await import('node:fs');
     const src = readFileSync(new URL('./run-rrf-sweep.mjs', import.meta.url), 'utf-8');
