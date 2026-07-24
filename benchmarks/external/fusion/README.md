@@ -255,3 +255,170 @@ This exploratory sweep does not by itself justify changing the production
 `RRF_K` default or disabling sparse globally, and no single k should be
 called a universal winner merely because it has the largest aggregate
 average on one or two scopes.
+
+## Offline weighted-RRF candidate analysis (`analyze-weighted-rrf.mjs`)
+
+Narrows weighted-RRF configurations using ONLY already-completed TREC runs
+from the BEIR SciFact, MIRACL Russian, and Slavic Belebele benchmarks —
+**strictly offline**: no Qdrant queries, no ONNX models, no collections
+created or deleted. This is the step before any new live Qdrant benchmark,
+not a substitute for one.
+
+### Qdrant's real weighted-RRF formula
+
+Qdrant 1.17+ (this project: server 1.17.1, `@qdrant/js-client-rest`
+1.18.0) computes a document's per-lane weighted-RRF contribution as:
+
+```
+contribution(rank, weight, k) = 1 / (k + (rank + 1) / weight - 1)
+```
+
+with `rank` ZERO-BASED, passed via `query: { rrf: { k, weights:
+[denseWeight, sparseWeight] } }` — **never** `prefetch.weight` (no such
+field exists) and never approximated with `FormulaQuery` (which sees raw
+prefetch scores, not prefetch ranks — not a substitute for rank fusion).
+The naive `weight / (k + rank)` formula is explicitly wrong and is never
+used here.
+
+Because `k` dominates the denominator at large k, a raw weight change
+barely moves the top-rank contribution at k=60 while the same raw weight
+change is dramatic at k=2 — see `weightedRrfContribution()`'s own doc
+comment for the exact reasoning. This is why configurations are
+parametrized by a **target rank-1 contribution ratio `rho`** (sparse vs
+dense contribution at the very first rank), converted to the actual
+per-k Qdrant weight via `sparseWeightFromRho()`, rather than sweeping raw
+weight values that would mean incomparable things at different k.
+
+### Scope and required evaluation scopes
+
+`scifact_local` (SciFact full 300-query test split), `miracl_local`
+(MIRACL Russian 100-query pooled subset — already inspected in prior
+tasks, treated as diagnostic/validation evidence, never a blind holdout),
+and 7 `belebele_{lang}` scopes (`ukr_Cyrl`, `rus_Cyrl`, `bul_Cyrl`,
+`pol_Latn`, `ces_Latn`, `slk_Latn`, `eng_Latn`). Only local BGE-M3 TREC
+runs are read — Qdrant Cloud E5/BM25 runs are never mixed in.
+
+### Parity validation — read this before trusting the numbers
+
+Before evaluating weighted configurations, the analyzer reconstructs equal
+RRF (`weights=[1,1]`) offline and compares it against the REAL Qdrant
+hybrid TREC run for the same scope/k, where one exists. **In the run that
+produced the committed report, EVERY available parity check failed the
+faithfulness threshold** — 15-30% of queries showed a different top-10
+ranking than the real Qdrant run, even though aggregate nDCG@10 differed
+by only ~0.001-0.02. The most likely cause: saved dense/sparse TREC lanes
+are capped at top-100 per query, while real Qdrant hybrid queries use
+prefetch limit 200 per lane. This means the offline weighted-RRF numbers
+in the report are **directional evidence for narrowing candidates, not a
+precise prediction** of what a live Qdrant weighted-RRF query will score —
+this analyzer never claims exact simulation, and the report says so
+explicitly in its own "Limitations" section, computed from the actual
+measured parity result, not hardcoded.
+
+### Candidate selection
+
+Rule-based, never subjective. **`selectCandidates()` requires
+`scopeResults` to cover the EXACT required scope set** (`scifact_local`,
+`miracl_local`, all 7 `belebele_*` — no more, no fewer); a partial or
+extended scope set can never demonstrate "no significant regression
+anywhere" for scopes it never saw, so it always returns
+`NO_WEIGHTED_RRF_CANDIDATE` rather than silently evaluating "safe
+everywhere" over whatever subset happened to be passed in. Both candidate
+slots additionally require a config to be **confirmed safe on every one of
+those scopes** — a scope/config pair with no bootstrap result at all is
+treated as NOT confirmed safe, never as passing by default:
+
+- **dense-heavy**: among the safe-everywhere configs with a positive
+  SciFact benefit, picks the **smallest rho** (least sparse influence) —
+  "dense-heavy" means minimal sparse contribution, not merely "happened to
+  avoid harm."
+- **balanced/quality**: among the same safe-everywhere set, picks the
+  config with the best cross-dataset macro nDCG@10 — requiring a **finite
+  nDCG@10 in every required scope**, never a partial average over
+  whichever scopes happened to have data (a config missing a metric for
+  even one scope is disqualified from this slot entirely, not silently
+  scored on fewer scopes).
+- **dense-heavy and balanced are never the same config.** If the single
+  best balanced/quality pick is identical to dense-heavy, the analyzer
+  falls through to the next-best DISTINCT eligible config; if none exists,
+  `balancedCandidate` is `null` and the report explains why, rather than
+  printing the same `query.rrf.weights` payload twice under two headings
+  — a live benchmark must never be asked to run the identical
+  configuration twice.
+- **equal RRF** is always included as a control (never a recommendation).
+
+If no weighted configuration satisfies either rule (or the scope set is
+incomplete), the verdict is `NO_WEIGHTED_RRF_CANDIDATE` — a winner is
+never forced.
+
+Two things a prior version of this rule got wrong, both fixed:
+
+1. It only checked Belebele for the dense-heavy slot, which let a config
+   with a confirmed statistically significant MIRACL regression
+   (`k2_rho0.75`, meanΔ≈-0.033 nDCG@10, CI excludes zero) be selected and
+   labeled "dense-heavy." MIRACL is now included in the eligibility gate
+   for both slots.
+2. It evaluated `safeEverywhere()` only over whatever `scopeResults` was
+   actually passed in, with no check that the full required scope set was
+   present — a caller bug or future refactor could have silently produced
+   a candidate that was never checked against MIRACL or Belebele at all.
+   Fixed with the exact-scope-set requirement described above. In the
+   current committed report, this rule set means only `k2_rho0.10` is
+   confirmed safe across all 9 scopes; `denseHeavyCandidate` is
+   `k2_rho0.10` and `balancedCandidate` is `null` (it would have collided
+   with dense-heavy, and no distinct alternative was eligible).
+
+Two further things a later version got wrong, both also fixed:
+
+3. `balancedCollidedWithDenseHeavy` was computed by checking whether
+   `denseHeavy` appeared **anywhere** in the macro-quality-sorted eligible
+   list for the balanced slot, not only at rank 0. Since dense-heavy is
+   chosen by a completely different rule (smallest safe rho, not best
+   macro nDCG@10), it can legitimately be "safe everywhere" — and thus
+   present in that list — without ever being the actual top-ranked
+   balanced pick. That made the flag (and the report text built from it)
+   falsely claim a collision in cases where the real best balanced
+   candidate never involved dense-heavy at all. Fixed to check only
+   `balancedEligible[0]?.configId === denseHeavy` — whether the single
+   best balanced pick, specifically, was dense-heavy.
+4. The exact-scope-set check compared only the deduplicated ID `Set`
+   sizes/membership, so a `scopeResults` array containing a duplicated
+   scope entry (e.g. `scifact_local` listed twice — 10 entries but only 9
+   unique ids) passed validation and silently double-weighted that scope
+   in `macroQuality()`'s average. Fixed by also requiring
+   `scopeResults.length === SCOPE_IDS.length`.
+
+In the current committed report, neither fix changes the printed
+candidates: the real `denseHeavy`/`balanced` collision genuinely does
+happen at rank 0 (`k2_rho0.10` is both the dense-heavy pick and the top of
+`balancedEligible`), and the real `main()` run never supplies a duplicated
+scope entry.
+
+### A known limitation: no held-out validation split
+
+The same SciFact/MIRACL/Belebele scopes used to SELECT these candidate
+weights are also used to EVALUATE them — there is no train/validation
+split. A future live Qdrant run on these scopes will confirm whether the
+offline reconstruction matches real Qdrant behavior, but it will **not**
+confirm that the selected weights generalize beyond this exact eval set.
+Per Qdrant's own tuning guidance, weights should ideally be tuned on one
+part of an eval set and confirmed on a separate, untouched holdout before
+being treated as validated — this analyzer does not yet do that.
+
+### Running
+
+```bash
+# Tests only, sequential (required):
+node --test --test-concurrency=1 benchmarks/external/fusion/analyze-weighted-rrf.test.mjs
+
+# Run the analyzer (strictly offline; no flags needed, though --expose-gc
+# helps keep peak RSS well under the ~512 MiB target across all 9 scopes —
+# see the report's own peak-RSS figure for the exact number of that run):
+node benchmarks/external/fusion/analyze-weighted-rrf.mjs
+```
+
+Output: `benchmarks/external/results/2026-07-23-weighted-rrf-offline-analysis.json`
+and `.md`.
+
+> This offline analysis narrows candidates only. Final acceptance requires
+> real Qdrant 1.17+ weighted-RRF queries using `query.rrf.weights`.
