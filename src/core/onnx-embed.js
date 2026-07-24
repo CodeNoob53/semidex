@@ -27,6 +27,12 @@ const SPECIAL_TOKENS = new Set([0, 1, 2, 3, 250001]); // pad, bos, eos, unk, mas
 let tokenizer    = null;
 let session      = null;
 let _loadPromise = null;
+// Set once _doLoad() finishes, so callers can verify what actually happened
+// (not just what was requested). requested is resolveOnnxExecutionProviders()'s
+// providers[0]; effective is 'cuda'/'dml' only when the session was created
+// with that provider directly (no catch/fallback branch executed) — 'cpu'
+// whenever the fallback branch ran, or when 'cpu' was requested outright.
+let _providerState = null;
 
 // Expected file sizes from HF repo (used for offline cache validation).
 const EXPECTED_SIZES = {
@@ -207,6 +213,7 @@ async function _doLoad() {
       executionProviders: providers,
       graphOptimizationLevel: 'all',
     });
+    _providerState = { requested: providers[0], effective: providers[0], fellBackToCpu: false };
   } catch (err) {
     // CUDA is not bundled in onnxruntime-node — retry with CPU, or hard-fail in strict mode.
     if (providers[0] === 'cuda') {
@@ -219,6 +226,7 @@ async function _doLoad() {
         executionProviders: ['cpu'],
         graphOptimizationLevel: 'all',
       });
+      _providerState = { requested: providers[0], effective: 'cpu', fellBackToCpu: true };
       process.stderr.write('[onnx] session created with cpu fallback\n');
     } else {
       throw err;
@@ -235,6 +243,21 @@ async function _doLoad() {
 async function load() {
   if (!_loadPromise) _loadPromise = _doLoad().catch(e => { _loadPromise = null; throw e; });
   return _loadPromise;
+}
+
+/**
+ * Returns the requested vs. effective ONNX execution provider from the most
+ * recent successful session load, or null if no session has been created
+ * yet (embedOnnx/embedOnnxBatch never called). Callers that need strict
+ * CUDA provenance (e.g. a live benchmark that must reject a run where CUDA
+ * was requested but silently fell back to CPU) should call
+ * embedOnnx/embedOnnxBatch at least once first, then read this — never
+ * infer it from ONNX_EXECUTION_PROVIDER alone, since that only reflects the
+ * request, not what onnxruntime-node actually created a session with.
+ * @returns {{ requested: string, effective: string, fellBackToCpu: boolean } | null}
+ */
+export function getOnnxProviderState() {
+  return _providerState;
 }
 
 /**

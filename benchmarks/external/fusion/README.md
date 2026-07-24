@@ -422,3 +422,123 @@ and `.md`.
 
 > This offline analysis narrows candidates only. Final acceptance requires
 > real Qdrant 1.17+ weighted-RRF queries using `query.rrf.weights`.
+
+## Live weighted-RRF validation (`weighted-rrf-live-config.mjs` / `run-weighted-rrf-live.mjs`)
+
+The offline analyzer above reconstructs fusion from saved top-100 lane
+files; real Qdrant hybrid requests use prefetch=200/lane. Its output is
+candidate selection only, never validation. `run-weighted-rrf-live.mjs` is
+the live counterpart that validates the offline analyzer's selected
+primary candidate (`k2_rho0.10`, k=2, `weights=[1.0, 0.05263157894736842]`)
+against **real** Qdrant 1.17+ weighted-RRF queries — the exact
+`query: { rrf: { k, weights: [dense, sparse] } }` contract, never
+`prefetch.weight`, never a local rank reconstruction.
+
+This is not another RRF-k sweep (see `run-rrf-sweep.mjs` above) and not
+another offline reconstruction — it answers four questions with real
+execution: does the primary candidate remove/reduce the MIRACL regression
+the completed CUDA k-sweep observed under equal-weight hybrid; does it
+preserve useful sparse contribution where sparse helps; does it preserve
+SciFact quality vs dense-only and equal hybrid; and do the offline
+weighted-RRF conclusions agree with real Qdrant execution.
+
+Reuses the exact same four scopes and cached 100-query/1000-document
+subsets as the completed live RRF-k sweep (`scifact-local`,
+`scifact-cloud`, `miracl-local`, `miracl-cloud` —
+`loadCachedMiniSet()` / `loadCachedMiraclSubset()`, never fetched or
+rebuilt). Every scope runs all six fusion modes, in this fixed order:
+`dense`, `sparse`, `equal_k2` (k=2, weights=[1,1] — Qdrant's own default
+weights), `equal_k60` (k=60, weights=[1,1] — Semidex's own production RRF
+k), `k2_rho0.10` (the offline primary dense-heavy candidate), and
+`k2_rho0.25` (a diagnostic neighbor — never promoted to primary merely for
+winning one scope).
+
+Per scope: **one** collection, **one** indexing pass, then per query dense
+and sparse query vectors are computed **once** and reused for all six
+modes — the four hybrid modes share the identical prefetch spec (same
+vectors, prefetch=200/lane), differing only in `query.rrf.k`/`weights`.
+Scopes run strictly sequentially, never concurrently.
+
+### Strict CUDA for local scopes
+
+Local scopes (`scifact-local`, `miracl-local`) in a full benchmark must run under strict CUDA
+(`ONNX_EXECUTION_PROVIDER=cuda ONNX_CUDA_STRICT=1` in the environment —
+the harness reads this, it never sets it itself, and never hardcodes a
+user-specific ONNX Runtime path). `core/onnx-embed.js` now exports
+`getOnnxProviderState()`, which records the requested vs. **effective**
+execution provider from the most recent session load — the harness reads
+this after the first local embedding call and rejects the scope
+(`cudaVerification.ok: false`, which also fails the harness verdict) if
+CUDA was requested but the effective provider was not CUDA (e.g. a silent
+CPU fallback). This closes a real gap: the earlier CUDA k-sweep report
+(`2026-07-24-rrf-k-sweep-cuda.md`) recorded only the *requested* provider
+(`onnxExecutionProviderRequested`), with no verification that CUDA was
+actually what ran. Cloud scopes report ONNX provenance as `null`/not
+applicable — Qdrant Cloud Inference embeds server-side.
+
+Smoke mode is provider-agnostic plumbing only: it may run on CPU and never
+produces a scientific candidate verdict or CUDA performance evidence.
+
+### Decision rules
+
+`computeVerdict()` is harness-integrity only (did every scope run to
+completion with valid metrics, clean cleanup, and — for local scopes —
+verified CUDA provenance). `computeCandidateVerdict()` is the separate
+scientific question, applied only once the harness itself is technically
+sound:
+
+- **`WEIGHTED_RRF_ACCEPT`** requires ALL of: no statistically significant
+  nDCG@10 regression vs dense on either MIRACL scope; a **material**
+  reduction of the equal-RRF MIRACL regression (the candidate's meanΔ vs
+  dense must be at least 0.02 nDCG@10 better than the better
+  (less-regressed) of the two equal-RRF controls' own meanΔ vs dense, on
+  every MIRACL scope); no
+  statistically significant regression vs dense on SciFact; and the
+  harness verdict itself is an ACCEPT.
+- **`WEIGHTED_RRF_MIXED`** when the harness passed but the candidate's own
+  evidence is inconclusive: the regression-reduction margin isn't met,
+  local/cloud diverge in direction on the same dataset, or only one
+  dataset type is present in the scopes run.
+- **`WEIGHTED_RRF_REJECT`** when the candidate is statistically
+  significantly worse than dense on MIRACL or SciFact, or when the harness
+  itself did not complete cleanly (live results cannot validate an offline
+  candidate if the harness didn't actually finish).
+
+MIRACL already influenced the offline candidate selection this run
+validates — an ACCEPT verdict is validation/diagnostic evidence, never a
+blind confirmatory holdout, and the primary candidate is never called
+globally optimal or used to justify a production default change on the
+strength of this report alone.
+
+```bash
+# Tests only, sequential (required):
+node --test --test-concurrency=1 benchmarks/external/fusion/run-weighted-rrf-live.test.mjs
+
+# Tiny plumbing smoke (1 scope, 2 queries, 8 docs, still all 6 fusion
+# modes; writes to a separate .weighted-rrf-live-smoke-report.json, never
+# the real report):
+node benchmarks/external/fusion/run-weighted-rrf-live.mjs --smoke
+
+# Full 4-scope validation (requires QDRANT_URL/QDRANT_KEY; for local
+# scopes, set ONNX_EXECUTION_PROVIDER=cuda and ONNX_CUDA_STRICT=1 in the
+# environment first — the harness rejects a local scope that silently
+# fell back to CPU. Not started automatically by any task in this repo —
+# run explicitly after reviewing the smoke result):
+node benchmarks/external/fusion/run-weighted-rrf-live.mjs
+
+# Resume an interrupted run / restart from scratch / check resume state
+# without running anything / run a subset of scopes:
+node benchmarks/external/fusion/run-weighted-rrf-live.mjs --resume
+node benchmarks/external/fusion/run-weighted-rrf-live.mjs --restart
+node benchmarks/external/fusion/run-weighted-rrf-live.mjs --resume-check
+node benchmarks/external/fusion/run-weighted-rrf-live.mjs --scopes=scifact-local,miracl-cloud
+```
+
+Output: `benchmarks/external/results/2026-07-24-weighted-rrf-live.json`
+(full checkpoint/report) and `.md` (rendered report), plus per-scope TREC
+runs under `benchmarks/external/fusion/.runs-weighted-rrf-live/`.
+
+> This live validation is the required real-Qdrant confirmation step for
+> the offline analyzer's selected candidate. It does not by itself
+> establish the candidate as a production default — see "Decision rules"
+> above for exactly what an ACCEPT verdict does and does not claim.

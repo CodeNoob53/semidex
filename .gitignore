@@ -32,9 +32,22 @@ benchmarks/external/results/.miracl-smoke-report.json
 benchmarks/external/fusion/.runs/
 benchmarks/external/results/.rrf-sweep-smoke-report.json
 
+# Live weighted-RRF validation benchmark: generated TREC runs and the
+# smoke-mode report. Only the harness scripts + the real committed report
+# are tracked.
+benchmarks/external/fusion/.runs-weighted-rrf-live/
+benchmarks/external/results/.weighted-rrf-live-smoke-report.json
+
 # Slavic dense-vs-sparse Belebele benchmark: downloaded dataset JSONL
 # files, generated TREC runs, and the smoke-mode report. Only the harness
 # scripts + the real committed report are tracked.
 benchmarks/external/slavic/.cache/
 benchmarks/external/slavic/.runs/
 benchmarks/external/results/.slavic-belebele-smoke-report.json
+
+# Slavic weighted-RRF fusion matrix benchmark: generated TREC runs and the
+# smoke-mode report. Reuses benchmarks/external/slavic/.cache/ above for
+# the downloaded dataset. Only the harness scripts + the real committed
+# report are tracked.
+benchmarks/external/slavic/.runs-weighted-rrf/
+benchmarks/external/results/.slavic-weighted-rrf-smoke-report.json

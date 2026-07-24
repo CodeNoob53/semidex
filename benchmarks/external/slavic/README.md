@@ -108,6 +108,8 @@ what a `srp_Cyrl`/`srp_Latn` pair would have been had it existed.
 | `fetch-belebele.mjs` | Download/cache/validate one language's raw JSONL, synthesize + validate the retrieval task (corpus/queries/qrels). |
 | `slavic-profiles.mjs` | Locked config: the 7-language matrix, the single BGE-M3 provider, the single fixed RRF_K=60 hybrid mode, CLI flag parsing. |
 | `run-slavic-benchmark.mjs` | The benchmark executor: one Qdrant collection per language, one indexing pass (dense+sparse from the same embed call), dense/sparse/hybrid queries, metrics, sparse diagnostics, checkpoint/resume, cleanup. |
+| `slavic-weighted-rrf-config.mjs` | Locked config for the weighted-RRF fusion matrix: the same 7-language matrix, the six fusion modes (imported from `../fusion/weighted-rrf-fusion-modes.mjs`), group definitions, CLI flag parsing. |
+| `run-slavic-weighted-rrf.mjs` | The weighted-RRF benchmark executor — see "Live weighted-RRF fusion matrix" below. |
 | `*.test.mjs` | Offline, `node:test`-based unit/integration tests — no network, no real Qdrant, no ONNX (fake/injected clients). |
 
 Reused, not duplicated, from the existing BEIR/MIRACL/fusion harnesses:
@@ -224,3 +226,153 @@ about a script effect.
   default or sparse-enablement default from one run alone.
 - No production retrieval/indexing code is touched by anything in this
   directory.
+
+## Live weighted-RRF fusion matrix (`slavic-weighted-rrf-config.mjs` / `run-slavic-weighted-rrf.mjs`)
+
+A separate, sibling benchmark to the equal-RRF-only harness above.
+
+**Purpose**: the live SciFact/MIRACL weighted-RRF benchmark
+(`../fusion/run-weighted-rrf-live.mjs`,
+`../results/2026-07-24-weighted-rrf-live.{json,md}`) showed that
+dense-heavy weighted RRF removes most of the MIRACL regression seen under
+equal-weight hybrid, but that the effect is dataset/provider-dependent.
+This benchmark asks a narrower, LANGUAGE-focused question on the SAME
+7-language Slavic Belebele matrix the equal-RRF-only harness already uses:
+**do sparse and equal-weight RRF regressions correlate with individual
+Slavic languages or script groups?** It is not a new dataset, not a new
+provider, and not a k-sweep — only the fusion-mode dimension changes.
+
+**Exact language matrix** (identical to `slavic-profiles.mjs`'s
+`LANGUAGES`, re-declared independently so this config has zero dependency
+on the other benchmark's module — a dedicated test asserts both matrices
+stay byte-for-byte identical):
+
+| Group | Languages |
+|---|---|
+| Cyrillic Slavic | `ukr_Cyrl` (Ukrainian), `rus_Cyrl` (Russian), `bul_Cyrl` (Bulgarian) |
+| Latin Slavic | `pol_Latn` (Polish), `ces_Latn` (Czech), `slk_Latn` (Slovak) |
+| English control | `eng_Latn` |
+
+**Fusion modes** — the exact six modes and rho -> sparseWeight conversion
+already validated by the live SciFact/MIRACL weighted-RRF benchmark,
+imported from a shared pure module (`../fusion/weighted-rrf-fusion-modes.mjs`)
+so neither benchmark can silently drift on mode definitions:
+
+| Mode | k | weights (dense, sparse) | Role |
+|---|---:|---|---|
+| `dense` | — | single-lane, no rrf | baseline |
+| `sparse` | — | single-lane, no rrf | — |
+| `equal_k2` | 2 | `[1.0, 1.0]` | control (Qdrant default) |
+| `equal_k60` | 60 | `[1.0, 1.0]` | control (Semidex default) |
+| `k2_rho0.10` | 2 | `[1.0, 0.05263157894736842]` | primary candidate |
+| `k2_rho0.25` | 2 | `[1.0, 0.14285714285714285]` | diagnostic (never promoted merely for winning one language/group) |
+
+Real Qdrant weighted-RRF requests only: `query: { rrf: { k, weights: [dense,
+sparse] } }`. Weights always live in `query.rrf.weights`, never on a
+`prefetch` entry.
+
+**Execution model**: per language, **one** Qdrant collection, **one**
+indexing pass (dense+sparse from the same `embedOnnxBatch()` call, exactly
+like the equal-RRF-only harness). Per query, dense and sparse query
+vectors are computed **once** and reused for all six fusion modes — the
+four hybrid modes share the identical prefetch spec (limit 200/lane),
+differing only in `query.rrf.k`/`weights`. Local BGE-M3 ONNX only, no
+Qdrant Cloud E5/BM25 — same confound-isolation rationale as the equal-RRF
+harness.
+
+```bash
+# Tests only, sequential (required):
+node --test --test-concurrency=1 benchmarks/external/slavic/run-slavic-weighted-rrf.test.mjs
+
+# Tiny plumbing smoke (1 language, 3 queries, 10 docs, all 6 fusion modes;
+# writes to a separate .slavic-weighted-rrf-smoke-report.json, never the
+# real report):
+node benchmarks/external/slavic/run-slavic-weighted-rrf.mjs --smoke
+
+# Full 7-language benchmark (requires QDRANT_URL/QDRANT_KEY and, for a
+# real full run, ONNX_EXECUTION_PROVIDER=cuda + ONNX_CUDA_STRICT=1 — see
+# "CUDA's limited role" below. NOT started automatically by any task in
+# this repo — run explicitly after reviewing the smoke result and the
+# feasibility report):
+node benchmarks/external/slavic/run-slavic-weighted-rrf.mjs
+
+# Resume an interrupted run / restart from scratch / check resume state /
+# run a subset of languages:
+node benchmarks/external/slavic/run-slavic-weighted-rrf.mjs --resume
+node benchmarks/external/slavic/run-slavic-weighted-rrf.mjs --restart
+node benchmarks/external/slavic/run-slavic-weighted-rrf.mjs --resume-check
+node benchmarks/external/slavic/run-slavic-weighted-rrf.mjs --languages=ukr_Cyrl,bul_Cyrl
+```
+
+**Resume behavior**: identical contract to every other harness in this
+repo — the checkpoint records the exact language/fusion-mode contract, a
+`--resume` whose contract doesn't match the current configuration is
+rejected (use `--restart`), a language is only considered complete once
+every one of the six fusion modes has full metrics for every query, zero
+errors, confirmed cleanup, AND (since every language here is a local
+scope) a passing CUDA verification. Atomic JSON writes throughout
+(temp-file + rename), so a hard kill never leaves a half-written
+checkpoint.
+
+**CUDA's limited role — accelerator only, never a quality variable**:
+every language in this benchmark uses the local BGE-M3 ONNX provider, so
+CUDA strictness is mandatory for a real (non-smoke) run. Before any
+collection is created, `verifyStrictCudaConfigured()` (shared with
+`../fusion/run-weighted-rrf-live.mjs`, defined once in
+`../fusion/weighted-rrf-cuda.mjs`) checks that
+`ONNX_EXECUTION_PROVIDER=cuda` and `ONNX_CUDA_STRICT=1` are both set in the
+environment and refuses to start otherwise. After indexing, each
+language's provenance records BOTH the requested and the **effective**
+execution provider (via `core/onnx-embed.js`'s `getOnnxProviderState()`) —
+`verifyCudaProvenance()` rejects the language if CUDA was requested but
+silently fell back to CPU. **CUDA is never used to compare retrieval
+quality anywhere in this harness** — it only ever gates whether a real run
+is allowed to proceed and records what actually executed, as operational
+metadata. No CPU/DML/CUDA quality comparison is made or implied.
+
+**Custom ONNX Runtime path**: this harness never hardcodes a
+user-specific `ONNXRUNTIME_NODE_PATH` or any other machine-specific
+runtime location — it reads whatever the existing environment/runtime
+configuration already provides, exactly like every other ONNX-based
+harness in this repo.
+
+**Metrics and comparisons per language**: nDCG@10, MAP@100, Recall@10/100,
+MRR@10, query count, and error/skip count for all six modes; seven
+deterministic paired-bootstrap comparisons (seed
+`semidex-miracl-ru-bootstrap-v1`, 2000 iterations, reused unchanged from
+`../miracl/bootstrap.mjs`): sparse vs dense, equal_k2 vs dense, equal_k60
+vs dense, k2_rho0.10 vs dense, k2_rho0.10 vs equal_k2, k2_rho0.10 vs
+equal_k60, k2_rho0.25 vs dense — sign is always comparison minus baseline.
+
+**Group summaries** (Cyrillic Slavic / Latin Slavic / English control):
+per-language results plus a macro average across each group's languages,
+explicitly marked descriptive-only — never a statistical claim about a
+script/language effect, and never used by itself to promote a fusion
+candidate.
+
+**Per-language decision classification**: every language is classified
+for sparse-helps / sparse-neutral-mixed / sparse-significantly-hurts,
+equal-hybrid-helps / equal-hybrid-hurts (both k=2 and k=60), and whether
+rho=0.10/rho=0.25 restores dense quality. A classification only becomes
+"helps"/"hurts" when the paired-bootstrap 95% CI excludes zero
+(`B_BETTER`/`A_BETTER`); `MIXED` or `INCONCLUSIVE` verdicts are always
+reported as neutral/mixed, never silently upgraded to a directional claim.
+A weighted candidate is never promoted merely because it wins a group
+average.
+
+**Output**: `benchmarks/external/results/2026-07-24-slavic-weighted-rrf.json`
+(full checkpoint/report) and `.md` (rendered report), plus per-language TREC
+runs under `benchmarks/external/slavic/.runs-weighted-rrf/`
+(`.runs-weighted-rrf/smoke/` for `--smoke`, gitignored).
+
+**Interpretation limits specific to this harness**:
+
+- Script and language are confounded in this 7-language matrix — findings
+  are reported as observed associations requiring further validation,
+  never as a causal claim that script itself causes a difference.
+- This benchmark does not implement or recommend production
+  language-aware fusion.
+- A group-average win is never sufficient by itself to promote a
+  candidate — see the per-language decision classification's explicit
+  MIXED-unless-consistent rule.
+- Does not change any production fusion default from this run alone.
