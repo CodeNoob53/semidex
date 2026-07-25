@@ -61,7 +61,7 @@ if (isMainModule) {
   // must be applied before this process's first (lazy) loadCEModel() call,
   // which can happen from an Ask or admin-search request that enables CE
   // reranking (see admin/api/search.js / core/ask/coordinator.js).
-  const { applyCeRerankSettings } = await import('../core/ce-rerank.js');
+  const { applyCeRerankSettings, shutdownCEWorker } = await import('../core/ce-rerank.js');
   applyCeRerankSettings(settingsService);
   const { resolveHostConfig, resolvePortConfig, createApp } = await import('./server.js');
   const { createGenerationRuntime } = await import('../core/generation/runtime.js');
@@ -73,4 +73,20 @@ if (isMainModule) {
   server.listen(port, host, () => {
     console.log(`[admin] Semidex Local API listening on http://${host}:${port}`);
   });
+
+  // The CE worker is a persistent CHILD PROCESS (not a thread) — an
+  // orphaned child left running past this server's own shutdown is a
+  // real, observable leaked process. Ensures a graceful SIGTERM/SIGINT
+  // (the normal way a supervisor or `docker stop` ends this long-lived
+  // server) always terminates it, matching mcp/server.js's own equivalent
+  // handler.
+  let shuttingDown = false;
+  const gracefulShutdown = async () => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    try { await shutdownCEWorker(); } catch { /* best effort on the way out */ }
+    server.close(() => process.exit(0));
+  };
+  process.on('SIGTERM', gracefulShutdown);
+  process.on('SIGINT', gracefulShutdown);
 }

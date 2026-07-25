@@ -75,8 +75,25 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
 // that happens here (warmup) or lazily later (a real CE-enabled query, if
 // RERANK_CE_WARMUP=0). Applying unconditionally, not just inside the
 // warmup branch below, closes that gap (code review finding).
-const { applyCeRerankSettings, loadCEModel } = await import('./../core/ce-rerank.js');
+const { applyCeRerankSettings, loadCEModel, shutdownCEWorker } = await import('./../core/ce-rerank.js');
 applyCeRerankSettings(settingsService);
+
+// The CE worker is a persistent CHILD PROCESS (not a thread) — an orphaned
+// child left running past this server's own shutdown is a real, observable
+// leaked process, not just an open in-process handle. Ensures a graceful
+// SIGTERM/SIGINT (the normal way a supervisor or `docker stop` ends this
+// long-lived server) always terminates it, rather than only cleaning up
+// inside a bounded CLI run like the indexer's (see
+// indexer/run.js:shutdownOnnxTagWorker() for that equivalent).
+let shuttingDown = false;
+async function gracefulShutdown() {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  try { await shutdownCEWorker(); } catch { /* best effort on the way out */ }
+  process.exit(0);
+}
+process.on('SIGTERM', gracefulShutdown);
+process.on('SIGINT', gracefulShutdown);
 
 // Mode C (docs/en/ce-rerank-design.md §1): preload the cross-encoder before
 // accepting MCP connections so the first CE-enabled query has no load spike.

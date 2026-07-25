@@ -212,6 +212,7 @@ If `TAG_GEN=1` is not set, no tags are generated during indexing regardless of `
 | `ONNX_EXECUTION_PROVIDER` | `cpu` | ONNX Runtime execution provider: `cpu`, `dml`, or `cuda` |
 | `ONNX_CUDA_STRICT` | `0` | Set to `1` to hard-fail on CUDA provider load failure instead of retrying CPU. Only relevant when `ONNX_EXECUTION_PROVIDER=cuda`. |
 | `ONNX_BATCH_SIZE` | `4` | Batch size for Windows DirectML batching (1–64); ignored on CPU/CUDA |
+| `ONNXRUNTIME_NODE_PATH` | unset | Filesystem path to a compatible custom `onnxruntime-node` build with a CUDA execution provider. Only relevant when `ONNX_EXECUTION_PROVIDER=cuda`. Leave unset to use the default npm package (CPU/DirectML only, no CUDA). |
 
 ### Platform Support
 
@@ -225,7 +226,7 @@ These are expected capabilities, not support guarantees.
 
 | Platform | Support status | Verified ONNX path | Notes |
 |----------|----------------|--------------------|-------|
-| Windows 10/11 | Supported | `cpu`; `dml` opt-in | Primary development and test platform |
+| Windows 10/11 | Supported | `cpu`; `dml` opt-in; `cuda` opt-in with a custom runtime | Primary development and test platform. `cuda` was validated on one specific Windows/NVIDIA/custom-build combination — see the note below. |
 | Linux | Experimental / unverified | None | Try `cpu` first. `cuda` is an unverified advanced opt-in for Linux x64 + NVIDIA |
 | macOS | Experimental / unverified | None | Try `cpu` first. Ollama Metal acceleration may work, but is not validated end-to-end |
 
@@ -238,32 +239,76 @@ Controls which hardware backend ONNX Runtime uses for inference. Only relevant w
 | Platform | Recommended provider | Status |
 |----------|----------------------|--------|
 | Windows | `cpu` | Verified default, no extra setup |
-| Windows with supported GPU | `dml` | Verified opt-in GPU path |
+| Windows with supported GPU | `dml` | Verified opt-in GPU path, no extra setup |
+| Windows + NVIDIA CUDA | `cuda` | Opt-in, requires a custom `onnxruntime-node` build (see below) — validated on one tested environment, not a general guarantee |
 | Linux | `cpu` | Experimental / unverified |
 | Linux x64 + NVIDIA | `cuda` | Experimental / unverified advanced opt-in |
 | macOS | `cpu` | Experimental / unverified |
-| Windows + NVIDIA CUDA | — | Not supported via prebuilt npm; use `dml` |
 
 | Value | Backend | Notes |
 |-------|---------|-------|
 | `cpu` (default) | CPU | Verified on Windows. Intended to be portable, but Linux and macOS remain experimental until validated end-to-end. |
-| `dml` | DirectML | Verified Windows GPU acceleration path. Falls back to CPU if DirectML is unavailable. No extra package needed — `onnxruntime-node` includes DirectML support on Windows. |
-| `cuda` | NVIDIA CUDA | **Experimental / unverified.** Intended for Linux x64 + NVIDIA only. Requires CUDA 12.x + cuDNN 9 installed separately. On Windows, no official prebuilt path exists — use `dml`. If CUDA is unavailable, semidex warns and retries with CPU automatically (see gap note below). |
+| `dml` | DirectML | Verified Windows GPU acceleration path. Falls back to CPU if DirectML is unavailable. No extra package needed — the standard npm-installed `onnxruntime-node` package includes DirectML support on Windows. |
+| `cuda` | NVIDIA CUDA | The standard npm-installed `onnxruntime-node` package has **no CUDA execution provider compiled in**, on any platform. CUDA requires a compatible **custom** `onnxruntime-node` build, pointed to via `ONNXRUNTIME_NODE_PATH` (see below). CUDA Toolkit/cuDNN are OS-level prerequisites semidex does not install or manage. Selecting `cuda` only configures the request — it does not prove CUDA loaded. Verify with the Admin UI's "Test CUDA configuration" probe or `npm run doctor`. |
 
-`dml` and `cpu` are **performance-only** — they do not change the embedding model or provider metadata and do not require reindexing; minor numeric differences between execution providers are possible and do not affect retrieval quality.
+`dml` and `cpu` are **performance-only** — they do not change the embedding model or provider metadata and do not require reindexing; minor numeric differences between execution providers are possible and do not affect retrieval quality. The same is true of `cuda`: switching execution providers only affects inference speed, never the vector schema, and never requires reindexing.
 
 **Windows DirectML batching (opt-in):** When `ONNX_EMBED=1` and
 `ONNX_EXECUTION_PROVIDER=dml`, the indexer uses length-bucketed batch inference for
 phase 4 (embedding), which benchmarks show at ~3.2× faster than DML sequential and
 ~4.6× faster than CPU sequential. Batch size is controlled by `ONNX_BATCH_SIZE`
-(default 4, valid range 1–64). CPU and all other providers use the default per-text
-path regardless of this setting.
+(default 4, valid range 1–64). CPU and CUDA use the default per-text path — batching
+is not implemented for CUDA today, so `ONNX_BATCH_SIZE` is hidden in the Admin UI
+and has no effect when `ONNX_EXECUTION_PROVIDER=cuda`.
 
-**CUDA behavior:** When `ONNX_EXECUTION_PROVIDER=cuda` is set and CUDA is
-unavailable, semidex logs a warning and retries with CPU by default. To verify
-whether CUDA actually loaded, check stderr for `retrying with cpu` after the
-`creating inference session (providers: cuda)` line, or run `npm run doctor` with
-`ONNX_EMBED=1` — doctor probes with `['cuda']` only and never retries with CPU.
+### ONNXRUNTIME_NODE_PATH — a custom runtime for CUDA on Windows
+
+The `onnxruntime-node` package installed by `npm install` ships prebuilt CPU
+and DirectML execution providers only. There is no official prebuilt CUDA
+binding for Windows. To use `ONNX_EXECUTION_PROVIDER=cuda` on Windows, you
+need a **compatible custom `onnxruntime-node` build** with CUDA support
+compiled in — obtaining or building that binding is outside semidex's scope;
+semidex does not download, build, or install ONNX Runtime binaries or CUDA
+Toolkit/cuDNN.
+
+Once you have a compatible build, point semidex at it:
+
+```bash
+ONNXRUNTIME_NODE_PATH=C:\path\to\your\custom\onnxruntime-node
+```
+
+This can also be set in the Admin UI (Embeddings & hardware → shown only when
+`ONNX_EXECUTION_PROVIDER=cuda`), with a folder-picker button. Leaving it
+empty uses the default npm package — CPU/DirectML only, no CUDA. This
+setting takes effect on the next restart (`appliesAt: next_restart`) and
+never triggers a reindex.
+
+**A selected value is never proof CUDA is active.** Four distinct states
+exist: what you've *configured* (this setting), what's *active* in the
+current process (frozen until restart), what's *verified* by a real probe,
+and *pending restart* (configured changed, not yet active). To verify the
+real, effective provider, use one of:
+
+- The Admin UI's "Test CUDA configuration" button (Embeddings & hardware) —
+  calls `POST /api/system/onnx-probe` in an isolated child process, creates
+  and releases a real session against the cached model, and reports the
+  requested vs. effective provider honestly. It never appends CPU to a CUDA
+  probe and never reports `cuda` as effective unless a CUDA session actually
+  succeeded.
+- `npm run doctor` — runs the same isolated probe.
+
+**Known limitation:** CUDA support has been validated end-to-end on one
+specific Windows version / NVIDIA driver / CUDA Toolkit / custom-build
+combination. It is not a general guarantee that any Windows + NVIDIA GPU
+will work with any custom build — treat it as an advanced, opt-in path and
+verify with the probe on your own machine before relying on it.
+
+**CUDA behavior without strict mode:** When `ONNX_EXECUTION_PROVIDER=cuda`
+is set and CUDA is unavailable, semidex logs a warning and retries with CPU
+by default during normal embedding operations (not during the Admin/doctor
+probe, which never retries). To verify whether CUDA actually loaded during a
+real indexing/search run, check stderr for `retrying with cpu` after the
+`creating inference session (providers: cuda)` line, or use the probe.
 
 **Strict mode (`ONNX_CUDA_STRICT=1`):** Set this alongside
 `ONNX_EXECUTION_PROVIDER=cuda` to make CUDA provider failure a hard error instead of
@@ -275,8 +320,9 @@ ONNX_EMBED=1 ONNX_EXECUTION_PROVIDER=cuda ONNX_CUDA_STRICT=1 npm run index ./doc
 ```
 
 On failure, semidex prints an actionable error with platform-specific guidance and
-exits. On Windows, the error directs to `dml`; on Linux, to CUDA 12.x + cuDNN 9 +
-`LD_LIBRARY_PATH`. To fall back to CPU, unset `ONNX_CUDA_STRICT` or set
+exits. On Windows, the error explains that the standard npm package has no CUDA
+execution provider and points at `ONNXRUNTIME_NODE_PATH`; on Linux, to CUDA 12.x +
+cuDNN 9 + `LD_LIBRARY_PATH`. To fall back to CPU, unset `ONNX_CUDA_STRICT` or set
 `ONNX_EXECUTION_PROVIDER=cpu`.
 
 Invalid values produce a warning and fall back to `cpu`.
