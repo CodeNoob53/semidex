@@ -1,9 +1,13 @@
 // Token counting for BGE-M3 chunking.
-// Production default: real BGE-M3 AutoTokenizer (tokenizer files only, no ONNX
-// inference session). TOKEN_COUNT=heuristic is an explicit fast fallback.
+// Production default: real BGE-M3 tokenizer (tokenizer files only, no ONNX
+// inference session), backed by @huggingface/tokenizers via
+// core/bge-tokenizer.js — never @huggingface/transformers, which bundles
+// its own ONNX Runtime build and must not load in a process that may also
+// load the custom CUDA-enabled onnxruntime-node build (duplicate ORT
+// backend registration risk). TOKEN_COUNT=heuristic is an explicit fast
+// fallback.
 
-import { mkdirSync } from 'fs';
-import { ONNX_CACHE_DIR, ONNX_DENSE_MODEL_ID } from './onnx-paths.js';
+import { loadBgeTokenizer, bgeTokenCount } from './bge-tokenizer.js';
 
 export const CHUNKING_SCHEMA_VERSION = 4;
 
@@ -15,8 +19,6 @@ export function heuristicTokenCount(text) {
 
 // ── real BGE-M3 tokenizer (async, production default) ──────────────────────
 
-let _tokenizer = null;
-let _tokenizerPromise = null;
 const TOKEN_COUNT_CACHE_MAX_ENTRIES = 4096;
 const TOKEN_COUNT_CACHE_MAX_CHARS = 2_000_000;
 const _tokenCountCache = new Map();
@@ -37,25 +39,10 @@ function cacheTokenCount(text, count) {
   _tokenCountCacheChars += text.length;
 }
 
-async function loadBgeTokenizer({ localFilesOnly = false } = {}) {
-  if (_tokenizer) return _tokenizer;
-  if (_tokenizerPromise) return _tokenizerPromise;
-
-  mkdirSync(ONNX_CACHE_DIR, { recursive: true });
-  _tokenizerPromise = (async () => {
-    const { env, AutoTokenizer } = await import('@huggingface/transformers');
-    env.cacheDir = ONNX_CACHE_DIR;
-    _tokenizer = await AutoTokenizer.from_pretrained(
-      ONNX_DENSE_MODEL_ID,
-      { local_files_only: localFilesOnly }
-    );
-    return _tokenizer;
-  })();
-
+async function getTokenizer({ localFilesOnly = false } = {}) {
   try {
-    return await _tokenizerPromise;
+    return await loadBgeTokenizer({ localFilesOnly });
   } catch (err) {
-    _tokenizerPromise = null;
     const prefix = localFilesOnly
       ? 'BGE-M3 tokenizer not cached locally.'
       : 'Unable to load BGE-M3 tokenizer.';
@@ -78,7 +65,8 @@ export function resolveTokenCountMode(env = process.env) {
 
 /**
  * Returns a token counter function.
- * mode 'bge-m3': returns async (text) => Promise<number> backed by AutoTokenizer.
+ * mode 'bge-m3': returns async (text) => Promise<number> backed by the real
+ *   BGE-M3 tokenizer (core/bge-tokenizer.js).
  * mode 'heuristic': returns sync (text) => number backed by chars/4.
  * Default: bge-m3.
  *
@@ -89,11 +77,10 @@ export async function getTokenCounter(options = {}) {
   const mode = options.mode ?? resolveTokenCountMode();
   if (mode !== 'bge-m3') return heuristicTokenCount;
 
-  const tok = await loadBgeTokenizer({ localFilesOnly: options.localFilesOnly });
+  const tok = await getTokenizer({ localFilesOnly: options.localFilesOnly });
   return async function bgeCount(text) {
     if (_tokenCountCache.has(text)) return _tokenCountCache.get(text);
-    const encoded = await tok(text, { padding: false, truncation: false });
-    const count = encoded.input_ids.dims[1];
+    const count = bgeTokenCount(tok, text);
     cacheTokenCount(text, count);
     return count;
   };
