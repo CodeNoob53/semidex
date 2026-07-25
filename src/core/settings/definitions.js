@@ -388,24 +388,58 @@ export const DEFINITIONS = {
   },
   ONNX_EXECUTION_PROVIDER: {
     category: 'embeddings', label: 'ONNX execution provider', type: 'enum', envVar: 'ONNX_EXECUTION_PROVIDER',
-    description: 'Hardware execution provider used for local ONNX embedding models.', advanced: true,
+    description: 'Hardware execution provider used for local ONNX embedding models. Selecting a value here configures it — it does not by itself prove that provider is actually loading. Use the Admin CUDA probe ("Test CUDA configuration") or npm run doctor to verify the effective provider.', advanced: true,
     appliesAt: 'next_restart', requiresReindex: false, requiresBackfill: false,
     visibleWhen: { key: 'EMBEDDING_BACKEND', equals: 'bge-m3-onnx' },
     ...enumField({ envVar: 'ONNX_EXECUTION_PROVIDER', defaultVal: 'cpu', allowed: ['cpu', 'dml', 'cuda'] }),
   },
+  // DML-only: production batching (core/onnx-embed.js's embedOnnxBatch())
+  // is used by the indexer only for the dml provider today — cpu/cuda both
+  // process one item at a time in the current implementation, so this
+  // field has no effect for them and would be misleading to show.
   ONNX_BATCH_SIZE: {
     category: 'embeddings', label: 'ONNX batch size', type: 'number', envVar: 'ONNX_BATCH_SIZE',
-    description: 'Number of chunks embedded together per ONNX batch during indexing.', advanced: true,
+    description: 'Number of chunks embedded together per ONNX batch during indexing. Only used for the DirectML (dml) execution provider.', advanced: true,
     appliesAt: 'next_index_job', requiresReindex: false, requiresBackfill: false,
-    visibleWhen: { key: 'EMBEDDING_BACKEND', equals: 'bge-m3-onnx' },
+    visibleWhen: [
+      { key: 'EMBEDDING_BACKEND', equals: 'bge-m3-onnx' },
+      { key: 'ONNX_EXECUTION_PROVIDER', equals: 'dml' },
+    ],
     ...intField({ envVar: 'ONNX_BATCH_SIZE', defaultVal: 4, min: 1, max: 64, warnPrefix: '[onnx] ' }),
   },
+  // CUDA-only: this setting has no effect unless CUDA is the requested
+  // execution provider (core/onnx-embed.js's strict-mode branch only runs
+  // when providers[0] === 'cuda') — shown only alongside CUDA to avoid
+  // implying it does anything for cpu/dml.
   ONNX_CUDA_STRICT: {
     category: 'embeddings', label: 'Strict CUDA (fail instead of CPU fallback)', type: 'boolean', envVar: 'ONNX_CUDA_STRICT',
     description: 'Fail instead of silently falling back to CPU when CUDA is requested but unavailable.', advanced: true,
     appliesAt: 'next_restart', requiresReindex: false, requiresBackfill: false,
-    visibleWhen: { key: 'EMBEDDING_BACKEND', equals: 'bge-m3-onnx' },
+    visibleWhen: [
+      { key: 'EMBEDDING_BACKEND', equals: 'bge-m3-onnx' },
+      { key: 'ONNX_EXECUTION_PROVIDER', equals: 'cuda' },
+    ],
     ...boolField({ envVar: 'ONNX_CUDA_STRICT', defaultVal: false }),
+  },
+  // CUDA-only. The npm-installed onnxruntime-node prebuilt binding ships
+  // with CPU and DirectML execution providers only — it has no CUDA
+  // execution provider compiled in. A compatible custom onnxruntime-node
+  // build (with CUDA support) is required to actually run
+  // ONNX_EXECUTION_PROVIDER=cuda; this field points core/onnx-runtime.js's
+  // loadOnnxRuntime() at that build instead of the npm package. Empty
+  // means "use the default npm package" (which will not have a CUDA
+  // execution provider). CUDA Toolkit/cuDNN themselves are OS-level
+  // prerequisites this setting does not install or manage.
+  ONNXRUNTIME_NODE_PATH: {
+    category: 'embeddings', label: 'Custom ONNX Runtime module path (CUDA)', type: 'string', envVar: 'ONNXRUNTIME_NODE_PATH',
+    description: 'Filesystem path to a compatible custom onnxruntime-node build with a CUDA execution provider. The standard npm-installed package supports CPU/DirectML only, not CUDA. Leave empty to use the default npm package. Selecting this does not prove CUDA loaded — use the Admin CUDA probe or npm run doctor to verify.', advanced: true,
+    appliesAt: 'next_restart', requiresReindex: false, requiresBackfill: false,
+    visibleWhen: [
+      { key: 'EMBEDDING_BACKEND', equals: 'bge-m3-onnx' },
+      { key: 'ONNX_EXECUTION_PROVIDER', equals: 'cuda' },
+    ],
+    pathPicker: true,
+    ...stringField({ envVar: 'ONNXRUNTIME_NODE_PATH', defaultVal: '', allowEmpty: true }),
   },
 
   // ── retrieval & ranking ─────────────────────────────────────────────────

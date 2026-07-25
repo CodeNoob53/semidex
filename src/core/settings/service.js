@@ -156,6 +156,7 @@ export function createSettingsService({
     if (def.derivedWhen !== undefined) entry.derivedWhen = def.derivedWhen;
     if (def.dynamicDerived !== undefined) entry.dynamicDerived = def.dynamicDerived;
     if (def.uiHidden !== undefined) entry.uiHidden = def.uiHidden;
+    if (def.pathPicker !== undefined) entry.pathPicker = def.pathPicker;
     if (def.secret) {
       entry.configured = active.value !== undefined && active.value !== null && active.value !== '';
     } else {

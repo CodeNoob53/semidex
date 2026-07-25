@@ -168,6 +168,85 @@ describe('settings definitions — parseExternal preserves current bounds/behavi
   });
 });
 
+describe('ONNXRUNTIME_NODE_PATH — CUDA-only custom runtime path', () => {
+  test('registered in the embeddings category, writable, next_restart, no reindex', () => {
+    const def = DEFINITIONS.ONNXRUNTIME_NODE_PATH;
+    assert.ok(def, 'ONNXRUNTIME_NODE_PATH must be registered in DEFINITIONS');
+    assert.equal(def.category, 'embeddings');
+    assert.equal(def.type, 'string');
+    assert.equal(def.envVar, 'ONNXRUNTIME_NODE_PATH');
+    assert.equal(def.writable, true);
+    assert.equal(def.appliesAt, 'next_restart');
+    assert.equal(def.requiresReindex, false);
+  });
+
+  test('empty string is a valid value (means "use the default npm package")', () => {
+    const def = DEFINITIONS.ONNXRUNTIME_NODE_PATH;
+    assert.equal(def.allowEmpty, true);
+    assert.equal(def.default, '');
+    assert.equal(def.validate('').ok, true);
+    assert.equal(def.parseExternal(''), '');
+    assert.equal(def.parseExternal(undefined), '');
+  });
+
+  test('a real path value round-trips through parseExternal/serialize unchanged', () => {
+    const def = DEFINITIONS.ONNXRUNTIME_NODE_PATH;
+    const path = 'C:/tools/custom-onnxruntime-node';
+    assert.equal(def.parseExternal(path), path);
+    assert.equal(def.serialize(path), path);
+    assert.equal(def.validate(path).ok, true);
+  });
+
+  test('visibleWhen is an AND-composed array requiring BGE-M3 ONNX AND cuda', () => {
+    const def = DEFINITIONS.ONNXRUNTIME_NODE_PATH;
+    assert.ok(Array.isArray(def.visibleWhen), 'visibleWhen must be an array for a multi-condition field');
+    assert.deepEqual(def.visibleWhen, [
+      { key: 'EMBEDDING_BACKEND', equals: 'bge-m3-onnx' },
+      { key: 'ONNX_EXECUTION_PROVIDER', equals: 'cuda' },
+    ]);
+  });
+
+  test('carries pathPicker: true so the UI renders a Browse control (never a hardcoded key check)', () => {
+    assert.equal(DEFINITIONS.ONNXRUNTIME_NODE_PATH.pathPicker, true);
+  });
+
+  test('description explains the npm prebuilt has no CUDA EP and a custom build is required', () => {
+    const desc = DEFINITIONS.ONNXRUNTIME_NODE_PATH.description.toLowerCase();
+    assert.match(desc, /npm/);
+    assert.match(desc, /cuda/);
+    assert.match(desc, /custom/);
+  });
+});
+
+describe('ONNX_BATCH_SIZE and ONNX_CUDA_STRICT — multi-condition visibleWhen (DML-only / CUDA-only)', () => {
+  test('ONNX_BATCH_SIZE requires BGE-M3 ONNX AND dml', () => {
+    assert.deepEqual(DEFINITIONS.ONNX_BATCH_SIZE.visibleWhen, [
+      { key: 'EMBEDDING_BACKEND', equals: 'bge-m3-onnx' },
+      { key: 'ONNX_EXECUTION_PROVIDER', equals: 'dml' },
+    ]);
+  });
+
+  test('ONNX_CUDA_STRICT requires BGE-M3 ONNX AND cuda', () => {
+    assert.deepEqual(DEFINITIONS.ONNX_CUDA_STRICT.visibleWhen, [
+      { key: 'EMBEDDING_BACKEND', equals: 'bge-m3-onnx' },
+      { key: 'ONNX_EXECUTION_PROVIDER', equals: 'cuda' },
+    ]);
+  });
+
+  test('ONNX_EXECUTION_PROVIDER itself keeps its original single-condition shape (backward compatible, not converted to an array)', () => {
+    assert.deepEqual(DEFINITIONS.ONNX_EXECUTION_PROVIDER.visibleWhen, { key: 'EMBEDDING_BACKEND', equals: 'bge-m3-onnx' });
+    assert.ok(!Array.isArray(DEFINITIONS.ONNX_EXECUTION_PROVIDER.visibleWhen));
+  });
+
+  test('every other pre-existing single-condition visibleWhen field is unaffected by the array extension (still a plain object, not an array)', () => {
+    for (const key of ['TAG_MODEL', 'TAG_ONNX_MODEL', 'OLLAMA_URL', 'GENERATION_DEVICE', 'EMBED_MODEL', 'DENSE_MODEL']) {
+      const def = DEFINITIONS[key];
+      assert.ok(def.visibleWhen, `${key}: expected a visibleWhen`);
+      assert.ok(!Array.isArray(def.visibleWhen), `${key}: visibleWhen must remain a single object, not an array`);
+    }
+  });
+});
+
 describe('settings definitions — validate rejects out-of-bounds typed values', () => {
   test('MAX_CHUNK_TOKENS validate rejects non-integer and out-of-range', () => {
     const def = DEFINITIONS.MAX_CHUNK_TOKENS;

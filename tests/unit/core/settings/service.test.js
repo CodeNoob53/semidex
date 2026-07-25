@@ -493,6 +493,28 @@ describe('SettingsService — EMBEDDING_BACKEND (synthetic, derived field)', () 
     assert.equal(svc.get('VECTOR_SIZE').writable, false);
   });
 
+  test('buildEntry() passes through a multi-condition (array) visibleWhen verbatim — the CUDA-only ONNXRUNTIME_NODE_PATH/ONNX_CUDA_STRICT fields', () => {
+    const svc = createSettingsService({ osEnv: {}, dotenvValues: {}, settingsPath: tempSettingsPath(dir) });
+    assert.deepEqual(svc.get('ONNXRUNTIME_NODE_PATH').visibleWhen, [
+      { key: 'EMBEDDING_BACKEND', equals: 'bge-m3-onnx' },
+      { key: 'ONNX_EXECUTION_PROVIDER', equals: 'cuda' },
+    ]);
+    assert.deepEqual(svc.get('ONNX_CUDA_STRICT').visibleWhen, [
+      { key: 'EMBEDDING_BACKEND', equals: 'bge-m3-onnx' },
+      { key: 'ONNX_EXECUTION_PROVIDER', equals: 'cuda' },
+    ]);
+    assert.deepEqual(svc.get('ONNX_BATCH_SIZE').visibleWhen, [
+      { key: 'EMBEDDING_BACKEND', equals: 'bge-m3-onnx' },
+      { key: 'ONNX_EXECUTION_PROVIDER', equals: 'dml' },
+    ]);
+  });
+
+  test('buildEntry() passes through pathPicker: true on ONNXRUNTIME_NODE_PATH', () => {
+    const svc = createSettingsService({ osEnv: {}, dotenvValues: {}, settingsPath: tempSettingsPath(dir) });
+    assert.equal(svc.get('ONNXRUNTIME_NODE_PATH').pathPicker, true);
+    assert.equal(svc.get('ONNX_CUDA_STRICT').pathPicker, undefined, 'pathPicker must not leak onto fields that never declared it');
+  });
+
   test('code review fix (P1): DENSE_PROVIDER unset but ONNX_EMBED=1 (os_env) — EMBEDDING_BACKEND correctly reports "bge-m3-onnx", matching what resolveEnvProviders()/the indexer actually run', () => {
     // Reproduces the exact scenario from code review: a real .env with
     // ONNX_EMBED=1 and no DENSE_PROVIDER used to make this service report
