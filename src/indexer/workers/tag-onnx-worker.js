@@ -1,18 +1,32 @@
-// Worker thread for ONNX-based tag generation.
-// Loaded once per indexer process via tag-onnx.js; receives chunk payloads,
-// returns tags aligned to input order.
+// Child process for ONNX-based tag generation.
+// Spawned once per indexer process via tag-onnx.js; receives chunk
+// payloads over IPC, returns tags aligned to input order.
 //
-// Protocol (messages in/out over parentPort):
-//   init → main sends { kind: 'init' }  (not needed — model loads on spawn)
-//   run  → main sends { kind: 'run', chunks: [{text, section, source_file}] }
-//          worker replies { kind: 'done', tagArrays: string[][] }
-//            or { kind: 'error', error: string }
+// Runs in a genuinely separate OS process (node:child_process's fork(), NOT
+// worker_threads) — a worker_thread is a separate V8 isolate but the SAME
+// OS process, so native addons (including ONNX Runtime's own process-global
+// Ort::Env singleton) are still shared with whatever the indexer's main
+// process has loaded (e.g. the custom CUDA-enabled onnxruntime-node build
+// via core/onnx-embed.js, when ONNX_EMBED=1). Only a genuinely separate
+// process gives @huggingface/transformers' own bundled ORT build its own
+// address space and its own Ort::Env. See
+// docs/cuda-runtime-verification-2026-07-24.md.
+//
+// Configuration arrives via environment variables (set by tag-onnx.js's
+// fork() call), never IPC — modelId/cacheDir/numThreads/allowDownload never
+// change for this process's lifetime.
+//
+// Protocol (IPC messages via process.send()/process.on('message')):
+//   run → parent sends { kind: 'run', requestId, chunks: [{text, section, source_file}] }
+//         worker replies { kind: 'done', requestId, tagArrays: string[][] }
+//           or { kind: 'error', requestId, error: string }
+import { join } from 'node:path';
+import { existsSync } from 'node:fs';
 
-import { parentPort, workerData } from 'worker_threads';
-import { join } from 'path';
-import { existsSync } from 'fs';
-
-const { modelId, cacheDir, numThreads, allowDownload } = workerData;
+const modelId       = process.env.TAG_ONNX_WORKER_MODEL_ID;
+const cacheDir       = process.env.TAG_ONNX_WORKER_CACHE_DIR;
+const numThreads     = parseInt(process.env.TAG_ONNX_WORKER_NUM_THREADS ?? '1', 10) || 1;
+const allowDownload  = process.env.TAG_ONNX_WORKER_ALLOW_DOWNLOAD === '1';
 
 const MAX_NEW_TOKENS = 28;
 const PROMPT_TEXT_LIMIT = 600;
@@ -86,7 +100,7 @@ async function loadModel() {
     env.backends.onnx.wasm.numThreads = numThreads; // kept for WASM fallback environments
     // ORT intra-op thread count for the Node native backend.
     process.env.ORT_NUM_THREADS     = String(numThreads);
-    // Inter-op parallelism: 1 keeps operator scheduling simple on a dedicated worker.
+    // Inter-op parallelism: 1 keeps operator scheduling simple on a dedicated process.
     process.env.ORT_INTER_OP_THREADS = '1';
   }
 
@@ -104,18 +118,24 @@ async function loadModel() {
 let generator;
 try {
   generator = await loadModel();
-  parentPort.postMessage({ kind: 'ready' });
+  process.send({ kind: 'ready' });
 } catch (err) {
-  parentPort.postMessage({ kind: 'error', error: err.message });
+  process.send({ kind: 'error', error: err.message });
   process.exit(1);
 }
 
-parentPort.on('message', async msg => {
-  if (msg?.kind !== 'run') return;
+// FIFO run queue — a single Qwen2.5-Coder-1.5B generator instance must
+// never process two batches concurrently. process.on('message', async ...)
+// spawns an independent async invocation per incoming IPC message with no
+// serialization of its own; in pipeline mode (STAGEA_CONCURRENCY, default
+// 4) multiple files can each call addTagsOnnxBatch() around the same time,
+// so without an explicit queue here, two 'run' messages arriving close
+// together would both call generator(...) concurrently on the same model —
+// a real OOM risk for a 1.5B model, not just a slowdown.
+let queueTail = Promise.resolve();
 
-  const { requestId, chunks } = msg;
+async function runOne(requestId, chunks) {
   const tagArrays = [];
-
   try {
     for (const chunk of chunks) {
       const prompt = buildPrompt(chunk);
@@ -134,8 +154,19 @@ parentPort.on('message', async msg => {
       }
       tagArrays.push(parseTags(raw));
     }
-    parentPort.postMessage({ kind: 'done', requestId, tagArrays });
+    process.send({ kind: 'done', requestId, tagArrays });
   } catch (err) {
-    parentPort.postMessage({ kind: 'error', requestId, error: err.message });
+    process.send({ kind: 'error', requestId, error: err.message });
   }
+}
+
+process.on('message', (msg) => {
+  if (msg?.kind !== 'run') return;
+  const { requestId, chunks } = msg;
+  // Chain onto the queue tail regardless of the previous entry's outcome —
+  // runOne() itself never throws (both its try/catch branches always
+  // process.send() and return normally), but .catch(() => {}) is kept as a
+  // defensive backstop so one runaway rejection can never wedge every
+  // subsequent queued request behind a permanently-rejected tail promise.
+  queueTail = queueTail.then(() => runOne(requestId, chunks)).catch(() => {});
 });
