@@ -846,6 +846,22 @@ td.actions { text-align: right; }
 .gs-field-impact {
   display: block; margin-top: 4px; font-size: 11px; color: var(--ink-faint);
 }
+
+/* Filesystem-path field with a Browse button (e.g. ONNXRUNTIME_NODE_PATH) —
+   the text input stays the real control and remains editable even if the
+   picker is unavailable (see .gs-path-fallback). */
+.gs-path-control { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.gs-path-control .gs-path-input { flex: 1 1 240px; min-width: 0; }
+.gs-path-fallback { flex-basis: 100%; }
+
+/* ONNX hardware status panel — surfaced under the embeddings category only
+   while ONNX_EXECUTION_PROVIDER is staged to cuda/dml. "Last verified" is
+   deliberately plain text (not a badge) until a real probe result exists,
+   so an untested provider can never be mistaken for a confirmed one. */
+.gs-onnx-probe-panel { margin-top: 16px; }
+.gs-onnx-probe-panel .gs-onnx-test-button { margin-top: 12px; }
+.gs-onnx-result { margin-top: 12px; }
+.gs-onnx-result .kv { margin-bottom: 8px; }
 .gs-field-reset {
   font-size: 11px; padding: 2px 8px;
 }

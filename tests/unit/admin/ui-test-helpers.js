@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import { EventEmitter } from 'node:events';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
-import { parseHTML, HTMLElement, HTMLInputElement } from 'linkedom';
+import { parseHTML, HTMLElement, HTMLInputElement, Event } from 'linkedom';
 import { createApp } from '../../../src/admin/server.js';
 import { createJobRegistry } from '../../../src/admin/jobs/registry.js';
 
@@ -881,14 +881,16 @@ function getGlobalSettingsScript() {
   return cachedGlobalSettingsScript;
 }
 
-export function loadGlobalSettingsHelpers({ apiResponses = {}, apiPatchImpl, hash = '#/settings' } = {}) {
+export function loadGlobalSettingsHelpers({ apiResponses = {}, apiPatchImpl, apiPostImpl, hash = '#/settings' } = {}) {
   const { document } = parseHTML(getGlobalSettingsShellHtml());
   const apiCalls = [];
   const patchCalls = [];
+  const postCalls = [];
   const toasts = [];
   const beforeUnloadListeners = [];
   const context = {
     document,
+    Event,
     location: { hash },
     history: {
       replaceState: (_s, _t, url) => { context.location.hash = url.replace(/^#/, ''); },
@@ -903,6 +905,7 @@ export function loadGlobalSettingsHelpers({ apiResponses = {}, apiPatchImpl, has
     },
     __apiCalls: apiCalls,
     __patchCalls: patchCalls,
+    __postCalls: postCalls,
     __toasts: toasts,
     api: async (url) => {
       apiCalls.push(url);
@@ -920,6 +923,10 @@ export function loadGlobalSettingsHelpers({ apiResponses = {}, apiPatchImpl, has
     apiPatch: apiPatchImpl ?? (async (url, body) => {
       patchCalls.push({ url, body });
       return { settings: [] };
+    }),
+    apiPost: apiPostImpl ?? (async (url, body) => {
+      postCalls.push({ url, body });
+      return {};
     }),
     showToast: (message, opts = {}) => { toasts.push({ message, ...opts }); },
   };

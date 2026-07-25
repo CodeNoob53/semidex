@@ -10,7 +10,7 @@
 // the old Phase 4A.5b read-only screen); every other category renders
 // editable rows built purely from registry metadata.
 import { $, cloneTemplate } from './dom.js';
-import { api, apiPatch } from './api.js';
+import { api, apiPatch, apiPost } from './api.js';
 import { showToast } from './toasts.js';
 import { renderSettingsNav, syncSidebarMode, markActive } from './sidebar.js';
 
@@ -236,11 +236,19 @@ function categoryEntries(category) {
   return lastFetchedPayload.settings.filter((s) => s.category === category);
 }
 
-// isFieldVisible reads the driver's STAGED (currentPendingValue), not its
-// last-fetched configuredValue — so switching TAG_PROVIDER/EMBEDDING_BACKEND
-// in an unsaved edit immediately updates dependent visibility before Save.
-// Fails open (visible) if the driver isn't in this payload — never hides a
-// field it can't evaluate a condition for.
+// isFieldVisible reads each driver's STAGED (currentPendingValue), not its
+// last-fetched configuredValue — so switching TAG_PROVIDER/EMBEDDING_BACKEND/
+// ONNX_EXECUTION_PROVIDER in an unsaved edit immediately updates dependent
+// visibility before Save. Fails open (visible) for any condition whose
+// driver isn't in this payload — never hides a field it can't evaluate a
+// condition for.
+//
+// visibleWhen accepts EITHER a single { key, equals } condition (the
+// original shape — every pre-existing field keeps working unchanged) OR an
+// array of such conditions, AND-composed: ALL conditions must hold for the
+// field to be visible. This is what lets e.g. ONNXRUNTIME_NODE_PATH be
+// scoped to "BGE-M3 ONNX selected AND CUDA selected" declaratively, rather
+// than hardcoding a field-name check here.
 //
 // uiHidden (DENSE_PROVIDER/SPARSE_PROVIDER only): unconditionally hidden
 // from this view — they remain independently PATCHable via the raw API
@@ -252,9 +260,12 @@ function categoryEntries(category) {
 function isFieldVisible(category, entry) {
   if (entry.uiHidden) return false;
   if (!entry.visibleWhen) return true;
-  const driver = lastFetchedPayload.settings.find((s) => s.key === entry.visibleWhen.key);
-  if (!driver) return true;
-  return currentPendingValue(category, driver) === entry.visibleWhen.equals;
+  const conditions = Array.isArray(entry.visibleWhen) ? entry.visibleWhen : [entry.visibleWhen];
+  return conditions.every((condition) => {
+    const driver = lastFetchedPayload.settings.find((s) => s.key === condition.key);
+    if (!driver) return true;
+    return currentPendingValue(category, driver) === condition.equals;
+  });
 }
 
 function visibleKeySet(category) {
@@ -452,6 +463,21 @@ function fieldControl(category, entry) {
       unavailableLabel: backend === 'gemini' ? 'Gemini unavailable — models unknown' : 'Ollama unreachable — models unknown',
       unavailableReason: backend === 'gemini' ? 'Gemini models are unknown.' : 'Ollama models are unknown.',
     });
+  } else if (entry.pathPicker) {
+    // A filesystem-path field with a Browse button wired to the existing
+    // POST /api/system/pick-folder endpoint (see wireCategoryEvents()'s
+    // browse-button handler below) — the text input itself is always the
+    // real .gs-field-control (same generic event wiring every other text
+    // field uses), so Browse is purely an assist, never the only way to
+    // set the value: if the picker is unavailable (non-Windows, no
+    // powershell.exe, timed out), the input remains fully usable.
+    const wrapper = templateRoot('tpl-gs-control-path');
+    const input = wrapper.querySelector('.gs-path-input');
+    input.value = value;
+    input.dataset.key = entry.key;
+    input.disabled = disabled;
+    wrapper.querySelector('.gs-path-browse').disabled = disabled;
+    return { control: wrapper, extras: [] };
   } else {
     control = templateRoot('tpl-gs-control-input');
     control.type = entry.type === 'number' ? 'number' : 'text';
@@ -572,6 +598,116 @@ function saveBar(category) {
   return bar;
 }
 
+const ONNX_PROBE_PROVIDERS = new Set(['cuda', 'dml']);
+
+// Shown only alongside a visible ONNX_EXECUTION_PROVIDER field currently
+// staged to 'cuda' or 'dml' — CPU never shows this panel since there is
+// nothing to verify. "Last verified" starts empty and is populated only by
+// a real click of the test button (see wireOnnxProbePanel) — never
+// auto-run, never inferred from the setting alone.
+function onnxProbePanel(category, entries) {
+  const providerEntry = entries.find((e) => e.key === 'ONNX_EXECUTION_PROVIDER');
+  if (!providerEntry) return null;
+  const provider = currentPendingValue(category, providerEntry);
+  if (!ONNX_PROBE_PROVIDERS.has(provider)) return null;
+
+  const panel = templateRoot('tpl-gs-onnx-probe-panel');
+  panel.querySelector('.gs-onnx-requested').textContent = provider;
+  panel.querySelector('.gs-onnx-active').textContent = providerEntry.activeValue;
+  const pendingNote = panel.querySelector('.gs-onnx-pending-restart');
+  if (providerEntry.pendingRestart) {
+    pendingNote.hidden = false;
+    pendingNote.textContent = `Saved — still using "${providerEntry.activeValue}" until semidex restarts.`;
+  } else {
+    pendingNote.hidden = true;
+  }
+  const testButton = panel.querySelector('.gs-onnx-test-button');
+  testButton.dataset.provider = provider;
+  // "Test CUDA configuration"/"Test DML configuration" — never the generic
+  // template default when a specific provider is what's actually being
+  // tested, so a DML-only user is never told they're testing "CUDA".
+  testButton.textContent = `Test ${provider.toUpperCase()} configuration`;
+  // ONNXRUNTIME_NODE_PATH's CURRENT value (may be an unsaved, staged edit)
+  // is read live from its input at click time by runOnnxProbe() itself,
+  // not snapshotted here — see that function's own comment for why a
+  // render-time snapshot would go stale.
+  return panel;
+}
+
+function wireOnnxProbePanel(container, category) {
+  const btn = container.querySelector('.gs-onnx-test-button');
+  if (!btn) return;
+  btn.addEventListener('click', () => runOnnxProbe(container, category, btn));
+}
+
+async function runOnnxProbe(container, category, btn) {
+  const panel = btn.closest('.gs-onnx-probe-panel');
+  const verified = panel.querySelector('.gs-onnx-verified');
+  const fallbackWarning = panel.querySelector('.gs-onnx-fallback-warning');
+  const stagedPathNotice = panel.querySelector('.gs-onnx-staged-path-notice');
+  const resultBlock = panel.querySelector('.gs-onnx-result');
+  const provider = btn.dataset.provider;
+  // Read the LIVE current value from the path input itself, not a
+  // render-time snapshot — editing ONNXRUNTIME_NODE_PATH deliberately never
+  // triggers a full category re-render (wireCategoryEvents()'s "don't
+  // rebuild the field being edited" contract), so a value captured when
+  // this panel was last rendered would go stale the instant the user types
+  // into the field without the panel ever refreshing. This is what lets
+  // "Test" send a staged-but-unsaved runtime path together with a
+  // staged-but-unsaved provider, rather than silently falling back to
+  // whatever path was last actually saved.
+  const pathInput = container.querySelector('.gs-path-input[data-key="ONNXRUNTIME_NODE_PATH"]');
+  const requestBody = pathInput
+    ? { provider, runtimePath: pathInput.value }
+    : { provider };
+
+  btn.disabled = true;
+  const originalLabel = btn.textContent;
+  btn.textContent = 'Testing…';
+  fallbackWarning.hidden = true;
+  stagedPathNotice.hidden = true;
+  resultBlock.hidden = true;
+
+  try {
+    const result = await apiPost('/api/system/onnx-probe', requestBody);
+    const timestamp = new Date().toLocaleTimeString();
+    verified.textContent = `${result.effectiveProvider ?? 'none'} (${timestamp})`;
+
+    // Server-confirmed (not just the UI's own belief) — surfaced so a
+    // result is never mistaken for testing the saved configuration when it
+    // actually tested an in-progress, unsaved edit.
+    if (result.testedStagedRuntimePath) {
+      stagedPathNotice.hidden = false;
+      stagedPathNotice.textContent = 'This test used an unsaved custom runtime path — Save to make it permanent.';
+    }
+
+    // The one required, exact wording for a CUDA-requested/CPU-effective
+    // result — driven only by the probe's own dedicated fellBackToCpu flag,
+    // never inferred, so a plain probe failure (e.g. model_not_cached) is
+    // never mislabeled as a silent CPU fallback.
+    if (result.fellBackToCpu) {
+      fallbackWarning.hidden = false;
+      fallbackWarning.textContent = 'CUDA was requested, but the effective provider is CPU.';
+    }
+
+    resultBlock.hidden = false;
+    panel.querySelector('.gs-onnx-runtime-source').textContent = result.runtimeSource ?? 'unknown';
+    panel.querySelector('.gs-onnx-runtime-version').textContent = result.runtimeVersion ?? 'unknown';
+    panel.querySelector('.gs-onnx-model-cached').textContent = result.modelCached ? 'yes' : 'no';
+    panel.querySelector('.gs-onnx-message').textContent = result.message ?? '';
+  } catch (err) {
+    verified.textContent = 'Test failed';
+    resultBlock.hidden = false;
+    panel.querySelector('.gs-onnx-runtime-source').textContent = 'unknown';
+    panel.querySelector('.gs-onnx-runtime-version').textContent = 'unknown';
+    panel.querySelector('.gs-onnx-model-cached').textContent = 'unknown';
+    panel.querySelector('.gs-onnx-message').textContent = err?.message ?? 'The probe request failed.';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalLabel;
+  }
+}
+
 function renderEditableCategory(container, category) {
   const entries = categoryEntries(category).filter((e) => isFieldVisible(category, e));
   const primary = entries.filter((e) => !e.advanced);
@@ -590,10 +726,13 @@ function renderEditableCategory(container, category) {
     for (const entry of advanced) advancedFields.append(fieldRow(category, entry));
     content.append(advancedBlock);
   }
+  const probePanel = onnxProbePanel(category, entries);
+  if (probePanel) content.append(probePanel);
   const currentSaveBar = saveBar(category);
   if (currentSaveBar) content.append(currentSaveBar);
   container.replaceChildren(content);
   wireCategoryEvents(container, category);
+  wireOnnxProbePanel(container, category);
 
   const refreshBtn = container.querySelector('#gs-refresh-models');
   if (refreshBtn) {
@@ -746,7 +885,38 @@ function wireCategoryEvents(container, category) {
     });
   }
 
+  for (const btn of container.querySelectorAll('.gs-path-browse')) {
+    if (btn.disabled) continue;
+    btn.addEventListener('click', () => wirePathBrowseClick(btn));
+  }
+
   wireSaveBarEvents(container, category);
+}
+
+async function wirePathBrowseClick(btn) {
+  const wrapper = btn.closest('.gs-path-control');
+  const input = wrapper.querySelector('.gs-path-input');
+  const fallback = wrapper.querySelector('.gs-path-fallback');
+  btn.disabled = true;
+  const originalLabel = btn.textContent;
+  btn.textContent = 'Choosing…';
+  try {
+    const { path, cancelled } = await apiPost('/api/system/pick-folder', {});
+    if (!cancelled && path) {
+      input.value = path;
+      fallback.hidden = true;
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+  } catch {
+    // Picker unavailable (non-Windows, powershell.exe missing, timed out,
+    // etc.) — fall back to manual entry instead of leaving the user stuck
+    // with a broken button and no way to proceed.
+    fallback.hidden = false;
+    input.focus();
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalLabel;
+  }
 }
 
 function wireSaveBarEvents(container, category) {

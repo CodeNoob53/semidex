@@ -86,6 +86,14 @@
   <input type="text" class="gs-field-control q-input">
 </template>
 
+<template id="tpl-gs-control-path">
+  <div class="gs-path-control">
+    <input type="text" class="gs-field-control q-input gs-path-input">
+    <button type="button" class="btn-ghost gs-path-browse">Browse…</button>
+    <p class="gs-field-source gs-path-fallback" hidden>Folder picker unavailable — enter the path manually above.</p>
+  </div>
+</template>
+
 <template id="tpl-gs-control-select">
   <select class="gs-field-control q-input"></select>
 </template>
@@ -115,6 +123,37 @@
 
 <template id="tpl-gs-refresh-models">
   <button type="button" class="btn-ghost" id="gs-refresh-models">Refresh models</button>
+</template>
+
+<template id="tpl-gs-onnx-probe-panel">
+  <div class="panel gs-onnx-probe-panel">
+    <div class="panel-head">ONNX hardware status</div>
+    <div class="panel-body">
+      <dl class="kv">
+        <dt>Requested provider</dt>
+        <dd class="gs-onnx-requested"></dd>
+        <dt>Active provider (configured, unverified)</dt>
+        <dd class="gs-onnx-active"></dd>
+        <dt>Last verified</dt>
+        <dd class="gs-onnx-verified">Not yet tested</dd>
+      </dl>
+      <p class="gs-field-pending-restart gs-onnx-pending-restart" hidden></p>
+      <p class="gs-field-source gs-onnx-staged-path-notice" hidden></p>
+      <p class="gs-detail gs-onnx-fallback-warning" hidden></p>
+      <button type="button" class="btn-amber gs-onnx-test-button">Test configuration</button>
+      <div class="gs-onnx-result" hidden>
+        <dl class="kv">
+          <dt>Runtime source</dt>
+          <dd class="gs-onnx-runtime-source"></dd>
+          <dt>Runtime version</dt>
+          <dd class="gs-onnx-runtime-version"></dd>
+          <dt>Model cached</dt>
+          <dd class="gs-onnx-model-cached"></dd>
+        </dl>
+        <p class="gs-detail gs-onnx-message"></p>
+      </div>
+    </div>
+  </div>
 </template>
 
 <template id="tpl-gs-inline-category">
