@@ -408,12 +408,21 @@ if (needsOnnxF) {
         'CUDA session probe skipped — ONNX model cache incomplete',
         `${missing} missing; re-run indexing to complete the download`));
     } else {
-      const result = await probeOnnxProvider(['cuda'], modelPath);
+      // Runs in an ISOLATED CHILD PROCESS (core/onnx-provider-probe.js) —
+      // doctor.js itself never loads onnxruntime-node. Uses the SAME
+      // ONNXRUNTIME_NODE_PATH resolution as the real embedding path
+      // (already write-backed into process.env above), so this probe
+      // genuinely tests the configured custom CUDA runtime when one is set
+      // — not just whatever the default npm package happens to support.
+      const result = await probeOnnxProvider('cuda', { secret: KEY || undefined });
+      const runtimeNote = result.runtimeSource === 'custom' ? ` (custom runtime: ${result.runtimeVersion ?? 'unknown version'})` : '';
       if (result.ok) {
-        report('F', makeResult(STATUS.PASS, 'CUDA session probe — CUDA is available'));
+        report('F', makeResult(STATUS.PASS, `CUDA session probe — CUDA is available${runtimeNote}`));
+      } else if (result.modelCached === false) {
+        report('F', makeResult(STATUS.SKIP, 'CUDA session probe', 'model not cached'));
       } else {
         report('F', makeResult(STATUS.WARN,
-          'CUDA session probe failed — CUDA provider unavailable',
+          `CUDA session probe failed — CUDA provider unavailable${runtimeNote}`,
           formatCudaProbeFailure(result.message, process.platform)));
       }
     }

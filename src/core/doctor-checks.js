@@ -156,8 +156,12 @@ export function buildCudaStrictError(errMessage, platform) {
   const ortLine = errMessage ? `ONNX Runtime: ${errMessage}` : 'ONNX Runtime: no available backend found';
   const platformLines = platform === 'win32'
     ? [
-        'Windows: CUDA is not supported via prebuilt onnxruntime-node.',
-        '  Use ONNX_EXECUTION_PROVIDER=dml for GPU acceleration instead.',
+        'Windows: the npm-installed onnxruntime-node prebuilt binding does not',
+        '  include a CUDA execution provider (CPU/DirectML only). CUDA on Windows',
+        '  requires a compatible custom onnxruntime-node build — set',
+        '  ONNXRUNTIME_NODE_PATH to point at it. CUDA Toolkit/cuDNN themselves are',
+        '  OS-level prerequisites semidex does not install or manage. If you do not',
+        '  have a custom CUDA build, use ONNX_EXECUTION_PROVIDER=dml instead.',
       ]
     : [
         'Linux: CUDA requires CUDA 12.x + cuDNN 9 + LD_LIBRARY_PATH set to their lib dirs.',
@@ -181,9 +185,13 @@ export function buildCudaStrictError(errMessage, platform) {
 export function cudaProbeGuidance(platform) {
   if (platform === 'win32') {
     return [
-      'CUDA is not supported via prebuilt onnxruntime-node on Windows.',
-      'Use ONNX_EXECUTION_PROVIDER=dml for GPU acceleration instead.',
-      'To use CPU: ONNX_EXECUTION_PROVIDER=cpu',
+      'The npm-installed onnxruntime-node prebuilt binding is CPU/DirectML',
+      'only — it has no CUDA execution provider. Windows CUDA requires a',
+      'compatible custom onnxruntime-node build: set ONNXRUNTIME_NODE_PATH to',
+      'its path. CUDA Toolkit/cuDNN are OS-level prerequisites semidex does',
+      'not install or manage. Without a custom build, use',
+      'ONNX_EXECUTION_PROVIDER=dml for GPU acceleration, or',
+      'ONNX_EXECUTION_PROVIDER=cpu.',
       'See: docs/en/configuration.md — ONNX_EXECUTION_PROVIDER',
     ].join('\n             ');
   }
