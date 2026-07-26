@@ -48,8 +48,9 @@ html, body {
   background: var(--bg-raise);
 }
 .brand {
+  display: inline-flex; align-items: baseline;
   font-family: var(--mono); font-size: 16px; letter-spacing: .02em;
-  color: var(--ink);
+  color: var(--ink); text-decoration: none;
   /* Phase 4A.5b code review: .brand and .topbar-status previously had no
      min-width/shrink handling at all — on a narrow viewport with the gear
      link added, the row had no slack left and would force horizontal
@@ -59,6 +60,8 @@ html, body {
      width instead of refusing to, which text-overflow below depends on. */
   min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
 }
+.brand:hover { color: var(--amber); }
+.brand:hover .brand-bracket { color: var(--amber); }
 .brand-bracket { color: var(--amber); }
 .brand-sub {
   margin-left: 10px; font-size: 10px; text-transform: uppercase;
