@@ -3,8 +3,8 @@
 // Two responsibilities:
 //   1. expectedChunkingMeta() — the per-file (chunking_model, indexing_schema_version)
 //      pair the reindex detector must compare against stored points. This closes
-//      review finding B1: toggling SKELETON_CHUNKING=1 on an already-indexed
-//      collection must trigger a reindex instead of "unchanged, skipping",
+//      review finding B1: a legacy-indexed .md file must trigger a reindex into
+//      the (now unconditional) skeleton model instead of "unchanged, skipping",
 //      otherwise the collection silently becomes a legacy/skeleton mix.
 //   2. skeletonPayloadFields() — the additive payload fields for skeleton-v1
 //      chunks. Legacy chunks get NOTHING (impl spec §4: no backfill; absence of
@@ -39,17 +39,27 @@ export function isSkeletonChunk(chunk) {
 }
 
 /**
- * Expected chunking meta for a file under the current environment.
- * Mirrors the branch condition in chunkFileFromPath: skeleton applies only
- * when SKELETON_CHUNKING=1 AND the file is Markdown.
+ * Expected chunking meta for a file. Mirrors the branch condition in
+ * chunkFileFromPath: skeleton applies unconditionally to Markdown files —
+ * it is architecture, not opt-in configuration, so this no longer consults
+ * any env var or setting. Non-Markdown files (PDF, Pandoc-converted formats,
+ * plain text) stay on the legacy chunker (a documented scope boundary, see
+ * chunkFileFromPath's own comments) and report legacy (null) meta here too.
  *
- * @param {NodeJS.ProcessEnv} env
+ * This is also the mechanism that forces a one-time, per-file reindex of
+ * any collection indexed before this became unconditional: a stored legacy
+ * point for a .md file has chunkingModel: null, which will never match this
+ * function's now-unconditional 'skeleton-v1' result for that same file, so
+ * stageA's skip-tuple comparison (src/indexer/run.js) correctly treats it
+ * as changed rather than skipping it. An already-current skeleton-v1 file's
+ * stored meta already matches and is correctly skipped — no needless
+ * rebuild, no INDEXING_SCHEMA_VERSION bump required for this change alone.
+ *
  * @param {string} filePath
  * @returns {{ chunkingModel: string|null, indexingSchemaVersion: number|null }}
  */
-export function expectedChunkingMeta(env, filePath) {
-  const skeleton = env.SKELETON_CHUNKING === '1'
-    && extname(filePath ?? '').toLowerCase() === '.md';
+export function expectedChunkingMeta(filePath) {
+  const skeleton = extname(filePath ?? '').toLowerCase() === '.md';
   return skeleton
     ? { chunkingModel: SKELETON_CHUNKING_MODEL, indexingSchemaVersion: INDEXING_SCHEMA_VERSION }
     : { chunkingModel: null, indexingSchemaVersion: null };

@@ -157,30 +157,10 @@ export const DEFINITIONS = {
     appliesAt: 'next_index_job', requiresReindex: false, requiresBackfill: false,
     ...intField({ envVar: 'LLM_BATCH_SIZE', defaultVal: 3, min: 1, max: 64, warnPrefix: '[indexer] ' }),
   },
-  SKELETON_CHUNKING: {
-    category: 'indexing', label: 'Skeleton-first chunking', type: 'boolean', envVar: 'SKELETON_CHUNKING',
-    description: 'Chunk documents using their structural skeleton (headings/sections) instead of plain text splitting.', advanced: false,
-    appliesAt: 'next_index_job', requiresReindex: true, requiresBackfill: false,
-    ...boolField({ envVar: 'SKELETON_CHUNKING', defaultVal: false }),
-  },
-  SKELETON_NAV: {
-    category: 'indexing', label: 'Skeleton nav points', type: 'boolean', envVar: 'SKELETON_NAV',
-    description: 'Include navigation anchor points in the document skeleton.', advanced: true,
-    appliesAt: 'next_index_job', requiresReindex: true, requiresBackfill: false,
-    default: true,
-    // Kill-switch semantics: env value '0' disables, anything else (incl.
-    // unset) is on — mirrors `process.env.SKELETON_NAV === '0'` at
-    // index.js:154 exactly (inverse of a normal boolField).
-    parseExternal(raw) { return raw !== '0'; },
-    validate(value) { return typeof value === 'boolean' ? { ok: true } : { ok: false, error: 'SKELETON_NAV must be a boolean.' }; },
-    serialize: (value) => value,
-  },
-  SKELETON_CONTEXT: {
-    category: 'indexing', label: 'Skeleton context mode', type: 'enum', envVar: 'SKELETON_CONTEXT',
-    description: 'How skeleton section context is generated: deterministic rules or an LLM pass.', advanced: true,
-    appliesAt: 'next_index_job', requiresReindex: true, requiresBackfill: false,
-    ...enumField({ envVar: 'SKELETON_CONTEXT', defaultVal: 'deterministic', allowed: ['deterministic', 'llm'], warnPrefix: '[indexer] ' }),
-  },
+  // SKELETON_CHUNKING, SKELETON_NAV, and SKELETON_CONTEXT were removed —
+  // skeleton-first chunking, navigation-point generation, and deterministic
+  // structural context are now unconditional architecture for Markdown, not
+  // configurable behavior. See docs/skeleton-first-production-invariant-*.md.
   SKELETON_SUMMARY: {
     category: 'indexing', label: 'Skeleton summary mode', type: 'enum', envVar: 'SKELETON_SUMMARY',
     description: 'How skeleton node summaries are generated: deterministic rules or an LLM pass.', advanced: true,
@@ -232,27 +212,18 @@ export const DEFINITIONS = {
     category: 'ai', label: 'ONNX tag worker threads', type: 'number', envVar: 'TAG_ONNX_THREADS',
     description: 'Number of CPU threads used by the ONNX tag worker.', advanced: true,
     appliesAt: 'next_index_job', requiresReindex: false, requiresBackfill: false,
+    visibleWhen: { key: 'TAG_PROVIDER', equals: 'onnx' },
     ...intField({ envVar: 'TAG_ONNX_THREADS', defaultVal: 1, min: 1, max: 64, warnPrefix: '[tag-onnx] ' }),
   },
   TAG_ONNX_ALLOW_DOWNLOAD: {
     category: 'ai', label: 'Allow ONNX tag model download', type: 'boolean', envVar: 'TAG_ONNX_ALLOW_DOWNLOAD',
     description: 'Allow automatically downloading the ONNX tag model if it is not already cached locally.', advanced: true,
     appliesAt: 'next_index_job', requiresReindex: false, requiresBackfill: false,
+    visibleWhen: { key: 'TAG_PROVIDER', equals: 'onnx' },
     ...boolField({ envVar: 'TAG_ONNX_ALLOW_DOWNLOAD', defaultVal: false }),
   },
-  COMBINED_LLM: {
-    category: 'ai', label: 'Combined context+tags LLM pass', type: 'boolean', envVar: 'COMBINED_LLM',
-    description: 'Generate chunk context and tags in a single combined LLM call instead of two separate calls.', advanced: true,
-    appliesAt: 'next_index_job', requiresReindex: true, requiresBackfill: false,
-    ...boolField({ envVar: 'COMBINED_LLM', defaultVal: false }),
-  },
-  CONTEXT_MODEL: {
-    category: 'ai', label: 'Context generation model', type: 'string', envVar: 'CONTEXT_MODEL',
-    description: 'Ollama model name used to generate chunk context summaries during indexing.', advanced: true,
-    appliesAt: 'next_index_job', requiresReindex: true, requiresBackfill: false,
-    dynamicOptions: { source: 'ollama_models', capability: 'generation' },
-    ...stringField({ envVar: 'CONTEXT_MODEL', defaultVal: 'gemma3:4b' }),
-  },
+
+  // ── ai (generation) ─────────────────────────────────────────────────────
   SEMIDEX_GENERATION_BACKEND: {
     category: 'ai', label: 'Generation backend', type: 'enum', envVar: 'SEMIDEX_GENERATION_BACKEND',
     description: 'The generation backend semidex uses for Ask answers: a local Ollama model or the Gemini API.', advanced: false,
@@ -275,6 +246,12 @@ export const DEFINITIONS = {
     dynamicOptions: { source: 'generation_models', capability: 'generation' },
     ...stringField({ envVar: 'ASK_MODEL', defaultVal: 'gemma3:4b' }),
   },
+  ASK_NUM_CTX: {
+    category: 'ai', label: 'Ask context size', type: 'number', envVar: 'ASK_NUM_CTX',
+    description: 'Context window size (tokens) requested from the model for Ask answers. Capped by the provider model’s real input-token limit when known.', advanced: true,
+    appliesAt: 'next_restart', requiresReindex: false, requiresBackfill: false,
+    ...intField({ envVar: 'ASK_NUM_CTX', defaultVal: 8192, min: 256, max: 1_000_000 }),
+  },
   OLLAMA_URL: {
     category: 'ai', label: 'Ollama URL', type: 'string', envVar: 'OLLAMA_URL',
     description: 'Base URL of the Ollama server used for generation and tagging.', advanced: false,
@@ -288,12 +265,6 @@ export const DEFINITIONS = {
     // settings.json, only from this one field's own visibility.
     visibleWhen: { key: 'SEMIDEX_GENERATION_BACKEND', equals: 'ollama' },
     ...stringField({ envVar: 'OLLAMA_URL', defaultVal: 'http://localhost:11434' }),
-  },
-  ASK_NUM_CTX: {
-    category: 'ai', label: 'Ask context size', type: 'number', envVar: 'ASK_NUM_CTX',
-    description: 'Context window size (tokens) requested from the model for Ask answers. Capped by the provider model’s real input-token limit when known.', advanced: true,
-    appliesAt: 'next_restart', requiresReindex: false, requiresBackfill: false,
-    ...intField({ envVar: 'ASK_NUM_CTX', defaultVal: 8192, min: 256, max: 1_000_000 }),
   },
   GENERATION_DEVICE: {
     category: 'ai', label: 'Generation device policy', type: 'enum', envVar: 'GENERATION_DEVICE',
@@ -314,6 +285,19 @@ export const DEFINITIONS = {
     parseExternal(raw) { return raw; },
     validate() { return { ok: false, error: 'GEMINI_API_KEY is a secret and cannot be written.' }; },
     serialize: (value) => value,
+  },
+  CONTEXT_MODEL: {
+    category: 'ai', label: 'Context generation model', type: 'string', envVar: 'CONTEXT_MODEL',
+    description: 'Ollama model name used to generate chunk context summaries during indexing.', advanced: true,
+    appliesAt: 'next_index_job', requiresReindex: true, requiresBackfill: false,
+    dynamicOptions: { source: 'ollama_models', capability: 'generation' },
+    ...stringField({ envVar: 'CONTEXT_MODEL', defaultVal: 'gemma3:4b' }),
+  },
+  COMBINED_LLM: {
+    category: 'ai', label: 'Combined context+tags LLM pass', type: 'boolean', envVar: 'COMBINED_LLM',
+    description: 'Generate chunk context and tags in a single combined LLM call instead of two separate calls.', advanced: true,
+    appliesAt: 'next_index_job', requiresReindex: true, requiresBackfill: false,
+    ...boolField({ envVar: 'COMBINED_LLM', defaultVal: false }),
   },
 
   // ── embeddings & hardware ───────────────────────────────────────────────
@@ -348,20 +332,6 @@ export const DEFINITIONS = {
     dynamicOptions: { source: 'ollama_models', capability: 'embedding' },
     ...stringField({ envVar: 'EMBED_MODEL', defaultVal: 'bge-m3' }),
   },
-  DENSE_PROVIDER: {
-    category: 'embeddings', label: 'Dense provider', type: 'enum', envVar: 'DENSE_PROVIDER',
-    description: 'Backend used to compute dense embedding vectors for new collections. Internal compatibility key — use "Embedding backend" instead.',
-    advanced: true, uiHidden: true,
-    appliesAt: 'new_collection', requiresReindex: false, requiresBackfill: false,
-    ...enumField({ envVar: 'DENSE_PROVIDER', defaultVal: 'ollama', allowed: ['ollama', 'bge-m3-onnx'] }),
-  },
-  SPARSE_PROVIDER: {
-    category: 'embeddings', label: 'Sparse provider', type: 'enum', envVar: 'SPARSE_PROVIDER',
-    description: 'Backend used to compute sparse embedding vectors for new collections. Internal compatibility key — use "Embedding backend" instead.',
-    advanced: true, uiHidden: true,
-    appliesAt: 'new_collection', requiresReindex: false, requiresBackfill: false,
-    ...enumField({ envVar: 'SPARSE_PROVIDER', defaultVal: 'hashed-tf', allowed: ['hashed-tf', 'bge-m3-onnx'] }),
-  },
   DENSE_MODEL: {
     category: 'embeddings', label: 'Dense model', type: 'string', envVar: 'DENSE_MODEL',
     description: 'Model identifier used for dense embeddings when the ONNX provider is selected.', advanced: true,
@@ -385,6 +355,26 @@ export const DEFINITIONS = {
     writable: false,
     readOnlyReason: 'Detected from the embedding model; it cannot be entered manually.',
     ...intField({ envVar: 'VECTOR_SIZE', defaultVal: 1024, min: 1, max: 100000 }),
+  },
+  // DENSE_PROVIDER/SPARSE_PROVIDER stay uiHidden — EMBEDDING_BACKEND is the
+  // one user-facing control that expands to both together (see
+  // service.js's setMany() combined write). Showing them separately would
+  // be exactly the kind of raw internal field the redesign is meant to
+  // remove, and would let a user create an invalid dense/sparse
+  // combination that EMBEDDING_BACKEND's own validation prevents.
+  DENSE_PROVIDER: {
+    category: 'embeddings', label: 'Dense provider', type: 'enum', envVar: 'DENSE_PROVIDER',
+    description: 'Backend used to compute dense embedding vectors for new collections. Internal compatibility key — use "Embedding backend" instead.',
+    advanced: true, uiHidden: true,
+    appliesAt: 'new_collection', requiresReindex: false, requiresBackfill: false,
+    ...enumField({ envVar: 'DENSE_PROVIDER', defaultVal: 'ollama', allowed: ['ollama', 'bge-m3-onnx'] }),
+  },
+  SPARSE_PROVIDER: {
+    category: 'embeddings', label: 'Sparse provider', type: 'enum', envVar: 'SPARSE_PROVIDER',
+    description: 'Backend used to compute sparse embedding vectors for new collections. Internal compatibility key — use "Embedding backend" instead.',
+    advanced: true, uiHidden: true,
+    appliesAt: 'new_collection', requiresReindex: false, requiresBackfill: false,
+    ...enumField({ envVar: 'SPARSE_PROVIDER', defaultVal: 'hashed-tf', allowed: ['hashed-tf', 'bge-m3-onnx'] }),
   },
   ONNX_EXECUTION_PROVIDER: {
     category: 'embeddings', label: 'ONNX execution provider', type: 'enum', envVar: 'ONNX_EXECUTION_PROVIDER',
@@ -443,18 +433,6 @@ export const DEFINITIONS = {
   },
 
   // ── retrieval & ranking ─────────────────────────────────────────────────
-  HYBRID_PREFETCH_LIMIT: {
-    category: 'retrieval', label: 'Hybrid prefetch multiplier', type: 'number', envVar: 'HYBRID_PREFETCH_LIMIT',
-    description: 'How many extra candidates to fetch per branch before merging dense/sparse hybrid results.', advanced: true,
-    appliesAt: 'next_search', requiresReindex: false, requiresBackfill: false,
-    ...intField({ envVar: 'HYBRID_PREFETCH_LIMIT', defaultVal: 2, min: 1, max: 100, warnPrefix: '[qdrant] ' }),
-  },
-  RRF_K: {
-    category: 'retrieval', label: 'RRF K constant', type: 'number', envVar: 'RRF_K',
-    description: 'Smoothing constant used when combining dense and sparse rankings via Reciprocal Rank Fusion.', advanced: true,
-    appliesAt: 'next_search', requiresReindex: false, requiresBackfill: false,
-    ...intField({ envVar: 'RRF_K', defaultVal: 60, min: 1, max: 10000, warnPrefix: '[qdrant] ' }),
-  },
   RERANK_ENABLED: {
     category: 'retrieval', label: 'Deterministic rerank enabled', type: 'boolean', envVar: 'RERANK_ENABLED',
     description: 'Apply rule-based reranking (boosts/penalties) to search results after retrieval.', advanced: false,
@@ -466,6 +444,18 @@ export const DEFINITIONS = {
     description: 'Apply a cross-encoder model to rerank top search results for improved relevance.', advanced: false,
     appliesAt: 'next_search', requiresReindex: false, requiresBackfill: false,
     ...boolField({ envVar: 'RERANK_CE_ENABLED', defaultVal: false }),
+  },
+  HYBRID_PREFETCH_LIMIT: {
+    category: 'retrieval', label: 'Hybrid prefetch multiplier', type: 'number', envVar: 'HYBRID_PREFETCH_LIMIT',
+    description: 'How many extra candidates to fetch per branch before merging dense/sparse hybrid results.', advanced: true,
+    appliesAt: 'next_search', requiresReindex: false, requiresBackfill: false,
+    ...intField({ envVar: 'HYBRID_PREFETCH_LIMIT', defaultVal: 2, min: 1, max: 100, warnPrefix: '[qdrant] ' }),
+  },
+  RRF_K: {
+    category: 'retrieval', label: 'RRF K constant', type: 'number', envVar: 'RRF_K',
+    description: 'Smoothing constant used when combining dense and sparse rankings via Reciprocal Rank Fusion.', advanced: true,
+    appliesAt: 'next_search', requiresReindex: false, requiresBackfill: false,
+    ...intField({ envVar: 'RRF_K', defaultVal: 60, min: 1, max: 10000, warnPrefix: '[qdrant] ' }),
   },
   RERANK_PREFETCH_MULT: {
     category: 'retrieval', label: 'Rerank prefetch multiplier', type: 'number', envVar: 'RERANK_PREFETCH_MULT',

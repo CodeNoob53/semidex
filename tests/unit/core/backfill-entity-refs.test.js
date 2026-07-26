@@ -37,14 +37,8 @@ function toStoredPoints(chunks, prefix = 'pt') {
 }
 
 function chunkSkeletonDoc(markdown, sourceFile = 'doc.md') {
-  const before = process.env.SKELETON_CHUNKING;
-  process.env.SKELETON_CHUNKING = '1';
-  try {
-    const nodes = parseSkeleton(markdown, { sourceFile });
-    return chunkFromSkeleton(nodes, { sourceFile });
-  } finally {
-    if (before === undefined) delete process.env.SKELETON_CHUNKING; else process.env.SKELETON_CHUNKING = before;
-  }
+  const nodes = parseSkeleton(markdown, { sourceFile });
+  return chunkFromSkeleton(nodes, { sourceFile });
 }
 
 describe('computeBackfillPlan — legacy collections', () => {

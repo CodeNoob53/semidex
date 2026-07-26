@@ -2,9 +2,8 @@
 // Contract: docs/design/skeleton-first-chunking-impl-spec.md §3.1, design §5.
 //
 // Scope (impl spec §11 task 1): parsing + positioning ONLY. No policy
-// decisions (node-policy.js), no chunking, no LLM, no Qdrant. Nothing in the
-// production pipeline imports this module yet — it is wired into
-// chunkFileFromPath behind SKELETON_CHUNKING=1 in a later task.
+// decisions (node-policy.js), no chunking, no LLM, no Qdrant. Wired into
+// chunkFileFromPath() unconditionally for Markdown — see chunk.js.
 //
 // Hard rules implemented here:
 //   - One AST, built once (design §2). remark-parse + remark-gfm +

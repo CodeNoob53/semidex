@@ -114,7 +114,7 @@ function names, config keys, CLI flags, model names.
        qdrant_get_content(collection, anchor_node_id=<hit's node_id>, scope="section", max_tokens=<bounded>)
     -> use scope="file" only when section context is insufficient
   ```
-  `qdrant_get_content` assembles bounded contextual evidence (prose continuous, tables/code/checklists at their original position, authoritative raw content) — not a full-document dump; paginate with `cursor_before`/`cursor_after`. `qdrant_get_node` is for one full original entity, mainly for explicit user display. Skeleton summaries stay navigation-only, never a valid anchor. Legacy collections without skeleton node identity cannot use `qdrant_get_content` — reindex with `SKELETON_CHUNKING=1` first.
+  `qdrant_get_content` assembles bounded contextual evidence (prose continuous, tables/code/checklists at their original position, authoritative raw content) — not a full-document dump; paginate with `cursor_before`/`cursor_after`. `qdrant_get_node` is for one full original entity, mainly for explicit user display. Skeleton summaries stay navigation-only, never a valid anchor. Legacy collections without skeleton node identity cannot use `qdrant_get_content` — reindex to get skeleton node identity.
 
 ## Retrieval Safety Rules
 
@@ -133,6 +133,7 @@ npm run doctor        # environment health check
 ```
 
 - Always set `COLLECTION`. Use `ONNX_EMBED=1` for serious indexing.
+- Markdown files always index through the skeleton chunker with navigation nodes generated automatically — architecture, not an opt-in flag. Non-Markdown formats (PDF, Pandoc-converted formats, plain text) still use the legacy chunker with no skeleton node identity.
 - Do not mix providers in one collection. Provider/schema changes require reindexing.
 - Use `PRUNE_STALE=1` only against the full source root, never a subset.
 

@@ -19,8 +19,15 @@ describe('collection settings (ui-src/settings-view.js + settings-shell.html sou
   it('reindex options are grouped and include LLM summaries', () => {
     const js = readUiModuleWithPartial('settings-view.js', 'settings-shell.html'); // opt-group-label markup lives in settings-shell.html
     assert.match(js, /opt-group-label">Quality/);
-    assert.match(js, /opt-group-label">Structure/);
     assert.match(js, /opt-llm-summaries/);
+  });
+
+  it('sends no skeletonChunking/skeletonNav reindex options — skeleton-first indexing is unconditional architecture, not a per-job choice', () => {
+    const js = readUiModuleWithPartial('settings-view.js', 'settings-shell.html');
+    assert.ok(!/skeletonChunking/.test(js));
+    assert.ok(!/skeletonNav/.test(js));
+    assert.ok(!js.includes('id="opt-skel-chunk"'));
+    assert.ok(!js.includes('id="opt-skel-nav"'));
   });
 
   it('offers a recent-source-path selector with a manual fallback, not only a plain path input', () => {

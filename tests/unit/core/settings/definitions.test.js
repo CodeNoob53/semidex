@@ -146,12 +146,17 @@ describe('settings definitions — parseExternal preserves current bounds/behavi
     assert.equal(def.validate(1_000_001).ok, false);
   });
 
-  test('SKELETON_NAV: kill-switch semantics — only "0" disables, everything else (incl. unset) is on', () => {
-    const def = DEFINITIONS.SKELETON_NAV;
-    assert.equal(def.parseExternal('0'), false);
-    assert.equal(def.parseExternal('1'), true);
-    assert.equal(def.parseExternal(undefined), true);
-    assert.equal(def.parseExternal('anything'), true);
+  test('SKELETON_CHUNKING, SKELETON_NAV, and SKELETON_CONTEXT are not recognized settings — skeleton-first chunking, nav generation, and deterministic structural context are unconditional architecture, not configuration', () => {
+    const keys = Object.keys(DEFINITIONS);
+    assert.ok(!keys.includes('SKELETON_CHUNKING'));
+    assert.ok(!keys.includes('SKELETON_NAV'));
+    assert.ok(!keys.includes('SKELETON_CONTEXT'));
+    // The fields that DO stay configurable (orthogonal to the toggle removed
+    // above) must still be present — this guards against accidentally
+    // deleting more than intended.
+    assert.ok(keys.includes('SKELETON_SUMMARY'));
+    assert.ok(keys.includes('SKELETON_CARRYOVER_CHARS'));
+    assert.ok(keys.includes('SUMMARY_LANG'));
   });
 
   test('invalid-value warning text is preserved verbatim for a representative envInt-backed field', (t) => {

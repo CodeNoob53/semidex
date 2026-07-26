@@ -52,12 +52,12 @@ export default async function ({ ok }) {
      JSON.stringify(navPoints.map(n => makeSkeletonPointId({ collection: 'col', nodeId: n.node_id, embeddingSchemaVersion: 2 }))));
   ok('nav point ids unique', new Set(navIds).size === navIds.length);
 
-  // ── kill-switch contract mirrors stageA logic ────────────────────────────────
+  // ── nav points are always generated now — no SKELETON_NAV kill-switch
+  // exists anymore, and run.js reads __navPoints unconditionally.
   const chunksArr = [];
   Object.defineProperty(chunksArr, '__navPoints', { value: navPoints, enumerable: false });
-  const pick = (env) => (env.SKELETON_NAV === '0') ? [] : (chunksArr.__navPoints ?? []);
-  ok('SKELETON_NAV=0 disables nav points', pick({ SKELETON_NAV: '0' }).length === 0);
-  ok('default passes nav points through', pick({}).length === navPoints.length);
+  const pick = () => chunksArr.__navPoints ?? [];
+  ok('nav points always pass through, unconditionally', pick().length === navPoints.length);
   ok('side-channel is non-enumerable', !Object.keys(chunksArr).includes('__navPoints') &&
      JSON.stringify(chunksArr) === '[]');
 

@@ -113,25 +113,32 @@ system.
 
 ---
 
-## Skeleton-first Chunking — Main Direction
+## Skeleton-first Chunking — Landed as the Production Invariant
 
-**Skeleton-first indexing is the primary semidex direction.** Legacy chunking
-(`SKELETON_CHUNKING` unset) remains supported as a compatibility/fallback path
-for existing collections, but new document-structure work targets skeleton first.
+**Skeleton-first indexing is now unconditional architecture for Markdown, not
+an opt-in mode.** Every `.md` file always parses through the AST (remark)
+skeleton pipeline; navigation-node generation and deterministic structural
+context are always on. There is no `SKELETON_CHUNKING`/`SKELETON_NAV`/
+`SKELETON_CONTEXT` flag — those were removed once skeleton-first cleared the
+Stage 3 benchmark gate and became the only supported Markdown chunking path.
+Existing legacy-indexed `.md` files are detected and reindexed into the
+skeleton model automatically on the next indexing run; legacy Qdrant
+collections remain fully readable in the meantime.
 
-New structure-aware features (carryover, summaries, navigation) are built on top
-of the skeleton model. The Stage 3 benchmark gate is required before switching
-skeleton-first on by default for all collections.
+Non-Markdown formats (PDF, Pandoc-converted formats, plain text) are a
+deliberate, still-open scope boundary: they continue to use the legacy
+chunker directly, unaffected by this change. A synthetic-skeleton
+representation for those formats has not been built.
 
-**Goal:** replace "text below a heading" as the only knowledge unit with a
-typed structural model of the document.
+**Goal (achieved for Markdown):** replace "text below a heading" as the only
+knowledge unit with a typed structural model of the document.
 
 The skeleton model is part of chunking, not a retrieval boost layered on top.
 The parser first builds a document skeleton, then a policy decides what becomes
 searchable content, what remains navigation metadata, what is preserved as raw
 payload, and what waits for a future processor.
 
-### In MVP
+### Delivered
 
 - parse Markdown through an AST (remark) rather than extending the legacy
   regex parser;
@@ -146,10 +153,11 @@ payload, and what waits for a future processor.
 - generate inspectable file-skeleton JSON artifacts (inspect-only, never a
   source of truth);
 - add the conditional `point_kind="retrieval_content"` search filter for
-  skeleton-first collections while preserving legacy collection behavior;
-- keep the legacy chunker fully intact behind the `SKELETON_CHUNKING=1`
-  feature flag;
-- add structural smoke tests and a dedicated benchmark fixture.
+  skeleton collections while preserving legacy collection behavior;
+- add structural smoke tests and a dedicated benchmark fixture;
+- remove the legacy Markdown chunking branch from production indexing —
+  `chunkFile`/`chunkFileAsync` remain as shared primitives for non-Markdown
+  formats and benchmarks, but are no longer selectable for `.md` input.
 
 The implementation contract and task-by-task decomposition live in:
 
@@ -163,19 +171,25 @@ The implementation contract and task-by-task decomposition live in:
 - `qdrant_get_content` and deeper skeleton traversal controls — Stage 2;
 - separate `embedding_text` construction for tables/code — follows the LLM
   context work, after Stage 1;
-- collection-level summaries, callouts/admonitions, math, footnotes, OCR;
-- switching skeleton-first chunking on by default — requires the Stage 3
-  benchmark gate.
+- collection-level summaries, callouts/admonitions, math, footnotes, OCR.
 
-### MVP exit gate
+Skeleton-first chunking for Markdown was made unconditional ahead of a full
+Stage 3 benchmark validation pass — the decision was made directly rather
+than waiting on the originally planned gate, because the legacy Markdown
+branch was no longer meant to be a real production alternative. Stage 3's
+broader benchmark/profile work (below) is still open and still matters, just
+no longer as a precondition for skeleton-first itself.
+
+### MVP exit gate (met)
 
 - smoke tests cover every supported AST mapping and safe fallback;
 - tables and code blocks are not split incorrectly;
 - empty and placeholder-only retrieval chunks cannot be emitted;
-- legacy indexing remains byte-identical when skeleton-first mode is disabled;
 - a dedicated structural benchmark fixture exists;
 - skeleton-enabled reindex is detected correctly on previously indexed
-  collections (no silent mixed legacy/skeleton state).
+  collections (no silent mixed legacy/skeleton state) — legacy-indexed `.md`
+  files are reindexed into the skeleton model automatically, and already
+  current skeleton collections are not rebuilt needlessly.
 
 ---
 
@@ -288,8 +302,10 @@ Planned work:
 regression metrics; improvements reproduce across multiple document shapes; no
 profile becomes a hidden requirement for acceptable baseline quality; indexing
 cost and quality tradeoffs are documented honestly; the neutral profile
-remains a usable default. Only after this gate may skeleton-first become the
-default.
+remains a usable default. (Skeleton-first chunking for Markdown is already
+the unconditional default, decided ahead of this gate — see the MVP section
+above; this gate now governs broader benchmark/profile validation, not
+whether skeleton-first ships.)
 
 ### Product tracks (future, post-foundation)
 

@@ -38,14 +38,8 @@ const storeSrc = readFileSync(
 );
 
 function chunkSkeletonDoc(markdown, sourceFile = 'guide.md') {
-  const before = process.env.SKELETON_CHUNKING;
-  process.env.SKELETON_CHUNKING = '1';
-  try {
-    const nodes = parseSkeleton(markdown, { sourceFile });
-    return chunkFromSkeleton(nodes, { sourceFile });
-  } finally {
-    if (before === undefined) delete process.env.SKELETON_CHUNKING; else process.env.SKELETON_CHUNKING = before;
-  }
+  const nodes = parseSkeleton(markdown, { sourceFile });
+  return chunkFromSkeleton(nodes, { sourceFile });
 }
 
 // The stored payload as indexer/index.js composes it for a skeleton chunk

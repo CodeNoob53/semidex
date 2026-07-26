@@ -76,7 +76,7 @@ export function validateInput({ collection, anchor_node_id, scope = 'section', m
 }
 
 const ERROR_MESSAGES = {
-  anchor_not_found: (id) => `Error: no content node found for anchor_node_id="${id}". It may not exist, belong to a different collection, or the collection may predate skeleton chunking (legacy collections have no node identity — reindex with SKELETON_CHUNKING=1 to enable anchored retrieval).`,
+  anchor_not_found: (id) => `Error: no content node found for anchor_node_id="${id}". It may not exist, belong to a different collection, or the collection may predate skeleton chunking (legacy collections have no node identity — reindex to enable anchored retrieval).`,
   anchor_is_navigation: (id) => `Error: anchor_node_id="${id}" is a navigation node, not retrievable content. Navigation/skeleton summary nodes are never valid anchors — pass a node_id from a qdrant_search hit instead.`,
   no_section_scope: (id) => `Error: anchor_node_id="${id}" has no section structure to assemble scope="section" from. Retry with scope="file".`,
   invalid_cursor: () => 'Error: the provided cursor is invalid, malformed, or does not match this request (collection/anchor_node_id/scope must be identical to the call that produced it). Omit cursor to start a new anchor-centered page.',

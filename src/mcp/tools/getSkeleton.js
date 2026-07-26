@@ -46,7 +46,7 @@ export function formatSkeleton(collectionNode, children) {
 export async function handle({ collection }) {
   const collectionNode = await getCollectionSkeletonNode(collection);
   if (!collectionNode) {
-    return `No skeleton found for collection \`${collection}\`. The collection may not have been indexed with skeleton support, or SKELETON_NAV was disabled during indexing.`;
+    return `No skeleton found for collection \`${collection}\`. The collection may predate skeleton-first indexing — reindex it to get skeleton navigation.`;
   }
 
   const childPaths = Array.isArray(collectionNode.children) ? collectionNode.children : [];

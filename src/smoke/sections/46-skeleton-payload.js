@@ -11,30 +11,43 @@ export default async function ({ ok }) {
   const { makePointId } = await import('../../core/point-id.js');
 
   // ── expectedChunkingMeta (B1: skip-tuple input) ─────────────────────────────
-  const on  = { SKELETON_CHUNKING: '1' };
-  const off = {};
-
-  ok('flag on + .md → skeleton meta',
-     JSON.stringify(expectedChunkingMeta(on, 'docs/a.md')) ===
+  // Signature dropped its env parameter — skeleton chunking is unconditional
+  // for .md now, not gated by SKELETON_CHUNKING (which no longer exists).
+  ok('.md → skeleton meta, unconditionally',
+     JSON.stringify(expectedChunkingMeta('docs/a.md')) ===
      JSON.stringify({ chunkingModel: SKELETON_CHUNKING_MODEL, indexingSchemaVersion: INDEXING_SCHEMA_VERSION }));
-  ok('flag on + .txt → legacy meta (skeleton is md-only)',
-     expectedChunkingMeta(on, 'notes/a.txt').chunkingModel === null);
-  ok('flag on + .pdf → legacy meta',
-     expectedChunkingMeta(on, 'docs/a.pdf').chunkingModel === null);
-  ok('flag off + .md → legacy meta',
-     expectedChunkingMeta(off, 'docs/a.md').chunkingModel === null &&
-     expectedChunkingMeta(off, 'docs/a.md').indexingSchemaVersion === null);
-  ok('case-insensitive extension', expectedChunkingMeta(on, 'A.MD').chunkingModel === SKELETON_CHUNKING_MODEL);
+  ok('.txt → legacy meta (skeleton is md-only)',
+     expectedChunkingMeta('notes/a.txt').chunkingModel === null);
+  ok('.pdf → legacy meta',
+     expectedChunkingMeta('docs/a.pdf').chunkingModel === null);
+  ok('case-insensitive extension', expectedChunkingMeta('A.MD').chunkingModel === SKELETON_CHUNKING_MODEL);
+  {
+    const before = process.env.SKELETON_CHUNKING;
+    let envHasNoEffect;
+    try {
+      process.env.SKELETON_CHUNKING = '0';
+      const withZero = expectedChunkingMeta('docs/a.md');
+      process.env.SKELETON_CHUNKING = '1';
+      const withOne = expectedChunkingMeta('docs/a.md');
+      delete process.env.SKELETON_CHUNKING;
+      const withUnset = expectedChunkingMeta('docs/a.md');
+      envHasNoEffect = JSON.stringify(withZero) === JSON.stringify(withOne)
+        && JSON.stringify(withOne) === JSON.stringify(withUnset);
+    } finally {
+      if (before === undefined) delete process.env.SKELETON_CHUNKING;
+      else process.env.SKELETON_CHUNKING = before;
+    }
+    ok('setting SKELETON_CHUNKING as a raw OS env var has no effect on .md meta', envHasNoEffect);
+  }
 
-  // B1 scenario: stored legacy point vs skeleton-enabled run → tuple mismatch.
+  // B1 scenario: stored legacy point vs the now-unconditional skeleton
+  // expectation → tuple mismatch, forcing exactly the one-time reindex.
   const storedLegacy = { chunkingModel: null, indexingSchemaVersion: null };
-  const expectedNow  = expectedChunkingMeta(on, 'docs/a.md');
-  ok('B1: legacy stored vs skeleton run → mismatch forces reindex',
+  const expectedNow  = expectedChunkingMeta('docs/a.md');
+  ok('B1: legacy stored vs current skeleton expectation → mismatch forces reindex',
      storedLegacy.chunkingModel !== expectedNow.chunkingModel);
-  ok('B1: skeleton stored vs legacy run → mismatch forces reindex',
-     expectedChunkingMeta(off, 'docs/a.md').chunkingModel !== expectedNow.chunkingModel);
   ok('B1: matching skeleton meta → no spurious reindex',
-     JSON.stringify(expectedChunkingMeta(on, 'docs/a.md')) === JSON.stringify(expectedNow));
+     JSON.stringify(expectedChunkingMeta('docs/a.md')) === JSON.stringify(expectedNow));
 
   // ── skeletonPayloadFields ────────────────────────────────────────────────────
   const skelChunk = {

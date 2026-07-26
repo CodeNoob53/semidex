@@ -42,11 +42,12 @@ assembly, citations, and refusal behavior), but it is not yet a stable public
 integration API. Cloud generation adapters, public authentication, abuse
 controls, SDKs, and packaged website/Telegram integrations remain planned.
 
-With `SKELETON_CHUNKING=1` (opt-in), Markdown files are parsed through an AST
-instead: tables, code blocks, and checklists become typed structural chunks,
-phase 2 uses deterministic context (heading path + structural carryover, no
-LLM calls unless `SKELETON_CONTEXT=llm`), and a separate `skeleton_nav` point
-layer is written for the `qdrant_get_skeleton*` navigation tools. See
+Markdown files always parse through an AST instead (unconditional, not
+configurable): tables, code blocks, and checklists become typed structural
+chunks, phase 2 uses deterministic context (heading path + structural
+carryover, no LLM calls), and a separate `skeleton_nav` point layer is
+written for the `qdrant_get_skeleton*` navigation tools. Non-Markdown formats
+still use the legacy chunker. See
 [chunking-quality.md](chunking-quality.md#skeleton-first-chunking-and-structural-carryover).
 
 ## Qdrant Data Model

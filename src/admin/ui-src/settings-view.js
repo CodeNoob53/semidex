@@ -170,8 +170,6 @@ async function runSettingsReindex(name) {
     options: {
       onnxEmbed: $('#opt-onnx').checked,
       llmSummaries: $('#opt-llm-summaries').checked,
-      skeletonChunking: $('#opt-skel-chunk').checked,
-      skeletonNav: $('#opt-skel-nav').checked,
       tagGen: $('#opt-tags').checked,
       pruneStale: $('#opt-prune').checked,
     },

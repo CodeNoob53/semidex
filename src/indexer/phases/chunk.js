@@ -607,11 +607,12 @@ export async function chunkFileFromPath(filePath, sourceFile) {
     }
   }
 
-  // ── Skeleton-first path (impl spec §1): opt-in via SKELETON_CHUNKING=1,
-  // Markdown only. Lazy imports keep remark out of the legacy hot path.
-  // Everything below this block is the legacy pipeline, byte-identical when
-  // the flag is unset (smoke section 45 guards this).
-  if (process.env.SKELETON_CHUNKING === '1' && ext === '.md') {
+  // ── Skeleton-first path — mandatory for Markdown. Skeleton-first chunking
+  // is the Semidex architecture, not an optional mode: every real .md file
+  // parses through the AST skeleton pipeline unconditionally. Lazy imports
+  // keep remark out of the non-Markdown paths below, which still use the
+  // legacy chunker (see the scope note at each of those branches).
+  if (ext === '.md') {
     const [skeletonMod, chunkMod, warnMod, indexMod] = await Promise.all([
       import('./skeleton.js'),
       import('./skeleton-chunk.js'),
@@ -639,6 +640,11 @@ export async function chunkFileFromPath(filePath, sourceFile) {
     return chunks;
   }
 
+  // PDF: deliberately still routed through the legacy chunker below, even
+  // when pdf2md recovers heading structure and rewrites to a synthetic .md
+  // path — this is a documented scope boundary (no synthetic-skeleton-root
+  // representation exists for non-Markdown input), not an oversight or
+  // leftover legacy branch. Only real .md files are mandatory-skeleton.
   if (ext === '.pdf') {
     const data = readFileSync(filePath);
     let md = null;
@@ -678,6 +684,9 @@ export async function chunkFileFromPath(filePath, sourceFile) {
     }
   }
 
+  // Pandoc-converted formats (.docx/.odt/.rtf/.epub/.html/.htm): same scope
+  // boundary as PDF above — routed through the legacy chunker, not the
+  // skeleton pipeline, even though pandoc's output is itself Markdown text.
   if (PANDOC_FORMATS.has(ext)) {
     let stdout;
     try {
@@ -701,6 +710,9 @@ export async function chunkFileFromPath(filePath, sourceFile) {
       : chunkFile(mdPath, pandocText, sourceFile);
   }
 
+  // Plain text / any other extension: same scope boundary — legacy
+  // sentence-based chunking, not skeleton. See the .pdf branch's comment
+  // above for why this is deliberate, not deferred cleanup.
   const raw = readFileSync(filePath, 'utf8');
   return useAsync
     ? chunkFileAsync(filePath, raw, sourceFile, countFn)

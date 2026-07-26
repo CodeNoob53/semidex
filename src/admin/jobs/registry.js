@@ -34,16 +34,16 @@ const STATES = Object.freeze({
  * how the indexer already treats an unset var as off). `llmSummaries` maps
  * to SKELETON_SUMMARY=llm (the indexer's existing opt-in for LLM-generated
  * nav-node summaries instead of deterministic ones) — omitted when false,
- * same "unset = off" convention as the other optional flags.
+ * same "unset = off" convention as the other optional flags. Skeleton-first
+ * chunking and navigation-point generation are unconditional architecture,
+ * not job options — no env vars are set for them here.
  *
- * @param {{ onnxEmbed?: boolean, skeletonChunking?: boolean, skeletonNav?: boolean, llmSummaries?: boolean, pruneStale?: boolean, tagGen?: boolean }} options
+ * @param {{ onnxEmbed?: boolean, llmSummaries?: boolean, pruneStale?: boolean, tagGen?: boolean }} options
  */
 export function buildJobEnv(collection, options = {}) {
   const env = {
     COLLECTION: collection,
     ONNX_EMBED: options.onnxEmbed ? '1' : '0',
-    SKELETON_CHUNKING: options.skeletonChunking ? '1' : '0',
-    SKELETON_NAV: options.skeletonNav ? '1' : '0',
   };
   if (options.llmSummaries) env.SKELETON_SUMMARY = 'llm';
   if (options.pruneStale) env.PRUNE_STALE = '1';
@@ -147,8 +147,8 @@ function makeLineSplitter(job, stream) {
  * applyEnvWriteBack() ever touched it, so the child's own bootstrapEnv()/
  * SettingsService resolves settings.json fresh, uncontaminated by admin's
  * own resolved values — buildJobEnv()'s explicit per-job overrides
- * (ONNX_EMBED, SKELETON_CHUNKING, etc., set from the actual job-start
- * request) still apply on top, unaffected by this change.
+ * (ONNX_EMBED, etc., set from the actual job-start request) still apply
+ * on top, unaffected by this change.
  *
  * @param {{ spawnFn?: typeof nodeSpawn, baseEnv?: NodeJS.ProcessEnv }} [options]
  */

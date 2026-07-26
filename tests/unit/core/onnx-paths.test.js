@@ -26,7 +26,7 @@ describe('ONNX_DENSE_MODEL_ID', () => {
       'src/core/onnx-embed.js',
       'src/core/config.js',
       'src/sync.js',
-      'src/core/token-count.js',
+      'src/core/bge-tokenizer.js',
     ];
     for (const relPath of files) {
       const src = await readFile(new URL(`../../../${relPath}`, import.meta.url), 'utf-8');
@@ -44,14 +44,25 @@ describe('ONNX_DENSE_MODEL_ID', () => {
     assert.match(src, /import\s*\{[^}]*ONNX_DENSE_MODEL_ID[^}]*\}\s*from\s*['"]\.\/onnx-paths\.js['"]/);
   });
 
-  it('config.js, sync.js, token-count.js import ONNX_DENSE_MODEL_ID from onnx-paths.js', async () => {
+  it('config.js, sync.js, bge-tokenizer.js import ONNX_DENSE_MODEL_ID from onnx-paths.js', async () => {
     const configSrc = await readFile(new URL('../../../src/core/config.js', import.meta.url), 'utf-8');
     assert.match(configSrc, /import\s*\{\s*ONNX_DENSE_MODEL_ID\s*\}\s*from\s*['"]\.\/onnx-paths\.js['"]/);
 
     const syncSrc = await readFile(new URL('../../../src/sync.js', import.meta.url), 'utf-8');
     assert.match(syncSrc, /ONNX_DENSE_MODEL_ID.*=.*await import\(['"]\.\/core\/onnx-paths\.js['"]\)/);
 
+    // token-count.js delegates tokenizer loading to bge-tokenizer.js
+    // entirely (see that module's own header for why: isolating
+    // @huggingface/tokenizers from the CUDA-sensitive onnxruntime-node
+    // load path) and no longer needs ONNX_DENSE_MODEL_ID directly —
+    // bge-tokenizer.js is the actual consumer now.
+    const tokenizerSrc = await readFile(new URL('../../../src/core/bge-tokenizer.js', import.meta.url), 'utf-8');
+    assert.match(tokenizerSrc, /import\s*\{[^}]*ONNX_DENSE_MODEL_ID[^}]*\}\s*from\s*['"]\.\/onnx-paths\.js['"]/);
+  });
+
+  it('token-count.js does not import ONNX_DENSE_MODEL_ID directly — it delegates tokenizer loading to bge-tokenizer.js', async () => {
     const tokenCountSrc = await readFile(new URL('../../../src/core/token-count.js', import.meta.url), 'utf-8');
-    assert.match(tokenCountSrc, /import\s*\{[^}]*ONNX_DENSE_MODEL_ID[^}]*\}\s*from\s*['"]\.\/onnx-paths\.js['"]/);
+    assert.ok(!/ONNX_DENSE_MODEL_ID/.test(tokenCountSrc));
+    assert.match(tokenCountSrc, /import\s*\{[^}]*loadBgeTokenizer[^}]*\}\s*from\s*['"]\.\/bge-tokenizer\.js['"]/);
   });
 });

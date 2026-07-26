@@ -49,8 +49,10 @@ function placeholderFor(sourceFile, n) {
 //   entity : heading path + node type + short nearby prose carryover from the
 //            same section (placeholder lines stripped, capped at
 //            SKELETON_CARRYOVER_CHARS, default 500).
-// Result: 0 LLM calls per skeleton file (vs N in legacy). LLM context stays
-// available as an explicit opt-in (SKELETON_CONTEXT=llm) for Stage-3 A/B runs.
+// Result: 0 LLM calls per skeleton file (vs N in legacy). Deterministic
+// context is now unconditional — the SKELETON_CONTEXT=llm opt-in used for
+// Stage-3 A/B comparison runs has been removed; there is no LLM-context
+// code path left in production.
 
 const CARRYOVER_DEFAULT = 500;
 const CARRYOVER_MAX     = 2000;

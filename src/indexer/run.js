@@ -121,9 +121,10 @@ async function stageA(filePath, rootPath, collection, profiler, reporter = null)
   const fileHash   = await hashFile(filePath);
   const storedMeta = await getStoredMeta(collection, sourceFile);
   const storedHash = storedMeta?.hash ?? null;
-  // B1: chunking-model agreement is part of the skip tuple — toggling
-  // SKELETON_CHUNKING must reindex, never silently mix point models.
-  const chunkMeta = expectedChunkingMeta(process.env, filePath);
+  // Chunking-model agreement is part of the skip tuple — a file previously
+  // indexed by the legacy chunker (chunkingModel: null) must reindex into
+  // the now-mandatory skeleton model, never silently mix point models.
+  const chunkMeta = expectedChunkingMeta(filePath);
 
   if (
     !process.env.FORCE_REINDEX &&
@@ -152,12 +153,12 @@ async function stageA(filePath, rootPath, collection, profiler, reporter = null)
   const tagModel = (combinedCfg.enabled || !genTagsPreflight || tagViaOnnx)
     ? contextModel
     : (process.env.TAG_MODEL || contextModel);
-  // Skeleton files with deterministic context (§12, default) never call the
-  // LLM for context; if tags are off or routed to the ONNX worker, Ollama is
-  // not needed at all — skip the preflight so skeleton indexing works with
-  // no Ollama running. SKELETON_CONTEXT=llm restores the legacy requirement.
+  // Skeleton files always use deterministic context (structural context is
+  // no longer configurable) and therefore never call the LLM for context;
+  // if tags are off or routed to the ONNX worker, Ollama is not needed at
+  // all — skip the preflight so skeleton indexing works with no Ollama
+  // running.
   const skeletonNoLlm = Boolean(chunkMeta.chunkingModel)
-    && process.env.SKELETON_CONTEXT !== 'llm'
     && process.env.SKELETON_SUMMARY !== 'llm'
     && (!genTagsPreflight || tagViaOnnx);
   if (!skeletonNoLlm) {
@@ -197,8 +198,8 @@ async function stageA(filePath, rootPath, collection, profiler, reporter = null)
   profiler.mark('chunk');
 
   // Task 6: nav points ride a non-enumerable side-channel on the chunk array.
-  // SKELETON_NAV=0 is the kill-switch (default: on for skeleton files).
-  const navPoints = (process.env.SKELETON_NAV === '0') ? [] : (rawChunks.__navPoints ?? []);
+  // Nav points are always generated for skeleton files — no kill-switch.
+  const navPoints = rawChunks.__navPoints ?? [];
 
   return {
     status: 'ready',
@@ -226,11 +227,10 @@ async function stageB(prepared, ollamaSem = null, reporter = null) {
   // ── Skeleton leveled context (design §12, deterministic by default) ────────
   // Skeleton chunks arrive with a precomputed deterministic `context`
   // (heading path + adjacent prose) — the per-chunk LLM context phase is
-  // skipped entirely: 0 LLM calls vs N in legacy. SKELETON_CONTEXT=llm opts
-  // back into the legacy per-chunk LLM path for A/B benchmarking.
+  // always skipped: 0 LLM calls vs N in legacy. Structural context is no
+  // longer configurable (always deterministic).
   const skeletonDeterministic = rawChunks.length > 0
-    && rawChunks.every(ch => isSkeletonChunk(ch))
-    && process.env.SKELETON_CONTEXT !== 'llm';
+    && rawChunks.every(ch => isSkeletonChunk(ch));
 
   if (skeletonDeterministic) {
     if (combinedCfg.enabled) {
@@ -551,6 +551,25 @@ export function computeStaleSourceFiles(indexedSourceFiles, storedSourceFiles) {
   return storedSourceFiles.filter(sf => !indexed.has(sf));
 }
 
+// A collection with no skeleton file nav nodes at all (e.g. one containing
+// only non-Markdown formats, which never produce skeleton_nav points — see
+// chunkFileFromPath's documented scope boundary) has nothing meaningful to
+// roll up into a collection-level nav node. Exported so the guard's exact
+// condition is independently testable without a real/mocked Qdrant scroll.
+export function shouldSkipCollectionNavRollup(fileNodes) {
+  return fileNodes.length === 0;
+}
+
+// Whether the collection-level nav rollup (rebuild-or-cleanup) needs to run
+// at all this indexing run. `indexed > 0` alone misses two real cases:
+// an empty-root run with PRUNE_STALE=1 that removes every previously-
+// indexed file (indexed stays 0, but stale directory/collection nav points
+// must still be cleared) and a partial prune with no new files indexed (the
+// rollup must still rebuild from whatever file nav nodes remain).
+export function collectionNavRollupNeeded(indexedCount, prunedCount) {
+  return indexedCount > 0 || prunedCount > 0;
+}
+
 
 async function main() {
   const targetPath = process.argv[2];
@@ -641,7 +660,7 @@ async function main() {
   }
 
   if (files.length) console.log(`Found ${files.length} file(s) to process`);
-  let indexed = 0, skipped = 0;
+  let indexed = 0, skipped = 0, prunedCount = 0;
 
   // Pre-run num_ctx: read all skeleton-eligible files once, find the largest,
   // resolve a single num_ctx for the whole run. Ollama loads the model once
@@ -777,14 +796,15 @@ async function main() {
           await deleteBySourceFile(COLLECTION, sf);
           console.log(`  - removed: ${sf}`);
         }
+        prunedCount = stale.length;
       }
     }
   }
 
   // ── Collection-level nav node (design §9/§12.1) ─────────────────────────────
-  // Regenerated whenever anything was indexed this run (incremental contract:
-  // file change → file branch + collection roll-up). Non-fatal on failure.
-  if (process.env.SKELETON_CHUNKING === '1' && process.env.SKELETON_NAV !== '0' && indexed > 0) {
+  // See collectionNavRollupNeeded's own comment for why this isn't just
+  // `indexed > 0`. Non-fatal on failure.
+  if (collectionNavRollupNeeded(indexed, prunedCount)) {
     try {
       const fileNavs = await scroll(COLLECTION, {
         must: [
@@ -803,102 +823,121 @@ async function main() {
         .filter(f => f.source_file)
         .sort((a, b) => a.source_file.localeCompare(b.source_file));
 
-      const { directoryNodes, topChildren } = buildDirectoryNavPoints(COLLECTION, fileNodes);
+      // See shouldSkipCollectionNavRollup's own comment: without this guard,
+      // `indexed > 0` alone would still create a misleading "0 files"
+      // inventory collection node for a collection indexed with only
+      // non-Markdown content. But skipping the rollup entirely is not
+      // enough on its own — a collection that PREVIOUSLY had Markdown (so
+      // directory/collection nav points already exist from an earlier run)
+      // and has since moved to non-Markdown-only content (or had its
+      // Markdown files pruned) must not be left with stale directory/
+      // collection nav points describing content that no longer exists.
+      if (shouldSkipCollectionNavRollup(fileNodes)) {
+        await deleteByFilter(COLLECTION, {
+          must: [
+            { key: 'point_kind', match: { value: 'skeleton_nav' } },
+            { key: 'node_type',  match: { any: ['directory', 'collection'] } },
+          ],
+        });
+        console.log('\nNo skeleton file nav nodes in this collection — skipping collection nav rollup, removing any stale directory/collection nav points.');
+      } else {
+        const { directoryNodes, topChildren } = buildDirectoryNavPoints(COLLECTION, fileNodes);
 
-      // Build a lookup map for generateDirectorySummaries: path → enriched nav node.
-      // File nodes use the `<source_file>#file` path convention.
-      const childSummaryByPath = new Map(
-        fileNodes.map(f => [`${f.source_file}#file`, f])
-      );
+        // Build a lookup map for generateDirectorySummaries: path → enriched nav node.
+        // File nodes use the `<source_file>#file` path convention.
+        const childSummaryByPath = new Map(
+          fileNodes.map(f => [`${f.source_file}#file`, f])
+        );
 
-      // Generate directory summaries when LLM is enabled.
-      const llmEnabled = process.env.SKELETON_SUMMARY === 'llm';
-      const enrichedDirs = llmEnabled && directoryNodes.length > 0
-        ? await generateDirectorySummaries(directoryNodes, childSummaryByPath, {
-            numCtx: runNumCtx ?? undefined,
-          })
-        : directoryNodes;
+        // Generate directory summaries when LLM is enabled.
+        const llmEnabled = process.env.SKELETON_SUMMARY === 'llm';
+        const enrichedDirs = llmEnabled && directoryNodes.length > 0
+          ? await generateDirectorySummaries(directoryNodes, childSummaryByPath, {
+              numCtx: runNumCtx ?? undefined,
+            })
+          : directoryNodes;
 
-      // Add enriched directory nodes into the lookup so collection can use them.
-      for (const d of enrichedDirs) {
-        childSummaryByPath.set(d.node_path, d);
-      }
+        // Add enriched directory nodes into the lookup so collection can use them.
+        for (const d of enrichedDirs) {
+          childSummaryByPath.set(d.node_path, d);
+        }
 
-      await deleteByFilter(COLLECTION, {
-        must: [
-          { key: 'point_kind', match: { value: 'skeleton_nav' } },
-          { key: 'node_type',  match: { value: 'directory' } },
-        ],
-      });
+        await deleteByFilter(COLLECTION, {
+          must: [
+            { key: 'point_kind', match: { value: 'skeleton_nav' } },
+            { key: 'node_type',  match: { value: 'directory' } },
+          ],
+        });
 
-      if (enrichedDirs.length > 0) {
-        const dirTexts = enrichedDirs.map(n => n.summary);
-        const dirEmbeds = shouldUseOnnxBatching(process.env)
-          ? await embedForIndexBatch(COLLECTION, dirTexts, runBatched, BATCH_SIZE)
-          : await runBatched(dirTexts, BATCH_SIZE, text => embedForIndex(COLLECTION, text));
+        if (enrichedDirs.length > 0) {
+          const dirTexts = enrichedDirs.map(n => n.summary);
+          const dirEmbeds = shouldUseOnnxBatching(process.env)
+            ? await embedForIndexBatch(COLLECTION, dirTexts, runBatched, BATCH_SIZE)
+            : await runBatched(dirTexts, BATCH_SIZE, text => embedForIndex(COLLECTION, text));
+          const cfgVectorSize = loadConfig().collections?.[COLLECTION]?.vectorSize ?? VECTOR_SIZE;
+          const dirPoints = enrichedDirs.map((node, i) => ({
+            id: makeSkeletonPointId({
+              collection: COLLECTION,
+              nodeId: node.node_id,
+              embeddingSchemaVersion: SCHEMA_VERSION,
+            }),
+            vector: { dense: dirEmbeds[i].dense, sparse: dirEmbeds[i].sparse },
+            payload: buildNavPointPayload(node, {
+              fileHash: null,
+              vectorSize: cfgVectorSize,
+              tokenCountMode: resolveTokenCountMode(),
+              chunkingSchemaVersion: CHUNKING_SCHEMA_VERSION,
+              embedMeta: dirEmbeds[i].meta,
+            }),
+          }));
+          await upsertPoints(COLLECTION, dirPoints);
+        }
+
+        // Top-level nodes for collection overview: enriched dirs + root files.
+        const rootFilePaths = new Set(
+          topChildren.filter(p => p.endsWith('#file'))
+        );
+        const topLevelNodes = [
+          ...enrichedDirs.filter(d => topChildren.includes(d.node_path)),
+          ...fileNodes.filter(f => rootFilePaths.has(`${f.source_file}#file`)),
+        ];
+
+        const collResult = await buildCollectionSummary(COLLECTION, fileNodes, {
+          llm: llmEnabled,
+          numCtx: runNumCtx ?? undefined,
+          topLevelNodes: topLevelNodes.length ? topLevelNodes : undefined,
+        });
+
+        const collectionNodeId = makeNodeId({
+          collection: '', sourceFile: '', structuralPath: '',
+          nodeType: 'collection', ordinalWithinParent: 1,
+        });
+        const { dense, sparse, meta } = await embedForIndex(COLLECTION, collResult.summary);
         const cfgVectorSize = loadConfig().collections?.[COLLECTION]?.vectorSize ?? VECTOR_SIZE;
-        const dirPoints = enrichedDirs.map((node, i) => ({
+        await upsertPoints(COLLECTION, [{
           id: makeSkeletonPointId({
-            collection: COLLECTION,
-            nodeId: node.node_id,
+            collection: COLLECTION, nodeId: collectionNodeId,
             embeddingSchemaVersion: SCHEMA_VERSION,
           }),
-          vector: { dense: dirEmbeds[i].dense, sparse: dirEmbeds[i].sparse },
-          payload: buildNavPointPayload(node, {
-            fileHash: null,
-            vectorSize: cfgVectorSize,
+          vector: { dense, sparse },
+          payload: buildNavPointPayload({
+            point_kind: 'skeleton_nav', node_type: 'collection',
+            node_id: collectionNodeId, node_path: `${COLLECTION}#collection`,
+            source_file: '', heading_path: [], summary: collResult.summary,
+            summary_kind:    collResult.summary_kind,
+            summary_version: collResult.summary_version,
+            ...(collResult.key_topics    ? { key_topics:    collResult.key_topics }    : {}),
+            ...(collResult.notable_terms ? { notable_terms: collResult.notable_terms } : {}),
+            children: topChildren.length ? topChildren : collResult.children,
+          }, {
+            fileHash: null, vectorSize: cfgVectorSize,
             tokenCountMode: resolveTokenCountMode(),
             chunkingSchemaVersion: CHUNKING_SCHEMA_VERSION,
-            embedMeta: dirEmbeds[i].meta,
+            embedMeta: meta,
           }),
-        }));
-        await upsertPoints(COLLECTION, dirPoints);
+        }]);
+        console.log(`\nCollection nav node updated (${fileNodes.length} file summaries, ${enrichedDirs.length} directory summaries).`);
       }
-
-      // Top-level nodes for collection overview: enriched dirs + root files.
-      const rootFilePaths = new Set(
-        topChildren.filter(p => p.endsWith('#file'))
-      );
-      const topLevelNodes = [
-        ...enrichedDirs.filter(d => topChildren.includes(d.node_path)),
-        ...fileNodes.filter(f => rootFilePaths.has(`${f.source_file}#file`)),
-      ];
-
-      const collResult = await buildCollectionSummary(COLLECTION, fileNodes, {
-        llm: llmEnabled,
-        numCtx: runNumCtx ?? undefined,
-        topLevelNodes: topLevelNodes.length ? topLevelNodes : undefined,
-      });
-
-      const collectionNodeId = makeNodeId({
-        collection: '', sourceFile: '', structuralPath: '',
-        nodeType: 'collection', ordinalWithinParent: 1,
-      });
-      const { dense, sparse, meta } = await embedForIndex(COLLECTION, collResult.summary);
-      const cfgVectorSize = loadConfig().collections?.[COLLECTION]?.vectorSize ?? VECTOR_SIZE;
-      await upsertPoints(COLLECTION, [{
-        id: makeSkeletonPointId({
-          collection: COLLECTION, nodeId: collectionNodeId,
-          embeddingSchemaVersion: SCHEMA_VERSION,
-        }),
-        vector: { dense, sparse },
-        payload: buildNavPointPayload({
-          point_kind: 'skeleton_nav', node_type: 'collection',
-          node_id: collectionNodeId, node_path: `${COLLECTION}#collection`,
-          source_file: '', heading_path: [], summary: collResult.summary,
-          summary_kind:    collResult.summary_kind,
-          summary_version: collResult.summary_version,
-          ...(collResult.key_topics    ? { key_topics:    collResult.key_topics }    : {}),
-          ...(collResult.notable_terms ? { notable_terms: collResult.notable_terms } : {}),
-          children: topChildren.length ? topChildren : collResult.children,
-        }, {
-          fileHash: null, vectorSize: cfgVectorSize,
-          tokenCountMode: resolveTokenCountMode(),
-          chunkingSchemaVersion: CHUNKING_SCHEMA_VERSION,
-          embedMeta: meta,
-        }),
-      }]);
-      console.log(`\nCollection nav node updated (${fileNodes.length} file summaries, ${enrichedDirs.length} directory summaries).`);
     } catch (err) {
       console.warn(`\nWARN: collection nav node update failed — ${err.message}`);
     }

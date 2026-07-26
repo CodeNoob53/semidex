@@ -12,15 +12,19 @@ import assert from 'node:assert/strict';
 import { readUiSource, readUiModuleWithPartial } from './ui-test-helpers.js';
 
 describe('collection-creation form (ui-src/jobs-view.js source)', () => {
-  it('posts to /api/jobs/index with the six typed options', () => {
+  it('posts to /api/jobs/index with the four typed options', () => {
     const js = readUiSource('jobs-view.js');
     assert.match(js, /apiPost\(["']\/api\/jobs\/index["']/, 'must POST to /api/jobs/index');
     assert.match(js, /onnxEmbed/);
     assert.match(js, /llmSummaries/);
-    assert.match(js, /skeletonChunking/);
-    assert.match(js, /skeletonNav/);
     assert.match(js, /pruneStale/);
     assert.match(js, /tagGen/);
+  });
+
+  it('sends no skeletonChunking/skeletonNav options — skeleton-first indexing is unconditional architecture, not a per-job choice', () => {
+    const js = readUiSource('jobs-view.js');
+    assert.ok(!/skeletonChunking/.test(js));
+    assert.ok(!/skeletonNav/.test(js));
   });
 
   it('keeps the required safety copy', () => {
@@ -92,19 +96,23 @@ describe('simplified indexing form — advanced options collapsed (ui-src source
     assert.match(inside, /id="opt-tags"/, 'generate-tags must be inside the disclosure');
   });
 
-  it('keeps ONNX embeddings, LLM summaries, skeleton chunking, and skeleton nav visible above the disclosure', () => {
+  it('keeps ONNX embeddings and LLM summaries visible above the disclosure', () => {
     const js = readUiModuleWithPartial('jobs-view.js', 'index-view.html');
     const range = findAdvancedBoxRange(js);
     assert.ok(range);
     const [detailsStart] = range;
     const onnxIdx = js.indexOf('id="opt-onnx"');
     const llmIdx = js.indexOf('id="opt-llm-summaries"');
-    const chunkIdx = js.indexOf('id="opt-skel-chunk"');
-    const navIdx = js.indexOf('id="opt-skel-nav"');
-    for (const [name, idx] of [['opt-onnx', onnxIdx], ['opt-llm-summaries', llmIdx], ['opt-skel-chunk', chunkIdx], ['opt-skel-nav', navIdx]]) {
+    for (const [name, idx] of [['opt-onnx', onnxIdx], ['opt-llm-summaries', llmIdx]]) {
       assert.ok(idx !== -1, `${name} must be present`);
       assert.ok(idx < detailsStart, `${name} must appear before the Advanced options disclosure, not inside/after it`);
     }
+  });
+
+  it('no longer offers skeleton chunking/skeleton nav checkboxes — skeleton-first indexing is unconditional, not a per-job option', () => {
+    const js = readUiModuleWithPartial('jobs-view.js', 'index-view.html');
+    assert.ok(!js.includes('id="opt-skel-chunk"'));
+    assert.ok(!js.includes('id="opt-skel-nav"'));
   });
 
   it('keeps the prune-stale safety caveat, now scoped inside the disclosure with the checkbox it explains', () => {

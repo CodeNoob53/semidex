@@ -11,8 +11,9 @@ export function registerSkeletonRoutes(router, adapter) {
     const existing = await adapter.getCollection(params.name);
     if (!existing) throw notFound(`Collection "${params.name}" not found`);
 
-    // A collection with no skeleton nav layer is not an error — most
-    // collections don't have one (SKELETON_CHUNKING is opt-in). Report null.
+    // A collection with no skeleton nav layer is not an error — legacy
+    // collections indexed before skeleton chunking became unconditional
+    // don't have one. Report null.
     const skeleton = await adapter.getSkeletonRoot(params.name);
     sendJson(res, 200, { collection: params.name, skeleton });
   });

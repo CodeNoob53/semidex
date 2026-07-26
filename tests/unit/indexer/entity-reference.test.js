@@ -22,14 +22,8 @@ import { parseSkeleton } from '../../../src/indexer/phases/skeleton.js';
 import { chunkFromSkeleton } from '../../../src/indexer/phases/skeleton-chunk.js';
 
 function chunkSkeletonDoc(markdown, sourceFile = 'doc.md') {
-  const before = process.env.SKELETON_CHUNKING;
-  process.env.SKELETON_CHUNKING = '1';
-  try {
-    const nodes = parseSkeleton(markdown, { sourceFile });
-    return chunkFromSkeleton(nodes, { sourceFile });
-  } finally {
-    if (before === undefined) delete process.env.SKELETON_CHUNKING; else process.env.SKELETON_CHUNKING = before;
-  }
+  const nodes = parseSkeleton(markdown, { sourceFile });
+  return chunkFromSkeleton(nodes, { sourceFile });
 }
 
 describe('placeholderForReference — single source of truth for the placeholder format', () => {

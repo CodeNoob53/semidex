@@ -75,19 +75,17 @@ function waitFor(predicate, { timeoutMs = 500, intervalMs = 5 } = {}) {
 // ── buildJobEnv ───────────────────────────────────────────────────────────────
 
 describe('buildJobEnv', () => {
-  it('always sets COLLECTION and the three always-present flags', () => {
+  it('always sets COLLECTION and ONNX_EMBED', () => {
     const env = buildJobEnv('demo', {});
     assert.equal(env.COLLECTION, 'demo');
     assert.equal(env.ONNX_EMBED, '0');
-    assert.equal(env.SKELETON_CHUNKING, '0');
-    assert.equal(env.SKELETON_NAV, '0');
+    assert.equal('SKELETON_CHUNKING' in env, false, 'skeleton chunking is unconditional now, not a per-job env var');
+    assert.equal('SKELETON_NAV' in env, false, 'nav generation is unconditional now, not a per-job env var');
   });
 
-  it('sets flags to "1" when options are true', () => {
-    const env = buildJobEnv('demo', { onnxEmbed: true, skeletonChunking: true, skeletonNav: true });
+  it('sets ONNX_EMBED to "1" when the option is true', () => {
+    const env = buildJobEnv('demo', { onnxEmbed: true });
     assert.equal(env.ONNX_EMBED, '1');
-    assert.equal(env.SKELETON_CHUNKING, '1');
-    assert.equal(env.SKELETON_NAV, '1');
   });
 
   it('omits PRUNE_STALE, TAG_GEN, and SKELETON_SUMMARY entirely when false/unset (not "0")', () => {
@@ -646,7 +644,7 @@ describe('POST /api/jobs/index — validation', () => {
     });
   });
 
-  for (const name of ['onnxEmbed', 'skeletonChunking', 'skeletonNav', 'llmSummaries', 'pruneStale', 'tagGen']) {
+  for (const name of ['onnxEmbed', 'llmSummaries', 'pruneStale', 'tagGen']) {
     it(`rejects a known option ("${name}") sent at the top level instead of nested under "options"`, async () => {
       await withJobApp(makeNeverExitingSpawn([]), async (base) => {
         const res = await fetch(base + '/api/jobs/index', {
@@ -661,6 +659,35 @@ describe('POST /api/jobs/index — validation', () => {
       });
     });
   }
+
+  for (const name of ['skeletonChunking', 'skeletonNav']) {
+    it(`rejects options.${name} explicitly — skeleton-first indexing can no longer be disabled per job`, async () => {
+      await withJobApp(makeNeverExitingSpawn([]), async (base) => {
+        const res = await fetch(base + '/api/jobs/index', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ collection: 'demo', path: './x', options: { [name]: false } }),
+        });
+        assert.equal(res.status, 400, 'must reject even when the value is false — the field itself is unsupported');
+        const body = await res.json();
+        assert.equal(body.error.code, 'bad_request');
+        assert.match(body.error.message, new RegExp(name));
+        assert.match(body.error.message, /no longer supported/);
+      });
+    });
+  }
+
+  it('rejects when both removed options are present, naming both in one message', async () => {
+    await withJobApp(makeNeverExitingSpawn([]), async (base) => {
+      const res = await fetch(base + '/api/jobs/index', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ collection: 'demo', path: './x', options: { skeletonChunking: true, skeletonNav: true } }),
+      });
+      assert.equal(res.status, 400);
+      const body = await res.json();
+      assert.match(body.error.message, /skeletonChunking/);
+      assert.match(body.error.message, /skeletonNav/);
+    });
+  });
 
   it('accepts llmSummaries as a boolean option', async () => {
     const calls = [];

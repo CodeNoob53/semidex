@@ -217,19 +217,20 @@ Recommended Markdown indexing on PowerShell:
 ```powershell
 $env:COLLECTION = 'my-docs'
 $env:ONNX_EMBED = '1'
-$env:SKELETON_CHUNKING = '1'
 npm run index -- .\docs
 ```
 
 POSIX shell equivalent:
 
 ```bash
-COLLECTION=my-docs ONNX_EMBED=1 SKELETON_CHUNKING=1 npm run index -- ./docs
+COLLECTION=my-docs ONNX_EMBED=1 npm run index -- ./docs
 ```
 
-Skeleton navigation points are enabled automatically for skeleton-indexed
-Markdown unless `SKELETON_NAV=0` is set. Without
-`SKELETON_CHUNKING=1`, semidex uses the legacy heading-aware chunker.
+Markdown files always index through the skeleton (AST-based structural)
+chunker, with navigation points and deterministic structural context
+generated automatically — this is architecture, not configuration, and
+cannot be turned off. Non-Markdown formats (PDF, Pandoc-converted formats,
+plain text) still use the legacy heading-aware chunker.
 
 ### Connect an MCP client
 
@@ -418,7 +419,8 @@ Implemented:
 
 - Local-first indexer, Qdrant storage adapter, early debug/admin UI, and
   read-only MCP server
-- Legacy and opt-in skeleton-first Markdown chunking
+- Skeleton-first Markdown chunking (unconditional); legacy chunking remains
+  for non-Markdown formats and benchmarks
 - Typed table, code, and checklist retrieval nodes with authoritative raw data
 - BGE-M3 ONNX dense+sparse embeddings and Ollama+hashed-TF fallback
 - Hybrid Qdrant retrieval with RRF fusion and an optional reranker

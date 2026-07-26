@@ -85,7 +85,7 @@ qdrant_search(...)
 - Skeleton summaries remain navigation-only evidence; a navigation node can
   never be used as an `anchor_node_id`.
 - Legacy collections without skeleton node identity cannot use
-  `qdrant_get_content` — reindex with `SKELETON_CHUNKING=1` first.
+  `qdrant_get_content` — reindex to get skeleton node identity.
 
 See the Tool Reference below for the full parameter list.
 

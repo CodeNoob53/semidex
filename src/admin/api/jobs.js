@@ -56,14 +56,29 @@ function requireLocalPathField(body, name) {
 // to detect the misnesting mistake below (sending these at the top level
 // of the body instead of under "options").
 const KNOWN_OPTION_NAMES = [
-  'onnxEmbed', 'skeletonChunking', 'skeletonNav', 'llmSummaries', 'pruneStale', 'tagGen',
+  'onnxEmbed', 'llmSummaries', 'pruneStale', 'tagGen',
 ];
+
+// skeletonChunking/skeletonNav were removed as job options — skeleton-first
+// chunking and navigation-point generation are unconditional architecture
+// now, not a per-job choice. Compatibility policy: an explicit, loud 400
+// rejection if a caller still sends either (regardless of its value,
+// including false), rather than silently accepting and ignoring it —
+// silently pretending a removed option still works would let a caller
+// believe they successfully disabled skeleton chunking when they did not.
+const REMOVED_OPTION_NAMES = ['skeletonChunking', 'skeletonNav'];
 
 function parseOptions(body) {
   const o = body?.options;
   if (o === undefined || o === null) return {};
   if (typeof o !== 'object' || Array.isArray(o)) {
     throw badRequest('Body field "options" must be an object when provided');
+  }
+  const removed = REMOVED_OPTION_NAMES.filter((name) => name in o);
+  if (removed.length) {
+    throw badRequest(
+      `Indexing option(s) ${removed.map((n) => `"${n}"`).join(', ')} are no longer supported — skeleton-first indexing is always on and cannot be disabled per job.`
+    );
   }
   const bool = (name) => {
     const v = o[name];
@@ -73,8 +88,6 @@ function parseOptions(body) {
   };
   return {
     onnxEmbed: bool('onnxEmbed'),
-    skeletonChunking: bool('skeletonChunking'),
-    skeletonNav: bool('skeletonNav'),
     llmSummaries: bool('llmSummaries'),
     pruneStale: bool('pruneStale'),
     tagGen: bool('tagGen'),
@@ -84,9 +97,8 @@ function parseOptions(body) {
 // A known option sent at the top level of the body (instead of nested
 // under "options") used to be silently ignored — parseOptions() only reads
 // body.options, so the request would "succeed" with every option at its
-// default, producing a wrong-shape collection (e.g. skeletonChunking
-// silently off) with no indication anything was misconfigured. Reject it
-// loudly instead.
+// default, producing a wrong-shape collection (e.g. tagGen silently off)
+// with no indication anything was misconfigured. Reject it loudly instead.
 function requireOptionsNotMisnested(body) {
   const misnested = KNOWN_OPTION_NAMES.filter((name) => name in body);
   if (misnested.length) {

@@ -1,4 +1,7 @@
-// Skeleton task-2 smoke: legacy path intact without the flag, CRLF parity in
+// Skeleton task-2 smoke: skeleton chunking is unconditional for Markdown
+// (the old SKELETON_CHUNKING env toggle no longer exists and no longer has
+// any effect), the legacy chunker primitive (chunkFile, still used directly
+// for non-Markdown formats and benchmarks) is unaffected, CRLF parity in
 // legacy, and chunkFromSkeleton behavior — tiny-code merge, entity emission,
 // single placeholder, empty-section suppression.
 
@@ -35,16 +38,16 @@ console.log('started', result.pid);
 `;
 
 export default async function ({ ok }) {
-  console.log('\n[45] skeleton chunking — legacy intact, tiny-code merge, entities');
+  console.log('\n[45] skeleton chunking — unconditional for Markdown, tiny-code merge, entities');
 
   const { chunkFile, chunkFileFromPath } = await import('../../indexer/phases/chunk.js');
   const { parseSkeleton } = await import('../../indexer/phases/skeleton.js');
   const { chunkFromSkeleton } = await import('../../indexer/phases/skeleton-chunk.js');
 
-  // ── legacy intact: flag unset → legacy output unaffected by skeleton modules ─
-  const flagBefore = process.env.SKELETON_CHUNKING;
-  delete process.env.SKELETON_CHUNKING;
-
+  // ── chunkFile() (the legacy primitive, called directly for non-Markdown
+  // formats and by ~21 benchmark scripts) is a plain function with no env
+  // dependency at all — never gated by SKELETON_CHUNKING, before or after
+  // its removal. Verify it still works standalone.
   const legacy = chunkFile('doc.md', DOC, 'doc.md');
   ok('legacy path still produces chunks', legacy.length > 0);
   ok('legacy chunks carry no skeleton fields',
@@ -123,7 +126,10 @@ export default async function ({ ok }) {
   ok('node_ids deterministic across reindex',
      JSON.stringify(chunks.map(c => c.node_id)) === JSON.stringify(again.map(c => c.node_id)));
 
-  // ── flag branch in chunkFileFromPath (file-level, end to end) ────────────────
+  // ── chunkFileFromPath (file-level, end to end) — skeleton chunking is
+  // unconditional for Markdown now: the old SKELETON_CHUNKING/SKELETON_NAV/
+  // SKELETON_CONTEXT env vars no longer exist as recognized settings and
+  // have zero effect on this dispatch, whether unset, "0", or "1".
   const { writeFileSync, mkdtempSync } = await import('fs');
   const { tmpdir } = await import('os');
   const { join } = await import('path');
@@ -131,15 +137,20 @@ export default async function ({ ok }) {
   const fp = join(dir, 'doc.md');
   writeFileSync(fp, DOC, 'utf8');
 
-  process.env.SKELETON_CHUNKING = '1';
   process.env.TOKEN_COUNT = 'heuristic'; // avoid tokenizer download in smoke
   try {
-    const viaPath = await chunkFileFromPath(fp, 'doc.md');
-    ok('flag branch returns skeleton chunks', viaPath.some(c => c.chunking_model === 'skeleton-v1'));
-    ok('flag branch table entity present', viaPath.some(c => c.node_type === 'table'));
+    for (const envState of [undefined, '0', '1']) {
+      if (envState === undefined) delete process.env.SKELETON_CHUNKING;
+      else process.env.SKELETON_CHUNKING = envState;
+
+      const viaPath = await chunkFileFromPath(fp, 'doc.md');
+      ok(`.md always produces skeleton chunks regardless of SKELETON_CHUNKING=${envState}`,
+         viaPath.some(c => c.chunking_model === 'skeleton-v1'));
+      ok(`.md always produces a table entity regardless of SKELETON_CHUNKING=${envState}`,
+         viaPath.some(c => c.node_type === 'table'));
+    }
   } finally {
     delete process.env.TOKEN_COUNT;
-    if (flagBefore === undefined) delete process.env.SKELETON_CHUNKING;
-    else process.env.SKELETON_CHUNKING = flagBefore;
+    delete process.env.SKELETON_CHUNKING;
   }
 }

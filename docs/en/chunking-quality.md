@@ -203,8 +203,10 @@ change is ready to promote when:
 
 ## Skeleton-first Chunking and Structural Carryover
 
-Skeleton-first chunking (`SKELETON_CHUNKING=1`) is the main semidex indexing
-direction. Legacy chunking remains supported as a compatibility/fallback path.
+Skeleton-first chunking is unconditional architecture for Markdown, not
+configuration — every `.md` file always parses through the AST skeleton
+pipeline. Non-Markdown formats (PDF, Pandoc-converted formats, plain text)
+remain on the legacy chunker, a deliberate, documented scope boundary.
 
 ### Structural nodes: raw content preserved, context enriched
 
@@ -227,8 +229,9 @@ section if no active run is present). Placeholder lines
 The excerpt is capped at `SKELETON_CARRYOVER_CHARS` characters (default: 500,
 max: 2000). Invalid or missing env values fall back to the default silently.
 
-This does not add LLM calls. No LLM-generated summary is created per structural
-node unless `SKELETON_CONTEXT=llm` is explicitly set.
+This does not add LLM calls. Structural context is always deterministic — no
+LLM-generated summary is created per structural node; there is no setting to
+change this.
 
 ### Why carryover matters
 
