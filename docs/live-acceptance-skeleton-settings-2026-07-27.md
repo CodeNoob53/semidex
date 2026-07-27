@@ -435,11 +435,171 @@ the review correctly demanded.
   implicitly covered (it's exactly what happened on the first Part E
   attempt, before Ollama was started) but was not re-tested with Ollama
   stopped again afterward.
-- Gemini's "missing/unavailable" status path was not directly exercised
-  live in this session (a real, valid key was present throughout, per the
-  user's correction early in this run) — only the "configured and
-  reachable" path was proven end-to-end. The unreachable/misconfigured
-  path is exercised by existing unit tests, but not by this live run.
+- ~~Gemini's "missing/unavailable" status path was not directly exercised
+  live in this session~~ — **superseded**: a dedicated follow-up session
+  (see "Gemini live generation acceptance" below) exercised both the
+  "configured and reachable, real generated tokens" path and a controlled
+  "model unavailable" failure path end-to-end against the real Gemini API.
+
+## Gemini live generation acceptance (2026-07-27, follow-up session)
+
+**Scope:** proves Gemini performs a real end-to-end generation request
+through the existing `GenerationProvider` → Ask coordinator → retrieval
+pipeline → `POST /api/ask`, using real generated tokens (not just a
+readiness/model-discovery check). No browser/visual testing in this part.
+No provider-architecture changes were made or needed.
+
+### Part A — Live configuration
+
+Started the real Admin server and inspected the live API (not source or
+cached state):
+
+| Check | Result |
+|---|---|
+| Active generation backend | `GET /api/generation/status` → `"backend": "gemini"` |
+| Active Ask model | `"model": "gemini-flash-latest"` |
+| Provider readiness | `"ready": true, "reason": null"` |
+| Selected model present in live discovery | `GET /api/generation/models?backend=gemini` returned 57 real model names fetched live from the Gemini API with the real key; `gemini-flash-latest` confirmed present |
+| No key exposed | `GET /api/settings`'s `GEMINI_API_KEY` entry: `"secret": true, "writable": false, "configured": true` — no key value in the payload; `geminiApiKey.configured: true` in `/api/generation/status` likewise carries no value |
+
+Backend was already `gemini` (`configuredSource: "config_json"`, i.e. a
+previously-saved setting, not an env-locked value) — no settings switch
+was needed for this part, so there was nothing to restore from Part A
+itself.
+
+### Part B — Evidence selection
+
+Selected `linux-basics` (1329 points, real Ukrainian-language Linux course
+content) via `GET /api/collections`. Ran the real search first, via the
+actual Admin API (`POST /api/search`, not just MCP), with a short factual
+question:
+
+- **Question:** "What command lists files in a directory?"
+- **Result (rank 2 of 3):**
+  - **Source file:** `Тема 3. Робота з терміналом базові команди (ls, cd, cp, mv, cat, man)/2. Навігація_та_Огляд_cd,_ls_(та_pwd).md`
+  - **Node type:** `paragraph` (real prose, not a skeleton summary)
+  - **Section:** "Навігація та Огляд: cd, ls (та pwd)"
+  - **Excerpt (non-sensitive):** states that `ls` "показує, що знаходиться
+    всередині директорії" (shows what's inside the directory) — directly
+    answers the question.
+
+Confirmed answerable-from-evidence before proceeding to Ask.
+
+### Part C — Real Gemini Ask request
+
+Called the real `POST /api/ask` (`{"collection":"linux-basics","question":"What command lists files in a directory?","top":3}`) and parsed the raw SSE stream (a small throwaway script parsed `event:`/`data:` frames; it recorded event *names* and metadata only — never full token text — and was deleted at cleanup).
+
+**Recorded run:**
+
+| Check | Result |
+|---|---|
+| Event order | `sources` → `token`, `token` → `done` |
+| Exactly one `sources`, first | ✅ |
+| Source count | 3, matching Part B's search |
+| Token events | 2, 81 total characters |
+| Exactly one terminal event | ✅ (`done`, no `error`) |
+| No `error` event | ✅ |
+| `done.provider` | `"gemini"` |
+| `done.model` | `"gemini-flash-latest"` |
+| Answer excerpt (redacted, short) | `"The \`ls\` command is..."` (first ~20 chars only — full text not recorded, per the task's instruction not to include unnecessary generated content) |
+| Evidence grounding | `done.citations: [2]` — the answer cites rank-2, the exact `ls` evidence chunk selected in Part B; `invalidCitations: []` |
+| Secrets in events/logs | None — confirmed no key substring in any captured event |
+
+**One transient failure, investigated and ruled non-reproducible:** the
+very first Ask attempt (immediately after the freshly-started Admin
+process's first outbound request of any kind) failed with `error` event
+`{"code":"generation_failed","message":"Generation failed: Gemini
+generateContentStream failed: fetch failed"}`. Before treating this as a
+defect:
+
+- Confirmed the Admin server stayed alive and `ready: true` immediately after.
+- Tested raw network reachability to `generativelanguage.googleapis.com`
+  directly (`403`, i.e. reachable, not a DNS/network outage).
+- Called `@google/genai`'s `generateContentStream()` directly in isolation
+  with the real key — succeeded immediately.
+- Retried the identical `POST /api/ask` request **4 more times** — all 4
+  succeeded cleanly with real tokens, correct event sequence, and correct
+  `provider`/`model` metadata (one of these 4 is the "Recorded run" above).
+
+This is consistent with a one-off cold-start TLS/connection blip on the
+process's first-ever outbound HTTPS call, not a reproducible code defect.
+Per the task's explicit scope ("fix only defects reproduced by the live
+acceptance run"), no production code was changed — the failure, when it
+did occur, already surfaced through the documented `error` SSE event with
+a redacted message, exactly as designed. The initial batch therefore
+completed with **4/5 successful Ask attempts**; the isolated SDK call also
+succeeded. A later valid Ask after the controlled-failure restore succeeded
+as well, bringing the full session to **5/6 successful valid-config Ask
+attempts**.
+
+### Part D — Controlled failure path
+
+Without touching or exposing the real API key, used the existing Settings
+API to set `ASK_MODEL` to a deliberately nonexistent model name
+(`gemini-this-model-does-not-exist-xyz`). `ASK_MODEL` is `appliesAt:
+"next_restart"`, so this required restarting the Admin process (a real,
+supported "isolated Admin process" seam, not a code change) for the bad
+value to take effect.
+
+| Check | Result |
+|---|---|
+| Failure uses the documented contract | `GET /api/generation/status` → `"ready": false, "reason": "Model \"gemini-this-model-does-not-exist-xyz\" is not available to this Gemini API key: {...404 NOT_FOUND...}"`. `POST /api/ask` → HTTP **503**, `{"error":{"code":"dependency_unavailable",...}}`, plain JSON, no SSE stream started — matches `ask.js`'s documented "provider not ready → plain JSON 503, no stream" contract exactly |
+| Admin server stays alive | Confirmed via `GET /api/health` → 200, immediately after the 503 |
+| No key exposed | Confirmed zero occurrences of the real key substring in the captured error response |
+| Authenticated URLs / raw provider responses redacted | The only raw provider text surfaced was Gemini's own `404 NOT_FOUND` JSON body (no auth material in it — Gemini doesn't echo the key back); no request URL (which would carry no key either, since `@google/genai` sends it as a header, not a query param) appeared anywhere |
+| Subsequent valid request succeeds | Restored `ASK_MODEL` to `gemini-flash-latest` via the same Settings API, restarted the Admin process again, confirmed `ready: true`, then ran the same Ask request — succeeded cleanly with real tokens and correct `provider`/`model` metadata |
+
+### Part E — State restoration and cleanup
+
+| Check | Result |
+|---|---|
+| Temporary settings restored | `ASK_MODEL` back to `gemini-flash-latest` (its value before this session started) |
+| `.env` unchanged | `diff` against a pre-session backup: identical |
+| `config.json` unchanged | `diff` against a pre-session backup: identical (the `ASK_MODEL` round-trip through the broken value and back left no net diff, since the restored value matches what was there before) |
+| No collection point-count change | `linux-basics` still exactly 1329 points; all 13 pre-existing collections' counts unchanged |
+| No collection created/deleted | Confirmed via `qdrant_collection_info()` before/after |
+| Admin process stopped | Confirmed via `GET /api/health` timing out after `taskkill` |
+| No leftover temp scripts/logs with response bodies | The session's own `.tmp/live-acceptance-gemini/` directory (SSE-parsing script, server logs, config backups) was fully removed; server logs were grepped for key material before deletion (none found) |
+
+### Defects found
+
+**None in production code.** The single transient `fetch failed` in Part
+C was investigated (isolated SDK test, raw network reachability check,
+4 retries) and characterized as non-reproducible cold-start network
+flakiness, not a code defect — see Part C above for the full
+investigation. No fix was made; no regression test was added, per the
+task's explicit "fix only defects reproduced by the live acceptance run"
+constraint (this one wasn't).
+
+### Test results (sequential, since no code was changed)
+
+- `npm test` → **1815/1815 pass**
+- `npm run smoke` → **1298/1298 pass**
+- `npm run admin:build` → clean build (225 modules)
+- `git diff --check` → exit 0, no working-tree changes at all (no
+  production code was touched by this follow-up session)
+
+### Gemini verdict
+
+**`GEMINI_LIVE_ACCEPT_WITH_LIMITATIONS`**
+
+Real Gemini generation through the existing provider/coordinator/API
+stack is fully proven: real generated tokens (not just readiness/model
+discovery), correct SSE event sequence and count, evidence-grounded
+answer with a valid citation back to the exact search-verified source
+chunk, correct `provider`/`model` metadata, a controlled failure path
+that matches the documented HTTP/SSE error contract with no secret
+exposure, and confirmed recovery afterward. All temporary state
+(`ASK_MODEL`, Admin process) was restored; `.env`/`config.json` are
+byte-identical to their pre-session state; no collection was touched.
+The limitation is one non-reproducible `fetch failed` on the first live Ask
+attempt after a fresh Admin start. It was reported safely and did not crash
+the server, but it prevents claiming a flawless live run.
+
+**This does not change the overall `SKELETON_ACCEPT_UI_MANUAL_PENDING`
+verdict below** — visual/browser acceptance of Global Settings remains a
+separate, still-pending task or user action; this session neither
+attempted nor claims it.
 
 ## Verdict
 
