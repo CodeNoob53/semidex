@@ -1,7 +1,7 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
-import { waitForDrain } from '../../../src/admin/sse.js';
+import { waitForDrain } from '../../../../src/core/http/sse.js';
 
 function fakeRes({ destroyed = false, writableEnded = false } = {}) {
   const res = new EventEmitter();

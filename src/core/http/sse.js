@@ -1,6 +1,8 @@
 // Minimal Server-Sent Events framing — node:http primitives only, no
-// framework, matching the rest of src/admin/http.js. Used by /api/ask
-// (Phase 4A) for the sources/token/done/error event sequence.
+// framework, matching the rest of src/core/http/http.js. Used by the
+// versioned application-facing Ask API for its sources/answer_delta/done/
+// error event sequence. Provider/transport-neutral: nothing here knows
+// about Qdrant, Ollama, Gemini, or the Admin UI.
 
 /**
  * Writes SSE response headers. Must be called before any writeSseEvent()
@@ -23,9 +25,9 @@ export function startSse(res) {
 /**
  * Writes one SSE event. `data` is JSON-serialized. Returns the boolean
  * res.write() gives back so a caller that wants to respect backpressure
- * (wait for 'drain' before writing more) can — for tightly-looped token
- * events, checking this avoids unbounded internal buffering when a client
- * reads slower than the provider generates.
+ * (wait for 'drain' before writing more) can — for tightly-looped
+ * answer_delta events, checking this avoids unbounded internal buffering
+ * when a client reads slower than the provider generates.
  */
 export function writeSseEvent(res, event, data) {
   return res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);

@@ -1,5 +1,7 @@
-// Small JSON-response helpers shared by the router and handlers. No
-// framework, no dependencies — node:http primitives only.
+// Small JSON-response helpers shared by every HTTP route (admin API and the
+// versioned application-facing Ask API alike). No framework, no
+// dependencies — node:http primitives only. Provider/transport-neutral:
+// nothing here knows about Qdrant, Ollama, Gemini, or the Admin UI.
 
 /**
  * Write a JSON body with the given status code. Always sets
