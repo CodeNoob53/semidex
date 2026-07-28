@@ -51,16 +51,24 @@ import { chunkFromSkeleton } from '../../../src/indexer/phases/skeleton-chunk.js
 import { generateNavSummaries } from '../../../src/indexer/phases/skeleton-summary.js';
 import { buildFileSkeleton } from '../../../src/indexer/phases/skeleton-index.js';
 import {
-  listCollections, createCollection, deleteCollection,
+  deleteCollection,
   upsertPoints, hybridSearch, scroll,
 } from '../../../src/core/qdrant.js';
-import { embedForIndex, embedForSearch, SCHEMA_VERSION } from '../../../src/core/embeddings.js';
-import { loadConfig, saveConfig, resolveEnvProviders } from '../../../src/core/config.js';
+import { embedForIndex, embedForSearch } from '../../../src/core/embeddings.js';
+import { createStorageAdapter } from '../../../src/core/storage/factory.js';
+import { resolveBenchProfile } from '../../lib/resolve-profile.js';
 
 // Force ONNX for reproducibility (no Ollama dependency).
 process.env.ONNX_EMBED = '1';
 delete process.env.DENSE_PROVIDER;
 delete process.env.SPARSE_PROVIDER;
+
+const storageAdapter = createStorageAdapter();
+// Resolved per-collection in setupCollection()/main() before indexing/search —
+// embedForIndex/embedForSearch require a resolved profile object, not a bare
+// collection name (see benchmarks/lib/resolve-profile.js's header comment).
+let PROFILE_LEGACY   = null;
+let PROFILE_SKELETON = null;
 
 const __dirname       = dirname(fileURLToPath(import.meta.url));
 const FIXTURES_SHARED = resolve(__dirname, '../fixtures/docs');
@@ -104,20 +112,15 @@ const FIXTURE_FILES = [
 
 // ── Collection setup ──────────────────────────────────────────────────────────
 
+// Deletes the collection if it exists, then resolves (and creates) a fresh
+// profile from current env via resolveBenchProfile — since the collection is
+// always deleted first here, resolveBenchProfile always takes its "doesn't
+// exist yet" branch, i.e. this always derives a NEW profile from current env
+// (ONNX forced above), matching the original delete+recreate semantics.
 async function setupCollection(name) {
-  const cols = await listCollections();
-  if (cols.includes(name)) await deleteCollection(name);
-  await createCollection(name, VECTOR_SIZE);
-  const { denseProvider, denseModel, sparseProvider } = resolveEnvProviders();
-  const cfg = loadConfig();
-  cfg.collections ??= {};
-  cfg.collections[name] = {
-    denseProvider, denseModel, sparseProvider,
-    embeddingSchemaVersion: SCHEMA_VERSION,
-    vectorSize: VECTOR_SIZE,
-    description: 'skeleton vs legacy real benchmark — auto-managed',
-  };
-  saveConfig(cfg);
+  const existing = await storageAdapter.getCollection(name);
+  if (existing) await deleteCollection(name);
+  return resolveBenchProfile(storageAdapter, name, { vectorSize: VECTOR_SIZE });
 }
 
 // ── Indexing ──────────────────────────────────────────────────────────────────
@@ -153,7 +156,7 @@ async function indexLegacy() {
       });
       const embedText = BENCH_LLM ? `${chunk.context ?? ''}\n\n${chunk.text}`.trim() : chunk.text;
       const tEmbed = Date.now();
-      const { dense, sparse, meta } = await embedForIndex(COLLECTION_LEGACY, embedText);
+      const { dense, sparse, meta } = await embedForIndex(PROFILE_LEGACY, embedText);
       embedMs += Date.now() - tEmbed;
       points.push({
         id: randomUUID(),
@@ -213,7 +216,7 @@ async function indexSkeleton() {
       });
       const embedText = `${chunk.context ?? ''}\n\n${chunk.text}`.trim();
       const tEmbed = Date.now();
-      const { dense, sparse, meta } = await embedForIndex(COLLECTION_SKELETON, embedText);
+      const { dense, sparse, meta } = await embedForIndex(PROFILE_SKELETON, embedText);
       embedMs += Date.now() - tEmbed;
       points.push({
         id: randomUUID(),
@@ -426,9 +429,9 @@ function stableSortResults(results) {
   });
 }
 
-async function runQuery(collection, queryText) {
+async function runQuery(collection, profile, queryText) {
   const t0 = Date.now();
-  const { dense, sparse } = await embedForSearch(collection, queryText);
+  const { dense, sparse } = await embedForSearch(profile, queryText);
   const results = stableSortResults(await hybridSearch(collection, dense, sparse, TOP_K));
   return { results, latencyMs: Date.now() - t0 };
 }
@@ -714,7 +717,12 @@ function buildMarkdownReport({
   const SEP  = '---';
   const today_ = today();
 
-  const { denseProvider, sparseProvider } = resolveEnvProviders();
+  // Report each collection's own recorded provider — both are forced to ONNX
+  // above, but reporting PROFILE's own values (not a fresh env read) keeps
+  // this accurate even if the two collections ever diverge or are reused
+  // from a prior run with a different provider.
+  const denseProvider  = PROFILE_LEGACY?.embedding?.dense?.provider ?? '(unresolved)';
+  const sparseProvider = PROFILE_LEGACY?.embedding?.sparse?.provider ?? null;
 
   lines.push(`# custom-50 Skeleton vs Legacy Retrieval Benchmark`);
   lines.push('');
@@ -996,6 +1004,12 @@ async function main() {
   if (SKIP_INDEX) {
     process.stderr.write('[1/4] Skipping index (BENCH_SKIP_INDEX=1) — reading chunk data from Qdrant...\n');
 
+    // Both collections are assumed to already exist (previously indexed run).
+    // resolveBenchProfile reuses each collection's own recorded profile as-is
+    // — required before the later search phase can call embedForSearch.
+    PROFILE_LEGACY   = await resolveBenchProfile(storageAdapter, COLLECTION_LEGACY,   { vectorSize: VECTOR_SIZE });
+    PROFILE_SKELETON = await resolveBenchProfile(storageAdapter, COLLECTION_SKELETON, { vectorSize: VECTOR_SIZE });
+
     for (const name of Object.keys(lStats)) lStats[name] = 0;
     const legPts = await scroll(COLLECTION_LEGACY, undefined, 5000, ['source_file', 'chunk_index', 'text', 'section']);
     for (const p of legPts) {
@@ -1018,8 +1032,8 @@ async function main() {
     }
   } else {
     process.stderr.write('[1/4] Setting up collections (delete + recreate)...\n');
-    await setupCollection(COLLECTION_LEGACY);
-    await setupCollection(COLLECTION_SKELETON);
+    PROFILE_LEGACY   = await setupCollection(COLLECTION_LEGACY);
+    PROFILE_SKELETON = await setupCollection(COLLECTION_SKELETON);
 
     process.stderr.write(`[2/4] Indexing legacy${BENCH_LLM ? ' (LLM+embed)' : ' (embed only)'}...\n`);
     const legResult  = await indexLegacy();
@@ -1072,7 +1086,7 @@ async function main() {
   for (let i = 0; i < queries.length; i++) {
     const q = queries[i];
     process.stderr.write(`  ${q.id}\r`);
-    const { results, latencyMs } = await runQuery(COLLECTION_LEGACY, q.query);
+    const { results, latencyMs } = await runQuery(COLLECTION_LEGACY, PROFILE_LEGACY, q.query);
     const legacyQrels = buildLegacyQrels(q.relevantChunks);
     legacyQResults.push({ query: q, results, latencyMs, qrels: legacyQrels });
   }
@@ -1083,7 +1097,7 @@ async function main() {
   for (let i = 0; i < queries.length; i++) {
     const q = queries[i];
     process.stderr.write(`  ${q.id}\r`);
-    const { results, latencyMs } = await runQuery(COLLECTION_SKELETON, q.query);
+    const { results, latencyMs } = await runQuery(COLLECTION_SKELETON, PROFILE_SKELETON, q.query);
     // Use migrated skeleton qrels.
     const sq = querySkeletonQrels[i];
     const skelQrels = sq ? sq.skeletonQrels : new Map();

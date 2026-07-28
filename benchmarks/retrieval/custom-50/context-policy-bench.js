@@ -28,10 +28,18 @@ import { existsSync, mkdirSync, copyFileSync, rmSync, writeFileSync, readFileSyn
 import { resolve, join, dirname }                       from 'path';
 import { fileURLToPath }                                from 'url';
 
-import { listCollections, createCollection, deleteCollection, hybridSearch } from '../../../src/core/qdrant.js';
+import { deleteCollection, hybridSearch } from '../../../src/core/qdrant.js';
 import { stableSortResults } from './sort-results.js';
-import { embedForSearch, SCHEMA_VERSION }               from '../../../src/core/embeddings.js';
-import { loadConfig, saveConfig, resolveEnvProviders }  from '../../../src/core/config.js';
+import { embedForSearch }               from '../../../src/core/embeddings.js';
+import { createStorageAdapter }         from '../../../src/core/storage/factory.js';
+import { resolveBenchProfile }          from '../../lib/resolve-profile.js';
+
+const storageAdapter = createStorageAdapter();
+// Per-collection resolved embedding profiles — embedForSearch requires a
+// resolved profile object, not a bare collection name (see
+// benchmarks/lib/resolve-profile.js's header comment). Populated by
+// ensureCollection() for each policy's collection.
+const PROFILES = new Map();
 
 const ROOT            = resolve(dirname(fileURLToPath(import.meta.url)), '../../../');
 const FIXTURES_SHARED = join(ROOT, 'benchmarks', 'retrieval', 'fixtures', 'docs');
@@ -88,32 +96,13 @@ function colName(policyId) {
 }
 
 async function ensureCollection(name) {
-  const cols = await listCollections();
-  if (!cols.includes(name)) await createCollection(name, 1024);
-  const { denseProvider, denseModel, sparseProvider } = resolveEnvProviders();
-  const cfg = loadConfig();
-  cfg.collections ??= {};
-  cfg.collections[name] = {
-    denseProvider, denseModel, sparseProvider,
-    embeddingSchemaVersion: SCHEMA_VERSION,
-    vectorSize: 1024,
-    description: `context-policy bench — auto-managed (${STAMP})`,
-  };
-  saveConfig(cfg);
+  const profile = await resolveBenchProfile(storageAdapter, name, { vectorSize: 1024 });
+  PROFILES.set(name, profile);
 }
 
 async function deleteCol(name) {
   try { await deleteCollection(name); console.log(`  [cleanup] deleted "${name}"`); }
   catch { console.log(`  [cleanup] could not delete "${name}"`); }
-}
-
-function cleanupConfig(names) {
-  try {
-    const cfg = loadConfig();
-    if (!cfg.collections) return;
-    for (const n of names) delete cfg.collections[n];
-    saveConfig(cfg);
-  } catch { /* best-effort */ }
 }
 
 function cleanupTransient() {
@@ -310,10 +299,13 @@ function computeMetrics(queryResults) {
 
 async function runAllQueries(collection, queries) {
   const qr = [];
+  const profile = PROFILES.get(collection)
+    ?? await resolveBenchProfile(storageAdapter, collection, { vectorSize: 1024 });
+  PROFILES.set(collection, profile);
   for (const q of queries) {
     process.stdout.write(`  ${q.id}: ${q.query.slice(0, 42)}... `);
     const t0 = Date.now();
-    const { dense, sparse } = await embedForSearch(collection, q.query);
+    const { dense, sparse } = await embedForSearch(profile, q.query);
     const results = stableSortResults(await hybridSearch(collection, dense, sparse, TOP_K));
     const latency = Date.now() - t0;
     qr.push({ query: q, results, latency });
@@ -617,7 +609,6 @@ async function main() {
   if (!KEEP) {
     console.log('\n[policy-bench] Cleaning up...');
     for (const col of collections) await deleteCol(col);
-    cleanupConfig(collections);
     cleanupTransient();
   }
 }

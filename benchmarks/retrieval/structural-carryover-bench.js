@@ -19,7 +19,6 @@ delete process.env.SPARSE_PROVIDER;
 
 const {
   listCollections,
-  createCollection,
   upsertPoints,
   hybridSearch,
 } = await import('../../src/core/qdrant.js');
@@ -27,6 +26,10 @@ const {
   embedForIndex,
   embedForSearch,
 } = await import('../../src/core/embeddings.js');
+const { createStorageAdapter } = await import('../../src/core/storage/factory.js');
+const { resolveBenchProfile } = await import('../lib/resolve-profile.js');
+
+const storageAdapter = createStorageAdapter();
 
 const QDRANT_URL = process.env.QDRANT_URL?.replace(/\/$/, '');
 const QDRANT_KEY = process.env.QDRANT_KEY ?? '';
@@ -218,7 +221,10 @@ function pickCases(points, bySource) {
 
 async function cloneWithCarryover(points, casesByNodeId) {
   await deleteCollectionIfExists(TARGET_COLLECTION);
-  await createCollection(TARGET_COLLECTION, 1024);
+  // Collection was just deleted, so this always resolves a fresh profile
+  // from current env (ONNX_EMBED=1, forced above) and creates the
+  // collection with it.
+  const targetProfile = await resolveBenchProfile(storageAdapter, TARGET_COLLECTION, { vectorSize: 1024 });
 
   const out = [];
   let recomputed = 0;
@@ -235,7 +241,7 @@ async function cloneWithCarryover(points, casesByNodeId) {
         `Nearby prose: ${carry.carryover}`,
       ].filter(Boolean).join('\n');
       const embedText = `${payload.context ?? ''}\n\n${payload.text ?? ''}`.trim();
-      const { dense, sparse, meta } = await embedForIndex(TARGET_COLLECTION, embedText);
+      const { dense, sparse, meta } = await embedForIndex(targetProfile, embedText);
       vector = { dense, sparse };
       Object.assign(payload, meta);
       recomputed += 1;
@@ -252,7 +258,7 @@ async function cloneWithCarryover(points, casesByNodeId) {
     }
   }
   if (out.length) await upsertPoints(TARGET_COLLECTION, out);
-  return { recomputed };
+  return { recomputed, targetProfile };
 }
 
 function windowHit(results, allPointsBySource, target, k) {
@@ -289,11 +295,11 @@ function directRank(results, target) {
   return idx >= 0 ? idx + 1 : null;
 }
 
-async function runSearches(collection, cases, pointsBySource) {
+async function runSearches(collection, profile, cases, pointsBySource) {
   const rows = [];
   const filter = { must_not: [{ key: 'point_kind', match: { value: 'skeleton_nav' } }] };
   for (const c of cases) {
-    const { dense, sparse } = await embedForSearch(collection, c.query);
+    const { dense, sparse } = await embedForSearch(profile, c.query);
     const results = await hybridSearch(collection, dense, sparse, TOP_K, filter);
     rows.push({
       id: c.id,
@@ -384,10 +390,14 @@ const cloneStats = await cloneWithCarryover(sourcePoints, casesByNodeId);
 const targetPoints = await scrollAllWithVectors(TARGET_COLLECTION);
 const targetIndex = buildIndexes(targetPoints);
 
+// SOURCE_COLLECTION is a pre-existing production collection — must already
+// carry a valid native profile; reused as-is, never re-derived from env.
+const sourceProfile = await resolveBenchProfile(storageAdapter, SOURCE_COLLECTION, { vectorSize: 1024 });
+
 console.log('[search] baseline');
-const baselineRows = await runSearches(SOURCE_COLLECTION, cases, bySource);
+const baselineRows = await runSearches(SOURCE_COLLECTION, sourceProfile, cases, bySource);
 console.log('[search] enriched');
-const enrichedRows = await runSearches(TARGET_COLLECTION, cases, targetIndex.bySource);
+const enrichedRows = await runSearches(TARGET_COLLECTION, cloneStats.targetProfile, cases, targetIndex.bySource);
 
 const diffRows = compareRows(baselineRows, enrichedRows);
 const v = verdict(baselineRows, enrichedRows);

@@ -29,6 +29,10 @@ const { assembleWindowChunks } =
   await import('../../../src/mcp/tools/search.js');
 const { embedForSearch } =
   await import('../../../src/core/embeddings.js');
+const { createStorageAdapter } =
+  await import('../../../src/core/storage/factory.js');
+const { resolveExistingCollectionProfile } =
+  await import('../../../src/core/embedding-profile/resolve.js');
 
 const COLLECTION    = 'bench-retrieval-custom-50';
 const QUERY         = 'getStoredMeta які поля читає з Qdrant payload';
@@ -96,9 +100,27 @@ async function main() {
   );
   if (failed > 0) process.exit(1);
 
+  // ── Resolve embedding profile ───────────────────────────────────────────────
+  // embedForSearch requires a resolved profile object, not a bare collection
+  // name (src/core/embeddings.js). This is a live smoke against an
+  // already-indexed collection, so read its own recorded profile — never
+  // re-derive from current env.
+  console.log('\n[profile] Resolving embedding profile');
+  const storageAdapter = createStorageAdapter();
+  const profileResolution = await resolveExistingCollectionProfile(storageAdapter, COLLECTION);
+  if (!profileResolution.resolved) {
+    console.error(
+      `  ✗ Cannot resolve embedding profile for "${COLLECTION}" (reason: ${profileResolution.reason}). ` +
+      `The collection may be legacy/unmigrated — this smoke requires a collection with a valid native profile.`
+    );
+    process.exit(1);
+  }
+  const PROFILE = profileResolution.profile;
+  check('embedding profile resolved', true);
+
   // ── Search ────────────────────────────────────────────────────────────────
   console.log('\n[search] Running hybrid search');
-  const { dense, sparse } = await embedForSearch(COLLECTION, QUERY);
+  const { dense, sparse } = await embedForSearch(PROFILE, QUERY);
   const results = await hybridSearch(COLLECTION, dense, sparse, TOP);
 
   check('search returned results', results.length > 0, `got ${results.length}`);

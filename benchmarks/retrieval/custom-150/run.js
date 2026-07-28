@@ -59,12 +59,18 @@ import { validateQueryTypes, formatTypeDistribution } from '../custom-50/query-t
 
 import { chunkFile } from '../../../src/indexer/phases/chunk.js';
 import {
-  listCollections, createCollection, deleteBySourceFile,
+  deleteBySourceFile,
   upsertPoints, hybridSearch, mmrSearch, scroll,
 } from '../../../src/core/qdrant.js';
-import { embedForIndex, embedForSearch, SCHEMA_VERSION } from '../../../src/core/embeddings.js';
-import { loadConfig, saveConfig, resolveEnvProviders } from '../../../src/core/config.js';
+import { embedForIndex, embedForSearch } from '../../../src/core/embeddings.js';
 import { rerankResults } from '../../../src/core/rerank.js';
+import { createStorageAdapter } from '../../../src/core/storage/factory.js';
+import { resolveBenchProfile } from '../../lib/resolve-profile.js';
+
+const storageAdapter = createStorageAdapter();
+// Resolved once in main() before indexing/search — embedForIndex/embedForSearch
+// require a resolved profile object, not a bare collection name.
+let PROFILE = null;
 
 const __dirname  = dirname(fileURLToPath(import.meta.url));
 const RESULTS_DIR       = resolve(__dirname, '../results');
@@ -192,21 +198,8 @@ function tokenise(str) {
 // ── Indexing ──────────────────────────────────────────────────────────────────
 
 async function ensureCollection() {
-  const cols = await listCollections();
-  if (!cols.includes(COLLECTION)) {
-    await createCollection(COLLECTION, 1024);
-  }
-  const { denseProvider, denseModel, sparseProvider } = resolveEnvProviders();
-  const cfg = loadConfig();
-  cfg.collections ??= {};
-  cfg.collections[COLLECTION] = {
-    denseProvider, denseModel, sparseProvider,
-    embeddingSchemaVersion: SCHEMA_VERSION,
-    vectorSize: 1024,
-    description: 'custom-150 Tier B benchmark — auto-managed',
-  };
-  saveConfig(cfg);
-  return { denseProvider, sparseProvider };
+  PROFILE = await resolveBenchProfile(storageAdapter, COLLECTION, { vectorSize: 1024 });
+  return { denseProvider: PROFILE.embedding.dense.provider, sparseProvider: PROFILE.embedding.sparse?.provider ?? null };
 }
 
 async function fetchStoredProvider() {
@@ -237,7 +230,7 @@ async function indexFixtures() {
       const cid = `${sourceFile}#${chunk.chunkIndex}`;
       indexedIds.add(cid);
       if (isEmptyChunkText(chunk.text)) emptyChunkIds.add(cid);
-      const { dense, sparse, meta } = await embedForIndex(COLLECTION, chunk.text);
+      const { dense, sparse, meta } = await embedForIndex(PROFILE, chunk.text);
       points.push({
         id: randomUUID(),
         vector: { dense, sparse },
@@ -300,7 +293,7 @@ function validateQrels(queries, indexedIds) {
 
 async function runQuery(queryText) {
   const t0 = Date.now();
-  const { dense, sparse } = await embedForSearch(COLLECTION, queryText);
+  const { dense, sparse } = await embedForSearch(PROFILE, queryText);
 
   let results;
   if (SEARCH_MODE === 'dense-mmr') {
@@ -661,12 +654,20 @@ function printSummary(metrics, provider) {
 async function main() {
   const raw     = JSON.parse(readFileSync(QUERIES_PATH, 'utf8'));
   const queries = raw.queries.map(normaliseQuery);
-  const { denseProvider, sparseProvider } = resolveEnvProviders();
 
   const { typeDistribution, warnings: typeWarnings } = validateQueryTypes(raw.queries);
   if (typeWarnings.length) {
     for (const w of typeWarnings) process.stderr.write(`[bench-c150] type warning: ${w}\n`);
   }
+
+  log('\n[1/2] Setup collection...');
+  // Resolves PROFILE from the collection's own native metadata if it already
+  // exists, or from current env (BENCH_PROVIDER's override) if creating it
+  // fresh — never a second, independent env read after this point. This is
+  // what makes BENCH_SKIP_INDEX=1 safe: PROFILE always reflects the
+  // collection's REAL recorded identity, not whatever the current shell
+  // happens to have set.
+  const { denseProvider, sparseProvider } = await ensureCollection();
 
   log(`\n=== semidex custom-150 Tier B benchmark ===`);
   log(`Provider  : ${BENCH_PROVIDER}  (${denseProvider}/${sparseProvider})`);
@@ -675,9 +676,6 @@ async function main() {
   log(`Queries   : ${queries.length} (${queries.filter(q => !q.shouldHaveNoStrongHit).length} positive, ${queries.filter(q => q.shouldHaveNoStrongHit).length} negative)`);
   log(`Types     : ${formatTypeDistribution(typeDistribution)}`);
   log(`Fixtures  : ${FIXTURE_FILES.length} docs`);
-
-  log('\n[1/2] Setup collection...');
-  await ensureCollection();
 
   let indexedIds, emptyChunkIds;
   if (SKIP_INDEX) {
@@ -689,11 +687,15 @@ async function main() {
       );
       process.exit(1);
     }
+    // Sanity check: the collection's own point payload must agree with its
+    // own recorded profile — a disagreement here means the collection was
+    // partially reindexed with a different model, not that env changed.
     if (stored.denseProvider !== denseProvider || stored.sparseProvider !== sparseProvider) {
       process.stderr.write(
-        `\nError: BENCH_SKIP_INDEX=1 but stored provider (${stored.denseProvider}/${stored.sparseProvider}) ` +
-        `differs from current (${denseProvider}/${sparseProvider}).\n` +
-        `Re-run without BENCH_SKIP_INDEX=1 to reindex fixtures with the new provider.\n`
+        `\nError: BENCH_SKIP_INDEX=1 but stored point payload (${stored.denseProvider}/${stored.sparseProvider}) ` +
+        `disagrees with "${COLLECTION}"'s own recorded embedding profile (${denseProvider}/${sparseProvider}).\n` +
+        `The collection may be partially reindexed with a different model. Delete it and re-run without ` +
+        `BENCH_SKIP_INDEX=1 to rebuild it cleanly.\n`
       );
       process.exit(1);
     }

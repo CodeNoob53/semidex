@@ -5,7 +5,8 @@ import { fileURLToPath } from 'url';
 
 import { scroll, listCollections, hybridSearch } from '../../../src/core/qdrant.js';
 import { embedForSearch } from '../../../src/core/embeddings.js';
-import { resolveEnvProviders } from '../../../src/core/config.js';
+import { createStorageAdapter } from '../../../src/core/storage/factory.js';
+import { resolveExistingCollectionProfile } from '../../../src/core/embedding-profile/resolve.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const QUERIES_PATH = resolve(__dirname, 'queries.json');
@@ -45,7 +46,22 @@ async function main() {
     process.exit(1);
   }
 
-  const { denseProvider, sparseProvider } = resolveEnvProviders();
+  // embedForSearch requires a resolved profile object, not a bare collection
+  // name (src/core/embeddings.js). Read the collection's own recorded
+  // profile — never re-derive from current env — since this is read-only
+  // analysis over an already-indexed collection.
+  const storageAdapter = createStorageAdapter();
+  const profileResolution = await resolveExistingCollectionProfile(storageAdapter, COLLECTION);
+  if (!profileResolution.resolved) {
+    console.error(
+      `Error: Cannot resolve embedding profile for "${COLLECTION}" (reason: ${profileResolution.reason}). ` +
+      `The collection may be legacy/unmigrated.`
+    );
+    process.exit(1);
+  }
+  const PROFILE = profileResolution.profile;
+  const denseProvider  = PROFILE.embedding.dense.provider;
+  const sparseProvider = PROFILE.embedding.sparse?.provider ?? null;
   const providerLabel = `${denseProvider}/${sparseProvider}`;
   console.log(`Provider: ${providerLabel}`);
 
@@ -148,7 +164,7 @@ async function main() {
 
   for (const item of positives) {
     process.stdout.write(`  ${item.q.id}... `);
-    const { dense, sparse } = await embedForSearch(COLLECTION, item.q.query);
+    const { dense, sparse } = await embedForSearch(PROFILE, item.q.query);
     item.results = await hybridSearch(COLLECTION, dense, sparse, TOP_K);
     process.stdout.write(`done\n`);
   }

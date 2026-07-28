@@ -35,6 +35,10 @@ import {
 import { stableSortResults } from './sort-results.js';
 import { embedForSearch } from '../../../src/core/embeddings.js';
 import { loadConfig, saveConfig } from '../../../src/core/config.js';
+import { createStorageAdapter } from '../../../src/core/storage/factory.js';
+import { resolveBenchProfile } from '../../lib/resolve-profile.js';
+
+const storageAdapter = createStorageAdapter();
 
 const ROOT         = resolve(dirname(fileURLToPath(import.meta.url)), '../../../');
 const QUERIES_PATH = join(ROOT, 'benchmarks', 'retrieval', 'custom-50', 'queries.json');
@@ -381,18 +385,18 @@ function computeMetrics(queryResults) {
 
 // ── Search ────────────────────────────────────────────────────────────────────
 
-async function runQuery(collection, queryText) {
+async function runQuery(collection, profile, queryText) {
   const t0 = Date.now();
-  const { dense, sparse } = await embedForSearch(collection, queryText);
+  const { dense, sparse } = await embedForSearch(profile, queryText);
   const results = stableSortResults(await hybridSearch(collection, dense, sparse, TOP_K));
   return { results, latency: Date.now() - t0 };
 }
 
-async function runAllQueries(collection, queries) {
+async function runAllQueries(collection, profile, queries) {
   const queryResults = [];
   for (const q of queries) {
     process.stdout.write(`  ${q.id}: ${q.query.slice(0, 40)}... `);
-    const { results, latency } = await runQuery(collection, q.query);
+    const { results, latency } = await runQuery(collection, profile, q.query);
     queryResults.push({ query: q, results, latency });
     const hit = q.shouldHaveNoStrongHit
       ? (negativePass(results, q) ? '✓neg' : '✗neg')
@@ -657,13 +661,21 @@ async function main() {
     const queries = raw.queries.map(normaliseQuery);
     console.log(`\n[tag-ablation] Loaded ${queries.length} queries`);
 
+    // ── Resolve embedding profiles ───────────────────────────────────────────
+    // Both collections were just created by the indexer subprocess (ONNX_EMBED=1),
+    // so resolveBenchProfile reads back their own native profile — same model
+    // the collection was actually indexed with, not a fresh env re-read.
+    console.log('\n[tag-ablation] Resolving embedding profiles...');
+    const baselineProfile = await resolveBenchProfile(storageAdapter, COL_BASELINE, { vectorSize: 1024 });
+    const tagoffProfile   = await resolveBenchProfile(storageAdapter, COL_TAGOFF,   { vectorSize: 1024 });
+
     // ── Run queries against baseline ─────────────────────────────────────────
     console.log('\n[tag-ablation] Querying baseline collection...');
-    const bResults = await runAllQueries(COL_BASELINE, queries);
+    const bResults = await runAllQueries(COL_BASELINE, baselineProfile, queries);
 
     // ── Run queries against tag-off ──────────────────────────────────────────
     console.log('\n[tag-ablation] Querying TAG_GEN=0 collection...');
-    const tResults = await runAllQueries(COL_TAGOFF, queries);
+    const tResults = await runAllQueries(COL_TAGOFF, tagoffProfile, queries);
 
     // ── Compute metrics ──────────────────────────────────────────────────────
     const bMetrics = computeMetrics(bResults);

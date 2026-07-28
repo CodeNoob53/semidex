@@ -27,9 +27,12 @@ import { existsSync, mkdirSync, readdirSync, copyFileSync, rmSync, writeFileSync
 import { resolve, join, dirname }                       from 'path';
 import { fileURLToPath }                                from 'url';
 
-import { listCollections, createCollection, deleteCollection, hybridSearch } from '../../../src/core/qdrant.js';
-import { embedForSearch, SCHEMA_VERSION }               from '../../../src/core/embeddings.js';
-import { loadConfig, saveConfig, resolveEnvProviders }  from '../../../src/core/config.js';
+import { deleteCollection, hybridSearch }                from '../../../src/core/qdrant.js';
+import { embedForSearch }                                from '../../../src/core/embeddings.js';
+import { createStorageAdapter }                          from '../../../src/core/storage/factory.js';
+import { resolveBenchProfile }                           from '../../lib/resolve-profile.js';
+
+const storageAdapter = createStorageAdapter();
 
 const ROOT           = resolve(dirname(fileURLToPath(import.meta.url)), '../../../');
 const FIXTURES_SHARED = join(ROOT, 'benchmarks', 'retrieval', 'fixtures', 'docs');
@@ -87,19 +90,13 @@ function buildCorpus() {
 
 // ── Qdrant collection helpers ─────────────────────────────────────────────────
 
+// Resolves (creating if needed) the embedding profile for a collection. The
+// actual indexing happens in a spawned src/indexer/index.js subprocess (see
+// runIndexer), so this only needs to ensure the collection exists with a
+// resolvable profile before that subprocess writes points into it, and to
+// return a profile object usable by embedForSearch() after indexing.
 async function ensureAblationCollection(name) {
-  const cols = await listCollections();
-  if (!cols.includes(name)) await createCollection(name, 1024);
-  const { denseProvider, denseModel, sparseProvider } = resolveEnvProviders();
-  const cfg = loadConfig();
-  cfg.collections ??= {};
-  cfg.collections[name] = {
-    denseProvider, denseModel, sparseProvider,
-    embeddingSchemaVersion: SCHEMA_VERSION,
-    vectorSize: 1024,
-    description: `embed-input ablation bench — auto-managed (${STAMP})`,
-  };
-  saveConfig(cfg);
+  return resolveBenchProfile(storageAdapter, name, { vectorSize: 1024 });
 }
 
 async function deleteBenchCollection(name) {
@@ -115,16 +112,6 @@ function cleanupTransient() {
   try { rmSync(CORPUS_DIR,  { recursive: true, force: true }); } catch { /* ignore */ }
   try { rmSync(CHUNKS_CTX,  { recursive: true, force: true }); } catch { /* ignore */ }
   try { rmSync(CHUNKS_TEXT, { recursive: true, force: true }); } catch { /* ignore */ }
-}
-
-function cleanupConfigEntries() {
-  try {
-    const cfg = loadConfig();
-    if (!cfg.collections) return;
-    delete cfg.collections[COL_CTX_TEXT];
-    delete cfg.collections[COL_TEXT_ONLY];
-    saveConfig(cfg);
-  } catch { /* best-effort */ }
 }
 
 // ── Indexer runner ────────────────────────────────────────────────────────────
@@ -376,12 +363,12 @@ function computeByType(queryResults) {
 
 // ── Search ────────────────────────────────────────────────────────────────────
 
-async function runAllQueries(collection, queries) {
+async function runAllQueries(collection, profile, queries) {
   const qr = [];
   for (const q of queries) {
     process.stdout.write(`  ${q.id}: ${q.query.slice(0, 42)}... `);
     const t0 = Date.now();
-    const { dense, sparse } = await embedForSearch(collection, q.query);
+    const { dense, sparse } = await embedForSearch(profile, q.query);
     const results = await hybridSearch(collection, dense, sparse, TOP_K);
     const latency = Date.now() - t0;
     qr.push({ query: q, results, latency });
@@ -607,10 +594,16 @@ async function main() {
   const queries = (rawQueries.queries ?? rawQueries).map(normaliseQuery);
   console.log(`\n[ablation] Loaded ${queries.length} queries`);
 
+  // Resolve profiles from each collection's own native metadata now that the
+  // indexer subprocess has populated them — embedForSearch requires a
+  // resolved profile object, not a bare collection name.
+  const ctxProfile  = await resolveBenchProfile(storageAdapter, COL_CTX_TEXT,  { vectorSize: 1024 });
+  const textProfile = await resolveBenchProfile(storageAdapter, COL_TEXT_ONLY, { vectorSize: 1024 });
+
   console.log('\n[ablation] Querying context+text collection...');
-  const ctxResults  = await runAllQueries(COL_CTX_TEXT,  queries);
+  const ctxResults  = await runAllQueries(COL_CTX_TEXT,  ctxProfile,  queries);
   console.log('\n[ablation] Querying text-only collection...');
-  const textResults = await runAllQueries(COL_TEXT_ONLY, queries);
+  const textResults = await runAllQueries(COL_TEXT_ONLY, textProfile, queries);
 
   const mCtx       = computeMetrics(ctxResults);
   const mText      = computeMetrics(textResults);
@@ -634,7 +627,6 @@ async function main() {
     console.log('\n[ablation] Cleaning up...');
     await deleteBenchCollection(COL_CTX_TEXT);
     await deleteBenchCollection(COL_TEXT_ONLY);
-    cleanupConfigEntries();
     cleanupTransient();
   }
 }

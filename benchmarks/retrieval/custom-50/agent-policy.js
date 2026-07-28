@@ -75,12 +75,19 @@ import { randomUUID } from 'crypto';
 
 import { chunkFile } from '../../../src/indexer/phases/chunk.js';
 import {
-  listCollections, createCollection, deleteBySourceFile,
+  deleteBySourceFile,
   upsertPoints, hybridSearch, scroll,
 } from '../../../src/core/qdrant.js';
-import { embedForIndex, embedForSearch, SCHEMA_VERSION } from '../../../src/core/embeddings.js';
-import { loadConfig, saveConfig, resolveEnvProviders } from '../../../src/core/config.js';
+import { embedForIndex, embedForSearch } from '../../../src/core/embeddings.js';
 import { rerankResults } from '../../../src/core/rerank.js';
+import { createStorageAdapter } from '../../../src/core/storage/factory.js';
+import { resolveBenchProfile } from '../../lib/resolve-profile.js';
+
+const storageAdapter = createStorageAdapter();
+// Resolved once in ensureCollection() before indexing/search — embedForIndex/
+// embedForSearch require a resolved profile object, not a bare collection
+// name (see benchmarks/lib/resolve-profile.js's header comment).
+let PROFILE = null;
 
 const __dirname    = dirname(fileURLToPath(import.meta.url));
 const FIXTURES_SHARED = resolve(__dirname, '../fixtures/docs');
@@ -217,19 +224,8 @@ function today() {
 // ── Indexing ───────────────────────────────────────────────────────────────────
 
 async function ensureCollection() {
-  const cols = await listCollections();
-  if (!cols.includes(COLLECTION)) await createCollection(COLLECTION, 1024);
-  const { denseProvider, denseModel, sparseProvider } = resolveEnvProviders();
-  const cfg = loadConfig();
-  cfg.collections ??= {};
-  cfg.collections[COLLECTION] = {
-    denseProvider, denseModel, sparseProvider,
-    embeddingSchemaVersion: SCHEMA_VERSION,
-    vectorSize: 1024,
-    description: 'custom-50 quality benchmark — auto-managed',
-  };
-  saveConfig(cfg);
-  return { denseProvider, sparseProvider };
+  PROFILE = await resolveBenchProfile(storageAdapter, COLLECTION, { vectorSize: 1024 });
+  return { denseProvider: PROFILE.embedding.dense.provider, sparseProvider: PROFILE.embedding.sparse?.provider ?? null };
 }
 
 async function indexFixtures() {
@@ -241,7 +237,7 @@ async function indexFixtures() {
     const chunks = chunkFile(filePath, text, sourceFile);
     const points = [];
     for (const chunk of chunks) {
-      const { dense, sparse, meta } = await embedForIndex(COLLECTION, chunk.text);
+      const { dense, sparse, meta } = await embedForIndex(PROFILE, chunk.text);
       points.push({
         id: randomUUID(),
         vector: { dense, sparse },
@@ -343,7 +339,7 @@ async function evalQuery(q, queryText) {
   if (!exactIds.size) return null; // no exact qrels — skip (negative or support-only)
 
   const t0 = Date.now();
-  const vectors = await embedForSearch(COLLECTION, queryText);
+  const vectors = await embedForSearch(PROFILE, queryText);
   const embedLatency = Date.now() - t0;
 
   const [p1, p2, p3, p4, p5] = await Promise.all([
@@ -558,14 +554,16 @@ function buildReport(evalResults, rawQueries) {
 
 async function main() {
   const rawQueries = JSON.parse(readFileSync(QUERIES_PATH, 'utf8'));
-  const { denseProvider, sparseProvider } = resolveEnvProviders();
+
+  process.stderr.write('[1/2] Setup collection...\n');
+  // Resolves PROFILE from the collection's own native metadata if it already
+  // exists, or from current env if creating it fresh — never a second,
+  // independent env read after this point (see benchmarks/retrieval/run.js).
+  const { denseProvider, sparseProvider } = await ensureCollection();
 
   process.stderr.write(`\n=== semidex custom-50 agent-policy evaluation ===\n`);
   process.stderr.write(`Provider : ${denseProvider}/${sparseProvider}\n`);
   process.stderr.write(`Window   : ±${BENCH_WINDOW}\n\n`);
-
-  process.stderr.write('[1/2] Setup collection...\n');
-  await ensureCollection();
 
   if (SKIP_INDEX) {
     const stored = await fetchStoredProvider();

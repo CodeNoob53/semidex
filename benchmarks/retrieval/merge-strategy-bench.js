@@ -36,11 +36,19 @@ import { stableSortResults } from './custom-50/sort-results.js';
 import { chunkFile } from '../../src/indexer/phases/chunk.js';
 import { mergeChunksWithDecisions, mergeChunksDeterministic, shouldMerge } from './legacy-merge.js';
 import {
-  listCollections, createCollection, deleteBySourceFile,
+  deleteBySourceFile,
   upsertPoints, hybridSearch, scroll,
 } from '../../src/core/qdrant.js';
-import { embedForIndex, embedForSearch, SCHEMA_VERSION } from '../../src/core/embeddings.js';
-import { loadConfig, saveConfig, resolveEnvProviders } from '../../src/core/config.js';
+import { embedForIndex, embedForSearch } from '../../src/core/embeddings.js';
+import { resolveEnvProviders } from '../../src/core/config.js';
+import { createStorageAdapter } from '../../src/core/storage/factory.js';
+import { resolveBenchProfile } from '../lib/resolve-profile.js';
+
+const storageAdapter = createStorageAdapter();
+// Collection → resolved profile map, filled in by ensureCollection().
+// embedForIndex/embedForSearch require a resolved profile object, not a
+// bare collection name.
+const PROFILES = new Map();
 
 const __dirname       = dirname(fileURLToPath(import.meta.url));
 const FIXTURES_SHARED = resolve(__dirname, 'fixtures/docs');
@@ -121,18 +129,9 @@ function normaliseQuery(q) {
 // ── Indexing ──────────────────────────────────────────────────────────────────
 
 async function ensureCollection(collection) {
-  const cols = await listCollections();
-  if (!cols.includes(collection)) await createCollection(collection, 1024);
-  const { denseProvider, denseModel, sparseProvider } = resolveEnvProviders();
-  const cfg = loadConfig();
-  cfg.collections ??= {};
-  cfg.collections[collection] = {
-    denseProvider, denseModel, sparseProvider,
-    embeddingSchemaVersion: SCHEMA_VERSION,
-    vectorSize: 1024,
-    description: 'merge-strategy benchmark — auto-managed',
-  };
-  saveConfig(cfg);
+  const profile = await resolveBenchProfile(storageAdapter, collection, { vectorSize: 1024 });
+  PROFILES.set(collection, profile);
+  return profile;
 }
 
 async function fetchIndexedChunkIds(collection) {
@@ -187,8 +186,9 @@ async function indexFiles(files, strategy, counters) {
 
     const te0 = performance.now();
     const points = [];
+    const profile = PROFILES.get(strategy.collection);
     for (const chunk of mergedChunks) {
-      const { dense, sparse, meta } = await embedForIndex(strategy.collection, chunk.text);
+      const { dense, sparse, meta } = await embedForIndex(profile, chunk.text);
       points.push({
         id: randomUUID(),
         vector: { dense, sparse },
@@ -386,12 +386,16 @@ function classifyChange(llmResults, detResults, query) {
 // ── Query execution ───────────────────────────────────────────────────────────
 
 async function runQueriesOnCollection(collection, queries) {
+  // Resolve (or reuse, if ensureCollection already ran for this collection)
+  // the profile — handles both the freshly-indexed path and BENCH_SKIP_INDEX=1
+  // where ensureCollection() is never called before querying.
+  const profile = PROFILES.get(collection) ?? await ensureCollection(collection);
   const results = [];
   for (const query of queries) {
     const latencies = [];
     let lastResults = [];
     for (let run = 0; run < BENCH_RUNS; run++) {
-      const { dense, sparse } = await embedForSearch(collection, query.query);
+      const { dense, sparse } = await embedForSearch(profile, query.query);
       const t0 = performance.now();
       const raw = await hybridSearch(collection, dense, sparse, TOP_K);
       latencies.push(performance.now() - t0);

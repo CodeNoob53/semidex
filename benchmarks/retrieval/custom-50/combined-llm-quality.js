@@ -27,12 +27,20 @@ import { resolve, join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 import {
-  listCollections, createCollection, deleteCollection,
+  deleteCollection,
   hybridSearch,
 } from '../../../src/core/qdrant.js';
 import { stableSortResults } from './sort-results.js';
-import { embedForSearch, SCHEMA_VERSION } from '../../../src/core/embeddings.js';
-import { loadConfig, saveConfig, resolveEnvProviders } from '../../../src/core/config.js';
+import { embedForSearch } from '../../../src/core/embeddings.js';
+import { createStorageAdapter } from '../../../src/core/storage/factory.js';
+import { resolveBenchProfile } from '../../lib/resolve-profile.js';
+
+const storageAdapter = createStorageAdapter();
+// Per-collection resolved embedding profiles — embedForSearch requires a
+// resolved profile object, not a bare collection name (see
+// benchmarks/lib/resolve-profile.js's header comment). Populated by
+// ensureBenchCollection() for COL_BASELINE / COL_COMBINED.
+const PROFILES = new Map();
 
 const ROOT         = resolve(dirname(fileURLToPath(import.meta.url)), '../../../');
 const QUERIES_PATH = join(ROOT, 'benchmarks', 'retrieval', 'custom-50', 'queries.json');
@@ -92,33 +100,11 @@ function cleanupTransient() {
   try { rmSync(CHUNKS_COMBINED, { recursive: true, force: true }); } catch { /* ignore */ }
 }
 
-function cleanupConfigEntries() {
-  try {
-    const cfg = loadConfig();
-    if (!cfg.collections) return;
-    delete cfg.collections[COL_BASELINE];
-    delete cfg.collections[COL_COMBINED];
-    saveConfig(cfg);
-  } catch { /* best-effort */ }
-}
-
 // ── Qdrant collection management ──────────────────────────────────────────────
 
 async function ensureBenchCollection(name) {
-  const cols = await listCollections();
-  if (!cols.includes(name)) {
-    await createCollection(name, 1024);
-  }
-  const { denseProvider, denseModel, sparseProvider } = resolveEnvProviders();
-  const cfg = loadConfig();
-  cfg.collections ??= {};
-  cfg.collections[name] = {
-    denseProvider, denseModel, sparseProvider,
-    embeddingSchemaVersion: SCHEMA_VERSION,
-    vectorSize: 1024,
-    description: `combined-llm quality bench — auto-managed (${STAMP})`,
-  };
-  saveConfig(cfg);
+  const profile = await resolveBenchProfile(storageAdapter, name, { vectorSize: 1024 });
+  PROFILES.set(name, profile);
 }
 
 async function deleteBenchCollection(name) {
@@ -393,7 +379,10 @@ function computeMetrics(queryResults) {
 
 async function runQuery(collection, queryText) {
   const t0 = Date.now();
-  const { dense, sparse } = await embedForSearch(collection, queryText);
+  const profile = PROFILES.get(collection)
+    ?? await resolveBenchProfile(storageAdapter, collection, { vectorSize: 1024 });
+  PROFILES.set(collection, profile);
+  const { dense, sparse } = await embedForSearch(profile, queryText);
   const results = stableSortResults(await hybridSearch(collection, dense, sparse, TOP_K));
   return { results, latency: Date.now() - t0 };
 }
@@ -730,7 +719,6 @@ async function main() {
       console.log('\n[quality] Cleaning up collections...');
       await deleteBenchCollection(COL_BASELINE);
       await deleteBenchCollection(COL_COMBINED);
-      cleanupConfigEntries();
     } else {
       console.log(`\n[quality] KEEP_COLLECTIONS=1 — retained: ${COL_BASELINE}, ${COL_COMBINED}`);
     }

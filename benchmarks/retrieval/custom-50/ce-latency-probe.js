@@ -13,6 +13,8 @@ import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { hybridSearch } from '../../../src/core/qdrant.js';
 import { embedForSearch } from '../../../src/core/embeddings.js';
+import { createStorageAdapter } from '../../../src/core/storage/factory.js';
+import { resolveBenchProfile } from '../../lib/resolve-profile.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 hfEnv.cacheDir = resolve(__dirname, '../../../models');
@@ -70,11 +72,15 @@ process.stdout.write(`  numLabels: ${numLabels}\n`);
 
 // ── 2. Embed all probe queries (done once, not counted in CE latency) ─────────
 
+process.stdout.write('\nResolving embedding profile...\n');
+const storageAdapter = createStorageAdapter();
+const PROFILE = await resolveBenchProfile(storageAdapter, COLLECTION, { vectorSize: 1024 });
+
 process.stdout.write('\n[3/4] Embedding probe queries (ONNX embedder)...\n');
 const embeds = [];
 for (const q of PROBE_QUERIES) {
   const t = Date.now();
-  const emb = await embedForSearch(COLLECTION, q);
+  const emb = await embedForSearch(PROFILE, q);
   embeds.push({ query: q, ...emb });
   process.stdout.write(`  "${q.slice(0,50)}"  ${Date.now()-t}ms\n`);
 }
@@ -136,7 +142,7 @@ process.stdout.write('\n  Full round-trip (embed + Qdrant + CE)...\n');
 const roundTripTimes = [];
 for (const { query } of pools) {
   const t = Date.now();
-  const emb = await embedForSearch(COLLECTION, query);
+  const emb = await embedForSearch(PROFILE, query);
   const candidates = await hybridSearch(COLLECTION, emb.dense, emb.sparse, CANDIDATE_N);
   await inferOnce(query, candidates);
   roundTripTimes.push(Date.now() - t);

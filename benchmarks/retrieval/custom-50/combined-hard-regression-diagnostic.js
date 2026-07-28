@@ -30,12 +30,20 @@ import { resolve, join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 import {
-  listCollections, createCollection, deleteCollection,
+  deleteCollection,
   hybridSearch, scroll,
 } from '../../../src/core/qdrant.js';
 import { stableSortResults } from './sort-results.js';
-import { embedForSearch, SCHEMA_VERSION } from '../../../src/core/embeddings.js';
-import { loadConfig, saveConfig, resolveEnvProviders } from '../../../src/core/config.js';
+import { embedForSearch } from '../../../src/core/embeddings.js';
+import { createStorageAdapter } from '../../../src/core/storage/factory.js';
+import { resolveBenchProfile } from '../../lib/resolve-profile.js';
+
+const storageAdapter = createStorageAdapter();
+// Per-collection resolved embedding profiles — embedForSearch requires a
+// resolved profile object, not a bare collection name (see
+// benchmarks/lib/resolve-profile.js's header comment). Populated by
+// ensureBenchCollection() for each of COL_BASELINE / COL_COMBINED.
+const PROFILES = new Map();
 
 const ROOT          = resolve(dirname(fileURLToPath(import.meta.url)), '../../../');
 const QUERIES_PATH  = join(ROOT, 'benchmarks', 'retrieval', 'custom-50', 'queries.json');
@@ -103,33 +111,13 @@ function cleanupTransient() {
 // ── Collection helpers ────────────────────────────────────────────────────────
 
 async function ensureBenchCollection(name) {
-  const cols = await listCollections();
-  if (!cols.includes(name)) await createCollection(name, 1024);
-  const { denseProvider, denseModel, sparseProvider } = resolveEnvProviders();
-  const cfg = loadConfig();
-  cfg.collections ??= {};
-  cfg.collections[name] = {
-    denseProvider, denseModel, sparseProvider,
-    embeddingSchemaVersion: SCHEMA_VERSION,
-    vectorSize: 1024,
-    description: `combined-llm diag — auto-managed (${STAMP})`,
-  };
-  saveConfig(cfg);
+  const profile = await resolveBenchProfile(storageAdapter, name, { vectorSize: 1024 });
+  PROFILES.set(name, profile);
 }
 
 async function deleteBenchCollection(name) {
   try { await deleteCollection(name); console.log(`  [cleanup] deleted "${name}"`); }
   catch { console.log(`  [cleanup] could not delete "${name}"`); }
-}
-
-function cleanupConfigEntries() {
-  try {
-    const cfg = loadConfig();
-    if (!cfg.collections) return;
-    delete cfg.collections[COL_BASELINE];
-    delete cfg.collections[COL_COMBINED];
-    saveConfig(cfg);
-  } catch { /* best-effort */ }
 }
 
 // ── Indexer ───────────────────────────────────────────────────────────────────
@@ -250,7 +238,10 @@ function resultChunkId(r) {
 }
 
 async function runQuery(collection, queryText) {
-  const { dense, sparse } = await embedForSearch(collection, queryText);
+  const profile = PROFILES.get(collection)
+    ?? await resolveBenchProfile(storageAdapter, collection, { vectorSize: 1024 });
+  PROFILES.set(collection, profile);
+  const { dense, sparse } = await embedForSearch(profile, queryText);
   return stableSortResults(await hybridSearch(collection, dense, sparse, TOP_K));
 }
 
@@ -677,7 +668,6 @@ async function main() {
         console.log('\n[diag] Cleaning up...');
         await deleteBenchCollection(COL_BASELINE);
         await deleteBenchCollection(COL_COMBINED);
-        cleanupConfigEntries();
       } else {
         console.log(`\n[diag] KEEP_COLLECTIONS=1 — retained: ${COL_BASELINE}, ${COL_COMBINED}`);
         console.log('  Re-run with these env vars to skip re-indexing:');

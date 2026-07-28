@@ -67,13 +67,14 @@ import { env as hfEnv } from '@huggingface/transformers';
 
 import { chunkFile } from '../../../src/indexer/phases/chunk.js';
 import {
-  listCollections, createCollection, deleteBySourceFile,
+  deleteBySourceFile,
   upsertPoints, hybridSearch, scroll,
 } from '../../../src/core/qdrant.js';
-import { embedForIndex, embedForSearch, SCHEMA_VERSION } from '../../../src/core/embeddings.js';
-import { loadConfig, saveConfig, resolveEnvProviders } from '../../../src/core/config.js';
+import { embedForIndex, embedForSearch } from '../../../src/core/embeddings.js';
 import { rerankResults } from '../../../src/core/rerank.js';
 import { validateQueryTypes, formatTypeDistribution } from './query-types.js';
+import { createStorageAdapter } from '../../../src/core/storage/factory.js';
+import { resolveBenchProfile } from '../../lib/resolve-profile.js';
 
 import { today, f3, pct, pad, lpad } from '../lib/ce-routing-format.js';
 import {
@@ -96,6 +97,12 @@ const RESULTS_DIR     = resolve(__dirname, '../results');
 const COLLECTION      = 'bench-retrieval-custom-50';
 
 hfEnv.cacheDir = resolve(__dirname, '../../../models');
+
+const storageAdapter = createStorageAdapter();
+// Resolved once in main() before indexing/search — embedForIndex/embedForSearch
+// require a resolved profile object, not a bare collection name (see
+// benchmarks/lib/resolve-profile.js's header comment).
+let PROFILE = null;
 
 // ── Env knobs ──────────────────────────────────────────────────────────────────
 
@@ -140,19 +147,8 @@ const FIXTURE_FILES = [
 // ── Collection setup ───────────────────────────────────────────────────────────
 
 async function ensureCollection() {
-  const cols = await listCollections();
-  if (!cols.includes(COLLECTION)) await createCollection(COLLECTION, 1024);
-  const { denseProvider, denseModel, sparseProvider } = resolveEnvProviders();
-  const cfg = loadConfig();
-  cfg.collections ??= {};
-  cfg.collections[COLLECTION] = {
-    denseProvider, denseModel, sparseProvider,
-    embeddingSchemaVersion: SCHEMA_VERSION,
-    vectorSize: 1024,
-    description: 'custom-50 quality benchmark — auto-managed',
-  };
-  saveConfig(cfg);
-  return { denseProvider, sparseProvider };
+  PROFILE = await resolveBenchProfile(storageAdapter, COLLECTION, { vectorSize: 1024 });
+  return { denseProvider: PROFILE.embedding.dense.provider, sparseProvider: PROFILE.embedding.sparse?.provider ?? null };
 }
 
 async function fetchStoredProvider() {
@@ -179,7 +175,7 @@ async function indexFixtures() {
       const cid = `${name}#${chunk.chunkIndex}`;
       indexedIds.add(cid);
       if (isEmptyChunkText(chunk.text)) emptyChunkIds.add(cid);
-      const { dense, sparse, meta } = await embedForIndex(COLLECTION, chunk.text);
+      const { dense, sparse, meta } = await embedForIndex(PROFILE, chunk.text);
       points.push({
         id: randomUUID(),
         vector: { dense, sparse },
@@ -230,7 +226,7 @@ function validateQrels(queries, indexedIds) {
 // ── Per-query runner ───────────────────────────────────────────────────────────
 
 async function runQuery(q) {
-  const { dense, sparse } = await embedForSearch(COLLECTION, q.query);
+  const { dense, sparse } = await embedForSearch(PROFILE, q.query);
   const candidateLimit    = Math.max(TOP_K * RERANK_PREFETCH_MULT, TOP_K + 5);
 
   const t0 = Date.now();
@@ -700,18 +696,20 @@ delete process.env.SPARSE_PROVIDER;
 
 process.stderr.write('\n[1/3] Setup collection...\n');
 let indexedIds, emptyChunkIds;
-const providerInfo = { denseProvider: 'bge-m3-onnx', sparseProvider: 'bge-m3-onnx' };
+// Resolves PROFILE from the collection's own native metadata if it already
+// exists, or from current env if creating it fresh — never a second,
+// independent env read after this point (see benchmarks/retrieval/run.js).
+const providerInfo = await ensureCollection();
 
 if (SKIP_INDEX) {
   const stored = await fetchStoredProvider();
-  if (stored && (stored.denseProvider !== 'bge-m3-onnx' || stored.sparseProvider !== 'bge-m3-onnx')) {
-    process.stderr.write(`Error: BENCH_SKIP_INDEX=1 but stored provider (${stored.denseProvider}/${stored.sparseProvider}) differs.\n`);
+  if (stored && (stored.denseProvider !== providerInfo.denseProvider || stored.sparseProvider !== providerInfo.sparseProvider)) {
+    process.stderr.write(`Error: BENCH_SKIP_INDEX=1 but stored provider (${stored.denseProvider}/${stored.sparseProvider}) differs from "${COLLECTION}"'s own recorded embedding profile (${providerInfo.denseProvider}/${providerInfo.sparseProvider}).\n`);
     process.exitCode = 1; process.exit();
   }
   process.stderr.write('[2/3] Skipping index (BENCH_SKIP_INDEX=1) — fetching chunk IDs...\n');
   ({ indexedIds, emptyChunkIds } = await fetchIndexedChunkIds());
 } else {
-  await ensureCollection();
   process.stderr.write('[2/3] Indexing fixtures...\n');
   ({ indexedIds, emptyChunkIds } = await indexFixtures());
 }

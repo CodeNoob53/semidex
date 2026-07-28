@@ -14,6 +14,8 @@ import { fileURLToPath } from 'url';
 import { hybridSearch, scroll } from '../../../src/core/qdrant.js';
 import { embedForSearch } from '../../../src/core/embeddings.js';
 import { rerankResults } from '../../../src/core/rerank.js';
+import { createStorageAdapter } from '../../../src/core/storage/factory.js';
+import { resolveBenchProfile } from '../../lib/resolve-profile.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 hfEnv.cacheDir = resolve(__dirname, '../../../models');
@@ -66,8 +68,12 @@ async function ceScoreAll(candidates) {
   return candidates.map((r, i) => ({ ...r, ceScore: scores[i] }));
 }
 
+process.stderr.write('[c03-diag] Resolving embedding profile...\n');
+const storageAdapter = createStorageAdapter();
+const PROFILE = await resolveBenchProfile(storageAdapter, COLLECTION, { vectorSize: 1024 });
+
 process.stderr.write('[c03-diag] Embedding query...\n');
-const { dense, sparse } = await embedForSearch(COLLECTION, QUERY);
+const { dense, sparse } = await embedForSearch(PROFILE, QUERY);
 const prefetchLimit = Math.max(TOP_K * MULT, TOP_K + 1);
 
 const hybridTrue = await hybridSearch(COLLECTION, dense, sparse, TOP_K);

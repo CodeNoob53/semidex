@@ -39,12 +39,14 @@ import { resolve, join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 import {
-  listCollections, createCollection, deleteCollection,
+  deleteCollection,
   hybridSearch,
 } from '../../../src/core/qdrant.js';
 import { stableSortResults } from './sort-results.js';
-import { embedForSearch, SCHEMA_VERSION } from '../../../src/core/embeddings.js';
-import { loadConfig, saveConfig, resolveEnvProviders } from '../../../src/core/config.js';
+import { embedForSearch } from '../../../src/core/embeddings.js';
+import { loadConfig, saveConfig } from '../../../src/core/config.js';
+import { createStorageAdapter } from '../../../src/core/storage/factory.js';
+import { resolveBenchProfile } from '../../lib/resolve-profile.js';
 
 const ROOT         = resolve(dirname(fileURLToPath(import.meta.url)), '../../../');
 const QUERIES_PATH = join(ROOT, 'benchmarks', 'retrieval', 'custom-50', 'queries.json');
@@ -55,13 +57,16 @@ const KEEP         = process.env.KEEP_COLLECTIONS === '1';
 const TOP_K        = 10;
 const BENCH_WINDOW = 1;
 
-// Force benchmark provider env on the parent process so resolveEnvProviders()
-// in ensureBenchCollection() writes correct ONNX metadata to config, regardless
-// of what the caller's shell had set.  DENSE_PROVIDER takes precedence over
-// ONNX_EMBED in resolveEnvProviders(), so it must be set explicitly.
+// Force benchmark provider env on the parent process so resolveBenchProfile()
+// in ensureBenchCollection() resolves correct ONNX providers for newly created
+// collections, regardless of what the caller's shell had set. DENSE_PROVIDER
+// takes precedence over ONNX_EMBED in resolveEnvProviders(), so it must be
+// set explicitly, and before createStorageAdapter()/resolveBenchProfile() run.
 process.env.DENSE_PROVIDER  = 'bge-m3-onnx';
 process.env.SPARSE_PROVIDER = 'bge-m3-onnx';
 process.env.ONNX_EMBED      = '1';
+
+const storageAdapter = createStorageAdapter();
 process.env.ONNX_EXECUTION_PROVIDER = process.env.ONNX_EXECUTION_PROVIDER ?? 'cpu';
 
 const MODEL      = process.env.MODEL || 'gemma3:4b';
@@ -119,19 +124,15 @@ function cleanupConfigEntries(collections) {
 
 // ── Qdrant collection management ──────────────────────────────────────────────
 
+// Resolves (creating if needed) the embedding profile for a benchmark
+// collection. The returned profile must be passed to embedForSearch() for
+// this collection — embedForIndex/embedForSearch require a resolved profile
+// object, not a bare collection name (see benchmarks/lib/resolve-profile.js).
+// Indexing itself happens out-of-process via runIndexer() (src/indexer/index.js),
+// which resolves its own profile independently; this call only ensures the
+// collection exists up front and gives this script a profile for querying.
 async function ensureBenchCollection(name) {
-  const cols = await listCollections();
-  if (!cols.includes(name)) await createCollection(name, 1024);
-  const { denseProvider, denseModel, sparseProvider } = resolveEnvProviders();
-  const cfg = loadConfig();
-  cfg.collections ??= {};
-  cfg.collections[name] = {
-    denseProvider, denseModel, sparseProvider,
-    embeddingSchemaVersion: SCHEMA_VERSION,
-    vectorSize: 1024,
-    description: `combined context-only ablation — auto-managed (${STAMP})`,
-  };
-  saveConfig(cfg);
+  return resolveBenchProfile(storageAdapter, name, { vectorSize: 1024 });
 }
 
 async function deleteBenchCollection(name) {
@@ -321,19 +322,19 @@ function computeMetrics(queryResults) {
 
 // ── Search ────────────────────────────────────────────────────────────────────
 
-async function runQuery(collection, queryText) {
+async function runQuery(collection, profile, queryText) {
   const t0 = Date.now();
-  const { dense, sparse } = await embedForSearch(collection, queryText);
+  const { dense, sparse } = await embedForSearch(profile, queryText);
   const results = stableSortResults(await hybridSearch(collection, dense, sparse, TOP_K));
   return { results, latency: Date.now() - t0 };
 }
 
-async function runAllQueries(collection, queries, label) {
+async function runAllQueries(collection, profile, queries, label) {
   console.log(`\n[ablation] Querying ${label}...`);
   const queryResults = [];
   for (const q of queries) {
     process.stdout.write(`  ${q.id}: ${q.query.slice(0, 40)}... `);
-    const { results, latency } = await runQuery(collection, q.query);
+    const { results, latency } = await runQuery(collection, profile, q.query);
     queryResults.push({ query: q, results, latency });
     const hit = q.shouldHaveNoStrongHit
       ? (negativePass(results, q) ? '✓neg' : '✗neg')
@@ -577,7 +578,11 @@ async function main() {
     buildCorpus();
     console.log(`  corpus built: ${FIXTURE_FILES.length} files → ${CORPUS_DIR}`);
 
-    for (const name of allCollections) await ensureBenchCollection(name);
+    // Resolved once per collection, before the out-of-process indexer runs and
+    // before any querying — embedForSearch requires a resolved profile object,
+    // not a bare collection name (see benchmarks/lib/resolve-profile.js).
+    const profiles = {};
+    for (const name of allCollections) profiles[name] = await ensureBenchCollection(name);
 
     // ── Baseline: separate context + tags ────────────────────────────────────
     const baseRun = runIndexer(COL_BASELINE, {
@@ -635,9 +640,9 @@ async function main() {
     const queries = raw.queries.map(normaliseQuery);
     console.log(`\n[ablation] Loaded ${queries.length} queries`);
 
-    const bResults       = await runAllQueries(COL_BASELINE, queries, 'baseline');
-    const ctxTagsResults = await runAllQueries(COL_CTX_TAGS, queries, 'combined ctx+tags');
-    const ctxOnlyResults = await runAllQueries(COL_CTX_ONLY, queries, 'combined ctx-only');
+    const bResults       = await runAllQueries(COL_BASELINE, profiles[COL_BASELINE], queries, 'baseline');
+    const ctxTagsResults = await runAllQueries(COL_CTX_TAGS, profiles[COL_CTX_TAGS], queries, 'combined ctx+tags');
+    const ctxOnlyResults = await runAllQueries(COL_CTX_ONLY, profiles[COL_CTX_ONLY], queries, 'combined ctx-only');
 
     const bMetrics        = computeMetrics(bResults);
     const ctxTagsMetrics  = computeMetrics(ctxTagsResults);

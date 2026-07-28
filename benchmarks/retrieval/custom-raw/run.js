@@ -6,11 +6,17 @@ import { randomUUID } from 'crypto';
 
 import { chunkFile } from '../../../src/indexer/phases/chunk.js';
 import {
-  listCollections, createCollection, deleteBySourceFile,
+  deleteBySourceFile,
   upsertPoints, hybridSearch, scroll,
 } from '../../../src/core/qdrant.js';
-import { embedForIndex, embedForSearch, SCHEMA_VERSION } from '../../../src/core/embeddings.js';
-import { loadConfig, saveConfig, resolveEnvProviders } from '../../../src/core/config.js';
+import { embedForIndex, embedForSearch } from '../../../src/core/embeddings.js';
+import { createStorageAdapter } from '../../../src/core/storage/factory.js';
+import { resolveBenchProfile } from '../../lib/resolve-profile.js';
+
+const storageAdapter = createStorageAdapter();
+// Resolved once in main() before indexing/search — embedForIndex/embedForSearch
+// require a resolved profile object, not a bare collection name.
+let PROFILE = null;
 
 if (process.argv.includes('--help')) {
   process.stdout.write(`semidex custom-raw benchmark\n`);
@@ -51,21 +57,8 @@ function percentile(sorted, p) {
 }
 
 async function ensureCollection() {
-  const cols = await listCollections();
-  if (!cols.includes(COLLECTION)) {
-    await createCollection(COLLECTION, 1024);
-  }
-  const { denseProvider, denseModel, sparseProvider } = resolveEnvProviders();
-  const cfg = loadConfig();
-  cfg.collections ??= {};
-  cfg.collections[COLLECTION] = {
-    denseProvider, denseModel, sparseProvider,
-    embeddingSchemaVersion: SCHEMA_VERSION,
-    vectorSize: 1024,
-    description: 'custom-raw stress benchmark — auto-managed',
-  };
-  saveConfig(cfg);
-  return { denseProvider, sparseProvider };
+  PROFILE = await resolveBenchProfile(storageAdapter, COLLECTION, { vectorSize: 1024 });
+  return { denseProvider: PROFILE.embedding.dense.provider, sparseProvider: PROFILE.embedding.sparse?.provider ?? null };
 }
 
 async function fetchStoredProvider() {
@@ -102,7 +95,7 @@ async function indexFixtures() {
         text: chunk.text ?? '',
       });
 
-      const { dense, sparse, meta } = await embedForIndex(COLLECTION, chunk.text);
+      const { dense, sparse, meta } = await embedForIndex(PROFILE, chunk.text);
       points.push({
         id: randomUUID(),
         vector: { dense, sparse },
@@ -216,9 +209,11 @@ function tokenise(str) {
 
 async function main() {
   const raw = JSON.parse(readFileSync(QUERIES_PATH, 'utf8'));
-  const { denseProvider, sparseProvider } = resolveEnvProviders();
 
-  await ensureCollection();
+  // Resolves PROFILE from the collection's own native metadata if it already
+  // exists, or from current env if creating it fresh — never a second,
+  // independent env read after this point (mirrors benchmarks/retrieval/run.js).
+  const { denseProvider, sparseProvider } = await ensureCollection();
 
   let chunkData, lengths = [], sectionlessCount = 0, oversizedChunkCount = 0;
   if (SKIP_INDEX) {
@@ -245,7 +240,7 @@ async function main() {
 
   for (const q of queries) {
     const t0 = Date.now();
-    const { dense, sparse } = await embedForSearch(COLLECTION, q.query);
+    const { dense, sparse } = await embedForSearch(PROFILE, q.query);
     const results = await hybridSearch(COLLECTION, dense, sparse, TOP_K);
     const latency = Date.now() - t0;
     latencies.push(latency);
