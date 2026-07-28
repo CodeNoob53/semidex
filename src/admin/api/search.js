@@ -12,8 +12,8 @@
 // no dense-only search method yet, so a backend without those capabilities
 // gets an explicit 501 (documented Phase 1C limitation) instead of a silent
 // wrong-mode search.
-import { sendJson, badRequest, notFound, HttpError } from '../http.js';
-import { readJsonBody } from '../http.js';
+import { sendJson, badRequest, notFound, HttpError } from '../../core/http/http.js';
+import { readJsonBody } from '../../core/http/http.js';
 import { embedForSearch } from '../../core/embeddings.js';
 import { runHybridSearch, resolveSearchMode } from '../../core/retrieval/search.js';
 

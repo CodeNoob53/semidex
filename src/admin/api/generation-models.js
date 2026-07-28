@@ -9,7 +9,7 @@
 // (TAG_MODEL/TAG_ONNX_MODEL/CONTEXT_MODEL/EMBED_MODEL all still use it,
 // since those are Ollama-only fields with no cross-backend concept) — this
 // route is additive, not a replacement.
-import { sendJson, badRequest } from '../http.js';
+import { sendJson, badRequest } from '../../core/http/http.js';
 import { sanitiseErrorMessage } from '../../core/doctor-checks.js';
 import { discoverOllamaModels } from '../../core/ollama-models.js';
 import { discoverGeminiModels } from '../../core/gemini-models.js';

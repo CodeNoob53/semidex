@@ -31,7 +31,7 @@ import { registerAssemblyRoutes } from './api/assembly.js';
 import { registerSkeletonRoutes } from './api/skeleton.js';
 import { registerNodeRoutes } from './api/node.js';
 import { registerSearchRoutes } from './api/search.js';
-import { registerAskRoutes } from './api/ask.js';
+import { registerAskRoutesV1 } from '../core/ask-api/v1/route.js';
 import { registerGenerationRoutes } from './api/generation.js';
 import { registerJobsRoutes } from './api/jobs.js';
 import { createJobRegistry } from './jobs/registry.js';
@@ -137,10 +137,11 @@ export function createApp({
   registerSearchRoutes(router, adapter, { ...(embedQuery ? { embedQuery } : {}), settingsService: settings });
   // generationRuntime/askCoordinator/countTokens are optional DI — tests
   // inject stubs so unit tests never initialize Ollama or the real BGE-M3
-  // tokenizer. Defaulted here (not inside ask.js) so the SAME runtime/
-  // coordinator instance is shared between GET /api/generation/status and
-  // POST /api/ask — both must observe identical readiness, never two
-  // independently-resolved configs that could disagree.
+  // tokenizer. Defaulted here (not inside the ask-api route module) so the
+  // SAME runtime/coordinator instance is shared between
+  // GET /api/generation/status and POST /api/v1/ask — both must observe
+  // identical readiness, never two independently-resolved configs that
+  // could disagree.
   //
   // The default here (process.env as "osEnv", no dotenv values) is a safe
   // fallback for direct createApp() callers that never bootstrap explicitly
@@ -156,7 +157,11 @@ export function createApp({
     adapter, embedQuery, countTokens: countTokens ?? defaultCountTokens, generationProvider: generation,
     settingsService: settings,
   });
-  registerAskRoutes(router, adapter, { askCoordinator: ask });
+  // POST /api/v1/ask — the ONE canonical, versioned Ask endpoint (see
+  // src/core/ask-api/v1/route.js). The unversioned POST /api/ask seed route
+  // has been removed entirely — this project has not released a public Ask
+  // API yet, so there is no compatibility alias to preserve.
+  registerAskRoutesV1(router, adapter, { askCoordinator: ask });
   // jobRegistry/checkOllamaFn are optional DI (tests inject a fake spawnFn-
   // backed registry and a stub Ollama check so unit tests never launch a
   // real indexer child process or probe a real Ollama instance). jobBaseEnv

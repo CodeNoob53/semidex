@@ -93,7 +93,7 @@ describe('createRouter — unknown route / wrong method', () => {
 describe('createRouter — error handling', () => {
   it('converts a thrown HttpError into its status/code/message', async () => {
     const router = createRouter();
-    const { notFound } = await import('../../../src/admin/http.js');
+    const { notFound } = await import('../../../src/core/http/http.js');
     router.get('/api/collections/:name', () => { throw notFound('Collection "x" not found'); });
     const res = fakeRes();
     await router.handleRequest(fakeReq('GET', '/api/collections/x'), res);
@@ -116,7 +116,7 @@ describe('createRouter — error handling', () => {
 
   it('converts a rejected async handler into the correct error response', async () => {
     const router = createRouter();
-    const { badRequest } = await import('../../../src/admin/http.js');
+    const { badRequest } = await import('../../../src/core/http/http.js');
     router.get('/api/async-fail', async () => { throw badRequest('nope'); });
     const res = fakeRes();
     await router.handleRequest(fakeReq('GET', '/api/async-fail'), res);
@@ -170,7 +170,7 @@ describe('createRouter — error handling', () => {
     // must only apply to the UNEXPECTED-error branch, not this one, or a
     // legitimate message could be mangled by the URL-credential regex.
     const router = createRouter();
-    const { notFound } = await import('../../../src/admin/http.js');
+    const { notFound } = await import('../../../src/core/http/http.js');
     router.get('/api/collections/:name', () => { throw notFound('Collection "https://example.com/x" not found'); });
     const res = fakeRes();
     await router.handleRequest(fakeReq('GET', '/api/collections/x'), res);

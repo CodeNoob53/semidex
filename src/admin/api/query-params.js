@@ -1,7 +1,7 @@
 // Query-string parsing/validation helpers shared by the read/navigation API
 // handlers. Local to src/admin/api/ — not promoted to core, since these are
 // HTTP-input-shaping concerns, not domain logic.
-import { badRequest } from '../http.js';
+import { badRequest } from '../../core/http/http.js';
 
 /**
  * Parse an optional integer query param, bounded to [min, max].

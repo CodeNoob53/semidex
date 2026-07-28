@@ -2,7 +2,7 @@
 // — segment-by-segment matching is enough for the handful of routes this API
 // needs. Route params (":name") are URL-decoded before being handed to
 // handlers, so a handler never has to think about percent-encoding.
-import { sendError, HttpError } from './http.js';
+import { sendError, HttpError } from '../core/http/http.js';
 import { sanitiseErrorMessage } from '../core/doctor-checks.js';
 
 /**

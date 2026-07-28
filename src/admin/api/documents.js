@@ -1,5 +1,5 @@
 // GET /api/collections/:name/documents — StorageAdapter-only.
-import { sendJson, notFound } from '../http.js';
+import { sendJson, notFound } from '../../core/http/http.js';
 import { parseIntParam } from './query-params.js';
 
 export function registerDocumentsRoutes(router, adapter) {

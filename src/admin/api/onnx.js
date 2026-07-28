@@ -9,7 +9,7 @@
 // that gap: effectiveProvider/fellBackToCpu/runtimeSource/runtimeVersion
 // in the response always come from the child process's real probe result,
 // never from the setting alone.
-import { sendJson, readJsonBody, badRequest } from '../http.js';
+import { sendJson, readJsonBody, badRequest } from '../../core/http/http.js';
 import { probeOnnxProvider } from '../../core/onnx-provider-probe.js';
 
 const VALID_PROVIDERS = new Set(['cpu', 'dml', 'cuda']);

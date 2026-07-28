@@ -1,5 +1,5 @@
 // GET /api/collections/:name/chunks — StorageAdapter-only.
-import { sendJson, notFound } from '../http.js';
+import { sendJson, notFound } from '../../core/http/http.js';
 import { parseIntParam, requireStringParam } from './query-params.js';
 
 export function registerChunksRoutes(router, adapter) {

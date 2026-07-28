@@ -2,7 +2,7 @@
 // process integrations for the admin UI. No StorageAdapter involvement
 // (neither is a storage concern) — same reasoning as jobs.js not touching
 // the adapter.
-import { sendJson, badRequest } from '../http.js';
+import { sendJson, badRequest } from '../../core/http/http.js';
 import { pickFolder } from '../system/folder-picker.js';
 import { checkOllama } from '../system/ollama.js';
 

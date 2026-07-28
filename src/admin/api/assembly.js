@@ -5,7 +5,7 @@
 // then getSectionChunks), delegates ALL assembly logic to the core assembly
 // service, and serializes its result verbatim. No Qdrant imports, no
 // segment/ordering/fallback logic here.
-import { sendJson, notFound, badRequest } from '../http.js';
+import { sendJson, notFound, badRequest } from '../../core/http/http.js';
 import { requireStringParam } from './query-params.js';
 import { assembleDocument } from '../../core/assembly/assemble.js';
 

@@ -4,7 +4,7 @@
 // embedded in the body — matches api/generation.js's established
 // "probe/status endpoint" convention, since an unreachable Ollama is a
 // normal state to report, not a server error.
-import { sendJson } from '../http.js';
+import { sendJson } from '../../core/http/http.js';
 import { sanitiseErrorMessage } from '../../core/doctor-checks.js';
 import { discoverOllamaModels } from '../../core/ollama-models.js';
 

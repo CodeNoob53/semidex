@@ -6,7 +6,7 @@ import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { extname, join, normalize, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { sendError } from './http.js';
+import { sendError } from '../core/http/http.js';
 
 // Exported so tests can assert the server points at dist/admin-ui (not the
 // old src/admin/ui build target) and so callers can override it (dependency

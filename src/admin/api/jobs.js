@@ -3,8 +3,8 @@
 // needed here (jobs are a process-management concern, not storage), but the
 // endpoints still speak semidex domain shapes only — no indexer internals,
 // no raw child_process objects, ever serialized to the client.
-import { sendJson, badRequest, notFound, conflict, dependencyUnavailable } from '../http.js';
-import { readJsonBody } from '../http.js';
+import { sendJson, badRequest, notFound, conflict, dependencyUnavailable } from '../../core/http/http.js';
+import { readJsonBody } from '../../core/http/http.js';
 import { checkOllama } from '../system/ollama.js';
 
 const DEFAULT_CONTEXT_MODEL = process.env.CONTEXT_MODEL || 'gemma3:4b';
