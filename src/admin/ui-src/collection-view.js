@@ -138,6 +138,37 @@ async function renderCollection(main, name) {
 // map", "flat file list") rather than Qdrant terms ("points") — Details
 // still uses "points" since that panel is explicitly the technical/advanced
 // view.
+// Concise search-availability status (Part F/G) — one chip, never the raw
+// metadata JSON, never a settings-form. Wording matches the task's own
+// example formats exactly for the two most common cases ("Search
+// available" / "Search unavailable: ..."), plus two additional wordings for
+// states that are neither fully verified nor fully broken (RUNTIME_UNVERIFIED,
+// DOWNLOAD_REQUIRED) — deliberately NOT worded as "Search available" for
+// either, even though a real search will still be attempted successfully in
+// both cases (Part E never gates on availability), because neither status
+// has actually been runtime-verified.
+function availabilityChip(availability) {
+  if (!availability) return '';
+  const status = availability.status;
+  const reason = availability.dense?.reason ?? availability.sparse?.reason ?? '';
+  const label = {
+    available: 'Search available',
+    runtime_unverified: 'Model cached; runtime not verified',
+    download_required: 'Model will download on first use',
+    missing_model: `Search unavailable: ${reason || 'embedding model not available'}`,
+    missing_credentials: `Search unavailable: ${reason || 'missing credentials'}`,
+    unsupported_backend: `Search unavailable: ${reason || 'execution mode is not implemented yet'}`,
+    schema_mismatch: 'Search unavailable: profile does not match the live vector schema',
+    ambiguous_legacy: 'Search unavailable: embedding identity could not be determined — reindex or migrate',
+    legacy_unmigrated: 'Search unavailable: not yet migrated — run `npm run sync` or reindex',
+    invalid_profile: 'Search unavailable: embedding profile metadata is invalid',
+    unsupported_profile_schema: 'Search unavailable: embedding profile metadata is a newer, unrecognized version',
+    unknown_dependencies: 'Search status unknown',
+  }[status] ?? `Search unavailable: ${status}`;
+  const cls = status === 'available' ? 'chip-ok' : (status === 'runtime_unverified' || status === 'download_required') ? '' : 'chip-warn';
+  return `<span class="chip mono${cls ? ` ${cls}` : ''}">${esc(label)}</span>`;
+}
+
 function collectionFactChips(detail) {
   const chips = [];
   // chunkCount (server-side, nav-points excluded) is what "chunks" must mean
@@ -153,14 +184,26 @@ function collectionFactChips(detail) {
     // "local" vs the raw provider id is the one semidex-level distinction a
     // user actually cares about here (does this call out to a cloud API or
     // not) — the exact provider/model string is still available in Details
-    // for anyone who needs it.
+    // for anyone who needs it. Prefers the resolved native-metadata
+    // profile's own execution field (Part F) — 'client' means embedded by
+    // this process (ONNX/Ollama), i.e. "local" — over the earlier ad hoc
+    // provider-name regex, which only ever inferred this from string
+    // shape and had no real signal for a future qdrant-cluster/qdrant-cloud
+    // execution mode. Falls back to the regex only when no valid resolved
+    // profile exists yet (legacy/unmigrated collection).
+    const denseExecution = detail.embeddingProfile?.state === 'valid'
+      ? detail.embeddingProfile.profile.embedding.dense.execution
+      : null;
+    const isLocal = denseExecution ? denseExecution === 'client' : /onnx|ollama|local/i.test(denseProvider);
     const providerLabel = detail.provider?.denseModel
       ? esc(detail.provider.denseModel)
       : esc(denseProvider);
-    const localHint = /onnx|ollama|local/i.test(denseProvider) ? ' local' : '';
+    const localHint = isLocal ? ' local' : '';
     chips.push(`<span class="chip mono">${providerLabel}${localHint}</span>`);
     chips.push(`<span class="chip mono">${detail.vectorSchema?.sparse ? 'hybrid search' : 'dense search'}</span>`);
   }
+
+  chips.push(availabilityChip(detail.availability));
 
   // "skeleton nav" (Phase 3M), not "navigation map" — matches the label
   // already used elsewhere in this admin UI for the same concept
@@ -207,6 +250,13 @@ function collectionDetailsPanel(detail) {
   const warnings = detail.warnings ?? [];
   const hasSummary = Boolean(detail.overviewSummary || detail.description);
 
+  // Resolved native-metadata profile (Part F), when valid — adds the
+  // vector-name field the raw vectorSchema summary doesn't carry.
+  // Additive only: every existing row below is unchanged, and this whole
+  // block is a no-op for a legacy/unmigrated collection with no valid
+  // profile yet (resolvedProfile stays null, nothing new renders).
+  const resolvedProfile = detail.embeddingProfile?.state === 'valid' ? detail.embeddingProfile.profile : null;
+
   const indexingRows = [
     ['dense vector', detail.vectorSchema?.dense?.size
       ? `${detail.vectorSchema.dense.size}d${detail.vectorSchema.dense.distance ? ` · ${detail.vectorSchema.dense.distance}` : ''}`
@@ -214,6 +264,10 @@ function collectionDetailsPanel(detail) {
     ['sparse vector', detail.vectorSchema?.sparse ? 'yes' : 'no'],
     ['dense provider', detail.provider?.denseProvider ? `${detail.provider.denseProvider}${detail.provider.denseModel ? ` (${detail.provider.denseModel})` : ''}` : 'unknown'],
     ['sparse provider', detail.provider?.sparseProvider ?? 'unknown'],
+    ...(resolvedProfile ? [
+      ['vector name (dense)', resolvedProfile.embedding.dense.vectorName],
+      ...(resolvedProfile.embedding.sparse ? [['vector name (sparse)', resolvedProfile.embedding.sparse.vectorName]] : []),
+    ] : []),
     ['skeleton navigation', detail.hasSkeleton ? 'enabled' : 'disabled'],
     ['embedding schema', detail.versions?.embeddingSchema ?? 'unknown'],
     ['chunking schema', detail.versions?.chunkingSchema ?? 'unknown'],

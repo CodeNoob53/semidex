@@ -777,6 +777,8 @@ td.actions { text-align: right; }
   font-size: 11px; padding: 2px 8px;
   border-radius: 3px; border: 1px solid var(--line-soft); color: var(--ink-dim);
 }
+.chip-ok   { color: var(--ok);   border-color: rgba(111,191,115,.4); }
+.chip-warn { color: var(--warn); border-color: rgba(232,163,61,.4); }
 
 /* Details disclosure sub-sections (Phase 3Q) — groups the technical fact
    rows under a small uppercase label (Overview/Indexing/Storage) instead of

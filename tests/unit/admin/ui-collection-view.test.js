@@ -621,6 +621,105 @@ describe('collection header — Phase 3G library-overview acceptance checks', ()
   });
 });
 
+describe('collection header — search-availability chip (Part F/G)', () => {
+  it('shows "Search available" for status: available', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const helpers = loadRouteIntegrationHelpers(html, {
+        hash: '#/c/my-docs',
+        apiResponses: {
+          '/api/collections/my-docs': {
+            collection: { pointCount: 1, chunkCount: 1, warnings: [], availability: { status: 'available', aggregate: { hybridSearchAvailable: true, searchAttemptable: true, browsingAvailable: true } } },
+          },
+          '/api/collections?': { collections: [] },
+        },
+      });
+      await helpers.route();
+      const text = helpers.document.querySelector('#col-header .col-header-facts').textContent;
+      assert.match(text, /Search available/);
+    });
+  });
+
+  it('shows "Search unavailable: Qdrant Cloud execution is not implemented yet" for an unsupported_backend status', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const helpers = loadRouteIntegrationHelpers(html, {
+        hash: '#/c/my-docs',
+        apiResponses: {
+          '/api/collections/my-docs': {
+            collection: {
+              pointCount: 1, chunkCount: 1, warnings: [],
+              availability: {
+                status: 'unsupported_backend',
+                dense: { status: 'unsupported_backend', reason: 'execution "qdrant-cloud" is not implemented yet' },
+                aggregate: { hybridSearchAvailable: false, searchAttemptable: false, browsingAvailable: true },
+              },
+            },
+          },
+          '/api/collections?': { collections: [] },
+        },
+      });
+      await helpers.route();
+      const text = helpers.document.querySelector('#col-header .col-header-facts').textContent;
+      assert.match(text, /Search unavailable: execution "qdrant-cloud" is not implemented yet/);
+    });
+  });
+
+  it('shows "Model cached; runtime not verified" for status: runtime_unverified — never "Search available"', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const helpers = loadRouteIntegrationHelpers(html, {
+        hash: '#/c/my-docs',
+        apiResponses: {
+          '/api/collections/my-docs': {
+            collection: { pointCount: 1, chunkCount: 1, warnings: [], availability: { status: 'runtime_unverified', aggregate: { hybridSearchAvailable: false, searchAttemptable: true, browsingAvailable: true } } },
+          },
+          '/api/collections?': { collections: [] },
+        },
+      });
+      await helpers.route();
+      const text = helpers.document.querySelector('#col-header .col-header-facts').textContent;
+      assert.match(text, /Model cached; runtime not verified/);
+      assert.doesNotMatch(text, /Search available/);
+    });
+  });
+
+  it('shows "Model will download on first use" for status: download_required — never "Search unavailable"', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const helpers = loadRouteIntegrationHelpers(html, {
+        hash: '#/c/my-docs',
+        apiResponses: {
+          '/api/collections/my-docs': {
+            collection: { pointCount: 1, chunkCount: 1, warnings: [], availability: { status: 'download_required', aggregate: { hybridSearchAvailable: false, searchAttemptable: true, browsingAvailable: true } } },
+          },
+          '/api/collections?': { collections: [] },
+        },
+      });
+      await helpers.route();
+      const text = helpers.document.querySelector('#col-header .col-header-facts').textContent;
+      assert.match(text, /Model will download on first use/);
+      assert.doesNotMatch(text, /Search unavailable/);
+    });
+  });
+
+  it('does not render an availability chip at all when detail.availability is absent (legacy adapter response)', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const helpers = loadRouteIntegrationHelpers(html, {
+        hash: '#/c/my-docs',
+        apiResponses: {
+          '/api/collections/my-docs': { collection: { pointCount: 1, chunkCount: 1, warnings: [] } },
+          '/api/collections?': { collections: [] },
+        },
+      });
+      await assert.doesNotReject(helpers.route());
+      const text = helpers.document.querySelector('#col-header .col-header-facts').textContent;
+      assert.doesNotMatch(text, /Search|Model cached|Model will download/);
+    });
+  });
+});
+
 describe('old flat technical panels are removed (ui-src source)', () => {
   it('no longer renders a separate Documents card', () => {
     const js = readUiSource('sidebar.js') + readUiSource('collection-view.js');
