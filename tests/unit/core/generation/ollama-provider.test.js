@@ -131,6 +131,31 @@ describe('createOllamaProvider', () => {
     assert.deepEqual(result, { text: 'hello', tokensIn: 10, tokensOut: 2, aborted: false });
   });
 
+  test('generate() forwards systemPrompt to generateStreamFn as the native "system" option — never concatenated into prompt', async () => {
+    let captured;
+    const provider = createOllamaProvider({
+      model: 'gemma3:4b',
+      generateStreamFn: async (model, prompt, opts) => {
+        captured = { model, prompt, opts };
+        return { text: 'ok', aborted: false };
+      },
+    });
+    await provider.generate({ systemPrompt: 'Answer using only the evidence.', prompt: 'Evidence:\n...\n\nQuestion: q' });
+    assert.equal(captured.opts.system, 'Answer using only the evidence.');
+    assert.equal(captured.prompt, 'Evidence:\n...\n\nQuestion: q');
+    assert.ok(!captured.prompt.includes('Answer using only the evidence.'), 'systemPrompt must never be prepended to the user prompt');
+  });
+
+  test('generate() passes system: undefined through to generateStreamFn when no systemPrompt is supplied (backward-compatible, non-Ask caller)', async () => {
+    let captured;
+    const provider = createOllamaProvider({
+      model: 'gemma3:4b',
+      generateStreamFn: async (model, prompt, opts) => { captured = opts; return { text: 'ok', aborted: false }; },
+    });
+    await provider.generate({ prompt: 'hi' });
+    assert.equal(captured.system, undefined);
+  });
+
   test('generate() always passes the provider\'s own baseUrl, not the module-level default, to generateStreamFn', async () => {
     // Regression: generate() used to omit baseUrl entirely, so
     // generateStream() silently fell back to the OLLAMA_URL module

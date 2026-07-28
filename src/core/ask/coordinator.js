@@ -1,9 +1,11 @@
 // Ask coordinator (Phase 4A) — orchestrates one grounded-ask turn: evidence
 // retrieval -> grounded prompt -> provider generation (streaming) ->
 // citation/marker validation -> refusal decision. No HTTP/SSE concerns here
-// (src/admin/api/ask.js owns framing) — this module exposes plain async
-// callbacks (onSources/onToken) so it is testable without a real HTTP
-// request/response pair.
+// (src/core/ask-api/v1/route.js owns framing) — this module exposes plain
+// async callbacks (onSources/onToken) so it is testable without a real
+// HTTP request/response pair. Transport- and provider-neutral: this module
+// has no knowledge of the public wire contract's event names or field
+// shapes — that projection lives entirely in core/ask-api/v1/contract.js.
 //
 // Owns the single-generation-at-a-time lock: only one ask() call may be
 // "in flight" per coordinator instance at a time. A second call while one is
@@ -12,7 +14,7 @@
 // always released in `finally`, on every exit path (success, provider
 // error, zero-evidence refusal, client abort).
 import { buildEvidence, fitEvidenceToContextBudget, DEFAULT_TOP } from './evidence.js';
-import { buildPrompt, RESERVED_HEADROOM_TOKENS, REFUSAL_SENTINEL } from './prompt.js';
+import { buildPromptParts, RESERVED_HEADROOM_TOKENS, REFUSAL_SENTINEL } from './prompt.js';
 import { validateCitations } from './citations.js';
 
 // Holds back streamed tokens until the accumulated text can no longer be a
@@ -159,13 +161,14 @@ export function createAskCoordinator({ adapter, embedQuery, countTokens, generat
         return { status: 'refused', reason: 'no_evidence', evidenceCount: 0, sources: [] };
       }
 
-      const prompt = buildPrompt(sources, question);
+      const { systemPrompt, userPrompt } = buildPromptParts(sources, question);
       const sentinelGuard = createSentinelGuard(onToken);
 
       let genResult;
       try {
         genResult = await generationProvider.generate({
-          prompt,
+          systemPrompt,
+          prompt: userPrompt,
           model: readiness.model,
           // Pass the SAME numCtx readiness reported and that
           // fitEvidenceToContextBudget() bounded the prompt against — the

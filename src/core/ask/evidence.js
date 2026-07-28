@@ -20,7 +20,7 @@
 // headroom this proxy relationship requires.
 import { runHybridSearch } from '../retrieval/search.js';
 import { getAnchoredContent } from '../assembly/anchored-content.js';
-import { buildPrompt, RESERVED_HEADROOM_TOKENS } from './prompt.js';
+import { buildPromptParts, estimatePromptText, RESERVED_HEADROOM_TOKENS } from './prompt.js';
 
 export const DEFAULT_TOP = 5;
 export const DEFAULT_PER_SOURCE_TOKEN_BUDGET = 700;
@@ -176,18 +176,24 @@ export async function buildEvidence({
 }
 
 /**
- * Bounds the WHOLE prompt (system rules + all evidence + question) against
- * the generation model's real context window, not just each source's own
- * per-source cap — per-source budgets alone let top=5 x ~700 tokens = ~3.5k
- * ride into the prompt with no check against a smaller/already-loaded
- * model's actual num_ctx, the question's own length, or output headroom
- * (code review finding: RESERVED_HEADROOM_TOKENS was declared but never
- * consulted). Drops lowest-ranked sources (highest `n`, i.e. weakest
- * retrieval rank) one at a time — never re-truncates a kept source's text
- * (that would silently weaken evidence that already passed its own
- * per-source budget) — until the reconstructed prompt's real token count
- * fits `numCtx - RESERVED_HEADROOM_TOKENS`, then renumbers sequentially so
- * citation numbers stay contiguous from 1.
+ * Bounds the WHOLE prompt (complete system instructions + all evidence +
+ * question) against the generation model's real context window, not just
+ * each source's own per-source cap — per-source budgets alone let top=5 x
+ * ~700 tokens = ~3.5k ride into the prompt with no check against a
+ * smaller/already-loaded model's actual num_ctx, the question's own length,
+ * or output headroom (code review finding: RESERVED_HEADROOM_TOKENS was
+ * declared but never consulted). Drops lowest-ranked sources (highest `n`,
+ * i.e. weakest retrieval rank) one at a time — never re-truncates a kept
+ * source's text (that would silently weaken evidence that already passed
+ * its own per-source budget) — until the reconstructed prompt's real token
+ * count fits `numCtx - RESERVED_HEADROOM_TOKENS`, then renumbers
+ * sequentially so citation numbers stay contiguous from 1.
+ *
+ * Uses buildPromptParts()/estimatePromptText() (prompt.js) — the same
+ * canonical assembly the coordinator sends to the provider — as the ONE
+ * place that reconstructs prompt text for counting, so this budget check
+ * can never silently drift from what's actually sent (system instructions
+ * included, not just the evidence/question half).
  *
  * @param {Array<Object>} sources — as returned by buildEvidence(), rank order
  * @param {string} question
@@ -205,7 +211,7 @@ export async function fitEvidenceToContextBudget(sources, question, numCtx, coun
 
   let kept = sources;
   while (kept.length > 0) {
-    const promptTokens = await countTokens(buildPrompt(kept, question));
+    const promptTokens = await countTokens(estimatePromptText(buildPromptParts(kept, question)));
     if (promptTokens <= budget) break;
     kept = kept.slice(0, -1);
   }

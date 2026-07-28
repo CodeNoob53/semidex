@@ -36,6 +36,19 @@ describe('createGenerationRuntime — happy path, conforms to GenerationProvider
     assert.equal(capturedOptions.backend, 'ollama');
   });
 
+  test('generate() forwards systemPrompt through to the underlying provider unchanged (runtime is a pure pass-through)', async () => {
+    let capturedGenerateOpts;
+    const runtime = createGenerationRuntime({
+      osEnv: {}, dotenvValues: {},
+      createGenerationProviderFn: () => fakeProvider({
+        generate: async (opts) => { capturedGenerateOpts = opts; return { text: 'ok', aborted: false }; },
+      }),
+    });
+    await runtime.generate({ systemPrompt: 'Answer using only the evidence.', prompt: 'Evidence:\n...\n\nQuestion: q' });
+    assert.equal(capturedGenerateOpts.systemPrompt, 'Answer using only the evidence.');
+    assert.equal(capturedGenerateOpts.prompt, 'Evidence:\n...\n\nQuestion: q');
+  });
+
   test('passes resolved model/baseUrl/askNumCtx into the provider factory options', () => {
     let capturedOptions;
     createGenerationRuntime({

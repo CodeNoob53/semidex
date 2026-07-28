@@ -211,11 +211,12 @@ describe('GET /api/generation/status — no eager initialization', () => {
     // Regression guard: an early version of this test suite forgot to stub
     // embedQuery/countTokens and silently loaded the real ~2.3GB ONNX
     // tokenizer via the production defaultCountTokens/embedForSearch
-    // fallbacks the moment a real /api/ask request reached the coordinator
-    // — 5+ seconds and a real model load in what should be an offline unit
-    // test. This test asserts the wiring itself never calls out: no
-    // network fetch or ONNX import happens merely from creating the app
-    // and querying the status endpoint (no /api/ask call at all here).
+    // fallbacks the moment a real /api/v1/ask request reached the
+    // coordinator — 5+ seconds and a real model load in what should be an
+    // offline unit test. This test asserts the wiring itself never calls
+    // out: no network fetch or ONNX import happens merely from creating
+    // the app and querying the status endpoint (no /api/v1/ask call at all
+    // here).
     const generationRuntime = createGenerationRuntime({
       osEnv: {}, dotenvValues: {},
       createGenerationProviderFn: () => fakeProvider(),
@@ -227,7 +228,7 @@ describe('GET /api/generation/status — no eager initialization', () => {
   });
 });
 
-describe('GET /api/generation/status — shares the same runtime as POST /api/ask', () => {
+describe('GET /api/generation/status — shares the same runtime as POST /api/v1/ask', () => {
   it('a runtime injected into createApp() is used by both the status endpoint and the Ask coordinator', async () => {
     let readyCallCount = 0;
     const generationRuntime = createGenerationRuntime({
@@ -242,7 +243,7 @@ describe('GET /api/generation/status — shares the same runtime as POST /api/as
       assert.equal((await statusRes.json()).ready, true);
       assert.equal(readyCallCount, 1);
 
-      const askRes = await fetch(base + '/api/ask', {
+      const askRes = await fetch(base + '/api/v1/ask', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ collection: 'demo', question: 'q' }),
       });

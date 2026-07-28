@@ -20,11 +20,24 @@
  * upstreamCancellation is the one that varies by backend and is the field
  * a caller must check before promising a user "cancel" actually stops
  * the underlying model run.
+ * generate()'s `systemPrompt` is OPTIONAL — non-Ask callers (or any future
+ * caller with nothing provider-agnostic to say about role/behavior) may omit
+ * it entirely and pass only `prompt`, exactly as before this field existed.
+ * When present, it must reach the provider's own NATIVE system-instruction
+ * transport (Gemini: config.systemInstruction; Ollama: the top-level
+ * `system` body field on /api/generate) — a provider implementation must
+ * never concatenate systemPrompt back into prompt/contents itself; doing so
+ * would silently degrade a real system instruction back into ordinary user
+ * content, exactly the problem this field exists to fix. Runtime forwarding
+ * (generation/runtime.js) must pass systemPrompt through unchanged. The Ask
+ * coordinator never branches on provider identity to decide how to send
+ * it — that mapping is entirely each provider's own concern.
  * @typedef {Object} GenerationProvider
  * @property {() => string} name
  * @property {() => { streaming: boolean, clientAbort: boolean, upstreamCancellation: boolean }} capabilities
  * @property {() => Promise<{ ok: boolean, reason?: string, model?: string, numCtx?: number }>} ready
  * @property {(opts: {
+ *   systemPrompt?: string,
  *   prompt: string,
  *   model?: string,
  *   options?: Object,

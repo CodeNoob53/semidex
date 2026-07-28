@@ -195,6 +195,30 @@ describe('generateStream', () => {
     assert.equal(result.aborted, false);
   });
 
+  it('sends the native top-level "system" body field when a system instruction is supplied', async () => {
+    let capturedBody;
+    globalThis.fetch = async (_url, init) => {
+      capturedBody = JSON.parse(init.body);
+      return fakeStreamResponse(['{"response":"ok","done":false}\n', '{"response":"","done":true}\n']);
+    };
+    await generateStream('gemma3:4b', 'Evidence:\n...\n\nQuestion: q', { system: 'Answer using only the evidence.' });
+    assert.equal(capturedBody.system, 'Answer using only the evidence.');
+    assert.equal(capturedBody.model, 'gemma3:4b');
+    assert.equal(capturedBody.prompt, 'Evidence:\n...\n\nQuestion: q');
+    assert.equal(capturedBody.stream, true);
+    assert.ok(!capturedBody.prompt.includes('Answer using only the evidence.'), 'the system instruction must never be prepended to prompt');
+  });
+
+  it('omits "system" from the request body entirely when no system instruction is supplied (never sent as an empty string)', async () => {
+    let capturedBody;
+    globalThis.fetch = async (_url, init) => {
+      capturedBody = JSON.parse(init.body);
+      return fakeStreamResponse(['{"response":"","done":true}\n']);
+    };
+    await generateStream('gemma3:4b', 'hi');
+    assert.equal('system' in capturedBody, false, 'the request body must not carry a "system" key at all when none was supplied');
+  });
+
   it('handles a UTF-8 multi-byte character split across two chunk boundaries', async () => {
     // "привіт" (Cyrillic) — encode as one JSON line, then split the raw
     // bytes mid-character to exercise TextDecoder's stream:true carry-over.

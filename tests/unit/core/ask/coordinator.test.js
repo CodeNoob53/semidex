@@ -83,6 +83,21 @@ describe('createAskCoordinator', () => {
     assert.equal(result.refused, false);
   });
 
+  test('calls generate() with systemPrompt and prompt as separate fields — prompt never contains a "System:" section', async () => {
+    let captured;
+    const provider = fakeProvider({
+      generate: async (opts) => { captured = opts; opts.onToken?.('answer [1]'); return { text: 'answer [1]', aborted: false }; },
+    });
+    const coordinator = createAskCoordinator({ adapter: fakeAdapter({ hits: oneHit() }), embedQuery, countTokens, generationProvider: provider });
+    await coordinator.ask({ collection: 'c', question: 'q', onSources: () => {}, onToken: () => {} });
+    assert.equal(typeof captured.systemPrompt, 'string');
+    assert.ok(captured.systemPrompt.length > 0, 'systemPrompt must be a real, non-empty instruction string');
+    assert.equal(typeof captured.prompt, 'string');
+    assert.ok(!/^System:/m.test(captured.prompt), 'the coordinator must never send a fake "System:" section inside prompt — it belongs only in systemPrompt');
+    assert.match(captured.prompt, /^Evidence:/);
+    assert.match(captured.prompt, /Question: q$/);
+  });
+
   test('model refusal sentinel -> done with refused: true', async () => {
     const provider = fakeProvider({ generate: async () => ({ text: REFUSAL_SENTINEL, aborted: false }) });
     const coordinator = createAskCoordinator({ adapter: fakeAdapter({ hits: oneHit() }), embedQuery, countTokens, generationProvider: provider });
@@ -313,7 +328,7 @@ describe('createAskCoordinator', () => {
     });
 
     test('client disconnect while onToken is backpressure-blocked does not hang generate() forever', async () => {
-      // Regression: waitForDrain() (src/admin/sse.js) previously only
+      // Regression: waitForDrain() (src/core/http/sse.js) previously only
       // listened for 'drain' — a client that disconnects while the write
       // buffer is full never fires 'drain', so the promise the coordinator
       // was awaiting inside onToken() hung forever, generate() never
@@ -357,9 +372,14 @@ describe('createAskCoordinator', () => {
       // RESERVED_HEADROOM_TOKENS is 1024, so numCtx must exceed that before
       // any evidence budget remains; each hit's text is ~40 words (~40
       // countTokens units), so a budget of a few hundred tokens above
-      // headroom fits some but not all 5 sources plus their prompt overhead.
+      // headroom fits some but not all 5 sources plus system+user prompt
+      // overhead (the system instruction's own token count grew when the
+      // prompt-injection-resistance rules were added — this budget was
+      // re-measured against the current buildPromptParts() output, not
+      // guessed, so it stays a real "some but not all" case rather than an
+      // arbitrary number that happens to pass).
       const provider = fakeProvider({
-        ready: async () => ({ ok: true, model: 'gemma3:4b', numCtx: 1024 + 130 }),
+        ready: async () => ({ ok: true, model: 'gemma3:4b', numCtx: 1024 + 300 }),
         generate: async () => ({ text: 'ok [1].', aborted: false }),
       });
       const coordinator = createAskCoordinator({

@@ -154,7 +154,7 @@ export function createGeminiProvider({
       return { ok: true, model, numCtx };
     },
 
-    async generate({ prompt, model: requestedModel, options, signal, onToken }) {
+    async generate({ systemPrompt, prompt, model: requestedModel, options, signal, onToken }) {
       const effectiveModel = requestedModel ?? model;
       if (!apiKey) {
         throw new Error('Gemini generate() called without a configured GEMINI_API_KEY.');
@@ -172,6 +172,17 @@ export function createGeminiProvider({
       const generationConfig = {};
       if (options?.temperature !== undefined) generationConfig.temperature = options.temperature;
       if (options?.maxOutputTokens !== undefined) generationConfig.maxOutputTokens = options.maxOutputTokens;
+      // config.systemInstruction is the SDK's real, documented native system-
+      // instruction field (confirmed directly against the installed
+      // @google/genai package's own type declarations:
+      // GenerateContentConfig.systemInstruction: ContentUnion, where
+      // ContentUnion accepts a plain string via its PartUnion member —
+      // verified live against the real Gemini API, not guessed). Set ONLY
+      // when the caller actually supplied one — never concatenated into
+      // `contents` below, which would silently degrade a real system
+      // instruction back into ordinary user content the model could be
+      // talked out of by adversarial evidence text.
+      if (systemPrompt) generationConfig.systemInstruction = systemPrompt;
       // config.abortSignal is the real, SDK-documented cancellation hook
       // (confirmed directly against the installed @google/genai package's
       // own type declarations: GenerateContentConfig.abortSignal exists).
@@ -191,6 +202,9 @@ export function createGeminiProvider({
       try {
         stream = await c.models.generateContentStream({
           model: effectiveModel,
+          // contents carries ONLY the user-turn content (evidence + question)
+          // — system instructions never appear here (see
+          // config.systemInstruction above).
           contents: prompt,
           ...(Object.keys(generationConfig).length > 0 ? { config: generationConfig } : {}),
         });

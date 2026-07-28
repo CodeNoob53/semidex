@@ -201,6 +201,100 @@ describe('createGeminiProvider', () => {
       assert.equal(capturedConfig.num_ctx, undefined, 'num_ctx is an Ollama-only concept and must never reach Gemini');
     });
 
+    describe('systemInstruction (native system-instruction mapping)', () => {
+      test('systemPrompt maps to config.systemInstruction — never appears in contents', async () => {
+        let capturedCall;
+        const provider = createGeminiProvider({
+          apiKey: 'k', model: 'gemini-2.5-flash',
+          createClientFn: stubClient({
+            streamFn: async (call) => {
+              capturedCall = call;
+              async function* gen() { yield { text: 'x' }; }
+              return gen();
+            },
+          }),
+        });
+        await provider.generate({ systemPrompt: 'Answer using only the evidence.', prompt: 'Evidence:\n...\n\nQuestion: q' });
+        assert.equal(capturedCall.config.systemInstruction, 'Answer using only the evidence.');
+        assert.equal(capturedCall.contents, 'Evidence:\n...\n\nQuestion: q');
+        assert.ok(!String(capturedCall.contents).includes('Answer using only the evidence.'), 'the system instruction text must never appear inside contents');
+      });
+
+      test('contents never contains the fake "System:" prefix — it carries only the user prompt', async () => {
+        let capturedCall;
+        const provider = createGeminiProvider({
+          apiKey: 'k', model: 'gemini-2.5-flash',
+          createClientFn: stubClient({
+            streamFn: async (call) => {
+              capturedCall = call;
+              async function* gen() { yield { text: 'x' }; }
+              return gen();
+            },
+          }),
+        });
+        await provider.generate({ systemPrompt: 'You are a grounded QA assistant.', prompt: 'Evidence:\n[1] (a.md)\ntext\n\nQuestion: q' });
+        assert.ok(!/^System:/m.test(capturedCall.contents), 'contents must never contain a "System:" section — that instruction lives only in config.systemInstruction');
+      });
+
+      test('omits config.systemInstruction entirely when no systemPrompt is supplied (backward-compatible, non-Ask caller)', async () => {
+        let capturedCall;
+        const provider = createGeminiProvider({
+          apiKey: 'k', model: 'gemini-2.5-flash',
+          createClientFn: stubClient({
+            streamFn: async (call) => {
+              capturedCall = call;
+              async function* gen() { yield { text: 'x' }; }
+              return gen();
+            },
+          }),
+        });
+        await provider.generate({ prompt: 'hi' });
+        // No config object at all is sent when no generationConfig fields
+        // were set (matches the existing "no options at all" behavior) —
+        // either way, systemInstruction must not appear.
+        assert.equal(capturedCall.config?.systemInstruction, undefined);
+      });
+
+      test('systemInstruction coexists with temperature/maxOutputTokens/abortSignal in the same config object', async () => {
+        let capturedCall;
+        const provider = createGeminiProvider({
+          apiKey: 'k', model: 'gemini-2.5-flash',
+          createClientFn: stubClient({
+            streamFn: async (call) => {
+              capturedCall = call;
+              async function* gen() { yield { text: 'x' }; }
+              return gen();
+            },
+          }),
+        });
+        const controller = new AbortController();
+        await provider.generate({
+          systemPrompt: 'sys', prompt: 'hi', signal: controller.signal,
+          options: { temperature: 0.3, maxOutputTokens: 50 },
+        });
+        assert.equal(capturedCall.config.systemInstruction, 'sys');
+        assert.equal(capturedCall.config.temperature, 0.3);
+        assert.equal(capturedCall.config.maxOutputTokens, 50);
+        assert.equal(capturedCall.config.abortSignal, controller.signal);
+      });
+
+      test('never leaks the API key when systemPrompt is supplied and generateContentStream fails', async () => {
+        const provider = createGeminiProvider({
+          apiKey: 'do-not-leak-777', model: 'gemini-2.5-flash',
+          createClientFn: stubClient({ streamFn: async () => { throw new Error('upstream error mentioning do-not-leak-777'); } }),
+        });
+        await assert.rejects(async () => {
+          try {
+            await provider.generate({ systemPrompt: 'sys', prompt: 'hi' });
+          } catch (err) {
+            assert.ok(!err.message.includes('do-not-leak-777'));
+            assert.match(err.message, /\[REDACTED\]/);
+            throw err;
+          }
+        });
+      });
+    });
+
     test('throws when called without a configured API key', async () => {
       const provider = createGeminiProvider({ apiKey: '', model: 'gemini-2.5-flash', createClientFn: stubClient() });
       await assert.rejects(() => provider.generate({ prompt: 'hi' }), /GEMINI_API_KEY/);

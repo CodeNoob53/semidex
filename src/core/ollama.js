@@ -223,14 +223,19 @@ export async function generate(model, prompt, { format, options } = {}) {
  *
  * @param {string} model
  * @param {string} prompt
- * @param {{ baseUrl?: string, format?: string, options?: Object, signal?: AbortSignal, onToken?: (token: string) => void }} [opts]
+ * @param {{ system?: string, baseUrl?: string, format?: string, options?: Object, signal?: AbortSignal, onToken?: (token: string) => void }} [opts]
  *   baseUrl defaults to the module-level OLLAMA_URL — pass it explicitly to
  *   target a different Ollama instance than the process-wide default (e.g.
- *   a GenerationProvider constructed with a non-default baseUrl).
+ *   a GenerationProvider constructed with a non-default baseUrl). `system`
+ *   maps directly onto Ollama's own top-level `system` request field — its
+ *   NATIVE system-instruction transport, entirely separate from `prompt` —
+ *   and is omitted from the request body altogether when not supplied
+ *   (never sent as an empty string, never prepended to `prompt`).
  * @returns {Promise<{ text: string, tokensIn?: number, tokensOut?: number, aborted?: boolean }>}
  */
-export async function generateStream(model, prompt, { baseUrl = OLLAMA_URL, format, options, signal, onToken } = {}) {
+export async function generateStream(model, prompt, { system, baseUrl = OLLAMA_URL, format, options, signal, onToken } = {}) {
   const body = { model, prompt, stream: true };
+  if (system) body.system = system;
   if (format) body.format = format;
   if (options) body.options = options;
 

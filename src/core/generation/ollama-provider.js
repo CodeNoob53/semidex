@@ -96,7 +96,7 @@ export function createOllamaProvider({
       return { ok: true, model, numCtx };
     },
 
-    async generate({ prompt, model: requestedModel, options, signal, onToken }) {
+    async generate({ systemPrompt, prompt, model: requestedModel, options, signal, onToken }) {
       // num_ctx defaults to this provider's own askNumCtx when the caller
       // doesn't specify one — but the intended caller (the Ask coordinator)
       // always passes readiness.numCtx explicitly, since that is the exact
@@ -106,7 +106,12 @@ export function createOllamaProvider({
       // whatever undocumented runtime default Ollama itself applies,
       // decoupling the request from any budget guarantee.
       const resolvedOptions = { num_ctx: askNumCtx, ...options };
-      return generateStreamFn(requestedModel ?? model, prompt, { baseUrl, signal, onToken, options: resolvedOptions });
+      // systemPrompt forwards straight to generateStream()'s own `system`
+      // option, which maps onto Ollama's native top-level `system` request
+      // field — never concatenated into `prompt` here or in generateStream()
+      // itself, and simply omitted when the caller supplied none (optional,
+      // for backward-compatible non-Ask callers).
+      return generateStreamFn(requestedModel ?? model, prompt, { system: systemPrompt, baseUrl, signal, onToken, options: resolvedOptions });
     },
   };
 }
