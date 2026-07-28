@@ -216,9 +216,9 @@ npm run sync
 
 The `sync` command ensures that the Qdrant collection is correctly configured for semidex. It:
 
-- generates/updates `config.json`
+- reads each collection's native embedding-profile metadata and refreshes the local `config.json` cache from it
+- migrates collections that predate native metadata by inferring an unambiguous embedding identity from their own indexed payload, and writes it as native metadata
 - discovers Qdrant collections
-- backfills provider metadata for older config entries
 - ensures required payload indexes
 - checks sparse vector support
 - warns about schema-incompatible collections (flat schema or no named `dense` vector)
@@ -227,7 +227,10 @@ The `sync` command ensures that the Qdrant collection is correctly configured fo
 
 - **When to run**: Always run `npm run sync` after upgrading semidex.
 - **Required indexes**: It ensures existing or older collections have payload indexes on `source_file`, `tags`, `chunk_index`, `point_kind`, `node_type`, `node_id`, and `node_path`. These are strictly necessary for search filters, context window chunks, skeleton navigation, and agent MCP tools.
-- **Safety**: Do not manually mutate the Qdrant schema unless you know exactly what you are doing. `npm run sync` is safe to re-run.
+- **Migration is conservative**: `sync` only infers an embedding profile from a legacy collection's own payload when every indexed point agrees on provider/model/schema version, and the inferred combination is one of the known-supported combos. A collection where points disagree, or where the combination doesn't match a known combo, is reported as unresolved and left untouched — it remains browsable, but semantic/hybrid search stays unavailable until you reindex or migrate it manually. `sync` never stamps the *currently configured* provider/model onto a collection whose real identity it could not verify from evidence.
+- **Safety**: Do not manually mutate the Qdrant schema unless you know exactly what you are doing. `npm run sync` is safe to re-run — a collection that already has a valid native profile is left alone (no rescan, no rewrite).
+
+See [configuration.md](configuration.md#embedding-profile-native-qdrant-metadata) for the full portability contract.
 
 ## Documentation Self-Index
 
