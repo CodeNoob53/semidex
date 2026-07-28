@@ -26,11 +26,11 @@
 // downloads the model: if model.onnx/model.onnx.data are not both present
 // on disk, reports modelCached: false and stops before ever calling
 // InferenceSession.create() — this is a probe, not an indexing run.
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { loadOnnxRuntime, resolveOnnxRuntimeModule } from './onnx-runtime.js';
-import { getOnnxModelPath } from './onnx-paths.js';
+import { getOnnxModelPath, isOnnxModelCached } from './onnx-paths.js';
 
 function readRuntimeVersion(env) {
   const modulePath = resolveOnnxRuntimeModule(env);
@@ -52,8 +52,7 @@ async function main() {
   const runtimeVersion = readRuntimeVersion(process.env);
 
   const modelPath = getOnnxModelPath();
-  const modelDataPath = `${modelPath}.data`;
-  const modelCached = existsSync(modelPath) && existsSync(modelDataPath);
+  const modelCached = isOnnxModelCached();
 
   if (!modelCached) {
     process.stdout.write(JSON.stringify({

@@ -25,7 +25,6 @@ describe('ONNX_DENSE_MODEL_ID', () => {
       'src/core/onnx-paths.js',
       'src/core/onnx-embed.js',
       'src/core/config.js',
-      'src/sync.js',
       'src/core/bge-tokenizer.js',
     ];
     for (const relPath of files) {
@@ -44,12 +43,9 @@ describe('ONNX_DENSE_MODEL_ID', () => {
     assert.match(src, /import\s*\{[^}]*ONNX_DENSE_MODEL_ID[^}]*\}\s*from\s*['"]\.\/onnx-paths\.js['"]/);
   });
 
-  it('config.js, sync.js, bge-tokenizer.js import ONNX_DENSE_MODEL_ID from onnx-paths.js', async () => {
+  it('config.js, bge-tokenizer.js import ONNX_DENSE_MODEL_ID from onnx-paths.js', async () => {
     const configSrc = await readFile(new URL('../../../src/core/config.js', import.meta.url), 'utf-8');
     assert.match(configSrc, /import\s*\{\s*ONNX_DENSE_MODEL_ID\s*\}\s*from\s*['"]\.\/onnx-paths\.js['"]/);
-
-    const syncSrc = await readFile(new URL('../../../src/sync.js', import.meta.url), 'utf-8');
-    assert.match(syncSrc, /ONNX_DENSE_MODEL_ID.*=.*await import\(['"]\.\/core\/onnx-paths\.js['"]\)/);
 
     // token-count.js delegates tokenizer loading to bge-tokenizer.js
     // entirely (see that module's own header for why: isolating
@@ -60,9 +56,31 @@ describe('ONNX_DENSE_MODEL_ID', () => {
     assert.match(tokenizerSrc, /import\s*\{[^}]*ONNX_DENSE_MODEL_ID[^}]*\}\s*from\s*['"]\.\/onnx-paths\.js['"]/);
   });
 
+  it('sync.js no longer imports ONNX_DENSE_MODEL_ID at all — it never builds a profile from scratch, only reads/migrates native metadata (Part D of the native-metadata task)', async () => {
+    const syncSrc = await readFile(new URL('../../../src/sync.js', import.meta.url), 'utf-8');
+    assert.ok(!/ONNX_DENSE_MODEL_ID/.test(syncSrc));
+  });
+
   it('token-count.js does not import ONNX_DENSE_MODEL_ID directly — it delegates tokenizer loading to bge-tokenizer.js', async () => {
     const tokenCountSrc = await readFile(new URL('../../../src/core/token-count.js', import.meta.url), 'utf-8');
     assert.ok(!/ONNX_DENSE_MODEL_ID/.test(tokenCountSrc));
     assert.match(tokenCountSrc, /import\s*\{[^}]*loadBgeTokenizer[^}]*\}\s*from\s*['"]\.\/bge-tokenizer\.js['"]/);
+  });
+});
+
+describe('isOnnxModelCached — the ONE definition of "is the model really on disk"', () => {
+  it('matches existsSync(model.onnx) && existsSync(model.onnx.data) against the real filesystem (whatever state it happens to be in)', async () => {
+    const { existsSync } = await import('node:fs');
+    const { isOnnxModelCached, getOnnxModelPath } = await import('../../../src/core/onnx-paths.js');
+    const modelPath = getOnnxModelPath();
+    const expected = existsSync(modelPath) && existsSync(`${modelPath}.data`);
+    assert.equal(isOnnxModelCached(), expected);
+  });
+
+  it('onnx-probe-runner.js imports and calls isOnnxModelCached() rather than re-implementing the same two existsSync checks inline', async () => {
+    const probeRunnerSrc = await readFile(new URL('../../../src/core/onnx-probe-runner.js', import.meta.url), 'utf-8');
+    assert.match(probeRunnerSrc, /import\s*\{[^}]*isOnnxModelCached[^}]*\}\s*from\s*['"]\.\/onnx-paths\.js['"]/);
+    assert.match(probeRunnerSrc, /const modelCached = isOnnxModelCached\(\)/);
+    assert.ok(!/existsSync\(modelPath\)\s*&&\s*existsSync\(modelDataPath\)/.test(probeRunnerSrc), 'must not re-implement the same check inline anymore');
   });
 });

@@ -15,8 +15,15 @@ import {
   toSourceDocument,
   toSkeletonNode,
   toContentNodeChunk,
-  resolveConfigProvider,
+  normalizeVectorSchema,
+  extractEmbeddingProfile,
+  extractIndexingState,
+  validateProfileAgainstSchema,
+  decideProfileWrite,
+  embeddingProfileResultToResolveResult,
+  buildQdrantVectorSchemaFromProfile,
 } from '../../../../src/core/storage/qdrant-adapter.js';
+import { METADATA_KEY_EMBEDDING_PROFILE, buildEmbeddingProfile } from '../../../../src/core/embedding-profile/schema.js';
 
 describe('layering — src/core/storage never imports from src/mcp/', () => {
   it('no file under src/core/storage/ imports from ../../mcp or src/mcp', () => {
@@ -319,46 +326,81 @@ describe('createQdrantStorageAdapter().getContentNode — StorageAdapter contrac
   });
 });
 
-describe('resolveConfigProvider — listCollections() provider join (design doc §6)', () => {
-  const envProv = { denseProvider: 'ollama', denseModel: 'bge-m3', sparseProvider: 'hashed-tf' };
-
-  it('falls back to env-derived providers when config.json has no entry for the collection', () => {
-    assert.deepEqual(resolveConfigProvider(undefined, envProv), envProv);
-  });
-
-  it('prefers explicit config.json fields over env', () => {
-    const col = { denseProvider: 'bge-m3-onnx', denseModel: 'aapot/bge-m3-onnx', sparseProvider: 'bge-m3-onnx' };
-    assert.deepEqual(resolveConfigProvider(col, envProv), col);
-  });
-
-  it('infers denseProvider from legacy sparseProvider=bge-m3-onnx when denseProvider is unset', () => {
-    const col = { sparseProvider: 'bge-m3-onnx' };
-    const result = resolveConfigProvider(col, envProv);
-    assert.equal(result.denseProvider, 'bge-m3-onnx');
-  });
-
-  it('falls back to legacy embedModel field for denseModel', () => {
-    const col = { embedModel: 'legacy-model' };
-    const result = resolveConfigProvider(col, envProv);
-    assert.equal(result.denseModel, 'legacy-model');
-  });
-});
-
-describe('createQdrantStorageAdapter().listCollections — return shape includes provider/description', () => {
-  it('is documented to include provider and description alongside name/pointCount/vectorSchema', () => {
-    // listCollections() requires a live Qdrant + config.json to invoke end to
-    // end; this test locks the *documented* return shape (design doc §6:
-    // "store.listCollections() + config.js provider metadata, same join
-    // mcp/tools/collections.js does today") via the adapter source itself,
-    // so a future edit that silently drops the join breaks this test.
+describe('createQdrantStorageAdapter().listCollections — provider comes from native metadata, never config.json/env', () => {
+  it('is documented to include provider/embeddingProfileState/description, and to derive provider from resolveEmbeddingProfileFromInfo(info), never resolveConfigProvider/env', () => {
+    // Fixed after review: listCollections() used to join provider from
+    // config.json + current env (resolveConfigProvider), which is exactly
+    // the "canonical metadata" rule this whole feature violates — a
+    // collection's provider must come from what's actually written to
+    // Qdrant, not from a local cache or whatever the caller currently has
+    // configured. listCollections() requires a live Qdrant + config.json to
+    // invoke end to end; this test locks the *documented* return shape and
+    // the source-level guarantee that no env/config fallback path remains.
     const src = readFileSync(
       fileURLToPath(new URL('../../../../src/core/storage/qdrant-adapter.js', import.meta.url)),
       'utf-8',
     );
     const method = src.slice(src.indexOf('async listCollections()'), src.indexOf('async getCollection('));
-    assert.match(method, /provider:/);
+    assert.match(method, /\bprovider\b/, 'the return object must include provider (shorthand or provider:)');
+    assert.match(method, /embeddingProfileState:/);
     assert.match(method, /description:/);
-    assert.match(method, /resolveConfigProvider/);
+    assert.match(method, /resolveEmbeddingProfileFromInfo\(info\)/, 'provider must be derived from the collection\'s own native metadata, INCLUDING the live vector-schema cross-check');
+    assert.ok(!/resolveConfigProvider/.test(method), 'must not use the removed config.json/env provider join');
+    assert.ok(!/resolveEnvProviders/.test(method), 'must never fall back to current env providers for an existing collection\'s identity');
+  });
+
+  it('resolveConfigProvider no longer exists anywhere in the adapter — dead contract removed, not left unused', () => {
+    const src = readFileSync(
+      fileURLToPath(new URL('../../../../src/core/storage/qdrant-adapter.js', import.meta.url)),
+      'utf-8',
+    );
+    assert.ok(!/resolveConfigProvider/.test(src));
+  });
+});
+
+describe('createQdrantStorageAdapter().listCollections — behavioral: provider from native metadata via storeOverrides', () => {
+  it('reports the profile\'s own provider/model for a collection with a valid native profile, ignoring config.json/env entirely', async () => {
+    const profile = buildEmbeddingProfile({ dense: validDenseLane({ provider: 'ollama', model: 'mxbai-embed-large' }), sparse: validSparseLane({ provider: 'hashed-tf' }), embeddingSchemaVersion: 2 });
+    const fake = makeFakeStore({
+      listCollections: () => ['c1'],
+      getCollectionInfo: () => ({
+        points_count: 5,
+        config: { metadata: { [METADATA_KEY_EMBEDDING_PROFILE]: profile }, params: { vectors: { dense: { size: 1024, distance: 'Cosine' } }, sparse_vectors: { sparse: {} } } },
+      }),
+    });
+    const adapter = createQdrantStorageAdapter({ storeOverrides: fake.storeOverrides });
+    const result = await adapter.listCollections();
+    assert.equal(result[0].provider.denseProvider, 'ollama');
+    assert.equal(result[0].provider.denseModel, 'mxbai-embed-large');
+    assert.equal(result[0].provider.sparseProvider, 'hashed-tf');
+    assert.equal(result[0].embeddingProfileState, 'valid');
+  });
+
+  it('reports null provider fields (never a guessed env/config value) for a collection with no valid native profile yet', async () => {
+    const fake = makeFakeStore({
+      listCollections: () => ['legacy-c'],
+      getCollectionInfo: () => ({ points_count: 0, config: { metadata: {}, params: { vectors: { dense: { size: 1024, distance: 'Cosine' } } } } }),
+    });
+    const adapter = createQdrantStorageAdapter({ storeOverrides: fake.storeOverrides });
+    const result = await adapter.listCollections();
+    assert.deepEqual(result[0].provider, { denseProvider: null, denseModel: null, sparseProvider: null });
+    assert.equal(result[0].embeddingProfileState, 'missing');
+  });
+
+  it('reports null provider fields and embeddingProfileState: "schema_mismatch" (never "valid") for a shape-valid profile that disagrees with the live vector schema', async () => {
+    const profile = buildEmbeddingProfile({ dense: validDenseLane({ dimensions: 1024 }), sparse: null, embeddingSchemaVersion: 2 });
+    const fake = makeFakeStore({
+      listCollections: () => ['mismatched-c'],
+      getCollectionInfo: () => ({
+        points_count: 3,
+        config: { metadata: { [METADATA_KEY_EMBEDDING_PROFILE]: profile }, params: { vectors: { dense: { size: 768, distance: 'Cosine' } } } },
+      }),
+    });
+    const adapter = createQdrantStorageAdapter({ storeOverrides: fake.storeOverrides });
+    const result = await adapter.listCollections();
+    assert.deepEqual(result[0].provider, { denseProvider: null, denseModel: null, sparseProvider: null });
+    assert.equal(result[0].embeddingProfileState, 'schema_mismatch');
+    assert.notEqual(result[0].embeddingProfileState, 'valid');
   });
 });
 
@@ -379,6 +421,42 @@ describe('createQdrantStorageAdapter().getCollection — description is read fro
     assert.match(method, /config\.collections\?\.\[name\]/);
     assert.match(method, /description:\s*col\?\.description \|\| null/);
     assert.ok(!/description:\s*null,/.test(method), 'description must not be hardcoded to null anymore');
+  });
+});
+
+describe('createQdrantStorageAdapter().getCollection — provider payload fallback only applies to a genuine "missing" (legacy) profile', () => {
+  it('never falls back to the raw sample payload for "invalid" or "schema_mismatch" — those report provider: null/null/null like listCollections()', () => {
+    // Fixed after review: `provider` used to fall back to samplePayload for
+    // EVERY non-'valid' embeddingProfile.state, including 'invalid' and
+    // 'schema_mismatch' — states where a profile DOES exist but is
+    // corrupted or disagrees with the live vector schema. Falling back to
+    // payload there would show a plausible-but-no-longer-canonical model,
+    // contradicting listCollections() (which already correctly reports
+    // null for the same states). Source-string check, same rationale as
+    // this file's other getCollection() regression tests (needs live
+    // Qdrant to exercise end to end).
+    const src = readFileSync(
+      fileURLToPath(new URL('../../../../src/core/storage/qdrant-adapter.js', import.meta.url)),
+      'utf-8',
+    );
+    const method = src.slice(src.indexOf('async getCollection('), src.indexOf('async createCollection('));
+    assert.match(method, /embeddingProfile\.state === 'valid'\s*\n\s*\?\s*\{[\s\S]*?\}\s*\n\s*:\s*embeddingProfile\.state === 'missing'/, 'the provider ternary must branch on \'missing\' specifically, not a blanket else');
+    assert.match(method, /legacyDetectedProvider/, 'the raw payload hint must be exposed as a distinctly-named field, never silently folded into provider');
+    // The final else-branch (anything that's neither 'valid' nor 'missing')
+    // must produce the same null/null/null shape listCollections() uses.
+    const providerBlock = method.slice(method.indexOf('const provider ='), method.indexOf('legacyDetectedProvider:'));
+    assert.match(providerBlock, /:\s*\{\s*denseProvider:\s*null,\s*denseModel:\s*null,\s*sparseProvider:\s*null\s*\}\s*;/);
+  });
+
+  it('the embeddingSchema version has the same "missing"-only fallback, never trusting payload for invalid/schema_mismatch', () => {
+    const src = readFileSync(
+      fileURLToPath(new URL('../../../../src/core/storage/qdrant-adapter.js', import.meta.url)),
+      'utf-8',
+    );
+    const method = src.slice(src.indexOf('async getCollection('), src.indexOf('async createCollection('));
+    const versionsBlock = method.slice(method.indexOf('versions: {'), method.indexOf('chunkingSchema:'));
+    assert.match(versionsBlock, /embeddingProfile\.state === 'valid'/);
+    assert.match(versionsBlock, /embeddingProfile\.state === 'missing'/);
   });
 });
 
@@ -442,5 +520,647 @@ describe('createQdrantStorageAdapter().getFileChunks — a distinct primitive fr
     assert.match(method, /store\.getFileChunks\(/);
     assert.match(method, /\.map\(toChunk\)/);
     assert.ok(!/fetchWindowChunks/.test(method), 'getFileChunks must not go through the windowed fetchWindowChunks path');
+  });
+});
+
+// ── Embedding profile: pure Qdrant-shape-reading functions ─────────────────
+
+function validDenseLane(overrides = {}) {
+  return { provider: 'bge-m3-onnx', model: 'aapot/bge-m3-onnx', vectorName: 'dense', dimensions: 1024, distance: 'Cosine', execution: 'client', ...overrides };
+}
+function validSparseLane(overrides = {}) {
+  return { provider: 'bge-m3-onnx', model: 'aapot/bge-m3-onnx', vectorName: 'sparse', execution: 'client', ...overrides };
+}
+function namedVectorsInfo({ dimensions = 1024, distance = 'Cosine', sparse = true, modifier = null } = {}) {
+  return {
+    config: {
+      params: {
+        vectors: { dense: { size: dimensions, distance } },
+        ...(sparse ? { sparse_vectors: { sparse: { modifier } } } : {}),
+      },
+      metadata: {},
+    },
+  };
+}
+
+describe('normalizeVectorSchema — Qdrant vector schema -> domain summary', () => {
+  it('maps a named dense+sparse schema to { dense, sparse }', () => {
+    const result = normalizeVectorSchema(namedVectorsInfo());
+    assert.deepEqual(result, { dense: { name: 'dense', dimensions: 1024, distance: 'Cosine' }, sparse: { name: 'sparse', modifier: null } });
+  });
+
+  it('reports sparse: null when no sparse_vectors key is present', () => {
+    const result = normalizeVectorSchema(namedVectorsInfo({ sparse: false }));
+    assert.equal(result.sparse, null);
+  });
+
+  it('reports a configured modifier (e.g. idf)', () => {
+    const result = normalizeVectorSchema(namedVectorsInfo({ modifier: 'idf' }));
+    assert.equal(result.sparse.modifier, 'idf');
+  });
+
+  it('reports dense: null for an empty/unrecognized vector schema', () => {
+    const result = normalizeVectorSchema({ config: { params: { vectors: {} } } });
+    assert.equal(result.dense, null);
+  });
+
+  it('handles a flat (legacy, unnamed) vector schema for dense', () => {
+    const info = { config: { params: { vectors: { size: 768, distance: 'Cosine' } } } };
+    const result = normalizeVectorSchema(info);
+    assert.deepEqual(result.dense, { name: 'dense', dimensions: 768, distance: 'Cosine' });
+  });
+
+  it('handles a missing collectionInfo entirely without throwing', () => {
+    assert.deepEqual(normalizeVectorSchema(undefined), { dense: null, sparse: null });
+  });
+});
+
+describe('extractEmbeddingProfile', () => {
+  it('returns { state: "missing" } when no metadata key is present', () => {
+    const info = { config: { metadata: {} } };
+    assert.deepEqual(extractEmbeddingProfile(info), { state: 'missing' });
+  });
+
+  it('returns { state: "missing" } when config.metadata itself is absent', () => {
+    const info = { config: {} };
+    assert.deepEqual(extractEmbeddingProfile(info), { state: 'missing' });
+  });
+
+  it('returns { state: "valid", profile } for a structurally valid profile', () => {
+    const profile = buildEmbeddingProfile({ dense: validDenseLane(), sparse: validSparseLane(), embeddingSchemaVersion: 2 });
+    const info = { config: { metadata: { [METADATA_KEY_EMBEDDING_PROFILE]: profile } } };
+    const result = extractEmbeddingProfile(info);
+    assert.equal(result.state, 'valid');
+    assert.deepEqual(result.profile, profile);
+  });
+
+  it('returns { state: "invalid", errors } for a structurally broken profile', () => {
+    const info = { config: { metadata: { [METADATA_KEY_EMBEDDING_PROFILE]: { schemaVersion: 1, managedBy: 'semidex', embedding: { dense: 'not-an-object' }, embeddingSchemaVersion: 2 } } } };
+    const result = extractEmbeddingProfile(info);
+    assert.equal(result.state, 'invalid');
+    assert.ok(Array.isArray(result.errors) && result.errors.length > 0);
+  });
+
+  it('returns { state: "unsupported_schema_version", found } for a newer schemaVersion, distinct from a generic invalid', () => {
+    const info = { config: { metadata: { [METADATA_KEY_EMBEDDING_PROFILE]: { schemaVersion: 99, managedBy: 'semidex', embedding: { dense: validDenseLane(), sparse: null }, embeddingSchemaVersion: 2 } } } };
+    const result = extractEmbeddingProfile(info);
+    assert.equal(result.state, 'unsupported_schema_version');
+    assert.equal(result.found, 99);
+  });
+
+  it('never sees a CollectionInfo shape leak into the returned profile — profile is exactly the validated domain object', () => {
+    const profile = buildEmbeddingProfile({ dense: validDenseLane(), sparse: null, embeddingSchemaVersion: 2 });
+    const info = { config: { params: { vectors: { dense: { size: 1024 } } } }, metadata: 'should-not-be-read-from-top-level' };
+    info.config.metadata = { [METADATA_KEY_EMBEDDING_PROFILE]: profile };
+    const result = extractEmbeddingProfile(info);
+    assert.equal(result.state, 'valid');
+    assert.ok(!('config' in result.profile));
+  });
+});
+
+describe('extractIndexingState', () => {
+  it('returns { state: "missing" } when no metadata key is present', () => {
+    assert.deepEqual(extractIndexingState({ config: { metadata: {} } }), { state: 'missing' });
+  });
+
+  it('returns { state: "valid", indexingState } for a valid state', () => {
+    const state = { indexingSchemaVersion: 4, chunkingSchemaVersion: 4 };
+    const info = { config: { metadata: { semidex_indexing_state: state } } };
+    const result = extractIndexingState(info);
+    assert.equal(result.state, 'valid');
+    assert.deepEqual(result.indexingState, state);
+  });
+
+  it('returns { state: "invalid" } for a broken state', () => {
+    const info = { config: { metadata: { semidex_indexing_state: { indexingSchemaVersion: 'four' } } } };
+    assert.equal(extractIndexingState(info).state, 'invalid');
+  });
+});
+
+describe('validateProfileAgainstSchema', () => {
+  it('matches when the profile agrees with the live schema exactly', () => {
+    const profile = buildEmbeddingProfile({ dense: validDenseLane(), sparse: validSparseLane(), embeddingSchemaVersion: 2 });
+    const result = validateProfileAgainstSchema(profile, namedVectorsInfo());
+    assert.deepEqual(result, { matches: true });
+  });
+
+  it('reports a dense dimension mismatch', () => {
+    const profile = buildEmbeddingProfile({ dense: validDenseLane({ dimensions: 768 }), sparse: null, embeddingSchemaVersion: 2 });
+    const result = validateProfileAgainstSchema(profile, namedVectorsInfo({ sparse: false }));
+    assert.equal(result.matches, false);
+    assert.ok(result.mismatches.some(m => m.field === 'dense.dimensions'));
+  });
+
+  it('reports a dense vector name mismatch', () => {
+    const profile = buildEmbeddingProfile({ dense: validDenseLane({ vectorName: 'wrong-name' }), sparse: null, embeddingSchemaVersion: 2 });
+    const result = validateProfileAgainstSchema(profile, namedVectorsInfo({ sparse: false }));
+    assert.equal(result.matches, false);
+    assert.ok(result.mismatches.some(m => m.field === 'dense.vectorName'));
+  });
+
+  it('reports a dense distance mismatch', () => {
+    const profile = buildEmbeddingProfile({ dense: validDenseLane({ distance: 'Dot' }), sparse: null, embeddingSchemaVersion: 2 });
+    const result = validateProfileAgainstSchema(profile, namedVectorsInfo({ sparse: false }));
+    assert.equal(result.matches, false);
+    assert.ok(result.mismatches.some(m => m.field === 'dense.distance'));
+  });
+
+  it('reports a sparse-presence mismatch: profile declares sparse but live schema has none', () => {
+    const profile = buildEmbeddingProfile({ dense: validDenseLane(), sparse: validSparseLane(), embeddingSchemaVersion: 2 });
+    const result = validateProfileAgainstSchema(profile, namedVectorsInfo({ sparse: false }));
+    assert.equal(result.matches, false);
+    assert.ok(result.mismatches.some(m => m.field === 'sparse'));
+  });
+
+  it('reports a sparse-presence mismatch: profile declares no sparse but live schema has one', () => {
+    const profile = buildEmbeddingProfile({ dense: validDenseLane(), sparse: null, embeddingSchemaVersion: 2 });
+    const result = validateProfileAgainstSchema(profile, namedVectorsInfo({ sparse: true }));
+    assert.equal(result.matches, false);
+    assert.ok(result.mismatches.some(m => m.field === 'sparse'));
+  });
+
+  it('reports a sparse modifier mismatch', () => {
+    const profile = buildEmbeddingProfile({ dense: validDenseLane(), sparse: validSparseLane({ modifier: 'idf' }), embeddingSchemaVersion: 2 });
+    const result = validateProfileAgainstSchema(profile, namedVectorsInfo({ modifier: null }));
+    assert.equal(result.matches, false);
+    assert.ok(result.mismatches.some(m => m.field === 'sparse.modifier'));
+  });
+});
+
+describe('decideProfileWrite — pure write-guard decision', () => {
+  it('allows a write only when current state is "missing"', () => {
+    assert.equal(decideProfileWrite('missing'), 'write');
+  });
+
+  it('rejects when current state is "valid"', () => {
+    assert.equal(decideProfileWrite('valid'), 'reject');
+  });
+
+  it('rejects when current state is "invalid"', () => {
+    assert.equal(decideProfileWrite('invalid'), 'reject');
+  });
+
+  it('rejects when current state is "unsupported_schema_version"', () => {
+    assert.equal(decideProfileWrite('unsupported_schema_version'), 'reject');
+  });
+});
+
+// ── Embedding profile: adapter methods via the storeOverrides DI seam ──────
+
+function makeFakeStore(overrides = {}) {
+  const calls = { getCollectionInfo: 0, updateCollectionMetadata: 0, createCollection: 0, scrollFilteredPages: 0, listCollections: 0 };
+  return {
+    calls,
+    storeOverrides: {
+      getCollectionInfo: async (name) => { calls.getCollectionInfo++; return overrides.getCollectionInfo ? overrides.getCollectionInfo(name) : namedVectorsInfo(); },
+      updateCollectionMetadata: async (name, metadata) => { calls.updateCollectionMetadata++; if (overrides.updateCollectionMetadata) return overrides.updateCollectionMetadata(name, metadata); },
+      createCollection: async (name, size, metadata, vectorSchema) => { calls.createCollection++; if (overrides.createCollection) return overrides.createCollection(name, size, metadata, vectorSchema); },
+      scrollFilteredPages: async (name, filter, fields, opts) => { calls.scrollFilteredPages++; if (overrides.scrollFilteredPages) return overrides.scrollFilteredPages(name, filter, fields, opts); },
+      listCollections: async () => { calls.listCollections++; return overrides.listCollections ? overrides.listCollections() : []; },
+    },
+  };
+}
+
+describe('createQdrantStorageAdapter().getEmbeddingProfile', () => {
+  it('returns { state: "missing" } for a collection with no metadata, and caches the result', async () => {
+    const fake = makeFakeStore({ getCollectionInfo: () => ({ config: { metadata: {} } }) });
+    const adapter = createQdrantStorageAdapter({ storeOverrides: fake.storeOverrides });
+    const result = await adapter.getEmbeddingProfile('c1');
+    assert.deepEqual(result, { state: 'missing' });
+    await adapter.getEmbeddingProfile('c1');
+    assert.equal(fake.calls.getCollectionInfo, 1, 'second call within TTL must hit the cache, not fetch again');
+  });
+
+  it('returns { state: "valid", profile } for a collection with a valid profile', async () => {
+    const profile = buildEmbeddingProfile({ dense: validDenseLane(), sparse: null, embeddingSchemaVersion: 2 });
+    const fake = makeFakeStore({ getCollectionInfo: () => ({ config: { metadata: { [METADATA_KEY_EMBEDDING_PROFILE]: profile }, params: { vectors: { dense: { size: 1024, distance: 'Cosine' } } } } }) });
+    const adapter = createQdrantStorageAdapter({ storeOverrides: fake.storeOverrides });
+    const result = await adapter.getEmbeddingProfile('c1');
+    assert.equal(result.state, 'valid');
+    assert.deepEqual(result.profile, profile);
+  });
+
+  it('returns { state: "schema_mismatch" }, never "valid", when a shape-valid profile disagrees with the live vector schema (dimension mismatch)', async () => {
+    // Fixed after review: extractEmbeddingProfile() alone only checks
+    // metadata SHAPE, never whether it agrees with the collection's REAL
+    // vector schema — that check used to run only at write time
+    // (setEmbeddingProfile), so a read (search/Ask/MCP/Admin) would trust
+    // corrupted/tampered/third-party-written metadata as 'valid' and only
+    // fail later on a real embedding/Qdrant request. This proves the
+    // canonical read path (getEmbeddingProfile) now catches it.
+    const profile = buildEmbeddingProfile({ dense: validDenseLane({ dimensions: 1024 }), sparse: null, embeddingSchemaVersion: 2 });
+    const fake = makeFakeStore({
+      getCollectionInfo: () => ({
+        config: {
+          metadata: { [METADATA_KEY_EMBEDDING_PROFILE]: profile },
+          // Live schema disagrees: 768, not the 1024 the profile declares.
+          params: { vectors: { dense: { size: 768, distance: 'Cosine' } } },
+        },
+      }),
+    });
+    const adapter = createQdrantStorageAdapter({ storeOverrides: fake.storeOverrides });
+    const result = await adapter.getEmbeddingProfile('c1');
+    assert.equal(result.state, 'schema_mismatch');
+    assert.notEqual(result.state, 'valid');
+    assert.ok(Array.isArray(result.mismatches) && result.mismatches.length > 0);
+    assert.ok(result.mismatches.some(m => m.field === 'dense.dimensions'));
+  });
+
+  it('returns { state: "schema_mismatch" } for a sparse-presence disagreement (profile declares sparse, live schema has none)', async () => {
+    const profile = buildEmbeddingProfile({ dense: validDenseLane(), sparse: validSparseLane(), embeddingSchemaVersion: 2 });
+    const fake = makeFakeStore({
+      getCollectionInfo: () => ({
+        config: {
+          metadata: { [METADATA_KEY_EMBEDDING_PROFILE]: profile },
+          params: { vectors: { dense: { size: 1024, distance: 'Cosine' } } }, // no sparse_vectors key
+        },
+      }),
+    });
+    const adapter = createQdrantStorageAdapter({ storeOverrides: fake.storeOverrides });
+    const result = await adapter.getEmbeddingProfile('c1');
+    assert.equal(result.state, 'schema_mismatch');
+    assert.ok(result.mismatches.some(m => m.field === 'sparse'));
+  });
+
+  it('caches the schema_mismatch result the same way as any other state (one getCollectionInfo call within TTL)', async () => {
+    const profile = buildEmbeddingProfile({ dense: validDenseLane({ dimensions: 1024 }), sparse: null, embeddingSchemaVersion: 2 });
+    const fake = makeFakeStore({
+      getCollectionInfo: () => ({
+        config: { metadata: { [METADATA_KEY_EMBEDDING_PROFILE]: profile }, params: { vectors: { dense: { size: 768, distance: 'Cosine' } } } },
+      }),
+    });
+    const adapter = createQdrantStorageAdapter({ storeOverrides: fake.storeOverrides });
+    await adapter.getEmbeddingProfile('c1');
+    await adapter.getEmbeddingProfile('c1');
+    assert.equal(fake.calls.getCollectionInfo, 1);
+  });
+});
+
+describe('createQdrantStorageAdapter().setEmbeddingProfile — write-once guard', () => {
+  it('writes when current state is missing', async () => {
+    const fake = makeFakeStore({ getCollectionInfo: () => ({ config: { metadata: {}, params: { vectors: { dense: { size: 1024, distance: 'Cosine' } } } } }) });
+    const adapter = createQdrantStorageAdapter({ storeOverrides: fake.storeOverrides });
+    const profile = buildEmbeddingProfile({ dense: validDenseLane(), sparse: null, embeddingSchemaVersion: 2 });
+    await adapter.setEmbeddingProfile('c1', profile);
+    assert.equal(fake.calls.updateCollectionMetadata, 1);
+  });
+
+  it('throws and never writes when current state is "valid"', async () => {
+    const existingProfile = buildEmbeddingProfile({ dense: validDenseLane(), sparse: null, embeddingSchemaVersion: 2 });
+    const fake = makeFakeStore({ getCollectionInfo: () => ({ config: { metadata: { [METADATA_KEY_EMBEDDING_PROFILE]: existingProfile }, params: { vectors: { dense: { size: 1024, distance: 'Cosine' } } } } }) });
+    const adapter = createQdrantStorageAdapter({ storeOverrides: fake.storeOverrides });
+    const newProfile = buildEmbeddingProfile({ dense: validDenseLane({ model: 'different-model' }), sparse: null, embeddingSchemaVersion: 2 });
+    await assert.rejects(() => adapter.setEmbeddingProfile('c1', newProfile));
+    assert.equal(fake.calls.updateCollectionMetadata, 0);
+  });
+
+  it('throws and never writes when current state is "invalid"', async () => {
+    const fake = makeFakeStore({ getCollectionInfo: () => ({ config: { metadata: { [METADATA_KEY_EMBEDDING_PROFILE]: { schemaVersion: 1, embedding: {} } }, params: { vectors: { dense: { size: 1024, distance: 'Cosine' } } } } }) });
+    const adapter = createQdrantStorageAdapter({ storeOverrides: fake.storeOverrides });
+    const profile = buildEmbeddingProfile({ dense: validDenseLane(), sparse: null, embeddingSchemaVersion: 2 });
+    await assert.rejects(() => adapter.setEmbeddingProfile('c1', profile));
+    assert.equal(fake.calls.updateCollectionMetadata, 0);
+  });
+
+  it('throws and never writes when current state is "unsupported_schema_version"', async () => {
+    const fake = makeFakeStore({ getCollectionInfo: () => ({ config: { metadata: { [METADATA_KEY_EMBEDDING_PROFILE]: { schemaVersion: 99, managedBy: 'semidex', embedding: { dense: validDenseLane(), sparse: null }, embeddingSchemaVersion: 2 } }, params: { vectors: { dense: { size: 1024, distance: 'Cosine' } } } } }) });
+    const adapter = createQdrantStorageAdapter({ storeOverrides: fake.storeOverrides });
+    const profile = buildEmbeddingProfile({ dense: validDenseLane(), sparse: null, embeddingSchemaVersion: 2 });
+    await assert.rejects(() => adapter.setEmbeddingProfile('c1', profile));
+    assert.equal(fake.calls.updateCollectionMetadata, 0);
+  });
+
+  it('rejects a schema-mismatched profile (dense dimension mismatch) before any write', async () => {
+    const fake = makeFakeStore({ getCollectionInfo: () => ({ config: { metadata: {}, params: { vectors: { dense: { size: 1024, distance: 'Cosine' } } } } }) });
+    const adapter = createQdrantStorageAdapter({ storeOverrides: fake.storeOverrides });
+    const profile = buildEmbeddingProfile({ dense: validDenseLane({ dimensions: 768 }), sparse: null, embeddingSchemaVersion: 2 });
+    await assert.rejects(() => adapter.setEmbeddingProfile('c1', profile));
+    assert.equal(fake.calls.updateCollectionMetadata, 0);
+  });
+
+  it('rejects a schema-mismatched profile (dense vector name mismatch) before any write', async () => {
+    const fake = makeFakeStore({ getCollectionInfo: () => ({ config: { metadata: {}, params: { vectors: { dense: { size: 1024, distance: 'Cosine' } } } } }) });
+    const adapter = createQdrantStorageAdapter({ storeOverrides: fake.storeOverrides });
+    const profile = buildEmbeddingProfile({ dense: validDenseLane({ vectorName: 'wrong' }), sparse: null, embeddingSchemaVersion: 2 });
+    await assert.rejects(() => adapter.setEmbeddingProfile('c1', profile));
+    assert.equal(fake.calls.updateCollectionMetadata, 0);
+  });
+
+  it('rejects a schema-mismatched profile (dense distance mismatch) before any write', async () => {
+    const fake = makeFakeStore({ getCollectionInfo: () => ({ config: { metadata: {}, params: { vectors: { dense: { size: 1024, distance: 'Cosine' } } } } }) });
+    const adapter = createQdrantStorageAdapter({ storeOverrides: fake.storeOverrides });
+    const profile = buildEmbeddingProfile({ dense: validDenseLane({ distance: 'Dot' }), sparse: null, embeddingSchemaVersion: 2 });
+    await assert.rejects(() => adapter.setEmbeddingProfile('c1', profile));
+    assert.equal(fake.calls.updateCollectionMetadata, 0);
+  });
+
+  it('rejects a schema-mismatched profile (sparse presence mismatch) before any write', async () => {
+    const fake = makeFakeStore({ getCollectionInfo: () => ({ config: { metadata: {}, params: { vectors: { dense: { size: 1024, distance: 'Cosine' } } } } }) });
+    const adapter = createQdrantStorageAdapter({ storeOverrides: fake.storeOverrides });
+    const profile = buildEmbeddingProfile({ dense: validDenseLane(), sparse: validSparseLane(), embeddingSchemaVersion: 2 });
+    await assert.rejects(() => adapter.setEmbeddingProfile('c1', profile));
+    assert.equal(fake.calls.updateCollectionMetadata, 0);
+  });
+
+  it('rejects a schema-mismatched profile (sparse modifier mismatch) before any write', async () => {
+    const fake = makeFakeStore({ getCollectionInfo: () => ({ config: { metadata: {}, params: { vectors: { dense: { size: 1024, distance: 'Cosine' }, }, sparse_vectors: { sparse: { modifier: null } } } } }) });
+    const adapter = createQdrantStorageAdapter({ storeOverrides: fake.storeOverrides });
+    const profile = buildEmbeddingProfile({ dense: validDenseLane(), sparse: validSparseLane({ modifier: 'idf' }), embeddingSchemaVersion: 2 });
+    await assert.rejects(() => adapter.setEmbeddingProfile('c1', profile));
+    assert.equal(fake.calls.updateCollectionMetadata, 0);
+  });
+
+  it('writes under METADATA_KEY_EMBEDDING_PROFILE and invalidates the cache on success', async () => {
+    let written;
+    const fake = makeFakeStore({
+      getCollectionInfo: () => ({ config: { metadata: {}, params: { vectors: { dense: { size: 1024, distance: 'Cosine' } } } } }),
+      updateCollectionMetadata: (name, metadata) => { written = metadata; },
+    });
+    const adapter = createQdrantStorageAdapter({ storeOverrides: fake.storeOverrides });
+    const profile = buildEmbeddingProfile({ dense: validDenseLane(), sparse: null, embeddingSchemaVersion: 2 });
+    await adapter.setEmbeddingProfile('c1', profile);
+    assert.ok(METADATA_KEY_EMBEDDING_PROFILE in written);
+    assert.deepEqual(written[METADATA_KEY_EMBEDDING_PROFILE], profile);
+  });
+});
+
+describe('createQdrantStorageAdapter().setIndexingState', () => {
+  it('writes under the indexing-state key, never touching the embedding profile key', async () => {
+    let written;
+    const fake = makeFakeStore({ updateCollectionMetadata: (name, metadata) => { written = metadata; } });
+    const adapter = createQdrantStorageAdapter({ storeOverrides: fake.storeOverrides });
+    await adapter.setIndexingState('c1', { indexingSchemaVersion: 4, chunkingSchemaVersion: 4 });
+    assert.ok('semidex_indexing_state' in written);
+    assert.ok(!(METADATA_KEY_EMBEDDING_PROFILE in written));
+  });
+
+  it('rejects an invalid state before writing', async () => {
+    const fake = makeFakeStore();
+    const adapter = createQdrantStorageAdapter({ storeOverrides: fake.storeOverrides });
+    await assert.rejects(() => adapter.setIndexingState('c1', { indexingSchemaVersion: 'bad' }));
+    assert.equal(fake.calls.updateCollectionMetadata, 0);
+  });
+});
+
+describe('buildQdrantVectorSchemaFromProfile — the FULL Qdrant vector schema is derived from the profile, never a hardcoded default', () => {
+  // Fixed after review: createCollection() used to always create Cosine +
+  // an unconditional sparse vector with no modifier, regardless of what the
+  // profile actually declared — a valid profile with sparse: null, a
+  // non-Cosine distance, or a sparse modifier would immediately create a
+  // collection that disagreed with its own just-written profile (and would
+  // then correctly report schema_mismatch on the very next read).
+
+  it('builds { vectors: { dense: { size, distance } } } with no sparse_vectors key when profile.embedding.sparse is null', () => {
+    const profile = buildEmbeddingProfile({ dense: validDenseLane({ dimensions: 768, distance: 'Dot' }), sparse: null, embeddingSchemaVersion: 2 });
+    const schema = buildQdrantVectorSchemaFromProfile(profile);
+    assert.deepEqual(schema, { vectors: { dense: { size: 768, distance: 'Dot' } } });
+    assert.ok(!('sparse_vectors' in schema), 'a dense-only profile must never get an unconditional sparse vector created');
+  });
+
+  it('honors a non-Cosine dense distance', () => {
+    const profile = buildEmbeddingProfile({ dense: validDenseLane({ distance: 'Euclid' }), sparse: null, embeddingSchemaVersion: 2 });
+    const schema = buildQdrantVectorSchemaFromProfile(profile);
+    assert.equal(schema.vectors.dense.distance, 'Euclid');
+  });
+
+  it('creates sparse_vectors when profile.embedding.sparse is present, with no modifier key when modifier is null', () => {
+    const profile = buildEmbeddingProfile({ dense: validDenseLane(), sparse: validSparseLane({ modifier: null }), embeddingSchemaVersion: 2 });
+    const schema = buildQdrantVectorSchemaFromProfile(profile);
+    assert.deepEqual(schema.sparse_vectors, { sparse: { index: { on_disk: false } } });
+    assert.ok(!('modifier' in schema.sparse_vectors.sparse), 'no modifier key at all when the profile declares none — must not send modifier: null to Qdrant');
+  });
+
+  it('applies the sparse modifier when the profile declares one (e.g. "idf")', () => {
+    const profile = buildEmbeddingProfile({ dense: validDenseLane(), sparse: validSparseLane({ modifier: 'idf' }), embeddingSchemaVersion: 2 });
+    const schema = buildQdrantVectorSchemaFromProfile(profile);
+    assert.equal(schema.sparse_vectors.sparse.modifier, 'idf');
+  });
+
+  it('throws before any network call for an unsupported dense vectorName (nothing else in this codebase can use it)', () => {
+    const profile = buildEmbeddingProfile({ dense: validDenseLane({ vectorName: 'my_custom_dense' }), sparse: null, embeddingSchemaVersion: 2 });
+    assert.throws(() => buildQdrantVectorSchemaFromProfile(profile), /unsupported dense vectorName/);
+  });
+
+  it('throws before any network call for an unsupported sparse vectorName', () => {
+    const profile = buildEmbeddingProfile({ dense: validDenseLane(), sparse: validSparseLane({ vectorName: 'my_custom_sparse' }), embeddingSchemaVersion: 2 });
+    assert.throws(() => buildQdrantVectorSchemaFromProfile(profile), /unsupported sparse vectorName/);
+  });
+
+  it('throws before any network call for a distance value Qdrant does not support', () => {
+    const profile = buildEmbeddingProfile({ dense: validDenseLane({ distance: 'NotARealDistance' }), sparse: null, embeddingSchemaVersion: 2 });
+    assert.throws(() => buildQdrantVectorSchemaFromProfile(profile), /unsupported dense distance/);
+  });
+});
+
+describe('createQdrantStorageAdapter().createCollection — metadata wiring and dimension guard', () => {
+  it('passes metadata: { [METADATA_KEY_EMBEDDING_PROFILE]: profile } through to store.createCollection when profile is given', async () => {
+    let capturedMetadata;
+    let capturedSize;
+    const fake = makeFakeStore({ createCollection: (name, size, metadata) => { capturedSize = size; capturedMetadata = metadata; } });
+    const adapter = createQdrantStorageAdapter({ storeOverrides: fake.storeOverrides });
+    const profile = buildEmbeddingProfile({ dense: validDenseLane({ dimensions: 1024 }), sparse: null, embeddingSchemaVersion: 2 });
+    await adapter.createCollection('c1', { profile });
+    assert.equal(capturedSize, 1024, 'vectorSize must be derived from profile.embedding.dense.dimensions');
+    assert.deepEqual(capturedMetadata, { [METADATA_KEY_EMBEDDING_PROFILE]: profile });
+  });
+
+  it('passes the FULL profile-derived vector schema through to store.createCollection as the 4th argument, not just a bare size', async () => {
+    let capturedVectorSchema;
+    const fake = makeFakeStore({ createCollection: (name, size, metadata, vectorSchema) => { capturedVectorSchema = vectorSchema; } });
+    const adapter = createQdrantStorageAdapter({ storeOverrides: fake.storeOverrides });
+    const profile = buildEmbeddingProfile({ dense: validDenseLane({ dimensions: 1024, distance: 'Dot' }), sparse: validSparseLane({ modifier: 'idf' }), embeddingSchemaVersion: 2 });
+    await adapter.createCollection('c1', { profile });
+    assert.deepEqual(capturedVectorSchema, {
+      vectors: { dense: { size: 1024, distance: 'Dot' } },
+      sparse_vectors: { sparse: { index: { on_disk: false }, modifier: 'idf' } },
+    });
+  });
+
+  it('rejects an unsupported profile (e.g. unsupported dense vectorName) before any network call', async () => {
+    const fake = makeFakeStore();
+    const adapter = createQdrantStorageAdapter({ storeOverrides: fake.storeOverrides });
+    const profile = buildEmbeddingProfile({ dense: validDenseLane({ vectorName: 'my_custom_dense' }), sparse: null, embeddingSchemaVersion: 2 });
+    await assert.rejects(() => adapter.createCollection('c1', { profile }));
+    assert.equal(fake.calls.createCollection, 0);
+  });
+
+  it('throws before any network call when vectorSize disagrees with profile.embedding.dense.dimensions', async () => {
+    const fake = makeFakeStore();
+    const adapter = createQdrantStorageAdapter({ storeOverrides: fake.storeOverrides });
+    const profile = buildEmbeddingProfile({ dense: validDenseLane({ dimensions: 1024 }), sparse: null, embeddingSchemaVersion: 2 });
+    await assert.rejects(() => adapter.createCollection('c1', { vectorSize: 768, profile }));
+    assert.equal(fake.calls.createCollection, 0);
+  });
+
+  it('throws before any network call for a bare { vectorSize } call with no profile — there is no metadata-less creation path', async () => {
+    // Fixed after review: an earlier draft allowed creating a collection
+    // with no embedding profile at all when profile was omitted, which
+    // contradicts the whole point of this feature — every real caller
+    // (indexer's run.js, benchmarks' resolveBenchProfile()) already always
+    // passes profile, so this path was pure unused foot-gun surface.
+    const fake = makeFakeStore();
+    const adapter = createQdrantStorageAdapter({ storeOverrides: fake.storeOverrides });
+    await assert.rejects(() => adapter.createCollection('c1', { vectorSize: 1024 }));
+    assert.equal(fake.calls.createCollection, 0);
+  });
+
+  it('throws before any network call when createCollection is called with no arguments at all', async () => {
+    const fake = makeFakeStore();
+    const adapter = createQdrantStorageAdapter({ storeOverrides: fake.storeOverrides });
+    await assert.rejects(() => adapter.createCollection('c1'));
+    assert.equal(fake.calls.createCollection, 0);
+  });
+});
+
+describe('createQdrantStorageAdapter().migrateEmbeddingProfile', () => {
+  it('is idempotent: a no-op returning already_migrated when current state is already valid, without scrolling', async () => {
+    const existingProfile = buildEmbeddingProfile({ dense: validDenseLane(), sparse: null, embeddingSchemaVersion: 2 });
+    const fake = makeFakeStore({ getCollectionInfo: () => ({ config: { metadata: { [METADATA_KEY_EMBEDDING_PROFILE]: existingProfile }, params: { vectors: { dense: { size: 1024, distance: 'Cosine' } } } } }) });
+    const adapter = createQdrantStorageAdapter({ storeOverrides: fake.storeOverrides });
+    const result = await adapter.migrateEmbeddingProfile('c1');
+    assert.deepEqual(result, { status: 'already_migrated' });
+    assert.equal(fake.calls.scrollFilteredPages, 0, 'must not scroll once a valid profile already exists');
+    assert.equal(fake.calls.updateCollectionMetadata, 0);
+  });
+
+  it('infers and writes a profile from a consistent legacy payload sample', async () => {
+    const fake = makeFakeStore({
+      getCollectionInfo: () => ({ config: { metadata: {}, params: { vectors: { dense: { size: 1024, distance: 'Cosine' } }, sparse_vectors: { sparse: { modifier: null } } } } }),
+      scrollFilteredPages: async (name, filter, fields, opts) => {
+        await opts.onPage([
+          { source_file: 'a.md', dense_provider: 'bge-m3-onnx', dense_model: 'aapot/bge-m3-onnx', sparse_provider: 'bge-m3-onnx', embedding_schema_version: 2, vector_size: 1024 },
+          { source_file: 'b.md', dense_provider: 'bge-m3-onnx', dense_model: 'aapot/bge-m3-onnx', sparse_provider: 'bge-m3-onnx', embedding_schema_version: 2, vector_size: 1024 },
+        ]);
+      },
+    });
+    const adapter = createQdrantStorageAdapter({ storeOverrides: fake.storeOverrides });
+    const result = await adapter.migrateEmbeddingProfile('c1');
+    assert.equal(result.status, 'inferred');
+    assert.equal(fake.calls.updateCollectionMetadata, 1);
+  });
+
+  it('infers correctly when onPage receives REAL Qdrant point objects ({ id, payload }), not bare payloads — live-cluster regression guard', async () => {
+    // Live-verification finding: store.js's real scrollFilteredPages() hands
+    // onPage actual Qdrant scroll results (each item is { id, payload, ... }),
+    // never a bare payload object. The test above (and this file's other
+    // migrateEmbeddingProfile fixtures) call onPage with bare payloads
+    // directly, which masked a real bug where migrateEmbeddingProfile()
+    // folded the raw point object instead of point.payload and always
+    // inferred null identity fields against a live cluster. This test uses
+    // the REALISTIC { id, payload } shape to guard against that regression.
+    const fake = makeFakeStore({
+      getCollectionInfo: () => ({ config: { metadata: {}, params: { vectors: { dense: { size: 1024, distance: 'Cosine' } }, sparse_vectors: { sparse: { modifier: null } } } } }),
+      scrollFilteredPages: async (name, filter, fields, opts) => {
+        await opts.onPage([
+          { id: 1, payload: { source_file: 'a.md', dense_provider: 'bge-m3-onnx', dense_model: 'aapot/bge-m3-onnx', sparse_provider: 'bge-m3-onnx', embedding_schema_version: 2, vector_size: 1024 } },
+          { id: 2, payload: { source_file: 'b.md', dense_provider: 'bge-m3-onnx', dense_model: 'aapot/bge-m3-onnx', sparse_provider: 'bge-m3-onnx', embedding_schema_version: 2, vector_size: 1024 } },
+        ]);
+      },
+    });
+    const adapter = createQdrantStorageAdapter({ storeOverrides: fake.storeOverrides });
+    const result = await adapter.migrateEmbeddingProfile('c1');
+    assert.equal(result.status, 'inferred', `expected 'inferred', got ${JSON.stringify(result)}`);
+    assert.equal(result.profile.embedding.dense.provider, 'bge-m3-onnx');
+    assert.equal(fake.calls.updateCollectionMetadata, 1);
+  });
+
+  it('stops paginating after the page containing the first disagreement (real early-exit, not exhaustive)', async () => {
+    let pagesRequested = 0;
+    const fake = makeFakeStore({
+      getCollectionInfo: () => ({ config: { metadata: {}, params: { vectors: { dense: { size: 1024, distance: 'Cosine' } }, sparse_vectors: { sparse: { modifier: null } } } } }),
+      scrollFilteredPages: async (name, filter, fields, opts) => {
+        // Page 1 itself contains a disagreement (two payloads that
+        // disagree with each other) — onPage's own return value must
+        // reflect that immediately, before this fake ever offers a
+        // second page, exercising the real early-exit contract.
+        pagesRequested++;
+        const keepGoing = await opts.onPage([
+          { source_file: 'a.md', dense_provider: 'ollama', dense_model: 'bge-m3', sparse_provider: 'hashed-tf', embedding_schema_version: 2, vector_size: 1024 },
+          { source_file: 'b.md', dense_provider: 'bge-m3-onnx', dense_model: 'aapot/bge-m3-onnx', sparse_provider: 'bge-m3-onnx', embedding_schema_version: 2, vector_size: 1024 },
+        ]);
+        if (keepGoing === false) return;
+        pagesRequested++;
+        await opts.onPage([
+          { source_file: 'c.md', dense_provider: 'bge-m3-onnx', dense_model: 'aapot/bge-m3-onnx', sparse_provider: 'bge-m3-onnx', embedding_schema_version: 2, vector_size: 1024 },
+        ]);
+      },
+    });
+    const adapter = createQdrantStorageAdapter({ storeOverrides: fake.storeOverrides });
+    const result = await adapter.migrateEmbeddingProfile('c1');
+    assert.equal(result.status, 'ambiguous');
+    assert.equal(pagesRequested, 1, 'a second page must never be requested once the first page disagreed');
+  });
+
+  it('never rewrites point payloads', async () => {
+    const src = readFileSync(
+      fileURLToPath(new URL('../../../../src/core/storage/qdrant-adapter.js', import.meta.url)),
+      'utf-8',
+    );
+    const method = src.slice(src.indexOf('async migrateEmbeddingProfile('), src.indexOf('async listSourceDocuments('));
+    assert.ok(!/updatePayload|upsertPoints/.test(method), 'migrateEmbeddingProfile must never call point-level write primitives');
+  });
+});
+
+describe('embeddingProfileResultToResolveResult — Part B -> Part C shape bridge for getCollection()\'s availability wiring', () => {
+  it('maps { state: "valid", profile } to { resolved: true, profile }', () => {
+    const profile = buildEmbeddingProfile({ dense: validDenseLane(), sparse: null, embeddingSchemaVersion: 2 });
+    assert.deepEqual(
+      embeddingProfileResultToResolveResult({ state: 'valid', profile }),
+      { resolved: true, profile },
+    );
+  });
+
+  it('maps { state: "missing" } to { resolved: false, reason: "legacy_unmigrated" }', () => {
+    assert.deepEqual(
+      embeddingProfileResultToResolveResult({ state: 'missing' }),
+      { resolved: false, reason: 'legacy_unmigrated' },
+    );
+  });
+
+  it('maps { state: "invalid" } to { resolved: false, reason: "invalid" }, passing the state through as-is', () => {
+    assert.deepEqual(
+      embeddingProfileResultToResolveResult({ state: 'invalid', errors: ['bad'] }),
+      { resolved: false, reason: 'invalid' },
+    );
+  });
+
+  it('maps { state: "unsupported_schema_version" } to { resolved: false, reason: "unsupported_schema_version" }', () => {
+    assert.deepEqual(
+      embeddingProfileResultToResolveResult({ state: 'unsupported_schema_version', found: { schemaVersion: 99 } }),
+      { resolved: false, reason: 'unsupported_schema_version' },
+    );
+  });
+});
+
+describe('createQdrantStorageAdapter().getCollection — availability wiring (Part F)', () => {
+  it('accepts an optional second { checkOllamaLane, checkOnnxModelCached } argument, defaulting checkOnnxModelCached to the safe core-only onnx-lane.js implementation', () => {
+    const src = readFileSync(
+      fileURLToPath(new URL('../../../../src/core/storage/qdrant-adapter.js', import.meta.url)),
+      'utf-8',
+    );
+    const method = src.slice(src.indexOf('async getCollection('), src.indexOf('async createCollection('));
+    assert.match(method, /async getCollection\(name, \{ checkOllamaLane, checkOnnxModelCached = defaultCheckOnnxModelCached \} = \{\}\)/);
+  });
+
+  it('computes availability via embeddingProfileResultToResolveResult() + resolveAvailability(), reusing the SAME embeddingProfile already extracted (no second profile resolution)', () => {
+    const src = readFileSync(
+      fileURLToPath(new URL('../../../../src/core/storage/qdrant-adapter.js', import.meta.url)),
+      'utf-8',
+    );
+    const method = src.slice(src.indexOf('async getCollection('), src.indexOf('async createCollection('));
+    assert.match(method, /embeddingProfileResultToResolveResult\(embeddingProfile\)/);
+    assert.match(method, /resolveAvailability\(availabilityResolveResult, \{ checkOllamaLane, checkOnnxModelCached \}\)/);
+    assert.match(method, /availability,/, 'the returned object must include an availability field');
+  });
+
+  it('catches a missing-checkOllamaLane throw and degrades to COLLECTION_STATUS.UNKNOWN_DEPENDENCIES rather than propagating, so existing single-argument getCollection(name) callers never break', () => {
+    const src = readFileSync(
+      fileURLToPath(new URL('../../../../src/core/storage/qdrant-adapter.js', import.meta.url)),
+      'utf-8',
+    );
+    const method = src.slice(src.indexOf('async getCollection('), src.indexOf('async createCollection('));
+    assert.match(method, /try\s*\{\s*availability = await resolveAvailability/);
+    assert.match(method, /catch\s*\{/);
+    assert.match(method, /status:\s*COLLECTION_STATUS\.UNKNOWN_DEPENDENCIES/);
   });
 });

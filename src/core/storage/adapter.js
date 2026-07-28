@@ -14,10 +14,25 @@
  * @property {() => Promise<{ ok: boolean, detail: string }>} ping
  *
  * @property {() => Promise<Object[]>} listCollections
- * @property {(name: string) => Promise<Object|null>} getCollection
- * @property {(name: string, opts: { vectorSize?: number }) => Promise<void>} createCollection
+ * @property {(name: string, opts?: { checkOllamaLane?: Function, checkOnnxModelCached?: Function }) => Promise<Object|null>} getCollection
+ *   opts is optional Part-F availability DI: checkOllamaLane is required only
+ *   when the collection's resolved profile has an ollama lane (core/ never
+ *   imports Ollama-probing code itself — the caller, e.g. Admin API or MCP,
+ *   injects it); checkOnnxModelCached defaults to the safe core-only
+ *   onnx-lane.js implementation and rarely needs overriding.
+ * @property {(name: string, opts: { profile: Object, vectorSize?: number }) => Promise<void>} createCollection
+ *   profile is REQUIRED — every new Semidex collection must be created with
+ *   a canonical embedding profile atomically; there is no metadata-less
+ *   creation path. vectorSize is optional and, when given, is only used as
+ *   a cross-check against profile.embedding.dense.dimensions (throws on
+ *   disagreement) — it is never an independent source of truth.
  * @property {(name: string) => Promise<void>} deleteCollection
  * @property {(name: string) => Promise<{ repaired: string[], warnings: string[] }>} ensureCollectionSchema
+ *
+ * @property {(name: string) => Promise<Object>} getEmbeddingProfile
+ * @property {(name: string, profile: Object) => Promise<void>} setEmbeddingProfile
+ * @property {(name: string, state: Object) => Promise<void>} setIndexingState
+ * @property {(name: string) => Promise<Object>} migrateEmbeddingProfile
  *
  * @property {(name: string, opts?: { prefix?: string, limit?: number }) => Promise<Object[]>} listSourceDocuments
  * @property {(name: string, sourceFile: string, chunkIndex: number, opts?: { window?: number }) => Promise<Object[]>} getChunk
@@ -44,6 +59,10 @@ export const REQUIRED_ADAPTER_METHODS = [
   'createCollection',
   'deleteCollection',
   'ensureCollectionSchema',
+  'getEmbeddingProfile',
+  'setEmbeddingProfile',
+  'setIndexingState',
+  'migrateEmbeddingProfile',
   'listSourceDocuments',
   'getChunk',
   'getFileChunks',

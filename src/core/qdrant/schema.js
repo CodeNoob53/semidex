@@ -4,7 +4,17 @@
 // Used by store.createCollection (new collections) and by sync.js (idempotent
 // backfill onto existing collections). Do not duplicate these lists elsewhere.
 
-/** Named-vector schema for a semidex collection. */
+/**
+ * DEFAULT named-vector schema for a semidex collection (Cosine distance,
+ * dense+sparse, no sparse modifier) — used only when store.createCollection()
+ * is called WITHOUT a profile-derived vectorSchema (a bare-size call, e.g.
+ * from a test fixture). The real, profile-driven creation path
+ * (src/core/storage/qdrant-adapter.js's buildQdrantVectorSchemaFromProfile())
+ * builds the schema from the collection's own resolved embedding profile
+ * instead of this hardcoded default, so a profile with a non-Cosine
+ * distance, no sparse lane, or a sparse modifier is honored exactly as
+ * declared, not silently overridden by this default.
+ */
 export function collectionVectorSchema(size = 1024) {
   return {
     vectors: { dense: { size, distance: 'Cosine' } },

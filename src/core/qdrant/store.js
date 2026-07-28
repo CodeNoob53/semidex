@@ -26,18 +26,60 @@ export async function getCollectionInfo(name) {
   return qdrantCall('Qdrant getCollectionInfo failed', () => client.getCollection(name));
 }
 
-export async function createCollection(name, size = 1024) {
+// vectorSchema, when given, is used AS-IS (merged with metadata) instead of
+// the default-shape collectionVectorSchema(size, metadata) — this is how
+// qdrant-adapter.js's createCollection() passes the FULL schema derived
+// from a resolved embedding profile (buildQdrantVectorSchemaFromProfile()),
+// so the collection's real distance/sparse-presence/modifier match what
+// the profile actually declares, not a hardcoded Cosine+always-sparse
+// default. `size` remains the profile-less fallback path for any caller
+// that doesn't have (or need) a full profile.
+export async function createCollection(name, size = 1024, metadata, vectorSchema) {
   const client = getQdrantClient({ write: true });
+  // The high-level client.createCollection(name, {...}) wrapper
+  // (qdrant-client.js's destructured parameter list) silently drops a
+  // `metadata` field passed in the request body — confirmed against a live
+  // v1.17.1 cluster: create-with-metadata via that wrapper returns 200 but
+  // the collection comes back with no metadata key at all. A two-phase
+  // create-then-update workaround was tried first and rejected: it leaves a
+  // window where the collection exists with no profile if the process dies
+  // between the two calls, which a later run would then treat as an
+  // unmigrated legacy collection. client.api() (no argument — it takes
+  // none; api-client.js's api() always returns the same flat generated
+  // fetch-client object regardless of any argument passed) is the SDK's own
+  // generated low-level fetch wrapper — it passes the request body straight
+  // through unfiltered (same as updateCollection()), so metadata reaches
+  // Qdrant in the SAME atomic PUT that creates the collection. Verified
+  // directly against the live cluster: a single call with `metadata` in the
+  // body round-trips correctly.
+  const resolvedSchema = vectorSchema ?? collectionVectorSchema(size);
   await qdrantCall('Create collection failed', () =>
-    client.createCollection(name, collectionVectorSchema(size)));
-  for (const [field, schema] of Object.entries(REQUIRED_PAYLOAD_INDEXES)) {
-    await createPayloadIndex(name, field, schema);
+    client.api().createCollection({
+      collection_name: name,
+      ...resolvedSchema,
+      ...(metadata !== undefined ? { metadata } : {}),
+    }));
+  for (const [field, payloadFieldSchema] of Object.entries(REQUIRED_PAYLOAD_INDEXES)) {
+    await createPayloadIndex(name, field, payloadFieldSchema);
   }
 }
 
 export async function deleteCollection(name) {
   const client = getQdrantClient({ write: true });
   await qdrantCall('Delete collection failed', () => client.deleteCollection(name));
+}
+
+// Updates a collection's native metadata (Qdrant v1.16+). Relies on Qdrant's
+// documented shallow top-level merge — this call never reads existing
+// metadata first, and never removes sibling top-level keys another tool may
+// have set. Callers pass an object keyed by the exact top-level metadata
+// key(s) they own (see src/core/embedding-profile/schema.js's
+// METADATA_KEY_EMBEDDING_PROFILE / METADATA_KEY_INDEXING_STATE), never the
+// whole metadata document.
+export async function updateCollectionMetadata(name, metadata) {
+  const client = getQdrantClient({ write: true });
+  await qdrantCall('updateCollectionMetadata failed', () =>
+    client.updateCollection(name, { metadata }));
 }
 
 export async function createPayloadIndex(collection, field, type = 'keyword') {
@@ -308,6 +350,35 @@ export async function scrollAllFiltered(collection, filter, payloadFields, pageS
     if (offset === null) break;
   }
   return points;
+}
+
+/**
+ * Paginate through all points matching a filter, invoking onPage(batch) for
+ * each page as it arrives. If onPage returns `false` (or a Promise
+ * resolving to `false`), pagination stops immediately WITHOUT fetching any
+ * further page — the one real difference from scrollAllFiltered() above,
+ * which always exhausts every page into one in-memory array. Used by
+ * migrateEmbeddingProfile() (src/core/storage/qdrant-adapter.js) so a
+ * disagreement found on an early page never pays for scanning the rest of
+ * a large collection.
+ */
+export async function scrollFilteredPages(collection, filter, payloadFields, { pageSize = 250, onPage } = {}) {
+  const client = getQdrantClient();
+  let offset = null;
+  while (true) {
+    const result = await qdrantCall('Qdrant scrollFilteredPages failed', () => client.scroll(collection, {
+      ...(filter && { filter }),
+      limit: pageSize,
+      with_payload: payloadFields,
+      with_vector: false,
+      ...(offset !== null && { offset }),
+    }));
+    const batch = result.points ?? [];
+    const keepGoing = await onPage(batch);
+    if (keepGoing === false) return;
+    offset = result.next_page_offset ?? null;
+    if (offset === null) return;
+  }
 }
 
 // ── fetchWindowChunks ─────────────────────────────────────────────────────────
