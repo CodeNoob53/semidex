@@ -10,12 +10,23 @@
 //   bge-m3-onnx + bge-m3-onnx (ONNX_EMBED=1)
 // Mixed combinations are rejected at call time to prevent payload/metadata drift.
 //
-// Config key read order: config.json collection entry → env fallback.
+// Every function here takes an already-resolved embedding PROFILE (see
+// src/core/embedding-profile/schema.js) directly — never a bare collection
+// name. This module no longer reads config.json or env itself at all; the
+// caller is responsible for resolving the profile first, via
+// src/core/embedding-profile/resolve.js's resolveExistingCollectionProfile()
+// (existing collection) or resolveNewCollectionProfile() (new collection).
+// This is what guarantees indexing and search always embed against the
+// SAME identity — before this change, embedForIndex/embedForIndexBatch
+// still read config.json independently of embedForSearch's own resolution,
+// so after config.json was lost/wrong, search could be "fixed" via a
+// different resolution path while reindexing silently wrote incompatible
+// vectors into the same collection.
 
 import { embed as ollamaEmbed } from './ollama.js';
 import { encode as hashedTfEncode } from './sparse.js';
-import { getDenseProvider, getDenseModel, getSparseProvider } from './config.js';
 import { assertProviderCombo } from './env.js';
+import { EXECUTION } from './embedding-profile/schema.js';
 
 export const SCHEMA_VERSION = 2;
 
@@ -64,28 +75,41 @@ async function loadOnnxBatch() {
   return { embedOnnxBatch: _embedOnnxBatch, embedBucketed: _embedBucketed };
 }
 
-/**
- * Returns the resolved provider config for a collection.
- * @param {string} collection
- * @returns {{ denseProvider: string, denseModel: string, sparseProvider: string, schemaVersion: number }}
- */
-export function getEmbeddingConfig(collection) {
+// Adapts a resolved embedding profile's dense/sparse lanes into the small
+// { denseProvider, denseModel, sparseProvider } shape _embed()'s dispatch
+// logic already expects — the dispatch logic itself is unchanged, only
+// what builds this input changed (profile-driven, not config.json-driven).
+function laneConfig(profile) {
   return {
-    denseProvider:  getDenseProvider(collection),
-    denseModel:     getDenseModel(collection),
-    sparseProvider: getSparseProvider(collection),
-    schemaVersion:  SCHEMA_VERSION,
+    denseProvider: profile.embedding.dense.provider,
+    denseModel: profile.embedding.dense.model,
+    sparseProvider: profile.embedding.sparse?.provider ?? null,
   };
+}
+
+// A profile whose dense execution mode isn't 'client' (e.g. 'qdrant-cloud',
+// 'qdrant-cluster') cannot be embedded by this module at all — this module
+// only ever performs CLIENT-side embedding (ONNX/Ollama, in this process).
+// Throwing here (rather than silently attempting local dispatch) is what
+// lets a caller (Part E's query/index paths) surface a precise typed
+// "unsupported execution" result instead of a confusing provider error, and
+// guarantees this module never falls back to a local default model for an
+// unsupported profile.
+function assertClientExecution(profile) {
+  if (profile.embedding.dense.execution !== EXECUTION.CLIENT) {
+    throw new Error(`embeddings.js only supports execution: 'client' — profile declares '${profile.embedding.dense.execution}', which this module cannot embed itself.`);
+  }
 }
 
 /**
  * Embed text for indexing. Returns vectors + the metadata to store in payload.
- * @param {string} collection
+ * @param {Object} profile — an already-resolved, valid embedding profile
  * @param {string} text
  * @returns {Promise<{ dense: number[], sparse: { indices: number[], values: number[] }, meta: object }>}
  */
-export async function embedForIndex(collection, text) {
-  const cfg = getEmbeddingConfig(collection);
+export async function embedForIndex(profile, text) {
+  assertClientExecution(profile);
+  const cfg = laneConfig(profile);
   const { dense, sparse } = await _embed(cfg, text);
   return {
     dense,
@@ -94,7 +118,7 @@ export async function embedForIndex(collection, text) {
       dense_provider:        cfg.denseProvider,
       dense_model:           cfg.denseModel,
       sparse_provider:       cfg.sparseProvider,
-      embedding_schema_version: cfg.schemaVersion,
+      embedding_schema_version: profile.embeddingSchemaVersion,
     },
   };
 }
@@ -106,20 +130,21 @@ export async function embedForIndex(collection, text) {
  *
  * Return shape per element: { dense, sparse, meta } — identical to embedForIndex.
  *
- * @param {string} collection
+ * @param {Object} profile — an already-resolved, valid embedding profile
  * @param {string[]} texts — pre-formatted embed texts
  * @param {(items: any[], size: number, fn: Function) => Promise<any[]>} runBatched
  * @param {number} batchSize — LLM_BATCH_SIZE for the non-DML concurrent path
  * @returns {Promise<Array<{ dense: number[], sparse: object, meta: object }>>}
  */
-export async function embedForIndexBatch(collection, texts, runBatched, batchSize) {
-  const cfg = getEmbeddingConfig(collection);
+export async function embedForIndexBatch(profile, texts, runBatched, batchSize) {
+  assertClientExecution(profile);
+  const cfg = laneConfig(profile);
   assertProviderCombo(cfg.denseProvider, cfg.sparseProvider);
   const meta = {
     dense_provider:           cfg.denseProvider,
     dense_model:              cfg.denseModel,
     sparse_provider:          cfg.sparseProvider,
-    embedding_schema_version: cfg.schemaVersion,
+    embedding_schema_version: profile.embeddingSchemaVersion,
   };
 
   if (cfg.denseProvider === 'bge-m3-onnx' && shouldUseOnnxBatching(process.env)) {
@@ -138,12 +163,13 @@ export async function embedForIndexBatch(collection, texts, runBatched, batchSiz
 
 /**
  * Embed a search query. Returns dense + sparse vectors only.
- * @param {string} collection
+ * @param {Object} profile — an already-resolved, valid embedding profile
  * @param {string} query
  * @returns {Promise<{ dense: number[], sparse: { indices: number[], values: number[] } }>}
  */
-export async function embedForSearch(collection, query) {
-  const cfg = getEmbeddingConfig(collection);
+export async function embedForSearch(profile, query) {
+  assertClientExecution(profile);
+  const cfg = laneConfig(profile);
   return _embed(cfg, query);
 }
 

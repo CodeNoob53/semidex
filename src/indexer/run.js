@@ -26,16 +26,20 @@ import { resolveCombinedLlmConfig } from '../core/doctor-checks.js';
 import { runBatched } from './batch.js';
 import { collectFiles, SUPPORTED_EXTENSIONS } from './files.js';
 import { Profiler } from './profiler.js';
-import { upsertPoints, listCollections, createCollection, getCollectionInfo, getStoredMeta, deleteBySourceFile, deleteTrailingChunks, listSourceFiles, deleteByFilter } from '../core/qdrant.js';
+import { upsertPoints, listCollections, getCollectionInfo, getStoredMeta, deleteBySourceFile, deleteTrailingChunks, listSourceFiles, deleteByFilter } from '../core/qdrant.js';
 import { makePointId } from '../core/point-id.js';
 import { loadConfig, saveConfig, resolveEnvProviders } from '../core/config.js';
-import { embedForIndex, embedForIndexBatch, shouldUseOnnxBatching, getEmbeddingConfig, SCHEMA_VERSION } from '../core/embeddings.js';
+import { embedForIndex, embedForIndexBatch, shouldUseOnnxBatching, SCHEMA_VERSION } from '../core/embeddings.js';
+import { createStorageAdapter } from '../core/storage/factory.js';
+import { resolveExistingCollectionProfile, resolveNewCollectionProfile } from '../core/embedding-profile/resolve.js';
+import { resolveCollectionConfigEntry } from '../core/embedding-profile/config-cache.js';
 import { ensureOllamaPreflight } from './preflight.js';
 import { CHUNKING_SCHEMA_VERSION, getTokenCounter, resolveTokenCountMode } from '../core/token-count.js';
 import { Semaphore } from './semaphore.js';
 import { SerialQueue } from './serial-queue.js';
 import { envInt } from '../core/env.js';
-import { expectedChunkingMeta, skeletonPayloadFields, isSkeletonChunk, makeSkeletonPointId, buildNavPointPayload } from './skeleton-payload.js';
+import { expectedChunkingMeta, skeletonPayloadFields, isSkeletonChunk, makeSkeletonPointId, buildNavPointPayload, INDEXING_SCHEMA_VERSION } from './skeleton-payload.js';
+import { buildIndexingState } from '../core/embedding-profile/schema.js';
 import { generateNavSummaries, generateDirectorySummaries, buildCollectionSummary, resolveRunNumCtx, estTokens } from './phases/skeleton-summary.js';
 import { buildDirectoryNavPoints } from './phases/skeleton-index.js';
 import { makeNodeId } from '../core/node-id.js';
@@ -56,6 +60,20 @@ let BATCH_SIZE     = envInt('LLM_BATCH_SIZE', 3, 1, 64, '[indexer] ');
 let VECTOR_SIZE    = parseInt(process.env.VECTOR_SIZE || '1024');
 const COLLECTION   = process.env.COLLECTION;
 const SOURCE_ROOT  = process.env.SOURCE_ROOT ? resolve(process.env.SOURCE_ROOT) : null;
+
+// Resolved exactly ONCE per process, in main(), before any file is
+// processed — never re-resolved per file/call. Every embedForIndex/
+// embedForIndexBatch call site below reads this same profile, so a whole
+// indexing job always embeds against one identity, and stageA's skip-tuple
+// comparison always compares against the same identity it will actually
+// embed with if it decides to reindex. See src/core/embedding-profile/
+// resolve.js — main() calls resolveNewCollectionProfile() for a brand-new
+// collection or resolveExistingCollectionProfile() (+ an explicit
+// migrateEmbeddingProfile() call, since an indexing job is a sanctioned,
+// user-initiated write trigger) for an existing one, and fails fast before
+// this file touches a single point if neither resolves.
+let EMBEDDING_PROFILE = null;
+const storageAdapter = createStorageAdapter();
 
 /**
  * Re-resolves every indexer-consumed setting from a SettingsService: this
@@ -114,9 +132,16 @@ async function stageA(filePath, rootPath, collection, profiler, reporter = null)
     throw new Error(`File "${filePath}" is outside SOURCE_ROOT "${SOURCE_ROOT}". Fix SOURCE_ROOT or remove it.`);
   }
 
-  const embedCfg       = getEmbeddingConfig(collection);
+  // EMBEDDING_PROFILE is resolved exactly once, in main(), before any file
+  // is processed — never re-resolved per file. See its declaration above.
+  const embedCfg = {
+    denseProvider: EMBEDDING_PROFILE.embedding.dense.provider,
+    denseModel: EMBEDDING_PROFILE.embedding.dense.model,
+    sparseProvider: EMBEDDING_PROFILE.embedding.sparse?.provider ?? null,
+    schemaVersion: EMBEDDING_PROFILE.embeddingSchemaVersion,
+  };
   const tokenCountMode = resolveTokenCountMode();
-  const configVectorSize = loadConfig().collections?.[collection]?.vectorSize ?? VECTOR_SIZE;
+  const configVectorSize = EMBEDDING_PROFILE.embedding.dense.dimensions;
 
   const fileHash   = await hashFile(filePath);
   const storedMeta = await getStoredMeta(collection, sourceFile);
@@ -394,13 +419,13 @@ async function stageC(withTagged, reporter = null) {
   let embedResults;
   if (shouldUseOnnxBatching(process.env)) {
     try {
-      embedResults = await embedForIndexBatch(collection, embedTexts, runBatched, BATCH_SIZE);
+      embedResults = await embedForIndexBatch(EMBEDDING_PROFILE, embedTexts, runBatched, BATCH_SIZE);
     } catch (batchErr) {
       process.stderr.write(`[embed] DML batch failed (${batchErr.message}) — retrying per-text\n`);
-      embedResults = await runBatched(embedTexts, BATCH_SIZE, text => embedForIndex(collection, text));
+      embedResults = await runBatched(embedTexts, BATCH_SIZE, text => embedForIndex(EMBEDDING_PROFILE, text));
     }
   } else {
-    embedResults = await runBatched(embedTexts, BATCH_SIZE, text => embedForIndex(collection, text));
+    embedResults = await runBatched(embedTexts, BATCH_SIZE, text => embedForIndex(EMBEDDING_PROFILE, text));
   }
 
   // Validate vectors before passing to stageD — no destructive work has happened yet.
@@ -465,7 +490,7 @@ async function stageC(withTagged, reporter = null) {
   if (navPoints.length > 0) {
     const navEmbeds = await runBatched(
       navPoints.map(n => n.summary ?? ''), BATCH_SIZE,
-      text => embedForIndex(collection, text),
+      text => embedForIndex(EMBEDDING_PROFILE, text),
     );
     navQdrantPoints = navPoints.map((nav, i) => {
       const { dense, sparse, meta } = navEmbeds[i];
@@ -596,24 +621,26 @@ async function main() {
       }
     }
     VECTOR_SIZE = newCollectionVectorSize;
+    // resolveNewCollectionProfile() is the ONE legitimate place
+    // resolveEnvProviders()-derived global/env defaults are used — this
+    // profile and the Qdrant vector space are established together via
+    // adapter.createCollection(), never via a follow-up
+    // setEmbeddingProfile() call. config.json is then written AFTER this
+    // resolution succeeds, as a cache of the SAME resolved profile object
+    // (one value, two destinations — never two independent resolutions
+    // that could drift apart).
+    EMBEDDING_PROFILE = resolveNewCollectionProfile(providerConfig, {
+      vectorSize: VECTOR_SIZE,
+      embeddingSchemaVersion: SCHEMA_VERSION,
+    });
     console.log(`Collection "${COLLECTION}" not found, creating...`);
-    await createCollection(COLLECTION, VECTOR_SIZE);
+    await storageAdapter.createCollection(COLLECTION, { profile: EMBEDDING_PROFILE });
     allCollections = [...allCollections, COLLECTION];
     const cfg = loadConfig();
     if (!cfg.collections) cfg.collections = {};
-    if (!cfg.collections[COLLECTION]) {
-      const { denseProvider, denseModel, sparseProvider } = providerConfig;
-      cfg.collections[COLLECTION] = {
-        denseProvider,
-        denseModel,
-        sparseProvider,
-        embeddingSchemaVersion: SCHEMA_VERSION,
-        vectorSize:  VECTOR_SIZE,
-        description: '',
-      };
-      saveConfig(cfg);
-      console.log(`  saved config for "${COLLECTION}" (dense: ${denseProvider}/${denseModel}, sparse: ${sparseProvider})`);
-    }
+    cfg.collections[COLLECTION] = resolveCollectionConfigEntry(EMBEDDING_PROFILE, cfg.collections[COLLECTION]);
+    saveConfig(cfg);
+    console.log(`  saved config for "${COLLECTION}" (dense: ${providerConfig.denseProvider}/${providerConfig.denseModel}, sparse: ${providerConfig.sparseProvider})`);
   } else {
     // Guard against plain-vector collections (indexed outside semidex, e.g. via
     // third-party MCP plugins). semidex always uses named vectors {dense, sparse}.
@@ -631,6 +658,42 @@ async function main() {
       );
       process.exit(1);
     }
+
+    // The indexer's own preflight is one of the two legitimate places
+    // allowed to trigger migration (the other is sync.js) — an indexing
+    // job is an explicit, user-initiated action, never a passive read.
+    // resolveExistingCollectionProfile() itself is strictly read-only; if
+    // it reports 'legacy_unmigrated', migrateEmbeddingProfile() is called
+    // explicitly here, then re-resolved. If the profile still cannot be
+    // resolved after that, this fails fast — before any embedding or
+    // upsert call — rather than falling back to global/env defaults for
+    // an existing collection.
+    let resolution = await resolveExistingCollectionProfile(storageAdapter, COLLECTION);
+    if (!resolution.resolved && resolution.reason === 'legacy_unmigrated') {
+      const migration = await storageAdapter.migrateEmbeddingProfile(COLLECTION);
+      if (migration.status === 'inferred') {
+        console.log(`  ✓ migrated embedding profile for "${COLLECTION}" (dense: ${migration.profile.embedding.dense.provider}/${migration.profile.embedding.dense.model})`);
+      }
+      resolution = await resolveExistingCollectionProfile(storageAdapter, COLLECTION);
+    }
+    if (!resolution.resolved) {
+      console.error(
+        `\nERROR: Cannot determine the embedding identity of existing collection "${COLLECTION}" (${resolution.reason}).\n` +
+        `  This collection has no valid native embedding profile, and its legacy point payloads (if any) are\n` +
+        `  ambiguous or missing — reindexing would risk writing vectors from the wrong model into this collection.\n` +
+        `  Resolve this by running "npm run sync" for a detailed diagnosis, or delete and reindex from scratch.`
+      );
+      process.exit(1);
+    }
+    EMBEDDING_PROFILE = resolution.profile;
+    VECTOR_SIZE = EMBEDDING_PROFILE.embedding.dense.dimensions;
+    // config.json's role for an existing collection is a cache/display
+    // convenience, refreshed from the resolved profile so it never
+    // silently drifts from the native metadata that is now canonical.
+    const cfg = loadConfig();
+    if (!cfg.collections) cfg.collections = {};
+    cfg.collections[COLLECTION] = resolveCollectionConfigEntry(EMBEDDING_PROFILE, cfg.collections[COLLECTION]);
+    saveConfig(cfg);
   }
 
   const PRUNE_STALE = process.env.PRUNE_STALE === '1';
@@ -872,14 +935,14 @@ async function main() {
         if (enrichedDirs.length > 0) {
           const dirTexts = enrichedDirs.map(n => n.summary);
           const dirEmbeds = shouldUseOnnxBatching(process.env)
-            ? await embedForIndexBatch(COLLECTION, dirTexts, runBatched, BATCH_SIZE)
-            : await runBatched(dirTexts, BATCH_SIZE, text => embedForIndex(COLLECTION, text));
-          const cfgVectorSize = loadConfig().collections?.[COLLECTION]?.vectorSize ?? VECTOR_SIZE;
+            ? await embedForIndexBatch(EMBEDDING_PROFILE, dirTexts, runBatched, BATCH_SIZE)
+            : await runBatched(dirTexts, BATCH_SIZE, text => embedForIndex(EMBEDDING_PROFILE, text));
+          const cfgVectorSize = EMBEDDING_PROFILE.embedding.dense.dimensions;
           const dirPoints = enrichedDirs.map((node, i) => ({
             id: makeSkeletonPointId({
               collection: COLLECTION,
               nodeId: node.node_id,
-              embeddingSchemaVersion: SCHEMA_VERSION,
+              embeddingSchemaVersion: EMBEDDING_PROFILE.embeddingSchemaVersion,
             }),
             vector: { dense: dirEmbeds[i].dense, sparse: dirEmbeds[i].sparse },
             payload: buildNavPointPayload(node, {
@@ -912,12 +975,12 @@ async function main() {
           collection: '', sourceFile: '', structuralPath: '',
           nodeType: 'collection', ordinalWithinParent: 1,
         });
-        const { dense, sparse, meta } = await embedForIndex(COLLECTION, collResult.summary);
-        const cfgVectorSize = loadConfig().collections?.[COLLECTION]?.vectorSize ?? VECTOR_SIZE;
+        const { dense, sparse, meta } = await embedForIndex(EMBEDDING_PROFILE, collResult.summary);
+        const cfgVectorSize = EMBEDDING_PROFILE.embedding.dense.dimensions;
         await upsertPoints(COLLECTION, [{
           id: makeSkeletonPointId({
             collection: COLLECTION, nodeId: collectionNodeId,
-            embeddingSchemaVersion: SCHEMA_VERSION,
+            embeddingSchemaVersion: EMBEDDING_PROFILE.embeddingSchemaVersion,
           }),
           vector: { dense, sparse },
           payload: buildNavPointPayload({
@@ -941,6 +1004,23 @@ async function main() {
     } catch (err) {
       console.warn(`\nWARN: collection nav node update failed — ${err.message}`);
     }
+  }
+
+  // Records the schema versions this indexing run actually wrote, as the
+  // mutable sibling of the immutable embedding profile (Part D/architecture
+  // doc's two-key split: semidex_indexing_state next to
+  // semidex_embedding_profile, updated freely on every successful run,
+  // never touching the embedding-profile key). Best-effort: a failure here
+  // must never fail an otherwise-successful indexing run — the payload-level
+  // chunking_schema_version/indexing_schema_version fields (already written
+  // per-point above) remain the authoritative per-file record regardless.
+  try {
+    await storageAdapter.setIndexingState(COLLECTION, buildIndexingState({
+      indexingSchemaVersion: INDEXING_SCHEMA_VERSION,
+      chunkingSchemaVersion: CHUNKING_SCHEMA_VERSION,
+    }));
+  } catch (err) {
+    console.warn(`\nWARN: failed to update collection indexing-state metadata — ${err.message}`);
   }
 
   console.log(`\nDone. ${files.length} file(s): ${indexed} indexed, ${skipped} skipped.`);

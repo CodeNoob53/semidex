@@ -9,33 +9,39 @@
 // This is not imported by any test (confirmed), so it's safe for this file
 // to be a top-level script with no isMainModule guard.
 //
-// sync.js DOES consume settings-registry fields: resolveEnvProviders()
-// below (DENSE_PROVIDER/SPARSE_PROVIDER/DENSE_MODEL/EMBED_MODEL) and every
-// Qdrant call (via QDRANT_URL, read by core/qdrant/client.js) — a
-// settings.json-saved value for any of these must be visible to `npm run
-// sync` the same way it is to the indexer/admin/MCP (code review finding:
-// this file previously called resolveEnvProviders() with no SettingsService
-// at all, so a settings.json override was silently invisible here even
-// though sync.js's whole job is to reconcile config.json against reality).
+// sync.js consumes settings-registry fields via QDRANT_URL (read by
+// core/qdrant/client.js) — a settings.json-saved value must be visible to
+// `npm run sync` the same way it is to the indexer/admin/MCP.
 const { bootstrapEnv } = await import('./core/env-bootstrap.js');
 const { osEnv, dotenvValues } = bootstrapEnv();
 const { createSettingsService, applyEnvWriteBack } = await import('./core/settings/service.js');
 const settingsService = createSettingsService({ osEnv, dotenvValues });
 applyEnvWriteBack(settingsService);
 
-const { loadConfig, saveConfig, resolveEnvProviders } = await import('./core/config.js');
+const { loadConfig, saveConfig } = await import('./core/config.js');
 const { listCollections, getCollectionInfo, ensureCollectionSchema } = await import('./core/qdrant.js');
 const { classifyVectorSchema } = await import('./core/doctor-checks.js');
-const { SCHEMA_VERSION } = await import('./core/embeddings.js');
-const { ONNX_DENSE_MODEL_ID } = await import('./core/onnx-paths.js');
+const { createStorageAdapter } = await import('./core/storage/factory.js');
+const { resolveCollectionConfigEntry } = await import('./core/embedding-profile/config-cache.js');
 
 const config = loadConfig();
 if (!config.collections) config.collections = {};
 
 const remote = await listCollections();
-const { denseProvider, denseModel, sparseProvider } = resolveEnvProviders();
+
+// Embedding-profile-aware adapter — the ONLY sanctioned caller of
+// migrateEmbeddingProfile besides the indexer's own preflight (both are
+// explicit, user-initiated actions, never a passive read path). Every
+// remote collection's config.json entry below is derived from its resolved
+// NATIVE profile, never from resolveEnvProviders() (current global/env
+// settings) — sync.js only ever reconciles EXISTING remote collections
+// (confirmed: no code path here creates a brand-new Qdrant collection), so
+// resolveNewCollectionProfile()/resolveEnvProviders() have no legitimate
+// call site in this file at all.
+const storageAdapter = createStorageAdapter();
 
 const flatSchemaCollections = [];
+const unresolvedCollections = [];
 
 for (const name of remote) {
   const info = await getCollectionInfo(name);
@@ -60,45 +66,45 @@ for (const name of remote) {
     console.log(`  ⚠ FOREIGN SCHEMA: "${name}" has no named 'dense' vector — hybrid search unavailable.`);
   }
 
-  if (!config.collections[name]) {
-    config.collections[name] = {
-      denseProvider,
-      denseModel,
-      sparseProvider,
-      embeddingSchemaVersion: SCHEMA_VERSION,
-      vectorSize:  isFlatSchema ? vectorsCfg.size : (vectorsCfg.dense?.size ?? 1024),
-      description: '',
-    };
-    console.log(`+ added: ${name} (dense: ${denseProvider}/${denseModel}, sparse: ${sparseProvider})`);
+  // Embedding identity: EVERY remote collection is processed uniformly
+  // here, regardless of whether it already has a config.json entry —
+  // gating this on "missing from config.json" (the pre-fix behavior)
+  // would mean a real pre-existing Semidex collection (which already has
+  // a config.json entry today, before native metadata support existed)
+  // never gets migrated no matter how many times `npm run sync` runs.
+  // config.json is written ONLY as a cache of a profile resolved from
+  // native metadata or a verified legacy payload — never from
+  // resolveEnvProviders(), which describes CURRENT global/env settings,
+  // not this collection's actual indexed identity.
+  const profileResult = await storageAdapter.getEmbeddingProfile(name);
+  if (profileResult.state === 'valid') {
+    config.collections[name] = resolveCollectionConfigEntry(profileResult.profile, config.collections[name]);
+  } else if (profileResult.state === 'missing') {
+    const migration = await storageAdapter.migrateEmbeddingProfile(name);
+    if (migration.status === 'inferred') {
+      config.collections[name] = resolveCollectionConfigEntry(migration.profile, config.collections[name]);
+      console.log(`  ✓ migrated embedding profile for "${name}" (dense: ${migration.profile.embedding.dense.provider}/${migration.profile.embedding.dense.model}, sparse: ${migration.profile.embedding.sparse?.provider ?? 'none'})`);
+    } else {
+      unresolvedCollections.push(name);
+      console.log(`  ⚠ cannot determine embedding identity for "${name}" (${migration.reason}) — reindex or migrate manually`);
+      // Deliberately does NOT touch config.collections[name] — leave
+      // whatever was there before untouched. sync must never claim
+      // identity it hasn't verified, but also must not destroy a
+      // config.json entry that might still be a useful clue for a human,
+      // even though it is no longer treated as canonical.
+    }
   } else {
-    // Backfill any missing provider fields on existing entries.
-    const col = config.collections[name];
-    let changed = false;
+    // 'invalid' / 'unsupported_schema_version' — never silently overwrite
+    // or reinterpret a profile this codebase doesn't fully understand; it
+    // may belong to a newer semidex version. Matches the adapter's own
+    // write-once guard, which already refuses to touch these states for
+    // exactly this reason.
+    unresolvedCollections.push(name);
+    console.log(`  ⚠ "${name}" has unrecognized/newer embedding profile metadata (${profileResult.reason ?? profileResult.state}) — leaving it untouched`);
+  }
 
-    if (!col.denseProvider) {
-      // Infer from legacy sparseProvider field if present, otherwise use env.
-      col.denseProvider = col.sparseProvider === 'bge-m3-onnx' ? 'bge-m3-onnx' : denseProvider;
-      changed = true;
-    }
-    if (!col.denseModel) {
-      col.denseModel = col.denseProvider === 'bge-m3-onnx' ? ONNX_DENSE_MODEL_ID : (col.embedModel ?? denseModel);
-      changed = true;
-    }
-    if (!col.sparseProvider) {
-      col.sparseProvider = col.denseProvider === 'bge-m3-onnx' ? 'bge-m3-onnx' : sparseProvider;
-      changed = true;
-    }
-    if (!col.embeddingSchemaVersion) {
-      col.embeddingSchemaVersion = SCHEMA_VERSION;
-      changed = true;
-    }
-    if (col.linkDisabled) {
-      delete col.linkDisabled;
-      changed = true;
-    }
-    if (changed) {
-      console.log(`  ~ backfilled "${name}": dense=${col.denseProvider}/${col.denseModel}, sparse=${col.sparseProvider}`);
-    }
+  if (config.collections[name]?.linkDisabled) {
+    delete config.collections[name].linkDisabled;
   }
 
   // Pass the already-fetched info to avoid a redundant getCollectionInfo call;
@@ -141,5 +147,12 @@ if (flatSchemaCollections.length > 0) {
     console.log(`  ${name}:`);
     console.log(`    1. Delete: DELETE /collections/${name}  (dashboard or Qdrant API)`);
     console.log(`    2. Reindex: COLLECTION=${name} npm run index <original-source-path>`);
+  }
+}
+
+if (unresolvedCollections.length > 0) {
+  console.log(`\n⚠ COLLECTIONS WITH UNRESOLVED EMBEDDING IDENTITY (semantic/hybrid search unavailable until resolved):`);
+  for (const name of unresolvedCollections) {
+    console.log(`  ${name}: reindex, or run migration manually once payload identity is unambiguous`);
   }
 }

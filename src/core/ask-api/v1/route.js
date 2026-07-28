@@ -48,6 +48,13 @@ const RETRIEVAL_ERROR_STATUS = {
   not_implemented: 501,
   collection_not_found: 404,
   embedding_failed: 500,
+  // Embedding-profile resolution outcomes (src/core/embedding-profile/
+  // resolve.js, surfaced through runHybridSearch) — distinct from a
+  // generic embedding_failed: the collection's identity itself could not
+  // be resolved, or its profile declares an execution mode this codebase
+  // does not implement yet.
+  embedding_unresolved: 503,
+  embedding_unsupported: 501,
 };
 
 /**

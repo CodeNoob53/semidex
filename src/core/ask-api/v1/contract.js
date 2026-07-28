@@ -39,6 +39,15 @@ export const ERROR_CODES = Object.freeze({
   BUSY: 'busy',
   DEPENDENCY_UNAVAILABLE: 'dependency_unavailable',
   EMBEDDING_FAILED: 'embedding_failed',
+  // Embedding-profile resolution outcomes (src/core/embedding-profile/
+  // resolve.js) — EMBEDDING_UNRESOLVED: the collection's own embedding
+  // identity could not be determined (missing/ambiguous/invalid native
+  // metadata); EMBEDDING_UNSUPPORTED: the collection's resolved profile
+  // declares an execution mode (e.g. qdrant-cloud) this codebase does not
+  // implement yet. Distinct from EMBEDDING_FAILED, which means a resolved,
+  // supported profile still failed to actually embed the query/text.
+  EMBEDDING_UNRESOLVED: 'embedding_unresolved',
+  EMBEDDING_UNSUPPORTED: 'embedding_unsupported',
   RETRIEVAL_FAILED: 'retrieval_failed',
   GENERATION_FAILED: 'generation_failed',
   STREAM_ABORTED: 'stream_aborted',
@@ -59,6 +68,11 @@ const RETRYABLE_CODES = new Set([
   ERROR_CODES.GENERATION_FAILED,
   ERROR_CODES.INTERNAL_ERROR,
 ]);
+// EMBEDDING_UNRESOLVED/EMBEDDING_UNSUPPORTED are deliberately NOT retryable
+// (absent from this set) — the same collection identity/execution-mode
+// problem will still be there on an immediate retry; the collection needs
+// migration/reindex (unresolved) or the feature needs to actually be
+// implemented (unsupported), neither of which a retry alone resolves.
 // stream_aborted means the CLIENT cancelled its own request — retrying is
 // meaningful only if the client still wants an answer, which is a client
 // decision, not a server-detectable transient-failure signal. Treated as

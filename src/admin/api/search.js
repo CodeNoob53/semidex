@@ -145,7 +145,7 @@ export async function expandWindows(adapter, collection, hits, { window, windowF
  * @param {Object} router
  * @param {import('../../core/storage/adapter.js').StorageAdapter} adapter
  * @param {{
- *   embedQuery?: (collection: string, query: string) => Promise<{dense: number[], sparse: Object}>,
+ *   embedQuery?: (profile: Object, query: string) => Promise<{dense: number[], sparse: Object}>,
  *   settingsService?: ReturnType<typeof import('../../core/settings/service.js').createSettingsService>,
  * }} [deps]
  *   embedQuery is dependency-injectable so tests never need ONNX/Ollama.
@@ -171,6 +171,8 @@ export function registerSearchRoutes(router, adapter, { embedQuery = embedForSea
 
     if (result.error === 'not_implemented') throw new HttpError(501, result.error, result.message);
     if (result.error === 'collection_not_found') throw notFound(result.message);
+    if (result.error === 'embedding_unresolved') throw new HttpError(503, result.error, result.message);
+    if (result.error === 'embedding_unsupported') throw new HttpError(501, result.error, result.message);
     if (result.error === 'embedding_failed') throw new HttpError(500, result.error, result.message);
 
     const { searchMode, hits } = result;

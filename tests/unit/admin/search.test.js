@@ -17,6 +17,15 @@ const HIT = {
   isMatch: null,
 };
 
+const VALID_PROFILE = {
+  schemaVersion: 1, managedBy: 'semidex',
+  embedding: {
+    dense: { provider: 'ollama', model: 'bge-m3', vectorName: 'dense', dimensions: 1024, distance: 'Cosine', execution: 'client' },
+    sparse: { provider: 'hashed-tf', model: 'hashed-tf', vectorName: 'sparse', execution: 'client' },
+  },
+  embeddingSchemaVersion: 2,
+};
+
 function makeStubAdapter(overrides = {}) {
   return {
     name: () => 'stub',
@@ -30,6 +39,7 @@ function makeStubAdapter(overrides = {}) {
     createCollection: async () => {},
     deleteCollection: async () => {},
     ensureCollectionSchema: async () => ({ repaired: [], warnings: [] }),
+    getEmbeddingProfile: async () => ({ state: 'valid', profile: VALID_PROFILE }),
     listSourceDocuments: async () => [],
     getChunk: async () => [],
     getFileChunks: async () => [],

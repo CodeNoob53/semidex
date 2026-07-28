@@ -6,10 +6,20 @@ import { buildEvidence, DEFAULT_TOP } from '../../../../src/core/ask/evidence.js
 // BGE-M3 tokenizer.
 const countTokens = (text) => (text ?? '').split(/\s+/).filter(Boolean).length;
 
+const validProfile = {
+  schemaVersion: 1, managedBy: 'semidex',
+  embedding: {
+    dense: { provider: 'ollama', model: 'bge-m3', vectorName: 'dense', dimensions: 1024, distance: 'Cosine', execution: 'client' },
+    sparse: { provider: 'hashed-tf', model: 'hashed-tf', vectorName: 'sparse', execution: 'client' },
+  },
+  embeddingSchemaVersion: 2,
+};
+
 function fakeAdapter(overrides = {}) {
   return {
     capabilities: () => ({ hybridSearch: true, sparseVectors: true }),
     getCollection: async (name) => ({ name }),
+    getEmbeddingProfile: async () => ({ state: 'valid', profile: validProfile }),
     searchHybrid: async () => [],
     getContentNode: async () => null,
     getSkeletonNode: async () => null,

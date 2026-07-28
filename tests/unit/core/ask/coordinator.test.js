@@ -5,10 +5,20 @@ import { REFUSAL_SENTINEL } from '../../../../src/core/ask/prompt.js';
 
 const countTokens = (text) => (text ?? '').split(/\s+/).filter(Boolean).length;
 
+const VALID_PROFILE = {
+  schemaVersion: 1, managedBy: 'semidex',
+  embedding: {
+    dense: { provider: 'ollama', model: 'bge-m3', vectorName: 'dense', dimensions: 1024, distance: 'Cosine', execution: 'client' },
+    sparse: { provider: 'hashed-tf', model: 'hashed-tf', vectorName: 'sparse', execution: 'client' },
+  },
+  embeddingSchemaVersion: 2,
+};
+
 function fakeAdapter({ hits = [] } = {}) {
   return {
     capabilities: () => ({ hybridSearch: true, sparseVectors: true }),
     getCollection: async (name) => ({ name }),
+    getEmbeddingProfile: async () => ({ state: 'valid', profile: VALID_PROFILE }),
     searchHybrid: async () => hits,
     getContentNode: async () => null,
     getSkeletonNode: async () => null,

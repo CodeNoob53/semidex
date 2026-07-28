@@ -1,19 +1,23 @@
 // Provider-neutral hybrid-search orchestration — the core retrieval service
 // shared by /api/search (src/admin/api/search.js) and the Ask evidence
 // pipeline (src/core/ask/evidence.js). One implementation: mode resolution,
-// the collection-exists check, query embedding, and the excludeNav filter
-// all live here so both callers see identical ranking and filtering
-// behavior. MCP search (src/mcp/tools/search.js) is NOT refactored onto this
-// service in this phase — out of scope, do not touch it.
+// the collection-exists check, embedding-profile resolution, query
+// embedding, and the excludeNav filter all live here so both callers see
+// identical ranking and filtering behavior. MCP search
+// (src/mcp/tools/search.js) resolves its collection's profile through the
+// SAME resolveExistingCollectionProfile() this file uses, but is not routed
+// through runHybridSearch() itself — out of scope to refactor MCP's whole
+// pipeline onto this service.
 //
 // No HTTP concerns here (no HttpError, no req/res) — errors are reported via
 // a typed { error } result so both an HTTP adapter and a non-HTTP caller
 // (Ask) can render them however they need to.
 import { embedForSearch } from '../embeddings.js';
+import { resolveExistingCollectionProfile } from '../embedding-profile/resolve.js';
 
 /**
  * @typedef {Object} RetrievalError
- * @property {'not_implemented'|'collection_not_found'|'embedding_failed'} error
+ * @property {'not_implemented'|'collection_not_found'|'embedding_unresolved'|'embedding_unsupported'|'embedding_failed'} error
  * @property {string} message
  */
 
@@ -35,7 +39,7 @@ export function resolveSearchMode(capabilities) {
  *
  * @param {{
  *   adapter: import('../storage/adapter.js').StorageAdapter,
- *   embedQuery?: (collection: string, query: string) => Promise<{ dense: number[], sparse: Object }>,
+ *   embedQuery?: (profile: Object, query: string) => Promise<{ dense: number[], sparse: Object }>,
  *   collection: string,
  *   query: string,
  *   top: number,
@@ -60,9 +64,23 @@ export async function runHybridSearch({ adapter, embedQuery = embedForSearch, co
     return { error: 'collection_not_found', message: `Collection "${collection}" not found` };
   }
 
+  // Resolve the collection's OWN embedding profile before embedding at
+  // all — never falls back to a local default model for an
+  // unresolved/unsupported profile. This is the query-time half of the
+  // same resolution embedForIndex/embedForIndexBatch use at index time
+  // (src/core/embedding-profile/resolve.js), so a query always embeds
+  // against the exact identity the collection's vectors were written with.
+  const resolution = await resolveExistingCollectionProfile(adapter, collection);
+  if (!resolution.resolved) {
+    return { error: 'embedding_unresolved', message: `Collection "${collection}" has no resolvable embedding profile (${resolution.reason}) — reindex or run "npm run sync" to migrate.` };
+  }
+  if (resolution.profile.embedding.dense.execution !== 'client') {
+    return { error: 'embedding_unsupported', message: `Collection "${collection}"'s embedding profile uses execution "${resolution.profile.embedding.dense.execution}", which is not yet implemented.` };
+  }
+
   let vectors;
   try {
-    vectors = await embedQuery(collection, query);
+    vectors = await embedQuery(resolution.profile, query);
   } catch (err) {
     return { error: 'embedding_failed', message: `Failed to embed query: ${err.message}` };
   }

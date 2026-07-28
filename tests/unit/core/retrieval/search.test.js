@@ -2,10 +2,20 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { runHybridSearch, resolveSearchMode } from '../../../../src/core/retrieval/search.js';
 
-function fakeAdapter({ capabilities, collection, hits } = {}) {
+const validProfile = {
+  schemaVersion: 1, managedBy: 'semidex',
+  embedding: {
+    dense: { provider: 'ollama', model: 'bge-m3', vectorName: 'dense', dimensions: 1024, distance: 'Cosine', execution: 'client' },
+    sparse: { provider: 'hashed-tf', model: 'hashed-tf', vectorName: 'sparse', execution: 'client' },
+  },
+  embeddingSchemaVersion: 2,
+};
+
+function fakeAdapter({ capabilities, collection, hits, embeddingProfileResult } = {}) {
   return {
     capabilities: () => capabilities ?? { hybridSearch: true, sparseVectors: true },
     getCollection: async (name) => (collection === undefined ? { name } : collection),
+    getEmbeddingProfile: async () => embeddingProfileResult ?? { state: 'valid', profile: validProfile },
     searchHybrid: async (name, opts) => {
       fakeAdapter.lastCall = { name, opts };
       return hits ?? [];
@@ -83,5 +93,53 @@ describe('runHybridSearch', () => {
     const fakeSettingsService = { getActiveValue: () => 42, refreshIfChanged: () => {} };
     await runHybridSearch({ adapter, embedQuery, collection: 'c', query: 'q', top: 5, settingsService: fakeSettingsService });
     assert.equal(fakeAdapter.lastCall.opts.settingsService, fakeSettingsService);
+  });
+
+  test('passes the RESOLVED PROFILE (not a bare collection string) to embedQuery', async () => {
+    const adapter = fakeAdapter();
+    let capturedFirstArg;
+    const embedQuery = async (profileArg, query) => { capturedFirstArg = profileArg; return { dense: [1], sparse: {} }; };
+    await runHybridSearch({ adapter, embedQuery, collection: 'c', query: 'q', top: 5 });
+    assert.deepEqual(capturedFirstArg, validProfile);
+  });
+
+  test('resolution failure short-circuits BEFORE embedQuery is ever called — never invokes a local default model for an unresolved profile', async () => {
+    const adapter = fakeAdapter({ embeddingProfileResult: { state: 'missing' } });
+    let embedQueryCalled = false;
+    const embedQuery = async () => { embedQueryCalled = true; return { dense: [1], sparse: {} }; };
+    const result = await runHybridSearch({ adapter, embedQuery, collection: 'c', query: 'q', top: 5 });
+    assert.equal(result.error, 'embedding_unresolved');
+    assert.equal(embedQueryCalled, false);
+  });
+
+  test('an "invalid" profile state also produces embedding_unresolved, never a silent fallback', async () => {
+    const adapter = fakeAdapter({ embeddingProfileResult: { state: 'invalid', errors: ['bad'] } });
+    const result = await runHybridSearch({ adapter, collection: 'c', query: 'q', top: 5 });
+    assert.equal(result.error, 'embedding_unresolved');
+  });
+
+  test('a profile with a non-client execution mode (e.g. qdrant-cloud) produces embedding_unsupported, never invoking embedQuery', async () => {
+    const cloudProfile = { ...validProfile, embedding: { ...validProfile.embedding, dense: { ...validProfile.embedding.dense, execution: 'qdrant-cloud' } } };
+    const adapter = fakeAdapter({ embeddingProfileResult: { state: 'valid', profile: cloudProfile } });
+    let embedQueryCalled = false;
+    const embedQuery = async () => { embedQueryCalled = true; return { dense: [1], sparse: {} }; };
+    const result = await runHybridSearch({ adapter, embedQuery, collection: 'c', query: 'q', top: 5 });
+    assert.equal(result.error, 'embedding_unsupported');
+    assert.match(result.message, /qdrant-cloud/);
+    assert.equal(embedQueryCalled, false);
+  });
+
+  test('same-dimension-different-model is never accepted as compatible: two profiles with equal dimensions but different models are passed through distinctly, never cross-substituted', async () => {
+    const profileA = validProfile;
+    const profileB = { ...validProfile, embedding: { ...validProfile.embedding, dense: { ...validProfile.embedding.dense, model: 'a-completely-different-model', dimensions: 1024 } } };
+    const adapterA = fakeAdapter({ embeddingProfileResult: { state: 'valid', profile: profileA } });
+    const adapterB = fakeAdapter({ embeddingProfileResult: { state: 'valid', profile: profileB } });
+    const captured = [];
+    const embedQuery = async (profileArg) => { captured.push(profileArg.embedding.dense.model); return { dense: [1], sparse: {} }; };
+    await runHybridSearch({ adapter: adapterA, embedQuery, collection: 'c', query: 'q', top: 5 });
+    await runHybridSearch({ adapter: adapterB, embedQuery, collection: 'c', query: 'q', top: 5 });
+    assert.equal(captured[0], 'bge-m3');
+    assert.equal(captured[1], 'a-completely-different-model');
+    assert.notEqual(captured[0], captured[1], 'equal dimensions must never cause the two distinct models to be treated as interchangeable');
   });
 });

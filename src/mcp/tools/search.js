@@ -3,8 +3,27 @@ import { embedForSearch } from '../../core/embeddings.js';
 import { rerankResults } from '../../core/rerank.js';
 import { ceRerank, withCETimeout, getCeRerankConfig } from '../../core/ce-rerank.js';
 import { withNavExcluded } from './filters.js';
+import { createStorageAdapter } from '../../core/storage/factory.js';
+import { resolveExistingCollectionProfile } from '../../core/embedding-profile/resolve.js';
 
 import { envInt } from '../../core/env.js';
+
+// MCP search resolves the collection's embedding profile through the SAME
+// path (resolveExistingCollectionProfile) admin search and Ask use — never
+// a separate/duplicated resolution implementation. Lazily constructed
+// (never at import time) so a test importing this module directly never
+// touches a real Qdrant connection unless handle() actually runs.
+// setStorageAdapter() mirrors setSettingsService()'s existing DI pattern in
+// this same file — a test-only override seam for a module with no
+// constructor of its own (the MCP SDK calls handle(args) directly).
+let storageAdapter = null;
+let storageAdapterOverride = null;
+export function setStorageAdapter(adapter) { storageAdapterOverride = adapter; }
+function getStorageAdapter() {
+  if (storageAdapterOverride) return storageAdapterOverride;
+  if (!storageAdapter) storageAdapter = createStorageAdapter();
+  return storageAdapter;
+}
 
 // settingsService is set once by mcp/server.js at process startup
 // (setSettingsService()) — this tool module has no constructor/DI point of
@@ -101,7 +120,19 @@ export async function handle({ query, collection, top = 5, tags, source_file, wi
   top = Math.min(Math.max(1, parseInt(top) || 5), 20);
   window = Math.max(0, Math.min(2, parseInt(window) || 0));
 
-  const { dense, sparse } = await embedForSearch(collection, query);
+  // Resolve the collection's OWN embedding profile before embedding at
+  // all — same resolution path admin search/Ask use (Part C/E of the
+  // native-metadata task), never a local default model for an
+  // unresolved/unsupported profile.
+  const resolution = await resolveExistingCollectionProfile(getStorageAdapter(), collection);
+  if (!resolution.resolved) {
+    return `Cannot search "${collection}": no resolvable embedding profile (${resolution.reason}). Run "npm run sync" to migrate, or reindex.`;
+  }
+  if (resolution.profile.embedding.dense.execution !== 'client') {
+    return `Cannot search "${collection}": its embedding profile uses execution "${resolution.profile.embedding.dense.execution}", which is not yet implemented.`;
+  }
+
+  const { dense, sparse } = await embedForSearch(resolution.profile, query);
 
   let filter = null;
   if (source_file || tags?.length) {
