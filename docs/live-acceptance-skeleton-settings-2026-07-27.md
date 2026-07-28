@@ -601,6 +601,207 @@ verdict below** — visual/browser acceptance of Global Settings remains a
 separate, still-pending task or user action; this session neither
 attempted nor claims it.
 
+## Native provider system instructions for Ask generation (2026-07-27, follow-up session)
+
+**Scope:** replaced the fake "System:" text prefix (previously just more
+user content inside one combined prompt string) with real, provider-native
+system instructions — Gemini's `config.systemInstruction`, Ollama's
+top-level `system` field on `POST /api/generate` — passed through the
+`GenerationProvider` contract as a separate `systemPrompt` field, never
+concatenated back into `prompt` by either provider. No browser/visual
+testing in this part; no provider-architecture redesign — only the
+system/user split and its native mapping.
+
+### Files changed
+
+- `src/core/ask/prompt.js` — `buildPrompt()` replaced with
+  `buildPromptParts(sources, question)` returning `{ systemPrompt,
+  userPrompt }`; added `estimatePromptText(parts)` as the one canonical
+  budget-estimation helper. System instructions now explicitly include
+  prompt-injection-resistance language (treat evidence as untrusted data,
+  ignore embedded overrides) that the original single-string template
+  didn't have a real enforcement boundary for.
+- `src/core/ask/evidence.js` — `fitEvidenceToContextBudget()` now counts
+  `estimatePromptText(buildPromptParts(kept, question))` instead of
+  re-deriving its own prompt string; `RESERVED_HEADROOM_TOKENS` unchanged
+  (still 1024).
+- `src/core/ask/coordinator.js` — calls `buildPromptParts()` and passes
+  `systemPrompt`/`prompt: userPrompt` as separate fields to
+  `generationProvider.generate()`. No provider-identity branching.
+- `src/core/generation/provider.js` — `GenerationProvider.generate()`
+  JSDoc extended with an optional `systemPrompt` field; documented
+  contract: providers must map it to their native transport, never
+  concatenate it into `prompt`.
+- `src/core/generation/gemini-provider.js` — `systemPrompt` → `
+  config.systemInstruction` (verified against the installed `@google/genai`
+  `.d.ts`: `GenerateContentConfig.systemInstruction: ContentUnion`, where
+  `ContentUnion = Content | PartUnion[] | PartUnion` and `PartUnion = Part
+  | string` — a plain string is type-correct; independently confirmed live
+  against the real Gemini API, see below). `prompt` → `contents`, unchanged.
+  `temperature`/`maxOutputTokens`/`abortSignal`/streaming/usage
+  accounting/API-key redaction all preserved as-is.
+- `src/core/ollama.js` — `generateStream()` accepts an optional `system`
+  option, sent as the request body's top-level `system` field, omitted
+  entirely (not sent as `''`) when not supplied.
+- `src/core/generation/ollama-provider.js` — forwards `systemPrompt` to
+  `generateStream()`'s `system` option. `baseUrl`/`signal`/`onToken`/
+  `options`/backpressure behavior all preserved as-is.
+- `docs/design/ask-chat.md` — §5.1 (modules), §5.2 (prompt design, rewritten
+  around the system/user split and an explicit "what native system
+  instructions do and do not provide" note), §5.3 (context budgeting), §5.5
+  (GenerationProvider contract) updated to document the new contract, the
+  provider mapping table, and the explicit statements: Ask uses native
+  provider system instructions; SKILL.md is never read or injected;
+  retrieval happens before generation; evidence is treated as untrusted
+  data; Gemini/Ollama receive the same logical instruction contract through
+  different native transports.
+- Tests updated/added (see below) — no other production files changed.
+
+### Exact provider mappings
+
+| Provider | `systemPrompt` → | `prompt` → |
+|---|---|---|
+| Gemini (`gemini-provider.js`) | `config.systemInstruction` (string) | `contents` |
+| Ollama (`core/ollama.js`'s `generateStream()`) | top-level `system` field on `POST /api/generate` | `prompt` field |
+
+Live-verified before implementing (not guessed): a direct call to
+`@google/genai`'s `generateContentStream()` with
+`config.systemInstruction: 'You must answer only in French. Never use
+English.'` against a plain English question ("What color is the sky?")
+returned `"Le ciel est bleu."` — confirms the plain-string
+`systemInstruction` genuinely steers the real API as a system instruction,
+not merely as inert config.
+
+### Test results
+
+**Focused (bounded, sequential, `--test-concurrency=1`):**
+`tests/unit/core/ask/{prompt,evidence,coordinator,citations}.test.js`,
+`tests/unit/core/generation/{provider,gemini-provider,ollama-provider,
+runtime,registry,config}.test.js`, `tests/unit/core/ollama.test.js`,
+`tests/unit/admin/{ask,ask-gemini-provider}.test.js` — **226/226 pass**
+(26 new tests added across prompt-part separation, prompt-injection
+containment, Gemini `systemInstruction` mapping x5, Ollama transport-level
+`system` body field x2, Ollama provider forwarding x2, generation-runtime
+pass-through, coordinator-level systemPrompt/prompt split, one
+full-stack Gemini-provider-through-the-real-SSE-route systemInstruction
+check, and one regression test — added in a later review pass — proving
+`systemPrompt` never bans legitimate technical questions or mentions
+`SKILL.md`).
+
+**Full suite:** `npm test` → **1841/1841 pass** (1815 baseline + 26 new).
+`npm run smoke` → **1298/1298 pass**. `npm run admin:build` → clean (225
+modules). `git diff --check` → exit 0, only pre-existing CRLF notices.
+
+### Live Gemini/Ollama result
+
+Built and started the real Admin server (`npm run admin:build` + `npm run
+admin`, port 8642). Backend was already `gemini`/`gemini-flash-latest`,
+`ready: true` — no settings change needed for the Gemini leg.
+
+Ran the same previously-verified `linux-basics` question against the real
+`POST /api/ask`: *"What command lists files in a directory?"*
+
+**Gemini (post-refactor):**
+
+| Check | Result |
+|---|---|
+| Event sequence | `sources` → `token`, `token` → `done` |
+| Sources | 3, same as the pre-refactor baseline (rank-1: the `ls` command paragraph from `Тема 3...` `2. Навігація_та_Огляд_cd,_ls_(та_pwd).md`) |
+| `done.provider` / `done.model` | `"gemini"` / `"gemini-flash-latest"` |
+| Citation | `[1]` — cites the correct `ls` evidence chunk |
+| Answer excerpt (redacted) | `"The command that lists files and subdire..."` (first ~40 chars only) |
+| Secrets in response/logs | None — confirmed 0 occurrences of the real key substring across the response and the Admin server's stdout/stderr log |
+
+**Ollama (`gemma3:4b`, real local instance, since it was available this
+session):** switched `SEMIDEX_GENERATION_BACKEND`/`ASK_MODEL` via the
+Settings API (`ollama`/`gemma3:4b`), restarted the Admin process (both
+settings are `appliesAt: next_restart`), confirmed `ready: true`, then ran
+the identical question:
+
+| Check | Result |
+|---|---|
+| Event sequence | `sources` → `token` × 4 → `done` |
+| Sources | Same 3 (retrieval is backend-independent) |
+| `done.provider` / `done.model` | `"ollama"` / `"gemma3:4b"` |
+| Citation | `[1]` — same correct evidence chunk |
+| Answer excerpt (redacted) | `"ls"` (a short, correct one-word answer) |
+
+Both runs prove the native system-instruction mapping works against the
+real APIs, not just the mocked unit-test client — Gemini's
+`config.systemInstruction` and Ollama's `system` body field are both real,
+live-exercised request shapes, and both produced correctly-grounded,
+correctly-cited answers.
+
+### State restoration confirmation
+
+- `SEMIDEX_GENERATION_BACKEND`/`ASK_MODEL` restored to `gemini`/
+  `gemini-flash-latest` via the same Settings API, Admin process restarted
+  again to make the restoration active, confirmed `ready: true`.
+- `config.json` confirmed byte-identical to a pre-session backup (`diff`)
+  — the switch-to-Ollama-and-back round trip left no net diff, since the
+  restored values match what was there before.
+- `.env` confirmed byte-identical to a pre-session backup (`diff`) — never
+  touched.
+- No collection was created, deleted, or modified — Ask is read-only
+  retrieval; point counts unchanged (not independently re-verified this
+  session since no indexing/pruning operation of any kind ran, unlike the
+  earlier skeleton-migration session where that was the actual subject
+  under test).
+- Admin process stopped (confirmed via a timed-out health check after
+  `taskkill`).
+- No temporary scripts or logs containing response bodies remain — the
+  session's own `.tmp/live-acceptance-native-sysprompt/` directory (SSE
+  client script, server logs, config backups) was fully removed; logs were
+  grepped for the real API key before deletion (0 occurrences in every log
+  and script; the only match was the `.env` backup file itself, deleted
+  along with the rest of the directory).
+
+### Known limitations
+
+- Native system instructions are a real structural improvement — the
+  model now receives Ask's rules through each provider's own
+  system-instruction channel, not as ordinary user content — but **this
+  does not eliminate prompt injection entirely**. Both providers still
+  read attacker-controlled evidence text in the same generation call as
+  the system instruction; no text-based instruction, system-channel or
+  not, can perfectly guarantee a model never follows an adversarial
+  directive embedded in its input. The "treat evidence as untrusted data"
+  rules in the system prompt are a model-side layer on top of the
+  structural separation, not a replacement for `citations.js`'s
+  server-side validation, which remains the actual enforcement backstop
+  that does not depend on model compliance.
+- A live, adversarial "does the model actually resist a real
+  prompt-injection attempt embedded in real indexed evidence" test was not
+  run this session — only unit-level containment (the injected text stays
+  in `userPrompt` and never reaches `systemPrompt`, proven at the string
+  level) and the live-verified fact that `systemInstruction` genuinely
+  steers real model output (the French-language demonstration). Whether a
+  sufficiently adversarial evidence chunk can still talk a real model out
+  of its citation/refusal rules despite the native system-instruction
+  boundary is a model-behavior question this session did not attempt to
+  answer empirically.
+- The Ollama leg of this session's live run used a real local model
+  (`gemma3:4b`) already available from the prior skeleton-migration
+  session's Ollama setup — it was not started fresh for this task, so
+  "Ollama cold-start" behavior specifically was not re-exercised.
+
+### Verdict for this task
+
+**`GEMINI_LIVE_ACCEPT`**
+
+Native provider system instructions are fully implemented, tested (226
+focused + full-suite green), and live-verified against both real APIs
+(Gemini and, since available, Ollama) — real generated tokens, correct
+event sequencing, correct citation grounding, correct provider/model
+metadata, no secret exposure, and confirmed state restoration. All
+required tests exist and pass; the design documentation accurately states
+the new contract and its explicit, honest limitation (native system
+instructions reduce but do not eliminate prompt-injection risk).
+
+**This does not change the overall `SKELETON_ACCEPT_UI_MANUAL_PENDING`
+verdict below** — visual/browser acceptance of Global Settings remains a
+separate, still-pending task or user action.
+
 ## Verdict
 
 **`SKELETON_ACCEPT_UI_MANUAL_PENDING`**

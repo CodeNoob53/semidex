@@ -1,13 +1,21 @@
 # Ask Application Runtime
 
-> Status: product and architecture design, 2026-07-18.
+> Status: product and architecture design, 2026-07-18. Updated 2026-07-28:
+> the versioned public contract described in §4 is now implemented —
+> `POST /api/v1/ask`, `src/core/ask-api/v1/` — see
+> [docs/ask-api-v1-contract-2026-07-28.md](../ask-api-v1-contract-2026-07-28.md)
+> for the exact request/event shapes, test results, and migration notes
+> from the pre-v1 seed.
 >
 > This document defines Ask as an application-facing semidex runtime. The
 > dashboard chat specified in [ask-chat.md](ask-chat.md) is one reference
-> client of this runtime, not the product boundary. The current repository
-> already contains a partial backend (`POST /api/ask`, grounded evidence
-> assembly, Ollama generation, SSE, citations, and refusal handling). It is
-> not yet a stable public integration API.
+> client of this runtime, not the product boundary. The repository now
+> contains a versioned, application-facing Ask contract
+> (`POST /api/v1/ask`, grounded evidence assembly, Ollama and Gemini
+> generation, SSE, citations, and refusal handling) that is stateless, one
+> collection per request, and provider-neutral. It is **not yet**
+> authenticated or safe for direct public Internet exposure — see §6 Stage
+> B for what remains before a public demo.
 
 ## 1. Product definition
 
@@ -79,14 +87,17 @@ This separation is required for both deployment profiles:
 - **semidex Lite:** a small CPU application server, Qdrant Cloud storage and
   server-side inference, and a cloud generation provider such as Gemini.
 
-## 4. Public integration contract
+## 4. Public integration contract (v1, implemented)
 
-The current `POST /api/ask` route is an implementation seed. Before it is
-advertised as a stable integration API, its transport-neutral request and
-event shapes must be versioned and moved behind an application-runtime
-boundary rather than treated as an admin-only route.
+`POST /api/v1/ask` is now the one canonical, versioned Ask endpoint. The
+pre-v1 seed route (`POST /api/ask`) has been removed entirely — no
+compatibility alias was kept, since this project has not released a public
+Ask API before now. The request/event shapes below are exactly what is
+implemented, not a future plan; see
+[docs/ask-api-v1-contract-2026-07-28.md](../ask-api-v1-contract-2026-07-28.md)
+for the full field-by-field contract and test evidence.
 
-Minimum request shape:
+Request shape:
 
 ```json
 {
@@ -94,26 +105,40 @@ Minimum request shape:
   "question": "How are exceptional refunds approved?",
   "scope": {
     "sourceFile": "returns.md"
-  },
-  "sessionId": "optional-client-session-id"
+  }
 }
 ```
 
-Retrieval internals such as RRF constants, prefetch sizes, evidence token
-budgets, and model prompts are owner configuration, not end-user controls.
+`collection` and `question` are required non-empty strings. `scope` is
+optional; `scope.sourceFile` is currently the only supported scope field.
+Ask remains **stateless** — there is no `sessionId` or conversation memory
+yet (deferred to Stage D, §6). Retrieval internals such as RRF constants,
+prefetch sizes, evidence token budgets, retrieval count (`top`), and model
+prompts are owner configuration, not end-user controls — a client sending
+the obsolete pre-v1 root-level `sourceFile` or `top` fields is rejected
+with `400 bad_request`, not silently accepted as a second contract.
 
-Minimum streaming events:
+Streaming events (SSE):
 
 ```text
 sources       retrieved evidence and stable source identifiers
 answer_delta  a fragment of generated answer text
 done          citations, provider/model metadata, timing, and refusal state
-error         a redacted, machine-readable failure
+error         a redacted, machine-readable failure with a retryable flag
 ```
 
-The final protocol may use SSE first. The domain coordinator must remain
-transport-neutral so a Node.js SDK, server framework adapter, or bot adapter
-does not import admin routing code.
+The public event payloads are produced by pure contract-projection
+functions (`src/core/ask-api/v1/contract.js`), never assembled as ad-hoc
+object literals inline in the route — internal validation/debug detail
+(`invalidCitations`, `strippedMarkers`) is dropped by that projection, not
+merely unread by callers.
+
+SSE is the v1 transport. The domain coordinator (`AskCoordinator`) remains
+fully transport- and provider-neutral — it has no knowledge of HTTP, SSE,
+or the public wire contract's event names/field shapes; a future Node.js
+SDK, server framework adapter, or bot adapter can reuse
+`src/core/ask-api/v1/` without importing admin routing code, and a future
+non-SSE transport could be added without touching the coordinator.
 
 ## 5. Demo scope
 
@@ -136,12 +161,17 @@ provider, a polished embeddable widget, or every messaging-channel adapter.
 
 ## 6. Integration roadmap
 
-### Stage A - Grounded core (partially shipped)
+### Stage A - Grounded core (shipped)
 
 - retrieval and bounded evidence assembly;
 - generation-provider seam with Ollama implementation;
+- native provider system instructions (Gemini `config.systemInstruction`,
+  Ollama's `system` request field) — evidence is treated as untrusted data,
+  never concatenated into a fake "System:" prefix;
 - SSE answer stream;
-- citations, entity references, refusal, and cancellation behavior.
+- citations, entity references, refusal, and cancellation behavior;
+- a versioned, application-facing public contract (`POST /api/v1/ask`,
+  `src/core/ask-api/v1/`) — the pre-v1 seed route has been removed.
 
 ### Stage B - Public demo runtime
 
@@ -156,7 +186,8 @@ provider, a polished embeddable widget, or every messaging-channel adapter.
   See `docs/admin-api-phase4a5d-gemini-generation-provider-2026-07-18.md`
   for the implementation record.
 - Qdrant Cloud server-side embedding path for semidex Lite (not started);
-- stable versioned Ask request/event schema (not started);
+- stable versioned Ask request/event schema (shipped — see Stage A above
+  and the v1 contract doc);
 - reference web client using only the public contract (not started);
 - deployment guide for a small CPU Google Cloud instance (not started);
 - authentication boundary, rate limits, CORS policy, and secret handling

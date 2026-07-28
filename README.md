@@ -427,16 +427,21 @@ Implemented:
 - Skeleton navigation and bounded section/file evidence assembly
 - Optional Ollama nav summaries and payload tags
 - Provider-aware settings and model discovery
-- Partial Ask runtime with retrieval, bounded evidence, SSE streaming,
-  citations, and refusal behavior
+- Versioned, stateless Ask API (`POST /api/v1/ask`) with retrieval, bounded
+  evidence, native provider system instructions, SSE streaming, citations,
+  and refusal behavior
 - Ollama Ask generation and a live-verified Gemini adapter
 - Hash-based incremental indexing, deterministic IDs, and stale-file pruning
 - Offline unit/smoke tests and internal retrieval regression suites
 
 Not implemented or not yet validated:
 
-- Production-stable public Ask API, SDK/widget, Telegram adapter, auth,
-  sessions, and multi-tenant controls
+- Authenticated/public-Internet-safe Ask API exposure, SDK/widget, Telegram
+  adapter, sessions/conversation memory, and multi-tenant controls (the
+  versioned `POST /api/v1/ask` contract itself is implemented — see
+  [docs/ask-api-v1-contract-2026-07-28.md](docs/ask-api-v1-contract-2026-07-28.md) —
+  but it is not yet authenticated or safe for direct public Internet
+  exposure)
 - Finished user-facing dashboard UX; the current Admin UI remains an early
   debug and administration surface
 - Qdrant Cloud inference as a Semidex Lite embedding backend

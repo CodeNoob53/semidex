@@ -5,8 +5,9 @@ semidex has three runtime surfaces:
 - **Indexer** - writes documents into Qdrant.
 - **MCP server** - exposes retrieval tools to external AI agents, which decide
   how and when to search.
-- **Admin/application server** - operates collections and hosts the current
-  partial Ask HTTP/SSE runtime for grounded answers.
+- **Admin/application server** - operates collections and hosts the
+  versioned Ask HTTP/SSE runtime for grounded answers
+  (`POST /api/v1/ask`).
 
 They share the same provider, configuration, retrieval, and Qdrant core. The
 dashboard is a reference client for Ask, not the integration boundary for
@@ -36,11 +37,16 @@ Documents (md, pdf, docx, epub, txt, ...)
                               +--> future website, bot, and application clients
 ```
 
-The MCP path is the shipped agent-tooling surface. The Ask path already has a
-partial local implementation (`POST /api/ask`, SSE streaming, grounded prompt
-assembly, citations, and refusal behavior), but it is not yet a stable public
-integration API. Cloud generation adapters, public authentication, abuse
-controls, SDKs, and packaged website/Telegram integrations remain planned.
+The MCP path is the shipped agent-tooling surface. The Ask path has a
+versioned, stateless, provider-neutral local implementation
+(`POST /api/v1/ask`, SSE streaming, native provider system instructions,
+grounded prompt assembly, citations, and refusal behavior across both the
+Ollama and Gemini `GenerationProvider` implementations), but it is **not
+yet** authenticated or safe for direct public Internet exposure. Public
+authentication, abuse controls, SDKs, and packaged website/Telegram
+integrations remain planned — see
+[Ask application runtime](../design/ask-application-runtime.md) and
+[docs/ask-api-v1-contract-2026-07-28.md](../ask-api-v1-contract-2026-07-28.md).
 
 Markdown files always parse through an AST instead (unconditional, not
 configurable): tables, code blocks, and checklists become typed structural

@@ -243,6 +243,12 @@ produce identical assembly output.
 
 ### Phase 4A — GenerationProvider + `POST /api/ask` (start of the LLM track)
 
+> Superseded: the shipped route is the versioned `POST /api/v1/ask`
+> (`src/core/ask-api/v1/`), not the unversioned `POST /api/ask` described
+> below, and the SSE event is `answer_delta`, not `token`. This section is
+> kept as the original plan record; see `docs/ask-api-v1-contract-*.md` for
+> the current contract.
+
 Scope: F8 backend. `src/core/generation/` seam (`ollama` provider first;
 capability-gated, DI-able for tests); `POST /api/ask` (SSE): retrieve via the
 existing search service → grounded prompt (evidence-only, inline citation

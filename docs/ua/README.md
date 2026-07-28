@@ -108,9 +108,11 @@ structural carryover. Заяв про перевагу над іншими RAG-�
   таблиці, блоки коду й чеклісти як типізовані структурні чанки +
   skeleton-навігація для агентів;
 - 11 read-only MCP-інструментів;
-- часткове ядро Ask runtime: `POST /api/ask`, hybrid retrieval, обмежене
-  складання evidence, локальна генерація через Ollama, SSE-streaming, citations
-  і cite-or-refuse поведінка;
+- версіонований, stateless Ask API: `POST /api/v1/ask`, hybrid retrieval,
+  обмежене складання evidence, нативні system-інструкції провайдера,
+  генерація через Ollama або Gemini, SSE-streaming, citations
+  і cite-or-refuse поведінка (ще не автентифіковано, не для прямого
+  публічного доступу);
 - сховище: локальний Qdrant **або** Qdrant Cloud;
 - повністю локальний режим (без зовнішніх API для контенту);
 - SHA-256 skip — незмінені файли не переобробляються;

@@ -74,8 +74,8 @@ standard local Qdrant.
 
 The Ask feature's answer-generation backend is independent of the indexing-time
 models above (`CONTEXT_MODEL`/`TAG_MODEL`) — indexing-time context summaries and
-tags always run through Ollama today. Only `POST /api/ask` answer generation
-supports a second backend.
+tags always run through Ollama today. Only `POST /api/v1/ask` answer
+generation supports a second backend.
 
 | Variable | Default | Description |
 |----------|---------|-------------|

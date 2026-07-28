@@ -12,8 +12,8 @@ src/
   mcp/
     server.js        - MCP stdio server used by AI clients
   admin/
-    server.js        - operator UI and application HTTP/SSE server
-    api/ask.js       - current partial Ask transport
+    server.js        - operator UI and application HTTP/SSE server; mounts
+                       the versioned Ask route via registerAskRoutesV1()
   sync.js            - syncs config.json and Qdrant payload indexes
   smoke.js           - offline smoke tests (thin wrapper over src/smoke/)
   doctor.js          - read-only environment health check (npm run doctor)
@@ -23,9 +23,11 @@ src/
 
 The indexer is the writer side. The MCP server exposes retrieval primitives to
 external agents. The admin/application server operates collections and hosts
-the current partial Ask runtime for application clients. All three use shared
-modules under `src/core/`; external integrations must target the future public
-Ask contract rather than importing admin UI modules.
+the versioned `POST /api/v1/ask` runtime for application clients (contract
+owned by `src/core/ask-api/v1/`, outside `src/admin/` — see Core Modules
+below). All three use shared modules under `src/core/`; external
+integrations should target `src/core/ask-api/v1/` directly rather than
+importing admin UI modules.
 
 ## Tests
 
@@ -66,7 +68,15 @@ src/core/
   point-id.js          - deterministic Qdrant point IDs
   doctor-checks.js     - health checks shared by doctor and MCP error sanitising
   ask/                 - retrieval evidence, grounded prompt, citations, coordinator
-  generation/          - provider-neutral generation contract and Ollama runtime
+                         (transport-neutral — no HTTP/SSE concerns)
+  ask-api/v1/          - the versioned, application-facing public Ask
+                         contract (constants, request validation, event
+                         projection, route registration); the only module
+                         that knows the public wire shape
+  generation/          - provider-neutral generation contract, Ollama and
+                         Gemini implementations, and the runtime seam
+  http/                - generic node:http JSON/SSE primitives shared by
+                         every HTTP route (admin API and ask-api/v1 alike)
 ```
 
 These modules are shared by indexing, MCP tools, sync, and benchmarks. Provider

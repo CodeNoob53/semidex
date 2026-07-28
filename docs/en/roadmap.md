@@ -105,11 +105,13 @@ system.
   collection map.
 - Markdown is the primary supported format; conversion quality for other
   formats depends on third-party parsers and source document quality.
-- A partial grounded Ask backend exists (`POST /api/ask` with SSE, local
-  generation, citations, and refusal behavior), but it is still an internal
-  application-server contract. There is no stable public integration API,
-  cloud generation adapter, SDK/widget, Telegram adapter, public auth, or
-  multi-tenant runtime yet.
+- A versioned, stateless, provider-neutral grounded Ask backend exists
+  (`POST /api/v1/ask` with SSE, native provider system instructions, local
+  and cloud (Gemini) generation, citations, and refusal behavior). It is
+  **not yet** authenticated or safe for direct public Internet exposure —
+  there is no SDK/widget, Telegram adapter, public auth, or multi-tenant
+  runtime yet. See
+  [docs/ask-api-v1-contract-2026-07-28.md](../ask-api-v1-contract-2026-07-28.md).
 
 ---
 
@@ -317,15 +319,18 @@ is chosen by user value, available hardware, and validation results.
 **Goal:** make indexed collections usable by grounded assistants in websites,
 internal tools, Telegram bots, custom applications, and local workflows.
 
-**Partially shipped:** the local application server already exposes
-`POST /api/ask` with hybrid retrieval, bounded evidence assembly, Ollama
-generation, SSE streaming, citations, and cite-or-refuse behavior. The admin
-Ask screen is a reference client and operator playground; it is not the public
-product boundary.
+**Partially shipped:** the local application server exposes the versioned
+`POST /api/v1/ask` with hybrid retrieval, bounded evidence assembly,
+native provider system instructions, Ollama and Gemini generation, SSE
+streaming, citations, and cite-or-refuse behavior. The admin Ask screen is
+a reference client and operator playground; it is not the public product
+boundary. Full contract record:
+[docs/ask-api-v1-contract-2026-07-28.md](../ask-api-v1-contract-2026-07-28.md).
 
 **Next demo slice:**
 
-- stabilize and version the application-facing HTTP/SSE contract;
+- ~~stabilize and version the application-facing HTTP/SSE contract~~ —
+  shipped (`POST /api/v1/ask`, 2026-07-28);
 - deploy a stateless single-collection reference assistant on a small CPU
   server;
 - use Qdrant Cloud for storage and server-side embedding/retrieval and Gemini
