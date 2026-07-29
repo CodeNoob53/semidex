@@ -123,6 +123,43 @@ describe('validateEmbeddingProfile — rejected shapes', () => {
     assert.equal(validateEmbeddingProfile(profile).valid, false);
   });
 
+  it('REGRESSION: rejects a profile whose dense and sparse lanes declare DIFFERENT execution modes — schema-shape-valid but no implemented runtime path can execute it correctly', () => {
+    const profile = buildEmbeddingProfile({
+      dense: validDense({ execution: EXECUTION.CLIENT }),
+      sparse: validSparse({ execution: EXECUTION.QDRANT_CLOUD }),
+      embeddingSchemaVersion: 2,
+    });
+    const result = validateEmbeddingProfile(profile);
+    assert.equal(result.valid, false);
+    assert.ok(result.errors.some((e) => e.includes('execution') && e.includes('must match')));
+  });
+
+  it('the reverse mismatch (dense=qdrant-cloud, sparse=client) is also rejected', () => {
+    const profile = buildEmbeddingProfile({
+      dense: validDense({ execution: EXECUTION.QDRANT_CLOUD, provider: 'qdrant-cloud', model: 'intfloat/multilingual-e5-small' }),
+      sparse: validSparse({ execution: EXECUTION.CLIENT }),
+      embeddingSchemaVersion: 2,
+    });
+    assert.equal(validateEmbeddingProfile(profile).valid, false);
+  });
+
+  it('matching execution across both lanes (client:client, or qdrant-cloud:qdrant-cloud) is still accepted', () => {
+    const clientBoth = buildEmbeddingProfile({ dense: validDense(), sparse: validSparse(), embeddingSchemaVersion: 2 });
+    assert.equal(validateEmbeddingProfile(clientBoth).valid, true);
+
+    const cloudBoth = buildEmbeddingProfile({
+      dense: validDense({ execution: EXECUTION.QDRANT_CLOUD, provider: 'qdrant-cloud', model: 'intfloat/multilingual-e5-small', dimensions: 384 }),
+      sparse: validSparse({ execution: EXECUTION.QDRANT_CLOUD, provider: 'qdrant-cloud', model: 'qdrant/bm25' }),
+      embeddingSchemaVersion: 2,
+    });
+    assert.equal(validateEmbeddingProfile(cloudBoth).valid, true);
+  });
+
+  it('a dense-only profile (sparse: null) is unaffected by the cross-lane execution check — nothing to mismatch against', () => {
+    const profile = buildEmbeddingProfile({ dense: validDense(), sparse: null, embeddingSchemaVersion: 2 });
+    assert.equal(validateEmbeddingProfile(profile).valid, true);
+  });
+
   it('rejects a dense lane with non-positive dimensions', () => {
     const profile = buildEmbeddingProfile({ dense: validDense({ dimensions: 0 }), embeddingSchemaVersion: 2 });
     assert.equal(validateEmbeddingProfile(profile).valid, false);

@@ -218,6 +218,34 @@ export function validateEmbeddingProfile(profile) {
     if (badEmbeddingKey) errors.push(`profile.embedding has unknown key "${badEmbeddingKey}"`);
     validateDenseLane(profile.embedding.dense, errors, 'profile.embedding.dense');
     validateSparseLane(profile.embedding.sparse, errors, 'profile.embedding.sparse');
+
+    // Cross-lane execution consistency: every runtime code path that reads
+    // a resolved profile (embedForIndex/embedForIndexBatch, runHybridSearch,
+    // buildCloudQueryInputs) branches ONLY on dense.execution and assumes
+    // sparse shares it — dense=client + sparse=qdrant-cloud (or any other
+    // mismatched pair) is schema-shape-valid but would silently mis-execute
+    // (e.g. runHybridSearch would embed the dense lane locally via the
+    // injected embedQuery, then build a cloud {text,model} descriptor for
+    // sparse from a profile whose OWN dense lane says 'client', sending a
+    // descriptor object where searchHybridVectors expects a real sparse
+    // vector array). resolveNewCollectionProfile() itself can never
+    // construct this (gated by assertProviderCombo, one execution literal
+    // per branch) — this guard exists for stored/legacy collection
+    // metadata that could have been hand-edited or corrupted into a
+    // mismatched pair and would otherwise pass shape validation as 'valid'.
+    if (
+      profile.embedding.dense && typeof profile.embedding.dense === 'object' &&
+      profile.embedding.sparse && typeof profile.embedding.sparse === 'object' &&
+      typeof profile.embedding.dense.execution === 'string' &&
+      typeof profile.embedding.sparse.execution === 'string' &&
+      profile.embedding.dense.execution !== profile.embedding.sparse.execution
+    ) {
+      errors.push(
+        `profile.embedding.dense.execution ("${profile.embedding.dense.execution}") must match ` +
+        `profile.embedding.sparse.execution ("${profile.embedding.sparse.execution}") — mixed execution ` +
+        `across lanes is not supported by any implemented runtime path today.`
+      );
+    }
   }
 
   return errors.length === 0 ? { valid: true } : { valid: false, errors };
