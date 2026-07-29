@@ -15,7 +15,8 @@ describe('REQUIRED_ADAPTER_METHODS', () => {
     assert.ok(Array.isArray(REQUIRED_ADAPTER_METHODS));
     assert.ok(REQUIRED_ADAPTER_METHODS.length > 0);
     assert.ok(REQUIRED_ADAPTER_METHODS.includes('capabilities'));
-    assert.ok(REQUIRED_ADAPTER_METHODS.includes('searchHybrid'));
+    assert.ok(REQUIRED_ADAPTER_METHODS.includes('searchHybridVectors'));
+    assert.ok(REQUIRED_ADAPTER_METHODS.includes('searchHybridInference'));
   });
 });
 

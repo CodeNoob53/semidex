@@ -121,6 +121,39 @@ export async function upsertPoints(collection, points) {
   await qdrantCall('Qdrant upsert failed', () => client.upsert(collection, { points, wait: false }));
 }
 
+// Upserts points carrying NO real vector data — `vector: {}`, an empty
+// named-vector map. Confirmed live against a real Qdrant Cloud cluster
+// (v1.17.1, eu-central-1): `vector: {}` is accepted by upsert even when the
+// collection declares real named vectors (dense/sparse), the point is
+// returned by scroll/filter with `vector: {}`, and it is correctly excluded
+// from vector search on every named vector — never dense-only, sparse-only,
+// a zero/dummy vector, or a reused marker embedding, all of which would
+// still cost a real (if cheap) embed call or falsely appear reachable via
+// one search lane. This is what lets canonical entity_raw points
+// (entity-split.js) skip Cloud Inference entirely — they are never
+// searched, so there is nothing for a vector to represent.
+//
+// wait: true (unlike upsertPoints' own wait: false) — deliberately blocks
+// until Qdrant has actually applied this write, not merely accepted the
+// request. entity_raw points are always few (one per split entity, never
+// per-chunk volume), so the extra latency here is negligible, and it is
+// what makes stageD's own commit-order guarantee real rather than nominal:
+// a caller that upserts fragments (their entity_id pointing at this exact
+// canonical point) immediately afterward can only rely on the canonical
+// point already existing if THIS call has truly finished on the server,
+// not merely been queued — wait: false would let the two writes complete
+// in either order despite being issued in the "right" sequence.
+//
+// Kept as a distinct function from upsertPoints() (rather than a parameter)
+// so a caller's intent is visible at the call site — accidentally passing
+// vector-bearing points here would silently upsert them with their real
+// vectors dropped, which must never happen by construction.
+export async function upsertPointsWithoutVectors(collection, points) {
+  const withEmptyVectors = points.map(p => ({ ...p, vector: {} }));
+  const client = getQdrantClient({ write: true });
+  await qdrantCall('Qdrant upsert (vectorless) failed', () => client.upsert(collection, { points: withEmptyVectors, wait: true }));
+}
+
 export async function updatePayload(collection, id, payload) {
   const client = getQdrantClient({ write: true });
   await qdrantCall('Qdrant updatePayload failed', () => client.setPayload(collection, {
@@ -187,21 +220,31 @@ export async function search(collection, vector, limit = 5, filter = null) {
   }));
 }
 
-// settingsService is optional DI (HYBRID_PREFETCH_LIMIT/RRF_K are
-// next_search settings — see core/settings/definitions.js — resolved fresh
-// on every call, same as this function's own pre-existing per-call envInt()
-// reads). When omitted, falls back to the original direct envInt() reads
-// unchanged — every existing caller that doesn't pass a settingsService
-// keeps its exact current behavior.
-export async function hybridSearch(collection, denseVector, sparseVector, limit = 5, filter = null, { settingsService } = {}) {
-  const client = getQdrantClient();
+// Shared HYBRID_PREFETCH_LIMIT/RRF_K resolution — extracted so
+// hybridSearch() (real vectors) and hybridSearchCloud() (inference
+// descriptors) can never drift apart on prefetch/RRF-k behavior.
+// settingsService is optional DI (next_search settings — see
+// core/settings/definitions.js — resolved fresh on every call). When
+// omitted, falls back to the original direct envInt() reads unchanged —
+// every existing caller that doesn't pass a settingsService keeps its
+// exact current behavior.
+function resolvePrefetchLimit(limit, settingsService) {
   const prefetchMult = settingsService
     ? settingsService.getActiveValue('HYBRID_PREFETCH_LIMIT')
     : envInt('HYBRID_PREFETCH_LIMIT', 2, 1, 100, '[qdrant] ');
-  const rrfK = settingsService
+  return Math.max(limit * prefetchMult, limit + 1);
+}
+
+function resolveRrfK(settingsService) {
+  return settingsService
     ? settingsService.getActiveValue('RRF_K')
     : envInt('RRF_K', 60, 1, 10000, '[qdrant] ');
-  const prefetchLimit = Math.max(limit * prefetchMult, limit + 1);
+}
+
+export async function hybridSearch(collection, denseVector, sparseVector, limit = 5, filter = null, { settingsService } = {}) {
+  const client = getQdrantClient();
+  const prefetchLimit = resolvePrefetchLimit(limit, settingsService);
+  const rrfK = resolveRrfK(settingsService);
   const prefetch = [
     { query: sparseVector, using: 'sparse', limit: prefetchLimit, ...(filter && { filter }) },
     { query: denseVector,  using: 'dense',  limit: prefetchLimit, ...(filter && { filter }) },
@@ -224,6 +267,129 @@ export async function hybridSearch(collection, denseVector, sparseVector, limit 
       return search(collection, { name: 'dense', vector: denseVector }, limit, filter);
     }
     throw new Error(`Qdrant hybridSearch failed (${collection}): ${text}`);
+  }
+}
+
+// Cloud-inference counterpart of hybridSearch() — denseQuery/sparseQuery
+// are ALREADY-BUILT {text, model} inference descriptors (see
+// core/embedding-profile/qdrant-cloud-catalog.js's buildCloudQueryInputs())
+// — this function never constructs or calls an embedding function itself,
+// only forwards data the caller already built, exactly like hybridSearch()
+// only forwards real vectors it's handed. RRF fusion stays server-side —
+// never computed in JS here.
+export async function hybridSearchCloud(collection, denseQuery, sparseQuery, limit = 5, filter = null, { settingsService } = {}) {
+  const client = getQdrantClient();
+  const prefetchLimit = resolvePrefetchLimit(limit, settingsService);
+  const rrfK = resolveRrfK(settingsService);
+  const prefetch = [
+    { query: denseQuery, using: 'dense', limit: prefetchLimit, ...(filter && { filter }) },
+    ...(sparseQuery ? [{ query: sparseQuery, using: 'sparse', limit: prefetchLimit, ...(filter && { filter }) }] : []),
+  ];
+  const result = await qdrantCall(`Qdrant hybridSearchCloud failed (${collection})`, () => client.query(collection, {
+    prefetch,
+    query: { rrf: { k: rrfK } },
+    limit,
+    with_payload: true,
+  }));
+  return result.points ?? [];
+}
+
+// ── Qdrant Cloud Inference reachability + inference probe ───────────────────
+// Kept here, alongside hybridSearchCloud(), so every Qdrant-specific
+// operation (including admin-triggered probes) goes through this one module
+// — src/admin/ never imports the raw SDK/client directly, only the
+// provider-neutral StorageAdapter.probeInference()/ping() methods that call
+// these (qdrant-adapter.js is the only caller of either function below).
+
+/**
+ * Cheap reachability + auth check. Never attempts inference — used as the
+ * ping()-equivalent for the qdrant-cloud lane; the routine, low-cost check
+ * every collection-browsing/listing call can afford.
+ * @returns {Promise<{ status: 'ok'|'unreachable'|'auth_failed', message?: string }>}
+ */
+export async function checkQdrantReachable() {
+  let client;
+  try {
+    client = getQdrantClient();
+  } catch (err) {
+    return { status: 'unreachable', message: err.message };
+  }
+  try {
+    await client.getCollections();
+    return { status: 'ok' };
+  } catch (err) {
+    const text = errText(err);
+    const status = /401|403|unauthoriz|forbidden|invalid api key/i.test(text) ? 'auth_failed' : 'unreachable';
+    return { status, message: text };
+  }
+}
+
+const PROBE_COLLECTION_PREFIX = 'semidex-cloud-inference-probe-';
+
+function randomProbeCollectionName() {
+  return `${PROBE_COLLECTION_PREFIX}${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+// Matched against a real Qdrant error message to distinguish "inference
+// itself is disabled/unavailable for this model" from a generic
+// network/auth failure (already distinguishable by checkQdrantReachable,
+// and re-thrown as-is here rather than re-labeled).
+const INFERENCE_ERROR_PATTERN = /inference|model.*(not found|unavailable|unknown)/i;
+
+/**
+ * Real, minimal inference round-trip against a disposable collection,
+ * created and deleted entirely within this call. Never touches any
+ * existing user collection. Only ever invoked on an explicit user action
+ * (the Admin UI's "Test Cloud Inference" button, via
+ * adapter.probeInference()) — never by routine availability resolution.
+ *
+ * vectorSchema/denseQuery/sparseQuery are ALREADY-BUILT by the adapter
+ * (buildQdrantVectorSchemaFromProfile() for the schema, the same
+ * {text,model} descriptor shape embedForIndexCloud()/buildCloudQueryInputs()
+ * use elsewhere) — this function only executes storage requests, never
+ * decides what schema/model a profile implies.
+ *
+ * @param {{ vectorSchema: Object, denseQuery: {text: string, model: string}, sparseQuery?: {text: string, model: string}|null }} params
+ * @returns {Promise<
+ *   | { status: 'inference_available' }
+ *   | { status: 'inference_disabled_or_model_unavailable', message: string }
+ * >}
+ * @throws for any other (network/auth) failure — already distinguishable
+ *   from checkQdrantReachable(), so this is not re-labeled.
+ */
+export async function probeInference({ vectorSchema, denseQuery, sparseQuery = null }) {
+  const client = getQdrantClient({ write: true });
+  const name = randomProbeCollectionName();
+
+  try {
+    await client.api().createCollection({ collection_name: name, ...vectorSchema });
+
+    try {
+      await client.upsert(name, {
+        wait: true,
+        points: [{
+          id: 1,
+          vector: {
+            dense: denseQuery,
+            ...(sparseQuery && { sparse: sparseQuery }),
+          },
+        }],
+      });
+      return { status: 'inference_available' };
+    } catch (err) {
+      const text = errText(err);
+      if (INFERENCE_ERROR_PATTERN.test(text)) {
+        return { status: 'inference_disabled_or_model_unavailable', message: text };
+      }
+      throw new Error(text);
+    }
+  } finally {
+    // Guaranteed cleanup, gated to only ever delete a name this call itself
+    // generated with the declared prefix — mirrors the live-acceptance
+    // script's own cleanup discipline.
+    if (name.startsWith(PROBE_COLLECTION_PREFIX)) {
+      try { await client.deleteCollection(name); } catch { /* best-effort cleanup */ }
+    }
   }
 }
 

@@ -34,4 +34,10 @@ export const CONTENT_NODE_FIELDS = [
   'source_file', 'heading_path', 'chunk_index', 'section',
   'lang', 'context', 'summary', 'text', 'raw_content', 'rawContent',
   'entity_refs',
+  // Split-entity fragment linkage (entity-split.js): present only on
+  // retrieval_content fragment points, never on their canonical entity_raw
+  // point or on ordinary (unsplit) chunks. entity_id points at the
+  // canonical point's node_id; fragment_index/fragment_count describe the
+  // fragment's position within its entity's fragment set.
+  'entity_id', 'fragment_index', 'fragment_count',
 ];

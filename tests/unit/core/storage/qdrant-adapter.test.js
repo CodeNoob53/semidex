@@ -146,7 +146,8 @@ describe('domain mapping — no raw Qdrant snake_case leaks through', () => {
       text: 'hello', rawContent: null, lang: null, context: 'ctx', tags: ['t1'],
       nodeType: 'table', nodeId: 'n1', nodePath: 'a.md#Intro/table-1',
       parentId: null, headingPath: null,
-      entityRefs: [], score: 0.87, isMatch: null,
+      entityRefs: [], entityId: null, fragmentIndex: null, fragmentCount: null,
+      score: 0.87, isMatch: null,
     });
     const keys = Object.keys(chunk);
     assert.ok(!keys.some(k => k.includes('_')), `expected only camelCase keys, got: ${keys.join(', ')}`);
@@ -157,8 +158,31 @@ describe('domain mapping — no raw Qdrant snake_case leaks through', () => {
       sourceFile: null, chunkIndex: null, totalChunks: null, section: null,
       text: null, rawContent: null, lang: null, context: null, tags: [],
       nodeType: null, nodeId: null, nodePath: null, parentId: null, headingPath: null,
-      entityRefs: [], score: null, isMatch: null,
+      entityRefs: [], entityId: null, fragmentIndex: null, fragmentCount: null,
+      score: null, isMatch: null,
     });
+  });
+
+  it('toChunk maps entity_id/fragment_index/fragment_count for a split-entity fragment (entity-split.js)', () => {
+    const point = {
+      payload: {
+        source_file: 'guide.md', chunk_index: 2, section: 'Setup',
+        text: '| a | b |', node_type: 'table', node_id: 'frag-2',
+        node_path: 'guide.md#setup/table-1/fragment-2',
+        entity_id: 'canonical-table-1', fragment_index: 1, fragment_count: 3,
+      },
+    };
+    const chunk = toChunk(point);
+    assert.equal(chunk.entityId, 'canonical-table-1');
+    assert.equal(chunk.fragmentIndex, 1);
+    assert.equal(chunk.fragmentCount, 3);
+  });
+
+  it('toChunk ignores non-integer fragment_index/fragment_count rather than propagating a malformed value', () => {
+    const chunk = toChunk({ payload: { entity_id: 'x', fragment_index: 'one', fragment_count: null } });
+    assert.equal(chunk.entityId, 'x');
+    assert.equal(chunk.fragmentIndex, null);
+    assert.equal(chunk.fragmentCount, null);
   });
 
   it('toChunk maps raw_content and lang for a structural retrieval chunk (table)', () => {
@@ -515,7 +539,7 @@ describe('createQdrantStorageAdapter().getFileChunks — a distinct primitive fr
       fileURLToPath(new URL('../../../../src/core/storage/qdrant-adapter.js', import.meta.url)),
       'utf-8',
     );
-    const method = src.slice(src.indexOf('async getFileChunks('), src.indexOf('async searchHybrid('));
+    const method = src.slice(src.indexOf('async getFileChunks('), src.indexOf('async searchHybridVectors('));
     assert.ok(method, 'getFileChunks must be defined');
     assert.match(method, /store\.getFileChunks\(/);
     assert.match(method, /\.map\(toChunk\)/);
@@ -950,6 +974,25 @@ describe('buildQdrantVectorSchemaFromProfile — the FULL Qdrant vector schema i
     const profile = buildEmbeddingProfile({ dense: validDenseLane({ distance: 'NotARealDistance' }), sparse: null, embeddingSchemaVersion: 2 });
     assert.throws(() => buildQdrantVectorSchemaFromProfile(profile), /unsupported dense distance/);
   });
+
+  it('a real qdrant-cloud E5+BM25 profile (384d Cosine dense, sparse with modifier: idf) needs ZERO code changes here — the existing execution-agnostic function already generalizes', () => {
+    const profile = buildEmbeddingProfile({
+      dense: {
+        provider: 'qdrant-cloud', model: 'intfloat/multilingual-e5-small', vectorName: 'dense',
+        dimensions: 384, distance: 'Cosine', execution: 'qdrant-cloud',
+      },
+      sparse: {
+        provider: 'qdrant-cloud', model: 'qdrant/bm25', vectorName: 'sparse',
+        execution: 'qdrant-cloud', modifier: 'idf',
+      },
+      embeddingSchemaVersion: 2,
+    });
+    const schema = buildQdrantVectorSchemaFromProfile(profile);
+    assert.deepEqual(schema, {
+      vectors: { dense: { size: 384, distance: 'Cosine' } },
+      sparse_vectors: { sparse: { index: { on_disk: false }, modifier: 'idf' } },
+    });
+  });
 });
 
 describe('createQdrantStorageAdapter().createCollection — metadata wiring and dimension guard', () => {
@@ -1139,7 +1182,7 @@ describe('createQdrantStorageAdapter().getCollection — availability wiring (Pa
       'utf-8',
     );
     const method = src.slice(src.indexOf('async getCollection('), src.indexOf('async createCollection('));
-    assert.match(method, /async getCollection\(name, \{ checkOllamaLane, checkOnnxModelCached = defaultCheckOnnxModelCached \} = \{\}\)/);
+    assert.match(method, /async getCollection\(name, \{ checkOllamaLane, checkOnnxModelCached = defaultCheckOnnxModelCached, checkQdrantReachable = s\.checkQdrantReachable \} = \{\}\)/);
   });
 
   it('computes availability via embeddingProfileResultToResolveResult() + resolveAvailability(), reusing the SAME embeddingProfile already extracted (no second profile resolution)', () => {
@@ -1149,7 +1192,7 @@ describe('createQdrantStorageAdapter().getCollection — availability wiring (Pa
     );
     const method = src.slice(src.indexOf('async getCollection('), src.indexOf('async createCollection('));
     assert.match(method, /embeddingProfileResultToResolveResult\(embeddingProfile\)/);
-    assert.match(method, /resolveAvailability\(availabilityResolveResult, \{ checkOllamaLane, checkOnnxModelCached \}\)/);
+    assert.match(method, /resolveAvailability\(availabilityResolveResult, \{ checkOllamaLane, checkOnnxModelCached, checkQdrantReachable \}\)/);
     assert.match(method, /availability,/, 'the returned object must include an availability field');
   });
 
@@ -1162,5 +1205,84 @@ describe('createQdrantStorageAdapter().getCollection — availability wiring (Pa
     assert.match(method, /try\s*\{\s*availability = await resolveAvailability/);
     assert.match(method, /catch\s*\{/);
     assert.match(method, /status:\s*COLLECTION_STATUS\.UNKNOWN_DEPENDENCIES/);
+  });
+});
+
+describe('createQdrantStorageAdapter().checkCloudInferenceReachable — Tier 1 delegation', () => {
+  it('delegates directly to the injected store.checkQdrantReachable, returning its result unchanged', async () => {
+    const fake = { checkQdrantReachable: async () => ({ status: 'ok' }) };
+    const adapter = createQdrantStorageAdapter({ storeOverrides: fake });
+    const result = await adapter.checkCloudInferenceReachable();
+    assert.deepEqual(result, { status: 'ok' });
+  });
+});
+
+describe('createQdrantStorageAdapter().probeInference — provider-neutral capability, builds schema from the profile', () => {
+  const cloudProfile = buildEmbeddingProfile({
+    dense: { provider: 'qdrant-cloud', model: 'intfloat/multilingual-e5-small', vectorName: 'dense', dimensions: 384, distance: 'Cosine', execution: 'qdrant-cloud' },
+    sparse: { provider: 'qdrant-cloud', model: 'qdrant/bm25', vectorName: 'sparse', execution: 'qdrant-cloud', modifier: 'idf' },
+    embeddingSchemaVersion: 2,
+  });
+
+  it('returns { status: "unsupported" } for a non-qdrant-cloud profile, WITHOUT calling store.probeInference at all', async () => {
+    let called = false;
+    const fake = { probeInference: async () => { called = true; return { status: 'inference_available' }; } };
+    const adapter = createQdrantStorageAdapter({ storeOverrides: fake });
+    const clientProfile = buildEmbeddingProfile({
+      dense: { provider: 'ollama', model: 'bge-m3', vectorName: 'dense', dimensions: 1024, distance: 'Cosine', execution: 'client' },
+      sparse: null,
+      embeddingSchemaVersion: 2,
+    });
+    const result = await adapter.probeInference({ profile: clientProfile });
+    assert.equal(result.status, 'unsupported');
+    assert.equal(called, false);
+  });
+
+  it('builds the vectorSchema from buildQdrantVectorSchemaFromProfile() — never a hand-rolled shape — and passes it through to store.probeInference', async () => {
+    let received;
+    const fake = { probeInference: async (opts) => { received = opts; return { status: 'inference_available' }; } };
+    const adapter = createQdrantStorageAdapter({ storeOverrides: fake });
+    await adapter.probeInference({ profile: cloudProfile });
+    assert.deepEqual(received.vectorSchema, buildQdrantVectorSchemaFromProfile(cloudProfile));
+  });
+
+  it('builds denseQuery/sparseQuery as {text, model} descriptors from the profile\'s own model fields, using the default sampleText when none is given', async () => {
+    let received;
+    const fake = { probeInference: async (opts) => { received = opts; return { status: 'inference_available' }; } };
+    const adapter = createQdrantStorageAdapter({ storeOverrides: fake });
+    await adapter.probeInference({ profile: cloudProfile });
+    assert.equal(received.denseQuery.model, 'intfloat/multilingual-e5-small');
+    assert.equal(received.sparseQuery.model, 'qdrant/bm25');
+    assert.equal(received.denseQuery.text, received.sparseQuery.text, 'both descriptors must use the same sample text');
+    assert.ok(!('modifier' in received.denseQuery) && !('options' in received.denseQuery), 'inference descriptors must never carry schema-only fields');
+    assert.ok(!('modifier' in received.sparseQuery) && !('options' in received.sparseQuery));
+  });
+
+  it('honors a custom sampleText when provided', async () => {
+    let received;
+    const fake = { probeInference: async (opts) => { received = opts; return { status: 'inference_available' }; } };
+    const adapter = createQdrantStorageAdapter({ storeOverrides: fake });
+    await adapter.probeInference({ profile: cloudProfile, sampleText: 'custom probe text' });
+    assert.equal(received.denseQuery.text, 'custom probe text');
+  });
+
+  it('sparseQuery is null when the profile has no sparse lane', async () => {
+    let received;
+    const fake = { probeInference: async (opts) => { received = opts; return { status: 'inference_available' }; } };
+    const adapter = createQdrantStorageAdapter({ storeOverrides: fake });
+    const denseOnlyProfile = buildEmbeddingProfile({
+      dense: { provider: 'qdrant-cloud', model: 'intfloat/multilingual-e5-small', vectorName: 'dense', dimensions: 384, distance: 'Cosine', execution: 'qdrant-cloud' },
+      sparse: null,
+      embeddingSchemaVersion: 2,
+    });
+    await adapter.probeInference({ profile: denseOnlyProfile });
+    assert.equal(received.sparseQuery, null);
+  });
+
+  it('returns the store result unchanged (inference_available / inference_disabled_or_model_unavailable pass straight through)', async () => {
+    const fake = { probeInference: async () => ({ status: 'inference_disabled_or_model_unavailable', message: 'model not found' }) };
+    const adapter = createQdrantStorageAdapter({ storeOverrides: fake });
+    const result = await adapter.probeInference({ profile: cloudProfile });
+    assert.deepEqual(result, { status: 'inference_disabled_or_model_unavailable', message: 'model not found' });
   });
 });

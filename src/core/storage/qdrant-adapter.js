@@ -15,7 +15,7 @@ import { mergeCapabilities } from './capabilities.js';
 import { createProfileCache } from './embedding-profile-cache.js';
 import {
   METADATA_KEY_EMBEDDING_PROFILE, METADATA_KEY_INDEXING_STATE,
-  EMBEDDING_PROFILE_SCHEMA_VERSION,
+  EMBEDDING_PROFILE_SCHEMA_VERSION, EXECUTION,
   validateEmbeddingProfile, validateIndexingState,
 } from '../embedding-profile/schema.js';
 import { foldPayloadConsistency, inferLegacyProfile, IDENTITY_FIELDS } from '../embedding-profile/migrate.js';
@@ -77,6 +77,14 @@ export function toChunk(point) {
     parentId:     p.parent_id ?? null,
     headingPath:  Array.isArray(p.heading_path) ? p.heading_path : null,
     entityRefs:   toEntityRefs(p),
+    // Split-entity fragment linkage (entity-split.js) — present only on
+    // retrieval_content fragment points; null on their canonical entity_raw
+    // point and on ordinary (unsplit) chunks. assemble.js's presentEntityKeys
+    // registration relies on entityId to resolve a placeholder pointing at
+    // the (deliberately excluded) canonical entity via its present fragments.
+    entityId:       p.entity_id ?? null,
+    fragmentIndex:  Number.isInteger(p.fragment_index) ? p.fragment_index : null,
+    fragmentCount:  Number.isInteger(p.fragment_count) ? p.fragment_count : null,
     score:        typeof point?.score === 'number' ? point.score : null,
     isMatch:      null,
   };
@@ -419,6 +427,8 @@ export function createQdrantStorageAdapter({ storeOverrides = {} } = {}) {
     createCollection: storeOverrides.createCollection ?? store.createCollection,
     scrollFilteredPages: storeOverrides.scrollFilteredPages ?? store.scrollFilteredPages,
     listCollections: storeOverrides.listCollections ?? store.listCollections,
+    checkQdrantReachable: storeOverrides.checkQdrantReachable ?? store.checkQdrantReachable,
+    probeInference: storeOverrides.probeInference ?? store.probeInference,
   };
   const profileCache = createProfileCache();
 
@@ -512,8 +522,11 @@ export function createQdrantStorageAdapter({ storeOverrides = {} } = {}) {
     // is computed using only the ONNX/hashed-tf lanes that don't require
     // injection, and an Ollama lane's availability check throws — callers
     // that need availability for an Ollama-backed collection must supply
-    // checkOllamaLane.
-    async getCollection(name, { checkOllamaLane, checkOnnxModelCached = defaultCheckOnnxModelCached } = {}) {
+    // checkOllamaLane. checkQdrantReachable defaults to store.js's own
+    // checkQdrantReachable() — a plain Qdrant network call needing no
+    // admin-specific infra, same "safe core-only default" precedent as
+    // defaultCheckOnnxModelCached above.
+    async getCollection(name, { checkOllamaLane, checkOnnxModelCached = defaultCheckOnnxModelCached, checkQdrantReachable = s.checkQdrantReachable } = {}) {
       const collections = await s.listCollections();
       if (!collections.includes(name)) return null;
 
@@ -563,7 +576,7 @@ export function createQdrantStorageAdapter({ storeOverrides = {} } = {}) {
       // "unknown_dependencies" status instead of breaking the whole call.
       let availability;
       try {
-        availability = await resolveAvailability(availabilityResolveResult, { checkOllamaLane, checkOnnxModelCached });
+        availability = await resolveAvailability(availabilityResolveResult, { checkOllamaLane, checkOnnxModelCached, checkQdrantReachable });
       } catch {
         availability = {
           status: COLLECTION_STATUS.UNKNOWN_DEPENDENCIES,
@@ -882,10 +895,66 @@ export function createQdrantStorageAdapter({ storeOverrides = {} } = {}) {
       return points.map(toChunk);
     },
 
-    async searchHybrid(name, { dense, sparse, limit = 5, filter, settingsService } = {}) {
+    // Storage-only: takes REAL dense/sparse vector arrays already computed
+    // by the caller (embedQuery, via runHybridSearch's CLIENT branch) —
+    // never embeds anything itself. Renamed from searchHybrid to make this
+    // contract explicit and un-confusable with searchHybridInference below.
+    async searchHybridVectors(name, { dense, sparse, limit = 5, filter, settingsService } = {}) {
       const qdrantFilter = translateSearchFilter(filter);
       const points = await store.hybridSearch(name, dense, sparse, limit, qdrantFilter, { settingsService });
       return points.map(toChunk);
+    },
+
+    // Storage-only: takes ALREADY-BUILT {text, model} inference descriptors
+    // (denseQuery/sparseQuery, from runHybridSearch's CLOUD branch via
+    // buildCloudQueryInputs()) — never embeds anything itself, never
+    // imports or calls embeddings.js/onnx-embed.js/ollama.js. Only forwards
+    // data the caller already built into a single Qdrant Query API request.
+    async searchHybridInference(name, { denseQuery, sparseQuery, limit = 5, filter, settingsService } = {}) {
+      const qdrantFilter = translateSearchFilter(filter);
+      const points = await store.hybridSearchCloud(name, denseQuery, sparseQuery, limit, qdrantFilter, { settingsService });
+      return points.map(toChunk);
+    },
+
+    // Cheap, routine reachability + auth check for a cloud-inference lane
+    // (Tier 1 of the availability state machine — core/embedding-profile/
+    // availability.js's resolveLaneAvailability() calls this, injected as
+    // checkQdrantReachable). Distinct from ping() above: this distinguishes
+    // an auth failure from a generic unreachable failure, which
+    // resolveLaneAvailability needs to report MISSING_CREDENTIALS vs
+    // CLOUD_UNREACHABLE — ping()'s {ok, detail} shape cannot make that
+    // distinction. Deliberately cheap and deliberately does NOT prove
+    // inference works — see probeInference() below for the only method
+    // that can.
+    async checkCloudInferenceReachable() {
+      return s.checkQdrantReachable();
+    },
+
+    // Provider-neutral capability: proves a profile's Cloud Inference
+    // configuration ACTUALLY WORKS by running one real, minimal inference
+    // round-trip against a disposable collection (created and deleted
+    // entirely within this call, never touching any existing user
+    // collection) — the only way to know Cloud Inference is real, not
+    // inferred from a cheap reachability check. Only ever invoked on an
+    // explicit user action (the Admin UI's "Test Cloud Inference" button),
+    // never by routine availability resolution.
+    //
+    // Everything Qdrant-specific (schema building from the profile,
+    // inference-descriptor shape, the disposable-collection round-trip)
+    // stays inside this adapter/store.js — src/admin/ only ever calls this
+    // one method and redacts/shapes the result, never touches Qdrant
+    // request shapes itself. A StorageAdapter with no such capability
+    // (a future non-Qdrant backend) returns { status: 'unsupported' }
+    // rather than throwing, so callers can handle it uniformly.
+    async probeInference({ profile, sampleText = 'semidex cloud inference probe' } = {}) {
+      if (profile?.embedding?.dense?.execution !== EXECUTION.QDRANT_CLOUD) {
+        return { status: 'unsupported', message: 'probeInference is only meaningful for a qdrant-cloud execution profile.' };
+      }
+      const vectorSchema = buildQdrantVectorSchemaFromProfile(profile);
+      const denseQuery = { text: sampleText, model: profile.embedding.dense.model };
+      const sparseModel = profile.embedding.sparse?.model;
+      const sparseQuery = sparseModel ? { text: sampleText, model: sparseModel } : null;
+      return s.probeInference({ vectorSchema, denseQuery, sparseQuery });
     },
 
     async getSkeletonRoot(name) {

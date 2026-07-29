@@ -39,7 +39,24 @@
  * @property {(name: string, sourceFile: string) => Promise<Object[]>} getFileChunks
  * @property {(name: string, opts: { nodeId?: string, nodePath?: string }) => Promise<Object[]|null>} getSectionChunks
  *
- * @property {(name: string, opts: { dense: number[], sparse?: Object, limit?: number, filter?: Object }) => Promise<Object[]>} searchHybrid
+ * @property {(name: string, opts: { dense: number[], sparse?: Object, limit?: number, filter?: Object }) => Promise<Object[]>} searchHybridVectors
+ *   Storage-only: takes REAL vectors already computed by the caller —
+ *   never embeds anything itself.
+ * @property {(name: string, opts: { denseQuery: {text: string, model: string}, sparseQuery?: {text: string, model: string}|null, limit?: number, filter?: Object }) => Promise<Object[]>} searchHybridInference
+ *   Storage-only: takes ALREADY-BUILT {text, model} inference descriptors
+ *   (Qdrant Cloud Inference) — never embeds anything itself, never imports
+ *   embeddings.js/onnx-embed.js/ollama.js.
+ * @property {() => Promise<{ status: 'ok'|'unreachable'|'auth_failed', message?: string }>} checkCloudInferenceReachable
+ *   Cheap, routine reachability+auth check for a cloud-inference lane —
+ *   never proves inference itself works. Backends with no cloud-inference
+ *   concept may return { status: 'ok' } unconditionally.
+ * @property {(opts: { profile: Object, sampleText?: string }) => Promise<{ status: string, message?: string }>} probeInference
+ *   Provider-neutral: proves a profile's Cloud Inference configuration
+ *   ACTUALLY WORKS via one real, minimal round-trip against a disposable
+ *   collection — never touches an existing user collection, only ever
+ *   called on an explicit user action. A backend/profile combination with
+ *   no such capability returns { status: 'unsupported' } rather than
+ *   throwing.
  *
  * @property {(name: string) => Promise<Object|null>} getSkeletonRoot
  * @property {(name: string, opts: { nodeId?: string, nodePath?: string }) => Promise<Object|null>} getSkeletonNode
@@ -67,7 +84,10 @@ export const REQUIRED_ADAPTER_METHODS = [
   'getChunk',
   'getFileChunks',
   'getSectionChunks',
-  'searchHybrid',
+  'searchHybridVectors',
+  'searchHybridInference',
+  'checkCloudInferenceReachable',
+  'probeInference',
   'getSkeletonRoot',
   'getSkeletonNode',
   'getSkeletonChildren',
