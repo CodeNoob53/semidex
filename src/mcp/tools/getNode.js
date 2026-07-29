@@ -75,6 +75,25 @@ export function formatNode(payload, collection, previewChars) {
   return result;
 }
 
+// A split-entity fragment (entity-split.js) carries entity_id pointing at
+// its canonical entity_raw point — that canonical point holds the COMPLETE
+// raw_content this tool is meant to return, while the fragment itself only
+// carries a bounded piece. qdrant_get_node always resolves to the canonical
+// entity, regardless of which fragment's (or the entity's own) node_id/
+// node_path the caller happened to look up. Exported with an injectable
+// lookup function for direct unit testing without a live Qdrant instance.
+//
+// @param {Object|null} content — result of getContentNodeById/ByPath
+// @param {string} collection
+// @param {(collection: string, nodeId: string) => Promise<Object|null>} getContentNodeByIdFn
+// @returns {Promise<Object|null>} the canonical payload if content was a
+//   fragment and its canonical entity was found; otherwise content unchanged
+export async function resolveCanonicalEntity(content, collection, getContentNodeByIdFn) {
+  if (!content?.entity_id) return content;
+  const canonical = await getContentNodeByIdFn(collection, content.entity_id);
+  return canonical ?? content;
+}
+
 export async function handle({ collection, node_id, node_path, preview_chars }) {
   const err = validateIdentifier({ node_id, node_path });
   if (err) return err;
@@ -82,9 +101,11 @@ export async function handle({ collection, node_id, node_path, preview_chars }) 
   const previewChars = clampPreviewChars(preview_chars);
 
   // Try fetching a content (non-nav) node first.
-  const content = node_id
+  let content = node_id
     ? await getContentNodeById(collection, node_id)
     : await getContentNodeByPath(collection, node_path);
+
+  content = await resolveCanonicalEntity(content, collection, getContentNodeById);
 
   if (content) {
     return JSON.stringify(formatNode(content, collection, previewChars), null, 2);

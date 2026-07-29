@@ -4,17 +4,20 @@
 import '../../helpers/setup.js';
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { withNavExcluded, isNavPoint, NAV_POINT_KIND } from '../../../src/mcp/tools/filters.js';
+import { withNavExcluded, isNavPoint, NAV_POINT_KIND, ENTITY_RAW_POINT_KIND } from '../../../src/mcp/tools/filters.js';
 import { aggregateFiles } from '../../../src/mcp/tools/listFiles.js';
 import { aggregateTags } from '../../../src/mcp/tools/listTags.js';
 import { aggregateDirectories } from '../../../src/mcp/tools/listDirectories.js';
 import { groupByFile } from '../../../src/mcp/tools/findByTag.js';
 
 describe('withNavExcluded', () => {
-  it('null filter → must_not nav exclusion', () => {
+  // Excludes BOTH skeleton_nav (navigation) and entity_raw (split-entity
+  // canonical points, entity-split.js) — two clauses, one per excluded kind.
+  it('null filter → must_not excludes both skeleton_nav and entity_raw', () => {
     const f = withNavExcluded(null);
-    assert.equal(f.must_not?.length, 1);
-    assert.equal(f.must_not[0].match.value, NAV_POINT_KIND);
+    assert.equal(f.must_not?.length, 2);
+    assert.ok(f.must_not.some(c => c.match.value === NAV_POINT_KIND));
+    assert.ok(f.must_not.some(c => c.match.value === ENTITY_RAW_POINT_KIND));
   });
 
   it('existing must clauses are preserved and input is not mutated', () => {
@@ -25,36 +28,46 @@ describe('withNavExcluded', () => {
     assert.equal(base.must_not, undefined, 'input filter was mutated');
   });
 
-  it('existing must_not clauses are preserved', () => {
+  it('existing must_not clauses are preserved alongside both new exclusions', () => {
     const f = withNavExcluded({ must_not: [{ key: 'x', match: { value: 'y' } }] });
-    assert.equal(f.must_not.length, 2);
+    assert.equal(f.must_not.length, 3);
   });
 
-  it('is idempotent — no duplicate nav clause', () => {
+  it('is idempotent — no duplicate nav or entity_raw clause', () => {
     const once = withNavExcluded(null);
     const twice = withNavExcluded(once);
     const navClauses = twice.must_not.filter(
       c => c.key === 'point_kind' && c.match?.value === NAV_POINT_KIND,
     );
+    const entityRawClauses = twice.must_not.filter(
+      c => c.key === 'point_kind' && c.match?.value === ENTITY_RAW_POINT_KIND,
+    );
     assert.equal(navClauses.length, 1);
+    assert.equal(entityRawClauses.length, 1);
   });
 
-  it('another point_kind clause does not block or get replaced by the nav exclusion', () => {
+  it('another point_kind clause does not block or get replaced by the nav/entity_raw exclusion', () => {
     const f = withNavExcluded({
       must_not: [{ key: 'point_kind', match: { value: 'retrieval_content' } }],
     });
     assert.ok(f.must_not.some(c => c.match?.value === NAV_POINT_KIND));
+    assert.ok(f.must_not.some(c => c.match?.value === ENTITY_RAW_POINT_KIND));
     assert.ok(f.must_not.some(c => c.match?.value === 'retrieval_content'));
   });
 });
 
 const navPoint = { payload: { source_file: 'a.md', point_kind: 'skeleton_nav' } };
+const entityRawPoint = { payload: { source_file: 'a.md', point_kind: 'entity_raw', node_type: 'table' } };
 const contentPoint = { payload: { source_file: 'a.md', point_kind: 'retrieval_content', chunk_index: 0, tags: ['t'] } };
 const legacyPoint = { payload: { source_file: 'a.md', chunk_index: 0, section: 's', tags: ['t'] } };
 
 describe('isNavPoint', () => {
   it('detects skeleton_nav points', () => {
     assert.equal(isNavPoint(navPoint), true);
+  });
+
+  it('detects entity_raw points', () => {
+    assert.equal(isNavPoint(entityRawPoint), true);
   });
 
   it('passes retrieval_content points', () => {
@@ -66,8 +79,8 @@ describe('isNavPoint', () => {
   });
 });
 
-describe('aggregations exclude nav points from counts', () => {
-  const points = [legacyPoint, contentPoint, navPoint, navPoint];
+describe('aggregations exclude nav and entity_raw points from counts', () => {
+  const points = [legacyPoint, contentPoint, navPoint, navPoint, entityRawPoint];
 
   it('aggregateFiles counts only content chunks', () => {
     const files = aggregateFiles(points);

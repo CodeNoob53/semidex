@@ -64,10 +64,10 @@ describe('search.js source — node identity surfaced on the primary hit, rankin
     assert.match(src, /node_path=\$\{p\.node_path\}/, 'the primary hit must expose node_path, matching what window chunks already expose');
   });
 
-  it('does not touch hybridSearch/rerank/CE call sites (ranking/retrieval behavior unchanged)', () => {
+  it('does not touch runHybridSearch/rerank/CE call sites (ranking/retrieval behavior unchanged)', () => {
     // Sanity: the functions that actually determine ranking are still
     // called exactly as before — this phase only added output formatting.
-    assert.match(src, /hybridSearch\(collection, dense, sparse,/);
+    assert.match(src, /await runHybridSearch\(\{/);
     assert.match(src, /rerankResults\(pool, query,/);
   });
 });

@@ -1,17 +1,41 @@
-import { hybridSearch, fetchWindowChunks } from '../../core/qdrant.js';
-import { embedForSearch } from '../../core/embeddings.js';
+import { fetchWindowChunks } from '../../core/qdrant.js';
 import { rerankResults } from '../../core/rerank.js';
 import { ceRerank, withCETimeout, getCeRerankConfig } from '../../core/ce-rerank.js';
-import { withNavExcluded } from './filters.js';
 import { createStorageAdapter } from '../../core/storage/factory.js';
-import { resolveExistingCollectionProfile } from '../../core/embedding-profile/resolve.js';
+import { runHybridSearch } from '../../core/retrieval/search.js';
 
 import { envInt } from '../../core/env.js';
 
-// MCP search resolves the collection's embedding profile through the SAME
-// path (resolveExistingCollectionProfile) admin search and Ask use — never
-// a separate/duplicated resolution implementation. Lazily constructed
-// (never at import time) so a test importing this module directly never
+// runHybridSearch() returns adapter Chunk objects (camelCase, via
+// toChunk()) — rerankResults()/ceRerank() both read the raw snake_case
+// Qdrant point shape ({ payload: {...}, score }), a contract shared with
+// their other (non-MCP) callers that this function does not change.
+// Reconstructs the minimal shape those two functions actually read, scoped
+// entirely to this file — MCP is the only caller that needs this
+// adaptation (Admin Search never calls either rerank function).
+export function chunkToLegacyPoint(chunk) {
+  return {
+    score: chunk.score,
+    payload: {
+      source_file: chunk.sourceFile,
+      chunk_index: chunk.chunkIndex,
+      total_chunks: chunk.totalChunks,
+      section: chunk.section,
+      text: chunk.text,
+      tags: chunk.tags,
+      context: chunk.context,
+      node_id: chunk.nodeId,
+      node_path: chunk.nodePath,
+      node_type: chunk.nodeType,
+    },
+  };
+}
+
+// MCP search routes through runHybridSearch() (core/retrieval/search.js) —
+// the SAME shared call site admin search and Ask use, which itself owns
+// embedding-profile resolution internally. MCP never imports or calls a
+// profile resolver directly. Lazily constructed (never at import time) so
+// a test importing this module directly never
 // touches a real Qdrant connection unless handle() actually runs.
 // setStorageAdapter() mirrors setSettingsService()'s existing DI pattern in
 // this same file — a test-only override seam for a module with no
@@ -120,39 +144,37 @@ export async function handle({ query, collection, top = 5, tags, source_file, wi
   top = Math.min(Math.max(1, parseInt(top) || 5), 20);
   window = Math.max(0, Math.min(2, parseInt(window) || 0));
 
-  // Resolve the collection's OWN embedding profile before embedding at
-  // all — same resolution path admin search/Ask use (Part C/E of the
-  // native-metadata task), never a local default model for an
-  // unresolved/unsupported profile.
-  const resolution = await resolveExistingCollectionProfile(getStorageAdapter(), collection);
-  if (!resolution.resolved) {
-    return `Cannot search "${collection}": no resolvable embedding profile (${resolution.reason}). Run "npm run sync" to migrate, or reindex.`;
-  }
-  if (resolution.profile.embedding.dense.execution !== 'client') {
-    return `Cannot search "${collection}": its embedding profile uses execution "${resolution.profile.embedding.dense.execution}", which is not yet implemented.`;
-  }
+  // MCP requests its own candidate pool by passing a larger `top` to
+  // runHybridSearch() when reranking is enabled — the shared retrieval
+  // service (embedding-profile resolution, execution-mode branching
+  // between CLIENT and QDRANT_CLOUD, excludeNav filtering) is identical to
+  // Admin Search and Ask; only this post-processing (rerank) stays
+  // MCP-specific, same as it always has.
+  const requestLimit = (RERANK_ENABLED || RERANK_CE_ENABLED)
+    ? Math.max(top * RERANK_PREFETCH_MULT, top + 5)
+    : top;
 
-  const { dense, sparse } = await embedForSearch(resolution.profile, query);
-
-  let filter = null;
-  if (source_file || tags?.length) {
-    const must = [];
-    if (source_file) must.push({ key: 'source_file', match: { value: source_file } });
-    if (tags?.length) must.push({ should: tags.map(t => ({ key: 'tags', match: { value: t } })) });
-    filter = { must };
+  const result = await runHybridSearch({
+    adapter: getStorageAdapter(),
+    collection,
+    query,
+    top: requestLimit,
+    filters: { sourceFile: source_file, tags },
+    settingsService,
+  });
+  if (result.error) {
+    return `Cannot search "${collection}": ${result.message}`;
   }
-  // skeleton_nav points never appear in search (impl spec task 5);
-  // a no-op for legacy collections — the field does not exist there.
-  filter = withNavExcluded(filter);
 
   // Pipeline (docs/en/ce-rerank-design.md §4):
-  //   hybridSearch(prefetch N) → [Stage 1: det-rerank] → [Stage 2: CE rerank] → slice(top)
+  //   runHybridSearch(prefetch N) → [Stage 1: det-rerank] → [Stage 2: CE rerank] → slice(top)
   // When CE follows det-rerank, det-rerank keeps the FULL pool ordering
   // (finalLimit = pool length) so CE receives the complete candidate window.
+  // rerankResults()/ceRerank() read the raw snake_case Qdrant point shape —
+  // chunkToLegacyPoint() adapts runHybridSearch's Chunk objects for them.
   let results;
   if (RERANK_ENABLED || RERANK_CE_ENABLED) {
-    const candidateLimit = Math.max(top * RERANK_PREFETCH_MULT, top + 5);
-    let pool = await hybridSearch(collection, dense, sparse, candidateLimit, filter, { settingsService });
+    let pool = result.hits.map(chunkToLegacyPoint);
 
     if (RERANK_ENABLED) {
       pool = rerankResults(pool, query, { finalLimit: RERANK_CE_ENABLED ? pool.length : top }, { settingsService });
@@ -170,7 +192,7 @@ export async function handle({ query, collection, top = 5, tags, source_file, wi
 
     results = pool.slice(0, top);
   } else {
-    results = await hybridSearch(collection, dense, sparse, top, filter, { settingsService });
+    results = result.hits.map(chunkToLegacyPoint);
   }
   if (!results.length) return 'No results found.';
 
