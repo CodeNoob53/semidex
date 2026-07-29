@@ -1,0 +1,61 @@
+{
+  "verdict": "ACCEPT",
+  "steps": [
+    {
+      "name": "reachability/auth check before any collection is created",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "create collection via resolveNewCollectionProfile() + adapter.createCollection()",
+      "ok": true,
+      "detail": "semidex-cloud-inference-accept-4c691b32"
+    },
+    {
+      "name": "index 3-5 multilingual documents through embedForIndex() (real inference descriptors)",
+      "ok": true,
+      "detail": "4 points built"
+    },
+    {
+      "name": "real max-input check: the deliberately over-long document is rejected by checkEmbedInputFits() BEFORE any upsert",
+      "ok": true,
+      "detail": "code=EMBEDDING_INPUT_TOO_LONG"
+    },
+    {
+      "name": "upsert points with vector: {dense, sparse} inference descriptors (full vector set per point)",
+      "ok": true,
+      "detail": "4 points upserted"
+    },
+    {
+      "name": "confirm points contain both named vectors (dense present; sparse present when profile declares one)",
+      "ok": true,
+      "detail": "4 points scrolled with vectors"
+    },
+    {
+      "name": "run a Ukrainian query through runHybridSearch() (real Query API call)",
+      "ok": true,
+      "detail": "3 hits, searchMode=hybrid"
+    },
+    {
+      "name": "hybrid results map to the standard Chunk shape (toChunk() output)",
+      "ok": true,
+      "detail": "{\"sourceFile\":\"docs/uk/pochatok.md\",\"score\":0.033333335}"
+    },
+    {
+      "name": "confirm Cloud Inference was used, not local ONNX/Ollama (throw-if-called sentinel never fired)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "resolveExistingCollectionProfile() resolves the canonical qdrant-cloud profile afterward (round-trip)",
+      "ok": true,
+      "detail": "{\"dense\":{\"provider\":\"qdrant-cloud\",\"model\":\"intfloat/multilingual-e5-small\",\"vectorName\":\"dense\",\"dimensions\":384,\"distance\":\"Cosine\",\"execution\":\"qdrant-cloud\",\"options\":null},\"sparse\":{\"provider\":\"qdrant-cloud\",\"model\":\"qdrant/bm25\",\"vectorName\":\"sparse\",\"execution\":\"qdrant-cloud\",\"modifier\":\"idf\",\"options\":null}}"
+    },
+    {
+      "name": "Tier 2 probeInference() confirms Cloud Inference genuinely works for this model",
+      "ok": true,
+      "detail": "inference_available"
+    }
+  ],
+  "collectionName": null
+}

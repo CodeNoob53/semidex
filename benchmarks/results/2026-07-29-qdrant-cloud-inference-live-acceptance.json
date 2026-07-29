@@ -1,0 +1,76 @@
+{
+  "verdict": "ACCEPT",
+  "steps": [
+    {
+      "name": "reachability/auth check before any collection is created",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "built a real Markdown fixture on disk with an oversized table (40 rows)",
+      "ok": true,
+      "detail": "<temporary-fixture>/config-reference.md"
+    },
+    {
+      "name": "real indexer CLI run completed (chunkFileFromPath -> stageA -> stageB -> stageC -> stageD)",
+      "ok": true,
+      "detail": "exit 0"
+    },
+    {
+      "name": "indexer stdout mentions entity_raw points were produced (split actually engaged)",
+      "ok": true,
+      "detail": "entity_raw mentioned in output"
+    },
+    {
+      "name": "getFileChunks returns chunks for the fixture file",
+      "ok": true,
+      "detail": "5 chunks"
+    },
+    {
+      "name": "chunk_index sequence returned by getFileChunks is contiguous from 0, with NO gap for the excluded entity_raw point (code review fix)",
+      "ok": true,
+      "detail": "indexes: [0,1,2,3,4]"
+    },
+    {
+      "name": "the oversized table was actually split into multiple fragment points, each individually small",
+      "ok": true,
+      "detail": "2 table fragment(s)"
+    },
+    {
+      "name": "every fragment carries only its own bounded slice of the table, never the full 40-row content",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "fragments carry entity_id linking back to their canonical entity_raw point",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "the canonical entity_raw point resolves directly by node_id and carries the COMPLETE raw_content (all 40 rows)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "canonical raw_content includes rows from across the whole table (first, middle, last), not a truncated slice",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "the canonical entity_raw point was upserted with vector: {} (empty named-vector map) — no Cloud Inference call, no marker embedding, confirmed via raw scroll",
+      "ok": true,
+      "detail": "vector={}"
+    },
+    {
+      "name": "the canonical entity_raw point never appears in hybrid search results (vector: {} correctly excludes it)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "resolveExistingCollectionProfile() resolves the canonical qdrant-cloud profile after a real indexing run",
+      "ok": true,
+      "detail": "{\"dense\":{\"provider\":\"qdrant-cloud\",\"model\":\"intfloat/multilingual-e5-small\",\"vectorName\":\"dense\",\"dimensions\":384,\"distance\":\"Cosine\",\"execution\":\"qdrant-cloud\",\"options\":null},\"sparse\":{\"provider\":\"qdrant-cloud\",\"model\":\"qdrant/bm25\",\"vectorName\":\"sparse\",\"execution\":\"qdrant-cloud\",\"modifier\":\"idf\",\"options\":null}}"
+    }
+  ],
+  "collectionName": null
+}
