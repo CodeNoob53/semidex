@@ -116,17 +116,112 @@ explicit, verified migration. The write-once guard on a collection's
 embedding profile exists specifically to prevent an accidental overwrite of
 an established vector space's identity.
 
-### Future: Qdrant Cloud Inference
+### Qdrant Cloud Inference (`qdrant-cloud`) — Semidex Lite
 
-The embedding profile's `execution` field already distinguishes embedding
-computed by this process (`client`, today's only supported mode) from
-embedding computed server-side by the connected Qdrant cluster
-(`qdrant-cluster`) or by Qdrant Cloud's separately-billed Inference API
-(`qdrant-cloud`). Neither server-side mode is implemented yet — a
-collection profile that declares one reports itself as
-unsupported/unavailable rather than silently falling back to a local model.
-When Cloud Inference support is added, it will reuse this same profile
-contract rather than introducing a parallel configuration path.
+The embedding profile's `execution` field distinguishes embedding computed
+by this process (`client` — local ONNX/Ollama, the default) from embedding
+computed server-side by Qdrant Cloud's separately-billed Inference API
+(`qdrant-cloud`). A third mode, `qdrant-cluster` (computed by a self-hosted
+Qdrant cluster's own built-in models), is defined but not yet implemented.
+
+`qdrant-cloud` is **Semidex Lite**: a zero-local-model-download deployment
+mode. No ONNX weights, no Transformers.js runtime, no Ollama server, and no
+CUDA/DirectML configuration are involved — both the dense and sparse
+vectors for indexing and for every search query are computed by Qdrant
+itself, server-side. This is what lets Semidex run on a machine with no
+GPU and no multi-gigabyte model download.
+
+**Supported models (MVP catalog):**
+
+| Model | Type | Dimensions | Context window | Status |
+|---|---|---:|---:|---|
+| `intfloat/multilingual-e5-small` | dense | 384 | 512 tokens | Supported |
+| `qdrant/bm25` | sparse | — | — | Supported (`modifier: idf`) |
+| `sentence-transformers/all-minilm-l6-v2` | dense | 384 | 256 tokens | **Disabled** — see below |
+
+No other model families (ColBERT, SPLADE, image, Cohere, Jina, OpenAI,
+OpenRouter) are wired up. The catalog is a hand-maintained, typed list
+(`src/core/embedding-profile/qdrant-cloud-models.js`) — Qdrant Cloud
+Inference has no live model-discovery API, so nothing here is probed or
+inferred automatically.
+
+**Local vs. cloud execution:**
+
+| | `client` (local) | `qdrant-cloud` |
+|---|---|---|
+| Where embedding runs | This process (ONNX/Ollama) | Qdrant's servers |
+| Local download required | Yes (model weights) | No |
+| GPU/CUDA relevant | Yes (optional) | No |
+| Network dependency for indexing/search | No (after model download) | Yes, always |
+| Billing | None beyond compute you already pay for | Subject to your Qdrant Cloud account's own inference billing |
+
+**This is not a retrieval-quality-equivalence claim.** `qdrant-cloud`'s
+`intfloat/multilingual-e5-small` (384 dimensions) is a materially smaller,
+different model than Semidex's default local `bge-m3-onnx` (1024
+dimensions). Choosing `qdrant-cloud` is a deployment-mode tradeoff (no
+local model download, network-dependent, cloud-billed), not a claim that
+retrieval quality matches or exceeds the local default. A dedicated
+benchmark comparing the two is out of scope for this feature.
+
+**The two-tier context-window rule.** MiniLM (256-token window) is
+disabled outright in the catalog — even in the best case, Semidex's
+default chunk budget (`MAX_CHUNK_TOKENS`, 512) alone already exceeds it,
+before any heading-path/skeleton-summary context is added. This coarse,
+settings-time check (`isCatalogCompatibleWithChunking()`) only rules out
+models that are hopeless in the best case — it does **not** guarantee
+every chunk will fit a catalog-supported model like E5. The real embedding
+input for any chunk is `` `${context}\n\n${text}` `` (heading path,
+skeleton summary, and structural carryover on top of the chunk body), not
+the chunk body alone. Immediately before every embed call, Semidex runs a
+**second, exact check** (`checkEmbedInputFits()`) against a real tokenizer
+for the specific model, counting the actual assembled string.
+
+If that input exceeds the model's context window, Semidex first tries to
+**reserve budget by trimming `context`** — never the chunk body, which is
+the actual indexed content — down to whatever fits alongside the full,
+untouched chunk text (`fitContextToBudget()`, a real-tokenizer binary
+search, the same technique used for BGE-M3 overlap sizing). The context
+still stored in the point payload is unaffected; only what's sent to the
+embedder for that one over-budget chunk is shortened. Only when the chunk
+**body alone** still doesn't fit — even with context reduced to nothing —
+does indexing for that chunk fail with a typed error; **the chunk body
+itself is never silently truncated**. If the tokenizer itself cannot be
+loaded (e.g. no network access to fetch it once), that is also a hard
+failure, never a silent fallback to a cheaper estimate. The same real,
+tokenizer-backed check applies to search queries too — an over-long query
+against a `qdrant-cloud` collection is rejected with a typed error before
+any request reaches Qdrant, never silently truncated there either (a
+query has no separate context to trim, so this is a hard rejection with
+no retry).
+
+**Availability is a two-tier state machine**, mirroring the existing local
+ONNX cached-vs-verified precedent:
+- **Tier 1** (routine, cheap): confirms Qdrant is reachable and the API
+  key is valid. This can **never** report a collection as fully
+  "available" — a cheap reachability check cannot prove Cloud Inference
+  itself works for a given model (no dry-run endpoint exists). Routine
+  browsing reports "reachable, not yet verified."
+- **Tier 2** (explicit, real): the Admin Settings UI's **"Test Cloud
+  Inference"** button runs one real, minimal inference round-trip against
+  a disposable collection (created and deleted immediately) to confirm
+  inference genuinely works for the selected model. This is the only way
+  to get a real "verified" result, and it is never run automatically.
+
+**Model availability, pricing, and region — account-specific, not a
+platform guarantee.** The catalog above and its cost/status labels were
+confirmed via the Qdrant Cloud Console for one account, on 2026-07-21 (see
+`benchmarks/results/2026-07-21-qdrant-cloud-inference-live-spike.md` for
+the full record, including a masked cluster host and confirmed EU region
+for that account). Availability, region, and pricing may differ by
+account, cluster tier, and region — always check the Cloud Console's own
+Inference tab for your cluster before relying on a specific model. Do not
+treat "free" or any specific region as a stable platform fact.
+
+**Configuration:** select "Qdrant Cloud Inference" as the embedding
+backend in Admin Settings, choose a dense model from the catalog-backed
+selector, and save. `QDRANT_URL`/`QDRANT_KEY` (already required for any
+Qdrant connection) are reused — no separate credential exists for Cloud
+Inference billing/auth.
 
 ## Qdrant
 
