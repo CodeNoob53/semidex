@@ -13,9 +13,14 @@
 // guard (assertClientExecution) and the provider-combo guard
 // (assertProviderCombo), both of which throw before any network/ONNX call
 // happens.
-import { describe, it } from 'node:test';
+import { describe, it, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { embedForIndex, embedForIndexBatch, embedForSearch, SCHEMA_VERSION, shouldUseOnnxBatching, resolveOnnxBatchSize } from '../../../src/core/embeddings.js';
+import {
+  embedForIndex, embedForIndexBatch, embedForSearch, SCHEMA_VERSION, shouldUseOnnxBatching, resolveOnnxBatchSize,
+  EmbeddingInputTooLongError, setLocalEmbedOverrideForTest,
+} from '../../../src/core/embeddings.js';
+
+afterEach(() => setLocalEmbedOverrideForTest(null));
 
 function profile({ denseProvider = 'ollama', sparseProvider = 'hashed-tf', execution = 'client', sparseExecution = execution } = {}) {
   return {
@@ -37,16 +42,16 @@ describe('embeddings.js — execution-mode guard (assertClientExecution)', () =>
     );
   });
 
-  it('embedForIndex rejects a profile with a non-client dense execution', async () => {
+  it('embedForIndex rejects a profile with a still-unimplemented (e.g. qdrant-cluster) dense execution — qdrant-cloud is now supported (see the cloud describe block below)', async () => {
     await assert.rejects(
       () => embedForIndex(profile({ execution: 'qdrant-cluster' }), 'text'),
       /execution: 'client'/,
     );
   });
 
-  it('embedForIndexBatch rejects a profile with a non-client dense execution', async () => {
+  it('embedForIndexBatch rejects a profile with a still-unimplemented (e.g. qdrant-cluster) dense execution', async () => {
     await assert.rejects(
-      () => embedForIndexBatch(profile({ execution: 'qdrant-cloud' }), ['a', 'b'], async (items, size, fn) => Promise.all(items.map(fn)), 2),
+      () => embedForIndexBatch(profile({ execution: 'qdrant-cluster' }), ['a', 'b'], async (items, size, fn) => Promise.all(items.map(fn)), 2),
       /execution: 'client'/,
     );
   });
@@ -99,6 +104,77 @@ describe('embeddings.js — execution-mode guard runs before the provider-combo 
     } catch (err) {
       assert.match(err.message, /execution: 'client'/);
     }
+  });
+});
+
+function cloudProfile({ denseModel = 'intfloat/multilingual-e5-small', sparseModel = 'qdrant/bm25' } = {}) {
+  return {
+    schemaVersion: 1, managedBy: 'semidex',
+    embedding: {
+      dense: { provider: 'qdrant-cloud', model: denseModel, vectorName: 'dense', dimensions: 384, distance: 'Cosine', execution: 'qdrant-cloud' },
+      sparse: sparseModel === null ? null : { provider: 'qdrant-cloud', model: sparseModel, vectorName: 'sparse', execution: 'qdrant-cloud', modifier: 'idf' },
+    },
+    embeddingSchemaVersion: 2,
+  };
+}
+
+describe('embeddings.js — qdrant-cloud execution: REAL behavioral proof the local embed step is never called', () => {
+  it('embedForIndex on a qdrant-cloud profile completes successfully and returns {text, model} descriptors WITHOUT ever calling the local embed step', async () => {
+    setLocalEmbedOverrideForTest(() => { throw new Error('local embed must never be called for a qdrant-cloud profile'); });
+    const result = await embedForIndex(cloudProfile(), 'hello world');
+    assert.deepEqual(result.dense, { text: 'hello world', model: 'intfloat/multilingual-e5-small' });
+    assert.deepEqual(result.sparse, { text: 'hello world', model: 'qdrant/bm25' });
+    assert.equal(result.meta.dense_provider, 'qdrant-cloud');
+  });
+
+  it('embedForIndexBatch on a qdrant-cloud profile completes successfully for every text, never calling the local embed step', async () => {
+    setLocalEmbedOverrideForTest(() => { throw new Error('local embed must never be called for a qdrant-cloud profile'); });
+    const runBatched = async (items, size, fn) => Promise.all(items.map(fn));
+    const results = await embedForIndexBatch(cloudProfile(), ['a', 'b', 'c'], runBatched, 2);
+    assert.equal(results.length, 3);
+    for (let i = 0; i < results.length; i++) {
+      assert.deepEqual(results[i].dense, { text: ['a', 'b', 'c'][i], model: 'intfloat/multilingual-e5-small' });
+    }
+  });
+
+  it('REGRESSION (P2 fix): embedForSearch has NO qdrant-cloud branch — it stays client-only and still rejects a cloud profile exactly as before (cloud query building lives in buildCloudQueryInputs, never in embeddings.js)', async () => {
+    setLocalEmbedOverrideForTest(() => { throw new Error('must not be reached — this test only checks the rejection happens before any embed attempt'); });
+    await assert.rejects(
+      () => embedForSearch(cloudProfile(), 'query'),
+      /execution: 'client'/,
+    );
+  });
+
+  it('sparse descriptor never carries options/modifier (Revision 2 regression check)', async () => {
+    const result = await embedForIndex(cloudProfile(), 'text');
+    assert.ok(!('options' in result.sparse));
+    assert.ok(!('modifier' in result.sparse));
+  });
+
+  it('dense === null-sparse profile returns sparse: null, not a descriptor', async () => {
+    const result = await embedForIndex(cloudProfile({ sparseModel: null }), 'text');
+    assert.equal(result.sparse, null);
+  });
+
+  it('an unknown/unsupported dense model throws before returning any descriptor', async () => {
+    await assert.rejects(
+      () => embedForIndex(cloudProfile({ denseModel: 'sentence-transformers/all-minilm-l6-v2' }), 'text'),
+      /not in the supported Qdrant Cloud dense model catalog|not a supported/,
+    );
+  });
+
+  it('checkEmbedInputFits rejection surfaces as a typed EmbeddingInputTooLongError, never a silent truncate', async () => {
+    // A context prefix long enough to push the assembled text over E5's
+    // 512-token window — mirrors the catalog test's own regression fixture.
+    const heavyContext = 'Section > Subsection > '.repeat(300);
+    await assert.rejects(
+      () => embedForIndex(cloudProfile(), `${heavyContext}\n\nshort chunk body`),
+      (err) => {
+        assert.ok(err instanceof EmbeddingInputTooLongError);
+        assert.equal(err.code, 'EMBEDDING_INPUT_TOO_LONG');
+        return true;
+      },
+    );
   });
 });
 
