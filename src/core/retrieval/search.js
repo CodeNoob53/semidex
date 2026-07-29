@@ -18,6 +18,7 @@ import { embedForSearch } from '../embeddings.js';
 import { resolveExistingCollectionProfile } from '../embedding-profile/resolve.js';
 import { EXECUTION } from '../embedding-profile/schema.js';
 import { buildCloudQueryInputs, checkEmbedInputFits, findDenseModel } from '../embedding-profile/qdrant-cloud-catalog.js';
+import { emitTelemetry } from '../bench-telemetry.js';
 
 /**
  * @typedef {Object} RetrievalError
@@ -115,6 +116,14 @@ export async function runHybridSearch({ adapter, embedQuery = embedForSearch, co
     // buildCloudQueryInputs() — NOT embedForSearch, which stays
     // client-only. embedQuery (the DI param) is never used on this branch.
     const { denseQuery, sparseQuery } = buildCloudQueryInputs(resolution.profile, query);
+    // Opt-in benchmark telemetry (no-op unless SEMIDEX_BENCH_TELEMETRY_PATH
+    // is set — see src/core/bench-telemetry.js). Query-side counterpart of
+    // embedForIndexCloud's own indexing-side emit — the only other place a
+    // Qdrant Cloud Inference descriptor's real text/model is known.
+    emitTelemetry({ kind: 'inference', phase: 'query', lane: 'dense', textLength: denseQuery.text.length, model: denseQuery.model });
+    if (sparseQuery) {
+      emitTelemetry({ kind: 'inference', phase: 'query', lane: 'sparse', textLength: sparseQuery.text.length, model: sparseQuery.model });
+    }
     hits = await adapter.searchHybridInference(collection, { denseQuery, sparseQuery, limit: top, filter, settingsService });
   } else {
     return { error: 'embedding_unsupported', message: `Collection "${collection}"'s embedding profile uses execution "${execution}", which is not yet implemented.` };

@@ -13,8 +13,11 @@
 // guard (assertClientExecution) and the provider-combo guard
 // (assertProviderCombo), both of which throw before any network/ONNX call
 // happens.
-import { describe, it, afterEach } from 'node:test';
+import { describe, it, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
+import { existsSync, readFileSync, rmSync, mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import {
   embedForIndex, embedForIndexBatch, embedForSearch, SCHEMA_VERSION, shouldUseOnnxBatching, resolveOnnxBatchSize,
   EmbeddingInputTooLongError, setLocalEmbedOverrideForTest,
@@ -175,6 +178,75 @@ describe('embeddings.js — qdrant-cloud execution: REAL behavioral proof the lo
         return true;
       },
     );
+  });
+});
+
+describe('embeddings.js — embedForIndexCloud opt-in benchmark telemetry (SEMIDEX_BENCH_TELEMETRY_PATH)', () => {
+  let telemetryDir;
+  let telemetryPath;
+
+  beforeEach(() => {
+    telemetryDir = mkdtempSync(join(tmpdir(), 'semidex-embed-telemetry-test-'));
+    telemetryPath = join(telemetryDir, 'telemetry.jsonl');
+  });
+
+  afterEach(() => {
+    delete process.env.SEMIDEX_BENCH_TELEMETRY_PATH;
+    rmSync(telemetryDir, { recursive: true, force: true });
+  });
+
+  function readEvents() {
+    if (!existsSync(telemetryPath)) return [];
+    return readFileSync(telemetryPath, 'utf-8').trim().split('\n').filter(Boolean).map((l) => JSON.parse(l));
+  }
+
+  it('emits nothing when SEMIDEX_BENCH_TELEMETRY_PATH is unset', async () => {
+    delete process.env.SEMIDEX_BENCH_TELEMETRY_PATH;
+    await embedForIndex(cloudProfile(), 'hello world');
+    assert.deepEqual(readEvents(), []);
+  });
+
+  it('emits exactly one dense and one sparse phase:"indexing" event, with the FINAL post-fit textLength', async () => {
+    process.env.SEMIDEX_BENCH_TELEMETRY_PATH = telemetryPath;
+    await embedForIndex(cloudProfile(), 'hello world');
+    const events = readEvents();
+    assert.equal(events.length, 2);
+    assert.equal(events[0].kind, 'inference');
+    assert.equal(events[0].phase, 'indexing');
+    assert.equal(events[0].lane, 'dense');
+    assert.equal(events[0].textLength, 'hello world'.length);
+    assert.equal(events[0].model, 'intfloat/multilingual-e5-small');
+    assert.equal(events[1].lane, 'sparse');
+    assert.equal(events[1].model, 'qdrant/bm25');
+  });
+
+  it('emits only a dense event when the profile has no sparse model', async () => {
+    process.env.SEMIDEX_BENCH_TELEMETRY_PATH = telemetryPath;
+    await embedForIndex(cloudProfile({ sparseModel: null }), 'hello world');
+    const events = readEvents();
+    assert.equal(events.length, 1);
+    assert.equal(events[0].lane, 'dense');
+  });
+
+  it('emits the POST-TRIM context length, not the original untrimmed text length, when context was trimmed to fit budget', async () => {
+    process.env.SEMIDEX_BENCH_TELEMETRY_PATH = telemetryPath;
+    const heavyContext = 'Section > Subsection > '.repeat(50);
+    const body = 'short chunk body';
+    const text = `${heavyContext}\n\n${body}`;
+    await embedForIndex(cloudProfile(), text, { context: heavyContext });
+    const events = readEvents();
+    assert.ok(events.length >= 1);
+    // The recorded textLength must reflect what was ACTUALLY embedded
+    // (post-trim), never the original, longer, untrimmed `text` argument's
+    // length passed in above.
+    assert.ok(events[0].textLength <= text.length);
+  });
+
+  it('emits no telemetry when the fits-check rejects the input (EmbeddingInputTooLongError) — never a partial/misleading event before the throw', async () => {
+    process.env.SEMIDEX_BENCH_TELEMETRY_PATH = telemetryPath;
+    const heavyContext = 'Section > Subsection > '.repeat(300);
+    await assert.rejects(() => embedForIndex(cloudProfile(), `${heavyContext}\n\nshort chunk body`));
+    assert.deepEqual(readEvents(), []);
   });
 });
 

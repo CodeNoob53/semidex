@@ -28,6 +28,7 @@ import { encode as hashedTfEncode } from './sparse.js';
 import { assertProviderCombo } from './env.js';
 import { EXECUTION } from './embedding-profile/schema.js';
 import { findDenseModel, checkEmbedInputFits, fitContextToBudget } from './embedding-profile/qdrant-cloud-catalog.js';
+import { emitTelemetry } from './bench-telemetry.js';
 
 export const SCHEMA_VERSION = 2;
 
@@ -182,6 +183,16 @@ async function embedForIndexCloud(profile, text, context = null) {
   const fit = await checkEmbedInputFits(denseCatalog, embedText);
   if (!fit.fits) {
     throw new EmbeddingInputTooLongError(fit.code, fit);
+  }
+
+  // Opt-in benchmark telemetry (no-op unless SEMIDEX_BENCH_TELEMETRY_PATH
+  // is set — see src/core/bench-telemetry.js). Fired here, after the
+  // fits-check passes, with embedText's FINAL post-context-trim value —
+  // the exact text that will actually be sent as the inference
+  // descriptor, never the original pre-trim `text` parameter.
+  emitTelemetry({ kind: 'inference', phase: 'indexing', lane: 'dense', textLength: embedText.length, model: denseModelId });
+  if (sparseModelId) {
+    emitTelemetry({ kind: 'inference', phase: 'indexing', lane: 'sparse', textLength: embedText.length, model: sparseModelId });
   }
 
   return {

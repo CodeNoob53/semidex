@@ -1,6 +1,8 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync, rmSync, mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runHybridSearch, resolveSearchMode } from '../../../../src/core/retrieval/search.js';
 import { loadQdrantCloudTokenizer } from '../../../../src/core/embedding-profile/qdrant-cloud-tokenizer.js';
@@ -216,6 +218,79 @@ describe('runHybridSearch', () => {
     const result = await runHybridSearch({ adapter, collection: 'c', query: 'a normal length query', top: 5 });
     assert.equal(result.error, undefined);
     assert.equal(result.searchMode, 'hybrid');
+  });
+});
+
+describe('runHybridSearch — query-side opt-in benchmark telemetry (SEMIDEX_BENCH_TELEMETRY_PATH)', () => {
+  const cloudProfile = {
+    ...validProfile,
+    embedding: {
+      dense: { provider: 'qdrant-cloud', model: 'intfloat/multilingual-e5-small', vectorName: 'dense', dimensions: 384, distance: 'Cosine', execution: 'qdrant-cloud' },
+      sparse: { provider: 'qdrant-cloud', model: 'qdrant/bm25', vectorName: 'sparse', execution: 'qdrant-cloud', modifier: 'idf' },
+    },
+  };
+
+  let telemetryDir;
+  let telemetryPath;
+
+  test.beforeEach(() => {
+    telemetryDir = mkdtempSync(join(tmpdir(), 'semidex-search-telemetry-test-'));
+    telemetryPath = join(telemetryDir, 'telemetry.jsonl');
+  });
+
+  test.afterEach(() => {
+    delete process.env.SEMIDEX_BENCH_TELEMETRY_PATH;
+    rmSync(telemetryDir, { recursive: true, force: true });
+  });
+
+  function readEvents() {
+    if (!existsSync(telemetryPath)) return [];
+    return readFileSync(telemetryPath, 'utf-8').trim().split('\n').filter(Boolean).map((l) => JSON.parse(l));
+  }
+
+  test('a qdrant-cloud query emits exactly one dense and one sparse phase:"query" event', async () => {
+    process.env.SEMIDEX_BENCH_TELEMETRY_PATH = telemetryPath;
+    const adapter = fakeAdapter({ embeddingProfileResult: { state: 'valid', profile: cloudProfile } });
+    await runHybridSearch({ adapter, collection: 'c', query: 'ukrainian query', top: 5 });
+    const events = readEvents();
+    assert.equal(events.length, 2);
+    assert.equal(events[0].kind, 'inference');
+    assert.equal(events[0].phase, 'query');
+    assert.equal(events[0].lane, 'dense');
+    assert.equal(events[0].textLength, 'ukrainian query'.length);
+    assert.equal(events[0].model, 'intfloat/multilingual-e5-small');
+    assert.equal(events[1].lane, 'sparse');
+    assert.equal(events[1].model, 'qdrant/bm25');
+  });
+
+  test('a CLIENT-execution (local) profile query emits NO telemetry — query-side cloud telemetry is cloud-only by construction', async () => {
+    process.env.SEMIDEX_BENCH_TELEMETRY_PATH = telemetryPath;
+    const adapter = fakeAdapter({ embeddingProfileResult: { state: 'valid', profile: validProfile } });
+    const embedQuery = async () => ({ dense: [1], sparse: {} });
+    await runHybridSearch({ adapter, embedQuery, collection: 'c', query: 'a query', top: 5 });
+    assert.deepEqual(readEvents(), []);
+  });
+
+  test('emits no telemetry when SEMIDEX_BENCH_TELEMETRY_PATH is unset', async () => {
+    delete process.env.SEMIDEX_BENCH_TELEMETRY_PATH;
+    const adapter = fakeAdapter({ embeddingProfileResult: { state: 'valid', profile: cloudProfile } });
+    await runHybridSearch({ adapter, collection: 'c', query: 'ukrainian query', top: 5 });
+    assert.deepEqual(readEvents(), []);
+  });
+
+  test('an over-long query rejected before any descriptor is built emits no telemetry', { skip: !e5TokenizerAvailable }, async () => {
+    process.env.SEMIDEX_BENCH_TELEMETRY_PATH = telemetryPath;
+    const adapter = fakeAdapter({ embeddingProfileResult: { state: 'valid', profile: cloudProfile } });
+    const chunk = 'resolveEmbeddingProfileFromCollectionInfoConfigMetadataParamsVectorsSparseVectors ';
+    let longQuery = '';
+    let heuristicEstimate = 0;
+    while (heuristicEstimate < 480) {
+      longQuery += chunk;
+      heuristicEstimate = Math.ceil(longQuery.length / 4);
+    }
+    const result = await runHybridSearch({ adapter, collection: 'c', query: longQuery, top: 5 });
+    assert.equal(result.error, 'embedding_failed');
+    assert.deepEqual(readEvents(), []);
   });
 });
 

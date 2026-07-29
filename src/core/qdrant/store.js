@@ -250,12 +250,20 @@ export async function hybridSearch(collection, denseVector, sparseVector, limit 
     { query: denseVector,  using: 'dense',  limit: prefetchLimit, ...(filter && { filter }) },
   ];
   try {
-    const result = await client.query(collection, {
+    // Wrapped in qdrantCall (code review — bring this call under the same
+    // telemetry hook as its cloud sibling hybridSearchCloud() below; an
+    // earlier version called client.query() raw here, which meant a
+    // benchmark harness observing only qdrantCall's telemetry silently
+    // under-counted every LOCAL/CLIENT-execution query while cloud
+    // queries were counted correctly). qdrantCall re-wraps a thrown error
+    // as `Error("${label}: ${errText(err)}")`, so the dense-only-fallback
+    // detection below matches against that re-wrapped message text.
+    const result = await qdrantCall('Qdrant hybridSearch failed', () => client.query(collection, {
       prefetch,
       query: { rrf: { k: rrfK } },
       limit,
       with_payload: true,
-    });
+    }));
     return result.points ?? [];
   } catch (err) {
     const text = errText(err);

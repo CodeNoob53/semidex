@@ -6,6 +6,7 @@
 // no client construction, no network probes.
 import 'dotenv/config';
 import { QdrantClient } from '@qdrant/js-client-rest';
+import { emitTelemetry } from '../bench-telemetry.js';
 
 // Timeouts preserve the pre-SDK wrapper's behavior: 30 s reads, 60 s writes.
 // The SDK supports one timeout per client instance, hence two cached clients.
@@ -69,9 +70,18 @@ export function errText(err) {
 }
 
 export async function qdrantCall(label, fn) {
+  // Opt-in benchmark telemetry (no-op unless SEMIDEX_BENCH_TELEMETRY_PATH
+  // is set — see src/core/bench-telemetry.js). One 'qdrant_sdk_op' event
+  // per logical SDK method invocation passed through this wrapper — this
+  // is SDK-call granularity, not a raw HTTP transport count, since the
+  // SDK may itself batch/retry/keep-alive beneath what qdrantCall sees.
+  const t0 = Date.now();
   try {
-    return await fn();
+    const result = await fn();
+    emitTelemetry({ kind: 'qdrant_sdk_op', label, ms: Date.now() - t0, ok: true });
+    return result;
   } catch (err) {
+    emitTelemetry({ kind: 'qdrant_sdk_op', label, ms: Date.now() - t0, ok: false });
     throw new Error(`${label}: ${errText(err)}`);
   }
 }
