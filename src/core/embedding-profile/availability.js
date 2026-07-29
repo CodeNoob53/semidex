@@ -8,6 +8,8 @@
 // this module's result (browsingAvailable is unconditionally true).
 // Semantic/hybrid search is what becomes unavailable.
 import { createProfileCache } from '../storage/embedding-profile-cache.js';
+import { EXECUTION } from './schema.js';
+import { findDenseModel, findSparseModel } from './qdrant-cloud-catalog.js';
 
 // Per-model lane-availability cache — SEPARATE from the per-collection
 // resolved-profile cache (storage/embedding-profile-cache.js's
@@ -54,6 +56,20 @@ export const LANE_STATUS = Object.freeze({
   // does NOT auto-pull a missing model (MISSING_MODEL stays a hard block).
   NOT_CACHED: 'not_cached',
   RUNTIME_UNAVAILABLE: 'runtime_unavailable', // only ever produced by the EXPLICIT full probe path, never by resolveAvailability's routine call
+  // qdrant-cloud lane states (Tier 1/Tier 2 split — see
+  // src/admin/system/qdrant-cloud.js's probeQdrantCloudInference() for
+  // Tier 2). Tier 1 (resolveLaneAvailability, routine/cheap) can only ever
+  // prove Qdrant itself is reachable and authenticated — it CANNOT prove
+  // Cloud Inference actually works (no dry-run/verify-only endpoint
+  // exists), so its ceiling is INFERENCE_UNVERIFIED, never AVAILABLE.
+  CLOUD_UNREACHABLE: 'cloud_unreachable',
+  // Reachable + authenticated, but inference itself was never attempted —
+  // the honest Tier 1 ceiling, analogous to MODEL_CACHED for the ONNX
+  // lane ("attemptable but not proven").
+  INFERENCE_UNVERIFIED: 'inference_unverified',
+  // Tier 2 ONLY (probeQdrantCloudInference()) — a REAL inference attempt
+  // failed with an inference-specific error. Never produced by Tier 1.
+  INFERENCE_DISABLED_OR_MODEL_UNAVAILABLE: 'inference_disabled_or_model_unavailable',
 });
 
 export const COLLECTION_STATUS = Object.freeze({
@@ -110,16 +126,42 @@ const RESOLVE_REASON_TO_COLLECTION_STATUS = {
  * supply their own. core/embedding-profile/availability.js itself never
  * imports Ollama-probing code, only accepts it as a function parameter.
  *
- * @param {{ provider: string, model: string, execution: string } | null} lane
- * @param {{ checkOllamaLane?: Function, checkOnnxModelCached?: Function }} deps
+ * @param {{ provider: string, model: string, execution: string, vectorName?: string } | null} lane
+ * @param {{ checkOllamaLane?: Function, checkOnnxModelCached?: Function, checkQdrantReachable?: Function }} deps
  * @returns {Promise<{ status: string, reason: string }>}
  */
-export async function resolveLaneAvailability(lane, { checkOllamaLane, checkOnnxModelCached } = {}) {
+export async function resolveLaneAvailability(lane, { checkOllamaLane, checkOnnxModelCached, checkQdrantReachable } = {}) {
   if (lane === null) {
     // A dense-only collection's sparse lane isn't "broken," it's simply
     // absent — the aggregate step in resolveAvailability() is what turns
     // this into hybridSearchAvailable: false, not this function.
     return { status: LANE_STATUS.AVAILABLE, reason: 'no sparse lane configured' };
+  }
+  if (lane.execution === EXECUTION.QDRANT_CLOUD) {
+    if (lane.provider !== 'qdrant-cloud') {
+      return { status: LANE_STATUS.UNSUPPORTED_BACKEND, reason: `unrecognized qdrant-cloud provider "${lane.provider}"` };
+    }
+    const catalogEntry = lane.vectorName === 'sparse' ? findSparseModel(lane.model) : findDenseModel(lane.model);
+    if (!catalogEntry) {
+      return { status: LANE_STATUS.MISSING_MODEL, reason: `model "${lane.model}" is not in the supported Qdrant Cloud catalog` };
+    }
+    if (catalogEntry.status !== 'supported') {
+      return { status: LANE_STATUS.UNSUPPORTED_BACKEND, reason: catalogEntry.reason };
+    }
+    // Tier 1 ONLY — checkQdrantReachable is DELIBERATELY cheap and
+    // DELIBERATELY does not prove inference works (no dry-run/verify-only
+    // endpoint exists). Its ceiling result is INFERENCE_UNVERIFIED, never
+    // AVAILABLE — see Tier 2 (probeQdrantCloudInference(), admin-owned)
+    // for the only code path that can actually prove inference works.
+    if (!checkQdrantReachable) throw new Error('resolveLaneAvailability: checkQdrantReachable is required for a qdrant-cloud lane');
+    const result = await checkQdrantReachable();
+    if (result.status === 'unreachable') {
+      return { status: LANE_STATUS.CLOUD_UNREACHABLE, reason: result.message ?? 'Qdrant is not reachable' };
+    }
+    if (result.status === 'auth_failed') {
+      return { status: LANE_STATUS.MISSING_CREDENTIALS, reason: result.message ?? 'Qdrant authentication failed' };
+    }
+    return { status: LANE_STATUS.INFERENCE_UNVERIFIED, reason: 'Qdrant is reachable and the API key is valid, but Cloud Inference has not been verified for this model. Run "Test Cloud Inference" to confirm.' };
   }
   if (lane.execution !== 'client') {
     return { status: LANE_STATUS.UNSUPPORTED_BACKEND, reason: `execution "${lane.execution}" is not implemented yet` };
@@ -155,13 +197,19 @@ export async function resolveLaneAvailability(lane, { checkOllamaLane, checkOnnx
 }
 
 const verified = (status) => status === LANE_STATUS.AVAILABLE;
-const attemptable = (status) => status === LANE_STATUS.AVAILABLE || status === LANE_STATUS.MODEL_CACHED || status === LANE_STATUS.NOT_CACHED;
+// INFERENCE_UNVERIFIED is treated exactly like MODEL_CACHED — "attemptable
+// but not proven." A real search MAY still be issued (Part E never gates
+// the actual search code path on availability); it never satisfies
+// hybridSearchAvailable's strict verified() check above.
+const attemptable = (status) => status === LANE_STATUS.AVAILABLE || status === LANE_STATUS.MODEL_CACHED || status === LANE_STATUS.NOT_CACHED || status === LANE_STATUS.INFERENCE_UNVERIFIED;
 
 function laneToCollectionStatus(status) {
   if (status === LANE_STATUS.MISSING_MODEL) return COLLECTION_STATUS.MISSING_MODEL;
   if (status === LANE_STATUS.MISSING_CREDENTIALS) return COLLECTION_STATUS.MISSING_CREDENTIALS;
   if (status === LANE_STATUS.UNSUPPORTED_BACKEND) return COLLECTION_STATUS.UNSUPPORTED_BACKEND;
   if (status === LANE_STATUS.RUNTIME_UNAVAILABLE) return COLLECTION_STATUS.MISSING_MODEL;
+  if (status === LANE_STATUS.CLOUD_UNREACHABLE) return COLLECTION_STATUS.MISSING_CREDENTIALS;
+  if (status === LANE_STATUS.INFERENCE_DISABLED_OR_MODEL_UNAVAILABLE) return COLLECTION_STATUS.MISSING_MODEL;
   return COLLECTION_STATUS.MISSING_MODEL; // defensive fallback, should be unreachable given the enum
 }
 

@@ -19,9 +19,10 @@
 // is a SEPARATE, explicitly-invoked write operation
 // (adapter.migrateEmbeddingProfile) run only from sync.js or the indexer's
 // own preflight — never implicitly from either function in this file.
-import { buildEmbeddingProfile } from './schema.js';
+import { buildEmbeddingProfile, EXECUTION } from './schema.js';
 import { assertProviderCombo } from '../env.js';
 import { ONNX_DENSE_MODEL_ID } from '../onnx-paths.js';
+import { findDenseModel, findSparseModel } from './qdrant-cloud-catalog.js';
 
 /**
  * @param {import('../storage/adapter.js').StorageAdapter} adapter
@@ -66,6 +67,10 @@ export async function resolveExistingCollectionProfile(adapter, name) {
  * { denseProvider, denseModel, sparseProvider }. `vectorSize` is the
  * caller-resolved dense dimension (e.g. from a live Ollama probe, or the
  * fixed ONNX dimension) — this function does not probe anything itself.
+ * For denseProvider === 'qdrant-cloud', `vectorSize` is ignored — the
+ * dimension is fixed per catalog model ID and looked up here instead
+ * (src/indexer/run.js's caller passes the catalog value too, but this
+ * function is the authority, matching "one canonical schema definition").
  *
  * @param {{ denseProvider: string, denseModel: string, sparseProvider: string }} envDefaults
  * @param {{ vectorSize: number, embeddingSchemaVersion: number }} opts
@@ -73,6 +78,32 @@ export async function resolveExistingCollectionProfile(adapter, name) {
  */
 export function resolveNewCollectionProfile(envDefaults, { vectorSize, embeddingSchemaVersion }) {
   assertProviderCombo(envDefaults.denseProvider, envDefaults.sparseProvider);
+
+  if (envDefaults.denseProvider === 'qdrant-cloud') {
+    const denseCatalog = findDenseModel(envDefaults.denseModel);
+    if (!denseCatalog || denseCatalog.status !== 'supported') {
+      throw new Error(`resolveNewCollectionProfile: "${envDefaults.denseModel}" is not a supported Qdrant Cloud dense model`);
+    }
+    const sparseCatalog = envDefaults.sparseProvider === 'qdrant-cloud' ? findSparseModel('qdrant/bm25') : null;
+
+    const dense = {
+      provider: 'qdrant-cloud',
+      model: denseCatalog.id,
+      vectorName: 'dense',
+      dimensions: denseCatalog.dimensions,
+      distance: 'Cosine',
+      execution: EXECUTION.QDRANT_CLOUD,
+    };
+    const sparse = sparseCatalog === null ? null : {
+      provider: 'qdrant-cloud',
+      model: sparseCatalog.id,
+      vectorName: 'sparse',
+      execution: EXECUTION.QDRANT_CLOUD,
+      modifier: sparseCatalog.modifier,
+    };
+
+    return buildEmbeddingProfile({ dense, sparse, embeddingSchemaVersion });
+  }
 
   const isOnnx = envDefaults.denseProvider === 'bge-m3-onnx';
   const dense = {

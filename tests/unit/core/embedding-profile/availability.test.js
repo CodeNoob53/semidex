@@ -28,10 +28,10 @@ describe('resolveLaneAvailability', () => {
     assert.match(result.reason, /no sparse lane configured/);
   });
 
-  it('a non-client execution mode reports UNSUPPORTED_BACKEND, naming the mode', async () => {
-    const result = await resolveLaneAvailability({ provider: 'e5', model: 'x', execution: 'qdrant-cloud' }, {});
+  it('a still-unimplemented execution mode (e.g. qdrant-cluster) reports UNSUPPORTED_BACKEND, naming the mode', async () => {
+    const result = await resolveLaneAvailability({ provider: 'e5', model: 'x', execution: 'qdrant-cluster' }, {});
     assert.equal(result.status, LANE_STATUS.UNSUPPORTED_BACKEND);
-    assert.match(result.reason, /qdrant-cloud/);
+    assert.match(result.reason, /qdrant-cluster/);
   });
 
   it('hashed-tf is always AVAILABLE, no external dependency, no probe needed', async () => {
@@ -76,6 +76,56 @@ describe('resolveLaneAvailability', () => {
 
   it('throws when a bge-m3-onnx lane is checked without checkOnnxModelCached injected', async () => {
     await assert.rejects(() => resolveLaneAvailability({ provider: 'bge-m3-onnx', model: 'x', execution: 'client' }, {}));
+  });
+});
+
+describe('resolveLaneAvailability — qdrant-cloud lane (Tier 1: cheap reachability, never proves inference)', () => {
+  function cloudLane(overrides = {}) {
+    return { provider: 'qdrant-cloud', model: 'intfloat/multilingual-e5-small', vectorName: 'dense', execution: 'qdrant-cloud', ...overrides };
+  }
+
+  it('a supported model + reachable/authed cluster reports INFERENCE_UNVERIFIED — NEVER AVAILABLE from a cheap reachability check alone', async () => {
+    const checkQdrantReachable = async () => ({ status: 'ok' });
+    const result = await resolveLaneAvailability(cloudLane(), { checkQdrantReachable });
+    assert.equal(result.status, LANE_STATUS.INFERENCE_UNVERIFIED);
+    assert.notEqual(result.status, LANE_STATUS.AVAILABLE, 'a routine reachability probe can never prove Cloud Inference actually works');
+  });
+
+  it('an unsupported model (MiniLM) reports UNSUPPORTED_BACKEND with the catalog\'s own reason string — never even attempts checkQdrantReachable', async () => {
+    let called = false;
+    const checkQdrantReachable = async () => { called = true; return { status: 'ok' }; };
+    const result = await resolveLaneAvailability(cloudLane({ model: 'sentence-transformers/all-minilm-l6-v2' }), { checkQdrantReachable });
+    assert.equal(result.status, LANE_STATUS.UNSUPPORTED_BACKEND);
+    assert.match(result.reason, /context window/i);
+    assert.equal(called, false, 'a catalog-disabled model must short-circuit before any reachability probe');
+  });
+
+  it('a model absent from the catalog entirely reports MISSING_MODEL', async () => {
+    const checkQdrantReachable = async () => ({ status: 'ok' });
+    const result = await resolveLaneAvailability(cloudLane({ model: 'not-a-real-model' }), { checkQdrantReachable });
+    assert.equal(result.status, LANE_STATUS.MISSING_MODEL);
+  });
+
+  it('an unreachable cluster reports CLOUD_UNREACHABLE', async () => {
+    const checkQdrantReachable = async () => ({ status: 'unreachable', message: 'ECONNREFUSED' });
+    const result = await resolveLaneAvailability(cloudLane(), { checkQdrantReachable });
+    assert.equal(result.status, LANE_STATUS.CLOUD_UNREACHABLE);
+  });
+
+  it('an auth failure reports MISSING_CREDENTIALS', async () => {
+    const checkQdrantReachable = async () => ({ status: 'auth_failed', message: 'invalid API key' });
+    const result = await resolveLaneAvailability(cloudLane(), { checkQdrantReachable });
+    assert.equal(result.status, LANE_STATUS.MISSING_CREDENTIALS);
+  });
+
+  it('throws when a qdrant-cloud lane is checked without checkQdrantReachable injected (same required-DI pattern as Ollama/ONNX)', async () => {
+    await assert.rejects(() => resolveLaneAvailability(cloudLane(), {}));
+  });
+
+  it('a sparse lane looks up the sparse catalog (qdrant/bm25), not the dense catalog', async () => {
+    const checkQdrantReachable = async () => ({ status: 'ok' });
+    const result = await resolveLaneAvailability(cloudLane({ model: 'qdrant/bm25', vectorName: 'sparse' }), { checkQdrantReachable });
+    assert.equal(result.status, LANE_STATUS.INFERENCE_UNVERIFIED);
   });
 });
 
@@ -196,12 +246,27 @@ describe('resolveAvailability — resolved profile, strict hybridSearchAvailable
     assert.notEqual(result.sparse.status, LANE_STATUS.AVAILABLE);
   });
 
-  it('unsupported_backend for a qdrant-cloud execution profile', async () => {
-    const p = profile({ denseExecution: 'qdrant-cloud', sparse: null });
+  it('unsupported_backend for a still-unimplemented (e.g. qdrant-cluster) execution profile', async () => {
+    const p = profile({ denseExecution: 'qdrant-cluster', sparse: null });
     const result = await resolveAvailability({ resolved: true, profile: p }, {});
     assert.equal(result.status, COLLECTION_STATUS.UNSUPPORTED_BACKEND);
     assert.equal(result.aggregate.hybridSearchAvailable, false);
     assert.equal(result.aggregate.searchAttemptable, false);
+  });
+
+  it('a qdrant-cloud collection with both lanes INFERENCE_UNVERIFIED reports searchAttemptable: true, hybridSearchAvailable: false, status RUNTIME_UNVERIFIED — NEVER collapses to AVAILABLE (regression test for the review\'s P1 finding)', async () => {
+    const checkQdrantReachable = async () => ({ status: 'ok' });
+    const p = {
+      embedding: {
+        dense: { provider: 'qdrant-cloud', model: 'intfloat/multilingual-e5-small', vectorName: 'dense', dimensions: 384, distance: 'Cosine', execution: 'qdrant-cloud' },
+        sparse: { provider: 'qdrant-cloud', model: 'qdrant/bm25', vectorName: 'sparse', execution: 'qdrant-cloud', modifier: 'idf' },
+      },
+    };
+    const result = await resolveAvailability({ resolved: true, profile: p }, { checkQdrantReachable });
+    assert.equal(result.aggregate.searchAttemptable, true);
+    assert.equal(result.aggregate.hybridSearchAvailable, false, 'INFERENCE_UNVERIFIED must NOT satisfy the strict boolean — a cheap reachability check never proves inference works');
+    assert.equal(result.status, COLLECTION_STATUS.RUNTIME_UNVERIFIED);
+    assert.notEqual(result.status, COLLECTION_STATUS.AVAILABLE);
   });
 
   it('available for both local providers (ollama+hashed-tf) when actually reachable', async () => {

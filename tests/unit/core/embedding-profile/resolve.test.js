@@ -70,6 +70,30 @@ describe('resolveExistingCollectionProfile — read-only, single-tier', () => {
     assert.notEqual(result.reason, 'legacy_unmigrated', 'schema_mismatch must never be conflated with legacy_unmigrated — migrating a mismatched-but-present profile would be wrong');
     assert.equal(migrateCalled.called, false, 'schema_mismatch must never trigger migration — a profile already exists, it just disagrees with the live schema');
   });
+
+  it('a qdrant-cloud EXISTING collection profile is read from native metadata AS-IS, never re-derived from current global/env settings — even if the current global EMBEDDING_BACKEND setting has since changed to something else entirely', async () => {
+    // Mirrors the generic "must not silently fall back to env defaults"
+    // test above, specialized for qdrant-cloud: resolveExistingCollectionProfile
+    // takes NO envDefaults parameter at all — the collection's own stored
+    // profile is authoritative regardless of what a global settings.json
+    // currently says, so a later admin changing EMBEDDING_BACKEND to
+    // 'ollama' (or to a different catalog model) can never silently alter
+    // how an already-indexed qdrant-cloud collection resolves.
+    const storedCloudProfile = {
+      schemaVersion: 1, managedBy: 'semidex',
+      embedding: {
+        dense: { provider: 'qdrant-cloud', model: 'intfloat/multilingual-e5-small', vectorName: 'dense', dimensions: 384, distance: 'Cosine', execution: 'qdrant-cloud' },
+        sparse: { provider: 'qdrant-cloud', model: 'qdrant/bm25', vectorName: 'sparse', execution: 'qdrant-cloud', modifier: 'idf' },
+      },
+      embeddingSchemaVersion: 2,
+    };
+    const adapter = fakeAdapter({ state: 'valid', profile: storedCloudProfile });
+    const result = await resolveExistingCollectionProfile(adapter, 'c1');
+    assert.deepEqual(result, { resolved: true, profile: storedCloudProfile });
+    // The function signature itself proves no env/global-settings input is
+    // even possible: only (adapter, name) — never envDefaults.
+    assert.equal(resolveExistingCollectionProfile.length, 2);
+  });
 });
 
 describe('resolveNewCollectionProfile — new-collection path only', () => {
@@ -107,6 +131,45 @@ describe('resolveNewCollectionProfile — new-collection path only', () => {
     const profile = resolveNewCollectionProfile(
       { denseProvider: 'ollama', denseModel: 'bge-m3', sparseProvider: 'hashed-tf' },
       { vectorSize: 1024, embeddingSchemaVersion: 2 },
+    );
+    assert.deepEqual(validateEmbeddingProfile(profile), { valid: true });
+  });
+
+  it('builds a qdrant-cloud+qdrant-cloud profile from the catalog — dimensions/distance come from the catalog entry, vectorSize is ignored', () => {
+    const profile = resolveNewCollectionProfile(
+      { denseProvider: 'qdrant-cloud', denseModel: 'intfloat/multilingual-e5-small', sparseProvider: 'qdrant-cloud' },
+      { vectorSize: 999999, embeddingSchemaVersion: 2 },
+    );
+    assert.equal(profile.embedding.dense.provider, 'qdrant-cloud');
+    assert.equal(profile.embedding.dense.model, 'intfloat/multilingual-e5-small');
+    assert.equal(profile.embedding.dense.dimensions, 384, 'dimensions must come from the catalog, never the passed-in vectorSize');
+    assert.equal(profile.embedding.dense.distance, 'Cosine');
+    assert.equal(profile.embedding.dense.execution, 'qdrant-cloud');
+    assert.equal(profile.embedding.sparse.provider, 'qdrant-cloud');
+    assert.equal(profile.embedding.sparse.model, 'qdrant/bm25');
+    assert.equal(profile.embedding.sparse.execution, 'qdrant-cloud');
+    assert.equal(profile.embedding.sparse.modifier, 'idf', 'the schema-level modifier must be set from the catalog');
+  });
+
+  it('throws for a qdrant-cloud profile whose dense model is catalog-disabled (MiniLM) — never silently builds an unsupported profile', () => {
+    assert.throws(() => resolveNewCollectionProfile(
+      { denseProvider: 'qdrant-cloud', denseModel: 'sentence-transformers/all-minilm-l6-v2', sparseProvider: 'qdrant-cloud' },
+      { vectorSize: 384, embeddingSchemaVersion: 2 },
+    ), /not a supported Qdrant Cloud dense model/);
+  });
+
+  it('throws for a qdrant-cloud profile whose dense model is unknown entirely', () => {
+    assert.throws(() => resolveNewCollectionProfile(
+      { denseProvider: 'qdrant-cloud', denseModel: 'not-a-real-model', sparseProvider: 'qdrant-cloud' },
+      { vectorSize: 384, embeddingSchemaVersion: 2 },
+    ), /not a supported Qdrant Cloud dense model/);
+  });
+
+  it('a qdrant-cloud built profile passes shape validation too', async () => {
+    const { validateEmbeddingProfile } = await import('../../../../src/core/embedding-profile/schema.js');
+    const profile = resolveNewCollectionProfile(
+      { denseProvider: 'qdrant-cloud', denseModel: 'intfloat/multilingual-e5-small', sparseProvider: 'qdrant-cloud' },
+      { vectorSize: 384, embeddingSchemaVersion: 2 },
     );
     assert.deepEqual(validateEmbeddingProfile(profile), { valid: true });
   });
