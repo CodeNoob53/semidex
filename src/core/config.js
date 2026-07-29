@@ -6,7 +6,15 @@ import { assertProviderCombo, resolveEffectiveEmbeddingBackend } from './env.js'
 import { ONNX_DENSE_MODEL_ID } from './onnx-paths.js';
 import { QDRANT_CLOUD_DENSE_MODELS } from './embedding-profile/qdrant-cloud-catalog.js';
 
-const CONFIG_PATH = resolve(dirname(fileURLToPath(import.meta.url)), '../../config.json');
+// SEMIDEX_CONFIG_PATH lets a caller (e.g. an external benchmark harness
+// spawning the indexer as a subprocess) redirect config.json to an
+// isolated path instead of the real repo config — prevents a disposable
+// benchmark collection from polluting the user's real collections
+// registry. Additive: every caller that doesn't set this env var is
+// unaffected.
+const CONFIG_PATH = process.env.SEMIDEX_CONFIG_PATH
+  ? resolve(process.env.SEMIDEX_CONFIG_PATH)
+  : resolve(dirname(fileURLToPath(import.meta.url)), '../../config.json');
 
 export function loadConfig() {
   if (!existsSync(CONFIG_PATH)) return { collections: {} };

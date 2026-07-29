@@ -51,3 +51,12 @@ benchmarks/external/results/.slavic-belebele-smoke-report.json
 # report are tracked.
 benchmarks/external/slavic/.runs-weighted-rrf/
 benchmarks/external/results/.slavic-weighted-rrf-smoke-report.json
+
+# Production-path benchmark (Local Semidex vs Semidex Lite, through the
+# real indexer/runHybridSearch): materialized fixture files, isolated
+# per-run config.json copies, opt-in telemetry JSONL, checkpoints, and
+# generated TREC runs. Only the harness scripts + the real committed
+# report are tracked.
+benchmarks/external/production-path/.cache/
+benchmarks/external/production-path/.runs/
+benchmarks/external/results/.production-path-*-smoke-report.json
