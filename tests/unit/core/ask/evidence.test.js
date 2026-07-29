@@ -20,7 +20,7 @@ function fakeAdapter(overrides = {}) {
     capabilities: () => ({ hybridSearch: true, sparseVectors: true }),
     getCollection: async (name) => ({ name }),
     getEmbeddingProfile: async () => ({ state: 'valid', profile: validProfile }),
-    searchHybrid: async () => [],
+    searchHybridVectors: async () => [],
     getContentNode: async () => null,
     getSkeletonNode: async () => null,
     getSectionChunks: async () => [],
@@ -39,7 +39,7 @@ describe('buildEvidence', () => {
   });
 
   test('returns empty sources for zero hits (never an error)', async () => {
-    const adapter = fakeAdapter({ searchHybrid: async () => [] });
+    const adapter = fakeAdapter({ searchHybridVectors: async () => [] });
     const result = await buildEvidence({ adapter, embedQuery, countTokens, collection: 'c', question: 'q' });
     assert.deepEqual(result.sources, []);
   });
@@ -48,7 +48,7 @@ describe('buildEvidence', () => {
     const hits = [
       { sourceFile: 'a.md', chunkIndex: 0, section: 'Intro', text: 'legacy chunk text', nodeId: null },
     ];
-    const adapter = fakeAdapter({ searchHybrid: async () => hits });
+    const adapter = fakeAdapter({ searchHybridVectors: async () => hits });
     const result = await buildEvidence({ adapter, embedQuery, countTokens, collection: 'c', question: 'q' });
     assert.equal(result.sources.length, 1);
     assert.equal(result.sources[0].n, 1);
@@ -66,7 +66,7 @@ describe('buildEvidence', () => {
       nodeType: 'paragraph', text: 'expanded section prose', section: 'Config',
     };
     const adapter = fakeAdapter({
-      searchHybrid: async () => hits,
+      searchHybridVectors: async () => hits,
       getContentNode: async (_c, { nodeId }) => (nodeId === 'n2' ? { ...sectionChunk, sourceFile: 'a.md' } : null),
       getSkeletonNode: async (_c, { nodeId }) => (nodeId === 'section-1' ? { nodeId: 'section-1', nodeType: 'section', sourceFile: 'a.md', nodePath: '/a/config-section' } : null),
       getSectionChunks: async () => [sectionChunk],
@@ -87,7 +87,7 @@ describe('buildEvidence', () => {
       { sourceFile: 'a.md', chunkIndex: 2, nodeId: 'n2', nodePath: '/a/p2', parentId: 'section-1', nodeType: 'paragraph', text: 'prose 2', section: 'Config' },
     ];
     const adapter = fakeAdapter({
-      searchHybrid: async () => hits,
+      searchHybridVectors: async () => hits,
       getContentNode: async (_c, { nodeId }) => sectionChunks.find(s => s.nodeId === nodeId) ?? null,
       getSkeletonNode: async (_c, { nodeId }) => (nodeId === 'section-1' ? { nodeId: 'section-1', nodeType: 'section', sourceFile: 'a.md', nodePath: '/a/config-section' } : null),
       getSectionChunks: async () => sectionChunks,
@@ -102,7 +102,7 @@ describe('buildEvidence', () => {
       { sourceFile: 'a.md', chunkIndex: 1, section: 'S1', text: 'x-dup', nodeId: null }, // same legacy key -> deduped
       { sourceFile: 'b.md', chunkIndex: 1, section: 'S2', text: 'y', nodeId: null },
     ];
-    const adapter = fakeAdapter({ searchHybrid: async () => hits });
+    const adapter = fakeAdapter({ searchHybridVectors: async () => hits });
     const result = await buildEvidence({ adapter, embedQuery, countTokens, collection: 'c', question: 'q' });
     assert.equal(result.sources.length, 2);
     assert.deepEqual(result.sources.map(s => s.n), [1, 2]);
@@ -111,7 +111,7 @@ describe('buildEvidence', () => {
   test('truncates a legacy hit exceeding the per-source token budget and flags truncated', async () => {
     const longText = Array.from({ length: 50 }, (_, i) => `word${i}`).join(' ');
     const hits = [{ sourceFile: 'a.md', chunkIndex: 0, section: null, text: longText, nodeId: null }];
-    const adapter = fakeAdapter({ searchHybrid: async () => hits });
+    const adapter = fakeAdapter({ searchHybridVectors: async () => hits });
     const result = await buildEvidence({
       adapter, embedQuery, countTokens, collection: 'c', question: 'q', perSourceTokenBudget: 5,
     });
@@ -127,7 +127,7 @@ describe('buildEvidence', () => {
     const longText = Array.from({ length: 80 }, (_, i) => `token${i}`).join(' ');
     const hits = [{ sourceFile: 'a.md', chunkIndex: 0, section: null, text: longText, nodeId: null }];
     for (const budget of [1, 2, 3, 7, 15, 40]) {
-      const adapter = fakeAdapter({ searchHybrid: async () => hits });
+      const adapter = fakeAdapter({ searchHybridVectors: async () => hits });
       const result = await buildEvidence({
         adapter, embedQuery, countTokens, collection: 'c', question: 'q', perSourceTokenBudget: budget,
       });
@@ -139,7 +139,7 @@ describe('buildEvidence', () => {
   test('respects a default top of 5 when not specified', async () => {
     let capturedLimit;
     const adapter = fakeAdapter({
-      searchHybrid: async (_name, opts) => { capturedLimit = opts.limit; return []; },
+      searchHybridVectors: async (_name, opts) => { capturedLimit = opts.limit; return []; },
     });
     await buildEvidence({ adapter, embedQuery, countTokens, collection: 'c', question: 'q' });
     assert.equal(capturedLimit, DEFAULT_TOP);
@@ -148,7 +148,7 @@ describe('buildEvidence', () => {
   test('passes sourceFile through as a retrieval filter', async () => {
     let capturedFilter;
     const adapter = fakeAdapter({
-      searchHybrid: async (_name, opts) => { capturedFilter = opts.filter; return []; },
+      searchHybridVectors: async (_name, opts) => { capturedFilter = opts.filter; return []; },
     });
     await buildEvidence({ adapter, embedQuery, countTokens, collection: 'c', question: 'q', sourceFile: 'docs/x.md' });
     assert.equal(capturedFilter.sourceFile, 'docs/x.md');

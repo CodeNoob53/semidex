@@ -19,7 +19,7 @@ function fakeAdapter({ hits = [] } = {}) {
     capabilities: () => ({ hybridSearch: true, sparseVectors: true }),
     getCollection: async (name) => ({ name }),
     getEmbeddingProfile: async () => ({ state: 'valid', profile: VALID_PROFILE }),
-    searchHybrid: async () => hits,
+    searchHybridVectors: async () => hits,
     getContentNode: async () => null,
     getSkeletonNode: async () => null,
     getSectionChunks: async () => [],

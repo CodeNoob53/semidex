@@ -44,7 +44,7 @@ function makeStubAdapter(overrides = {}) {
     getChunk: async () => [],
     getFileChunks: async () => [],
     getSectionChunks: async () => null,
-    searchHybrid: async () => [HIT],
+    searchHybridVectors: async () => [HIT],
     getSkeletonRoot: async () => null,
     getSkeletonNode: async () => null,
     getSkeletonChildren: async () => [],
@@ -146,10 +146,10 @@ describe('POST /api/search — validation', () => {
 });
 
 describe('POST /api/search — adapter contract', () => {
-  it('passes vectors, limit and semidex filter to adapter.searchHybrid', async () => {
+  it('passes vectors, limit and semidex filter to adapter.searchHybridVectors', async () => {
     let captured = null;
     const adapter = makeStubAdapter({
-      searchHybrid: async (collection, opts) => { captured = { collection, opts }; return [HIT]; },
+      searchHybridVectors: async (collection, opts) => { captured = { collection, opts }; return [HIT]; },
     });
     await withServer({ adapter }, async (base) => {
       const res = await post(base, {
@@ -172,7 +172,7 @@ describe('POST /api/search — adapter contract', () => {
   it('omits sourceFile/tags from the filter when not provided, keeps excludeNav', async () => {
     let captured = null;
     const adapter = makeStubAdapter({
-      searchHybrid: async (_c, opts) => { captured = opts; return []; },
+      searchHybridVectors: async (_c, opts) => { captured = opts; return []; },
     });
     await withServer({ adapter }, async (base) => {
       await post(base, { collection: 'demo', query: 'x' });
@@ -197,10 +197,10 @@ describe('POST /api/search — adapter contract', () => {
     });
   });
 
-  it('forwards the server-shared settingsService to adapter.searchHybrid (code review fix — HYBRID_PREFETCH_LIMIT/RRF_K must apply to admin search, not just MCP)', async () => {
+  it('forwards the server-shared settingsService to adapter.searchHybridVectors (code review fix — HYBRID_PREFETCH_LIMIT/RRF_K must apply to admin search, not just MCP)', async () => {
     let captured = null;
     const adapter = makeStubAdapter({
-      searchHybrid: async (_c, opts) => { captured = opts; return []; },
+      searchHybridVectors: async (_c, opts) => { captured = opts; return []; },
     });
     const fakeSettingsService = {
       getActiveValue: () => 1,
@@ -210,7 +210,7 @@ describe('POST /api/search — adapter contract', () => {
     };
     await withServer({ adapter, settingsService: fakeSettingsService }, async (base) => {
       await post(base, { collection: 'demo', query: 'x' });
-      assert.equal(captured.settingsService, fakeSettingsService, 'the real, server-shared settingsService instance must reach adapter.searchHybrid');
+      assert.equal(captured.settingsService, fakeSettingsService, 'the real, server-shared settingsService instance must reach adapter.searchHybridVectors');
       assert.equal(fakeSettingsService.refreshCalled, true, 'refreshIfChanged() must be called at the request boundary for cross-process propagation');
     });
   });
@@ -261,7 +261,7 @@ describe('POST /api/search — window expansion', () => {
   it('duplicate non-match neighbors across results are emitted once', async () => {
     const hit2 = { ...HIT, chunkIndex: 5 };
     const adapter = makeStubAdapter({
-      searchHybrid: async () => [HIT, hit2],
+      searchHybridVectors: async () => [HIT, hit2],
       // both windows include chunk 5 — as hit2's match and as HIT's neighbor
       getChunk: async (_c, _sf, center) =>
         center === 4 ? [{ ...HIT }, { ...hit2 }] : [{ ...HIT }, { ...hit2 }],

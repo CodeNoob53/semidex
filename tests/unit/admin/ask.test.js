@@ -46,7 +46,7 @@ function makeStubAdapter(overrides = {}) {
     getChunk: async () => [],
     getFileChunks: async () => [],
     getSectionChunks: async () => null,
-    searchHybrid: async () => [HIT],
+    searchHybridVectors: async () => [HIT],
     getSkeletonRoot: async () => null,
     getSkeletonNode: async () => null,
     getSkeletonChildren: async () => [],
@@ -126,7 +126,7 @@ describe('POST /api/v1/ask — request normalization', () => {
   it('scope.sourceFile is accepted and forwarded to retrieval as the sourceFile filter', async () => {
     let capturedSourceFile;
     const adapter = makeStubAdapter({
-      searchHybrid: async (_collection, opts) => { capturedSourceFile = opts?.filter?.sourceFile; return [HIT]; },
+      searchHybridVectors: async (_collection, opts) => { capturedSourceFile = opts?.filter?.sourceFile; return [HIT]; },
     });
     await withServer({ adapter }, async (base) => {
       const res = await post(base, { collection: 'demo', question: 'q', scope: { sourceFile: 'docs/en/configuration.md' } });
@@ -359,7 +359,7 @@ describe('POST /api/v1/ask — zero evidence', () => {
   it('emits empty sources then refused done, never calls the provider', async () => {
     let generateCalled = false;
     const provider = makeStubProvider({ generate: async () => { generateCalled = true; return { text: '' }; } });
-    const adapter = makeStubAdapter({ searchHybrid: async () => [] });
+    const adapter = makeStubAdapter({ searchHybridVectors: async () => [] });
     await withServer({ adapter, generationProvider: provider }, async (base) => {
       const res = await post(base, { collection: 'demo', question: 'q' });
       assert.equal(res.status, 200);
@@ -568,7 +568,7 @@ describe('POST /api/v1/ask — structural entity references end to end', () => {
       score: 0.05,
     };
     const adapter = makeStubAdapter({
-      searchHybrid: async () => [tableHit],
+      searchHybridVectors: async () => [tableHit],
       // No section structure available -> evidence.js falls back to the
       // hit's own text, but nodeId/nodePath/nodeType must survive untouched.
       getContentNode: async () => null,

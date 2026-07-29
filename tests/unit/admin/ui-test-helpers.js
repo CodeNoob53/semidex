@@ -26,6 +26,16 @@ export function readUiSource(relativePath) {
   return readFileSync(UI_SRC_DIR + relativePath, 'utf-8');
 }
 
+// global-settings-view.js imports one zero-dependency core/ module directly
+// (qdrant-cloud-models.js — pure catalog data, safe to bundle into the
+// browser; never qdrant-cloud-catalog.js itself, which pulls in Node-only
+// fs/fetch via the tokenizer module) — this repo-relative reader mirrors
+// readUiSource() for that one cross-boundary case.
+const CORE_SRC_DIR = fileURLToPath(new URL('../../../src/core/', import.meta.url));
+export function readCoreSource(relativePath) {
+  return readFileSync(CORE_SRC_DIR + relativePath, 'utf-8');
+}
+
 // A view module's `?raw` HTML-partial import is just an import statement in
 // source — Vite only inlines the partial's content as a string literal at
 // build time. Tests that regex-match copy/markup that actually lives in a
@@ -615,7 +625,7 @@ export function makeStubAdapter() {
     getChunk: async () => [],
     getFileChunks: async () => [],
     getSectionChunks: async () => null,
-    searchHybrid: async () => [],
+    searchHybridVectors: async () => [],
     getSkeletonRoot: async () => null,
     getSkeletonNode: async () => null,
     getSkeletonChildren: async () => [],
@@ -886,6 +896,12 @@ function getGlobalSettingsScript() {
       + stripImports(readUiSource('icons.js'))
       + stripImports(readUiSource('routes.js'))
       + stripImports(readUiSource('sidebar.js'))
+      + stripImports(readCoreSource('embedding-profile/qdrant-cloud-models.js'))
+      // global-settings-view.js's own source imports findDenseModel aliased
+      // as findQdrantCloudDenseModel — the real import statement (stripped
+      // above) is what does that aliasing in production; re-bind it here so
+      // the concatenated bundle's identifier references still resolve.
+      + '\nconst findQdrantCloudDenseModel = findDenseModel;\n'
       + stripImports(readUiSource('global-settings-view.js'));
     cachedGlobalSettingsScript = new vm.Script(src, { filename: 'global-settings-view-bundle.js' });
   }

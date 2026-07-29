@@ -31,7 +31,7 @@ function makeStubAdapter(overrides = {}) {
     getChunk: async () => [],
     getFileChunks: async () => [],
     getSectionChunks: async () => null,
-    searchHybrid: async () => [],
+    searchHybridVectors: async () => [],
     getSkeletonRoot: async () => null,
     getSkeletonNode: async () => null,
     getSkeletonChildren: async () => [],
@@ -247,7 +247,7 @@ describe('GET /api/generation/status — shares the same runtime as POST /api/v1
         ready: async () => { readyCallCount += 1; return { ok: true, model: 'gemma3:4b', numCtx: 8192 }; },
       }),
     });
-    const adapter = makeStubAdapter({ searchHybrid: async () => [] }); // zero evidence -> ask refuses without calling generate, but still calls ready()
+    const adapter = makeStubAdapter({ searchHybridVectors: async () => [] }); // zero evidence -> ask refuses without calling generate, but still calls ready()
     await withServer({ adapter, generationRuntime }, async (base) => {
       const statusRes = await fetch(base + '/api/generation/status');
       assert.equal((await statusRes.json()).ready, true);

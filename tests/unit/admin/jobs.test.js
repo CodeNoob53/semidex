@@ -559,7 +559,7 @@ function makeStubAdapter() {
     name: () => 'stub', capabilities: () => ({}), ping: async () => ({ ok: true, detail: '' }),
     listCollections: async () => [], getCollection: async () => null, createCollection: async () => {},
     deleteCollection: async () => {}, ensureCollectionSchema: async () => ({ repaired: [], warnings: [] }),
-    listSourceDocuments: async () => [], getChunk: async () => [], getFileChunks: async () => [], getSectionChunks: async () => null, searchHybrid: async () => [],
+    listSourceDocuments: async () => [], getChunk: async () => [], getFileChunks: async () => [], getSectionChunks: async () => null, searchHybridVectors: async () => [],
     getSkeletonRoot: async () => null, getSkeletonNode: async () => null, getSkeletonChildren: async () => [],
     getContentNode: async () => null, getSectionAnchor: async () => null,
   };
