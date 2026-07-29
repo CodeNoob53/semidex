@@ -8,13 +8,13 @@ export function envInt(name, defaultVal, min, max, prefix = '') {
   return v;
 }
 
-export const VALID_PROVIDER_COMBOS = new Set(['ollama:hashed-tf', 'bge-m3-onnx:bge-m3-onnx']);
+export const VALID_PROVIDER_COMBOS = new Set(['ollama:hashed-tf', 'bge-m3-onnx:bge-m3-onnx', 'qdrant-cloud:qdrant-cloud']);
 
 export function assertProviderCombo(denseProvider, sparseProvider) {
   if (!VALID_PROVIDER_COMBOS.has(`${denseProvider}:${sparseProvider}`)) {
     throw new Error(
       `Invalid provider combination: denseProvider="${denseProvider}", sparseProvider="${sparseProvider}". ` +
-      `Valid combinations: ollama+hashed-tf, bge-m3-onnx+bge-m3-onnx.`
+      `Valid combinations: ollama+hashed-tf, bge-m3-onnx+bge-m3-onnx, qdrant-cloud+qdrant-cloud.`
     );
   }
 }

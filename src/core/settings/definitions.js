@@ -17,6 +17,7 @@
 //   for every current type; exists as one place to extend later).
 
 import { ONNX_DENSE_MODEL_ID } from '../onnx-paths.js';
+import { QDRANT_CLOUD_DENSE_MODELS, QDRANT_CLOUD_SPARSE_MODELS, findDenseModel } from '../embedding-profile/qdrant-cloud-models.js';
 
 function warnInvalid(prefix, name, raw, fallback) {
   console.warn(`${prefix}${name}="${raw}" is invalid — using default ${fallback}`);
@@ -314,13 +315,17 @@ export const DEFINITIONS = {
     category: 'embeddings', label: 'Embedding backend', type: 'enum',
     description: 'Which embedding provider is used for new collections. Determines dense and sparse vector generation together.',
     advanced: false, appliesAt: 'new_collection', requiresReindex: false, requiresBackfill: false,
-    options: [{ value: 'ollama', label: 'Ollama' }, { value: 'bge-m3-onnx', label: 'BGE-M3 (ONNX)' }],
+    options: [
+      { value: 'ollama', label: 'Ollama' },
+      { value: 'bge-m3-onnx', label: 'BGE-M3 (ONNX)' },
+      { value: 'qdrant-cloud', label: 'Qdrant Cloud Inference' },
+    ],
     default: 'ollama',
     parseExternal() { throw new Error('EMBEDDING_BACKEND is derived, not env-backed.'); },
     validate(value) {
-      return ['ollama', 'bge-m3-onnx'].includes(value)
+      return ['ollama', 'bge-m3-onnx', 'qdrant-cloud'].includes(value)
         ? { ok: true }
-        : { ok: false, error: 'EMBEDDING_BACKEND must be "ollama" or "bge-m3-onnx".' };
+        : { ok: false, error: 'EMBEDDING_BACKEND must be "ollama", "bge-m3-onnx", or "qdrant-cloud".' };
     },
     serialize: (value) => value,
   },
@@ -340,6 +345,37 @@ export const DEFINITIONS = {
     derivedWhen: { key: 'EMBEDDING_BACKEND', equals: 'bge-m3-onnx', value: ONNX_DENSE_MODEL_ID },
     ...stringField({ envVar: 'DENSE_MODEL', defaultVal: 'bge-m3' }),
   },
+  // Static catalog-backed selector (src/core/embedding-profile/qdrant-cloud-catalog.js)
+  // — NOT dynamicOptions/live discovery. No model-discovery API exists for
+  // Qdrant Cloud Inference (a confirmed spike finding); pretending a static
+  // list is live discovery would misrepresent what this control actually
+  // does. MiniLM is EXCLUDED from options entirely (never offered as a
+  // selectable choice) rather than shown-disabled — it is not a real
+  // choice today, so it is not in the choice list.
+  QDRANT_CLOUD_DENSE_MODEL: {
+    category: 'embeddings', label: 'Dense model (Qdrant Cloud)', type: 'enum', envVar: 'QDRANT_CLOUD_DENSE_MODEL',
+    description: 'Qdrant Cloud Inference dense embedding model used for new collections.', advanced: false,
+    appliesAt: 'new_collection', requiresReindex: false, requiresBackfill: false,
+    visibleWhen: { key: 'EMBEDDING_BACKEND', equals: 'qdrant-cloud' },
+    options: QDRANT_CLOUD_DENSE_MODELS
+      .filter((m) => m.status === 'supported')
+      .map((m) => ({ value: m.id, label: `${m.displayName} (${m.dimensions}d, ${m.contextWindow} tokens)` })),
+    default: QDRANT_CLOUD_DENSE_MODELS.find((m) => m.status === 'supported')?.id ?? null,
+    ...stringField({ envVar: 'QDRANT_CLOUD_DENSE_MODEL', defaultVal: QDRANT_CLOUD_DENSE_MODELS.find((m) => m.status === 'supported')?.id ?? '' }),
+  },
+  // Read-only — the catalog has exactly one supported sparse model, so
+  // there is nothing to select. Mirrors VECTOR_SIZE's writable:false +
+  // derivedWhen pattern for a single-option derived field.
+  QDRANT_SPARSE_MODEL: {
+    category: 'embeddings', label: 'Sparse model (Qdrant Cloud)', type: 'string', envVar: 'QDRANT_SPARSE_MODEL',
+    description: 'Qdrant Cloud Inference sparse (BM25) model — fixed, no alternative is currently supported.', advanced: true,
+    appliesAt: 'new_collection', requiresReindex: false, requiresBackfill: false,
+    visibleWhen: { key: 'EMBEDDING_BACKEND', equals: 'qdrant-cloud' },
+    derivedWhen: { key: 'EMBEDDING_BACKEND', equals: 'qdrant-cloud', value: QDRANT_CLOUD_SPARSE_MODELS[0]?.id ?? null },
+    writable: false,
+    readOnlyReason: 'Qdrant Cloud Inference currently supports exactly one sparse model.',
+    ...stringField({ envVar: 'QDRANT_SPARSE_MODEL', defaultVal: QDRANT_CLOUD_SPARSE_MODELS[0]?.id ?? '' }),
+  },
   VECTOR_SIZE: {
     category: 'embeddings', label: 'Vector size', type: 'number', envVar: 'VECTOR_SIZE',
     description: 'Detected output dimensionality of the selected embedding model.', advanced: true,
@@ -351,6 +387,17 @@ export const DEFINITIONS = {
       source: 'ollama_models',
       modelKey: 'EMBED_MODEL',
       property: 'embeddingDimension',
+    },
+    // catalogDerived: a third data source for VECTOR_SIZE's read-only
+    // rendering path (global-settings-view.js's fieldRow()), alongside the
+    // existing derivedWhen/dynamicDerived cases above — dimensions are
+    // looked up from the STATIC catalog by the staged QDRANT_CLOUD_DENSE_MODEL
+    // value, never probed live (fixed per model ID, no network call needed).
+    catalogDerived: {
+      key: 'EMBEDDING_BACKEND',
+      equals: 'qdrant-cloud',
+      modelKey: 'QDRANT_CLOUD_DENSE_MODEL',
+      lookup: (modelId) => findDenseModel(modelId)?.dimensions ?? null,
     },
     writable: false,
     readOnlyReason: 'Detected from the embedding model; it cannot be entered manually.',
@@ -367,14 +414,14 @@ export const DEFINITIONS = {
     description: 'Backend used to compute dense embedding vectors for new collections. Internal compatibility key — use "Embedding backend" instead.',
     advanced: true, uiHidden: true,
     appliesAt: 'new_collection', requiresReindex: false, requiresBackfill: false,
-    ...enumField({ envVar: 'DENSE_PROVIDER', defaultVal: 'ollama', allowed: ['ollama', 'bge-m3-onnx'] }),
+    ...enumField({ envVar: 'DENSE_PROVIDER', defaultVal: 'ollama', allowed: ['ollama', 'bge-m3-onnx', 'qdrant-cloud'] }),
   },
   SPARSE_PROVIDER: {
     category: 'embeddings', label: 'Sparse provider', type: 'enum', envVar: 'SPARSE_PROVIDER',
     description: 'Backend used to compute sparse embedding vectors for new collections. Internal compatibility key — use "Embedding backend" instead.',
     advanced: true, uiHidden: true,
     appliesAt: 'new_collection', requiresReindex: false, requiresBackfill: false,
-    ...enumField({ envVar: 'SPARSE_PROVIDER', defaultVal: 'hashed-tf', allowed: ['hashed-tf', 'bge-m3-onnx'] }),
+    ...enumField({ envVar: 'SPARSE_PROVIDER', defaultVal: 'hashed-tf', allowed: ['hashed-tf', 'bge-m3-onnx', 'qdrant-cloud'] }),
   },
   ONNX_EXECUTION_PROVIDER: {
     category: 'embeddings', label: 'ONNX execution provider', type: 'enum', envVar: 'ONNX_EXECUTION_PROVIDER',

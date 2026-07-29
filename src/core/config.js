@@ -4,6 +4,7 @@ import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { assertProviderCombo, resolveEffectiveEmbeddingBackend } from './env.js';
 import { ONNX_DENSE_MODEL_ID } from './onnx-paths.js';
+import { QDRANT_CLOUD_DENSE_MODELS } from './embedding-profile/qdrant-cloud-catalog.js';
 
 const CONFIG_PATH = resolve(dirname(fileURLToPath(import.meta.url)), '../../config.json');
 
@@ -31,6 +32,11 @@ export function resolveEnvProviders() {
   if (denseProvider === 'bge-m3-onnx') {
     assertProviderCombo(denseProvider, sparseProvider);
     return { denseProvider, denseModel: ONNX_DENSE_MODEL_ID, sparseProvider };
+  }
+  if (denseProvider === 'qdrant-cloud') {
+    assertProviderCombo(denseProvider, sparseProvider);
+    const denseModel = process.env.QDRANT_CLOUD_DENSE_MODEL ?? QDRANT_CLOUD_DENSE_MODELS.find((m) => m.status === 'supported')?.id;
+    return { denseProvider, denseModel, sparseProvider };
   }
   // ollama: EMBED_MODEL is the canonical setting; DENSE_MODEL is a legacy
   // alias, consulted only when EMBED_MODEL itself is unset (code review

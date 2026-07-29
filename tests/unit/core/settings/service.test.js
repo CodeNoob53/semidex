@@ -459,6 +459,15 @@ describe('SettingsService — EMBEDDING_BACKEND (synthetic, derived field)', () 
     assert.equal(svc.getActiveValue('SPARSE_PROVIDER'), 'hashed-tf');
   });
 
+  test('PATCHing EMBEDDING_BACKEND=qdrant-cloud expands into DENSE_PROVIDER=qdrant-cloud, SPARSE_PROVIDER=qdrant-cloud', async () => {
+    const settingsPath = tempSettingsPath(dir);
+    const svc = createSettingsService({ osEnv: {}, dotenvValues: {}, settingsPath });
+    await svc.setMany({ EMBEDDING_BACKEND: 'qdrant-cloud' });
+
+    assert.equal(svc.getActiveValue('DENSE_PROVIDER'), 'qdrant-cloud');
+    assert.equal(svc.getActiveValue('SPARSE_PROVIDER'), 'qdrant-cloud');
+  });
+
   test('PATCHing an invalid EMBEDDING_BACKEND value is rejected with code invalid_value, nothing written', async () => {
     const settingsPath = tempSettingsPath(dir);
     const svc = createSettingsService({ osEnv: {}, dotenvValues: {}, settingsPath });

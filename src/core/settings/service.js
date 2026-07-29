@@ -38,6 +38,7 @@ const SOURCES = Object.freeze({
 const EMBEDDING_BACKEND_EXPANSION = {
   ollama: { DENSE_PROVIDER: 'ollama', SPARSE_PROVIDER: 'hashed-tf' },
   'bge-m3-onnx': { DENSE_PROVIDER: 'bge-m3-onnx', SPARSE_PROVIDER: 'bge-m3-onnx' },
+  'qdrant-cloud': { DENSE_PROVIDER: 'qdrant-cloud', SPARSE_PROVIDER: 'qdrant-cloud' },
 };
 
 // ASK_MODEL's static definitions.js default ('gemma3:4b') has no notion of
@@ -155,6 +156,14 @@ export function createSettingsService({
     if (def.dynamicOptions !== undefined) entry.dynamicOptions = def.dynamicOptions;
     if (def.derivedWhen !== undefined) entry.derivedWhen = def.derivedWhen;
     if (def.dynamicDerived !== undefined) entry.dynamicDerived = def.dynamicDerived;
+    // catalogDerived.lookup is a real function — cannot survive JSON
+    // serialization. Only the JSON-safe key/equals/modelKey trio is sent;
+    // the browser resolves `lookup` itself against its own bundled
+    // qdrant-cloud-models.js copy (findDenseModel(modelId)?.dimensions),
+    // never receiving a function over the wire.
+    if (def.catalogDerived !== undefined) {
+      entry.catalogDerived = { key: def.catalogDerived.key, equals: def.catalogDerived.equals, modelKey: def.catalogDerived.modelKey };
+    }
     if (def.uiHidden !== undefined) entry.uiHidden = def.uiHidden;
     if (def.pathPicker !== undefined) entry.pathPicker = def.pathPicker;
     if (def.secret) {
@@ -361,7 +370,7 @@ export function createSettingsService({
         const backendValue = rawChanges.EMBEDDING_BACKEND;
         const expansion = EMBEDDING_BACKEND_EXPANSION[backendValue];
         if (!expansion) {
-          const err = new Error('EMBEDDING_BACKEND must be "ollama" or "bge-m3-onnx".');
+          const err = new Error('EMBEDDING_BACKEND must be "ollama", "bge-m3-onnx", or "qdrant-cloud".');
           err.code = 'invalid_value';
           err.invalidKey = 'EMBEDDING_BACKEND';
           throw err;
