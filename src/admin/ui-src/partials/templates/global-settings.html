@@ -156,6 +156,25 @@
   </div>
 </template>
 
+<template id="tpl-gs-qdrant-cloud-probe-panel">
+  <div class="panel gs-qdrant-cloud-probe-panel">
+    <div class="panel-head">Qdrant Cloud Inference status</div>
+    <div class="panel-body">
+      <dl class="kv">
+        <dt>Dense model</dt>
+        <dd class="gs-qc-dense-model"></dd>
+        <dt>Last verified</dt>
+        <dd class="gs-qc-verified">Not yet tested</dd>
+      </dl>
+      <p class="gs-detail">This runs a real, minimal inference round-trip against a disposable collection that is created and deleted immediately — it is the only way to confirm Cloud Inference actually works for this model, not just that Qdrant is reachable.</p>
+      <button type="button" class="btn-amber gs-qc-test-button">Test Cloud Inference</button>
+      <div class="gs-qc-result" hidden>
+        <p class="gs-detail gs-qc-message"></p>
+      </div>
+    </div>
+  </div>
+</template>
+
 <template id="tpl-gs-inline-category">
   <select class="q-input gs-inline-category-select" aria-label="Settings category"></select>
 </template>

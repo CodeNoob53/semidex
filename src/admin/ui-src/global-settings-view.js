@@ -13,6 +13,10 @@ import { $, cloneTemplate } from './dom.js';
 import { api, apiPatch, apiPost } from './api.js';
 import { showToast } from './toasts.js';
 import { renderSettingsNav, syncSidebarMode, markActive } from './sidebar.js';
+// Pure-data module only (zero deps: no fs/fetch/tokenizer) — safe to bundle
+// into the browser. Never import qdrant-cloud-catalog.js itself here — it
+// pulls in qdrant-cloud-tokenizer.js's Node-only fs/fetch code.
+import { findDenseModel as findQdrantCloudDenseModel, isCatalogCompatibleWithChunking } from '../../core/embedding-profile/qdrant-cloud-models.js';
 
 const PROVENANCE_LABEL = {
   os_env: 'Operating system environment',
@@ -543,6 +547,28 @@ function fieldRow(category, entry) {
     }
   }
 
+  // catalogDerived: dimensions looked up from the STATIC Qdrant Cloud
+  // model catalog by the staged model key — never probed live, since
+  // dimensions are fixed per model ID (no network call needed). Same
+  // rendering path as dynamicDerived above, different data source. The
+  // server sends only the JSON-safe {key, equals, modelKey} trio (a real
+  // `lookup` function cannot survive JSON serialization) — findQdrantCloudDenseModel
+  // is resolved against this file's own bundled qdrant-cloud-models.js copy.
+  if (entry.catalogDerived) {
+    const driver = lastFetchedPayload.settings.find((item) => item.key === entry.catalogDerived.key);
+    const driverMatches = driver
+      && currentPendingValue(category, driver) === entry.catalogDerived.equals;
+    if (driverMatches) {
+      const modelEntry = lastFetchedPayload.settings.find((item) => item.key === entry.catalogDerived.modelKey);
+      const modelId = modelEntry ? currentPendingValue(category, modelEntry) : null;
+      const value = modelId ? findQdrantCloudDenseModel(modelId)?.dimensions ?? null : null;
+      const known = Number.isInteger(value) && value > 0;
+      return readonlyField(entry, known ? value : 'Unknown', {
+        warning: known ? '' : 'Select a dense model to detect the vector size.',
+      });
+    }
+  }
+
   if (!entry.writable) {
     return readonlyField(entry, entry.configuredValue, { source: entry.readOnlyReason ?? '' });
   }
@@ -708,6 +734,65 @@ async function runOnnxProbe(container, category, btn) {
   }
 }
 
+// Shown only alongside a visible EMBEDDING_BACKEND field currently staged
+// to 'qdrant-cloud' — this is the ONLY code path that ever calls Tier 2
+// (probeQdrantCloudInference()); routine Settings rendering and collection
+// browsing both stay on Tier 1 (INFERENCE_UNVERIFIED) until this button is
+// explicitly clicked. "Last verified" starts empty and is populated only
+// by a real click — never auto-run, never inferred from the setting alone
+// (same discipline as onnxProbePanel()/runOnnxProbe() above).
+function qdrantCloudProbePanel(category, entries) {
+  const backendEntry = entries.find((e) => e.key === 'EMBEDDING_BACKEND');
+  if (!backendEntry) return null;
+  if (currentPendingValue(category, backendEntry) !== 'qdrant-cloud') return null;
+
+  const denseModelEntry = entries.find((e) => e.key === 'QDRANT_CLOUD_DENSE_MODEL');
+  const denseModel = denseModelEntry ? currentPendingValue(category, denseModelEntry) : null;
+
+  const panel = templateRoot('tpl-gs-qdrant-cloud-probe-panel');
+  panel.querySelector('.gs-qc-dense-model').textContent = denseModel ?? 'Unknown';
+  const testButton = panel.querySelector('.gs-qc-test-button');
+  testButton.dataset.denseModel = denseModel ?? '';
+  return panel;
+}
+
+function wireQdrantCloudProbePanel(container, category) {
+  const btn = container.querySelector('.gs-qc-test-button');
+  if (!btn) return;
+  btn.addEventListener('click', () => runQdrantCloudProbe(container, btn));
+}
+
+async function runQdrantCloudProbe(container, btn) {
+  const panel = btn.closest('.gs-qdrant-cloud-probe-panel');
+  const verified = panel.querySelector('.gs-qc-verified');
+  const resultBlock = panel.querySelector('.gs-qc-result');
+  const denseModel = btn.dataset.denseModel;
+
+  btn.disabled = true;
+  const originalLabel = btn.textContent;
+  btn.textContent = 'Testing…';
+  resultBlock.hidden = true;
+
+  try {
+    const result = await apiPost('/api/system/qdrant-cloud-probe', { denseModel });
+    const timestamp = new Date().toLocaleTimeString();
+    verified.textContent = `${result.status} (${timestamp})`;
+    resultBlock.hidden = false;
+    panel.querySelector('.gs-qc-message').textContent = result.message ?? (
+      result.status === 'inference_available'
+        ? 'Cloud Inference is working for this model.'
+        : ''
+    );
+  } catch (err) {
+    verified.textContent = 'Test failed';
+    resultBlock.hidden = false;
+    panel.querySelector('.gs-qc-message').textContent = err?.message ?? 'The probe request failed.';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalLabel;
+  }
+}
+
 function renderEditableCategory(container, category) {
   const entries = categoryEntries(category).filter((e) => isFieldVisible(category, e));
   const primary = entries.filter((e) => !e.advanced);
@@ -728,11 +813,14 @@ function renderEditableCategory(container, category) {
   }
   const probePanel = onnxProbePanel(category, entries);
   if (probePanel) content.append(probePanel);
+  const qdrantCloudPanel = qdrantCloudProbePanel(category, entries);
+  if (qdrantCloudPanel) content.append(qdrantCloudPanel);
   const currentSaveBar = saveBar(category);
   if (currentSaveBar) content.append(currentSaveBar);
   container.replaceChildren(content);
   wireCategoryEvents(container, category);
   wireOnnxProbePanel(container, category);
+  wireQdrantCloudProbePanel(container, category);
 
   const refreshBtn = container.querySelector('#gs-refresh-models');
   if (refreshBtn) {
@@ -783,6 +871,22 @@ function wireCategoryEvents(container, category) {
             !Number.isInteger(selected?.embeddingDimension) || selected.embeddingDimension <= 0,
             el.value
           );
+        } else if (key === 'QDRANT_CLOUD_DENSE_MODEL') {
+          // Coarse, settings-time-only compatibility warning
+          // (isCatalogCompatibleWithChunking() — Part B's Tier 1 check): a
+          // model whose contextWindow is smaller than the staged
+          // MAX_CHUNK_TOKENS alone (the most optimistic possible case,
+          // ignoring heading-path/skeleton-summary context) is blocked
+          // from Save here. This is advisory/early — it cannot and does
+          // not guarantee every future chunk's assembled embed text will
+          // fit; the real, exact, embed-time gate is
+          // checkEmbedInputFits(), which can still reject an individual
+          // over-long input even for a model marked compatible here.
+          const model = findQdrantCloudDenseModel(el.value);
+          const maxChunkTokensEntry = lastFetchedPayload.settings.find((s) => s.key === 'MAX_CHUNK_TOKENS');
+          const maxChunkTokens = maxChunkTokensEntry ? Number(currentPendingValue('indexing', maxChunkTokensEntry)) : 512;
+          const compatible = model ? isCatalogCompatibleWithChunking(model, { maxChunkTokens }) : false;
+          markInvalid(category, key, !compatible, el.value);
         } else if (key === 'SEMIDEX_GENERATION_BACKEND') {
           // Switching backends invalidates ASK_MODEL's current value
           // outright — an Ollama model name is never a valid Gemini model

@@ -39,6 +39,7 @@ import { createTaskRegistry } from './jobs/task-registry.js';
 import { registerOperationsRoutes } from './api/operations.js';
 import { registerSystemRoutes } from './api/system.js';
 import { registerOnnxRoutes } from './api/onnx.js';
+import { registerQdrantCloudRoutes } from './api/qdrant-cloud.js';
 import { registerSettingsRoutes } from './api/settings.js';
 import { registerOllamaModelsRoutes } from './api/ollama-models.js';
 import { registerGenerationModelsRoutes } from './api/generation-models.js';
@@ -91,7 +92,7 @@ export function resolvePortConfig(env = process.env, { settingsService } = {}) {
 export function createApp({
   adapter = createStorageAdapter(), embedQuery, jobRegistry, taskRegistry, pickFolderFn, checkOllamaFn,
   assemblyLogFn, generationRuntime, askCoordinator, countTokens, settingsService, jobBaseEnv,
-  discoverOllamaModelsFn, discoverGeminiModelsFn, runOnnxProbeFn,
+  discoverOllamaModelsFn, discoverGeminiModelsFn, runOnnxProbeFn, runQdrantCloudProbeFn,
 } = {}) {
   const router = createRouter();
   // settingsService is optional DI — tests and ad-hoc createApp() callers
@@ -187,6 +188,10 @@ export function createApp({
   // spawn a real child process/load onnxruntime-node) — same convention as
   // pickFolderFn/checkOllamaFn above.
   registerOnnxRoutes(router, { settingsService: settings, ...(runOnnxProbeFn ? { runProbeFn: runOnnxProbeFn } : {}) });
+  // runQdrantCloudProbeFn is optional DI (tests inject a stub so unit
+  // tests never issue a real Qdrant Cloud Inference round-trip) — same
+  // convention as runOnnxProbeFn above.
+  registerQdrantCloudRoutes(router, { settingsService: settings, ...(runQdrantCloudProbeFn ? { runProbeFn: runQdrantCloudProbeFn } : {}) });
   return createServer((req, res) => {
     // /api/* belongs to the router; everything else is the static UI shell.
     // Malformed URLs fall through to the router, whose handleRequest already
