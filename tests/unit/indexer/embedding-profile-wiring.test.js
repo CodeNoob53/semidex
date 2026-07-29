@@ -91,8 +91,8 @@ describe('run.js — setIndexingState() is called after a successful run (P2 fix
     assert.match(precedingBlock, /storageAdapter\.setIndexingState\(COLLECTION,\s*buildIndexingState\(\{/);
     // Topology-aware (code review, P2): indexingSchemaVersion picks between
     // the two topology-specific constants based on whether this collection's
-    // profile requires entity splitting, never a single hardcoded constant.
-    assert.match(precedingBlock, /indexingSchemaVersion:\s*resolveEmbeddingBudget\(EMBEDDING_PROFILE\)\s*!==\s*null\s*\r?\n?\s*\?\s*INDEXING_SCHEMA_VERSION_SPLIT_ENTITY\s*:\s*INDEXING_SCHEMA_VERSION_BASE/);
+    // profile requires a token budget, never a single hardcoded constant.
+    assert.match(precedingBlock, /indexingSchemaVersion:\s*resolveEmbeddingBudget\(EMBEDDING_PROFILE\)\s*!==\s*null\s*\r?\n?\s*\?\s*INDEXING_SCHEMA_VERSION_PROFILE_BUDGET\s*:\s*INDEXING_SCHEMA_VERSION_BASE/);
     assert.match(precedingBlock, /chunkingSchemaVersion:\s*CHUNKING_SCHEMA_VERSION/);
   });
 
@@ -108,7 +108,7 @@ describe('run.js — setIndexingState() is called after a successful run (P2 fix
   it('imports buildIndexingState from the canonical schema.js and the topology-specific version constants from skeleton-payload.js, not a re-implementation', () => {
     assert.match(src, /import\s*\{[^}]*\bbuildIndexingState\b[^}]*\}\s*from\s*['"]\.\.\/core\/embedding-profile\/schema\.js['"]/);
     assert.match(src, /INDEXING_SCHEMA_VERSION_BASE/);
-    assert.match(src, /INDEXING_SCHEMA_VERSION_SPLIT_ENTITY/);
+    assert.match(src, /INDEXING_SCHEMA_VERSION_PROFILE_BUDGET/);
     const importLine = src.slice(0, src.indexOf('\n', src.indexOf('INDEXING_SCHEMA_VERSION_BASE')));
     assert.match(importLine, /from\s*['"]\.\/skeleton-payload\.js['"]/);
   });

@@ -39,7 +39,7 @@ import { CHUNKING_SCHEMA_VERSION, getTokenCounter, resolveTokenCountMode } from 
 import { Semaphore } from './semaphore.js';
 import { SerialQueue } from './serial-queue.js';
 import { envInt } from '../core/env.js';
-import { expectedChunkingMeta, skeletonPayloadFields, isSkeletonChunk, makeSkeletonPointId, buildNavPointPayload, buildEntityRawPointPayload, INDEXING_SCHEMA_VERSION_BASE, INDEXING_SCHEMA_VERSION_SPLIT_ENTITY } from './skeleton-payload.js';
+import { expectedChunkingMeta, skeletonPayloadFields, indexingSchemaVersionField, isSkeletonChunk, makeSkeletonPointId, buildNavPointPayload, buildEntityRawPointPayload, INDEXING_SCHEMA_VERSION_BASE, INDEXING_SCHEMA_VERSION_PROFILE_BUDGET } from './skeleton-payload.js';
 import { buildIndexingState, EXECUTION } from '../core/embedding-profile/schema.js';
 import { generateNavSummaries, generateDirectorySummaries, buildCollectionSummary, resolveRunNumCtx, estTokens } from './phases/skeleton-summary.js';
 import { buildDirectoryNavPoints } from './phases/skeleton-index.js';
@@ -148,7 +148,7 @@ async function stageA(filePath, rootPath, collection, profiler, reporter = null)
   // null for a client-execution profile, which preserves whole-entity
   // chunking exactly as before oversized-entity splitting existed.
   const chunkingBudget = resolveEmbeddingBudget(EMBEDDING_PROFILE);
-  const splitEntityTopology = chunkingBudget !== null;
+  const budgetAwareTopology = chunkingBudget !== null;
 
   const fileHash   = await hashFile(filePath);
   const storedMeta = await getStoredMeta(collection, sourceFile);
@@ -156,13 +156,13 @@ async function stageA(filePath, rootPath, collection, profiler, reporter = null)
   // Chunking-model agreement is part of the skip tuple — a file previously
   // indexed by the legacy chunker (chunkingModel: null) must reindex into
   // the now-mandatory skeleton model, never silently mix point models.
-  // splitEntityTopology (code review, P2): the indexing schema version is
+  // budgetAwareTopology (code review, P2): the indexing schema version is
   // topology-aware, not a hardcoded global bump — a collection whose
   // profile never requires entity splitting (e.g. local BGE-M3) reports
   // the BASE version, unaffected by entity-split.js's existence, so it is
   // never force-reindexed for a topology change that could never apply to
   // it.
-  const chunkMeta = expectedChunkingMeta(filePath, { splitEntityTopology });
+  const chunkMeta = expectedChunkingMeta(filePath, { budgetAwareTopology });
 
   if (
     !process.env.FORCE_REINDEX &&
@@ -232,7 +232,7 @@ async function stageA(filePath, rootPath, collection, profiler, reporter = null)
   console.log('  [1/5] chunking...');
   reporter?.step('chunking');
   // chunkingBudget resolved earlier in this function (alongside
-  // splitEntityTopology, used by the skip-tuple check above) — reused here
+  // budgetAwareTopology, used by the skip-tuple check above) — reused here
   // rather than re-resolved, so both consult the exact same value.
   // { chunks, navPoints, entityRawPoints } — explicit structured return
   // (chunkFileFromPath, chunk.js), replacing the previous non-enumerable
@@ -248,7 +248,7 @@ async function stageA(filePath, rootPath, collection, profiler, reporter = null)
   return {
     status: 'ready',
     filePath, sourceFile, collection, fileHash,
-    embedCfg, tokenCountMode, configVectorSize, splitEntityTopology,
+    embedCfg, tokenCountMode, configVectorSize, budgetAwareTopology,
     needsDelete, deleteReason,
     rawChunks, navPoints, entityRawPoints, combinedCfg: resolveCombinedLlmConfig(process.env),
     profiler,
@@ -456,7 +456,7 @@ export function buildEmbedInputsForChunks(taggedChunks, { useTextOnly = false } 
 // serialised commit phase of a previous file.
 async function stageC(withTagged, reporter = null) {
   const { taggedChunks, collection, sourceFile, fileHash,
-          embedCfg, tokenCountMode, configVectorSize, splitEntityTopology, profiler } = withTagged;
+          embedCfg, tokenCountMode, configVectorSize, budgetAwareTopology, profiler } = withTagged;
 
   console.log('  [4/5] embedding...');
   reporter?.step('embedding');
@@ -540,7 +540,15 @@ async function stageC(withTagged, reporter = null) {
           vector_size: configVectorSize,
           chunking_schema_version: CHUNKING_SCHEMA_VERSION,
           token_count_mode: tokenCountMode,
-          ...skeletonPayloadFields(chunk, { splitEntityTopology }),   // additive; {} for legacy chunks
+          // indexing_schema_version must be written for ANY budget-aware
+          // chunk, not only skeleton-v1 ones — skeletonPayloadFields below
+          // is {} for a legacy/non-Markdown chunk (isSkeletonChunk gate),
+          // so without this unconditional field a budget-aware PDF/Pandoc/
+          // plain-text file's stored meta would read back null forever,
+          // never matching expectedChunkingMeta's expected v6, and
+          // reindexing on every single run (code review finding).
+          ...indexingSchemaVersionField({ isSkeleton: isSkeletonChunk(chunk), budgetAwareTopology }),
+          ...skeletonPayloadFields(chunk, { budgetAwareTopology }),   // additive; {} for legacy chunks (adds skeleton-only fields; its own indexing_schema_version matches the line above exactly)
           ...meta,
         },
       },
@@ -591,7 +599,7 @@ async function stageC(withTagged, reporter = null) {
         payload: buildNavPointPayload(nav, {
           fileHash, vectorSize: configVectorSize,
           tokenCountMode, chunkingSchemaVersion: CHUNKING_SCHEMA_VERSION,
-          embedMeta: meta, splitEntityTopology,
+          embedMeta: meta, budgetAwareTopology,
         }),
       };
     });
@@ -1068,7 +1076,7 @@ async function main() {
               tokenCountMode: resolveTokenCountMode(),
               chunkingSchemaVersion: CHUNKING_SCHEMA_VERSION,
               embedMeta: dirEmbeds[i].meta,
-              splitEntityTopology: resolveEmbeddingBudget(EMBEDDING_PROFILE) !== null,
+              budgetAwareTopology: resolveEmbeddingBudget(EMBEDDING_PROFILE) !== null,
             }),
           }));
           await upsertPoints(COLLECTION, dirPoints);
@@ -1115,7 +1123,7 @@ async function main() {
             tokenCountMode: resolveTokenCountMode(),
             chunkingSchemaVersion: CHUNKING_SCHEMA_VERSION,
             embedMeta: meta,
-            splitEntityTopology: resolveEmbeddingBudget(EMBEDDING_PROFILE) !== null,
+            budgetAwareTopology: resolveEmbeddingBudget(EMBEDDING_PROFILE) !== null,
           }),
         }]);
         console.log(`\nCollection nav node updated (${fileNodes.length} file summaries, ${enrichedDirs.length} directory summaries).`);
@@ -1139,7 +1147,7 @@ async function main() {
       // own per-file logic — this collection's profile decides which
       // version applies, never a hardcoded ceiling constant.
       indexingSchemaVersion: resolveEmbeddingBudget(EMBEDDING_PROFILE) !== null
-        ? INDEXING_SCHEMA_VERSION_SPLIT_ENTITY : INDEXING_SCHEMA_VERSION_BASE,
+        ? INDEXING_SCHEMA_VERSION_PROFILE_BUDGET : INDEXING_SCHEMA_VERSION_BASE,
       chunkingSchemaVersion: CHUNKING_SCHEMA_VERSION,
     }));
   } catch (err) {

@@ -51,17 +51,44 @@ export const SKELETON_CHUNKING_MODEL = 'skeleton-v1';
 // (e.g. BGE-M3) collection's topology is completely unaffected by
 // entity-split.js — its chunking behavior is byte-identical to before v5
 // existed — so forcing it through v5's reindex would be pure waste (a full
-// re-embed for zero topology change). expectedChunkingMeta() below takes
-// this as an explicit parameter from its caller (stageA, which already
-// resolves the budget) rather than reading any global/env state itself.
+// re-embed for zero topology change).
+//
+// v6: profile-aware PROSE chunk splitting (chunk.js's *Budgeted functions,
+//     effectiveBudgetFor/recursiveChunkTextForBudget) — the same gate that
+//     drove v5 (chunkingBudget !== null) now ALSO makes ordinary prose
+//     chunking (not just structural entities) split against the real
+//     per-profile tokenizer/ceiling, which can change prose chunk
+//     boundaries/count for such a profile. A v5-indexed cloud collection
+//     predates this and has stale prose topology — must reindex. A v4
+//     (no-budget/local) collection's prose chunking is completely
+//     unaffected and must NOT be force-reindexed, same topology-aware
+//     discipline as v5. v6 is a strict superset of what v5 covered (v6 =
+//     v5's entity splitting + prose splitting, both gated by the same
+//     boolean) — no profile can legitimately need v5-but-not-v6 behavior,
+//     so the version selection below collapses to a 2-way BASE/
+//     PROFILE_BUDGET choice; INDEXING_SCHEMA_VERSION_SPLIT_ENTITY is kept
+//     only as a historical constant for any stored-metadata comparison
+//     code that still references the literal 5, no longer selected by
+//     expectedChunkingMeta().
+//
+// Format-agnostic (code review, round 6): earlier, expectedChunkingMeta()
+// unconditionally reported indexingSchemaVersion: null for any non-.md
+// file regardless of budget — a cloud-profile PDF/Pandoc/plain-text file
+// already indexed would be silently skipped forever under the skip-check's
+// null === null comparison, never picking up budget-aware splitting (which
+// chunk.js's dispatch/chunkFileAsync fix now also applies to non-Markdown
+// files). A budget-aware file of ANY extension now reports v6; a
+// non-budget-aware non-Markdown file keeps reporting null exactly as
+// today.
 export const INDEXING_SCHEMA_VERSION_BASE = 4;
-export const INDEXING_SCHEMA_VERSION_SPLIT_ENTITY = 5;
+export const INDEXING_SCHEMA_VERSION_SPLIT_ENTITY = 5; // historical; no longer selected by expectedChunkingMeta()
+export const INDEXING_SCHEMA_VERSION_PROFILE_BUDGET = 6;
 // Kept for any external caller that still wants "the current ceiling"
 // version number (e.g. a schema-version display) — never used internally
-// to decide reindexing; expectedChunkingMeta() always picks between the
-// two topology-specific constants above based on its caller's explicit
-// splitEntityTopology flag.
-export const INDEXING_SCHEMA_VERSION = INDEXING_SCHEMA_VERSION_SPLIT_ENTITY;
+// to decide reindexing; expectedChunkingMeta() always picks between
+// INDEXING_SCHEMA_VERSION_BASE and INDEXING_SCHEMA_VERSION_PROFILE_BUDGET
+// based on its caller's explicit budgetAwareTopology flag.
+export const INDEXING_SCHEMA_VERSION = INDEXING_SCHEMA_VERSION_PROFILE_BUDGET;
 
 export function isSkeletonChunk(chunk) {
   return chunk?.chunking_model === SKELETON_CHUNKING_MODEL;
@@ -73,7 +100,12 @@ export function isSkeletonChunk(chunk) {
  * it is architecture, not opt-in configuration, so this no longer consults
  * any env var or setting. Non-Markdown files (PDF, Pandoc-converted formats,
  * plain text) stay on the legacy chunker (a documented scope boundary, see
- * chunkFileFromPath's own comments) and report legacy (null) meta here too.
+ * chunkFileFromPath's own comments) for chunkingModel — but their
+ * indexingSchemaVersion IS budget-aware (format-agnostic, code review round
+ * 6): chunk.js's dispatch/chunkFileAsync fix makes non-Markdown chunking
+ * budget-aware too, so a non-Markdown file under a budget-aware profile
+ * must also report v6, not null, or it would be silently skipped forever
+ * by the skip-check's null === null comparison.
  *
  * This is also the mechanism that forces a one-time, per-file reindex of
  * any collection indexed before this became unconditional: a stored legacy
@@ -85,26 +117,64 @@ export function isSkeletonChunk(chunk) {
  * rebuild, no INDEXING_SCHEMA_VERSION bump required for this change alone.
  *
  * @param {string} filePath
- * @param {{ splitEntityTopology?: boolean }} [opts] — splitEntityTopology:
- *   whether THIS collection's resolved embedding profile requires
- *   structural entity splitting (i.e. resolveEmbeddingBudget(profile) !==
- *   null, qdrant-cloud-catalog.js) — passed explicitly by the caller
- *   (stageA, which already resolves the profile/budget once per run), never
- *   read from a global/env flag here. A collection whose profile never
- *   needs splitting (e.g. client/BGE-M3 execution) reports v4, the same
- *   version it always has — entity-split.js changes nothing about its
- *   topology, so it must never be force-reindexed by this version bump
- *   (code review, P2: an earlier, non-topology-aware v5 would have forced
- *   every local skeleton collection through a needless full reindex).
+ * @param {{ budgetAwareTopology?: boolean }} [opts] — budgetAwareTopology
+ *   (renamed from splitEntityTopology — it now gates prose splitting too,
+ *   not just structural entities): whether THIS collection's resolved
+ *   embedding profile requires a token budget (i.e.
+ *   resolveEmbeddingBudget(profile) !== null, qdrant-cloud-catalog.js) —
+ *   passed explicitly by the caller (stageA, which already resolves the
+ *   profile/budget once per run), never read from a global/env flag here.
+ *   A collection whose profile never needs a budget (e.g. client/BGE-M3
+ *   execution) reports v4/null, the same as it always has — this fix
+ *   changes nothing about its topology, so it must never be
+ *   force-reindexed (code review, P2: an earlier, non-topology-aware
+ *   version bump would have forced every local skeleton collection through
+ *   a needless full reindex).
  * @returns {{ chunkingModel: string|null, indexingSchemaVersion: number|null }}
  */
-export function expectedChunkingMeta(filePath, { splitEntityTopology = false } = {}) {
+export function expectedChunkingMeta(filePath, { budgetAwareTopology = false } = {}) {
   const skeleton = extname(filePath ?? '').toLowerCase() === '.md';
-  if (!skeleton) return { chunkingModel: null, indexingSchemaVersion: null };
-  const indexingSchemaVersion = splitEntityTopology
-    ? INDEXING_SCHEMA_VERSION_SPLIT_ENTITY
+  const chunkingModel = skeleton ? SKELETON_CHUNKING_MODEL : null;
+  if (!skeleton && !budgetAwareTopology) return { chunkingModel: null, indexingSchemaVersion: null };
+  const indexingSchemaVersion = budgetAwareTopology
+    ? INDEXING_SCHEMA_VERSION_PROFILE_BUDGET
     : INDEXING_SCHEMA_VERSION_BASE;
-  return { chunkingModel: SKELETON_CHUNKING_MODEL, indexingSchemaVersion };
+  return { chunkingModel, indexingSchemaVersion };
+}
+
+/**
+ * indexing_schema_version for ANY chunk (skeleton or legacy/non-Markdown),
+ * mirroring expectedChunkingMeta()'s own three-way contract EXACTLY (code
+ * review): expectedChunkingMeta()'s skip-tuple check compares
+ * indexingSchemaVersion for non-Markdown files too once the collection's
+ * profile requires a budget (round-6/format-agnostic fix), but
+ * skeletonPayloadFields itself early-returns {} for any non-skeleton
+ * chunk (isSkeletonChunk gate) — so a budget-aware PDF/Pandoc/plain-text
+ * point never actually got this field written, and stageA's skip-check
+ * would compare a stored `null` against an expected `6` on every single
+ * run, forcing that file to reindex forever.
+ *
+ * The contract this function must match, from expectedChunkingMeta():
+ *   - non-skeleton (non-Markdown) AND not budget-aware -> null (absent key,
+ *     via `?? null` on read-back) — the untouched legacy contract; writing
+ *     BASE here instead would cause the OPPOSITE bug (every ordinary local
+ *     PDF/plain-text file spuriously reindexing forever, since
+ *     expectedChunkingMeta itself still reports null for this exact case).
+ *   - budget-aware (any file type) -> PROFILE_BUDGET (v6).
+ *   - skeleton (Markdown), not budget-aware -> BASE (v4).
+ * @param {{ isSkeleton: boolean, budgetAwareTopology?: boolean }} opts —
+ *   isSkeleton: whether this chunk is a skeleton-v1 (Markdown) chunk,
+ *   i.e. isSkeletonChunk(chunk) — required, no default, so a caller can
+ *   never silently pass the wrong branch by omission.
+ * @returns {{}|{ indexing_schema_version: number }} empty object (no key
+ *   at all) for the non-skeleton/non-budget-aware case, matching
+ *   expectedChunkingMeta()'s null exactly once read back via `?? null`.
+ */
+export function indexingSchemaVersionField({ isSkeleton, budgetAwareTopology = false }) {
+  if (!isSkeleton && !budgetAwareTopology) return {};
+  return {
+    indexing_schema_version: budgetAwareTopology ? INDEXING_SCHEMA_VERSION_PROFILE_BUDGET : INDEXING_SCHEMA_VERSION_BASE,
+  };
 }
 
 /**
@@ -112,18 +182,25 @@ export function expectedChunkingMeta(filePath, { splitEntityTopology = false } =
  * Spread into the point payload AFTER the legacy fields so nothing legacy
  * is overwritten and legacy points carry zero new keys.
  *
+ * indexing_schema_version is included here too (skeleton chunks still get
+ * it from this function, unchanged call shape for existing callers) — but
+ * see indexingSchemaVersionField() above for the format-agnostic sibling
+ * that non-Markdown callers must ALSO apply, since this function as a
+ * whole is a no-op ({}) for any non-skeleton chunk.
+ *
  * @param {Object} chunk — output of chunkFromSkeleton (or legacy chunkFile)
- * @param {{ splitEntityTopology?: boolean }} [opts] — same flag and same
- *   meaning as expectedChunkingMeta's own parameter above: whether THIS
- *   collection's profile requires structural entity splitting. Every chunk
- *   in one file shares the same collection-level topology, so this is a
- *   per-call flag, not something derived per chunk — even an ordinary,
- *   never-split chunk in a split-entity-topology collection must still be
- *   stamped v5, matching expectedChunkingMeta's own per-file (not
- *   per-chunk) version so stageA's skip-tuple comparison stays consistent.
+ * @param {{ budgetAwareTopology?: boolean }} [opts] — same flag and same
+ *   meaning as expectedChunkingMeta's own parameter above (renamed from
+ *   splitEntityTopology — it now gates prose splitting too): whether THIS
+ *   collection's profile requires a token budget. Every chunk in one file
+ *   shares the same collection-level topology, so this is a per-call flag,
+ *   not something derived per chunk — even an ordinary, never-split chunk
+ *   in a budget-aware-topology collection must still be stamped v6,
+ *   matching expectedChunkingMeta's own per-file (not per-chunk) version
+ *   so stageA's skip-tuple comparison stays consistent.
  * @returns {Object}
  */
-export function skeletonPayloadFields(chunk, { splitEntityTopology = false } = {}) {
+export function skeletonPayloadFields(chunk, { budgetAwareTopology = false } = {}) {
   if (!isSkeletonChunk(chunk)) return {};
   const fields = {
     point_kind:              chunk.point_kind,
@@ -134,7 +211,7 @@ export function skeletonPayloadFields(chunk, { splitEntityTopology = false } = {
     heading_path:            chunk.heading_path ?? [],
     raw_content:             chunk.raw_content,
     chunking_model:          SKELETON_CHUNKING_MODEL,
-    indexing_schema_version: splitEntityTopology ? INDEXING_SCHEMA_VERSION_SPLIT_ENTITY : INDEXING_SCHEMA_VERSION_BASE,
+    ...indexingSchemaVersionField({ isSkeleton: true, budgetAwareTopology }),
   };
   if (chunk.lang !== undefined && chunk.lang !== null) fields.lang = chunk.lang;
   // Phase 3U: additive, written only when references exist — a prose chunk
@@ -193,10 +270,11 @@ export function makeSkeletonPointId({ collection, nodeId, embeddingSchemaVersion
  * @param {Object} navPoint — node from buildFileSkeleton()
  * @param {Object} ctx — { fileHash, vectorSize, tokenCountMode,
  *                         chunkingSchemaVersion, embedMeta,
- *                         splitEntityTopology } — splitEntityTopology has
- *                         the same meaning as expectedChunkingMeta's own
- *                         parameter: whether this collection's profile
- *                         requires structural entity splitting.
+ *                         budgetAwareTopology } — budgetAwareTopology
+ *                         (renamed from splitEntityTopology) has the same
+ *                         meaning as expectedChunkingMeta's own parameter:
+ *                         whether this collection's profile requires a
+ *                         token budget.
  * @returns {Object} Qdrant payload
  */
 export function buildNavPointPayload(navPoint, ctx = {}) {
@@ -227,7 +305,7 @@ export function buildNavPointPayload(navPoint, ctx = {}) {
     parent_id:               navPoint.parent_id ?? null,
     heading_path:            navPoint.heading_path ?? [],
     chunking_model:          SKELETON_CHUNKING_MODEL,
-    indexing_schema_version: ctx.splitEntityTopology ? INDEXING_SCHEMA_VERSION_SPLIT_ENTITY : INDEXING_SCHEMA_VERSION_BASE,
+    indexing_schema_version: ctx.budgetAwareTopology ? INDEXING_SCHEMA_VERSION_PROFILE_BUDGET : INDEXING_SCHEMA_VERSION_BASE,
 
     // Adaptive summary metadata (additive, absent on inventory-only nodes).
     ...(navPoint.summary_kind    ? { summary_kind:    navPoint.summary_kind }    : {}),
@@ -290,9 +368,9 @@ export function buildEntityRawPointPayload(chunk, ctx = {}) {
     sparse_provider:         ctx.sparseProvider ?? null,
     embedding_schema_version: ctx.embeddingSchemaVersion ?? null,
     // An entity_raw point exists ONLY when the collection's profile
-    // required splitting (entity-split.js), so its own indexing_schema_version
-    // is always the split-entity version by construction — never passed in
-    // from ctx, since there is no other possibility for this point kind.
-    ...skeletonPayloadFields(chunk, { splitEntityTopology: true }),
+    // required a budget (entity-split.js), so its own indexing_schema_version
+    // is always the profile-budget version by construction — never passed
+    // in from ctx, since there is no other possibility for this point kind.
+    ...skeletonPayloadFields(chunk, { budgetAwareTopology: true }),
   };
 }

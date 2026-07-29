@@ -6,25 +6,45 @@ export default async function ({ ok }) {
 
   const {
     expectedChunkingMeta, skeletonPayloadFields, isSkeletonChunk, makeSkeletonPointId,
-    SKELETON_CHUNKING_MODEL, INDEXING_SCHEMA_VERSION_BASE, INDEXING_SCHEMA_VERSION_SPLIT_ENTITY,
+    SKELETON_CHUNKING_MODEL, INDEXING_SCHEMA_VERSION_BASE, INDEXING_SCHEMA_VERSION_PROFILE_BUDGET,
   } = await import('../../indexer/skeleton-payload.js');
   const { makePointId } = await import('../../core/point-id.js');
 
   // ── expectedChunkingMeta (B1: skip-tuple input) ─────────────────────────────
   // Signature dropped its env parameter — skeleton chunking is unconditional
   // for .md now, not gated by SKELETON_CHUNKING (which no longer exists).
-  // splitEntityTopology (code review, P2): the indexing schema version is
-  // topology-aware — defaults to BASE (false) when the caller doesn't pass
-  // it, matching a client-execution/local collection's unaffected topology.
-  ok('.md → skeleton meta, unconditionally (default: no split topology → BASE version)',
+  // budgetAwareTopology (renamed from splitEntityTopology — it now gates
+  // prose splitting too, not just structural entities): the indexing schema
+  // version is topology-aware — defaults to BASE (false) when the caller
+  // doesn't pass it, matching a client-execution/local collection's
+  // unaffected topology.
+  ok('.md → skeleton meta, unconditionally (default: not budget-aware → BASE version)',
      JSON.stringify(expectedChunkingMeta('docs/a.md')) ===
      JSON.stringify({ chunkingModel: SKELETON_CHUNKING_MODEL, indexingSchemaVersion: INDEXING_SCHEMA_VERSION_BASE }));
-  ok('.md with splitEntityTopology:true → SPLIT_ENTITY version',
-     expectedChunkingMeta('docs/a.md', { splitEntityTopology: true }).indexingSchemaVersion === INDEXING_SCHEMA_VERSION_SPLIT_ENTITY);
-  ok('.txt → legacy meta (skeleton is md-only)',
-     expectedChunkingMeta('notes/a.txt').chunkingModel === null);
-  ok('.pdf → legacy meta',
-     expectedChunkingMeta('docs/a.pdf').chunkingModel === null);
+  ok('.md with budgetAwareTopology:true → PROFILE_BUDGET (v6) version',
+     expectedChunkingMeta('docs/a.md', { budgetAwareTopology: true }).indexingSchemaVersion === INDEXING_SCHEMA_VERSION_PROFILE_BUDGET);
+  ok('.txt → legacy meta (null) when not budget-aware',
+     expectedChunkingMeta('notes/a.txt').chunkingModel === null &&
+     expectedChunkingMeta('notes/a.txt').indexingSchemaVersion === null);
+  ok('.pdf → legacy meta (null) when not budget-aware',
+     expectedChunkingMeta('docs/a.pdf').chunkingModel === null &&
+     expectedChunkingMeta('docs/a.pdf').indexingSchemaVersion === null);
+  // Format-agnostic (code review round 6): a budget-aware profile's
+  // non-Markdown file must ALSO report v6, not null — a cloud-profile PDF/
+  // Pandoc/plain-text file must not be silently skipped forever by the
+  // skip-check's null === null comparison.
+  ok('.txt with budgetAwareTopology:true → PROFILE_BUDGET (v6), not null (format-agnostic)',
+     expectedChunkingMeta('notes/a.txt', { budgetAwareTopology: true }).indexingSchemaVersion === INDEXING_SCHEMA_VERSION_PROFILE_BUDGET &&
+     expectedChunkingMeta('notes/a.txt', { budgetAwareTopology: true }).chunkingModel === null);
+  ok('.pdf with budgetAwareTopology:true → PROFILE_BUDGET (v6), not null (format-agnostic)',
+     expectedChunkingMeta('docs/a.pdf', { budgetAwareTopology: true }).indexingSchemaVersion === INDEXING_SCHEMA_VERSION_PROFILE_BUDGET &&
+     expectedChunkingMeta('docs/a.pdf', { budgetAwareTopology: true }).chunkingModel === null);
+  // Reindex-detection: a stored v5 (or null) under a now-budget-aware
+  // profile must be treated as stale for both Markdown and non-Markdown.
+  ok('reindex-detection: stored v5 under budget-aware .md profile is stale (mismatch)',
+     5 !== expectedChunkingMeta('docs/a.md', { budgetAwareTopology: true }).indexingSchemaVersion);
+  ok('reindex-detection: stored null under now-budget-aware .txt profile is stale (mismatch)',
+     null !== expectedChunkingMeta('notes/a.txt', { budgetAwareTopology: true }).indexingSchemaVersion);
   ok('case-insensitive extension', expectedChunkingMeta('A.MD').chunkingModel === SKELETON_CHUNKING_MODEL);
   {
     const before = process.env.SKELETON_CHUNKING;
@@ -66,9 +86,9 @@ export default async function ({ ok }) {
      f.point_kind === 'retrieval_content' && f.node_type === 'table' &&
      f.node_id === 'uuid-1' && f.node_path === 'a.md#sec/table-1' &&
      f.parent_id === 'uuid-0' && f.raw_content === '| a |');
-  ok('indexing_schema_version stamped (default: BASE, no split topology)', f.indexing_schema_version === INDEXING_SCHEMA_VERSION_BASE);
-  ok('indexing_schema_version respects splitEntityTopology:true',
-     skeletonPayloadFields(skelChunk, { splitEntityTopology: true }).indexing_schema_version === INDEXING_SCHEMA_VERSION_SPLIT_ENTITY);
+  ok('indexing_schema_version stamped (default: BASE, not budget-aware)', f.indexing_schema_version === INDEXING_SCHEMA_VERSION_BASE);
+  ok('indexing_schema_version respects budgetAwareTopology:true',
+     skeletonPayloadFields(skelChunk, { budgetAwareTopology: true }).indexing_schema_version === INDEXING_SCHEMA_VERSION_PROFILE_BUDGET);
   ok('chunking_model stamped', f.chunking_model === SKELETON_CHUNKING_MODEL);
   ok('lang=null omitted', !('lang' in f));
   ok('lang preserved when set',

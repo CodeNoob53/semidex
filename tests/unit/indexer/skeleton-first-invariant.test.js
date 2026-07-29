@@ -20,9 +20,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   expectedChunkingMeta,
+  skeletonPayloadFields,
+  indexingSchemaVersionField,
+  isSkeletonChunk,
   SKELETON_CHUNKING_MODEL,
   INDEXING_SCHEMA_VERSION_BASE,
-  INDEXING_SCHEMA_VERSION_SPLIT_ENTITY,
+  INDEXING_SCHEMA_VERSION_PROFILE_BUDGET,
 } from '../../../src/indexer/skeleton-payload.js';
 import { chunkFileFromPath } from '../../../src/indexer/phases/chunk.js';
 
@@ -45,10 +48,10 @@ describe('expectedChunkingMeta — unconditional for Markdown, no env dependency
     });
   });
 
-  test('.md with splitEntityTopology:true resolves to the SPLIT_ENTITY version', () => {
-    assert.deepEqual(expectedChunkingMeta('docs/a.md', { splitEntityTopology: true }), {
+  test('.md with budgetAwareTopology:true resolves to the PROFILE_BUDGET (v6) version', () => {
+    assert.deepEqual(expectedChunkingMeta('docs/a.md', { budgetAwareTopology: true }), {
       chunkingModel: SKELETON_CHUNKING_MODEL,
-      indexingSchemaVersion: INDEXING_SCHEMA_VERSION_SPLIT_ENTITY,
+      indexingSchemaVersion: INDEXING_SCHEMA_VERSION_PROFILE_BUDGET,
     });
   });
 
@@ -56,11 +59,19 @@ describe('expectedChunkingMeta — unconditional for Markdown, no env dependency
     assert.equal(expectedChunkingMeta('DOCS/A.MD').chunkingModel, SKELETON_CHUNKING_MODEL);
   });
 
-  test('non-Markdown files resolve to legacy (null) meta — documented scope boundary', () => {
+  test('non-Markdown files resolve to legacy (null) meta when not budget-aware — documented scope boundary', () => {
     for (const filePath of ['notes/a.txt', 'docs/a.pdf', 'docs/a.docx', 'docs/a.html']) {
       const meta = expectedChunkingMeta(filePath);
       assert.equal(meta.chunkingModel, null, filePath);
       assert.equal(meta.indexingSchemaVersion, null, filePath);
+    }
+  });
+
+  test('non-Markdown files under a budget-aware profile resolve to PROFILE_BUDGET (v6), not null — format-agnostic (code review round 6)', () => {
+    for (const filePath of ['notes/a.txt', 'docs/a.pdf', 'docs/a.docx', 'docs/a.html']) {
+      const meta = expectedChunkingMeta(filePath, { budgetAwareTopology: true });
+      assert.equal(meta.chunkingModel, null, filePath); // chunkingModel unaffected — non-Markdown never uses skeleton-v1
+      assert.equal(meta.indexingSchemaVersion, INDEXING_SCHEMA_VERSION_PROFILE_BUDGET, filePath);
     }
   });
 
@@ -114,16 +125,16 @@ describe('stageA skip-tuple contract — chunkingModel/indexingSchemaVersion hal
     assert.equal(wouldSkipOnChunkingMeta(storedStale, chunkMeta), false);
   });
 
-  test('a collection whose topology requires splitting reports SPLIT_ENTITY version — a BASE-version stored meta forces reindex (code review, P2)', () => {
+  test('a collection whose topology requires a budget reports PROFILE_BUDGET (v6) — a BASE-version stored meta forces reindex (code review, P2)', () => {
     const storedBase = { chunkingModel: SKELETON_CHUNKING_MODEL, indexingSchemaVersion: INDEXING_SCHEMA_VERSION_BASE };
-    const chunkMeta = expectedChunkingMeta('docs/a.md', { splitEntityTopology: true });
+    const chunkMeta = expectedChunkingMeta('docs/a.md', { budgetAwareTopology: true });
     assert.equal(wouldSkipOnChunkingMeta(storedBase, chunkMeta), false,
-      'a collection that now requires entity splitting must reindex even a previously-current BASE-version file');
+      'a collection that now requires a token budget must reindex even a previously-current BASE-version file');
   });
 
-  test('a collection whose topology never requires splitting reports BASE version — never force-reindexed by SPLIT_ENTITY existing (code review, P2)', () => {
+  test('a collection whose topology never requires a budget reports BASE version — never force-reindexed by PROFILE_BUDGET existing (code review, P2)', () => {
     const storedBase = { chunkingModel: SKELETON_CHUNKING_MODEL, indexingSchemaVersion: INDEXING_SCHEMA_VERSION_BASE };
-    const chunkMeta = expectedChunkingMeta('docs/a.md', { splitEntityTopology: false });
+    const chunkMeta = expectedChunkingMeta('docs/a.md', { budgetAwareTopology: false });
     assert.equal(wouldSkipOnChunkingMeta(storedBase, chunkMeta), true,
       'a local/client-execution collection must stay on BASE and skip unchanged files — never force-reindexed for a topology change that could never apply to it');
   });
@@ -132,7 +143,121 @@ describe('stageA skip-tuple contract — chunkingModel/indexingSchemaVersion hal
     const storedLegacy = { chunkingModel: null, indexingSchemaVersion: null };
     const chunkMeta = expectedChunkingMeta('notes/a.txt');
     assert.equal(wouldSkipOnChunkingMeta(storedLegacy, chunkMeta), true,
-      'non-Markdown formats are an explicit, unchanged scope boundary — no forced reindex for them');
+      'non-Markdown formats are an explicit, unchanged scope boundary — no forced reindex for them, when the profile is not budget-aware');
+  });
+
+  test('non-Markdown files: a stored null meta under a now-budget-aware profile forces a reindex — format-agnostic (code review round 6)', () => {
+    const storedLegacy = { chunkingModel: null, indexingSchemaVersion: null };
+    const chunkMeta = expectedChunkingMeta('notes/a.txt', { budgetAwareTopology: true });
+    assert.equal(wouldSkipOnChunkingMeta(storedLegacy, chunkMeta), false,
+      'a non-Markdown file already indexed under a profile that now requires a budget must be reindexed, never silently skipped forever via null === null');
+  });
+
+  test('non-Markdown files: a stored v5 meta under a now-budget-aware profile forces a reindex (v5 predates prose-budget-awareness)', () => {
+    const storedV5 = { chunkingModel: null, indexingSchemaVersion: 5 };
+    const chunkMeta = expectedChunkingMeta('notes/a.txt', { budgetAwareTopology: true });
+    assert.equal(wouldSkipOnChunkingMeta(storedV5, chunkMeta), false);
+  });
+});
+
+// Full round-trip: expected meta -> the ACTUAL point payload run.js builds
+// (payload assembly at run.js:530-552) -> the meta getStoredMeta() would
+// read back from that payload (store.js:456-468's `?? null` extraction) ->
+// the skip predicate. A prior version of this fix only proved
+// expectedChunkingMeta() itself was format-agnostic (v6 for a budget-aware
+// non-Markdown file) — but skeletonPayloadFields() early-returns {} for
+// any non-skeleton-v1 chunk, so nothing actually WROTE that v6 into the
+// non-Markdown point's payload, and getStoredMeta() would read back null
+// forever, permanently reindexing (code review finding: { expected: v6,
+// written: {} }). This describe block proves the fix end to end — a
+// budget-aware non-Markdown file's SECOND run correctly skips.
+describe('full cycle: expected meta -> written payload -> stored meta -> skip (code review regression)', () => {
+  // Mirrors run.js's own point payload assembly (run.js:530-552) exactly,
+  // including passing isSkeleton: isSkeletonChunk(chunk) — not a
+  // reimplementation of the whole pipeline, just the two lines that decide
+  // indexing_schema_version's presence on the stored payload.
+  function buildPointPayload(chunk, { budgetAwareTopology }) {
+    return {
+      // ...other fields omitted, irrelevant to this contract...
+      ...indexingSchemaVersionField({ isSkeleton: isSkeletonChunk(chunk), budgetAwareTopology }),
+      ...skeletonPayloadFields(chunk, { budgetAwareTopology }),
+    };
+  }
+
+  // Mirrors store.js's getStoredMeta() extraction exactly (store.js:466-467).
+  function readBackStoredMeta(payload) {
+    return {
+      chunkingModel: payload.chunking_model ?? null,
+      indexingSchemaVersion: payload.indexing_schema_version ?? null,
+    };
+  }
+
+  test('a budget-aware non-Markdown chunk: written payload carries indexing_schema_version=6, stored meta reads it back, second run skips', () => {
+    const legacyChunk = { text: 'body', section: 's', chunkIndex: 0, totalChunks: 1 }; // non-skeleton shape — chunking_model never set
+    const chunkMeta = expectedChunkingMeta('notes/a.txt', { budgetAwareTopology: true });
+    assert.equal(chunkMeta.indexingSchemaVersion, INDEXING_SCHEMA_VERSION_PROFILE_BUDGET, 'sanity: expectation itself is v6');
+
+    const payload = buildPointPayload(legacyChunk, { budgetAwareTopology: true });
+    assert.equal(payload.indexing_schema_version, INDEXING_SCHEMA_VERSION_PROFILE_BUDGET,
+      'REGRESSION: the written payload must carry v6, not be silently omitted for a non-skeleton chunk');
+
+    const storedMeta = readBackStoredMeta(payload);
+    assert.equal(storedMeta.indexingSchemaVersion, INDEXING_SCHEMA_VERSION_PROFILE_BUDGET);
+
+    // Second run: stageA re-derives the same expectation and compares
+    // against what was actually stored on the first run.
+    const chunkMetaSecondRun = expectedChunkingMeta('notes/a.txt', { budgetAwareTopology: true });
+    assert.equal(wouldSkipOnChunkingMeta(storedMeta, chunkMetaSecondRun), true,
+      'a budget-aware non-Markdown file must be skipped on its SECOND run, not reindexed forever');
+  });
+
+  test('a non-budget-aware (local) non-Markdown chunk: written payload has NO indexing_schema_version key at all, matching expectedChunkingMeta\'s own null contract exactly', () => {
+    const legacyChunk = { text: 'body', section: 's', chunkIndex: 0, totalChunks: 1 };
+    const payload = buildPointPayload(legacyChunk, { budgetAwareTopology: false });
+    // indexingSchemaVersionField's isSkeleton/budgetAwareTopology gate
+    // mirrors expectedChunkingMeta's own three-way branch exactly — a
+    // non-skeleton, non-budget-aware chunk gets NO key at all (never
+    // BASE), because expectedChunkingMeta itself reports null for this
+    // exact case, not BASE. Writing BASE here would cause the OPPOSITE
+    // bug this fix closes: every ordinary local PDF/plain-text file would
+    // spuriously reindex forever (stored BASE vs expected null, never
+    // matching).
+    assert.ok(!('indexing_schema_version' in payload), 'no key at all, not even undefined');
+    const storedMeta = readBackStoredMeta(payload);
+    const chunkMeta = expectedChunkingMeta('notes/a.txt', { budgetAwareTopology: false });
+    assert.equal(chunkMeta.indexingSchemaVersion, null, 'sanity: expectedChunkingMeta itself reports null here, not BASE');
+    assert.equal(storedMeta.chunkingModel, chunkMeta.chunkingModel);
+    assert.equal(storedMeta.indexingSchemaVersion, chunkMeta.indexingSchemaVersion);
+    assert.equal(wouldSkipOnChunkingMeta(storedMeta, chunkMeta), true);
+  });
+
+  test('a budget-aware Markdown (skeleton) chunk: skeletonPayloadFields already covers it, and indexingSchemaVersionField agrees exactly (no double-write conflict)', () => {
+    const skelChunk = {
+      text: 't', chunking_model: SKELETON_CHUNKING_MODEL,
+      point_kind: 'retrieval_content', node_type: 'paragraph',
+      node_id: 'uuid-1', node_path: 'a.md#p-1', parent_id: null,
+      heading_path: [], raw_content: 't',
+    };
+    const payload = buildPointPayload(skelChunk, { budgetAwareTopology: true });
+    assert.equal(payload.indexing_schema_version, INDEXING_SCHEMA_VERSION_PROFILE_BUDGET);
+    const storedMeta = readBackStoredMeta(payload);
+    const chunkMeta = expectedChunkingMeta('a.md', { budgetAwareTopology: true });
+    assert.equal(wouldSkipOnChunkingMeta(storedMeta, chunkMeta), true);
+  });
+
+  test('a non-budget-aware (local) Markdown (skeleton) chunk: written payload carries BASE, not omitted — completes the 2x2 isSkeleton x budgetAwareTopology matrix', () => {
+    const skelChunk = {
+      text: 't', chunking_model: SKELETON_CHUNKING_MODEL,
+      point_kind: 'retrieval_content', node_type: 'paragraph',
+      node_id: 'uuid-1', node_path: 'a.md#p-1', parent_id: null,
+      heading_path: [], raw_content: 't',
+    };
+    const payload = buildPointPayload(skelChunk, { budgetAwareTopology: false });
+    assert.equal(payload.indexing_schema_version, INDEXING_SCHEMA_VERSION_BASE,
+      'a skeleton chunk always carries a version — BASE when not budget-aware, never omitted (isSkeleton:true always contributes a key)');
+    const storedMeta = readBackStoredMeta(payload);
+    const chunkMeta = expectedChunkingMeta('a.md', { budgetAwareTopology: false });
+    assert.equal(wouldSkipOnChunkingMeta(storedMeta, chunkMeta), true);
   });
 });
 
