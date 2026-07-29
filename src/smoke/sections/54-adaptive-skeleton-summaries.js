@@ -172,7 +172,7 @@ export default async function ({ ok }) {
 
   const DOC = '# Guide\n\nThis document explains how to deploy the service.\n\n## Setup\n\nInstall the runtime and configure the unit.\n';
   const nodes  = parseSkeleton(DOC, { sourceFile: 'g.md' });
-  const chunks = chunkFromSkeleton(nodes, { sourceFile: 'g.md' });
+  const { chunks } = await chunkFromSkeleton(nodes, { sourceFile: 'g.md' });
   const { navPoints } = buildFileSkeleton(nodes, { sourceFile: 'g.md' });
 
   // Inventory stamps from buildFileSkeleton

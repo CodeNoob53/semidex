@@ -6,16 +6,21 @@ export default async function ({ ok }) {
 
   const {
     expectedChunkingMeta, skeletonPayloadFields, isSkeletonChunk, makeSkeletonPointId,
-    SKELETON_CHUNKING_MODEL, INDEXING_SCHEMA_VERSION,
+    SKELETON_CHUNKING_MODEL, INDEXING_SCHEMA_VERSION_BASE, INDEXING_SCHEMA_VERSION_SPLIT_ENTITY,
   } = await import('../../indexer/skeleton-payload.js');
   const { makePointId } = await import('../../core/point-id.js');
 
   // ── expectedChunkingMeta (B1: skip-tuple input) ─────────────────────────────
   // Signature dropped its env parameter — skeleton chunking is unconditional
   // for .md now, not gated by SKELETON_CHUNKING (which no longer exists).
-  ok('.md → skeleton meta, unconditionally',
+  // splitEntityTopology (code review, P2): the indexing schema version is
+  // topology-aware — defaults to BASE (false) when the caller doesn't pass
+  // it, matching a client-execution/local collection's unaffected topology.
+  ok('.md → skeleton meta, unconditionally (default: no split topology → BASE version)',
      JSON.stringify(expectedChunkingMeta('docs/a.md')) ===
-     JSON.stringify({ chunkingModel: SKELETON_CHUNKING_MODEL, indexingSchemaVersion: INDEXING_SCHEMA_VERSION }));
+     JSON.stringify({ chunkingModel: SKELETON_CHUNKING_MODEL, indexingSchemaVersion: INDEXING_SCHEMA_VERSION_BASE }));
+  ok('.md with splitEntityTopology:true → SPLIT_ENTITY version',
+     expectedChunkingMeta('docs/a.md', { splitEntityTopology: true }).indexingSchemaVersion === INDEXING_SCHEMA_VERSION_SPLIT_ENTITY);
   ok('.txt → legacy meta (skeleton is md-only)',
      expectedChunkingMeta('notes/a.txt').chunkingModel === null);
   ok('.pdf → legacy meta',
@@ -61,7 +66,9 @@ export default async function ({ ok }) {
      f.point_kind === 'retrieval_content' && f.node_type === 'table' &&
      f.node_id === 'uuid-1' && f.node_path === 'a.md#sec/table-1' &&
      f.parent_id === 'uuid-0' && f.raw_content === '| a |');
-  ok('indexing_schema_version stamped', f.indexing_schema_version === INDEXING_SCHEMA_VERSION);
+  ok('indexing_schema_version stamped (default: BASE, no split topology)', f.indexing_schema_version === INDEXING_SCHEMA_VERSION_BASE);
+  ok('indexing_schema_version respects splitEntityTopology:true',
+     skeletonPayloadFields(skelChunk, { splitEntityTopology: true }).indexing_schema_version === INDEXING_SCHEMA_VERSION_SPLIT_ENTITY);
   ok('chunking_model stamped', f.chunking_model === SKELETON_CHUNKING_MODEL);
   ok('lang=null omitted', !('lang' in f));
   ok('lang preserved when set',
@@ -88,7 +95,7 @@ export default async function ({ ok }) {
   const { parseSkeleton } = await import('../../indexer/phases/skeleton.js');
   const { chunkFromSkeleton } = await import('../../indexer/phases/skeleton-chunk.js');
   const md = '# S\n\nProse with enough meaningful words to pass the gate.\n\n| a | b |\n|---|---|\n| 1 | 2 |\n';
-  const chunks = chunkFromSkeleton(parseSkeleton(md, { sourceFile: 'a.md' }), { sourceFile: 'a.md' });
+  const { chunks } = await chunkFromSkeleton(parseSkeleton(md, { sourceFile: 'a.md' }), { sourceFile: 'a.md' });
   ok('every skeleton chunk yields payload fields',
      chunks.every(c => skeletonPayloadFields(c).chunking_model === SKELETON_CHUNKING_MODEL));
   ok('table chunk payload carries node_type=table',

@@ -4,7 +4,7 @@
 export default async function ({ ok }) {
   console.log('\n[56] qdrant_get_node — structural node resolver');
 
-  const { validateIdentifier, formatNode, clampPreviewChars } = await import('../../mcp/tools/getNode.js');
+  const { validateIdentifier, formatNode, clampPreviewChars, resolveCanonicalEntity } = await import('../../mcp/tools/getNode.js');
 
   // ── validateIdentifier ───────────────────────────────────────────────────────
 
@@ -182,4 +182,64 @@ export default async function ({ ok }) {
   ok('nav rejection: reason = nav_node_not_content', navRes.reason === 'nav_node_not_content');
   ok('nav rejection: collection set',               navRes.collection === 'test-col');
   ok('nav rejection: no preview field',             !('preview' in navRes));
+
+  // ── formatNode: entity_raw canonical node behaves like ordinary content ─────
+  // (never rejected the way skeleton_nav is — it's a real, non-searchable
+  // content point, and formatNode's only special-case check is skeleton_nav)
+
+  const entityRawPayload = {
+    point_kind:  'entity_raw',
+    node_type:   'table',
+    node_id:     'tbl-canonical-uuid',
+    node_path:   'dir/file.md#section/table-1',
+    parent_id:   'sec-uuid',
+    source_file: 'dir/file.md',
+    heading_path: ['Config'],
+    chunk_index: 7,
+    section:     'Config',
+    lang:        null,
+    context:     '',
+    summary:     null,
+    raw_content: '| Name | Value |\n|---|---|\n| a | 1 |\n| b | 2 |\n| c | 3 |',
+  };
+  const entityRawRes = formatNode(entityRawPayload, 'test-col', 2000);
+  ok('entity_raw: found = true (not rejected like skeleton_nav)', entityRawRes.found === true);
+  ok('entity_raw: preview = full raw_content',                    entityRawRes.preview === entityRawPayload.raw_content);
+  ok('entity_raw: raw_available true',                            entityRawRes.raw_available === true);
+
+  // ── resolveCanonicalEntity: fragment → canonical entity_raw resolution ──────
+
+  const fragmentPayload = {
+    point_kind:  'retrieval_content',
+    node_type:   'table',
+    node_id:     'tbl-fragment-2-uuid',
+    node_path:   'dir/file.md#section/table-1/fragment-2',
+    entity_id:   'tbl-canonical-uuid',
+    fragment_index: 1,
+    fragment_count: 3,
+    raw_content: '| Name | Value |\n|---|---|\n| b | 2 |',
+  };
+
+  let lookedUpWith = null;
+  const fakeGetContentNodeById = async (collection, nodeId) => {
+    lookedUpWith = { collection, nodeId };
+    return nodeId === 'tbl-canonical-uuid' ? entityRawPayload : null;
+  };
+
+  const resolved = await resolveCanonicalEntity(fragmentPayload, 'test-col', fakeGetContentNodeById);
+  ok('resolveCanonicalEntity: fragment resolves to canonical entity_raw payload',
+     resolved === entityRawPayload);
+  ok('resolveCanonicalEntity: looked up via the fragment\'s entity_id, not its own node_id',
+     lookedUpWith?.nodeId === 'tbl-canonical-uuid' && lookedUpWith?.collection === 'test-col');
+
+  ok('resolveCanonicalEntity: non-fragment content (no entity_id) passes through unchanged',
+     (await resolveCanonicalEntity(tablePayload, 'test-col', fakeGetContentNodeById)) === tablePayload);
+
+  ok('resolveCanonicalEntity: null content passes through as null',
+     (await resolveCanonicalEntity(null, 'test-col', fakeGetContentNodeById)) === null);
+
+  const missingCanonicalLookup = async () => null; // canonical was deleted/never indexed
+  const fallback = await resolveCanonicalEntity(fragmentPayload, 'test-col', missingCanonicalLookup);
+  ok('resolveCanonicalEntity: falls back to the fragment itself if canonical lookup returns nothing',
+     fallback === fragmentPayload);
 }

@@ -35,7 +35,7 @@ export default async function ({ ok }) {
   // ── generateNavSummaries with stubbed LLM ────────────────────────────────────
   const DOC = '# Guide\n\nThis document explains how to deploy the service safely.\n\n## Setup\n\nInstall the runtime and configure the unit before starting.\n';
   const nodes = parseSkeleton(DOC, { sourceFile: 'g.md' });
-  const chunks = chunkFromSkeleton(nodes, { sourceFile: 'g.md' });
+  const { chunks } = await chunkFromSkeleton(nodes, { sourceFile: 'g.md' });
   const { navPoints } = buildFileSkeleton(nodes, { sourceFile: 'g.md' });
 
   let calls = 0;
@@ -96,7 +96,7 @@ export default async function ({ ok }) {
       `Розділ містить детальний опис інструмента номер ${i} з прикладами використання та поясненнями налаштувань для проєкту.`).join(' ');
     const BIGDOC = `# Менеджер\n\n${bigBody}\n\n${bigBody}\n\n${bigBody}\n\n${bigBody}\n`;
     const bnodes = parseSkeleton(BIGDOC, { sourceFile: 'b.md' });
-    const bchunks = chunkFromSkeleton(bnodes, { sourceFile: 'b.md' });
+    const { chunks: bchunks } = await chunkFromSkeleton(bnodes, { sourceFile: 'b.md' });
     const bnav = buildFileSkeleton(bnodes, { sourceFile: 'b.md' }).navPoints;
     const seen = [];
     await generateNavSummaries(bnav, bchunks, {

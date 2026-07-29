@@ -112,7 +112,7 @@ export default async function ({ ok, throwsAsync }) {
         const fixtureFile = new URL('../../../benchmarks/retrieval/fixtures/ua-prose-synthetic.md', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
         const { existsSync: exists } = await import('fs');
         if (exists(fixtureFile)) {
-          const asyncChunks = await chunkFileFromPath(fixtureFile, 'ua-prose-synthetic.md');
+          const { chunks: asyncChunks } = await chunkFileFromPath(fixtureFile, 'ua-prose-synthetic.md');
           ok('bge-m3 chunkFileFromPath returns chunks array', Array.isArray(asyncChunks));
           ok('bge-m3 chunks have text field', asyncChunks.every(c => typeof c.text === 'string'));
           // Verify no chunk grossly exceeds MAX_CHUNK_TOKENS in real tokens.

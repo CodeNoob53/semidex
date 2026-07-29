@@ -14,7 +14,7 @@ export default async function ({ ok }) {
   // Entity comes first → placeholder must go into the FOLLOWING prose run.
   {
     const md = '# Install\n\n| Col | Val |\n|-----|-----|\n| A   | 1   |\n\nThis prose follows the table.\n';
-    const chunks = chunkFromSkeleton(parseSkeleton(md, { sourceFile: 'f.md' }), { sourceFile: 'f.md' });
+    const { chunks } = await chunkFromSkeleton(parseSkeleton(md, { sourceFile: 'f.md' }), { sourceFile: 'f.md' });
     const prosePh = chunks.find(c => c.node_type === 'paragraph' && c.text.includes('[table node:'));
     const tableChunk = chunks.find(c => c.node_type === 'table');
     ok('entity-first: table chunk emitted',           tableChunk !== undefined);
@@ -26,7 +26,7 @@ export default async function ({ ok }) {
   // Entity last → placeholder appended to lastProseIdx.
   {
     const md = '# Install\n\nSome intro text with enough real words here.\n\n| Col | Val |\n|-----|-----|\n| A   | 1   |\n';
-    const chunks = chunkFromSkeleton(parseSkeleton(md, { sourceFile: 'f.md' }), { sourceFile: 'f.md' });
+    const { chunks } = await chunkFromSkeleton(parseSkeleton(md, { sourceFile: 'f.md' }), { sourceFile: 'f.md' });
     const proseWithPh = chunks.find(c => c.node_type === 'paragraph' && c.text.includes('[table node:'));
     ok('entity-last: placeholder in preceding prose', proseWithPh !== undefined);
     ok('entity-last: table chunk still emitted',      chunks.some(c => c.node_type === 'table'));
@@ -35,7 +35,7 @@ export default async function ({ ok }) {
   // ── 47c. Entity-after-entity: two tables in a row, each gets exactly one placeholder
   {
     const md = '# S\n\nIntro with real words.\n\n| A | B |\n|---|---|\n| 1 | 2 |\n\n| C | D |\n|---|---|\n| 3 | 4 |\n';
-    const chunks = chunkFromSkeleton(parseSkeleton(md, { sourceFile: 'f.md' }), { sourceFile: 'f.md' });
+    const { chunks } = await chunkFromSkeleton(parseSkeleton(md, { sourceFile: 'f.md' }), { sourceFile: 'f.md' });
     const tables = chunks.filter(c => c.node_type === 'table');
     const phs = chunks.filter(c => c.node_type === 'paragraph' && c.text.includes('[table node:'));
     ok('entity-after-entity: two table chunks emitted', tables.length === 2);
@@ -50,7 +50,7 @@ export default async function ({ ok }) {
   // ── 47d. Section boundary: prose from one section must not appear in another
   {
     const md = '# Alpha\n\nAlpha paragraph with enough meaningful words here.\n\n# Beta\n\nBeta paragraph with enough meaningful words here.\n';
-    const chunks = chunkFromSkeleton(parseSkeleton(md, { sourceFile: 'f.md' }), { sourceFile: 'f.md' });
+    const { chunks } = await chunkFromSkeleton(parseSkeleton(md, { sourceFile: 'f.md' }), { sourceFile: 'f.md' });
     const alpha = chunks.filter(c => c.section === 'Alpha');
     const beta  = chunks.filter(c => c.section === 'Beta');
     ok('section boundary: alpha chunks exist',                alpha.length > 0);
@@ -68,7 +68,7 @@ export default async function ({ ok }) {
     const sentence = 'This is a representative sentence with enough real words to count toward the token budget. ';
     const longProse = sentence.repeat(30);
     const md = `# Long\n\n${longProse}\n`;
-    const chunks = chunkFromSkeleton(parseSkeleton(md, { sourceFile: 'f.md' }), { sourceFile: 'f.md' });
+    const { chunks } = await chunkFromSkeleton(parseSkeleton(md, { sourceFile: 'f.md' }), { sourceFile: 'f.md' });
     const proseChunks = chunks.filter(c => c.node_type === 'paragraph');
     ok('long prose: split into multiple paragraph chunks', proseChunks.length >= 2);
     ok('long prose: chunkIndex sequential',
@@ -93,7 +93,7 @@ export default async function ({ ok }) {
     ok('heading stack: new h1 structural path is just its slug',
        newRoot?.structuralPath === 'newroot');
     // Content under NewRoot must be isolated
-    const chunks = chunkFromSkeleton(nodes, { sourceFile: 'f.md' });
+    const { chunks } = await chunkFromSkeleton(nodes, { sourceFile: 'f.md' });
     const deepChunk = chunks.find(c => c.text.includes('Deep content'));
     const newChunk  = chunks.find(c => c.text.includes('New root content'));
     ok('heading stack: deep content has heading_path length 3', deepChunk?.heading_path?.length === 3);
@@ -137,8 +137,9 @@ export default async function ({ ok }) {
     const nodes = parseSkeleton(md, { sourceFile: 'f.md' });
     ok('image-only paragraph → image node', nodes.some(n => n.nodeType === 'image'));
     ok('image node has alt text', nodes.find(n => n.nodeType === 'image')?.text === 'Alt text');
+    const { chunks: imageChunks } = await chunkFromSkeleton(nodes, { sourceFile: 'f.md' });
     ok('image not emitted as retrieval chunk',
-       chunkFromSkeleton(nodes, { sourceFile: 'f.md' }).every(c => c.node_type !== 'image'));
+       imageChunks.every(c => c.node_type !== 'image'));
   }
 
   // ── 47j. skeletonArtifactPathFor — path traversal guard
@@ -169,7 +170,7 @@ export default async function ({ ok }) {
   // ── 47l. Frontmatter meta propagates to ALL chunks in the file
   {
     const md = '---\ntags: foo, bar\ntitle: Guide\n---\n# Sec\n\nParagraph with real content words.\n\n| A | B |\n|---|---|\n| 1 | 2 |\n';
-    const chunks = chunkFromSkeleton(parseSkeleton(md, { sourceFile: 'f.md' }), { sourceFile: 'f.md' });
+    const { chunks } = await chunkFromSkeleton(parseSkeleton(md, { sourceFile: 'f.md' }), { sourceFile: 'f.md' });
     ok('frontmatter meta on all chunks',
        chunks.length > 0 && chunks.every(c => Array.isArray(c.meta?.tags) && c.meta.tags.includes('foo')));
     ok('frontmatter title propagated',

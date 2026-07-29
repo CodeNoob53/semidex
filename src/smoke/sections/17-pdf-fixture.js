@@ -7,7 +7,7 @@ export default async function ({ ok }) {
   const { chunkFileFromPath } = await import('../../indexer/phases/chunk.js');
   const fixturePath = resolve(dirname(fileURLToPath(import.meta.url)), '../../test-fixtures/three-sections.pdf');
 
-  const chunks = await chunkFileFromPath(fixturePath, 'three-sections.pdf');
+  const { chunks } = await chunkFileFromPath(fixturePath, 'three-sections.pdf');
 
   ok('PDF fixture → more than 1 chunk', chunks.length > 1);
 

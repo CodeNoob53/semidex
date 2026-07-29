@@ -61,7 +61,7 @@ export default async function ({ ok }) {
      chunkFile('doc.md', DOC.replace(/\n/g, '\r\n'), 'doc.md')[0]?.meta?.tags?.length === 2);
 
   // ── skeleton chunking behavior ───────────────────────────────────────────────
-  const chunks = chunkFromSkeleton(parseSkeleton(DOC, { sourceFile: 'doc.md' }), { sourceFile: 'doc.md' });
+  const { chunks } = await chunkFromSkeleton(parseSkeleton(DOC, { sourceFile: 'doc.md' }), { sourceFile: 'doc.md' });
   const byType = t => chunks.filter(c => c.node_type === t);
 
   ok('skeleton produces chunks', chunks.length > 0);
@@ -122,7 +122,7 @@ export default async function ({ ok }) {
   ok('empty section emits nothing', !chunks.some(c => c.section === 'Empty Section'));
 
   // node_id determinism across runs
-  const again = chunkFromSkeleton(parseSkeleton(DOC, { sourceFile: 'doc.md' }), { sourceFile: 'doc.md' });
+  const { chunks: again } = await chunkFromSkeleton(parseSkeleton(DOC, { sourceFile: 'doc.md' }), { sourceFile: 'doc.md' });
   ok('node_ids deterministic across reindex',
      JSON.stringify(chunks.map(c => c.node_id)) === JSON.stringify(again.map(c => c.node_id)));
 
@@ -143,7 +143,7 @@ export default async function ({ ok }) {
       if (envState === undefined) delete process.env.SKELETON_CHUNKING;
       else process.env.SKELETON_CHUNKING = envState;
 
-      const viaPath = await chunkFileFromPath(fp, 'doc.md');
+      const { chunks: viaPath } = await chunkFileFromPath(fp, 'doc.md');
       ok(`.md always produces skeleton chunks regardless of SKELETON_CHUNKING=${envState}`,
          viaPath.some(c => c.chunking_model === 'skeleton-v1'));
       ok(`.md always produces a table entity regardless of SKELETON_CHUNKING=${envState}`,

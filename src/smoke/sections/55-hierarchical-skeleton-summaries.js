@@ -33,7 +33,7 @@ export default async function ({ ok }) {
   // File with exactly ONE section — file should propagate section summary, no extra LLM call.
   const DOC_ONE_SECTION = '# Guide\n\nThis document explains how to deploy the service and configure it for production.\n';
   const nodes1  = parseSkeleton(DOC_ONE_SECTION, { sourceFile: 'guide.md' });
-  const chunks1 = chunkFromSkeleton(nodes1, { sourceFile: 'guide.md' });
+  const { chunks: chunks1 } = await chunkFromSkeleton(nodes1, { sourceFile: 'guide.md' });
   const { navPoints: navPts1 } = buildFileSkeleton(nodes1, { sourceFile: 'guide.md' });
 
   callCount = 0;
@@ -53,7 +53,7 @@ export default async function ({ ok }) {
   // File with TWO sections — file should call LLM independently.
   const DOC_TWO = '# Guide\n\nDeployment intro.\n\n## Setup\n\nInstall the runtime here.\n';
   const nodes2  = parseSkeleton(DOC_TWO, { sourceFile: 'guide2.md' });
-  const chunks2 = chunkFromSkeleton(nodes2, { sourceFile: 'guide2.md' });
+  const { chunks: chunks2 } = await chunkFromSkeleton(nodes2, { sourceFile: 'guide2.md' });
   const { navPoints: navPts2 } = buildFileSkeleton(nodes2, { sourceFile: 'guide2.md' });
 
   callCount = 0;
@@ -79,7 +79,7 @@ export default async function ({ ok }) {
   // The preamble is prose before the first heading; parseSkeleton assigns it no parent section.
   const DOC_PREAMBLE = 'This is preamble content before any heading. It matters.\n\n# Setup\n\nInstall the runtime.\n';
   const nodesPre  = parseSkeleton(DOC_PREAMBLE, { sourceFile: 'preamble.md' });
-  const chunksPre = chunkFromSkeleton(nodesPre, { sourceFile: 'preamble.md' });
+  const { chunks: chunksPre } = await chunkFromSkeleton(nodesPre, { sourceFile: 'preamble.md' });
   const { navPoints: navPtsPre } = buildFileSkeleton(nodesPre, { sourceFile: 'preamble.md' });
 
   callCount = 0;

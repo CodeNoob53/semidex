@@ -9,8 +9,9 @@ export default async function ({ ok }) {
   const { chunkFromSkeleton } = await import('../../indexer/phases/skeleton-chunk.js');
 
   // ── fixture helpers ──────────────────────────────────────────────────────────
-  function chunks(md) {
-    return chunkFromSkeleton(parseSkeleton(md, { sourceFile: 'test.md' }), { sourceFile: 'test.md' });
+  async function chunks(md) {
+    const { chunks: result } = await chunkFromSkeleton(parseSkeleton(md, { sourceFile: 'test.md' }), { sourceFile: 'test.md' });
+    return result;
   }
   function byType(cs, t) { return cs.filter(c => c.node_type === t); }
 
@@ -23,7 +24,7 @@ Use these directives to configure the service.
 |-----------|---------|
 | Restart   | auto    |
 `;
-  const c1 = chunks(doc1);
+  const c1 = await chunks(doc1);
   const tbl1 = byType(c1, 'table')[0];
   ok('[1] table chunk context includes cleaned prose phrase',
      /directives/.test(tbl1?.context ?? ''));
@@ -47,7 +48,7 @@ npm run lint
 node server.js --port 3000
 \`\`\`
 `;
-  const c2 = chunks(doc2);
+  const c2 = await chunks(doc2);
   const code2 = byType(c2, 'code_block')[0];
   ok('[2] code_block context includes prose carryover',
      /Install|dependencies|environment/.test(code2?.context ?? ''));
@@ -69,7 +70,7 @@ Run the migration before deploy.
 npm run migrate
 \`\`\`
 `;
-  const c3 = chunks(doc3);
+  const c3 = await chunks(doc3);
   const tbl3  = byType(c3, 'table')[0];
   const code3 = byType(c3, 'code_block')[0];
   ok('[3] table context has no placeholder lines',
@@ -90,7 +91,7 @@ Background prose from section A.
 |-----|-----|
 | x   | 1   |
 `;
-  const c4 = chunks(doc4);
+  const c4 = await chunks(doc4);
   const tbl4 = byType(c4, 'table')[0];
   ok('[4] table context does not carry prose from previous section',
      !/Background|Section A/.test(tbl4?.context ?? ''));
@@ -111,7 +112,7 @@ Here is the first table.
 |---|---|
 | 3 | 4 |
 `;
-  const c5 = chunks(doc5);
+  const c5 = await chunks(doc5);
   const tables5 = byType(c5, 'table');
   ok('[5] second table context has no placeholder from first table',
      tables5.length >= 2 && !/\[table node:/.test(tables5[1]?.context ?? ''));
@@ -127,7 +128,7 @@ ${longProse}
 |-----|-----|
 | a   | 1   |
 `;
-  const c6 = chunks(doc6);
+  const c6 = await chunks(doc6);
   const tbl6 = byType(c6, 'table')[0];
   // context = "Long — table — <prose>"; prose portion must be capped
   const prose6 = (tbl6?.context ?? '').split(' — ').slice(2).join(' — ');
@@ -139,7 +140,7 @@ ${longProse}
   const prevVal = process.env.SKELETON_CARRYOVER_CHARS;
   process.env.SKELETON_CARRYOVER_CHARS = '50';
   try {
-    const c7a = chunks(doc6);
+    const c7a = await chunks(doc6);
     const tbl7a = byType(c7a, 'table')[0];
     const prose7a = (tbl7a?.context ?? '').split(' — ').slice(2).join(' — ');
     ok('[7a] SKELETON_CARRYOVER_CHARS=50 caps prose at 50 chars',
@@ -152,7 +153,7 @@ ${longProse}
   // ── case 7b: invalid SKELETON_CARRYOVER_CHARS falls back safely ──────────
   process.env.SKELETON_CARRYOVER_CHARS = 'notanumber';
   try {
-    const c7b = chunks(doc6);
+    const c7b = await chunks(doc6);
     const tbl7b = byType(c7b, 'table')[0];
     ok('[7b] invalid SKELETON_CARRYOVER_CHARS falls back to default',
        tbl7b !== undefined && typeof tbl7b.context === 'string');
@@ -176,7 +177,7 @@ Introductory sentence for this section.
 |---|---|
 | 3 | 4 |
 `;
-  const c7c = chunks(doc7c);
+  const c7c = await chunks(doc7c);
   const tables7c = byType(c7c, 'table');
   // Both tables are in the same section; second should have context from the
   // intro prose (carried via lastProseIdx), not empty.

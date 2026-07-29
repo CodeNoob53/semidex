@@ -88,7 +88,7 @@ Use the control panel to manage running instances and monitor their status.
 Restart the service gracefully to apply configuration changes without downtime.
 `;
   const nodes   = parseSkeleton(DOC, { sourceFile: 'g.md' });
-  const chunks  = chunkFromSkeleton(nodes, { sourceFile: 'g.md' });
+  const { chunks }  = await chunkFromSkeleton(nodes, { sourceFile: 'g.md' });
   const { navPoints } = buildFileSkeleton(nodes, { sourceFile: 'g.md' });
 
   const seenNumCtx = [];
