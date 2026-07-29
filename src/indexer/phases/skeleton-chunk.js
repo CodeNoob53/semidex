@@ -21,7 +21,7 @@
 // not know the collection (same as legacy). Cross-collection isolation for
 // POINT ids stays in makePointId; node_id isolates by file + structure.
 
-import { recursiveChunkText } from './chunk.js';
+import { recursiveChunkTextForBudget } from './chunk.js';
 import { applyNodePolicy, isContentBearing, POINT_KINDS } from './node-policy.js';
 import { makeNodeId } from '../../core/node-id.js';
 import { placeholderForReference, attachEntityRefs } from '../../core/entity-reference.js';
@@ -139,13 +139,13 @@ export async function chunkFromSkeleton(nodes, ctx = {}) {
     return n;
   };
 
-  const flushProse = () => {
+  const flushProse = async () => {
     if (!proseParts.length) return;
     const text = proseParts.join('\n\n').trim();
     proseParts = [];
     if (!text) return;
 
-    for (const piece of recursiveChunkText(text)) {
+    for (const piece of await recursiveChunkTextForBudget(text, budget)) {
       const pseudo = applyNodePolicy({ nodeType: 'paragraph', text: piece });
       if (!isContentBearing(pseudo)) continue;   // §7.3 gate at emission
       const ordinal = nextProseOrdinal(proseParentPath);
@@ -184,7 +184,7 @@ export async function chunkFromSkeleton(nodes, ctx = {}) {
       }
 
       case 'nav_summary': {            // section (file/collection don't occur here)
-        flushProse();
+        await flushProse();
         lastProseIdx = -1;             // placeholders never cross section boundaries
         proseSection = n.nodeType === 'section' ? n.text : proseSection;
         proseHeadingPath = n.headingPath ?? [];
@@ -210,7 +210,7 @@ export async function chunkFromSkeleton(nodes, ctx = {}) {
           ? proseParts.join(' ')
           : (lastProseIdx >= 0 ? out[lastProseIdx].text : '');
         if (bearing && hadPrecedingProse) proseParts.push(placeholderFor(sourceFile, n));
-        flushProse();
+        await flushProse();
         if (!bearing) break;               // defensive — structural types pass
 
         // Canonical entity identity — UNCHANGED from before entity splitting
@@ -343,7 +343,7 @@ export async function chunkFromSkeleton(nodes, ctx = {}) {
       }
     }
   }
-  flushProse();
+  await flushProse();
 
   // Entity-reference attachment (Phase 3U) runs as a SECOND pass over the
   // fully-assembled chunk array, not interleaved into the forward walk

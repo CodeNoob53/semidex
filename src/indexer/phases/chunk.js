@@ -6,6 +6,7 @@ import { createRequire } from 'module';
 import pdf2md from '@opendocsg/pdf2md';
 import { heuristicTokenCount, getTokenCounter, resolveTokenCountMode } from '../../core/token-count.js';
 import { envInt } from '../../core/env.js';
+import { splitOversizedUnitIntoPieces, canonicalWhitespace } from './token-budget-split.js';
 
 const require = createRequire(import.meta.url);
 const { PDFParse } = require('pdf-parse');
@@ -47,6 +48,35 @@ export function applyChunkingSettings(settingsService) {
 
 export function getChunkingConfig() {
   return { maxTokens: MAX_TOKENS, minTokens: MIN_TOKENS, overlapTokens: CHUNK_OVERLAP_TOKENS, overlapSentences: OVERLAP_SENTENCES };
+}
+
+/**
+ * Resolves a real per-profile embedding budget ({ maxInputTokens,
+ * countTokens }, from resolveEmbeddingBudget, qdrant-cloud-catalog.js) into
+ * the effective ceiling/floor/overlap this module's budget-aware chunking
+ * functions use. Returns `null` (a sentinel, not a same-shaped default
+ * object) when `budget` is null/absent — every call site branches
+ * explicitly on this, taking the UNCHANGED, pre-existing unbudgeted code
+ * path rather than a "same function, default-parameterized" path, which is
+ * what makes the Local/no-budget path provably byte-identical to today.
+ *
+ * effectiveMax never exceeds the user-configured MAX_CHUNK_TOKENS — a
+ * cloud model with a WIDER context window than configured must never
+ * silently grow chunks past what the operator configured; only a model
+ * window NARROWER than configured tightens the ceiling. minTokens/
+ * overlapTokens scale down proportionally only when the ceiling itself
+ * was tightened (shrink < 1); they never scale up.
+ */
+export function effectiveBudgetFor(budget) {
+  if (!budget) return null;
+  const maxTokens = Math.min(MAX_TOKENS, budget.maxInputTokens);
+  const shrink = maxTokens < MAX_TOKENS ? maxTokens / MAX_TOKENS : 1;
+  return {
+    countFn: budget.countTokens,
+    maxTokens,
+    minTokens: Math.min(MIN_TOKENS, Math.floor(MIN_TOKENS * shrink)),
+    overlapTokens: Math.min(CHUNK_OVERLAP_TOKENS, Math.floor(CHUNK_OVERLAP_TOKENS * shrink)),
+  };
 }
 
 // Sync heuristic used by the legacy sync chunking path. Aliased from
@@ -296,6 +326,62 @@ async function addSplitOverlapAsync(chunks, countFn) {
   return result;
 }
 
+// ── budget-aware overlap: re-measures the ACTUAL joined string ────────────
+// addSplitOverlapAsync (above) caps the overlap by separately-measured
+// token counts of `overlap` and `chunk.text`, then joins them without
+// re-checking — subword tokenization is not strictly additive across a
+// join boundary, so the joined result can exceed maxTokens even when both
+// halves individually fit. This variant re-measures the actual candidate
+// string and shrinks/omits the overlap if it doesn't fit, never emitting a
+// chunk whose final text exceeds maxTokens.
+async function addSplitOverlapAsyncBudgeted(chunks, countFn, { maxTokens, overlapTokens }) {
+  if (overlapTokens <= 0) return chunks.map((c) => ({ ...c, _split_boundary: false }));
+
+  const result = [];
+  for (let idx = 0; idx < chunks.length; idx++) {
+    const chunk = chunks[idx];
+
+    if (idx === 0 || !chunk._split_boundary) {
+      result.push({ ...chunk, _split_boundary: false });
+      continue;
+    }
+
+    const prev = chunks[idx - 1];
+    if (!sameChunkScope(prev, chunk)) {
+      result.push({ ...chunk, _split_boundary: false });
+      continue;
+    }
+
+    const bodyTokens = await countFn(chunk.text);
+    const available = maxTokens - bodyTokens;
+
+    if (available <= 0) {
+      result.push({ ...chunk, _split_boundary: false });
+      continue;
+    }
+
+    let cap = Math.min(overlapTokens, available);
+    let overlap = '';
+    // Shrink the cap until the ACTUAL joined string fits, or until no
+    // non-empty overlap can fit at all (emit the chunk unmodified).
+    while (cap > 0) {
+      const candidate = await safeLastTokens(prev.text, cap, countFn);
+      if (!candidate || chunk.text.startsWith(candidate)) { overlap = ''; break; }
+      const joined = `${candidate} ${chunk.text}`;
+      if (await countFn(joined) <= maxTokens) { overlap = candidate; break; }
+      cap = (await countFn(candidate)) - 1; // shrink and retry
+    }
+
+    if (!overlap) {
+      result.push({ ...chunk, _split_boundary: false });
+      continue;
+    }
+
+    result.push({ ...chunk, text: `${overlap} ${chunk.text}`, _split_boundary: false });
+  }
+  return result;
+}
+
 export function mergeShortChunks(chunks, countFn = countTokens) {
   if (MIN_TOKENS <= 0 || chunks.length <= 1) return chunks.map(c => ({ ...c }));
 
@@ -352,6 +438,46 @@ async function mergeShortChunksAsync(chunks, countFn) {
   return merged;
 }
 
+// ── budget-aware merge: never merge past maxTokens to satisfy minTokens ───
+// mergeShortChunksAsync (above) merges based only on the UNDERSIZED side
+// (currentTokens < minTokens), never checking whether the merged RESULT
+// stays under maxTokens. This variant measures the candidate merged text
+// first and only commits the merge if it fits — an under-minTokens chunk
+// that can't merge further without breaking the ceiling is emitted as-is,
+// which is the correct, intentional outcome (never overshoot the ceiling
+// to satisfy the floor).
+async function mergeShortChunksAsyncBudgeted(chunks, countFn, { minTokens, maxTokens }) {
+  if (minTokens <= 0 || chunks.length <= 1) return chunks.map((c) => ({ ...c }));
+
+  const merged = [];
+  for (let i = 0; i < chunks.length; i++) {
+    let current = { ...chunks[i] };
+    let currentTokens = await countFn(current.text);
+
+    while (i + 1 < chunks.length && sameChunkScope(current, chunks[i + 1])) {
+      if (currentTokens >= minTokens) break;
+      const candidate = mergePair(current, chunks[i + 1]);
+      const candidateTokens = await countFn(candidate.text);
+      if (candidateTokens > maxTokens) break; // merging would overshoot the ceiling — stop
+      current = candidate;
+      currentTokens = candidateTokens;
+      i++;
+    }
+
+    if (currentTokens < minTokens && merged.length > 0 && sameChunkScope(merged.at(-1), current)) {
+      const candidate = mergePair(merged.at(-1), current);
+      const candidateTokens = await countFn(candidate.text);
+      if (candidateTokens <= maxTokens) {
+        merged[merged.length - 1] = candidate;
+        continue;
+      }
+    }
+    merged.push(current);
+  }
+
+  return merged;
+}
+
 export function finalizeChunks(chunks, countFn = countTokens) {
   const merged = mergeShortChunks(chunks, countFn);
   return reindexChunks(addSplitOverlap(markSplitBoundaries(merged)));
@@ -362,6 +488,26 @@ async function finalizeChunksAsync(chunks, countFn) {
   const marked = markSplitBoundaries(merged);
   const overlapped = await addSplitOverlapAsync(marked, countFn);
   return reindexChunks(overlapped);
+}
+
+// Budget-aware finalize: chains the *Budgeted merge/overlap variants, then
+// enforces a hard final invariant — every chunk must fit maxTokens. Given
+// the fixes in mergeShortChunksAsyncBudgeted/addSplitOverlapAsyncBudgeted/
+// chunkBySentencesAsyncBudgeted/chunkSectionsAsyncBudgeted, this should be
+// structurally unreachable; it throws loudly rather than silently shipping
+// an oversized chunk to the embedder if it is somehow reached.
+async function finalizeChunksAsyncBudgeted(chunks, countFn, { minTokens, maxTokens, overlapTokens }) {
+  const merged = await mergeShortChunksAsyncBudgeted(chunks, countFn, { minTokens, maxTokens });
+  const marked = markSplitBoundaries(merged);
+  const overlapped = await addSplitOverlapAsyncBudgeted(marked, countFn, { maxTokens, overlapTokens });
+  const final = reindexChunks(overlapped);
+  for (const chunk of final) {
+    const tokens = await countFn(chunk.text);
+    if (tokens > maxTokens) {
+      throw new Error(`[chunk] budget invariant violated: chunk ${chunk.chunkIndex} has ${tokens} tokens, exceeding maxTokens=${maxTokens} (source_file: ${chunk.source_file})`);
+    }
+  }
+  return final;
 }
 
 // heuristic: is this a real section title or just body text styled as heading?
@@ -471,13 +617,13 @@ export function chunkFile(filePath, text, sourceFile) {
 // Used by the production indexer. The sync chunkFile helper remains heuristic
 // for legacy callers and benchmarks until they explicitly migrate.
 
-async function _splitLevelAsync(text, levels, countFn) {
-  if (await countFn(text) <= MAX_TOKENS) return [text];
+async function _splitLevelAsync(text, levels, countFn, maxTokens = MAX_TOKENS) {
+  if (await countFn(text) <= maxTokens) return [text];
   if (levels.length === 0) return [text];
 
   const [level, ...rest] = levels;
   const units = level.split(text);
-  if (units.length <= 1) return _splitLevelAsync(text, rest, countFn);
+  if (units.length <= 1) return _splitLevelAsync(text, rest, countFn, maxTokens);
 
   const chunks = [];
   let current = [];
@@ -485,14 +631,14 @@ async function _splitLevelAsync(text, levels, countFn) {
 
   for (const unit of units) {
     const ut = await countFn(unit);
-    if (ut > MAX_TOKENS) {
+    if (ut > maxTokens) {
       if (current.length > 0) {
         chunks.push(current.join(level.join));
         current = [];
         currentTokens = 0;
       }
-      chunks.push(...await _splitLevelAsync(unit, rest, countFn));
-    } else if (currentTokens + ut > MAX_TOKENS && current.length > 0) {
+      chunks.push(...await _splitLevelAsync(unit, rest, countFn, maxTokens));
+    } else if (currentTokens + ut > maxTokens && current.length > 0) {
       chunks.push(current.join(level.join));
       current = [unit];
       currentTokens = ut;
@@ -505,12 +651,39 @@ async function _splitLevelAsync(text, levels, countFn) {
   return chunks;
 }
 
-async function recursiveChunkTextAsync(text, countFn, { stripPageMarkers = false } = {}) {
+async function recursiveChunkTextAsync(text, countFn, { stripPageMarkers = false } = {}, maxTokens = MAX_TOKENS) {
   let src = normalizeEol(text);
   if (stripPageMarkers) src = src.replace(/--\s*\d+\s*of\s*\d+\s*--/g, '');
   src = src.replace(/\n{3,}/g, '\n\n').trim();
   if (!src) return [];
-  return _splitLevelAsync(src, LEVELS, countFn);
+  return _splitLevelAsync(src, LEVELS, countFn, maxTokens);
+}
+
+/**
+ * Profile-aware entry point for prose text chunking — used by
+ * skeleton-chunk.js's flushProse() (Markdown path). Splits `text` so every
+ * returned piece fits the resolved budget using the real per-profile
+ * tokenizer, falling back to character-boundary splitting
+ * (splitOversizedUnitIntoPieces) for any piece still oversized after
+ * word-level splitting (LEVELS' last level has no further fallback of its
+ * own). When `budget` is null (client/local execution profile), delegates
+ * to the unchanged, unmodified recursiveChunkText() — byte-identical to
+ * pre-existing behavior, by construction.
+ * @param {string} text
+ * @param {{maxInputTokens: number, countTokens: (text: string) => number|Promise<number>}|null} budget
+ * @param {{stripPageMarkers?: boolean}} [opts]
+ * @returns {Promise<string[]>}
+ */
+export async function recursiveChunkTextForBudget(text, budget, opts = {}) {
+  const eff = effectiveBudgetFor(budget);
+  if (!eff) return recursiveChunkText(text, opts);
+  const pieces = await recursiveChunkTextAsync(text, eff.countFn, opts, eff.maxTokens);
+  const final = [];
+  for (const piece of pieces) {
+    if ((await eff.countFn(piece)) <= eff.maxTokens) { final.push(piece); continue; }
+    final.push(...await splitOversizedUnitIntoPieces(piece, (p) => p, { countTokens: eff.countFn, maxInputTokens: eff.maxTokens }));
+  }
+  return final;
 }
 
 async function chunkBySentencesAsync(text, countFn) {
@@ -529,6 +702,53 @@ async function chunkBySentencesAsync(text, countFn) {
     }
   }
   if (pending > 0) chunks.push(current.join(' '));
+  return chunks;
+}
+
+// ── budget-aware sentence chunking: never ships an oversized chunk ────────
+// chunkBySentencesAsync (above) appends each sentence to `current` FIRST,
+// then checks the accumulated join against MAX_TOKENS — so a single
+// oversized sentence (or a short run of sentences that only crosses the
+// ceiling once fully accumulated) is pushed as a chunk exceeding budget,
+// with no fallback split. This variant checks the CANDIDATE before
+// committing, and any single sentence still oversized alone is split
+// further: word-level first (_splitLevelAsync with only the word LEVEL),
+// then — since word-level is the LAST level and a single no-space token
+// (e.g. a long URL/identifier) can still be oversized after it —
+// character-boundary split via splitOversizedUnitIntoPieces. Every
+// resulting piece is guaranteed to fit maxTokens.
+const WORD_LEVEL = [LEVELS[2]];
+
+async function chunkBySentencesAsyncBudgeted(text, countFn, maxTokens) {
+  const sentences = splitSentences(text);
+  const chunks = [];
+  let current = [];
+
+  const flush = () => {
+    if (current.length) {
+      chunks.push(current.join(' '));
+      current = [];
+    }
+  };
+
+  for (const sentence of sentences) {
+    const sentenceTokens = await countFn(sentence);
+    if (sentenceTokens > maxTokens) {
+      flush();
+      const wordPieces = await _splitLevelAsync(sentence, WORD_LEVEL, countFn, maxTokens);
+      for (const piece of wordPieces) {
+        if ((await countFn(piece)) <= maxTokens) { chunks.push(piece); continue; }
+        chunks.push(...await splitOversizedUnitIntoPieces(piece, (p) => p, { countTokens: countFn, maxInputTokens: maxTokens }));
+      }
+      continue;
+    }
+    const candidate = [...current, sentence].join(' ');
+    if ((await countFn(candidate)) > maxTokens && current.length > 0) {
+      flush();
+    }
+    current.push(sentence);
+  }
+  flush();
   return chunks;
 }
 
@@ -552,33 +772,135 @@ async function chunkSectionsAsync(sections, sourceFile, meta = {}, links = [], c
   return chunks;
 }
 
+// ── budget-aware section chunking: closes the same last-level gap as
+// chunkBySentencesAsyncBudgeted ─────────────────────────────────────────
+// _splitLevelAsync bottoms out at word-level (LEVELS' last entry) and
+// returns a still-oversized single "word" unchanged (e.g. a long URL/
+// identifier with no internal whitespace) — chunkSectionsAsync's oversized
+// branch calls _splitLevelAsync directly with no further fallback for that
+// case. This variant adds the same guaranteed-fitting character-boundary
+// last resort used everywhere else in this module.
+async function chunkSectionsAsyncBudgeted(sections, sourceFile, meta = {}, links = [], countFn, { maxTokens, minTokens }) {
+  const chunks = [];
+
+  for (let group = 0; group < sections.length; group++) {
+    const section = sections[group];
+    if (!section.text || !section.text.trim()) continue;
+    if (!section.heading && await countFn(section.text) < minTokens) continue;
+
+    if (await countFn(section.text) <= maxTokens) {
+      chunks.push({ text: section.text, section: section.heading, source_file: sourceFile, meta, links, _split_boundary: false, _split_group: group });
+      continue;
+    }
+    const subChunks = await _splitLevelAsync(section.text, LEVELS, countFn, maxTokens);
+    let i = 0;
+    for (const t of subChunks) {
+      if ((await countFn(t)) <= maxTokens) {
+        chunks.push({ text: t, section: section.heading, source_file: sourceFile, meta, links, _split_boundary: i > 0, _split_group: group });
+        i++;
+        continue;
+      }
+      const pieces = await splitOversizedUnitIntoPieces(t, (p) => p, { countTokens: countFn, maxInputTokens: maxTokens });
+      for (const piece of pieces) {
+        chunks.push({ text: piece, section: section.heading, source_file: sourceFile, meta, links, _split_boundary: i > 0, _split_group: group });
+        i++;
+      }
+    }
+  }
+  return chunks;
+}
+
 /**
  * Async variant of chunkFile. Accepts a countFn for token-aware splitting.
  * Used by the production chunkFileFromPath real-tokenizer mode.
  * The sync chunkFile() is not modified.
  *
+ * `budget` (optional, default null): a real per-profile embedding budget
+ * ({ maxInputTokens, countTokens }, resolveEmbeddingBudget,
+ * qdrant-cloud-catalog.js). When null, this function's body is IDENTICAL
+ * to its pre-budget-awareness form — it calls the original, unmodified
+ * chunkSectionsAsync/chunkBySentencesAsync/finalizeChunksAsync — so the
+ * Local/no-budget path is byte-identical to today by construction, not
+ * merely by intent. When non-null, it calls the *Budgeted sibling
+ * functions instead, which additionally guarantee every chunk fits the
+ * resolved budget (never silently exceeding it after merge/overlap, and
+ * never shipping an oversized chunk with no further split attempted).
+ *
  * @param {string} filePath
  * @param {string} text
  * @param {string} sourceFile
  * @param {(text: string) => Promise<number>} countFn
+ * @param {{maxInputTokens: number, countTokens: (text: string) => number|Promise<number>}|null} [budget]
  */
-export async function chunkFileAsync(filePath, text, sourceFile, countFn = heuristicTokenCount) {
+export async function chunkFileAsync(filePath, text, sourceFile, countFn = heuristicTokenCount, budget = null) {
   text = normalizeEol(text);
   const ext = extname(filePath).toLowerCase();
   const chunks = [];
+  const eff = effectiveBudgetFor(budget);
+
+  if (!eff) {
+    if (ext === '.md') {
+      const { meta, sections } = parseMarkdown(text);
+      const links = parseWikilinks(text);
+      chunks.push(...await chunkSectionsAsync(sections, sourceFile, meta, links, countFn));
+    } else {
+      const subChunks = await chunkBySentencesAsync(text, countFn);
+      subChunks.forEach((t, i) => {
+        chunks.push({ text: t, section: '', source_file: sourceFile, meta: {}, links: [], _split_boundary: i > 0 });
+      });
+    }
+    return finalizeChunksAsync(chunks, countFn);
+  }
 
   if (ext === '.md') {
     const { meta, sections } = parseMarkdown(text);
     const links = parseWikilinks(text);
-    chunks.push(...await chunkSectionsAsync(sections, sourceFile, meta, links, countFn));
+    chunks.push(...await chunkSectionsAsyncBudgeted(sections, sourceFile, meta, links, eff.countFn, eff));
   } else {
-    const subChunks = await chunkBySentencesAsync(text, countFn);
+    const subChunks = await chunkBySentencesAsyncBudgeted(text, eff.countFn, eff.maxTokens);
     subChunks.forEach((t, i) => {
       chunks.push({ text: t, section: '', source_file: sourceFile, meta: {}, links: [], _split_boundary: i > 0 });
     });
   }
+  return finalizeChunksAsyncBudgeted(chunks, eff.countFn, eff);
+}
 
-  return finalizeChunksAsync(chunks, countFn);
+/**
+ * Budget-aware entry point for already-extracted plain text (the PDF
+ * plain-text-fallback branch, which bypasses chunkFileAsync entirely since
+ * it never has a synthetic .md-shaped path). Peer of
+ * recursiveChunkTextForBudget/chunkFileAsync, operating on plain text
+ * rather than a file path. When `budget` is null or `useAsync` is false,
+ * mirrors the exact pre-existing inline logic (recursiveChunkText/
+ * finalizeChunks, or recursiveChunkTextAsync/finalizeChunksAsync) —
+ * unchanged behavior by construction.
+ * @param {string} text — already-extracted plain text
+ * @param {string} sourceFile
+ * @param {(text: string) => Promise<number>|number} countFn
+ * @param {{maxInputTokens: number, countTokens: Function}|null} budget
+ * @param {boolean} useAsync
+ * @param {{stripPageMarkers?: boolean}} [opts]
+ */
+export async function chunkExtractedTextForBudget(text, sourceFile, countFn, budget, useAsync, opts = { stripPageMarkers: true }) {
+  if (!useAsync) {
+    const subChunks = recursiveChunkText(text, opts);
+    const chunks = subChunks.map((t, i) => ({
+      text: t, section: '', source_file: sourceFile, meta: {}, links: [],
+      _split_boundary: i > 0, chunkIndex: i, totalChunks: subChunks.length,
+    }));
+    return finalizeChunks(chunks);
+  }
+  const eff = effectiveBudgetFor(budget);
+  const subChunks = eff
+    ? await recursiveChunkTextForBudget(text, budget, opts)
+    : await recursiveChunkTextAsync(text, countFn, opts);
+  const chunks = subChunks.map((t, i) => ({
+    text: t, section: '', source_file: sourceFile, meta: {}, links: [],
+    _split_boundary: i > 0, chunkIndex: i, totalChunks: subChunks.length,
+  }));
+  return eff
+    ? finalizeChunksAsyncBudgeted(chunks, eff.countFn, eff)
+    : finalizeChunksAsync(chunks, countFn);
 }
 
 const PANDOC_FORMATS = new Set(['.docx', '.odt', '.rtf', '.epub', '.html', '.htm']);
@@ -614,12 +936,20 @@ export async function chunkFileFromPath(filePath, sourceFile, budget = null) {
   const ext = extname(filePath).toLowerCase();
 
   // Real BGE-M3 tokenization is the production default. TOKEN_COUNT=heuristic
-  // is an explicit compatibility/performance fallback.
+  // is an explicit compatibility/performance fallback. The active profile's
+  // budget takes priority over TOKEN_COUNT: a non-null budget (cloud
+  // profile) always forces the async, budget-aware leg regardless of the
+  // TOKEN_COUNT setting — TOKEN_COUNT=heuristic must never silently defeat
+  // budget-aware splitting under a Cloud profile. TOKEN_COUNT still fully
+  // controls behavior for a budget===null (Local) profile, unchanged.
   const tokenCountMode = resolveTokenCountMode();
   let countFn = null;
   let useAsync = false;
 
-  if (tokenCountMode === 'bge-m3') {
+  if (budget !== null) {
+    countFn = budget.countTokens;
+    useAsync = true;
+  } else if (tokenCountMode === 'bge-m3') {
     countFn = await getTokenCounter({ mode: 'bge-m3' });
     useAsync = true;
     if (!tokenCounterLogShown) {
@@ -675,7 +1005,7 @@ export async function chunkFileFromPath(filePath, sourceFile, budget = null) {
       const clean = md.replace(/<!-- PAGE_BREAK -->/g, '\n').replace(/\n{3,}/g, '\n\n');
       const mdPath = filePath.replace(/\.pdf$/i, '.md');
       const chunks = await (useAsync
-        ? chunkFileAsync(mdPath, clean, sourceFile, countFn)
+        ? chunkFileAsync(mdPath, clean, sourceFile, countFn, budget)
         : chunkFile(mdPath, clean, sourceFile));
       return { chunks, navPoints: [], entityRawPoints: [] };
     }
@@ -684,20 +1014,8 @@ export async function chunkFileFromPath(filePath, sourceFile, budget = null) {
     const parser = new PDFParse({ url: filePath });
     try {
       const { text } = await parser.getText();
-      if (useAsync) {
-        const subChunks = await recursiveChunkTextAsync(text, countFn, { stripPageMarkers: true });
-        const chunks = subChunks.map((t, i) => ({
-          text: t, section: '', source_file: sourceFile, meta: {}, links: [],
-          _split_boundary: i > 0, chunkIndex: i, totalChunks: subChunks.length,
-        }));
-        return { chunks: await finalizeChunksAsync(chunks, countFn), navPoints: [], entityRawPoints: [] };
-      }
-      const subChunks = recursiveChunkText(text, { stripPageMarkers: true });
-      const chunks = subChunks.map((t, i) => ({
-        text: t, section: '', source_file: sourceFile, meta: {}, links: [],
-        _split_boundary: i > 0, chunkIndex: i, totalChunks: subChunks.length,
-      }));
-      return { chunks: finalizeChunks(chunks), navPoints: [], entityRawPoints: [] };
+      const chunks = await chunkExtractedTextForBudget(text, sourceFile, countFn, budget, useAsync, { stripPageMarkers: true });
+      return { chunks, navPoints: [], entityRawPoints: [] };
     } finally {
       await parser.destroy();
     }
@@ -725,7 +1043,7 @@ export async function chunkFileFromPath(filePath, sourceFile, budget = null) {
     const mdPath = filePath.replace(/\.[^.]+$/, '.md');
     const pandocText = stdout.replace(/\r\n?/g, '\n');
     const chunks = await (useAsync
-      ? chunkFileAsync(mdPath, pandocText, sourceFile, countFn)
+      ? chunkFileAsync(mdPath, pandocText, sourceFile, countFn, budget)
       : chunkFile(mdPath, pandocText, sourceFile));
     return { chunks, navPoints: [], entityRawPoints: [] };
   }
@@ -735,7 +1053,7 @@ export async function chunkFileFromPath(filePath, sourceFile, budget = null) {
   // above for why this is deliberate, not deferred cleanup.
   const raw = readFileSync(filePath, 'utf8');
   const chunks = await (useAsync
-    ? chunkFileAsync(filePath, raw, sourceFile, countFn)
+    ? chunkFileAsync(filePath, raw, sourceFile, countFn, budget)
     : chunkFile(filePath, raw, sourceFile));
   return { chunks, navPoints: [], entityRawPoints: [] };
 }
