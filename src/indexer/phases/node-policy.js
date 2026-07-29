@@ -20,8 +20,19 @@ import { envInt } from '../../core/env.js';
 import { PLACEHOLDER_LINE_RE } from '../../core/entity-reference.js';
 
 export const POINT_KINDS = Object.freeze({
-  RETRIEVAL: 'retrieval_content',
-  NAV:       'skeleton_nav',
+  RETRIEVAL:  'retrieval_content',
+  NAV:        'skeleton_nav',
+  // Canonical, non-searchable point carrying a structural entity's complete,
+  // unsplit raw_content (table/code_block/checklist too large to embed
+  // whole under a cloud model's token budget — see entity-split.js). Never
+  // embedded against its real content, never returned by search or normal
+  // retrieval-chunk sequences (getFileChunks/getSectionChunks) — excluded
+  // the same way skeleton_nav points are, via nav-filter.js-style
+  // must_not filtering. Produced dynamically by skeleton-chunk.js at
+  // chunk-time (only when an entity is actually split), not assigned
+  // statically per nodeType here — table/code_block/checklist keep
+  // pointKind: RETRIEVAL below, which becomes each fragment's point kind.
+  ENTITY_RAW: 'entity_raw',
 });
 
 // nodeType → { policy, pointKind } (design §7.2).

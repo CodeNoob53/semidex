@@ -589,7 +589,28 @@ export function hasPdfStructure(md) {
   return Boolean(md && (md.match(/^#{1,6} /gm) || []).length >= 3);
 }
 
-export async function chunkFileFromPath(filePath, sourceFile) {
+// budget (Markdown/skeleton path only): { maxInputTokens, countTokens }
+// resolved by the caller from the collection's embedding profile
+// (resolveEmbeddingBudget, qdrant-cloud-catalog.js) — null for a
+// client-execution profile, which preserves whole-entity chunking exactly
+// as before oversized-entity splitting existed. Non-Markdown paths ignore
+// this parameter entirely (no structural entity splitting outside the
+// skeleton chunker).
+//
+// Return shape (all paths): { chunks, navPoints, entityRawPoints }.
+//   chunks — the retrieval chunk_index sequence (Markdown: prose + entity/
+//     fragment chunks from chunkFromSkeleton; non-Markdown: the legacy
+//     chunker's flat output, unchanged shape).
+//   navPoints — skeleton_nav points (Markdown only; [] otherwise).
+//   entityRawPoints — canonical entity_raw points for split entities
+//     (Markdown only, and only when at least one entity was actually split;
+//     [] otherwise) — deliberately excluded from `chunks`' own chunk_index
+//     sequence, see chunkFromSkeleton's own return-shape doc comment.
+// Replaces the previous non-enumerable `__navPoints` side-channel on a
+// plain chunk array — an explicit structured return is preferable for a
+// core indexing contract, even though it means every caller (run.js,
+// smoke tests) must be updated for the new shape.
+export async function chunkFileFromPath(filePath, sourceFile, budget = null) {
   const ext = extname(filePath).toLowerCase();
 
   // Real BGE-M3 tokenization is the production default. TOKEN_COUNT=heuristic
@@ -633,11 +654,8 @@ export async function chunkFileFromPath(filePath, sourceFile) {
     });
     // Wikilinks parity with the legacy path (audit finding 2026-06-10):
     // legacy chunkFile() extracts [[wikilinks]]; the skeleton path must too.
-    const chunks = chunkMod.chunkFromSkeleton(skel, { sourceFile, links: parseWikilinks(raw) });
-    // Side-channel to the indexer stages: non-enumerable so legacy consumers
-    // and JSON serialisation never see it (return shape stays a plain array).
-    Object.defineProperty(chunks, '__navPoints', { value: navPoints, enumerable: false });
-    return chunks;
+    const { chunks, entityRawPoints } = await chunkMod.chunkFromSkeleton(skel, { sourceFile, links: parseWikilinks(raw), budget });
+    return { chunks, navPoints, entityRawPoints };
   }
 
   // PDF: deliberately still routed through the legacy chunker below, even
@@ -656,9 +674,10 @@ export async function chunkFileFromPath(filePath, sourceFile) {
     if (hasStructure) {
       const clean = md.replace(/<!-- PAGE_BREAK -->/g, '\n').replace(/\n{3,}/g, '\n\n');
       const mdPath = filePath.replace(/\.pdf$/i, '.md');
-      return useAsync
+      const chunks = await (useAsync
         ? chunkFileAsync(mdPath, clean, sourceFile, countFn)
-        : chunkFile(mdPath, clean, sourceFile);
+        : chunkFile(mdPath, clean, sourceFile));
+      return { chunks, navPoints: [], entityRawPoints: [] };
     }
 
     console.warn(`  [chunk] pdf2md produced no structure for ${filePath}, falling back to plain-text`);
@@ -671,14 +690,14 @@ export async function chunkFileFromPath(filePath, sourceFile) {
           text: t, section: '', source_file: sourceFile, meta: {}, links: [],
           _split_boundary: i > 0, chunkIndex: i, totalChunks: subChunks.length,
         }));
-        return finalizeChunksAsync(chunks, countFn);
+        return { chunks: await finalizeChunksAsync(chunks, countFn), navPoints: [], entityRawPoints: [] };
       }
       const subChunks = recursiveChunkText(text, { stripPageMarkers: true });
       const chunks = subChunks.map((t, i) => ({
         text: t, section: '', source_file: sourceFile, meta: {}, links: [],
         _split_boundary: i > 0, chunkIndex: i, totalChunks: subChunks.length,
       }));
-      return finalizeChunks(chunks);
+      return { chunks: finalizeChunks(chunks), navPoints: [], entityRawPoints: [] };
     } finally {
       await parser.destroy();
     }
@@ -705,16 +724,18 @@ export async function chunkFileFromPath(filePath, sourceFile) {
     }
     const mdPath = filePath.replace(/\.[^.]+$/, '.md');
     const pandocText = stdout.replace(/\r\n?/g, '\n');
-    return useAsync
+    const chunks = await (useAsync
       ? chunkFileAsync(mdPath, pandocText, sourceFile, countFn)
-      : chunkFile(mdPath, pandocText, sourceFile);
+      : chunkFile(mdPath, pandocText, sourceFile));
+    return { chunks, navPoints: [], entityRawPoints: [] };
   }
 
   // Plain text / any other extension: same scope boundary — legacy
   // sentence-based chunking, not skeleton. See the .pdf branch's comment
   // above for why this is deliberate, not deferred cleanup.
   const raw = readFileSync(filePath, 'utf8');
-  return useAsync
+  const chunks = await (useAsync
     ? chunkFileAsync(filePath, raw, sourceFile, countFn)
-    : chunkFile(filePath, raw, sourceFile);
+    : chunkFile(filePath, raw, sourceFile));
+  return { chunks, navPoints: [], entityRawPoints: [] };
 }

@@ -206,6 +206,53 @@ describe('assembleDocument — entity_refs mode (stored refs)', () => {
     assert.equal(out.warnings[0].code, ASSEMBLY_WARNINGS.PLACEHOLDER_FALLBACK);
   });
 
+  // Split-entity fragments (entity-split.js): the canonical entity_raw point
+  // is deliberately excluded upstream (never returned by getFileChunks/
+  // getSectionChunks, same exclusion as skeleton_nav) — only its fragments
+  // reach assembleDocument. A stored ref's placeholder still names the
+  // CANONICAL entity's own node_id/node_path (placeholders are built from
+  // the entity node, never a fragment), so without entityId registration
+  // the canonical would appear "absent from scope" even though its
+  // fragments are right there — this regression is the exact bug an earlier
+  // manual end-to-end check caught (REF_ENTITY_MISSING + placeholder left
+  // visible in prose, table split into 2 fragments neither of which shares
+  // the canonical's identity).
+  it('a placeholder naming a split entity resolves via its fragments (entityId), not the excluded canonical point', () => {
+    const canonicalNodeId = 'nid-table-1';
+    const canonicalNodePath = 'guide.md#setup/table-1';
+    const fragment1 = {
+      sourceFile: 'guide.md', chunkIndex: 1, totalChunks: null, section: 'Setup',
+      text: '| A | B |\n|---|---|\n| 1 | 2 |', rawContent: '| A | B |\n|---|---|\n| 1 | 2 |',
+      lang: null, context: 'Setup > table', tags: [],
+      nodeType: 'table', nodeId: 'nid-table-1-fragment-1', nodePath: `${canonicalNodePath}/fragment-1`,
+      parentId: 'nid-section-setup', headingPath: ['Setup'],
+      entityRefs: [], entityId: canonicalNodeId, fragmentIndex: 0, fragmentCount: 2,
+      score: null, isMatch: null,
+    };
+    const fragment2 = {
+      ...fragment1, chunkIndex: 2,
+      text: '| A | B |\n|---|---|\n| 3 | 4 |', rawContent: '| A | B |\n|---|---|\n| 3 | 4 |',
+      nodeId: 'nid-table-1-fragment-2', nodePath: `${canonicalNodePath}/fragment-2`,
+      fragmentIndex: 1,
+    };
+    const ph = `[table node: ${canonicalNodePath} — A | B]`;
+    const p = prose({
+      chunkIndex: 0, text: `Options below.\n\n${ph}`,
+      entityRefs: [{ nodeId: canonicalNodeId, nodePath: canonicalNodePath, nodeType: 'table', placeholder: ph }],
+    });
+
+    const out = assembleDocument({ collection: 'c', scope: 'file', sourceFile: 'guide.md', chunks: [p, fragment1, fragment2] });
+
+    assert.equal(out.assemblyMode, ASSEMBLY_MODES.ENTITY_REFS, 'stored ref fully covers the placeholder — no fallback needed');
+    assert.deepEqual(out.warnings, [], 'the canonical entity is considered present because its fragments are in scope');
+    assert.equal(out.segments[0].kind, SEGMENT_KINDS.PROSE);
+    assert.equal(out.segments[0].text, 'Options below.', 'placeholder removed even though it names the excluded canonical node_path');
+    const entitySegments = out.segments.filter(s => s.kind === SEGMENT_KINDS.ENTITY);
+    assert.equal(entitySegments.length, 2, 'both fragments emitted as separate entity segments, in order');
+    assert.equal(entitySegments[0].rawContent, '| A | B |\n|---|---|\n| 1 | 2 |');
+    assert.equal(entitySegments[1].rawContent, '| A | B |\n|---|---|\n| 3 | 4 |');
+  });
+
   it('duplicate refs to the same entity remove both standalone occurrences but still emit exactly one entity segment', () => {
     const table = entity({ chunkIndex: 1, nodeType: 'table', rawContent: '| A | B |' });
     const p = prose({

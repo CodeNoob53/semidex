@@ -37,9 +37,10 @@ const storeSrc = readFileSync(
   'utf-8',
 );
 
-function chunkSkeletonDoc(markdown, sourceFile = 'guide.md') {
+async function chunkSkeletonDoc(markdown, sourceFile = 'guide.md') {
   const nodes = parseSkeleton(markdown, { sourceFile });
-  return chunkFromSkeleton(nodes, { sourceFile });
+  const { chunks } = await chunkFromSkeleton(nodes, { sourceFile });
+  return chunks;
 }
 
 // The stored payload as indexer/index.js composes it for a skeleton chunk
@@ -108,8 +109,8 @@ describe('complete path: real payload -> CONTENT_NODE_FIELDS projection -> toChu
   const doc = '# Setup\n\nConfiguration options are summarized in the table below for reference.\n\n'
     + '| Option | Default |\n|---|---|\n| retries | 3 |\n';
 
-  it('a stored prose point round-trips its entity_refs into domain entityRefs and an entity_refs-mode assembly', () => {
-    const chunks = chunkSkeletonDoc(doc, 'guide.md');
+  it('a stored prose point round-trips its entity_refs into domain entityRefs and an entity_refs-mode assembly', async () => {
+    const chunks = await chunkSkeletonDoc(doc, 'guide.md');
     const proseChunk = chunks.find(c => c.node_type === 'paragraph');
     const tableChunk = chunks.find(c => c.node_type === 'table');
     assert.ok(proseChunk.entity_refs?.length === 1, 'fixture sanity: the real chunker attached a ref');
@@ -144,8 +145,8 @@ describe('complete path: real payload -> CONTENT_NODE_FIELDS projection -> toChu
     assert.ok(!proseSeg.text.includes('[table node:'), 'the placeholder was removed using the round-tripped refs');
   });
 
-  it('regression shape: with entity_refs REMOVED from the projection, the same path silently degrades to the fallback — proving the field is load-bearing', () => {
-    const chunks = chunkSkeletonDoc(doc, 'guide.md');
+  it('regression shape: with entity_refs REMOVED from the projection, the same path silently degrades to the fallback — proving the field is load-bearing', async () => {
+    const chunks = await chunkSkeletonDoc(doc, 'guide.md');
     const withoutEntityRefs = CONTENT_NODE_FIELDS.filter(f => f !== 'entity_refs');
     const points = chunks.map((c, i) => ({ id: `pt-${i}`, payload: qdrantProjection(storedPayload(c, 'guide.md'), withoutEntityRefs) }));
     const domainChunks = storePostProcess(points).map(toChunk);

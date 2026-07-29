@@ -21,9 +21,10 @@ import { attachEntityRefs, placeholderForReference, PLACEHOLDER_LINE_RE } from '
 import { parseSkeleton } from '../../../src/indexer/phases/skeleton.js';
 import { chunkFromSkeleton } from '../../../src/indexer/phases/skeleton-chunk.js';
 
-function chunkSkeletonDoc(markdown, sourceFile = 'doc.md') {
+async function chunkSkeletonDoc(markdown, sourceFile = 'doc.md') {
   const nodes = parseSkeleton(markdown, { sourceFile });
-  return chunkFromSkeleton(nodes, { sourceFile });
+  const { chunks } = await chunkFromSkeleton(nodes, { sourceFile });
+  return chunks;
 }
 
 describe('placeholderForReference — single source of truth for the placeholder format', () => {
@@ -370,9 +371,9 @@ describe('attachEntityRefs — em-dash-in-path and em-dash-in-hint ambiguity (co
 });
 
 describe('attachEntityRefs — end to end through chunkFromSkeleton (real prose text assembly)', () => {
-  it('one table after prose gets a real entity_refs entry with a real node_id', () => {
+  it('one table after prose gets a real entity_refs entry with a real node_id', async () => {
     const doc = `# Setup\n\nConfiguration options are summarized in the table below for reference.\n\n| Option | Default |\n|---|---|\n| retries | 3 |\n`;
-    const chunks = chunkSkeletonDoc(doc);
+    const chunks = await chunkSkeletonDoc(doc);
     const prose = chunks.find(c => c.node_type === 'paragraph');
     const table = chunks.find(c => c.node_type === 'table');
     assert.ok(prose.entity_refs?.length === 1);
@@ -381,13 +382,13 @@ describe('attachEntityRefs — end to end through chunkFromSkeleton (real prose 
     assert.equal(prose.entity_refs[0].node_type, 'table');
   });
 
-  it('consecutive entities (table immediately followed by code, no prose between) both attach to the SAME preceding prose chunk, in order', () => {
+  it('consecutive entities (table immediately followed by code, no prose between) both attach to the SAME preceding prose chunk, in order', async () => {
     const doc = `# Setup\n\nConsider these two references together.\n\n`
       + `| A | B |\n|---|---|\n| 1 | 2 |\n\n`
       + '```python\ndef handler(event, context):\n    process(event)\n    validate(event)\n'
       + '    log_metrics(event)\n    return {"status": "ok", "code": 200, "at": now()}\n```\n\n'
       + 'More closing remark text about setup goes here.\n';
-    const chunks = chunkSkeletonDoc(doc);
+    const chunks = await chunkSkeletonDoc(doc);
     const table = chunks.find(c => c.node_type === 'table');
     const code = chunks.find(c => c.node_type === 'code_block');
     const proseWithRefs = chunks.find(c => c.node_type === 'paragraph' && c.entity_refs?.length === 2);
@@ -395,25 +396,25 @@ describe('attachEntityRefs — end to end through chunkFromSkeleton (real prose 
     assert.deepEqual(proseWithRefs.entity_refs.map(r => r.node_id), [table.node_id, code.node_id]);
   });
 
-  it('an entity at the very start of a section (no preceding prose) attaches to the FOLLOWING prose chunk', () => {
+  it('an entity at the very start of a section (no preceding prose) attaches to the FOLLOWING prose chunk', async () => {
     const doc = `# Setup\n\n| A | B |\n|---|---|\n| 1 | 2 |\n\nFollowing remark about the table above.\n`;
-    const chunks = chunkSkeletonDoc(doc);
+    const chunks = await chunkSkeletonDoc(doc);
     const table = chunks.find(c => c.node_type === 'table');
     const prose = chunks.find(c => c.node_type === 'paragraph');
     assert.ok(prose.text.startsWith('[table node:'), 'placeholder is prepended to the following prose text');
     assert.equal(prose.entity_refs?.[0]?.node_id, table.node_id);
   });
 
-  it('no cross-section attachment: an entity in one section is never referenced by prose in a different section', () => {
+  it('no cross-section attachment: an entity in one section is never referenced by prose in a different section', async () => {
     const doc = `# Setup\n\n| A | B |\n|---|---|\n| 1 | 2 |\n\n# Other\n\nUnrelated prose in a different section entirely with no table mention.\n`;
-    const chunks = chunkSkeletonDoc(doc);
+    const chunks = await chunkSkeletonDoc(doc);
     const otherProse = chunks.find(c => c.section === 'Other' && c.node_type === 'paragraph');
     assert.equal(otherProse.entity_refs, undefined, 'a later section\'s prose must never pick up an earlier section\'s orphaned entity');
   });
 
-  it('structural and nav chunks never carry entity_refs in the real chunker output', () => {
+  it('structural and nav chunks never carry entity_refs in the real chunker output', async () => {
     const doc = `# Setup\n\nSome intro text before the table appears here.\n\n| A | B |\n|---|---|\n| 1 | 2 |\n`;
-    const chunks = chunkSkeletonDoc(doc);
+    const chunks = await chunkSkeletonDoc(doc);
     const table = chunks.find(c => c.node_type === 'table');
     assert.equal(table.entity_refs, undefined);
     // chunkFromSkeleton() itself never emits nav (section/file/collection)
@@ -427,10 +428,10 @@ describe('attachEntityRefs — end to end through chunkFromSkeleton (real prose 
   // ("- [x] ...") is exactly the shape that produces a hint containing "]",
   // so this exercises placeholderFor() (skeleton-chunk.js) ->
   // placeholderForReference() -> attachEntityRefs() as one real pipeline.
-  it('a checklist entity (whose own content contains "]") gets a real, correctly-resolved entity_refs entry', () => {
+  it('a checklist entity (whose own content contains "]") gets a real, correctly-resolved entity_refs entry', async () => {
     const doc = `# Tasks\n\nComplete the checklist below before shipping the release.\n\n`
       + '- [x] pull model\n- [ ] run indexer\n- [ ] verify output correctness across every supported platform target\n';
-    const chunks = chunkSkeletonDoc(doc, 'tasks.md');
+    const chunks = await chunkSkeletonDoc(doc, 'tasks.md');
     const checklist = chunks.find(c => c.node_type === 'checklist');
     const prose = chunks.find(c => c.node_type === 'paragraph');
     assert.ok(checklist, 'fixture must actually produce a real checklist entity, not merge it away');
@@ -444,9 +445,9 @@ describe('attachEntityRefs — end to end through chunkFromSkeleton (real prose 
   // a space (a legitimate, common real-world filename, e.g. an exported
   // Obsidian note) must resolve its own entity references, not silently
   // orphan every one of them.
-  it('a source_file whose name contains a space gets a real, correctly-resolved entity_refs entry', () => {
+  it('a source_file whose name contains a space gets a real, correctly-resolved entity_refs entry', async () => {
     const doc = `# Setup\n\nConfiguration options are summarized in the table below for reference.\n\n| Option | Default |\n|---|---|\n| retries | 3 |\n`;
-    const chunks = chunkSkeletonDoc(doc, 'docs/My Guide.md');
+    const chunks = await chunkSkeletonDoc(doc, 'docs/My Guide.md');
     const table = chunks.find(c => c.node_type === 'table');
     const prose = chunks.find(c => c.node_type === 'paragraph');
     assert.ok(table.node_path.includes('docs/My Guide.md'), 'fixture sanity check — the space really is in the node_path being tested');
@@ -456,9 +457,9 @@ describe('attachEntityRefs — end to end through chunkFromSkeleton (real prose 
 
   // Regression through the real chunker — a source_file whose name itself
   // contains " — " (em dash), the exact review repro ("docs/Guide — Draft.md").
-  it('a source_file whose name contains " — " (em dash) gets a real, correctly-resolved entity_refs entry', () => {
+  it('a source_file whose name contains " — " (em dash) gets a real, correctly-resolved entity_refs entry', async () => {
     const doc = `# Setup\n\nConfiguration options are summarized in the table below for reference.\n\n| Option | Default |\n|---|---|\n| retries | 3 |\n`;
-    const chunks = chunkSkeletonDoc(doc, 'docs/Guide — Draft.md');
+    const chunks = await chunkSkeletonDoc(doc, 'docs/Guide — Draft.md');
     const table = chunks.find(c => c.node_type === 'table');
     const prose = chunks.find(c => c.node_type === 'paragraph');
     assert.ok(table.node_path.startsWith('docs/Guide — Draft.md'), 'fixture sanity check — the em dash really is in the node_path being tested');

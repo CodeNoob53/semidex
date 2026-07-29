@@ -262,8 +262,22 @@ export function assembleDocument({ collection, scope, sourceFile = null, nodePat
   // rather than its pointer silently deleted with no entity segment to land
   // on. Fallback extras never need this check — the canonical matcher only
   // ever resolves against entities in the scope.
+  //
+  // Split-entity fragments (entity-split.js) never carry the canonical
+  // entity's OWN node_id/node_path — each fragment has its own distinct
+  // identity — and the canonical entity_raw point itself is deliberately
+  // EXCLUDED upstream (never returned by getFileChunks/getSectionChunks,
+  // same exclusion as skeleton_nav). Without the entityId registration
+  // below, a placeholder whose stored ref points at that canonical
+  // node_id/node_path would always be reported REF_ENTITY_MISSING — the
+  // canonical entity is genuinely absent from `input`, even though its
+  // fragments (the actual bounded content) are right there. Registering
+  // each fragment's entityId here is what lets such a ref resolve
+  // correctly: the entity IS present, just as fragments instead of one
+  // canonical chunk.
   const presentEntityKeys = new Set();
   for (const c of input) {
+    if (c.entityId) presentEntityKeys.add(c.entityId);
     if (!isStructuralChunk(c)) continue;
     if (c.nodeId) presentEntityKeys.add(c.nodeId);
     if (c.nodePath) presentEntityKeys.add(c.nodePath);

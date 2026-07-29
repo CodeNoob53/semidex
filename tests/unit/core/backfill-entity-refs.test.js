@@ -36,9 +36,10 @@ function toStoredPoints(chunks, prefix = 'pt') {
   }));
 }
 
-function chunkSkeletonDoc(markdown, sourceFile = 'doc.md') {
+async function chunkSkeletonDoc(markdown, sourceFile = 'doc.md') {
   const nodes = parseSkeleton(markdown, { sourceFile });
-  return chunkFromSkeleton(nodes, { sourceFile });
+  const { chunks } = await chunkFromSkeleton(nodes, { sourceFile });
+  return chunks;
 }
 
 describe('computeBackfillPlan — legacy collections', () => {
@@ -55,7 +56,7 @@ describe('computeBackfillPlan — legacy collections', () => {
     assert.deepEqual(plan.orphans, []);
   });
 
-  it('excludes skeleton_nav points from the scan even if chunking_model looks like skeleton-v1', () => {
+  it('excludes skeleton_nav points from the scan even if chunking_model looks like skeleton-v1', async () => {
     const points = [
       { id: 'nav', payload: { point_kind: 'skeleton_nav', chunking_model: 'skeleton-v1', source_file: 'a.md', text: '[table node: a.md#s/table-1]' } },
     ];
@@ -66,8 +67,8 @@ describe('computeBackfillPlan — legacy collections', () => {
 });
 
 describe('computeBackfillPlan — dry-run semantics (planning only, no writes performed here)', () => {
-  it('computes the exact same plan regardless of a DRY_RUN-style flag — computeBackfillPlan itself never writes; the CLI wrapper decides whether to apply', () => {
-    const chunks = chunkSkeletonDoc('# Setup\n\nConfiguration options are summarized in the table below for reference.\n\n| Option | Default |\n|---|---|\n| retries | 3 |\n');
+  it('computes the exact same plan regardless of a DRY_RUN-style flag — computeBackfillPlan itself never writes; the CLI wrapper decides whether to apply', async () => {
+    const chunks = await chunkSkeletonDoc('# Setup\n\nConfiguration options are summarized in the table below for reference.\n\n| Option | Default |\n|---|---|\n| retries | 3 |\n');
     const points = toStoredPoints(chunks);
     const plan1 = computeBackfillPlan(points);
     const plan2 = computeBackfillPlan(points);
@@ -90,8 +91,8 @@ function applyPlan(points, plan) {
 }
 
 describe('computeBackfillPlan — idempotency', () => {
-  it('a second run against ALREADY-BACKFILLED points produces zero updates', () => {
-    const chunks = chunkSkeletonDoc('# Setup\n\nConfiguration options are summarized in the table below for reference.\n\n| Option | Default |\n|---|---|\n| retries | 3 |\n');
+  it('a second run against ALREADY-BACKFILLED points produces zero updates', async () => {
+    const chunks = await chunkSkeletonDoc('# Setup\n\nConfiguration options are summarized in the table below for reference.\n\n| Option | Default |\n|---|---|\n| retries | 3 |\n');
     const points = toStoredPoints(chunks);
 
     const firstPlan = computeBackfillPlan(points);
@@ -105,9 +106,9 @@ describe('computeBackfillPlan — idempotency', () => {
     assert.equal(secondPlan.unchanged, firstPlan.contentPoints, 'every content point is now unchanged');
   });
 
-  it('is idempotent even across multiple files with mixed already-backfilled and never-backfilled points', () => {
-    const chunksA = chunkSkeletonDoc('# Setup\n\nSee the configuration table referenced below for full details.\n\n| A | B |\n|---|---|\n| 1 | 2 |\n', 'a.md');
-    const chunksB = chunkSkeletonDoc('# Intro\n\nSee the reference table shown directly underneath this sentence.\n\n| X | Y |\n|---|---|\n| 9 | 8 |\n', 'b.md');
+  it('is idempotent even across multiple files with mixed already-backfilled and never-backfilled points', async () => {
+    const chunksA = await chunkSkeletonDoc('# Setup\n\nSee the configuration table referenced below for full details.\n\n| A | B |\n|---|---|\n| 1 | 2 |\n', 'a.md');
+    const chunksB = await chunkSkeletonDoc('# Intro\n\nSee the reference table shown directly underneath this sentence.\n\n| X | Y |\n|---|---|\n| 9 | 8 |\n', 'b.md');
     const points = [...toStoredPoints(chunksA, 'a'), ...toStoredPoints(chunksB, 'b')];
 
     const firstPlan = computeBackfillPlan(points);
@@ -118,7 +119,7 @@ describe('computeBackfillPlan — idempotency', () => {
 });
 
 describe('computeBackfillPlan — fresh-index vs. backfill equality (byte-equivalent entity_refs)', () => {
-  it('backfilling a Phase-3T-era collection (indexed before entity_refs existed) reproduces exactly what fresh indexing would have produced', () => {
+  it('backfilling a Phase-3T-era collection (indexed before entity_refs existed) reproduces exactly what fresh indexing would have produced', async () => {
     const doc = '# Setup\n\nConsider these two references together in the following passage.\n\n'
       + '| A | B |\n|---|---|\n| 1 | 2 |\n\n'
       + '```python\ndef handler(event, context):\n    process(event)\n    validate(event)\n'
@@ -128,7 +129,7 @@ describe('computeBackfillPlan — fresh-index vs. backfill equality (byte-equiva
     // "Fresh index" reference: chunkFromSkeleton's own real output already
     // carries entity_refs (Phase 3U wires attachEntityRefs into the chunker
     // itself) — this is the ground truth to backfill against.
-    const freshChunks = chunkSkeletonDoc(doc);
+    const freshChunks = await chunkSkeletonDoc(doc);
     const freshRefsByNodeId = new Map(
       freshChunks.filter(c => c.entity_refs?.length).map(c => [c.node_id, c.entity_refs]),
     );
@@ -208,7 +209,7 @@ describe('computeBackfillPlan — stale entity_refs must be cleared, not left al
     assert.equal(plan.unchanged, 0, 'must NOT be counted as unchanged — that was the round-1 P1 bug');
   });
 
-  it('a point whose referenced entity chunk is now missing (orphaned) is planned for a clear op, not left with a dangling stale ref', () => {
+  it('a point whose referenced entity chunk is now missing (orphaned) is planned for a clear op, not left with a dangling stale ref', async () => {
     const points = [
       {
         id: 'p1',
@@ -231,7 +232,7 @@ describe('computeBackfillPlan — stale entity_refs must be cleared, not left al
     assert.equal(plan.orphans.length, 1, 'the now-unresolvable placeholder is still reported as an orphan');
   });
 
-  it('a second run after clearing a stale ref is idempotent (does not re-clear an already-absent entity_refs)', () => {
+  it('a second run after clearing a stale ref is idempotent (does not re-clear an already-absent entity_refs)', async () => {
     const stalePoint = {
       id: 'p1',
       payload: {
@@ -272,7 +273,7 @@ describe('runBackfill — DI-able CLI core, DRY_RUN write-skip and set-vs-clear 
   }
 
   it('DRY_RUN (dryRun: true) computes the plan but never calls updatePayloadFn or deletePayloadKeysFn', async () => {
-    const chunks = chunkSkeletonDoc('# Setup\n\nConfiguration options are summarized in the table below for reference.\n\n| Option | Default |\n|---|---|\n| retries | 3 |\n');
+    const chunks = await chunkSkeletonDoc('# Setup\n\nConfiguration options are summarized in the table below for reference.\n\n| Option | Default |\n|---|---|\n| retries | 3 |\n');
     const points = toStoredPoints(chunks);
     const spies = makeSpies(points);
 
@@ -285,7 +286,7 @@ describe('runBackfill — DI-able CLI core, DRY_RUN write-skip and set-vs-clear 
   });
 
   it('a real (non-dry) "set" update calls updatePayloadFn exactly once, with the correct id/payload, and never calls deletePayloadKeysFn', async () => {
-    const chunks = chunkSkeletonDoc('# Setup\n\nConfiguration options are summarized in the table below for reference.\n\n| Option | Default |\n|---|---|\n| retries | 3 |\n');
+    const chunks = await chunkSkeletonDoc('# Setup\n\nConfiguration options are summarized in the table below for reference.\n\n| Option | Default |\n|---|---|\n| retries | 3 |\n');
     const points = toStoredPoints(chunks);
     const spies = makeSpies(points);
 

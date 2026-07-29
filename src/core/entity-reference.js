@@ -221,6 +221,16 @@ export function attachEntityRefs(chunks) {
   const candidateIndex = new Map();
   for (const c of chunks) {
     if (!STRUCTURAL_TYPES.has(c.node_type)) continue;
+    // Split-entity fragments (entity-split.js) carry the SAME node_type as
+    // their canonical entity but must never become a placeholder
+    // resolution target themselves — a placeholder always names the
+    // canonical entity's own node_path (placeholderFor in
+    // skeleton-chunk.js is built from the entity node, never a fragment),
+    // and only the canonical point carries the complete raw_content a
+    // resolved entity_ref is expected to represent. entity_id is present
+    // ONLY on fragments (it points AT the canonical entity), so its
+    // absence is what distinguishes a real candidate here.
+    if (c.entity_id) continue;
     if (!c.node_id || !c.node_path) continue;
     const sf = c.source_file ?? '';
     const section = c.section ?? '';
