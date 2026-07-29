@@ -25,6 +25,7 @@ import { recursiveChunkText } from './chunk.js';
 import { applyNodePolicy, isContentBearing, POINT_KINDS } from './node-policy.js';
 import { makeNodeId } from '../../core/node-id.js';
 import { placeholderForReference, attachEntityRefs } from '../../core/entity-reference.js';
+import { splitStructuralEntity } from './entity-split.js';
 
 const CHUNKING_MODEL = 'skeleton-v1';
 
@@ -95,15 +96,34 @@ function inlineTinyCode(n) {
 
 /**
  * @param {SkeletonNode[]} nodes — output of parseSkeleton()
- * @param {{ sourceFile: string, meta?: object, links?: string[] }} ctx
- * @returns {Chunk[]} legacy-shaped chunks with additive skeleton fields
+ * @param {{ sourceFile: string, meta?: object, links?: string[], budget?: {maxInputTokens: number, countTokens: (text: string) => number|Promise<number>}|null }} ctx
+ *   budget — resolved by the indexing coordinator from the collection's
+ *   stored embedding profile (resolveEmbeddingBudget, qdrant-cloud-catalog.js);
+ *   null/absent for a client-execution profile, preserving today's
+ *   whole-entity behavior exactly (no splitting — a local model's context
+ *   window has never needed it).
+ * @returns {Promise<{ chunks: Chunk[], entityRawPoints: Chunk[] }>}
+ *   chunks — retrieval-sequence chunks (prose + entity/fragment), legacy-
+ *     shaped with additive skeleton fields, chunkIndex/totalChunks assigned
+ *     sequentially over EXACTLY this array.
+ *   entityRawPoints — canonical entity_raw points for split entities, kept
+ *     structurally SEPARATE from `chunks` (never assigned a chunkIndex, never
+ *     part of the retrieval chunk_index sequence) — a canonical point that
+ *     shared the chunk_index space would create a gap a window=1 query
+ *     around a fragment could silently walk into (code review finding).
+ *     Empty when no entity in this file was split.
  */
-export function chunkFromSkeleton(nodes, ctx = {}) {
+export async function chunkFromSkeleton(nodes, ctx = {}) {
   const sourceFile = ctx.sourceFile ?? '';
   let meta = { ...(ctx.meta ?? {}) };
   const links = ctx.links ?? [];
+  const budget = ctx.budget ?? null;
 
   const out = [];
+  // Canonical entity_raw points — deliberately NOT pushed onto `out`, so
+  // they can never receive a retrieval chunk_index (see this function's
+  // own return-shape doc comment above).
+  const entityRawOut = [];
 
   // Prose accumulator, flushed on section change / structural node / end.
   let proseParts = [];
@@ -193,29 +213,105 @@ export function chunkFromSkeleton(nodes, ctx = {}) {
         flushProse();
         if (!bearing) break;               // defensive — structural types pass
 
-        out.push({
-          text: n.rawContent,              // display/embedding input stays raw for MVP
-          context: entityContext(n.headingPath, n.nodeType, neighborProse),
-          section: proseSection,
-          source_file: sourceFile,
-          meta, links,
-          node_type: n.nodeType,
-          node_id: makeNodeId({
-            collection: '', sourceFile,
-            structuralPath: n.structuralPath,
-            nodeType: n.nodeType,
-            ordinalWithinParent: n.ordinalWithinParent,
-          }),
-          node_path: nodePathOf(sourceFile, n),
-          parent_id: n.parentStructuralPath
-            ? makeNodeId({ collection: '', sourceFile, structuralPath: n.parentStructuralPath, nodeType: 'section', ordinalWithinParent: 1 })
-            : null,
-          heading_path: n.headingPath ?? [],
-          raw_content: n.rawContent,
-          ...(n.lang !== undefined ? { lang: n.lang } : {}),
-          point_kind: POINT_KINDS.RETRIEVAL,
-          chunking_model: CHUNKING_MODEL,
+        // Canonical entity identity — UNCHANGED from before entity splitting
+        // existed. This node_id/node_path is what placeholders and
+        // entity_refs resolve to (attachEntityRefs, below), so it must stay
+        // exactly what it always was regardless of whether the entity ends
+        // up split — only its point_kind and payload shape change.
+        const entityNodeId = makeNodeId({
+          collection: '', sourceFile,
+          structuralPath: n.structuralPath,
+          nodeType: n.nodeType,
+          ordinalWithinParent: n.ordinalWithinParent,
         });
+        const entityParentId = n.parentStructuralPath
+          ? makeNodeId({ collection: '', sourceFile, structuralPath: n.parentStructuralPath, nodeType: 'section', ordinalWithinParent: 1 })
+          : null;
+        const entityContextText = entityContext(n.headingPath, n.nodeType, neighborProse);
+
+        const splitResult = budget ? await splitStructuralEntity(n, budget) : { split: false };
+
+        if (!splitResult.split) {
+          out.push({
+            text: n.rawContent,              // display/embedding input stays raw for MVP
+            context: entityContextText,
+            section: proseSection,
+            source_file: sourceFile,
+            meta, links,
+            node_type: n.nodeType,
+            node_id: entityNodeId,
+            node_path: nodePathOf(sourceFile, n),
+            parent_id: entityParentId,
+            heading_path: n.headingPath ?? [],
+            raw_content: n.rawContent,
+            ...(n.lang !== undefined ? { lang: n.lang } : {}),
+            point_kind: POINT_KINDS.RETRIEVAL,
+            chunking_model: CHUNKING_MODEL,
+          });
+        } else {
+          // Oversized entity: emit ONE canonical entity_raw point (complete
+          // raw_content, existing node_id/node_path unchanged, never
+          // embedded against its real content — see node-policy.js's
+          // ENTITY_RAW doc comment) plus N searchable retrieval_content
+          // fragment points, each with a freshly-derived, unique node_id
+          // (never reusing entityNodeId — makeSkeletonPointId derives the
+          // Qdrant point ID directly from node_id, so two points sharing
+          // one node_id would silently collapse to one overwritten point)
+          // and an entity_id back-reference to the canonical entity.
+          //
+          // Pushed onto entityRawOut, NOT `out` — a canonical entity_raw
+          // point must never occupy a retrieval chunk_index slot (code
+          // review: sharing the index space with retrieval chunks created
+          // a gap a window=1 query around a fragment could silently walk
+          // into, since entity_raw is excluded from retrieval but its
+          // index slot was still consumed).
+          entityRawOut.push({
+            text: '',                        // never embedded — see ENTITY_RAW
+            context: '',
+            section: proseSection,
+            source_file: sourceFile,
+            meta, links,
+            node_type: n.nodeType,
+            node_id: entityNodeId,
+            node_path: nodePathOf(sourceFile, n),
+            parent_id: entityParentId,
+            heading_path: n.headingPath ?? [],
+            raw_content: n.rawContent,
+            ...(n.lang !== undefined ? { lang: n.lang } : {}),
+            point_kind: POINT_KINDS.ENTITY_RAW,
+            chunking_model: CHUNKING_MODEL,
+          });
+
+          const fragmentCount = splitResult.fragments.length;
+          for (let i = 0; i < fragmentCount; i++) {
+            const fragmentText = splitResult.fragments[i];
+            const fragmentStructuralPath = `${n.structuralPath}/fragment-${i + 1}`;
+            out.push({
+              text: fragmentText,
+              context: entityContextText,
+              section: proseSection,
+              source_file: sourceFile,
+              meta, links,
+              node_type: n.nodeType,
+              node_id: makeNodeId({
+                collection: '', sourceFile,
+                structuralPath: fragmentStructuralPath,
+                nodeType: n.nodeType,
+                ordinalWithinParent: n.ordinalWithinParent,
+              }),
+              node_path: `${nodePathOf(sourceFile, n)}/fragment-${i + 1}`,
+              parent_id: entityParentId,
+              heading_path: n.headingPath ?? [],
+              raw_content: fragmentText,
+              ...(n.lang !== undefined ? { lang: n.lang } : {}),
+              point_kind: POINT_KINDS.RETRIEVAL,
+              chunking_model: CHUNKING_MODEL,
+              entity_id: entityNodeId,
+              fragment_index: i,
+              fragment_count: fragmentCount,
+            });
+          }
+        }
 
         // Exactly ONE placeholder per entity. Attachment order:
         //   1) preceding prose accumulator (handled above, before flush);
@@ -256,21 +352,31 @@ export function chunkFromSkeleton(nodes, ctx = {}) {
   // "last emitted prose chunk of this section" branch above, step 2 of the
   // "Attachment order" comment) — a forward walk can't know that append
   // will happen at the time it first emits that chunk.
-  const { chunks: withRefs, orphans } = attachEntityRefs(out);
+  //
+  // entityRawOut is included in this call's input (appended after `out`)
+  // even though it never enters the returned `chunks` array: a placeholder
+  // ALWAYS names the canonical entity's own node_path (never a fragment's —
+  // placeholderFor() is built from the entity node), so attachEntityRefs'
+  // own candidateIndex needs the canonical chunk present to resolve it.
+  // Without this, every placeholder for a split entity would resolve to
+  // nothing (an "orphan") the moment its canonical point stopped being part
+  // of `out` — entityRawOut is sliced back off below, after resolution.
+  const combinedForRefs = entityRawOut.length ? [...out, ...entityRawOut] : out;
+  const { chunks: withRefs, orphans } = attachEntityRefs(combinedForRefs);
 
   // Orphans (a recognized-format placeholder with no matching structural
   // chunk) are an internal invariant violation here, not a legitimate
   // runtime case: chunkFromSkeleton's own construction guarantees every
   // placeholder it emits (placeholderFor(), above) has a matching entity in
-  // this SAME call's `out` array — the two are built from the same walk
-  // over the same node list. An orphan surfacing here means this file has a
-  // bug (e.g. a placeholder built against the wrong node_path, or an entity
-  // silently dropped upstream) — fail loudly with a clear, actionable error
-  // instead of shipping an incomplete payload that would look fine at index
-  // time and only misbehave later at assembly time. Contrast with the
-  // backfill script, which reconstructs chunks from potentially-partial
-  // STORED payloads (a genuinely different, expected source of orphans) and
-  // reports them instead of throwing.
+  // this SAME call's combined (out + entityRawOut) set — the two are built
+  // from the same walk over the same node list. An orphan surfacing here
+  // means this file has a bug (e.g. a placeholder built against the wrong
+  // node_path, or an entity silently dropped upstream) — fail loudly with a
+  // clear, actionable error instead of shipping an incomplete payload that
+  // would look fine at index time and only misbehave later at assembly
+  // time. Contrast with the backfill script, which reconstructs chunks from
+  // potentially-partial STORED payloads (a genuinely different, expected
+  // source of orphans) and reports them instead of throwing.
   if (orphans.length) {
     const sample = orphans[0];
     throw new Error(
@@ -280,6 +386,17 @@ export function chunkFromSkeleton(nodes, ctx = {}) {
     );
   }
 
-  // chunkIndex / totalChunks at the end (impl spec §3.4).
-  return withRefs.map((c, i) => ({ ...c, chunkIndex: i, totalChunks: withRefs.length }));
+  // Slice entityRawOut's resolved copies back off — they never belonged in
+  // the retrieval `chunks` array, only in attachEntityRefs' resolution
+  // scope above. entity_raw chunks never carry placeholders themselves
+  // (their own text is '' — see the entityRawOut.push() site above), so
+  // attachEntityRefs never needed to MODIFY them; slicing the same count
+  // off the tail is exact and order-preserving.
+  const withRefsChunksOnly = entityRawOut.length ? withRefs.slice(0, out.length) : withRefs;
+
+  // chunkIndex / totalChunks at the end (impl spec §3.4) — assigned ONLY
+  // over the retrieval chunk sequence; entityRawPoints get no chunk_index
+  // at all (see this function's return-shape doc comment).
+  const chunks = withRefsChunksOnly.map((c, i) => ({ ...c, chunkIndex: i, totalChunks: withRefsChunksOnly.length }));
+  return { chunks, entityRawPoints: entityRawOut };
 }

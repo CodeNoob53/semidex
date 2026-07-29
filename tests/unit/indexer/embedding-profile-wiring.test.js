@@ -89,7 +89,10 @@ describe('run.js — setIndexingState() is called after a successful run (P2 fix
     assert.ok(doneLogIndex > -1, 'the final Done. log line must exist');
     const precedingBlock = src.slice(Math.max(0, doneLogIndex - 800), doneLogIndex);
     assert.match(precedingBlock, /storageAdapter\.setIndexingState\(COLLECTION,\s*buildIndexingState\(\{/);
-    assert.match(precedingBlock, /indexingSchemaVersion:\s*INDEXING_SCHEMA_VERSION/);
+    // Topology-aware (code review, P2): indexingSchemaVersion picks between
+    // the two topology-specific constants based on whether this collection's
+    // profile requires entity splitting, never a single hardcoded constant.
+    assert.match(precedingBlock, /indexingSchemaVersion:\s*resolveEmbeddingBudget\(EMBEDDING_PROFILE\)\s*!==\s*null\s*\r?\n?\s*\?\s*INDEXING_SCHEMA_VERSION_SPLIT_ENTITY\s*:\s*INDEXING_SCHEMA_VERSION_BASE/);
     assert.match(precedingBlock, /chunkingSchemaVersion:\s*CHUNKING_SCHEMA_VERSION/);
   });
 
@@ -102,10 +105,44 @@ describe('run.js — setIndexingState() is called after a successful run (P2 fix
     assert.match(precedingBlock.slice(setIndexingStateIndex), /catch\s*\(err\)\s*\{\s*\r?\n\s*console\.warn\(/);
   });
 
-  it('imports buildIndexingState from the canonical schema.js and INDEXING_SCHEMA_VERSION from skeleton-payload.js, not a re-implementation', () => {
-    assert.match(src, /import\s*\{\s*buildIndexingState\s*\}\s*from\s*['"]\.\.\/core\/embedding-profile\/schema\.js['"]/);
-    assert.match(src, /INDEXING_SCHEMA_VERSION/);
-    const importLine = src.slice(0, src.indexOf('\n', src.indexOf('INDEXING_SCHEMA_VERSION')));
+  it('imports buildIndexingState from the canonical schema.js and the topology-specific version constants from skeleton-payload.js, not a re-implementation', () => {
+    assert.match(src, /import\s*\{[^}]*\bbuildIndexingState\b[^}]*\}\s*from\s*['"]\.\.\/core\/embedding-profile\/schema\.js['"]/);
+    assert.match(src, /INDEXING_SCHEMA_VERSION_BASE/);
+    assert.match(src, /INDEXING_SCHEMA_VERSION_SPLIT_ENTITY/);
+    const importLine = src.slice(0, src.indexOf('\n', src.indexOf('INDEXING_SCHEMA_VERSION_BASE')));
     assert.match(importLine, /from\s*['"]\.\/skeleton-payload\.js['"]/);
+  });
+});
+
+describe('run.js stageD — commit order: canonical entity_raw upsert BEFORE fragment upsert (code review, P2)', () => {
+  // stageD is not exported (requires live Qdrant to exercise end to end —
+  // see this file's own header comment for why source-slicing is this
+  // suite's established approach for run.js's internal stage functions).
+  // A fragment's entity_id must never be able to point at a canonical
+  // entity_raw point that doesn't exist on the server yet — this requires
+  // BOTH the call order (entity_raw upsert issued first) AND a real
+  // completion guarantee (upsertPointsWithoutVectors' own wait: true,
+  // tested directly in qdrant-store-upsert-without-vectors.test.js) since
+  // call order alone says nothing about server-side completion order under
+  // wait: false. An earlier version of this function upserted fragments
+  // FIRST while its own comment claimed the opposite — this test pins the
+  // corrected order structurally so the two can never drift apart again.
+  const stageDStart = src.indexOf('async function stageD(');
+  const stageDEnd = src.indexOf('\nasync function ', stageDStart + 1);
+  const stageDBody = src.slice(stageDStart, stageDEnd > -1 ? stageDEnd : undefined);
+
+  it('stageD exists and was located correctly (fixture sanity check)', () => {
+    assert.ok(stageDStart > -1, 'expected to find "async function stageD(" in run.js');
+    assert.ok(stageDBody.includes('upsertPointsWithoutVectors'), 'expected stageD to call upsertPointsWithoutVectors');
+  });
+
+  it('upsertPointsWithoutVectors (entity_raw) is called BEFORE upsertPoints (fragments) in stageD\'s source order', () => {
+    const entityRawCallIndex = stageDBody.indexOf('upsertPointsWithoutVectors(');
+    // The FIRST upsertPoints(...) call in stageD's body is the fragments
+    // commit (pointsWithDense) — the later one, further down, is nav points.
+    const fragmentsCallIndex = stageDBody.indexOf('upsertPoints(collection, points)');
+    assert.ok(entityRawCallIndex > -1, 'expected an upsertPointsWithoutVectors call in stageD');
+    assert.ok(fragmentsCallIndex > -1, 'expected the fragments upsertPoints(collection, points) call in stageD');
+    assert.ok(entityRawCallIndex < fragmentsCallIndex, 'upsertPointsWithoutVectors (canonical entity_raw) must appear BEFORE the fragments upsertPoints call in stageD\'s source');
   });
 });

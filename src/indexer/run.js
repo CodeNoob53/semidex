@@ -26,20 +26,21 @@ import { resolveCombinedLlmConfig } from '../core/doctor-checks.js';
 import { runBatched } from './batch.js';
 import { collectFiles, SUPPORTED_EXTENSIONS } from './files.js';
 import { Profiler } from './profiler.js';
-import { upsertPoints, listCollections, getCollectionInfo, getStoredMeta, deleteBySourceFile, deleteTrailingChunks, listSourceFiles, deleteByFilter } from '../core/qdrant.js';
+import { upsertPoints, upsertPointsWithoutVectors, listCollections, getCollectionInfo, getStoredMeta, deleteBySourceFile, deleteTrailingChunks, listSourceFiles, deleteByFilter } from '../core/qdrant.js';
 import { makePointId } from '../core/point-id.js';
 import { loadConfig, saveConfig, resolveEnvProviders } from '../core/config.js';
 import { embedForIndex, embedForIndexBatch, shouldUseOnnxBatching, SCHEMA_VERSION } from '../core/embeddings.js';
 import { createStorageAdapter } from '../core/storage/factory.js';
 import { resolveExistingCollectionProfile, resolveNewCollectionProfile } from '../core/embedding-profile/resolve.js';
+import { findDenseModel, resolveEmbeddingBudget } from '../core/embedding-profile/qdrant-cloud-catalog.js';
 import { resolveCollectionConfigEntry } from '../core/embedding-profile/config-cache.js';
 import { ensureOllamaPreflight } from './preflight.js';
 import { CHUNKING_SCHEMA_VERSION, getTokenCounter, resolveTokenCountMode } from '../core/token-count.js';
 import { Semaphore } from './semaphore.js';
 import { SerialQueue } from './serial-queue.js';
 import { envInt } from '../core/env.js';
-import { expectedChunkingMeta, skeletonPayloadFields, isSkeletonChunk, makeSkeletonPointId, buildNavPointPayload, INDEXING_SCHEMA_VERSION } from './skeleton-payload.js';
-import { buildIndexingState } from '../core/embedding-profile/schema.js';
+import { expectedChunkingMeta, skeletonPayloadFields, isSkeletonChunk, makeSkeletonPointId, buildNavPointPayload, buildEntityRawPointPayload, INDEXING_SCHEMA_VERSION_BASE, INDEXING_SCHEMA_VERSION_SPLIT_ENTITY } from './skeleton-payload.js';
+import { buildIndexingState, EXECUTION } from '../core/embedding-profile/schema.js';
 import { generateNavSummaries, generateDirectorySummaries, buildCollectionSummary, resolveRunNumCtx, estTokens } from './phases/skeleton-summary.js';
 import { buildDirectoryNavPoints } from './phases/skeleton-index.js';
 import { makeNodeId } from '../core/node-id.js';
@@ -142,6 +143,12 @@ async function stageA(filePath, rootPath, collection, profiler, reporter = null)
   };
   const tokenCountMode = resolveTokenCountMode();
   const configVectorSize = EMBEDDING_PROFILE.embedding.dense.dimensions;
+  // Resolved once here (file-independent) so both the skip-tuple check
+  // below and the actual chunking call further down use the SAME budget —
+  // null for a client-execution profile, which preserves whole-entity
+  // chunking exactly as before oversized-entity splitting existed.
+  const chunkingBudget = resolveEmbeddingBudget(EMBEDDING_PROFILE);
+  const splitEntityTopology = chunkingBudget !== null;
 
   const fileHash   = await hashFile(filePath);
   const storedMeta = await getStoredMeta(collection, sourceFile);
@@ -149,7 +156,13 @@ async function stageA(filePath, rootPath, collection, profiler, reporter = null)
   // Chunking-model agreement is part of the skip tuple — a file previously
   // indexed by the legacy chunker (chunkingModel: null) must reindex into
   // the now-mandatory skeleton model, never silently mix point models.
-  const chunkMeta = expectedChunkingMeta(filePath);
+  // splitEntityTopology (code review, P2): the indexing schema version is
+  // topology-aware, not a hardcoded global bump — a collection whose
+  // profile never requires entity splitting (e.g. local BGE-M3) reports
+  // the BASE version, unaffected by entity-split.js's existence, so it is
+  // never force-reindexed for a topology change that could never apply to
+  // it.
+  const chunkMeta = expectedChunkingMeta(filePath, { splitEntityTopology });
 
   if (
     !process.env.FORCE_REINDEX &&
@@ -218,20 +231,26 @@ async function stageA(filePath, rootPath, collection, profiler, reporter = null)
 
   console.log('  [1/5] chunking...');
   reporter?.step('chunking');
-  const rawChunks = await chunkFileFromPath(filePath, sourceFile);
-  console.log(`        ${rawChunks.length} chunks`);
+  // chunkingBudget resolved earlier in this function (alongside
+  // splitEntityTopology, used by the skip-tuple check above) — reused here
+  // rather than re-resolved, so both consult the exact same value.
+  // { chunks, navPoints, entityRawPoints } — explicit structured return
+  // (chunkFileFromPath, chunk.js), replacing the previous non-enumerable
+  // __navPoints side-channel. entityRawPoints are canonical entity_raw
+  // points for split entities (entity-split.js) — deliberately never part
+  // of the rawChunks chunk_index sequence (code review: a canonical point
+  // sharing the chunk_index space with retrieval chunks created a gap a
+  // window=1 query around a fragment could silently walk into).
+  const { chunks: rawChunks, navPoints, entityRawPoints } = await chunkFileFromPath(filePath, sourceFile, chunkingBudget);
+  console.log(`        ${rawChunks.length} chunks${entityRawPoints.length ? ` (+${entityRawPoints.length} entity_raw)` : ''}`);
   profiler.mark('chunk');
-
-  // Task 6: nav points ride a non-enumerable side-channel on the chunk array.
-  // Nav points are always generated for skeleton files — no kill-switch.
-  const navPoints = rawChunks.__navPoints ?? [];
 
   return {
     status: 'ready',
     filePath, sourceFile, collection, fileHash,
-    embedCfg, tokenCountMode, configVectorSize,
+    embedCfg, tokenCountMode, configVectorSize, splitEntityTopology,
     needsDelete, deleteReason,
-    rawChunks, navPoints, combinedCfg: resolveCombinedLlmConfig(process.env),
+    rawChunks, navPoints, entityRawPoints, combinedCfg: resolveCombinedLlmConfig(process.env),
     profiler,
   };
 }
@@ -400,6 +419,36 @@ async function stageB(prepared, ollamaSem = null, reporter = null) {
   return { ...prepared, taggedChunks };
 }
 
+/**
+ * Builds the (embedText, embedContext) pair for every chunk about to be
+ * embedded — pure, no I/O, exported for direct unit testing (mirrors this
+ * file's existing pattern for computeStaleSourceFiles/
+ * shouldSkipCollectionNavRollup/collectionNavRollupNeeded below).
+ *
+ * `taggedChunks` never contains an entity_raw point — canonical entity_raw
+ * points (entity-split.js) are threaded through the pipeline as their own
+ * `entityRawPoints` array (see stageA), entirely separate from the
+ * retrieval chunk_index sequence, and are upserted directly by stageD with
+ * no vector and no embedding call at all (never searched, so there is
+ * nothing for a vector to represent — code review: an earlier version of
+ * this function embedded a cheap fixed marker string for entity_raw
+ * points, which was itself unnecessary work, since Qdrant points do not
+ * require a vector).
+ *
+ * @param {Array<Object>} taggedChunks
+ * @param {{ useTextOnly?: boolean }} [opts]
+ * @returns {{ embedTexts: string[], embedContexts: (string|null)[] }}
+ */
+export function buildEmbedInputsForChunks(taggedChunks, { useTextOnly = false } = {}) {
+  const embedTexts = taggedChunks.map(chunk => (useTextOnly ? chunk.text : `${chunk.context}\n\n${chunk.text}`));
+  // Passed alongside embedTexts (cloud-only) so a too-long assembled input
+  // can have ITS CONTEXT trimmed — never the chunk body — and be retried
+  // once before indexing fails outright for that chunk. See
+  // embedForIndexCloud()'s own header comment (core/embeddings.js).
+  const embedContexts = taggedChunks.map(chunk => (useTextOnly ? null : chunk.context));
+  return { embedTexts, embedContexts };
+}
+
 // ── Stage C: embed + validate + build points (ONNX CPU, pure compute) ────────
 // Guarded by embedSem in pipeline mode.
 // No Qdrant mutations here — produces pointsWithDense for stageD to commit.
@@ -407,38 +456,53 @@ async function stageB(prepared, ollamaSem = null, reporter = null) {
 // serialised commit phase of a previous file.
 async function stageC(withTagged, reporter = null) {
   const { taggedChunks, collection, sourceFile, fileHash,
-          embedCfg, tokenCountMode, configVectorSize, profiler } = withTagged;
+          embedCfg, tokenCountMode, configVectorSize, splitEntityTopology, profiler } = withTagged;
 
   console.log('  [4/5] embedding...');
   reporter?.step('embedding');
-  // BENCH_EMBED_INPUT=text — benchmark/ablation only, not a stable config option.
-  const embedTexts = process.env.BENCH_EMBED_INPUT === 'text'
-    ? taggedChunks.map(chunk => chunk.text)
-    : taggedChunks.map(chunk => `${chunk.context}\n\n${chunk.text}`);
+  // BENCH_EMBED_INPUT=text — benchmark/ablation only, not a stable config
+  // option; in that mode there is no separate context prefix to reserve
+  // budget for, so embedContexts is all-null.
+  const useTextOnly = process.env.BENCH_EMBED_INPUT === 'text';
+  const { embedTexts, embedContexts } = buildEmbedInputsForChunks(taggedChunks, { useTextOnly });
+
+  const embedPairs = embedTexts.map((text, i) => ({ text, context: embedContexts[i] }));
 
   let embedResults;
   if (shouldUseOnnxBatching(process.env)) {
     try {
-      embedResults = await embedForIndexBatch(EMBEDDING_PROFILE, embedTexts, runBatched, BATCH_SIZE);
+      embedResults = await embedForIndexBatch(EMBEDDING_PROFILE, embedTexts, runBatched, BATCH_SIZE, { contexts: embedContexts });
     } catch (batchErr) {
       process.stderr.write(`[embed] DML batch failed (${batchErr.message}) — retrying per-text\n`);
-      embedResults = await runBatched(embedTexts, BATCH_SIZE, text => embedForIndex(EMBEDDING_PROFILE, text));
+      embedResults = await runBatched(embedPairs, BATCH_SIZE, ({ text, context }) => embedForIndex(EMBEDDING_PROFILE, text, { context }));
     }
   } else {
-    embedResults = await runBatched(embedTexts, BATCH_SIZE, text => embedForIndex(EMBEDDING_PROFILE, text));
+    embedResults = await runBatched(embedPairs, BATCH_SIZE, ({ text, context }) => embedForIndex(EMBEDDING_PROFILE, text, { context }));
   }
 
   // Validate vectors before passing to stageD — no destructive work has happened yet.
   if (embedResults.length !== taggedChunks.length) {
     throw new Error(`embed phase: expected ${taggedChunks.length} results, got ${embedResults.length}`);
   }
+  const isCloudExecution = EMBEDDING_PROFILE.embedding.dense.execution === EXECUTION.QDRANT_CLOUD;
   for (let i = 0; i < embedResults.length; i++) {
     const { dense, sparse } = embedResults[i];
-    if (!Array.isArray(dense) || dense.length !== configVectorSize) {
-      throw new Error(`embed phase: chunk ${i} dense length ${dense?.length} ≠ ${configVectorSize}`);
-    }
-    if (!Array.isArray(sparse?.indices) || !Array.isArray(sparse?.values)) {
-      throw new Error(`embed phase: chunk ${i} sparse shape invalid`);
+    if (isCloudExecution) {
+      // Qdrant computes the real vector server-side — no length to
+      // validate here, only the {text, model} inference-descriptor shape.
+      if (typeof dense !== 'object' || dense === null || typeof dense.text !== 'string' || typeof dense.model !== 'string') {
+        throw new Error(`embed phase: chunk ${i} dense inference descriptor invalid`);
+      }
+      if (sparse !== null && (typeof sparse !== 'object' || typeof sparse.text !== 'string' || typeof sparse.model !== 'string')) {
+        throw new Error(`embed phase: chunk ${i} sparse inference descriptor invalid`);
+      }
+    } else {
+      if (!Array.isArray(dense) || dense.length !== configVectorSize) {
+        throw new Error(`embed phase: chunk ${i} dense length ${dense?.length} ≠ ${configVectorSize}`);
+      }
+      if (!Array.isArray(sparse?.indices) || !Array.isArray(sparse?.values)) {
+        throw new Error(`embed phase: chunk ${i} sparse shape invalid`);
+      }
     }
   }
 
@@ -476,12 +540,36 @@ async function stageC(withTagged, reporter = null) {
           vector_size: configVectorSize,
           chunking_schema_version: CHUNKING_SCHEMA_VERSION,
           token_count_mode: tokenCountMode,
-          ...skeletonPayloadFields(chunk),   // additive; {} for legacy chunks
+          ...skeletonPayloadFields(chunk, { splitEntityTopology }),   // additive; {} for legacy chunks
           ...meta,
         },
       },
     };
   });
+
+  // Canonical entity_raw points (entity-split.js) — built directly from
+  // withTagged.entityRawPoints, with NO embedding call at all (code review:
+  // Qdrant points do not require a vector — they remain fetchable via
+  // scroll/filter and simply never participate in vector search — so the
+  // earlier cheap-marker-embed workaround was pure waste: a real Cloud
+  // Inference request and a stored vector for a point that is never
+  // searched). No tags either — entity_raw is never returned by search or
+  // tag-based aggregation, so tag generation would be equally wasted work.
+  const entityRawPoints = withTagged.entityRawPoints ?? [];
+  const entityRawQdrantPoints = entityRawPoints.map(chunk => ({
+    id: makeSkeletonPointId({
+      collection, nodeId: chunk.node_id,
+      embeddingSchemaVersion: embedCfg.schemaVersion,
+    }),
+    // No `vector` key at all — see stageD's upsertPointsWithoutVectors(),
+    // which upserts this array through a dedicated vectorless primitive
+    // rather than the regular {dense, sparse}-shaped upsert path.
+    payload: buildEntityRawPointPayload(chunk, {
+      fileHash, chunkingSchemaVersion: CHUNKING_SCHEMA_VERSION, tokenCountMode,
+      denseProvider: embedCfg.denseProvider, denseModel: embedCfg.denseModel,
+      sparseProvider: embedCfg.sparseProvider, embeddingSchemaVersion: embedCfg.schemaVersion,
+    }),
+  }));
 
   // Task 6: embed nav summaries (local ONNX/provider — not an LLM cost) and
   // assemble skeleton_nav points. Same provider as content for consistency.
@@ -503,7 +591,7 @@ async function stageC(withTagged, reporter = null) {
         payload: buildNavPointPayload(nav, {
           fileHash, vectorSize: configVectorSize,
           tokenCountMode, chunkingSchemaVersion: CHUNKING_SCHEMA_VERSION,
-          embedMeta: meta,
+          embedMeta: meta, splitEntityTopology,
         }),
       };
     });
@@ -511,12 +599,22 @@ async function stageC(withTagged, reporter = null) {
 
   profiler.mark('embed+upsert'); // mark covers embed; Qdrant write happens in stageD
 
-  return { ...withTagged, pointsWithDense, navQdrantPoints };
+  return { ...withTagged, pointsWithDense, navQdrantPoints, entityRawQdrantPoints };
 }
 
 // ── Stage D: commit (always serial via SerialQueue) ───────────────────────────
 // All Qdrant mutations are here, serialised.
-// Order: deleteBySourceFile → upsertPoints → deleteTrailingChunks
+// Order: deleteBySourceFile → upsert vectorless entity_raw points (wait:true)
+//        → upsert retrieval fragments (real vectors) → upsert nav points →
+//        deleteTrailingChunks. The canonical entity_raw upsert happens
+// FIRST and is awaited with wait: true (upsertPointsWithoutVectors' own
+// contract — see its doc comment in core/qdrant/store.js) specifically so
+// it is GUARANTEED to have actually landed on the server — not merely been
+// queued — before any fragment whose entity_id points at it is written.
+// Writing fragments first (an earlier version of this function did, citing
+// this exact guarantee in its own comment while the code contradicted it —
+// code review finding) would let a query racing the indexing run observe a
+// fragment whose entity_id resolves to nothing yet.
 // Serialisation prevents stageC of file B from racing with the commit of file A.
 async function stageD(withPoints, reporter = null) {
   const { taggedChunks, pointsWithDense, collection, rawChunks,
@@ -533,11 +631,21 @@ async function stageD(withPoints, reporter = null) {
     await deleteBySourceFile(collection, sourceFile);
   }
 
+  // Canonical entity_raw points (entity-split.js) FIRST — vectorless
+  // upsert (vector: {}, confirmed live against Qdrant Cloud v1.17.1:
+  // accepted, scroll/filter-reachable, excluded from vector search on
+  // every named vector), awaited with wait: true so it has genuinely
+  // completed on the server before the fragments that reference it
+  // (via entity_id) are written below.
+  const entityRawQdrantPoints = withPoints.entityRawQdrantPoints ?? [];
+  if (entityRawQdrantPoints.length > 0) {
+    await upsertPointsWithoutVectors(collection, entityRawQdrantPoints);
+    console.log(`        upserted ${entityRawQdrantPoints.length} entity_raw point(s) (vectorless)`);
+  }
+
   const points = pointsWithDense.map(({ point }) => point);
   await upsertPoints(collection, points);
   console.log(`        upserted ${points.length} points`);
-
-  await deleteTrailingChunks(collection, sourceFile, taggedChunks.length);
 
   // Task 6: nav points last — content is committed and the point_kind filter
   // (task 5) guarantees they never surface in search or tool aggregations.
@@ -546,6 +654,8 @@ async function stageD(withPoints, reporter = null) {
     await upsertPoints(collection, navQdrantPoints);
     console.log(`        upserted ${navQdrantPoints.length} nav point(s) (skeleton_nav)`);
   }
+
+  await deleteTrailingChunks(collection, sourceFile, taggedChunks.length);
 
   const tokensEst = taggedChunks.reduce((s, c) => s + Math.ceil(c.text.length / 4), 0);
   profiler.report({ chunksIn: rawChunks.length, chunksOut: taggedChunks.length, tokensEst });
@@ -619,6 +729,13 @@ async function main() {
           `Verify that the model is installed, supports embeddings, and Ollama is reachable at ${ollamaUrl}.`
         );
       }
+    } else if (providerConfig.denseProvider === 'qdrant-cloud') {
+      // Dimensions are fixed per catalog model ID — no network probe needed.
+      const denseCatalog = findDenseModel(providerConfig.denseModel);
+      if (!denseCatalog || denseCatalog.status !== 'supported') {
+        throw new Error(`Cannot create a qdrant-cloud collection: "${providerConfig.denseModel}" is not a supported Qdrant Cloud dense model.`);
+      }
+      newCollectionVectorSize = denseCatalog.dimensions;
     }
     VECTOR_SIZE = newCollectionVectorSize;
     // resolveNewCollectionProfile() is the ONE legitimate place
@@ -951,6 +1068,7 @@ async function main() {
               tokenCountMode: resolveTokenCountMode(),
               chunkingSchemaVersion: CHUNKING_SCHEMA_VERSION,
               embedMeta: dirEmbeds[i].meta,
+              splitEntityTopology: resolveEmbeddingBudget(EMBEDDING_PROFILE) !== null,
             }),
           }));
           await upsertPoints(COLLECTION, dirPoints);
@@ -997,6 +1115,7 @@ async function main() {
             tokenCountMode: resolveTokenCountMode(),
             chunkingSchemaVersion: CHUNKING_SCHEMA_VERSION,
             embedMeta: meta,
+            splitEntityTopology: resolveEmbeddingBudget(EMBEDDING_PROFILE) !== null,
           }),
         }]);
         console.log(`\nCollection nav node updated (${fileNodes.length} file summaries, ${enrichedDirs.length} directory summaries).`);
@@ -1016,7 +1135,11 @@ async function main() {
   // per-point above) remain the authoritative per-file record regardless.
   try {
     await storageAdapter.setIndexingState(COLLECTION, buildIndexingState({
-      indexingSchemaVersion: INDEXING_SCHEMA_VERSION,
+      // Topology-aware (code review, P2): matches expectedChunkingMeta's
+      // own per-file logic — this collection's profile decides which
+      // version applies, never a hardcoded ceiling constant.
+      indexingSchemaVersion: resolveEmbeddingBudget(EMBEDDING_PROFILE) !== null
+        ? INDEXING_SCHEMA_VERSION_SPLIT_ENTITY : INDEXING_SCHEMA_VERSION_BASE,
       chunkingSchemaVersion: CHUNKING_SCHEMA_VERSION,
     }));
   } catch (err) {

@@ -21,7 +21,8 @@ import { join } from 'node:path';
 import {
   expectedChunkingMeta,
   SKELETON_CHUNKING_MODEL,
-  INDEXING_SCHEMA_VERSION,
+  INDEXING_SCHEMA_VERSION_BASE,
+  INDEXING_SCHEMA_VERSION_SPLIT_ENTITY,
 } from '../../../src/indexer/skeleton-payload.js';
 import { chunkFileFromPath } from '../../../src/indexer/phases/chunk.js';
 
@@ -37,10 +38,17 @@ function wouldSkipOnChunkingMeta(storedMeta, chunkMeta) {
 }
 
 describe('expectedChunkingMeta — unconditional for Markdown, no env dependency', () => {
-  test('.md always resolves to the skeleton model', () => {
+  test('.md always resolves to the skeleton model (default: BASE version, no split topology)', () => {
     assert.deepEqual(expectedChunkingMeta('docs/a.md'), {
       chunkingModel: SKELETON_CHUNKING_MODEL,
-      indexingSchemaVersion: INDEXING_SCHEMA_VERSION,
+      indexingSchemaVersion: INDEXING_SCHEMA_VERSION_BASE,
+    });
+  });
+
+  test('.md with splitEntityTopology:true resolves to the SPLIT_ENTITY version', () => {
+    assert.deepEqual(expectedChunkingMeta('docs/a.md', { splitEntityTopology: true }), {
+      chunkingModel: SKELETON_CHUNKING_MODEL,
+      indexingSchemaVersion: INDEXING_SCHEMA_VERSION_SPLIT_ENTITY,
     });
   });
 
@@ -74,7 +82,7 @@ describe('expectedChunkingMeta — unconditional for Markdown, no env dependency
         }
         assert.deepEqual(expectedChunkingMeta('docs/a.md'), {
           chunkingModel: SKELETON_CHUNKING_MODEL,
-          indexingSchemaVersion: INDEXING_SCHEMA_VERSION,
+          indexingSchemaVersion: INDEXING_SCHEMA_VERSION_BASE,
         });
       } finally {
         for (const [key, value] of Object.entries(saved)) {
@@ -94,16 +102,30 @@ describe('stageA skip-tuple contract — chunkingModel/indexingSchemaVersion hal
   });
 
   test('required-test #7: an already-current skeleton-shaped stored meta is correctly skipped, no needless rebuild', () => {
-    const storedCurrent = { chunkingModel: SKELETON_CHUNKING_MODEL, indexingSchemaVersion: INDEXING_SCHEMA_VERSION };
+    const storedCurrent = { chunkingModel: SKELETON_CHUNKING_MODEL, indexingSchemaVersion: INDEXING_SCHEMA_VERSION_BASE };
     const chunkMeta = expectedChunkingMeta('docs/a.md');
     assert.equal(wouldSkipOnChunkingMeta(storedCurrent, chunkMeta), true,
       'an already-skeleton-indexed .md file with matching schema version must be skipped, not needlessly rebuilt');
   });
 
   test('a stored meta from a stale indexing-schema version (same model, older version) still forces a reindex', () => {
-    const storedStale = { chunkingModel: SKELETON_CHUNKING_MODEL, indexingSchemaVersion: INDEXING_SCHEMA_VERSION - 1 };
+    const storedStale = { chunkingModel: SKELETON_CHUNKING_MODEL, indexingSchemaVersion: INDEXING_SCHEMA_VERSION_BASE - 1 };
     const chunkMeta = expectedChunkingMeta('docs/a.md');
     assert.equal(wouldSkipOnChunkingMeta(storedStale, chunkMeta), false);
+  });
+
+  test('a collection whose topology requires splitting reports SPLIT_ENTITY version — a BASE-version stored meta forces reindex (code review, P2)', () => {
+    const storedBase = { chunkingModel: SKELETON_CHUNKING_MODEL, indexingSchemaVersion: INDEXING_SCHEMA_VERSION_BASE };
+    const chunkMeta = expectedChunkingMeta('docs/a.md', { splitEntityTopology: true });
+    assert.equal(wouldSkipOnChunkingMeta(storedBase, chunkMeta), false,
+      'a collection that now requires entity splitting must reindex even a previously-current BASE-version file');
+  });
+
+  test('a collection whose topology never requires splitting reports BASE version — never force-reindexed by SPLIT_ENTITY existing (code review, P2)', () => {
+    const storedBase = { chunkingModel: SKELETON_CHUNKING_MODEL, indexingSchemaVersion: INDEXING_SCHEMA_VERSION_BASE };
+    const chunkMeta = expectedChunkingMeta('docs/a.md', { splitEntityTopology: false });
+    assert.equal(wouldSkipOnChunkingMeta(storedBase, chunkMeta), true,
+      'a local/client-execution collection must stay on BASE and skip unchanged files — never force-reindexed for a topology change that could never apply to it');
   });
 
   test('non-Markdown files: legacy stored meta matches legacy expectation, correctly skipped (unaffected by this change)', () => {
@@ -137,7 +159,7 @@ describe('chunkFileFromPath — required-test #3: Markdown always uses the skele
       else process.env.SKELETON_CHUNKING = envValue;
       try {
         await withTempMdFile(async (fp) => {
-          const chunks = await chunkFileFromPath(fp, 'doc.md');
+          const { chunks } = await chunkFileFromPath(fp, 'doc.md');
           assert.ok(chunks.some((c) => c.chunking_model === SKELETON_CHUNKING_MODEL));
           assert.ok(chunks.some((c) => c.node_type === 'table'), 'the table must be a real skeleton entity, not legacy flat text');
         });
