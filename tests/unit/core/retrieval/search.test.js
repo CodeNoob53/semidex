@@ -1,6 +1,16 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { runHybridSearch, resolveSearchMode } from '../../../../src/core/retrieval/search.js';
+import { loadQdrantCloudTokenizer } from '../../../../src/core/embedding-profile/qdrant-cloud-tokenizer.js';
+
+let e5TokenizerAvailable = true;
+try {
+  await loadQdrantCloudTokenizer('intfloat/multilingual-e5-small', { localFilesOnly: true });
+} catch {
+  e5TokenizerAvailable = false;
+}
 
 const validProfile = {
   schemaVersion: 1, managedBy: 'semidex',
@@ -16,8 +26,12 @@ function fakeAdapter({ capabilities, collection, hits, embeddingProfileResult } 
     capabilities: () => capabilities ?? { hybridSearch: true, sparseVectors: true },
     getCollection: async (name) => (collection === undefined ? { name } : collection),
     getEmbeddingProfile: async () => embeddingProfileResult ?? { state: 'valid', profile: validProfile },
-    searchHybrid: async (name, opts) => {
+    searchHybridVectors: async (name, opts) => {
       fakeAdapter.lastCall = { name, opts };
+      return hits ?? [];
+    },
+    searchHybridInference: async (name, opts) => {
+      fakeAdapter.lastInferenceCall = { name, opts };
       return hits ?? [];
     },
   };
@@ -74,7 +88,7 @@ describe('runHybridSearch', () => {
     });
   });
 
-  test('passes dense/sparse vectors and limit through to searchHybrid, returns hits and searchMode', async () => {
+  test('passes dense/sparse vectors and limit through to searchHybridVectors, returns hits and searchMode', async () => {
     const hits = [{ sourceFile: 'a.md', chunkIndex: 0, score: 0.9 }];
     const adapter = fakeAdapter({ hits });
     const embedQuery = async () => ({ dense: [0.1, 0.2], sparse: { indices: [1], values: [0.5] } });
@@ -87,7 +101,7 @@ describe('runHybridSearch', () => {
     });
   });
 
-  test('forwards a supplied settingsService through to searchHybrid (so HYBRID_PREFETCH_LIMIT/RRF_K apply to admin search and Ask, not just MCP)', async () => {
+  test('forwards a supplied settingsService through to searchHybridVectors (so HYBRID_PREFETCH_LIMIT/RRF_K apply to admin search and Ask, not just MCP)', async () => {
     const adapter = fakeAdapter();
     const embedQuery = async () => ({ dense: [1], sparse: {} });
     const fakeSettingsService = { getActiveValue: () => 42, refreshIfChanged: () => {} };
@@ -118,15 +132,35 @@ describe('runHybridSearch', () => {
     assert.equal(result.error, 'embedding_unresolved');
   });
 
-  test('a profile with a non-client execution mode (e.g. qdrant-cloud) produces embedding_unsupported, never invoking embedQuery', async () => {
-    const cloudProfile = { ...validProfile, embedding: { ...validProfile.embedding, dense: { ...validProfile.embedding.dense, execution: 'qdrant-cloud' } } };
-    const adapter = fakeAdapter({ embeddingProfileResult: { state: 'valid', profile: cloudProfile } });
+  test('a profile with a still-unimplemented execution mode (e.g. qdrant-cluster) produces embedding_unsupported, never invoking embedQuery', async () => {
+    const clusterProfile = { ...validProfile, embedding: { ...validProfile.embedding, dense: { ...validProfile.embedding.dense, execution: 'qdrant-cluster' } } };
+    const adapter = fakeAdapter({ embeddingProfileResult: { state: 'valid', profile: clusterProfile } });
     let embedQueryCalled = false;
     const embedQuery = async () => { embedQueryCalled = true; return { dense: [1], sparse: {} }; };
     const result = await runHybridSearch({ adapter, embedQuery, collection: 'c', query: 'q', top: 5 });
     assert.equal(result.error, 'embedding_unsupported');
-    assert.match(result.message, /qdrant-cloud/);
+    assert.match(result.message, /qdrant-cluster/);
     assert.equal(embedQueryCalled, false);
+  });
+
+  test('a qdrant-cloud profile never calls embedQuery, builds inference descriptors, and calls searchHybridInference (not searchHybridVectors)', async () => {
+    const cloudProfile = {
+      ...validProfile,
+      embedding: {
+        dense: { provider: 'qdrant-cloud', model: 'intfloat/multilingual-e5-small', vectorName: 'dense', dimensions: 384, distance: 'Cosine', execution: 'qdrant-cloud' },
+        sparse: { provider: 'qdrant-cloud', model: 'qdrant/bm25', vectorName: 'sparse', execution: 'qdrant-cloud', modifier: 'idf' },
+      },
+    };
+    const adapter = fakeAdapter({ embeddingProfileResult: { state: 'valid', profile: cloudProfile } });
+    let embedQueryCalled = false;
+    const embedQuery = async () => { embedQueryCalled = true; return { dense: [1], sparse: {} }; };
+    const result = await runHybridSearch({ adapter, embedQuery, collection: 'c', query: 'ukrainian query', top: 5 });
+    assert.equal(embedQueryCalled, false, 'embedQuery (the client-only DI) must never be called for a cloud profile');
+    assert.equal(result.searchMode, 'hybrid');
+    assert.deepEqual(fakeAdapter.lastInferenceCall.opts.denseQuery, { text: 'ukrainian query', model: 'intfloat/multilingual-e5-small' });
+    assert.deepEqual(fakeAdapter.lastInferenceCall.opts.sparseQuery, { text: 'ukrainian query', model: 'qdrant/bm25' });
+    assert.ok(!('modifier' in fakeAdapter.lastInferenceCall.opts.sparseQuery), 'sparse inference descriptor must never carry modifier — that is schema-only, set at createCollection time');
+    assert.ok(!('options' in fakeAdapter.lastInferenceCall.opts.sparseQuery), 'sparse inference descriptor must never carry options for BM25');
   });
 
   test('same-dimension-different-model is never accepted as compatible: two profiles with equal dimensions but different models are passed through distinctly, never cross-substituted', async () => {
@@ -141,5 +175,68 @@ describe('runHybridSearch', () => {
     assert.equal(captured[0], 'bge-m3');
     assert.equal(captured[1], 'a-completely-different-model');
     assert.notEqual(captured[0], captured[1], 'equal dimensions must never cause the two distinct models to be treated as interchangeable');
+  });
+
+  test('REGRESSION (P2 fix): an over-long query against a qdrant-cloud profile is rejected with a typed error BEFORE any inference descriptor is sent — never silently truncated by Qdrant', { skip: !e5TokenizerAvailable }, async () => {
+    const cloudProfile = {
+      ...validProfile,
+      embedding: {
+        dense: { provider: 'qdrant-cloud', model: 'intfloat/multilingual-e5-small', vectorName: 'dense', dimensions: 384, distance: 'Cosine', execution: 'qdrant-cloud' },
+        sparse: { provider: 'qdrant-cloud', model: 'qdrant/bm25', vectorName: 'sparse', execution: 'qdrant-cloud', modifier: 'idf' },
+      },
+    };
+    const adapter = fakeAdapter({ embeddingProfileResult: { state: 'valid', profile: cloudProfile } });
+    // Dense camelCase-identifier text — same regression fixture shape as
+    // qdrant-cloud-catalog.test.js's own checkEmbedInputFits() proof: the
+    // heuristic would call this short enough, but the real E5 tokenizer
+    // counts well over 512 tokens.
+    const chunk = 'resolveEmbeddingProfileFromCollectionInfoConfigMetadataParamsVectorsSparseVectors ';
+    let longQuery = '';
+    let heuristicEstimate = 0;
+    while (heuristicEstimate < 480) {
+      longQuery += chunk;
+      heuristicEstimate = Math.ceil(longQuery.length / 4);
+    }
+    fakeAdapter.lastInferenceCall = undefined; // reset the shared static before asserting it stays unset
+    const result = await runHybridSearch({ adapter, collection: 'c', query: longQuery, top: 5 });
+    assert.equal(result.error, 'embedding_failed');
+    assert.match(result.message, /too long/);
+    assert.equal(fakeAdapter.lastInferenceCall, undefined, 'searchHybridInference must never be called for a rejected query — no partial/truncated request sent');
+  });
+
+  test('a short query against a qdrant-cloud profile still succeeds (the length check does not block normal queries)', { skip: !e5TokenizerAvailable }, async () => {
+    const cloudProfile = {
+      ...validProfile,
+      embedding: {
+        dense: { provider: 'qdrant-cloud', model: 'intfloat/multilingual-e5-small', vectorName: 'dense', dimensions: 384, distance: 'Cosine', execution: 'qdrant-cloud' },
+        sparse: { provider: 'qdrant-cloud', model: 'qdrant/bm25', vectorName: 'sparse', execution: 'qdrant-cloud', modifier: 'idf' },
+      },
+    };
+    const adapter = fakeAdapter({ embeddingProfileResult: { state: 'valid', profile: cloudProfile } });
+    const result = await runHybridSearch({ adapter, collection: 'c', query: 'a normal length query', top: 5 });
+    assert.equal(result.error, undefined);
+    assert.equal(result.searchMode, 'hybrid');
+  });
+});
+
+describe('storage layering — qdrant-adapter.js never imports embedding-runtime code', () => {
+  test('src/core/storage/qdrant-adapter.js never imports embeddings.js/onnx-embed.js/ollama.js — a real source-level layering check, distinct from the banned "proves ONNX wasn\'t called" regex use', () => {
+    const src = readFileSync(
+      fileURLToPath(new URL('../../../../src/core/storage/qdrant-adapter.js', import.meta.url)),
+      'utf-8',
+    );
+    for (const banned of ["'../embeddings.js'", "'../onnx-embed.js'", "'../ollama.js'", '"../embeddings.js"', '"../onnx-embed.js"', '"../ollama.js"']) {
+      assert.ok(!src.includes(banned), `qdrant-adapter.js must never import ${banned} — the storage adapter only ever executes storage requests, never decides whether to run a local embed`);
+    }
+  });
+
+  test('src/core/qdrant/store.js never imports embeddings.js/onnx-embed.js/ollama.js either', () => {
+    const src = readFileSync(
+      fileURLToPath(new URL('../../../../src/core/qdrant/store.js', import.meta.url)),
+      'utf-8',
+    );
+    for (const banned of ["'../embeddings.js'", "'../onnx-embed.js'", "'../ollama.js'", '"../embeddings.js"', '"../onnx-embed.js"', '"../ollama.js"']) {
+      assert.ok(!src.includes(banned), `store.js must never import ${banned}`);
+    }
   });
 });

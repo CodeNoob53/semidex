@@ -1,19 +1,23 @@
 // Provider-neutral hybrid-search orchestration — the core retrieval service
-// shared by /api/search (src/admin/api/search.js) and the Ask evidence
-// pipeline (src/core/ask/evidence.js). One implementation: mode resolution,
-// the collection-exists check, embedding-profile resolution, query
-// embedding, and the excludeNav filter all live here so both callers see
-// identical ranking and filtering behavior. MCP search
-// (src/mcp/tools/search.js) resolves its collection's profile through the
-// SAME resolveExistingCollectionProfile() this file uses, but is not routed
-// through runHybridSearch() itself — out of scope to refactor MCP's whole
-// pipeline onto this service.
+// shared by /api/search (src/admin/api/search.js), the Ask evidence
+// pipeline (src/core/ask/evidence.js), and MCP search
+// (src/mcp/tools/search.js). One implementation: mode resolution, the
+// collection-exists check, embedding-profile resolution, execution-mode
+// branching (CLIENT: real vectors via embedQuery + searchHybridVectors();
+// QDRANT_CLOUD: inference descriptors via buildCloudQueryInputs() +
+// searchHybridInference() — never a local embed for a cloud profile), and
+// the excludeNav filter all live here so every caller sees identical
+// ranking and filtering behavior. MCP requests its own rerank candidate
+// pool by passing a larger `top`; its deterministic/CE rerank remains
+// MCP-specific post-processing on the returned hits.
 //
 // No HTTP concerns here (no HttpError, no req/res) — errors are reported via
 // a typed { error } result so both an HTTP adapter and a non-HTTP caller
 // (Ask) can render them however they need to.
 import { embedForSearch } from '../embeddings.js';
 import { resolveExistingCollectionProfile } from '../embedding-profile/resolve.js';
+import { EXECUTION } from '../embedding-profile/schema.js';
+import { buildCloudQueryInputs, checkEmbedInputFits, findDenseModel } from '../embedding-profile/qdrant-cloud-catalog.js';
 
 /**
  * @typedef {Object} RetrievalError
@@ -46,11 +50,12 @@ export function resolveSearchMode(capabilities) {
  *   filters?: { sourceFile?: string, tags?: string[] },
  *   settingsService?: ReturnType<typeof import('../settings/service.js').createSettingsService>,
  * }} opts
- *   settingsService is optional DI, forwarded to adapter.searchHybrid() so
+ *   settingsService is optional DI, forwarded to
+ *   adapter.searchHybridVectors()/searchHybridInference() so
  *   HYBRID_PREFETCH_LIMIT/RRF_K (next_search settings) apply to admin
- *   /api/search and Ask the same way they already do for MCP search (see
- *   mcp/tools/search.js) — without it, this service silently fell back to
- *   qdrant/store.js's own direct envInt() reads (code review finding).
+ *   /api/search, Ask, and MCP search uniformly — without it, this service
+ *   silently fell back to qdrant/store.js's own direct envInt() reads
+ *   (code review finding).
  * @returns {Promise<{ searchMode: string, hits: Object[] } | RetrievalError>}
  */
 export async function runHybridSearch({ adapter, embedQuery = embedForSearch, collection, query, top, filters = {}, settingsService } = {}) {
@@ -74,20 +79,46 @@ export async function runHybridSearch({ adapter, embedQuery = embedForSearch, co
   if (!resolution.resolved) {
     return { error: 'embedding_unresolved', message: `Collection "${collection}" has no resolvable embedding profile (${resolution.reason}) — reindex or run "npm run sync" to migrate.` };
   }
-  if (resolution.profile.embedding.dense.execution !== 'client') {
-    return { error: 'embedding_unsupported', message: `Collection "${collection}"'s embedding profile uses execution "${resolution.profile.embedding.dense.execution}", which is not yet implemented.` };
-  }
-
-  let vectors;
-  try {
-    vectors = await embedQuery(resolution.profile, query);
-  } catch (err) {
-    return { error: 'embedding_failed', message: `Failed to embed query: ${err.message}` };
-  }
-
   const { sourceFile, tags } = filters;
   const filter = { ...(sourceFile && { sourceFile }), ...(tags && { tags }), excludeNav: true };
-  const hits = await adapter.searchHybrid(collection, { dense: vectors.dense, sparse: vectors.sparse, limit: top, filter, settingsService });
+  const execution = resolution.profile.embedding.dense.execution;
+
+  let hits;
+  if (execution === EXECUTION.CLIENT) {
+    let vectors;
+    try {
+      vectors = await embedQuery(resolution.profile, query);
+    } catch (err) {
+      return { error: 'embedding_failed', message: `Failed to embed query: ${err.message}` };
+    }
+    hits = await adapter.searchHybridVectors(collection, { dense: vectors.dense, sparse: vectors.sparse, limit: top, filter, settingsService });
+  } else if (execution === EXECUTION.QDRANT_CLOUD) {
+    // Same real, tokenizer-backed gate indexing already applies
+    // (checkEmbedInputFits, embedForIndexCloud) — a query has no separate
+    // "context" to trim (unlike a chunk's heading-path/skeleton-summary
+    // prefix), so an over-long query is a typed rejection, never silently
+    // truncated by Qdrant. Checked against the SAME dense catalog entry
+    // embedForIndexCloud validates against, so an unknown/unsupported
+    // dense model is reported the same way on both the index and query paths.
+    const denseModelId = resolution.profile.embedding.dense.model;
+    const denseCatalog = findDenseModel(denseModelId);
+    if (!denseCatalog || denseCatalog.status !== 'supported') {
+      return { error: 'embedding_unsupported', message: `Collection "${collection}"'s dense model "${denseModelId}" is not a supported Qdrant Cloud model.` };
+    }
+    const fit = await checkEmbedInputFits(denseCatalog, query);
+    if (!fit.fits) {
+      return { error: 'embedding_failed', message: `Query is too long for "${denseModelId}" (code: ${fit.code}${fit.tokenCount ? `, ${fit.tokenCount}/${fit.contextWindow} tokens` : ''}).` };
+    }
+
+    // Descriptor-building is pure data assembly from the profile — no
+    // embedding call, no network call, nothing ONNX/Ollama could touch.
+    // buildCloudQueryInputs() — NOT embedForSearch, which stays
+    // client-only. embedQuery (the DI param) is never used on this branch.
+    const { denseQuery, sparseQuery } = buildCloudQueryInputs(resolution.profile, query);
+    hits = await adapter.searchHybridInference(collection, { denseQuery, sparseQuery, limit: top, filter, settingsService });
+  } else {
+    return { error: 'embedding_unsupported', message: `Collection "${collection}"'s embedding profile uses execution "${execution}", which is not yet implemented.` };
+  }
 
   return { searchMode, hits };
 }
