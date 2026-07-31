@@ -4,7 +4,7 @@
 // createGenerationRuntime() with an injected provider factory.
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { createApp } from '../../../src/admin/server.js';
+import { createApp } from '../../../src/admin/server-full.js';
 import { createGenerationRuntime } from '../../../src/core/generation/runtime.js';
 
 const VALID_PROFILE = {

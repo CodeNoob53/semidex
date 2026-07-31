@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import { pickFolder } from '../../../src/admin/system/folder-picker.js';
 import { checkOllama } from '../../../src/admin/system/ollama.js';
-import { createApp } from '../../../src/admin/server.js';
+import { createApp } from '../../../src/admin/server-full.js';
 
 function makeStubAdapter() {
   return {

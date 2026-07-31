@@ -10,7 +10,7 @@
 // public contract (src/core/ask-api/v1/contract.js).
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { createApp } from '../../../src/admin/server.js';
+import { createApp } from '../../../src/admin/server-full.js';
 import { createAskCoordinator } from '../../../src/core/ask/coordinator.js';
 import { createGeminiProvider } from '../../../src/core/generation/gemini-provider.js';
 import { createOllamaProvider } from '../../../src/core/generation/ollama-provider.js';

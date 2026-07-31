@@ -8,7 +8,7 @@
 // done / error, never the pre-v1 seed's "token" event name.
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { createApp } from '../../../src/admin/server.js';
+import { createApp } from '../../../src/admin/server-full.js';
 import { createAskCoordinator } from '../../../src/core/ask/coordinator.js';
 import { REFUSAL_SENTINEL } from '../../../src/core/ask/prompt.js';
 import { API_VERSION, ASK_PATH } from '../../../src/core/ask-api/v1/contract.js';

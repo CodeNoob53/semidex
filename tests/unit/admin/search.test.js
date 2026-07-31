@@ -2,7 +2,7 @@
 // StorageAdapter and a stub embedQuery. No Qdrant, no ONNX, no Ollama.
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { createApp } from '../../../src/admin/server.js';
+import { createApp } from '../../../src/admin/server-full.js';
 
 const HIT = {
   sourceFile: 'docs/en/configuration.md',

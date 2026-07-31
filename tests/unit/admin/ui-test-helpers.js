@@ -6,7 +6,7 @@ import { EventEmitter } from 'node:events';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 import { parseHTML, HTMLElement, HTMLInputElement, Event } from 'linkedom';
-import { createApp } from '../../../src/admin/server.js';
+import { createApp } from '../../../src/admin/server-full.js';
 import { createJobRegistry } from '../../../src/admin/jobs/registry.js';
 
 // Keep the shared helper free of the heavy unified/remark/highlight graph.

@@ -5,7 +5,8 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { createApp, resolveHostConfig, resolvePortConfig } from '../../../src/admin/server.js';
+import { resolveHostConfig, resolvePortConfig } from '../../../src/admin/server.js';
+import { createApp } from '../../../src/admin/server-full.js';
 
 function makeStubAdapter(overrides = {}) {
   return {

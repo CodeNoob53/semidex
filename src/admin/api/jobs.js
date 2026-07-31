@@ -3,9 +3,17 @@
 // needed here (jobs are a process-management concern, not storage), but the
 // endpoints still speak semidex domain shapes only — no indexer internals,
 // no raw child_process objects, ever serialized to the client.
-import { sendJson, badRequest, notFound, conflict, dependencyUnavailable } from '../../core/http/http.js';
+//
+// checkOllamaFn has NO static-import default (Semidex Lite composition
+// split, admin/server.js's registerNeutralRoutes()) — this module must
+// never statically pull in admin/system/ollama.js (-> core/ollama.js),
+// since a cloud-only Lite composition root never registers a check at all.
+// The FULL composition root (createApp() in server-full.js) is the one place
+// that imports the real checkOllama and passes it in; Lite's composition
+// root passes none, and jobPolicy.allowLlmSummaries=false makes the
+// llmSummaries branch unreachable anyway (see registerJobsRoutes below).
+import { sendJson, badRequest, notFound, conflict, dependencyUnavailable, HttpError } from '../../core/http/http.js';
 import { readJsonBody } from '../../core/http/http.js';
-import { checkOllama } from '../system/ollama.js';
 
 const DEFAULT_CONTEXT_MODEL = process.env.CONTEXT_MODEL || 'gemma3:4b';
 
@@ -59,6 +67,37 @@ const KNOWN_OPTION_NAMES = [
   'onnxEmbed', 'llmSummaries', 'pruneStale', 'tagGen',
 ];
 
+// jobPolicy (Semidex Lite composition split): which of the four known
+// options a composition root allows AT ALL. FULL_JOB_POLICY (every option
+// allowed) is the exact pre-existing behavior and is the default — full
+// Semidex's createApp() never has to pass one explicitly.
+//
+// pruneStale is Qdrant-only stale-cleanup (deleteByFilter/
+// deleteBySourceFile — no local model involved, fully Qdrant-Cloud-
+// compatible), so it stays allowed even under a cloud-only policy — only
+// onnxEmbed/llmSummaries/tagGen are local-model-shaped and rejected there.
+export const FULL_JOB_POLICY = Object.freeze({
+  allowOnnxEmbed: true, allowLlmSummaries: true, allowTagGen: true, allowPruneStale: true,
+});
+
+const POLICY_KEY_BY_OPTION = Object.freeze({
+  onnxEmbed: 'allowOnnxEmbed', llmSummaries: 'allowLlmSummaries', tagGen: 'allowTagGen', pruneStale: 'allowPruneStale',
+});
+
+// A policy-disallowed option is rejected the SAME way REMOVED_OPTION_NAMES
+// already is below — a loud 400 naming exactly which option and why, never
+// a silent ignore that could let a caller believe an unsupported local mode
+// actually ran.
+function requireOptionsAllowedByPolicy(o, jobPolicy) {
+  const disallowed = Object.keys(o).filter((name) => name in POLICY_KEY_BY_OPTION && o[name] !== undefined && !jobPolicy[POLICY_KEY_BY_OPTION[name]]);
+  if (disallowed.length) {
+    throw new HttpError(
+      400, 'not_available_in_lite',
+      `Indexing option(s) ${disallowed.map((n) => `"${n}"`).join(', ')} are not available in this deployment.`,
+    );
+  }
+}
+
 // skeletonChunking/skeletonNav were removed as job options — skeleton-first
 // chunking and navigation-point generation are unconditional architecture
 // now, not a per-job choice. Compatibility policy: an explicit, loud 400
@@ -68,7 +107,7 @@ const KNOWN_OPTION_NAMES = [
 // believe they successfully disabled skeleton chunking when they did not.
 const REMOVED_OPTION_NAMES = ['skeletonChunking', 'skeletonNav'];
 
-function parseOptions(body) {
+function parseOptions(body, jobPolicy) {
   const o = body?.options;
   if (o === undefined || o === null) return {};
   if (typeof o !== 'object' || Array.isArray(o)) {
@@ -80,6 +119,7 @@ function parseOptions(body) {
       `Indexing option(s) ${removed.map((n) => `"${n}"`).join(', ')} are no longer supported — skeleton-first indexing is always on and cannot be disabled per job.`
     );
   }
+  requireOptionsAllowedByPolicy(o, jobPolicy);
   const bool = (name) => {
     const v = o[name];
     if (v === undefined) return undefined;
@@ -120,14 +160,14 @@ function parseKind(body) {
   return v;
 }
 
-export function parseIndexJobRequest(body) {
+export function parseIndexJobRequest(body, jobPolicy = FULL_JOB_POLICY) {
   if (typeof body !== 'object' || body === null || Array.isArray(body)) {
     throw badRequest('Request body must be a JSON object');
   }
   requireOptionsNotMisnested(body);
   const collection = requireCollectionNameField(body, 'collection');
   const path = requireLocalPathField(body, 'path');
-  const options = parseOptions(body);
+  const options = parseOptions(body, jobPolicy);
   const kind = parseKind(body);
   return { collection, path, options, kind };
 }
@@ -182,17 +222,34 @@ export function toJobDetail(job) {
   return { ...toJobSummary(job), log: lines };
 }
 
-export function registerJobsRoutes(router, registry, { checkOllamaFn = checkOllama } = {}) {
+// checkOllamaFn has no default — the full composition root (createApp(),
+// server.js) is the only place that imports admin/system/ollama.js's real
+// checkOllama and passes it in; this module must never statically import
+// it. jobPolicy defaults to FULL_JOB_POLICY (today's exact behavior —
+// every option allowed) so an existing caller that doesn't pass one is
+// unaffected. A Lite composition root passes a policy with
+// allowLlmSummaries:false (making options.llmSummaries unreachable via
+// parseIndexJobRequest's own validation, below) and can therefore safely
+// omit checkOllamaFn entirely — it is never called in that configuration.
+export function registerJobsRoutes(router, registry, { checkOllamaFn, jobPolicy = FULL_JOB_POLICY } = {}) {
   router.post('/api/jobs/index', async ({ req, res }) => {
     const body = await readJsonBody(req);
-    const { collection, path, options, kind } = parseIndexJobRequest(body);
+    const { collection, path, options, kind } = parseIndexJobRequest(body, jobPolicy);
 
     // LLM summaries need Ollama running with the context model pulled — the
     // indexer's own preflight only discovers this *after* the job has
     // already been spawned (failure buried in job logs). Check here first
     // (read-only — never starts Ollama) so the user gets an actionable 503
     // instead of a job that starts and immediately fails.
+    //
+    // options.llmSummaries can only be true here if jobPolicy.
+    // allowLlmSummaries was true (parseIndexJobRequest already rejected it
+    // otherwise) — so a policy that disallows LLM summaries never reaches
+    // this branch and checkOllamaFn's absence is safe under that policy.
     if (options.llmSummaries) {
+      if (!checkOllamaFn) {
+        throw new HttpError(500, 'misconfigured', 'This deployment allows llmSummaries but was not configured with an Ollama availability check.');
+      }
       const ollama = await checkOllamaFn({ requiredModel: DEFAULT_CONTEXT_MODEL });
       if (ollama.status !== 'available') {
         throw dependencyUnavailable(`LLM summaries require Ollama: ${ollama.message}`);

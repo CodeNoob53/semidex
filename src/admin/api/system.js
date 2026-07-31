@@ -2,9 +2,16 @@
 // process integrations for the admin UI. No StorageAdapter involvement
 // (neither is a storage concern) — same reasoning as jobs.js not touching
 // the adapter.
+//
+// Split into two independent registration functions (Semidex Lite
+// composition split): registerFolderPickRoutes() (neutral — an OS
+// folder-picker dialog has nothing to do with Ollama, kept in Lite) and
+// registerOllamaStatusRoutes() (local-only, excluded from Lite). Neither
+// module-level default statically imports admin/system/ollama.js anymore —
+// only the full composition root (createApp(), admin/server-full.js)
+// imports the real checkOllama and passes it in.
 import { sendJson, badRequest } from '../../core/http/http.js';
 import { pickFolder } from '../system/folder-picker.js';
-import { checkOllama } from '../system/ollama.js';
 
 const PICKER_ERROR_STATUS = {
   UNSUPPORTED_PLATFORM: 501,
@@ -15,7 +22,7 @@ const PICKER_ERROR_STATUS = {
 
 const DEFAULT_CONTEXT_MODEL = process.env.CONTEXT_MODEL || 'gemma3:4b';
 
-export function registerSystemRoutes(router, { pickFolderFn = pickFolder, checkOllamaFn = checkOllama } = {}) {
+export function registerFolderPickRoutes(router, { pickFolderFn = pickFolder } = {}) {
   router.post('/api/system/pick-folder', async ({ res }) => {
     try {
       const { path, cancelled } = await pickFolderFn();
@@ -29,7 +36,12 @@ export function registerSystemRoutes(router, { pickFolderFn = pickFolder, checkO
       throw badRequest(err.message);
     }
   });
+}
 
+// checkOllamaFn has no default — see this file's header comment. The full
+// composition root is the only caller of this function; Lite never
+// registers it at all.
+export function registerOllamaStatusRoutes(router, { checkOllamaFn }) {
   // Read-only status check — never starts Ollama. Lets the UI show
   // "LLM summaries require Ollama: <status>" before the user even submits
   // the indexing form.

@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import { createJobRegistry } from '../../../src/admin/jobs/registry.js';
 import { createTaskRegistry } from '../../../src/admin/jobs/task-registry.js';
-import { createApp } from '../../../src/admin/server.js';
+import { createApp } from '../../../src/admin/server-full.js';
 
 function makeFakeChild() {
   const child = new EventEmitter();
