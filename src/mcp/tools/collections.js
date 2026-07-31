@@ -19,6 +19,8 @@ export const schema = {
 let storageAdapter = null;
 let storageAdapterOverride = null;
 export function setStorageAdapter(adapter) { storageAdapterOverride = adapter; }
+let availabilityChecksOverride = null;
+export function setAvailabilityChecks(checks) { availabilityChecksOverride = checks; }
 function getStorageAdapter() {
   if (storageAdapterOverride) return storageAdapterOverride;
   if (!storageAdapter) storageAdapter = createStorageAdapter();
@@ -77,10 +79,11 @@ function availabilitySuffix(availability) {
 
 export async function handle() {
   const adapter = getStorageAdapter();
+  const availabilityChecks = availabilityChecksOverride ?? { checkOllamaLane, checkOnnxModelCached };
   const collections = await adapter.listCollections();
   const lines = await Promise.all(collections.map(async (col) => {
     const resolution = await resolveExistingCollectionProfile(adapter, col.name);
-    const availability = await resolveAvailability(resolution, { checkOllamaLane, checkOnnxModelCached });
+    const availability = await resolveAvailability(resolution, availabilityChecks);
     const denseProvider = col.provider?.denseProvider ?? 'unknown';
     const denseModel = col.provider?.denseModel ?? 'unknown';
     const sparse = col.provider?.sparseProvider ?? 'none';

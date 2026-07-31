@@ -7,9 +7,14 @@
 // without touching a real Qdrant/Ollama/ONNX call.
 import { describe, it, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { handle, setStorageAdapter } from '../../../src/mcp/tools/collections.js';
+import { handle, setAvailabilityChecks, setStorageAdapter } from '../../../src/mcp/tools/collections.js';
+import { LANE_STATUS, resetLaneAvailabilityCache } from '../../../src/core/embedding-profile/availability.js';
 
-afterEach(() => { setStorageAdapter(null); });
+afterEach(() => {
+  setStorageAdapter(null);
+  setAvailabilityChecks(null);
+  resetLaneAvailabilityCache();
+});
 
 function fakeAdapter({ listCollectionsResult, getEmbeddingProfileResult }) {
   return {
@@ -50,6 +55,9 @@ describe('mcp/tools/collections.js — qdrant_collection_info availability suffi
   });
 
   it('reports "model cached, runtime not verified" for an ONNX MODEL_CACHED lane — never "available"', async () => {
+    setAvailabilityChecks({
+      checkOnnxModelCached: async () => ({ status: LANE_STATUS.MODEL_CACHED }),
+    });
     setStorageAdapter(fakeAdapter({
       listCollectionsResult: [{ name: 'c1', pointCount: 5, provider: { denseProvider: 'bge-m3-onnx', denseModel: 'aapot/bge-m3-onnx', sparseProvider: 'bge-m3-onnx' }, description: null }],
       getEmbeddingProfileResult: {
