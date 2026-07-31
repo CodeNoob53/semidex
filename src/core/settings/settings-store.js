@@ -6,9 +6,17 @@ import { readFileSync, writeFileSync, renameSync, existsSync, statSync } from 'n
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-export const DEFAULT_SETTINGS_PATH = resolve(
-  dirname(fileURLToPath(import.meta.url)), '../../../settings.json'
-);
+// SEMIDEX_SETTINGS_PATH redirects settings.json to a writable application
+// home (e.g. Semidex Lite's SEMIDEX_HOME/settings.json) instead of the
+// package-relative default — a globally-installed npm package must never
+// write into its own node_modules directory. Backward compatible: when the
+// env var is unset it resolves to the exact package-relative location full
+// Semidex has always used, so a checked-out repo is unchanged. Read fresh
+// at import; a caller that needs to redirect it sets the env var before
+// this module is first imported.
+export const DEFAULT_SETTINGS_PATH = process.env.SEMIDEX_SETTINGS_PATH
+  ? resolve(process.env.SEMIDEX_SETTINGS_PATH)
+  : resolve(dirname(fileURLToPath(import.meta.url)), '../../../settings.json');
 
 export function readSettingsFile(path = DEFAULT_SETTINGS_PATH) {
   if (!existsSync(path)) return {};

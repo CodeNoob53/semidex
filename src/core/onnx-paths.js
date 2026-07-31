@@ -9,6 +9,23 @@ const ROOT      = join(dirname(fileURLToPath(import.meta.url)), '../../');
 export const ONNX_CACHE_DIR = join(ROOT, 'models');
 export const ONNX_MODEL_DIR = join(ONNX_CACHE_DIR, 'bge-m3-onnx');
 
+// Root directory for cached tokenizer files (tokenizer.json /
+// tokenizer_config.json — the tokenizer-only download the Qdrant Cloud
+// input-budget validator needs, NEVER model weights). Distinct from the
+// ONNX MODEL cache above so a cloud-only deployment (Semidex Lite) can
+// redirect tokenizer writes to a writable application home
+// (SEMIDEX_HOME/cache/tokenizers) without moving the local ONNX model
+// cache. Backward compatible: when SEMIDEX_TOKENIZER_CACHE_DIR is unset it
+// falls back to ONNX_CACHE_DIR — the exact package-relative location full
+// Semidex has always written tokenizers to — so a checked-out repo is
+// unchanged. Read fresh from process.env at import time; a caller (the
+// Lite CLI) that needs to redirect it MUST set the env var before this
+// module is first imported (the Lite bin does this before any runtime
+// import, and the spawned indexer child inherits the env var).
+export const TOKENIZER_CACHE_DIR = process.env.SEMIDEX_TOKENIZER_CACHE_DIR
+  ? process.env.SEMIDEX_TOKENIZER_CACHE_DIR
+  : ONNX_CACHE_DIR;
+
 // The single source of truth for the ONNX dense-embedding model's HF repo
 // id — every consumer (onnx-embed.js, config.js's resolveEnvProviders(),
 // sync.js, token-count.js, the settings registry's DENSE_MODEL

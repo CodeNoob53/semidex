@@ -16,12 +16,12 @@ import { existsSync, mkdirSync, createWriteStream, readFileSync, statSync, renam
 import { join } from 'path';
 import { randomBytes } from 'crypto';
 
-import { ONNX_CACHE_DIR } from '../onnx-paths.js';
+import { TOKENIZER_CACHE_DIR } from '../onnx-paths.js';
 
 const HF_BASE = 'https://huggingface.co';
 
 function tokenizerDir(modelId) {
-  return join(ONNX_CACHE_DIR, ...modelId.split('/'));
+  return join(TOKENIZER_CACHE_DIR, ...modelId.split('/'));
 }
 
 // Downloads to a per-attempt temp file, then atomically renames onto the
