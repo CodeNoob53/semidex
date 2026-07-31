@@ -38,7 +38,7 @@ export { ASK_PATH };
 // produces — this is a second, defense-in-depth layer at the route
 // boundary, matching how QDRANT_KEY is handled here.
 function safeMessage(message) {
-  return sanitiseErrorMessage(sanitiseErrorMessage(message ?? '', process.env.QDRANT_KEY), process.env.GEMINI_API_KEY);
+  return sanitiseErrorMessage(message ?? '', [process.env.QDRANT_KEY, process.env.GEMINI_API_KEY]);
 }
 
 // Maps a pre-stream retrieval failure (from core/retrieval/search.js, as

@@ -24,7 +24,7 @@ import { sanitiseErrorMessage } from '../../core/doctor-checks.js';
 // only place that redaction happens.
 function safeMessage(message) {
   if (message == null) return null;
-  return sanitiseErrorMessage(sanitiseErrorMessage(message, process.env.QDRANT_KEY), process.env.GEMINI_API_KEY);
+  return sanitiseErrorMessage(message, [process.env.QDRANT_KEY, process.env.GEMINI_API_KEY]);
 }
 
 /**

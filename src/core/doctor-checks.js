@@ -22,14 +22,19 @@ export function redactUrl(raw) {
 }
 
 // Sanitise an error message before printing:
-//   1. Replace any literal occurrence of `secret` (e.g. the raw QDRANT_KEY).
+//   1. Replace any literal occurrence of each secret (e.g. QDRANT_KEY,
+//      GEMINI_API_KEY — pass an array to redact more than one in one call).
 //   2. Strip URLs that contain credentials (user:pass@host) or query strings
 //      that may embed bearer tokens, replacing them with their host-only form.
 export function sanitiseErrorMessage(msg, secret) {
   if (!msg) return '';
   let out = String(msg);
-  // 1. Literal key redaction
-  if (secret) out = out.split(secret).join('[REDACTED]');
+  // 1. Literal key redaction — secret may be a single string or an array of
+  // strings; falsy entries (unset env vars) are skipped.
+  const secrets = Array.isArray(secret) ? secret : [secret];
+  for (const s of secrets) {
+    if (s) out = out.split(s).join('[REDACTED]');
+  }
   // 2. URL credential / query redaction: replace https?://...@host/path?q with host-only
   out = out.replace(/https?:\/\/[^\s"')]+/g, (match) => {
     try {
