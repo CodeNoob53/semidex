@@ -50,6 +50,18 @@ function setReadOnly(dir) {
   }
 }
 
+function setWritable(dir) {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      setWritable(full);
+      chmodSync(full, 0o755);
+    } else {
+      chmodSync(full, 0o644);
+    }
+  }
+}
+
 before(() => {
   console.log('[clean-install] npm pack ...');
   // Plain `npm pack` (not --json) — its own prepack script (build.mjs)
@@ -81,9 +93,16 @@ before(() => {
 });
 
 after(() => {
-  rmSync(installDir, { recursive: true, force: true });
-  rmSync(semidexHomeDir, { recursive: true, force: true });
-  rmSync(tarballPath, { force: true });
+  // The acceptance test deliberately makes the installed package read-only.
+  // Restore permissions before cleanup so POSIX CI runners can remove the
+  // directory tree; Windows does not enforce these mode bits the same way.
+  if (packageDir && existsSync(packageDir)) {
+    setWritable(packageDir);
+    chmodSync(packageDir, 0o755);
+  }
+  if (installDir && existsSync(installDir)) rmSync(installDir, { recursive: true, force: true });
+  if (semidexHomeDir && existsSync(semidexHomeDir)) rmSync(semidexHomeDir, { recursive: true, force: true });
+  if (tarballPath && existsSync(tarballPath)) rmSync(tarballPath, { force: true });
 });
 
 describe('clean-install acceptance — read-only package dir, empty install dir', { timeout: 120000 }, () => {
