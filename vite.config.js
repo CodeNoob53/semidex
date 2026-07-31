@@ -13,6 +13,15 @@ const apiProxyTarget = `http://127.0.0.1:${process.env.ADMIN_PORT || 8642}`;
 export default defineConfig({
   root: 'src/admin/ui-src',
   base: '/',
+  define: {
+    // Semidex Lite package boundary (packages/lite): false here, true in
+    // vite.config.lite.js. A hardcoded boolean literal (not `undefined`, not
+    // an env-read) lets Rollup's dead-code elimination statically remove
+    // `if (SEMIDEX_LITE) {...}`/`if (!SEMIDEX_LITE) {...}` branches from
+    // whichever build doesn't need them — see global-settings-view.js's own
+    // ONNX/Ollama-model guard functions for the branches this enables.
+    SEMIDEX_LITE: JSON.stringify(false),
+  },
   server: {
     proxy: {
       '/api': { target: apiProxyTarget, changeOrigin: true },

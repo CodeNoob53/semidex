@@ -7,11 +7,22 @@
 // this route entirely. This module's only remaining job is the
 // collection-creation FORM itself: folder picker, options, Ollama
 // readiness check, and POSTing to /api/jobs/index.
+//
+// IS_LITE (see global-settings-view.js's own header comment for the full
+// SEMIDEX_LITE/typeof rationale) guards every reference to the ONNX/
+// LLM-summaries/tag-gen checkboxes and the Ollama-status check —
+// vite.config.lite.js's stripHtmlMarkers plugin removes those elements
+// from index-view.html entirely for the Lite build, so `$('#opt-onnx')`
+// etc. would return null there; IS_LITE lets Rollup dead-code-eliminate
+// the guarded branches so the Lite bundle has no reachable code path that
+// assumes those elements exist.
 import indexViewShell from './partials/index-view.html?raw';
 import { $, esc, errorBox } from './dom.js';
 import { api, apiPost } from './api.js';
 import { openOperationModal } from './operation-modal.js';
 import { pollNow } from './operation-store.js';
+
+const IS_LITE = typeof SEMIDEX_LITE !== 'undefined' && SEMIDEX_LITE;
 
 export async function renderIndexingView(main) {
   main.innerHTML = indexViewShell;
@@ -20,9 +31,11 @@ export async function renderIndexingView(main) {
     e.target.closest('label').classList.toggle('warn', e.target.checked);
   });
 
-  $('#opt-llm-summaries').addEventListener('change', (e) => {
-    if (e.target.checked) loadOllamaStatus(); else $('#idx-ollama-status').style.display = 'none';
-  });
+  if (!IS_LITE) {
+    $('#opt-llm-summaries').addEventListener('change', (e) => {
+      if (e.target.checked) loadOllamaStatus(); else $('#idx-ollama-status').style.display = 'none';
+    });
+  }
 
   $('#idx-choose-folder').addEventListener('click', chooseIndexFolder);
 
@@ -73,6 +86,7 @@ const OLLAMA_STATUS_BADGE = {
 };
 
 async function loadOllamaStatus() {
+  if (IS_LITE) return;
   const box = $('#idx-ollama-status');
   if (!box) return;
   box.style.display = '';
@@ -103,12 +117,19 @@ async function startIndexJob() {
   const payload = {
     collection,
     path,
-    options: {
-      onnxEmbed: $('#opt-onnx').checked,
-      llmSummaries: $('#opt-llm-summaries').checked,
-      pruneStale: $('#opt-prune').checked,
-      tagGen: $('#opt-tags').checked,
-    },
+    // pruneStale is the only option Semidex Lite's jobs policy allows
+    // (server.js's LITE_JOB_POLICY) — its checkbox is the one kept in the
+    // Lite build's stripped index-view.html (see vite.config.lite.js), so
+    // it's read unconditionally here. The other three only exist in the
+    // full build's DOM.
+    options: IS_LITE
+      ? { pruneStale: $('#opt-prune').checked }
+      : {
+          onnxEmbed: $('#opt-onnx').checked,
+          llmSummaries: $('#opt-llm-summaries').checked,
+          pruneStale: $('#opt-prune').checked,
+          tagGen: $('#opt-tags').checked,
+        },
   };
 
   submit.disabled = true;

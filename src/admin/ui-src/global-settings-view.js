@@ -9,6 +9,25 @@
 // "Runtime status" is one category among several (moved here verbatim from
 // the old Phase 4A.5b read-only screen); every other category renders
 // editable rows built purely from registry metadata.
+//
+// IS_LITE reads SEMIDEX_LITE, a Vite build-time define (vite.config.js:
+// false, vite.config.lite.js: true — see either file's own comment),
+// substituted as a literal boolean at build time so Rollup's dead-code
+// elimination can statically remove a guarded branch entirely, not just
+// skip it at runtime. The `typeof` check is required because this same
+// source file is also loaded directly (bypassing Vite entirely) by
+// tests/unit/admin/ui-test-helpers.js's vm.Script-based test harness,
+// where SEMIDEX_LITE is a genuinely undeclared global — a bare reference
+// would throw ReferenceError there (a real bug caught by the admin test
+// suite while wiring this up). Used ONLY around genuinely local-only
+// (ONNX/Ollama-specific) logic — onnxProbePanel()/wireOnnxProbePanel()/
+// runOnnxProbe()/categoryNeedsOllamaModels()/refreshOllamaModels() below.
+// Shared, generic rendering infrastructure (fieldRow(), visibleWhen/
+// dynamicOptions resolution, categoryNeedsGenerationModels()/
+// refreshGenerationModels() — the provider-neutral counterpart both Ollama
+// and Gemini use) is deliberately NEVER guarded: it is not local-only
+// code, and guarding it would risk changing full-Semidex's own behavior
+// for no reason.
 import { $, cloneTemplate } from './dom.js';
 import { api, apiPatch, apiPost } from './api.js';
 import { showToast } from './toasts.js';
@@ -17,6 +36,8 @@ import { renderSettingsNav, syncSidebarMode, markActive } from './sidebar.js';
 // into the browser. Never import qdrant-cloud-catalog.js itself here — it
 // pulls in qdrant-cloud-tokenizer.js's Node-only fs/fetch code.
 import { findDenseModel as findQdrantCloudDenseModel, isCatalogCompatibleWithChunking } from '../../core/embedding-profile/qdrant-cloud-models.js';
+
+const IS_LITE = typeof SEMIDEX_LITE !== 'undefined' && SEMIDEX_LITE;
 
 const PROVENANCE_LABEL = {
   os_env: 'Operating system environment',
@@ -632,6 +653,7 @@ const ONNX_PROBE_PROVIDERS = new Set(['cuda', 'dml']);
 // a real click of the test button (see wireOnnxProbePanel) — never
 // auto-run, never inferred from the setting alone.
 function onnxProbePanel(category, entries) {
+  if (IS_LITE) return null;
   const providerEntry = entries.find((e) => e.key === 'ONNX_EXECUTION_PROVIDER');
   if (!providerEntry) return null;
   const provider = currentPendingValue(category, providerEntry);
@@ -661,6 +683,7 @@ function onnxProbePanel(category, entries) {
 }
 
 function wireOnnxProbePanel(container, category) {
+  if (IS_LITE) return;
   const btn = container.querySelector('.gs-onnx-test-button');
   if (!btn) return;
   btn.addEventListener('click', () => runOnnxProbe(container, category, btn));
@@ -1135,6 +1158,7 @@ function renderInlineCategorySelect(main, categories, category) {
 // ── Ollama model discovery (dynamicOptions) ─────────────────────────────────
 
 function categoryNeedsOllamaModels(category) {
+  if (IS_LITE) return false;
   return lastFetchedPayload.settings.some(
     (s) => s.category === category && s.dynamicOptions?.source === 'ollama_models'
   );
@@ -1151,6 +1175,7 @@ function categoryNeedsGenerationModels(category) {
 // button, so there is exactly one fetch/render path for this data, never
 // two drifting implementations.
 async function refreshOllamaModels(main, category, myGeneration, { forceRefresh = false } = {}) {
+  if (IS_LITE) return;
   try {
     lastOllamaModels = await api(forceRefresh ? '/api/ollama-models?refresh=1' : '/api/ollama-models');
   } catch (err) {

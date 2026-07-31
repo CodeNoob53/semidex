@@ -10,6 +10,10 @@
     <p class="skel-note" style="margin-top:0">Reindex starts a background job and writes to this collection.</p>
     <form id="settings-reindex-form" autocomplete="off">
       <div id="settings-source-path-field"></div>
+      <!-- semidex-lite-strip:local-only-reindex-options — see vite.config.lite.js's
+           stripHtmlMarkers plugin, which removes this block entirely at build time
+           (no Lite replacement — Lite's reindex form has no "Quality"/"Optional
+           enrichment" groups at all, only the Maintenance/prune-stale group below). -->
       <div class="opt-group">
         <div class="opt-group-label">Quality</div>
         <label class="idx-check"><input type="checkbox" id="opt-onnx" checked> ONNX embeddings</label>
@@ -19,6 +23,7 @@
         <div class="opt-group-label">Optional enrichment</div>
         <label class="idx-check"><input type="checkbox" id="opt-tags"> Generate tags</label>
       </div>
+      <!-- semidex-lite-strip:end local-only-reindex-options -->
       <div class="opt-group">
         <div class="opt-group-label">Maintenance</div>
         <label class="idx-check"><input type="checkbox" id="opt-prune"> Prune stale</label>

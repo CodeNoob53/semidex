@@ -11,6 +11,13 @@ import { loadSidebar } from './sidebar.js';
 import { openOperationModal } from './operation-modal.js';
 import { pollNow, seedOperationAsRunning, findLatestOperation } from './operation-store.js';
 
+// See global-settings-view.js's own header comment for the full
+// SEMIDEX_LITE/typeof rationale. vite.config.lite.js's stripHtmlMarkers
+// plugin removes the ONNX/LLM-summaries/tag-gen checkboxes from
+// settings-shell.html's Reindex form for the Lite build, so
+// runSettingsReindex() must not read them there.
+const IS_LITE = typeof SEMIDEX_LITE !== 'undefined' && SEMIDEX_LITE;
+
 const RECENT_SOURCE_PATHS_KEY = 'semidex-admin-recent-source-paths';
 
 function getRecentSourcePaths() {
@@ -167,12 +174,14 @@ async function runSettingsReindex(name) {
     collection: name,
     path,
     kind: 'reindex', // Phase 3S: distinguishes this from a brand-new-collection index in the operation modal — same job otherwise
-    options: {
-      onnxEmbed: $('#opt-onnx').checked,
-      llmSummaries: $('#opt-llm-summaries').checked,
-      tagGen: $('#opt-tags').checked,
-      pruneStale: $('#opt-prune').checked,
-    },
+    options: IS_LITE
+      ? { pruneStale: $('#opt-prune').checked }
+      : {
+          onnxEmbed: $('#opt-onnx').checked,
+          llmSummaries: $('#opt-llm-summaries').checked,
+          tagGen: $('#opt-tags').checked,
+          pruneStale: $('#opt-prune').checked,
+        },
   };
 
   submit.disabled = true;
