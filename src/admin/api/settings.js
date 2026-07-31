@@ -12,6 +12,10 @@ const ERROR_CODE_STATUS = {
   not_writable: 400,
   invalid_value: 400,
   setting_overridden: 409,
+  // Thrown by the Lite settings wrapper (service.lite.js) for a key that
+  // exists in full Semidex but is outside Lite's allow-list — distinct
+  // from unknown_key (a key that was never a real setting at all).
+  not_available_in_lite: 400,
 };
 
 /**
