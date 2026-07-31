@@ -33,6 +33,26 @@ Copy `.env.example` to `.env` in the directory you'll run `semidex-lite` from, a
 
 See `.env.example` for the full list of optional settings (`QDRANT_CLOUD_DENSE_MODEL`, `ASK_MODEL`, `ADMIN_HOST`/`ADMIN_PORT`, `SEMIDEX_HOME`).
 
+Credentials are currently configured outside the dashboard. Set them either
+in that local `.env` file or as operating-system environment variables before
+starting `semidex-lite`. OS environment variables take precedence over values
+from `.env`. The dashboard reports whether credentials are configured, but it
+cannot add, reveal, or replace `QDRANT_URL`, `QDRANT_KEY`, or `GEMINI_API_KEY`
+in the current release.
+
+Example for the current PowerShell session:
+
+```powershell
+$env:QDRANT_URL='https://your-cluster.cloud.qdrant.io'
+$env:QDRANT_KEY='your-qdrant-api-key'
+$env:GEMINI_API_KEY='your-gemini-api-key'
+npx semidex-lite serve
+```
+
+Values set this way apply only to that PowerShell process and programs started
+from it. For project-local configuration, prefer a `.env` file that is excluded
+from version control. Never commit API keys.
+
 semidex-lite pins its cloud-only configuration (`DENSE_PROVIDER`, `SPARSE_PROVIDER`, `SEMIDEX_GENERATION_BACKEND`, `CONTEXT_MODE`, and the local-runtime toggles) unconditionally at startup — a stray local-provider environment variable left over from a full-semidex `.env` cannot re-enable a local code path. The Settings API and indexing-job API separately reject any attempt to change these at runtime.
 
 ## CLI
@@ -79,7 +99,7 @@ Override with the `SEMIDEX_HOME` environment variable. This location is Lite-spe
 
 - No local embedding/generation providers (Ollama, local ONNX) — Qdrant Cloud Inference and Gemini only.
 - No tag generation, no combined context+tags LLM pass, no CUDA/DirectML probes.
-- Advanced chunking/retrieval-tuning settings available in full semidex's Settings UI are not exposed here (Qdrant Cloud connection, dense model, and generation backend are configurable; most other tuning knobs use their defaults).
+- Advanced chunking/retrieval-tuning settings available in full semidex's Settings UI are not exposed here. The dense model and supported non-secret options are configurable; Qdrant and Gemini credentials currently require OS environment variables or a local `.env` file.
 - The Settings API exposes a smaller allow-list of keys than full semidex; writing an unsupported key returns `not_available_in_lite`.
 
 For anything beyond this scope, use full [semidex](https://github.com/CodeNoob53/semidex) instead.

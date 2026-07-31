@@ -15,7 +15,10 @@ import {
   checkNodeVersion, STATUS,
 } from '../src/core/doctor-checks.js';
 import { checkQdrantReachable, probeQdrantCloudInference } from '../src/admin/system/qdrant-cloud.js';
-import { findDenseModel } from '../src/core/embedding-profile/qdrant-cloud-catalog.js';
+import {
+  QDRANT_CLOUD_DENSE_MODELS,
+  findDenseModel,
+} from '../src/core/embedding-profile/qdrant-cloud-catalog.js';
 import { resolveNewCollectionProfile } from '../src/core/embedding-profile/resolve.js';
 
 function safe(msg) {
@@ -80,7 +83,8 @@ export async function runDoctor({
     report(makeResult(STATUS.SKIP, 'Cloud Inference probe', 'QDRANT_URL/QDRANT_KEY not set'));
   } else {
     console.log('  ⚠ This will temporarily create and delete a disposable collection in your Qdrant Cloud cluster.');
-    const denseModelId = process.env.QDRANT_CLOUD_DENSE_MODEL;
+    const defaultDenseModelId = QDRANT_CLOUD_DENSE_MODELS.find((model) => model.status === 'supported')?.id;
+    const denseModelId = process.env.QDRANT_CLOUD_DENSE_MODEL || defaultDenseModelId;
     const denseModel = denseModelId ? findDenseModel(denseModelId) : null;
     if (!denseModel || denseModel.status !== 'supported') {
       report(makeResult(STATUS.FAIL, 'Cloud Inference probe skipped',

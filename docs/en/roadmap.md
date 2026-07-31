@@ -405,6 +405,13 @@ semantics.
 - `doctor` results as actionable diagnostics; indexing progress by phase;
 - manual search and chunk inspection; file-level graph visualization;
 - copyable CLI equivalents for UI-triggered actions.
+- Semidex Lite credential onboarding: securely accept Qdrant Cloud and
+  generation-provider credentials in the dashboard, store them only in the
+  server-side application data directory, never return secret values to the
+  browser, provide connection tests, and clearly show when a higher-priority
+  OS environment variable makes a field read-only. Until this is implemented,
+  Lite credentials are configured manually through OS environment variables
+  or a project-local `.env` file.
 
 Deployment profiles: **semidex Local** (current primary), **semidex Lite**
 (planned low-infrastructure profile: a small CPU application server, Qdrant

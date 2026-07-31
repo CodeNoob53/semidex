@@ -90,10 +90,33 @@ describe('runDoctor() — --probe-inference gating', () => {
     assert.equal(exitCode, 0);
   });
 
-  it('skips the probe (FAIL) when QDRANT_CLOUD_DENSE_MODEL is unset, even with probeInference: true', async () => {
+  it('uses the supported catalog default when QDRANT_CLOUD_DENSE_MODEL is unset', async () => {
     process.env.QDRANT_URL = 'https://cluster.example.com';
     process.env.QDRANT_KEY = 'test-key';
     delete process.env.QDRANT_CLOUD_DENSE_MODEL;
+    let receivedProfile;
+    const cap = captureConsole();
+    let exitCode;
+    try {
+      exitCode = await runDoctor({
+        probeInference: true,
+        checkQdrantReachableFn: async () => ({ status: 'ok' }),
+        probeQdrantCloudInferenceFn: async ({ profile }) => {
+          receivedProfile = profile;
+          return { status: 'inference_available' };
+        },
+      });
+    } finally {
+      cap.restore();
+    }
+    assert.equal(receivedProfile?.embedding?.dense?.model, 'intfloat/multilingual-e5-small');
+    assert.equal(exitCode, 0);
+  });
+
+  it('skips the probe (FAIL) when an explicitly configured dense model is unsupported', async () => {
+    process.env.QDRANT_URL = 'https://cluster.example.com';
+    process.env.QDRANT_KEY = 'test-key';
+    process.env.QDRANT_CLOUD_DENSE_MODEL = 'unknown/model';
     let probeCalled = false;
     const cap = captureConsole();
     let exitCode;
@@ -108,6 +131,7 @@ describe('runDoctor() — --probe-inference gating', () => {
     }
     assert.equal(probeCalled, false);
     assert.equal(exitCode, 1);
+    assert.match(cap.lines.join('\n'), /unknown\/model/);
   });
 });
 
