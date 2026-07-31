@@ -12,6 +12,11 @@ demo/
 .bench-combined-probe-corpus/
 dist/
 
+# Semidex Lite package staging and npm pack output.
+packages/lite/src/
+packages/lite/dist/
+packages/lite/*.tgz
+
 # BEIR external benchmark: downloaded datasets, tokenizer/model cache, and
 # generated run artifacts. Only the harness scripts + committed reports are
 # tracked — never the dataset itself (BEIR's own license/redistribution

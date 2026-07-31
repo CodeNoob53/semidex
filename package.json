@@ -13,6 +13,7 @@
     "admin": "node src/admin/bootstrap.js",
     "admin:dev": "vite --host 127.0.0.1",
     "admin:build": "vite build",
+    "admin:build:lite": "vite build --config vite.config.lite.js",
     "test": "node --max-old-space-size=512 --test --test-concurrency=1 \"tests/**/*.test.js\"",
     "test:watch": "node --max-old-space-size=512 --test --test-concurrency=1 --watch \"tests/**/*.test.js\"",
     "test:coverage": "node --max-old-space-size=512 --test --test-concurrency=1 --experimental-test-coverage \"tests/**/*.test.js\"",
@@ -88,6 +89,8 @@
     "unified": "^11.0.5"
   },
   "devDependencies": {
+    "acorn": "^8.18.0",
+    "acorn-walk": "^8.3.5",
     "adm-zip": "^0.6.0",
     "linkedom": "^0.18.12",
     "vite": "^5.4.21",

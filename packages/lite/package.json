@@ -1,0 +1,58 @@
+{
+  "name": "semidex-lite",
+  "version": "0.1.0",
+  "description": "Cloud-only Semidex distribution using Qdrant Cloud Inference and Gemini.",
+  "license": "MIT",
+  "type": "module",
+  "keywords": [
+    "rag",
+    "retrieval",
+    "qdrant",
+    "gemini",
+    "hybrid-search",
+    "ai-agents"
+  ],
+  "homepage": "https://github.com/CodeNoob53/semidex#readme",
+  "bugs": {
+    "url": "https://github.com/CodeNoob53/semidex/issues"
+  },
+  "engines": {
+    "node": ">=20.16.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/CodeNoob53/semidex.git",
+    "directory": "packages/lite"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "bin": {
+    "semidex-lite": "bin/semidex-lite.js"
+  },
+  "scripts": {
+    "prepack": "npm --prefix ../.. run admin:build:lite && node build.mjs"
+  },
+  "files": [
+    "bin/",
+    "lite-src/",
+    "src/",
+    "dist/",
+    "README.md",
+    ".env.example"
+  ],
+  "dependencies": {
+    "@google/genai": "^2.12.0",
+    "@huggingface/tokenizers": "^0.1.3",
+    "@opendocsg/pdf2md": "^0.2.6",
+    "@qdrant/js-client-rest": "^1.18.0",
+    "dotenv": "^16.0.0",
+    "franc-min": "^6.2.0",
+    "pdf-parse": "^2.4.5",
+    "remark-frontmatter": "^5.0.0",
+    "remark-gfm": "^4.0.1",
+    "remark-parse": "^11.0.0",
+    "unified": "^11.0.5"
+  }
+}

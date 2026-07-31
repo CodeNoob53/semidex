@@ -1,0 +1,55 @@
+name: Publish Semidex Lite
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    name: Test and publish npm package
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          cache: npm
+
+      - name: Update npm for trusted publishing
+        run: npm install --global npm@latest
+
+      - name: Verify release tag matches package version
+        shell: bash
+        run: |
+          expected="lite-v$(node -p "require('./packages/lite/package.json').version")"
+          if [ "$GITHUB_REF_NAME" != "$expected" ]; then
+            echo "Release tag must be $expected, got $GITHUB_REF_NAME" >&2
+            exit 1
+          fi
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests
+        run: npm test
+
+      - name: Run smoke tests
+        run: npm run smoke
+
+      - name: Verify package contents
+        run: npm pack --dry-run
+        working-directory: packages/lite
+
+      - name: Publish to npm
+        run: npm publish
+        working-directory: packages/lite
