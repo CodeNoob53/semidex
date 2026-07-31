@@ -17,9 +17,9 @@ import { resolve, relative, dirname, isAbsolute } from 'path';
 import { createHash } from 'crypto';
 
 import { chunkFileFromPath, applyChunkingSettings } from './phases/chunk.js';
-import { addContext, applyContextSettings } from './phases/context.js';
+import { addContext, addContextDeterministic, applyContextSettings, isDeterministicContextMode } from './phases/context.js';
 import { addTagsBatch, shouldGenerateTags, applyTagSettings } from './phases/tag.js';
-import { addTagsOnnxBatch, isOnnxTagProvider, shutdownOnnxTagWorker } from './phases/tag-onnx.js';
+import { addTagsOnnxBatch, isOnnxTagProvider, shutdownOnnxTagWorker } from './phases/tag-onnx-lazy.js';
 import { isEmptySectionChunk } from './phases/empty-section.js';
 import { addContextAndTags } from './phases/combined.js';
 import { resolveCombinedLlmConfig } from '../core/doctor-checks.js';
@@ -47,7 +47,7 @@ import { makeNodeId } from '../core/node-id.js';
 import { scroll } from '../core/qdrant.js';
 import { PROGRESS_EVENT_PREFIX, createFileProgressReporter } from './progress-event.js';
 import { applyEnvWriteBack } from '../core/settings/service.js';
-import { getOllamaEmbeddingDimension } from '../core/ollama.js';
+import { getOllamaEmbeddingDimension } from '../core/ollama-lazy.js';
 
 // let (not const): LLM_BATCH_SIZE is re-resolved from the settings registry.
 // VECTOR_SIZE starts with the legacy/config fallback, then main() replaces it
@@ -122,6 +122,34 @@ function hashFile(filePath) {
   });
 }
 
+// True when this file's context/tag generation needs no local Ollama model
+// at all, so ensureOllamaPreflight() can be safely skipped — exported for
+// direct unit testing, mirroring stageB's own export for the same reason.
+// Two independent cases, both meaning "Ollama is not needed":
+//   1. Skeleton (Markdown) files always use deterministic structural
+//      context; if tags are off or routed to the ONNX worker, no LLM call
+//      of any kind happens.
+//   2. Legacy (non-skeleton — PDF/Pandoc/plain-text) files under
+//      CONTEXT_MODE=deterministic (Refactor: cloud-safe deterministic
+//      context) build context from source_file/section with zero LLM
+//      calls (phases/context.js's addContextDeterministic()); same tag
+//      condition as case 1. Without this second case, a Semidex Lite index
+//      of any non-Markdown file would still call ensureOllamaPreflight()
+//      and throw through the Lite ollama-lazy shim even though stageB's
+//      own context branch already correctly never calls Ollama for this
+//      file — a real gap a live Qdrant Cloud indexing run caught: only the
+//      CONTEXT-GENERATION call site was gated by CONTEXT_MODE, not the
+//      preflight check guarding it.
+export function shouldSkipOllamaPreflight(chunkMeta, env, { genTagsPreflight, tagViaOnnx }) {
+  const skeletonNoLlm = Boolean(chunkMeta.chunkingModel)
+    && env.SKELETON_SUMMARY !== 'llm'
+    && (!genTagsPreflight || tagViaOnnx);
+  const legacyDeterministicNoLlm = !chunkMeta.chunkingModel
+    && isDeterministicContextMode(env)
+    && (!genTagsPreflight || tagViaOnnx);
+  return skeletonNoLlm || legacyDeterministicNoLlm;
+}
+
 // ── Stage A: read-only preflight / hash / finalized chunking ─────────────────
 // Non-destructive: no Qdrant deletes.
 // Returns { status: 'skipped' } or a prepared object carrying needsDelete/deleteReason
@@ -191,15 +219,7 @@ async function stageA(filePath, rootPath, collection, profiler, reporter = null)
   const tagModel = (combinedCfg.enabled || !genTagsPreflight || tagViaOnnx)
     ? contextModel
     : (process.env.TAG_MODEL || contextModel);
-  // Skeleton files always use deterministic context (structural context is
-  // no longer configurable) and therefore never call the LLM for context;
-  // if tags are off or routed to the ONNX worker, Ollama is not needed at
-  // all — skip the preflight so skeleton indexing works with no Ollama
-  // running.
-  const skeletonNoLlm = Boolean(chunkMeta.chunkingModel)
-    && process.env.SKELETON_SUMMARY !== 'llm'
-    && (!genTagsPreflight || tagViaOnnx);
-  if (!skeletonNoLlm) {
+  if (!shouldSkipOllamaPreflight(chunkMeta, process.env, { genTagsPreflight, tagViaOnnx })) {
     await ensureOllamaPreflight(ollamaUrl, contextModel, tagModel);
   }
   // Load/download tokenizer before any destructive work — a failure here leaves old points intact.
@@ -261,7 +281,14 @@ async function stageA(filePath, rootPath, collection, profiler, reporter = null)
 // while ONNX tags run outside — both start after chunk finalization, freeing the
 // semaphore sooner. `reporter` (sequential mode only, null in pipeline mode) —
 // see progress-event.js.
-async function stageB(prepared, ollamaSem = null, reporter = null) {
+// Exported for direct unit testing (mirrors this file's existing pattern —
+// buildEmbedInputsForChunks/computeStaleSourceFiles/etc. below are exported
+// for the same reason): `prepared` is plain data (rawChunks, combinedCfg,
+// profiler), so this is testable without spinning up the full run()
+// pipeline or a real Qdrant/Ollama connection. Used by
+// tests/unit/indexer/run-context-mode.test.js to prove CONTEXT_MODE=
+// deterministic makes zero Ollama calls for legacy (non-skeleton) chunks.
+export async function stageB(prepared, ollamaSem = null, reporter = null) {
   const { rawChunks, combinedCfg, profiler } = prepared;
 
   if (combinedCfg.warning) console.warn(`  [combined] ${combinedCfg.warning}`);
@@ -320,6 +347,61 @@ async function stageB(prepared, ollamaSem = null, reporter = null) {
     }
 
     return { ...prepared, taggedChunks, navPoints };
+  }
+
+  // ── CONTEXT_MODE=deterministic (legacy/non-skeleton chunks) ───────────────
+  // chunk.js deliberately routes PDF/Pandoc/plain-text through the legacy
+  // chunker (a documented scope boundary), and the branches below this one
+  // (combined/onnx-parallel/default) all call addContext(), a hard Ollama
+  // dependency with no non-LLM fallback. A cloud-only deployment (Semidex
+  // Lite) indexing a PDF must make zero Ollama calls — this short-circuit
+  // is what makes that true, mirroring the skeleton branch's own
+  // deterministic-context short-circuit above. Takes priority over
+  // COMBINED_LLM/TAG_PROVIDER=onnx (both irrelevant once context itself is
+  // deterministic — deterministic context never has a "combined" LLM call
+  // to fold tags into); tag generation (genTags) is independent and still
+  // runs normally if enabled, exactly like the skeleton branch above.
+  if (isDeterministicContextMode(process.env)) {
+    if (combinedCfg.enabled) {
+      console.warn('  [context] COMBINED_LLM=1 ignored under CONTEXT_MODE=deterministic — deterministic context owns the context phase');
+    }
+    if (genTags && tagViaOnnx) {
+      console.warn('  [context] TAG_PROVIDER=onnx runs independently of CONTEXT_MODE=deterministic (context and tags are decoupled here)');
+    }
+    console.log('  [2/5] contextualizing skipped (CONTEXT_MODE=deterministic)');
+    reporter?.step('summarizing', 'Building deterministic context');
+    const contextChunks = await runBatched(rawChunks, BATCH_SIZE, addContextDeterministic);
+    console.log(`        ${contextChunks.length} finalized chunks`);
+    profiler.mark('context');
+
+    let taggedChunks;
+    if (genTags && tagViaOnnx) {
+      console.log('  [3/5] tagging (onnx)...');
+      reporter?.step('tagging');
+      taggedChunks = await addTagsOnnxBatch(contextChunks);
+    } else if (genTags) {
+      console.log('  [3/5] tagging...');
+      reporter?.step('tagging');
+      const tagged = [];
+      for (let i = 0; i < contextChunks.length; i += BATCH_SIZE) {
+        tagged.push(...await addTagsBatch(contextChunks.slice(i, i + BATCH_SIZE)));
+      }
+      taggedChunks = tagged;
+    } else {
+      console.log('  [3/5] tagging skipped (TAG_GEN not enabled)');
+      taggedChunks = contextChunks.map(c => ({ ...c, tags: [] }));
+    }
+    profiler.mark('tag');
+
+    const emptySectionChunksDeterministic = taggedChunks.filter(c => !isSkeletonChunk(c) && isEmptySectionChunk(c));
+    if (emptySectionChunksDeterministic.length > 0) {
+      throw new Error(
+        `${emptySectionChunksDeterministic.length} empty-section chunk(s) reached the upsert gate — ` +
+        `sections: ${emptySectionChunksDeterministic.map(c => c.section || '(unknown)').join(', ')}`
+      );
+    }
+
+    return { ...prepared, taggedChunks };
   }
 
   let taggedChunks;

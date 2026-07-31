@@ -294,6 +294,19 @@ export const DEFINITIONS = {
     dynamicOptions: { source: 'ollama_models', capability: 'generation' },
     ...stringField({ envVar: 'CONTEXT_MODEL', defaultVal: 'gemma3:4b' }),
   },
+  // CONTEXT_MODE=deterministic skips the per-chunk LLM context call
+  // entirely for legacy (non-skeleton — PDF/Pandoc/plain-text) chunks,
+  // building context from source_file/section instead (zero Ollama calls).
+  // Skeleton (Markdown) chunks already always use deterministic context
+  // regardless of this setting. Default 'llm' preserves today's behavior;
+  // Semidex Lite pins 'deterministic' so cloud-only indexing never
+  // contacts a local Ollama server.
+  CONTEXT_MODE: {
+    category: 'ai', label: 'Legacy chunk context mode', type: 'enum', envVar: 'CONTEXT_MODE',
+    description: 'How context is generated for legacy (non-Markdown) chunks: an LLM call (Ollama) or deterministic heading/section text with zero LLM calls.', advanced: true,
+    appliesAt: 'next_index_job', requiresReindex: true, requiresBackfill: false,
+    ...enumField({ envVar: 'CONTEXT_MODE', defaultVal: 'llm', allowed: ['llm', 'deterministic'] }),
+  },
   COMBINED_LLM: {
     category: 'ai', label: 'Combined context+tags LLM pass', type: 'boolean', envVar: 'COMBINED_LLM',
     description: 'Generate chunk context and tags in a single combined LLM call instead of two separate calls.', advanced: true,
