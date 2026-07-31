@@ -42,13 +42,14 @@
 import { fork } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { isOnnxTagProvider } from './tag-provider.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const WORKER_PATH = join(__dirname, '../workers/tag-onnx-worker.js');
 
-export function isOnnxTagProvider(env = process.env) {
-  return env.TAG_PROVIDER === 'onnx';
-}
+// Re-exported for backward compatibility — isOnnxTagProvider now lives in
+// tag-provider.js (see that file's header comment for why).
+export { isOnnxTagProvider };
 
 // Model LOAD timeout (worker startup, including a possible first-time model
 // download) — not user-configurable: this bounds a one-time startup step

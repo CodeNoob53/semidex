@@ -315,13 +315,32 @@ describe('generateStream', () => {
 // ── Both consumers reuse this module, instead of duplicating fetch calls ────
 
 describe('shared Ollama logic — no duplication between indexer and admin', () => {
-  it('src/indexer/preflight.js imports isOllamaReachable/listOllamaModels from core/ollama.js', async () => {
+  it('src/indexer/preflight.js delegates to shared Ollama logic (via ollama-lazy.js), never re-implementing the fetches', async () => {
     const src = await readFile(new URL('../../../src/indexer/preflight.js', import.meta.url), 'utf-8');
-    assert.match(src, /from ['"]\.\.\/core\/ollama\.js['"]/);
+    // preflight now imports from core/ollama-lazy.js (a dynamic re-export of
+    // core/ollama.js) instead of statically from core/ollama.js — the
+    // Semidex Lite cloud-only build must never statically pull core/ollama.js
+    // onto the indexer graph. The no-duplication invariant this test protects
+    // is unchanged: preflight still delegates the reachability/model-list
+    // logic to the ONE shared implementation (core/ollama.js, reached through
+    // the lazy wrapper), and still re-implements neither fetch itself. Accept
+    // either the direct or the lazy import path.
+    assert.match(src, /from ['"]\.\.\/core\/ollama(-lazy)?\.js['"]/);
     assert.match(src, /isOllamaReachable/);
     assert.match(src, /listOllamaModels/);
     assert.ok(!/fetch\(.*\/api\/version/.test(src), 'preflight.js must not re-implement its own /api/version fetch');
     assert.ok(!/fetch\(.*\/api\/tags/.test(src), 'preflight.js must not re-implement its own /api/tags fetch');
+  });
+
+  it('core/ollama-lazy.js re-exports the shared Ollama logic from core/ollama.js (so preflight\'s delegation is transitive, not a fork)', async () => {
+    const src = await readFile(new URL('../../../src/core/ollama-lazy.js', import.meta.url), 'utf-8');
+    // The lazy wrapper must load the real core/ollama.js dynamically and
+    // forward to it — never re-implement the fetches. This is what makes
+    // preflight importing from ollama-lazy.js equivalent, for the
+    // no-duplication invariant, to importing from core/ollama.js directly.
+    assert.match(src, /await import\(['"]\.\/ollama\.js['"]\)/);
+    assert.ok(!/fetch\(.*\/api\/version/.test(src), 'ollama-lazy.js must not re-implement its own /api/version fetch');
+    assert.ok(!/fetch\(.*\/api\/tags/.test(src), 'ollama-lazy.js must not re-implement its own /api/tags fetch');
   });
 
   it('src/admin/system/ollama.js imports isOllamaReachable/listOllamaModels from core/ollama.js', async () => {

@@ -1,4 +1,4 @@
-import { generate } from '../../core/ollama.js';
+import { generate } from '../../core/ollama-lazy.js';
 
 export function resolveTagModel(env = process.env) {
   return env.TAG_MODEL || env.CONTEXT_MODEL || 'gemma3:4b';

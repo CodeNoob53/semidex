@@ -23,7 +23,8 @@
 // different resolution path while reindexing silently wrote incompatible
 // vectors into the same collection.
 
-import { embed as ollamaEmbed } from './ollama.js';
+import { embed as ollamaEmbed } from './ollama-lazy.js';
+import { loadOnnx, loadOnnxBatch } from './onnx-embed-lazy.js';
 import { encode as hashedTfEncode } from './sparse.js';
 import { assertProviderCombo } from './env.js';
 import { EXECUTION } from './embedding-profile/schema.js';
@@ -61,21 +62,12 @@ export function resolveOnnxBatchSize(env) {
 }
 
 // ── Lazy singletons ───────────────────────────────────────────────────────────
-
-let _embedOnnx      = null;
-let _embedOnnxBatch = null;
-let _embedBucketed  = null;
-
-async function loadOnnx() {
-  if (!_embedOnnx) _embedOnnx = (await import('./onnx-embed.js')).embedOnnx;
-  return _embedOnnx;
-}
-
-async function loadOnnxBatch() {
-  if (!_embedOnnxBatch) _embedOnnxBatch = (await import('./onnx-embed.js')).embedOnnxBatch;
-  if (!_embedBucketed)  _embedBucketed  = (await import('./length-bucket.js')).embedBucketed;
-  return { embedOnnxBatch: _embedOnnxBatch, embedBucketed: _embedBucketed };
-}
+//
+// loadOnnx/loadOnnxBatch now live in core/onnx-embed-lazy.js (imported
+// above) — extracted so this file's own static import graph never pulls
+// onnx-embed.js/length-bucket.js, matching the ollama-lazy.js pattern this
+// file already uses for Ollama (see the top-of-file import). See
+// onnx-embed-lazy.js's own header comment for the full rationale.
 
 // Adapts a resolved embedding profile's dense/sparse lanes into the small
 // { denseProvider, denseModel, sparseProvider } shape _embed()'s dispatch

@@ -1,4 +1,4 @@
-import { generate } from '../../core/ollama.js';
+import { generate } from '../../core/ollama-lazy.js';
 import { addContext } from './context.js';
 import { addTagsWithModel } from './tag.js';
 

@@ -10,7 +10,19 @@
 // resolved configuration is allowed to originate. This keeps the provider
 // itself reusable for a config source other than env vars later (e.g. a
 // future Settings UI) without touching this file.
-import { isOllamaReachable, listOllamaModels, validateOllamaModels, generateStream, getModelContextLength } from '../ollama.js';
+//
+// Imports from ../ollama-lazy.js, NOT ../ollama.js directly (Semidex Lite
+// package boundary) — generation/registry.js's BACKENDS map references
+// createOllamaProvider unconditionally (even though it is only ever CALLED
+// when backend === 'ollama'), so merely importing registry.js would
+// otherwise pull core/ollama.js into the module graph even for a
+// Gemini-only Lite deployment. ollama-lazy.js's dynamic
+// `await import('./ollama.js')` defers that one hop further, and Lite's
+// build.mjs substitutes ollama-lazy.lite.js (typed not_available_in_lite
+// rejections) at the same path — reached only if this provider's methods
+// were somehow actually invoked in Lite, which the CLI's
+// SEMIDEX_GENERATION_BACKEND=gemini hard pin prevents.
+import { isOllamaReachable, listOllamaModels, validateOllamaModels, generateStream, getModelContextLength } from '../ollama-lazy.js';
 
 const FALLBACK_MODEL = 'gemma3:4b';
 const FALLBACK_BASE_URL = 'http://localhost:11434';
@@ -77,7 +89,13 @@ export function createOllamaProvider({
       } catch (err) {
         return { ok: false, reason: `Failed to list Ollama models: ${err.message}`, model };
       }
-      const missing = validateOllamaModels([model], available);
+      // validateOllamaModels() is synchronous in core/ollama.js but the
+      // lazy wrapper this file now imports from (../ollama-lazy.js) always
+      // returns a Promise (matching ollama-lazy.js's own uniform async
+      // signature) — this await is required, not stylistic; omitting it
+      // would make `missing` a truthy Promise object and every ready()
+      // call would incorrectly report the model as not installed.
+      const missing = await validateOllamaModels([model], available);
       if (missing) {
         return { ok: false, reason: `Model "${model}" is not installed. Pull it with "ollama pull ${model}".`, model };
       }

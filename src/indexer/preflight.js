@@ -2,9 +2,15 @@
 // with the admin API's pre-job-start check (src/admin/api/jobs.js) — this
 // file only adds the indexer-specific "throw with an actionable CLI message"
 // framing around that shared logic.
-import { isOllamaReachable, listOllamaModels, validateOllamaModels } from '../core/ollama.js';
-
-export { validateOllamaModels };
+//
+// Imported via ollama-lazy.js (dynamic) rather than statically from
+// core/ollama.js: this file is on the indexer import graph (run.js imports
+// it), and a cloud-only Semidex Lite deployment must never pull
+// core/ollama.js into the module graph. checkOllamaPreflight() only ever
+// RUNS when a local Ollama model is actually required (run.js gates it
+// behind !skeletonNoLlm and never calls it in cloud/deterministic mode), so
+// deferring the import to first call costs nothing observable.
+import { isOllamaReachable, listOllamaModels, validateOllamaModels } from '../core/ollama-lazy.js';
 
 // Impure: fetches /api/version and /api/tags, throws with actionable message on failure.
 export async function checkOllamaPreflight(ollamaUrl, contextModel, tagModel) {
@@ -30,7 +36,7 @@ export async function checkOllamaPreflight(ollamaUrl, contextModel, tagModel) {
     throw new Error(`[preflight] Could not list Ollama models from ${base}/api/tags: ${err.message}`);
   }
 
-  const missing = validateOllamaModels([contextModel, tagModel], available);
+  const missing = await validateOllamaModels([contextModel, tagModel], available);
   if (missing) {
     const cmds = missing.map(m => `  ollama pull ${m}`).join('\n');
     throw new Error(

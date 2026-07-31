@@ -38,7 +38,7 @@
 // CONTEXT_MODEL. All prompts instruct the model to answer in the content's
 // own language, 1-2 sentences, no preamble.
 
-import { generate, getModelContextLength, isThinkingModel } from '../../core/ollama.js';
+import { generate, getModelContextLength, isThinkingModel } from '../../core/ollama-lazy.js';
 import { franc } from 'franc-min';
 
 export const SUMMARY_VERSION = 2;
