@@ -45,10 +45,16 @@ describe('QDRANT_CLOUD_DENSE_MODELS / QDRANT_CLOUD_SPARSE_MODELS catalog', () =>
     assert.equal(BM25.contextWindow, null);
   });
 
-  it('MiniLM (sentence-transformers/all-minilm-l6-v2) is marked unsupported with a stated reason', () => {
-    assert.equal(MINILM.status, 'unsupported');
-    assert.match(MINILM.reason, /256/);
-    assert.match(MINILM.reason, /context window/i);
+  // MiniLM was flipped to supported once chunking became profile-aware
+  // (resolveEmbeddingBudget() — qdrant-cloud-catalog.js — sizes chunks
+  // against the ACTIVE model's own contextWindow, not a fixed global
+  // constant), so its 256-token window is no longer a real obstacle. Live
+  // model-ID/dimensions verification: docs/design/qdrant-cloud-inference-model-research-2026-08-01.md.
+  it('MiniLM (sentence-transformers/all-minilm-l6-v2) is marked supported, 384d, 256-token window', () => {
+    assert.equal(MINILM.status, 'supported');
+    assert.equal(MINILM.dimensions, 384);
+    assert.equal(MINILM.contextWindow, 256);
+    assert.equal(MINILM.reason, null);
   });
 
   it('findDenseModel/findSparseModel return null for an unknown id', () => {
@@ -56,16 +62,44 @@ describe('QDRANT_CLOUD_DENSE_MODELS / QDRANT_CLOUD_SPARSE_MODELS catalog', () =>
     assert.equal(findSparseModel('not-a-real-model'), null);
   });
 
-  it('isDenseModelSupported is true only for a catalog-supported model', () => {
+  it('isDenseModelSupported is true for every catalog entry with status:supported, false for planned/unknown', () => {
     assert.equal(isDenseModelSupported(E5.id), true);
-    assert.equal(isDenseModelSupported(MINILM.id), false);
+    assert.equal(isDenseModelSupported(MINILM.id), true);
+    assert.equal(isDenseModelSupported('mixedbread-ai/mxbai-embed-large-v1'), false); // status: 'planned' — dedicated-tier only, not yet selectable
     assert.equal(isDenseModelSupported('unknown'), false);
   });
 
-  it('no ColBERT/SPLADE/image/Cohere/Jina/OpenAI/OpenRouter entries exist anywhere in the catalog', () => {
+  // SPLADE (prithivida/Splade_PP_en_v1) IS now in the catalog — live-
+  // verified as a real Qdrant Cloud Inference model ID (see the research
+  // note) — but ONLY as status:'planned' (dedicated-cluster-tier gated, no
+  // per-cluster tier detection built yet). The invariant this test
+  // protects is narrower than "no SPLADE string anywhere": genuinely
+  // out-of-scope model families (ColBERT/multi-vector, image/CLIP,
+  // Cohere/Jina/OpenAI/OpenRouter-via-Qdrant) must never appear at all,
+  // planned or supported — those need a different retrieval contract
+  // (multi-vector) or a separate credentials/threat-model review
+  // (external providers), neither of which this catalog file owns.
+  it('no ColBERT/image/Cohere/Jina/OpenAI/OpenRouter entries exist anywhere in the catalog', () => {
     const allIds = [...QDRANT_CLOUD_DENSE_MODELS, ...QDRANT_CLOUD_SPARSE_MODELS].map((m) => m.id.toLowerCase());
-    for (const banned of ['colbert', 'splade', 'cohere', 'jina', 'openai', 'openrouter', 'clip']) {
+    for (const banned of ['colbert', 'cohere', 'jina', 'openai', 'openrouter', 'clip']) {
       assert.ok(!allIds.some((id) => id.includes(banned)), `catalog must not contain a "${banned}" entry`);
+    }
+  });
+
+  it('SPLADE (prithivida/Splade_PP_en_v1) exists as status:planned, never status:supported', () => {
+    const splade = findSparseModel('prithivida/Splade_PP_en_v1');
+    assert.ok(splade, 'SPLADE entry must exist in the catalog (live-verified model ID)');
+    assert.equal(splade.status, 'planned');
+    assert.equal(splade.availabilityTier, 'dedicated');
+  });
+
+  it('every catalog entry (dense + sparse) carries the typed shape fields costTier/availabilityTier/languageNotes', () => {
+    for (const model of [...QDRANT_CLOUD_DENSE_MODELS, ...QDRANT_CLOUD_SPARSE_MODELS]) {
+      assert.equal(typeof model.costTier, 'string', `${model.id}: costTier must be a string`);
+      assert.equal(typeof model.availabilityTier, 'string', `${model.id}: availabilityTier must be a string`);
+      assert.equal(typeof model.languageNotes, 'string', `${model.id}: languageNotes must be a string`);
+      assert.ok(['free', 'dedicated', 'external-key'].includes(model.availabilityTier), `${model.id}: availabilityTier must be one of free/dedicated/external-key`);
+      assert.ok(['supported', 'unsupported', 'planned'].includes(model.status), `${model.id}: status must be one of supported/unsupported/planned`);
     }
   });
 });

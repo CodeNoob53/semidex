@@ -91,12 +91,12 @@ describe('resolveLaneAvailability — qdrant-cloud lane (Tier 1: cheap reachabil
     assert.notEqual(result.status, LANE_STATUS.AVAILABLE, 'a routine reachability probe can never prove Cloud Inference actually works');
   });
 
-  it('an unsupported model (MiniLM) reports UNSUPPORTED_BACKEND with the catalog\'s own reason string — never even attempts checkQdrantReachable', async () => {
+  it('a catalog-disabled model (status: planned — mxbai, dedicated-tier only) reports UNSUPPORTED_BACKEND with the catalog\'s own reason string — never even attempts checkQdrantReachable', async () => {
     let called = false;
     const checkQdrantReachable = async () => { called = true; return { status: 'ok' }; };
-    const result = await resolveLaneAvailability(cloudLane({ model: 'sentence-transformers/all-minilm-l6-v2' }), { checkQdrantReachable });
+    const result = await resolveLaneAvailability(cloudLane({ model: 'mixedbread-ai/mxbai-embed-large-v1' }), { checkQdrantReachable });
     assert.equal(result.status, LANE_STATUS.UNSUPPORTED_BACKEND);
-    assert.match(result.reason, /context window/i);
+    assert.match(result.reason, /dedicated/i);
     assert.equal(called, false, 'a catalog-disabled model must short-circuit before any reachability probe');
   });
 

@@ -160,8 +160,15 @@ describe('embeddings.js — qdrant-cloud execution: REAL behavioral proof the lo
   });
 
   it('an unknown/unsupported dense model throws before returning any descriptor', async () => {
+    // mixedbread-ai/mxbai-embed-large-v1 is a real, live-verified catalog
+    // entry (status: 'planned' — dedicated-cluster-tier gated), exercising
+    // the status!=='supported' branch of the regex below; a genuinely
+    // unrecognized model id would exercise the "not in the catalog at
+    // all" branch of the same regex — both throw via the same code path
+    // (embedForIndexCloud's findDenseModel()/status check), so one test
+    // covering the OR-ed message is sufficient.
     await assert.rejects(
-      () => embedForIndex(cloudProfile({ denseModel: 'sentence-transformers/all-minilm-l6-v2' }), 'text'),
+      () => embedForIndex(cloudProfile({ denseModel: 'mixedbread-ai/mxbai-embed-large-v1' }), 'text'),
       /not in the supported Qdrant Cloud dense model catalog|not a supported/,
     );
   });

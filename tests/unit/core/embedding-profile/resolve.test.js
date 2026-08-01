@@ -151,10 +151,10 @@ describe('resolveNewCollectionProfile — new-collection path only', () => {
     assert.equal(profile.embedding.sparse.modifier, 'idf', 'the schema-level modifier must be set from the catalog');
   });
 
-  it('throws for a qdrant-cloud profile whose dense model is catalog-disabled (MiniLM) — never silently builds an unsupported profile', () => {
+  it('throws for a qdrant-cloud profile whose dense model is catalog-disabled (status: planned — mxbai, dedicated-tier only) — never silently builds an unsupported profile', () => {
     assert.throws(() => resolveNewCollectionProfile(
-      { denseProvider: 'qdrant-cloud', denseModel: 'sentence-transformers/all-minilm-l6-v2', sparseProvider: 'qdrant-cloud' },
-      { vectorSize: 384, embeddingSchemaVersion: 2 },
+      { denseProvider: 'qdrant-cloud', denseModel: 'mixedbread-ai/mxbai-embed-large-v1', sparseProvider: 'qdrant-cloud' },
+      { vectorSize: 1024, embeddingSchemaVersion: 2 },
     ), /not a supported Qdrant Cloud dense model/);
   });
 
