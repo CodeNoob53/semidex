@@ -362,9 +362,11 @@ export const DEFINITIONS = {
   // — NOT dynamicOptions/live discovery. No model-discovery API exists for
   // Qdrant Cloud Inference (a confirmed spike finding); pretending a static
   // list is live discovery would misrepresent what this control actually
-  // does. MiniLM is EXCLUDED from options entirely (never offered as a
-  // selectable choice) rather than shown-disabled — it is not a real
-  // choice today, so it is not in the choice list.
+  // does. Options are filtered to status:'supported' only — a
+  // status:'planned' entry (e.g. mxbai/embed-large, dedicated-cluster-tier
+  // gated) is EXCLUDED from options entirely (never offered as a
+  // selectable choice) rather than shown-disabled, since it is not a real
+  // choice for a free-tier cluster today.
   QDRANT_CLOUD_DENSE_MODEL: {
     category: 'embeddings', label: 'Dense model (Qdrant Cloud)', type: 'enum', envVar: 'QDRANT_CLOUD_DENSE_MODEL',
     description: 'Qdrant Cloud Inference dense embedding model used for new collections.', advanced: false,
@@ -376,18 +378,35 @@ export const DEFINITIONS = {
     default: QDRANT_CLOUD_DENSE_MODELS.find((m) => m.status === 'supported')?.id ?? null,
     ...stringField({ envVar: 'QDRANT_CLOUD_DENSE_MODEL', defaultVal: QDRANT_CLOUD_DENSE_MODELS.find((m) => m.status === 'supported')?.id ?? '' }),
   },
-  // Read-only — the catalog has exactly one supported sparse model, so
-  // there is nothing to select. Mirrors VECTOR_SIZE's writable:false +
-  // derivedWhen pattern for a single-option derived field.
+  // Read-only — exactly one sparse model has status:'supported' today
+  // (BM25); a second real, live-verified model (SPLADE++) exists in the
+  // catalog but is status:'planned' (dedicated-cluster-tier gated, no
+  // per-cluster tier detection yet — see qdrant-cloud-models.js's own
+  // comment). Filtered by status, NEVER by array position/index — a
+  // positional QDRANT_CLOUD_SPARSE_MODELS[0] lookup would silently break
+  // (or silently return a non-supported model) the moment the catalog's
+  // ordering changes, which is exactly what adding the SPLADE entry above
+  // this one in a future edit could do. This field auto-upgrades to a real
+  // writable enum selector (mirroring QDRANT_CLOUD_DENSE_MODEL above) the
+  // moment a second status:'supported' entry exists — flipping `writable`
+  // to `true` and adding an `options` list here is the ONLY change needed;
+  // fieldRow()'s UI dispatch (global-settings-view.js) already prioritizes
+  // `writable` over `derivedWhen` generically.
   QDRANT_SPARSE_MODEL: {
     category: 'embeddings', label: 'Sparse model (Qdrant Cloud)', type: 'string', envVar: 'QDRANT_SPARSE_MODEL',
-    description: 'Qdrant Cloud Inference sparse (BM25) model — fixed, no alternative is currently supported.', advanced: true,
+    description: 'Qdrant Cloud Inference sparse model. BM25 is currently the only sparse model supported by this Semidex build.', advanced: true,
     appliesAt: 'new_collection', requiresReindex: false, requiresBackfill: false,
     visibleWhen: { key: 'EMBEDDING_BACKEND', equals: 'qdrant-cloud' },
-    derivedWhen: { key: 'EMBEDDING_BACKEND', equals: 'qdrant-cloud', value: QDRANT_CLOUD_SPARSE_MODELS[0]?.id ?? null },
+    derivedWhen: {
+      key: 'EMBEDDING_BACKEND', equals: 'qdrant-cloud',
+      value: QDRANT_CLOUD_SPARSE_MODELS.find((m) => m.status === 'supported')?.id ?? null,
+    },
     writable: false,
-    readOnlyReason: 'Qdrant Cloud Inference currently supports exactly one sparse model.',
-    ...stringField({ envVar: 'QDRANT_SPARSE_MODEL', defaultVal: QDRANT_CLOUD_SPARSE_MODELS[0]?.id ?? '' }),
+    readOnlyReason: 'BM25 is currently the only sparse model supported by this Semidex build.',
+    ...stringField({
+      envVar: 'QDRANT_SPARSE_MODEL',
+      defaultVal: QDRANT_CLOUD_SPARSE_MODELS.find((m) => m.status === 'supported')?.id ?? '',
+    }),
   },
   VECTOR_SIZE: {
     category: 'embeddings', label: 'Vector size', type: 'number', envVar: 'VECTOR_SIZE',
@@ -695,7 +714,69 @@ export const DEFINITIONS = {
     category: 'system', label: 'Token counting mode', type: 'enum', envVar: 'TOKEN_COUNT',
     description: 'Method used to count tokens when sizing chunks: model tokenizer or a fast heuristic.', advanced: true,
     appliesAt: 'next_index_job', requiresReindex: true, requiresBackfill: false,
+    // Hidden (not just inert) when the active embedding backend is Qdrant
+    // Cloud — resolveTokenCountMode() (core/token-count.js) never consults
+    // this setting for a qdrant-cloud profile; it always uses the ACTIVE
+    // dense model's own tokenizer (see QDRANT_CLOUD_TOKENIZER below).
+    // Showing an "active-looking" BGE-M3/heuristic control that silently
+    // controls nothing for the current backend was the exact UX bug this
+    // hiddenWhen exists to fix — see isFieldVisible()'s own header comment
+    // (global-settings-view.js) for the general mechanism.
+    hiddenWhen: { key: 'EMBEDDING_BACKEND', equals: 'qdrant-cloud' },
     ...enumField({ envVar: 'TOKEN_COUNT', defaultVal: 'bge-m3', allowed: ['bge-m3', 'heuristic'] }),
+  },
+  // Read-only — shown ONLY for EMBEDDING_BACKEND==='qdrant-cloud' (the one
+  // case TOKEN_COUNT above is hidden for), so the UI always shows exactly
+  // one true statement about which tokenizer is actually in effect: either
+  // TOKEN_COUNT's own bge-m3/heuristic choice (other backends), or this
+  // row naming the real, model-scoped cloud tokenizer identity
+  // (core/token-count.js's resolveTokenCountMode() returns
+  // `qdrant-cloud:<model-id>` for a cloud profile — this row surfaces just
+  // the `<model-id>` part, since "qdrant-cloud:" is redundant with the
+  // active backend already being shown elsewhere on this page).
+  // No envVar (matches EMBEDDING_BACKEND's own synthetic-field convention
+  // — see service.js's header comment on that field) — these two rows are
+  // ALWAYS 100% derived from the selected dense model, never independently
+  // configurable via env/dotenv/settings.json, so there is no external
+  // source to parse and no write-back to skip explicitly (service.js's
+  // applyEnvWriteBack() already unconditionally skips any field with
+  // `!def.envVar`).
+  QDRANT_CLOUD_TOKENIZER: {
+    category: 'embeddings', label: 'Tokenizer', type: 'string',
+    description: 'The real tokenizer used to size chunks for the selected Qdrant Cloud dense model — always matches that model exactly, never a separate choice.',
+    advanced: false, appliesAt: 'next_index_job', requiresReindex: false, requiresBackfill: false,
+    visibleWhen: { key: 'EMBEDDING_BACKEND', equals: 'qdrant-cloud' },
+    catalogDerived: {
+      key: 'EMBEDDING_BACKEND', equals: 'qdrant-cloud',
+      modelKey: 'QDRANT_CLOUD_DENSE_MODEL', property: 'id',
+      unknownWarning: 'Select a dense model to see its tokenizer.',
+    },
+    default: '',
+    allowEmpty: true,
+    parseExternal() { throw new Error('QDRANT_CLOUD_TOKENIZER is derived, not env-backed.'); },
+    validate() { return { ok: true }; },
+    serialize: (value) => value,
+    writable: false,
+    readOnlyReason: 'Determined entirely by the selected dense model.',
+  },
+  QDRANT_CLOUD_DENSE_CONTEXT_WINDOW: {
+    category: 'embeddings', label: 'Context window', type: 'number',
+    description: 'Maximum input tokens the selected dense model accepts per embedding call. Chunking automatically stays within this budget.',
+    advanced: false, appliesAt: 'next_index_job', requiresReindex: false, requiresBackfill: false,
+    visibleWhen: { key: 'EMBEDDING_BACKEND', equals: 'qdrant-cloud' },
+    catalogDerived: {
+      key: 'EMBEDDING_BACKEND', equals: 'qdrant-cloud',
+      modelKey: 'QDRANT_CLOUD_DENSE_MODEL', property: 'contextWindow',
+      unknownWarning: 'Select a dense model to see its context window.',
+    },
+    default: 0,
+    min: 0,
+    max: 1000000,
+    parseExternal() { throw new Error('QDRANT_CLOUD_DENSE_CONTEXT_WINDOW is derived, not env-backed.'); },
+    validate() { return { ok: true }; },
+    serialize: (value) => value,
+    writable: false,
+    readOnlyReason: 'Determined entirely by the selected dense model.',
   },
 };
 

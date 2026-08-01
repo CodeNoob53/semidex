@@ -1,12 +1,14 @@
 // Admin UI tests for the qdrant-cloud additions to the "Embeddings &
 // hardware" category: the provider-aware QDRANT_CLOUD_DENSE_MODEL selector
-// (E5 selectable, MiniLM absent from options entirely — never
-// shown-disabled), the coarse settings-time compatibility warning that
-// blocks Save (isCatalogCompatibleWithChunking(), advisory/early — never
-// the real per-embed enforcement point), the read-only QDRANT_SPARSE_MODEL/
-// VECTOR_SIZE derived fields, and the "Test Cloud Inference" probe button
-// (shown only when EMBEDDING_BACKEND is staged to qdrant-cloud, mirroring
-// the existing ONNX probe panel test pattern).
+// (E5 AND MiniLM both selectable — MiniLM's 256-token window is no longer
+// disqualifying now that chunking is profile-aware; status:'planned'
+// dedicated-tier models like mxbai remain absent from options entirely,
+// never shown-disabled), the coarse settings-time compatibility warning
+// that blocks Save (isCatalogCompatibleWithChunking(), advisory/early —
+// never the real per-embed enforcement point), the read-only
+// QDRANT_SPARSE_MODEL/VECTOR_SIZE derived fields, and the "Test Cloud
+// Inference" probe button (shown only when EMBEDDING_BACKEND is staged to
+// qdrant-cloud, mirroring the existing ONNX probe panel test pattern).
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { Event } from 'linkedom';
@@ -33,6 +35,7 @@ function denseModelEntry(overrides = {}) {
     configuredValue: 'intfloat/multilingual-e5-small', activeValue: 'intfloat/multilingual-e5-small',
     options: [
       { value: 'intfloat/multilingual-e5-small', label: 'Multilingual E5 Small (384d, 512 tokens)' },
+      { value: 'sentence-transformers/all-minilm-l6-v2', label: 'All MiniLM L6 v2 (384d, 256 tokens)' },
     ],
     visibleWhen: { key: 'EMBEDDING_BACKEND', equals: 'qdrant-cloud' },
     appliesAt: 'new_collection',
@@ -44,7 +47,7 @@ function sparseModelEntry(overrides = {}) {
   return makeEntry({
     key: 'QDRANT_SPARSE_MODEL', category: 'embeddings', type: 'string', advanced: true,
     configuredValue: 'qdrant/bm25', activeValue: 'qdrant/bm25', writable: false,
-    readOnlyReason: 'Qdrant Cloud Inference currently supports exactly one sparse model.',
+    readOnlyReason: 'BM25 is currently the only sparse model supported by this Semidex build.',
     derivedWhen: { key: 'EMBEDDING_BACKEND', equals: 'qdrant-cloud', value: 'qdrant/bm25' },
     visibleWhen: { key: 'EMBEDDING_BACKEND', equals: 'qdrant-cloud' },
     appliesAt: 'new_collection',
@@ -63,12 +66,50 @@ function vectorSizeEntry(overrides = {}) {
   });
 }
 
+function tokenizerEntry(overrides = {}) {
+  return makeEntry({
+    key: 'QDRANT_CLOUD_TOKENIZER', category: 'embeddings', type: 'string', advanced: false,
+    configuredValue: '', activeValue: '', writable: false,
+    readOnlyReason: 'Determined entirely by the selected dense model.',
+    catalogDerived: { key: 'EMBEDDING_BACKEND', equals: 'qdrant-cloud', modelKey: 'QDRANT_CLOUD_DENSE_MODEL', property: 'id', unknownWarning: 'Select a dense model to see its tokenizer.' },
+    visibleWhen: { key: 'EMBEDDING_BACKEND', equals: 'qdrant-cloud' },
+    appliesAt: 'next_index_job',
+    ...overrides,
+  });
+}
+
+function contextWindowEntry(overrides = {}) {
+  return makeEntry({
+    key: 'QDRANT_CLOUD_DENSE_CONTEXT_WINDOW', category: 'embeddings', type: 'number', advanced: false,
+    configuredValue: 0, activeValue: 0, writable: false,
+    readOnlyReason: 'Determined entirely by the selected dense model.',
+    catalogDerived: { key: 'EMBEDDING_BACKEND', equals: 'qdrant-cloud', modelKey: 'QDRANT_CLOUD_DENSE_MODEL', property: 'contextWindow', unknownWarning: 'Select a dense model to see its context window.' },
+    visibleWhen: { key: 'EMBEDDING_BACKEND', equals: 'qdrant-cloud' },
+    appliesAt: 'next_index_job',
+    ...overrides,
+  });
+}
+
+function tokenCountEntry(overrides = {}) {
+  return makeEntry({
+    key: 'TOKEN_COUNT', category: 'system', type: 'enum', advanced: true,
+    configuredValue: 'bge-m3', activeValue: 'bge-m3',
+    options: [{ value: 'bge-m3', label: 'bge-m3' }, { value: 'heuristic', label: 'heuristic' }],
+    hiddenWhen: { key: 'EMBEDDING_BACKEND', equals: 'qdrant-cloud' },
+    appliesAt: 'next_index_job',
+    ...overrides,
+  });
+}
+
 function baseEntries(overrides = {}) {
   return [
     embeddingBackendEntry(overrides.backend),
     denseModelEntry(overrides.denseModel),
     sparseModelEntry(overrides.sparseModel),
     vectorSizeEntry(overrides.vectorSize),
+    tokenizerEntry(overrides.tokenizer),
+    contextWindowEntry(overrides.contextWindow),
+    tokenCountEntry(overrides.tokenCount),
   ];
 }
 
@@ -91,11 +132,18 @@ describe('QDRANT_CLOUD_DENSE_MODEL selector — provider-aware, catalog-backed',
     assert.ok(optionValues.includes('intfloat/multilingual-e5-small'));
   });
 
-  it('MiniLM is absent from options entirely — never offered as a selectable choice, never shown-disabled', async () => {
+  it('MiniLM is ALSO selectable (status: supported — profile-aware chunking made its 256-token window a non-issue)', async () => {
     const { document } = await renderCategory(baseEntries());
     const select = document.querySelector('[data-key="QDRANT_CLOUD_DENSE_MODEL"]');
     const optionValues = [...select.querySelectorAll('option')].map((o) => o.value);
-    assert.ok(!optionValues.includes('sentence-transformers/all-minilm-l6-v2'));
+    assert.ok(optionValues.includes('sentence-transformers/all-minilm-l6-v2'));
+  });
+
+  it('a status:planned dedicated-tier model (mxbai) is absent from options entirely — never offered as a selectable choice, never shown-disabled', async () => {
+    const { document } = await renderCategory(baseEntries());
+    const select = document.querySelector('[data-key="QDRANT_CLOUD_DENSE_MODEL"]');
+    const optionValues = [...select.querySelectorAll('option')].map((o) => o.value);
+    assert.ok(!optionValues.includes('mixedbread-ai/mxbai-embed-large-v1'));
   });
 
   it('the field is absent entirely when EMBEDDING_BACKEND is not staged to qdrant-cloud', async () => {
@@ -124,6 +172,80 @@ describe('QDRANT_SPARSE_MODEL / VECTOR_SIZE — read-only derived fields', () =>
     const { document } = await renderCategory(baseEntries({ denseModel: { configuredValue: '', activeValue: '' } }));
     const row = document.querySelector('[data-field="VECTOR_SIZE"]');
     assert.match(row.textContent, /Unknown/);
+  });
+});
+
+// The token-count fix's UI-visible half: TOKEN_COUNT hides itself (via the
+// new hiddenWhen engine addition) whenever EMBEDDING_BACKEND=qdrant-cloud,
+// since core/token-count.js's resolveTokenCountMode() never consults it
+// for a cloud profile — showing it would be a real, previously-existing
+// UX bug (an "active-looking" control that silently controls nothing).
+// QDRANT_CLOUD_TOKENIZER/QDRANT_CLOUD_DENSE_CONTEXT_WINDOW take its place,
+// via the SAME generalized catalogDerived rendering path VECTOR_SIZE
+// already used (now supporting an arbitrary `property`, not just
+// `dimensions`).
+describe('TOKEN_COUNT hidden + QDRANT_CLOUD_TOKENIZER/CONTEXT_WINDOW shown — qdrant-cloud backend', () => {
+  // TOKEN_COUNT's real category is 'system' (definitions.js), not
+  // 'embeddings' — isFieldVisible()'s hiddenWhen driver lookup searches
+  // the WHOLE fetched settings payload (lastFetchedPayload.settings),
+  // never just the currently-rendered category, so EMBEDDING_BACKEND
+  // (category: 'embeddings') still correctly drives TOKEN_COUNT's
+  // visibility (category: 'system') even though the two live in different
+  // categories — these two tests render the 'system' category
+  // specifically (via renderSystemCategory below) so TOKEN_COUNT is even
+  // a CANDIDATE for rendering in the first place; rendering 'embeddings'
+  // instead would make TOKEN_COUNT absent for the unrelated reason of
+  // categoryEntries() filtering by category, not hiddenWhen.
+  async function renderSystemCategory(entries, opts = {}) {
+    const ctx = loadGlobalSettingsHelpers({
+      apiResponses: { '/api/settings': settingsPayload(entries) },
+      ...opts,
+    });
+    await ctx.renderGlobalSettingsView(ctx.document.getElementById('main'), 'system');
+    ctx.document.querySelector('.gs-advanced')?.setAttribute('open', '');
+    return ctx;
+  }
+
+  it('TOKEN_COUNT is NOT rendered at all when EMBEDDING_BACKEND is staged to qdrant-cloud', async () => {
+    const { document } = await renderSystemCategory(baseEntries());
+    assert.equal(document.querySelector('[data-field="TOKEN_COUNT"]'), null);
+  });
+
+  it('TOKEN_COUNT IS rendered for a non-cloud backend (Ollama)', async () => {
+    const { document } = await renderSystemCategory(baseEntries({ backend: { configuredValue: 'ollama', activeValue: 'ollama' } }));
+    assert.ok(document.querySelector('[data-field="TOKEN_COUNT"]'), 'TOKEN_COUNT must still render for Ollama — hiddenWhen is qdrant-cloud-specific, not a global removal');
+  });
+
+  it('QDRANT_CLOUD_TOKENIZER renders read-only, showing the staged dense model id (via catalogDerived property: "id")', async () => {
+    const { document } = await renderCategory(baseEntries());
+    const row = document.querySelector('[data-field="QDRANT_CLOUD_TOKENIZER"]');
+    assert.ok(row, 'expected a rendered row for QDRANT_CLOUD_TOKENIZER');
+    assert.equal(row.querySelector('select, input'), null, 'must not render an editable control');
+    assert.match(row.textContent, /intfloat\/multilingual-e5-small/);
+  });
+
+  it('QDRANT_CLOUD_TOKENIZER updates when the staged dense model changes to MiniLM, no Save round trip', async () => {
+    const { document } = await renderCategory(baseEntries({
+      denseModel: { configuredValue: 'sentence-transformers/all-minilm-l6-v2', activeValue: 'sentence-transformers/all-minilm-l6-v2' },
+    }));
+    const row = document.querySelector('[data-field="QDRANT_CLOUD_TOKENIZER"]');
+    assert.match(row.textContent, /sentence-transformers\/all-minilm-l6-v2/);
+  });
+
+  it('QDRANT_CLOUD_DENSE_CONTEXT_WINDOW shows 512 for E5, 256 for MiniLM (via catalogDerived property: "contextWindow")', async () => {
+    const e5 = await renderCategory(baseEntries());
+    assert.match(e5.document.querySelector('[data-field="QDRANT_CLOUD_DENSE_CONTEXT_WINDOW"]').textContent, /512/);
+
+    const minilm = await renderCategory(baseEntries({
+      denseModel: { configuredValue: 'sentence-transformers/all-minilm-l6-v2', activeValue: 'sentence-transformers/all-minilm-l6-v2' },
+    }));
+    assert.match(minilm.document.querySelector('[data-field="QDRANT_CLOUD_DENSE_CONTEXT_WINDOW"]').textContent, /256/);
+  });
+
+  it('QDRANT_CLOUD_TOKENIZER/CONTEXT_WINDOW are absent entirely for a non-cloud backend', async () => {
+    const { document } = await renderCategory(baseEntries({ backend: { configuredValue: 'ollama', activeValue: 'ollama' } }));
+    assert.equal(document.querySelector('[data-field="QDRANT_CLOUD_TOKENIZER"]'), null);
+    assert.equal(document.querySelector('[data-field="QDRANT_CLOUD_DENSE_CONTEXT_WINDOW"]'), null);
   });
 });
 
@@ -209,6 +331,60 @@ describe('"Test Cloud Inference" probe button', () => {
 
     assert.match(panel.querySelector('.gs-qc-verified').textContent, /^inference_available /);
     assert.equal(panel.querySelector('.gs-qc-result').hidden, false);
+  });
+
+  it('the availability badge starts as "Not yet tested" before any click', async () => {
+    const { document } = await renderCategory(baseEntries());
+    const panel = document.querySelector('.gs-qdrant-cloud-probe-panel');
+    assert.equal(panel.querySelector('.gs-qc-availability-badge').textContent, 'Not yet tested');
+  });
+
+  it('an available result renders the "Available" badge with badge-ok', async () => {
+    const { document } = await renderCategory(
+      baseEntries(),
+      { apiPostImpl: async () => ({ status: 'inference_available', availability: { status: 'available', message: null } }) },
+    );
+    const panel = document.querySelector('.gs-qdrant-cloud-probe-panel');
+    panel.querySelector('.gs-qc-test-button').dispatchEvent(new Event('click'));
+    await new Promise((resolve) => setImmediate(resolve));
+    await new Promise((resolve) => setImmediate(resolve));
+
+    const badge = panel.querySelector('.gs-qc-availability-badge');
+    assert.equal(badge.textContent, 'Available');
+    assert.ok(badge.classList.contains('badge-ok'));
+  });
+
+  it('an unavailable_for_cluster result renders a distinct badge from unsupported_by_semidex', async () => {
+    const { document } = await renderCategory(
+      baseEntries(),
+      { apiPostImpl: async () => ({ status: 'inference_disabled_or_model_unavailable', message: 'not allowed in free tier', availability: { status: 'unavailable_for_cluster', message: 'not allowed in free tier' } }) },
+    );
+    const panel = document.querySelector('.gs-qdrant-cloud-probe-panel');
+    panel.querySelector('.gs-qc-test-button').dispatchEvent(new Event('click'));
+    await new Promise((resolve) => setImmediate(resolve));
+    await new Promise((resolve) => setImmediate(resolve));
+
+    const badge = panel.querySelector('.gs-qc-availability-badge');
+    assert.equal(badge.textContent, 'Unavailable for this cluster');
+    assert.ok(badge.classList.contains('badge-warn'));
+    assert.ok(!badge.classList.contains('badge-fail'));
+  });
+
+  it('a network/transport failure resets the badge to "Not yet tested" rather than showing a stale/wrong status', async () => {
+    const { document } = await renderCategory(
+      baseEntries(),
+      { apiPostImpl: async () => { throw new Error('network error'); } },
+    );
+    const panel = document.querySelector('.gs-qdrant-cloud-probe-panel');
+    panel.querySelector('.gs-qc-test-button').dispatchEvent(new Event('click'));
+    await new Promise((resolve) => setImmediate(resolve));
+    await new Promise((resolve) => setImmediate(resolve));
+
+    const badge = panel.querySelector('.gs-qc-availability-badge');
+    assert.equal(badge.textContent, 'Not yet tested');
+    assert.ok(!badge.classList.contains('badge-ok'));
+    assert.ok(!badge.classList.contains('badge-warn'));
+    assert.ok(!badge.classList.contains('badge-fail'));
   });
 
   it('an inference_disabled_or_model_unavailable result surfaces the server message, never claims success', async () => {

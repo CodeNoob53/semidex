@@ -153,16 +153,29 @@ export function createSettingsService({
     if (def.options !== undefined) entry.options = def.options;
     if (def.allowEmpty !== undefined) entry.allowEmpty = def.allowEmpty;
     if (def.visibleWhen !== undefined) entry.visibleWhen = def.visibleWhen;
+    // hiddenWhen: the inverse of visibleWhen (see global-settings-view.js's
+    // isFieldVisible() for the full rationale) — a single {key, equals}
+    // condition, JSON-safe as-is (no function values), passed through
+    // unchanged.
+    if (def.hiddenWhen !== undefined) entry.hiddenWhen = def.hiddenWhen;
     if (def.dynamicOptions !== undefined) entry.dynamicOptions = def.dynamicOptions;
     if (def.derivedWhen !== undefined) entry.derivedWhen = def.derivedWhen;
     if (def.dynamicDerived !== undefined) entry.dynamicDerived = def.dynamicDerived;
-    // catalogDerived.lookup is a real function — cannot survive JSON
-    // serialization. Only the JSON-safe key/equals/modelKey trio is sent;
-    // the browser resolves `lookup` itself against its own bundled
-    // qdrant-cloud-models.js copy (findDenseModel(modelId)?.dimensions),
-    // never receiving a function over the wire.
+    // catalogDerived.lookup (if ever set) is a real function — cannot
+    // survive JSON serialization. Only the JSON-safe key/equals/modelKey/
+    // property/unknownWarning fields are sent; the browser resolves the
+    // actual catalog lookup itself against its own bundled
+    // qdrant-cloud-models.js copy (findDenseModel(modelId)?.[property]),
+    // never receiving a function over the wire. `property` defaults to
+    // 'dimensions' client-side when omitted (VECTOR_SIZE's original shape).
     if (def.catalogDerived !== undefined) {
-      entry.catalogDerived = { key: def.catalogDerived.key, equals: def.catalogDerived.equals, modelKey: def.catalogDerived.modelKey };
+      entry.catalogDerived = {
+        key: def.catalogDerived.key,
+        equals: def.catalogDerived.equals,
+        modelKey: def.catalogDerived.modelKey,
+        ...(def.catalogDerived.property !== undefined ? { property: def.catalogDerived.property } : {}),
+        ...(def.catalogDerived.unknownWarning !== undefined ? { unknownWarning: def.catalogDerived.unknownWarning } : {}),
+      };
     }
     if (def.uiHidden !== undefined) entry.uiHidden = def.uiHidden;
     if (def.pathPicker !== undefined) entry.pathPicker = def.pathPicker;

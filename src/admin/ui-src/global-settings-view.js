@@ -284,6 +284,24 @@ function categoryEntries(category) {
 // it would let a user reconstruct an invalid combination through this UI.
 function isFieldVisible(category, entry) {
   if (entry.uiHidden) return false;
+  // hiddenWhen is the inverse of visibleWhen — a single { key, equals }
+  // condition (no array/AND-composition support, unlike visibleWhen; add
+  // that generalization only if a second real use case needs it) that
+  // hides a field whose SETTING VALUE is still perfectly valid but has
+  // become inert/inapplicable given another field's current staged value
+  // (e.g. TOKEN_COUNT is a real, writable setting, but it is never
+  // consulted once EMBEDDING_BACKEND=qdrant-cloud — see
+  // core/token-count.js's resolveTokenCountMode()). Distinct from
+  // visibleWhen: that mechanism scopes a field to WHEN it's relevant at
+  // all (e.g. a Qdrant-Cloud-only field never shown for other backends);
+  // this one scopes a field OUT for a specific driver value while staying
+  // visible for every other value, which visibleWhen's single-equals
+  // shape cannot express against a 3+ value enum without listing every
+  // other value explicitly.
+  if (entry.hiddenWhen) {
+    const driver = lastFetchedPayload.settings.find((s) => s.key === entry.hiddenWhen.key);
+    if (driver && currentPendingValue(category, driver) === entry.hiddenWhen.equals) return false;
+  }
   if (!entry.visibleWhen) return true;
   const conditions = Array.isArray(entry.visibleWhen) ? entry.visibleWhen : [entry.visibleWhen];
   return conditions.every((condition) => {
@@ -568,13 +586,18 @@ function fieldRow(category, entry) {
     }
   }
 
-  // catalogDerived: dimensions looked up from the STATIC Qdrant Cloud
-  // model catalog by the staged model key — never probed live, since
-  // dimensions are fixed per model ID (no network call needed). Same
+  // catalogDerived: a property looked up from the STATIC Qdrant Cloud
+  // model catalog by the staged model key — never probed live, since every
+  // property here (dimensions, contextWindow, costTier, the model id
+  // itself...) is fixed per model ID (no network call needed). Same
   // rendering path as dynamicDerived above, different data source. The
-  // server sends only the JSON-safe {key, equals, modelKey} trio (a real
-  // `lookup` function cannot survive JSON serialization) — findQdrantCloudDenseModel
-  // is resolved against this file's own bundled qdrant-cloud-models.js copy.
+  // server sends only the JSON-safe {key, equals, modelKey, property?}
+  // quad (a real `lookup` function cannot survive JSON serialization) —
+  // findQdrantCloudDenseModel is resolved against this file's own bundled
+  // qdrant-cloud-models.js copy. `property` defaults to 'dimensions' for
+  // backward compatibility with VECTOR_SIZE's original single-purpose
+  // entry; any other catalog field name (e.g. 'contextWindow', 'id' for a
+  // tokenizer-identity row) works identically.
   if (entry.catalogDerived) {
     const driver = lastFetchedPayload.settings.find((item) => item.key === entry.catalogDerived.key);
     const driverMatches = driver
@@ -582,10 +605,16 @@ function fieldRow(category, entry) {
     if (driverMatches) {
       const modelEntry = lastFetchedPayload.settings.find((item) => item.key === entry.catalogDerived.modelKey);
       const modelId = modelEntry ? currentPendingValue(category, modelEntry) : null;
-      const value = modelId ? findQdrantCloudDenseModel(modelId)?.dimensions ?? null : null;
-      const known = Number.isInteger(value) && value > 0;
+      const property = entry.catalogDerived.property ?? 'dimensions';
+      const value = modelId ? findQdrantCloudDenseModel(modelId)?.[property] ?? null : null;
+      // Numeric properties (dimensions, contextWindow) are "known" only
+      // when a positive integer; any other property (e.g. the model id
+      // itself, a string label) is "known" whenever it's a non-empty
+      // value — a numeric-only check would wrongly report a real string
+      // value like a model id as "Unknown".
+      const known = typeof value === 'number' ? (Number.isInteger(value) && value > 0) : (value != null && value !== '');
       return readonlyField(entry, known ? value : 'Unknown', {
-        warning: known ? '' : 'Select a dense model to detect the vector size.',
+        warning: known ? '' : (entry.catalogDerived.unknownWarning ?? 'Select a dense model to detect this value.'),
       });
     }
   }
@@ -757,6 +786,34 @@ async function runOnnxProbe(container, category, btn) {
   }
 }
 
+// Label/CSS-class lookup for the settings-time 4-status availability
+// classification (admin/system/qdrant-cloud.js's classifyInferenceProbeError()
+// — available/unavailable_for_cluster/unsupported_by_semidex/unverified).
+// Mirrors collection-view.js's own availabilityChip() lookup-object
+// pattern, applied to a DIFFERENT status vocabulary: that one describes an
+// EXISTING collection's resolved-profile search availability
+// (core/embedding-profile/availability.js's COLLECTION_STATUS); this one
+// describes a CANDIDATE model's settings-time probe outcome, before any
+// collection exists — deliberately two separate lookups, not a shared
+// one, since the status vocabularies themselves are unrelated.
+const QC_AVAILABILITY_BADGE = {
+  available: { label: 'Available', cls: 'badge-ok' },
+  unavailable_for_cluster: { label: 'Unavailable for this cluster', cls: 'badge-warn' },
+  unsupported_by_semidex: { label: 'Unsupported', cls: 'badge-fail' },
+  unverified: { label: 'Unverified', cls: 'badge-warn' },
+};
+
+function renderAvailabilityBadge(badgeEl, availability) {
+  const entry = QC_AVAILABILITY_BADGE[availability?.status];
+  badgeEl.classList.remove('badge-ok', 'badge-warn', 'badge-fail');
+  if (!entry) {
+    badgeEl.textContent = 'Not yet tested';
+    return;
+  }
+  badgeEl.textContent = entry.label;
+  badgeEl.classList.add(entry.cls);
+}
+
 // Shown only alongside a visible EMBEDDING_BACKEND field currently staged
 // to 'qdrant-cloud' — this is the ONLY code path that ever calls Tier 2
 // (probeQdrantCloudInference()); routine Settings rendering and collection
@@ -788,6 +845,7 @@ function wireQdrantCloudProbePanel(container, category) {
 async function runQdrantCloudProbe(container, btn) {
   const panel = btn.closest('.gs-qdrant-cloud-probe-panel');
   const verified = panel.querySelector('.gs-qc-verified');
+  const badge = panel.querySelector('.gs-qc-availability-badge');
   const resultBlock = panel.querySelector('.gs-qc-result');
   const denseModel = btn.dataset.denseModel;
 
@@ -800,6 +858,11 @@ async function runQdrantCloudProbe(container, btn) {
     const result = await apiPost('/api/system/qdrant-cloud-probe', { denseModel });
     const timestamp = new Date().toLocaleTimeString();
     verified.textContent = `${result.status} (${timestamp})`;
+    // availability (added alongside the original status/message fields —
+    // see admin/api/qdrant-cloud.js's own comment) is what drives the
+    // badge; the original status/message pair still drives the existing
+    // verified-timestamp line and message text unchanged.
+    renderAvailabilityBadge(badge, result.availability);
     resultBlock.hidden = false;
     panel.querySelector('.gs-qc-message').textContent = result.message ?? (
       result.status === 'inference_available'
@@ -808,6 +871,7 @@ async function runQdrantCloudProbe(container, btn) {
     );
   } catch (err) {
     verified.textContent = 'Test failed';
+    renderAvailabilityBadge(badge, null);
     resultBlock.hidden = false;
     panel.querySelector('.gs-qc-message').textContent = err?.message ?? 'The probe request failed.';
   } finally {
