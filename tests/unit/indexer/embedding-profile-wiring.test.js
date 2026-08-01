@@ -30,19 +30,94 @@ describe('run.js — EMBEDDING_PROFILE is resolved once, module-level, never per
 });
 
 describe('run.js — new-collection branch resolves the profile and creates atomically', () => {
-  it('calls resolveNewCollectionProfile, then adapter.createCollection with { profile }, never a bare vectorSize-only create', () => {
+  it('calls resolveNewCollectionProfile, then createNewCollectionWithConfigCache with { profile: EMBEDDING_PROFILE }, never a bare vectorSize-only create', () => {
+    // The actual adapter.createCollection(name, { profile }) call now
+    // lives INSIDE createNewCollectionWithConfigCache() (extracted for
+    // direct unit testing + self-cleaning on a config.json write failure —
+    // see that function's own test file). This call site is checked to
+    // pass EMBEDDING_PROFILE through unchanged; the extracted function's
+    // own createCollectionFn wiring is checked separately below.
     const start = src.indexOf('if (!allCollections.includes(COLLECTION)) {');
     const end = src.indexOf('} else {', start);
     const branch = src.slice(start, end);
     assert.match(branch, /EMBEDDING_PROFILE = resolveNewCollectionProfile\(/);
-    assert.match(branch, /storageAdapter\.createCollection\(COLLECTION,\s*\{\s*profile:\s*EMBEDDING_PROFILE\s*\}\)/);
+    assert.match(branch, /await createNewCollectionWithConfigCache\(\{\s*\r?\n\s*collection:\s*COLLECTION,\s*profile:\s*EMBEDDING_PROFILE,/);
+    const fnStart = src.indexOf('export async function createNewCollectionWithConfigCache(');
+    assert.ok(fnStart > -1, 'expected createNewCollectionWithConfigCache to be exported from run.js');
+    const fnEnd = src.indexOf('\nasync function main()', fnStart);
+    const fnBody = src.slice(fnStart, fnEnd > -1 ? fnEnd : undefined);
+    assert.match(fnBody, /await createCollectionFn\(collection,\s*\{\s*profile\s*\}\)/);
   });
 
-  it('writes config.json from the SAME resolved profile object via resolveCollectionConfigEntry, not a second independent resolution', () => {
+  it('writes config.json from the SAME resolved profile object via createNewCollectionWithConfigCache(), not a second independent resolution', () => {
+    // config.json writing now lives inside createNewCollectionWithConfigCache()
+    // (extracted for direct unit testing — see
+    // tests/unit/indexer/create-new-collection-with-config-cache.test.js —
+    // and to make the create+config-write pair self-cleaning on failure,
+    // Semidex Lite / model-selection task, collection-creation safety).
+    // This test now checks the CALL SITE passes the same EMBEDDING_PROFILE
+    // object through, and that the extracted function itself is the one
+    // that resolves the config.json entry — not a re-implementation
+    // inline here.
     const start = src.indexOf('if (!allCollections.includes(COLLECTION)) {');
     const end = src.indexOf('} else {', start);
     const branch = src.slice(start, end);
-    assert.match(branch, /resolveCollectionConfigEntry\(EMBEDDING_PROFILE, cfg\.collections\[COLLECTION\]\)/);
+    assert.match(branch, /await createNewCollectionWithConfigCache\(\{\s*\r?\n\s*collection:\s*COLLECTION,\s*profile:\s*EMBEDDING_PROFILE,/);
+    const fnStart = src.indexOf('export async function createNewCollectionWithConfigCache(');
+    assert.ok(fnStart > -1, 'expected createNewCollectionWithConfigCache to be exported from run.js');
+    const fnEnd = src.indexOf('\nasync function main()', fnStart);
+    const fnBody = src.slice(fnStart, fnEnd > -1 ? fnEnd : undefined);
+    assert.match(fnBody, /resolveCollectionConfigEntryFn\(profile, cfg\.collections\[collection\]\)/);
+  });
+});
+
+describe('run.js — a target with no supported files never creates a new collection (code review, P1)', () => {
+  // Previously, files were only collected (collectFiles()) well AFTER the
+  // new-collection branch had already called createNewCollectionWithConfigCache() —
+  // a directory with zero supported files (e.g. only .png/.pdf-unsupported
+  // content, or genuinely empty) left behind an empty collection plus a
+  // config.json entry, then printed "No supported files found." on its way
+  // out. Files must now be collected BEFORE the new-collection branch, and
+  // that branch must exit before calling createNewCollectionWithConfigCache()
+  // whenever there are no files.
+  //
+  // A first attempt at this fix wrongly exempted PRUNE_STALE=1 from that
+  // exit inside the NEW-collection branch — code review caught this: a
+  // brand-new collection has nothing to prune, so PRUNE_STALE=1 must never
+  // let a genuinely-empty source directory create one. PRUNE_STALE=1's
+  // real, legitimate zero-files scenario ("the last file in an EXISTING
+  // collection was deleted, but the collection itself still exists and
+  // needs its stale points pruned") is unrelated and is handled entirely
+  // separately, later, in the shared post-branch code that only runs for
+  // collections that already exist by the time it's reached.
+  it('collects files (collectFiles(earlyAbsTarget)) before the new-collection branch, not after it', () => {
+    const filesCallIdx = src.indexOf('const earlyFiles = collectFiles(earlyAbsTarget);');
+    const branchIdx = src.indexOf('if (!allCollections.includes(COLLECTION)) {');
+    assert.ok(filesCallIdx > -1, 'expected collectFiles(earlyAbsTarget) to be collected early, before listCollections()/the new-collection branch');
+    assert.ok(filesCallIdx < branchIdx, 'earlyFiles must be collected BEFORE the new-collection branch, not after it');
+  });
+
+  it('the new-collection branch exits (process.exit(0)) before calling createNewCollectionWithConfigCache() when earlyFiles is empty', () => {
+    const branchStart = src.indexOf('if (!allCollections.includes(COLLECTION)) {');
+    const createCallIdx = src.indexOf('await createNewCollectionWithConfigCache(', branchStart);
+    const exitCheckIdx = src.indexOf('if (!earlyFiles.length) {', branchStart);
+    assert.ok(exitCheckIdx > -1 && exitCheckIdx < branchStart + 200, 'expected an early earlyFiles-empty exit check near the top of the new-collection branch');
+    assert.ok(exitCheckIdx < createCallIdx, 'the empty-files exit check must run BEFORE createNewCollectionWithConfigCache() is ever called');
+    const exitBlock = src.slice(exitCheckIdx, exitCheckIdx + 150);
+    assert.match(exitBlock, /process\.exit\(0\)/, 'must actually exit, not just warn, for a new collection with no supported files');
+  });
+
+  it('the new-collection empty-files exit is UNCONDITIONAL — PRUNE_STALE=1 must never exempt it, since a brand-new collection has nothing to prune (code review fix)', () => {
+    const branchStart = src.indexOf('if (!allCollections.includes(COLLECTION)) {');
+    const exitCheckIdx = src.indexOf('if (!earlyFiles.length) {', branchStart);
+    assert.ok(exitCheckIdx > -1);
+    const exitLine = src.slice(exitCheckIdx, exitCheckIdx + 40);
+    assert.ok(!/PRUNE_STALE/.test(exitLine), 'the new-collection exit condition must not reference PRUNE_STALE at all — it always exits on zero files, regardless');
+  });
+
+  it('the later files/isDirectory block reuses earlyFiles/earlyIsDirectory rather than re-scanning the filesystem a second time', () => {
+    assert.match(src, /const isDirectory = earlyIsDirectory;/);
+    assert.match(src, /const files = earlyFiles;/);
   });
 });
 

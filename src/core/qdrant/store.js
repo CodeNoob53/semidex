@@ -53,14 +53,42 @@ export async function createCollection(name, size = 1024, metadata, vectorSchema
   // directly against the live cluster: a single call with `metadata` in the
   // body round-trips correctly.
   const resolvedSchema = vectorSchema ?? collectionVectorSchema(size);
+  // The base create-with-metadata call above is ONE atomic Qdrant API
+  // call (see the comment above it) — if IT throws, this function made no
+  // lasting change, so there is nothing to clean up; the error propagates
+  // unchanged. If it SUCCEEDS but a subsequent createPayloadIndex() call
+  // in the loop below throws, the collection now genuinely exists
+  // (correct metadata already written) but is missing a required payload
+  // index — a real partial-creation state. This function is the ONLY
+  // place that can safely attempt cleanup for that specific window: it is
+  // the one caller that knows, by direct causality of its own preceding
+  // await succeeding, that IT just created this collection — no
+  // check-then-act race against a separate listCollections() read (that
+  // approach was considered and rejected: a concurrent process could
+  // create a same-named collection in the gap between the check and this
+  // call, and a cleanup keyed off a stale check could then delete a
+  // collection this call never created).
   await qdrantCall('Create collection failed', () =>
     client.api().createCollection({
       collection_name: name,
       ...resolvedSchema,
       ...(metadata !== undefined ? { metadata } : {}),
     }));
-  for (const [field, payloadFieldSchema] of Object.entries(REQUIRED_PAYLOAD_INDEXES)) {
-    await createPayloadIndex(name, field, payloadFieldSchema);
+  try {
+    for (const [field, payloadFieldSchema] of Object.entries(REQUIRED_PAYLOAD_INDEXES)) {
+      await createPayloadIndex(name, field, payloadFieldSchema);
+    }
+  } catch (err) {
+    try {
+      await deleteCollection(name);
+    } catch (cleanupErr) {
+      // Never mask the original error with a cleanup failure — log for a
+      // human to notice and manually remove the orphaned collection, but
+      // the ORIGINAL error (thrown below, outside this catch) is always
+      // what the caller sees.
+      console.warn(`[qdrant] cleanup failed for partially-created collection "${name}" after a payload-index failure: ${errText(cleanupErr)} — it may need manual removal.`);
+    }
+    throw err;
   }
 }
 

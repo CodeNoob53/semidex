@@ -32,10 +32,10 @@ import { loadConfig, saveConfig, resolveEnvProviders } from '../core/config.js';
 import { embedForIndex, embedForIndexBatch, shouldUseOnnxBatching, SCHEMA_VERSION } from '../core/embeddings.js';
 import { createStorageAdapter } from '../core/storage/factory.js';
 import { resolveExistingCollectionProfile, resolveNewCollectionProfile } from '../core/embedding-profile/resolve.js';
-import { findDenseModel, resolveEmbeddingBudget } from '../core/embedding-profile/qdrant-cloud-catalog.js';
+import { findDenseModel, resolveEmbeddingBudget, isCatalogCompatibleWithChunking } from '../core/embedding-profile/qdrant-cloud-catalog.js';
 import { resolveCollectionConfigEntry } from '../core/embedding-profile/config-cache.js';
 import { ensureOllamaPreflight } from './preflight.js';
-import { CHUNKING_SCHEMA_VERSION, getTokenCounter, resolveTokenCountMode } from '../core/token-count.js';
+import { CHUNKING_SCHEMA_VERSION, getTokenCounter, resolveTokenCountMode, QDRANT_CLOUD_TOKEN_MODE_PREFIX } from '../core/token-count.js';
 import { Semaphore } from './semaphore.js';
 import { SerialQueue } from './serial-queue.js';
 import { envInt } from '../core/env.js';
@@ -169,7 +169,7 @@ async function stageA(filePath, rootPath, collection, profiler, reporter = null)
     sparseProvider: EMBEDDING_PROFILE.embedding.sparse?.provider ?? null,
     schemaVersion: EMBEDDING_PROFILE.embeddingSchemaVersion,
   };
-  const tokenCountMode = resolveTokenCountMode();
+  const tokenCountMode = resolveTokenCountMode(process.env, EMBEDDING_PROFILE);
   const configVectorSize = EMBEDDING_PROFILE.embedding.dense.dimensions;
   // Resolved once here (file-independent) so both the skip-tuple check
   // below and the actual chunking call further down use the SAME budget —
@@ -222,8 +222,16 @@ async function stageA(filePath, rootPath, collection, profiler, reporter = null)
   if (!shouldSkipOllamaPreflight(chunkMeta, process.env, { genTagsPreflight, tagViaOnnx })) {
     await ensureOllamaPreflight(ollamaUrl, contextModel, tagModel);
   }
-  // Load/download tokenizer before any destructive work — a failure here leaves old points intact.
-  if (tokenCountMode === 'bge-m3') await getTokenCounter({ mode: 'bge-m3' });
+  // Load/download tokenizer before any destructive work — a failure here
+  // leaves old points intact. Applies to BOTH families: BGE-M3 (local
+  // profiles) and the model-scoped cloud tokenizer
+  // (`qdrant-cloud:<model-id>` — see token-count.js's own header comment)
+  // — a cloud profile's tokenizer load can fail too (network/cache issue
+  // fetching the model's tokenizer.json), and that failure must be
+  // surfaced here, before any Qdrant write, exactly like the BGE-M3 case.
+  if (tokenCountMode === 'bge-m3' || tokenCountMode.startsWith(QDRANT_CLOUD_TOKEN_MODE_PREFIX)) {
+    await getTokenCounter({ mode: tokenCountMode });
+  }
 
   // Compute whether a pre-delete is needed, but do NOT execute it yet.
   // Qdrant delete happens in stageD (after embed succeeds in stageC).
@@ -795,6 +803,43 @@ export function collectionNavRollupNeeded(indexedCount, prunedCount) {
   return indexedCount > 0 || prunedCount > 0;
 }
 
+// Creates a brand-new collection AND its config.json cache entry as one
+// safe unit — exported for direct unit testing (mirrors stageB's own
+// export for the same reason). All Qdrant/config I/O is injected so a
+// test never touches a real Qdrant instance or the real config.json.
+//
+// storageAdapter.createCollection() (createCollectionFn) is now
+// internally self-cleaning for the ONE partial-failure window IT can
+// itself experience (the base Qdrant create succeeding but a subsequent
+// payload-index call failing — see core/qdrant/store.js's own
+// createCollection() fix). The ONE remaining gap THIS function covers is
+// createCollectionFn() itself SUCCEEDING but the config.json write
+// (loadConfigFn/saveConfigFn) then throwing — a real collection now
+// exists with no config.json cache entry. Cleanup here is safe by the
+// same direct-causality reasoning store.js's own fix uses: this function
+// only reaches its catch block after ITS OWN preceding createCollectionFn()
+// call already resolved, so `collection` is exactly the collection this
+// call just created — never a pre-existing one, and never decided via a
+// separate, race-prone listCollections() check.
+export async function createNewCollectionWithConfigCache({
+  collection, profile,
+  createCollectionFn, deleteCollectionFn, loadConfigFn, saveConfigFn, resolveCollectionConfigEntryFn,
+}) {
+  await createCollectionFn(collection, { profile });
+  try {
+    const cfg = loadConfigFn();
+    if (!cfg.collections) cfg.collections = {};
+    cfg.collections[collection] = resolveCollectionConfigEntryFn(profile, cfg.collections[collection]);
+    saveConfigFn(cfg);
+  } catch (err) {
+    try {
+      await deleteCollectionFn(collection);
+    } catch (cleanupErr) {
+      console.warn(`  WARN: cleanup failed for collection "${collection}" after a config.json write failure: ${cleanupErr.message} — it may need manual removal.`);
+    }
+    throw err;
+  }
+}
 
 async function main() {
   const targetPath = process.argv[2];
@@ -803,8 +848,45 @@ async function main() {
     process.exit(1);
   }
 
+  // Path validation FIRST, before any Qdrant call (including
+  // listCollections() below is fine — it's read-only — but definitely
+  // before a NEW collection might be created for a target that turns out
+  // not to exist). Previously this was only discovered much later
+  // (statSync(absTarget) near the file-collection step, well after a new
+  // collection could already have been created) — a bad path could leave
+  // an empty collection behind. `statSync` throwing ENOENT here is the
+  // exact same failure a caller would see later, just surfaced before any
+  // destructive/creating call, with a clearer message.
+  const earlyAbsTarget = resolve(targetPath);
+  try {
+    statSync(earlyAbsTarget);
+  } catch {
+    throw new Error(`Source path "${targetPath}" (resolved: "${earlyAbsTarget}") does not exist.`);
+  }
+
+  // Collected here — before any collection-creating call — so a target
+  // with no supported files can be rejected before a NEW collection (and
+  // its config.json entry) is created for it. Re-derived/reused below via
+  // earlyAbsTarget/earlyFiles rather than re-scanning. PRUNE_STALE=1 is
+  // NOT an exemption here: it only makes sense as a cleanup pass against
+  // an ALREADY-EXISTING collection (the last file on disk was deleted,
+  // but the collection and its previously-indexed points still exist and
+  // need pruning) — it can never justify creating a brand-new, empty
+  // collection from nothing. That distinct, legitimate PRUNE_STALE=1
+  // zero-files case is handled separately, later, only in the
+  // existing-collection branch (code review fix — a prior version of this
+  // check wrongly exempted PRUNE_STALE=1 here too, which let a run with a
+  // truly empty/unsupported source directory still create a new, empty
+  // collection).
+  const earlyIsDirectory = statSync(earlyAbsTarget).isDirectory();
+  const earlyFiles = collectFiles(earlyAbsTarget);
+
   let allCollections = await listCollections();
   if (!allCollections.includes(COLLECTION)) {
+    if (!earlyFiles.length) {
+      console.log('No supported files found.');
+      process.exit(0);
+    }
     const providerConfig = resolveEnvProviders();
     let newCollectionVectorSize = 1024;
     if (providerConfig.denseProvider === 'ollama') {
@@ -825,6 +907,21 @@ async function main() {
       if (!denseCatalog || denseCatalog.status !== 'supported') {
         throw new Error(`Cannot create a qdrant-cloud collection: "${providerConfig.denseModel}" is not a supported Qdrant Cloud dense model.`);
       }
+      // Coarse, settings-time compatibility check (isCatalogCompatibleWithChunking,
+      // qdrant-cloud-models.js) — can only ever rule OUT a hopeless model
+      // (contextWindow smaller than the configured chunk budget); it can
+      // never certify every future chunk will fit (that's
+      // checkEmbedInputFits()'s job, per-chunk, at actual embed time,
+      // already wired into embedForIndexCloud()). This is advisory/early,
+      // catching an obviously-wrong model choice before any Qdrant call —
+      // not a replacement for the real per-chunk gate. Reads
+      // MAX_CHUNK_TOKENS directly from env (matching chunk.js's own
+      // envInt default) rather than importing chunk.js's private
+      // module-level state, which this file has no other reason to depend on.
+      const maxChunkTokens = parseInt(process.env.MAX_CHUNK_TOKENS ?? '', 10) || 512;
+      if (!isCatalogCompatibleWithChunking(denseCatalog, { maxChunkTokens })) {
+        console.warn(`  WARN: "${denseCatalog.id}"'s context window (${denseCatalog.contextWindow} tokens) is smaller than the configured chunk budget (MAX_CHUNK_TOKENS=${maxChunkTokens}) — indexing will proceed, but individual chunks may need trimming at embed time (see checkEmbedInputFits).`);
+      }
       newCollectionVectorSize = denseCatalog.dimensions;
     }
     VECTOR_SIZE = newCollectionVectorSize;
@@ -841,12 +938,14 @@ async function main() {
       embeddingSchemaVersion: SCHEMA_VERSION,
     });
     console.log(`Collection "${COLLECTION}" not found, creating...`);
-    await storageAdapter.createCollection(COLLECTION, { profile: EMBEDDING_PROFILE });
+    await createNewCollectionWithConfigCache({
+      collection: COLLECTION, profile: EMBEDDING_PROFILE,
+      createCollectionFn: (name, opts) => storageAdapter.createCollection(name, opts),
+      deleteCollectionFn: (name) => storageAdapter.deleteCollection(name),
+      loadConfigFn: loadConfig, saveConfigFn: saveConfig,
+      resolveCollectionConfigEntryFn: resolveCollectionConfigEntry,
+    });
     allCollections = [...allCollections, COLLECTION];
-    const cfg = loadConfig();
-    if (!cfg.collections) cfg.collections = {};
-    cfg.collections[COLLECTION] = resolveCollectionConfigEntry(EMBEDDING_PROFILE, cfg.collections[COLLECTION]);
-    saveConfig(cfg);
     console.log(`  saved config for "${COLLECTION}" (dense: ${providerConfig.denseProvider}/${providerConfig.denseModel}, sparse: ${providerConfig.sparseProvider})`);
   } else {
     // Guard against plain-vector collections (indexed outside semidex, e.g. via
@@ -904,15 +1003,22 @@ async function main() {
   }
 
   const PRUNE_STALE = process.env.PRUNE_STALE === '1';
-  const absTarget = resolve(targetPath);
-  const isDirectory = statSync(absTarget).isDirectory();
+  // Reuses earlyAbsTarget/earlyIsDirectory/earlyFiles (resolved and
+  // scanned at the very top of main(), before any Qdrant call) rather
+  // than re-resolving/re-scanning — same path, computed once.
+  const absTarget = earlyAbsTarget;
+  const isDirectory = earlyIsDirectory;
   const rootPath = isDirectory ? absTarget : dirname(absTarget);
   const effectiveRoot = SOURCE_ROOT ?? rootPath;
-  const files = collectFiles(absTarget);
+  const files = earlyFiles;
 
-  // Without PRUNE_STALE an empty directory is a no-op; exit early.
-  // With PRUNE_STALE we still need to run the stale check even if no files
-  // are on disk (e.g. the last file in a collection was deleted).
+  // The new-collection case already exited above (before creating
+  // anything) if files.length was 0, unconditionally — PRUNE_STALE=1
+  // never exempts a NEW collection from that exit. This point is reached
+  // with zero files only for an EXISTING collection: either under
+  // PRUNE_STALE=1 (a valid, intentional "last file deleted, still need
+  // to prune" scenario) or without it, which still needs its own
+  // "nothing to do" exit.
   if (!files.length && !PRUNE_STALE) { console.log('No supported files found.'); process.exit(0); }
   if (!files.length && PRUNE_STALE)  { console.log('No supported files found on disk — continuing to stale check.'); }
 
@@ -1155,7 +1261,7 @@ async function main() {
             payload: buildNavPointPayload(node, {
               fileHash: null,
               vectorSize: cfgVectorSize,
-              tokenCountMode: resolveTokenCountMode(),
+              tokenCountMode: resolveTokenCountMode(process.env, EMBEDDING_PROFILE),
               chunkingSchemaVersion: CHUNKING_SCHEMA_VERSION,
               embedMeta: dirEmbeds[i].meta,
               budgetAwareTopology: resolveEmbeddingBudget(EMBEDDING_PROFILE) !== null,
@@ -1202,7 +1308,7 @@ async function main() {
             children: topChildren.length ? topChildren : collResult.children,
           }, {
             fileHash: null, vectorSize: cfgVectorSize,
-            tokenCountMode: resolveTokenCountMode(),
+            tokenCountMode: resolveTokenCountMode(process.env, EMBEDDING_PROFILE),
             chunkingSchemaVersion: CHUNKING_SCHEMA_VERSION,
             embedMeta: meta,
             budgetAwareTopology: resolveEmbeddingBudget(EMBEDDING_PROFILE) !== null,
