@@ -26,6 +26,7 @@ export function createApp({
   adapter = createStorageAdapter(), embedQuery, jobRegistry, taskRegistry, pickFolderFn, checkOllamaFn,
   assemblyLogFn, generationRuntime, askCoordinator, countTokens, settingsService, jobBaseEnv,
   discoverOllamaModelsFn, discoverGeminiModelsFn, runOnnxProbeFn, runQdrantCloudProbeFn,
+  resolveNewCollectionProfileFn,
 } = {}) {
   const router = createRouter();
   // settingsService is optional DI — tests and ad-hoc createApp() callers
@@ -43,7 +44,7 @@ export function createApp({
   registerNeutralRoutes(router, {
     adapter, embedQuery, jobRegistry, taskRegistry, assemblyLogFn, pickFolderFn,
     generationRuntime, askCoordinator, countTokens, settingsService: settings, jobBaseEnv,
-    runQdrantCloudProbeFn,
+    runQdrantCloudProbeFn, resolveNewCollectionProfileFn,
     generationModelsFn: (r, deps) => registerGenerationModelsRoutes(r, {
       ...deps,
       discoverOllamaModelsFn: discoverOllamaModelsFn ?? discoverOllamaModels,

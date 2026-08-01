@@ -4,7 +4,7 @@ import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { assertProviderCombo, resolveEffectiveEmbeddingBackend } from './env.js';
 import { ONNX_DENSE_MODEL_ID } from './onnx-paths.js';
-import { QDRANT_CLOUD_DENSE_MODELS } from './embedding-profile/qdrant-cloud-catalog.js';
+import { QDRANT_CLOUD_DENSE_MODELS, QDRANT_CLOUD_SPARSE_MODELS } from './embedding-profile/qdrant-cloud-catalog.js';
 
 // SEMIDEX_CONFIG_PATH lets a caller (e.g. an external benchmark harness
 // spawning the indexer as a subprocess) redirect config.json to an
@@ -44,7 +44,16 @@ export function resolveEnvProviders() {
   if (denseProvider === 'qdrant-cloud') {
     assertProviderCombo(denseProvider, sparseProvider);
     const denseModel = process.env.QDRANT_CLOUD_DENSE_MODEL ?? QDRANT_CLOUD_DENSE_MODELS.find((m) => m.status === 'supported')?.id;
-    return { denseProvider, denseModel, sparseProvider };
+    // sparseModel mirrors denseModel's own env-then-catalog-default
+    // resolution — previously absent entirely, which meant
+    // resolveNewCollectionProfile() had no way to receive anything but
+    // its own hardcoded 'qdrant/bm25' fallback for a NEW collection
+    // created via the real indexer CLI path. Currently a no-op in
+    // practice (qdrant/bm25 is still the only status:'supported' sparse
+    // model), but the contract is now correct ahead of a second sparse
+    // model landing.
+    const sparseModel = process.env.QDRANT_SPARSE_MODEL ?? QDRANT_CLOUD_SPARSE_MODELS.find((m) => m.status === 'supported')?.id;
+    return { denseProvider, denseModel, sparseProvider, sparseModel };
   }
   // ollama: EMBED_MODEL is the canonical setting; DENSE_MODEL is a legacy
   // alias, consulted only when EMBED_MODEL itself is unset (code review

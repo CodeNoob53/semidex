@@ -131,7 +131,7 @@ export function resolvePortConfig(env = process.env, { settingsService } = {}) {
 export function registerNeutralRoutes(router, {
   adapter, embedQuery, jobRegistry, taskRegistry, assemblyLogFn, pickFolderFn,
   generationRuntime, askCoordinator, countTokens, settingsService, jobBaseEnv,
-  runQdrantCloudProbeFn, generationModelsFn, jobsFn,
+  runQdrantCloudProbeFn, resolveNewCollectionProfileFn, generationModelsFn, jobsFn,
 }) {
   registerSettingsRoutes(router, { settingsService });
   generationModelsFn(router, { settingsService });
@@ -197,7 +197,15 @@ export function registerNeutralRoutes(router, {
   registerOperationsRoutes(router, { jobRegistry: jobs, taskRegistry: tasks });
   // runQdrantCloudProbeFn is optional DI (tests inject a stub so unit
   // tests never issue a real Qdrant Cloud Inference round-trip).
-  registerQdrantCloudRoutes(router, { settingsService, ...(runQdrantCloudProbeFn ? { runProbeFn: runQdrantCloudProbeFn } : {}) });
+  // resolveNewCollectionProfileFn is optional DI (tests inject a spy so a
+  // test can prove the exact sparseModel value the route received reaches
+  // this call, independent of what the real catalog's current default
+  // sparse model happens to be — see qdrant-cloud.js's own header comment).
+  registerQdrantCloudRoutes(router, {
+    settingsService,
+    ...(runQdrantCloudProbeFn ? { runProbeFn: runQdrantCloudProbeFn } : {}),
+    ...(resolveNewCollectionProfileFn ? { resolveNewCollectionProfileFn } : {}),
+  });
   // pick-folder is a neutral OS dialog integration — unrelated to Ollama,
   // kept in both full and Lite. pickFolderFn is optional DI (tests inject a
   // stub so unit tests never spawn a real powershell.exe/dialog). Registered
@@ -253,14 +261,14 @@ export function createHttpServer(router) {
 export function createLiteApp({
   adapter = createStorageAdapter(), embedQuery, jobRegistry, taskRegistry,
   assemblyLogFn, generationRuntime, askCoordinator, countTokens, settingsService, jobBaseEnv,
-  discoverGeminiModelsFn, runQdrantCloudProbeFn, jobPolicy = LITE_JOB_POLICY,
+  discoverGeminiModelsFn, runQdrantCloudProbeFn, resolveNewCollectionProfileFn, jobPolicy = LITE_JOB_POLICY,
 } = {}) {
   const router = createRouter();
   const settings = settingsService ?? createSettingsService({ osEnv: process.env, dotenvValues: {} });
   registerNeutralRoutes(router, {
     adapter, embedQuery, jobRegistry, taskRegistry, assemblyLogFn,
     generationRuntime, askCoordinator, countTokens, settingsService: settings, jobBaseEnv,
-    runQdrantCloudProbeFn,
+    runQdrantCloudProbeFn, resolveNewCollectionProfileFn,
     generationModelsFn: (r, deps) => registerGenerationModelsRoutesGeminiOnly(r, {
       ...deps,
       ...(discoverGeminiModelsFn ? { discoverGeminiModelsFn } : {}),

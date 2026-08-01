@@ -173,4 +173,39 @@ describe('resolveNewCollectionProfile — new-collection path only', () => {
     );
     assert.deepEqual(validateEmbeddingProfile(profile), { valid: true });
   });
+
+  // sparseModel — code review finding: this field was previously accepted
+  // and validated by the admin API route (qdrant-cloud.js) but never
+  // actually passed through here, so a caller asking for a non-default
+  // sparse model always silently got 'qdrant/bm25' instead. These tests
+  // pin the fixed contract.
+  it('envDefaults.sparseModel omitted falls back to qdrant/bm25 — byte-identical to every caller written before this field existed', () => {
+    const profile = resolveNewCollectionProfile(
+      { denseProvider: 'qdrant-cloud', denseModel: 'intfloat/multilingual-e5-small', sparseProvider: 'qdrant-cloud' },
+      { vectorSize: 384, embeddingSchemaVersion: 2 },
+    );
+    assert.equal(profile.embedding.sparse.model, 'qdrant/bm25');
+  });
+
+  it('an explicit envDefaults.sparseModel is honored in the built profile, not silently replaced by the bm25 default', () => {
+    const profile = resolveNewCollectionProfile(
+      { denseProvider: 'qdrant-cloud', denseModel: 'intfloat/multilingual-e5-small', sparseProvider: 'qdrant-cloud', sparseModel: 'qdrant/bm25' },
+      { vectorSize: 384, embeddingSchemaVersion: 2 },
+    );
+    assert.equal(profile.embedding.sparse.model, 'qdrant/bm25');
+  });
+
+  it('throws for an unknown/catalog-disabled sparseModel, never silently falling back to bm25', () => {
+    assert.throws(() => resolveNewCollectionProfile(
+      { denseProvider: 'qdrant-cloud', denseModel: 'intfloat/multilingual-e5-small', sparseProvider: 'qdrant-cloud', sparseModel: 'not-a-real-sparse-model' },
+      { vectorSize: 384, embeddingSchemaVersion: 2 },
+    ), /not a supported Qdrant Cloud sparse model/);
+  });
+
+  it('throws for a catalog-disabled (planned, dedicated-tier) sparseModel — Splade_PP_en_v1', () => {
+    assert.throws(() => resolveNewCollectionProfile(
+      { denseProvider: 'qdrant-cloud', denseModel: 'intfloat/multilingual-e5-small', sparseProvider: 'qdrant-cloud', sparseModel: 'prithivida/Splade_PP_en_v1' },
+      { vectorSize: 384, embeddingSchemaVersion: 2 },
+    ), /not a supported Qdrant Cloud sparse model/);
+  });
 });

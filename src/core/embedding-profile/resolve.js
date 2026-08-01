@@ -64,15 +64,21 @@ export async function resolveExistingCollectionProfile(adapter, name) {
 /**
  * Resolves the profile for a BRAND-NEW collection from global/env defaults.
  * `envDefaults` is the result of core/config.js's resolveEnvProviders() —
- * { denseProvider, denseModel, sparseProvider }. `vectorSize` is the
- * caller-resolved dense dimension (e.g. from a live Ollama probe, or the
- * fixed ONNX dimension) — this function does not probe anything itself.
+ * { denseProvider, denseModel, sparseProvider, sparseModel? }. `vectorSize`
+ * is the caller-resolved dense dimension (e.g. from a live Ollama probe, or
+ * the fixed ONNX dimension) — this function does not probe anything itself.
  * For denseProvider === 'qdrant-cloud', `vectorSize` is ignored — the
  * dimension is fixed per catalog model ID and looked up here instead
  * (src/indexer/run.js's caller passes the catalog value too, but this
  * function is the authority, matching "one canonical schema definition").
  *
- * @param {{ denseProvider: string, denseModel: string, sparseProvider: string }} envDefaults
+ * `envDefaults.sparseModel` is optional and Qdrant-Cloud-only: when unset
+ * (every caller before this field existed, and every caller that never
+ * passes it), the sparse catalog id defaults to 'qdrant/bm25' exactly as
+ * before — byte-identical behavior. When set, it must be a real,
+ * status:'supported' sparse catalog entry (same rule as denseModel).
+ *
+ * @param {{ denseProvider: string, denseModel: string, sparseProvider: string, sparseModel?: string }} envDefaults
  * @param {{ vectorSize: number, embeddingSchemaVersion: number }} opts
  * @returns {Object} a fully-built, validated-shape embedding profile
  */
@@ -84,7 +90,14 @@ export function resolveNewCollectionProfile(envDefaults, { vectorSize, embedding
     if (!denseCatalog || denseCatalog.status !== 'supported') {
       throw new Error(`resolveNewCollectionProfile: "${envDefaults.denseModel}" is not a supported Qdrant Cloud dense model`);
     }
-    const sparseCatalog = envDefaults.sparseProvider === 'qdrant-cloud' ? findSparseModel('qdrant/bm25') : null;
+    let sparseCatalog = null;
+    if (envDefaults.sparseProvider === 'qdrant-cloud') {
+      const sparseModelId = envDefaults.sparseModel ?? 'qdrant/bm25';
+      sparseCatalog = findSparseModel(sparseModelId);
+      if (!sparseCatalog || sparseCatalog.status !== 'supported') {
+        throw new Error(`resolveNewCollectionProfile: "${sparseModelId}" is not a supported Qdrant Cloud sparse model`);
+      }
+    }
 
     const dense = {
       provider: 'qdrant-cloud',
