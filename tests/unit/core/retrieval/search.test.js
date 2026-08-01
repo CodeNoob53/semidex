@@ -145,6 +145,44 @@ describe('runHybridSearch', () => {
     assert.equal(embedQueryCalled, false);
   });
 
+  // Existing-collection immutability (section 6, second half): if a
+  // collection's STORED model is no longer in the catalog (removed, or
+  // downgraded from supported to unsupported/planned in a future catalog
+  // edit), search must block with a clean, typed error — never a raw
+  // Qdrant-side "unrecognized model" failure, and never a silent fallback
+  // to some other model. Uses buildCloudQueryInputs's own sibling check
+  // (findDenseModel/status==='supported', search.js lines ~104-108) —
+  // already implemented before this task; this test pins it down.
+  test('a collection whose stored dense model is no longer in the catalog blocks search with a clean embedding_unsupported error, before any inference descriptor is built', async () => {
+    const removedModelProfile = {
+      ...validProfile,
+      embedding: {
+        dense: { provider: 'qdrant-cloud', model: 'some-model-removed-from-catalog', vectorName: 'dense', dimensions: 384, distance: 'Cosine', execution: 'qdrant-cloud' },
+        sparse: { provider: 'qdrant-cloud', model: 'qdrant/bm25', vectorName: 'sparse', execution: 'qdrant-cloud', modifier: 'idf' },
+      },
+    };
+    const adapter = fakeAdapter({ embeddingProfileResult: { state: 'valid', profile: removedModelProfile } });
+    const result = await runHybridSearch({ adapter, collection: 'c', query: 'q', top: 5 });
+    assert.equal(result.error, 'embedding_unsupported');
+    assert.match(result.message, /some-model-removed-from-catalog/);
+    assert.match(result.message, /not a supported Qdrant Cloud model/);
+    assert.equal(fakeAdapter.lastInferenceCall, undefined, 'no inference descriptor may ever be built/sent for an unsupported model');
+  });
+
+  test('a collection whose stored dense model is status:planned (dedicated-tier, e.g. mxbai) also blocks search the same way — planned is not supported', async () => {
+    const plannedModelProfile = {
+      ...validProfile,
+      embedding: {
+        dense: { provider: 'qdrant-cloud', model: 'mixedbread-ai/mxbai-embed-large-v1', vectorName: 'dense', dimensions: 1024, distance: 'Cosine', execution: 'qdrant-cloud' },
+        sparse: { provider: 'qdrant-cloud', model: 'qdrant/bm25', vectorName: 'sparse', execution: 'qdrant-cloud', modifier: 'idf' },
+      },
+    };
+    const adapter = fakeAdapter({ embeddingProfileResult: { state: 'valid', profile: plannedModelProfile } });
+    const result = await runHybridSearch({ adapter, collection: 'c', query: 'q', top: 5 });
+    assert.equal(result.error, 'embedding_unsupported');
+    assert.equal(fakeAdapter.lastInferenceCall, undefined);
+  });
+
   test('a qdrant-cloud profile never calls embedQuery, builds inference descriptors, and calls searchHybridInference (not searchHybridVectors)', async () => {
     const cloudProfile = {
       ...validProfile,
@@ -163,6 +201,46 @@ describe('runHybridSearch', () => {
     assert.deepEqual(fakeAdapter.lastInferenceCall.opts.sparseQuery, { text: 'ukrainian query', model: 'qdrant/bm25' });
     assert.ok(!('modifier' in fakeAdapter.lastInferenceCall.opts.sparseQuery), 'sparse inference descriptor must never carry modifier — that is schema-only, set at createCollection time');
     assert.ok(!('options' in fakeAdapter.lastInferenceCall.opts.sparseQuery), 'sparse inference descriptor must never carry options for BM25');
+  });
+
+  // Existing-collection immutability (Semidex Lite / model-selection task,
+  // section 6): the GLOBAL QDRANT_CLOUD_DENSE_MODEL setting must never
+  // leak into a search against an EXISTING collection — only that
+  // collection's own stored profile (resolveExistingCollectionProfile())
+  // may determine which model embeds the query. A settingsService whose
+  // QDRANT_CLOUD_DENSE_MODEL differs from the collection's real stored
+  // model, and which THROWS if ever asked for that specific key, proves
+  // runHybridSearch() never consults it for model selection at all — the
+  // throw would surface as a test failure if this invariant regressed.
+  test('a global QDRANT_CLOUD_DENSE_MODEL setting change (e.g. to MiniLM) has ZERO effect on a search against an existing E5 collection', async () => {
+    const e5Profile = {
+      ...validProfile,
+      embedding: {
+        dense: { provider: 'qdrant-cloud', model: 'intfloat/multilingual-e5-small', vectorName: 'dense', dimensions: 384, distance: 'Cosine', execution: 'qdrant-cloud' },
+        sparse: { provider: 'qdrant-cloud', model: 'qdrant/bm25', vectorName: 'sparse', execution: 'qdrant-cloud', modifier: 'idf' },
+      },
+    };
+    const adapter = fakeAdapter({ embeddingProfileResult: { state: 'valid', profile: e5Profile } });
+    // A global settings selection that has since moved to MiniLM — if
+    // runHybridSearch() ever consulted this for the DENSE MODEL choice
+    // (as opposed to its legitimate uses, HYBRID_PREFETCH_LIMIT/RRF_K),
+    // this throw would surface as a test failure, not a silent wrong
+    // answer — a stronger guarantee than merely asserting the query still
+    // used E5 (which a coincidental correct-by-accident implementation
+    // could also satisfy).
+    const settingsService = {
+      getActiveValue(key) {
+        if (key === 'QDRANT_CLOUD_DENSE_MODEL') {
+          throw new Error('runHybridSearch must never consult the global QDRANT_CLOUD_DENSE_MODEL setting for an EXISTING collection\'s search — only resolveExistingCollectionProfile()\'s stored profile');
+        }
+        if (key === 'HYBRID_PREFETCH_LIMIT') return 100;
+        if (key === 'RRF_K') return 60;
+        return undefined;
+      },
+    };
+    const result = await runHybridSearch({ adapter, collection: 'existing-e5-collection', query: 'query text', top: 5, settingsService });
+    assert.equal(result.searchMode, 'hybrid');
+    assert.equal(fakeAdapter.lastInferenceCall.opts.denseQuery.model, 'intfloat/multilingual-e5-small', 'must use the COLLECTION\'S stored E5 model, never the (hypothetically changed) global default');
   });
 
   test('same-dimension-different-model is never accepted as compatible: two profiles with equal dimensions but different models are passed through distinctly, never cross-substituted', async () => {
