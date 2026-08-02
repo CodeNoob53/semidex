@@ -20,6 +20,7 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { dirname, join, resolve, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildGraph } from './build-import-graph.mjs';
+import { LAZY_SHIM_SUBSTITUTIONS as LITE_LAZY_SHIM_SUBSTITUTIONS } from '../../packages/lite/lazy-shim-substitutions.mjs';
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(SCRIPT_DIR, '..', '..');
@@ -82,22 +83,25 @@ function loadOrBuildGraph() {
   return buildGraph();
 }
 
-// packages/lite/build.mjs's own LAZY_SHIM_SUBSTITUTIONS list, re-derived
-// here independently (not imported from build.mjs) for the same
-// double-check-not-blind-trust reason the rest of this script avoids
-// importing build.mjs's internals. When shimOverrides is provided,
-// computeReachable() traverses a shimmed file's OWN (much smaller) real
-// edge set instead of the real (repo) file's edges — this is what makes
-// "Lite-reachable" mean "reachable in the ACTUAL shipped tarball," not
-// merely "reachable in real repo src/ before Lite's build-time content
-// substitution." Both numbers are legitimate and reported separately
-// (see main()) — this is the exact "graph unreachability vs. physical
-// absence" distinction the audit's Part C requires.
-export const LAZY_SHIM_SUBSTITUTIONS = {
-  'src/core/ollama-lazy.js': 'src/core/ollama-lazy.lite.js',
-  'src/core/onnx-embed-lazy.js': 'src/core/onnx-embed-lazy.lite.js',
-  'src/indexer/phases/tag-onnx-lazy.js': 'src/indexer/phases/tag-onnx-lazy.lite.js',
-};
+// packages/lite/build.mjs's own real substitution list — imported (Phase 7),
+// not re-declared independently, from lazy-shim-substitutions.mjs (the
+// single canonical source both tools now share; see that module's own
+// header comment for the drift risk this closes). Re-shaped here from
+// build.mjs's REPO_SRC-relative { real, shim } array into this file's own
+// long-standing repo-root-relative { [realPath]: shimPath } object shape —
+// a pure, mechanical key-prefixing derivation, not a second independent
+// declaration of WHICH files are substituted. When shimOverrides is
+// provided, computeReachable() traverses a shimmed file's OWN (much
+// smaller) real edge set instead of the real (repo) file's edges — this is
+// what makes "Lite-reachable" mean "reachable in the ACTUAL shipped
+// tarball," not merely "reachable in real repo src/ before Lite's
+// build-time content substitution." Both numbers are legitimate and
+// reported separately (see main()) — this is the exact "graph
+// unreachability vs. physical absence" distinction the audit's Part C
+// requires.
+export const LAZY_SHIM_SUBSTITUTIONS = Object.fromEntries(
+  LITE_LAZY_SHIM_SUBSTITUTIONS.map(({ real, shim }) => [`src/${real}`, `src/${shim}`]),
+);
 
 // Real, resolved-edge-only reachability (relative imports/dynamic imports/
 // requires/fork-spawn targets that resolved to an actual staged file) —

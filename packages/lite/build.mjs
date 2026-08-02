@@ -23,6 +23,7 @@ import {
 } from 'node:fs';
 import { dirname, join, relative, resolve, extname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { LAZY_SHIM_SUBSTITUTIONS } from './lazy-shim-substitutions.mjs';
 
 const LITE_DIR = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(LITE_DIR, '..', '..');
@@ -162,12 +163,11 @@ function stageSrc() {
 // the Lite tarball. Staging the paired `.lite.js` shim's CONTENT at the
 // real module's exact path means every caller's import specifier is
 // unchanged — no caller needs to know which variant it is running against.
-const LAZY_SHIM_SUBSTITUTIONS = [
-  { real: 'core/ollama-lazy.js', shim: 'core/ollama-lazy.lite.js' },
-  { real: 'core/onnx-embed-lazy.js', shim: 'core/onnx-embed-lazy.lite.js' },
-  { real: 'indexer/phases/tag-onnx-lazy.js', shim: 'indexer/phases/tag-onnx-lazy.lite.js' },
-];
-
+//
+// LAZY_SHIM_SUBSTITUTIONS itself is imported from lazy-shim-substitutions.mjs
+// (Phase 7) — the single, canonical list scripts/audit/classify-modules.mjs
+// also imports, so the two tools can never silently disagree about which
+// files are substituted. See that module's own header comment.
 function substituteLazyShims() {
   for (const { real, shim } of LAZY_SHIM_SUBSTITUTIONS) {
     const shimSrc = readFileSync(join(REPO_SRC, ...shim.split('/')), 'utf-8');

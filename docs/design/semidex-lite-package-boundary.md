@@ -125,6 +125,22 @@ provider-factory map references `createOllamaProvider` unconditionally
 but it now imports from `../ollama-lazy.js` instead of `../ollama.js`
 directly, closing the loop the same way.
 
+**Phase 7 update** (`docs/design/full-lite-shared-architecture-audit-2026-08-01.md`,
+implemented — see `docs/design/phase-7-lite-shim-reduction-2026-08-02.md`):
+all three shim pairs described above were re-audited after Phases 3–6
+landed, specifically to check whether any had become redundant. All three
+were found still load-bearing — none were removed. The concrete real
+import path each one cuts (e.g. `serve-lite.js` → `admin/jobs/registry.js`
+→ (spawn) → `indexer/index.js` → `run.js` → the `*-lazy.js` wrapper → the
+real local-only file) is now pinned as a regression test in
+`tests/unit/architecture/lite-lazy-shim-necessity.test.js`, not merely
+asserted in this prose. The one real change this phase made: the
+substitution list itself (`{real, shim}` path pairs) was previously
+declared independently in both `packages/lite/build.mjs` and
+`scripts/audit/classify-modules.mjs` — a silent-drift risk with no test
+tying the two together. Both now import a single canonical list from
+`packages/lite/lazy-shim-substitutions.mjs`.
+
 ## Refactor 2 — deterministic context for legacy (non-Markdown) chunks
 
 `chunk.js` routes PDF/Pandoc/plain-text through the legacy chunker, and

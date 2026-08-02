@@ -1167,11 +1167,29 @@ using it was gated — fixed by moving every such selector string into
 `local-features.js`'s own querySelector() calls, so the shared modules
 never reference those strings at all, not even to check presence.
 
-### Phase 7 — Remove now-unnecessary Lite shims (only after Phases 3–6 land)
+### Phase 7 — Remove now-unnecessary Lite shims (only after Phases 3–6 land) — IMPLEMENTED (see `docs/design/phase-7-lite-shim-reduction-2026-08-02.md`)
 
 Files: TBD — depends on which shims Phases 3–6 make redundant. Not
 plannable in detail until those phases exist. Exit gate: closure
 validator still clean, Lite tarball size does not regress.
+
+As implemented: all three `*-lazy.js`/`*-lazy.lite.js` shim pairs
+(`core/ollama-lazy.js`, `core/onnx-embed-lazy.js`,
+`indexer/phases/tag-onnx-lazy.js`) were audited using the real AST import
+graph and found to be **KEEP** — none of Phases 3–6 removed the underlying
+dependency edges these shims cut. Each verdict is backed by a concrete,
+regression-tested import path from a real Lite entry point
+(`packages/lite/lite-src/serve-lite.js`, reached via
+`admin/jobs/registry.js`'s `spawn()` of `indexer/index.js`) through to the
+local-only target the shim excludes — see
+`tests/unit/architecture/lite-lazy-shim-necessity.test.js`. Zero shims
+were removed or replaced; the phase's real deliverable was closing a
+found silent-drift risk instead: `packages/lite/build.mjs` and
+`scripts/audit/classify-modules.mjs` each declared their own independent
+copy of the substitution list, in two different shapes, with no test
+tying them together. Both now import from a single new module,
+`packages/lite/lazy-shim-substitutions.mjs` — see that module's own
+header comment.
 
 ### Phase 8 — Narrow npm staging to the real, now-directory-enforced shared+cloud closure
 
