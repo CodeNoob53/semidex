@@ -14,8 +14,8 @@
 // composition split) — this module must never statically import
 // core/ollama-models.js, since a cloud-only Lite composition root only
 // ever registers registerGenerationModelsRoutesGeminiOnly() below, which
-// never references it at all. The full composition root (createApp(),
-// server.js) imports core/ollama-models.js itself and passes
+// never references it at all. The full composition root (createApp(), in
+// admin/server-full.js) imports core/ollama-models.js itself and passes
 // discoverOllamaModels in explicitly.
 import { sendJson, badRequest } from '../../core/http/http.js';
 import { sanitiseErrorMessage } from '../../core/doctor-checks.js';

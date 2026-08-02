@@ -22,6 +22,14 @@
 // constructed router instance — see (b2)'s own test for the exact,
 // narrower claim it actually proves, and why a stronger DI-based
 // interception was considered and rejected.
+//
+// Updated for Phase 4 (createLiteApp() moved from server.js into
+// admin/composition/lite.js — imported from its new canonical path below;
+// (b1)'s structural check now targets server-full.js and
+// composition/lite.js, the two real composition roots, not server.js,
+// which after Phase 4 is bind-config-only. Phase 4's own dedicated
+// ownership/import-boundary tests live in
+// tests/unit/admin/composition-lite.test.js, not here).
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildGraph } from '../../../scripts/audit/build-import-graph.mjs';
@@ -30,7 +38,7 @@ import {
 } from '../../../scripts/audit/classify-modules.mjs';
 import { registerNeutralRoutes } from '../../../src/admin/register-neutral-routes.js';
 import { createApp } from '../../../src/admin/server-full.js';
-import { createLiteApp } from '../../../src/admin/server.js';
+import { createLiteApp } from '../../../src/admin/composition/lite.js';
 import { makeStubAdapter } from './ui-test-helpers.js';
 
 const NEUTRAL_ROUTES_FILE = 'src/admin/register-neutral-routes.js';
@@ -87,19 +95,28 @@ describe('register-neutral-routes.js — import-graph isolation (real AST, not r
     assert.deepEqual(packageSpecifiers, [], `register-neutral-routes.js must import zero bare packages directly (only Node builtins and relative src/ modules), found: ${JSON.stringify(packageSpecifiers)}`);
   });
 
-  it('src/admin/server.js and src/admin/server-full.js both statically import registerNeutralRoutes/createHttpServer from register-neutral-routes.js, not from each other', () => {
-    const serverNode = graph.nodes['src/admin/server.js'];
+  // Phase 4 (docs/design/full-lite-shared-architecture-audit-2026-08-01.md):
+  // createLiteApp() moved out of server.js into composition/lite.js, so the
+  // two REAL composition roots that must each independently import the
+  // shared neutral-route wiring are now server-full.js and
+  // composition/lite.js — server.js itself is bind-config-only and no
+  // longer imports register-neutral-routes.js at all (see
+  // tests/unit/admin/composition-lite.test.js for that assertion).
+  it('src/admin/server-full.js and src/admin/composition/lite.js both statically import registerNeutralRoutes/createHttpServer from register-neutral-routes.js, not from each other or via server.js', () => {
     const serverFullNode = graph.nodes['src/admin/server-full.js'];
-    assert.ok(serverNode, 'expected src/admin/server.js to exist in the graph');
+    const compositionLiteNode = graph.nodes['src/admin/composition/lite.js'];
     assert.ok(serverFullNode, 'expected src/admin/server-full.js to exist in the graph');
+    assert.ok(compositionLiteNode, 'expected src/admin/composition/lite.js to exist in the graph');
 
-    const serverDeps = serverNode.staticImports.filter((r) => r.kind === 'relative').map((r) => r.resolved);
     const serverFullDeps = serverFullNode.staticImports.filter((r) => r.kind === 'relative').map((r) => r.resolved);
+    const compositionLiteDeps = compositionLiteNode.staticImports.filter((r) => r.kind === 'relative').map((r) => r.resolved);
 
-    assert.ok(serverDeps.includes(NEUTRAL_ROUTES_FILE), `expected server.js to import ${NEUTRAL_ROUTES_FILE}, got: ${JSON.stringify(serverDeps)}`);
     assert.ok(serverFullDeps.includes(NEUTRAL_ROUTES_FILE), `expected server-full.js to import ${NEUTRAL_ROUTES_FILE}, got: ${JSON.stringify(serverFullDeps)}`);
-    assert.ok(!serverDeps.includes('src/admin/server-full.js'), 'server.js must never import server-full.js (would give Lite a real edge to the full-only composition root)');
+    assert.ok(compositionLiteDeps.includes(NEUTRAL_ROUTES_FILE), `expected composition/lite.js to import ${NEUTRAL_ROUTES_FILE}, got: ${JSON.stringify(compositionLiteDeps)}`);
+    assert.ok(!serverFullDeps.includes('src/admin/composition/lite.js'), 'server-full.js must never import composition/lite.js (would give Full a real edge to the Lite-only composition root)');
+    assert.ok(!compositionLiteDeps.includes('src/admin/server-full.js'), 'composition/lite.js must never import server-full.js (would give Lite a real edge to the full-only composition root)');
     assert.ok(!serverFullDeps.includes('src/admin/server.js'), 'server-full.js must import the shared route wiring from register-neutral-routes.js directly, not re-import it via server.js');
+    assert.ok(!compositionLiteDeps.includes('src/admin/server.js'), 'composition/lite.js must import the shared route wiring from register-neutral-routes.js directly, not re-import it via server.js');
   });
 });
 

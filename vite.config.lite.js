@@ -35,7 +35,7 @@ const HTML_STRIPS = [
   {
     label: 'local-only-index-options',
     // index-view.html's ONNX/LLM-summaries/tag-gen checkboxes (Lite's jobs
-    // policy — server.js's LITE_JOB_POLICY — rejects onnxEmbed/
+    // policy — admin/composition/lite.js's LITE_JOB_POLICY — rejects onnxEmbed/
     // llmSummaries/tagGen; only pruneStale is Lite-allowed). Replaced, not
     // just removed, with a Lite-scoped equivalent that keeps the
     // prune-stale checkbox (same #opt-prune id, so jobs-view.js's existing

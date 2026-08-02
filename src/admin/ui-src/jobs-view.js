@@ -118,7 +118,7 @@ async function startIndexJob() {
     collection,
     path,
     // pruneStale is the only option Semidex Lite's jobs policy allows
-    // (server.js's LITE_JOB_POLICY) — its checkbox is the one kept in the
+    // (admin/composition/lite.js's LITE_JOB_POLICY) — its checkbox is the one kept in the
     // Lite build's stripped index-view.html (see vite.config.lite.js), so
     // it's read unconditionally here. The other three only exist in the
     // full build's DOM.

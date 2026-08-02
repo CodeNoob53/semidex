@@ -151,6 +151,20 @@ gate and (indirectly, by construction) the context branch now agree with.
 
 ## Refactor 3 — admin composition split
 
+**Note:** this section describes the shape as originally implemented, when
+`registerNeutralRoutes()`, `createHttpServer()`, and `createLiteApp()` all
+still lived in one file, `admin/server.js`. That file has since been split
+further, mechanically, with no behavior change:
+`docs/design/full-lite-shared-architecture-audit-2026-08-01.md`'s Phase 3
+moved `registerNeutralRoutes()`/`createHttpServer()` into
+`admin/register-neutral-routes.js`; its Phase 4 moved `createLiteApp()`/
+`LITE_JOB_POLICY` into `admin/composition/lite.js`. `admin/server.js` today
+hosts only `resolveHostConfig()`/`resolvePortConfig()`. The narrative below
+is kept as the historical record of why this split shape was chosen; read
+`(in server.js)` below as "in whichever file currently owns it" — see the
+two phase reports (`phase-3-register-neutral-routes-2026-08-02.md`,
+`phase-4-lite-composition-root-2026-08-02.md`) for the current file layout.
+
 `createApp()` (`server.js`) was one ~200-line inline registration mixing
 cloud-safe and local-only routes. `admin/api/jobs.js` statically imported
 `checkOllama`; `admin/api/generation-models.js` statically imported
@@ -159,14 +173,16 @@ policies for Lite vs. full.
 
 The resulting shape:
 
-- **`registerNeutralRoutes(router, deps)`** (in `server.js`) — every
-  genuinely cloud-safe/Ollama-free route (health, collections, documents,
-  chunks, assembly, skeleton, node, search, Ask v1, generation runtime,
+- **`registerNeutralRoutes(router, deps)`** (in `server.js`; now in
+  `admin/register-neutral-routes.js`, Phase 3) — every genuinely
+  cloud-safe/Ollama-free route (health, collections, documents, chunks,
+  assembly, skeleton, node, search, Ask v1, generation runtime,
   Qdrant-Cloud probe, settings, folder-pick). Shared by both roots so they
   cannot drift apart the way two independently hand-written functions
   would.
-- **`createHttpServer(router)`** (in `server.js`) — the shared
-  HTTP+static-UI server tail.
+- **`createHttpServer(router)`** (in `server.js`; now in
+  `admin/register-neutral-routes.js`, Phase 3) — the shared HTTP+static-UI
+  server tail.
 - **jobs route parameterized by a policy + injected Ollama check.**
   `registerJobsRoutes` takes a `jobPolicy` (which options are accepted)
   and a `checkOllamaFn` by dependency injection rather than a static
@@ -179,10 +195,11 @@ The resulting shape:
 - **generation-models route split** — `registerGenerationModelsRoutes`
   (full, Ollama+Gemini) vs. `registerGenerationModelsRoutesGeminiOnly`
   (Lite, imports only `gemini-models.js`).
-- **`createLiteApp()`** (in `server.js`) = `registerNeutralRoutes()` + the
-  Gemini-only model route + `LITE_JOB_POLICY`. Local-only routes are never
-  registered, so their handlers *and* every module behind them are never
-  reachable — and, once excluded from the tarball, never even shipped.
+- **`createLiteApp()`** (in `server.js`; now in `admin/composition/lite.js`,
+  Phase 4) = `registerNeutralRoutes()` + the Gemini-only model route +
+  `LITE_JOB_POLICY`. Local-only routes are never registered, so their
+  handlers *and* every module behind them are never reachable — and, once
+  excluded from the tarball, never even shipped.
 
 **A real architectural finding mid-implementation:** `createApp()` (the
 full-only composition root) has four of its own static imports
@@ -194,13 +211,18 @@ This meant `createApp()` and `createLiteApp()` could not safely live in
 the same file once Lite needed to *stage* that file (for `createLiteApp`)
 without also staging those four Ollama/ONNX-only modules. Resolved by
 splitting `createApp()` out into a new file, **`admin/server-full.js`**
-(excluded from Lite's tarball), which imports `registerNeutralRoutes`/
-`createHttpServer` back from `server.js` — a real, intentional circular
-import, safe because neither binding is invoked at module-evaluation time.
-`server.js` no longer re-exports `createApp` (that re-export would itself
-be a static edge to the excluded file); every full-Semidex caller
-(`bootstrap.js`, ~9 test files) now imports `createApp` directly from
-`server-full.js`.
+(excluded from Lite's tarball). At the time this was written,
+`server-full.js` imported `registerNeutralRoutes`/`createHttpServer` back
+from `server.js` — a real, intentional circular import, safe because
+neither binding is invoked at module-evaluation time. Phase 3 (see the
+note at the top of this section) later removed even that circularity:
+`registerNeutralRoutes`/`createHttpServer` moved into their own file,
+`admin/register-neutral-routes.js`, which both `server-full.js` and
+`admin/composition/lite.js` import directly — `server.js` is no longer in
+either import path at all. `server.js` never re-exports `createApp` (that
+re-export would itself be a static edge to the excluded file); every
+full-Semidex caller (`bootstrap.js`, ~9 test files) imports `createApp`
+directly from `server-full.js`.
 
 ## Hard cloud-only enforcement
 

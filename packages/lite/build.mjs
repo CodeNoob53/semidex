@@ -80,14 +80,18 @@ const EXCLUDE_FILES = [
   'admin/api/ollama-models.js',
   // admin/server-full.js contains createApp() (the FULL composition root)
   // and its four Ollama/ONNX-only static imports — split out of
-  // admin/server.js specifically so Lite can stage server.js (which owns
-  // createLiteApp(), registerNeutralRoutes(), createHttpServer()) without
-  // also staging this file. See server-full.js's own header comment.
+  // admin/server.js specifically so Lite can stage the files it actually
+  // needs (registerNeutralRoutes()/createHttpServer() in
+  // admin/register-neutral-routes.js; createLiteApp() in
+  // admin/composition/lite.js; resolveHostConfig()/resolvePortConfig() in
+  // admin/server.js — Phases 3/4) without also staging this file. See
+  // server-full.js's own header comment.
   'admin/server-full.js',
   // Full-Semidex-only entry points/composition roots — Lite has its own
   // equivalents (packages/lite/lite-src/serve-lite.js uses
   // createLiteApp()/registerNeutralRoutes() from the STILL-staged
-  // admin/server.js, but never imports admin/bootstrap.js itself;
+  // admin/composition/lite.js and admin/register-neutral-routes.js, but
+  // never imports admin/bootstrap.js itself;
   // packages/lite/lite-src/doctor-lite.js/index-lite.js replace doctor.js/
   // the CLI indexer wrapper; backfill-tags.js/backfill-entity-refs.js/
   // sync.js/smoke.js/bootstrap-docs.js are full-Semidex dev/maintenance

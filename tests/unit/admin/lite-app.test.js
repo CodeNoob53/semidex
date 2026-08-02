@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createLiteApp } from '../../../src/admin/server.js';
+import { createLiteApp } from '../../../src/admin/composition/lite.js';
 import { createSettingsService } from '../../../src/core/settings/service.js';
 import { createLiteSettingsService } from '../../../src/core/settings/service.lite.js';
 import { makeStubAdapter } from './ui-test-helpers.js';

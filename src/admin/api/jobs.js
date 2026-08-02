@@ -5,7 +5,8 @@
 // no raw child_process objects, ever serialized to the client.
 //
 // checkOllamaFn has NO static-import default (Semidex Lite composition
-// split, admin/server.js's registerNeutralRoutes()) — this module must
+// split, admin/register-neutral-routes.js's registerNeutralRoutes()) —
+// this module must
 // never statically pull in admin/system/ollama.js (-> core/ollama.js),
 // since a cloud-only Lite composition root never registers a check at all.
 // The FULL composition root (createApp() in server-full.js) is the one place

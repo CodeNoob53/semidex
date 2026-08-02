@@ -313,6 +313,26 @@
     "recommendedAction": "keep"
   },
   {
+    "path": "src/admin/composition/lite.js",
+    "classification": "cloud",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/core/storage/factory.js",
+      "src/admin/router.js",
+      "src/admin/api/jobs.js",
+      "src/admin/api/generation-models.js",
+      "src/core/settings/service.js",
+      "src/admin/register-neutral-routes.js"
+    ],
+    "fullReachable": false,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
     "path": "src/admin/jobs/registry.js",
     "classification": "shared",
     "runtimeCoupling": "none",
@@ -336,6 +356,40 @@
     "entryPoints": [],
     "directDependencies": [
       "src/core/doctor-checks.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/admin/register-neutral-routes.js",
+    "classification": "shared",
+    "runtimeCoupling": "cloud",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/admin/api/health.js",
+      "src/admin/api/collections.js",
+      "src/admin/api/documents.js",
+      "src/admin/api/chunks.js",
+      "src/admin/api/assembly.js",
+      "src/admin/api/skeleton.js",
+      "src/admin/api/node.js",
+      "src/admin/api/search.js",
+      "src/core/ask-api/v1/route.js",
+      "src/admin/api/generation.js",
+      "src/admin/jobs/registry.js",
+      "src/admin/jobs/task-registry.js",
+      "src/admin/api/operations.js",
+      "src/admin/api/system.js",
+      "src/admin/api/qdrant-cloud.js",
+      "src/admin/api/settings.js",
+      "src/admin/static.js",
+      "src/core/generation/runtime.js",
+      "src/core/ask/coordinator.js",
+      "src/core/token-count.js"
     ],
     "fullReachable": true,
     "liteReachable": true,
@@ -376,7 +430,7 @@
       "src/core/ollama-models.js",
       "src/admin/system/ollama.js",
       "src/core/settings/service.js",
-      "src/admin/server.js"
+      "src/admin/register-neutral-routes.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
@@ -387,42 +441,16 @@
   },
   {
     "path": "src/admin/server.js",
-    "classification": "mixed",
-    "runtimeCoupling": "cloud",
+    "classification": "shared",
+    "runtimeCoupling": "none",
     "entryPoints": [],
-    "directDependencies": [
-      "src/core/storage/factory.js",
-      "src/admin/router.js",
-      "src/admin/api/health.js",
-      "src/admin/api/collections.js",
-      "src/admin/api/documents.js",
-      "src/admin/api/chunks.js",
-      "src/admin/api/assembly.js",
-      "src/admin/api/skeleton.js",
-      "src/admin/api/node.js",
-      "src/admin/api/search.js",
-      "src/core/ask-api/v1/route.js",
-      "src/admin/api/generation.js",
-      "src/admin/api/jobs.js",
-      "src/admin/jobs/registry.js",
-      "src/admin/jobs/task-registry.js",
-      "src/admin/api/operations.js",
-      "src/admin/api/system.js",
-      "src/admin/api/qdrant-cloud.js",
-      "src/admin/api/settings.js",
-      "src/admin/api/generation-models.js",
-      "src/admin/static.js",
-      "src/core/generation/runtime.js",
-      "src/core/ask/coordinator.js",
-      "src/core/token-count.js",
-      "src/core/settings/service.js"
-    ],
+    "directDependencies": [],
     "fullReachable": true,
     "liteReachable": true,
     "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
-    "recommendedAction": "split"
+    "recommendedAction": "keep"
   },
   {
     "path": "src/admin/static.js",
@@ -3877,6 +3905,7 @@
       "src/core/settings/service.lite.js",
       "src/admin/jobs/registry.js",
       "src/admin/server.js",
+      "src/admin/composition/lite.js",
       "src/core/generation/runtime.js"
     ],
     "fullReachable": false,

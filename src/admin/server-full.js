@@ -9,8 +9,9 @@
 // without ALSO staging these four Ollama/ONNX-only modules.
 // register-neutral-routes.js holds registerNeutralRoutes()/createHttpServer()
 // (the provider-neutral route wiring both createApp() and createLiteApp()
-// share); server.js holds createLiteApp() itself plus bind-config
-// resolution — both are files Lite needs and stages. Full callers import
+// share); composition/lite.js holds createLiteApp() itself; server.js holds
+// only shared bind-config resolution (resolveHostConfig/resolvePortConfig)
+// — all three are files Lite needs and stages. Full callers import
 // createApp directly from this file, which is excluded from the Lite
 // package.
 import { createStorageAdapter } from '../core/storage/factory.js';

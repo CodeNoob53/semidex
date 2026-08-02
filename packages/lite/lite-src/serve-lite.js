@@ -38,7 +38,8 @@ export async function startLite({ settingsPath } = {}) {
 
   applyEnvWriteBack(realSettings);
 
-  const { resolveHostConfig, resolvePortConfig, createLiteApp } = await import('../src/admin/server.js');
+  const { resolveHostConfig, resolvePortConfig } = await import('../src/admin/server.js');
+  const { createLiteApp } = await import('../src/admin/composition/lite.js');
 
   const jobRegistry = createJobRegistry({ baseEnv: jobBaseEnv });
   // Host/port resolution and the generation runtime use the REAL

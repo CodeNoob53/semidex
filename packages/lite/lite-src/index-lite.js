@@ -35,7 +35,7 @@ export async function runIndex(target, { settingsPath, spawnFn, pollIntervalMs =
 
   const jobRegistry = createJobRegistry({ baseEnv: jobBaseEnv, ...(spawnFn ? { spawnFn } : {}) });
 
-  // Lite's own jobs policy (server.js's LITE_JOB_POLICY) rejects
+  // Lite's own jobs policy (admin/composition/lite.js's LITE_JOB_POLICY) rejects
   // onnxEmbed/llmSummaries/tagGen at the HTTP layer — the CLI has no HTTP
   // layer here, so it enforces the identical contract itself: no local job
   // options are ever exposed as CLI flags, and only pruneStale (via

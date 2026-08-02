@@ -183,7 +183,7 @@ into `packages/lite/lite-src/*.js`):
 | Command | File | Real `src/`-relative imports (hand-verified) |
 |---|---|---|
 | `semidex-lite doctor` | `lite-src/doctor-lite.js` | `core/doctor-checks.js`, `admin/system/qdrant-cloud.js`, `core/embedding-profile/qdrant-cloud-catalog.js`, `core/embedding-profile/resolve.js` |
-| `semidex-lite serve` | `lite-src/serve-lite.js` | `core/env-bootstrap.js`, `core/settings/service.js`, `core/settings/service.lite.js`, `admin/jobs/registry.js`, `admin/server.js` (dynamic), `core/generation/runtime.js` (dynamic) |
+| `semidex-lite serve` | `lite-src/serve-lite.js` | `core/env-bootstrap.js`, `core/settings/service.js`, `core/settings/service.lite.js`, `admin/jobs/registry.js`, `admin/server.js` (dynamic, bind config only), `admin/composition/lite.js` (dynamic, `createLiteApp` — Phase 4), `core/generation/runtime.js` (dynamic) |
 | `semidex-lite index` | `lite-src/index-lite.js` | `core/env-bootstrap.js`, `core/settings/service.js`, `admin/jobs/registry.js` — **does not** statically import `indexer/run.js`; it spawns `indexer/index.js` as a **child process** through `admin/jobs/registry.js`'s job registry, the identical mechanism `serve`'s HTTP job API uses |
 | (internal) | `lite-src/hard-pins.js` | none — pure env-var constant list |
 | (internal) | `lite-src/semidex-home.js` | none — pure path-resolution, Node builtins only |
@@ -207,17 +207,28 @@ files are local-coupled and which are already provider-neutral.
   (`registerOnnxRoutes`, `registerOllamaModelsRoutes`,
   `discoverOllamaModels`, `checkOllama`) could not safely coexist in the
   same file as `createLiteApp()` once Lite needed to stage that file.
-- **`admin/server.js`** — hosts BOTH `createLiteApp()` (Lite's real
-  composition root) and `registerNeutralRoutes()` (the shared route
-  registration function both roots call) and `createHttpServer()` (shared
-  HTTP+static-UI tail). This file is genuinely `mixed` by role, not by
-  accident — see §4 for why splitting it further is a real open question,
-  not an obvious win.
+- **`admin/server.js`** — as of Phase 4 (implemented; see that phase's own
+  entry in §11 and `docs/design/phase-4-lite-composition-root-2026-08-02.md`),
+  hosts ONLY `resolveHostConfig()`/`resolvePortConfig()` — shared bind-config
+  resolution used by both Full (via `bootstrap.js`) and Lite (via
+  `serve-lite.js`). It no longer hosts `createLiteApp()` or any composition
+  logic, and is genuinely `shared`, not `mixed`, now that Phase 4 has
+  landed. `registerNeutralRoutes()`/`createHttpServer()` (the shared route
+  registration function/HTTP tail both roots call) live in
+  `register-neutral-routes.js` (Phase 3); `createLiteApp()` (Lite's real
+  composition root) lives in `admin/composition/lite.js` (Phase 4).
+- **`admin/composition/lite.js`** — Lite's real composition root, added by
+  Phase 4. Owns `createLiteApp()` and `LITE_JOB_POLICY`. Imports
+  `registerNeutralRoutes`/`createHttpServer` from `register-neutral-routes.js`
+  directly, never via `server.js` or `server-full.js`. Never imports
+  `server-full.js`, any Ollama/ONNX runtime module, or any local-only admin
+  route — verified by `tests/unit/admin/composition-lite.test.js` using the
+  same real AST-derived import graph the Phase 3 tests use.
 - **`packages/lite/lite-src/serve-lite.js`** — Lite's real composition
-  root, dynamically imports `createLiteApp` from the **same**
-  `admin/server.js` Full's `server-full.js` also depends on. This is the
-  one piece of code genuinely shared **as composition**, not just as
-  domain logic.
+  entry point. As of Phase 4, imports `resolveHostConfig`/`resolvePortConfig`
+  from `admin/server.js` and `createLiteApp` from
+  `admin/composition/lite.js` — two separate dynamic imports, matching the
+  two files' now-distinct responsibilities.
 
 ### 2.4 Lazy-import boundaries (verified, all three, by reading both variants)
 
@@ -396,36 +407,50 @@ now redirects any path falling under that staging prefix to its real
 the directory away, re-ran the graph builder, confirmed identical
 resolution).
 
-## 4. Mixed-module findings
+## 4. Mixed-module findings (as originally audited, before Phases 3–4 — see the note below the table)
 
-Nine files are genuinely `mixed` — real local AND shared/cloud code
-coexisting in one file, confirmed by reading each one's actual branching
-logic, not inferred from its directory:
+Nine files were originally found genuinely `mixed` — real local AND
+shared/cloud code coexisting in one file, confirmed by reading each one's
+actual branching logic, not inferred from its directory. The `admin/server.js`
+row and §4.1 below describe the ORIGINAL, pre-Phase-3/4 state as a record of
+the actual reasoning that led to the phased plan in §11 — **this row is now
+historical**: Phase 3 (implemented) split `registerNeutralRoutes`/
+`createHttpServer` out into `register-neutral-routes.js`, and Phase 4
+(implemented; see `docs/design/phase-4-lite-composition-root-2026-08-02.md`)
+split `createLiteApp()`/`LITE_JOB_POLICY` out into `admin/composition/lite.js`.
+`admin/server.js` today hosts only `resolveHostConfig`/`resolvePortConfig`
+and is genuinely `shared`, not `mixed`.
 
 | File | What's mixed | Who imports it | In Lite tarball? | In Lite JS bundle? | Recommended split |
 |---|---|---|---|---|---|
-| `admin/server.js` | `createLiteApp()` (Lite composition) + `registerNeutralRoutes()`/`createHttpServer()` (shared, used by BOTH roots) + `resolveHostConfig`/`resolvePortConfig` (shared utility) | `server-full.js` (Full), `lite-src/serve-lite.js` (Lite, dynamic) | yes | n/a (server-side) | Keep as-is for now (§4.1) — splitting further has a real cost, not an obvious win |
+| `admin/server.js` (ORIGINAL, pre-Phase-3/4 state) | `createLiteApp()` (Lite composition) + `registerNeutralRoutes()`/`createHttpServer()` (shared, used by BOTH roots) + `resolveHostConfig`/`resolvePortConfig` (shared utility) | `server-full.js` (Full), `lite-src/serve-lite.js` (Lite, dynamic) | yes | n/a (server-side) | Superseded — see Phase 3/4, both now implemented |
 | `admin/ui-src/global-settings-view.js` | `IS_LITE`-guarded ONNX-probe-panel/Ollama-model-refresh functions, coexisting with the (much larger) fully shared, data-driven `fieldRow()` rendering | Vite's build graph (both builds) | n/a (UI source, excluded from tarball; only the BUILT `dist/admin-ui*/` ships) | yes — but DCE-verified byte-different between the two builds (§9) | Keep — genuinely one file with a real, tested, verified-by-build-diff dead-code split; extracting the guarded functions into a separate `-local.js` file is possible but adds an import hop for zero closure-validator benefit (the marker-scan already proves the strip works) |
 | `admin/ui-src/settings-view.js` | `IS_LITE`-guarded reindex-options branch (reads `#opt-onnx`/`#opt-llm-summaries`/`#opt-tags` DOM elements that don't exist in Lite's stripped HTML) vs. shared reindex-submission logic | Vite's build graph | n/a | yes | Same as above |
 | `core/ollama-lazy.js` / `.lite.js` | By design — the whole file pair's PURPOSE is being the boundary seam | `core/generation/ollama-provider.js`, `indexer/run.js`, `core/embeddings.js`, others | real file: no (substituted); shim: yes (as the real file's content) | n/a | This IS the recommended pattern — no split needed, it already is the split |
 | `core/onnx-embed-lazy.js` / `.lite.js` | Same as above | `core/embeddings.js` | same substitution | n/a | Same |
 | `indexer/phases/tag-onnx-lazy.js` / `.lite.js` | Same as above | `indexer/run.js` | same substitution | n/a | Same |
 
-### 4.1 Why `admin/server.js` is not an obvious split candidate
+### 4.1 Why `admin/server.js` was not an obvious split candidate (ORIGINAL reasoning, pre-Phase-3/4 — superseded, kept for the historical record)
 
-The task's target model implies `server.js` should live entirely in
-`composition-lite` (since it hosts `createLiteApp`) while
-`registerNeutralRoutes`/`createHttpServer` should live in `shared`. In
-practice, `registerNeutralRoutes` is **not** provider-neutral in the
-literal sense the target model wants — it currently accepts
+The task's target model implied `server.js` should live entirely in
+`composition-lite` (since it hosted `createLiteApp`) while
+`registerNeutralRoutes`/`createHttpServer` should live in `shared`. At the
+time this was written, `registerNeutralRoutes` was **not** provider-neutral
+in the literal sense the target model wanted — it accepted
 `runQdrantCloudProbeFn`, `resolveNewCollectionProfileFn` (cloud-specific
 DI seams added in a recent task) alongside `pickFolderFn`/`checkOllamaFn`
 threading points (local-specific, injected by the Full-only caller and
-simply never passed by Lite). Splitting this file into
-`shared/registerNeutralRoutes.js` + `composition-lite/server.js` is a
-real, low-risk, mechanical Phase-5 candidate (§14) — but doing it as part
-of THIS audit would be exactly the "move files first, decide the target
-shape from the move" ordering the task explicitly warns against.
+simply never passed by Lite). This section originally concluded that
+splitting `server.js` into `shared/registerNeutralRoutes.js` +
+`composition-lite/server.js` was a real, low-risk, mechanical candidate for
+a LATER phase — but doing it as part of the original audit task would have
+been exactly the "move files first, decide the target shape from the move"
+ordering that task explicitly warned against. That later split is exactly
+what Phases 3 and 4 (§11) did, on schedule, with `registerNeutralRoutes`'s
+cloud/local DI seams carried over unchanged into `register-neutral-routes.js`
+(Phase 3) and threaded through unchanged from `composition/lite.js`'s
+`createLiteApp()` (Phase 4) — no redesign of the seam itself was needed,
+confirming the original "mechanical, low-risk" assessment.
 
 ## 5. Lite closure findings (heavy/local dependency closure)
 
@@ -990,7 +1015,7 @@ preserved — the real, packed Lite tarball is unchanged in contents
 remains fully staged and functional). Tests: all listed above, currently
 passing. Exit gate: met.
 
-### Phase 3 — Split `admin/server.js` into `registerNeutralRoutes.js` (shared) + a thinner `server.js` (Lite composition)
+### Phase 3 — Split `admin/server.js` into `registerNeutralRoutes.js` (shared) + a thinner `server.js` (Lite composition) — IMPLEMENTED (see `docs/design/phase-3-register-neutral-routes-2026-08-02.md`)
 
 Files: `admin/server.js`, its ~9 test-file importers (mechanical import-path
 updates only). Dependencies: none new. Risk: low, mechanical — the
@@ -1002,12 +1027,24 @@ unmodified against the new file layout (should require zero test-logic
 changes, only import-path fixes if they import internals directly).
 Exit gate: full test suite green, `git diff --check` clean.
 
-### Phase 4 — Split provider registries' Lite-relevant DI seams into an explicit `composition-lite` module
+### Phase 4 — Split provider registries' Lite-relevant DI seams into an explicit `composition-lite` module — IMPLEMENTED (see `docs/design/phase-4-lite-composition-root-2026-08-02.md`)
 
 Files: extract `LITE_JOB_POLICY`, `registerGenerationModelsRoutesGeminiOnly`,
 and `createLiteApp()` itself out of `server.js` into a new
 `admin/composition/lite.js`. Dependencies: none new. Risk: low, mechanical.
 Tests: same suites as Phase 3. Exit gate: same.
+
+As implemented: `createLiteApp()` and `LITE_JOB_POLICY` now live solely in
+`admin/composition/lite.js` (imports `registerNeutralRoutes`/`createHttpServer`
+from `register-neutral-routes.js` directly, never via `server.js`); `server.js`
+was reduced to `resolveHostConfig`/`resolvePortConfig` only, with zero
+relative imports of its own; `serve-lite.js` now performs two separate
+dynamic imports (`server.js` for bind config, `composition/lite.js` for
+`createLiteApp`). No compatibility re-export was added — an import-consumer
+audit found exactly three real internal consumers of the old
+`server.js`-hosted `createLiteApp` (`serve-lite.js` and two test files),
+all updated directly. Phase 5 (settings completeness) and Phase 6 (UI
+entry/partials restructure) remain not started.
 
 ### Phase 5 — Split settings definitions physically OR add the automated allow-list-completeness test from §9.2 (pick ONE, not both, per the audit's own recommendation in §9.2 to prefer the test over the file-split)
 

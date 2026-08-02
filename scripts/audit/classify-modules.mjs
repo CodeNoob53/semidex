@@ -200,7 +200,14 @@ function firstPassBucket(file) {
   if (COMPOSITION_FULL_PATTERNS.some((p) => p.test(file))) return 'composition-full';
   if (CLOUD_ONLY_PATH_PATTERNS.some((p) => p.test(file))) return 'cloud';
   if (LAZY_SHIM_PATTERNS.some((p) => p.test(file))) return 'mixed'; // lazy wrappers are a real boundary seam, always reviewed by hand
-  if (file === 'src/admin/server.js') return 'mixed'; // hosts BOTH createLiteApp (lite composition) and registerNeutralRoutes (shared)
+  // Phase 4 (docs/design/full-lite-shared-architecture-audit-2026-08-01.md):
+  // createLiteApp() moved out of server.js into composition/lite.js.
+  // server.js now hosts only resolveHostConfig/resolvePortConfig (shared
+  // bind-config utility) — reachable from both Full and Lite, genuinely
+  // 'shared', no longer 'mixed'. composition/lite.js is Lite's own real
+  // composition root now — reachable only from Lite's roots, so the
+  // graph-facts pass below correctly classifies it 'cloud' with no special
+  // case needed here (it has no Full-reachable edge to conflict with).
   // admin/ui-src/*.js is OUTSIDE the Node.js import graph this script
   // traces (it is Vite/browser-side module code, never require()'d or
   // import()'d from any src/ Node.js file) — a plain reachability

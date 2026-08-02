@@ -1,10 +1,10 @@
 // Provider-neutral HTTP route composition — the ONE shared route-wiring
 // both createApp() (src/admin/server-full.js, full Semidex) and
-// createLiteApp() (src/admin/server.js, Semidex Lite) build on, so the two
-// compositions cannot drift apart the way two independently hand-written
-// ~200-line functions would. Split out of server.js (Phase 3 of
-// docs/design/full-lite-shared-architecture-audit-2026-08-01.md) as a pure
-// mechanical extraction — no behavior change, no new abstractions, no
+// createLiteApp() (src/admin/composition/lite.js, Semidex Lite) build on,
+// so the two compositions cannot drift apart the way two independently
+// hand-written ~200-line functions would. Split out of server.js (Phase 3
+// of docs/design/full-lite-shared-architecture-audit-2026-08-01.md) as a
+// pure mechanical extraction — no behavior change, no new abstractions, no
 // route/contract/status-code/middleware-order changes. See that phase's
 // entry in the audit doc for the extraction rationale and exit gate.
 //
@@ -155,8 +155,8 @@ export function registerNeutralRoutes(router, {
 
 // Shared HTTP + static-UI server tail — identical for the full and Lite
 // composition roots. Exported so both server-full.js's createApp() and
-// server.js's createLiteApp() reuse it without a second, independently-
-// resolved implementation.
+// composition/lite.js's createLiteApp() reuse it without a second,
+// independently-resolved implementation.
 export function createHttpServer(router) {
   return createServer((req, res) => {
     // /api/* belongs to the router; everything else is the static UI shell.
