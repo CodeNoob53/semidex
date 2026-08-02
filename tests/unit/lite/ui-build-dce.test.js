@@ -1,15 +1,24 @@
-// Real build-output regression test for the Semidex Lite admin UI.
-// Runs the ACTUAL `vite build --config vite.config.lite.js` (not a
-// simulation) and content-scans the real output for every local-only
-// marker — this is the genuine behavioral proof the structural
-// (source-regex) tests in global-settings-view-lite-dce.test.js and
-// jobs-and-settings-view-lite-dce.test.js can only approximate. Slower
-// than a typical unit test (a real Vite build), but this is exactly the
-// kind of guarantee that must be verified against real compiler output,
-// not inferred from source shape alone — a change to Rollup's DCE
-// behavior, a broken vite.config.lite.js plugin, or a new local-only
-// reference added without a guard would all be invisible to the
-// structural tests but caught here.
+// Real build-output regression test for the Semidex Lite admin UI. Runs
+// the ACTUAL `vite build --config vite.config.lite.js` (not a simulation)
+// and content-scans the real output for every local-only marker.
+//
+// Phase 6 (docs/design/full-lite-shared-architecture-audit-2026-08-01.md):
+// renamed from "DCE proves absence" — Lite's build no longer relies on
+// Rollup dead-code elimination of an IS_LITE-guarded branch, or on
+// stripHtmlMarkers()'s post-build string surgery, to keep local-only
+// content out. Full and Lite now build from PHYSICALLY SEPARATE entry
+// points (src/admin/ui-src/index.html + entries/full.js vs.
+// src/admin/ui-src/lite-entry/index.html + entries/lite.js) and
+// PHYSICALLY SEPARATE partial files (partials/full/*.html vs.
+// partials/lite/*.html) — Lite's build never composes the ONNX probe
+// panel template or the ONNX/LLM-summaries/tag-gen checkboxes into its
+// page or bundle in the first place, so there is nothing to strip. This
+// file's own assertions are unchanged in what they check (the forbidden
+// marker list, the real-build-output requirement) — only the reason
+// they're expected to pass changed. See composition-isolation.test.js in
+// this same directory for the structural (import-graph) half of this
+// phase's proof; this file is the "real compiler output" half neither
+// that test nor a source-regex check can substitute for.
 import { describe, it, before } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
@@ -58,10 +67,33 @@ describe('Lite admin UI build — real Vite build, real output scan', { timeout:
     assert.deepEqual(leaks, [], `local-only markers leaked into the Lite build:\n${leaks.join('\n')}`);
   });
 
-  it('the prune-stale option survives (proves the strip is scoped, not over-broad)', () => {
+  it('the prune-stale option survives (proves the physical separation is scoped, not over-broad)', () => {
     const files = readAllText(LITE_DIST).filter((f) => f.path.endsWith('.js'));
     const hasPrune = files.some((f) => f.content.includes('opt-prune'));
     assert.ok(hasPrune, 'opt-prune must still be present — the Lite jobs policy allows pruneStale');
+  });
+
+  it('produces dist/admin-ui-lite/index.html — the exact filename packages/lite/build.mjs and src/admin/static.js both require, not lite-entry/index.html or index-lite.html', () => {
+    const files = readdirSync(LITE_DIST);
+    assert.ok(files.includes('index.html'), `expected dist/admin-ui-lite/index.html to exist, found: ${JSON.stringify(files)}`);
+  });
+
+  it('never references local-features.js\'s own exported function names — proof of real import-graph absence, not just string-marker absence', () => {
+    // A stronger check than the forbidden-marker list above: even function
+    // NAMES this repo's own local-features.js exports (which never appear
+    // in any FORBIDDEN_MARKERS string, since they're implementation
+    // details, not user-facing text/API paths) are absent — confirms
+    // Rollup genuinely never included that module's code, not merely that
+    // its most identifiable string literals were individually stripped.
+    const files = readAllText(LITE_DIST).filter((f) => f.path.endsWith('.js'));
+    const localFeatureNames = ['wireIndexingFormLocalOptions', 'onnxProbePanel', 'refreshOllamaModels', 'collectLocalJobOptions', 'wireOnnxProbePanel'];
+    const leaks = [];
+    for (const { path, content } of files) {
+      for (const name of localFeatureNames) {
+        if (content.includes(name)) leaks.push(`${path}: "${name}"`);
+      }
+    }
+    assert.deepEqual(leaks, [], `local-features.js function name(s) leaked into the Lite build (even minified output preserves imported-but-dead-named exports in some bundler configurations, so this is a real, not redundant, check):\n${leaks.join('\n')}`);
   });
 });
 
@@ -74,7 +106,12 @@ describe('Full admin UI build — real Vite build, real output scan', { timeout:
     const files = readAllText(FULL_DIST).filter((f) => /\.(html|js)$/.test(f.path));
     const allContent = files.map((f) => f.content).join('\n');
     for (const marker of ['ONNX_EXECUTION_PROVIDER', 'tpl-gs-onnx-probe-panel', 'opt-onnx', 'opt-llm-summaries', 'opt-tags']) {
-      assert.ok(allContent.includes(marker), `full build lost "${marker}" — this would mean local-only functionality was accidentally guarded/stripped from full Semidex, not just Lite`);
+      assert.ok(allContent.includes(marker), `full build lost "${marker}" — this would mean local-only functionality was accidentally excluded from full Semidex, not just Lite`);
     }
+  });
+
+  it('produces dist/admin-ui/index.html', () => {
+    const files = readdirSync(FULL_DIST);
+    assert.ok(files.includes('index.html'));
   });
 });

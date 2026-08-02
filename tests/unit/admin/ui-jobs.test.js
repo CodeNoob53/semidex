@@ -12,13 +12,16 @@ import assert from 'node:assert/strict';
 import { readUiSource, readUiModuleWithPartial } from './ui-test-helpers.js';
 
 describe('collection-creation form (ui-src/jobs-view.js source)', () => {
-  it('posts to /api/jobs/index with the four typed options', () => {
+  it('posts to /api/jobs/index; pruneStale is read directly, the other three options are collected via the local-features.js capability seam (Phase 6 — jobs-view.js itself no longer names onnxEmbed/llmSummaries/tagGen, since those string literals must be physically absent from the Lite bundle)', () => {
     const js = readUiSource('jobs-view.js');
     assert.match(js, /apiPost\(["']\/api\/jobs\/index["']/, 'must POST to /api/jobs/index');
-    assert.match(js, /onnxEmbed/);
-    assert.match(js, /llmSummaries/);
     assert.match(js, /pruneStale/);
-    assert.match(js, /tagGen/);
+    assert.match(js, /localCapabilities\?\.collectLocalJobOptions/);
+    assert.ok(!/onnxEmbed|llmSummaries|tagGen/.test(js), 'jobs-view.js must not itself reference these local-only option field names — they live only in local-features.js');
+    const localFeatures = readUiSource('local-features.js');
+    assert.match(localFeatures, /onnxEmbed/);
+    assert.match(localFeatures, /llmSummaries/);
+    assert.match(localFeatures, /tagGen/);
   });
 
   it('sends no skeletonChunking/skeletonNav options — skeleton-first indexing is unconditional architecture, not a per-job choice', () => {
@@ -28,7 +31,7 @@ describe('collection-creation form (ui-src/jobs-view.js source)', () => {
   });
 
   it('keeps the required safety copy', () => {
-    const js = readUiModuleWithPartial('jobs-view.js', 'index-view.html'); // copy lives in index-view.html, ?raw-imported into jobs-view.js
+    const js = readUiModuleWithPartial('jobs-view.js', 'full/index-view.html'); // copy lives in index-view.html, ?raw-imported into jobs-view.js
     assert.match(js, /Indexing writes to the selected collection/);
   });
 
@@ -87,7 +90,7 @@ describe('simplified indexing form — advanced options collapsed (ui-src source
   }
 
   it('collapses prune-stale and generate-tags behind an "Advanced options" disclosure', () => {
-    const js = readUiModuleWithPartial('jobs-view.js', 'index-view.html');
+    const js = readUiModuleWithPartial('jobs-view.js', 'full/index-view.html');
     const range = findAdvancedBoxRange(js);
     assert.ok(range, 'the create-collection form must have an Advanced options disclosure');
     const inside = js.slice(range[0], range[1]);
@@ -97,7 +100,7 @@ describe('simplified indexing form — advanced options collapsed (ui-src source
   });
 
   it('keeps ONNX embeddings and LLM summaries visible above the disclosure', () => {
-    const js = readUiModuleWithPartial('jobs-view.js', 'index-view.html');
+    const js = readUiModuleWithPartial('jobs-view.js', 'full/index-view.html');
     const range = findAdvancedBoxRange(js);
     assert.ok(range);
     const [detailsStart] = range;
@@ -110,13 +113,13 @@ describe('simplified indexing form — advanced options collapsed (ui-src source
   });
 
   it('no longer offers skeleton chunking/skeleton nav checkboxes — skeleton-first indexing is unconditional, not a per-job option', () => {
-    const js = readUiModuleWithPartial('jobs-view.js', 'index-view.html');
+    const js = readUiModuleWithPartial('jobs-view.js', 'full/index-view.html');
     assert.ok(!js.includes('id="opt-skel-chunk"'));
     assert.ok(!js.includes('id="opt-skel-nav"'));
   });
 
   it('keeps the prune-stale safety caveat, now scoped inside the disclosure with the checkbox it explains', () => {
-    const js = readUiModuleWithPartial('jobs-view.js', 'index-view.html');
+    const js = readUiModuleWithPartial('jobs-view.js', 'full/index-view.html');
     const range = findAdvancedBoxRange(js);
     const inside = js.slice(range[0], range[1]);
     assert.match(inside, /Prune stale should be used only with the full source root/);
@@ -126,7 +129,7 @@ describe('simplified indexing form — advanced options collapsed (ui-src source
 // ── Phase 3S: #/index no longer contains the old jobs console ──────────────
 describe('#/index has no legacy jobs console (ui-src source)', () => {
   it('index-view.html has no "Indexing progress" panel/job-list container', () => {
-    const html = readUiSource('partials/index-view.html');
+    const html = readUiSource('partials/full/index-view.html');
     assert.ok(!/Indexing progress/.test(html));
     assert.ok(!/id="idx-jobs"/.test(html));
   });
@@ -153,33 +156,42 @@ describe('folder picker (ui-src/jobs-view.js source)', () => {
   });
 });
 
-describe('LLM summaries — Ollama dependency status (ui-src/jobs-view.js source)', () => {
-  it('shows "LLM summaries require Ollama" copy with a status badge, not a silent checkbox', () => {
-    const js = readUiSource('jobs-view.js');
+describe('LLM summaries — Ollama dependency status (Phase 6: this behavior now lives in local-features.js, reached from jobs-view.js only through the capability seam — see local-features.js\'s own header comment for why the "#opt-llm-summaries"/"#idx-ollama-status" selector strings must never appear in jobs-view.js itself)', () => {
+  it('local-features.js shows "LLM summaries require Ollama" copy with a status badge, not a silent checkbox', () => {
+    const js = readUiSource('local-features.js');
     assert.match(js, /LLM summaries require Ollama/);
     assert.match(js, /idx-ollama-status/);
     assert.match(js, /\/api\/system\/ollama-status/);
   });
 
-  it('checking the LLM summaries checkbox triggers an Ollama status check', () => {
-    const js = readUiSource('jobs-view.js');
-    assert.match(js, /opt-llm-summaries["']\)\.addEventListener\(["']change["']|opt-llm-summaries.*addEventListener\(["']change["']/s);
-    assert.match(js, /loadOllamaStatus/);
+  it('local-features.js wires the LLM summaries checkbox to trigger an Ollama status check; jobs-view.js calls that wiring through the capability seam, not directly', () => {
+    const localFeatures = readUiSource('local-features.js');
+    assert.match(localFeatures, /opt-llm-summaries["']\)/);
+    assert.match(localFeatures, /addEventListener\(["']change["']/);
+    assert.match(localFeatures, /loadOllamaStatus/);
+    const jobsView = readUiSource('jobs-view.js');
+    assert.match(jobsView, /localCapabilities\?\.wireIndexingFormLocalOptions/);
+    // Code-only (comments excluded) — this file's own header comment
+    // legitimately names "#opt-llm-summaries" in prose while explaining
+    // this exact invariant; only a real selector-string usage in code
+    // would be the regression this assertion exists to catch.
+    const codeOnly = jobsView.split('\n').filter((line) => !line.trim().startsWith('//')).join('\n');
+    assert.ok(!/opt-llm-summaries/.test(codeOnly), 'jobs-view.js itself must never reference the #opt-llm-summaries selector string in code');
   });
 
-  it('maps each Ollama status (available/missing/model_missing) to a distinct badge class', () => {
-    const js = readUiSource('jobs-view.js');
+  it('local-features.js maps each Ollama status (available/missing/model_missing) to a distinct badge class', () => {
+    const js = readUiSource('local-features.js');
     assert.match(js, /available:\s*["']badge badge-ok["']/);
     assert.match(js, /missing:\s*["']badge badge-fail["']/);
     assert.match(js, /model_missing:\s*["']badge badge-warn["']/);
   });
 
-  it('surfaces a 503 dependency error from job start back through the Ollama status check, not a generic failure', () => {
+  it('jobs-view.js surfaces a 503 dependency error from job start by calling the capability seam\'s retryOllamaStatus(), not a generic failure', () => {
     const js = readUiSource('jobs-view.js');
     const start = js.indexOf('async function startIndexJob');
     const end = js.indexOf('\n}', start);
     const fn = js.slice(start, end);
     assert.match(fn, /err\.status === 503/);
-    assert.match(fn, /loadOllamaStatus/);
+    assert.match(fn, /localCapabilities\?\.retryOllamaStatus/);
   });
 });

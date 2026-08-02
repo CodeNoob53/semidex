@@ -12,6 +12,7 @@
     "sync": "node src/sync.js",
     "admin": "node src/admin/bootstrap.js",
     "admin:dev": "vite --host 127.0.0.1",
+    "admin:dev:lite": "vite --host 127.0.0.1 --config vite.config.lite.js",
     "admin:build": "vite build",
     "admin:build:lite": "vite build --config vite.config.lite.js",
     "test": "node --max-old-space-size=512 --test --test-concurrency=1 \"tests/**/*.test.js\"",

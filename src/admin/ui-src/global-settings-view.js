@@ -10,24 +10,23 @@
 // the old Phase 4A.5b read-only screen); every other category renders
 // editable rows built purely from registry metadata.
 //
-// IS_LITE reads SEMIDEX_LITE, a Vite build-time define (vite.config.js:
-// false, vite.config.lite.js: true — see either file's own comment),
-// substituted as a literal boolean at build time so Rollup's dead-code
-// elimination can statically remove a guarded branch entirely, not just
-// skip it at runtime. The `typeof` check is required because this same
-// source file is also loaded directly (bypassing Vite entirely) by
-// tests/unit/admin/ui-test-helpers.js's vm.Script-based test harness,
-// where SEMIDEX_LITE is a genuinely undeclared global — a bare reference
-// would throw ReferenceError there (a real bug caught by the admin test
-// suite while wiring this up). Used ONLY around genuinely local-only
-// (ONNX/Ollama-specific) logic — onnxProbePanel()/wireOnnxProbePanel()/
-// runOnnxProbe()/categoryNeedsOllamaModels()/refreshOllamaModels() below.
-// Shared, generic rendering infrastructure (fieldRow(), visibleWhen/
-// dynamicOptions resolution, categoryNeedsGenerationModels()/
-// refreshGenerationModels() — the provider-neutral counterpart both Ollama
-// and Gemini use) is deliberately NEVER guarded: it is not local-only
-// code, and guarding it would risk changing full-Semidex's own behavior
-// for no reason.
+// Local-only (ONNX/Ollama-specific) settings features — onnxProbePanel()/
+// wireOnnxProbePanel()/categoryNeedsOllamaModels()/refreshOllamaModels()
+// below — are NOT implemented in this file (Phase 6 of
+// docs/design/full-lite-shared-architecture-audit-2026-08-01.md). Their
+// real implementation lives in local-features.js, which THIS file never
+// imports — only entries/full.js does, calling setLocalSettingsCapabilities()
+// once at startup to inject it. Semidex Lite's entry point (entries/lite.js)
+// never imports local-features.js and never calls that setter, so
+// localCapabilities stays null there and this file's own capability-seam
+// functions no-op — true physical bundle isolation (Lite's module graph
+// never statically reaches local-features.js at all), not Rollup dead-code
+// elimination of a build-time boolean branch. Shared, generic rendering
+// infrastructure (fieldRow(), visibleWhen/dynamicOptions resolution,
+// categoryNeedsGenerationModels()/refreshGenerationModels() — the
+// provider-neutral counterpart both Ollama and Gemini use) is deliberately
+// NEVER routed through this seam: it is not local-only code, and gating it
+// would risk changing full-Semidex's own behavior for no reason.
 import { $, cloneTemplate } from './dom.js';
 import { api, apiPatch, apiPost } from './api.js';
 import { showToast } from './toasts.js';
@@ -37,7 +36,17 @@ import { renderSettingsNav, syncSidebarMode, markActive } from './sidebar.js';
 // pulls in qdrant-cloud-tokenizer.js's Node-only fs/fetch code.
 import { findDenseModel as findQdrantCloudDenseModel, isCatalogCompatibleWithChunking } from '../../core/embedding-profile/qdrant-cloud-models.js';
 
-const IS_LITE = typeof SEMIDEX_LITE !== 'undefined' && SEMIDEX_LITE;
+// null by default (Lite's real, shipped state — entries/lite.js never
+// calls the setter below). entries/full.js calls
+// setLocalSettingsCapabilities(localFeatures) once at startup, passing the
+// whole local-features.js module namespace object (its exports match the
+// shape every call site below expects: onnxProbePanel, wireOnnxProbePanel,
+// categoryNeedsOllamaModels, refreshOllamaModels).
+let localCapabilities = null;
+
+export function setLocalSettingsCapabilities(capabilities) {
+  localCapabilities = capabilities;
+}
 
 const PROVENANCE_LABEL = {
   os_env: 'Operating system environment',
@@ -674,116 +683,17 @@ function saveBar(category) {
   return bar;
 }
 
-const ONNX_PROBE_PROVIDERS = new Set(['cuda', 'dml']);
-
-// Shown only alongside a visible ONNX_EXECUTION_PROVIDER field currently
-// staged to 'cuda' or 'dml' — CPU never shows this panel since there is
-// nothing to verify. "Last verified" starts empty and is populated only by
-// a real click of the test button (see wireOnnxProbePanel) — never
-// auto-run, never inferred from the setting alone.
+// Full-only — real implementation in local-features.js, injected via
+// setLocalSettingsCapabilities() (see this file's own header comment).
+// null in Lite (no-op) since entries/lite.js never calls that setter.
 function onnxProbePanel(category, entries) {
-  if (IS_LITE) return null;
-  const providerEntry = entries.find((e) => e.key === 'ONNX_EXECUTION_PROVIDER');
-  if (!providerEntry) return null;
-  const provider = currentPendingValue(category, providerEntry);
-  if (!ONNX_PROBE_PROVIDERS.has(provider)) return null;
-
-  const panel = templateRoot('tpl-gs-onnx-probe-panel');
-  panel.querySelector('.gs-onnx-requested').textContent = provider;
-  panel.querySelector('.gs-onnx-active').textContent = providerEntry.activeValue;
-  const pendingNote = panel.querySelector('.gs-onnx-pending-restart');
-  if (providerEntry.pendingRestart) {
-    pendingNote.hidden = false;
-    pendingNote.textContent = `Saved — still using "${providerEntry.activeValue}" until semidex restarts.`;
-  } else {
-    pendingNote.hidden = true;
-  }
-  const testButton = panel.querySelector('.gs-onnx-test-button');
-  testButton.dataset.provider = provider;
-  // "Test CUDA configuration"/"Test DML configuration" — never the generic
-  // template default when a specific provider is what's actually being
-  // tested, so a DML-only user is never told they're testing "CUDA".
-  testButton.textContent = `Test ${provider.toUpperCase()} configuration`;
-  // ONNXRUNTIME_NODE_PATH's CURRENT value (may be an unsaved, staged edit)
-  // is read live from its input at click time by runOnnxProbe() itself,
-  // not snapshotted here — see that function's own comment for why a
-  // render-time snapshot would go stale.
-  return panel;
+  if (!localCapabilities) return null;
+  return localCapabilities.onnxProbePanel(category, entries, { templateRoot, currentPendingValue });
 }
 
 function wireOnnxProbePanel(container, category) {
-  if (IS_LITE) return;
-  const btn = container.querySelector('.gs-onnx-test-button');
-  if (!btn) return;
-  btn.addEventListener('click', () => runOnnxProbe(container, category, btn));
-}
-
-async function runOnnxProbe(container, category, btn) {
-  const panel = btn.closest('.gs-onnx-probe-panel');
-  const verified = panel.querySelector('.gs-onnx-verified');
-  const fallbackWarning = panel.querySelector('.gs-onnx-fallback-warning');
-  const stagedPathNotice = panel.querySelector('.gs-onnx-staged-path-notice');
-  const resultBlock = panel.querySelector('.gs-onnx-result');
-  const provider = btn.dataset.provider;
-  // Read the LIVE current value from the path input itself, not a
-  // render-time snapshot — editing ONNXRUNTIME_NODE_PATH deliberately never
-  // triggers a full category re-render (wireCategoryEvents()'s "don't
-  // rebuild the field being edited" contract), so a value captured when
-  // this panel was last rendered would go stale the instant the user types
-  // into the field without the panel ever refreshing. This is what lets
-  // "Test" send a staged-but-unsaved runtime path together with a
-  // staged-but-unsaved provider, rather than silently falling back to
-  // whatever path was last actually saved.
-  const pathInput = container.querySelector('.gs-path-input[data-key="ONNXRUNTIME_NODE_PATH"]');
-  const requestBody = pathInput
-    ? { provider, runtimePath: pathInput.value }
-    : { provider };
-
-  btn.disabled = true;
-  const originalLabel = btn.textContent;
-  btn.textContent = 'Testing…';
-  fallbackWarning.hidden = true;
-  stagedPathNotice.hidden = true;
-  resultBlock.hidden = true;
-
-  try {
-    const result = await apiPost('/api/system/onnx-probe', requestBody);
-    const timestamp = new Date().toLocaleTimeString();
-    verified.textContent = `${result.effectiveProvider ?? 'none'} (${timestamp})`;
-
-    // Server-confirmed (not just the UI's own belief) — surfaced so a
-    // result is never mistaken for testing the saved configuration when it
-    // actually tested an in-progress, unsaved edit.
-    if (result.testedStagedRuntimePath) {
-      stagedPathNotice.hidden = false;
-      stagedPathNotice.textContent = 'This test used an unsaved custom runtime path — Save to make it permanent.';
-    }
-
-    // The one required, exact wording for a CUDA-requested/CPU-effective
-    // result — driven only by the probe's own dedicated fellBackToCpu flag,
-    // never inferred, so a plain probe failure (e.g. model_not_cached) is
-    // never mislabeled as a silent CPU fallback.
-    if (result.fellBackToCpu) {
-      fallbackWarning.hidden = false;
-      fallbackWarning.textContent = 'CUDA was requested, but the effective provider is CPU.';
-    }
-
-    resultBlock.hidden = false;
-    panel.querySelector('.gs-onnx-runtime-source').textContent = result.runtimeSource ?? 'unknown';
-    panel.querySelector('.gs-onnx-runtime-version').textContent = result.runtimeVersion ?? 'unknown';
-    panel.querySelector('.gs-onnx-model-cached').textContent = result.modelCached ? 'yes' : 'no';
-    panel.querySelector('.gs-onnx-message').textContent = result.message ?? '';
-  } catch (err) {
-    verified.textContent = 'Test failed';
-    resultBlock.hidden = false;
-    panel.querySelector('.gs-onnx-runtime-source').textContent = 'unknown';
-    panel.querySelector('.gs-onnx-runtime-version').textContent = 'unknown';
-    panel.querySelector('.gs-onnx-model-cached').textContent = 'unknown';
-    panel.querySelector('.gs-onnx-message').textContent = err?.message ?? 'The probe request failed.';
-  } finally {
-    btn.disabled = false;
-    btn.textContent = originalLabel;
-  }
+  if (!localCapabilities) return;
+  localCapabilities.wireOnnxProbePanel(container, category);
 }
 
 // Label/CSS-class lookup for the settings-time 4-status availability
@@ -1221,11 +1131,11 @@ function renderInlineCategorySelect(main, categories, category) {
 
 // ── Ollama model discovery (dynamicOptions) ─────────────────────────────────
 
+// Full-only — real implementation in local-features.js. null in Lite (see
+// this file's own header comment on the capability seam).
 function categoryNeedsOllamaModels(category) {
-  if (IS_LITE) return false;
-  return lastFetchedPayload.settings.some(
-    (s) => s.category === category && s.dynamicOptions?.source === 'ollama_models'
-  );
+  if (!localCapabilities) return false;
+  return localCapabilities.categoryNeedsOllamaModels(category, lastFetchedPayload);
 }
 
 function categoryNeedsGenerationModels(category) {
@@ -1237,14 +1147,11 @@ function categoryNeedsGenerationModels(category) {
 // Fetches /api/ollama-models fresh and re-renders — reused directly by
 // both the initial category render (below) and the "Refresh models"
 // button, so there is exactly one fetch/render path for this data, never
-// two drifting implementations.
+// two drifting implementations. Full-only — real implementation in
+// local-features.js; null in Lite (see this file's own header comment).
 async function refreshOllamaModels(main, category, myGeneration, { forceRefresh = false } = {}) {
-  if (IS_LITE) return;
-  try {
-    lastOllamaModels = await api(forceRefresh ? '/api/ollama-models?refresh=1' : '/api/ollama-models');
-  } catch (err) {
-    lastOllamaModels = { available: false, reason: err.message, models: [] };
-  }
+  if (!localCapabilities) return;
+  await localCapabilities.refreshOllamaModels(forceRefresh, (models) => { lastOllamaModels = models; });
   if (myGeneration !== renderGeneration) return;
   const content = main.querySelector('#gs-content');
   if (content) renderEditableCategory(content, category);

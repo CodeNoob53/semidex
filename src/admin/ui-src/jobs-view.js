@@ -8,38 +8,56 @@
 // collection-creation FORM itself: folder picker, options, Ollama
 // readiness check, and POSTing to /api/jobs/index.
 //
-// IS_LITE (see global-settings-view.js's own header comment for the full
-// SEMIDEX_LITE/typeof rationale) guards every reference to the ONNX/
-// LLM-summaries/tag-gen checkboxes and the Ollama-status check —
-// vite.config.lite.js's stripHtmlMarkers plugin removes those elements
-// from index-view.html entirely for the Lite build, so `$('#opt-onnx')`
-// etc. would return null there; IS_LITE lets Rollup dead-code-eliminate
-// the guarded branches so the Lite bundle has no reachable code path that
-// assumes those elements exist.
-import indexViewShell from './partials/index-view.html?raw';
-import { $, esc, errorBox } from './dom.js';
-import { api, apiPost } from './api.js';
+// This module's own markup (index-view.html?raw, imported below) is
+// PHYSICALLY DIFFERENT between the Full and Lite builds (Phase 6 of
+// docs/design/full-lite-shared-architecture-audit-2026-08-01.md) — Full's
+// partials/full/index-view.html has the ONNX/LLM-summaries/tag-gen
+// checkboxes and the Ollama-status placeholder; Lite's
+// partials/lite/index-view.html has only the prune-stale checkbox. Which
+// file this import resolves to is decided by which Vite config is building
+// (see vite.config.js's/vite.config.lite.js's own resolve.alias entry for
+// 'edition').
+//
+// This file NEVER references '#opt-onnx'/'#opt-llm-summaries'/'#opt-tags'/
+// '#idx-ollama-status' as selector strings, not even to feature-detect
+// whether they exist — every one of those id strings lives only inside
+// local-features.js's own querySelector() calls (see that file's own
+// header comment: an earlier version of this file DID call
+// $('#opt-onnx') itself just to check presence, and that selector STRING
+// LITERAL alone leaked into the Lite JS bundle even though the calling
+// code path was gated behind a null capability check — caught by this
+// phase's own real `vite build --config vite.config.lite.js` DCE test,
+// which scans actual build output, not source). Instead,
+// wireIndexingFormLocalOptions()/collectLocalJobOptions() are called
+// unconditionally through the capability seam (localCapabilities, set by
+// setJobsLocalCapabilities() — only entries/full.js calls it); each
+// no-ops or returns null when the relevant elements aren't present, which
+// is exactly Lite's real, permanent state, not a temporary fallback.
+import indexViewShell from 'edition/index-view.html?raw';
+import { $, errorBox, esc } from './dom.js';
+import { apiPost } from './api.js';
 import { openOperationModal } from './operation-modal.js';
 import { pollNow } from './operation-store.js';
 
-const IS_LITE = typeof SEMIDEX_LITE !== 'undefined' && SEMIDEX_LITE;
+let localCapabilities = null;
+
+export function setJobsLocalCapabilities(capabilities) {
+  localCapabilities = capabilities;
+}
 
 export async function renderIndexingView(main) {
   main.innerHTML = indexViewShell;
+  const form = $('#index-form');
 
   $('#opt-prune').addEventListener('change', (e) => {
     e.target.closest('label').classList.toggle('warn', e.target.checked);
   });
 
-  if (!IS_LITE) {
-    $('#opt-llm-summaries').addEventListener('change', (e) => {
-      if (e.target.checked) loadOllamaStatus(); else $('#idx-ollama-status').style.display = 'none';
-    });
-  }
+  localCapabilities?.wireIndexingFormLocalOptions(form, { esc, errorBox });
 
   $('#idx-choose-folder').addEventListener('click', chooseIndexFolder);
 
-  $('#index-form').addEventListener('submit', (e) => {
+  form.addEventListener('submit', (e) => {
     e.preventDefault();
     startIndexJob();
   });
@@ -79,32 +97,10 @@ async function chooseIndexFolder() {
   }
 }
 
-const OLLAMA_STATUS_BADGE = {
-  available: 'badge badge-ok',
-  missing: 'badge badge-fail',
-  model_missing: 'badge badge-warn',
-};
-
-async function loadOllamaStatus() {
-  if (IS_LITE) return;
-  const box = $('#idx-ollama-status');
-  if (!box) return;
-  box.style.display = '';
-  box.innerHTML = '<span class="mono muted">checking Ollama…</span>';
-  try {
-    const { status, message } = await api('/api/system/ollama-status');
-    const badgeClass = OLLAMA_STATUS_BADGE[status] ?? 'badge';
-    box.innerHTML = `LLM summaries require Ollama:
-      <span class="${badgeClass}">${esc(status)}</span>
-      <span class="skel-note" style="display:inline;margin:0 0 0 6px">${esc(message)}</span>`;
-  } catch (err) {
-    box.innerHTML = errorBox(err);
-  }
-}
-
 async function startIndexJob() {
   const status = $('#idx-status');
   const submit = $('#idx-submit');
+  const form = $('#index-form');
 
   const collection = $('#idx-collection').value.trim();
   const path = currentIndexPathValue();
@@ -114,22 +110,15 @@ async function startIndexJob() {
     return;
   }
 
+  // pruneStale is the only option Semidex Lite's jobs policy allows
+  // (admin/composition/lite.js's LITE_JOB_POLICY) — its checkbox is the
+  // one field common to both editions' forms, so it's read directly here
+  // (not through the capability seam) regardless of edition.
+  const localOptions = localCapabilities?.collectLocalJobOptions(form);
   const payload = {
     collection,
     path,
-    // pruneStale is the only option Semidex Lite's jobs policy allows
-    // (admin/composition/lite.js's LITE_JOB_POLICY) — its checkbox is the one kept in the
-    // Lite build's stripped index-view.html (see vite.config.lite.js), so
-    // it's read unconditionally here. The other three only exist in the
-    // full build's DOM.
-    options: IS_LITE
-      ? { pruneStale: $('#opt-prune').checked }
-      : {
-          onnxEmbed: $('#opt-onnx').checked,
-          llmSummaries: $('#opt-llm-summaries').checked,
-          pruneStale: $('#opt-prune').checked,
-          tagGen: $('#opt-tags').checked,
-        },
+    options: { ...(localOptions ?? {}), pruneStale: $('#opt-prune').checked },
   };
 
   submit.disabled = true;
@@ -154,7 +143,7 @@ async function startIndexJob() {
       status.textContent = `${err.message} Open the operation status to view or cancel it.`;
     } else if (err.status === 503) {
       status.textContent = err.message;
-      loadOllamaStatus();
+      localCapabilities?.retryOllamaStatus(form, { esc, errorBox });
     } else {
       status.textContent = err.message;
     }

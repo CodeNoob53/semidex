@@ -1,3 +1,4 @@
+import { resolve } from 'node:path';
 import { defineConfig } from 'vite';
 import fullReload from 'vite-plugin-full-reload';
 import injectHTML from 'vite-plugin-html-inject';
@@ -10,17 +11,24 @@ import injectHTML from 'vite-plugin-html-inject';
 // is overridable via ADMIN_PORT to match a non-default `npm run admin`.
 const apiProxyTarget = `http://127.0.0.1:${process.env.ADMIN_PORT || 8642}`;
 
+const ROOT = resolve(__dirname, 'src/admin/ui-src');
+
 export default defineConfig({
-  root: 'src/admin/ui-src',
+  root: ROOT,
   base: '/',
-  define: {
-    // Semidex Lite package boundary (packages/lite): false here, true in
-    // vite.config.lite.js. A hardcoded boolean literal (not `undefined`, not
-    // an env-read) lets Rollup's dead-code elimination statically remove
-    // `if (SEMIDEX_LITE) {...}`/`if (!SEMIDEX_LITE) {...}` branches from
-    // whichever build doesn't need them — see global-settings-view.js's own
-    // ONNX/Ollama-model guard functions for the branches this enables.
-    SEMIDEX_LITE: JSON.stringify(false),
+  resolve: {
+    // Phase 6 (docs/design/full-lite-shared-architecture-audit-2026-08-01.md):
+    // jobs-view.js/settings-view.js import 'edition/index-view.html' and
+    // 'edition/settings-shell.html' — a stable, edition-neutral bare
+    // specifier directory, not a real path on disk. This config (Full)
+    // aliases 'edition' to partials/full/; vite.config.lite.js aliases the
+    // same 'edition' specifier to partials/lite/ instead, so each build
+    // resolves the SAME import statement in jobs-view.js/settings-view.js
+    // to its own edition's real, physically separate partial file — never
+    // the same file post-processed or stripped.
+    alias: [
+      { find: 'edition', replacement: resolve(ROOT, 'partials/full') },
+    ],
   },
   server: {
     proxy: {
@@ -42,9 +50,12 @@ export default defineConfig({
     // Vite's own `root` above — without this the glob silently matches
     // nothing (verified: partials/**/*.html alone, with no root option,
     // never logged a reload when editing a partial).
-    fullReload(['partials/**/*.html'], { root: 'src/admin/ui-src' }),
+    fullReload(['partials/**/*.html'], { root: ROOT }),
   ],
   build: {
+    rollupOptions: {
+      input: resolve(ROOT, 'index.html'),
+    },
     // Repo-root dist/, outside Vite's own root (src/admin/ui-src) — three
     // levels up (ui-src -> admin -> src -> repo root), then into dist/admin-ui.
     outDir: '../../../dist/admin-ui',

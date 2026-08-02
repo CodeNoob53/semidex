@@ -1,7 +1,7 @@
 // ── top-level main-panel views: overview (no collection selected) and the
 // selected collection's overview (header + search + file/section content) ──
-import overviewShell from './partials/overview-shell.html?raw';
-import collectionShell from './partials/collection-shell.html?raw';
+import overviewShell from './partials/shared/overview-shell.html?raw';
+import collectionShell from './partials/shared/collection-shell.html?raw';
 import { $, esc, errorBox, emptyBox } from './dom.js';
 import { api } from './api.js';
 import { getExpandedCollection, setExpandedCollection } from './state.js';

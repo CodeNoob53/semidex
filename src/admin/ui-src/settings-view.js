@@ -3,7 +3,12 @@
 // diagnostics" (dense/sparse vector details, provider strings, schema
 // versions, semidex-managed flag, raw warnings) — the latter collapsed by
 // default so the default view is not filled with developer-only labels.
-import settingsShell from './partials/settings-shell.html?raw';
+// 'edition/settings-shell.html' is an alias directory (see vite.config.js's/
+// vite.config.lite.js's own resolve.alias entry for 'edition') pointing at
+// partials/full/ in the Full build and partials/lite/ in the Lite build —
+// each config's own comment explains why. There is no single physical
+// partials/settings-shell.html on disk any more.
+import settingsShell from 'edition/settings-shell.html?raw';
 import { $, esc, cloneTemplate, errorBox } from './dom.js';
 import { api, apiPost, apiDelete } from './api.js';
 import { getExpandedCollection, setExpandedCollection } from './state.js';
@@ -11,12 +16,26 @@ import { loadSidebar } from './sidebar.js';
 import { openOperationModal } from './operation-modal.js';
 import { pollNow, seedOperationAsRunning, findLatestOperation } from './operation-store.js';
 
-// See global-settings-view.js's own header comment for the full
-// SEMIDEX_LITE/typeof rationale. vite.config.lite.js's stripHtmlMarkers
-// plugin removes the ONNX/LLM-summaries/tag-gen checkboxes from
-// settings-shell.html's Reindex form for the Lite build, so
-// runSettingsReindex() must not read them there.
-const IS_LITE = typeof SEMIDEX_LITE !== 'undefined' && SEMIDEX_LITE;
+let localCapabilities = null;
+
+export function setSettingsLocalCapabilities(capabilities) {
+  localCapabilities = capabilities;
+}
+
+// This module's own markup (settings-shell.html?raw, imported above) is
+// PHYSICALLY DIFFERENT between the Full and Lite builds (Phase 6 of
+// docs/design/full-lite-shared-architecture-audit-2026-08-01.md) — Full's
+// partials/full/settings-shell.html has the ONNX/LLM-summaries/tag-gen
+// checkboxes on the Reindex form; Lite's partials/lite/settings-shell.html
+// has only the prune-stale checkbox. runSettingsReindex() below
+// feature-detects the real DOM it was actually given ($('#opt-onnx') is
+// null when that element genuinely isn't in the page), the same pattern
+// jobs-view.js's startIndexJob() uses for its own (separate) form. The
+// actual onnxEmbed/llmSummaries/tagGen option-collection call routes
+// through local-features.js via setSettingsLocalCapabilities() (see
+// jobs-view.js's own header comment for why: those field-name string
+// literals must be physically absent from the Lite bundle, which a plain
+// inline object literal here would not achieve since this file is shared).
 
 const RECENT_SOURCE_PATHS_KEY = 'semidex-admin-recent-source-paths';
 
@@ -170,18 +189,17 @@ async function runSettingsReindex(name) {
     return;
   }
 
+  // pruneStale is the one field common to both editions' forms, so it's
+  // read directly here (not through the capability seam) regardless of
+  // edition — see local-features.js's own header comment for why the
+  // ONNX/LLM-summaries/tag-gen selector strings must never appear in this
+  // file itself, even just to feature-detect their presence.
+  const localOptions = localCapabilities?.collectLocalJobOptions($('#settings-reindex-form'));
   const payload = {
     collection: name,
     path,
     kind: 'reindex', // Phase 3S: distinguishes this from a brand-new-collection index in the operation modal — same job otherwise
-    options: IS_LITE
-      ? { pruneStale: $('#opt-prune').checked }
-      : {
-          onnxEmbed: $('#opt-onnx').checked,
-          llmSummaries: $('#opt-llm-summaries').checked,
-          tagGen: $('#opt-tags').checked,
-          pruneStale: $('#opt-prune').checked,
-        },
+    options: { ...(localOptions ?? {}), pruneStale: $('#opt-prune').checked },
   };
 
   submit.disabled = true;

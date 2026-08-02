@@ -337,6 +337,28 @@ source-regex scanning is used as the authority for any of the five checks.
 
 ### The Lite admin UI — real dead-code elimination, not hiding
 
+**Phase 6 update** (`docs/design/full-lite-shared-architecture-audit-2026-08-01.md`
+§8, implemented — see `docs/design/phase-6-full-lite-ui-composition-2026-08-02.md`):
+everything below this note describes the ORIGINAL marker-strip/DCE
+mechanism, kept as the historical record of why it was built and how it
+was verified. That mechanism no longer exists. Full and Lite now build
+from physically separate HTML/JS entry points and physically separate
+partial files (`partials/full/*.html` vs. `partials/lite/*.html`) —
+`stripHtmlMarkers()`, `HTML_STRIPS`, and every `semidex-lite-strip:*`
+marker are gone; there is nothing to strip because Lite's build never
+composes the local-only markup into its page or bundle in the first
+place. `SEMIDEX_LITE`/`IS_LITE` are gone from `global-settings-view.js`/
+`jobs-view.js`/`settings-view.js` entirely — the local-only BEHAVIOR
+(ONNX probe panel, Ollama model discovery, Ollama readiness check,
+onnxEmbed/llmSummaries/tagGen job options) now lives in a new
+`local-features.js`, reached only through a capability-injection seam
+(`setLocalSettingsCapabilities()`/`setJobsLocalCapabilities()`/
+`setSettingsLocalCapabilities()`) that only `entries/full.js` calls.
+`tests/unit/lite/ui-build-dce.test.js` still runs the same real
+`vite build --config vite.config.lite.js` + output-marker-scan this
+section describes, and still passes — the guarantee is unchanged, only
+the mechanism producing it is.
+
 Most of the Settings view is already rendered generically from
 `GET /api/settings`'s response (`fieldRow(category, entry)` — the same
 function for every field), so a Lite backend (whose response only ever

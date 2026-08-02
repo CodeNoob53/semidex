@@ -5,7 +5,7 @@ import { readUiSource, readUiModuleWithPartial } from './ui-test-helpers.js';
 
 describe('collection settings (ui-src/settings-view.js + settings-shell.html source)', () => {
   it('renders a settings view with reindex, repair, diagnostics, and delete', () => {
-    const js = readUiModuleWithPartial('settings-view.js', 'settings-shell.html'); // "Advanced diagnostics" heading lives in settings-shell.html
+    const js = readUiModuleWithPartial('settings-view.js', 'full/settings-shell.html'); // "Advanced diagnostics" heading lives in settings-shell.html
     assert.match(js, /async function renderSettingsView/);
     assert.match(js, /Advanced diagnostics/);
   });
@@ -17,13 +17,13 @@ describe('collection settings (ui-src/settings-view.js + settings-shell.html sou
   });
 
   it('reindex options are grouped and include LLM summaries', () => {
-    const js = readUiModuleWithPartial('settings-view.js', 'settings-shell.html'); // opt-group-label markup lives in settings-shell.html
+    const js = readUiModuleWithPartial('settings-view.js', 'full/settings-shell.html'); // opt-group-label markup lives in settings-shell.html
     assert.match(js, /opt-group-label">Quality/);
     assert.match(js, /opt-llm-summaries/);
   });
 
   it('sends no skeletonChunking/skeletonNav reindex options — skeleton-first indexing is unconditional architecture, not a per-job choice', () => {
-    const js = readUiModuleWithPartial('settings-view.js', 'settings-shell.html');
+    const js = readUiModuleWithPartial('settings-view.js', 'full/settings-shell.html');
     assert.ok(!/skeletonChunking/.test(js));
     assert.ok(!/skeletonNav/.test(js));
     assert.ok(!js.includes('id="opt-skel-chunk"'));
@@ -56,14 +56,14 @@ describe('collection settings (ui-src/settings-view.js + settings-shell.html sou
   });
 
   it('renames sync-schema to "Repair collection compatibility" with an explanatory tooltip', () => {
-    const js = readUiModuleWithPartial('settings-view.js', 'settings-shell.html'); // button label/tooltip live in settings-shell.html
+    const js = readUiModuleWithPartial('settings-view.js', 'full/settings-shell.html'); // button label/tooltip live in settings-shell.html
     assert.match(js, /Repair collection compatibility/);
     assert.match(js, /Checks and repairs semidex metadata, vector names, and payload indexes/);
     assert.ok(!/>sync schema</i.test(js), 'old unexplained "sync schema" label must not remain verbatim');
   });
 
   it('keeps the reindex/prune-stale safety copy', () => {
-    const js = readUiModuleWithPartial('settings-view.js', 'settings-shell.html'); // safety copy lives in settings-shell.html
+    const js = readUiModuleWithPartial('settings-view.js', 'full/settings-shell.html'); // safety copy lives in settings-shell.html
     assert.match(js, /Reindex starts a background job and writes to this collection/);
     assert.match(js, /Use prune stale only with the full source root/);
   });
@@ -89,7 +89,7 @@ describe('collection settings (ui-src/settings-view.js + settings-shell.html sou
   });
 
   it('advanced diagnostics (dense/sparse vector, provider, schema versions) are collapsed by default', () => {
-    const js = readUiModuleWithPartial('settings-view.js', 'settings-shell.html'); // <details class="panel advanced-panel"> lives in settings-shell.html
+    const js = readUiModuleWithPartial('settings-view.js', 'full/settings-shell.html'); // <details class="panel advanced-panel"> lives in settings-shell.html
     assert.match(js, /<details class="panel advanced-panel">/);
     assert.match(js, /function renderAdvancedDiagnostics/);
   });

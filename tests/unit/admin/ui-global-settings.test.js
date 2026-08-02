@@ -55,9 +55,9 @@ describe('global settings markup architecture', () => {
   it('keeps reusable settings markup in injected HTML templates, not JS string builders', () => {
     const js = readUiSource('global-settings-view.js');
     const index = readUiSource('index.html');
-    const templates = readUiSource('partials/templates/global-settings.html');
+    const templates = readUiSource('partials/shared/templates/global-settings.html');
 
-    assert.match(index, /<load src="partials\/templates\/global-settings\.html"\s*\/>/);
+    assert.match(index, /<load src="partials\/shared\/templates\/global-settings\.html"\s*\/>/);
     assert.match(templates, /<template id="tpl-global-settings-shell">/);
     assert.match(templates, /<template id="tpl-gs-field">/);
     assert.match(templates, /<template id="tpl-gs-status-panel">/);

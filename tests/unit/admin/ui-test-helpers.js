@@ -452,7 +452,7 @@ export function loadFileViewBehaviorHelpers(html, apiResponses = {}, { renderChu
 // jobs-view.js renderJobRow(), which this module's tests used to target;
 // see docs/admin-ui-phase3s-unified-operation-status-2026-07-11.md for the
 // architecture this replaced). Needs the real built index.html (tpl-job-row
-// lives in partials/templates/job-row.html, reused as-is by the modal).
+// lives in partials/shared/templates/job-row.html, reused as-is by the modal).
 export function loadOperationRenderHelpers(html) {
   const { document } = parseHTML(html);
   const context = { document };
@@ -573,8 +573,8 @@ export function loadRouteIntegrationHelpers(html, { hash = '#/', apiResponses = 
     // collection-view.js's ?raw partial imports become plain consts —
     // real partial content, so markup-dependent behavior (e.g. #col-header,
     // #search-panel existing after mount) matches production exactly.
-    `const overviewShell = ${JSON.stringify(readUiSource('partials/overview-shell.html'))};`,
-    `const collectionShell = ${JSON.stringify(readUiSource('partials/collection-shell.html'))};`,
+    `const overviewShell = ${JSON.stringify(readUiSource('partials/shared/overview-shell.html'))};`,
+    `const collectionShell = ${JSON.stringify(readUiSource('partials/shared/collection-shell.html'))};`,
     stripImports(readUiSource('collection-view.js')),
     stripImports(readUiSource('router.js'))
       // router.js imports renderSettingsView/renderGlobalSettingsView/
@@ -763,7 +763,7 @@ export function loadSettingsRepairHelpers(html, { apiPostImpl, apiImpl } = {}) {
     clearTimeout: () => {},
   };
   vm.createContext(context);
-  const settingsShellHtml = readUiSource('partials/settings-shell.html');
+  const settingsShellHtml = readUiSource('partials/full/settings-shell.html');
   const src = stripExports(readUiSource('dom.js')).replace(/^import .*$/gm, '')
     + stripExports(readUiSource('operation-store.js')).replace(/^import .*$/gm, '')
     + stripExports(readUiSource('operation-render.js')).replace(/^import .*$/gm, '')
@@ -853,10 +853,20 @@ if (!Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'open')) {
 // a test run, so they're computed once, lazily, on first use and reused —
 // only the vm.Context (and its document/state inside it) stays per-call and
 // fully isolated, which is what actually needs to be fresh per test.
+// Phase 6: global-settings.html was split into the shared template pool
+// (partials/shared/templates/global-settings.html) and the Full-only ONNX
+// probe panel template (partials/full/onnx-probe-panel.html, <load>ed only
+// by src/admin/ui-src/index.html, never by lite-entry/index.html). This
+// harness concatenates both, matching the real Full build's composed
+// index.html — loadGlobalSettingsHelpers() itself has always exercised
+// Full-shaped behavior (no SEMIDEX_LITE global at all, the same as
+// production Full code loaded outside Vite), so its template pool must
+// include the ONNX panel template for any test that renders it.
 let cachedGlobalSettingsTemplates = null;
 function getGlobalSettingsTemplates() {
   if (cachedGlobalSettingsTemplates === null) {
-    cachedGlobalSettingsTemplates = readUiSource('partials/templates/global-settings.html');
+    cachedGlobalSettingsTemplates = readUiSource('partials/shared/templates/global-settings.html')
+      + '\n' + readUiSource('partials/full/onnx-probe-panel.html');
   }
   return cachedGlobalSettingsTemplates;
 }
@@ -890,6 +900,23 @@ let cachedGlobalSettingsScript = null;
 function getGlobalSettingsScript() {
   if (cachedGlobalSettingsScript === null) {
     const stripImports = (src) => stripExports(src).replace(/^import .*$/gm, '').replace(/^export \{[^}]*\};?\s*$/gm, '');
+    // Phase 6: global-settings-view.js no longer implements the ONNX probe
+    // panel/Ollama model discovery itself — local-features.js does, reached
+    // through global-settings-view.js's own setLocalSettingsCapabilities()
+    // capability seam (only entries/full.js calls that setter in
+    // production; entries/lite.js never does). This harness has always
+    // exercised FULL-shaped behavior (no SEMIDEX_LITE global at all, same
+    // as this source loaded directly outside Vite) — existing tests
+    // (ui-global-settings-onnx-panel.test.js et al.) expect the ONNX panel
+    // to actually render, so local-features.js is concatenated here too and
+    // wired in via a real call to setLocalSettingsCapabilities(), mirroring
+    // exactly what entries/full.js does in production. api.js's own
+    // api/apiPost (local-features.js's only import besides ./api.js, which
+    // this harness already stubs on the vm context object below) are
+    // supplied by the context directly — local-features.js's stripped body
+    // references the bare identifiers `api`/`apiPost`, which resolve
+    // against the context the same way every other concatenated module's
+    // calls already do.
     const src = stripImports(readUiSource('dom.js'))
       + stripImports(readUiSource('format.js'))
       + stripImports(readUiSource('state.js'))
@@ -902,7 +929,29 @@ function getGlobalSettingsScript() {
       // above) is what does that aliasing in production; re-bind it here so
       // the concatenated bundle's identifier references still resolve.
       + '\nconst findQdrantCloudDenseModel = findDenseModel;\n'
-      + stripImports(readUiSource('global-settings-view.js'));
+      // local-features.js's own top-level function names (onnxProbePanel,
+      // categoryNeedsOllamaModels, etc.) COLLIDE with global-settings-view.js's
+      // own same-named capability-seam wrapper functions once both are
+      // concatenated into one flat vm-context scope. Function DECLARATIONS
+      // hoist — with two same-named `function foo() {}` declarations in one
+      // scope, the LATER one always wins for every reference to `foo`,
+      // regardless of textual order, so even capturing a reference between
+      // the two files' text (tried first; still recursed with a real
+      // RangeError: Maximum call stack size exceeded, confirming hoisting
+      // — not declaration order — determines the winner) does not separate
+      // them. Fixed by renaming local-features.js's exports with an
+      // "__lf_" prefix ONLY in this test harness's own concatenation (never
+      // in the real shipped source, which uses real ES module scoping and
+      // has no such collision) — a real `import * as localFeatures from
+      // './local-features.js'` in production keeps the two scopes
+      // genuinely separate; this harness has no module loader, so it must
+      // separate them by renaming instead.
+      + stripImports(readUiSource('local-features.js')).replace(
+        /\b(onnxProbePanel|wireOnnxProbePanel|categoryNeedsOllamaModels|refreshOllamaModels)\b/g,
+        '__lf_$1',
+      )
+      + stripImports(readUiSource('global-settings-view.js'))
+      + '\nsetLocalSettingsCapabilities({ onnxProbePanel: __lf_onnxProbePanel, wireOnnxProbePanel: __lf_wireOnnxProbePanel, categoryNeedsOllamaModels: __lf_categoryNeedsOllamaModels, refreshOllamaModels: __lf_refreshOllamaModels });\n';
     cachedGlobalSettingsScript = new vm.Script(src, { filename: 'global-settings-view-bundle.js' });
   }
   return cachedGlobalSettingsScript;

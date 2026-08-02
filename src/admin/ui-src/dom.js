@@ -11,7 +11,8 @@ export function esc(value) {
 }
 
 // Clones a <template> declared in index.html (via <load ...> from
-// partials/templates/*.html) and returns its content fragment. Callers fill
+// partials/shared/templates/*.html and, in the Full build only,
+// partials/full/onnx-probe-panel.html) and returns its content fragment. Callers fill
 // in data with textContent/dataset/setAttribute, never innerHTML — the
 // template markup itself is the only trusted HTML in play.
 export function cloneTemplate(id) {

@@ -172,7 +172,7 @@ describe('search result cards show only the matched chunk (no windowChunks rende
   });
 
   it('the search-result template no longer defines a window-chunk sub-template or "Nearby context" markup', () => {
-    const html = readUiSource('partials/templates/search-result.html');
+    const html = readUiSource('partials/shared/templates/search-result.html');
     assert.ok(!/tpl-window-chunk/.test(html), 'the window-chunk template must be removed entirely');
     assert.ok(!/win-chunks/.test(html), 'no win-chunks container must remain in the template');
     assert.ok(!/Nearby context/.test(html), 'no "Nearby context" label must remain in the template');
@@ -1123,7 +1123,7 @@ describe('score/rank shown by default (no checkbox opt-in)', () => {
   });
 
   it('the score-bar keeps the same "used for ranking, compare order not absolute value" tooltip as the numeric score (Phase 3O copy)', () => {
-    const html = readUiSource('partials/templates/search-result.html');
+    const html = readUiSource('partials/shared/templates/search-result.html');
     const matches = html.match(/title="Used for ranking; compare order, not absolute value\."/g) ?? [];
     assert.equal(matches.length, 2, 'both .score and .score-bar must carry the RRF-order-not-confidence tooltip');
   });

@@ -11,7 +11,7 @@ import { renderChunkContent } from '../../../src/admin/ui-src/structural-rendere
 // so there's no risk of a stray flag leaking rank/score into browse mode.
 describe('file/section browse cards never show search rank/score (this is browse mode, not search-evidence mode)', () => {
   it('tpl-chunk-card has no rank/score/score-bar fields at all', () => {
-    const templateHtml = readUiSource('partials/templates/chunk-card.html');
+    const templateHtml = readUiSource('partials/shared/templates/chunk-card.html');
     assert.doesNotMatch(templateHtml, /class="rank"/);
     assert.doesNotMatch(templateHtml, /class="[^"]*\bscore\b[^"]*"/);
     assert.doesNotMatch(templateHtml, /score-bar/);

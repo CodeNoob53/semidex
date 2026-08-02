@@ -736,7 +736,30 @@ pipeline-stage level.
 
 ## 8. Admin UI composition
 
-### 8.1 Current mechanism (verified by reading both Vite configs in full)
+**Phase 6 update (implemented; see
+`docs/design/phase-6-full-lite-ui-composition-2026-08-02.md`)**: §8.1-8.3
+below describe the ORIGINAL, pre-Phase-6 marker-strip mechanism this
+section originally assessed — kept as the historical record of the
+reasoning that led to the Phase 6 recommendation actually being executed.
+That mechanism no longer exists. Full and Lite now build from physically
+separate HTML/JS entry points (`src/admin/ui-src/index.html` +
+`entries/full.js` vs. `src/admin/ui-src/lite-entry/index.html` +
+`entries/lite.js`) and physically separate partial files
+(`partials/full/*.html` vs. `partials/lite/*.html`, with genuinely shared
+markup in `partials/shared/`) — `stripHtmlMarkers()`/`HTML_STRIPS` and
+every `semidex-lite-strip:*` marker are gone. The ONNX probe panel/Ollama
+model discovery/Ollama readiness-check/onnxEmbed-llmSummaries-tagGen job
+options are implemented in a new `local-features.js`, reached from the
+three shared view modules (`global-settings-view.js`, `jobs-view.js`,
+`settings-view.js`) only through a capability-injection seam
+(`setLocalSettingsCapabilities()`/`setJobsLocalCapabilities()`/
+`setSettingsLocalCapabilities()`) that only `entries/full.js` calls —
+`entries/lite.js` never imports `local-features.js` at all, confirmed both
+by the real AST import graph and by a real `vite build --config
+vite.config.lite.js` output scan. `SEMIDEX_LITE`/`IS_LITE` are gone
+entirely from ordinary UI feature code.
+
+### 8.1 Current mechanism (verified by reading both Vite configs in full) — HISTORICAL, describes the pre-Phase-6 state
 
 Two Vite configs (`vite.config.js` / `vite.config.lite.js`), ONE shared
 `src/admin/ui-src/` source tree, `SEMIDEX_LITE` boolean literal define
@@ -749,7 +772,7 @@ a small marker-based strip plugin at exactly two spots:
 and duplicated ONNX/LLM-summaries/tag-gen checkboxes on TWO separate
 indexing forms (`index-view.html`, `settings-shell.html`).
 
-### 8.2 Assessment of the task's proposed `entries/full.js` + `partials/{shared,full,lite}/` structure
+### 8.2 Assessment of the task's proposed `entries/full.js` + `partials/{shared,full,lite}/` structure — HISTORICAL, this is the assessment that led to Phase 6 (now implemented, see the update note above)
 
 Evaluated against the CURRENT working mechanism, not assumed superior by
 default. The proposed structure would require:
@@ -1099,7 +1122,7 @@ explicitly to match the original array (a code-review-caught fix — see
 same order, with a regression test pinning both. Zero runtime behavior
 change. Phase 6 (Admin UI entry/partials restructure) remains not started.
 
-### Phase 6 — Admin UI `entries/{full,lite}.js` + `partials/{shared,full,lite}/` restructure (§8.2)
+### Phase 6 — Admin UI `entries/{full,lite}.js` + `partials/{shared,full,lite}/` restructure (§8.2) — IMPLEMENTED (see `docs/design/phase-6-full-lite-ui-composition-2026-08-02.md`)
 
 Files: `vite.config.js`, `vite.config.lite.js`, `main.js` split into two
 entries, the 2 local-only markup blocks moved into `partials/full/`.
@@ -1111,6 +1134,38 @@ point genuinely changes — verify the diff is EXACTLY "different bundle
 structure," never "different runtime behavior"). Exit gate: both real
 Vite builds succeed, DCE test suite (updated for the new entry shape)
 passes, manual smoke of both `admin:dev` and a Lite `serve` session.
+
+As implemented: `main.js` was removed (superseded by `entries/full.js`/
+`entries/lite.js`, each with its own real `<script type="module">` entry
+in its own real HTML document — `src/admin/ui-src/index.html` for Full,
+`src/admin/ui-src/lite-entry/index.html` for Lite, both producing
+`index.html` as their build output filename, matching what
+`packages/lite/build.mjs`/`src/admin/static.js` require). The ONNX probe
+panel template moved to `partials/full/onnx-probe-panel.html`,
+`<load>`ed only by Full's `index.html`. `index-view.html`/
+`settings-shell.html` became real Full/Lite file pairs
+(`partials/full/*.html`, `partials/lite/*.html`), selected per build via a
+`resolve.alias` entry (named `edition`) in each Vite config — NOT the
+originally-planned `IS_LITE`-guarded functions moved into separate
+`-full.js` files, since `router.js` statically imports
+`global-settings-view.js`/`jobs-view.js`/`settings-view.js` exactly once
+for both editions and a physical per-edition file split would have forced
+either duplicating their large shared rendering logic or adding a routing
+seam of its own. Instead, the genuinely local-only BEHAVIOR (not just
+markup) was extracted into `local-features.js`, reached only through a
+capability-injection seam each of the three shared view modules exposes —
+`entries/full.js` is the only file that ever imports `local-features.js`
+or calls its setters, verified both structurally (a real AST import-graph
+test) and behaviorally (a real `vite build --config vite.config.lite.js`
+output scan finds zero occurrences of every local-only marker AND zero
+occurrences of `local-features.js`'s own function names). A real
+regression was caught and fixed during this work: an intermediate version
+had the shared view modules call `$('#opt-onnx')` themselves just to
+feature-detect whether the element existed, and that SELECTOR STRING
+LITERAL alone leaked into the Lite JS bundle even though the code path
+using it was gated — fixed by moving every such selector string into
+`local-features.js`'s own querySelector() calls, so the shared modules
+never reference those strings at all, not even to check presence.
 
 ### Phase 7 — Remove now-unnecessary Lite shims (only after Phases 3–6 land)
 
