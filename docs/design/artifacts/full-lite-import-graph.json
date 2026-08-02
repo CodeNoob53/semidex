@@ -1,0 +1,5788 @@
+{
+  "roots": [
+    "src",
+    "packages/lite/lite-src"
+  ],
+  "files": [
+    "src/admin/api/assembly.js",
+    "src/admin/api/chunks.js",
+    "src/admin/api/collections.js",
+    "src/admin/api/documents.js",
+    "src/admin/api/generation-models.js",
+    "src/admin/api/generation.js",
+    "src/admin/api/health.js",
+    "src/admin/api/jobs.js",
+    "src/admin/api/node.js",
+    "src/admin/api/ollama-models.js",
+    "src/admin/api/onnx.js",
+    "src/admin/api/operations.js",
+    "src/admin/api/qdrant-cloud.js",
+    "src/admin/api/query-params.js",
+    "src/admin/api/search.js",
+    "src/admin/api/settings.js",
+    "src/admin/api/skeleton.js",
+    "src/admin/api/system.js",
+    "src/admin/bootstrap.js",
+    "src/admin/jobs/registry.js",
+    "src/admin/jobs/task-registry.js",
+    "src/admin/router.js",
+    "src/admin/server-full.js",
+    "src/admin/server.js",
+    "src/admin/static.js",
+    "src/admin/system/folder-picker.js",
+    "src/admin/system/ollama.js",
+    "src/admin/system/qdrant-cloud.js",
+    "src/admin/ui-src/api.js",
+    "src/admin/ui-src/app.js",
+    "src/admin/ui-src/assembly-view.js",
+    "src/admin/ui-src/collection-view.js",
+    "src/admin/ui-src/dom.js",
+    "src/admin/ui-src/file-view.js",
+    "src/admin/ui-src/format.js",
+    "src/admin/ui-src/global-settings-view.js",
+    "src/admin/ui-src/icons.js",
+    "src/admin/ui-src/jobs-view.js",
+    "src/admin/ui-src/main.js",
+    "src/admin/ui-src/operation-modal.js",
+    "src/admin/ui-src/operation-render.js",
+    "src/admin/ui-src/operation-store.js",
+    "src/admin/ui-src/router.js",
+    "src/admin/ui-src/routes.js",
+    "src/admin/ui-src/search.js",
+    "src/admin/ui-src/settings-view.js",
+    "src/admin/ui-src/sidebar-resize.js",
+    "src/admin/ui-src/sidebar.js",
+    "src/admin/ui-src/state.js",
+    "src/admin/ui-src/structural-renderer.js",
+    "src/admin/ui-src/toasts.js",
+    "src/admin/ui-src/topbar.js",
+    "src/backfill-entity-refs.js",
+    "src/backfill-tags.js",
+    "src/bootstrap-docs.js",
+    "src/core/ask/citations.js",
+    "src/core/ask/coordinator.js",
+    "src/core/ask/evidence.js",
+    "src/core/ask/prompt.js",
+    "src/core/ask-api/v1/contract.js",
+    "src/core/ask-api/v1/request.js",
+    "src/core/ask-api/v1/route.js",
+    "src/core/assembly/anchored-content.js",
+    "src/core/assembly/assemble.js",
+    "src/core/assembly/contract.js",
+    "src/core/assembly/cursor.js",
+    "src/core/assembly/window.js",
+    "src/core/bench-telemetry.js",
+    "src/core/bge-tokenizer.js",
+    "src/core/ce-rerank-worker.js",
+    "src/core/ce-rerank.js",
+    "src/core/config.js",
+    "src/core/doctor-checks.js",
+    "src/core/embedding-profile/availability.js",
+    "src/core/embedding-profile/config-cache.js",
+    "src/core/embedding-profile/migrate.js",
+    "src/core/embedding-profile/onnx-lane.js",
+    "src/core/embedding-profile/qdrant-cloud-catalog.js",
+    "src/core/embedding-profile/qdrant-cloud-models.js",
+    "src/core/embedding-profile/qdrant-cloud-tokenizer.js",
+    "src/core/embedding-profile/resolve.js",
+    "src/core/embedding-profile/schema.js",
+    "src/core/embeddings.js",
+    "src/core/entity-reference.js",
+    "src/core/env-bootstrap.js",
+    "src/core/env.js",
+    "src/core/gemini-models.js",
+    "src/core/generation/config.js",
+    "src/core/generation/gemini-provider.js",
+    "src/core/generation/ollama-provider.js",
+    "src/core/generation/provider.js",
+    "src/core/generation/registry.js",
+    "src/core/generation/runtime.js",
+    "src/core/http/http.js",
+    "src/core/http/sse.js",
+    "src/core/length-bucket.js",
+    "src/core/node-id.js",
+    "src/core/ollama-lazy.js",
+    "src/core/ollama-lazy.lite.js",
+    "src/core/ollama-models.js",
+    "src/core/ollama.js",
+    "src/core/onnx-embed-lazy.js",
+    "src/core/onnx-embed-lazy.lite.js",
+    "src/core/onnx-embed.js",
+    "src/core/onnx-paths.js",
+    "src/core/onnx-probe-runner.js",
+    "src/core/onnx-provider-probe.js",
+    "src/core/onnx-runtime.js",
+    "src/core/point-id.js",
+    "src/core/qdrant/client.js",
+    "src/core/qdrant/ensure-schema.js",
+    "src/core/qdrant/index.js",
+    "src/core/qdrant/nav-filter.js",
+    "src/core/qdrant/payload.js",
+    "src/core/qdrant/schema.js",
+    "src/core/qdrant/store.js",
+    "src/core/qdrant.js",
+    "src/core/rerank.js",
+    "src/core/retrieval/search.js",
+    "src/core/settings/definitions.js",
+    "src/core/settings/lite-policy.js",
+    "src/core/settings/service.js",
+    "src/core/settings/service.lite.js",
+    "src/core/settings/settings-store.js",
+    "src/core/sparse.js",
+    "src/core/storage/adapter.js",
+    "src/core/storage/capabilities.js",
+    "src/core/storage/embedding-profile-cache.js",
+    "src/core/storage/factory.js",
+    "src/core/storage/qdrant-adapter.js",
+    "src/core/token-count.js",
+    "src/doctor.js",
+    "src/indexer/batch.js",
+    "src/indexer/files.js",
+    "src/indexer/index.js",
+    "src/indexer/phases/chunk.js",
+    "src/indexer/phases/combined.js",
+    "src/indexer/phases/context.js",
+    "src/indexer/phases/empty-section.js",
+    "src/indexer/phases/entity-split.js",
+    "src/indexer/phases/node-policy.js",
+    "src/indexer/phases/skeleton-chunk.js",
+    "src/indexer/phases/skeleton-index.js",
+    "src/indexer/phases/skeleton-summary.js",
+    "src/indexer/phases/skeleton.js",
+    "src/indexer/phases/tag-onnx-lazy.js",
+    "src/indexer/phases/tag-onnx-lazy.lite.js",
+    "src/indexer/phases/tag-onnx.js",
+    "src/indexer/phases/tag-provider.js",
+    "src/indexer/phases/tag.js",
+    "src/indexer/phases/token-budget-split.js",
+    "src/indexer/preflight.js",
+    "src/indexer/profiler.js",
+    "src/indexer/progress-event.js",
+    "src/indexer/run.js",
+    "src/indexer/semaphore.js",
+    "src/indexer/serial-queue.js",
+    "src/indexer/skeleton-payload.js",
+    "src/indexer/skeleton-warnings.js",
+    "src/indexer/workers/tag-onnx-worker.js",
+    "src/mcp/server.js",
+    "src/mcp/tools/collections.js",
+    "src/mcp/tools/filters.js",
+    "src/mcp/tools/findByTag.js",
+    "src/mcp/tools/getChunk.js",
+    "src/mcp/tools/getContent.js",
+    "src/mcp/tools/getNode.js",
+    "src/mcp/tools/getSkeleton.js",
+    "src/mcp/tools/getSkeletonChildren.js",
+    "src/mcp/tools/getSkeletonNode.js",
+    "src/mcp/tools/listDirectories.js",
+    "src/mcp/tools/listFiles.js",
+    "src/mcp/tools/listTags.js",
+    "src/mcp/tools/search.js",
+    "src/smoke/helpers.js",
+    "src/smoke/index.js",
+    "src/smoke/sections/01-default-provider.js",
+    "src/smoke/sections/02-onnx-embed.js",
+    "src/smoke/sections/03-invalid-combo-resolve.js",
+    "src/smoke/sections/04-embed-runtime-guard.js",
+    "src/smoke/sections/05-reindex-detection.js",
+    "src/smoke/sections/06-chunking-edge-cases.js",
+    "src/smoke/sections/07-reranker-top1.js",
+    "src/smoke/sections/08-compact-window.js",
+    "src/smoke/sections/09-stale-source-files.js",
+    "src/smoke/sections/11-recursive-chunk-text.js",
+    "src/smoke/sections/12-onnx-providers.js",
+    "src/smoke/sections/13-semidex-payload.js",
+    "src/smoke/sections/14-profiler.js",
+    "src/smoke/sections/15-bootstrap-docs.js",
+    "src/smoke/sections/16-extract-json-array.js",
+    "src/smoke/sections/17-pdf-fixture.js",
+    "src/smoke/sections/18-validate-ollama-models.js",
+    "src/smoke/sections/19-doctor-checks.js",
+    "src/smoke/sections/20-colbert-math.js",
+    "src/smoke/sections/23-length-bucket.js",
+    "src/smoke/sections/24-dml-batching-gate.js",
+    "src/smoke/sections/26-extract-context-tags-array.js",
+    "src/smoke/sections/27-combined-phase.js",
+    "src/smoke/sections/28-setext-headings.js",
+    "src/smoke/sections/29-semidex-ignore.js",
+    "src/smoke/sections/30-tag-gen-flag.js",
+    "src/smoke/sections/31-empty-section.js",
+    "src/smoke/sections/32-deterministic-point-id.js",
+    "src/smoke/sections/33-duplicate-repair-helpers.js",
+    "src/smoke/sections/34-mcp-navigation-tools.js",
+    "src/smoke/sections/35-mcp-ux-polish.js",
+    "src/smoke/sections/36-token-count.js",
+    "src/smoke/sections/37-pipeline-primitives.js",
+    "src/smoke/sections/38-tag-onnx-provider.js",
+    "src/smoke/sections/39-dynamic-overlap.js",
+    "src/smoke/sections/40-colbert-guard.js",
+    "src/smoke/sections/41-ce-rerank-stub.js",
+    "src/smoke/sections/42-skeleton-parse.js",
+    "src/smoke/sections/43-skeleton-policy.js",
+    "src/smoke/sections/44-skeleton-warnings.js",
+    "src/smoke/sections/45-skeleton-chunk.js",
+    "src/smoke/sections/46-skeleton-payload.js",
+    "src/smoke/sections/47-skeleton-nav.js",
+    "src/smoke/sections/48-nav-filter.js",
+    "src/smoke/sections/49-skeleton-edge-cases.js",
+    "src/smoke/sections/50-nav-upsert.js",
+    "src/smoke/sections/51-skeleton-summary.js",
+    "src/smoke/sections/52-run-num-ctx.js",
+    "src/smoke/sections/53-skeleton-nav-tools.js",
+    "src/smoke/sections/54-adaptive-skeleton-summaries.js",
+    "src/smoke/sections/55-hierarchical-skeleton-summaries.js",
+    "src/smoke/sections/56-get-node-tool.js",
+    "src/smoke/sections/57-skeleton-carryover.js",
+    "src/smoke.js",
+    "src/sync.js",
+    "packages/lite/lite-src/doctor-lite.js",
+    "packages/lite/lite-src/hard-pins.js",
+    "packages/lite/lite-src/index-lite.js",
+    "packages/lite/lite-src/semidex-home.js",
+    "packages/lite/lite-src/serve-lite.js"
+  ],
+  "nodes": {
+    "src/admin/api/assembly.js": {
+      "staticImports": [
+        {
+          "specifier": "../../core/http/http.js",
+          "kind": "relative",
+          "resolved": "src/core/http/http.js"
+        },
+        {
+          "specifier": "./query-params.js",
+          "kind": "relative",
+          "resolved": "src/admin/api/query-params.js"
+        },
+        {
+          "specifier": "../../core/assembly/assemble.js",
+          "kind": "relative",
+          "resolved": "src/core/assembly/assemble.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/admin/api/chunks.js": {
+      "staticImports": [
+        {
+          "specifier": "../../core/http/http.js",
+          "kind": "relative",
+          "resolved": "src/core/http/http.js"
+        },
+        {
+          "specifier": "./query-params.js",
+          "kind": "relative",
+          "resolved": "src/admin/api/query-params.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/admin/api/collections.js": {
+      "staticImports": [
+        {
+          "specifier": "../../core/http/http.js",
+          "kind": "relative",
+          "resolved": "src/core/http/http.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/admin/api/documents.js": {
+      "staticImports": [
+        {
+          "specifier": "../../core/http/http.js",
+          "kind": "relative",
+          "resolved": "src/core/http/http.js"
+        },
+        {
+          "specifier": "./query-params.js",
+          "kind": "relative",
+          "resolved": "src/admin/api/query-params.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/admin/api/generation-models.js": {
+      "staticImports": [
+        {
+          "specifier": "../../core/http/http.js",
+          "kind": "relative",
+          "resolved": "src/core/http/http.js"
+        },
+        {
+          "specifier": "../../core/doctor-checks.js",
+          "kind": "relative",
+          "resolved": "src/core/doctor-checks.js"
+        },
+        {
+          "specifier": "../../core/gemini-models.js",
+          "kind": "relative",
+          "resolved": "src/core/gemini-models.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/admin/api/generation.js": {
+      "staticImports": [
+        {
+          "specifier": "../../core/http/http.js",
+          "kind": "relative",
+          "resolved": "src/core/http/http.js"
+        },
+        {
+          "specifier": "../../core/doctor-checks.js",
+          "kind": "relative",
+          "resolved": "src/core/doctor-checks.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/admin/api/health.js": {
+      "staticImports": [
+        {
+          "specifier": "../../core/http/http.js",
+          "kind": "relative",
+          "resolved": "src/core/http/http.js"
+        },
+        {
+          "specifier": "../../core/doctor-checks.js",
+          "kind": "relative",
+          "resolved": "src/core/doctor-checks.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/admin/api/jobs.js": {
+      "staticImports": [
+        {
+          "specifier": "../../core/http/http.js",
+          "kind": "relative",
+          "resolved": "src/core/http/http.js"
+        },
+        {
+          "specifier": "../../core/http/http.js",
+          "kind": "relative",
+          "resolved": "src/core/http/http.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/admin/api/node.js": {
+      "staticImports": [
+        {
+          "specifier": "../../core/http/http.js",
+          "kind": "relative",
+          "resolved": "src/core/http/http.js"
+        },
+        {
+          "specifier": "./query-params.js",
+          "kind": "relative",
+          "resolved": "src/admin/api/query-params.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/admin/api/ollama-models.js": {
+      "staticImports": [
+        {
+          "specifier": "../../core/http/http.js",
+          "kind": "relative",
+          "resolved": "src/core/http/http.js"
+        },
+        {
+          "specifier": "../../core/doctor-checks.js",
+          "kind": "relative",
+          "resolved": "src/core/doctor-checks.js"
+        },
+        {
+          "specifier": "../../core/ollama-models.js",
+          "kind": "relative",
+          "resolved": "src/core/ollama-models.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/admin/api/onnx.js": {
+      "staticImports": [
+        {
+          "specifier": "../../core/http/http.js",
+          "kind": "relative",
+          "resolved": "src/core/http/http.js"
+        },
+        {
+          "specifier": "../../core/onnx-provider-probe.js",
+          "kind": "relative",
+          "resolved": "src/core/onnx-provider-probe.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/admin/api/operations.js": {
+      "staticImports": [
+        {
+          "specifier": "../../core/http/http.js",
+          "kind": "relative",
+          "resolved": "src/core/http/http.js"
+        },
+        {
+          "specifier": "./jobs.js",
+          "kind": "relative",
+          "resolved": "src/admin/api/jobs.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/admin/api/qdrant-cloud.js": {
+      "staticImports": [
+        {
+          "specifier": "../../core/http/http.js",
+          "kind": "relative",
+          "resolved": "src/core/http/http.js"
+        },
+        {
+          "specifier": "../system/qdrant-cloud.js",
+          "kind": "relative",
+          "resolved": "src/admin/system/qdrant-cloud.js"
+        },
+        {
+          "specifier": "../../core/embedding-profile/qdrant-cloud-catalog.js",
+          "kind": "relative",
+          "resolved": "src/core/embedding-profile/qdrant-cloud-catalog.js"
+        },
+        {
+          "specifier": "../../core/embedding-profile/resolve.js",
+          "kind": "relative",
+          "resolved": "src/core/embedding-profile/resolve.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/admin/api/query-params.js": {
+      "staticImports": [
+        {
+          "specifier": "../../core/http/http.js",
+          "kind": "relative",
+          "resolved": "src/core/http/http.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/admin/api/search.js": {
+      "staticImports": [
+        {
+          "specifier": "../../core/http/http.js",
+          "kind": "relative",
+          "resolved": "src/core/http/http.js"
+        },
+        {
+          "specifier": "../../core/http/http.js",
+          "kind": "relative",
+          "resolved": "src/core/http/http.js"
+        },
+        {
+          "specifier": "../../core/embeddings.js",
+          "kind": "relative",
+          "resolved": "src/core/embeddings.js"
+        },
+        {
+          "specifier": "../../core/retrieval/search.js",
+          "kind": "relative",
+          "resolved": "src/core/retrieval/search.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/admin/api/settings.js": {
+      "staticImports": [
+        {
+          "specifier": "../../core/http/http.js",
+          "kind": "relative",
+          "resolved": "src/core/http/http.js"
+        },
+        {
+          "specifier": "../../core/settings/definitions.js",
+          "kind": "relative",
+          "resolved": "src/core/settings/definitions.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/admin/api/skeleton.js": {
+      "staticImports": [
+        {
+          "specifier": "../../core/http/http.js",
+          "kind": "relative",
+          "resolved": "src/core/http/http.js"
+        },
+        {
+          "specifier": "./query-params.js",
+          "kind": "relative",
+          "resolved": "src/admin/api/query-params.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/admin/api/system.js": {
+      "staticImports": [
+        {
+          "specifier": "../../core/http/http.js",
+          "kind": "relative",
+          "resolved": "src/core/http/http.js"
+        },
+        {
+          "specifier": "../system/folder-picker.js",
+          "kind": "relative",
+          "resolved": "src/admin/system/folder-picker.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/admin/bootstrap.js": {
+      "staticImports": [
+        {
+          "specifier": "node:url",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "../core/env-bootstrap.js",
+          "kind": "relative",
+          "resolved": "src/core/env-bootstrap.js"
+        },
+        {
+          "specifier": "../core/settings/service.js",
+          "kind": "relative",
+          "resolved": "src/core/settings/service.js"
+        },
+        {
+          "specifier": "../core/env-bootstrap.js",
+          "kind": "relative",
+          "resolved": "src/core/env-bootstrap.js"
+        }
+      ],
+      "dynamicImports": [
+        {
+          "specifier": "../core/ce-rerank.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/core/ce-rerank.js"
+        },
+        {
+          "specifier": "./server.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/admin/server.js"
+        },
+        {
+          "specifier": "./server-full.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/admin/server-full.js"
+        },
+        {
+          "specifier": "../core/generation/runtime.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/core/generation/runtime.js"
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/admin/jobs/registry.js": {
+      "staticImports": [
+        {
+          "specifier": "node:crypto",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "node:child_process",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "node:url",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "../../core/doctor-checks.js",
+          "kind": "relative",
+          "resolved": "src/core/doctor-checks.js"
+        },
+        {
+          "specifier": "../../indexer/progress-event.js",
+          "kind": "relative",
+          "resolved": "src/indexer/progress-event.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": [
+        {
+          "callee": "spawn",
+          "arg": "../../indexer/index.js",
+          "literal": true,
+          "resolved": "src/indexer/index.js"
+        }
+      ]
+    },
+    "src/admin/jobs/task-registry.js": {
+      "staticImports": [
+        {
+          "specifier": "node:crypto",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "../../core/doctor-checks.js",
+          "kind": "relative",
+          "resolved": "src/core/doctor-checks.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/admin/router.js": {
+      "staticImports": [
+        {
+          "specifier": "../core/http/http.js",
+          "kind": "relative",
+          "resolved": "src/core/http/http.js"
+        },
+        {
+          "specifier": "../core/doctor-checks.js",
+          "kind": "relative",
+          "resolved": "src/core/doctor-checks.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/admin/server-full.js": {
+      "staticImports": [
+        {
+          "specifier": "../core/storage/factory.js",
+          "kind": "relative",
+          "resolved": "src/core/storage/factory.js"
+        },
+        {
+          "specifier": "./router.js",
+          "kind": "relative",
+          "resolved": "src/admin/router.js"
+        },
+        {
+          "specifier": "./api/jobs.js",
+          "kind": "relative",
+          "resolved": "src/admin/api/jobs.js"
+        },
+        {
+          "specifier": "./api/system.js",
+          "kind": "relative",
+          "resolved": "src/admin/api/system.js"
+        },
+        {
+          "specifier": "./api/onnx.js",
+          "kind": "relative",
+          "resolved": "src/admin/api/onnx.js"
+        },
+        {
+          "specifier": "./api/ollama-models.js",
+          "kind": "relative",
+          "resolved": "src/admin/api/ollama-models.js"
+        },
+        {
+          "specifier": "./api/generation-models.js",
+          "kind": "relative",
+          "resolved": "src/admin/api/generation-models.js"
+        },
+        {
+          "specifier": "../core/ollama-models.js",
+          "kind": "relative",
+          "resolved": "src/core/ollama-models.js"
+        },
+        {
+          "specifier": "./system/ollama.js",
+          "kind": "relative",
+          "resolved": "src/admin/system/ollama.js"
+        },
+        {
+          "specifier": "../core/settings/service.js",
+          "kind": "relative",
+          "resolved": "src/core/settings/service.js"
+        },
+        {
+          "specifier": "./server.js",
+          "kind": "relative",
+          "resolved": "src/admin/server.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/admin/server.js": {
+      "staticImports": [
+        {
+          "specifier": "node:http",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "../core/storage/factory.js",
+          "kind": "relative",
+          "resolved": "src/core/storage/factory.js"
+        },
+        {
+          "specifier": "./router.js",
+          "kind": "relative",
+          "resolved": "src/admin/router.js"
+        },
+        {
+          "specifier": "./api/health.js",
+          "kind": "relative",
+          "resolved": "src/admin/api/health.js"
+        },
+        {
+          "specifier": "./api/collections.js",
+          "kind": "relative",
+          "resolved": "src/admin/api/collections.js"
+        },
+        {
+          "specifier": "./api/documents.js",
+          "kind": "relative",
+          "resolved": "src/admin/api/documents.js"
+        },
+        {
+          "specifier": "./api/chunks.js",
+          "kind": "relative",
+          "resolved": "src/admin/api/chunks.js"
+        },
+        {
+          "specifier": "./api/assembly.js",
+          "kind": "relative",
+          "resolved": "src/admin/api/assembly.js"
+        },
+        {
+          "specifier": "./api/skeleton.js",
+          "kind": "relative",
+          "resolved": "src/admin/api/skeleton.js"
+        },
+        {
+          "specifier": "./api/node.js",
+          "kind": "relative",
+          "resolved": "src/admin/api/node.js"
+        },
+        {
+          "specifier": "./api/search.js",
+          "kind": "relative",
+          "resolved": "src/admin/api/search.js"
+        },
+        {
+          "specifier": "../core/ask-api/v1/route.js",
+          "kind": "relative",
+          "resolved": "src/core/ask-api/v1/route.js"
+        },
+        {
+          "specifier": "./api/generation.js",
+          "kind": "relative",
+          "resolved": "src/admin/api/generation.js"
+        },
+        {
+          "specifier": "./api/jobs.js",
+          "kind": "relative",
+          "resolved": "src/admin/api/jobs.js"
+        },
+        {
+          "specifier": "./jobs/registry.js",
+          "kind": "relative",
+          "resolved": "src/admin/jobs/registry.js"
+        },
+        {
+          "specifier": "./jobs/task-registry.js",
+          "kind": "relative",
+          "resolved": "src/admin/jobs/task-registry.js"
+        },
+        {
+          "specifier": "./api/operations.js",
+          "kind": "relative",
+          "resolved": "src/admin/api/operations.js"
+        },
+        {
+          "specifier": "./api/system.js",
+          "kind": "relative",
+          "resolved": "src/admin/api/system.js"
+        },
+        {
+          "specifier": "./api/qdrant-cloud.js",
+          "kind": "relative",
+          "resolved": "src/admin/api/qdrant-cloud.js"
+        },
+        {
+          "specifier": "./api/settings.js",
+          "kind": "relative",
+          "resolved": "src/admin/api/settings.js"
+        },
+        {
+          "specifier": "./api/generation-models.js",
+          "kind": "relative",
+          "resolved": "src/admin/api/generation-models.js"
+        },
+        {
+          "specifier": "./static.js",
+          "kind": "relative",
+          "resolved": "src/admin/static.js"
+        },
+        {
+          "specifier": "../core/generation/runtime.js",
+          "kind": "relative",
+          "resolved": "src/core/generation/runtime.js"
+        },
+        {
+          "specifier": "../core/ask/coordinator.js",
+          "kind": "relative",
+          "resolved": "src/core/ask/coordinator.js"
+        },
+        {
+          "specifier": "../core/token-count.js",
+          "kind": "relative",
+          "resolved": "src/core/token-count.js"
+        },
+        {
+          "specifier": "../core/settings/service.js",
+          "kind": "relative",
+          "resolved": "src/core/settings/service.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/admin/static.js": {
+      "staticImports": [
+        {
+          "specifier": "node:fs",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "node:fs/promises",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "node:path",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "node:url",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "../core/http/http.js",
+          "kind": "relative",
+          "resolved": "src/core/http/http.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/admin/system/folder-picker.js": {
+      "staticImports": [
+        {
+          "specifier": "node:child_process",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "node:os",
+          "kind": "builtin",
+          "resolved": null
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": [
+        {
+          "callee": "spawn",
+          "arg": "powershell.exe",
+          "literal": true,
+          "resolved": null
+        }
+      ]
+    },
+    "src/admin/system/ollama.js": {
+      "staticImports": [
+        {
+          "specifier": "../../core/ollama.js",
+          "kind": "relative",
+          "resolved": "src/core/ollama.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/admin/system/qdrant-cloud.js": {
+      "staticImports": [
+        {
+          "specifier": "../../core/storage/factory.js",
+          "kind": "relative",
+          "resolved": "src/core/storage/factory.js"
+        },
+        {
+          "specifier": "../../core/doctor-checks.js",
+          "kind": "relative",
+          "resolved": "src/core/doctor-checks.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/admin/ui-src/api.js": {
+      "staticImports": [],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/admin/ui-src/app.js": {
+      "staticImports": [
+        {
+          "specifier": "./dom.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/dom.js"
+        },
+        {
+          "specifier": "./sidebar-resize.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/sidebar-resize.js"
+        },
+        {
+          "specifier": "./sidebar.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/sidebar.js"
+        },
+        {
+          "specifier": "./topbar.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/topbar.js"
+        },
+        {
+          "specifier": "./router.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/router.js"
+        },
+        {
+          "specifier": "./operation-modal.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/operation-modal.js"
+        },
+        {
+          "specifier": "./operation-store.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/operation-store.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/admin/ui-src/assembly-view.js": {
+      "staticImports": [
+        {
+          "specifier": "./dom.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/dom.js"
+        },
+        {
+          "specifier": "./structural-renderer.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/structural-renderer.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/admin/ui-src/collection-view.js": {
+      "staticImports": [
+        {
+          "specifier": "./partials/overview-shell.html?raw",
+          "kind": "relative",
+          "resolved": null
+        },
+        {
+          "specifier": "./partials/collection-shell.html?raw",
+          "kind": "relative",
+          "resolved": null
+        },
+        {
+          "specifier": "./dom.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/dom.js"
+        },
+        {
+          "specifier": "./api.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/api.js"
+        },
+        {
+          "specifier": "./state.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/state.js"
+        },
+        {
+          "specifier": "./sidebar.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/sidebar.js"
+        },
+        {
+          "specifier": "./search.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/search.js"
+        },
+        {
+          "specifier": "./toasts.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/toasts.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/admin/ui-src/dom.js": {
+      "staticImports": [],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/admin/ui-src/file-view.js": {
+      "staticImports": [
+        {
+          "specifier": "./dom.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/dom.js"
+        },
+        {
+          "specifier": "./api.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/api.js"
+        },
+        {
+          "specifier": "./format.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/format.js"
+        },
+        {
+          "specifier": "./icons.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/icons.js"
+        },
+        {
+          "specifier": "./structural-renderer.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/structural-renderer.js"
+        },
+        {
+          "specifier": "./assembly-view.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/assembly-view.js"
+        },
+        {
+          "specifier": "./toasts.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/toasts.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/admin/ui-src/format.js": {
+      "staticImports": [],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/admin/ui-src/global-settings-view.js": {
+      "staticImports": [
+        {
+          "specifier": "./dom.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/dom.js"
+        },
+        {
+          "specifier": "./api.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/api.js"
+        },
+        {
+          "specifier": "./toasts.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/toasts.js"
+        },
+        {
+          "specifier": "./sidebar.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/sidebar.js"
+        },
+        {
+          "specifier": "../../core/embedding-profile/qdrant-cloud-models.js",
+          "kind": "relative",
+          "resolved": "src/core/embedding-profile/qdrant-cloud-models.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/admin/ui-src/icons.js": {
+      "staticImports": [],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/admin/ui-src/jobs-view.js": {
+      "staticImports": [
+        {
+          "specifier": "./partials/index-view.html?raw",
+          "kind": "relative",
+          "resolved": null
+        },
+        {
+          "specifier": "./dom.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/dom.js"
+        },
+        {
+          "specifier": "./api.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/api.js"
+        },
+        {
+          "specifier": "./operation-modal.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/operation-modal.js"
+        },
+        {
+          "specifier": "./operation-store.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/operation-store.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/admin/ui-src/main.js": {
+      "staticImports": [
+        {
+          "specifier": "./app.css",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/app.css"
+        },
+        {
+          "specifier": "./app.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/app.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/admin/ui-src/operation-modal.js": {
+      "staticImports": [
+        {
+          "specifier": "./dom.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/dom.js"
+        },
+        {
+          "specifier": "./api.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/api.js"
+        },
+        {
+          "specifier": "./operation-store.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/operation-store.js"
+        },
+        {
+          "specifier": "./operation-render.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/operation-render.js"
+        },
+        {
+          "specifier": "./toasts.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/toasts.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/admin/ui-src/operation-render.js": {
+      "staticImports": [
+        {
+          "specifier": "./dom.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/dom.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/admin/ui-src/operation-store.js": {
+      "staticImports": [
+        {
+          "specifier": "./api.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/api.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/admin/ui-src/router.js": {
+      "staticImports": [
+        {
+          "specifier": "./dom.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/dom.js"
+        },
+        {
+          "specifier": "./api.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/api.js"
+        },
+        {
+          "specifier": "./file-view.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/file-view.js"
+        },
+        {
+          "specifier": "./sidebar.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/sidebar.js"
+        },
+        {
+          "specifier": "./collection-view.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/collection-view.js"
+        },
+        {
+          "specifier": "./settings-view.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/settings-view.js"
+        },
+        {
+          "specifier": "./global-settings-view.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/global-settings-view.js"
+        },
+        {
+          "specifier": "./jobs-view.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/jobs-view.js"
+        },
+        {
+          "specifier": "./search.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/search.js"
+        },
+        {
+          "specifier": "./routes.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/routes.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/admin/ui-src/routes.js": {
+      "staticImports": [],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/admin/ui-src/search.js": {
+      "staticImports": [
+        {
+          "specifier": "./dom.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/dom.js"
+        },
+        {
+          "specifier": "./api.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/api.js"
+        },
+        {
+          "specifier": "./file-view.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/file-view.js"
+        },
+        {
+          "specifier": "./routes.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/routes.js"
+        },
+        {
+          "specifier": "./sidebar.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/sidebar.js"
+        },
+        {
+          "specifier": "./structural-renderer.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/structural-renderer.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/admin/ui-src/settings-view.js": {
+      "staticImports": [
+        {
+          "specifier": "./partials/settings-shell.html?raw",
+          "kind": "relative",
+          "resolved": null
+        },
+        {
+          "specifier": "./dom.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/dom.js"
+        },
+        {
+          "specifier": "./api.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/api.js"
+        },
+        {
+          "specifier": "./state.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/state.js"
+        },
+        {
+          "specifier": "./sidebar.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/sidebar.js"
+        },
+        {
+          "specifier": "./operation-modal.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/operation-modal.js"
+        },
+        {
+          "specifier": "./operation-store.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/operation-store.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/admin/ui-src/sidebar-resize.js": {
+      "staticImports": [],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/admin/ui-src/sidebar.js": {
+      "staticImports": [
+        {
+          "specifier": "./dom.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/dom.js"
+        },
+        {
+          "specifier": "./api.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/api.js"
+        },
+        {
+          "specifier": "./format.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/format.js"
+        },
+        {
+          "specifier": "./routes.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/routes.js"
+        },
+        {
+          "specifier": "./state.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/state.js"
+        },
+        {
+          "specifier": "./icons.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/icons.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/admin/ui-src/state.js": {
+      "staticImports": [],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/admin/ui-src/structural-renderer.js": {
+      "staticImports": [
+        {
+          "specifier": "unified",
+          "kind": "package",
+          "resolved": "unified"
+        },
+        {
+          "specifier": "remark-parse",
+          "kind": "package",
+          "resolved": "remark-parse"
+        },
+        {
+          "specifier": "remark-gfm",
+          "kind": "package",
+          "resolved": "remark-gfm"
+        },
+        {
+          "specifier": "highlight.js/lib/core",
+          "kind": "package",
+          "resolved": "highlight.js"
+        },
+        {
+          "specifier": "highlight.js/lib/languages/javascript",
+          "kind": "package",
+          "resolved": "highlight.js"
+        },
+        {
+          "specifier": "highlight.js/lib/languages/typescript",
+          "kind": "package",
+          "resolved": "highlight.js"
+        },
+        {
+          "specifier": "highlight.js/lib/languages/python",
+          "kind": "package",
+          "resolved": "highlight.js"
+        },
+        {
+          "specifier": "highlight.js/lib/languages/bash",
+          "kind": "package",
+          "resolved": "highlight.js"
+        },
+        {
+          "specifier": "highlight.js/lib/languages/shell",
+          "kind": "package",
+          "resolved": "highlight.js"
+        },
+        {
+          "specifier": "highlight.js/lib/languages/json",
+          "kind": "package",
+          "resolved": "highlight.js"
+        },
+        {
+          "specifier": "highlight.js/lib/languages/yaml",
+          "kind": "package",
+          "resolved": "highlight.js"
+        },
+        {
+          "specifier": "highlight.js/lib/languages/sql",
+          "kind": "package",
+          "resolved": "highlight.js"
+        },
+        {
+          "specifier": "highlight.js/lib/languages/xml",
+          "kind": "package",
+          "resolved": "highlight.js"
+        },
+        {
+          "specifier": "highlight.js/lib/languages/css",
+          "kind": "package",
+          "resolved": "highlight.js"
+        },
+        {
+          "specifier": "highlight.js/lib/languages/markdown",
+          "kind": "package",
+          "resolved": "highlight.js"
+        },
+        {
+          "specifier": "highlight.js/lib/languages/java",
+          "kind": "package",
+          "resolved": "highlight.js"
+        },
+        {
+          "specifier": "highlight.js/lib/languages/csharp",
+          "kind": "package",
+          "resolved": "highlight.js"
+        },
+        {
+          "specifier": "highlight.js/lib/languages/cpp",
+          "kind": "package",
+          "resolved": "highlight.js"
+        },
+        {
+          "specifier": "highlight.js/lib/languages/c",
+          "kind": "package",
+          "resolved": "highlight.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/admin/ui-src/toasts.js": {
+      "staticImports": [
+        {
+          "specifier": "./dom.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/dom.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/admin/ui-src/topbar.js": {
+      "staticImports": [
+        {
+          "specifier": "./dom.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/dom.js"
+        },
+        {
+          "specifier": "./api.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/api.js"
+        },
+        {
+          "specifier": "./operation-store.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/operation-store.js"
+        },
+        {
+          "specifier": "./operation-modal.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/operation-modal.js"
+        },
+        {
+          "specifier": "./icons.js",
+          "kind": "relative",
+          "resolved": "src/admin/ui-src/icons.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/backfill-entity-refs.js": {
+      "staticImports": [
+        {
+          "specifier": "url",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "./core/qdrant/nav-filter.js",
+          "kind": "relative",
+          "resolved": "src/core/qdrant/nav-filter.js"
+        },
+        {
+          "specifier": "./indexer/skeleton-payload.js",
+          "kind": "relative",
+          "resolved": "src/indexer/skeleton-payload.js"
+        },
+        {
+          "specifier": "./core/entity-reference.js",
+          "kind": "relative",
+          "resolved": "src/core/entity-reference.js"
+        }
+      ],
+      "dynamicImports": [
+        {
+          "specifier": "./core/env-bootstrap.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/core/env-bootstrap.js"
+        },
+        {
+          "specifier": "./core/settings/service.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/core/settings/service.js"
+        },
+        {
+          "specifier": "./core/qdrant.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/core/qdrant.js"
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/backfill-tags.js": {
+      "staticImports": [],
+      "dynamicImports": [
+        {
+          "specifier": "./core/env-bootstrap.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/core/env-bootstrap.js"
+        },
+        {
+          "specifier": "./core/settings/service.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/core/settings/service.js"
+        },
+        {
+          "specifier": "./core/qdrant.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/core/qdrant.js"
+        },
+        {
+          "specifier": "./indexer/phases/tag.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/phases/tag.js"
+        },
+        {
+          "specifier": "./indexer/phases/tag-onnx.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/phases/tag-onnx.js"
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/bootstrap-docs.js": {
+      "staticImports": [
+        {
+          "specifier": "fs",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "path",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "url",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "child_process",
+          "kind": "builtin",
+          "resolved": null
+        }
+      ],
+      "dynamicImports": [
+        {
+          "specifier": "./core/config.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/core/config.js"
+        },
+        {
+          "specifier": "./core/embeddings.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/core/embeddings.js"
+        },
+        {
+          "specifier": "./core/config.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/core/config.js"
+        },
+        {
+          "specifier": "./core/qdrant.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/core/qdrant.js"
+        },
+        {
+          "specifier": "./core/env-bootstrap.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/core/env-bootstrap.js"
+        },
+        {
+          "specifier": "./core/settings/service.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/core/settings/service.js"
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/ask/citations.js": {
+      "staticImports": [
+        {
+          "specifier": "./prompt.js",
+          "kind": "relative",
+          "resolved": "src/core/ask/prompt.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/ask/coordinator.js": {
+      "staticImports": [
+        {
+          "specifier": "./evidence.js",
+          "kind": "relative",
+          "resolved": "src/core/ask/evidence.js"
+        },
+        {
+          "specifier": "./prompt.js",
+          "kind": "relative",
+          "resolved": "src/core/ask/prompt.js"
+        },
+        {
+          "specifier": "./citations.js",
+          "kind": "relative",
+          "resolved": "src/core/ask/citations.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/ask/evidence.js": {
+      "staticImports": [
+        {
+          "specifier": "../retrieval/search.js",
+          "kind": "relative",
+          "resolved": "src/core/retrieval/search.js"
+        },
+        {
+          "specifier": "../assembly/anchored-content.js",
+          "kind": "relative",
+          "resolved": "src/core/assembly/anchored-content.js"
+        },
+        {
+          "specifier": "./prompt.js",
+          "kind": "relative",
+          "resolved": "src/core/ask/prompt.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/ask/prompt.js": {
+      "staticImports": [],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/ask-api/v1/contract.js": {
+      "staticImports": [],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/ask-api/v1/request.js": {
+      "staticImports": [
+        {
+          "specifier": "../../http/http.js",
+          "kind": "relative",
+          "resolved": "src/core/http/http.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/ask-api/v1/route.js": {
+      "staticImports": [
+        {
+          "specifier": "../../http/http.js",
+          "kind": "relative",
+          "resolved": "src/core/http/http.js"
+        },
+        {
+          "specifier": "../../http/sse.js",
+          "kind": "relative",
+          "resolved": "src/core/http/sse.js"
+        },
+        {
+          "specifier": "../../doctor-checks.js",
+          "kind": "relative",
+          "resolved": "src/core/doctor-checks.js"
+        },
+        {
+          "specifier": "./request.js",
+          "kind": "relative",
+          "resolved": "src/core/ask-api/v1/request.js"
+        },
+        {
+          "specifier": "./contract.js",
+          "kind": "relative",
+          "resolved": "src/core/ask-api/v1/contract.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/assembly/anchored-content.js": {
+      "staticImports": [
+        {
+          "specifier": "./assemble.js",
+          "kind": "relative",
+          "resolved": "src/core/assembly/assemble.js"
+        },
+        {
+          "specifier": "./window.js",
+          "kind": "relative",
+          "resolved": "src/core/assembly/window.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/assembly/assemble.js": {
+      "staticImports": [
+        {
+          "specifier": "../entity-reference.js",
+          "kind": "relative",
+          "resolved": "src/core/entity-reference.js"
+        },
+        {
+          "specifier": "./contract.js",
+          "kind": "relative",
+          "resolved": "src/core/assembly/contract.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/assembly/contract.js": {
+      "staticImports": [],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/assembly/cursor.js": {
+      "staticImports": [],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/assembly/window.js": {
+      "staticImports": [
+        {
+          "specifier": "./cursor.js",
+          "kind": "relative",
+          "resolved": "src/core/assembly/cursor.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/bench-telemetry.js": {
+      "staticImports": [
+        {
+          "specifier": "fs",
+          "kind": "builtin",
+          "resolved": null
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/bge-tokenizer.js": {
+      "staticImports": [
+        {
+          "specifier": "@huggingface/tokenizers",
+          "kind": "package",
+          "resolved": "@huggingface/tokenizers"
+        },
+        {
+          "specifier": "fs",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "path",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "./onnx-paths.js",
+          "kind": "relative",
+          "resolved": "src/core/onnx-paths.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/ce-rerank-worker.js": {
+      "staticImports": [
+        {
+          "specifier": "node:fs",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "node:path",
+          "kind": "builtin",
+          "resolved": null
+        }
+      ],
+      "dynamicImports": [
+        {
+          "specifier": "@huggingface/transformers",
+          "literal": true,
+          "kind": "package",
+          "resolved": "@huggingface/transformers"
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/ce-rerank.js": {
+      "staticImports": [
+        {
+          "specifier": "node:child_process",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "node:path",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "node:url",
+          "kind": "builtin",
+          "resolved": null
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": [
+        {
+          "callee": "fork",
+          "arg": "./ce-rerank-worker.js",
+          "literal": true,
+          "resolved": "src/core/ce-rerank-worker.js"
+        },
+        {
+          "callee": "fork",
+          "arg": "./ce-rerank-worker.js",
+          "literal": true,
+          "resolved": "src/core/ce-rerank-worker.js"
+        }
+      ]
+    },
+    "src/core/config.js": {
+      "staticImports": [
+        {
+          "specifier": "dotenv/config",
+          "kind": "package",
+          "resolved": "dotenv"
+        },
+        {
+          "specifier": "fs",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "path",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "url",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "./env.js",
+          "kind": "relative",
+          "resolved": "src/core/env.js"
+        },
+        {
+          "specifier": "./onnx-paths.js",
+          "kind": "relative",
+          "resolved": "src/core/onnx-paths.js"
+        },
+        {
+          "specifier": "./embedding-profile/qdrant-cloud-catalog.js",
+          "kind": "relative",
+          "resolved": "src/core/embedding-profile/qdrant-cloud-catalog.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/doctor-checks.js": {
+      "staticImports": [],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/embedding-profile/availability.js": {
+      "staticImports": [
+        {
+          "specifier": "../storage/embedding-profile-cache.js",
+          "kind": "relative",
+          "resolved": "src/core/storage/embedding-profile-cache.js"
+        },
+        {
+          "specifier": "./schema.js",
+          "kind": "relative",
+          "resolved": "src/core/embedding-profile/schema.js"
+        },
+        {
+          "specifier": "./qdrant-cloud-catalog.js",
+          "kind": "relative",
+          "resolved": "src/core/embedding-profile/qdrant-cloud-catalog.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/embedding-profile/config-cache.js": {
+      "staticImports": [],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/embedding-profile/migrate.js": {
+      "staticImports": [
+        {
+          "specifier": "../env.js",
+          "kind": "relative",
+          "resolved": "src/core/env.js"
+        },
+        {
+          "specifier": "./schema.js",
+          "kind": "relative",
+          "resolved": "src/core/embedding-profile/schema.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/embedding-profile/onnx-lane.js": {
+      "staticImports": [
+        {
+          "specifier": "../onnx-paths.js",
+          "kind": "relative",
+          "resolved": "src/core/onnx-paths.js"
+        },
+        {
+          "specifier": "./availability.js",
+          "kind": "relative",
+          "resolved": "src/core/embedding-profile/availability.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/embedding-profile/qdrant-cloud-catalog.js": {
+      "staticImports": [
+        {
+          "specifier": "../token-count.js",
+          "kind": "relative",
+          "resolved": "src/core/token-count.js"
+        },
+        {
+          "specifier": "./qdrant-cloud-tokenizer.js",
+          "kind": "relative",
+          "resolved": "src/core/embedding-profile/qdrant-cloud-tokenizer.js"
+        },
+        {
+          "specifier": "./qdrant-cloud-models.js",
+          "kind": "relative",
+          "resolved": "src/core/embedding-profile/qdrant-cloud-models.js"
+        },
+        {
+          "specifier": "./qdrant-cloud-models.js",
+          "kind": "relative",
+          "resolved": "src/core/embedding-profile/qdrant-cloud-models.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/embedding-profile/qdrant-cloud-models.js": {
+      "staticImports": [],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/embedding-profile/qdrant-cloud-tokenizer.js": {
+      "staticImports": [
+        {
+          "specifier": "@huggingface/tokenizers",
+          "kind": "package",
+          "resolved": "@huggingface/tokenizers"
+        },
+        {
+          "specifier": "fs",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "path",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "crypto",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "../onnx-paths.js",
+          "kind": "relative",
+          "resolved": "src/core/onnx-paths.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/embedding-profile/resolve.js": {
+      "staticImports": [
+        {
+          "specifier": "./schema.js",
+          "kind": "relative",
+          "resolved": "src/core/embedding-profile/schema.js"
+        },
+        {
+          "specifier": "../env.js",
+          "kind": "relative",
+          "resolved": "src/core/env.js"
+        },
+        {
+          "specifier": "../onnx-paths.js",
+          "kind": "relative",
+          "resolved": "src/core/onnx-paths.js"
+        },
+        {
+          "specifier": "./qdrant-cloud-catalog.js",
+          "kind": "relative",
+          "resolved": "src/core/embedding-profile/qdrant-cloud-catalog.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/embedding-profile/schema.js": {
+      "staticImports": [],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/embeddings.js": {
+      "staticImports": [
+        {
+          "specifier": "./ollama-lazy.js",
+          "kind": "relative",
+          "resolved": "src/core/ollama-lazy.js"
+        },
+        {
+          "specifier": "./onnx-embed-lazy.js",
+          "kind": "relative",
+          "resolved": "src/core/onnx-embed-lazy.js"
+        },
+        {
+          "specifier": "./sparse.js",
+          "kind": "relative",
+          "resolved": "src/core/sparse.js"
+        },
+        {
+          "specifier": "./env.js",
+          "kind": "relative",
+          "resolved": "src/core/env.js"
+        },
+        {
+          "specifier": "./embedding-profile/schema.js",
+          "kind": "relative",
+          "resolved": "src/core/embedding-profile/schema.js"
+        },
+        {
+          "specifier": "./embedding-profile/qdrant-cloud-catalog.js",
+          "kind": "relative",
+          "resolved": "src/core/embedding-profile/qdrant-cloud-catalog.js"
+        },
+        {
+          "specifier": "./bench-telemetry.js",
+          "kind": "relative",
+          "resolved": "src/core/bench-telemetry.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/entity-reference.js": {
+      "staticImports": [],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/env-bootstrap.js": {
+      "staticImports": [
+        {
+          "specifier": "node:fs",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "node:path",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "dotenv",
+          "kind": "package",
+          "resolved": "dotenv"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/env.js": {
+      "staticImports": [],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/gemini-models.js": {
+      "staticImports": [],
+      "dynamicImports": [
+        {
+          "specifier": "@google/genai",
+          "literal": true,
+          "kind": "package",
+          "resolved": "@google/genai"
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/generation/config.js": {
+      "staticImports": [],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/generation/gemini-provider.js": {
+      "staticImports": [
+        {
+          "specifier": "./config.js",
+          "kind": "relative",
+          "resolved": "src/core/generation/config.js"
+        }
+      ],
+      "dynamicImports": [
+        {
+          "specifier": "@google/genai",
+          "literal": true,
+          "kind": "package",
+          "resolved": "@google/genai"
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/generation/ollama-provider.js": {
+      "staticImports": [
+        {
+          "specifier": "../ollama-lazy.js",
+          "kind": "relative",
+          "resolved": "src/core/ollama-lazy.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/generation/provider.js": {
+      "staticImports": [],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/generation/registry.js": {
+      "staticImports": [
+        {
+          "specifier": "./ollama-provider.js",
+          "kind": "relative",
+          "resolved": "src/core/generation/ollama-provider.js"
+        },
+        {
+          "specifier": "./gemini-provider.js",
+          "kind": "relative",
+          "resolved": "src/core/generation/gemini-provider.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/generation/runtime.js": {
+      "staticImports": [
+        {
+          "specifier": "./config.js",
+          "kind": "relative",
+          "resolved": "src/core/generation/config.js"
+        },
+        {
+          "specifier": "./registry.js",
+          "kind": "relative",
+          "resolved": "src/core/generation/registry.js"
+        },
+        {
+          "specifier": "../doctor-checks.js",
+          "kind": "relative",
+          "resolved": "src/core/doctor-checks.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/http/http.js": {
+      "staticImports": [],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/http/sse.js": {
+      "staticImports": [],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/length-bucket.js": {
+      "staticImports": [],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/node-id.js": {
+      "staticImports": [
+        {
+          "specifier": "./point-id.js",
+          "kind": "relative",
+          "resolved": "src/core/point-id.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/ollama-lazy.js": {
+      "staticImports": [],
+      "dynamicImports": [
+        {
+          "specifier": "./ollama.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/core/ollama.js"
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/ollama-lazy.lite.js": {
+      "staticImports": [],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/ollama-models.js": {
+      "staticImports": [
+        {
+          "specifier": "./ollama.js",
+          "kind": "relative",
+          "resolved": "src/core/ollama.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/ollama.js": {
+      "staticImports": [
+        {
+          "specifier": "dotenv/config",
+          "kind": "package",
+          "resolved": "dotenv"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/onnx-embed-lazy.js": {
+      "staticImports": [],
+      "dynamicImports": [
+        {
+          "specifier": "./onnx-embed.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/core/onnx-embed.js"
+        },
+        {
+          "specifier": "./length-bucket.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/core/length-bucket.js"
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/onnx-embed-lazy.lite.js": {
+      "staticImports": [],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/onnx-embed.js": {
+      "staticImports": [
+        {
+          "specifier": "@huggingface/tokenizers",
+          "kind": "package",
+          "resolved": "@huggingface/tokenizers"
+        },
+        {
+          "specifier": "fs",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "path",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "url",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "./onnx-paths.js",
+          "kind": "relative",
+          "resolved": "src/core/onnx-paths.js"
+        },
+        {
+          "specifier": "./doctor-checks.js",
+          "kind": "relative",
+          "resolved": "src/core/doctor-checks.js"
+        },
+        {
+          "specifier": "./onnx-runtime.js",
+          "kind": "relative",
+          "resolved": "src/core/onnx-runtime.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/onnx-paths.js": {
+      "staticImports": [
+        {
+          "specifier": "fs",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "path",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "url",
+          "kind": "builtin",
+          "resolved": null
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/onnx-probe-runner.js": {
+      "staticImports": [
+        {
+          "specifier": "node:fs",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "node:path",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "./onnx-runtime.js",
+          "kind": "relative",
+          "resolved": "src/core/onnx-runtime.js"
+        },
+        {
+          "specifier": "./onnx-paths.js",
+          "kind": "relative",
+          "resolved": "src/core/onnx-paths.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/onnx-provider-probe.js": {
+      "staticImports": [
+        {
+          "specifier": "node:child_process",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "node:url",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "./doctor-checks.js",
+          "kind": "relative",
+          "resolved": "src/core/doctor-checks.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": [
+        {
+          "callee": "spawn",
+          "arg": "./onnx-probe-runner.js",
+          "literal": true,
+          "resolved": "src/core/onnx-probe-runner.js"
+        }
+      ]
+    },
+    "src/core/onnx-runtime.js": {
+      "staticImports": [
+        {
+          "specifier": "node:module",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "node:path",
+          "kind": "builtin",
+          "resolved": null
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [
+        {
+          "specifier": null,
+          "literal": false,
+          "kind": "non-literal",
+          "resolved": null
+        }
+      ],
+      "forkSpawnCalls": []
+    },
+    "src/core/point-id.js": {
+      "staticImports": [
+        {
+          "specifier": "crypto",
+          "kind": "builtin",
+          "resolved": null
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/qdrant/client.js": {
+      "staticImports": [
+        {
+          "specifier": "dotenv/config",
+          "kind": "package",
+          "resolved": "dotenv"
+        },
+        {
+          "specifier": "@qdrant/js-client-rest",
+          "kind": "package",
+          "resolved": "@qdrant/js-client-rest"
+        },
+        {
+          "specifier": "../bench-telemetry.js",
+          "kind": "relative",
+          "resolved": "src/core/bench-telemetry.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/qdrant/ensure-schema.js": {
+      "staticImports": [
+        {
+          "specifier": "./store.js",
+          "kind": "relative",
+          "resolved": "src/core/qdrant/store.js"
+        },
+        {
+          "specifier": "./schema.js",
+          "kind": "relative",
+          "resolved": "src/core/qdrant/schema.js"
+        },
+        {
+          "specifier": "../doctor-checks.js",
+          "kind": "relative",
+          "resolved": "src/core/doctor-checks.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/qdrant/index.js": {
+      "staticImports": [
+        {
+          "specifier": "./client.js",
+          "kind": "relative",
+          "resolved": "src/core/qdrant/client.js"
+        },
+        {
+          "specifier": "./store.js",
+          "kind": "relative",
+          "resolved": "src/core/qdrant/store.js"
+        },
+        {
+          "specifier": "./payload.js",
+          "kind": "relative",
+          "resolved": "src/core/qdrant/payload.js"
+        },
+        {
+          "specifier": "./schema.js",
+          "kind": "relative",
+          "resolved": "src/core/qdrant/schema.js"
+        },
+        {
+          "specifier": "./ensure-schema.js",
+          "kind": "relative",
+          "resolved": "src/core/qdrant/ensure-schema.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/qdrant/nav-filter.js": {
+      "staticImports": [],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/qdrant/payload.js": {
+      "staticImports": [],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/qdrant/schema.js": {
+      "staticImports": [],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/qdrant/store.js": {
+      "staticImports": [
+        {
+          "specifier": "./client.js",
+          "kind": "relative",
+          "resolved": "src/core/qdrant/client.js"
+        },
+        {
+          "specifier": "./payload.js",
+          "kind": "relative",
+          "resolved": "src/core/qdrant/payload.js"
+        },
+        {
+          "specifier": "./schema.js",
+          "kind": "relative",
+          "resolved": "src/core/qdrant/schema.js"
+        },
+        {
+          "specifier": "../env.js",
+          "kind": "relative",
+          "resolved": "src/core/env.js"
+        },
+        {
+          "specifier": "./nav-filter.js",
+          "kind": "relative",
+          "resolved": "src/core/qdrant/nav-filter.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/qdrant.js": {
+      "staticImports": [
+        {
+          "specifier": "./qdrant/index.js",
+          "kind": "relative",
+          "resolved": "src/core/qdrant/index.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/rerank.js": {
+      "staticImports": [
+        {
+          "specifier": "dotenv/config",
+          "kind": "package",
+          "resolved": "dotenv"
+        },
+        {
+          "specifier": "./env.js",
+          "kind": "relative",
+          "resolved": "src/core/env.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/retrieval/search.js": {
+      "staticImports": [
+        {
+          "specifier": "../embeddings.js",
+          "kind": "relative",
+          "resolved": "src/core/embeddings.js"
+        },
+        {
+          "specifier": "../embedding-profile/resolve.js",
+          "kind": "relative",
+          "resolved": "src/core/embedding-profile/resolve.js"
+        },
+        {
+          "specifier": "../embedding-profile/schema.js",
+          "kind": "relative",
+          "resolved": "src/core/embedding-profile/schema.js"
+        },
+        {
+          "specifier": "../embedding-profile/qdrant-cloud-catalog.js",
+          "kind": "relative",
+          "resolved": "src/core/embedding-profile/qdrant-cloud-catalog.js"
+        },
+        {
+          "specifier": "../bench-telemetry.js",
+          "kind": "relative",
+          "resolved": "src/core/bench-telemetry.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/settings/definitions.js": {
+      "staticImports": [
+        {
+          "specifier": "../onnx-paths.js",
+          "kind": "relative",
+          "resolved": "src/core/onnx-paths.js"
+        },
+        {
+          "specifier": "../embedding-profile/qdrant-cloud-models.js",
+          "kind": "relative",
+          "resolved": "src/core/embedding-profile/qdrant-cloud-models.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/settings/lite-policy.js": {
+      "staticImports": [],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/settings/service.js": {
+      "staticImports": [
+        {
+          "specifier": "./definitions.js",
+          "kind": "relative",
+          "resolved": "src/core/settings/definitions.js"
+        },
+        {
+          "specifier": "./settings-store.js",
+          "kind": "relative",
+          "resolved": "src/core/settings/settings-store.js"
+        },
+        {
+          "specifier": "../env.js",
+          "kind": "relative",
+          "resolved": "src/core/env.js"
+        },
+        {
+          "specifier": "../generation/config.js",
+          "kind": "relative",
+          "resolved": "src/core/generation/config.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/settings/service.lite.js": {
+      "staticImports": [
+        {
+          "specifier": "./lite-policy.js",
+          "kind": "relative",
+          "resolved": "src/core/settings/lite-policy.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/settings/settings-store.js": {
+      "staticImports": [
+        {
+          "specifier": "node:fs",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "node:path",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "node:url",
+          "kind": "builtin",
+          "resolved": null
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/sparse.js": {
+      "staticImports": [],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/storage/adapter.js": {
+      "staticImports": [],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/storage/capabilities.js": {
+      "staticImports": [],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/storage/embedding-profile-cache.js": {
+      "staticImports": [],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/storage/factory.js": {
+      "staticImports": [
+        {
+          "specifier": "./qdrant-adapter.js",
+          "kind": "relative",
+          "resolved": "src/core/storage/qdrant-adapter.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/storage/qdrant-adapter.js": {
+      "staticImports": [
+        {
+          "specifier": "../qdrant/store.js",
+          "kind": "relative",
+          "resolved": "src/core/qdrant/store.js"
+        },
+        {
+          "specifier": "../qdrant/payload.js",
+          "kind": "relative",
+          "resolved": "src/core/qdrant/payload.js"
+        },
+        {
+          "specifier": "../qdrant/ensure-schema.js",
+          "kind": "relative",
+          "resolved": "src/core/qdrant/ensure-schema.js"
+        },
+        {
+          "specifier": "../doctor-checks.js",
+          "kind": "relative",
+          "resolved": "src/core/doctor-checks.js"
+        },
+        {
+          "specifier": "../qdrant/nav-filter.js",
+          "kind": "relative",
+          "resolved": "src/core/qdrant/nav-filter.js"
+        },
+        {
+          "specifier": "../config.js",
+          "kind": "relative",
+          "resolved": "src/core/config.js"
+        },
+        {
+          "specifier": "./capabilities.js",
+          "kind": "relative",
+          "resolved": "src/core/storage/capabilities.js"
+        },
+        {
+          "specifier": "./embedding-profile-cache.js",
+          "kind": "relative",
+          "resolved": "src/core/storage/embedding-profile-cache.js"
+        },
+        {
+          "specifier": "../embedding-profile/schema.js",
+          "kind": "relative",
+          "resolved": "src/core/embedding-profile/schema.js"
+        },
+        {
+          "specifier": "../embedding-profile/migrate.js",
+          "kind": "relative",
+          "resolved": "src/core/embedding-profile/migrate.js"
+        },
+        {
+          "specifier": "../embedding-profile/availability.js",
+          "kind": "relative",
+          "resolved": "src/core/embedding-profile/availability.js"
+        },
+        {
+          "specifier": "../embedding-profile/onnx-lane.js",
+          "kind": "relative",
+          "resolved": "src/core/embedding-profile/onnx-lane.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/token-count.js": {
+      "staticImports": [
+        {
+          "specifier": "./bge-tokenizer.js",
+          "kind": "relative",
+          "resolved": "src/core/bge-tokenizer.js"
+        },
+        {
+          "specifier": "./embedding-profile/qdrant-cloud-tokenizer.js",
+          "kind": "relative",
+          "resolved": "src/core/embedding-profile/qdrant-cloud-tokenizer.js"
+        },
+        {
+          "specifier": "./embedding-profile/schema.js",
+          "kind": "relative",
+          "resolved": "src/core/embedding-profile/schema.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/doctor.js": {
+      "staticImports": [],
+      "dynamicImports": [
+        {
+          "specifier": "./core/env-bootstrap.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/core/env-bootstrap.js"
+        },
+        {
+          "specifier": "./core/settings/service.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/core/settings/service.js"
+        },
+        {
+          "specifier": "fs",
+          "literal": true,
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "path",
+          "literal": true,
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "url",
+          "literal": true,
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "./core/doctor-checks.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/core/doctor-checks.js"
+        },
+        {
+          "specifier": "./core/config.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/core/config.js"
+        },
+        {
+          "specifier": "./core/embeddings.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/core/embeddings.js"
+        },
+        {
+          "specifier": "./core/onnx-paths.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/core/onnx-paths.js"
+        },
+        {
+          "specifier": "./core/onnx-provider-probe.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/core/onnx-provider-probe.js"
+        },
+        {
+          "specifier": "module",
+          "literal": true,
+          "kind": "builtin",
+          "resolved": null
+        }
+      ],
+      "requireCalls": [
+        {
+          "specifier": "../package.json",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "package.json"
+        }
+      ],
+      "forkSpawnCalls": []
+    },
+    "src/indexer/batch.js": {
+      "staticImports": [],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/indexer/files.js": {
+      "staticImports": [
+        {
+          "specifier": "fs",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "path",
+          "kind": "builtin",
+          "resolved": null
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/indexer/index.js": {
+      "staticImports": [
+        {
+          "specifier": "url",
+          "kind": "builtin",
+          "resolved": null
+        }
+      ],
+      "dynamicImports": [
+        {
+          "specifier": "../core/env-bootstrap.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/core/env-bootstrap.js"
+        },
+        {
+          "specifier": "../core/settings/service.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/core/settings/service.js"
+        },
+        {
+          "specifier": "./run.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/run.js"
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/indexer/phases/chunk.js": {
+      "staticImports": [
+        {
+          "specifier": "fs",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "path",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "child_process",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "util",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "module",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "@opendocsg/pdf2md",
+          "kind": "package",
+          "resolved": "@opendocsg/pdf2md"
+        },
+        {
+          "specifier": "../../core/token-count.js",
+          "kind": "relative",
+          "resolved": "src/core/token-count.js"
+        },
+        {
+          "specifier": "../../core/env.js",
+          "kind": "relative",
+          "resolved": "src/core/env.js"
+        },
+        {
+          "specifier": "./token-budget-split.js",
+          "kind": "relative",
+          "resolved": "src/indexer/phases/token-budget-split.js"
+        }
+      ],
+      "dynamicImports": [
+        {
+          "specifier": "./skeleton.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/phases/skeleton.js"
+        },
+        {
+          "specifier": "./skeleton-chunk.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/phases/skeleton-chunk.js"
+        },
+        {
+          "specifier": "../skeleton-warnings.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/skeleton-warnings.js"
+        },
+        {
+          "specifier": "./skeleton-index.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/phases/skeleton-index.js"
+        }
+      ],
+      "requireCalls": [
+        {
+          "specifier": "pdf-parse",
+          "literal": true,
+          "kind": "package",
+          "resolved": "pdf-parse"
+        }
+      ],
+      "forkSpawnCalls": []
+    },
+    "src/indexer/phases/combined.js": {
+      "staticImports": [
+        {
+          "specifier": "../../core/ollama-lazy.js",
+          "kind": "relative",
+          "resolved": "src/core/ollama-lazy.js"
+        },
+        {
+          "specifier": "./context.js",
+          "kind": "relative",
+          "resolved": "src/indexer/phases/context.js"
+        },
+        {
+          "specifier": "./tag.js",
+          "kind": "relative",
+          "resolved": "src/indexer/phases/tag.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/indexer/phases/context.js": {
+      "staticImports": [
+        {
+          "specifier": "../../core/ollama-lazy.js",
+          "kind": "relative",
+          "resolved": "src/core/ollama-lazy.js"
+        },
+        {
+          "specifier": "../batch.js",
+          "kind": "relative",
+          "resolved": "src/indexer/batch.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/indexer/phases/empty-section.js": {
+      "staticImports": [],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/indexer/phases/entity-split.js": {
+      "staticImports": [
+        {
+          "specifier": "./token-budget-split.js",
+          "kind": "relative",
+          "resolved": "src/indexer/phases/token-budget-split.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/indexer/phases/node-policy.js": {
+      "staticImports": [
+        {
+          "specifier": "../../core/env.js",
+          "kind": "relative",
+          "resolved": "src/core/env.js"
+        },
+        {
+          "specifier": "../../core/entity-reference.js",
+          "kind": "relative",
+          "resolved": "src/core/entity-reference.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/indexer/phases/skeleton-chunk.js": {
+      "staticImports": [
+        {
+          "specifier": "./chunk.js",
+          "kind": "relative",
+          "resolved": "src/indexer/phases/chunk.js"
+        },
+        {
+          "specifier": "./node-policy.js",
+          "kind": "relative",
+          "resolved": "src/indexer/phases/node-policy.js"
+        },
+        {
+          "specifier": "../../core/node-id.js",
+          "kind": "relative",
+          "resolved": "src/core/node-id.js"
+        },
+        {
+          "specifier": "../../core/entity-reference.js",
+          "kind": "relative",
+          "resolved": "src/core/entity-reference.js"
+        },
+        {
+          "specifier": "./entity-split.js",
+          "kind": "relative",
+          "resolved": "src/indexer/phases/entity-split.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/indexer/phases/skeleton-index.js": {
+      "staticImports": [
+        {
+          "specifier": "fs",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "path",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "url",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "../../core/node-id.js",
+          "kind": "relative",
+          "resolved": "src/core/node-id.js"
+        },
+        {
+          "specifier": "./node-policy.js",
+          "kind": "relative",
+          "resolved": "src/indexer/phases/node-policy.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/indexer/phases/skeleton-summary.js": {
+      "staticImports": [
+        {
+          "specifier": "../../core/ollama-lazy.js",
+          "kind": "relative",
+          "resolved": "src/core/ollama-lazy.js"
+        },
+        {
+          "specifier": "franc-min",
+          "kind": "package",
+          "resolved": "franc-min"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/indexer/phases/skeleton.js": {
+      "staticImports": [
+        {
+          "specifier": "unified",
+          "kind": "package",
+          "resolved": "unified"
+        },
+        {
+          "specifier": "remark-parse",
+          "kind": "package",
+          "resolved": "remark-parse"
+        },
+        {
+          "specifier": "remark-gfm",
+          "kind": "package",
+          "resolved": "remark-gfm"
+        },
+        {
+          "specifier": "remark-frontmatter",
+          "kind": "package",
+          "resolved": "remark-frontmatter"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/indexer/phases/tag-onnx-lazy.js": {
+      "staticImports": [
+        {
+          "specifier": "./tag-provider.js",
+          "kind": "relative",
+          "resolved": "src/indexer/phases/tag-provider.js"
+        }
+      ],
+      "dynamicImports": [
+        {
+          "specifier": "./tag-onnx.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/phases/tag-onnx.js"
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/indexer/phases/tag-onnx-lazy.lite.js": {
+      "staticImports": [
+        {
+          "specifier": "./tag-provider.js",
+          "kind": "relative",
+          "resolved": "src/indexer/phases/tag-provider.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/indexer/phases/tag-onnx.js": {
+      "staticImports": [
+        {
+          "specifier": "node:child_process",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "node:path",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "node:url",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "./tag-provider.js",
+          "kind": "relative",
+          "resolved": "src/indexer/phases/tag-provider.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": [
+        {
+          "callee": "fork",
+          "arg": "../workers/tag-onnx-worker.js",
+          "literal": true,
+          "resolved": "src/indexer/workers/tag-onnx-worker.js"
+        },
+        {
+          "callee": "fork",
+          "arg": "../workers/tag-onnx-worker.js",
+          "literal": true,
+          "resolved": "src/indexer/workers/tag-onnx-worker.js"
+        }
+      ]
+    },
+    "src/indexer/phases/tag-provider.js": {
+      "staticImports": [],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/indexer/phases/tag.js": {
+      "staticImports": [
+        {
+          "specifier": "../../core/ollama-lazy.js",
+          "kind": "relative",
+          "resolved": "src/core/ollama-lazy.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/indexer/phases/token-budget-split.js": {
+      "staticImports": [],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/indexer/preflight.js": {
+      "staticImports": [
+        {
+          "specifier": "../core/ollama-lazy.js",
+          "kind": "relative",
+          "resolved": "src/core/ollama-lazy.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/indexer/profiler.js": {
+      "staticImports": [],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/indexer/progress-event.js": {
+      "staticImports": [],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/indexer/run.js": {
+      "staticImports": [
+        {
+          "specifier": "fs",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "path",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "crypto",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "./phases/chunk.js",
+          "kind": "relative",
+          "resolved": "src/indexer/phases/chunk.js"
+        },
+        {
+          "specifier": "./phases/context.js",
+          "kind": "relative",
+          "resolved": "src/indexer/phases/context.js"
+        },
+        {
+          "specifier": "./phases/tag.js",
+          "kind": "relative",
+          "resolved": "src/indexer/phases/tag.js"
+        },
+        {
+          "specifier": "./phases/tag-onnx-lazy.js",
+          "kind": "relative",
+          "resolved": "src/indexer/phases/tag-onnx-lazy.js"
+        },
+        {
+          "specifier": "./phases/empty-section.js",
+          "kind": "relative",
+          "resolved": "src/indexer/phases/empty-section.js"
+        },
+        {
+          "specifier": "./phases/combined.js",
+          "kind": "relative",
+          "resolved": "src/indexer/phases/combined.js"
+        },
+        {
+          "specifier": "../core/doctor-checks.js",
+          "kind": "relative",
+          "resolved": "src/core/doctor-checks.js"
+        },
+        {
+          "specifier": "./batch.js",
+          "kind": "relative",
+          "resolved": "src/indexer/batch.js"
+        },
+        {
+          "specifier": "./files.js",
+          "kind": "relative",
+          "resolved": "src/indexer/files.js"
+        },
+        {
+          "specifier": "./profiler.js",
+          "kind": "relative",
+          "resolved": "src/indexer/profiler.js"
+        },
+        {
+          "specifier": "../core/qdrant.js",
+          "kind": "relative",
+          "resolved": "src/core/qdrant.js"
+        },
+        {
+          "specifier": "../core/point-id.js",
+          "kind": "relative",
+          "resolved": "src/core/point-id.js"
+        },
+        {
+          "specifier": "../core/config.js",
+          "kind": "relative",
+          "resolved": "src/core/config.js"
+        },
+        {
+          "specifier": "../core/embeddings.js",
+          "kind": "relative",
+          "resolved": "src/core/embeddings.js"
+        },
+        {
+          "specifier": "../core/storage/factory.js",
+          "kind": "relative",
+          "resolved": "src/core/storage/factory.js"
+        },
+        {
+          "specifier": "../core/embedding-profile/resolve.js",
+          "kind": "relative",
+          "resolved": "src/core/embedding-profile/resolve.js"
+        },
+        {
+          "specifier": "../core/embedding-profile/qdrant-cloud-catalog.js",
+          "kind": "relative",
+          "resolved": "src/core/embedding-profile/qdrant-cloud-catalog.js"
+        },
+        {
+          "specifier": "../core/embedding-profile/config-cache.js",
+          "kind": "relative",
+          "resolved": "src/core/embedding-profile/config-cache.js"
+        },
+        {
+          "specifier": "./preflight.js",
+          "kind": "relative",
+          "resolved": "src/indexer/preflight.js"
+        },
+        {
+          "specifier": "../core/token-count.js",
+          "kind": "relative",
+          "resolved": "src/core/token-count.js"
+        },
+        {
+          "specifier": "./semaphore.js",
+          "kind": "relative",
+          "resolved": "src/indexer/semaphore.js"
+        },
+        {
+          "specifier": "./serial-queue.js",
+          "kind": "relative",
+          "resolved": "src/indexer/serial-queue.js"
+        },
+        {
+          "specifier": "../core/env.js",
+          "kind": "relative",
+          "resolved": "src/core/env.js"
+        },
+        {
+          "specifier": "./skeleton-payload.js",
+          "kind": "relative",
+          "resolved": "src/indexer/skeleton-payload.js"
+        },
+        {
+          "specifier": "../core/embedding-profile/schema.js",
+          "kind": "relative",
+          "resolved": "src/core/embedding-profile/schema.js"
+        },
+        {
+          "specifier": "./phases/skeleton-summary.js",
+          "kind": "relative",
+          "resolved": "src/indexer/phases/skeleton-summary.js"
+        },
+        {
+          "specifier": "./phases/skeleton-index.js",
+          "kind": "relative",
+          "resolved": "src/indexer/phases/skeleton-index.js"
+        },
+        {
+          "specifier": "../core/node-id.js",
+          "kind": "relative",
+          "resolved": "src/core/node-id.js"
+        },
+        {
+          "specifier": "../core/qdrant.js",
+          "kind": "relative",
+          "resolved": "src/core/qdrant.js"
+        },
+        {
+          "specifier": "./progress-event.js",
+          "kind": "relative",
+          "resolved": "src/indexer/progress-event.js"
+        },
+        {
+          "specifier": "../core/settings/service.js",
+          "kind": "relative",
+          "resolved": "src/core/settings/service.js"
+        },
+        {
+          "specifier": "../core/ollama-lazy.js",
+          "kind": "relative",
+          "resolved": "src/core/ollama-lazy.js"
+        }
+      ],
+      "dynamicImports": [
+        {
+          "specifier": "fs",
+          "literal": true,
+          "kind": "builtin",
+          "resolved": null
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/indexer/semaphore.js": {
+      "staticImports": [],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/indexer/serial-queue.js": {
+      "staticImports": [],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/indexer/skeleton-payload.js": {
+      "staticImports": [
+        {
+          "specifier": "path",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "../core/point-id.js",
+          "kind": "relative",
+          "resolved": "src/core/point-id.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/indexer/skeleton-warnings.js": {
+      "staticImports": [
+        {
+          "specifier": "fs",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "path",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "url",
+          "kind": "builtin",
+          "resolved": null
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/indexer/workers/tag-onnx-worker.js": {
+      "staticImports": [
+        {
+          "specifier": "node:path",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "node:fs",
+          "kind": "builtin",
+          "resolved": null
+        }
+      ],
+      "dynamicImports": [
+        {
+          "specifier": "@huggingface/transformers",
+          "literal": true,
+          "kind": "package",
+          "resolved": "@huggingface/transformers"
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/mcp/server.js": {
+      "staticImports": [
+        {
+          "specifier": "url",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "path",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "../core/env-bootstrap.js",
+          "kind": "relative",
+          "resolved": "src/core/env-bootstrap.js"
+        },
+        {
+          "specifier": "../core/settings/service.js",
+          "kind": "relative",
+          "resolved": "src/core/settings/service.js"
+        }
+      ],
+      "dynamicImports": [
+        {
+          "specifier": "@modelcontextprotocol/sdk/server/index.js",
+          "literal": true,
+          "kind": "package",
+          "resolved": "@modelcontextprotocol/sdk"
+        },
+        {
+          "specifier": "@modelcontextprotocol/sdk/server/stdio.js",
+          "literal": true,
+          "kind": "package",
+          "resolved": "@modelcontextprotocol/sdk"
+        },
+        {
+          "specifier": "@modelcontextprotocol/sdk/types.js",
+          "literal": true,
+          "kind": "package",
+          "resolved": "@modelcontextprotocol/sdk"
+        },
+        {
+          "specifier": "../core/doctor-checks.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/core/doctor-checks.js"
+        },
+        {
+          "specifier": "./tools/search.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/mcp/tools/search.js"
+        },
+        {
+          "specifier": "./tools/collections.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/mcp/tools/collections.js"
+        },
+        {
+          "specifier": "./tools/getChunk.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/mcp/tools/getChunk.js"
+        },
+        {
+          "specifier": "./tools/findByTag.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/mcp/tools/findByTag.js"
+        },
+        {
+          "specifier": "./tools/listFiles.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/mcp/tools/listFiles.js"
+        },
+        {
+          "specifier": "./tools/listTags.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/mcp/tools/listTags.js"
+        },
+        {
+          "specifier": "./tools/listDirectories.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/mcp/tools/listDirectories.js"
+        },
+        {
+          "specifier": "./tools/getSkeleton.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/mcp/tools/getSkeleton.js"
+        },
+        {
+          "specifier": "./tools/getSkeletonNode.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/mcp/tools/getSkeletonNode.js"
+        },
+        {
+          "specifier": "./tools/getSkeletonChildren.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/mcp/tools/getSkeletonChildren.js"
+        },
+        {
+          "specifier": "./tools/getNode.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/mcp/tools/getNode.js"
+        },
+        {
+          "specifier": "./tools/getContent.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/mcp/tools/getContent.js"
+        },
+        {
+          "specifier": "./../core/ce-rerank.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/core/ce-rerank.js"
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/mcp/tools/collections.js": {
+      "staticImports": [
+        {
+          "specifier": "../../core/storage/factory.js",
+          "kind": "relative",
+          "resolved": "src/core/storage/factory.js"
+        },
+        {
+          "specifier": "../../core/embedding-profile/resolve.js",
+          "kind": "relative",
+          "resolved": "src/core/embedding-profile/resolve.js"
+        },
+        {
+          "specifier": "../../core/embedding-profile/availability.js",
+          "kind": "relative",
+          "resolved": "src/core/embedding-profile/availability.js"
+        },
+        {
+          "specifier": "../../core/embedding-profile/onnx-lane.js",
+          "kind": "relative",
+          "resolved": "src/core/embedding-profile/onnx-lane.js"
+        },
+        {
+          "specifier": "../../core/ollama.js",
+          "kind": "relative",
+          "resolved": "src/core/ollama.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/mcp/tools/filters.js": {
+      "staticImports": [
+        {
+          "specifier": "../../core/qdrant/nav-filter.js",
+          "kind": "relative",
+          "resolved": "src/core/qdrant/nav-filter.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/mcp/tools/findByTag.js": {
+      "staticImports": [
+        {
+          "specifier": "../../core/qdrant.js",
+          "kind": "relative",
+          "resolved": "src/core/qdrant.js"
+        },
+        {
+          "specifier": "./filters.js",
+          "kind": "relative",
+          "resolved": "src/mcp/tools/filters.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/mcp/tools/getChunk.js": {
+      "staticImports": [
+        {
+          "specifier": "../../core/qdrant.js",
+          "kind": "relative",
+          "resolved": "src/core/qdrant.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/mcp/tools/getContent.js": {
+      "staticImports": [
+        {
+          "specifier": "../../core/storage/factory.js",
+          "kind": "relative",
+          "resolved": "src/core/storage/factory.js"
+        },
+        {
+          "specifier": "../../core/assembly/anchored-content.js",
+          "kind": "relative",
+          "resolved": "src/core/assembly/anchored-content.js"
+        },
+        {
+          "specifier": "../../core/token-count.js",
+          "kind": "relative",
+          "resolved": "src/core/token-count.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/mcp/tools/getNode.js": {
+      "staticImports": [
+        {
+          "specifier": "../../core/qdrant.js",
+          "kind": "relative",
+          "resolved": "src/core/qdrant.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/mcp/tools/getSkeleton.js": {
+      "staticImports": [
+        {
+          "specifier": "../../core/qdrant.js",
+          "kind": "relative",
+          "resolved": "src/core/qdrant.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/mcp/tools/getSkeletonChildren.js": {
+      "staticImports": [
+        {
+          "specifier": "../../core/qdrant.js",
+          "kind": "relative",
+          "resolved": "src/core/qdrant.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/mcp/tools/getSkeletonNode.js": {
+      "staticImports": [
+        {
+          "specifier": "../../core/qdrant.js",
+          "kind": "relative",
+          "resolved": "src/core/qdrant.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/mcp/tools/listDirectories.js": {
+      "staticImports": [
+        {
+          "specifier": "../../core/qdrant.js",
+          "kind": "relative",
+          "resolved": "src/core/qdrant.js"
+        },
+        {
+          "specifier": "./filters.js",
+          "kind": "relative",
+          "resolved": "src/mcp/tools/filters.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/mcp/tools/listFiles.js": {
+      "staticImports": [
+        {
+          "specifier": "../../core/qdrant.js",
+          "kind": "relative",
+          "resolved": "src/core/qdrant.js"
+        },
+        {
+          "specifier": "./filters.js",
+          "kind": "relative",
+          "resolved": "src/mcp/tools/filters.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/mcp/tools/listTags.js": {
+      "staticImports": [
+        {
+          "specifier": "../../core/qdrant.js",
+          "kind": "relative",
+          "resolved": "src/core/qdrant.js"
+        },
+        {
+          "specifier": "./filters.js",
+          "kind": "relative",
+          "resolved": "src/mcp/tools/filters.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/mcp/tools/search.js": {
+      "staticImports": [
+        {
+          "specifier": "../../core/qdrant.js",
+          "kind": "relative",
+          "resolved": "src/core/qdrant.js"
+        },
+        {
+          "specifier": "../../core/rerank.js",
+          "kind": "relative",
+          "resolved": "src/core/rerank.js"
+        },
+        {
+          "specifier": "../../core/ce-rerank.js",
+          "kind": "relative",
+          "resolved": "src/core/ce-rerank.js"
+        },
+        {
+          "specifier": "../../core/storage/factory.js",
+          "kind": "relative",
+          "resolved": "src/core/storage/factory.js"
+        },
+        {
+          "specifier": "../../core/retrieval/search.js",
+          "kind": "relative",
+          "resolved": "src/core/retrieval/search.js"
+        },
+        {
+          "specifier": "../../core/env.js",
+          "kind": "relative",
+          "resolved": "src/core/env.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/smoke/helpers.js": {
+      "staticImports": [
+        {
+          "specifier": "fs",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "path",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "url",
+          "kind": "builtin",
+          "resolved": null
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/smoke/index.js": {
+      "staticImports": [
+        {
+          "specifier": "dotenv/config",
+          "kind": "package",
+          "resolved": "dotenv"
+        },
+        {
+          "specifier": "./helpers.js",
+          "kind": "relative",
+          "resolved": "src/smoke/helpers.js"
+        },
+        {
+          "specifier": "./sections/01-default-provider.js",
+          "kind": "relative",
+          "resolved": "src/smoke/sections/01-default-provider.js"
+        },
+        {
+          "specifier": "./sections/02-onnx-embed.js",
+          "kind": "relative",
+          "resolved": "src/smoke/sections/02-onnx-embed.js"
+        },
+        {
+          "specifier": "./sections/03-invalid-combo-resolve.js",
+          "kind": "relative",
+          "resolved": "src/smoke/sections/03-invalid-combo-resolve.js"
+        },
+        {
+          "specifier": "./sections/04-embed-runtime-guard.js",
+          "kind": "relative",
+          "resolved": "src/smoke/sections/04-embed-runtime-guard.js"
+        },
+        {
+          "specifier": "./sections/05-reindex-detection.js",
+          "kind": "relative",
+          "resolved": "src/smoke/sections/05-reindex-detection.js"
+        },
+        {
+          "specifier": "./sections/06-chunking-edge-cases.js",
+          "kind": "relative",
+          "resolved": "src/smoke/sections/06-chunking-edge-cases.js"
+        },
+        {
+          "specifier": "./sections/07-reranker-top1.js",
+          "kind": "relative",
+          "resolved": "src/smoke/sections/07-reranker-top1.js"
+        },
+        {
+          "specifier": "./sections/08-compact-window.js",
+          "kind": "relative",
+          "resolved": "src/smoke/sections/08-compact-window.js"
+        },
+        {
+          "specifier": "./sections/09-stale-source-files.js",
+          "kind": "relative",
+          "resolved": "src/smoke/sections/09-stale-source-files.js"
+        },
+        {
+          "specifier": "./sections/11-recursive-chunk-text.js",
+          "kind": "relative",
+          "resolved": "src/smoke/sections/11-recursive-chunk-text.js"
+        },
+        {
+          "specifier": "./sections/12-onnx-providers.js",
+          "kind": "relative",
+          "resolved": "src/smoke/sections/12-onnx-providers.js"
+        },
+        {
+          "specifier": "./sections/13-semidex-payload.js",
+          "kind": "relative",
+          "resolved": "src/smoke/sections/13-semidex-payload.js"
+        },
+        {
+          "specifier": "./sections/14-profiler.js",
+          "kind": "relative",
+          "resolved": "src/smoke/sections/14-profiler.js"
+        },
+        {
+          "specifier": "./sections/15-bootstrap-docs.js",
+          "kind": "relative",
+          "resolved": "src/smoke/sections/15-bootstrap-docs.js"
+        },
+        {
+          "specifier": "./sections/16-extract-json-array.js",
+          "kind": "relative",
+          "resolved": "src/smoke/sections/16-extract-json-array.js"
+        },
+        {
+          "specifier": "./sections/17-pdf-fixture.js",
+          "kind": "relative",
+          "resolved": "src/smoke/sections/17-pdf-fixture.js"
+        },
+        {
+          "specifier": "./sections/18-validate-ollama-models.js",
+          "kind": "relative",
+          "resolved": "src/smoke/sections/18-validate-ollama-models.js"
+        },
+        {
+          "specifier": "./sections/19-doctor-checks.js",
+          "kind": "relative",
+          "resolved": "src/smoke/sections/19-doctor-checks.js"
+        },
+        {
+          "specifier": "./sections/20-colbert-math.js",
+          "kind": "relative",
+          "resolved": "src/smoke/sections/20-colbert-math.js"
+        },
+        {
+          "specifier": "./sections/23-length-bucket.js",
+          "kind": "relative",
+          "resolved": "src/smoke/sections/23-length-bucket.js"
+        },
+        {
+          "specifier": "./sections/24-dml-batching-gate.js",
+          "kind": "relative",
+          "resolved": "src/smoke/sections/24-dml-batching-gate.js"
+        },
+        {
+          "specifier": "./sections/26-extract-context-tags-array.js",
+          "kind": "relative",
+          "resolved": "src/smoke/sections/26-extract-context-tags-array.js"
+        },
+        {
+          "specifier": "./sections/27-combined-phase.js",
+          "kind": "relative",
+          "resolved": "src/smoke/sections/27-combined-phase.js"
+        },
+        {
+          "specifier": "./sections/28-setext-headings.js",
+          "kind": "relative",
+          "resolved": "src/smoke/sections/28-setext-headings.js"
+        },
+        {
+          "specifier": "./sections/29-semidex-ignore.js",
+          "kind": "relative",
+          "resolved": "src/smoke/sections/29-semidex-ignore.js"
+        },
+        {
+          "specifier": "./sections/30-tag-gen-flag.js",
+          "kind": "relative",
+          "resolved": "src/smoke/sections/30-tag-gen-flag.js"
+        },
+        {
+          "specifier": "./sections/31-empty-section.js",
+          "kind": "relative",
+          "resolved": "src/smoke/sections/31-empty-section.js"
+        },
+        {
+          "specifier": "./sections/32-deterministic-point-id.js",
+          "kind": "relative",
+          "resolved": "src/smoke/sections/32-deterministic-point-id.js"
+        },
+        {
+          "specifier": "./sections/33-duplicate-repair-helpers.js",
+          "kind": "relative",
+          "resolved": "src/smoke/sections/33-duplicate-repair-helpers.js"
+        },
+        {
+          "specifier": "./sections/34-mcp-navigation-tools.js",
+          "kind": "relative",
+          "resolved": "src/smoke/sections/34-mcp-navigation-tools.js"
+        },
+        {
+          "specifier": "./sections/35-mcp-ux-polish.js",
+          "kind": "relative",
+          "resolved": "src/smoke/sections/35-mcp-ux-polish.js"
+        },
+        {
+          "specifier": "./sections/36-token-count.js",
+          "kind": "relative",
+          "resolved": "src/smoke/sections/36-token-count.js"
+        },
+        {
+          "specifier": "./sections/37-pipeline-primitives.js",
+          "kind": "relative",
+          "resolved": "src/smoke/sections/37-pipeline-primitives.js"
+        },
+        {
+          "specifier": "./sections/38-tag-onnx-provider.js",
+          "kind": "relative",
+          "resolved": "src/smoke/sections/38-tag-onnx-provider.js"
+        },
+        {
+          "specifier": "./sections/39-dynamic-overlap.js",
+          "kind": "relative",
+          "resolved": "src/smoke/sections/39-dynamic-overlap.js"
+        },
+        {
+          "specifier": "./sections/40-colbert-guard.js",
+          "kind": "relative",
+          "resolved": "src/smoke/sections/40-colbert-guard.js"
+        },
+        {
+          "specifier": "./sections/41-ce-rerank-stub.js",
+          "kind": "relative",
+          "resolved": "src/smoke/sections/41-ce-rerank-stub.js"
+        },
+        {
+          "specifier": "./sections/42-skeleton-parse.js",
+          "kind": "relative",
+          "resolved": "src/smoke/sections/42-skeleton-parse.js"
+        },
+        {
+          "specifier": "./sections/43-skeleton-policy.js",
+          "kind": "relative",
+          "resolved": "src/smoke/sections/43-skeleton-policy.js"
+        },
+        {
+          "specifier": "./sections/44-skeleton-warnings.js",
+          "kind": "relative",
+          "resolved": "src/smoke/sections/44-skeleton-warnings.js"
+        },
+        {
+          "specifier": "./sections/45-skeleton-chunk.js",
+          "kind": "relative",
+          "resolved": "src/smoke/sections/45-skeleton-chunk.js"
+        },
+        {
+          "specifier": "./sections/46-skeleton-payload.js",
+          "kind": "relative",
+          "resolved": "src/smoke/sections/46-skeleton-payload.js"
+        },
+        {
+          "specifier": "./sections/47-skeleton-nav.js",
+          "kind": "relative",
+          "resolved": "src/smoke/sections/47-skeleton-nav.js"
+        },
+        {
+          "specifier": "./sections/48-nav-filter.js",
+          "kind": "relative",
+          "resolved": "src/smoke/sections/48-nav-filter.js"
+        },
+        {
+          "specifier": "./sections/49-skeleton-edge-cases.js",
+          "kind": "relative",
+          "resolved": "src/smoke/sections/49-skeleton-edge-cases.js"
+        },
+        {
+          "specifier": "./sections/50-nav-upsert.js",
+          "kind": "relative",
+          "resolved": "src/smoke/sections/50-nav-upsert.js"
+        },
+        {
+          "specifier": "./sections/51-skeleton-summary.js",
+          "kind": "relative",
+          "resolved": "src/smoke/sections/51-skeleton-summary.js"
+        },
+        {
+          "specifier": "./sections/52-run-num-ctx.js",
+          "kind": "relative",
+          "resolved": "src/smoke/sections/52-run-num-ctx.js"
+        },
+        {
+          "specifier": "./sections/53-skeleton-nav-tools.js",
+          "kind": "relative",
+          "resolved": "src/smoke/sections/53-skeleton-nav-tools.js"
+        },
+        {
+          "specifier": "./sections/54-adaptive-skeleton-summaries.js",
+          "kind": "relative",
+          "resolved": "src/smoke/sections/54-adaptive-skeleton-summaries.js"
+        },
+        {
+          "specifier": "./sections/55-hierarchical-skeleton-summaries.js",
+          "kind": "relative",
+          "resolved": "src/smoke/sections/55-hierarchical-skeleton-summaries.js"
+        },
+        {
+          "specifier": "./sections/56-get-node-tool.js",
+          "kind": "relative",
+          "resolved": "src/smoke/sections/56-get-node-tool.js"
+        },
+        {
+          "specifier": "./sections/57-skeleton-carryover.js",
+          "kind": "relative",
+          "resolved": "src/smoke/sections/57-skeleton-carryover.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/smoke/sections/01-default-provider.js": {
+      "staticImports": [],
+      "dynamicImports": [
+        {
+          "specifier": "../../core/config.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/core/config.js"
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/smoke/sections/02-onnx-embed.js": {
+      "staticImports": [],
+      "dynamicImports": [
+        {
+          "specifier": "../../core/config.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/core/config.js"
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/smoke/sections/03-invalid-combo-resolve.js": {
+      "staticImports": [],
+      "dynamicImports": [
+        {
+          "specifier": "../../core/config.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/core/config.js"
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/smoke/sections/04-embed-runtime-guard.js": {
+      "staticImports": [],
+      "dynamicImports": [
+        {
+          "specifier": "../../core/embeddings.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/core/embeddings.js"
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/smoke/sections/05-reindex-detection.js": {
+      "staticImports": [],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/smoke/sections/06-chunking-edge-cases.js": {
+      "staticImports": [],
+      "dynamicImports": [
+        {
+          "specifier": "../../indexer/phases/chunk.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/phases/chunk.js"
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/smoke/sections/07-reranker-top1.js": {
+      "staticImports": [],
+      "dynamicImports": [
+        {
+          "specifier": "../../core/rerank.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/core/rerank.js"
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/smoke/sections/08-compact-window.js": {
+      "staticImports": [],
+      "dynamicImports": [
+        {
+          "specifier": "../../mcp/tools/search.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/mcp/tools/search.js"
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/smoke/sections/09-stale-source-files.js": {
+      "staticImports": [],
+      "dynamicImports": [
+        {
+          "specifier": "../../indexer/run.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/run.js"
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/smoke/sections/11-recursive-chunk-text.js": {
+      "staticImports": [],
+      "dynamicImports": [
+        {
+          "specifier": "../../indexer/phases/chunk.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/phases/chunk.js"
+        },
+        {
+          "specifier": "../../indexer/phases/chunk.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/phases/chunk.js"
+        },
+        {
+          "specifier": "../../indexer/phases/chunk.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/phases/chunk.js"
+        },
+        {
+          "specifier": "../../indexer/phases/chunk.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/phases/chunk.js"
+        },
+        {
+          "specifier": "../../indexer/phases/chunk.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/phases/chunk.js"
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/smoke/sections/12-onnx-providers.js": {
+      "staticImports": [],
+      "dynamicImports": [
+        {
+          "specifier": "../../core/onnx-embed.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/core/onnx-embed.js"
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/smoke/sections/13-semidex-payload.js": {
+      "staticImports": [],
+      "dynamicImports": [
+        {
+          "specifier": "../../core/qdrant.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/core/qdrant.js"
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/smoke/sections/14-profiler.js": {
+      "staticImports": [],
+      "dynamicImports": [
+        {
+          "specifier": "../../indexer/profiler.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/profiler.js"
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/smoke/sections/15-bootstrap-docs.js": {
+      "staticImports": [],
+      "dynamicImports": [
+        {
+          "specifier": "../../bootstrap-docs.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/bootstrap-docs.js"
+        },
+        {
+          "specifier": "path",
+          "literal": true,
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "../../core/config.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/core/config.js"
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/smoke/sections/16-extract-json-array.js": {
+      "staticImports": [],
+      "dynamicImports": [
+        {
+          "specifier": "../../indexer/phases/tag.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/phases/tag.js"
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/smoke/sections/17-pdf-fixture.js": {
+      "staticImports": [
+        {
+          "specifier": "path",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "url",
+          "kind": "builtin",
+          "resolved": null
+        }
+      ],
+      "dynamicImports": [
+        {
+          "specifier": "../../indexer/phases/chunk.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/phases/chunk.js"
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/smoke/sections/18-validate-ollama-models.js": {
+      "staticImports": [],
+      "dynamicImports": [
+        {
+          "specifier": "../../core/ollama.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/core/ollama.js"
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/smoke/sections/19-doctor-checks.js": {
+      "staticImports": [],
+      "dynamicImports": [
+        {
+          "specifier": "../../core/doctor-checks.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/core/doctor-checks.js"
+        },
+        {
+          "specifier": "../../core/doctor-checks.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/core/doctor-checks.js"
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/smoke/sections/20-colbert-math.js": {
+      "staticImports": [],
+      "dynamicImports": [
+        {
+          "specifier": "../../../benchmarks/retrieval/lib/colbert-math.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "benchmarks/retrieval/lib/colbert-math.js"
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/smoke/sections/23-length-bucket.js": {
+      "staticImports": [],
+      "dynamicImports": [
+        {
+          "specifier": "../../core/length-bucket.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/core/length-bucket.js"
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/smoke/sections/24-dml-batching-gate.js": {
+      "staticImports": [],
+      "dynamicImports": [
+        {
+          "specifier": "../../core/embeddings.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/core/embeddings.js"
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/smoke/sections/26-extract-context-tags-array.js": {
+      "staticImports": [],
+      "dynamicImports": [
+        {
+          "specifier": "../../../benchmarks/retrieval/combined-context-tags-helpers.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "benchmarks/retrieval/combined-context-tags-helpers.js"
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/smoke/sections/27-combined-phase.js": {
+      "staticImports": [],
+      "dynamicImports": [
+        {
+          "specifier": "../../indexer/phases/combined.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/phases/combined.js"
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/smoke/sections/28-setext-headings.js": {
+      "staticImports": [],
+      "dynamicImports": [
+        {
+          "specifier": "../../indexer/phases/chunk.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/phases/chunk.js"
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/smoke/sections/29-semidex-ignore.js": {
+      "staticImports": [
+        {
+          "specifier": "fs",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "path",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "os",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "../../indexer/files.js",
+          "kind": "relative",
+          "resolved": "src/indexer/files.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/smoke/sections/30-tag-gen-flag.js": {
+      "staticImports": [],
+      "dynamicImports": [
+        {
+          "specifier": "../../indexer/phases/tag.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/phases/tag.js"
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/smoke/sections/31-empty-section.js": {
+      "staticImports": [],
+      "dynamicImports": [
+        {
+          "specifier": "../../indexer/phases/chunk.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/phases/chunk.js"
+        },
+        {
+          "specifier": "../../indexer/phases/empty-section.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/phases/empty-section.js"
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/smoke/sections/32-deterministic-point-id.js": {
+      "staticImports": [
+        {
+          "specifier": "../../core/point-id.js",
+          "kind": "relative",
+          "resolved": "src/core/point-id.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/smoke/sections/33-duplicate-repair-helpers.js": {
+      "staticImports": [
+        {
+          "specifier": "path",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "../../../benchmarks/retrieval/duplicate-point-repair.js",
+          "kind": "relative",
+          "resolved": "benchmarks/retrieval/duplicate-point-repair.js"
+        }
+      ],
+      "dynamicImports": [
+        {
+          "specifier": "../../core/point-id.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/core/point-id.js"
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/smoke/sections/34-mcp-navigation-tools.js": {
+      "staticImports": [
+        {
+          "specifier": "../../../src/mcp/tools/listFiles.js",
+          "kind": "relative",
+          "resolved": "src/mcp/tools/listFiles.js"
+        },
+        {
+          "specifier": "../../../src/mcp/tools/listTags.js",
+          "kind": "relative",
+          "resolved": "src/mcp/tools/listTags.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/smoke/sections/35-mcp-ux-polish.js": {
+      "staticImports": [
+        {
+          "specifier": "../../../src/mcp/tools/listDirectories.js",
+          "kind": "relative",
+          "resolved": "src/mcp/tools/listDirectories.js"
+        },
+        {
+          "specifier": "../../../src/mcp/tools/findByTag.js",
+          "kind": "relative",
+          "resolved": "src/mcp/tools/findByTag.js"
+        },
+        {
+          "specifier": "../../../src/mcp/tools/getChunk.js",
+          "kind": "relative",
+          "resolved": "src/mcp/tools/getChunk.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/smoke/sections/36-token-count.js": {
+      "staticImports": [],
+      "dynamicImports": [
+        {
+          "specifier": "../../core/token-count.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/core/token-count.js"
+        },
+        {
+          "specifier": "../../indexer/phases/chunk.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/phases/chunk.js"
+        },
+        {
+          "specifier": "../../indexer/phases/chunk.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/phases/chunk.js"
+        },
+        {
+          "specifier": "fs",
+          "literal": true,
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "../../indexer/phases/chunk.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/phases/chunk.js"
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/smoke/sections/37-pipeline-primitives.js": {
+      "staticImports": [],
+      "dynamicImports": [
+        {
+          "specifier": "../../indexer/semaphore.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/semaphore.js"
+        },
+        {
+          "specifier": "../../indexer/serial-queue.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/serial-queue.js"
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/smoke/sections/38-tag-onnx-provider.js": {
+      "staticImports": [],
+      "dynamicImports": [
+        {
+          "specifier": "../../indexer/phases/tag-onnx.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/phases/tag-onnx.js"
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/smoke/sections/39-dynamic-overlap.js": {
+      "staticImports": [],
+      "dynamicImports": [
+        {
+          "specifier": "../../indexer/phases/chunk.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/phases/chunk.js"
+        },
+        {
+          "specifier": "../../core/token-count.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/core/token-count.js"
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/smoke/sections/40-colbert-guard.js": {
+      "staticImports": [],
+      "dynamicImports": [
+        {
+          "specifier": "../../../benchmarks/retrieval/lib/colbert-guard.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "benchmarks/retrieval/lib/colbert-guard.js"
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/smoke/sections/41-ce-rerank-stub.js": {
+      "staticImports": [
+        {
+          "specifier": "node:events",
+          "kind": "builtin",
+          "resolved": null
+        }
+      ],
+      "dynamicImports": [
+        {
+          "specifier": "../../core/ce-rerank.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/core/ce-rerank.js"
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/smoke/sections/42-skeleton-parse.js": {
+      "staticImports": [],
+      "dynamicImports": [
+        {
+          "specifier": "../../indexer/phases/skeleton.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/phases/skeleton.js"
+        },
+        {
+          "specifier": "../../core/node-id.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/core/node-id.js"
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/smoke/sections/43-skeleton-policy.js": {
+      "staticImports": [],
+      "dynamicImports": [
+        {
+          "specifier": "../../indexer/phases/node-policy.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/phases/node-policy.js"
+        },
+        {
+          "specifier": "../../indexer/phases/skeleton.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/phases/skeleton.js"
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/smoke/sections/44-skeleton-warnings.js": {
+      "staticImports": [
+        {
+          "specifier": "fs",
+          "kind": "builtin",
+          "resolved": null
+        }
+      ],
+      "dynamicImports": [
+        {
+          "specifier": "../../indexer/skeleton-warnings.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/skeleton-warnings.js"
+        },
+        {
+          "specifier": "../../indexer/phases/skeleton.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/phases/skeleton.js"
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/smoke/sections/45-skeleton-chunk.js": {
+      "staticImports": [],
+      "dynamicImports": [
+        {
+          "specifier": "../../indexer/phases/chunk.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/phases/chunk.js"
+        },
+        {
+          "specifier": "../../indexer/phases/skeleton.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/phases/skeleton.js"
+        },
+        {
+          "specifier": "../../indexer/phases/skeleton-chunk.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/phases/skeleton-chunk.js"
+        },
+        {
+          "specifier": "fs",
+          "literal": true,
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "os",
+          "literal": true,
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "path",
+          "literal": true,
+          "kind": "builtin",
+          "resolved": null
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/smoke/sections/46-skeleton-payload.js": {
+      "staticImports": [],
+      "dynamicImports": [
+        {
+          "specifier": "../../indexer/skeleton-payload.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/skeleton-payload.js"
+        },
+        {
+          "specifier": "../../core/point-id.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/core/point-id.js"
+        },
+        {
+          "specifier": "../../indexer/phases/skeleton.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/phases/skeleton.js"
+        },
+        {
+          "specifier": "../../indexer/phases/skeleton-chunk.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/phases/skeleton-chunk.js"
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/smoke/sections/47-skeleton-nav.js": {
+      "staticImports": [
+        {
+          "specifier": "fs",
+          "kind": "builtin",
+          "resolved": null
+        }
+      ],
+      "dynamicImports": [
+        {
+          "specifier": "../../indexer/phases/skeleton.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/phases/skeleton.js"
+        },
+        {
+          "specifier": "../../indexer/phases/skeleton-chunk.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/phases/skeleton-chunk.js"
+        },
+        {
+          "specifier": "../../indexer/phases/skeleton-index.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/phases/skeleton-index.js"
+        },
+        {
+          "specifier": "../../indexer/phases/node-policy.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/phases/node-policy.js"
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/smoke/sections/48-nav-filter.js": {
+      "staticImports": [],
+      "dynamicImports": [
+        {
+          "specifier": "../../mcp/tools/filters.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/mcp/tools/filters.js"
+        },
+        {
+          "specifier": "../../mcp/tools/listFiles.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/mcp/tools/listFiles.js"
+        },
+        {
+          "specifier": "../../mcp/tools/listTags.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/mcp/tools/listTags.js"
+        },
+        {
+          "specifier": "../../mcp/tools/listDirectories.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/mcp/tools/listDirectories.js"
+        },
+        {
+          "specifier": "../../mcp/tools/findByTag.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/mcp/tools/findByTag.js"
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/smoke/sections/49-skeleton-edge-cases.js": {
+      "staticImports": [
+        {
+          "specifier": "../../core/node-id.js",
+          "kind": "relative",
+          "resolved": "src/core/node-id.js"
+        }
+      ],
+      "dynamicImports": [
+        {
+          "specifier": "../../indexer/phases/skeleton.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/phases/skeleton.js"
+        },
+        {
+          "specifier": "../../indexer/phases/skeleton-chunk.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/phases/skeleton-chunk.js"
+        },
+        {
+          "specifier": "../../indexer/phases/skeleton-index.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/phases/skeleton-index.js"
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/smoke/sections/50-nav-upsert.js": {
+      "staticImports": [],
+      "dynamicImports": [
+        {
+          "specifier": "../../indexer/skeleton-payload.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/skeleton-payload.js"
+        },
+        {
+          "specifier": "../../core/qdrant.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/core/qdrant.js"
+        },
+        {
+          "specifier": "../../mcp/tools/filters.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/mcp/tools/filters.js"
+        },
+        {
+          "specifier": "../../indexer/phases/skeleton.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/phases/skeleton.js"
+        },
+        {
+          "specifier": "../../indexer/phases/skeleton-index.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/phases/skeleton-index.js"
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/smoke/sections/51-skeleton-summary.js": {
+      "staticImports": [],
+      "dynamicImports": [
+        {
+          "specifier": "../../indexer/phases/skeleton-summary.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/phases/skeleton-summary.js"
+        },
+        {
+          "specifier": "../../indexer/phases/skeleton.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/phases/skeleton.js"
+        },
+        {
+          "specifier": "../../indexer/phases/skeleton-chunk.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/phases/skeleton-chunk.js"
+        },
+        {
+          "specifier": "../../indexer/phases/skeleton-index.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/phases/skeleton-index.js"
+        },
+        {
+          "specifier": "../../indexer/phases/skeleton-summary.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/phases/skeleton-summary.js"
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/smoke/sections/52-run-num-ctx.js": {
+      "staticImports": [],
+      "dynamicImports": [
+        {
+          "specifier": "../../indexer/phases/skeleton-summary.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/phases/skeleton-summary.js"
+        },
+        {
+          "specifier": "../../indexer/phases/skeleton.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/phases/skeleton.js"
+        },
+        {
+          "specifier": "../../indexer/phases/skeleton-chunk.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/phases/skeleton-chunk.js"
+        },
+        {
+          "specifier": "../../indexer/phases/skeleton-index.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/phases/skeleton-index.js"
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/smoke/sections/53-skeleton-nav-tools.js": {
+      "staticImports": [],
+      "dynamicImports": [
+        {
+          "specifier": "../../mcp/tools/getSkeleton.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/mcp/tools/getSkeleton.js"
+        },
+        {
+          "specifier": "../../mcp/tools/getSkeletonNode.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/mcp/tools/getSkeletonNode.js"
+        },
+        {
+          "specifier": "../../mcp/tools/getSkeletonChildren.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/mcp/tools/getSkeletonChildren.js"
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/smoke/sections/54-adaptive-skeleton-summaries.js": {
+      "staticImports": [],
+      "dynamicImports": [
+        {
+          "specifier": "../../indexer/phases/skeleton-summary.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/phases/skeleton-summary.js"
+        },
+        {
+          "specifier": "../../indexer/skeleton-payload.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/skeleton-payload.js"
+        },
+        {
+          "specifier": "../../indexer/phases/skeleton.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/phases/skeleton.js"
+        },
+        {
+          "specifier": "../../indexer/phases/skeleton-chunk.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/phases/skeleton-chunk.js"
+        },
+        {
+          "specifier": "../../indexer/phases/skeleton-index.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/phases/skeleton-index.js"
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/smoke/sections/55-hierarchical-skeleton-summaries.js": {
+      "staticImports": [],
+      "dynamicImports": [
+        {
+          "specifier": "../../indexer/phases/skeleton-summary.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/phases/skeleton-summary.js"
+        },
+        {
+          "specifier": "../../indexer/phases/skeleton.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/phases/skeleton.js"
+        },
+        {
+          "specifier": "../../indexer/phases/skeleton-chunk.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/phases/skeleton-chunk.js"
+        },
+        {
+          "specifier": "../../indexer/phases/skeleton-index.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/phases/skeleton-index.js"
+        },
+        {
+          "specifier": "../../indexer/skeleton-payload.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/skeleton-payload.js"
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/smoke/sections/56-get-node-tool.js": {
+      "staticImports": [],
+      "dynamicImports": [
+        {
+          "specifier": "../../mcp/tools/getNode.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/mcp/tools/getNode.js"
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/smoke/sections/57-skeleton-carryover.js": {
+      "staticImports": [],
+      "dynamicImports": [
+        {
+          "specifier": "../../indexer/phases/skeleton.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/phases/skeleton.js"
+        },
+        {
+          "specifier": "../../indexer/phases/skeleton-chunk.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/indexer/phases/skeleton-chunk.js"
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/smoke.js": {
+      "staticImports": [
+        {
+          "specifier": "./smoke/index.js",
+          "kind": "relative",
+          "resolved": "src/smoke/index.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/sync.js": {
+      "staticImports": [],
+      "dynamicImports": [
+        {
+          "specifier": "./core/env-bootstrap.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/core/env-bootstrap.js"
+        },
+        {
+          "specifier": "./core/settings/service.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/core/settings/service.js"
+        },
+        {
+          "specifier": "./core/config.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/core/config.js"
+        },
+        {
+          "specifier": "./core/qdrant.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/core/qdrant.js"
+        },
+        {
+          "specifier": "./core/doctor-checks.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/core/doctor-checks.js"
+        },
+        {
+          "specifier": "./core/storage/factory.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/core/storage/factory.js"
+        },
+        {
+          "specifier": "./core/embedding-profile/config-cache.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/core/embedding-profile/config-cache.js"
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "packages/lite/lite-src/doctor-lite.js": {
+      "staticImports": [
+        {
+          "specifier": "../src/core/doctor-checks.js",
+          "kind": "relative",
+          "resolved": "src/core/doctor-checks.js"
+        },
+        {
+          "specifier": "../src/admin/system/qdrant-cloud.js",
+          "kind": "relative",
+          "resolved": "src/admin/system/qdrant-cloud.js"
+        },
+        {
+          "specifier": "../src/core/embedding-profile/qdrant-cloud-catalog.js",
+          "kind": "relative",
+          "resolved": "src/core/embedding-profile/qdrant-cloud-catalog.js"
+        },
+        {
+          "specifier": "../src/core/embedding-profile/resolve.js",
+          "kind": "relative",
+          "resolved": "src/core/embedding-profile/resolve.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "packages/lite/lite-src/hard-pins.js": {
+      "staticImports": [],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "packages/lite/lite-src/index-lite.js": {
+      "staticImports": [
+        {
+          "specifier": "../src/core/env-bootstrap.js",
+          "kind": "relative",
+          "resolved": "src/core/env-bootstrap.js"
+        },
+        {
+          "specifier": "../src/core/settings/service.js",
+          "kind": "relative",
+          "resolved": "src/core/settings/service.js"
+        },
+        {
+          "specifier": "../src/admin/jobs/registry.js",
+          "kind": "relative",
+          "resolved": "src/admin/jobs/registry.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "packages/lite/lite-src/semidex-home.js": {
+      "staticImports": [
+        {
+          "specifier": "node:os",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "node:path",
+          "kind": "builtin",
+          "resolved": null
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "packages/lite/lite-src/serve-lite.js": {
+      "staticImports": [
+        {
+          "specifier": "../src/core/env-bootstrap.js",
+          "kind": "relative",
+          "resolved": "src/core/env-bootstrap.js"
+        },
+        {
+          "specifier": "../src/core/settings/service.js",
+          "kind": "relative",
+          "resolved": "src/core/settings/service.js"
+        },
+        {
+          "specifier": "../src/core/settings/service.lite.js",
+          "kind": "relative",
+          "resolved": "src/core/settings/service.lite.js"
+        },
+        {
+          "specifier": "../src/admin/jobs/registry.js",
+          "kind": "relative",
+          "resolved": "src/admin/jobs/registry.js"
+        }
+      ],
+      "dynamicImports": [
+        {
+          "specifier": "../src/admin/server.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/admin/server.js"
+        },
+        {
+          "specifier": "../src/core/generation/runtime.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/core/generation/runtime.js"
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    }
+  },
+  "parseErrors": []
+}
