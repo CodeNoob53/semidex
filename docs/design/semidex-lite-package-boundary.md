@@ -252,6 +252,28 @@ search request throw `not_available_in_lite` — caught by a dedicated
 integration test (`tests/unit/admin/lite-app.test.js`) before it could
 ship, not by inspection.
 
+**Phase 5 update** (`docs/design/full-lite-shared-architecture-audit-2026-08-01.md`
+§9.2, implemented — see `docs/design/phase-5-lite-settings-policy-completeness-2026-08-02.md`):
+`lite-policy.js`'s allow-list is no longer a bare `LITE_SETTINGS_KEYS`
+array maintained by hand. It is now derived from an exhaustive
+`LITE_SETTINGS_POLICY` object that classifies every single key in
+`definitions.js`'s `DEFINITIONS` as `exposed` or `excluded` (with a
+reason), and `tests/unit/core/settings-lite-policy-completeness.test.js`
+fails immediately if a new/renamed/removed `DEFINITIONS` key has no
+matching policy entry — closing the "a human must remember to update the
+allow-list" gap this section originally only asserted was handled by
+"defaults safe," not by an automated check. `LITE_SETTINGS_KEYS` itself is
+unchanged in contents, order, shape, and every consumer's usage —
+`LITE_SETTINGS_POLICY` declares its `exposed()` entries first, in the
+exact original order, specifically so `LITE_SETTINGS_KEYS`'s real,
+single-source-of-truth derivation
+(`Object.entries(LITE_SETTINGS_POLICY).filter(exposed)`) preserves that
+order by construction (a code review finding: an intermediate version
+instead added a second, separately-declared order constant, which
+reintroduced a second source of truth for the same classification; fixed
+by ordering the canonical policy itself, with a regression test pinning
+the exact resulting order).
+
 ## Redaction covers multiple secrets
 
 `sanitiseErrorMessage(msg, secret)` took one secret; three call sites

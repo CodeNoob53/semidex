@@ -795,45 +795,80 @@ depth.
 
 ## 9. Settings composition
 
-### 9.1 Current mechanism (already partially achieves Part H)
+### 9.1 Current mechanism (already partially achieves Part H) — UPDATED by Phase 5 (implemented; see `docs/design/phase-5-lite-settings-policy-completeness-2026-08-02.md`)
 
-`core/settings/definitions.js` (66 keys, flat, `category`-tagged) +
-`core/settings/lite-policy.js` (19-key allow-list) +
-`core/settings/service.lite.js` (wraps the real `SettingsService`,
-rejects any non-allow-listed key on `get`/`getAll`/`setMany`). This
-ALREADY achieves "Lite API physically does not expose local settings" —
-confirmed by the design doc's own description of a full call-site audit
-that found `HYBRID_PREFETCH_LIMIT`/`RRF_K` needed adding to the allow-list
-(a real bug caught by that audit, now fixed and covered by
-`tests/unit/admin/lite-app.test.js`).
+`core/settings/definitions.js` (67 keys as of Phase 5 — 66 at the time this
+section was originally written, +1 for `QDRANT_CLOUD_DENSE_CONTEXT_WINDOW`
+added in an earlier, unrelated task; flat, `category`-tagged) +
+`core/settings/lite-policy.js` (originally a bare 19-key
+`LITE_SETTINGS_KEYS` allow-list; as of Phase 5, an exhaustive
+`LITE_SETTINGS_POLICY` classifying all 67 keys as `exposed`/`excluded`,
+with `LITE_SETTINGS_KEYS` now mechanically derived from it) +
+`core/settings/service.lite.js` (wraps the real `SettingsService`, rejects
+any non-allow-listed key on `get`/`getAll`/`setMany` — unchanged by Phase
+5, since `LITE_SETTINGS_KEYS`'s contents and shape are identical to
+before). This ALREADY achieves "Lite API physically does not expose local
+settings" — confirmed by the design doc's own description of a full
+call-site audit that found `HYBRID_PREFETCH_LIMIT`/`RRF_K` needed adding
+to the allow-list (a real bug caught by that audit, now fixed and covered
+by `tests/unit/admin/lite-app.test.js`).
 
-### 9.2 Should `definitions.js` be physically split into shared/cloud/local files?
+### 9.2 Should `definitions.js` be physically split into shared/cloud/local files? — RESOLVED by Phase 5 (implemented)
 
-Assessed, not assumed. Arguments for keeping the CURRENT single-file +
-allow-list shape: (a) the allow-list already achieves the hard
-requirement (Lite API/UI never sees local definitions) without
-duplicating any cloud-setting definition between two files — the task's
-own explicit "no duplication of cloud settings between Lite and Full"
-requirement is trivially satisfied by construction today, since there is
-exactly one `QDRANT_CLOUD_DENSE_MODEL` definition, period; (b) a physical
-split would require `fullDefinitions = {...sharedDefinitions, ...cloudDefinitions, ...localDefinitions}`
+Assessed, not assumed, at the time this section was originally written.
+Arguments for keeping the CURRENT single-file + allow-list shape: (a) the
+allow-list already achieves the hard requirement (Lite API/UI never sees
+local definitions) without duplicating any cloud-setting definition
+between two files — the task's own explicit "no duplication of cloud
+settings between Lite and Full" requirement is trivially satisfied by
+construction today, since there is exactly one `QDRANT_CLOUD_DENSE_MODEL`
+definition, period; (b) a physical split would require
+`fullDefinitions = {...sharedDefinitions, ...cloudDefinitions, ...localDefinitions}`
 to be assembled somewhere — that assembly point would need to preserve
 insertion order and category grouping the current flat map provides for
 free. Arguments for splitting: (a) a physical file boundary is checkable
 by an import-direction test the way a shared allow-list constant is not
-(nothing today prevents a NEW local-only definition from being added
-without also adding it to `lite-policy.js`'s exclusion, other than a
-human remembering — the allow-list is an ALLOW list specifically so this
-failure mode defaults safe, but it is still a manual step); (b) it would
-make "which definitions exist for which product" grep-able by directory
+(nothing prevented a NEW local-only definition from being added without
+also adding it to `lite-policy.js`'s exclusion, other than a human
+remembering — the allow-list is an ALLOW list specifically so this failure
+mode defaulted safe, but it was still a manual step); (b) it would make
+"which definitions exist for which product" grep-able by directory
 instead of requiring cross-referencing two files.
 
-**Recommendation**: keep the allow-list mechanism (it is correct, tested,
-and defaults-safe), but ADD a Part-K architecture test asserting every
-`definitions.js` key is either in `LITE_SETTINGS_KEYS` OR provably
-unreachable from Lite's own settings-rendering code path — turning the
-"human must remember" gap into an automatically-checked one, without a
-file-move.
+**Recommendation (as originally written)**: keep the allow-list mechanism
+(it is correct, tested, and defaults-safe), but ADD a Part-K architecture
+test asserting every `definitions.js` key is either in
+`LITE_SETTINGS_KEYS` OR provably unreachable from Lite's own
+settings-rendering code path — turning the "human must remember" gap into
+an automatically-checked one, without a file-move.
+
+**As implemented (Phase 5)**: exactly this — no physical split.
+`lite-policy.js` gained an exhaustive `LITE_SETTINGS_POLICY` object
+classifying every one of the 67 real `DEFINITIONS` keys as `exposed` or
+`excluded` (with a stable `reason` category for every excluded key:
+`local_runtime`, `local_model`, `full_only`, `unsupported_backend`, or
+`advanced_tuning`), and a new test,
+`tests/unit/core/settings-lite-policy-completeness.test.js`, asserts this
+exhaustiveness against the real, live `DEFINITIONS` object — a new/
+renamed/removed key with no matching policy entry now fails that test
+immediately, turning the "human must remember" gap into an automated one
+without touching `definitions.js`'s physical shape at all. `LITE_SETTINGS_KEYS`
+is now derived from `LITE_SETTINGS_POLICY` (every `exposed` key, in
+policy-declaration order — a real, single derivation, not a second
+hand-maintained list) rather than hand-maintained. Getting to that final
+shape took two code-review rounds: a first version derived order from
+`LITE_SETTINGS_POLICY`'s THEN-existing declaration order (which followed
+`DEFINITIONS`' category grouping) — same 19-key SET as before Phase 5, but
+a genuinely reordered ARRAY, since no existing consumer assertion was
+order-sensitive and it slipped past the original "byte-identical" claim; a
+second attempt fixed the order by adding a SEPARATE order-pinning
+constant, which reintroduced a second source of truth for the same
+"exposed" classification — the final fix instead reordered
+`LITE_SETTINGS_POLICY`'s own declaration (every `exposed()` entry first,
+in the pinned original order), so the real derivation preserves that order
+by construction, with a regression test pinning it. The result is truly
+byte-identical to the pre-Phase-5 list — `service.lite.js` and every
+existing consumer needed zero changes.
 
 ### 9.3 Collection-specific embedding profile as canonical source of truth
 
@@ -1046,11 +1081,23 @@ audit found exactly three real internal consumers of the old
 all updated directly. Phase 5 (settings completeness) and Phase 6 (UI
 entry/partials restructure) remain not started.
 
-### Phase 5 — Split settings definitions physically OR add the automated allow-list-completeness test from §9.2 (pick ONE, not both, per the audit's own recommendation in §9.2 to prefer the test over the file-split)
+### Phase 5 — Split settings definitions physically OR add the automated allow-list-completeness test from §9.2 (pick ONE, not both, per the audit's own recommendation in §9.2 to prefer the test over the file-split) — IMPLEMENTED (see `docs/design/phase-5-lite-settings-policy-completeness-2026-08-02.md`)
 
 Files: either `core/settings/definitions.js` (if splitting) or a single
 new test file (if not). Dependencies: none new. Risk: low either way.
 Exit gate: the new/updated test passes.
+
+As implemented: the test path was chosen, per §9.2's own recommendation —
+`definitions.js` was not physically split. `lite-policy.js` gained an
+exhaustive `LITE_SETTINGS_POLICY` classification (67/67 keys, each
+`exposed` or `excluded` with a reason category) and
+`tests/unit/core/settings-lite-policy-completeness.test.js` proves that
+exhaustiveness against the real `DEFINITIONS` object. `LITE_SETTINGS_KEYS`
+is now derived, not hand-maintained, with its declaration order pinned
+explicitly to match the original array (a code-review-caught fix — see
+§9.1 above) — byte-identical to its pre-Phase-5 19-key contents, in the
+same order, with a regression test pinning both. Zero runtime behavior
+change. Phase 6 (Admin UI entry/partials restructure) remains not started.
 
 ### Phase 6 — Admin UI `entries/{full,lite}.js` + `partials/{shared,full,lite}/` restructure (§8.2)
 
