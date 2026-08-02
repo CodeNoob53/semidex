@@ -17,7 +17,7 @@
 // for any of the five checks below — regexes are not used at all in this
 // file.
 import { parse } from 'acorn';
-import { simple as walkSimple } from 'acorn-walk';
+import { simple as walkSimple, ancestor as walkAncestor } from 'acorn-walk';
 import {
   existsSync, mkdirSync, rmSync, readFileSync, writeFileSync, readdirSync, statSync, copyFileSync,
 } from 'node:fs';
@@ -208,15 +208,27 @@ function parseFile(absPath) {
 }
 
 // Resolves a relative or absolute-in-package specifier against `fromFile`
-// (a path relative to STAGED_SRC) to a path relative to STAGED_SRC, trying
-// the extensionless/.js/index.js resolution Node's ESM loader itself uses.
-function resolveRelativeSpecifier(specifier, fromFileRel) {
+// (a path relative to `root`) to a path relative to `root`, trying the
+// extensionless/.js/index.js resolution Node's ESM loader itself uses.
+// `root` defaults to STAGED_SRC (the real, single production behavior —
+// every call site in this file's own main()/runValidator() flow omits it
+// and gets exactly the prior, unparameterized behavior). The optional
+// parameter exists ONLY so tests can point this same, real resolution
+// logic at an isolated temporary directory instead of mutating the
+// shared, generated packages/lite/src/ tree in place — code review
+// correctly flagged that a test which renames/creates files inside the
+// real staged tree can corrupt it for other test files running in the
+// same process, or leave it damaged if the process is killed mid-test.
+// This is a minimal, additive signature change (a defaulted parameter,
+// not a new code path) — not the broader Full/Lite refactor this task's
+// own scope excludes.
+function resolveRelativeSpecifier(specifier, fromFileRel, root = STAGED_SRC) {
   if (!specifier.startsWith('.')) return null; // not a relative import
-  const fromDir = dirname(join(STAGED_SRC, fromFileRel));
+  const fromDir = dirname(join(root, fromFileRel));
   let candidate = resolve(fromDir, specifier);
   const tryPaths = [candidate, `${candidate}.js`, join(candidate, 'index.js')];
   for (const p of tryPaths) {
-    if (existsSync(p) && statSync(p).isFile()) return relative(STAGED_SRC, p).replace(/\\/g, '/');
+    if (existsSync(p) && statSync(p).isFile()) return relative(root, p).replace(/\\/g, '/');
   }
   return null; // did not resolve to any staged file
 }
@@ -229,6 +241,67 @@ function resolveRelativeSpecifier(specifier, fromFileRel) {
  * later flows into fork()/spawn() — the pattern admin/jobs/registry.js and
  * core/ce-rerank.js/tag-onnx.js all use for their child-process entry path).
  */
+// Function-like node types acorn produces — used to find the nearest
+// enclosing function for a given AST node via its ancestor chain
+// (walk.ancestor's own third callback argument). Anything that isn't one
+// of these (Program, BlockStatement, etc.) is not a scope boundary this
+// validator needs to reason about — parameters are only ever declared on
+// a function node.
+const FUNCTION_NODE_TYPES = new Set(['FunctionDeclaration', 'FunctionExpression', 'ArrowFunctionExpression']);
+
+function nearestEnclosingFunction(ancestors) {
+  for (let i = ancestors.length - 2; i >= 0; i -= 1) {
+    if (FUNCTION_NODE_TYPES.has(ancestors[i].type)) return ancestors[i];
+  }
+  return null; // module/file scope — no enclosing function
+}
+
+// Collects EVERY identifier name a function's own parameter list binds —
+// plain identifiers (`function f(x)`), default values (`function f(x = 1)`),
+// destructured object/array patterns (`function f({ a, b: c }, [d, ...e])`),
+// and rest parameters — recursively, regardless of whether that name has
+// anything to do with child_process. This is what makes ordinary parameter
+// SHADOWING (no default value at all, e.g. `function inner(spawnFn) {...}`)
+// detectable: a name can shadow an outer child_process binding by merely
+// appearing as ANY kind of parameter of an intervening function, not only
+// as the left side of a child_process-sourced AssignmentPattern. Code
+// review finding: the previous design only recorded names that were
+// themselves bound to a traced child_process import/alias, so a plain
+// (non-default) same-named parameter on an intervening function was
+// invisible to the outward lookup and incorrectly "saw through" to an
+// outer function's real binding.
+function collectParamNames(paramNode, out) {
+  if (!paramNode) return;
+  switch (paramNode.type) {
+    case 'Identifier':
+      out.add(paramNode.name);
+      break;
+    case 'AssignmentPattern':
+      collectParamNames(paramNode.left, out);
+      break;
+    case 'ObjectPattern':
+      for (const prop of paramNode.properties) {
+        if (prop.type === 'RestElement') collectParamNames(prop.argument, out);
+        else collectParamNames(prop.value, out);
+      }
+      break;
+    case 'ArrayPattern':
+      for (const el of paramNode.elements) collectParamNames(el, out);
+      break;
+    case 'RestElement':
+      collectParamNames(paramNode.argument, out);
+      break;
+    default:
+      break; // other patterns (e.g. computed member expressions) never appear in a param list
+  }
+}
+
+function collectFunctionParamNames(functionNode) {
+  const names = new Set();
+  for (const param of functionNode.params) collectParamNames(param, names);
+  return names;
+}
+
 function extractReferences(ast) {
   const staticImports = [];
   const dynamicImports = []; // { specifier, literal: bool }
@@ -236,9 +309,12 @@ function extractReferences(ast) {
   const forkSpawnCalls = []; // { callee: 'fork'|'spawn', arg, literal: bool }
   const urlPathConsts = new Map(); // identifier name -> literal path string
 
-  // Track which local identifiers are bound to node:child_process's
-  // fork/spawn (possibly renamed on import) and to Node's require via
-  // createRequire(import.meta.url).
+  // Module-level (file-scope) identifiers bound to node:child_process's
+  // fork/spawn via a real ImportDeclaration (possibly renamed on import,
+  // e.g. `import { spawn as nodeSpawn }`) and to Node's require via
+  // createRequire(import.meta.url). This IS genuinely file-scoped — an
+  // ES module import binding is visible everywhere in the module by
+  // construction, so no lexical-scoping concern applies to this map.
   const childProcessImportNames = new Set(); // local name -> 'fork' | 'spawn'
   const childProcessLocalToReal = new Map();
   const requireLocalNames = new Set();
@@ -286,7 +362,97 @@ function extractReferences(ast) {
         if (literalPath) urlPathConsts.set(node.id.name, literalPath);
       }
     },
-    CallExpression(node) {
+  });
+
+  // Default-parameter binding to a tracked fork/spawn import — e.g.
+  // `function f({ spawnFn = nodeSpawn } = {}) { ... spawnFn(...) }`
+  // (admin/jobs/registry.js's createJobRegistry() real shape). A SEPARATE
+  // walk.ancestor() pass (not part of the walkSimple() pass above)
+  // because resolving this correctly needs each AssignmentPattern's and
+  // each CallExpression's ANCESTOR CHAIN — which function, if any, each
+  // one lexically belongs to — not just the node itself.
+  //
+  // Design: functionParamBindings maps each FUNCTION NODE to its own
+  // local Map(paramName -> realName), populated only from
+  // AssignmentPatterns that are DIRECT parameters of that exact function
+  // (found via nearestEnclosingFunction() on the AssignmentPattern's own
+  // ancestor chain, EXCLUDING the AssignmentPattern itself — a parameter
+  // default belongs to the function it parameterizes, not to whatever
+  // function might lexically contain an expression inside the default
+  // value).
+  //
+  // resolveChildProcessBinding(name, ancestors) is the ONE shared lookup
+  // both the AssignmentPattern pass (resolving node.right) and the
+  // CallExpression pass (resolving the callee) use — code review found a
+  // second real gap after the first shadowing fix: BOTH passes still
+  // checked the file-scope `childProcessImportNames`/`childProcessLocalToReal`
+  // maps FIRST, unconditionally, before ever looking at the enclosing
+  // function chain — so a DIRECT import shadow (no alias, no default
+  // parameter at all — e.g. `import { spawn } from 'node:child_process';
+  // function run(spawn) { spawn('./callback.js'); }`) was still
+  // misclassified, because `childProcessImportNames.has('spawn')` is true
+  // regardless of the fact that THIS particular `spawn` identifier
+  // resolves to a local parameter, not the import. Correct real JS lexical
+  // resolution order, now followed exactly: walk from the INNERMOST
+  // enclosing function outward; at each function, if its OWN parameter
+  // list declares this name AT ALL (collectFunctionParamNames — plain
+  // parameter, destructured, rest, with or without a default), that is
+  // the nearest binding for this name, full stop — check ONLY that
+  // function's own functionParamBindings entry (a traced default resolving
+  // to a real child_process import) and return its result either way,
+  // never continuing outward past it. Only once every enclosing function
+  // has been checked and NONE of them declares the name as a parameter at
+  // all does the file-scope module import binding apply.
+  const functionParamBindings = new Map(); // function node -> Map(paramName -> realName)
+
+  function resolveChildProcessBinding(name, ancestors) {
+    for (let i = ancestors.length - 1; i >= 0; i -= 1) {
+      const candidate = ancestors[i];
+      if (!FUNCTION_NODE_TYPES.has(candidate.type)) continue;
+      if (collectFunctionParamNames(candidate).has(name)) {
+        // The nearest enclosing function that declares this name AT ALL —
+        // this IS the binding for `name`, whatever it resolves to (or
+        // doesn't). Never fall through past this point, even if it isn't
+        // a traced child_process binding: that would incorrectly "see
+        // through" a real local shadow to an outer/module binding.
+        return functionParamBindings.get(candidate)?.get(name) ?? null;
+      }
+    }
+    // No enclosing function declares this name as a parameter at all —
+    // only now does the file-scope import binding apply.
+    return childProcessImportNames.has(name) ? childProcessLocalToReal.get(name) : null;
+  }
+
+  walkAncestor(ast, {
+    AssignmentPattern(node, _state, ancestors) {
+      if (
+        node.left?.type !== 'Identifier'
+        || node.right?.type !== 'Identifier'
+      ) {
+        return;
+      }
+      // ancestors includes `node` itself as the last entry; the function
+      // this default parameter belongs to is the nearest FUNCTION ancestor
+      // of the AssignmentPattern's OWN position in the tree (a parameter
+      // list is a direct child of its function node, so this correctly
+      // finds that exact function, never an outer one). node.right's own
+      // resolution starts searching from ONE LEVEL OUT (ancestors minus
+      // the owning function itself), since a parameter's default value
+      // expression is evaluated in the scope OUTSIDE that parameter's own
+      // declaration — `function f(spawnFn = spawnFn)` cannot refer to
+      // itself.
+      const owningFunction = nearestEnclosingFunction(ancestors);
+      if (!owningFunction) return; // a top-level default (not inside any function) — cannot be a per-call binding
+      const outerAncestors = ancestors.slice(0, ancestors.length - 2); // drop the AssignmentPattern itself AND its owning function
+      const realName = resolveChildProcessBinding(node.right.name, outerAncestors);
+      if (!realName) return;
+      if (!functionParamBindings.has(owningFunction)) functionParamBindings.set(owningFunction, new Map());
+      functionParamBindings.get(owningFunction).set(node.left.name, realName);
+    },
+  });
+
+  walkAncestor(ast, {
+    CallExpression(node, _state, ancestors) {
       const callee = node.callee;
       // require('literal') or requireLocalVar('literal')
       if (
@@ -295,25 +461,38 @@ function extractReferences(ast) {
       ) {
         requireCalls.push(node.arguments[0].value);
       }
-      // fork('literal', ...) / spawn('literal', ...) / fork(constVar, ...) —
-      // constVar resolved against urlPathConsts if it was captured above.
-      if (callee.type === 'Identifier' && childProcessImportNames.has(callee.name)) {
-        const real = childProcessLocalToReal.get(callee.name);
-        const arg = node.arguments[0];
-        if (arg?.type === 'Literal') {
-          forkSpawnCalls.push({ callee: real, arg: arg.value, literal: true });
-        } else if (arg?.type === 'Identifier' && urlPathConsts.has(arg.name)) {
-          forkSpawnCalls.push({ callee: real, arg: urlPathConsts.get(arg.name), literal: true });
-        } else if (arg?.type === 'Identifier') {
-          // Not traced to a literal path — could be process.execPath (spawn
-          // the CURRENT Node binary, not a repo-relative script) or another
-          // dynamic value. Only flag as non-literal if it's clearly NOT
-          // process.execPath (the one legitimate "spawn a fresh Node
-          // process with an explicit entry-file second argument" pattern).
-          forkSpawnCalls.push({ callee: real, arg: arg.name, literal: false });
+      if (callee.type !== 'Identifier') return;
+      const real = resolveChildProcessBinding(callee.name, ancestors);
+      if (!real) return;
+      const arg = node.arguments[0];
+      // spawn(process.execPath, [ENTRY, ...], opts) — Node's own
+      // "re-spawn the current Node binary with an explicit entry-file
+      // second argument" pattern (admin/jobs/registry.js's real shape).
+      // Distinct from fork(modulePath, args, opts): here the REAL
+      // target is arguments[1][0], not arguments[0].
+      const isProcessExecPath = arg?.type === 'MemberExpression'
+        && arg.object?.type === 'Identifier' && arg.object.name === 'process'
+        && arg.property?.type === 'Identifier' && arg.property.name === 'execPath';
+      if (isProcessExecPath && node.arguments[1]?.type === 'ArrayExpression') {
+        const entryArg = node.arguments[1].elements[0];
+        if (entryArg?.type === 'Literal') {
+          forkSpawnCalls.push({ callee: real, arg: entryArg.value, literal: true });
+        } else if (entryArg?.type === 'Identifier' && urlPathConsts.has(entryArg.name)) {
+          forkSpawnCalls.push({ callee: real, arg: urlPathConsts.get(entryArg.name), literal: true });
+        } else if (entryArg?.type === 'Identifier') {
+          forkSpawnCalls.push({ callee: real, arg: entryArg.name, literal: false });
         } else {
           forkSpawnCalls.push({ callee: real, arg: null, literal: false });
         }
+      } else if (arg?.type === 'Literal') {
+        forkSpawnCalls.push({ callee: real, arg: arg.value, literal: true });
+      } else if (arg?.type === 'Identifier' && urlPathConsts.has(arg.name)) {
+        forkSpawnCalls.push({ callee: real, arg: urlPathConsts.get(arg.name), literal: true });
+      } else if (arg?.type === 'Identifier') {
+        // Not traced to a literal path — could be another dynamic value.
+        forkSpawnCalls.push({ callee: real, arg: arg.name, literal: false });
+      } else {
+        forkSpawnCalls.push({ callee: real, arg: null, literal: false });
       }
     },
   });
@@ -337,22 +516,47 @@ function findLiteralRelativePathArg(node) {
   }
   // join(__dirname, '...') or join(someDir, '...literal...')
   if (node.callee.type === 'Identifier' && node.callee.name === 'join') {
-    const litArg = node.arguments.find((a) => a.type === 'Literal' && typeof a.value === 'string' && a.value.includes('/'));
-    if (litArg) return litArg.value;
+    // The last string-literal argument is the target. Two shapes: a path
+    // fragment containing '/' (e.g. '../workers/x.js', already relative-
+    // looking) is returned as-is; a bare filename with NO '/' at all
+    // (e.g. 'ce-rerank-worker.js' — a same-directory sibling,
+    // core/ce-rerank.js's own real shape: `join(__dirname, 'ce-rerank-worker.js')`)
+    // is prefixed with './' so resolveRelativeSpecifier() treats it as
+    // relative to the CALLING file's own directory, matching what
+    // join(__dirname, ...) actually resolves to at runtime. Previously
+    // the bare-filename case was silently rejected (the '/' .includes()
+    // check required a slash a bare sibling filename never has), which
+    // left core/ce-rerank.js's own fork(WORKER_PATH, ...) target
+    // unresolved (arg: 'WORKER_PATH', literal: false) rather than
+    // correctly resolved to core/ce-rerank-worker.js — found by
+    // scripts/audit/build-import-graph.mjs's independent re-implementation
+    // of this same extraction.
+    const litArgs = node.arguments.filter((a) => a.type === 'Literal' && typeof a.value === 'string');
+    const lastLit = litArgs[litArgs.length - 1];
+    if (lastLit) {
+      return lastLit.value.includes('/') ? lastLit.value : `./${lastLit.value}`;
+    }
   }
   return null;
 }
 
 // ── Step 4: the five-part closure validator ─────────────────────────────────
 
-function runValidator(stagedFiles) {
+// `root` defaults to STAGED_SRC — every real call site (main(), below)
+// omits it and gets exactly the prior, unparameterized behavior. The
+// optional parameter exists so tests can validate an isolated, temporary
+// fixture tree with this SAME real validator logic, instead of writing
+// into (and risking corrupting) the shared, generated packages/lite/src/
+// staging directory — see resolveRelativeSpecifier()'s own comment for
+// the full rationale (code review finding).
+function runValidator(stagedFiles, root = STAGED_SRC) {
   const errors = [];
   const pkg = JSON.parse(readFileSync(join(LITE_DIR, 'package.json'), 'utf-8'));
   const declaredDeps = new Set(Object.keys(pkg.dependencies ?? {}));
   const jsFiles = stagedFiles.filter((f) => f.endsWith('.js'));
 
   for (const relFile of jsFiles) {
-    const absPath = join(STAGED_SRC, relFile);
+    const absPath = join(root, relFile);
     let ast;
     try {
       ast = parseFile(absPath);
@@ -392,21 +596,45 @@ function runValidator(stagedFiles) {
     }
 
     // Check 3: fork()/spawn() literal path arguments must resolve to a
-    // staged file. No "intentionally absent and unreachable" allow-list —
-    // if a fork/spawn target isn't staged, this is an error, full stop. A
-    // non-literal fork/spawn argument named exactly `process` combined with
-    // `.execPath` (i.e. spawning the current Node binary itself, with the
-    // real entry file passed as an explicit second array argument that is
-    // ITSELF then checked) is the one recognized safe pattern
-    // (admin/jobs/registry.js's own `spawnFn(process.execPath, [INDEXER_ENTRY, path], ...)`)
-    // — INDEXER_ENTRY was already resolved via findLiteralRelativePathArg
+    // staged file — UNLESS the call is semantically not a local-file
+    // dependency at all. No "intentionally absent and unreachable"
+    // allow-list for REPO-RELATIVE targets — if a fork/spawn target that
+    // was SUPPOSED to be a project file isn't staged, this is an error,
+    // full stop. A non-literal fork/spawn argument named exactly `process`
+    // combined with `.execPath` (i.e. spawning the current Node binary
+    // itself, with the real entry file passed as an explicit second array
+    // argument that is ITSELF then checked) is the one recognized safe
+    // pattern (admin/jobs/registry.js's own
+    // `spawnFn(process.execPath, [INDEXER_ENTRY, path], ...)`) —
+    // INDEXER_ENTRY was already resolved via findLiteralRelativePathArg
     // and IS checked here as a literal.
+    //
+    // isBareOsCommand(call) below replaces an earlier, REJECTED design
+    // (a hardcoded TRUSTED_OS_SPAWN_TARGETS Set of specific command
+    // names, e.g. 'powershell.exe') — code review correctly identified
+    // that as exactly the kind of hardcoded allow-list this validator's
+    // own design principle forbids, AND unnecessary: Node's own
+    // child_process semantics already distinguish the two cases without
+    // naming anything. `spawn(command, args)` resolves `command` through
+    // the OS's PATH search unless it contains a path separator (POSIX:
+    // any '/'; Windows: '/' or '\\') or starts with '.' — see Node's own
+    // child_process docs on `options.shell`/PATH resolution. `fork()`, in
+    // contrast, ALWAYS launches a Node module by path — there is no
+    // "bare command on PATH" mode for fork() at all, so it is NEVER
+    // exempted here, regardless of shape. This is a semantic
+    // classification of the CALL SHAPE (does this literal look like a
+    // file path at all), not a lookup against any specific program name —
+    // 'powershell.exe' needs no more special-casing than 'bash' or
+    // 'ffmpeg' would; none of them are ever compared to a name.
     for (const call of refs.forkSpawnCalls) {
+      if (call.callee === 'spawn' && call.literal && isBareOsCommand(call.arg)) {
+        continue;
+      }
       if (!call.literal) {
         errors.push(`[${call.callee}:non-literal] ${relFile}: ${call.callee}() first argument could not be statically resolved to a literal path — no absent-fork-path exception exists; either make the target resolvable or gate/remove this call for Lite.`);
         continue;
       }
-      const resolved = resolveRelativeSpecifier(call.arg, relFile);
+      const resolved = resolveRelativeSpecifier(call.arg, relFile, root);
       if (!resolved) {
         errors.push(`[${call.callee}:missing-target] ${relFile}: ${call.callee}('${call.arg}') does not resolve to any staged file.`);
       }
@@ -417,7 +645,7 @@ function runValidator(stagedFiles) {
 
   function checkSpecifier(specifier, relFile, kind, errorsOut, deps) {
     if (specifier.startsWith('.')) {
-      const resolved = resolveRelativeSpecifier(specifier, relFile);
+      const resolved = resolveRelativeSpecifier(specifier, relFile, root);
       if (!resolved) {
         errorsOut.push(`[${kind}:missing-target] ${relFile}: "${specifier}" does not resolve to any staged file.`);
       }
@@ -437,6 +665,23 @@ function runValidator(stagedFiles) {
 const NODE_BUILTINS = new Set([
   'fs', 'path', 'url', 'crypto', 'child_process', 'module', 'util', 'os', 'http', 'https', 'stream', 'events', 'zlib', 'buffer',
 ]);
+
+// Semantic classification of a literal spawn() first argument as "an OS
+// command resolved via PATH search," never a lookup against a specific
+// program name (see Check 3's own comment for why a name-based allow-list
+// was rejected). Mirrors the shape Node's own child_process module uses
+// to decide whether to search PATH: a string containing a path separator
+// ('/' on POSIX, '/' or '\\' on Windows) or starting with '.' is treated
+// as an explicit path, never searched on PATH — anything else is a bare
+// command name. admin/system/folder-picker.js's `spawn('powershell.exe', ...)`
+// falls into the bare-command case; this function would classify 'bash',
+// './run.sh', '/usr/bin/env', or 'C:\\Windows\\explorer.exe' correctly
+// too, without ever having seen any of those literal strings before.
+function isBareOsCommand(arg) {
+  if (typeof arg !== 'string' || arg.length === 0) return false;
+  if (arg.startsWith('.') || arg.includes('/') || arg.includes('\\')) return false;
+  return true;
+}
 
 // Check 5: staged dist/admin-ui/ must contain no ONNX/Ollama control
 // markup/text — a real content scan of the built HTML/JS output (not the
