@@ -926,39 +926,69 @@ first time and the validator correctly flagged it as
 `[spawn:missing-target]`, since `'powershell.exe'` cannot resolve to any
 staged file.
 
-Resolved by adding a narrow, explicit `TRUSTED_OS_SPAWN_TARGETS` Set
-(currently one entry: `'powershell.exe'`) — scoped to `spawn` only (never
-`fork`, which always launches a Node module and has no legitimate
-"OS binary by name" use case), an exact-match check (not a pattern), and
-requires the same deliberate review as every other explicit list in this
-validator. This is a NEW category of exception, distinct from the
-`process.execPath` case: the latter recognizes "re-spawn Node itself,"
-the former recognizes "spawn a real OS command by name" — both real,
-both now handled, kept as two separately named, separately reasoned
-checks rather than merged into one broader "trust it" escape hatch.
+**Revision note**: the FIRST fix for this finding added a hardcoded
+`TRUSTED_OS_SPAWN_TARGETS` Set of specific program names (e.g.
+`'powershell.exe'`) — a subsequent code-review round correctly rejected
+this as exactly the kind of hardcoded allow-list this validator's own
+design principle forbids, AND unnecessary: Node's own `child_process`
+semantics already distinguish "an OS command resolved via PATH search"
+from "a repo-relative file path" without naming anything. The FINAL,
+shipped fix is `isBareOsCommand(arg)` — a semantic classifier, not a name
+lookup: a literal `spawn()` first argument is treated as a bare OS
+command (never checked against the staged tree at all) when it does NOT
+start with `.` and contains neither `/` nor `\` — i.e. it doesn't look
+like a path at all, mirroring the exact rule Node's own PATH-search logic
+uses. Scoped to `spawn` only (never `fork`, which always launches a Node
+module by path and has no legitimate "OS binary by name" mode at all — so
+it is never exempted, regardless of shape). No specific command name
+(`'powershell.exe'`, `'bash'`, `'ffmpeg'`, ...) is ever compared against
+anything; a genuinely arbitrary, never-before-seen command name is
+accepted identically to a known one, which a later regression test
+(`tests/unit/lite/build-closure-validator.test.js`) verifies directly by
+constructing a fixture with a made-up command name and asserting
+`runValidator()` reports zero errors for it.
+
+A second, independent bug was found and fixed alongside this one: the
+lexical-scope resolution added to trace `spawn`/`fork` through import
+aliases and default parameters initially checked the file-scope
+module-import binding BEFORE checking the enclosing-function parameter
+chain, so a parameter that shadowed a directly-imported `spawn`/`fork`
+name (no alias at all, e.g. `import { spawn } from 'node:child_process';
+function run(spawn) { spawn('./x.js'); }`) was still misclassified as a
+real `child_process.spawn` call. Fixed by making the resolution walk the
+enclosing-function chain from innermost to outermost FIRST, consulting
+the module-level import binding only once no enclosing function declares
+the name as a parameter at all — matching real JS lexical scoping.
 
 Verified: `node packages/lite/build.mjs` passes clean (116 files staged);
 `extractReferences()` directly confirmed to resolve
 `admin/jobs/registry.js`'s spawn target to `../../indexer/index.js` and
 `core/ce-rerank.js`'s fork target to `./ce-rerank-worker.js` against real
-source; full `tests/unit/lite/**` (48 tests), the real packed-tarball
-`clean-install-acceptance.test.js` (6 tests, includes the folder-picker
-code path indirectly via the package's own import-escape check), and
-`tests/unit/admin/**` (1022 tests, includes `pickFolder()`'s own direct
-unit tests) all pass unmodified. `git status`/`git diff --check` confirm
-only `packages/lite/build.mjs` changed.
+source; `tests/unit/lite/build-closure-validator.test.js` (27 tests,
+covering extraction, lexical-scope shadowing in both directions, the
+semantic bare-command classifier via a real `runValidator()` fixture
+call, and isolated `mkdtemp()`-based positive/negative validation
+fixtures — no test mutates the shared, generated
+`packages/lite/src/` tree in place); full `tests/unit/lite/**`, the real
+packed-tarball `clean-install-acceptance.test.js`, and `tests/unit/admin/**`
+(includes `pickFolder()`'s own direct unit tests) all pass. `git status`/
+`git diff --check` confirm only `packages/lite/build.mjs` and its
+dedicated test file changed.
 
-Files: `packages/lite/build.mjs` only. Dependencies: none new. Risk:
-realized, not merely assessed — the fix's own true positive (the
-`powershell.exe` finding) required one additional, deliberate design
-decision (the trusted-OS-spawn allow-list) beyond the originally-scoped
-"port the fix" work, which is exactly why a spawn/fork-shape change to a
-closure validator warrants running it for real rather than trusting a
-priori that newly-recognized edges will always already resolve. Backward
-compatibility: preserved — the real, packed Lite tarball is unchanged in
-contents (`npm ls --all` / clean-install acceptance both still pass,
-`pickFolder()` remains fully staged and functional). Tests: all listed
-above, currently passing. Exit gate: met.
+Files: `packages/lite/build.mjs`, `tests/unit/lite/build-closure-validator.test.js`.
+Dependencies: none new. Risk: realized, not merely assessed — the fix's
+own true positive (the `powershell.exe` finding) required additional,
+deliberate design work (first an allow-list, then — after code review —
+the semantic classifier that actually shipped) beyond the
+originally-scoped "port the fix" work, and a second code-review round
+found the lexical-scope ordering bug above — exactly why a spawn/fork-shape
+change to a closure validator warrants running it for real, and
+re-reviewing it, rather than trusting a priori that newly-recognized
+edges will always already resolve correctly. Backward compatibility:
+preserved — the real, packed Lite tarball is unchanged in contents
+(`npm ls --all` / clean-install acceptance both still pass, `pickFolder()`
+remains fully staged and functional). Tests: all listed above, currently
+passing. Exit gate: met.
 
 ### Phase 3 — Split `admin/server.js` into `registerNeutralRoutes.js` (shared) + a thinner `server.js` (Lite composition)
 
@@ -1117,13 +1147,20 @@ over regex, per the task's own explicit preference.
    ported into `packages/lite/build.mjs`?~~ **Resolved — done.** Ported as
    a separate, isolated commit to `packages/lite/build.mjs` only (Phase 2,
    §11). The port itself surfaced a real third finding (the
-   `folder-picker.js`/`powershell.exe` trusted-OS-spawn case) requiring
-   one additional deliberate design decision beyond the original two
-   fixes — resolved via a narrow, explicit `TRUSTED_OS_SPAWN_TARGETS`
-   allow-list, `spawn`-only, exact-match. Verified against the real packed
-   tarball (`clean-install-acceptance.test.js`, 6/6) and the full
-   `tests/unit/lite/**` (48/48) and `tests/unit/admin/**` (1022/1022)
-   suites.
+   `folder-picker.js`/`powershell.exe` case) requiring one additional
+   deliberate design decision beyond the original two fixes — a first
+   attempt (a hardcoded `TRUSTED_OS_SPAWN_TARGETS` allow-list) was
+   rejected on code review as violating this validator's own no-allow-list
+   principle; the shipped fix is `isBareOsCommand()`, a semantic
+   classifier matching Node's own PATH-search rule (no `.`/`/`/`\` prefix
+   means "OS command," never a name comparison). A second code-review
+   round also found and fixed a lexical-scope ordering bug (a parameter
+   shadowing a DIRECT, non-aliased `child_process` import was still
+   misclassified). Verified against the real packed tarball
+   (`clean-install-acceptance.test.js`) and the full `tests/unit/lite/**`
+   and `tests/unit/admin/**` suites, plus a dedicated 27-test file
+   (`tests/unit/lite/build-closure-validator.test.js`) covering both
+   bugs' exact reported shapes as regression tests.
 2. Physical `definitions.js` split (§9.2) vs. an allow-list-completeness
    test — which does the user prefer as the Phase 5 approach?
 3. Should MCP ever gain a Lite entry point (§6.6)? This is a genuine
@@ -1137,18 +1174,20 @@ over regex, per the task's own explicit preference.
 5. Should `npm workspaces` be revisited as a SEPARATE, later, explicitly-scoped
    decision once Phases 1–8 land and a real `shared/`/`cloud/`/`local/`
    directory structure exists to migrate?
-6. ~~Should `TRUSTED_OS_SPAWN_TARGETS` be extended, or is `'powershell.exe'`
-   the only real case?~~ **Resolved — checked exhaustively, no.** A full
-   sweep of the entire graph (post-fix) for every `spawn` call found
-   exactly **3 in the whole codebase**: `admin/jobs/registry.js` →
-   `indexer/index.js` (resolves to a real repo file),
+6. ~~Is `admin/system/folder-picker.js`'s `'powershell.exe'` the only real
+   bare-OS-command `spawn()` case in the codebase?~~ **Resolved — checked
+   exhaustively, yes.** A full sweep of the entire graph for every `spawn`
+   call found exactly **3 in the whole codebase**: `admin/jobs/registry.js`
+   → `indexer/index.js` (resolves to a real repo file),
    `core/onnx-provider-probe.js` → `onnx-probe-runner.js` (resolves to a
    real repo file), and `admin/system/folder-picker.js` →
-   `'powershell.exe'` (the one genuine OS-command case, already
-   allow-listed). `TRUSTED_OS_SPAWN_TARGETS` needs no further entries
-   today; re-run this same sweep (`buildGraph()` + filter
-   `forkSpawnCalls` for `callee === 'spawn'`) if a new `spawn()` call site
-   is ever added anywhere in `src/`.
+   `'powershell.exe'` (the one genuine OS-command case). Since the shipped
+   classifier (`isBareOsCommand()`) is semantic, not a name lookup, this
+   sweep was never about completing an allow-list — it confirms there is
+   no OTHER bare-command `spawn()` shape in the codebase that the
+   classifier's rule might handle unexpectedly; re-run this same sweep
+   (`buildGraph()` + filter `forkSpawnCalls` for `callee === 'spawn'`) if
+   a new `spawn()` call site is ever added anywhere in `src/`.
 
 ## 15. Recommended first implementation task
 

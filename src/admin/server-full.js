@@ -6,10 +6,13 @@
 // import statements are unconditional (they exist in the file regardless of
 // which function actually calls them), so createApp() and createLiteApp()
 // cannot safely live in the same file once Lite needs to stage that file
-// without ALSO staging these four Ollama/ONNX-only modules. server.js keeps
-// registerNeutralRoutes()/createHttpServer()/createLiteApp() (everything
-// Lite needs). Full callers import createApp directly from this file, which
-// is excluded from the Lite package.
+// without ALSO staging these four Ollama/ONNX-only modules.
+// register-neutral-routes.js holds registerNeutralRoutes()/createHttpServer()
+// (the provider-neutral route wiring both createApp() and createLiteApp()
+// share); server.js holds createLiteApp() itself plus bind-config
+// resolution — both are files Lite needs and stages. Full callers import
+// createApp directly from this file, which is excluded from the Lite
+// package.
 import { createStorageAdapter } from '../core/storage/factory.js';
 import { createRouter } from './router.js';
 import { registerJobsRoutes, FULL_JOB_POLICY } from './api/jobs.js';
@@ -20,7 +23,7 @@ import { registerGenerationModelsRoutes } from './api/generation-models.js';
 import { discoverOllamaModels } from '../core/ollama-models.js';
 import { checkOllama } from './system/ollama.js';
 import { createSettingsService } from '../core/settings/service.js';
-import { registerNeutralRoutes, createHttpServer } from './server.js';
+import { registerNeutralRoutes, createHttpServer } from './register-neutral-routes.js';
 
 export function createApp({
   adapter = createStorageAdapter(), embedQuery, jobRegistry, taskRegistry, pickFolderFn, checkOllamaFn,
