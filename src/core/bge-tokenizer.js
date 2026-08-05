@@ -1,6 +1,6 @@
 // Shared BGE-M3 tokenizer loader backed by @huggingface/tokenizers — the
-// same lower-level, Rust-backed tokenizer library core/onnx-embed.js already
-// uses for real embedding inference, never @huggingface/transformers
+// same lower-level, Rust-backed tokenizer library local/core/onnx-embed.js
+// already uses for real embedding inference, never @huggingface/transformers
 // (which bundles its own ONNX Runtime build and must never load in a
 // process that also loads the custom CUDA-enabled onnxruntime-node build —
 // see doctor/onnx-provider-probe.js and core/token-count.js's own module
@@ -18,8 +18,8 @@ import { ONNX_CACHE_DIR, ONNX_DENSE_MODEL_ID } from './onnx-paths.js';
 const HF_BASE = 'https://huggingface.co';
 const TOKENIZER_DIR = join(ONNX_CACHE_DIR, ...ONNX_DENSE_MODEL_ID.split('/'));
 
-// Same expected sizes onnx-embed.js uses for its own offline cache
-// validation — duplicated rather than imported because onnx-embed.js's
+// Same expected sizes local/core/onnx-embed.js uses for its own offline
+// cache validation — duplicated rather than imported because onnx-embed.js's
 // EXPECTED_SIZES also covers model.onnx/model.onnx.data, which this
 // tokenizer-only module must never need to know about (importing
 // onnx-embed.js here would pull in onnxruntime-node as a side effect of

@@ -1,10 +1,10 @@
 // OnnxEmbedCapability contract (Phase 8B Step 1) — mirrors generation/
 // provider.js/storage/adapter.js: a small runtime shape validator plus
-// JSDoc typedefs, zero backend imports (never imports core/onnx-embed.js,
-// core/length-bucket.js, core/onnx-runtime.js, onnxruntime-node, or
+// JSDoc typedefs, zero backend imports (never imports local/core/onnx-embed.js,
+// local/core/length-bucket.js, local/core/onnx-runtime.js, onnxruntime-node, or
 // @huggingface/transformers). core/embeddings.js (the one real shared
 // consumer) depends on THIS shape only — never on core/onnx-embed-lazy.js
-// or core/onnx-embed.js directly — via its own
+// or local/core/onnx-embed.js directly — via its own
 // applyEmbeddingCapabilities() composition seam.
 //
 // The method list is exactly core/onnx-embed-lazy.js's own export surface:

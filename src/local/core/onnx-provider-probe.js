@@ -1,11 +1,11 @@
-// Truthful ONNX provider probe — runs core/onnx-probe-runner.js in an
+// Truthful ONNX provider probe — runs local/core/onnx-probe-runner.js in an
 // ISOLATED CHILD PROCESS, never in this (caller's) process. Used by
 // npm run doctor and the Admin API's POST /api/system/onnx-probe endpoint;
 // neither of those callers loads onnxruntime-node (default or custom
 // build) themselves merely to report status.
 //
-// Loads the runtime the SAME way core/onnx-embed.js does — via
-// core/onnx-runtime.js's resolveOnnxRuntimeModule()/loadOnnxRuntime(),
+// Loads the runtime the SAME way local/core/onnx-embed.js does — via
+// local/core/onnx-runtime.js's resolveOnnxRuntimeModule()/loadOnnxRuntime(),
 // honoring a configured ONNXRUNTIME_NODE_PATH — but that resolution
 // actually happens inside the spawned child (onnx-probe-runner.js), so
 // this file itself never imports onnxruntime-node directly.
@@ -26,7 +26,7 @@
 // unbounded memory growth from a misbehaving child.
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { sanitiseErrorMessage } from './doctor-checks.js';
+import { sanitiseErrorMessage } from '../../core/doctor-checks.js';
 
 const RUNNER_PATH = fileURLToPath(new URL('./onnx-probe-runner.js', import.meta.url));
 const DEFAULT_TIMEOUT_MS = 30_000;

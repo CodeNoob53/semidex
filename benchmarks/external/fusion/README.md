@@ -144,7 +144,7 @@ gap in what was measured, not a gap this analyzer fills in.
 ### A note on "sparse" across profiles
 
 The **local** profile's sparse lane is BGE-M3's own learned lexical
-weights (`src/core/onnx-embed.js`) — a neural term-importance model, not
+weights (`src/local/core/onnx-embed.js`) — a neural term-importance model, not
 classic BM25. The **cloud** profile's sparse lane is Qdrant's server-side
 `qdrant/bm25` — genuine BM25 term-frequency scoring. Both are labeled
 `sparse` in this analyzer's mode names for consistency with the original
@@ -464,7 +464,7 @@ Scopes run strictly sequentially, never concurrently.
 Local scopes (`scifact-local`, `miracl-local`) in a full benchmark must run under strict CUDA
 (`ONNX_EXECUTION_PROVIDER=cuda ONNX_CUDA_STRICT=1` in the environment —
 the harness reads this, it never sets it itself, and never hardcodes a
-user-specific ONNX Runtime path). `core/onnx-embed.js` now exports
+user-specific ONNX Runtime path). `local/core/onnx-embed.js` now exports
 `getOnnxProviderState()`, which records the requested vs. **effective**
 execution provider from the most recent session load — the harness reads
 this after the first local embedding call and rejects the scope

@@ -52,7 +52,7 @@ import { validateOllamaEmbedCapability } from '../core/generation/ollama-capabil
 import { validateOnnxEmbedCapability } from '../core/onnx-embed-capability.js';
 
 // Capability injection (Phase 8B Step 1, revised after code review) — this
-// module never imports core/ollama.js, core/onnx-embed.js, or
+// module never imports core/ollama.js, local/core/onnx-embed.js, or
 // indexer/phases/tag-onnx.js directly, not even indirectly through a
 // *-lazy.js re-export used as a default value (code review, round 4 — see
 // this file's own git history for the version that DID still statically

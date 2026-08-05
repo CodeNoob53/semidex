@@ -1,6 +1,6 @@
 // Semidex Lite package-build staging replacement for core/onnx-embed-lazy.js.
 //
-// core/onnx-embed.js and core/length-bucket.js are never shipped in the
+// local/core/onnx-embed.js and local/core/length-bucket.js are never shipped in the
 // Lite tarball, so the real onnx-embed-lazy.js's `await import('./onnx-embed.js')`/
 // `await import('./length-bucket.js')` are literal dynamic-import targets
 // that would throw ERR_MODULE_NOT_FOUND in an installed Lite package if

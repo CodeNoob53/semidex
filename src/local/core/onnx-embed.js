@@ -8,8 +8,8 @@ import { existsSync, mkdirSync, createWriteStream, readFileSync, statSync } from
 import { join, resolve } from 'path';
 import { fileURLToPath } from 'url';
 
-import { ONNX_CACHE_DIR as CACHE_DIR, ONNX_MODEL_DIR as MODEL_DIR, ONNX_DENSE_MODEL_ID } from './onnx-paths.js';
-import { isCudaStrict, buildCudaStrictError } from './doctor-checks.js';
+import { ONNX_CACHE_DIR as CACHE_DIR, ONNX_MODEL_DIR as MODEL_DIR, ONNX_DENSE_MODEL_ID } from '../../core/onnx-paths.js';
+import { isCudaStrict, buildCudaStrictError } from '../../core/doctor-checks.js';
 import { loadOnnxRuntime } from './onnx-runtime.js';
 
 // Re-exported for backward compatibility — the canonical declaration now
@@ -360,7 +360,7 @@ export async function embedOnnxBatch(texts) {
   return results;
 }
 
-// CLI: node src/core/onnx-embed.js "your text here"
+// CLI: node src/local/core/onnx-embed.js "your text here"
 const _isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (_isMain && process.argv[2]) {
   const text = process.argv[2];

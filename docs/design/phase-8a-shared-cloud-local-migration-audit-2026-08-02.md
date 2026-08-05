@@ -15,11 +15,16 @@
 > now identical (both zero) with no build step involved. See
 > [`phase-8b-capability-contracts-and-composition-seams-2026-08-02.md`](phase-8b-capability-contracts-and-composition-seams-2026-08-02.md)
 > §0's "Round 4" subsection for the full account. This does NOT complete
-> §4's own plan (the three real modules — `core/ollama.js`,
-> `core/onnx-embed.js`, `indexer/phases/tag-onnx.js` — are still physically
-> present under `src/`, not relocated; §4/§5's physical-move plan remains
-> future work), but it does mean the *build-time substitution* dependency
-> §4 describes today no longer exists — reread §4 with that in mind.
+> §4's own plan (at the time this note was written, the three real modules —
+> `core/ollama.js`, `core/onnx-embed.js`, `indexer/phases/tag-onnx.js` —
+> were still physically present under `src/`, not relocated; §4/§5's
+> physical-move plan remained future work), but it does mean the
+> *build-time substitution* dependency §4 describes today no longer exists
+> — reread §4 with that in mind. **Update (Step 2, see §7's own Step 2
+> entry below):** `core/onnx-embed.js` and its 4 siblings have since
+> physically moved to `src/local/core/`; `core/ollama.js` and
+> `indexer/phases/tag-onnx.js` remain at their original paths pending
+> Steps 3–4.
 
 > **Review correction (2026-08-02).** The initial report treated runtime
 > reachability as architectural identity and therefore mislabeled 12 direct
@@ -274,7 +279,8 @@ the compensation with a real composition-time injection seam instead.
   simply never invoked by Lite's own search handling today — a real
   `move`-to-fully-shared candidate for a future phase, not a bug).
 - **Closure validator allows only via a manual/reviewed exception**:
-  exactly one — `core/onnx-runtime.js`'s
+  exactly one — `local/core/onnx-runtime.js`'s (at `core/onnx-runtime.js`
+  when this audit was originally written, before Step 2's physical move)
   `require(resolveOnnxRuntimeModule(env))` (a genuinely non-literal
   runtime resolution of `onnxruntime-node` itself, or a user-supplied
   override path), already tracked in
@@ -319,7 +325,7 @@ shared contract
 
 - **Current consumers** (1, `shared`): `core/embeddings.js` only.
 - **Minimal contract**: `{ loadOnnx, loadOnnxBatch }` — 2 functions, both already returning function REFERENCES (not results) that the caller then invokes — this shape maps unusually cleanly onto "the contract IS the injected object" (the object's own two methods, called once per `embeddings.js` invocation to get the real `embedOnnx`/`embedOnnxBatch`/`embedBucketed` functions).
-- **Who owns the implementation**: `core/onnx-embed.js` + `core/length-bucket.js` (unchanged) for Full; a typed-unavailable stub for Lite.
+- **Who owns the implementation**: `core/onnx-embed.js` + `core/length-bucket.js` (paths as they existed when this design section was written, before Step 2's physical move — now `local/core/onnx-embed.js` + `local/core/length-bucket.js`; unchanged in every other respect) for Full; a typed-unavailable stub for Lite.
 - **Where injection happens**: `embeddings.js` is the ONLY consumer, so the seam could be as narrow as `embeddings.js`'s own top-level exported functions accepting an optional injected onnx-capability object (defaulting to a real, composition-supplied one in production, matching the existing DI convention this codebase already uses pervasively — e.g. `adapter`/`embedQuery` optional-DI parameters throughout `admin/api/*.js`).
 - **Persistent worker lifecycle**: none — `loadOnnx`/`loadOnnxBatch` are stateless module-loaders, no child process.
 - **Typed errors**: preserved the same way as §4.1.
@@ -384,18 +390,27 @@ src/
     admin/
       api/qdrant-cloud.js
       system/qdrant-cloud.js
-  local/           (16 files today)
+  local/           (16 files today; 5 physically relocated as of Step 2 —
+                     see that step's own "IMPLEMENTED" note above; the
+                     remaining 11 are still physically at their ORIGINAL
+                     src/ locations pending Steps 3–4)
     core/
-      ollama.js, ollama-models.js, onnx-embed.js, onnx-runtime.js,
-      onnx-probe-runner.js, onnx-provider-probe.js, length-bucket.js,
+      onnx-embed.js, onnx-runtime.js, onnx-probe-runner.js,
+      onnx-provider-probe.js, length-bucket.js — MOVED (Step 2, real,
+      physically at src/local/core/ today)
+      ollama.js, ollama-models.js — NOT YET MOVED (Step 3; still at
+      src/core/ today)
       ce-rerank.js, ce-rerank-worker.js, rerank.js (pending the §3.3
-      move-to-shared question)
+      move-to-shared question; NOT YET MOVED regardless)
     admin/
-      api/onnx.js, api/ollama-models.js, system/ollama.js
+      api/onnx.js, api/ollama-models.js, system/ollama.js — NOT YET MOVED
+      (Step 3; still at src/admin/ today)
     indexer/
-      phases/tag-onnx.js, workers/tag-onnx-worker.js
+      phases/tag-onnx.js, workers/tag-onnx-worker.js — NOT YET MOVED
+      (Step 4; still at src/indexer/ today)
     admin/ui-src/
-      local-features.js
+      local-features.js — NOT YET MOVED (deferred, §5's own "split, narrow"
+      disposition for admin/ui-src/ as a whole)
   composition/
     full/          (admin/bootstrap.js, admin/server-full.js,
                      admin/ui-src/entries/full.js)
@@ -660,7 +675,7 @@ the composition-wiring detail (including a real closure-breaking mistake
 caught and fixed before ever running the validator), and the manifest's
 own `mixed`-count implications.
 
-### Step 2 — Physically relocate the local embedding runtime
+### Step 2 — Physically relocate the local embedding runtime — IMPLEMENTED (see `docs/design/phase-8b-capability-contracts-and-composition-seams-2026-08-02.md` §12)
 
 **Files**: `core/onnx-embed.js`, `core/onnx-runtime.js`,
 `core/onnx-probe-runner.js`, `core/onnx-provider-probe.js`,
@@ -676,6 +691,40 @@ committed).
 succeed; tarball size unchanged.
 **Separate PR**: yes. **Rollback boundary**: revert; Step 1's seam still
 works with files at their old path if this step is reverted alone.
+
+As implemented: the target directory is `src/local/core/` (one level more
+specific than this section's own original `src/local/`, matching Step 2's
+own concrete task instructions — `src/local/` remains the eventual home for
+every local-runtime file across Steps 2–4, of which `core/` is the first
+populated subdirectory). All five files moved via `git mv`, preserving
+history. Internal cross-references between the five moved files were kept
+relative (`./onnx-runtime.js` etc. — both files moved together, so the
+relationship didn't change); references to files that stayed in `src/core/`
+(`onnx-paths.js`, `doctor-checks.js`) were updated to `../../core/...`; one
+`node_modules`-relative reference in `onnx-probe-runner.js` gained an extra
+`../` for the new directory depth. External importers updated:
+`core/onnx-embed-lazy.js` (2 dynamic-import specifiers), `admin/api/onnx.js`,
+`doctor.js`, 2 smoke sections, 12 benchmark scripts, and every test file
+importing a moved file directly. `packages/lite/build.mjs`'s `EXCLUDE_DIRS`
+gained a `'local'` entry (replacing 5 individual `EXCLUDE_FILES` name
+entries) — `scripts/audit/classify-modules.mjs`'s own independent
+re-derivation of the same exclusion rule was updated in parallel, keeping
+the two lists in sync as they were before. Verified: Lite tarball byte-
+identical to baseline (413.9 kB packed / 1.4 MB unpacked / 129 files — these
+5 files were already excluded from Lite before the move, so relocating them
+changed nothing about what ships), closure validator clean (117 staged
+files, same as baseline), 2788/2788 `npm test` (2774 baseline + 14 new
+regression tests in `tests/unit/architecture/phase-8b-step2-local-relocation.test.js`),
+1316/1316 `npm run smoke`, both admin UI builds byte-identical, clean-install
+acceptance green. New regression tests prove (not merely assert) three
+things a path rename could silently violate: the old `src/core/*.js` paths
+are gone AND no production import specifier anywhere under `src/`,
+`benchmarks/`, or `scripts/` still resolves to one (verified to genuinely
+catch a reintroduced stale path, not just pass trivially); the new
+`src/local/core/*.js` paths exist; and the Lite tarball's own staged file
+list (via `build.mjs`'s real `stageSrc()`, not a simulation) contains zero
+files under `local/` at all — a stronger claim than "unreachable," since it
+confirms the directory is never even copied.
 
 ### Step 3 — Physically relocate the Ollama generation/context runtime
 

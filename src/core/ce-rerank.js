@@ -15,7 +15,7 @@
 // responses over IPC (child.send()/child.on('message')) using a
 // requestId-keyed protocol. Transformers.js bundles its own ONNX Runtime
 // build, which must never share a process with the custom CUDA-enabled
-// onnxruntime-node build core/onnx-embed.js loads for embedding — that is
+// onnxruntime-node build local/core/onnx-embed.js loads for embedding — that is
 // the entire reason this module no longer calls @huggingface/transformers
 // directly.
 //
@@ -173,7 +173,7 @@ const _pending = new Map();
 // Must return an object shaped like a node:child_process ChildProcess:
 // .send(msg), .on(event, fn), .off(event, fn), .once(event, fn), .kill().
 // Config travels via environment variables (never IPC, never CLI args —
-// same convention core/onnx-provider-probe.js uses) since the model/device/
+// same convention local/core/onnx-provider-probe.js uses) since the model/device/
 // cacheDir are next_restart settings that never change for this child
 // process's lifetime.
 let _workerFactory = (cfg) => fork(WORKER_PATH, [], {
@@ -393,7 +393,7 @@ export async function loadCEModel() {
  * Promise) — a bounded wait for the real 'exit' event follows, so this
  * still resolves only once the child is confirmed gone, or after a grace
  * period if it ignores the signal entirely (mirrors
- * core/onnx-provider-probe.js's own kill-then-wait pattern).
+ * local/core/onnx-provider-probe.js's own kill-then-wait pattern).
  */
 const SHUTDOWN_KILL_GRACE_MS = 3_000;
 

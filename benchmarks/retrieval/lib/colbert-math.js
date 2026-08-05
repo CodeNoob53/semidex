@@ -1,7 +1,7 @@
 // Pure ColBERT math helpers — no model load, no I/O, no side effects.
 // Used by bge-m3-colbert-probe.js and tested by src/smoke/sections/20-colbert-math.js.
 
-// bge-m3 sentencepiece special token IDs — same set as src/core/onnx-embed.js
+// bge-m3 sentencepiece special token IDs — same set as src/local/core/onnx-embed.js
 export const SPECIAL_TOKENS = new Set([0, 1, 2, 3, 250001]);
 
 export function l2Norm(vec) {

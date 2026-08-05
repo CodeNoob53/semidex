@@ -3,7 +3,7 @@
 // worker_threads — a worker_thread shares the OS process, and therefore
 // ONNX Runtime's process-global Ort::Env singleton, with the main indexer
 // process, which can simultaneously load the custom CUDA-enabled
-// onnxruntime-node build via core/onnx-embed.js when ONNX_EMBED=1; only a
+// onnxruntime-node build via local/core/onnx-embed.js when ONNX_EMBED=1; only a
 // genuinely separate process isolates Transformers.js's own bundled ORT
 // build from it).
 //

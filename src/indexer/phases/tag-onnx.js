@@ -8,7 +8,7 @@
 // so native addons (including ONNX Runtime's own process-global Ort::Env
 // singleton) are shared with whatever else the indexer's main process has
 // loaded — notably the custom CUDA-enabled onnxruntime-node build
-// core/onnx-embed.js loads when ONNX_EMBED=1. Two different ORT builds
+// local/core/onnx-embed.js loads when ONNX_EMBED=1. Two different ORT builds
 // sharing one process's native address space is exactly the conflict this
 // isolation exists to prevent; only a genuinely separate OS process
 // (child_process) provides that boundary. See

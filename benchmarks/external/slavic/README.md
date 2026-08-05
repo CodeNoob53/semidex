@@ -119,7 +119,7 @@ Reused, not duplicated, from the existing BEIR/MIRACL/fusion harnesses:
 - `makeRedactor()`, `describeEndpoint()`, `buildClient()`, `timed()`,
   `withBoundedRetry()`, `percentile()`, `buildIdMapping()` from
   `../beir/harness-core.mjs`.
-- `embedOnnxBatch()` from `../../../src/core/onnx-embed.js` — the single
+- `embedOnnxBatch()` from `../../../src/local/core/onnx-embed.js` — the single
   source of BGE-M3 dense+sparse embeddings, one call per batch.
 - `ONNX_DENSE_MODEL_ID` from `../../../src/core/onnx-paths.js`.
 - The atomic-checkpoint-write (`writeJsonAtomic`), pre-flight
@@ -151,7 +151,7 @@ flight at once.
   lemmatization, no language-specific normalization, no translation, no
   rewording. `flores_passage`/`question` text is used verbatim.
 - Truncation: BGE-M3's own tokenizer `max_length=8192` applies identically
-  to every language (see `src/core/onnx-embed.js`) — this harness never
+  to every language (see `src/local/core/onnx-embed.js`) — this harness never
   tunes a per-language token budget. It only **detects and counts** how
   many documents/queries exceed that limit per language (see
   `detectTruncation()` in `run-slavic-benchmark.mjs`), using the same
@@ -323,7 +323,7 @@ collection is created, `verifyStrictCudaConfigured()` (shared with
 `ONNX_EXECUTION_PROVIDER=cuda` and `ONNX_CUDA_STRICT=1` are both set in the
 environment and refuses to start otherwise. After indexing, each
 language's provenance records BOTH the requested and the **effective**
-execution provider (via `core/onnx-embed.js`'s `getOnnxProviderState()`) —
+execution provider (via `local/core/onnx-embed.js`'s `getOnnxProviderState()`) —
 `verifyCudaProvenance()` rejects the language if CUDA was requested but
 silently fell back to CPU. **CUDA is never used to compare retrieval
 quality anywhere in this harness** — it only ever gates whether a real run

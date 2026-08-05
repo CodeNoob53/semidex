@@ -7,7 +7,7 @@
 // OS process, so native addons (including ONNX Runtime's own process-global
 // Ort::Env singleton) are still shared with whatever the indexer's main
 // process has loaded (e.g. the custom CUDA-enabled onnxruntime-node build
-// via core/onnx-embed.js, when ONNX_EMBED=1). Only a genuinely separate
+// via local/core/onnx-embed.js, when ONNX_EMBED=1). Only a genuinely separate
 // process gives @huggingface/transformers' own bundled ORT build its own
 // address space and its own Ort::Env. See
 // docs/cuda-runtime-verification-2026-07-24.md.

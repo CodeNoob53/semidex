@@ -1,6 +1,6 @@
 // Cheap, routine ONNX lane availability check — file-existence only, NEVER
 // loads the model or creates an inference session. Distinct from the
-// expensive explicit-probe path (src/core/onnx-provider-probe.js's
+// expensive explicit-probe path (src/local/core/onnx-provider-probe.js's
 // probeOnnxProvider(), which actually creates an InferenceSession and can
 // take tens of seconds / load ~2.3GB) — that path is used ONLY by
 // deliberate, explicit actions (npm run doctor, the Admin API's existing

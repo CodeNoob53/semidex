@@ -1,14 +1,28 @@
-# Phase 8B Step 1 — capability contracts and composition seams
+# Phase 8B — capability contracts, composition seams, and physical local-runtime relocation
 
-Implementation report for Phase 8B Step 1 of the Phase 8 migration plan
-laid out in
-[`phase-8a-shared-cloud-local-migration-audit-2026-08-02.md`](phase-8a-shared-cloud-local-migration-audit-2026-08-02.md)
-§7 ("Step 1 — Introduce contracts/composition seams, zero file moves").
-No production files were physically moved. The three lazy shims
-(`core/ollama-lazy.js`, `core/onnx-embed-lazy.js`,
+Implementation report for Phase 8B Steps 1 and 2 of the Phase 8 migration
+plan laid out in
+[`phase-8a-shared-cloud-local-migration-audit-2026-08-02.md`](phase-8a-shared-cloud-local-migration-audit-2026-08-02.md).
+§§0–11 below cover **Step 1** ("Introduce contracts/composition seams, zero
+file moves") — no production files were physically moved in that step. The
+three lazy shims (`core/ollama-lazy.js`, `core/onnx-embed-lazy.js`,
 `indexer/phases/tag-onnx-lazy.js`) and their `.lite.js` counterparts were
-**not removed** — they remain the real, working transitional compatibility
-path, exactly as this step's scope requires. Nothing was committed.
+**not removed** in Step 1 — they remain the real, working transitional
+compatibility path, exactly as that step's scope required.
+
+§12 covers **Step 2** ("Physically relocate the local embedding runtime") —
+the first step that DOES physically move production files (`git mv`, not a
+new file). Three transitional lazy seams (`core/ollama-lazy.js`,
+`core/onnx-embed-lazy.js`, `indexer/phases/tag-onnx-lazy.js`) still remain in
+place after Step 2, exactly as expected — they are not scheduled for removal
+until Step 8, once every consumer is fully migrated onto direct capability
+injection with no module-scope default of its own. **Step 3** (physically
+relocating the Ollama generation/context runtime — `core/ollama.js`,
+`core/ollama-models.js`, `admin/system/ollama.js`, `admin/api/ollama-models.js`)
+and **Step 4** (physically relocating local tagging workers —
+`indexer/phases/tag-onnx.js`, `indexer/workers/tag-onnx-worker.js`) have
+**not** been executed — both remain future work, tracked in Phase 8A's own
+§7. Nothing was committed by either step's own work session.
 
 ## 0. Code review fixes (applied after the initial implementation)
 
@@ -1134,3 +1148,275 @@ this step's work directly unblocks that move:
   file's import path too, a fact already noted in Phase 8A's own plan.
 
 No blocker was found. Step 2 can proceed as planned once reviewed.
+
+## 12. Step 2 implementation — physical relocation of the local embedding runtime
+
+**This is a physical file move (`git mv`), not a runtime-behavior change.**
+Every capability contract, composition seam, and call shape introduced in
+Step 1 (§§0–11 above) is untouched — `OnnxEmbedCapability`
+(`core/onnx-embed-capability.js`) still has zero path dependency on where
+the real implementation lives, exactly as §11 predicted. Three transitional
+lazy seams remain in place after this step (`core/ollama-lazy.js`,
+`core/onnx-embed-lazy.js`, `indexer/phases/tag-onnx-lazy.js`) — their
+continued existence is expected, not a gap; they are not scheduled for
+removal until Step 8. Step 3 (Ollama runtime relocation) and Step 4 (tag
+ONNX worker relocation) have **not** been executed as part of this work.
+
+### 12.1 What physically moved
+
+Five files, via `git mv` (history preserved), from `src/core/` to
+`src/local/core/`:
+
+| File | New path |
+|---|---|
+| `core/onnx-embed.js` | `local/core/onnx-embed.js` |
+| `core/onnx-runtime.js` | `local/core/onnx-runtime.js` |
+| `core/onnx-probe-runner.js` | `local/core/onnx-probe-runner.js` |
+| `core/onnx-provider-probe.js` | `local/core/onnx-provider-probe.js` |
+| `core/length-bucket.js` | `local/core/length-bucket.js` |
+
+The target directory is `src/local/core/` — one level more specific than
+§7 Step 2's own original `→ src/local/` shorthand, but consistent with §5's
+own target tree, which always showed a `core/` subdirectory under `local/`
+(mirroring `shared/core/`, `cloud/core/`). `src/local/` itself is now a
+real directory for the first time; Steps 3–4 will populate it further
+(`ollama.js`, `ollama-models.js`, `tag-onnx.js`, `tag-onnx-worker.js`, and
+their `admin/`-side siblings) without needing a second top-level rename.
+
+### 12.2 Import graph — before/after
+
+Real importers found via `rg`, cross-checked against
+`scripts/audit/classify-modules.mjs`'s AST-based graph (not assumed from
+the task's own suggested list, per the task's own instruction):
+
+- **Internal cross-references between the five moved files**: `onnx-embed.js`
+  → `onnx-runtime.js` (same directory, unchanged `./`); `onnx-probe-runner.js`
+  → `onnx-runtime.js` (same directory, unchanged `./`); `onnx-provider-probe.js`
+  → `onnx-probe-runner.js` (same directory, unchanged `./`, via
+  `fileURLToPath(new URL(...))`, not a static import). References to files
+  that did NOT move (`onnx-paths.js`, `doctor-checks.js`, both staying in
+  `src/core/`) were updated from `./x.js` to `../../core/x.js`. One
+  `node_modules`-relative reference in `onnx-probe-runner.js`
+  (`readFileSync(new URL('../../node_modules/...'))`) gained a third `../`
+  for the new directory depth.
+- **`core/onnx-embed-lazy.js`** (the Full-only lazy boundary Part C's own
+  rules explicitly permit crossing into `src/local/**`): its two dynamic
+  `await import('./onnx-embed.js')` / `await import('./length-bucket.js')`
+  specifiers became `await import('../local/core/onnx-embed.js')` /
+  `await import('../local/core/length-bucket.js')`. This is the ONE shared
+  file with a legitimate edge into `src/local/**` — by design, since it IS
+  the seam Step 1 built and Step 8 will eventually retire.
+- **`admin/api/onnx.js`** (Full-only ONNX admin probe route): its static
+  `import { probeOnnxProvider } from '../../core/onnx-provider-probe.js'`
+  became `'../../local/core/onnx-provider-probe.js'`.
+- **`doctor.js`** (Full-only tooling): its dynamic
+  `await import('./core/onnx-provider-probe.js')` became
+  `await import('./local/core/onnx-provider-probe.js')`.
+- **2 smoke sections** (`smoke/sections/12-onnx-providers.js`,
+  `smoke/sections/23-length-bucket.js`): updated the same way.
+- **12 benchmark scripts** (`benchmarks/onnx-provider-bench.js`,
+  `benchmarks/onnx-batch-indexing-bench.js`,
+  `benchmarks/retrieval/bge-m3-colbert-probe.js`,
+  `benchmarks/lib/length-bucket.js`, `benchmarks/retrieval/lib/colbert-rerank.js`,
+  `benchmarks/external/production-path/core/run-suite.mjs`, and 6 files
+  under `benchmarks/external/{beir,fusion,miracl,slavic}/`) — every one a
+  DIRECT import of a moved production module, per the task's own scoping
+  rule ("benchmark imports лише якщо вони прямо імпортують переміщені
+  production-модулі"). `run-miracl.mjs` additionally had a provenance-hash
+  file-list entry and a doc-comment path updated. Historical benchmark
+  result files/READMEs under `benchmarks/*/results/`/`benchmarks/*/README.md`
+  were deliberately left untouched — they are dated records of past runs,
+  not live source.
+- **12 test files**: 7 direct-importer test files
+  (`tests/unit/core/{length-bucket,onnx-runtime,onnx-tokenizer,onnx-provider-probe,onnx-embed-output-selection,onnx-paths,onnx-process-isolation}.test.js`),
+  `tests/unit/indexer/indexer-settings-writeback.test.js`,
+  `tests/unit/admin/api/onnx.test.js`, and 3 architecture tests
+  (`full-lite-boundary.test.js`'s `ALLOWED_NON_LITERAL_REFERENCES` entry,
+  `lite-lazy-shim-necessity.test.js`'s `LOCAL_RUNTIME_TARGETS`/unreachability
+  assertions, `shared-cloud-local-manifest.test.js`'s
+  `onnx-embed-lazy.js` → target-path pair) — all updated to the new path.
+  `packages/lite/lite-src/*.js` (Lite's own real composition) was confirmed
+  to have zero references to any of the five files, before or after — Lite
+  never had an edge to them.
+
+### 12.3 Lite package boundary — directory exclusion, not a new staging strategy
+
+`packages/lite/build.mjs`'s `EXCLUDE_DIRS` gained one entry, `'local'`,
+replacing the 5 individual `EXCLUDE_FILES` name entries the same 5 files
+previously needed. `scripts/audit/classify-modules.mjs` maintains its own,
+independently-derived copy of the same exclusion rule (by design — see that
+script's own header comment on why it re-derives rather than imports
+`build.mjs`'s list, to cross-check rather than blindly trust it) — its
+`EXCLUDE_DIRS` gained the matching `'src/local/'` entry, and
+`LOCAL_ONLY_PATH_PATTERNS`'s 5 regexes were updated to the new paths. This
+is explicitly NOT Step 9's allow-list staging strategy (§6 of the Phase 8A
+plan) — `EXCLUDE_FILES` still exists, still has real entries (`ollama.js`,
+`ce-rerank.js`, etc.), and the deny-list mechanism itself is unchanged;
+only one directory's worth of files moved from name-based to path-prefix-
+based exclusion, which the existing `EXCLUDE_DIRS` mechanism already
+supported before this step (used previously for `admin/ui-src`, `mcp`,
+`smoke`, `test-fixtures`).
+
+No closure-validator exception was added. The validator's own "no
+intentionally-absent allow-list" rule (see the package-boundary doc's
+"five-part closure validator" section) was never at risk here — the five
+moved files' only remaining static/dynamic-import edges converge on
+`onnx-embed-lazy.js`, a file Lite has never reached (pre- and post-move,
+identically), so no fork/spawn/import target the validator checks was ever
+missing from either side.
+
+### 12.4 Manifest and audit artifacts
+
+All generated artifacts regenerated via their own generators (never
+hand-edited): `scripts/audit/full-lite-module-classification.json`
+(`node scripts/audit/build-shared-cloud-local-manifest.mjs`),
+`docs/design/artifacts/full-lite-module-inventory.json` and
+`full-lite-reachability-summary.json` (`node scripts/audit/classify-modules.mjs`),
+and `docs/design/artifacts/full-lite-import-graph.json`
+(`node scripts/audit/build-import-graph.mjs`) — found stale (still showing
+the old `src/core/*.js` paths for the 5 moved files) during a follow-up
+review pass after this step's own initial verification; regenerated the
+same way as the other three, no hand-editing.
+Category counts identical before/after regeneration (243/243 modules in the
+shared/cloud/local manifest, same 111/41/16/10/61/4 shared/mixed/local/
+composition/tooling/cloud distribution; 248/248 modules in the
+Full/Lite-reachability inventory, same 232 Full-reachable/143
+Lite-reachable, 0 heavy-package-reachable-from-Lite, 0 cloud→local
+violations) — the move relabeled 5 paths, it did not change what anything
+is reachable from. `node scripts/audit/find-dependency-violations.mjs`:
+0 violations, 0 shared→cloud edges (unchanged from Step 1's own baseline).
+
+Pre-existing, unrelated finding surfaced while establishing this step's own
+baseline: `docs/design/artifacts/full-lite-module-inventory.json` and
+`full-lite-reachability-summary.json` were already stale relative to the
+committed source tree BEFORE this step's own changes (drift accumulated
+across Step 1's several rounds of commits, none of which re-ran
+`classify-modules.mjs`) — neither file has a drift test comparable to
+`shared-cloud-local-manifest.test.js`'s own byte-for-byte check on
+`full-lite-module-classification.json`. This step's own regeneration
+brought both back in sync as a side effect (required by Part E regardless),
+but the missing drift test for these two specific artifacts remains an open
+gap, not something this step's own scope covers fixing.
+
+### 12.5 Lite tarball size — unchanged
+
+| Metric | Baseline (pre-move) | After Step 2 |
+|---|---|---|
+| Packed size | 413.9 kB | 413.9 kB |
+| Unpacked size | 1.4 MB | 1.4 MB |
+| Total files | 129 | 129 |
+| Staged `src/` files (`build.mjs`) | 117 | 117 |
+
+Byte-identical. All five moved files were already excluded from the Lite
+tarball before this step (via `EXCLUDE_FILES` name entries rather than
+`EXCLUDE_DIRS` path-prefix matching) — relocating already-excluded files to
+a newly-excluded directory changes nothing about what ships.
+
+### 12.6 Tests added
+
+New file: `tests/unit/architecture/phase-8b-step2-local-relocation.test.js`
+(14 tests), proving three things no existing test covered:
+
+1. **Physical presence/absence** — each of the 5 old `src/core/*.js` paths
+   no longer exists as a file; each of the 5 new `src/local/core/*.js`
+   paths does.
+2. **No stale import specifier anywhere in production source** — a
+   repo-wide walk of `src/`, `benchmarks/`, `scripts/` (excluding the
+   gitignored `packages/lite/src/` staging mirror) parses every
+   `from '...'`/`require('...')`/`import('...')` specifier and rejects any
+   resolving to the OLD `core/<moved-file>.js` shape, using a segment-based
+   path check (not a regex) specifically because a naive regex anchored on
+   `core/<file>.js` cannot distinguish the old path from the new one — both
+   literally end in `core/onnx-embed.js`. Verified this test genuinely
+   catches a regression: deliberately reverted one import specifier
+   (`core/onnx-embed-lazy.js`'s own `onnx-embed.js` load) to its pre-move
+   form, confirmed the test failed naming the exact file and specifier,
+   restored the fix, reconfirmed green.
+3. **Lite tarball physically excludes `local/`** — using `build.mjs`'s own
+   real `stageSrc()`/`listAllFiles()` (not a simulation) against the real
+   staged tree: zero staged files under `local/`, zero staged copies of any
+   of the 5 moved files under ANY path, and the `local/` directory does not
+   exist on disk in the staged tree at all — a stronger claim than
+   "unreachable," proving the directory is never even copied.
+
+Existing tests updated in place (not new tests) for the 7 direct-importer
+test files, the writeback/onnx-admin-API tests, and the 3 architecture
+tests listed in §12.2 — their own assertions were already the right shape,
+only the path literals needed to change.
+
+### 12.7 Verification results
+
+| Check | Result |
+|---|---|
+| `node --check` on every changed `.js`/`.mjs` file | clean |
+| Narrow affected tests (`node --test --test-concurrency=1`, 12 files) | 138/138 pass |
+| `npm test` | 2788/2788 pass (2774 baseline + 14 new) |
+| `npm run smoke` | 1316/1316 pass |
+| `npm run admin:build` | succeeds, byte-identical output hash to baseline |
+| `npm run admin:build:lite` | succeeds, byte-identical output hash to baseline |
+| `node packages/lite/build.mjs` | OK — 117 files staged, closure validated clean (same count as baseline) |
+| `git diff --check` | clean (only pre-existing CRLF-normalization warnings, exit 0) |
+| Lite clean-install acceptance (`tests/unit/lite/clean-install-acceptance.test.js`) | 6/6 pass — includes the real `npm pack`, real install into a fresh read-only directory, `--help`/`doctor`/`serve` against the real installed package, and the no-import-escapes-package-root check |
+| `node scripts/audit/classify-modules.mjs` | 248 modules classified, 0 heavy-package-reachable-from-Lite, 0 cloud-imports-local violations (identical to baseline) |
+| `node scripts/audit/build-shared-cloud-local-manifest.mjs` | 243 modules classified, identical category counts to baseline |
+| `node scripts/audit/find-dependency-violations.mjs` | 0 violations, 0 shared→cloud edges (identical to baseline) |
+
+No model was run, no benchmark was executed, no live Qdrant/ONNX inference
+occurred during this step's own work — consistent with the task's explicit
+constraint.
+
+### 12.8 Side findings
+
+- The pre-existing drift-test gap for `full-lite-module-inventory.json`/
+  `full-lite-reachability-summary.json` (§12.4) — carried forward as an
+  open item, not fixed here (out of this step's own scope). The same
+  gap applies to `full-lite-import-graph.json` (also no drift test).
+- **[P2, follow-up review round]** Several ACTIVE (non-historical) prose
+  references to the old `src/core/onnx-embed.js`-family paths survived the
+  initial pass — a comment/doc-scan finding, not a functional gap (Part C's
+  own real-import-graph work already correctly cut every code edge; §12.6's
+  own regression test only checked import/require specifiers, not
+  free-standing prose). Fixed: the broken CLI usage example in
+  `src/local/core/onnx-embed.js` itself (`node src/core/onnx-embed.js "..."`
+  would no longer run — corrected to the real new path); ~30 comments across
+  shared/composition production source
+  (`admin/composition/lite.js`, `admin/api/onnx.js`, `doctor.js`,
+  `indexer/run.js`, `indexer/workers/tag-onnx-worker.js`, `core/bge-tokenizer.js`,
+  `core/ce-rerank.js`, `core/ce-rerank-worker.js`, `core/embeddings.js`,
+  `core/onnx-embed-lazy.js`/`.lite.js`, `core/onnx-embed-capability.js`,
+  `core/embedding-profile/onnx-lane.js`, `core/settings/definitions.js` — the
+  live settings-registry field descriptions, `indexer/phases/tag-onnx.js`,
+  and the moved files' own internal cross-reference comments); 4 benchmark
+  READMEs (`beir`, `fusion`, `miracl`, `slavic`) plus 4 benchmark script
+  comments (`run-weighted-rrf-live.mjs`, `slavic-weighted-rrf-config.mjs`,
+  `slavic-profiles.mjs`, `colbert-math.js`) that a prior pass had only
+  fixed for real `import` statements, not prose; `docs/en/ce-rerank-design.md`
+  (2 references, a living config-contract doc, not a dated report); several
+  `it()`/`describe()` description strings and error messages across test
+  files (`lite-lazy-shim-necessity.test.js`, `onnx-process-isolation.test.js`,
+  `onnx-provider-probe.test.js`, `onnx-embed-capability.test.js`,
+  `tests/unit/indexer/phases/tag-onnx.test.js`) whose underlying assertions
+  were already directory-agnostic and correct, but whose user-facing text
+  still named the old path; and `docs/design/phase-8a-shared-cloud-local-migration-audit-2026-08-02.md`'s
+  own round-4 callout and §3.3/§4.2 design narrative, updated with explicit
+  "as of Step 2" annotations rather than silently rewritten (preserving the
+  historical record of what was true when each section was originally
+  written). Also found `docs/design/artifacts/full-lite-import-graph.json`
+  (§12.4) was stale for the same reason as the other two artifacts —
+  regenerated. **Deliberately NOT touched** (per explicit scope): dated
+  historical benchmark result files/READMEs under `benchmarks/*/results/**`
+  (including `archive/`), and dated point-in-time reports
+  (`docs/admin-ui-provider-aware-models-2026-07-16.md`,
+  `docs/code-review-2026-06-10.md`, `docs/design/bge-m3-token-aware-chunking-plan.md`,
+  `docs/design/full-lite-shared-architecture-audit-2026-08-01.md`,
+  `docs/design/phase-7-lite-shim-reduction-2026-08-02.md`) — these are
+  archived snapshots of past investigations, not living documentation, and
+  rewriting their historical path references would corrupt the record they
+  exist to preserve. Re-verified after these fixes: `node --check` on every
+  touched file, the same 176-test narrow suite, full `npm test` (2788/2788,
+  unchanged), `node packages/lite/build.mjs` (117 files, clean, unchanged),
+  `git diff --check` (exit 0).
+- No other side findings. No production logic, Qdrant API call shape,
+  embedding-profile resolution, batching behavior, CUDA/DirectML provider
+  selection, or token-counting logic was touched — confirmed by the
+  byte-identical UI build hashes and the unchanged test/smoke counts.

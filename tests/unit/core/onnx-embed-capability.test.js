@@ -38,12 +38,12 @@ describe('validateOnnxEmbedCapability', () => {
 });
 
 describe('onnx-embed-capability.js — zero backend imports (contract, not implementation)', () => {
-  test('the contract module source has no import of core/onnx-embed.js, core/length-bucket.js, core/onnx-runtime.js, onnxruntime-node, or @huggingface/transformers', () => {
+  test('the contract module source has no import of local/core/onnx-embed.js, local/core/length-bucket.js, local/core/onnx-runtime.js, onnxruntime-node, or @huggingface/transformers', () => {
     const src = readFileSync(new URL('../../../src/core/onnx-embed-capability.js', import.meta.url), 'utf-8');
     const codeOnly = src.split('\n').filter((line) => !line.trim().startsWith('//')).join('\n');
-    assert.ok(!/from ['"].*onnx-embed(-lazy)?\.js['"]/.test(codeOnly), 'must not import core/onnx-embed.js or onnx-embed-lazy.js');
-    assert.ok(!/from ['"].*length-bucket\.js['"]/.test(codeOnly), 'must not import core/length-bucket.js');
-    assert.ok(!/from ['"].*onnx-runtime\.js['"]/.test(codeOnly), 'must not import core/onnx-runtime.js');
+    assert.ok(!/from ['"].*onnx-embed(-lazy)?\.js['"]/.test(codeOnly), 'must not import local/core/onnx-embed.js or core/onnx-embed-lazy.js');
+    assert.ok(!/from ['"].*length-bucket\.js['"]/.test(codeOnly), 'must not import local/core/length-bucket.js');
+    assert.ok(!/from ['"].*onnx-runtime\.js['"]/.test(codeOnly), 'must not import local/core/onnx-runtime.js');
     assert.ok(!/onnxruntime-node/.test(codeOnly), 'must not reference onnxruntime-node');
     assert.ok(!/@huggingface\/transformers/.test(codeOnly), 'must not reference @huggingface/transformers');
   });

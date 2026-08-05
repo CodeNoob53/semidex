@@ -462,7 +462,7 @@ export const DEFINITIONS = {
     visibleWhen: { key: 'EMBEDDING_BACKEND', equals: 'bge-m3-onnx' },
     ...enumField({ envVar: 'ONNX_EXECUTION_PROVIDER', defaultVal: 'cpu', allowed: ['cpu', 'dml', 'cuda'] }),
   },
-  // DML-only: production batching (core/onnx-embed.js's embedOnnxBatch())
+  // DML-only: production batching (local/core/onnx-embed.js's embedOnnxBatch())
   // is used by the indexer only for the dml provider today — cpu/cuda both
   // process one item at a time in the current implementation, so this
   // field has no effect for them and would be misleading to show.
@@ -477,7 +477,7 @@ export const DEFINITIONS = {
     ...intField({ envVar: 'ONNX_BATCH_SIZE', defaultVal: 4, min: 1, max: 64, warnPrefix: '[onnx] ' }),
   },
   // CUDA-only: this setting has no effect unless CUDA is the requested
-  // execution provider (core/onnx-embed.js's strict-mode branch only runs
+  // execution provider (local/core/onnx-embed.js's strict-mode branch only runs
   // when providers[0] === 'cuda') — shown only alongside CUDA to avoid
   // implying it does anything for cpu/dml.
   ONNX_CUDA_STRICT: {
@@ -494,7 +494,7 @@ export const DEFINITIONS = {
   // with CPU and DirectML execution providers only — it has no CUDA
   // execution provider compiled in. A compatible custom onnxruntime-node
   // build (with CUDA support) is required to actually run
-  // ONNX_EXECUTION_PROVIDER=cuda; this field points core/onnx-runtime.js's
+  // ONNX_EXECUTION_PROVIDER=cuda; this field points local/core/onnx-runtime.js's
   // loadOnnxRuntime() at that build instead of the npm package. Empty
   // means "use the default npm package" (which will not have a CUDA
   // execution provider). CUDA Toolkit/cuDNN themselves are OS-level

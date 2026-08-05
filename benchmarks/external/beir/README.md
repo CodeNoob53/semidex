@@ -6,7 +6,7 @@ compares two locked provider configurations on the official BEIR SciFact
 test split:
 
 - **local** — current Semidex `bge-m3-onnx` dense + learned sparse
-  (`src/core/onnx-embed.js`), fused via Qdrant RRF `k=60` (Semidex's own
+  (`src/local/core/onnx-embed.js`), fused via Qdrant RRF `k=60` (Semidex's own
   production default).
 - **cloud** — Qdrant Cloud Inference hosted `intfloat/multilingual-e5-small`
   dense (384, Cosine) + server-side `qdrant/bm25` sparse

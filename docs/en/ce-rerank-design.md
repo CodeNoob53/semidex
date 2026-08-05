@@ -79,7 +79,7 @@ All new env vars follow the `envFloat` / `envInt` pattern from `src/core/rerank.
 | `RERANK_CE_TOP_N` | `40` | `1`–`500` | Candidates from the RRF pool passed to CE. Hard upper bound on inference cost. Candidates beyond `TOP_N` are discarded before scoring. Must be >= `top`; if not, warn and clamp to `top`. |
 | `RERANK_CE_TIMEOUT_MS` | `10000` | `100`–`120000` | Wall-clock deadline (ms) for CE inference on a single query. On expiry, fallback to pre-CE candidates. |
 | `RERANK_CE_DEVICE` | `cpu` | `cpu`, `dml`, `cuda` | Execution provider for CE ONNX session. Passed as the provider string to `AutoModelForSequenceClassification.from_pretrained`. Exact fallback-chain semantics (e.g. whether `dml` silently falls back to CPU on failure) depend on the `@huggingface/transformers` device API and must be confirmed by a spike test before documenting. Invalid values warn and fall back to `cpu`. |
-| `RERANK_CE_CACHE_DIR` | `./models` | Any writable path | HF model cache directory. Mirrors `hfEnv.cacheDir` from `src/core/onnx-embed.js`. Created with `mkdirSync` if absent. No re-download when model is already cached. |
+| `RERANK_CE_CACHE_DIR` | `./models` | Any writable path | HF model cache directory. Mirrors `hfEnv.cacheDir` from `src/local/core/onnx-embed.js`. Created with `mkdirSync` if absent. No re-download when model is already cached. |
 | `RERANK_CE_WARMUP` | `0` | `0`, `1` | When `1`, load and run one no-op CE inference pass at process startup before accepting MCP connections. Only meaningful when `RERANK_CE_ENABLED=1`. |
 | `RERANK_CE_BATCH_SIZE` | `16` | `1`–`256` | `(query, passage)` pairs per tokenizer + model call. Matches `CE_BATCH_SIZE` default from the benchmark. |
 | `RERANK_CE_DEBUG` | `0` | `0`, `1` | When `1`, log per-candidate CE scores to stderr with `[ce-rerank]` prefix, mirroring `RERANK_DEBUG`. |
@@ -116,7 +116,7 @@ export async function ceRerank(candidates, query, { finalLimit } = {})
 export async function loadCEModel()
 ```
 
-**Lazy load pattern:** `_ceTokenizer` and `_ceModel` are `null` at module scope. `loadCEModel()` is called inside `ceRerank()` on every invocation but returns immediately after the first successful load, identical to the `load()` guard in `src/core/onnx-embed.js`. No top-level `await`; the module can be imported without triggering a download.
+**Lazy load pattern:** `_ceTokenizer` and `_ceModel` are `null` at module scope. `loadCEModel()` is called inside `ceRerank()` on every invocation but returns immediately after the first successful load, identical to the `load()` guard in `src/local/core/onnx-embed.js`. No top-level `await`; the module can be imported without triggering a download.
 
 **Call site in `src/mcp/tools/search.js`:** After the existing `RERANK_ENABLED` block, a conditional block imports `ceRerank` and wraps the call in `Promise.race` against a timeout sentinel. When both `RERANK_ENABLED=1` and `RERANK_CE_ENABLED=1`, det-rerank runs first on the full pool (see Section 4), and CE then re-scores the det-rerank output.
 

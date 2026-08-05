@@ -100,7 +100,7 @@ export function collectionName(langCode, runSuffix) {
 export const INDEX_BATCH_SIZE = 24;
 export const RSS_TRACK_INTERVAL_MS = 2000;
 
-// ONNX's own tokenizer max_length (see src/core/onnx-embed.js) — the
+// ONNX's own tokenizer max_length (see src/local/core/onnx-embed.js) — the
 // single, deterministic, model-imposed truncation limit applied
 // IDENTICALLY to every language in this benchmark. This harness never
 // tunes a per-language token budget; it only DETECTS and COUNTS how many

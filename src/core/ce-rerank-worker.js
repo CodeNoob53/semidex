@@ -6,7 +6,7 @@
 // deliberately isolated in its own OS-level CHILD PROCESS (child_process.fork,
 // NOT worker_threads) so Transformers.js's bundled ONNX Runtime build never
 // shares a process with the custom CUDA-enabled onnxruntime-node build
-// core/onnx-embed.js loads for dense/sparse embedding.
+// local/core/onnx-embed.js loads for dense/sparse embedding.
 //
 // worker_threads was tried first and rejected: a worker_thread is a separate
 // V8 isolate but the SAME OS process — native addons (including ONNX

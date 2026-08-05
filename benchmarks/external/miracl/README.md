@@ -8,7 +8,7 @@ Ukrainian-language validation**.
 It compares two locked provider configurations:
 
 - **local** — current Semidex `bge-m3-onnx` dense + learned sparse
-  (`src/core/onnx-embed.js`).
+  (`src/local/core/onnx-embed.js`).
 - **cloud** — Qdrant Cloud Inference hosted `intfloat/multilingual-e5-small`
   dense (384, Cosine) + server-side `qdrant/bm25` sparse, with the same
   E5 asymmetric prefix contract and BM25 options the BEIR SciFact spike
@@ -181,7 +181,7 @@ concurrently — each creates live temporary Qdrant collections.
 - Cloud requests use bounded retry (max 5 attempts) with `Retry-After`
   honored when present, exponential backoff otherwise. Only 429/5xx/network
   failures are retried.
-- `embedOnnxBatch()`/`embedOnnx()` (`src/core/onnx-embed.js`) request only
+- `embedOnnxBatch()`/`embedOnnx()` (`src/local/core/onnx-embed.js`) request only
   `dense_vecs`/`sparse_vecs` by name from the ONNX session — the ColBERT
   output tensor is never materialized (verified by a unit test in this
   directory and by the existing `tests/unit/core/onnx-embed-output-selection.test.js`).
@@ -217,7 +217,7 @@ never uses an arbitrary epsilon as statistical evidence.
 
 Every report includes **provenance**: current commit hash,
 `workingTreeDirty`, SHA-256 hashes of the runner/builder/profiles/bootstrap/
-shared-harness files and `src/core/onnx-embed.js`, the pinned dataset
+shared-harness files and `src/local/core/onnx-embed.js`, the pinned dataset
 revisions, the subset selection seed, provider/model IDs, vector
 dimensions, Qdrant SDK version, batch size, retrieval limits, and
 start/finish timestamps. Reports never contain API keys, cluster IDs,
@@ -324,5 +324,5 @@ limits" above.**
   pattern or an absolute local path.
 - **No ColBERT output requested** (`run-miracl.test.mjs`): the runner
   never accesses a `colbert` output field directly, and
-  `src/core/onnx-embed.js` (the actual embedding implementation) is
+  `src/local/core/onnx-embed.js` (the actual embedding implementation) is
   verified to request only `dense_vecs`/`sparse_vecs` by name.

@@ -164,6 +164,22 @@ staged migration order in which shim removal (Step 8) would actually
 happen — only after every real consumer is moved onto the new injection
 seam, not before.
 
+**Phase 8B Step 2 update** (`docs/design/phase-8b-capability-contracts-and-composition-seams-2026-08-02.md`
+§12, implemented): the ONNX half of the local target this paragraph
+describes — `onnx-embed.js`/`onnx-runtime.js`/`onnx-probe-runner.js`/
+`onnx-provider-probe.js`/`length-bucket.js` — physically moved from
+`core/` to `local/core/`. `core/onnx-embed-lazy.js`'s own dynamic-import
+specifiers are the only thing inside the shim that changed
+(`await import('../local/core/onnx-embed.js')` /
+`await import('../local/core/length-bucket.js')`); `packages/lite/build.mjs`
+now excludes the whole `local/` directory rather than naming these 5 files
+individually in `EXCLUDE_FILES`. The shim itself, its `.lite.js` sibling,
+and Step 1's own capability-contract seam (`OnnxEmbedCapability`) are all
+unchanged — this was a pure path rename with zero behavioral or
+architectural-boundary change, and `ollama.js`/`tag-onnx.js` (the other two
+shims' local targets) remain at their original `core/`/`indexer/phases/`
+locations pending Steps 3–4.
+
 ## Refactor 2 — deterministic context for legacy (non-Markdown) chunks
 
 `chunk.js` routes PDF/Pandoc/plain-text through the legacy chunker, and

@@ -63,8 +63,8 @@ export function resolveOnnxBatchSize(env) {
 
 // ── Capability injection (Phase 8B Step 1, revised after code review) ──────
 //
-// This module never imports core/ollama.js, core/onnx-embed.js, or
-// core/length-bucket.js — even indirectly through a *-lazy.js re-export used
+// This module never imports core/ollama.js, local/core/onnx-embed.js, or
+// local/core/length-bucket.js — even indirectly through a *-lazy.js re-export used
 // as a call target. It depends only on the OllamaEmbedCapability/
 // OnnxEmbedCapability CONTRACTS (generation/ollama-capability.js,
 // onnx-embed-capability.js) — the narrow embed-only slice of Ollama's
