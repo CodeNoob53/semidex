@@ -20,7 +20,6 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { dirname, join, resolve, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildGraph } from './build-import-graph.mjs';
-import { LAZY_SHIM_SUBSTITUTIONS as LITE_LAZY_SHIM_SUBSTITUTIONS } from '../../packages/lite/lazy-shim-substitutions.mjs';
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(SCRIPT_DIR, '..', '..');
@@ -34,13 +33,29 @@ const ARTIFACTS_DIR = join(REPO_ROOT, 'docs', 'design', 'artifacts');
 //
 // "Full" reachability starts from every real Full entry point a user or
 // script actually launches: the admin server, the indexer CLI, the MCP
-// server, plus the maintenance/dev CLIs (sync, doctor, backfill*, smoke,
-// bootstrap-docs) — all of these are genuine Full-only entry points with
-// no Lite equivalent, confirmed against package.json's own "scripts" and
-// packages/lite/build.mjs's EXCLUDE_FILES list.
+// server, the Full Admin UI's own browser bundle entry, plus the
+// maintenance/dev CLIs (sync, doctor, backfill*, smoke, bootstrap-docs) —
+// all of these are genuine Full-only entry points with no Lite equivalent,
+// confirmed against package.json's own "scripts" and packages/lite/build.mjs's
+// EXCLUDE_FILES list.
+//
+// Phase 8A finding: src/admin/ui-src/entries/full.js (the real Vite JS
+// entry the Full Admin UI's <script type="module"> tag loads — see
+// src/admin/ui-src/index.html) was previously NOT a traced root here at
+// all — the whole admin/ui-src/ browser bundle was only ever classified by
+// a hand-verified directory-pattern special case in firstPassBucket()
+// below, never by real reachability, because nothing in the SERVER-side
+// graph statically imports a browser entry point (Vite bundles it
+// separately). Adding it as a real root closes that gap: the UI's own
+// import graph (app.js, router.js, global-settings-view.js, etc., plus the
+// one real cross-boundary edge into
+// core/embedding-profile/qdrant-cloud-models.js, a pure-data zero-dependency
+// module — confirmed by reading its own header comment) is now traced the
+// same way every other entry point is, not hand-verified prose.
 export const FULL_ROOTS = [
   'src/admin/bootstrap.js',
   'src/indexer/index.js',
+  'src/indexer/index-full.js',
   'src/mcp/server.js',
   'src/sync.js',
   'src/doctor.js',
@@ -48,6 +63,7 @@ export const FULL_ROOTS = [
   'src/backfill-entity-refs.js',
   'src/smoke.js',
   'src/bootstrap-docs.js',
+  'src/admin/ui-src/entries/full.js',
 ];
 
 // "Lite" reachability starts from packages/lite/lite-src/*.js — now REAL
@@ -73,6 +89,19 @@ export const FULL_ROOTS = [
 // design doc's Part C/Part K findings for the full writeup.
 export const LITE_SRC_DIR = 'packages/lite/lite-src/';
 
+// Phase 8A finding: the mirror-image gap to FULL_ROOTS's own fix above —
+// src/admin/ui-src/entries/lite.js (the real Vite JS entry
+// src/admin/ui-src/lite-entry/index.html's <script type="module"> tag
+// loads) was not a traced reachability root either, for the same reason.
+// Added to the Lite reachability computation in main() below (NOT
+// unioned into liteSyntheticRoots itself, which also drives the separate
+// "give every packages/lite/lite-src/*.js file its own composition-lite
+// inventory entry" loop later in this file — entries/lite.js gets its own
+// inventory entry from the main per-file loop instead, correctly
+// classified 'composition' via firstPassBucket(), not a second synthetic
+// entry).
+export const LITE_UI_ENTRY = 'src/admin/ui-src/entries/lite.js';
+
 function loadOrBuildGraph() {
   // Always rebuilt fresh, never trusted stale — a stale cached JSON from
   // before a src/ change would silently make every reachability/
@@ -83,37 +112,36 @@ function loadOrBuildGraph() {
   return buildGraph();
 }
 
-// packages/lite/build.mjs's own real substitution list — imported (Phase 7),
-// not re-declared independently, from lazy-shim-substitutions.mjs (the
-// single canonical source both tools now share; see that module's own
-// header comment for the drift risk this closes). Re-shaped here from
-// build.mjs's REPO_SRC-relative { real, shim } array into this file's own
-// long-standing repo-root-relative { [realPath]: shimPath } object shape —
-// a pure, mechanical key-prefixing derivation, not a second independent
-// declaration of WHICH files are substituted. When shimOverrides is
-// provided, computeReachable() traverses a shimmed file's OWN (much
-// smaller) real edge set instead of the real (repo) file's edges — this is
-// what makes "Lite-reachable" mean "reachable in the ACTUAL shipped
-// tarball," not merely "reachable in real repo src/ before Lite's
-// build-time content substitution." Both numbers are legitimate and
-// reported separately (see main()) — this is the exact "graph
-// unreachability vs. physical absence" distinction the audit's Part C
-// requires.
-export const LAZY_SHIM_SUBSTITUTIONS = Object.fromEntries(
-  LITE_LAZY_SHIM_SUBSTITUTIONS.map(({ real, shim }) => [`src/${real}`, `src/${shim}`]),
-);
+// LAZY_SHIM_SUBSTITUTIONS is now permanently EMPTY (code review, round 4 —
+// the *-lazy.js content-substitution mechanism was removed from
+// packages/lite/build.mjs entirely). Before this, core/ollama-lazy.js/
+// core/onnx-embed-lazy.js/indexer/phases/tag-onnx-lazy.js were each staged
+// with their *.lite.js shim's CONTENT substituted at build time, because
+// several files (core/embeddings.js, indexer/run.js, the phase modules,
+// core/generation/ollama-provider.js) statically imported the REAL module
+// at their own module scope as a default value. All of those were migrated
+// to explicit capability injection with no real-module default of their
+// own (null until a composition root calls applyXCapability()), and
+// indexer/index.js was split into index-full.js (Full-only, excluded from
+// the Lite package) and index-lite.js (imports none of the three) — so
+// nothing in the Lite-staged closure imports any of the three real
+// *-lazy.js modules anymore, and the shim-substitution mechanism that used
+// to paper over that has nothing left to do. Kept as an empty object (not
+// deleted outright) so applyLiteShims below stays a well-defined, always-
+// safe no-op rather than requiring every call site across this codebase
+// (and its own test suite) to drop the option in lockstep.
+export const LAZY_SHIM_SUBSTITUTIONS = {};
 
 // Real, resolved-edge-only reachability (relative imports/dynamic imports/
 // requires/fork-spawn targets that resolved to an actual staged file) —
 // bare package specifiers and unresolved specifiers are NOT graph nodes,
 // they're recorded separately per-file as "external deps"/"unresolved".
 //
-// applyLiteShims: when true, a file with a LAZY_SHIM_SUBSTITUTIONS entry
-// is traversed using the SHIM file's own edges (queued under the REAL
-// file's name, so the rest of the graph's edges pointing at the real name
-// still resolve) rather than the real file's edges — modeling
-// build.mjs's content substitution rather than the graph's raw, pre-
-// substitution reality.
+// applyLiteShims: now always a no-op (LAZY_SHIM_SUBSTITUTIONS is empty —
+// see that constant's own comment) — accepted for backward compatibility
+// with existing call sites, but pre-shim and post-shim reachability are
+// now IDENTICAL by construction, since there is nothing left to
+// substitute.
 export function computeReachable(graph, roots, { applyLiteShims = false } = {}) {
   const reachable = new Set();
   const queue = [...roots];
@@ -199,9 +227,23 @@ const LAZY_SHIM_PATTERNS = [/-lazy\.js$/, /-lazy\.lite\.js$/];
 const EXCLUDE_DIRS = ['src/admin/ui-src/', 'src/mcp/', 'src/smoke/', 'src/test-fixtures/'];
 const ALL_EXCLUDED_FILE_PATTERNS = [...LOCAL_ONLY_PATH_PATTERNS, ...COMPOSITION_FULL_PATTERNS];
 
+// admin/ui-src/entries/{full,lite}.js are the real Vite JS entry points
+// (Phase 8A finding — see FULL_ROOTS's/LITE_UI_ENTRY's own comments for
+// why they were not traced roots before this). Each is a genuine
+// composition root for its own browser bundle, exactly analogous to
+// admin/server-full.js / admin/composition/lite.js on the server side —
+// classified explicitly here rather than left to the generic reachability
+// fallback (which would otherwise call entries/full.js 'local' — Full-
+// reachable, never Lite-reachable — a misleading label for a composition
+// root that itself contains no local-runtime logic of its own, only
+// wiring).
+const UI_COMPOSITION_FULL_PATTERNS = [/^src\/admin\/ui-src\/entries\/full\.js$/];
+const UI_COMPOSITION_LITE_PATTERNS = [/^src\/admin\/ui-src\/entries\/lite\.js$/];
+
 function firstPassBucket(file) {
   if (LOCAL_ONLY_PATH_PATTERNS.some((p) => p.test(file))) return 'local';
-  if (COMPOSITION_FULL_PATTERNS.some((p) => p.test(file))) return 'composition-full';
+  if (COMPOSITION_FULL_PATTERNS.some((p) => p.test(file)) || UI_COMPOSITION_FULL_PATTERNS.some((p) => p.test(file))) return 'composition-full';
+  if (UI_COMPOSITION_LITE_PATTERNS.some((p) => p.test(file))) return 'composition-lite';
   if (CLOUD_ONLY_PATH_PATTERNS.some((p) => p.test(file))) return 'cloud';
   if (LAZY_SHIM_PATTERNS.some((p) => p.test(file))) return 'mixed'; // lazy wrappers are a real boundary seam, always reviewed by hand
   // Phase 4 (docs/design/full-lite-shared-architecture-audit-2026-08-01.md):
@@ -212,25 +254,22 @@ function firstPassBucket(file) {
   // composition root now — reachable only from Lite's roots, so the
   // graph-facts pass below correctly classifies it 'cloud' with no special
   // case needed here (it has no Full-reachable edge to conflict with).
-  // admin/ui-src/*.js is OUTSIDE the Node.js import graph this script
-  // traces (it is Vite/browser-side module code, never require()'d or
-  // import()'d from any src/ Node.js file) — a plain reachability
-  // classification cannot say anything about it at all. Hand-verified
-  // instead (grep for onnx|ollama across every ui-src/*.js file, then
-  // read each real hit in context): exactly 2 files contain a REAL
-  // IS_LITE-guarded local/shared code split (global-settings-view.js's
-  // documented ONNX-panel/Ollama-model-refresh guards; settings-view.js's
-  // reindex-options branch reading #opt-onnx/#opt-llm-summaries/#opt-tags,
-  // which would throw on a null DOM read in Lite's stripped HTML without
-  // the guard) — genuinely `mixed`. jobs-view.js and collection-view.js
-  // each have a couple of onnx/ollama substring hits too, but on
-  // inspection both are PROVIDER-NEUTRAL, data-driven code (e.g.
-  // collection-view.js's `isLocal = /onnx|ollama|local/i.test(denseProvider)`
-  // just inspects whatever string the API returned — it has no ONNX/Ollama-
-  // SPECIFIC branch of its own) — correctly `shared`, not `mixed`. Every
-  // other ui-src/*.js file has zero onnx/ollama references at all.
-  if (['src/admin/ui-src/global-settings-view.js', 'src/admin/ui-src/settings-view.js'].includes(file)) return 'mixed';
-  if (file.startsWith('src/admin/ui-src/')) return 'shared';
+  //
+  // Phase 8A: admin/ui-src/*.js used to be treated as OUTSIDE this script's
+  // traced graph entirely (a stale premise — see FULL_ROOTS's own comment
+  // on why entries/full.js/entries/lite.js are now real roots), which is
+  // why global-settings-view.js/settings-view.js were previously HARD-CODED
+  // 'mixed' here based on a hand-grep, not graph facts. That hardcoding is
+  // now removed: with entries/full.js and entries/lite.js as real roots,
+  // the graph-facts pass below correctly finds both files
+  // fullReachable && liteReachable (genuinely 'shared' — Phase 6's
+  // capability-injection seam moved every ONNX/Ollama-specific line out
+  // into local-features.js, which the graph now correctly reports as
+  // fullReachable && !liteReachable, i.e. 'local', on its own, no special
+  // case needed for IT either). No remaining admin/ui-src/*.js file needs
+  // a directory-wide fallback rule any more — every one of them is now a
+  // real graph node reachable from a real root, so `return null` below
+  // (falling through to the graph-facts pass) is correct for all of them.
   return null; // undetermined by pattern — graph facts decide
 }
 
@@ -314,8 +353,9 @@ function main() {
   // mechanism is responsible for cutting — reported explicitly below, not
   // silently discarded.
   const liteSyntheticRoots = graph.files.filter((f) => f.startsWith(LITE_SRC_DIR));
-  const liteReachablePreShim = computeReachable(graph, liteSyntheticRoots, { applyLiteShims: false });
-  const liteReachable = computeReachable(graph, liteSyntheticRoots, { applyLiteShims: true });
+  const liteReachabilityRoots = [...liteSyntheticRoots, LITE_UI_ENTRY];
+  const liteReachablePreShim = computeReachable(graph, liteReachabilityRoots, { applyLiteShims: false });
+  const liteReachable = computeReachable(graph, liteReachabilityRoots, { applyLiteShims: true });
   const shimCutFiles = [...liteReachablePreShim].filter((f) => !liteReachable.has(f)).sort();
 
   const fullExternalDeps = collectExternalDeps(graph, fullReachable);

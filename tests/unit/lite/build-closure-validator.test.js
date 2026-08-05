@@ -49,14 +49,14 @@ import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { parse } from 'acorn';
 import {
-  readFileSync, writeFileSync, rmSync, existsSync, mkdtempSync,
+  readFileSync, writeFileSync, rmSync, existsSync, mkdtempSync, mkdirSync,
 } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 import {
   extractReferences, parseFile, resolveRelativeSpecifier, runValidator,
-  listAllFiles, stageSrc, substituteLazyShims,
+  listAllFiles, stageSrc,
 } from '../../../packages/lite/build.mjs';
 
 const LITE_DIR = dirname(fileURLToPath(new URL('../../../packages/lite/build.mjs', import.meta.url)));
@@ -69,15 +69,39 @@ function parseSource(src) {
 }
 
 describe('build.mjs extractReferences() — real-source regression (code review, closure validator gap)', () => {
-  it('admin/jobs/registry.js: spawn(process.execPath, [INDEXER_ENTRY, ...]) resolves to a literal fork/spawn edge onto ../../indexer/index.js', () => {
-    const ast = parseFile(join(REPO_SRC, 'admin', 'jobs', 'registry.js'));
+  // Code review, round 4: admin/jobs/registry.js itself no longer contains
+  // any spawn() call at all — it accepts an injected spawnIndexer callback
+  // instead (see that file's own header comment). The
+  // spawn(process.execPath, [ENTRY, ...]) shape this describe block
+  // originally regression-tested now lives in admin/jobs/spawn-indexer-
+  // full.js and spawn-indexer-lite.js — one file per edition, each owning
+  // both its own literal entry path AND the actual spawn() call.
+  it('admin/jobs/spawn-indexer-full.js: spawn(process.execPath, [INDEXER_ENTRY, ...]) resolves to a literal fork/spawn edge onto ../../indexer/index-full.js', () => {
+    const ast = parseFile(join(REPO_SRC, 'admin', 'jobs', 'spawn-indexer-full.js'));
     const refs = extractReferences(ast);
     const spawnCalls = refs.forkSpawnCalls.filter((c) => c.callee === 'spawn');
-    assert.ok(spawnCalls.length > 0, 'expected at least one spawn() call to be extracted from registry.js');
+    assert.ok(spawnCalls.length > 0, 'expected at least one spawn() call to be extracted from spawn-indexer-full.js');
     assert.ok(
-      spawnCalls.some((c) => c.literal === true && c.arg === '../../indexer/index.js'),
-      `expected a literal spawn() edge onto ../../indexer/index.js, got: ${JSON.stringify(spawnCalls)}`,
+      spawnCalls.some((c) => c.literal === true && c.arg === '../../indexer/index-full.js'),
+      `expected a literal spawn() edge onto ../../indexer/index-full.js, got: ${JSON.stringify(spawnCalls)}`,
     );
+  });
+
+  it('admin/jobs/spawn-indexer-lite.js: spawn(process.execPath, [INDEXER_ENTRY, ...]) resolves to a literal fork/spawn edge onto ../../indexer/index-lite.js', () => {
+    const ast = parseFile(join(REPO_SRC, 'admin', 'jobs', 'spawn-indexer-lite.js'));
+    const refs = extractReferences(ast);
+    const spawnCalls = refs.forkSpawnCalls.filter((c) => c.callee === 'spawn');
+    assert.ok(spawnCalls.length > 0, 'expected at least one spawn() call to be extracted from spawn-indexer-lite.js');
+    assert.ok(
+      spawnCalls.some((c) => c.literal === true && c.arg === '../../indexer/index-lite.js'),
+      `expected a literal spawn() edge onto ../../indexer/index-lite.js, got: ${JSON.stringify(spawnCalls)}`,
+    );
+  });
+
+  it('admin/jobs/registry.js itself has zero spawn()/fork() calls — spawnIndexer is a required, injected dependency', () => {
+    const ast = parseFile(join(REPO_SRC, 'admin', 'jobs', 'registry.js'));
+    const refs = extractReferences(ast);
+    assert.deepEqual(refs.forkSpawnCalls, []);
   });
 
   it('core/ce-rerank.js: fork(join(__dirname, "ce-rerank-worker.js")) resolves to a literal fork edge onto ./ce-rerank-worker.js', () => {
@@ -91,13 +115,33 @@ describe('build.mjs extractReferences() — real-source regression (code review,
     );
   });
 
-  it('registry.js\'s spawn edge resolves (via resolveRelativeSpecifier, against the REAL staged tree) to indexer/index.js as a repo-relative path', () => {
-    // registry.js IS staged in Lite (it is genuinely needed), so this can
-    // be checked against the real packages/lite/src/ tree without staging
-    // a fresh copy.
-    assert.ok(existsSync(join(STAGED_SRC, 'admin', 'jobs', 'registry.js')), 'expected packages/lite/src/admin/jobs/registry.js to already be staged — run `node packages/lite/build.mjs` first if this fails');
-    const resolved = resolveRelativeSpecifier('../../indexer/index.js', 'admin/jobs/registry.js');
-    assert.equal(resolved, 'indexer/index.js');
+  it('spawn-indexer-full.js\'s spawn edge resolves (via resolveRelativeSpecifier, against the REAL staged tree) to indexer/index-full.js as a repo-relative path', () => {
+    // spawn-indexer-full.js is EXCLUDED from Lite (Full-only — see
+    // build.mjs's own EXCLUDE_FILES), so this must stage a temp copy of
+    // the repo tree rather than check against packages/lite/src/, unlike
+    // spawn-indexer-lite.js below.
+    const tmpRoot = mkdtempSync(join(tmpdir(), 'semidex-lite-closure-full-test-'));
+    try {
+      const rel = join('admin', 'jobs', 'spawn-indexer-full.js');
+      const dest = join(tmpRoot, rel);
+      mkdirSync(dirname(dest), { recursive: true });
+      writeFileSync(dest, readFileSync(join(REPO_SRC, rel), 'utf-8'));
+      mkdirSync(join(tmpRoot, 'indexer'), { recursive: true });
+      writeFileSync(join(tmpRoot, 'indexer', 'index-full.js'), '// stub\n');
+      const resolved = resolveRelativeSpecifier('../../indexer/index-full.js', 'admin/jobs/spawn-indexer-full.js', tmpRoot);
+      assert.equal(resolved, 'indexer/index-full.js');
+    } finally {
+      rmSync(tmpRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('spawn-indexer-lite.js\'s spawn edge resolves (via resolveRelativeSpecifier, against the REAL staged tree) to indexer/index-lite.js as a repo-relative path', () => {
+    // spawn-indexer-lite.js IS staged in Lite (it is genuinely needed), so
+    // this can be checked against the real packages/lite/src/ tree without
+    // staging a fresh copy.
+    assert.ok(existsSync(join(STAGED_SRC, 'admin', 'jobs', 'spawn-indexer-lite.js')), 'expected packages/lite/src/admin/jobs/spawn-indexer-lite.js to already be staged — run `node packages/lite/build.mjs` first if this fails');
+    const resolved = resolveRelativeSpecifier('../../indexer/index-lite.js', 'admin/jobs/spawn-indexer-lite.js');
+    assert.equal(resolved, 'indexer/index-lite.js');
   });
 });
 
@@ -520,22 +564,36 @@ describe('build.mjs runValidator() — isolated temp-directory fixtures (code re
 });
 
 describe('build.mjs runValidator() — real staged-tree sanity check (read-only, no mutation)', () => {
-  // A single, non-destructive confirmation that the REAL staged tree
-  // (as produced by a real `node packages/lite/build.mjs` run, or by
-  // stageSrc()+substituteLazyShims() here) contains zero spawn/fork
-  // errors for the two real production edges — the mkdtemp()-based
-  // fixtures above are what actually exercise failure-diagnostic
-  // behavior; this test only confirms the real tree is currently clean,
-  // without renaming or deleting anything in it.
+  // A single, non-destructive confirmation that the REAL staged tree (as
+  // produced by a real `node packages/lite/build.mjs` run, or by
+  // stageSrc() here) contains zero spawn/fork errors for the real
+  // production edges — the mkdtemp()-based fixtures above are what
+  // actually exercise failure-diagnostic behavior; this test only
+  // confirms the real tree is currently clean, without renaming or
+  // deleting anything in it.
+  //
+  // No substituteLazyShims() step anymore (code review, round 4 — that
+  // mechanism was removed from build.mjs entirely; see EXCLUDE_FILES's own
+  // comment in build.mjs for why nothing in the Lite closure needs it any
+  // longer). registry.js itself now has ZERO spawn() calls of its own —
+  // it accepts an injected spawnIndexer callback — so the real spawn/fork
+  // target check moved to admin/jobs/spawn-indexer-lite.js, the ONE file
+  // in the Lite closure that actually contains a spawn() call.
   before(() => {
     stageSrc();
-    substituteLazyShims();
   });
 
-  it('the real staged tree has zero [spawn:*]/[fork:*] errors for registry.js', () => {
+  it('the real staged tree has zero [spawn:*]/[fork:*] errors for registry.js or spawn-indexer-lite.js', () => {
     const files = listAllFiles(STAGED_SRC).map((f) => f.replace(/\\/g, '/'));
     const errors = runValidator(files);
-    const registryErrors = errors.filter((e) => e.includes('registry.js') && (e.includes('spawn') || e.includes('fork')));
-    assert.deepEqual(registryErrors, [], `expected zero spawn/fork errors for the real staged registry.js, got: ${JSON.stringify(registryErrors)}`);
+    const relevantErrors = errors.filter((e) => (e.includes('registry.js') || e.includes('spawn-indexer-lite.js')) && (e.includes('spawn') || e.includes('fork')));
+    assert.deepEqual(relevantErrors, [], `expected zero spawn/fork errors for the real staged registry.js/spawn-indexer-lite.js, got: ${JSON.stringify(relevantErrors)}`);
+  });
+
+  it('registry.js itself has zero spawn/fork CALLS of its own in the real staged tree (spawnIndexer is injected, never called directly here)', () => {
+    const src = readFileSync(join(STAGED_SRC, 'admin', 'jobs', 'registry.js'), 'utf-8');
+    const ast = parseSource(src);
+    const refs = extractReferences(ast);
+    assert.deepEqual(refs.forkSpawnCalls, []);
   });
 });

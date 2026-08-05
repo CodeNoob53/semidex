@@ -8,7 +8,8 @@
     "src/backfill-tags.js",
     "src/backfill-entity-refs.js",
     "src/smoke.js",
-    "src/bootstrap-docs.js"
+    "src/bootstrap-docs.js",
+    "src/admin/ui-src/entries/full.js"
   ],
   "liteSyntheticRoots": [
     "packages/lite/lite-src/doctor-lite.js",
@@ -22,9 +23,9 @@
     "src/core/onnx-embed-lazy.js": "src/core/onnx-embed-lazy.lite.js",
     "src/indexer/phases/tag-onnx-lazy.js": "src/indexer/phases/tag-onnx-lazy.lite.js"
   },
-  "fullReachableCount": 201,
-  "liteReachablePreShimCount": 123,
-  "liteReachableCount": 117,
+  "fullReachableCount": 226,
+  "liteReachablePreShimCount": 147,
+  "liteReachableCount": 141,
   "shimCutFiles": [
     "src/core/length-bucket.js",
     "src/core/ollama.js",
@@ -63,6 +64,31 @@
     "src/admin/system/folder-picker.js",
     "src/admin/system/ollama.js",
     "src/admin/system/qdrant-cloud.js",
+    "src/admin/ui-src/api.js",
+    "src/admin/ui-src/app.js",
+    "src/admin/ui-src/assembly-view.js",
+    "src/admin/ui-src/collection-view.js",
+    "src/admin/ui-src/dom.js",
+    "src/admin/ui-src/entries/full.js",
+    "src/admin/ui-src/file-view.js",
+    "src/admin/ui-src/format.js",
+    "src/admin/ui-src/global-settings-view.js",
+    "src/admin/ui-src/icons.js",
+    "src/admin/ui-src/jobs-view.js",
+    "src/admin/ui-src/local-features.js",
+    "src/admin/ui-src/operation-modal.js",
+    "src/admin/ui-src/operation-render.js",
+    "src/admin/ui-src/operation-store.js",
+    "src/admin/ui-src/router.js",
+    "src/admin/ui-src/routes.js",
+    "src/admin/ui-src/search.js",
+    "src/admin/ui-src/settings-view.js",
+    "src/admin/ui-src/sidebar-resize.js",
+    "src/admin/ui-src/sidebar.js",
+    "src/admin/ui-src/state.js",
+    "src/admin/ui-src/structural-renderer.js",
+    "src/admin/ui-src/toasts.js",
+    "src/admin/ui-src/topbar.js",
     "src/backfill-entity-refs.js",
     "src/backfill-tags.js",
     "src/bootstrap-docs.js",
@@ -267,6 +293,30 @@
     "src/admin/static.js",
     "src/admin/system/folder-picker.js",
     "src/admin/system/qdrant-cloud.js",
+    "src/admin/ui-src/api.js",
+    "src/admin/ui-src/app.js",
+    "src/admin/ui-src/assembly-view.js",
+    "src/admin/ui-src/collection-view.js",
+    "src/admin/ui-src/dom.js",
+    "src/admin/ui-src/entries/lite.js",
+    "src/admin/ui-src/file-view.js",
+    "src/admin/ui-src/format.js",
+    "src/admin/ui-src/global-settings-view.js",
+    "src/admin/ui-src/icons.js",
+    "src/admin/ui-src/jobs-view.js",
+    "src/admin/ui-src/operation-modal.js",
+    "src/admin/ui-src/operation-render.js",
+    "src/admin/ui-src/operation-store.js",
+    "src/admin/ui-src/router.js",
+    "src/admin/ui-src/routes.js",
+    "src/admin/ui-src/search.js",
+    "src/admin/ui-src/settings-view.js",
+    "src/admin/ui-src/sidebar-resize.js",
+    "src/admin/ui-src/sidebar.js",
+    "src/admin/ui-src/state.js",
+    "src/admin/ui-src/structural-renderer.js",
+    "src/admin/ui-src/toasts.js",
+    "src/admin/ui-src/topbar.js",
     "src/core/ask-api/v1/contract.js",
     "src/core/ask-api/v1/request.js",
     "src/core/ask-api/v1/route.js",
@@ -392,6 +442,30 @@
     "src/admin/static.js",
     "src/admin/system/folder-picker.js",
     "src/admin/system/qdrant-cloud.js",
+    "src/admin/ui-src/api.js",
+    "src/admin/ui-src/app.js",
+    "src/admin/ui-src/assembly-view.js",
+    "src/admin/ui-src/collection-view.js",
+    "src/admin/ui-src/dom.js",
+    "src/admin/ui-src/entries/lite.js",
+    "src/admin/ui-src/file-view.js",
+    "src/admin/ui-src/format.js",
+    "src/admin/ui-src/global-settings-view.js",
+    "src/admin/ui-src/icons.js",
+    "src/admin/ui-src/jobs-view.js",
+    "src/admin/ui-src/operation-modal.js",
+    "src/admin/ui-src/operation-render.js",
+    "src/admin/ui-src/operation-store.js",
+    "src/admin/ui-src/router.js",
+    "src/admin/ui-src/routes.js",
+    "src/admin/ui-src/search.js",
+    "src/admin/ui-src/settings-view.js",
+    "src/admin/ui-src/sidebar-resize.js",
+    "src/admin/ui-src/sidebar.js",
+    "src/admin/ui-src/state.js",
+    "src/admin/ui-src/structural-renderer.js",
+    "src/admin/ui-src/toasts.js",
+    "src/admin/ui-src/topbar.js",
     "src/core/ask-api/v1/contract.js",
     "src/core/ask-api/v1/request.js",
     "src/core/ask-api/v1/route.js",
@@ -481,6 +555,25 @@
     "src/indexer/skeleton-warnings.js"
   ],
   "fullExternalDeps": {
+    "edition": [
+      "src/admin/ui-src/jobs-view.js",
+      "src/admin/ui-src/settings-view.js"
+    ],
+    "unified": [
+      "src/admin/ui-src/structural-renderer.js",
+      "src/indexer/phases/skeleton.js"
+    ],
+    "remark-parse": [
+      "src/admin/ui-src/structural-renderer.js",
+      "src/indexer/phases/skeleton.js"
+    ],
+    "remark-gfm": [
+      "src/admin/ui-src/structural-renderer.js",
+      "src/indexer/phases/skeleton.js"
+    ],
+    "highlight.js": [
+      "src/admin/ui-src/structural-renderer.js"
+    ],
     "dotenv": [
       "src/core/config.js",
       "src/core/env-bootstrap.js",
@@ -503,15 +596,6 @@
     "pdf-parse": [
       "src/indexer/phases/chunk.js"
     ],
-    "unified": [
-      "src/indexer/phases/skeleton.js"
-    ],
-    "remark-parse": [
-      "src/indexer/phases/skeleton.js"
-    ],
-    "remark-gfm": [
-      "src/indexer/phases/skeleton.js"
-    ],
     "remark-frontmatter": [
       "src/indexer/phases/skeleton.js"
     ],
@@ -531,6 +615,25 @@
     ]
   },
   "liteExternalDepsPreShim": {
+    "unified": [
+      "src/admin/ui-src/structural-renderer.js",
+      "src/indexer/phases/skeleton.js"
+    ],
+    "remark-parse": [
+      "src/admin/ui-src/structural-renderer.js",
+      "src/indexer/phases/skeleton.js"
+    ],
+    "remark-gfm": [
+      "src/admin/ui-src/structural-renderer.js",
+      "src/indexer/phases/skeleton.js"
+    ],
+    "highlight.js": [
+      "src/admin/ui-src/structural-renderer.js"
+    ],
+    "edition": [
+      "src/admin/ui-src/jobs-view.js",
+      "src/admin/ui-src/settings-view.js"
+    ],
     "@google/genai": [
       "src/core/gemini-models.js",
       "src/core/generation/gemini-provider.js"
@@ -561,20 +664,30 @@
     "pdf-parse": [
       "src/indexer/phases/chunk.js"
     ],
-    "unified": [
-      "src/indexer/phases/skeleton.js"
-    ],
-    "remark-parse": [
-      "src/indexer/phases/skeleton.js"
-    ],
-    "remark-gfm": [
-      "src/indexer/phases/skeleton.js"
-    ],
     "remark-frontmatter": [
       "src/indexer/phases/skeleton.js"
     ]
   },
   "liteExternalDeps": {
+    "unified": [
+      "src/admin/ui-src/structural-renderer.js",
+      "src/indexer/phases/skeleton.js"
+    ],
+    "remark-parse": [
+      "src/admin/ui-src/structural-renderer.js",
+      "src/indexer/phases/skeleton.js"
+    ],
+    "remark-gfm": [
+      "src/admin/ui-src/structural-renderer.js",
+      "src/indexer/phases/skeleton.js"
+    ],
+    "highlight.js": [
+      "src/admin/ui-src/structural-renderer.js"
+    ],
+    "edition": [
+      "src/admin/ui-src/jobs-view.js",
+      "src/admin/ui-src/settings-view.js"
+    ],
     "@google/genai": [
       "src/core/gemini-models.js",
       "src/core/generation/gemini-provider.js"
@@ -600,15 +713,6 @@
     "pdf-parse": [
       "src/indexer/phases/chunk.js"
     ],
-    "unified": [
-      "src/indexer/phases/skeleton.js"
-    ],
-    "remark-parse": [
-      "src/indexer/phases/skeleton.js"
-    ],
-    "remark-gfm": [
-      "src/indexer/phases/skeleton.js"
-    ],
     "remark-frontmatter": [
       "src/indexer/phases/skeleton.js"
     ]
@@ -622,19 +726,19 @@
   ],
   "cloudImportsLocalViolations": [],
   "classificationCounts": {
-    "shared": 121,
-    "local": 84,
+    "shared": 122,
+    "local": 85,
     "cloud": 10,
-    "composition-full": 8,
-    "mixed": 8,
+    "composition-full": 9,
+    "composition-lite": 6,
     "unclear": 2,
-    "composition-lite": 5
+    "mixed": 6
   },
   "runtimeCouplingCounts": {
-    "none": 190,
+    "none": 192,
     "cloud": 19,
     "local": 29
   },
   "localGenuinelyCoupled": 22,
-  "localFullOnlyNoCoupling": 62
+  "localFullOnlyNoCoupling": 63
 }

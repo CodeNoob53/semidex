@@ -8,17 +8,21 @@
 import { bootstrapEnv } from '../src/core/env-bootstrap.js';
 import { createSettingsService, applyEnvWriteBack } from '../src/core/settings/service.js';
 import { createJobRegistry } from '../src/admin/jobs/registry.js';
+import { spawnIndexer as defaultSpawnLiteIndexer } from '../src/admin/jobs/spawn-indexer-lite.js';
 
 /**
- * spawnFn is dependency-injectable so unit tests never spawn a real
- * indexer child process — same DI convention as createJobRegistry() itself.
+ * spawnIndexer is dependency-injectable so unit tests never spawn a real
+ * indexer child process — same DI convention as createJobRegistry() itself
+ * (see that function's own header comment for the `{ args, env } ->
+ * ChildProcess` contract; createJobRegistry() has NO default spawnIndexer
+ * of its own, so this file must always supply one — see below).
  * pollIntervalMs is injectable so tests don't wait on the real 200ms
  * polling cadence.
  * @param {string} target — file or folder path to index.
- * @param {{ semidexHome?: string, settingsPath?: string, spawnFn?: Function, pollIntervalMs?: number, argv?: string[] }} opts
+ * @param {{ semidexHome?: string, settingsPath?: string, spawnIndexer?: Function, pollIntervalMs?: number, argv?: string[] }} opts
  * @returns {Promise<number>} process exit code (0 success, 1 failure)
  */
-export async function runIndex(target, { settingsPath, spawnFn, pollIntervalMs = 200, argv = process.argv } = {}) {
+export async function runIndex(target, { settingsPath, spawnIndexer, pollIntervalMs = 200, argv = process.argv } = {}) {
   const collection = process.env.COLLECTION;
   if (!collection) {
     console.error('COLLECTION env var is required, e.g.: COLLECTION=my-docs semidex-lite index ./docs');
@@ -33,7 +37,16 @@ export async function runIndex(target, { settingsPath, spawnFn, pollIntervalMs =
   const jobBaseEnv = { ...osEnv };
   applyEnvWriteBack(settingsService);
 
-  const jobRegistry = createJobRegistry({ baseEnv: jobBaseEnv, ...(spawnFn ? { spawnFn } : {}) });
+  // spawn-indexer-lite.js's own spawnIndexer (code review, round 4): this
+  // IS Lite's own indexing CLI path (semidex-lite index) — tells
+  // createJobRegistry() to spawn indexer/index-lite.js, the exact same
+  // file serve-lite.js's own createLiteApp() spawns for its own indexing
+  // jobs. createJobRegistry() itself has no default spawnIndexer at all
+  // (it throws a TypeError if one isn't supplied — see that function's own
+  // header comment for why no generic default is safe), so this file must
+  // always inject one explicitly; defaultSpawnLiteIndexer is the real
+  // production value, overridable only by a test's own fake.
+  const jobRegistry = createJobRegistry({ baseEnv: jobBaseEnv, spawnIndexer: spawnIndexer ?? defaultSpawnLiteIndexer });
 
   // Lite's own jobs policy (admin/composition/lite.js's LITE_JOB_POLICY) rejects
   // onnxEmbed/llmSummaries/tagGen at the HTTP layer — the CLI has no HTTP

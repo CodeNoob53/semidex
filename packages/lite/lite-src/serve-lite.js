@@ -14,6 +14,7 @@ import { bootstrapEnv } from '../src/core/env-bootstrap.js';
 import { createSettingsService, applyEnvWriteBack } from '../src/core/settings/service.js';
 import { createLiteSettingsService } from '../src/core/settings/service.lite.js';
 import { createJobRegistry } from '../src/admin/jobs/registry.js';
+import { spawnIndexer as spawnLiteIndexer } from '../src/admin/jobs/spawn-indexer-lite.js';
 
 /**
  * @param {{ semidexHome: string, settingsPath: string }} paths — from
@@ -41,7 +42,17 @@ export async function startLite({ settingsPath } = {}) {
   const { resolveHostConfig, resolvePortConfig } = await import('../src/admin/server.js');
   const { createLiteApp } = await import('../src/admin/composition/lite.js');
 
-  const jobRegistry = createJobRegistry({ baseEnv: jobBaseEnv });
+  // spawnIndexer: spawnLiteIndexer (code review, round 4 — real gap found
+  // while migrating createJobRegistry() off its old edition parameter):
+  // this file builds its OWN jobRegistry and passes it into createLiteApp()
+  // explicitly, which means createLiteApp()'s own internal
+  // resolvedJobRegistry fallback (which DOES inject spawn-indexer-lite.js's
+  // own spawnIndexer) never runs here — createJobRegistry() itself has NO
+  // default spawnIndexer at all (it throws a TypeError without one — see
+  // that function's own header comment), so this call site must always
+  // supply one explicitly; omitting it here would be a hard construction-
+  // time failure, not a silent fall-through to Full's behavior.
+  const jobRegistry = createJobRegistry({ baseEnv: jobBaseEnv, spawnIndexer: spawnLiteIndexer });
   // Host/port resolution and the generation runtime use the REAL
   // (unwrapped) settings service — ADMIN_HOST/ADMIN_PORT are Lite-allowed
   // keys anyway, and the generation runtime needs the full resolution

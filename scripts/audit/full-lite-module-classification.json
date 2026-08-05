@@ -1,0 +1,2745 @@
+{
+  "generatedBy": "scripts/audit/build-shared-cloud-local-manifest.mjs",
+  "categories": [
+    "shared",
+    "cloud",
+    "local",
+    "composition",
+    "tooling",
+    "mixed",
+    "unclassified"
+  ],
+  "counts": {
+    "shared": 111,
+    "mixed": 41,
+    "local": 16,
+    "composition": 10,
+    "tooling": 61,
+    "cloud": 4
+  },
+  "modules": [
+    {
+      "path": "src/admin/api/assembly.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/admin/api/query-params.js",
+        "src/core/assembly/assemble.js",
+        "src/core/http/http.js"
+      ]
+    },
+    {
+      "path": "src/admin/api/chunks.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/admin/api/query-params.js",
+        "src/core/http/http.js"
+      ]
+    },
+    {
+      "path": "src/admin/api/collections.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/http/http.js"
+      ]
+    },
+    {
+      "path": "src/admin/api/documents.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/admin/api/query-params.js",
+        "src/core/http/http.js"
+      ]
+    },
+    {
+      "path": "src/admin/api/generation-models.js",
+      "category": "mixed",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/doctor-checks.js",
+        "src/core/gemini-models.js",
+        "src/core/http/http.js"
+      ]
+    },
+    {
+      "path": "src/admin/api/generation.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/doctor-checks.js",
+        "src/core/http/http.js"
+      ]
+    },
+    {
+      "path": "src/admin/api/health.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/doctor-checks.js",
+        "src/core/http/http.js"
+      ]
+    },
+    {
+      "path": "src/admin/api/jobs.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/http/http.js"
+      ]
+    },
+    {
+      "path": "src/admin/api/node.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/admin/api/query-params.js",
+        "src/core/http/http.js"
+      ]
+    },
+    {
+      "path": "src/admin/api/ollama-models.js",
+      "category": "local",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/core/doctor-checks.js",
+        "src/core/http/http.js",
+        "src/core/ollama-models.js"
+      ]
+    },
+    {
+      "path": "src/admin/api/onnx.js",
+      "category": "local",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/core/http/http.js",
+        "src/core/onnx-provider-probe.js"
+      ]
+    },
+    {
+      "path": "src/admin/api/operations.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/admin/api/jobs.js",
+        "src/core/http/http.js"
+      ]
+    },
+    {
+      "path": "src/admin/api/qdrant-cloud.js",
+      "category": "mixed",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/admin/system/qdrant-cloud.js",
+        "src/core/embedding-profile/qdrant-cloud-catalog.js",
+        "src/core/embedding-profile/resolve.js",
+        "src/core/http/http.js"
+      ]
+    },
+    {
+      "path": "src/admin/api/query-params.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/http/http.js"
+      ]
+    },
+    {
+      "path": "src/admin/api/search.js",
+      "category": "mixed",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/embeddings.js",
+        "src/core/http/http.js",
+        "src/core/retrieval/search.js"
+      ]
+    },
+    {
+      "path": "src/admin/api/settings.js",
+      "category": "mixed",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/http/http.js",
+        "src/core/settings/definitions.js"
+      ]
+    },
+    {
+      "path": "src/admin/api/skeleton.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/admin/api/query-params.js",
+        "src/core/http/http.js"
+      ]
+    },
+    {
+      "path": "src/admin/api/system.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/admin/system/folder-picker.js",
+        "src/core/http/http.js"
+      ]
+    },
+    {
+      "path": "src/admin/bootstrap.js",
+      "category": "composition",
+      "compositionEdition": "full",
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/admin/server-full.js",
+        "src/admin/server.js",
+        "src/core/ce-rerank.js",
+        "src/core/env-bootstrap.js",
+        "src/core/generation/registry.js",
+        "src/core/generation/runtime.js",
+        "src/core/ollama-lazy.js",
+        "src/core/settings/service.js"
+      ]
+    },
+    {
+      "path": "src/admin/composition/lite.js",
+      "category": "composition",
+      "compositionEdition": null,
+      "fullReachable": false,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/admin/api/generation-models.js",
+        "src/admin/api/jobs.js",
+        "src/admin/jobs/registry.js",
+        "src/admin/jobs/spawn-indexer-lite.js",
+        "src/admin/register-neutral-routes.js",
+        "src/admin/router.js",
+        "src/core/embeddings.js",
+        "src/core/generation/ollama-capability.js",
+        "src/core/onnx-embed-capability.js",
+        "src/core/settings/service.js",
+        "src/core/storage/factory.js"
+      ]
+    },
+    {
+      "path": "src/admin/jobs/registry.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/doctor-checks.js",
+        "src/indexer/progress-event.js"
+      ]
+    },
+    {
+      "path": "src/admin/jobs/spawn-indexer-full.js",
+      "category": "mixed",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/indexer/index-full.js"
+      ]
+    },
+    {
+      "path": "src/admin/jobs/spawn-indexer-lite.js",
+      "category": "mixed",
+      "compositionEdition": null,
+      "fullReachable": false,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/indexer/index-lite.js"
+      ]
+    },
+    {
+      "path": "src/admin/jobs/task-registry.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/doctor-checks.js"
+      ]
+    },
+    {
+      "path": "src/admin/register-neutral-routes.js",
+      "category": "composition",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/admin/api/assembly.js",
+        "src/admin/api/chunks.js",
+        "src/admin/api/collections.js",
+        "src/admin/api/documents.js",
+        "src/admin/api/generation.js",
+        "src/admin/api/health.js",
+        "src/admin/api/node.js",
+        "src/admin/api/operations.js",
+        "src/admin/api/qdrant-cloud.js",
+        "src/admin/api/search.js",
+        "src/admin/api/settings.js",
+        "src/admin/api/skeleton.js",
+        "src/admin/api/system.js",
+        "src/admin/jobs/task-registry.js",
+        "src/admin/static.js",
+        "src/core/ask-api/v1/route.js",
+        "src/core/ask/coordinator.js",
+        "src/core/generation/runtime.js",
+        "src/core/token-count.js"
+      ]
+    },
+    {
+      "path": "src/admin/router.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/doctor-checks.js",
+        "src/core/http/http.js"
+      ]
+    },
+    {
+      "path": "src/admin/server-full.js",
+      "category": "composition",
+      "compositionEdition": "full",
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/admin/api/generation-models.js",
+        "src/admin/api/jobs.js",
+        "src/admin/api/ollama-models.js",
+        "src/admin/api/onnx.js",
+        "src/admin/api/system.js",
+        "src/admin/jobs/registry.js",
+        "src/admin/jobs/spawn-indexer-full.js",
+        "src/admin/register-neutral-routes.js",
+        "src/admin/router.js",
+        "src/admin/system/ollama.js",
+        "src/core/embeddings.js",
+        "src/core/ollama-lazy.js",
+        "src/core/ollama-models.js",
+        "src/core/onnx-embed-lazy.js",
+        "src/core/settings/service.js",
+        "src/core/storage/factory.js"
+      ]
+    },
+    {
+      "path": "src/admin/server.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/admin/static.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/http/http.js"
+      ]
+    },
+    {
+      "path": "src/admin/system/folder-picker.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/admin/system/ollama.js",
+      "category": "local",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/core/ollama.js"
+      ]
+    },
+    {
+      "path": "src/admin/system/qdrant-cloud.js",
+      "category": "mixed",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/doctor-checks.js",
+        "src/core/storage/factory.js"
+      ]
+    },
+    {
+      "path": "src/admin/ui-src/api.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/admin/ui-src/app.js",
+      "category": "mixed",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/admin/ui-src/dom.js",
+        "src/admin/ui-src/operation-modal.js",
+        "src/admin/ui-src/operation-store.js",
+        "src/admin/ui-src/router.js",
+        "src/admin/ui-src/sidebar-resize.js",
+        "src/admin/ui-src/sidebar.js",
+        "src/admin/ui-src/topbar.js"
+      ]
+    },
+    {
+      "path": "src/admin/ui-src/assembly-view.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/admin/ui-src/dom.js",
+        "src/admin/ui-src/structural-renderer.js"
+      ]
+    },
+    {
+      "path": "src/admin/ui-src/collection-view.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/admin/ui-src/api.js",
+        "src/admin/ui-src/dom.js",
+        "src/admin/ui-src/search.js",
+        "src/admin/ui-src/sidebar.js",
+        "src/admin/ui-src/state.js",
+        "src/admin/ui-src/toasts.js"
+      ]
+    },
+    {
+      "path": "src/admin/ui-src/dom.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/admin/ui-src/entries/full.js",
+      "category": "composition",
+      "compositionEdition": "full",
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/admin/ui-src/app.css",
+        "src/admin/ui-src/app.js",
+        "src/admin/ui-src/global-settings-view.js",
+        "src/admin/ui-src/jobs-view.js",
+        "src/admin/ui-src/local-features.js",
+        "src/admin/ui-src/settings-view.js"
+      ]
+    },
+    {
+      "path": "src/admin/ui-src/entries/lite.js",
+      "category": "composition",
+      "compositionEdition": "lite",
+      "fullReachable": false,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/admin/ui-src/app.css",
+        "src/admin/ui-src/app.js"
+      ]
+    },
+    {
+      "path": "src/admin/ui-src/file-view.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/admin/ui-src/api.js",
+        "src/admin/ui-src/assembly-view.js",
+        "src/admin/ui-src/dom.js",
+        "src/admin/ui-src/format.js",
+        "src/admin/ui-src/icons.js",
+        "src/admin/ui-src/structural-renderer.js",
+        "src/admin/ui-src/toasts.js"
+      ]
+    },
+    {
+      "path": "src/admin/ui-src/format.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/admin/ui-src/global-settings-view.js",
+      "category": "mixed",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/admin/ui-src/api.js",
+        "src/admin/ui-src/dom.js",
+        "src/admin/ui-src/sidebar.js",
+        "src/admin/ui-src/toasts.js",
+        "src/core/embedding-profile/qdrant-cloud-models.js"
+      ]
+    },
+    {
+      "path": "src/admin/ui-src/icons.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/admin/ui-src/jobs-view.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/admin/ui-src/api.js",
+        "src/admin/ui-src/dom.js",
+        "src/admin/ui-src/operation-modal.js",
+        "src/admin/ui-src/operation-store.js"
+      ]
+    },
+    {
+      "path": "src/admin/ui-src/local-features.js",
+      "category": "local",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/admin/ui-src/api.js"
+      ]
+    },
+    {
+      "path": "src/admin/ui-src/operation-modal.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/admin/ui-src/api.js",
+        "src/admin/ui-src/dom.js",
+        "src/admin/ui-src/operation-render.js",
+        "src/admin/ui-src/operation-store.js",
+        "src/admin/ui-src/toasts.js"
+      ]
+    },
+    {
+      "path": "src/admin/ui-src/operation-render.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/admin/ui-src/dom.js"
+      ]
+    },
+    {
+      "path": "src/admin/ui-src/operation-store.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/admin/ui-src/api.js"
+      ]
+    },
+    {
+      "path": "src/admin/ui-src/router.js",
+      "category": "mixed",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/admin/ui-src/api.js",
+        "src/admin/ui-src/collection-view.js",
+        "src/admin/ui-src/dom.js",
+        "src/admin/ui-src/file-view.js",
+        "src/admin/ui-src/global-settings-view.js",
+        "src/admin/ui-src/jobs-view.js",
+        "src/admin/ui-src/routes.js",
+        "src/admin/ui-src/search.js",
+        "src/admin/ui-src/settings-view.js",
+        "src/admin/ui-src/sidebar.js"
+      ]
+    },
+    {
+      "path": "src/admin/ui-src/routes.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/admin/ui-src/search.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/admin/ui-src/api.js",
+        "src/admin/ui-src/dom.js",
+        "src/admin/ui-src/file-view.js",
+        "src/admin/ui-src/routes.js",
+        "src/admin/ui-src/sidebar.js",
+        "src/admin/ui-src/structural-renderer.js"
+      ]
+    },
+    {
+      "path": "src/admin/ui-src/settings-view.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/admin/ui-src/api.js",
+        "src/admin/ui-src/dom.js",
+        "src/admin/ui-src/operation-modal.js",
+        "src/admin/ui-src/operation-store.js",
+        "src/admin/ui-src/sidebar.js",
+        "src/admin/ui-src/state.js"
+      ]
+    },
+    {
+      "path": "src/admin/ui-src/sidebar-resize.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/admin/ui-src/sidebar.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/admin/ui-src/api.js",
+        "src/admin/ui-src/dom.js",
+        "src/admin/ui-src/format.js",
+        "src/admin/ui-src/icons.js",
+        "src/admin/ui-src/routes.js",
+        "src/admin/ui-src/state.js"
+      ]
+    },
+    {
+      "path": "src/admin/ui-src/state.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/admin/ui-src/structural-renderer.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/admin/ui-src/toasts.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/admin/ui-src/dom.js"
+      ]
+    },
+    {
+      "path": "src/admin/ui-src/topbar.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/admin/ui-src/api.js",
+        "src/admin/ui-src/dom.js",
+        "src/admin/ui-src/icons.js",
+        "src/admin/ui-src/operation-modal.js",
+        "src/admin/ui-src/operation-store.js"
+      ]
+    },
+    {
+      "path": "src/backfill-entity-refs.js",
+      "category": "tooling",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/core/entity-reference.js",
+        "src/core/env-bootstrap.js",
+        "src/core/qdrant.js",
+        "src/core/qdrant/nav-filter.js",
+        "src/core/settings/service.js",
+        "src/indexer/skeleton-payload.js"
+      ]
+    },
+    {
+      "path": "src/backfill-tags.js",
+      "category": "tooling",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/core/env-bootstrap.js",
+        "src/core/qdrant.js",
+        "src/core/settings/service.js",
+        "src/indexer/phases/tag-onnx.js",
+        "src/indexer/phases/tag.js"
+      ]
+    },
+    {
+      "path": "src/bootstrap-docs.js",
+      "category": "tooling",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/core/config.js",
+        "src/core/embeddings.js",
+        "src/core/env-bootstrap.js",
+        "src/core/qdrant.js",
+        "src/core/settings/service.js"
+      ]
+    },
+    {
+      "path": "src/core/ask-api/v1/contract.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/core/ask-api/v1/request.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/http/http.js"
+      ]
+    },
+    {
+      "path": "src/core/ask-api/v1/route.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/ask-api/v1/contract.js",
+        "src/core/ask-api/v1/request.js",
+        "src/core/doctor-checks.js",
+        "src/core/http/http.js",
+        "src/core/http/sse.js"
+      ]
+    },
+    {
+      "path": "src/core/ask/citations.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/ask/prompt.js"
+      ]
+    },
+    {
+      "path": "src/core/ask/coordinator.js",
+      "category": "mixed",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/ask/citations.js",
+        "src/core/ask/evidence.js",
+        "src/core/ask/prompt.js"
+      ]
+    },
+    {
+      "path": "src/core/ask/evidence.js",
+      "category": "mixed",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/ask/prompt.js",
+        "src/core/assembly/anchored-content.js",
+        "src/core/retrieval/search.js"
+      ]
+    },
+    {
+      "path": "src/core/ask/prompt.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/core/assembly/anchored-content.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/assembly/assemble.js",
+        "src/core/assembly/window.js"
+      ]
+    },
+    {
+      "path": "src/core/assembly/assemble.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/assembly/contract.js",
+        "src/core/entity-reference.js"
+      ]
+    },
+    {
+      "path": "src/core/assembly/contract.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/core/assembly/cursor.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/core/assembly/window.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/assembly/cursor.js"
+      ]
+    },
+    {
+      "path": "src/core/bench-telemetry.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/core/bge-tokenizer.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/onnx-paths.js"
+      ]
+    },
+    {
+      "path": "src/core/ce-rerank-worker.js",
+      "category": "local",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": []
+    },
+    {
+      "path": "src/core/ce-rerank.js",
+      "category": "local",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/core/ce-rerank-worker.js"
+      ]
+    },
+    {
+      "path": "src/core/config.js",
+      "category": "mixed",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/embedding-profile/qdrant-cloud-catalog.js",
+        "src/core/env.js",
+        "src/core/onnx-paths.js"
+      ]
+    },
+    {
+      "path": "src/core/doctor-checks.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/core/embedding-profile/availability.js",
+      "category": "mixed",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/embedding-profile/qdrant-cloud-catalog.js",
+        "src/core/embedding-profile/schema.js",
+        "src/core/storage/embedding-profile-cache.js"
+      ]
+    },
+    {
+      "path": "src/core/embedding-profile/config-cache.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/core/embedding-profile/migrate.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/embedding-profile/schema.js",
+        "src/core/env.js"
+      ]
+    },
+    {
+      "path": "src/core/embedding-profile/onnx-lane.js",
+      "category": "mixed",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/embedding-profile/availability.js",
+        "src/core/onnx-paths.js"
+      ]
+    },
+    {
+      "path": "src/core/embedding-profile/qdrant-cloud-catalog.js",
+      "category": "mixed",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/embedding-profile/qdrant-cloud-models.js",
+        "src/core/embedding-profile/qdrant-cloud-tokenizer.js",
+        "src/core/token-count.js"
+      ]
+    },
+    {
+      "path": "src/core/embedding-profile/qdrant-cloud-models.js",
+      "category": "cloud",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/core/embedding-profile/qdrant-cloud-tokenizer.js",
+      "category": "cloud",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/onnx-paths.js"
+      ]
+    },
+    {
+      "path": "src/core/embedding-profile/resolve.js",
+      "category": "mixed",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/embedding-profile/qdrant-cloud-catalog.js",
+        "src/core/embedding-profile/schema.js",
+        "src/core/env.js",
+        "src/core/onnx-paths.js"
+      ]
+    },
+    {
+      "path": "src/core/embedding-profile/schema.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/core/embeddings.js",
+      "category": "mixed",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/bench-telemetry.js",
+        "src/core/embedding-profile/qdrant-cloud-catalog.js",
+        "src/core/embedding-profile/schema.js",
+        "src/core/env.js",
+        "src/core/generation/ollama-capability.js",
+        "src/core/onnx-embed-capability.js",
+        "src/core/sparse.js"
+      ]
+    },
+    {
+      "path": "src/core/entity-reference.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/core/env-bootstrap.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/core/env.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/core/gemini-models.js",
+      "category": "cloud",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/core/generation/config.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/core/generation/gemini-provider.js",
+      "category": "cloud",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/generation/config.js"
+      ]
+    },
+    {
+      "path": "src/core/generation/ollama-capability.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/core/generation/ollama-provider.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/core/generation/provider.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": false,
+      "liteReachable": false,
+      "directDependencies": []
+    },
+    {
+      "path": "src/core/generation/registry.js",
+      "category": "composition",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/generation/gemini-provider.js",
+        "src/core/generation/ollama-provider.js"
+      ]
+    },
+    {
+      "path": "src/core/generation/runtime.js",
+      "category": "mixed",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/doctor-checks.js",
+        "src/core/generation/config.js",
+        "src/core/generation/registry.js"
+      ]
+    },
+    {
+      "path": "src/core/http/http.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/core/http/sse.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/core/length-bucket.js",
+      "category": "local",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": []
+    },
+    {
+      "path": "src/core/node-id.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/point-id.js"
+      ]
+    },
+    {
+      "path": "src/core/ollama-lazy.js",
+      "category": "mixed",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/core/ollama.js"
+      ]
+    },
+    {
+      "path": "src/core/ollama-lazy.lite.js",
+      "category": "mixed",
+      "compositionEdition": null,
+      "fullReachable": false,
+      "liteReachable": false,
+      "directDependencies": []
+    },
+    {
+      "path": "src/core/ollama-models.js",
+      "category": "local",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/core/ollama.js"
+      ]
+    },
+    {
+      "path": "src/core/ollama.js",
+      "category": "local",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": []
+    },
+    {
+      "path": "src/core/onnx-embed-capability.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/core/onnx-embed-lazy.js",
+      "category": "mixed",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/core/length-bucket.js",
+        "src/core/onnx-embed.js"
+      ]
+    },
+    {
+      "path": "src/core/onnx-embed-lazy.lite.js",
+      "category": "mixed",
+      "compositionEdition": null,
+      "fullReachable": false,
+      "liteReachable": false,
+      "directDependencies": []
+    },
+    {
+      "path": "src/core/onnx-embed.js",
+      "category": "local",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/core/doctor-checks.js",
+        "src/core/onnx-paths.js",
+        "src/core/onnx-runtime.js"
+      ]
+    },
+    {
+      "path": "src/core/onnx-paths.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/core/onnx-probe-runner.js",
+      "category": "local",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/core/onnx-paths.js",
+        "src/core/onnx-runtime.js"
+      ]
+    },
+    {
+      "path": "src/core/onnx-provider-probe.js",
+      "category": "local",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/core/doctor-checks.js",
+        "src/core/onnx-probe-runner.js"
+      ]
+    },
+    {
+      "path": "src/core/onnx-runtime.js",
+      "category": "local",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": []
+    },
+    {
+      "path": "src/core/point-id.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/core/qdrant.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/qdrant/index.js"
+      ]
+    },
+    {
+      "path": "src/core/qdrant/client.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/bench-telemetry.js"
+      ]
+    },
+    {
+      "path": "src/core/qdrant/ensure-schema.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/doctor-checks.js",
+        "src/core/qdrant/schema.js",
+        "src/core/qdrant/store.js"
+      ]
+    },
+    {
+      "path": "src/core/qdrant/index.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/qdrant/client.js",
+        "src/core/qdrant/ensure-schema.js",
+        "src/core/qdrant/payload.js",
+        "src/core/qdrant/schema.js",
+        "src/core/qdrant/store.js"
+      ]
+    },
+    {
+      "path": "src/core/qdrant/nav-filter.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/core/qdrant/payload.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/core/qdrant/schema.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/core/qdrant/store.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/env.js",
+        "src/core/qdrant/client.js",
+        "src/core/qdrant/nav-filter.js",
+        "src/core/qdrant/payload.js",
+        "src/core/qdrant/schema.js"
+      ]
+    },
+    {
+      "path": "src/core/rerank.js",
+      "category": "local",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/core/env.js"
+      ]
+    },
+    {
+      "path": "src/core/retrieval/search.js",
+      "category": "mixed",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/bench-telemetry.js",
+        "src/core/embedding-profile/qdrant-cloud-catalog.js",
+        "src/core/embedding-profile/resolve.js",
+        "src/core/embedding-profile/schema.js",
+        "src/core/embeddings.js"
+      ]
+    },
+    {
+      "path": "src/core/settings/definitions.js",
+      "category": "mixed",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/embedding-profile/qdrant-cloud-models.js",
+        "src/core/onnx-paths.js"
+      ]
+    },
+    {
+      "path": "src/core/settings/lite-policy.js",
+      "category": "composition",
+      "compositionEdition": null,
+      "fullReachable": false,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/core/settings/service.js",
+      "category": "mixed",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/env.js",
+        "src/core/generation/config.js",
+        "src/core/settings/definitions.js",
+        "src/core/settings/settings-store.js"
+      ]
+    },
+    {
+      "path": "src/core/settings/service.lite.js",
+      "category": "composition",
+      "compositionEdition": null,
+      "fullReachable": false,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/settings/lite-policy.js"
+      ]
+    },
+    {
+      "path": "src/core/settings/settings-store.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/core/sparse.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/core/storage/adapter.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": false,
+      "liteReachable": false,
+      "directDependencies": []
+    },
+    {
+      "path": "src/core/storage/capabilities.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/core/storage/embedding-profile-cache.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/core/storage/factory.js",
+      "category": "mixed",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/storage/qdrant-adapter.js"
+      ]
+    },
+    {
+      "path": "src/core/storage/qdrant-adapter.js",
+      "category": "mixed",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/config.js",
+        "src/core/doctor-checks.js",
+        "src/core/embedding-profile/availability.js",
+        "src/core/embedding-profile/migrate.js",
+        "src/core/embedding-profile/onnx-lane.js",
+        "src/core/embedding-profile/schema.js",
+        "src/core/qdrant/ensure-schema.js",
+        "src/core/qdrant/nav-filter.js",
+        "src/core/qdrant/payload.js",
+        "src/core/qdrant/store.js",
+        "src/core/storage/capabilities.js",
+        "src/core/storage/embedding-profile-cache.js"
+      ]
+    },
+    {
+      "path": "src/core/token-count.js",
+      "category": "mixed",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/bge-tokenizer.js",
+        "src/core/embedding-profile/qdrant-cloud-tokenizer.js",
+        "src/core/embedding-profile/schema.js"
+      ]
+    },
+    {
+      "path": "src/doctor.js",
+      "category": "tooling",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "package.json",
+        "src/core/config.js",
+        "src/core/doctor-checks.js",
+        "src/core/embeddings.js",
+        "src/core/env-bootstrap.js",
+        "src/core/onnx-paths.js",
+        "src/core/onnx-provider-probe.js",
+        "src/core/settings/service.js"
+      ]
+    },
+    {
+      "path": "src/indexer/batch.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/indexer/files.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/indexer/index-full.js",
+      "category": "mixed",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/core/ollama-lazy.js",
+        "src/core/onnx-embed-lazy.js",
+        "src/indexer/index-runtime.js",
+        "src/indexer/phases/tag-onnx-lazy.js"
+      ]
+    },
+    {
+      "path": "src/indexer/index-lite.js",
+      "category": "mixed",
+      "compositionEdition": null,
+      "fullReachable": false,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/indexer/index-runtime.js"
+      ]
+    },
+    {
+      "path": "src/indexer/index-runtime.js",
+      "category": "mixed",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/env-bootstrap.js",
+        "src/core/settings/service.js",
+        "src/indexer/run.js"
+      ]
+    },
+    {
+      "path": "src/indexer/index.js",
+      "category": "mixed",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/indexer/index-full.js"
+      ]
+    },
+    {
+      "path": "src/indexer/phases/chunk.js",
+      "category": "mixed",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/env.js",
+        "src/core/token-count.js",
+        "src/indexer/phases/skeleton-chunk.js",
+        "src/indexer/phases/skeleton-index.js",
+        "src/indexer/phases/skeleton.js",
+        "src/indexer/phases/token-budget-split.js",
+        "src/indexer/skeleton-warnings.js"
+      ]
+    },
+    {
+      "path": "src/indexer/phases/combined.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/generation/ollama-capability.js",
+        "src/indexer/phases/context.js",
+        "src/indexer/phases/tag.js"
+      ]
+    },
+    {
+      "path": "src/indexer/phases/context.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/generation/ollama-capability.js",
+        "src/indexer/batch.js"
+      ]
+    },
+    {
+      "path": "src/indexer/phases/empty-section.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/indexer/phases/entity-split.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/indexer/phases/token-budget-split.js"
+      ]
+    },
+    {
+      "path": "src/indexer/phases/node-policy.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/entity-reference.js",
+        "src/core/env.js"
+      ]
+    },
+    {
+      "path": "src/indexer/phases/skeleton-chunk.js",
+      "category": "mixed",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/entity-reference.js",
+        "src/core/node-id.js",
+        "src/indexer/phases/chunk.js",
+        "src/indexer/phases/entity-split.js",
+        "src/indexer/phases/node-policy.js"
+      ]
+    },
+    {
+      "path": "src/indexer/phases/skeleton-index.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/node-id.js",
+        "src/indexer/phases/node-policy.js"
+      ]
+    },
+    {
+      "path": "src/indexer/phases/skeleton-summary.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/generation/ollama-capability.js"
+      ]
+    },
+    {
+      "path": "src/indexer/phases/skeleton.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/indexer/phases/tag-onnx-capability.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/indexer/phases/tag-onnx-lazy.js",
+      "category": "mixed",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/indexer/phases/tag-onnx.js",
+        "src/indexer/phases/tag-provider.js"
+      ]
+    },
+    {
+      "path": "src/indexer/phases/tag-onnx-lazy.lite.js",
+      "category": "mixed",
+      "compositionEdition": null,
+      "fullReachable": false,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/indexer/phases/tag-provider.js"
+      ]
+    },
+    {
+      "path": "src/indexer/phases/tag-onnx.js",
+      "category": "local",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/indexer/phases/tag-provider.js",
+        "src/indexer/workers/tag-onnx-worker.js"
+      ]
+    },
+    {
+      "path": "src/indexer/phases/tag-provider.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/indexer/phases/tag.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/generation/ollama-capability.js"
+      ]
+    },
+    {
+      "path": "src/indexer/phases/token-budget-split.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/indexer/preflight.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/generation/ollama-capability.js"
+      ]
+    },
+    {
+      "path": "src/indexer/profiler.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/indexer/progress-event.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/indexer/run.js",
+      "category": "mixed",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/config.js",
+        "src/core/doctor-checks.js",
+        "src/core/embedding-profile/config-cache.js",
+        "src/core/embedding-profile/qdrant-cloud-catalog.js",
+        "src/core/embedding-profile/resolve.js",
+        "src/core/embedding-profile/schema.js",
+        "src/core/embeddings.js",
+        "src/core/env.js",
+        "src/core/generation/ollama-capability.js",
+        "src/core/node-id.js",
+        "src/core/onnx-embed-capability.js",
+        "src/core/point-id.js",
+        "src/core/qdrant.js",
+        "src/core/settings/service.js",
+        "src/core/storage/factory.js",
+        "src/core/token-count.js",
+        "src/indexer/batch.js",
+        "src/indexer/files.js",
+        "src/indexer/phases/chunk.js",
+        "src/indexer/phases/combined.js",
+        "src/indexer/phases/context.js",
+        "src/indexer/phases/empty-section.js",
+        "src/indexer/phases/skeleton-index.js",
+        "src/indexer/phases/skeleton-summary.js",
+        "src/indexer/phases/tag-onnx-capability.js",
+        "src/indexer/phases/tag-provider.js",
+        "src/indexer/phases/tag.js",
+        "src/indexer/preflight.js",
+        "src/indexer/profiler.js",
+        "src/indexer/progress-event.js",
+        "src/indexer/semaphore.js",
+        "src/indexer/serial-queue.js",
+        "src/indexer/skeleton-payload.js"
+      ]
+    },
+    {
+      "path": "src/indexer/semaphore.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/indexer/serial-queue.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/indexer/skeleton-payload.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/point-id.js"
+      ]
+    },
+    {
+      "path": "src/indexer/skeleton-warnings.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/indexer/workers/tag-onnx-worker.js",
+      "category": "local",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": []
+    },
+    {
+      "path": "src/mcp/server.js",
+      "category": "composition",
+      "compositionEdition": "full",
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/core/ce-rerank.js",
+        "src/core/doctor-checks.js",
+        "src/core/embeddings.js",
+        "src/core/env-bootstrap.js",
+        "src/core/ollama-lazy.js",
+        "src/core/onnx-embed-lazy.js",
+        "src/core/settings/service.js",
+        "src/mcp/tools/collections.js",
+        "src/mcp/tools/findByTag.js",
+        "src/mcp/tools/getChunk.js",
+        "src/mcp/tools/getContent.js",
+        "src/mcp/tools/getNode.js",
+        "src/mcp/tools/getSkeleton.js",
+        "src/mcp/tools/getSkeletonChildren.js",
+        "src/mcp/tools/getSkeletonNode.js",
+        "src/mcp/tools/listDirectories.js",
+        "src/mcp/tools/listFiles.js",
+        "src/mcp/tools/listTags.js",
+        "src/mcp/tools/search.js"
+      ]
+    },
+    {
+      "path": "src/mcp/tools/collections.js",
+      "category": "mixed",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/core/embedding-profile/availability.js",
+        "src/core/embedding-profile/onnx-lane.js",
+        "src/core/embedding-profile/resolve.js",
+        "src/core/ollama.js",
+        "src/core/storage/factory.js"
+      ]
+    },
+    {
+      "path": "src/mcp/tools/filters.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/core/qdrant/nav-filter.js"
+      ]
+    },
+    {
+      "path": "src/mcp/tools/findByTag.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/core/qdrant.js",
+        "src/mcp/tools/filters.js"
+      ]
+    },
+    {
+      "path": "src/mcp/tools/getChunk.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/core/qdrant.js"
+      ]
+    },
+    {
+      "path": "src/mcp/tools/getContent.js",
+      "category": "mixed",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/core/assembly/anchored-content.js",
+        "src/core/storage/factory.js",
+        "src/core/token-count.js"
+      ]
+    },
+    {
+      "path": "src/mcp/tools/getNode.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/core/qdrant.js"
+      ]
+    },
+    {
+      "path": "src/mcp/tools/getSkeleton.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/core/qdrant.js"
+      ]
+    },
+    {
+      "path": "src/mcp/tools/getSkeletonChildren.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/core/qdrant.js"
+      ]
+    },
+    {
+      "path": "src/mcp/tools/getSkeletonNode.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/core/qdrant.js"
+      ]
+    },
+    {
+      "path": "src/mcp/tools/listDirectories.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/core/qdrant.js",
+        "src/mcp/tools/filters.js"
+      ]
+    },
+    {
+      "path": "src/mcp/tools/listFiles.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/core/qdrant.js",
+        "src/mcp/tools/filters.js"
+      ]
+    },
+    {
+      "path": "src/mcp/tools/listTags.js",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/core/qdrant.js",
+        "src/mcp/tools/filters.js"
+      ]
+    },
+    {
+      "path": "src/mcp/tools/search.js",
+      "category": "mixed",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/core/ce-rerank.js",
+        "src/core/env.js",
+        "src/core/qdrant.js",
+        "src/core/rerank.js",
+        "src/core/retrieval/search.js",
+        "src/core/storage/factory.js"
+      ]
+    },
+    {
+      "path": "src/smoke.js",
+      "category": "tooling",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/smoke/index.js"
+      ]
+    },
+    {
+      "path": "src/smoke/helpers.js",
+      "category": "tooling",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": []
+    },
+    {
+      "path": "src/smoke/index.js",
+      "category": "tooling",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/smoke/helpers.js",
+        "src/smoke/sections/01-default-provider.js",
+        "src/smoke/sections/02-onnx-embed.js",
+        "src/smoke/sections/03-invalid-combo-resolve.js",
+        "src/smoke/sections/04-embed-runtime-guard.js",
+        "src/smoke/sections/05-reindex-detection.js",
+        "src/smoke/sections/06-chunking-edge-cases.js",
+        "src/smoke/sections/07-reranker-top1.js",
+        "src/smoke/sections/08-compact-window.js",
+        "src/smoke/sections/09-stale-source-files.js",
+        "src/smoke/sections/11-recursive-chunk-text.js",
+        "src/smoke/sections/12-onnx-providers.js",
+        "src/smoke/sections/13-semidex-payload.js",
+        "src/smoke/sections/14-profiler.js",
+        "src/smoke/sections/15-bootstrap-docs.js",
+        "src/smoke/sections/16-extract-json-array.js",
+        "src/smoke/sections/17-pdf-fixture.js",
+        "src/smoke/sections/18-validate-ollama-models.js",
+        "src/smoke/sections/19-doctor-checks.js",
+        "src/smoke/sections/20-colbert-math.js",
+        "src/smoke/sections/23-length-bucket.js",
+        "src/smoke/sections/24-dml-batching-gate.js",
+        "src/smoke/sections/26-extract-context-tags-array.js",
+        "src/smoke/sections/27-combined-phase.js",
+        "src/smoke/sections/28-setext-headings.js",
+        "src/smoke/sections/29-semidex-ignore.js",
+        "src/smoke/sections/30-tag-gen-flag.js",
+        "src/smoke/sections/31-empty-section.js",
+        "src/smoke/sections/32-deterministic-point-id.js",
+        "src/smoke/sections/33-duplicate-repair-helpers.js",
+        "src/smoke/sections/34-mcp-navigation-tools.js",
+        "src/smoke/sections/35-mcp-ux-polish.js",
+        "src/smoke/sections/36-token-count.js",
+        "src/smoke/sections/37-pipeline-primitives.js",
+        "src/smoke/sections/38-tag-onnx-provider.js",
+        "src/smoke/sections/39-dynamic-overlap.js",
+        "src/smoke/sections/40-colbert-guard.js",
+        "src/smoke/sections/41-ce-rerank-stub.js",
+        "src/smoke/sections/42-skeleton-parse.js",
+        "src/smoke/sections/43-skeleton-policy.js",
+        "src/smoke/sections/44-skeleton-warnings.js",
+        "src/smoke/sections/45-skeleton-chunk.js",
+        "src/smoke/sections/46-skeleton-payload.js",
+        "src/smoke/sections/47-skeleton-nav.js",
+        "src/smoke/sections/48-nav-filter.js",
+        "src/smoke/sections/49-skeleton-edge-cases.js",
+        "src/smoke/sections/50-nav-upsert.js",
+        "src/smoke/sections/51-skeleton-summary.js",
+        "src/smoke/sections/52-run-num-ctx.js",
+        "src/smoke/sections/53-skeleton-nav-tools.js",
+        "src/smoke/sections/54-adaptive-skeleton-summaries.js",
+        "src/smoke/sections/55-hierarchical-skeleton-summaries.js",
+        "src/smoke/sections/56-get-node-tool.js",
+        "src/smoke/sections/57-skeleton-carryover.js"
+      ]
+    },
+    {
+      "path": "src/smoke/sections/01-default-provider.js",
+      "category": "tooling",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/core/config.js"
+      ]
+    },
+    {
+      "path": "src/smoke/sections/02-onnx-embed.js",
+      "category": "tooling",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/core/config.js"
+      ]
+    },
+    {
+      "path": "src/smoke/sections/03-invalid-combo-resolve.js",
+      "category": "tooling",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/core/config.js"
+      ]
+    },
+    {
+      "path": "src/smoke/sections/04-embed-runtime-guard.js",
+      "category": "tooling",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/core/embeddings.js"
+      ]
+    },
+    {
+      "path": "src/smoke/sections/05-reindex-detection.js",
+      "category": "tooling",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": []
+    },
+    {
+      "path": "src/smoke/sections/06-chunking-edge-cases.js",
+      "category": "tooling",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/indexer/phases/chunk.js"
+      ]
+    },
+    {
+      "path": "src/smoke/sections/07-reranker-top1.js",
+      "category": "tooling",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/core/rerank.js"
+      ]
+    },
+    {
+      "path": "src/smoke/sections/08-compact-window.js",
+      "category": "tooling",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/mcp/tools/search.js"
+      ]
+    },
+    {
+      "path": "src/smoke/sections/09-stale-source-files.js",
+      "category": "tooling",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/indexer/run.js"
+      ]
+    },
+    {
+      "path": "src/smoke/sections/11-recursive-chunk-text.js",
+      "category": "tooling",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/indexer/phases/chunk.js"
+      ]
+    },
+    {
+      "path": "src/smoke/sections/12-onnx-providers.js",
+      "category": "tooling",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/core/onnx-embed.js"
+      ]
+    },
+    {
+      "path": "src/smoke/sections/13-semidex-payload.js",
+      "category": "tooling",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/core/qdrant.js"
+      ]
+    },
+    {
+      "path": "src/smoke/sections/14-profiler.js",
+      "category": "tooling",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/indexer/profiler.js"
+      ]
+    },
+    {
+      "path": "src/smoke/sections/15-bootstrap-docs.js",
+      "category": "tooling",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/bootstrap-docs.js",
+        "src/core/config.js"
+      ]
+    },
+    {
+      "path": "src/smoke/sections/16-extract-json-array.js",
+      "category": "tooling",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/indexer/phases/tag.js"
+      ]
+    },
+    {
+      "path": "src/smoke/sections/17-pdf-fixture.js",
+      "category": "tooling",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/indexer/phases/chunk.js"
+      ]
+    },
+    {
+      "path": "src/smoke/sections/18-validate-ollama-models.js",
+      "category": "tooling",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/core/ollama.js"
+      ]
+    },
+    {
+      "path": "src/smoke/sections/19-doctor-checks.js",
+      "category": "tooling",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/core/doctor-checks.js"
+      ]
+    },
+    {
+      "path": "src/smoke/sections/20-colbert-math.js",
+      "category": "tooling",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "benchmarks/retrieval/lib/colbert-math.js"
+      ]
+    },
+    {
+      "path": "src/smoke/sections/23-length-bucket.js",
+      "category": "tooling",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/core/length-bucket.js"
+      ]
+    },
+    {
+      "path": "src/smoke/sections/24-dml-batching-gate.js",
+      "category": "tooling",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/core/embeddings.js"
+      ]
+    },
+    {
+      "path": "src/smoke/sections/26-extract-context-tags-array.js",
+      "category": "tooling",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "benchmarks/retrieval/combined-context-tags-helpers.js"
+      ]
+    },
+    {
+      "path": "src/smoke/sections/27-combined-phase.js",
+      "category": "tooling",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/indexer/phases/combined.js"
+      ]
+    },
+    {
+      "path": "src/smoke/sections/28-setext-headings.js",
+      "category": "tooling",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/indexer/phases/chunk.js"
+      ]
+    },
+    {
+      "path": "src/smoke/sections/29-semidex-ignore.js",
+      "category": "tooling",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/indexer/files.js"
+      ]
+    },
+    {
+      "path": "src/smoke/sections/30-tag-gen-flag.js",
+      "category": "tooling",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/indexer/phases/tag.js"
+      ]
+    },
+    {
+      "path": "src/smoke/sections/31-empty-section.js",
+      "category": "tooling",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/indexer/phases/chunk.js",
+        "src/indexer/phases/empty-section.js"
+      ]
+    },
+    {
+      "path": "src/smoke/sections/32-deterministic-point-id.js",
+      "category": "tooling",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/core/point-id.js"
+      ]
+    },
+    {
+      "path": "src/smoke/sections/33-duplicate-repair-helpers.js",
+      "category": "tooling",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "benchmarks/retrieval/duplicate-point-repair.js",
+        "src/core/point-id.js"
+      ]
+    },
+    {
+      "path": "src/smoke/sections/34-mcp-navigation-tools.js",
+      "category": "tooling",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/mcp/tools/listFiles.js",
+        "src/mcp/tools/listTags.js"
+      ]
+    },
+    {
+      "path": "src/smoke/sections/35-mcp-ux-polish.js",
+      "category": "tooling",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/mcp/tools/findByTag.js",
+        "src/mcp/tools/getChunk.js",
+        "src/mcp/tools/listDirectories.js"
+      ]
+    },
+    {
+      "path": "src/smoke/sections/36-token-count.js",
+      "category": "tooling",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/core/token-count.js",
+        "src/indexer/phases/chunk.js"
+      ]
+    },
+    {
+      "path": "src/smoke/sections/37-pipeline-primitives.js",
+      "category": "tooling",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/indexer/semaphore.js",
+        "src/indexer/serial-queue.js"
+      ]
+    },
+    {
+      "path": "src/smoke/sections/38-tag-onnx-provider.js",
+      "category": "tooling",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/indexer/phases/tag-onnx.js"
+      ]
+    },
+    {
+      "path": "src/smoke/sections/39-dynamic-overlap.js",
+      "category": "tooling",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/core/token-count.js",
+        "src/indexer/phases/chunk.js"
+      ]
+    },
+    {
+      "path": "src/smoke/sections/40-colbert-guard.js",
+      "category": "tooling",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "benchmarks/retrieval/lib/colbert-guard.js"
+      ]
+    },
+    {
+      "path": "src/smoke/sections/41-ce-rerank-stub.js",
+      "category": "tooling",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/core/ce-rerank.js"
+      ]
+    },
+    {
+      "path": "src/smoke/sections/42-skeleton-parse.js",
+      "category": "tooling",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/core/node-id.js",
+        "src/indexer/phases/skeleton.js"
+      ]
+    },
+    {
+      "path": "src/smoke/sections/43-skeleton-policy.js",
+      "category": "tooling",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/indexer/phases/node-policy.js",
+        "src/indexer/phases/skeleton.js"
+      ]
+    },
+    {
+      "path": "src/smoke/sections/44-skeleton-warnings.js",
+      "category": "tooling",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/indexer/phases/skeleton.js",
+        "src/indexer/skeleton-warnings.js"
+      ]
+    },
+    {
+      "path": "src/smoke/sections/45-skeleton-chunk.js",
+      "category": "tooling",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/indexer/phases/chunk.js",
+        "src/indexer/phases/skeleton-chunk.js",
+        "src/indexer/phases/skeleton.js"
+      ]
+    },
+    {
+      "path": "src/smoke/sections/46-skeleton-payload.js",
+      "category": "tooling",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/core/point-id.js",
+        "src/indexer/phases/skeleton-chunk.js",
+        "src/indexer/phases/skeleton.js",
+        "src/indexer/skeleton-payload.js"
+      ]
+    },
+    {
+      "path": "src/smoke/sections/47-skeleton-nav.js",
+      "category": "tooling",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/indexer/phases/node-policy.js",
+        "src/indexer/phases/skeleton-chunk.js",
+        "src/indexer/phases/skeleton-index.js",
+        "src/indexer/phases/skeleton.js"
+      ]
+    },
+    {
+      "path": "src/smoke/sections/48-nav-filter.js",
+      "category": "tooling",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/mcp/tools/filters.js",
+        "src/mcp/tools/findByTag.js",
+        "src/mcp/tools/listDirectories.js",
+        "src/mcp/tools/listFiles.js",
+        "src/mcp/tools/listTags.js"
+      ]
+    },
+    {
+      "path": "src/smoke/sections/49-skeleton-edge-cases.js",
+      "category": "tooling",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/core/node-id.js",
+        "src/indexer/phases/skeleton-chunk.js",
+        "src/indexer/phases/skeleton-index.js",
+        "src/indexer/phases/skeleton.js"
+      ]
+    },
+    {
+      "path": "src/smoke/sections/50-nav-upsert.js",
+      "category": "tooling",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/core/qdrant.js",
+        "src/indexer/phases/skeleton-index.js",
+        "src/indexer/phases/skeleton.js",
+        "src/indexer/skeleton-payload.js",
+        "src/mcp/tools/filters.js"
+      ]
+    },
+    {
+      "path": "src/smoke/sections/51-skeleton-summary.js",
+      "category": "tooling",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/indexer/phases/skeleton-chunk.js",
+        "src/indexer/phases/skeleton-index.js",
+        "src/indexer/phases/skeleton-summary.js",
+        "src/indexer/phases/skeleton.js"
+      ]
+    },
+    {
+      "path": "src/smoke/sections/52-run-num-ctx.js",
+      "category": "tooling",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/indexer/phases/skeleton-chunk.js",
+        "src/indexer/phases/skeleton-index.js",
+        "src/indexer/phases/skeleton-summary.js",
+        "src/indexer/phases/skeleton.js"
+      ]
+    },
+    {
+      "path": "src/smoke/sections/53-skeleton-nav-tools.js",
+      "category": "tooling",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/mcp/tools/getSkeleton.js",
+        "src/mcp/tools/getSkeletonChildren.js",
+        "src/mcp/tools/getSkeletonNode.js"
+      ]
+    },
+    {
+      "path": "src/smoke/sections/54-adaptive-skeleton-summaries.js",
+      "category": "tooling",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/indexer/phases/skeleton-chunk.js",
+        "src/indexer/phases/skeleton-index.js",
+        "src/indexer/phases/skeleton-summary.js",
+        "src/indexer/phases/skeleton.js",
+        "src/indexer/skeleton-payload.js"
+      ]
+    },
+    {
+      "path": "src/smoke/sections/55-hierarchical-skeleton-summaries.js",
+      "category": "tooling",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/indexer/phases/skeleton-chunk.js",
+        "src/indexer/phases/skeleton-index.js",
+        "src/indexer/phases/skeleton-summary.js",
+        "src/indexer/phases/skeleton.js",
+        "src/indexer/skeleton-payload.js"
+      ]
+    },
+    {
+      "path": "src/smoke/sections/56-get-node-tool.js",
+      "category": "tooling",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/mcp/tools/getNode.js"
+      ]
+    },
+    {
+      "path": "src/smoke/sections/57-skeleton-carryover.js",
+      "category": "tooling",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/indexer/phases/skeleton-chunk.js",
+        "src/indexer/phases/skeleton.js"
+      ]
+    },
+    {
+      "path": "src/sync.js",
+      "category": "tooling",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/core/config.js",
+        "src/core/doctor-checks.js",
+        "src/core/embedding-profile/config-cache.js",
+        "src/core/env-bootstrap.js",
+        "src/core/qdrant.js",
+        "src/core/settings/service.js",
+        "src/core/storage/factory.js"
+      ]
+    }
+  ]
+}

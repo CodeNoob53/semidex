@@ -1,8 +1,14 @@
-// index-lite.js — the semidex-lite `index` CLI command. spawnFn is a fake
-// (EventEmitter-shaped) child process, matching this repo's own
+// index-lite.js — the semidex-lite `index` CLI command. spawnIndexer is a
+// fake (EventEmitter-shaped) child process, matching this repo's own
 // admin/jobs/registry.js test convention — never spawns a real indexer
 // process. Uses a real createSettingsService against a temp settings.json
 // so the env-provenance sequence itself is exercised, not mocked away.
+//
+// spawnIndexer is the REQUIRED dependency createJobRegistry() accepts
+// (code review, round 4 — see registry.js's own header comment): the
+// `({ args, env }) -> ChildProcess` contract, not the old raw
+// `spawnFn(command, args, opts) -> ChildProcess` node:child_process.spawn
+// shape runIndex() used to pass straight through.
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
@@ -33,7 +39,7 @@ describe('runIndex() — COLLECTION required', () => {
     try {
       const code = await withTempSettingsPath((settingsPath) => runIndex('./docs', {
         settingsPath,
-        spawnFn: () => { spawnCalled = true; return makeFakeChild(); },
+        spawnIndexer: () => { spawnCalled = true; return makeFakeChild(); },
       }));
       assert.equal(code, 1);
       assert.equal(spawnCalled, false);
@@ -50,8 +56,8 @@ describe('runIndex() — spawn + exit handling', () => {
     const code = await withTempSettingsPath((settingsPath) => runIndex('./docs', {
       settingsPath,
       pollIntervalMs: 5,
-      spawnFn: (command, args, opts) => {
-        calls.push({ command, args, opts });
+      spawnIndexer: ({ args, env }) => {
+        calls.push({ args, env });
         const child = makeFakeChild();
         setTimeout(() => child.emit('exit', 0, null), 10);
         return child;
@@ -59,7 +65,7 @@ describe('runIndex() — spawn + exit handling', () => {
     }));
     assert.equal(code, 0);
     assert.equal(calls.length, 1);
-    assert.equal(calls[0].opts.env.COLLECTION, 'test-collection');
+    assert.equal(calls[0].env.COLLECTION, 'test-collection');
   });
 
   it('resolves 1 when the (fake) indexer child exits non-zero', async () => {
@@ -67,7 +73,7 @@ describe('runIndex() — spawn + exit handling', () => {
     const code = await withTempSettingsPath((settingsPath) => runIndex('./docs', {
       settingsPath,
       pollIntervalMs: 5,
-      spawnFn: () => {
+      spawnIndexer: () => {
         const child = makeFakeChild();
         setTimeout(() => child.emit('exit', 1, null), 10);
         return child;
@@ -83,8 +89,8 @@ describe('runIndex() — spawn + exit handling', () => {
       settingsPath,
       pollIntervalMs: 5,
       argv: ['node', 'semidex-lite', 'index', './docs', '--prune-stale'],
-      spawnFn: (command, args, opts) => {
-        calls.push(opts.env);
+      spawnIndexer: ({ args, env }) => {
+        calls.push(env);
         const child = makeFakeChild();
         setTimeout(() => child.emit('exit', 0, null), 10);
         return child;
@@ -100,8 +106,8 @@ describe('runIndex() — spawn + exit handling', () => {
       settingsPath,
       pollIntervalMs: 5,
       argv: ['node', 'semidex-lite', 'index', './docs'],
-      spawnFn: (command, args, opts) => {
-        calls.push(opts.env);
+      spawnIndexer: ({ args, env }) => {
+        calls.push(env);
         const child = makeFakeChild();
         setTimeout(() => child.emit('exit', 0, null), 10);
         return child;
@@ -116,8 +122,8 @@ describe('runIndex() — spawn + exit handling', () => {
     await withTempSettingsPath((settingsPath) => runIndex('./docs', {
       settingsPath,
       pollIntervalMs: 5,
-      spawnFn: (command, args, opts) => {
-        calls.push(opts.env);
+      spawnIndexer: ({ args, env }) => {
+        calls.push(env);
         const child = makeFakeChild();
         setTimeout(() => child.emit('exit', 0, null), 10);
         return child;

@@ -517,9 +517,9 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [],
-    "fullReachable": false,
-    "liteReachable": false,
-    "liteReachablePreShim": false,
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
     "liteTarballStaged": false,
     "liteBrowserBundle": true,
     "recommendedAction": "keep"
@@ -538,9 +538,9 @@
       "src/admin/ui-src/operation-modal.js",
       "src/admin/ui-src/operation-store.js"
     ],
-    "fullReachable": false,
-    "liteReachable": false,
-    "liteReachablePreShim": false,
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
     "liteTarballStaged": false,
     "liteBrowserBundle": true,
     "recommendedAction": "keep"
@@ -554,9 +554,9 @@
       "src/admin/ui-src/dom.js",
       "src/admin/ui-src/structural-renderer.js"
     ],
-    "fullReachable": false,
-    "liteReachable": false,
-    "liteReachablePreShim": false,
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
     "liteTarballStaged": false,
     "liteBrowserBundle": true,
     "recommendedAction": "keep"
@@ -574,9 +574,9 @@
       "src/admin/ui-src/search.js",
       "src/admin/ui-src/toasts.js"
     ],
-    "fullReachable": false,
-    "liteReachable": false,
-    "liteReachablePreShim": false,
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
     "liteTarballStaged": false,
     "liteBrowserBundle": true,
     "recommendedAction": "keep"
@@ -587,9 +587,47 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [],
-    "fullReachable": false,
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": false,
+    "liteBrowserBundle": true,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/admin/ui-src/entries/full.js",
+    "classification": "composition-full",
+    "runtimeCoupling": "none",
+    "entryPoints": [
+      "full"
+    ],
+    "directDependencies": [
+      "src/admin/ui-src/app.css",
+      "src/admin/ui-src/app.js",
+      "src/admin/ui-src/global-settings-view.js",
+      "src/admin/ui-src/jobs-view.js",
+      "src/admin/ui-src/settings-view.js",
+      "src/admin/ui-src/local-features.js"
+    ],
+    "fullReachable": true,
     "liteReachable": false,
     "liteReachablePreShim": false,
+    "liteTarballStaged": false,
+    "liteBrowserBundle": true,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/admin/ui-src/entries/lite.js",
+    "classification": "composition-lite",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/admin/ui-src/app.css",
+      "src/admin/ui-src/app.js"
+    ],
+    "fullReachable": false,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
     "liteTarballStaged": false,
     "liteBrowserBundle": true,
     "recommendedAction": "keep"
@@ -608,9 +646,9 @@
       "src/admin/ui-src/assembly-view.js",
       "src/admin/ui-src/toasts.js"
     ],
-    "fullReachable": false,
-    "liteReachable": false,
-    "liteReachablePreShim": false,
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
     "liteTarballStaged": false,
     "liteBrowserBundle": true,
     "recommendedAction": "keep"
@@ -621,16 +659,16 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [],
-    "fullReachable": false,
-    "liteReachable": false,
-    "liteReachablePreShim": false,
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
     "liteTarballStaged": false,
     "liteBrowserBundle": true,
     "recommendedAction": "keep"
   },
   {
     "path": "src/admin/ui-src/global-settings-view.js",
-    "classification": "mixed",
+    "classification": "shared",
     "runtimeCoupling": "cloud",
     "entryPoints": [],
     "directDependencies": [
@@ -640,12 +678,12 @@
       "src/admin/ui-src/sidebar.js",
       "src/core/embedding-profile/qdrant-cloud-models.js"
     ],
-    "fullReachable": false,
-    "liteReachable": false,
-    "liteReachablePreShim": false,
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
     "liteTarballStaged": false,
     "liteBrowserBundle": true,
-    "recommendedAction": "split"
+    "recommendedAction": "keep"
   },
   {
     "path": "src/admin/ui-src/icons.js",
@@ -653,9 +691,9 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [],
-    "fullReachable": false,
-    "liteReachable": false,
-    "liteReachablePreShim": false,
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
     "liteTarballStaged": false,
     "liteBrowserBundle": true,
     "recommendedAction": "keep"
@@ -666,33 +704,33 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
+      "pkg:edition",
       "src/admin/ui-src/dom.js",
       "src/admin/ui-src/api.js",
       "src/admin/ui-src/operation-modal.js",
       "src/admin/ui-src/operation-store.js"
     ],
-    "fullReachable": false,
-    "liteReachable": false,
-    "liteReachablePreShim": false,
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
     "liteTarballStaged": false,
     "liteBrowserBundle": true,
     "recommendedAction": "keep"
   },
   {
-    "path": "src/admin/ui-src/main.js",
-    "classification": "shared",
+    "path": "src/admin/ui-src/local-features.js",
+    "classification": "local",
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
-      "src/admin/ui-src/app.css",
-      "src/admin/ui-src/app.js"
+      "src/admin/ui-src/api.js"
     ],
-    "fullReachable": false,
+    "fullReachable": true,
     "liteReachable": false,
     "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": true,
-    "recommendedAction": "keep"
+    "recommendedAction": "move"
   },
   {
     "path": "src/admin/ui-src/operation-modal.js",
@@ -706,9 +744,9 @@
       "src/admin/ui-src/operation-render.js",
       "src/admin/ui-src/toasts.js"
     ],
-    "fullReachable": false,
-    "liteReachable": false,
-    "liteReachablePreShim": false,
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
     "liteTarballStaged": false,
     "liteBrowserBundle": true,
     "recommendedAction": "keep"
@@ -721,9 +759,9 @@
     "directDependencies": [
       "src/admin/ui-src/dom.js"
     ],
-    "fullReachable": false,
-    "liteReachable": false,
-    "liteReachablePreShim": false,
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
     "liteTarballStaged": false,
     "liteBrowserBundle": true,
     "recommendedAction": "keep"
@@ -736,9 +774,9 @@
     "directDependencies": [
       "src/admin/ui-src/api.js"
     ],
-    "fullReachable": false,
-    "liteReachable": false,
-    "liteReachablePreShim": false,
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
     "liteTarballStaged": false,
     "liteBrowserBundle": true,
     "recommendedAction": "keep"
@@ -760,9 +798,9 @@
       "src/admin/ui-src/search.js",
       "src/admin/ui-src/routes.js"
     ],
-    "fullReachable": false,
-    "liteReachable": false,
-    "liteReachablePreShim": false,
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
     "liteTarballStaged": false,
     "liteBrowserBundle": true,
     "recommendedAction": "keep"
@@ -773,9 +811,9 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [],
-    "fullReachable": false,
-    "liteReachable": false,
-    "liteReachablePreShim": false,
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
     "liteTarballStaged": false,
     "liteBrowserBundle": true,
     "recommendedAction": "keep"
@@ -793,19 +831,20 @@
       "src/admin/ui-src/sidebar.js",
       "src/admin/ui-src/structural-renderer.js"
     ],
-    "fullReachable": false,
-    "liteReachable": false,
-    "liteReachablePreShim": false,
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
     "liteTarballStaged": false,
     "liteBrowserBundle": true,
     "recommendedAction": "keep"
   },
   {
     "path": "src/admin/ui-src/settings-view.js",
-    "classification": "mixed",
+    "classification": "shared",
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
+      "pkg:edition",
       "src/admin/ui-src/dom.js",
       "src/admin/ui-src/api.js",
       "src/admin/ui-src/state.js",
@@ -813,12 +852,12 @@
       "src/admin/ui-src/operation-modal.js",
       "src/admin/ui-src/operation-store.js"
     ],
-    "fullReachable": false,
-    "liteReachable": false,
-    "liteReachablePreShim": false,
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
     "liteTarballStaged": false,
     "liteBrowserBundle": true,
-    "recommendedAction": "split"
+    "recommendedAction": "keep"
   },
   {
     "path": "src/admin/ui-src/sidebar-resize.js",
@@ -826,9 +865,9 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [],
-    "fullReachable": false,
-    "liteReachable": false,
-    "liteReachablePreShim": false,
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
     "liteTarballStaged": false,
     "liteBrowserBundle": true,
     "recommendedAction": "keep"
@@ -846,9 +885,9 @@
       "src/admin/ui-src/state.js",
       "src/admin/ui-src/icons.js"
     ],
-    "fullReachable": false,
-    "liteReachable": false,
-    "liteReachablePreShim": false,
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
     "liteTarballStaged": false,
     "liteBrowserBundle": true,
     "recommendedAction": "keep"
@@ -859,9 +898,9 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [],
-    "fullReachable": false,
-    "liteReachable": false,
-    "liteReachablePreShim": false,
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
     "liteTarballStaged": false,
     "liteBrowserBundle": true,
     "recommendedAction": "keep"
@@ -877,9 +916,9 @@
       "pkg:remark-gfm",
       "pkg:highlight.js"
     ],
-    "fullReachable": false,
-    "liteReachable": false,
-    "liteReachablePreShim": false,
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
     "liteTarballStaged": false,
     "liteBrowserBundle": true,
     "recommendedAction": "keep"
@@ -892,9 +931,9 @@
     "directDependencies": [
       "src/admin/ui-src/dom.js"
     ],
-    "fullReachable": false,
-    "liteReachable": false,
-    "liteReachablePreShim": false,
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
     "liteTarballStaged": false,
     "liteBrowserBundle": true,
     "recommendedAction": "keep"
@@ -911,9 +950,9 @@
       "src/admin/ui-src/operation-modal.js",
       "src/admin/ui-src/icons.js"
     ],
-    "fullReachable": false,
-    "liteReachable": false,
-    "liteReachablePreShim": false,
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
     "liteTarballStaged": false,
     "liteBrowserBundle": true,
     "recommendedAction": "keep"

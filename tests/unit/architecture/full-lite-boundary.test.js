@@ -116,15 +116,34 @@ describe('full-lite architecture boundary (Phase 1 lock-in)', () => {
     }
   });
 
-  it('admin/jobs/registry.js\'s spawn target resolves to indexer/index.js — item #8 (regression guard for the process.execPath spawn-shape extraction fix)', () => {
-    const node = graph.nodes['src/admin/jobs/registry.js'];
-    assert.ok(node, 'src/admin/jobs/registry.js must exist in the graph');
-    const spawnCalls = node.forkSpawnCalls.filter((c) => c.callee === 'spawn');
-    assert.ok(spawnCalls.length > 0, 'expected at least one spawn() call in src/admin/jobs/registry.js');
-    assert.ok(
-      spawnCalls.some((c) => c.literal && c.resolved === 'src/indexer/index.js'),
-      `expected a spawn() call resolving to src/indexer/index.js, got: ${JSON.stringify(spawnCalls)}`,
-    );
+  it('admin/jobs/spawn-indexer-full.js\'s and spawn-indexer-lite.js\'s spawn targets resolve to indexer/index-full.js and indexer/index-lite.js respectively — item #8 (regression guard for the process.execPath spawn-shape extraction fix)', () => {
+    // Code review, round 4: admin/jobs/registry.js itself no longer
+    // contains any spawn() call at all — it accepts an injected
+    // spawnIndexer({ args, env }) callback instead (a REQUIRED dependency,
+    // no default), specifically so this shared, Lite-staged file never
+    // has to name either edition's literal indexer entry path in its own
+    // source. The actual node:child_process.spawn() call — and each
+    // edition's own literal target — now lives in these two small sibling
+    // files. See registry.js's own header comment for the full rationale.
+    for (const [file, target] of [
+      ['src/admin/jobs/spawn-indexer-full.js', 'src/indexer/index-full.js'],
+      ['src/admin/jobs/spawn-indexer-lite.js', 'src/indexer/index-lite.js'],
+    ]) {
+      const node = graph.nodes[file];
+      assert.ok(node, `${file} must exist in the graph`);
+      const spawnCalls = node.forkSpawnCalls.filter((c) => c.callee === 'spawn');
+      assert.ok(spawnCalls.length > 0, `expected at least one spawn() call in ${file}`);
+      assert.ok(
+        spawnCalls.some((c) => c.literal && c.resolved === target),
+        `expected a spawn() call in ${file} resolving to ${target}, got: ${JSON.stringify(spawnCalls)}`,
+      );
+    }
+    // registry.js itself: confirm the shared file has NO spawn() call of
+    // its own anymore.
+    const registryNode = graph.nodes['src/admin/jobs/registry.js'];
+    assert.ok(registryNode, 'src/admin/jobs/registry.js must exist in the graph');
+    const registrySpawnCalls = registryNode.forkSpawnCalls.filter((c) => c.callee === 'spawn');
+    assert.deepEqual(registrySpawnCalls, [], 'registry.js must contain zero spawn() calls of its own — spawnIndexer is injected');
   });
 
   it('core/ce-rerank.js\'s fork target resolves to core/ce-rerank-worker.js — item #8 (regression guard for the join(__dirname, bareFilename) extraction fix)', () => {
