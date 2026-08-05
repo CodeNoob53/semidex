@@ -6,8 +6,22 @@
 export default async function ({ ok }) {
   console.log('\n[52] resolveRunNumCtx — logic + index.js wiring');
 
-  const { resolveRunNumCtx, resolveNumCtx, generateNavSummaries, buildCollectionSummary, estTokens } =
+  const { resolveRunNumCtx, resolveNumCtx, generateNavSummaries, buildCollectionSummary, estTokens, applySkeletonSummaryCapability } =
     await import('../../indexer/phases/skeleton-summary.js');
+
+  // resolveRunNumCtx()'s own model-max fallback path (exercised below when
+  // the env override is absent/too-small) calls getModelContextLength(),
+  // which requires an injected OllamaSummaryCapability (code review, round
+  // 4 — this module no longer defaults to a real ollama-lazy.js-backed
+  // capability at module scope). A fixed, deterministic stub — never a
+  // real network call — keeps this smoke section's own "model max" cases
+  // exercising the real resolveRunNumCtx() code path without requiring a
+  // live Ollama server.
+  applySkeletonSummaryCapability({
+    generate: async () => 'unused', // this section's generateFn-driven calls override this per-call
+    getModelContextLength: async () => 131072,
+    isThinkingModel: async () => false,
+  });
 
   // ── 1. resolveRunNumCtx pure logic ──────────────────────────────────────────
 

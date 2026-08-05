@@ -10,31 +10,53 @@
 ![Qdrant](https://img.shields.io/badge/Qdrant-vector%20DB-red?logo=qdrant&logoColor=white)
 ![MCP](https://img.shields.io/badge/MCP-compatible-purple)
 
-**Local-first document retrieval and grounded-answer runtime for AI agents and
-applications.**
+**A flexible RAG system for turning document collections into searchable,
+navigable knowledge bases.**
 
-semidex indexes documents into Qdrant, exposes retrieval tools through
-[MCP](https://modelcontextprotocol.io), and provides an early Ask runtime for
-websites, bots, internal tools, and custom applications. Instead of sending an
-entire document library to a model, a client retrieves the relevant evidence
-and can request bounded surrounding context when necessary.
+Retrieval-augmented generation should not require every user to assemble a
+document parser, chunker, embedding model, vector database, retrieval pipeline,
+language model, and frontend. semidex brings those parts together behind one
+open system that can be used through a dashboard, connected to AI agents over
+[MCP](https://modelcontextprotocol.io), or embedded into websites, bots,
+internal tools, and other applications through the Ask API.
 
-The local stack can use BGE-M3 through ONNX Runtime for multilingual dense and
-sparse embeddings, Ollama for local generation, and Qdrant for storage. Ask can
-also use Gemini generation. External generation is optional; document indexing
-and retrieval can run without sending source text to a cloud LLM.
+semidex is intended for more than one type of user. An individual can search
+study materials, notes, or a personal research library. A researcher can work
+with source-backed evidence across many files. Schools and universities can
+make course materials and archives easier to navigate. Organisations can search
+policies, manuals, reports, and technical documentation. Developers can reuse
+the same indexed knowledge instead of rebuilding a RAG pipeline for every
+application.
+
+The system is local-first but not local-only. A full deployment can use BGE-M3
+through ONNX Runtime for multilingual dense and learned-sparse embeddings,
+Ollama for local generation, and Qdrant for storage. The separately installable
+`semidex-lite` package uses Qdrant Cloud Inference and Gemini for a lower-cost,
+cloud-assisted setup without local model infrastructure. Provider choice is a
+deployment decision; the knowledge and retrieval interfaces are designed to
+remain consistent.
+
+Unlike pipelines that reduce documents to anonymous text fragments, semidex
+keeps searchable evidence connected to the source structure. Markdown
+collections retain directories, files, sections, tables, code blocks,
+checklists, and authoritative original content. People and agents can navigate
+from a collection overview to a bounded section, verify where evidence came
+from, and retrieve a complete original entity when it must be displayed.
 
 > **Status:** semidex is a working experimental MVP, not a production-ready
-> assistant platform. Current benchmarks are primarily internal regression
-> suites; external retrieval evaluation and direct competitor comparisons are
-> still required. The current Admin UI is an early debug/administration
+> assistant platform. Retrieval has been evaluated on external datasets,
+> including BEIR SciFact, MIRACL Russian, and multilingual Belebele-derived
+> tests, but broader datasets and direct system-level competitor comparisons
+> are still required. The current Admin UI is an early debug/administration
 > interface under active development, not the finished user dashboard. See
-> [Project Status](#project-status) and the
+> [Project Status](#project-status), the benchmark reports, and the
 > [roadmap](docs/en/roadmap.md).
 
 ## Contents
 
 - [Why semidex](#why-semidex)
+- [Who It Is For](#who-it-is-for)
+- [How It Differs](#how-it-differs)
 - [Requirements](#requirements)
 - [Quick Start](#quick-start)
 - [Models and Providers](#models-and-providers)
@@ -52,12 +74,56 @@ and retrieval can run without sending source text to a cloud LLM.
 | Problem | What semidex provides |
 |---------|-----------------------|
 | Large document collections do not fit into an agent context window | Hybrid retrieval returns a small set of relevant chunks |
-| Tables and code lose meaning when flattened into prose | Optional skeleton-first chunking stores typed structural nodes and their authoritative raw content |
+| Tables and code lose meaning when flattened into prose | Skeleton-first Markdown chunking stores typed structural nodes and their authoritative raw content |
 | Agents need orientation before searching an unfamiliar collection | File, directory, and skeleton navigation tools provide a drill-down map |
 | Semantic search misses exact identifiers | Dense and sparse retrieval combine meaning with lexical evidence |
 | Products repeatedly rebuild RAG orchestration | The Ask runtime is becoming a reusable retrieval, evidence, generation, citation, and refusal boundary |
 | Private data should remain local | Qdrant, ONNX embeddings, Ollama generation, and the Admin UI can all run locally |
 | Indexing should be repeatable | File hashes skip unchanged files and deterministic point IDs make updates idempotent |
+
+## Who It Is For
+
+- **Individuals and students:** search notes, books, course materials, and
+  personal archives without placing every document into an LLM context window.
+- **Researchers:** navigate large collections and inspect the exact chunks,
+  sections, and original entities supporting an answer.
+- **Schools and universities:** build searchable course libraries, teaching
+  assistants, and access layers for institutional knowledge.
+- **Organisations and small businesses:** query policies, procedures, manuals,
+  reports, and technical documentation with local or cloud-assisted deployment.
+- **Developers:** integrate the Ask API into a website or bot, or expose the
+  same collections to independent AI agents through MCP.
+
+## How It Differs
+
+semidex does not claim to have invented local RAG, hybrid search, document
+nodes, or chat with a knowledge base. Its goal is to connect four properties in
+one open system: an approachable user workflow, source-structure-aware
+retrieval, first-class API and MCP access, and a provider-neutral path from
+fully local operation to a lightweight cloud deployment.
+
+The closest projects solve different parts of this problem:
+
+- **AnythingLLM** and **Open WebUI** provide approachable local chat and
+  knowledge-base products. semidex treats an indexed collection as a reusable
+  service shared by the dashboard, external Ask clients, and MCP agents.
+- **RAGFlow** provides an end-to-end RAG engine with deep document processing,
+  while **Dify** focuses on visual application and agent workflows. semidex is
+  narrower: inspectable retrieval, source navigation, and reusable evidence
+  contracts without requiring a larger application platform.
+- **LangChain**, **LlamaIndex**, and **Haystack** provide extensive modular
+  building blocks for developers. semidex packages ingestion, storage, hybrid
+  retrieval, provenance, navigation, administration, and agent/API access as a
+  working system for users who should not have to design that stack first.
+- **Unstructured** specialises in extracting and partitioning complex document
+  formats. semidex can use document parsers, but continues beyond preprocessing
+  by maintaining a navigable collection and linking retrieval fragments to
+  canonical source entities.
+
+This comparison describes the intended product boundary, not a claim that all
+of these goals are complete. The dashboard, non-Markdown structural parsing,
+image/OCR support, and external integration experience are still under active
+development.
 
 ## Requirements
 

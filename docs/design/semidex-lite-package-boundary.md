@@ -141,6 +141,29 @@ declared independently in both `packages/lite/build.mjs` and
 tying the two together. Both now import a single canonical list from
 `packages/lite/lazy-shim-substitutions.mjs`.
 
+**Phase 8A update** (`docs/design/phase-8a-shared-cloud-local-migration-audit-2026-08-02.md`,
+audit/plan only, no shim removed or moved): designed, but did not
+implement, a target replacement for all three shims above — a shared
+capability contract per shim (documented export surface, no backend
+import) with Full composition injecting the real local implementation
+and Lite composition injecting a typed-unavailable stub, matching the
+zero-importer `core/generation/provider.js`/`core/storage/adapter.js`
+contract pattern that already exists elsewhere in this codebase. Also
+confirmed, by direct inspection, that each shim's own dependency on its
+local target (`ollama.js`; `onnx-embed.js`/`length-bucket.js`;
+`tag-onnx.js`) is exactly the `shared → local` edge this package
+boundary exists to prevent, made safe only by the shim's dynamic-import
+indirection plus `packages/lite/build.mjs`'s build-time content
+substitution — not by the dependency direction itself being correct. The
+`tag-onnx-lazy.js` pair's persistent-worker lifecycle and its
+production-incident-derived always-safe-no-op `shutdownOnnxTagWorker()`
+contract (§ above) are called out explicitly as a non-negotiable
+constraint any future contract-based replacement must preserve. See that
+report's own Part D for the full per-shim design and its Part G for the
+staged migration order in which shim removal (Step 8) would actually
+happen — only after every real consumer is moved onto the new injection
+seam, not before.
+
 ## Refactor 2 — deterministic context for legacy (non-Markdown) chunks
 
 `chunk.js` routes PDF/Pandoc/plain-text through the legacy chunker, and

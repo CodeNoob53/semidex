@@ -1191,6 +1191,50 @@ tying them together. Both now import from a single new module,
 `packages/lite/lazy-shim-substitutions.mjs` — see that module's own
 header comment.
 
+### Phase 8A — Audit and migration plan for physical shared/cloud/local separation — IMPLEMENTED (see `docs/design/phase-8a-shared-cloud-local-migration-audit-2026-08-02.md`)
+
+**Post-review correction:** reachability is no longer treated as proof that a
+module is architecturally shared. The dependency-aware manifest now reports
+101 shared, 43 mixed, 16 local, 4 cloud, 10 composition, 61 tooling, and zero
+unclassified modules. Strict direction rules produce zero violations and zero
+`shared -> cloud` edges; provider-coupled orchestration remains visible as
+`mixed` until its composition seam is extracted. MCP is a product runtime
+surface rather than generic tooling.
+
+Audit-and-planning-only phase, explicitly no production file moves. As
+implemented: a full AST-based reachability audit found and fixed two real,
+narrow classifier bugs (the browser-bundle UI entry points
+`admin/ui-src/entries/{full,lite}.js` were never traced as reachability
+roots at all, and a Phase-6-stale hardcoded `'mixed'` special case for
+`global-settings-view.js`/`settings-view.js` no longer reflected the real
+graph) — both confirmed zero-regression against the full existing test
+suite. A new machine-readable, drift-protected manifest
+(`scripts/audit/full-lite-module-classification.json`, built by
+`scripts/audit/build-shared-cloud-local-manifest.mjs`) classifies all 235
+production `src/` modules into `shared`/`cloud`/`local`/`composition`/
+`tooling`/`mixed`/`unclassified`. A new violation finder
+(`scripts/audit/find-dependency-violations.mjs`) found **zero** real
+`shared→local`/`cloud→local`/`local→cloud` violations; the 12 real
+`shared→cloud` edges were individually inspected and confirmed to be the
+same established, reviewed provider-neutral pattern this codebase already
+uses elsewhere (e.g. `generation/registry.js`'s unconditional
+`gemini-provider.js` + `ollama-provider.js` references), not a direction
+problem to fix. Confirmed, by direct inspection, that each of the 3
+remaining `*-lazy.js` shims (kept per Phase 7) is exactly a build-time
+compensation for a real `shared→local` edge that would otherwise be
+static — and designed (not implemented) a shared-contract +
+composition-injection replacement for each, preserving
+`tag-onnx-lazy.js`'s persistent-worker lifecycle and its
+production-incident-derived always-safe-no-op `shutdownOnnxTagWorker()`
+contract. Produced a concrete target physical tree, an argued
+recommendation for allow-list Lite staging (over entry-closure staging)
+to be adopted only once the physical move exists, and a 10-step staged
+migration plan (Phase 8's own physical move, broken down in detail) —
+see the linked report for the full breakdown. New architecture baseline
+tests (`tests/unit/architecture/shared-cloud-local-manifest.test.js`, 19
+tests) lock in today's zero-violation state and the manifest's own
+drift-freedom, verified via deliberate regression injection.
+
 ### Phase 8 — Narrow npm staging to the real, now-directory-enforced shared+cloud closure
 
 Files: `packages/lite/build.mjs`'s `EXCLUDE_FILES` list, potentially
@@ -1199,6 +1243,12 @@ Phases 3–7 have produced a real `local/` directory by this point. Risk:
 this is the FIRST phase that could plausibly involve a real file move —
 explicitly sequenced last, matching the task's own required ordering
 ("only after this point consider physical file movement").
+
+**Superseded/detailed by Phase 8A's own 10-step staged plan** (§ above) —
+Phase 8A's Steps 1–10 are the concrete execution of what this paragraph
+described only abstractly; that report's staging-strategy recommendation
+(allow-list, Step 9) is the answer to this phase's own open
+`EXCLUDE_DIRS` question.
 
 **No single giant refactor commit is proposed anywhere in this plan.**
 Each phase above is sized to be its own PR.
