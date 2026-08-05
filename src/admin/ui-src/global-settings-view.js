@@ -226,7 +226,7 @@ let lastFetchedPayload = null; // full GET /api/settings response
 // dynamicOptions (avoids fetching /api/ollama-models for categories that
 // never need it, e.g. retrieval/system). null before the first fetch for a
 // category that needs it; { available, reason, models } afterward — see
-// core/ollama-models.js for the shape.
+// local/core/ollama-models.js for the shape.
 let lastOllamaModels = null;
 
 // Same shape/lifecycle as lastOllamaModels, but for the provider-neutral

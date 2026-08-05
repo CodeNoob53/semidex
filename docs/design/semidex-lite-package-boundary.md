@@ -180,6 +180,26 @@ architectural-boundary change, and `ollama.js`/`tag-onnx.js` (the other two
 shims' local targets) remain at their original `core/`/`indexer/phases/`
 locations pending Steps 3–4.
 
+**Phase 8B Step 3 update** (`docs/design/phase-8b-step3-local-ollama-relocation-2026-08-05.md`,
+implemented): the Ollama half of the local target this paragraph and
+Refactor 1 below describe — `core/ollama.js` and `core/ollama-models.js` —
+physically moved to `local/core/ollama.js`/`local/core/ollama-models.js`.
+`core/ollama-lazy.js`'s own dynamic-import specifier is the only thing
+inside the shim that changed (`await import('../local/core/ollama.js')`);
+`packages/lite/build.mjs`'s `EXCLUDE_FILES` no longer names either file
+individually — both are covered by the same `'local'` `EXCLUDE_DIRS` entry
+Step 2 introduced. This step ALSO went beyond a pure path rename: the five
+indexer phase modules (`context.js`/`tag.js`/`combined.js`/
+`skeleton-summary.js`/`preflight.js`) that consumed their Ollama capability
+via a module-scope `apply*Capability()` setter (Phase 8B Step 1's own
+design) were converted to genuine instance-scoped injection — each function
+now takes its capability as a real parameter, resolved once per
+`indexer/run.js`'s own `run()` call and threaded through explicitly, with no
+module-scope binding left in any of the five files for a concurrently
+constructed Full/Lite composition to contaminate. `tag-onnx.js` (the one
+remaining shim's local target) remains at its original
+`indexer/phases/tag-onnx.js` location pending Step 4.
+
 ## Refactor 2 — deterministic context for legacy (non-Markdown) chunks
 
 `chunk.js` routes PDF/Pandoc/plain-text through the legacy chunker, and

@@ -139,10 +139,10 @@ describe('the four contracts partition core/ollama-lazy.js\'s real export surfac
 });
 
 describe('ollama-capability.js — zero backend imports (contract, not implementation)', () => {
-  test('the contract module source has no import of core/ollama.js, ollama-lazy.js, onnxruntime-node, or @huggingface/transformers', () => {
+  test('the contract module source has no import of local/core/ollama.js, ollama-lazy.js, onnxruntime-node, or @huggingface/transformers', () => {
     const src = readFileSync(new URL('../../../../src/core/generation/ollama-capability.js', import.meta.url), 'utf-8');
     const codeOnly = src.split('\n').filter((line) => !line.trim().startsWith('//')).join('\n');
-    assert.ok(!/from ['"].*ollama\.js['"]/.test(codeOnly), 'must not import core/ollama.js');
+    assert.ok(!/from ['"].*ollama\.js['"]/.test(codeOnly), 'must not import local/core/ollama.js');
     assert.ok(!/from ['"].*ollama-lazy\.js['"]/.test(codeOnly), 'must not import core/ollama-lazy.js');
     assert.ok(!/onnxruntime-node/.test(codeOnly), 'must not reference onnxruntime-node');
     assert.ok(!/@huggingface\/transformers/.test(codeOnly), 'must not reference @huggingface/transformers');

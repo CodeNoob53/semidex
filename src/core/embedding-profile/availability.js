@@ -122,7 +122,7 @@ const RESOLVE_REASON_TO_COLLECTION_STATUS = {
  * checkOllamaLane/checkOnnxModelCached are REQUIRED DI params — no default
  * implementation lives in core/. Callers with different infra needs
  * (Admin API has src/admin/system/ollama.js already; MCP builds an
- * equivalent tiny wrapper directly from core/ollama.js's primitives)
+ * equivalent tiny wrapper directly from local/core/ollama.js's primitives)
  * supply their own. core/embedding-profile/availability.js itself never
  * imports Ollama-probing code, only accepts it as a function parameter.
  *

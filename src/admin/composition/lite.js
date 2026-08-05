@@ -55,7 +55,7 @@ import { REQUIRED_ONNX_EMBED_CAPABILITY_METHODS } from '../../core/onnx-embed-ca
 // EXCLUDE_FILES comment). The typed error classes are therefore small,
 // local, throwaway classes here — not a reuse of the *-lazy.lite.js
 // shim's own class — since this file must never statically depend on
-// core/ollama.js/local/core/onnx-embed.js either way.
+// local/core/ollama.js/local/core/onnx-embed.js either way.
 class OllamaNotAvailableInLiteCompositionError extends Error {
   constructor(fnName) {
     super(`${fnName}() is not available in Semidex Lite — Ollama is a local-only provider and is not included in this package.`);
@@ -89,7 +89,7 @@ function unavailableOnnxEmbedCapability() {
 // and its generation-models route is the Gemini-only variant — so none of
 // their handlers, and none of the modules behind them
 // (admin/api/onnx.js -> local/core/onnx-provider-probe.js, admin/system/ollama.js
-// -> core/ollama.js, admin/api/ollama-models.js -> core/ollama-models.js),
+// -> local/core/ollama.js, admin/api/ollama-models.js -> local/core/ollama-models.js),
 // are ever imported by this function's own call graph. jobPolicy defaults
 // to a cloud-safe policy (no onnxEmbed/llmSummaries/tagGen; pruneStale
 // stays allowed — pure Qdrant-Cloud-compatible stale cleanup) and no

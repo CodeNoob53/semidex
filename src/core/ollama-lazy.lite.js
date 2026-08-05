@@ -1,13 +1,13 @@
 // Semidex Lite staging replacement for core/ollama-lazy.js.
 //
-// core/ollama.js is NOT shipped in the Lite tarball (it is a local
+// local/core/ollama.js is NOT shipped in the Lite tarball (it is a local
 // provider client Lite does not support) — so ollama-lazy.js's real
-// `await import('./ollama.js')` is a literal dynamic-import target that
-// would resolve to nothing in a Lite install, throwing ERR_MODULE_NOT_FOUND
-// if it were ever reached. The Lite package-closure build (build.mjs) never
-// stages ollama.js NOR the real ollama-lazy.js — it substitutes THIS file
-// under the same path (core/ollama-lazy.js) instead, so every caller's
-// import specifier is unchanged.
+// `await import('../local/core/ollama.js')` is a literal dynamic-import
+// target that would resolve to nothing in a Lite install, throwing
+// ERR_MODULE_NOT_FOUND if it were ever reached. The Lite package-closure
+// build (build.mjs) never stages ollama.js NOR the real ollama-lazy.js —
+// it substitutes THIS file under the same path (core/ollama-lazy.js)
+// instead, so every caller's import specifier is unchanged.
 //
 // Every export below throws a typed, clearly-labeled error instead of
 // attempting any import. This is a policy rejection, not a runtime import

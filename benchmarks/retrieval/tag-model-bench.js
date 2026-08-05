@@ -137,7 +137,7 @@ async function runScenario(scenario, rawChunks) {
   const ctxStart = Date.now();
   const contextChunks = [];
 
-  const { generate } = await import('../../src/core/ollama.js');
+  const { generate } = await import('../../src/local/core/ollama.js');
 
   for (const chunk of rawChunks) {
     const prompt = `You are a document indexer assistant. For the following text chunk, provide a 1-2 sentence context description that explains what this chunk is about and how it fits in the broader document. This context will be prepended to the chunk for embedding to improve retrieval.

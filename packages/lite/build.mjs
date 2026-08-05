@@ -54,7 +54,7 @@ const EXCLUDE_DIRS = [
   'mcp', // separate entry point, not part of the Lite cloud API/CLI surface
   'smoke', // dev-only test harness, never shipped
   'test-fixtures', // smoke-test-only fixtures (src/smoke/sections/17-pdf-fixture.js is the only consumer, and smoke/ itself is already excluded above)
-  'local', // Phase 8B Step 2 — the physically relocated local-runtime tree (onnx-embed.js, onnx-runtime.js, onnx-probe-runner.js, onnx-provider-probe.js, length-bucket.js under local/core/, and any future local-runtime file moved here) — excluded by directory rather than by individual EXCLUDE_FILES entry, since every file under this directory is local-only by construction of where it physically lives.
+  'local', // Phase 8B Steps 2-3 — the physically relocated local-runtime tree (local/core/: onnx-embed.js, onnx-runtime.js, onnx-probe-runner.js, onnx-provider-probe.js, length-bucket.js, ollama.js, ollama-models.js, and any future local-runtime file moved here) — excluded by directory rather than by individual EXCLUDE_FILES entry, since every file under this directory is local-only by construction of where it physically lives.
 ];
 
 const EXCLUDE_FILES = [
@@ -68,22 +68,24 @@ const EXCLUDE_FILES = [
   'core/ce-rerank-worker.js',
   'indexer/phases/tag-onnx.js',
   'indexer/workers/tag-onnx-worker.js',
-  // Local-only Ollama modules.
+  // Local-only Ollama modules. ollama.js/ollama-models.js are no longer
+  // listed here individually — Phase 8B Step 3 physically relocated both
+  // to local/core/, so EXCLUDE_DIRS's own 'local' entry now excludes them
+  // by directory, the same as the ONNX runtime files before them (Phase
+  // 8B Step 2).
   //
   // core/generation/ollama-provider.js is NOT in this list — it is kept.
   // generation/registry.js's BACKENDS map references createOllamaProvider
   // unconditionally (only ever CALLED when backend === 'ollama'), so it
   // must be a real staged file, not excluded. It is safe to keep because
   // (code review, round 4) it no longer imports core/ollama-lazy.js/
-  // core/ollama.js at all — its own five *Fn options default to typed-
-  // unavailable stubs; the REAL ollama-lazy.js-backed functions are
+  // local/core/ollama.js at all — its own five *Fn options default to
+  // typed-unavailable stubs; the REAL ollama-lazy.js-backed functions are
   // supplied only by admin/bootstrap.js (Full-only, excluded below), via
   // createGenerationRuntime's own createGenerationProviderFn DI seam. Its
   // methods are reachable from Lite only if registry.js's BACKENDS.ollama
   // were actually SELECTED, which Lite's CLI hard pin
   // (SEMIDEX_GENERATION_BACKEND=gemini) prevents regardless.
-  'core/ollama.js',
-  'core/ollama-models.js',
   'admin/system/ollama.js',
   // core/ollama-lazy.js, core/onnx-embed-lazy.js, and
   // indexer/phases/tag-onnx-lazy.js (code review, round 4 — previously

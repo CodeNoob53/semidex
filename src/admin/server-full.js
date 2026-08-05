@@ -21,7 +21,7 @@ import { registerOllamaStatusRoutes } from './api/system.js';
 import { registerOnnxRoutes } from './api/onnx.js';
 import { registerOllamaModelsRoutes } from './api/ollama-models.js';
 import { registerGenerationModelsRoutes } from './api/generation-models.js';
-import { discoverOllamaModels } from '../core/ollama-models.js';
+import { discoverOllamaModels } from '../local/core/ollama-models.js';
 import { checkOllama } from './system/ollama.js';
 import { createSettingsService } from '../core/settings/service.js';
 import { registerNeutralRoutes, createHttpServer } from './register-neutral-routes.js';
@@ -83,7 +83,7 @@ export function createApp({
   // discoverOllamaModelsFn is optional DI (tests inject a stub so unit
   // tests never probe a real Ollama instance) — same convention as
   // checkOllamaFn below. Full-only: this module is the one place that
-  // imports core/ollama-models.js and passes it through.
+  // imports local/core/ollama-models.js and passes it through.
   registerOllamaModelsRoutes(router, { settingsService: settings, ...(discoverOllamaModelsFn ? { discoverOllamaModelsFn } : {}) });
   registerNeutralRoutes(router, {
     adapter, embedQuery: resolvedEmbedQuery, jobRegistry: resolvedJobRegistry, taskRegistry, assemblyLogFn, pickFolderFn,

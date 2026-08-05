@@ -24,7 +24,10 @@
 > entry below):** `core/onnx-embed.js` and its 4 siblings have since
 > physically moved to `src/local/core/`; `core/ollama.js` and
 > `indexer/phases/tag-onnx.js` remain at their original paths pending
-> Steps 3–4.
+> Steps 3–4. **Update (Step 3, see §7's own Step 3 entry below):**
+> `core/ollama.js` and `core/ollama-models.js` have since physically moved
+> to `src/local/core/` too; `indexer/phases/tag-onnx.js` remains at its
+> original path pending Step 4.
 
 > **Review correction (2026-08-02).** The initial report treated runtime
 > reachability as architectural identity and therefore mislabeled 12 direct
@@ -314,7 +317,7 @@ shared contract
   `core/generation/ollama-provider.js`, `indexer/phases/{combined,context,tag,skeleton-summary}.js`,
   `indexer/preflight.js`, `indexer/run.js`.
 - **Minimal contract**: `{ generate, embed, getModelContextLength, isThinkingModel, getOllamaEmbeddingDimension, isOllamaReachable, listOllamaModels, generateStream, validateOllamaModels }` — exactly `core/ollama-lazy.js`'s own current export surface, no more (this codebase already has the discipline of a minimal contract; `core/generation/provider.js`'s `GenerationProvider` JSDoc typedef is the closest existing precedent for how such a contract would be documented).
-- **Who owns the implementation**: `core/ollama.js` (unchanged) for Full; a thin `unavailable()`-typed-error object (unchanged in spirit from today's `.lite.js` shim) for Lite.
+- **Who owns the implementation**: `core/ollama.js` (paths as they existed when this design section was written, before Step 3's physical move — now `local/core/ollama.js`; unchanged in every other respect) for Full; a thin `unavailable()`-typed-error object (unchanged in spirit from today's `.lite.js` shim) for Lite.
 - **Where injection happens**: the natural seam is `indexer/index.js` (the one real Full/Lite-shared entry both `admin/jobs/registry.js`'s spawn AND direct CLI invocation go through) or, one level up, wherever `applyAllSettings()`/`run()` is composed — NOT inside `embeddings.js`/`run.js` themselves, which should keep calling a contract-shaped parameter, never `process.env` or a module-level singleton they resolve themselves.
 - **Persistent worker lifecycle**: none needed — every `ollama-lazy.js` export is a stateless async wrapper around an HTTP call; no child process, no singleton state beyond the module-cache `_mod` reference itself.
 - **Typed errors**: preserved trivially — the Lite implementation object's methods already throw `OllamaNotAvailableInLiteError` today; a composition-injected object would do the same.
@@ -390,21 +393,28 @@ src/
     admin/
       api/qdrant-cloud.js
       system/qdrant-cloud.js
-  local/           (16 files today; 5 physically relocated as of Step 2 —
-                     see that step's own "IMPLEMENTED" note above; the
-                     remaining 11 are still physically at their ORIGINAL
-                     src/ locations pending Steps 3–4)
+  local/           (16 files today; 7 physically relocated as of Step 3 —
+                     see that step's own and Step 2's "IMPLEMENTED" notes
+                     above; the remaining 9 are still physically at their
+                     ORIGINAL src/ locations pending Step 4)
     core/
       onnx-embed.js, onnx-runtime.js, onnx-probe-runner.js,
       onnx-provider-probe.js, length-bucket.js — MOVED (Step 2, real,
       physically at src/local/core/ today)
-      ollama.js, ollama-models.js — NOT YET MOVED (Step 3; still at
-      src/core/ today)
+      ollama.js, ollama-models.js — MOVED (Step 3, real, physically at
+      src/local/core/ today)
       ce-rerank.js, ce-rerank-worker.js, rerank.js (pending the §3.3
       move-to-shared question; NOT YET MOVED regardless)
     admin/
-      api/onnx.js, api/ollama-models.js, system/ollama.js — NOT YET MOVED
-      (Step 3; still at src/admin/ today)
+      api/onnx.js, api/ollama-models.js, system/ollama.js — NOT physically
+      moved and NOT planned to move — Step 3's own execution found both
+      ollama-models.js/onnx.js under admin/api/ and system/ollama.js under
+      admin/system/ are thin wrapper/route files, not genuine Ollama
+      implementation, so this plan's own original Step 3 file list (which
+      included them) was narrowed at execution time — see that step's own
+      "IMPLEMENTED" note for the reasoning. Correctly classified `local` by
+      classify-modules.mjs via their own dependency on the real
+      implementation, not by physical location.
     indexer/
       phases/tag-onnx.js, workers/tag-onnx-worker.js — NOT YET MOVED
       (Step 4; still at src/indexer/ today)
@@ -726,7 +736,7 @@ list (via `build.mjs`'s real `stageSrc()`, not a simulation) contains zero
 files under `local/` at all — a stronger claim than "unreachable," since it
 confirms the directory is never even copied.
 
-### Step 3 — Physically relocate the Ollama generation/context runtime
+### Step 3 — Physically relocate the Ollama generation/context runtime — IMPLEMENTED (see `docs/design/phase-8b-step3-local-ollama-relocation-2026-08-05.md`)
 
 **Files**: `core/ollama.js`, `core/ollama-models.js`,
 `admin/system/ollama.js`, `admin/api/ollama-models.js` → `src/local/`.
@@ -734,6 +744,26 @@ confirms the directory is never even copied.
 **Depends on**: Step 1.
 **Tests/exit gate**: same shape as Step 2.
 **Separate PR**: yes. **Rollback boundary**: independent of Step 2.
+
+As implemented: only `core/ollama.js` and `core/ollama-models.js` — the two
+genuine Ollama-implementation files — physically moved, to
+`src/local/core/`. `admin/system/ollama.js` and `admin/api/ollama-models.js`
+were audited and found to be thin wrapper/route files (a readiness-check
+wrapper and an HTTP route handler respectively), not implementation —
+per this step's own explicit scope ("не перенось orchestration, доменні
+контракти або загальні generation abstractions тільки через те, що зараз
+вони викликають Ollama"), both stay at their original `admin/` paths,
+already correctly classified `local` by `classify-modules.mjs` via their
+own dependency on the real implementation, not by their own physical
+location. This step also converted the five indexer phase modules
+(`context.js`/`tag.js`/`combined.js`/`skeleton-summary.js`/`preflight.js`)
+from Step 1's module-scope `apply*Capability()` setters to genuine
+instance-scoped capability injection — a deliberate broadening of this
+step's original "pure path rename" scope, done because the setter pattern
+technically left mutable module-scope state a concurrently constructed
+Full/Lite composition (or two sequential runs) could theoretically
+contaminate, even though the real process topology (indexer CLI = one
+edition per OS process) made this a latent, not live, risk.
 
 ### Step 4 — Physically relocate local tagging workers
 

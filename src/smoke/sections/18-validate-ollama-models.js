@@ -1,7 +1,7 @@
 export default async function ({ ok }) {
   console.log('\n[18] validateOllamaModels (pure, no network)');
 
-  const { validateOllamaModels } = await import('../../core/ollama.js');
+  const { validateOllamaModels } = await import('../../local/core/ollama.js');
 
   // All models present — exact match
   ok('all present (exact) → null',

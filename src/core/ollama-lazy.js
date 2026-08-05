@@ -1,17 +1,20 @@
-// Lazy accessor for core/ollama.js. Every indexer/retrieval module that
-// talks to a local Ollama server reaches its Ollama functions THROUGH this
-// module's dynamic loader instead of statically `import`ing core/ollama.js
-// — so that merely importing such a module never pulls core/ollama.js (and
-// its `import 'dotenv/config'` + fetch client) into the module graph.
+// Lazy accessor for local/core/ollama.js (Phase 8B Step 3 — physically
+// relocated from core/ to local/core/; this file's own dynamic-import
+// specifier below is the only thing that changed). Every indexer/retrieval
+// module that talks to a local Ollama server reaches its Ollama functions
+// THROUGH this module's dynamic loader instead of statically `import`ing
+// ollama.js directly — so that merely importing such a module never pulls
+// ollama.js (and its `import 'dotenv/config'` + fetch client) into the
+// module graph.
 //
 // Why this matters: Semidex Lite is a cloud-only distribution that must
-// provably never load or contact a local Ollama. core/ollama.js is a light
-// dotenv+fetch client (no heavy native dep), but it is still a LOCAL
+// provably never load or contact a local Ollama. local/core/ollama.js is a
+// light dotenv+fetch client (no heavy native dep), but it is still a LOCAL
 // provider Lite does not ship. With the static edges cut and replaced by
-// these lazy loaders, core/ollama.js enters the module graph ONLY when a
-// local Ollama call is actually about to run — which in Lite (cloud
-// providers, deterministic context, tags off, no Ollama preflight) never
-// happens, making the import-isolation guarantee real.
+// these lazy loaders, ollama.js enters the module graph ONLY when a local
+// Ollama call is actually about to run — which in Lite (cloud providers,
+// deterministic context, tags off, no Ollama preflight) never happens,
+// making the import-isolation guarantee real.
 //
 // Full-Semidex behavior is observably unchanged: the same functions run,
 // resolved one dynamic-import hop later; the module is cached after first
@@ -23,7 +26,7 @@
 let _mod = null;
 
 async function loadOllama() {
-  if (!_mod) _mod = await import('./ollama.js');
+  if (!_mod) _mod = await import('../local/core/ollama.js');
   return _mod;
 }
 
@@ -59,10 +62,9 @@ export async function generateStream(...args) {
   return (await loadOllama()).generateStream(...args);
 }
 
-// validateOllamaModels is synchronous in core/ollama.js (a pure array
-// comparison). Wrapped here it returns a Promise — the single Lite-graph
-// caller (indexer/preflight.js) awaits it. Ollama-native callers keep the
-// direct sync import.
+// validateOllamaModels is synchronous in ollama.js (a pure array
+// comparison). Wrapped here it returns a Promise. Ollama-native callers
+// keep the direct sync import.
 export async function validateOllamaModels(...args) {
   return (await loadOllama()).validateOllamaModels(...args);
 }

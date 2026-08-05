@@ -71,7 +71,7 @@ if (isMainModule) {
   // core/generation/ollama-provider.js no longer statically (or
   // dynamically) imports core/ollama-lazy.js itself (code review, round 4
   // — that import gave generation/registry.js's BACKENDS map a real static
-  // edge onto core/ollama.js, reachable from Lite's own module graph
+  // edge onto local/core/ollama.js, reachable from Lite's own module graph
   // regardless of Lite's SEMIDEX_GENERATION_BACKEND=gemini hard pin, since
   // the map references createOllamaProvider unconditionally). This file is
   // Full-only (excluded from the Lite package entirely — see

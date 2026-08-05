@@ -16,13 +16,26 @@ new file). Three transitional lazy seams (`core/ollama-lazy.js`,
 `core/onnx-embed-lazy.js`, `indexer/phases/tag-onnx-lazy.js`) still remain in
 place after Step 2, exactly as expected — they are not scheduled for removal
 until Step 8, once every consumer is fully migrated onto direct capability
-injection with no module-scope default of its own. **Step 3** (physically
-relocating the Ollama generation/context runtime — `core/ollama.js`,
-`core/ollama-models.js`, `admin/system/ollama.js`, `admin/api/ollama-models.js`)
-and **Step 4** (physically relocating local tagging workers —
-`indexer/phases/tag-onnx.js`, `indexer/workers/tag-onnx-worker.js`) have
-**not** been executed — both remain future work, tracked in Phase 8A's own
-§7. Nothing was committed by either step's own work session.
+injection with no module-scope default of its own.
+
+**Step 3** (physically relocating the Ollama generation/context runtime)
+has since been implemented too — see the dedicated report,
+[`phase-8b-step3-local-ollama-relocation-2026-08-05.md`](phase-8b-step3-local-ollama-relocation-2026-08-05.md),
+not a §13 appended here. That step's own execution narrowed its file scope
+from this plan's original list (`core/ollama.js`, `core/ollama-models.js`,
+`admin/system/ollama.js`, `admin/api/ollama-models.js`) to just the two
+genuine implementation files (`ollama.js`, `ollama-models.js`) — the two
+`admin/` files turned out to be thin wrapper/route files, not
+implementation, and stayed in place; see that report for the reasoning.
+Step 3 also went beyond a pure path rename: the five indexer phase modules
+that used a module-scope `apply*Capability()` setter (this document's own
+§§0–11 design) were converted to genuine instance-scoped capability
+injection, closing a latent (not live, but real) cross-contamination gap
+the setter pattern left open. **Step 4** (physically relocating local
+tagging workers — `indexer/phases/tag-onnx.js`,
+`indexer/workers/tag-onnx-worker.js`) has **not** been executed — it
+remains future work, tracked in Phase 8A's own §7. Nothing was committed by
+any of these steps' own work sessions.
 
 ## 0. Code review fixes (applied after the initial implementation)
 

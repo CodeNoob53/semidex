@@ -59,18 +59,22 @@ describe('Phase 8B Step 2 — no production source file references the old src/c
   // own doc-comment mentions of the old paths as a false positive.
   const SCAN_ROOTS = ['src', 'benchmarks', 'scripts'].map((d) => join(REPO_ROOT, d));
 
-  // Segment-based check, not a regex — a regex anchored on "core/<file>.js"
-  // cannot distinguish the OLD path (".../core/onnx-embed.js") from the NEW
-  // one (".../local/core/onnx-embed.js"), since both literally end in
-  // "core/onnx-embed.js". Splitting into path segments and checking the
-  // segment immediately before "core" is never "local" is unambiguous.
-  function isOldMovedFilePath(specifier) {
-    const segments = specifier.split('/').filter(Boolean);
-    const filename = segments[segments.length - 1];
-    if (!MOVED_FILES.includes(filename)) return false;
-    const coreIdx = segments.length - 2;
-    if (coreIdx < 0 || segments[coreIdx] !== 'core') return false;
-    return segments[coreIdx - 1] !== 'local';
+  // Real path resolution, not a segment/regex heuristic (code review, found
+  // during Phase 8B Step 3's own equivalent test: a segment-based check
+  // that only looks for a literal "core/" segment in the specifier text
+  // cannot catch a same-directory relative import like './onnx-embed.js' —
+  // it has no "core/" segment at all — so a regression where a *-lazy.js
+  // seam's own dynamic import reverted to './onnx-embed.js' instead of
+  // '../local/core/onnx-embed.js' would silently pass. Resolving the
+  // specifier against the importing file's own directory and comparing the
+  // ABSOLUTE result to the old (deleted) src/core/ location is unambiguous
+  // regardless of how many "../"/"./" segments separate the two, and
+  // regardless of whether "core/" appears in the specifier text at all.
+  const OLD_ABS_PATHS = new Set(MOVED_FILES.map((name) => join(REPO_ROOT, 'src', 'core', name)));
+  function isOldMovedFilePath(specifier, importingFile) {
+    if (!specifier.startsWith('.')) return false;
+    const resolved = resolve(dirname(importingFile), specifier);
+    return OLD_ABS_PATHS.has(resolved);
   }
 
   function walk(dir, out = []) {
@@ -102,7 +106,7 @@ describe('Phase 8B Step 2 — no production source file references the old src/c
           const match = line.match(/from\s+['"]([^'"]+)['"]|require\(\s*['"]([^'"]+)['"]\s*\)|import\(\s*['"]([^'"]+)['"]\s*\)/);
           if (!match) continue;
           const specifier = match[1] || match[2] || match[3];
-          if (isOldMovedFilePath(specifier)) {
+          if (isOldMovedFilePath(specifier, file)) {
             offenders.push({ file: file.replace(REPO_ROOT, '').replace(/\\/g, '/'), specifier });
           }
         }

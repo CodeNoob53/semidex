@@ -47,7 +47,7 @@ const REAL_LAZY_MODULES = [
 ];
 
 const LOCAL_RUNTIME_TARGETS = [
-  'src/core/ollama.js',
+  'src/local/core/ollama.js',
   'src/local/core/onnx-embed.js',
   'src/indexer/phases/tag-onnx.js',
   'src/indexer/workers/tag-onnx-worker.js',
@@ -62,7 +62,7 @@ describe('Lite -> local-runtime edges are structurally ABSENT (code review, roun
     assert.deepEqual(leaked, [], `expected zero real *-lazy.js modules reachable from Lite, found: ${JSON.stringify(leaked)}`);
   });
 
-  it('none of the local-runtime targets those *-lazy.js modules would have led to (core/ollama.js, local/core/onnx-embed.js, indexer/phases/tag-onnx.js and its worker) are reachable from Lite roots either, PRE-shim', () => {
+  it('none of the local-runtime targets those *-lazy.js modules would have led to (local/core/ollama.js, local/core/onnx-embed.js, indexer/phases/tag-onnx.js and its worker) are reachable from Lite roots either, PRE-shim', () => {
     const reachable = computeReachable(graph, liteSyntheticRoots, { applyLiteShims: false });
     const leaked = LOCAL_RUNTIME_TARGETS.filter((m) => reachable.has(m));
     assert.deepEqual(leaked, [], `expected zero local-runtime targets reachable from Lite, found: ${JSON.stringify(leaked)}`);

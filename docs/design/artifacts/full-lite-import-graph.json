@@ -109,8 +109,6 @@
     "src/core/node-id.js",
     "src/core/ollama-lazy.js",
     "src/core/ollama-lazy.lite.js",
-    "src/core/ollama-models.js",
-    "src/core/ollama.js",
     "src/core/onnx-embed-capability.js",
     "src/core/onnx-embed-lazy.js",
     "src/core/onnx-embed-lazy.lite.js",
@@ -172,6 +170,8 @@
     "src/indexer/skeleton-warnings.js",
     "src/indexer/workers/tag-onnx-worker.js",
     "src/local/core/length-bucket.js",
+    "src/local/core/ollama-models.js",
+    "src/local/core/ollama.js",
     "src/local/core/onnx-embed.js",
     "src/local/core/onnx-probe-runner.js",
     "src/local/core/onnx-provider-probe.js",
@@ -425,9 +425,9 @@
           "resolved": "src/core/doctor-checks.js"
         },
         {
-          "specifier": "../../core/ollama-models.js",
+          "specifier": "../../local/core/ollama-models.js",
           "kind": "relative",
-          "resolved": "src/core/ollama-models.js"
+          "resolved": "src/local/core/ollama-models.js"
         }
       ],
       "dynamicImports": [],
@@ -960,9 +960,9 @@
           "resolved": "src/admin/api/generation-models.js"
         },
         {
-          "specifier": "../core/ollama-models.js",
+          "specifier": "../local/core/ollama-models.js",
           "kind": "relative",
-          "resolved": "src/core/ollama-models.js"
+          "resolved": "src/local/core/ollama-models.js"
         },
         {
           "specifier": "./system/ollama.js",
@@ -1074,9 +1074,9 @@
     "src/admin/system/ollama.js": {
       "staticImports": [
         {
-          "specifier": "../../core/ollama.js",
+          "specifier": "../../local/core/ollama.js",
           "kind": "relative",
-          "resolved": "src/core/ollama.js"
+          "resolved": "src/local/core/ollama.js"
         }
       ],
       "dynamicImports": [],
@@ -1873,6 +1873,12 @@
           "literal": true,
           "kind": "relative",
           "resolved": "src/indexer/phases/tag-onnx.js"
+        },
+        {
+          "specifier": "./core/ollama-lazy.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/core/ollama-lazy.js"
         }
       ],
       "requireCalls": [],
@@ -2617,10 +2623,10 @@
       "staticImports": [],
       "dynamicImports": [
         {
-          "specifier": "./ollama.js",
+          "specifier": "../local/core/ollama.js",
           "literal": true,
           "kind": "relative",
-          "resolved": "src/core/ollama.js"
+          "resolved": "src/local/core/ollama.js"
         }
       ],
       "requireCalls": [],
@@ -2628,30 +2634,6 @@
     },
     "src/core/ollama-lazy.lite.js": {
       "staticImports": [],
-      "dynamicImports": [],
-      "requireCalls": [],
-      "forkSpawnCalls": []
-    },
-    "src/core/ollama-models.js": {
-      "staticImports": [
-        {
-          "specifier": "./ollama.js",
-          "kind": "relative",
-          "resolved": "src/core/ollama.js"
-        }
-      ],
-      "dynamicImports": [],
-      "requireCalls": [],
-      "forkSpawnCalls": []
-    },
-    "src/core/ollama.js": {
-      "staticImports": [
-        {
-          "specifier": "dotenv/config",
-          "kind": "package",
-          "resolved": "dotenv"
-        }
-      ],
       "dynamicImports": [],
       "requireCalls": [],
       "forkSpawnCalls": []
@@ -3531,11 +3513,6 @@
     "src/indexer/phases/skeleton-summary.js": {
       "staticImports": [
         {
-          "specifier": "../../core/generation/ollama-capability.js",
-          "kind": "relative",
-          "resolved": "src/core/generation/ollama-capability.js"
-        },
-        {
           "specifier": "franc-min",
           "kind": "package",
           "resolved": "franc-min"
@@ -3977,6 +3954,30 @@
       "requireCalls": [],
       "forkSpawnCalls": []
     },
+    "src/local/core/ollama-models.js": {
+      "staticImports": [
+        {
+          "specifier": "./ollama.js",
+          "kind": "relative",
+          "resolved": "src/local/core/ollama.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/local/core/ollama.js": {
+      "staticImports": [
+        {
+          "specifier": "dotenv/config",
+          "kind": "package",
+          "resolved": "dotenv"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
     "src/local/core/onnx-embed.js": {
       "staticImports": [
         {
@@ -4270,9 +4271,9 @@
           "resolved": "src/core/embedding-profile/onnx-lane.js"
         },
         {
-          "specifier": "../../core/ollama.js",
+          "specifier": "../../local/core/ollama.js",
           "kind": "relative",
-          "resolved": "src/core/ollama.js"
+          "resolved": "src/local/core/ollama.js"
         }
       ],
       "dynamicImports": [],
@@ -5034,10 +5035,10 @@
       "staticImports": [],
       "dynamicImports": [
         {
-          "specifier": "../../core/ollama.js",
+          "specifier": "../../local/core/ollama.js",
           "literal": true,
           "kind": "relative",
-          "resolved": "src/core/ollama.js"
+          "resolved": "src/local/core/ollama.js"
         }
       ],
       "requireCalls": [],

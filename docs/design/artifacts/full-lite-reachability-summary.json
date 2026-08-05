@@ -125,8 +125,6 @@
     "src/core/http/sse.js",
     "src/core/node-id.js",
     "src/core/ollama-lazy.js",
-    "src/core/ollama-models.js",
-    "src/core/ollama.js",
     "src/core/onnx-embed-capability.js",
     "src/core/onnx-embed-lazy.js",
     "src/core/onnx-paths.js",
@@ -182,6 +180,8 @@
     "src/indexer/skeleton-warnings.js",
     "src/indexer/workers/tag-onnx-worker.js",
     "src/local/core/length-bucket.js",
+    "src/local/core/ollama-models.js",
+    "src/local/core/ollama.js",
     "src/local/core/onnx-embed.js",
     "src/local/core/onnx-probe-runner.js",
     "src/local/core/onnx-provider-probe.js",
@@ -571,9 +571,9 @@
     "dotenv": [
       "src/core/config.js",
       "src/core/env-bootstrap.js",
-      "src/core/ollama.js",
       "src/core/qdrant/client.js",
       "src/core/rerank.js",
+      "src/local/core/ollama.js",
       "src/smoke/index.js"
     ],
     "@qdrant/js-client-rest": [

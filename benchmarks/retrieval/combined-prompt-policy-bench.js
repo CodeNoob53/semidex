@@ -20,7 +20,7 @@ import { writeFileSync, mkdirSync } from 'fs';
 import { resolve, join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
-import { generate } from '../../src/core/ollama.js';
+import { generate } from '../../src/local/core/ollama.js';
 import { parseCombinedResponse } from '../../src/indexer/phases/combined.js';
 
 const ROOT        = resolve(dirname(fileURLToPath(import.meta.url)), '../../');

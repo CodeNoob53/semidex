@@ -1,7 +1,7 @@
 // Ollama capability contracts (Phase 8B Step 1, split twice after code
 // review — see the Phase 8B report's own "P2" notes) — mirror
 // provider.js/adapter.js: small runtime shape validators plus JSDoc
-// typedefs, zero backend imports (never import core/ollama.js,
+// typedefs, zero backend imports (never import local/core/ollama.js,
 // onnxruntime-node, or @huggingface/transformers).
 //
 // Round 1: a first version of this file copied all 9 of

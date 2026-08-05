@@ -1,7 +1,7 @@
 // Legacy LLM merge helpers kept only for historical merge-strategy diagnostics.
 // Production chunking finalizes deterministic short-fragment merges in chunk.js.
 
-import { generate } from '../../src/core/ollama.js';
+import { generate } from '../../src/local/core/ollama.js';
 import { OVERLAP_SENTENCES, splitSentences } from '../../src/indexer/phases/chunk.js';
 
 const MODEL = process.env.CONTEXT_MODEL || 'gemma3:4b';

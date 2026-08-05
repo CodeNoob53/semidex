@@ -21,12 +21,19 @@ import { resolve, join, dirname, relative } from 'path';
 import { fileURLToPath } from 'url';
 
 import { chunkFileFromPath } from '../../src/indexer/phases/chunk.js';
-import { generate } from '../../src/core/ollama.js';
+import { generate } from '../../src/local/core/ollama.js';
 import { addContext } from '../../src/indexer/phases/context.js';
 import { addTagsBatch, extractJsonArray } from '../../src/indexer/phases/tag.js';
 import { extractContextTagsArray } from './combined-context-tags-helpers.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../');
+
+// addContext()/addTagsBatch() now take their capability as a real function
+// argument (Phase 8B Step 3 — no module-scope setter exists in
+// phases/context.js/phases/tag.js anymore). This script already imports the
+// real generate() directly; wrap it into the minimal OllamaGenerateCapability
+// shape both functions expect.
+const ollamaCapability = { generate };
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
@@ -151,7 +158,7 @@ async function runBaseline(chunks) {
   const contextChunks = [];
   for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
     const batch = chunks.slice(i, i + BATCH_SIZE);
-    const done = await Promise.all(batch.map(addContext));
+    const done = await Promise.all(batch.map(chunk => addContext(chunk, { ollama: ollamaCapability })));
     contextChunks.push(...done);
   }
 
@@ -159,7 +166,7 @@ async function runBaseline(chunks) {
   const tagged = [];
   for (let i = 0; i < contextChunks.length; i += BATCH_SIZE) {
     const batch = contextChunks.slice(i, i + BATCH_SIZE);
-    const original = await addTagsBatch(batch);
+    const original = await addTagsBatch(batch, { ollama: ollamaCapability });
     // detect fallback: addTagsBatch logs a warning; we detect it by checking if
     // the batch returned individual results (no direct signal, so track by counting
     // warn lines — instead, we replicate the fallback detection heuristic)

@@ -12,10 +12,10 @@
 //
 // discoverOllamaModelsFn has NO static-import default (Semidex Lite
 // composition split) — this module must never statically import
-// core/ollama-models.js, since a cloud-only Lite composition root only
+// local/core/ollama-models.js, since a cloud-only Lite composition root only
 // ever registers registerGenerationModelsRoutesGeminiOnly() below, which
 // never references it at all. The full composition root (createApp(), in
-// admin/server-full.js) imports core/ollama-models.js itself and passes
+// admin/server-full.js) imports local/core/ollama-models.js itself and passes
 // discoverOllamaModels in explicitly.
 import { sendJson, badRequest } from '../../core/http/http.js';
 import { sanitiseErrorMessage } from '../../core/doctor-checks.js';
@@ -39,7 +39,7 @@ async function handleGeminiBackend(res, settingsService, discoverGeminiModelsFn,
 /**
  * Full-Semidex variant: both Ollama and Gemini backends. discoverOllamaModelsFn
  * has no default — the caller (createApp(), server-full.js) must pass the real
- * one explicitly, since this module itself never imports core/ollama-models.js.
+ * one explicitly, since this module itself never imports local/core/ollama-models.js.
  * @param {Object} router
  * @param {{
  *   settingsService: ReturnType<typeof import('../../core/settings/service.js').createSettingsService>,
@@ -76,7 +76,7 @@ export function registerGenerationModelsRoutes(router, {
 }
 
 /**
- * Semidex Lite variant: Gemini only. Never references core/ollama-models.js
+ * Semidex Lite variant: Gemini only. Never references local/core/ollama-models.js
  * in any way — a `backend=ollama` request gets a clear 400, not a 500 from
  * a missing dependency, and the module import graph itself has no Ollama
  * edge at all (unlike the full variant above, whose Ollama edge is DI-only

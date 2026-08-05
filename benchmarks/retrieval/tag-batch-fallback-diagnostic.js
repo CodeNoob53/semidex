@@ -29,7 +29,7 @@ import { mkdirSync, writeFileSync, existsSync } from 'fs';
 import { resolve, join, dirname, basename } from 'path';
 import { fileURLToPath } from 'url';
 
-import { generate }         from '../../src/core/ollama.js';
+import { generate }         from '../../src/local/core/ollama.js';
 import { chunkFileFromPath } from '../../src/indexer/phases/chunk.js';
 import { partitionChunks }   from '../../src/indexer/phases/empty-section.js';
 import { extractJsonArray }  from '../../src/indexer/phases/tag.js';

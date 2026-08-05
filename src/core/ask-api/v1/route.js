@@ -27,7 +27,7 @@ import {
 export { ASK_PATH };
 
 // Provider readiness reasons and mid-stream generation-failure messages
-// originate from src/core/ollama.js / ollama-provider.js (or, for the
+// originate from src/local/core/ollama.js / ollama-provider.js (or, for the
 // gemini backend, gemini-provider.js) and can embed a raw Ollama base URL
 // or request/response body text (e.g. "Ollama is not reachable at
 // http://host:port", or a raw fetch error body) — a deliberately-thrown

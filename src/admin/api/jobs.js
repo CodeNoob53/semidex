@@ -7,7 +7,7 @@
 // checkOllamaFn has NO static-import default (Semidex Lite composition
 // split, admin/register-neutral-routes.js's registerNeutralRoutes()) —
 // this module must
-// never statically pull in admin/system/ollama.js (-> core/ollama.js),
+// never statically pull in admin/system/ollama.js (-> local/core/ollama.js),
 // since a cloud-only Lite composition root never registers a check at all.
 // The FULL composition root (createApp() in server-full.js) is the one place
 // that imports the real checkOllama and passes it in; Lite's composition

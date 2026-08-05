@@ -1,5 +1,5 @@
 // Ollama GenerationProvider (Phase 4A/4A.5a) — the only generation backend
-// today. Reuses src/core/ollama.js for URL resolution, request/response
+// today. Reuses src/local/core/ollama.js for URL resolution, request/response
 // handling, and error text extraction; this file adds only the
 // GenerationProvider shape (name/capabilities/ready/generate) on top. Never
 // spawns `ollama serve` — readiness is a check, not a lifecycle action.
@@ -11,13 +11,13 @@
 // itself reusable for a config source other than env vars later (e.g. a
 // future Settings UI) without touching this file.
 //
-// Never imports ../ollama.js directly, not even indirectly through a
+// Never imports local/core/ollama.js directly, not even indirectly through a
 // *-lazy.js default (Semidex Lite package boundary; code review, round 4 —
 // this file used to default its five `*Fn` opts to ../ollama-lazy.js's
 // exports, which meant generation/registry.js's BACKENDS map referencing
 // createOllamaProvider — unconditionally, even though it is only ever
 // CALLED when backend === 'ollama' — gave this file a real static edge
-// onto core/ollama.js via the *-lazy.js re-export chain, reachable from
+// onto local/core/ollama.js via the *-lazy.js re-export chain, reachable from
 // Lite's own serve-lite.js -> generation/runtime.js -> registry.js graph
 // regardless of Lite's SEMIDEX_GENERATION_BACKEND=gemini hard pin, which
 // only prevents the ollama backend from ever being CONSTRUCTED, not from
@@ -29,8 +29,9 @@
 // methods, generate() needs a generate method), since this file is the one
 // real consumer that genuinely needs both.
 //
-// The five `*Fn` opts now default to typed-unavailable stubs (mirroring
-// indexer/phases/context.js's own applyContextCapability() pattern) —
+// The five `*Fn` opts now default to typed-unavailable stubs (the same
+// "typed error instead of a silent real-network default" discipline every
+// instance-scoped Ollama capability seam in this codebase follows) —
 // calling any of them without an override throws a clear
 // "OllamaProviderNotConfiguredError" instead of silently reaching a real
 // network call. The REAL, working functions are supplied by
@@ -128,7 +129,7 @@ export function createOllamaProvider({
       } catch (err) {
         return { ok: false, reason: `Failed to list Ollama models: ${err.message}`, model };
       }
-      // validateOllamaModels() is synchronous in core/ollama.js but the
+      // validateOllamaModels() is synchronous in local/core/ollama.js but the
       // lazy wrapper this file now imports from (../ollama-lazy.js) always
       // returns a Promise (matching ollama-lazy.js's own uniform async
       // signature) — this await is required, not stylistic; omitting it

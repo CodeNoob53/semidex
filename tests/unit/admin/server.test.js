@@ -701,11 +701,11 @@ describe('layering — src/admin/ never imports Qdrant or Ollama directly', () =
   // indexer job-preflight check (injected via checkOllamaFn DI), not for
   // generation. The layering rule this test enforces is about the NEW
   // seam — no route or ask module may bypass GenerationProvider to call
-  // core/ollama.js for generation — so this one pre-existing, non-generation
+  // local/core/ollama.js for generation — so this one pre-existing, non-generation
   // wrapper is an intentional, narrow exemption, not a gap.
   const EXEMPT = new Set(['system/ollama.js']);
 
-  it('no file under src/admin/ imports the Qdrant store/client/SDK or core/ollama.js directly', () => {
+  it('no file under src/admin/ imports the Qdrant store/client/SDK or local/core/ollama.js directly', () => {
     const dir = fileURLToPath(new URL('../../../src/admin/', import.meta.url)).replace(/\/$/, '');
     const offenders = [];
     for (const file of walk(dir)) {

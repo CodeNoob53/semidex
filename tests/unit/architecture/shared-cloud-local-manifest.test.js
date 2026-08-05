@@ -98,7 +98,7 @@ describe('mixed provider seams', () => {
   it('keeps real lazy shims connected to local implementations', () => {
     const byPath = new Map(loadManifest().modules.map((module) => [module.path, module]));
     const pairs = {
-      'src/core/ollama-lazy.js': 'src/core/ollama.js',
+      'src/core/ollama-lazy.js': 'src/local/core/ollama.js',
       'src/core/onnx-embed-lazy.js': 'src/local/core/onnx-embed.js',
       'src/indexer/phases/tag-onnx-lazy.js': 'src/indexer/phases/tag-onnx.js',
     };

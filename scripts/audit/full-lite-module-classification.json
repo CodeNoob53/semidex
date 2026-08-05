@@ -126,7 +126,7 @@
       "directDependencies": [
         "src/core/doctor-checks.js",
         "src/core/http/http.js",
-        "src/core/ollama-models.js"
+        "src/local/core/ollama-models.js"
       ]
     },
     {
@@ -355,10 +355,10 @@
         "src/admin/system/ollama.js",
         "src/core/embeddings.js",
         "src/core/ollama-lazy.js",
-        "src/core/ollama-models.js",
         "src/core/onnx-embed-lazy.js",
         "src/core/settings/service.js",
-        "src/core/storage/factory.js"
+        "src/core/storage/factory.js",
+        "src/local/core/ollama-models.js"
       ]
     },
     {
@@ -394,7 +394,7 @@
       "fullReachable": true,
       "liteReachable": false,
       "directDependencies": [
-        "src/core/ollama.js"
+        "src/local/core/ollama.js"
       ]
     },
     {
@@ -738,6 +738,7 @@
       "liteReachable": false,
       "directDependencies": [
         "src/core/env-bootstrap.js",
+        "src/core/ollama-lazy.js",
         "src/core/qdrant.js",
         "src/core/settings/service.js",
         "src/indexer/phases/tag-onnx.js",
@@ -1175,7 +1176,7 @@
       "fullReachable": true,
       "liteReachable": false,
       "directDependencies": [
-        "src/core/ollama.js"
+        "src/local/core/ollama.js"
       ]
     },
     {
@@ -1183,24 +1184,6 @@
       "category": "mixed",
       "compositionEdition": null,
       "fullReachable": false,
-      "liteReachable": false,
-      "directDependencies": []
-    },
-    {
-      "path": "src/core/ollama-models.js",
-      "category": "local",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": false,
-      "directDependencies": [
-        "src/core/ollama.js"
-      ]
-    },
-    {
-      "path": "src/core/ollama.js",
-      "category": "local",
-      "compositionEdition": null,
-      "fullReachable": true,
       "liteReachable": false,
       "directDependencies": []
     },
@@ -1657,9 +1640,7 @@
       "compositionEdition": null,
       "fullReachable": true,
       "liteReachable": true,
-      "directDependencies": [
-        "src/core/generation/ollama-capability.js"
-      ]
+      "directDependencies": []
     },
     {
       "path": "src/indexer/phases/skeleton.js",
@@ -1854,6 +1835,24 @@
       "directDependencies": []
     },
     {
+      "path": "src/local/core/ollama-models.js",
+      "category": "local",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/local/core/ollama.js"
+      ]
+    },
+    {
+      "path": "src/local/core/ollama.js",
+      "category": "local",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": []
+    },
+    {
       "path": "src/local/core/onnx-embed.js",
       "category": "local",
       "compositionEdition": null,
@@ -1933,8 +1932,8 @@
         "src/core/embedding-profile/availability.js",
         "src/core/embedding-profile/onnx-lane.js",
         "src/core/embedding-profile/resolve.js",
-        "src/core/ollama.js",
-        "src/core/storage/factory.js"
+        "src/core/storage/factory.js",
+        "src/local/core/ollama.js"
       ]
     },
     {
@@ -2315,7 +2314,7 @@
       "fullReachable": true,
       "liteReachable": false,
       "directDependencies": [
-        "src/core/ollama.js"
+        "src/local/core/ollama.js"
       ]
     },
     {

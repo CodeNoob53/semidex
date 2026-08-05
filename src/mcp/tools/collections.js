@@ -2,7 +2,7 @@ import { createStorageAdapter } from '../../core/storage/factory.js';
 import { resolveExistingCollectionProfile } from '../../core/embedding-profile/resolve.js';
 import { resolveAvailability } from '../../core/embedding-profile/availability.js';
 import { checkOnnxModelCached } from '../../core/embedding-profile/onnx-lane.js';
-import { isOllamaReachable, listOllamaModels, validateOllamaModels } from '../../core/ollama.js';
+import { isOllamaReachable, listOllamaModels, validateOllamaModels } from '../../local/core/ollama.js';
 
 export const schema = {
   name: 'qdrant_collection_info',
@@ -30,7 +30,7 @@ function getStorageAdapter() {
 const OLLAMA_URL = process.env.OLLAMA_URL || 'http://localhost:11434';
 
 // A tiny inline equivalent of src/admin/system/ollama.js's checkOllama() —
-// built directly from core/ollama.js's three primitives rather than
+// built directly from local/core/ollama.js's three primitives rather than
 // importing across the mcp/ -> admin/ boundary, so this MCP tool module
 // stays independent of the admin server. Same status/message contract
 // resolveLaneAvailability()'s checkOllamaLane DI expects.

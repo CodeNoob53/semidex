@@ -1,6 +1,6 @@
 import { describe, it, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { discoverOllamaModels } from '../../../src/core/ollama-models.js';
+import { discoverOllamaModels } from '../../../src/local/core/ollama-models.js';
 
 describe('discoverOllamaModels', () => {
   let originalFetch;

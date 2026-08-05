@@ -151,7 +151,7 @@
     "directDependencies": [
       "src/core/http/http.js",
       "src/core/doctor-checks.js",
-      "src/core/ollama-models.js"
+      "src/local/core/ollama-models.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
@@ -462,7 +462,7 @@
       "src/admin/api/onnx.js",
       "src/admin/api/ollama-models.js",
       "src/admin/api/generation-models.js",
-      "src/core/ollama-models.js",
+      "src/local/core/ollama-models.js",
       "src/admin/system/ollama.js",
       "src/core/settings/service.js",
       "src/admin/register-neutral-routes.js",
@@ -526,7 +526,7 @@
     "runtimeCoupling": "local",
     "entryPoints": [],
     "directDependencies": [
-      "src/core/ollama.js"
+      "src/local/core/ollama.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
@@ -1031,7 +1031,8 @@
       "src/core/settings/service.js",
       "src/core/qdrant.js",
       "src/indexer/phases/tag.js",
-      "src/indexer/phases/tag-onnx.js"
+      "src/indexer/phases/tag-onnx.js",
+      "src/core/ollama-lazy.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
@@ -1697,7 +1698,7 @@
     "runtimeCoupling": "local",
     "entryPoints": [],
     "directDependencies": [
-      "src/core/ollama.js"
+      "src/local/core/ollama.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
@@ -1718,36 +1719,6 @@
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "split"
-  },
-  {
-    "path": "src/core/ollama-models.js",
-    "classification": "local",
-    "runtimeCoupling": "local",
-    "entryPoints": [],
-    "directDependencies": [
-      "src/core/ollama.js"
-    ],
-    "fullReachable": true,
-    "liteReachable": false,
-    "liteReachablePreShim": false,
-    "liteTarballStaged": false,
-    "liteBrowserBundle": false,
-    "recommendedAction": "exclude"
-  },
-  {
-    "path": "src/core/ollama.js",
-    "classification": "local",
-    "runtimeCoupling": "local",
-    "entryPoints": [],
-    "directDependencies": [
-      "pkg:dotenv"
-    ],
-    "fullReachable": true,
-    "liteReachable": false,
-    "liteReachablePreShim": false,
-    "liteTarballStaged": false,
-    "liteBrowserBundle": false,
-    "recommendedAction": "exclude"
   },
   {
     "path": "src/core/onnx-embed-capability.js",
@@ -2423,7 +2394,6 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
-      "src/core/generation/ollama-capability.js",
       "pkg:franc-min"
     ],
     "fullReachable": true,
@@ -2723,6 +2693,36 @@
     "recommendedAction": "exclude"
   },
   {
+    "path": "src/local/core/ollama-models.js",
+    "classification": "local",
+    "runtimeCoupling": "local",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/local/core/ollama.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": false,
+    "liteReachablePreShim": false,
+    "liteTarballStaged": false,
+    "liteBrowserBundle": false,
+    "recommendedAction": "exclude"
+  },
+  {
+    "path": "src/local/core/ollama.js",
+    "classification": "local",
+    "runtimeCoupling": "local",
+    "entryPoints": [],
+    "directDependencies": [
+      "pkg:dotenv"
+    ],
+    "fullReachable": true,
+    "liteReachable": false,
+    "liteReachablePreShim": false,
+    "liteTarballStaged": false,
+    "liteBrowserBundle": false,
+    "recommendedAction": "exclude"
+  },
+  {
     "path": "src/local/core/onnx-embed.js",
     "classification": "local",
     "runtimeCoupling": "local",
@@ -2831,7 +2831,7 @@
       "src/core/embedding-profile/resolve.js",
       "src/core/embedding-profile/availability.js",
       "src/core/embedding-profile/onnx-lane.js",
-      "src/core/ollama.js"
+      "src/local/core/ollama.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
@@ -3358,7 +3358,7 @@
     "runtimeCoupling": "local",
     "entryPoints": [],
     "directDependencies": [
-      "src/core/ollama.js"
+      "src/local/core/ollama.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
