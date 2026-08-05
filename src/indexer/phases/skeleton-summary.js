@@ -34,51 +34,22 @@
 //   'collection_overview' — LLM overview for the collection root
 //   'propagated'     — copied from the only child; no LLM call
 //
-// generateFn is injectable for tests; defaults to Ollama generate() with
-// CONTEXT_MODEL. All prompts instruct the model to answer in the content's
-// own language, 1-2 sentences, no preamble.
+// generateFn is REQUIRED — every real caller (indexer/run.js) resolves its
+// own OllamaSummaryCapability once per run() and passes opts.generateFn/
+// opts.getModelContextLengthFn/opts.isThinkingModelFn explicitly (Phase 8B
+// Step 3 — instance-scoped, no module-scope setter; see phases/context.js's
+// own header comment for the full rationale). All prompts instruct the
+// model to answer in the content's own language, 1-2 sentences, no preamble.
 
-import { validateOllamaSummaryCapability } from '../../core/generation/ollama-capability.js';
 import { franc } from 'franc-min';
 
 export const SUMMARY_VERSION = 2;
 
-// Capability injection (Phase 8B Step 1, revised round 4) — see
-// phases/context.js's own header comment for the full rationale; this
-// module follows the exact same pattern, using the narrow
-// OllamaSummaryCapability contract (the exact 3 methods this file's own
-// default fallback calls — generate, getModelContextLength,
-// isThinkingModel — never generateStream, which this file never calls).
-// `_ollama` starts unset (null) — every call site below already resolves
-// its own `opts.generateFn` DI override first (pre-existing, Phase 4-era
-// design, unchanged); `_ollama` is only the fallback when a caller
-// supplies no override, in which case indexer/index.js's own
-// applyAllCapabilities() call must have populated it first (real Full
-// production usage: run.js's own generateNavSummaries()/
-// generateDirectorySummaries()/buildCollectionSummary() calls never pass
-// generateFn). generateNavSummaries()/generateDirectorySummaries()/
-// buildCollectionSummary() are never reached in Lite (SKELETON_SUMMARY=llm
-// is never selected — the deterministic tier runs instead).
-let _ollama = null;
-function requireOllama() {
-  if (!_ollama) throw new Error('phases/skeleton-summary.js: no ollama capability injected — call applySkeletonSummaryCapability() or applyAllCapabilities() before indexing, or pass opts.generateFn explicitly.');
-  return _ollama;
-}
-const generate = (...args) => requireOllama().generate(...args);
-const getModelContextLength = (...args) => requireOllama().getModelContextLength(...args);
-const isThinkingModel = (...args) => requireOllama().isThinkingModel(...args);
-
-/**
- * Composition-time seam: inject the Ollama capability this module's
- * generateFn/getModelContextLength/isThinkingModel defaults fall back to
- * when a caller doesn't supply its own opts.generateFn override. Call once,
- * at process composition time — never per-request.
- * @param {import('../../core/generation/ollama-capability.js').OllamaSummaryCapability} capability
- */
-export function applySkeletonSummaryCapability(capability) {
-  validateOllamaSummaryCapability(capability);
-  _ollama = capability;
-}
+// generateNavSummaries()/generateDirectorySummaries()/buildCollectionSummary()
+// are never reached in Lite (SKELETON_SUMMARY=llm is never selected — the
+// deterministic tier runs instead). No module-scope capability binding
+// exists here at all — a concurrently constructed Full/Lite composition has
+// nothing in this file's own scope to contaminate.
 
 // Token thresholds for tier selection (overridable via env for tests/tuning).
 // Small: 1-sentence plain; Medium: 2-3 sentence plain; Large: full structured JSON.
@@ -126,28 +97,30 @@ const FALLBACK_NUM_CTX_NO_CAPABILITY = 8000;
 
 /**
  * Resolve the num_ctx to use for an entire indexing run.
- * @param {boolean} [skipGetModelContextLength] — true when the caller
- *   supplied its own generateFn (no real Ollama model backs this call, so
- *   querying /api/show for `model`'s architectural max would either reach
- *   a capability that was never injected, or ask a real Ollama server
- *   about a model name that doesn't really exist) — mirrors
+ * @param {(model: string) => Promise<number>} [getModelContextLengthFn] —
+ *   the real capability's getModelContextLength method, passed explicitly
+ *   by the caller. Omit when the caller has no real Ollama capability to
+ *   query (a test supplying its own generateFn — no real Ollama model
+ *   backs the call, so querying /api/show for `model`'s architectural max
+ *   would either reach a capability that doesn't exist or ask a real
+ *   Ollama server about a model name that doesn't really exist) — mirrors
  *   generateNavSummaries()'s/generateDirectorySummaries()'s/
  *   buildCollectionSummary()'s own existing `thinking` default, which
  *   already skips isThinkingModel() for the identical reason.
  */
-export async function resolveRunNumCtx(model, maxPromptTokens = 0, env = process.env, skipGetModelContextLength = false) {
+export async function resolveRunNumCtx(model, maxPromptTokens = 0, env = process.env, getModelContextLengthFn = null) {
   const envVal = parseInt(env.SUMMARY_WINDOW_TOKENS ?? '', 10);
   if (Number.isFinite(envVal) && envVal >= 500) return envVal;
-  if (skipGetModelContextLength) return FALLBACK_NUM_CTX_NO_CAPABILITY;
-  const modelMax = await getModelContextLength(model);
+  if (!getModelContextLengthFn) return FALLBACK_NUM_CTX_NO_CAPABILITY;
+  const modelMax = await getModelContextLengthFn(model);
   if (!maxPromptTokens || maxPromptTokens <= 0) return modelMax;
   const needed = Math.ceil(maxPromptTokens * 1.15);
   return nextPow2Clamped(needed, 4096, modelMax);
 }
 
 // Kept for backwards-compat (smoke tests inject generateFn without maxPromptTokens).
-export async function resolveNumCtx(model, env = process.env, skipGetModelContextLength = false) {
-  return resolveRunNumCtx(model, 0, env, skipGetModelContextLength);
+export async function resolveNumCtx(model, env = process.env, getModelContextLengthFn = null) {
+  return resolveRunNumCtx(model, 0, env, getModelContextLengthFn);
 }
 
 // Heuristic token estimate, script-aware. ASCII ≈ 4 chars/token, but BPE
@@ -599,15 +572,21 @@ async function generateCollectionOverviewWithRetry(collection, lines, ctx) {
  *
  * @param {Object[]} navPoints — from buildFileSkeleton (file + section nodes)
  * @param {Object[]} chunks — chunkFromSkeleton output (content source)
- * @param {{ generateFn?: Function, model?: string, windowTokens?: number }} [opts]
+ * @param {{ generateFn: Function, model?: string, windowTokens?: number, numCtx?: number, thinking?: boolean, getModelContextLengthFn?: Function, isThinkingModelFn?: Function }} opts
+ *   — generateFn is REQUIRED (no module-scope fallback exists). The real
+ *   caller (indexer/run.js) resolves its own OllamaSummaryCapability once
+ *   per run() and passes generateFn/getModelContextLengthFn/
+ *   isThinkingModelFn explicitly; a test may instead pass numCtx/thinking
+ *   directly to skip those two lookups entirely.
  * @returns {Promise<Object[]>} new array; input not mutated
  */
 export async function generateNavSummaries(navPoints, chunks, opts = {}) {
-  const generateFn   = opts.generateFn ?? generate;
+  const generateFn = opts.generateFn;
+  if (!generateFn) throw new Error('phases/skeleton-summary.js: generateNavSummaries() requires opts.generateFn — no module-scope capability exists to fall back to.');
   const model        = opts.model ?? (process.env.CONTEXT_MODEL || 'gemma3:4b');
   const windowTokens = opts.windowTokens ?? summaryWindowTokens(process.env);
-  const numCtx = opts.numCtx ?? await resolveNumCtx(model, process.env, Boolean(opts.generateFn));
-  const thinking = opts.thinking ?? (opts.generateFn ? false : await isThinkingModel(model));
+  const numCtx = opts.numCtx ?? await resolveNumCtx(model, process.env, opts.getModelContextLengthFn);
+  const thinking = opts.thinking ?? (opts.isThinkingModelFn ? await opts.isThinkingModelFn(model) : false);
   const budget = Math.max(500, Math.floor(windowTokens * 0.8));
   const ctx = { generateFn, model, budget, numCtx, thinking };
 
@@ -720,18 +699,21 @@ export async function generateNavSummaries(navPoints, chunks, opts = {}) {
  * @param {Map<string, { summary: string, summary_kind?: string, key_topics?: string[],
  *                       notable_terms?: string[] }>} childSummaryByPath
  *   Map from node_path → enriched nav payload. Includes file + directory nodes.
- * @param {{ generateFn?: Function, model?: string, windowTokens?: number,
- *            numCtx?: number, thinking?: boolean }} [opts]
+ * @param {{ generateFn: Function, model?: string, windowTokens?: number,
+ *            numCtx?: number, thinking?: boolean, getModelContextLengthFn?: Function,
+ *            isThinkingModelFn?: Function }} opts
+ *   — generateFn is REQUIRED, see generateNavSummaries()'s own doc comment.
  * @returns {Promise<Object[]>} new array; input not mutated
  */
 export async function generateDirectorySummaries(directoryNodes, childSummaryByPath, opts = {}) {
   if (!directoryNodes.length) return directoryNodes;
 
-  const generateFn   = opts.generateFn ?? generate;
+  const generateFn = opts.generateFn;
+  if (!generateFn) throw new Error('phases/skeleton-summary.js: generateDirectorySummaries() requires opts.generateFn — no module-scope capability exists to fall back to.');
   const model        = opts.model ?? (process.env.CONTEXT_MODEL || 'gemma3:4b');
   const windowTokens = opts.windowTokens ?? summaryWindowTokens(process.env);
-  const numCtx = opts.numCtx ?? await resolveNumCtx(model, process.env, Boolean(opts.generateFn));
-  const thinking = opts.thinking ?? (opts.generateFn ? false : await isThinkingModel(model));
+  const numCtx = opts.numCtx ?? await resolveNumCtx(model, process.env, opts.getModelContextLengthFn);
+  const thinking = opts.thinking ?? (opts.isThinkingModelFn ? await opts.isThinkingModelFn(model) : false);
   const budget = Math.max(500, Math.floor(windowTokens * 0.8));
   const ctx = { generateFn, model, budget, numCtx, thinking };
 
@@ -824,10 +806,14 @@ export async function generateDirectorySummaries(directoryNodes, childSummaryByP
  * @param {string} collection
  * @param {Array<{ source_file: string, summary: string }>} fileNodes
  * @param {{ generateFn?: Function, model?: string, windowTokens?: number, llm?: boolean,
+ *            getModelContextLengthFn?: Function, isThinkingModelFn?: Function,
  *            topLevelNodes?: Array<{ node_path: string, summary: string, summary_kind?: string,
  *                                   key_topics?: string[], notable_terms?: string[] }> }} [opts]
- *   topLevelNodes: enriched top-level directory/file nav nodes. When provided, used
- *   instead of raw fileNodes for the rollup source.
+ *   generateFn is required ONLY when opts.llm is true (no module-scope
+ *   fallback exists) — the inventory-only path (opts.llm falsy) never
+ *   touches it. topLevelNodes: enriched top-level directory/file nav
+ *   nodes. When provided, used instead of raw fileNodes for the rollup
+ *   source.
  * @returns {Promise<{ summary: string, summary_kind: string, summary_version?: number,
  *                     key_topics?: string[], notable_terms?: string[], children: string[] }>}
  */
@@ -866,11 +852,12 @@ export async function buildCollectionSummary(collection, fileNodes, opts = {}) {
     lines.push('File notes:', ...fileLines);
   }
 
-  const generateFn   = opts.generateFn ?? generate;
+  const generateFn = opts.generateFn;
+  if (!generateFn) throw new Error('phases/skeleton-summary.js: buildCollectionSummary() requires opts.generateFn when opts.llm is true — no module-scope capability exists to fall back to.');
   const model        = opts.model ?? (process.env.CONTEXT_MODEL || 'gemma3:4b');
   const windowTokens = opts.windowTokens ?? summaryWindowTokens(process.env);
-  const numCtx = opts.numCtx ?? await resolveNumCtx(model, process.env, Boolean(opts.generateFn));
-  const thinking = opts.thinking ?? (opts.generateFn ? false : await isThinkingModel(model));
+  const numCtx = opts.numCtx ?? await resolveNumCtx(model, process.env, opts.getModelContextLengthFn);
+  const thinking = opts.thinking ?? (opts.isThinkingModelFn ? await opts.isThinkingModelFn(model) : false);
   const budget = Math.max(500, Math.floor(windowTokens * 0.8));
   const ctx = { generateFn, model, budget, numCtx, thinking };
   try {

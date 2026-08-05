@@ -18,6 +18,19 @@ const settingsService = createSettingsService({ osEnv, dotenvValues });
 const { scrollAllPoints, updatePayload } = await import('./core/qdrant.js');
 const { addTagsBatch, applyTagSettings } = await import('./indexer/phases/tag.js');
 const { addTagsOnnxBatch, isOnnxTagProvider, shutdownOnnxTagWorker } = await import('./indexer/phases/tag-onnx.js');
+// Full-only tooling script (like sync.js/doctor.js) — imports the real
+// Ollama capability directly via the lazy seam, mirroring
+// indexer/index-full.js's own composition. Never reached unless
+// TAG_PROVIDER=onnx is unset (generateTags() below only calls addTagsBatch()
+// in that case); resolved unconditionally here regardless, matching every
+// other real Full entry point's own "composition root selects the
+// capability once, up front" discipline (code review, Phase 8B Step 3 —
+// this script previously called addTagsBatch() with NO capability injected
+// at all, which would have thrown "no ollama capability injected" the
+// moment a non-ONNX backfill actually ran; there is no prior test coverage
+// for this script, so this was a real, previously-undetected gap that this
+// fix closes as part of removing tag.js's own module-scope fallback).
+const ollamaLazy = await import('./core/ollama-lazy.js');
 
 applyTagSettings(settingsService);
 // Writes every writable setting's active value into process.env — TAG_*/
@@ -59,7 +72,7 @@ function toChunk(point) {
 
 async function generateTags(chunks) {
   if (isOnnxTagProvider(process.env)) return addTagsOnnxBatch(chunks);
-  return addTagsBatch(chunks);
+  return addTagsBatch(chunks, { ollama: ollamaLazy });
 }
 
 console.log(`[tags] scanning collection "${COLLECTION}"...`);

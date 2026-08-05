@@ -7,28 +7,16 @@ import { addTagsWithModel } from './tag.js';
 // chunks where the model reliably returns malformed output.
 export const COMBINED_MIN_CHARS = 80;
 
-// Capability injection (Phase 8B Step 1, revised round 4) — see
-// phases/context.js's own header comment for the full rationale; this
-// module follows the exact same pattern, using the narrow single-method
-// OllamaGenerateCapability contract, `_ollama` starting unset (null).
+// Capability injection (Phase 8B Step 3 — instance-scoped, no module-scope
+// setter) — see phases/context.js's own header comment for the full
+// rationale; this module follows the exact same pattern, using the narrow
+// single-method OllamaGenerateCapability contract, passed as opts.ollama.
 // addContextAndTags() is never reached in Lite (COMBINED_LLM is only
 // meaningful under CONTEXT_MODE=llm, which Lite never selects). The
 // fallback path's own addContext()/addTagsWithModel() calls
-// (context.js/tag.js) are injected independently via their own
-// applyContextCapability()/applyTagCapability() seams — not through this
-// module's _ollama binding.
-let _ollama = null;
-
-/**
- * Composition-time seam: inject the Ollama capability addContextAndTags()
- * calls through for its own combined-call path. Call once, at process
- * composition time — never per-request.
- * @param {import('../../core/generation/ollama-capability.js').OllamaGenerateCapability} capability
- */
-export function applyCombinedCapability(capability) {
-  validateOllamaGenerateCapability(capability);
-  _ollama = capability;
-}
+// (context.js/tag.js) receive the SAME opts object this function itself
+// received — one capability, threaded through, never re-resolved from a
+// module-scope binding at any point in the chain.
 
 // ── Parser ────────────────────────────────────────────────────────────────────
 
@@ -217,13 +205,23 @@ ${chunk.text.slice(0, 1000)}`;
 // On parse failure: falls back to separate addContext + addTags.
 // Short chunks (< COMBINED_MIN_CHARS) skip the combined call and fall back directly.
 // chunks: full array, required for section-window-aware policy; unused by other policies.
-export async function addContextAndTags(chunk, model, chunks) {
+/**
+ * @param {Object} chunk
+ * @param {string} model
+ * @param {Object[]} chunks
+ * @param {{ ollama: import('../../core/generation/ollama-capability.js').OllamaGenerateCapability }} opts
+ *   — required; no module-scope fallback exists. Threaded unchanged into
+ *   the fallback path's own addContext()/addTagsWithModel() calls.
+ */
+export async function addContextAndTags(chunk, model, chunks, opts) {
   const tooShort = chunk.text.trim().length < COMBINED_MIN_CHARS;
+  const ollama = opts?.ollama;
 
   if (!tooShort) {
-    if (!_ollama) throw new Error('phases/combined.js: no ollama capability injected — call applyCombinedCapability() or applyAllCapabilities() before indexing.');
+    if (!ollama) throw new Error('phases/combined.js: addContextAndTags() requires opts.ollama (an OllamaGenerateCapability) — no module-scope capability exists to fall back to.');
+    validateOllamaGenerateCapability(ollama);
     try {
-      const raw = await _ollama.generate(model, buildPrompt(chunk, chunks), { format: 'json' });
+      const raw = await ollama.generate(model, buildPrompt(chunk, chunks), { format: 'json' });
       if (BENCH_COMBINED_CONTEXT_ONLY) {
         const context = parseContextOnlyResponse(raw);
         if (context) return { ...chunk, context, tags: [] };
@@ -242,11 +240,11 @@ export async function addContextAndTags(chunk, model, chunks) {
   // In context-only mode: add context but force tags=[] so the variant stays
   // pure — no fallback chunk ever contributes tags.
   if (BENCH_COMBINED_CONTEXT_ONLY) {
-    const withContext = await addContext(chunk);
+    const withContext = await addContext(chunk, opts);
     return { ...withContext, tags: [] };
   }
   // Normal combined fallback: separate context then tags, both using CONTEXT_MODEL
   // (TAG_MODEL is intentionally not used here).
-  const withContext = await addContext(chunk);
-  return addTagsWithModel(withContext, model);
+  const withContext = await addContext(chunk, opts);
+  return addTagsWithModel(withContext, model, opts);
 }

@@ -20,26 +20,15 @@ export function applyTagSettings(settingsService) {
   MODEL = settingsService.getActiveValue('TAG_MODEL') || settingsService.getActiveValue('CONTEXT_MODEL') || 'gemma3:4b';
 }
 
-// Capability injection (Phase 8B Step 1, revised round 4) — see
-// phases/context.js's own header comment for the full rationale; this
-// module follows the exact same pattern (never imports core/ollama.js,
-// not even indirectly through a *-lazy.js default; depends only on the
-// narrow single-method OllamaGenerateCapability contract; `_ollama` starts
-// unset (null), populated only by indexer/index.js's own
-// applyAllCapabilities() call). addTags()/addTagsBatch() are never reached
+// Capability injection (Phase 8B Step 3 — instance-scoped, no module-scope
+// setter) — see phases/context.js's own header comment for the full
+// rationale; this module follows the exact same pattern (never imports
+// local/core/ollama.js, not even indirectly through a *-lazy.js default; depends
+// only on the narrow single-method OllamaGenerateCapability contract).
+// Every exported function below takes its capability as opts.ollama — no
+// module-scope binding exists for a concurrently constructed Full/Lite
+// composition to contaminate. addTags()/addTagsBatch() are never reached
 // in Lite (TAG_GEN=0 hard pin) regardless.
-let _ollama = null;
-
-/**
- * Composition-time seam: inject the Ollama capability addTags()/
- * addTagsBatch() call through. Call once, at process composition time
- * (mirrors applyTagSettings()) — never per-request.
- * @param {import('../../core/generation/ollama-capability.js').OllamaGenerateCapability} capability
- */
-export function applyTagCapability(capability) {
-  validateOllamaGenerateCapability(capability);
-  _ollama = capability;
-}
 
 // Tags are optional navigation metadata. Generate them only when explicitly
 // requested so normal indexing does not spend LLM time on payload-only tags.
@@ -59,7 +48,13 @@ function existingTags(chunk) {
   return Array.isArray(t) ? t : t ? [t] : [];
 }
 
-export async function addTagsWithModel(chunk, model) {
+/**
+ * @param {Object} chunk
+ * @param {string} model
+ * @param {{ ollama: import('../../core/generation/ollama-capability.js').OllamaGenerateCapability }} opts
+ *   — required; no module-scope fallback exists.
+ */
+export async function addTagsWithModel(chunk, model, opts) {
   const prompt = `You are a document tagger. Generate 3-7 concise tags for this text chunk. Tags should describe the topic, technology, or concept. Use lowercase, hyphens for spaces (e.g. "node-js", "sql-join", "normalization"). Output only a comma-separated list of tags, nothing else.
 
 File: ${chunk.source_file}
@@ -69,14 +64,20 @@ Context: ${chunk.context || ''}
 Text:
 ${chunk.text.slice(0, 800)}`;
 
-  if (!_ollama) throw new Error('phases/tag.js: no ollama capability injected — call applyTagCapability() or applyAllCapabilities() before indexing.');
-  const raw = await _ollama.generate(model, prompt);
+  const ollama = opts?.ollama;
+  if (!ollama) throw new Error('phases/tag.js: addTagsWithModel() requires opts.ollama (an OllamaGenerateCapability) — no module-scope capability exists to fall back to.');
+  validateOllamaGenerateCapability(ollama);
+  const raw = await ollama.generate(model, prompt);
   const tags = [...new Set([...existingTags(chunk), ...parseTags(raw)])];
   return { ...chunk, tags };
 }
 
-export async function addTags(chunk) {
-  return addTagsWithModel(chunk, MODEL);
+/**
+ * @param {Object} chunk
+ * @param {{ ollama: import('../../core/generation/ollama-capability.js').OllamaGenerateCapability }} opts — required, see addTagsWithModel().
+ */
+export async function addTags(chunk, opts) {
+  return addTagsWithModel(chunk, MODEL, opts);
 }
 
 export function extractJsonArray(raw, expectedLength) {
@@ -118,8 +119,12 @@ export function extractJsonArray(raw, expectedLength) {
   return null;
 }
 
-export async function addTagsBatch(chunks) {
-  if (chunks.length === 1) return [await addTags(chunks[0])];
+/**
+ * @param {Object[]} chunks
+ * @param {{ ollama: import('../../core/generation/ollama-capability.js').OllamaGenerateCapability }} opts — required, see addTagsWithModel().
+ */
+export async function addTagsBatch(chunks, opts) {
+  if (chunks.length === 1) return [await addTags(chunks[0], opts)];
 
   const n = chunks.length;
   const example = Array.from({ length: n }, (_, i) => [`tag${i}a`, `tag${i}b`]);
@@ -133,17 +138,19 @@ ${items}
 
 Output:`;
 
-  if (!_ollama) throw new Error('phases/tag.js: no ollama capability injected — call applyTagCapability() or applyAllCapabilities() before indexing.');
+  const ollama = opts?.ollama;
+  if (!ollama) throw new Error('phases/tag.js: addTagsBatch() requires opts.ollama (an OllamaGenerateCapability) — no module-scope capability exists to fall back to.');
+  validateOllamaGenerateCapability(ollama);
   let result = null;
   let raw = null;
   try {
-    raw = await _ollama.generate(MODEL, prompt, { format: 'json' });
+    raw = await ollama.generate(MODEL, prompt, { format: 'json' });
     result = extractJsonArray(raw, n);
   } catch { /* fall through */ }
 
   if (!result) {
     console.warn('  [tag] batch parse failed, falling back to individual');
-    return Promise.all(chunks.map(addTags));
+    return Promise.all(chunks.map(chunk => addTags(chunk, opts)));
   }
 
   return chunks.map((chunk, i) => {

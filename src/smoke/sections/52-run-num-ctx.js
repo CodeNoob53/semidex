@@ -6,22 +6,17 @@
 export default async function ({ ok }) {
   console.log('\n[52] resolveRunNumCtx — logic + index.js wiring');
 
-  const { resolveRunNumCtx, resolveNumCtx, generateNavSummaries, buildCollectionSummary, estTokens, applySkeletonSummaryCapability } =
+  const { resolveRunNumCtx, resolveNumCtx, generateNavSummaries, buildCollectionSummary, estTokens } =
     await import('../../indexer/phases/skeleton-summary.js');
 
   // resolveRunNumCtx()'s own model-max fallback path (exercised below when
-  // the env override is absent/too-small) calls getModelContextLength(),
-  // which requires an injected OllamaSummaryCapability (code review, round
-  // 4 — this module no longer defaults to a real ollama-lazy.js-backed
-  // capability at module scope). A fixed, deterministic stub — never a
-  // real network call — keeps this smoke section's own "model max" cases
-  // exercising the real resolveRunNumCtx() code path without requiring a
-  // live Ollama server.
-  applySkeletonSummaryCapability({
-    generate: async () => 'unused', // this section's generateFn-driven calls override this per-call
-    getModelContextLength: async () => 131072,
-    isThinkingModel: async () => false,
-  });
+  // the env override is absent/too-small) calls getModelContextLengthFn(),
+  // which is now a real function argument (Phase 8B Step 3 — no module-
+  // scope capability binding exists in skeleton-summary.js at all anymore).
+  // A fixed, deterministic stub — never a real network call — keeps this
+  // smoke section's own "model max" cases exercising the real
+  // resolveRunNumCtx() code path without requiring a live Ollama server.
+  const stubGetModelContextLength = async () => 131072;
 
   // ── 1. resolveRunNumCtx pure logic ──────────────────────────────────────────
 
@@ -31,15 +26,15 @@ export default async function ({ ok }) {
   // stub injected through generateNavSummaries opts.
 
   // env override takes precedence over everything
-  const envOverride = await resolveRunNumCtx('any-model', 99999, { SUMMARY_WINDOW_TOKENS: '16384' });
+  const envOverride = await resolveRunNumCtx('any-model', 99999, { SUMMARY_WINDOW_TOKENS: '16384' }, stubGetModelContextLength);
   ok('env override respected', envOverride === 16384);
 
   // too-small env value is ignored (< 500)
-  const tooSmall = await resolveRunNumCtx('any-model', 0, { SUMMARY_WINDOW_TOKENS: '100' });
+  const tooSmall = await resolveRunNumCtx('any-model', 0, { SUMMARY_WINDOW_TOKENS: '100' }, stubGetModelContextLength);
   ok('too-small env ignored — falls through to model max', typeof tooSmall === 'number' && tooSmall >= 4096);
 
   // resolveNumCtx is a convenience wrapper (maxPromptTokens=0)
-  const noTokens = await resolveRunNumCtx('any-model', 0, { SUMMARY_WINDOW_TOKENS: '8192' });
+  const noTokens = await resolveRunNumCtx('any-model', 0, { SUMMARY_WINDOW_TOKENS: '8192' }, stubGetModelContextLength);
   ok('zero maxPromptTokens → env value', noTokens === 8192);
 
   // next-pow-2 arithmetic (using env override to control model max)

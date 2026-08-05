@@ -19,32 +19,22 @@ export function applyContextSettings(settingsService) {
   BATCH_SIZE = settingsService.getActiveValue('LLM_BATCH_SIZE');
 }
 
-// Capability injection (Phase 8B Step 1, revised round 4) — this module
-// never imports core/ollama.js, not even indirectly through a *-lazy.js
-// re-export used as a default value. It depends only on the narrow
-// OllamaGenerateCapability contract (core/generation/ollama-capability.js)
-// — a single-method generate-only slice of Ollama's surface (this file's
-// only real call is generate(); it never calls generateStream/
-// getModelContextLength/isThinkingModel, so it doesn't depend on a
-// contract wide enough to require them). `_ollama` starts unset (null) —
-// indexer/index.js's own applyAllCapabilities() call (made unconditionally
-// for both editions before run() ever executes) is the one real caller
-// that populates it. addContext() itself is never reached in Lite
-// regardless (CONTEXT_MODE=deterministic hard pin), but this module no
-// longer needs a real-module default to make that provably true — the
-// capability is simply never there to call.
-let _ollama = null;
-
-/**
- * Composition-time seam: inject the Ollama capability addContext() calls
- * through. Call once, at process composition time (mirrors
- * applyContextSettings()) — never per-request.
- * @param {import('../../core/generation/ollama-capability.js').OllamaGenerateCapability} capability
- */
-export function applyContextCapability(capability) {
-  validateOllamaGenerateCapability(capability);
-  _ollama = capability;
-}
+// Capability injection (Phase 8B Step 3 — instance-scoped, no module-scope
+// setter) — this module never imports local/core/ollama.js, not even indirectly
+// through a *-lazy.js re-export used as a default value. It depends only
+// on the narrow OllamaGenerateCapability contract
+// (core/generation/ollama-capability.js) — a single-method generate-only
+// slice of Ollama's surface (this file's only real call is generate(); it
+// never calls generateStream/getModelContextLength/isThinkingModel, so it
+// doesn't depend on a contract wide enough to require them).
+//
+// addContext() takes its capability as a real function parameter
+// (opts.ollama) — there is no module-scope binding here for a concurrently
+// constructed Full/Lite composition to contaminate. indexer/run.js is the
+// one real caller: it resolves its own capability once per run() (a
+// run-scoped, immutable snapshot — see run.js's own header comment) and
+// passes it explicitly to every addContext() call. addContext() itself is
+// never reached in Lite regardless (CONTEXT_MODE=deterministic hard pin).
 
 // CONTEXT_MODE=deterministic|llm (default llm — full Semidex unchanged).
 // Semidex Lite pins deterministic so legacy (non-skeleton) chunking never
@@ -54,7 +44,13 @@ export function isDeterministicContextMode(env = process.env) {
   return env.CONTEXT_MODE === 'deterministic';
 }
 
-export async function addContext(chunk) {
+/**
+ * @param {Object} chunk
+ * @param {{ ollama: import('../../core/generation/ollama-capability.js').OllamaGenerateCapability }} opts
+ *   — required; no module-scope fallback exists. The caller (indexer/run.js)
+ *   resolves its own capability once per run and passes it explicitly here.
+ */
+export async function addContext(chunk, opts) {
   const prompt = `You are a document indexer. Given a text chunk from a file, write 1-2 sentences describing what this chunk is about and where it fits in the document. Be concise. Output only the context, nothing else.
 
 File: ${chunk.source_file}
@@ -64,8 +60,10 @@ Chunk ${chunk.chunkIndex + 1} of ${chunk.totalChunks}
 Text:
 ${chunk.text.slice(0, 1000)}`;
 
-  if (!_ollama) throw new Error('phases/context.js: no ollama capability injected — call applyContextCapability() or applyAllCapabilities() before indexing.');
-  const context = await _ollama.generate(MODEL, prompt);
+  const ollama = opts?.ollama;
+  if (!ollama) throw new Error('phases/context.js: addContext() requires opts.ollama (an OllamaGenerateCapability) — no module-scope capability exists to fall back to.');
+  validateOllamaGenerateCapability(ollama);
+  const context = await ollama.generate(MODEL, prompt);
   return { ...chunk, context: context.trim() };
 }
 
@@ -93,6 +91,10 @@ export async function addContextDeterministic(chunk) {
   return { ...chunk, context: parts.join(' › ') };
 }
 
-export async function processChunks(chunks) {
-  return runBatched(chunks, BATCH_SIZE, addContext);
+/**
+ * @param {Object[]} chunks
+ * @param {{ ollama: import('../../core/generation/ollama-capability.js').OllamaGenerateCapability }} opts — required, see addContext().
+ */
+export async function processChunks(chunks, opts) {
+  return runBatched(chunks, BATCH_SIZE, chunk => addContext(chunk, opts));
 }
