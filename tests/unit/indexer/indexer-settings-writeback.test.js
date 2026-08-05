@@ -132,8 +132,8 @@ describe('ONNXRUNTIME_NODE_PATH: real settings.json -> applyEnvWriteBack() -> pr
     assert.ok(!jobEnvKeys.includes('ONNX_EXECUTION_PROVIDER'), 'buildJobEnv must never set ONNX_EXECUTION_PROVIDER directly, for the same reason');
 
     const spawnCalls = [];
-    const fakeSpawn = (cmd, args, opts) => {
-      spawnCalls.push({ cmd, args, opts });
+    const fakeSpawnIndexer = ({ args, env }) => {
+      spawnCalls.push({ args, env });
       const child = new EventEmitter();
       child.stdout = new EventEmitter();
       child.stderr = new EventEmitter();
@@ -142,7 +142,7 @@ describe('ONNXRUNTIME_NODE_PATH: real settings.json -> applyEnvWriteBack() -> pr
       return child;
     };
     const customBaseEnv = { ONNXRUNTIME_NODE_PATH: '/from/base/env', PATH: process.env.PATH };
-    const registry = createJobRegistry({ spawnFn: fakeSpawn, baseEnv: customBaseEnv });
+    const registry = createJobRegistry({ spawnIndexer: fakeSpawnIndexer, baseEnv: customBaseEnv });
     try {
       registry.startIndexJob({ collection: 'test-collection', path: '/some/path', options: {} });
     } catch {
@@ -151,7 +151,7 @@ describe('ONNXRUNTIME_NODE_PATH: real settings.json -> applyEnvWriteBack() -> pr
       // whether a spawn call, if made, used the injected baseEnv.
     }
     if (spawnCalls.length > 0) {
-      assert.equal(spawnCalls[0].opts.env.ONNXRUNTIME_NODE_PATH, '/from/base/env', 'the spawned child must inherit baseEnv\'s ONNXRUNTIME_NODE_PATH, not a live process.env value');
+      assert.equal(spawnCalls[0].env.ONNXRUNTIME_NODE_PATH, '/from/base/env', 'the spawned child must inherit baseEnv\'s ONNXRUNTIME_NODE_PATH, not a live process.env value');
     }
   });
 });

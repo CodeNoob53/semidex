@@ -1,4 +1,4 @@
-import { generate } from '../../core/ollama-lazy.js';
+import { validateOllamaGenerateCapability } from '../../core/generation/ollama-capability.js';
 
 export function resolveTagModel(env = process.env) {
   return env.TAG_MODEL || env.CONTEXT_MODEL || 'gemma3:4b';
@@ -18,6 +18,27 @@ let MODEL = resolveTagModel();
  */
 export function applyTagSettings(settingsService) {
   MODEL = settingsService.getActiveValue('TAG_MODEL') || settingsService.getActiveValue('CONTEXT_MODEL') || 'gemma3:4b';
+}
+
+// Capability injection (Phase 8B Step 1, revised round 4) — see
+// phases/context.js's own header comment for the full rationale; this
+// module follows the exact same pattern (never imports core/ollama.js,
+// not even indirectly through a *-lazy.js default; depends only on the
+// narrow single-method OllamaGenerateCapability contract; `_ollama` starts
+// unset (null), populated only by indexer/index.js's own
+// applyAllCapabilities() call). addTags()/addTagsBatch() are never reached
+// in Lite (TAG_GEN=0 hard pin) regardless.
+let _ollama = null;
+
+/**
+ * Composition-time seam: inject the Ollama capability addTags()/
+ * addTagsBatch() call through. Call once, at process composition time
+ * (mirrors applyTagSettings()) — never per-request.
+ * @param {import('../../core/generation/ollama-capability.js').OllamaGenerateCapability} capability
+ */
+export function applyTagCapability(capability) {
+  validateOllamaGenerateCapability(capability);
+  _ollama = capability;
 }
 
 // Tags are optional navigation metadata. Generate them only when explicitly
@@ -48,7 +69,8 @@ Context: ${chunk.context || ''}
 Text:
 ${chunk.text.slice(0, 800)}`;
 
-  const raw = await generate(model, prompt);
+  if (!_ollama) throw new Error('phases/tag.js: no ollama capability injected — call applyTagCapability() or applyAllCapabilities() before indexing.');
+  const raw = await _ollama.generate(model, prompt);
   const tags = [...new Set([...existingTags(chunk), ...parseTags(raw)])];
   return { ...chunk, tags };
 }
@@ -111,10 +133,11 @@ ${items}
 
 Output:`;
 
+  if (!_ollama) throw new Error('phases/tag.js: no ollama capability injected — call applyTagCapability() or applyAllCapabilities() before indexing.');
   let result = null;
   let raw = null;
   try {
-    raw = await generate(MODEL, prompt, { format: 'json' });
+    raw = await _ollama.generate(MODEL, prompt, { format: 'json' });
     result = extractJsonArray(raw, n);
   } catch { /* fall through */ }
 

@@ -1,4 +1,4 @@
-import { generate } from '../../core/ollama-lazy.js';
+import { validateOllamaGenerateCapability } from '../../core/generation/ollama-capability.js';
 import { runBatched } from '../batch.js';
 
 // let (not const): CONTEXT_MODEL/LLM_BATCH_SIZE are next_index_job settings
@@ -19,6 +19,33 @@ export function applyContextSettings(settingsService) {
   BATCH_SIZE = settingsService.getActiveValue('LLM_BATCH_SIZE');
 }
 
+// Capability injection (Phase 8B Step 1, revised round 4) — this module
+// never imports core/ollama.js, not even indirectly through a *-lazy.js
+// re-export used as a default value. It depends only on the narrow
+// OllamaGenerateCapability contract (core/generation/ollama-capability.js)
+// — a single-method generate-only slice of Ollama's surface (this file's
+// only real call is generate(); it never calls generateStream/
+// getModelContextLength/isThinkingModel, so it doesn't depend on a
+// contract wide enough to require them). `_ollama` starts unset (null) —
+// indexer/index.js's own applyAllCapabilities() call (made unconditionally
+// for both editions before run() ever executes) is the one real caller
+// that populates it. addContext() itself is never reached in Lite
+// regardless (CONTEXT_MODE=deterministic hard pin), but this module no
+// longer needs a real-module default to make that provably true — the
+// capability is simply never there to call.
+let _ollama = null;
+
+/**
+ * Composition-time seam: inject the Ollama capability addContext() calls
+ * through. Call once, at process composition time (mirrors
+ * applyContextSettings()) — never per-request.
+ * @param {import('../../core/generation/ollama-capability.js').OllamaGenerateCapability} capability
+ */
+export function applyContextCapability(capability) {
+  validateOllamaGenerateCapability(capability);
+  _ollama = capability;
+}
+
 // CONTEXT_MODE=deterministic|llm (default llm — full Semidex unchanged).
 // Semidex Lite pins deterministic so legacy (non-skeleton) chunking never
 // calls Ollama. Mirrors isOnnxTagProvider()'s (tag-onnx.js) DI-friendly
@@ -37,7 +64,8 @@ Chunk ${chunk.chunkIndex + 1} of ${chunk.totalChunks}
 Text:
 ${chunk.text.slice(0, 1000)}`;
 
-  const context = await generate(MODEL, prompt);
+  if (!_ollama) throw new Error('phases/context.js: no ollama capability injected — call applyContextCapability() or applyAllCapabilities() before indexing.');
+  const context = await _ollama.generate(MODEL, prompt);
   return { ...chunk, context: context.trim() };
 }
 

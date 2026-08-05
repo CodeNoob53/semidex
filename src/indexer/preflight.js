@@ -3,21 +3,37 @@
 // file only adds the indexer-specific "throw with an actionable CLI message"
 // framing around that shared logic.
 //
-// Imported via ollama-lazy.js (dynamic) rather than statically from
-// core/ollama.js: this file is on the indexer import graph (run.js imports
-// it), and a cloud-only Semidex Lite deployment must never pull
-// core/ollama.js into the module graph. checkOllamaPreflight() only ever
-// RUNS when a local Ollama model is actually required (run.js gates it
-// behind !skeletonNoLlm and never calls it in cloud/deterministic mode), so
-// deferring the import to first call costs nothing observable.
-import { isOllamaReachable, listOllamaModels, validateOllamaModels } from '../core/ollama-lazy.js';
+// Depends on the narrow OllamaDiscoveryCapability CONTRACT
+// (core/generation/ollama-capability.js) only — never imports
+// core/ollama.js directly, not even indirectly through a *-lazy.js default
+// (Phase 8B Step 1, revised round 4; see indexer/phases/context.js's own
+// header comment for the full rationale). `_ollama` starts unset (null) —
+// indexer/index.js's own applyAllCapabilities() call (made unconditionally
+// for both editions before run() ever executes) is the one real caller
+// that populates it. checkOllamaPreflight() only ever RUNS when a local
+// Ollama model is actually required (run.js gates it behind
+// !skeletonNoLlm and never calls it in cloud/deterministic mode).
+import { validateOllamaDiscoveryCapability } from '../core/generation/ollama-capability.js';
+
+let _ollama = null;
+
+/**
+ * Composition-time seam: inject the Ollama capability preflight checks
+ * call through. Call once, at process composition time — never per-request.
+ * @param {import('../core/generation/ollama-capability.js').OllamaDiscoveryCapability} capability
+ */
+export function applyPreflightCapability(capability) {
+  validateOllamaDiscoveryCapability(capability);
+  _ollama = capability;
+}
 
 // Impure: fetches /api/version and /api/tags, throws with actionable message on failure.
 export async function checkOllamaPreflight(ollamaUrl, contextModel, tagModel) {
+  if (!_ollama) throw new Error('preflight.js: no ollama capability injected — call applyPreflightCapability() or applyAllCapabilities() before indexing.');
   const base = ollamaUrl.replace(/\/$/, '');
 
   // 1. Reachability check
-  if (!(await isOllamaReachable(base))) {
+  if (!(await _ollama.isOllamaReachable(base))) {
     const isLocalhost = /localhost/i.test(base);
     const hint = isLocalhost
       ? `\n  Tip: on Windows, Node.js may route localhost through a proxy.\n  Try: OLLAMA_URL=http://127.0.0.1:11434`
@@ -31,12 +47,12 @@ export async function checkOllamaPreflight(ollamaUrl, contextModel, tagModel) {
   // 2. Model availability check
   let available;
   try {
-    available = await listOllamaModels(base);
+    available = await _ollama.listOllamaModels(base);
   } catch (err) {
     throw new Error(`[preflight] Could not list Ollama models from ${base}/api/tags: ${err.message}`);
   }
 
-  const missing = await validateOllamaModels([contextModel, tagModel], available);
+  const missing = await _ollama.validateOllamaModels([contextModel, tagModel], available);
   if (missing) {
     const cmds = missing.map(m => `  ollama pull ${m}`).join('\n');
     throw new Error(

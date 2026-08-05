@@ -46,7 +46,7 @@ function makeStubAdapter(overrides = {}) {
 }
 
 async function withOpsApp({ spawnFn = makeNeverExitingSpawn(), adapterOverrides = {} } = {}, fn) {
-  const jobRegistry = createJobRegistry({ spawnFn });
+  const jobRegistry = createJobRegistry({ spawnIndexer: spawnFn });
   const taskRegistry = createTaskRegistry();
   const app = createApp({
     jobRegistry, taskRegistry, adapter: makeStubAdapter(adapterOverrides),

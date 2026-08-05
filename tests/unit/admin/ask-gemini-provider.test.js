@@ -271,6 +271,7 @@ describe('POST /api/v1/ask — Gemini and Ollama produce the same public event s
       model: 'gemma3:4b',
       isOllamaReachableFn: async () => true,
       listOllamaModelsFn: async () => ['gemma3:4b'],
+      validateOllamaModelsFn: async () => null,
       getModelContextLengthFn: async () => 8192,
       generateStreamFn: async (_model, _prompt, { onToken }) => {
         await onToken?.('The value is ');

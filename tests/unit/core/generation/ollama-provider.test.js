@@ -3,6 +3,21 @@ import assert from 'node:assert/strict';
 import { createOllamaProvider } from '../../../../src/core/generation/ollama-provider.js';
 import { validateGenerationProvider } from '../../../../src/core/generation/provider.js';
 
+// createOllamaProvider() no longer defaults validateOllamaModelsFn to a
+// real, working implementation (code review, round 4 — that default used
+// to be the real ollama-lazy.js-backed function; it is now a typed-
+// unavailable stub, matching every other *Fn seam on this factory). Every
+// test below must inject its own — this fake replicates core/ollama.js's
+// own real, pure array-membership logic exactly (missing = required
+// entries not present in `available`; null when none are missing), so
+// these tests still exercise the SAME real decision logic ready() depends
+// on, just without a real network-backed default.
+function fakeValidateOllamaModels(required, available) {
+  const availSet = new Set(available);
+  const missing = [...new Set(required)].filter((m) => !availSet.has(m));
+  return missing.length ? missing : null;
+}
+
 describe('createOllamaProvider', () => {
   test('conforms to the GenerationProvider shape', () => {
     const provider = createOllamaProvider({ isOllamaReachableFn: async () => true, listOllamaModelsFn: async () => [] });
@@ -28,6 +43,7 @@ describe('createOllamaProvider', () => {
       model: 'gemma3:4b',
       isOllamaReachableFn: async () => true,
       listOllamaModelsFn: async () => ['llama3.2:3b'],
+      validateOllamaModelsFn: fakeValidateOllamaModels,
     });
     const result = await provider.ready();
     assert.equal(result.ok, false);
@@ -39,6 +55,7 @@ describe('createOllamaProvider', () => {
       model: 'gemma3:4b',
       isOllamaReachableFn: async () => true,
       listOllamaModelsFn: async () => ['gemma3:4b', 'other:1b'],
+      validateOllamaModelsFn: fakeValidateOllamaModels,
       getModelContextLengthFn: async () => 8192,
     });
     const result = await provider.ready();
@@ -52,6 +69,7 @@ describe('createOllamaProvider', () => {
       model: 'small:1b',
       isOllamaReachableFn: async () => true,
       listOllamaModelsFn: async () => ['small:1b'],
+      validateOllamaModelsFn: fakeValidateOllamaModels,
       getModelContextLengthFn: async () => 4096, // smaller than DEFAULT_ASK_NUM_CTX (8192)
     });
     const result = await provider.ready();
@@ -63,6 +81,7 @@ describe('createOllamaProvider', () => {
       model: 'big:70b',
       isOllamaReachableFn: async () => true,
       listOllamaModelsFn: async () => ['big:70b'],
+      validateOllamaModelsFn: fakeValidateOllamaModels,
       getModelContextLengthFn: async () => 131072, // far larger than DEFAULT_ASK_NUM_CTX
     });
     const result = await provider.ready();
@@ -76,6 +95,7 @@ describe('createOllamaProvider', () => {
       baseUrl: 'http://custom-host:11500',
       isOllamaReachableFn: async () => true,
       listOllamaModelsFn: async () => ['gemma3:4b'],
+      validateOllamaModelsFn: fakeValidateOllamaModels,
       getModelContextLengthFn: async (_model, _fallback, baseUrl) => { capturedBaseUrl = baseUrl; return 8192; },
     });
     await provider.ready();
@@ -93,7 +113,8 @@ describe('createOllamaProvider', () => {
     assert.equal(called, false);
 
     const missingModel = createOllamaProvider({
-      model: 'gemma3:4b', isOllamaReachableFn: async () => true, listOllamaModelsFn: async () => ['other:1b'], getModelContextLengthFn,
+      model: 'gemma3:4b', isOllamaReachableFn: async () => true, listOllamaModelsFn: async () => ['other:1b'],
+      validateOllamaModelsFn: fakeValidateOllamaModels, getModelContextLengthFn,
     });
     await missingModel.ready();
     assert.equal(called, false);

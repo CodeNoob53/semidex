@@ -23,8 +23,8 @@
 // different resolution path while reindexing silently wrote incompatible
 // vectors into the same collection.
 
-import { embed as ollamaEmbed } from './ollama-lazy.js';
-import { loadOnnx, loadOnnxBatch } from './onnx-embed-lazy.js';
+import { validateOllamaEmbedCapability } from './generation/ollama-capability.js';
+import { validateOnnxEmbedCapability } from './onnx-embed-capability.js';
 import { encode as hashedTfEncode } from './sparse.js';
 import { assertProviderCombo } from './env.js';
 import { EXECUTION } from './embedding-profile/schema.js';
@@ -61,13 +61,67 @@ export function resolveOnnxBatchSize(env) {
   return raw;
 }
 
-// ── Lazy singletons ───────────────────────────────────────────────────────────
+// ── Capability injection (Phase 8B Step 1, revised after code review) ──────
 //
-// loadOnnx/loadOnnxBatch now live in core/onnx-embed-lazy.js (imported
-// above) — extracted so this file's own static import graph never pulls
-// onnx-embed.js/length-bucket.js, matching the ollama-lazy.js pattern this
-// file already uses for Ollama (see the top-of-file import). See
-// onnx-embed-lazy.js's own header comment for the full rationale.
+// This module never imports core/ollama.js, core/onnx-embed.js, or
+// core/length-bucket.js — even indirectly through a *-lazy.js re-export used
+// as a call target. It depends only on the OllamaEmbedCapability/
+// OnnxEmbedCapability CONTRACTS (generation/ollama-capability.js,
+// onnx-embed-capability.js) — the narrow embed-only slice of Ollama's
+// surface, not the wider generation/discovery methods this module never
+// calls.
+//
+// TWO injection layers exist, deliberately:
+//
+// 1. Per-call `capabilities` parameter (embedForIndex/embedForIndexBatch/
+//    embedForSearch's own last argument) — the REAL isolation mechanism.
+//    A caller that resolves its own capability (run.js, search.js) can
+//    pass it explicitly per call, so this module's own internal dispatch
+//    never touches shared module state for that call at all.
+// 2. The module-scope `_ollamaDefault`/`_onnxEmbedDefault` bindings below,
+//    set by `applyEmbeddingCapabilities()` — a courtesy fallback for
+//    callers that pass no per-call `capabilities` (Full's own three real
+//    entry points, and any test/tool that hasn't been updated to the
+//    per-call seam yet). This is what `admin/composition/lite.js`'s
+//    `createLiteApp()`, `admin/server-full.js`'s `createApp()`, and
+//    `mcp/server.js` each still call at their own composition time.
+//
+// Code review (round 4): layer 2's PRIOR default silently imported the real
+// core/ollama-lazy.js/core/onnx-embed-lazy.js modules at this file's own
+// module scope — which meant this file (statically reachable from BOTH
+// Full's and Lite's composition roots — see this module's own reachability
+// in the Lite import graph) always had a structural static edge onto
+// Full's local-runtime modules, regardless of whether Lite ever actually
+// used the fallback. Every real production caller today (server-full.js's
+// createApp(), composition/lite.js's createLiteApp(), mcp/server.js,
+// indexer/run.js) already resolves and passes `capabilities` explicitly
+// per call (layer 1) — none of them rely on this fallback for real
+// dispatch anymore. So the fallback now starts at `null` and
+// applyEmbeddingCapabilities() is the ONLY way to populate it; a call that
+// reaches _embed() with no per-call `capabilities` AND no fallback ever
+// set throws a clear, actionable error instead of silently defaulting to
+// a real local-runtime import this module must never statically depend on.
+let _ollamaDefault = null;
+let _onnxEmbedDefault = null;
+
+/**
+ * Composition-time seam: sets the module-scope FALLBACK Ollama/ONNX
+ * embedding capabilities used only when a caller passes no per-call
+ * `capabilities` argument to embedForIndex/embedForIndexBatch/embedForSearch.
+ * Call once, at process composition time (mirrors
+ * applyContextSettings()/applyTagSettings()) — never per-request. Either
+ * capability may be omitted to leave the other's current binding unchanged.
+ * Prefer passing `capabilities` per call (layer 1, above) over relying on
+ * this fallback where a real per-call capability is available. Unset by
+ * default (code review, round 4) — a caller relying on this fallback
+ * without ever calling this function gets a clear "capability not
+ * injected" error, never a silent real-local-runtime default.
+ * @param {{ ollama?: import('./generation/ollama-capability.js').OllamaEmbedCapability, onnxEmbed?: import('./onnx-embed-capability.js').OnnxEmbedCapability }} capabilities
+ */
+export function applyEmbeddingCapabilities({ ollama, onnxEmbed } = {}) {
+  if (ollama) { validateOllamaEmbedCapability(ollama); _ollamaDefault = ollama; }
+  if (onnxEmbed) { validateOnnxEmbedCapability(onnxEmbed); _onnxEmbedDefault = onnxEmbed; }
+}
 
 // Adapts a resolved embedding profile's dense/sparse lanes into the small
 // { denseProvider, denseModel, sparseProvider } shape _embed()'s dispatch
@@ -115,8 +169,8 @@ export class EmbeddingInputTooLongError extends Error {
 
 const CONTEXT_TEXT_SEPARATOR = '\n\n';
 
-// Cloud-only sibling of embedForIndex — never touches _embed/loadOnnx/
-// ollamaEmbed/assertClientExecution. Builds {text, model} inference
+// Cloud-only sibling of embedForIndex — never touches _embed/_onnxEmbed/
+// _ollama/assertClientExecution. Builds {text, model} inference
 // descriptors, never real vector arrays.
 //
 // `text` is ALWAYS the full assembled embed string (context+text joined by
@@ -207,19 +261,26 @@ async function embedForIndexCloud(profile, text, context = null) {
  * @param {string} text — the full assembled embed input (context+text for a
  *   real chunk, or a bare summary string for e.g. a directory/skeleton
  *   summary with no separate context to reserve budget for)
- * @param {{ context?: string }} [opts] — cloud-only: the context prefix
- *   already folded into `text`, supplied separately so a too-long input
- *   can have ITS CONTEXT trimmed (never the chunk body) and be retried
- *   once before failing. Ignored for a client-execution profile.
+ * @param {{ context?: string, capabilities?: { ollama?: import('./generation/ollama-capability.js').OllamaEmbedCapability, onnxEmbed?: import('./onnx-embed-capability.js').OnnxEmbedCapability } }} [opts] —
+ *   `context` (cloud-only): the context prefix already folded into `text`,
+ *   supplied separately so a too-long input can have ITS CONTEXT trimmed
+ *   (never the chunk body) and be retried once before failing. Ignored for
+ *   a client-execution profile. `capabilities` (client-only): the REAL
+ *   isolation seam — when supplied, this call dispatches through EXACTLY
+ *   these objects, never touching the module-scope
+ *   applyEmbeddingCapabilities() fallback at all, so two callers in the
+ *   same process (e.g. a Full and a Lite composition root) can never step
+ *   on each other via this call. Omitted fields fall back to the
+ *   module-scope default.
  * @returns {Promise<{ dense: number[]|{text,model}, sparse: object|{text,model}|null, meta: object }>}
  */
-export async function embedForIndex(profile, text, { context = null } = {}) {
+export async function embedForIndex(profile, text, { context = null, capabilities } = {}) {
   if (profile.embedding.dense.execution === EXECUTION.QDRANT_CLOUD) {
     return embedForIndexCloud(profile, text, context);
   }
   assertClientExecution(profile);
   const cfg = laneConfig(profile);
-  const { dense, sparse } = await _embed(cfg, text);
+  const { dense, sparse } = await _embed(cfg, text, capabilities);
   return {
     dense,
     sparse,
@@ -243,14 +304,14 @@ export async function embedForIndex(profile, text, { context = null } = {}) {
  * @param {string[]} texts — pre-formatted embed texts
  * @param {(items: any[], size: number, fn: Function) => Promise<any[]>} runBatched
  * @param {number} batchSize — LLM_BATCH_SIZE for the non-DML concurrent path
- * @param {{ contexts?: (string|null)[] }} [opts] — cloud-only: per-text
- *   context prefixes (same index order as `texts`), see embedForIndex()'s
- *   own `context` option. Omitted or a shorter/missing entry means "no
- *   known context prefix to trim" for that text, matching embedForIndex()'s
- *   default.
+ * @param {{ contexts?: (string|null)[], capabilities?: Object }} [opts] —
+ *   `contexts` (cloud-only): per-text context prefixes (same index order as
+ *   `texts`), see embedForIndex()'s own `context` option. `capabilities`
+ *   (client-only): see embedForIndex()'s own `capabilities` option — the
+ *   same object is used for every text in this batch.
  * @returns {Promise<Array<{ dense: number[], sparse: object, meta: object }>>}
  */
-export async function embedForIndexBatch(profile, texts, runBatched, batchSize, { contexts = null } = {}) {
+export async function embedForIndexBatch(profile, texts, runBatched, batchSize, { contexts = null, capabilities } = {}) {
   if (profile.embedding.dense.execution === EXECUTION.QDRANT_CLOUD) {
     // Each chunk's checkEmbedInputFits() gate (with the context-trim retry)
     // still runs individually inside embedForIndexCloud() — batching here
@@ -275,16 +336,18 @@ export async function embedForIndexBatch(profile, texts, runBatched, batchSize, 
     embedding_schema_version: profile.embeddingSchemaVersion,
   };
 
+  const onnxEmbed = capabilities?.onnxEmbed ?? _onnxEmbedDefault;
   if (cfg.denseProvider === 'bge-m3-onnx' && shouldUseOnnxBatching(process.env)) {
+    if (!onnxEmbed) throw new Error('embedForIndexBatch: no onnxEmbed capability available — pass { capabilities: { onnxEmbed } } or call applyEmbeddingCapabilities() first.');
     const maxBatch = resolveOnnxBatchSize(process.env);
-    const { embedOnnxBatch, embedBucketed } = await loadOnnxBatch();
+    const { embedOnnxBatch, embedBucketed } = await onnxEmbed.loadOnnxBatch();
     const vectors = await embedBucketed(texts, embedOnnxBatch, maxBatch);
     return vectors.map(({ dense, sparse }) => ({ dense, sparse, meta }));
   }
 
   // Non-DML path: preserve existing concurrent runBatched behavior.
   return runBatched(texts, batchSize, async (text) => {
-    const { dense, sparse } = await _embed(cfg, text);
+    const { dense, sparse } = await _embed(cfg, text, capabilities);
     return { dense, sparse, meta };
   });
 }
@@ -293,12 +356,14 @@ export async function embedForIndexBatch(profile, texts, runBatched, batchSize, 
  * Embed a search query. Returns dense + sparse vectors only.
  * @param {Object} profile — an already-resolved, valid embedding profile
  * @param {string} query
+ * @param {{ capabilities?: Object }} [opts] — see embedForIndex()'s own
+ *   `capabilities` option.
  * @returns {Promise<{ dense: number[], sparse: { indices: number[], values: number[] } }>}
  */
-export async function embedForSearch(profile, query) {
+export async function embedForSearch(profile, query, { capabilities } = {}) {
   assertClientExecution(profile);
   const cfg = laneConfig(profile);
-  return _embed(cfg, query);
+  return _embed(cfg, query, capabilities);
 }
 
 
@@ -313,20 +378,31 @@ export async function embedForSearch(profile, query) {
 let _localEmbedOverrideForTest = null;
 export function setLocalEmbedOverrideForTest(fn) { _localEmbedOverrideForTest = fn; }
 
-async function _embed(cfg, text) {
+// capabilities (optional): { ollama?, onnxEmbed? } — when a field is
+// supplied, THIS CALL dispatches through it exclusively, never consulting
+// _ollamaDefault/_onnxEmbedDefault for that field. This is the real
+// per-call isolation seam (see this file's own "Capability injection"
+// header comment) — omitted fields still fall back to the module-scope
+// default, so existing callers that pass no capabilities at all are
+// unaffected.
+async function _embed(cfg, text, capabilities) {
   if (_localEmbedOverrideForTest) return _localEmbedOverrideForTest(cfg, text);
 
   assertProviderCombo(cfg.denseProvider, cfg.sparseProvider);
 
   if (cfg.denseProvider === 'bge-m3-onnx') {
-    const embedOnnx = await loadOnnx();
+    const onnxEmbed = capabilities?.onnxEmbed ?? _onnxEmbedDefault;
+    if (!onnxEmbed) throw new Error('embeddings.js: no onnxEmbed capability available — pass { capabilities: { onnxEmbed } } or call applyEmbeddingCapabilities() first.');
+    const embedOnnx = await onnxEmbed.loadOnnx();
     const { dense, sparse } = await embedOnnx(text);
     return { dense, sparse };
   }
 
   // ollama + hashed-tf
+  const ollama = capabilities?.ollama ?? _ollamaDefault;
+  if (!ollama) throw new Error('embeddings.js: no ollama capability available — pass { capabilities: { ollama } } or call applyEmbeddingCapabilities() first.');
   const [dense, sparse] = await Promise.all([
-    ollamaEmbed(text, cfg.denseModel),
+    ollama.embed(text, cfg.denseModel),
     Promise.resolve(hashedTfEncode(text)),
   ]);
   return { dense, sparse };

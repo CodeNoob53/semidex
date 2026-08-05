@@ -1,4 +1,4 @@
-import { generate } from '../../core/ollama-lazy.js';
+import { validateOllamaGenerateCapability } from '../../core/generation/ollama-capability.js';
 import { addContext } from './context.js';
 import { addTagsWithModel } from './tag.js';
 
@@ -6,6 +6,29 @@ import { addTagsWithModel } from './tag.js';
 // back to the separate context + tag path. Avoids wasting a call on near-empty
 // chunks where the model reliably returns malformed output.
 export const COMBINED_MIN_CHARS = 80;
+
+// Capability injection (Phase 8B Step 1, revised round 4) — see
+// phases/context.js's own header comment for the full rationale; this
+// module follows the exact same pattern, using the narrow single-method
+// OllamaGenerateCapability contract, `_ollama` starting unset (null).
+// addContextAndTags() is never reached in Lite (COMBINED_LLM is only
+// meaningful under CONTEXT_MODE=llm, which Lite never selects). The
+// fallback path's own addContext()/addTagsWithModel() calls
+// (context.js/tag.js) are injected independently via their own
+// applyContextCapability()/applyTagCapability() seams — not through this
+// module's _ollama binding.
+let _ollama = null;
+
+/**
+ * Composition-time seam: inject the Ollama capability addContextAndTags()
+ * calls through for its own combined-call path. Call once, at process
+ * composition time — never per-request.
+ * @param {import('../../core/generation/ollama-capability.js').OllamaGenerateCapability} capability
+ */
+export function applyCombinedCapability(capability) {
+  validateOllamaGenerateCapability(capability);
+  _ollama = capability;
+}
 
 // ── Parser ────────────────────────────────────────────────────────────────────
 
@@ -198,8 +221,9 @@ export async function addContextAndTags(chunk, model, chunks) {
   const tooShort = chunk.text.trim().length < COMBINED_MIN_CHARS;
 
   if (!tooShort) {
+    if (!_ollama) throw new Error('phases/combined.js: no ollama capability injected — call applyCombinedCapability() or applyAllCapabilities() before indexing.');
     try {
-      const raw = await generate(model, buildPrompt(chunk, chunks), { format: 'json' });
+      const raw = await _ollama.generate(model, buildPrompt(chunk, chunks), { format: 'json' });
       if (BENCH_COMBINED_CONTEXT_ONLY) {
         const context = parseContextOnlyResponse(raw);
         if (context) return { ...chunk, context, tags: [] };

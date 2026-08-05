@@ -17,11 +17,12 @@ import { resolve, relative, dirname, isAbsolute } from 'path';
 import { createHash } from 'crypto';
 
 import { chunkFileFromPath, applyChunkingSettings } from './phases/chunk.js';
-import { addContext, addContextDeterministic, applyContextSettings, isDeterministicContextMode } from './phases/context.js';
-import { addTagsBatch, shouldGenerateTags, applyTagSettings } from './phases/tag.js';
-import { addTagsOnnxBatch, isOnnxTagProvider, shutdownOnnxTagWorker } from './phases/tag-onnx-lazy.js';
+import { addContext, addContextDeterministic, applyContextSettings, applyContextCapability, isDeterministicContextMode } from './phases/context.js';
+import { addTagsBatch, shouldGenerateTags, applyTagSettings, applyTagCapability } from './phases/tag.js';
+import { isOnnxTagProvider } from './phases/tag-provider.js';
+import { validateTagOnnxCapability } from './phases/tag-onnx-capability.js';
 import { isEmptySectionChunk } from './phases/empty-section.js';
-import { addContextAndTags } from './phases/combined.js';
+import { addContextAndTags, applyCombinedCapability } from './phases/combined.js';
 import { resolveCombinedLlmConfig } from '../core/doctor-checks.js';
 import { runBatched } from './batch.js';
 import { collectFiles, SUPPORTED_EXTENSIONS } from './files.js';
@@ -29,25 +30,131 @@ import { Profiler } from './profiler.js';
 import { upsertPoints, upsertPointsWithoutVectors, listCollections, getCollectionInfo, getStoredMeta, deleteBySourceFile, deleteTrailingChunks, listSourceFiles, deleteByFilter } from '../core/qdrant.js';
 import { makePointId } from '../core/point-id.js';
 import { loadConfig, saveConfig, resolveEnvProviders } from '../core/config.js';
-import { embedForIndex, embedForIndexBatch, shouldUseOnnxBatching, SCHEMA_VERSION } from '../core/embeddings.js';
+import { embedForIndex, embedForIndexBatch, shouldUseOnnxBatching, SCHEMA_VERSION, applyEmbeddingCapabilities } from '../core/embeddings.js';
 import { createStorageAdapter } from '../core/storage/factory.js';
 import { resolveExistingCollectionProfile, resolveNewCollectionProfile } from '../core/embedding-profile/resolve.js';
 import { findDenseModel, resolveEmbeddingBudget, isCatalogCompatibleWithChunking } from '../core/embedding-profile/qdrant-cloud-catalog.js';
 import { resolveCollectionConfigEntry } from '../core/embedding-profile/config-cache.js';
-import { ensureOllamaPreflight } from './preflight.js';
+import { ensureOllamaPreflight, applyPreflightCapability } from './preflight.js';
 import { CHUNKING_SCHEMA_VERSION, getTokenCounter, resolveTokenCountMode, QDRANT_CLOUD_TOKEN_MODE_PREFIX } from '../core/token-count.js';
 import { Semaphore } from './semaphore.js';
 import { SerialQueue } from './serial-queue.js';
 import { envInt } from '../core/env.js';
 import { expectedChunkingMeta, skeletonPayloadFields, indexingSchemaVersionField, isSkeletonChunk, makeSkeletonPointId, buildNavPointPayload, buildEntityRawPointPayload, INDEXING_SCHEMA_VERSION_BASE, INDEXING_SCHEMA_VERSION_PROFILE_BUDGET } from './skeleton-payload.js';
 import { buildIndexingState, EXECUTION } from '../core/embedding-profile/schema.js';
-import { generateNavSummaries, generateDirectorySummaries, buildCollectionSummary, resolveRunNumCtx, estTokens } from './phases/skeleton-summary.js';
+import { generateNavSummaries, generateDirectorySummaries, buildCollectionSummary, resolveRunNumCtx, estTokens, applySkeletonSummaryCapability } from './phases/skeleton-summary.js';
 import { buildDirectoryNavPoints } from './phases/skeleton-index.js';
 import { makeNodeId } from '../core/node-id.js';
 import { scroll } from '../core/qdrant.js';
 import { PROGRESS_EVENT_PREFIX, createFileProgressReporter } from './progress-event.js';
 import { applyEnvWriteBack } from '../core/settings/service.js';
-import { getOllamaEmbeddingDimension } from '../core/ollama-lazy.js';
+import { validateOllamaEmbedCapability } from '../core/generation/ollama-capability.js';
+import { validateOnnxEmbedCapability } from '../core/onnx-embed-capability.js';
+
+// Capability injection (Phase 8B Step 1, revised after code review) — this
+// module never imports core/ollama.js, core/onnx-embed.js, or
+// indexer/phases/tag-onnx.js directly, not even indirectly through a
+// *-lazy.js re-export used as a default value (code review, round 4 — see
+// this file's own git history for the version that DID still statically
+// import ../core/ollama-lazy.js/../core/onnx-embed-lazy.js/
+// ./phases/tag-onnx-lazy.js at module scope purely to seed these three
+// defaults). It depends only on the narrow OllamaEmbedCapability/
+// OnnxEmbedCapability/TagOnnxCapability contracts
+// (core/generation/ollama-capability.js, core/onnx-embed-capability.js,
+// phases/tag-onnx-capability.js). All three start unset (null) — the ONE
+// real caller that populates them for actual work, in every real process
+// (Full AND Lite alike), is indexer/index.js's own applyAllCapabilities()
+// call, made unconditionally for both editions before run() ever executes
+// (see index.js's own header comment) — so this module never needs a
+// real-module fallback default of its own.
+//
+// _ollama/_onnxEmbed are resolved HERE (this module's own composition
+// state) and passed EXPLICITLY as `{ capabilities }` to every
+// embedForIndex()/embedForIndexBatch() call below — never left for
+// core/embeddings.js's own module-scope applyEmbeddingCapabilities()
+// fallback to resolve. This is the real per-call isolation fix (code
+// review, round 3): two composition roots mutating one shared
+// embeddings.js singleton via applyEmbeddingCapabilities() alone is
+// "last call wins," not real isolation. Passing the capability explicitly
+// per call means run.js's own indexing calls are unaffected by whatever
+// admin/composition/lite.js's or admin/server-full.js's own
+// applyEmbeddingCapabilities() call last set, even if all three
+// coexisted in one process.
+let _ollama = null;
+let _onnxEmbed = null;
+let _tagOnnx = null;
+
+/**
+ * Composition-time seam: inject the Ollama/ONNX-embed/ONNX-tagging
+ * capabilities this module calls through directly
+ * (getOllamaEmbeddingDimension, embedForIndex/embedForIndexBatch's own
+ * per-call `capabilities` argument, addTagsOnnxBatch,
+ * shutdownOnnxTagWorker). Call once, at process composition time (mirrors
+ * applyAllSettings()) — never per-request. Any capability may be omitted
+ * to leave the other bindings unchanged.
+ * @param {{ ollama?: import('../core/generation/ollama-capability.js').OllamaEmbedCapability, onnxEmbed?: import('../core/onnx-embed-capability.js').OnnxEmbedCapability, tagOnnx?: import('./phases/tag-onnx-capability.js').TagOnnxCapability }} capabilities
+ */
+export function applyRunCapabilities({ ollama, onnxEmbed, tagOnnx } = {}) {
+  if (ollama) { validateOllamaEmbedCapability(ollama); _ollama = ollama; }
+  if (onnxEmbed) { validateOnnxEmbedCapability(onnxEmbed); _onnxEmbed = onnxEmbed; }
+  if (tagOnnx) { validateTagOnnxCapability(tagOnnx); _tagOnnx = tagOnnx; }
+}
+
+// Clear, actionable errors (code review, round 4) for the rare direct
+// caller that reaches a capability-backed call before applyRunCapabilities()/
+// applyAllCapabilities() ever ran — e.g. a test invoking stageB()/main()
+// directly, bypassing index.js's own composition. Every real production
+// path is unaffected: index.js calls applyAllCapabilities() unconditionally
+// for both editions before run() executes.
+function requireOllama() {
+  if (!_ollama) throw new Error('run.js: no ollama capability injected — call applyRunCapabilities({ ollama }) or applyAllCapabilities() before indexing.');
+  return _ollama;
+}
+function requireTagOnnx() {
+  if (!_tagOnnx) throw new Error('run.js: no tagOnnx capability injected — call applyRunCapabilities({ tagOnnx }) or applyAllCapabilities() before indexing.');
+  return _tagOnnx;
+}
+
+// Snapshotted ONCE at the top of run() (see run() itself, below) and
+// cleared in its own `finally` — never mutated mid-run. Code review
+// (round 4): embedCapabilities() previously read the mutable _ollama/
+// _onnxEmbed bindings live, on every call — so a caller invoking
+// applyRunCapabilities() WHILE a run() was still in flight (e.g. a
+// concurrent indexing job composition, or a test) could change which
+// backend a LATER chunk in the SAME run embeds against, mid-run. A single
+// run must use one fixed capability pair for its entire duration,
+// exactly the same way EMBEDDING_PROFILE itself is resolved once and
+// reused for the whole run (see this file's own "processed — never
+// re-resolved per file/call" comment on EMBEDDING_PROFILE). null outside
+// an active run() call (e.g. stageA/stageB/stageC/stageD invoked
+// directly by a test, bypassing run() entirely) — embedCapabilities()
+// falls back to the live _ollama/_onnxEmbed bindings in that case, same
+// as before this fix, so no test that constructs its own pipeline stage
+// calls needs to change.
+let _activeRunEmbedCapabilities = null;
+
+// Passed as the `capabilities` option to every embedForIndex()/
+// embedForIndexBatch() call in this file. Returns the run-scoped snapshot
+// while a run() is in flight (fixed for that run's entire duration); falls
+// back to the current _ollama/_onnxEmbed bindings when called outside of
+// run() (e.g. a test driving stageA/stageB/stageC directly). Exported
+// (code review, round 4) purely so a test can drive the snapshot/clear
+// lifecycle directly — see tests/unit/indexer/run-embed-capability-
+// snapshot.test.js — without needing a real run() (which requires a live
+// COLLECTION/target and calls the real main()).
+export function embedCapabilities() {
+  return _activeRunEmbedCapabilities ?? { ollama: _ollama, onnxEmbed: _onnxEmbed };
+}
+
+// Test-only seam (code review, round 4): lets a test snapshot/clear
+// _activeRunEmbedCapabilities directly, exercising the exact mechanism
+// run() itself uses, without needing to invoke the real run()/main() (which
+// requires a live COLLECTION/target and touches Qdrant/Ollama). Never
+// called by any production code path — run() itself sets/clears the
+// module-scope variable inline, not through this function.
+export function __setActiveRunEmbedCapabilitiesForTest(value) {
+  _activeRunEmbedCapabilities = value;
+}
 
 // let (not const): LLM_BATCH_SIZE is re-resolved from the settings registry.
 // VECTOR_SIZE starts with the legacy/config fallback, then main() replaces it
@@ -324,7 +431,7 @@ export async function stageB(prepared, ollamaSem = null, reporter = null) {
     if (genTags && tagViaOnnx) {
       console.log('  [3/5] tagging (onnx)...');
       reporter?.step('tagging');
-      taggedChunks = await addTagsOnnxBatch(rawChunks);
+      taggedChunks = await requireTagOnnx().addTagsOnnxBatch(rawChunks);
     } else if (genTags) {
       console.log('  [3/5] tagging (ollama)...');
       reporter?.step('tagging');
@@ -386,7 +493,7 @@ export async function stageB(prepared, ollamaSem = null, reporter = null) {
     if (genTags && tagViaOnnx) {
       console.log('  [3/5] tagging (onnx)...');
       reporter?.step('tagging');
-      taggedChunks = await addTagsOnnxBatch(contextChunks);
+      taggedChunks = await requireTagOnnx().addTagsOnnxBatch(contextChunks);
     } else if (genTags) {
       console.log('  [3/5] tagging...');
       reporter?.step('tagging');
@@ -464,7 +571,7 @@ export async function stageB(prepared, ollamaSem = null, reporter = null) {
 
     const [contextChunks, onnxTagged] = await Promise.all([
       ollamaSem ? ollamaSem.run(runContext) : runContext(),
-      addTagsOnnxBatch(merged).then(r => { profiler.markAt('tag', tTagStart); return r; }),
+      requireTagOnnx().addTagsOnnxBatch(merged).then(r => { profiler.markAt('tag', tTagStart); return r; }),
     ]);
 
     taggedChunks = contextChunks.map((chunk, i) => ({
@@ -561,13 +668,13 @@ async function stageC(withTagged, reporter = null) {
   let embedResults;
   if (shouldUseOnnxBatching(process.env)) {
     try {
-      embedResults = await embedForIndexBatch(EMBEDDING_PROFILE, embedTexts, runBatched, BATCH_SIZE, { contexts: embedContexts });
+      embedResults = await embedForIndexBatch(EMBEDDING_PROFILE, embedTexts, runBatched, BATCH_SIZE, { contexts: embedContexts, capabilities: embedCapabilities() });
     } catch (batchErr) {
       process.stderr.write(`[embed] DML batch failed (${batchErr.message}) — retrying per-text\n`);
-      embedResults = await runBatched(embedPairs, BATCH_SIZE, ({ text, context }) => embedForIndex(EMBEDDING_PROFILE, text, { context }));
+      embedResults = await runBatched(embedPairs, BATCH_SIZE, ({ text, context }) => embedForIndex(EMBEDDING_PROFILE, text, { context, capabilities: embedCapabilities() }));
     }
   } else {
-    embedResults = await runBatched(embedPairs, BATCH_SIZE, ({ text, context }) => embedForIndex(EMBEDDING_PROFILE, text, { context }));
+    embedResults = await runBatched(embedPairs, BATCH_SIZE, ({ text, context }) => embedForIndex(EMBEDDING_PROFILE, text, { context, capabilities: embedCapabilities() }));
   }
 
   // Validate vectors before passing to stageD — no destructive work has happened yet.
@@ -676,7 +783,7 @@ async function stageC(withTagged, reporter = null) {
   if (navPoints.length > 0) {
     const navEmbeds = await runBatched(
       navPoints.map(n => n.summary ?? ''), BATCH_SIZE,
-      text => embedForIndex(EMBEDDING_PROFILE, text),
+      text => embedForIndex(EMBEDDING_PROFILE, text, { capabilities: embedCapabilities() }),
     );
     navQdrantPoints = navPoints.map((nav, i) => {
       const { dense, sparse, meta } = navEmbeds[i];
@@ -891,7 +998,7 @@ async function main() {
     let newCollectionVectorSize = 1024;
     if (providerConfig.denseProvider === 'ollama') {
       const ollamaUrl = process.env.OLLAMA_URL || 'http://localhost:11434';
-      newCollectionVectorSize = await getOllamaEmbeddingDimension(
+      newCollectionVectorSize = await requireOllama().getOllamaEmbeddingDimension(
         providerConfig.denseModel,
         ollamaUrl
       );
@@ -1248,8 +1355,8 @@ async function main() {
         if (enrichedDirs.length > 0) {
           const dirTexts = enrichedDirs.map(n => n.summary);
           const dirEmbeds = shouldUseOnnxBatching(process.env)
-            ? await embedForIndexBatch(EMBEDDING_PROFILE, dirTexts, runBatched, BATCH_SIZE)
-            : await runBatched(dirTexts, BATCH_SIZE, text => embedForIndex(EMBEDDING_PROFILE, text));
+            ? await embedForIndexBatch(EMBEDDING_PROFILE, dirTexts, runBatched, BATCH_SIZE, { capabilities: embedCapabilities() })
+            : await runBatched(dirTexts, BATCH_SIZE, text => embedForIndex(EMBEDDING_PROFILE, text, { capabilities: embedCapabilities() }));
           const cfgVectorSize = EMBEDDING_PROFILE.embedding.dense.dimensions;
           const dirPoints = enrichedDirs.map((node, i) => ({
             id: makeSkeletonPointId({
@@ -1289,7 +1396,7 @@ async function main() {
           collection: '', sourceFile: '', structuralPath: '',
           nodeType: 'collection', ordinalWithinParent: 1,
         });
-        const { dense, sparse, meta } = await embedForIndex(EMBEDDING_PROFILE, collResult.summary);
+        const { dense, sparse, meta } = await embedForIndex(EMBEDDING_PROFILE, collResult.summary, { capabilities: embedCapabilities() });
         const cfgVectorSize = EMBEDDING_PROFILE.embedding.dense.dimensions;
         await upsertPoints(COLLECTION, [{
           id: makeSkeletonPointId({
@@ -1362,14 +1469,96 @@ export function applyAllSettings(settingsService) {
 }
 
 /**
+ * Composition-time seam (Phase 8B Step 1): inject every Ollama/ONNX
+ * capability every phase module (context.js, tag.js, combined.js,
+ * skeleton-summary.js, preflight.js, embeddings.js, and this module's own
+ * direct calls) dispatches through, in one call — the real entry point
+ * each edition's own indexer entry point calls explicitly with concrete
+ * capability objects: indexer/index-full.js (Full, the real *-lazy.js-
+ * backed modules) and indexer/index-lite.js (Lite, typed-unavailable
+ * stubs) — both via indexer/index-runtime.js's shared runIndexerCli().
+ * Each seam is fanned out to only the NARROW contract it actually needs
+ * (OllamaGenerateCapability for context/tag/combined — each calls only
+ * generate(); OllamaSummaryCapability for skeleton-summary.js —
+ * generate()/getModelContextLength()/isThinkingModel(), never
+ * generateStream(); OllamaEmbedCapability for embeddings.js/this module's
+ * own getOllamaEmbeddingDimension call; OllamaDiscoveryCapability for
+ * preflight.js) — deliberately not one wide "ollama" blob threaded
+ * everywhere, since no single real consumer needs all nine methods (see
+ * core/generation/ollama-capability.js's own header comment for the full
+ * per-consumer breakdown that motivated this split, refined twice after
+ * code review). Every individual applyXCapability() starts UNSET (null) —
+ * a seam that's never explicitly populated (this function never called,
+ * or called with that slot omitted) throws a clear "no capability
+ * injected" error on first real use, rather than silently defaulting to
+ * a real *-lazy.js-backed implementation (code review, round 4 — see each
+ * phase module's own header comment for the same change). Never called
+ * by run()/main() itself — mirrors applyAllSettings()'s own "caller's
+ * responsibility, before run()" contract.
+ * @param {{
+ *   ollamaGenerate?: import('../core/generation/ollama-capability.js').OllamaGenerateCapability,
+ *   ollamaSummary?: import('../core/generation/ollama-capability.js').OllamaSummaryCapability,
+ *   ollamaEmbed?: import('../core/generation/ollama-capability.js').OllamaEmbedCapability,
+ *   ollamaDiscovery?: import('../core/generation/ollama-capability.js').OllamaDiscoveryCapability,
+ *   onnxEmbed?: import('../core/onnx-embed-capability.js').OnnxEmbedCapability,
+ *   tagOnnx?: import('./phases/tag-onnx-capability.js').TagOnnxCapability,
+ * }} capabilities
+ */
+export function applyAllCapabilities({ ollamaGenerate, ollamaSummary, ollamaEmbed, ollamaDiscovery, onnxEmbed, tagOnnx } = {}) {
+  if (ollamaGenerate) {
+    applyContextCapability(ollamaGenerate);
+    applyTagCapability(ollamaGenerate);
+    applyCombinedCapability(ollamaGenerate);
+  }
+  if (ollamaSummary) {
+    applySkeletonSummaryCapability(ollamaSummary);
+  }
+  if (ollamaDiscovery) {
+    applyPreflightCapability(ollamaDiscovery);
+  }
+  if (ollamaEmbed || onnxEmbed) {
+    // run.js's own _ollama/_onnxEmbed (passed explicitly to every
+    // embedForIndex()/embedForIndexBatch() call in this file — see this
+    // module's own "Capability injection" header comment) AND
+    // embeddings.js's module-scope fallback are both set here, so
+    // run.js's real indexing calls are correct regardless of which
+    // mechanism ends up mattering for a given call site.
+    applyRunCapabilities({ ollama: ollamaEmbed, onnxEmbed });
+    applyEmbeddingCapabilities({ ollama: ollamaEmbed, onnxEmbed });
+  }
+  if (tagOnnx) {
+    applyRunCapabilities({ tagOnnx });
+  }
+}
+
+/**
  * Runs the indexer. Exported for index.js (the real CLI entry point) to
  * call after bootstrapping env and applying settings — see this file's own
  * header comment for why main() itself cannot safely call bootstrapEnv().
+ *
+ * Snapshots _ollama/_onnxEmbed into _activeRunEmbedCapabilities ONCE here,
+ * before main() does any embedding work, and clears it in `finally` — a
+ * fixed capability pair for this run's entire duration, immune to any
+ * applyRunCapabilities()/applyAllCapabilities() call that happens to run
+ * concurrently (code review, round 4). _tagOnnx is intentionally NOT
+ * snapshotted the same way: shutdownOnnxTagWorker() must always target
+ * whatever worker addTagsOnnxBatch() actually used during THIS run, and
+ * addTagsOnnxBatch() itself already only ever runs during this same run()
+ * call — there is no cross-run mutation risk for _tagOnnx the way there is
+ * for the embed lane (which embedCapabilities() exposes to many
+ * independent per-chunk calls spread across the whole pipeline).
  */
 export async function run() {
+  _activeRunEmbedCapabilities = { ollama: _ollama, onnxEmbed: _onnxEmbed };
   try {
     await main();
   } finally {
-    await shutdownOnnxTagWorker();
+    _activeRunEmbedCapabilities = null;
+    // _tagOnnx may still be null here if main() itself threw before ever
+    // reaching a tagOnnx-consuming call (e.g. applyAllCapabilities() was
+    // never called at all, or main()'s own early argument-validation
+    // failed) — skipped, not thrown, so this cleanup step never masks
+    // main()'s real error with a confusing null-capability one of its own.
+    if (_tagOnnx) await _tagOnnx.shutdownOnnxTagWorker();
   }
 }

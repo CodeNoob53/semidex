@@ -11,18 +11,47 @@
 // itself reusable for a config source other than env vars later (e.g. a
 // future Settings UI) without touching this file.
 //
-// Imports from ../ollama-lazy.js, NOT ../ollama.js directly (Semidex Lite
-// package boundary) — generation/registry.js's BACKENDS map references
-// createOllamaProvider unconditionally (even though it is only ever CALLED
-// when backend === 'ollama'), so merely importing registry.js would
-// otherwise pull core/ollama.js into the module graph even for a
-// Gemini-only Lite deployment. ollama-lazy.js's dynamic
-// `await import('./ollama.js')` defers that one hop further, and Lite's
-// build.mjs substitutes ollama-lazy.lite.js (typed not_available_in_lite
-// rejections) at the same path — reached only if this provider's methods
-// were somehow actually invoked in Lite, which the CLI's
-// SEMIDEX_GENERATION_BACKEND=gemini hard pin prevents.
-import { isOllamaReachable, listOllamaModels, validateOllamaModels, generateStream, getModelContextLength } from '../ollama-lazy.js';
+// Never imports ../ollama.js directly, not even indirectly through a
+// *-lazy.js default (Semidex Lite package boundary; code review, round 4 —
+// this file used to default its five `*Fn` opts to ../ollama-lazy.js's
+// exports, which meant generation/registry.js's BACKENDS map referencing
+// createOllamaProvider — unconditionally, even though it is only ever
+// CALLED when backend === 'ollama' — gave this file a real static edge
+// onto core/ollama.js via the *-lazy.js re-export chain, reachable from
+// Lite's own serve-lite.js -> generation/runtime.js -> registry.js graph
+// regardless of Lite's SEMIDEX_GENERATION_BACKEND=gemini hard pin, which
+// only prevents the ollama backend from ever being CONSTRUCTED, not from
+// this module being statically resolved into the closure). Does not
+// consume any of ./ollama-capability.js's shared contract objects directly
+// — it already had its own working per-method DI seam since Phase 4A.5a
+// (the five `*Fn` opts below), spanning what those contracts call the
+// generate-shaped and discovery-shaped methods (readiness needs discovery
+// methods, generate() needs a generate method), since this file is the one
+// real consumer that genuinely needs both.
+//
+// The five `*Fn` opts now default to typed-unavailable stubs (mirroring
+// indexer/phases/context.js's own applyContextCapability() pattern) —
+// calling any of them without an override throws a clear
+// "OllamaProviderNotConfiguredError" instead of silently reaching a real
+// network call. The REAL, working functions are supplied by
+// core/generation/registry.js's own createOllamaProvider wrapper (below
+// this file, unchanged export name) ONLY when Full's own composition root
+// constructs the 'ollama' backend — see registry.js's own header comment
+// for exactly where those real functions are injected from.
+class OllamaProviderNotConfiguredError extends Error {
+  constructor(fnName) {
+    super(`createOllamaProvider: ${fnName}() has no real implementation — this provider was constructed with no *Fn overrides. Full's own composition root must supply the real ollama-lazy.js-backed functions via generation/registry.js.`);
+    this.name = 'OllamaProviderNotConfiguredError';
+  }
+}
+function unavailable(fnName) {
+  return async () => { throw new OllamaProviderNotConfiguredError(fnName); };
+}
+const isOllamaReachable = unavailable('isOllamaReachable');
+const listOllamaModels = unavailable('listOllamaModels');
+const validateOllamaModels = unavailable('validateOllamaModels');
+const generateStream = unavailable('generateStream');
+const getModelContextLength = unavailable('getModelContextLength');
 
 const FALLBACK_MODEL = 'gemma3:4b';
 const FALLBACK_BASE_URL = 'http://localhost:11434';
@@ -49,6 +78,7 @@ const FALLBACK_ASK_NUM_CTX = 8192;
  *   askNumCtx?: number,
  *   isOllamaReachableFn?: typeof isOllamaReachable,
  *   listOllamaModelsFn?: typeof listOllamaModels,
+ *   validateOllamaModelsFn?: typeof validateOllamaModels,
  *   generateStreamFn?: typeof generateStream,
  *   getModelContextLengthFn?: typeof getModelContextLength,
  * }} [opts] baseUrl/model/askNumCtx fall back to fixed, non-env-derived
@@ -57,7 +87,15 @@ const FALLBACK_ASK_NUM_CTX = 8192;
  *   production path always supplies all three from
  *   resolveGenerationRuntimeConfig(). fn overrides are DI-only (tests stub
  *   the network; production callers never pass them, so real requests
- *   always go through ollama.js).
+ *   always go through ollama.js). validateOllamaModelsFn (code review,
+ *   round 4 follow-up): this file's own ready() used to call the module-
+ *   scope validateOllamaModels directly, un-overridable, because the
+ *   original import was always the real ollama-lazy.js-backed function —
+ *   safe at the time, but once that default became a typed-unavailable
+ *   stub (see this file's own header comment), any DI-based caller that
+ *   supplied every OTHER *Fn override still hit the stub here. Added as a
+ *   sixth DI seam so the whole five-network-call surface is consistently
+ *   overridable.
  * @returns {import('./provider.js').GenerationProvider}
  */
 export function createOllamaProvider({
@@ -66,6 +104,7 @@ export function createOllamaProvider({
   askNumCtx = FALLBACK_ASK_NUM_CTX,
   isOllamaReachableFn = isOllamaReachable,
   listOllamaModelsFn = listOllamaModels,
+  validateOllamaModelsFn = validateOllamaModels,
   generateStreamFn = generateStream,
   getModelContextLengthFn = getModelContextLength,
 } = {}) {
@@ -95,7 +134,7 @@ export function createOllamaProvider({
       // signature) — this await is required, not stylistic; omitting it
       // would make `missing` a truthy Promise object and every ready()
       // call would incorrectly report the model as not installed.
-      const missing = await validateOllamaModels([model], available);
+      const missing = await validateOllamaModelsFn([model], available);
       if (missing) {
         return { ok: false, reason: `Model "${model}" is not installed. Pull it with "ollama pull ${model}".`, model };
       }
