@@ -30,7 +30,6 @@ import { registerNodeRoutes } from './api/node.js';
 import { registerSearchRoutes } from './api/search.js';
 import { registerAskRoutesV1 } from '../core/ask-api/v1/route.js';
 import { registerGenerationRoutes } from './api/generation.js';
-import { createJobRegistry } from './jobs/registry.js';
 import { createTaskRegistry } from './jobs/task-registry.js';
 import { registerOperationsRoutes } from './api/operations.js';
 import { registerFolderPickRoutes } from './api/system.js';
@@ -64,7 +63,7 @@ async function defaultCountTokens(text) {
 // by registerOperationsRoutes below rather than constructed twice.
 export function registerNeutralRoutes(router, {
   adapter, embedQuery, jobRegistry, taskRegistry, assemblyLogFn, pickFolderFn,
-  generationRuntime, askCoordinator, countTokens, settingsService, jobBaseEnv,
+  generationRuntime, askCoordinator, countTokens, settingsService,
   runQdrantCloudProbeFn, resolveNewCollectionProfileFn, generationModelsFn, jobsFn,
 }) {
   registerSettingsRoutes(router, { settingsService });
@@ -116,19 +115,23 @@ export function registerNeutralRoutes(router, {
   // has been removed entirely — this project has not released a public Ask
   // API yet, so there is no compatibility alias to preserve.
   registerAskRoutesV1(router, adapter, { askCoordinator: ask });
-  // jobRegistry is optional DI (tests inject a fake spawnFn-backed registry
-  // so unit tests never launch a real indexer child process). jobBaseEnv is
-  // the env snapshot spawned indexer jobs inherit — MUST be the
-  // pre-applyEnvWriteBack() snapshot (bootstrap.js passes this explicitly);
-  // falling back to live process.env here is only safe for callers that
-  // never called applyEnvWriteBack() against it (e.g. tests, or a caller
-  // that doesn't care about settings.json provenance) — see
-  // jobs/registry.js's own createJobRegistry() header comment for why this
-  // matters (code review finding, P1: a spawned job must resolve
-  // settings.json fresh, not inherit admin's own already-resolved values).
-  const jobs = jobRegistry ?? createJobRegistry({ baseEnv: jobBaseEnv });
-  jobsFn(router, jobs);
-  registerOperationsRoutes(router, { jobRegistry: jobs, taskRegistry: tasks });
+  // jobRegistry is a REQUIRED dependency (code review, round 4 — no
+  // fallback default here anymore): createJobRegistry() itself now
+  // requires a spawnIndexer callback with no safe generic default (Full
+  // and Lite need genuinely different spawn behavior — see that
+  // function's own header comment), and this file is shared/staged for
+  // BOTH editions, so it can never safely import either
+  // spawn-indexer-full.js or spawn-indexer-lite.js itself to build one.
+  // admin/server-full.js's createApp() and admin/composition/lite.js's
+  // createLiteApp() each construct their own resolvedJobRegistry (with
+  // their own edition-correct spawnIndexer) BEFORE calling this function
+  // and always pass it in explicitly — tests do the same, injecting a
+  // fake registry directly (never a fake spawnFn threaded through here).
+  if (!jobRegistry) {
+    throw new TypeError('registerNeutralRoutes: jobRegistry is required — construct it via createJobRegistry({ spawnIndexer, baseEnv }) with an edition-correct spawnIndexer before calling this function.');
+  }
+  jobsFn(router, jobRegistry);
+  registerOperationsRoutes(router, { jobRegistry, taskRegistry: tasks });
   // runQdrantCloudProbeFn is optional DI (tests inject a stub so unit
   // tests never issue a real Qdrant Cloud Inference round-trip).
   // resolveNewCollectionProfileFn is optional DI (tests inject a spy so a

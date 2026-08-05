@@ -1,6 +1,16 @@
 // Indexing job registry + API tests. No real indexer process is ever
-// spawned — spawnFn is always a fake EventEmitter-based stub, so these
-// tests run fully offline in whatever time node:test allows.
+// spawned — spawnIndexer is always a fake EventEmitter-based stub, so
+// these tests run fully offline in whatever time node:test allows.
+//
+// spawnIndexer is now the REQUIRED dependency createJobRegistry() accepts
+// (code review, round 4 — see registry.js's own header comment): the
+// `({ args, env }) -> ChildProcess` contract, not the old raw
+// `spawnFn(command, args, opts) -> ChildProcess` node:child_process.spawn
+// shape. The fake helpers below (makeNeverExitingSpawn/makeScriptedSpawn/
+// etc.) still record what THIS test cares about (args/env), just under the
+// new call shape — spawn-target/shell/windowsHide assertions now live in
+// tests/unit/admin/jobs/spawn-indexer-full.test.js, since that's the one
+// file that actually owns those details now.
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
@@ -19,8 +29,8 @@ function makeFakeChild() {
 
 /** Never exits on its own — for cancel tests. Records the spawn call. */
 function makeNeverExitingSpawn(calls) {
-  return (command, args, opts) => {
-    calls.push({ command, args, opts });
+  return ({ args, env }) => {
+    calls.push({ args, env });
     return makeFakeChild();
   };
 }
@@ -35,7 +45,7 @@ function makeNeverExitingSpawn(calls) {
  */
 function makeManualExitSpawn() {
   let triggerExit;
-  const spawnFn = () => {
+  const spawnIndexer = () => {
     const child = new EventEmitter();
     child.stdout = new EventEmitter();
     child.stderr = new EventEmitter();
@@ -43,13 +53,13 @@ function makeManualExitSpawn() {
     triggerExit = (code = null, signal = 'SIGTERM') => child.emit('exit', code, signal);
     return child;
   };
-  return { spawnFn, triggerExit: (...args) => triggerExit(...args) };
+  return { spawnIndexer, triggerExit: (...args) => triggerExit(...args) };
 }
 
 /** Exits after `delayMs` with the given code/stdout/stderr. */
 function makeScriptedSpawn({ delayMs = 10, exitCode = 0, signal = null, stdout = '', stderr = '' } = {}, calls) {
-  return (command, args, opts) => {
-    calls?.push({ command, args, opts });
+  return ({ args, env }) => {
+    calls?.push({ args, env });
     const child = makeFakeChild();
     setTimeout(() => {
       if (stdout) child.stdout.emit('data', Buffer.from(stdout));
@@ -109,35 +119,68 @@ describe('buildJobEnv', () => {
 
 // ── registry: spawn shape (no shell) ─────────────────────────────────────────
 
-describe('createJobRegistry — spawns without a shell', () => {
-  it('calls spawnFn with (command, argsArray, { env }) — no string concatenation', () => {
+describe('createJobRegistry — spawnIndexer is a required dependency, fails fast without it (code review, round 4)', () => {
+  // No default spawnIndexer (see registry.js's own header comment for why:
+  // a default importing spawn-indexer-full.js would put the literal path
+  // to a Lite-excluded file back into this shared, Lite-staged file's own
+  // source). A caller that forgets to supply one must get a clear,
+  // immediate TypeError at construction time — never a silent fallback to
+  // some other edition's spawn behavior, and never a deferred failure only
+  // discovered the first time a job is actually started.
+  it('throws a TypeError immediately when spawnIndexer is omitted entirely', () => {
+    assert.throws(() => createJobRegistry(), TypeError);
+    assert.throws(() => createJobRegistry(), /spawnIndexer is required/);
+  });
+
+  it('throws a TypeError immediately when spawnIndexer is omitted but other options are supplied', () => {
+    assert.throws(() => createJobRegistry({ baseEnv: { FOO: 'bar' } }), /spawnIndexer is required/);
+  });
+
+  it('throws a TypeError when spawnIndexer is supplied but is not a function (e.g. a stray string or object)', () => {
+    assert.throws(() => createJobRegistry({ spawnIndexer: 'not-a-function' }), /spawnIndexer is required/);
+    assert.throws(() => createJobRegistry({ spawnIndexer: {} }), /spawnIndexer is required/);
+    assert.throws(() => createJobRegistry({ spawnIndexer: null }), /spawnIndexer is required/);
+  });
+
+  it('the thrown error happens at createJobRegistry() construction time, before startIndexJob() is ever called', () => {
+    let constructed = null;
+    try {
+      constructed = createJobRegistry();
+    } catch {
+      // expected
+    }
+    assert.equal(constructed, null, 'createJobRegistry() must throw, not return a registry that fails later');
+  });
+
+  it('a real spawnIndexer function is accepted without throwing', () => {
+    assert.doesNotThrow(() => createJobRegistry({ spawnIndexer: makeNeverExitingSpawn([]) }));
+  });
+});
+
+describe('createJobRegistry — calls spawnIndexer with structured args, never a shell string', () => {
+  it('calls spawnIndexer with ({ args, env }) — args is the indexer CLI\'s own argument list, path passed as its own array element', () => {
     const calls = [];
-    const registry = createJobRegistry({ spawnFn: makeNeverExitingSpawn(calls) });
+    const registry = createJobRegistry({ spawnIndexer: makeNeverExitingSpawn(calls) });
     registry.startIndexJob({ collection: 'demo', path: 'C:\\docs\\my folder' });
 
     assert.equal(calls.length, 1);
-    const [{ command, args, opts }] = calls;
-    assert.equal(typeof command, 'string');
+    const [{ args, env }] = calls;
     assert.ok(Array.isArray(args), 'args must be an array, not a shell string');
-    assert.ok(args.some(a => a.includes('index.js')), 'args must include the indexer entry point');
     assert.ok(args.includes('C:\\docs\\my folder'), 'path is passed as its own array element, never concatenated');
-    assert.equal(typeof opts.env, 'object');
-    assert.equal(opts.shell, undefined, 'must never set shell:true');
-  });
-
-  it('sets windowsHide: true — no-op off Windows, prevents a console window flash on Windows', () => {
-    const calls = [];
-    const registry = createJobRegistry({ spawnFn: makeNeverExitingSpawn(calls) });
-    registry.startIndexJob({ collection: 'demo', path: './docs' });
-    assert.equal(calls[0].opts.windowsHide, true);
+    assert.equal(typeof env, 'object');
+    // Which file gets spawned, the no-shell guarantee, and windowsHide are
+    // now spawn-indexer-full.js's own concern (it owns the actual
+    // node:child_process.spawn() call) — see
+    // tests/unit/admin/jobs/spawn-indexer-full.test.js for those
+    // assertions.
   });
 
   it('passes the built env vars through to the child process env', () => {
     const calls = [];
-    const registry = createJobRegistry({ spawnFn: makeNeverExitingSpawn(calls) });
+    const registry = createJobRegistry({ spawnIndexer: makeNeverExitingSpawn(calls) });
     registry.startIndexJob({ collection: 'my-collection', path: './x', options: { onnxEmbed: true } });
-    assert.equal(calls[0].opts.env.COLLECTION, 'my-collection');
-    assert.equal(calls[0].opts.env.ONNX_EMBED, '1');
+    assert.equal(calls[0].env.COLLECTION, 'my-collection');
+    assert.equal(calls[0].env.ONNX_EMBED, '1');
   });
 
   // Code review fix (P1): admin/bootstrap.js's applyEnvWriteBack() mutates
@@ -153,22 +196,22 @@ describe('createJobRegistry — spawns without a shell', () => {
   it('baseEnv (not live process.env) is the base the child env is built from, when supplied', () => {
     const calls = [];
     const registry = createJobRegistry({
-      spawnFn: makeNeverExitingSpawn(calls),
+      spawnIndexer: makeNeverExitingSpawn(calls),
       baseEnv: { MAX_CHUNK_TOKENS: 'clean-snapshot-value', CUSTOM_MARKER: 'from-base-env' },
     });
     registry.startIndexJob({ collection: 'demo', path: './x' });
-    assert.equal(calls[0].opts.env.CUSTOM_MARKER, 'from-base-env');
-    assert.equal(calls[0].opts.env.MAX_CHUNK_TOKENS, 'clean-snapshot-value');
+    assert.equal(calls[0].env.CUSTOM_MARKER, 'from-base-env');
+    assert.equal(calls[0].env.MAX_CHUNK_TOKENS, 'clean-snapshot-value');
   });
 
   it('buildJobEnv()\'s explicit per-job overrides still win over baseEnv', () => {
     const calls = [];
     const registry = createJobRegistry({
-      spawnFn: makeNeverExitingSpawn(calls),
+      spawnIndexer: makeNeverExitingSpawn(calls),
       baseEnv: { ONNX_EMBED: '0' }, // baseEnv says off
     });
     registry.startIndexJob({ collection: 'demo', path: './x', options: { onnxEmbed: true } }); // job form says on
-    assert.equal(calls[0].opts.env.ONNX_EMBED, '1', 'the job-start request\'s own choice must win over baseEnv');
+    assert.equal(calls[0].env.ONNX_EMBED, '1', 'the job-start request\'s own choice must win over baseEnv');
   });
 
   it('defaults to live process.env when no baseEnv is supplied (backwards compatible)', () => {
@@ -176,9 +219,9 @@ describe('createJobRegistry — spawns without a shell', () => {
     const marker = '__jobs_test_marker__';
     process.env[marker] = 'present';
     try {
-      const registry = createJobRegistry({ spawnFn: makeNeverExitingSpawn(calls) });
+      const registry = createJobRegistry({ spawnIndexer: makeNeverExitingSpawn(calls) });
       registry.startIndexJob({ collection: 'demo', path: './x' });
-      assert.equal(calls[0].opts.env[marker], 'present');
+      assert.equal(calls[0].env[marker], 'present');
     } finally {
       delete process.env[marker];
     }
@@ -190,7 +233,7 @@ describe('createJobRegistry — spawns without a shell', () => {
 describe('createJobRegistry — log capture', () => {
   it('captures stdout and stderr lines with their stream tagged', async () => {
     const registry = createJobRegistry({
-      spawnFn: makeScriptedSpawn({ delayMs: 5, stdout: 'line one\nline two\n', stderr: 'warn line\n' }),
+      spawnIndexer: makeScriptedSpawn({ delayMs: 5, stdout: 'line one\nline two\n', stderr: 'warn line\n' }),
     });
     const { id } = registry.startIndexJob({ collection: 'demo', path: './x' });
     await waitFor(() => registry.getJob(id).state !== 'running');
@@ -201,7 +244,7 @@ describe('createJobRegistry — log capture', () => {
   });
 
   it('does not include empty lines from trailing newlines', async () => {
-    const registry = createJobRegistry({ spawnFn: makeScriptedSpawn({ delayMs: 5, stdout: 'only line\n' }) });
+    const registry = createJobRegistry({ spawnIndexer: makeScriptedSpawn({ delayMs: 5, stdout: 'only line\n' }) });
     const { id } = registry.startIndexJob({ collection: 'demo', path: './x' });
     await waitFor(() => registry.getJob(id).state !== 'running');
     assert.deepEqual(registry.getJob(id).log, [{ stream: 'stdout', line: 'only line' }]);
@@ -212,7 +255,7 @@ describe('createJobRegistry — log capture', () => {
     process.env.QDRANT_KEY = 'sk-super-secret-token';
     try {
       const registry = createJobRegistry({
-        spawnFn: makeScriptedSpawn({ delayMs: 5, stderr: 'auth failed with key sk-super-secret-token\n' }),
+        spawnIndexer: makeScriptedSpawn({ delayMs: 5, stderr: 'auth failed with key sk-super-secret-token\n' }),
       });
       const { id } = registry.startIndexJob({ collection: 'demo', path: './x' });
       await waitFor(() => registry.getJob(id).state !== 'running');
@@ -226,7 +269,7 @@ describe('createJobRegistry — log capture', () => {
 
   it('redacts a URL with embedded credentials that leaks into stdout', async () => {
     const registry = createJobRegistry({
-      spawnFn: makeScriptedSpawn({ delayMs: 5, stdout: 'connecting to https://user:pass@qdrant.example.com/collections\n' }),
+      spawnIndexer: makeScriptedSpawn({ delayMs: 5, stdout: 'connecting to https://user:pass@qdrant.example.com/collections\n' }),
     });
     const { id } = registry.startIndexJob({ collection: 'demo', path: './x' });
     await waitFor(() => registry.getJob(id).state !== 'running');
@@ -240,14 +283,14 @@ describe('createJobRegistry — log capture', () => {
 
 describe('createJobRegistry — progress parsing', () => {
   it('starts with job.progress === null before any progress line arrives', () => {
-    const registry = createJobRegistry({ spawnFn: makeNeverExitingSpawn([]) });
+    const registry = createJobRegistry({ spawnIndexer: makeNeverExitingSpawn([]) });
     const { id } = registry.startIndexJob({ collection: 'demo', path: './x' });
     assert.equal(registry.getJob(id).progress, null);
   });
 
   it('parses a [semidex:progress] {...} line into job.progress', async () => {
     const line = `[semidex:progress] ${JSON.stringify({ processedFiles: 3, totalFiles: 10, currentFile: 'a.md' })}\n`;
-    const registry = createJobRegistry({ spawnFn: makeScriptedSpawn({ delayMs: 5, stdout: line }) });
+    const registry = createJobRegistry({ spawnIndexer: makeScriptedSpawn({ delayMs: 5, stdout: line }) });
     const { id } = registry.startIndexJob({ collection: 'demo', path: './x' });
     await waitFor(() => registry.getJob(id).state !== 'running');
     assert.deepEqual(registry.getJob(id).progress, {
@@ -259,7 +302,7 @@ describe('createJobRegistry — progress parsing', () => {
     const line = `[semidex:progress] ${JSON.stringify({
       processedFiles: 1, totalFiles: 4, currentFile: 'b.md', currentStep: 'Generating summaries', currentFileProgress: 0.45,
     })}\n`;
-    const registry = createJobRegistry({ spawnFn: makeScriptedSpawn({ delayMs: 5, stdout: line }) });
+    const registry = createJobRegistry({ spawnIndexer: makeScriptedSpawn({ delayMs: 5, stdout: line }) });
     const { id } = registry.startIndexJob({ collection: 'demo', path: './x' });
     await waitFor(() => registry.getJob(id).state !== 'running');
     assert.deepEqual(registry.getJob(id).progress, {
@@ -272,7 +315,7 @@ describe('createJobRegistry — progress parsing', () => {
       const line = `[semidex:progress] ${JSON.stringify({
         processedFiles: 1, totalFiles: 4, currentFile: 'b.md', currentStep: 'x', currentFileProgress: input,
       })}\n`;
-      const registry = createJobRegistry({ spawnFn: makeScriptedSpawn({ delayMs: 5, stdout: line }) });
+      const registry = createJobRegistry({ spawnIndexer: makeScriptedSpawn({ delayMs: 5, stdout: line }) });
       const { id } = registry.startIndexJob({ collection: 'demo', path: './x' });
       await waitFor(() => registry.getJob(id).state !== 'running');
       assert.equal(registry.getJob(id).progress.currentFileProgress, expected);
@@ -282,7 +325,7 @@ describe('createJobRegistry — progress parsing', () => {
   it('progress lines are never duplicated into job.log', async () => {
     const line = `[semidex:progress] ${JSON.stringify({ processedFiles: 1, totalFiles: 2, currentFile: 'x.md' })}\n`;
     const registry = createJobRegistry({
-      spawnFn: makeScriptedSpawn({ delayMs: 5, stdout: line + 'a normal log line\n' }),
+      spawnIndexer: makeScriptedSpawn({ delayMs: 5, stdout: line + 'a normal log line\n' }),
     });
     const { id } = registry.startIndexJob({ collection: 'demo', path: './x' });
     await waitFor(() => registry.getJob(id).state !== 'running');
@@ -294,7 +337,7 @@ describe('createJobRegistry — progress parsing', () => {
 
   it('invalid progress JSON does not crash the job and is treated as an ordinary log line', async () => {
     const registry = createJobRegistry({
-      spawnFn: makeScriptedSpawn({ delayMs: 5, stdout: '[semidex:progress] {not valid json\n' }),
+      spawnIndexer: makeScriptedSpawn({ delayMs: 5, stdout: '[semidex:progress] {not valid json\n' }),
     });
     const { id } = registry.startIndexJob({ collection: 'demo', path: './x' });
     await waitFor(() => registry.getJob(id).state !== 'running');
@@ -306,7 +349,7 @@ describe('createJobRegistry — progress parsing', () => {
   it('preserves a Unicode currentFile path exactly', async () => {
     const currentFile = 'Тема 13. Контроль відповідності вимогам (Compliance-by-Design)/1. Вступ.md';
     const line = `[semidex:progress] ${JSON.stringify({ processedFiles: 0, totalFiles: 4, currentFile })}\n`;
-    const registry = createJobRegistry({ spawnFn: makeScriptedSpawn({ delayMs: 5, stdout: line }) });
+    const registry = createJobRegistry({ spawnIndexer: makeScriptedSpawn({ delayMs: 5, stdout: line }) });
     const { id } = registry.startIndexJob({ collection: 'demo', path: './x' });
     await waitFor(() => registry.getJob(id).state !== 'running');
     assert.equal(registry.getJob(id).progress.currentFile, currentFile);
@@ -325,7 +368,7 @@ describe('createJobRegistry — progress parsing', () => {
       }, 5);
       return child;
     };
-    const registry = createJobRegistry({ spawnFn });
+    const registry = createJobRegistry({ spawnIndexer: spawnFn });
     const { id } = registry.startIndexJob({ collection: 'demo', path: './x' });
     await waitFor(() => registry.getJob(id).state !== 'running');
     assert.deepEqual(registry.getJob(id).progress, {
@@ -341,7 +384,7 @@ describe('createJobRegistry — progress parsing', () => {
   // through appendLine() instead of silently dropping it.
   it('a final stdout line with no trailing newline still appears in job.log after exit', async () => {
     const registry = createJobRegistry({
-      spawnFn: makeScriptedSpawn({ delayMs: 5, stdout: 'last line without newline' }),
+      spawnIndexer: makeScriptedSpawn({ delayMs: 5, stdout: 'last line without newline' }),
     });
     const { id } = registry.startIndexJob({ collection: 'demo', path: './x' });
     await waitFor(() => registry.getJob(id).state !== 'running');
@@ -352,7 +395,7 @@ describe('createJobRegistry — progress parsing', () => {
 
   it('a final stderr line with no trailing newline still appears in job.log after a failed exit', async () => {
     const registry = createJobRegistry({
-      spawnFn: makeScriptedSpawn({ delayMs: 5, exitCode: 1, stderr: 'error without newline' }),
+      spawnIndexer: makeScriptedSpawn({ delayMs: 5, exitCode: 1, stderr: 'error without newline' }),
     });
     const { id } = registry.startIndexJob({ collection: 'demo', path: './x' });
     await waitFor(() => registry.getJob(id).state !== 'running');
@@ -363,7 +406,7 @@ describe('createJobRegistry — progress parsing', () => {
 
   it('a progress line with no trailing newline still updates job.progress', async () => {
     const line = `[semidex:progress] ${JSON.stringify({ processedFiles: 4, totalFiles: 9, currentFile: 'last.md' })}`; // no trailing \n
-    const registry = createJobRegistry({ spawnFn: makeScriptedSpawn({ delayMs: 5, stdout: line }) });
+    const registry = createJobRegistry({ spawnIndexer: makeScriptedSpawn({ delayMs: 5, stdout: line }) });
     const { id } = registry.startIndexJob({ collection: 'demo', path: './x' });
     await waitFor(() => registry.getJob(id).state !== 'running');
     const job = registry.getJob(id);
@@ -386,7 +429,7 @@ describe('createJobRegistry — progress parsing', () => {
       }, 5);
       return child;
     };
-    const registry = createJobRegistry({ spawnFn });
+    const registry = createJobRegistry({ spawnIndexer: spawnFn });
     const { id } = registry.startIndexJob({ collection: 'demo', path: './x' });
     await waitFor(() => registry.getJob(id).state !== 'running');
     assert.deepEqual(registry.getJob(id).progress, {
@@ -399,7 +442,7 @@ describe('createJobRegistry — progress parsing', () => {
 
 describe('createJobRegistry — one active job at a time', () => {
   it('throws JOB_ALREADY_RUNNING when starting a second job while one is active', () => {
-    const registry = createJobRegistry({ spawnFn: makeNeverExitingSpawn([]) });
+    const registry = createJobRegistry({ spawnIndexer: makeNeverExitingSpawn([]) });
     registry.startIndexJob({ collection: 'a', path: './a' });
     assert.throws(
       () => registry.startIndexJob({ collection: 'b', path: './b' }),
@@ -408,7 +451,7 @@ describe('createJobRegistry — one active job at a time', () => {
   });
 
   it('allows a new job to start after the active one finishes', async () => {
-    const registry = createJobRegistry({ spawnFn: makeScriptedSpawn({ delayMs: 5 }) });
+    const registry = createJobRegistry({ spawnIndexer: makeScriptedSpawn({ delayMs: 5 }) });
     const first = registry.startIndexJob({ collection: 'a', path: './a' });
     await waitFor(() => registry.getJob(first.id).state !== 'running');
 
@@ -420,7 +463,7 @@ describe('createJobRegistry — one active job at a time', () => {
     // Regression: cancelJob() must NOT free the slot synchronously —
     // child.kill() only sends a signal, the process may still be running
     // (and still writing to Qdrant) until its own 'exit' event fires.
-    const registry = createJobRegistry({ spawnFn: makeNeverExitingSpawn([]) });
+    const registry = createJobRegistry({ spawnIndexer: makeNeverExitingSpawn([]) });
     const first = registry.startIndexJob({ collection: 'a', path: './a' });
     registry.cancelJob(first.id);
     assert.equal(registry.getJob(first.id).state, 'cancelling');
@@ -431,7 +474,7 @@ describe('createJobRegistry — one active job at a time', () => {
   });
 
   it('allows a new job to start only after the cancelled process actually exits', async () => {
-    const registry = createJobRegistry({ spawnFn: makeNeverExitingSpawn([]) });
+    const registry = createJobRegistry({ spawnIndexer: makeNeverExitingSpawn([]) });
     const first = registry.startIndexJob({ collection: 'a', path: './a' });
     registry.cancelJob(first.id);
     // makeFakeChild's kill() emits 'exit' asynchronously (setTimeout 1ms) —
@@ -446,13 +489,13 @@ describe('createJobRegistry — one active job at a time', () => {
 
 describe('createJobRegistry — state transitions', () => {
   it('queued -> running immediately on start', () => {
-    const registry = createJobRegistry({ spawnFn: makeNeverExitingSpawn([]) });
+    const registry = createJobRegistry({ spawnIndexer: makeNeverExitingSpawn([]) });
     const { id } = registry.startIndexJob({ collection: 'a', path: './a' });
     assert.equal(registry.getJob(id).state, 'running');
   });
 
   it('running -> succeeded on exit code 0', async () => {
-    const registry = createJobRegistry({ spawnFn: makeScriptedSpawn({ delayMs: 5, exitCode: 0 }) });
+    const registry = createJobRegistry({ spawnIndexer: makeScriptedSpawn({ delayMs: 5, exitCode: 0 }) });
     const { id } = registry.startIndexJob({ collection: 'a', path: './a' });
     await waitFor(() => registry.getJob(id).state !== 'running');
     const job = registry.getJob(id);
@@ -462,7 +505,7 @@ describe('createJobRegistry — state transitions', () => {
   });
 
   it('running -> failed on non-zero exit code', async () => {
-    const registry = createJobRegistry({ spawnFn: makeScriptedSpawn({ delayMs: 5, exitCode: 1, stderr: 'boom\n' }) });
+    const registry = createJobRegistry({ spawnIndexer: makeScriptedSpawn({ delayMs: 5, exitCode: 1, stderr: 'boom\n' }) });
     const { id } = registry.startIndexJob({ collection: 'a', path: './a' });
     await waitFor(() => registry.getJob(id).state !== 'running');
     const job = registry.getJob(id);
@@ -471,14 +514,14 @@ describe('createJobRegistry — state transitions', () => {
   });
 
   it('running -> failed when the child is killed by a signal', async () => {
-    const registry = createJobRegistry({ spawnFn: makeScriptedSpawn({ delayMs: 5, exitCode: null, signal: 'SIGKILL' }) });
+    const registry = createJobRegistry({ spawnIndexer: makeScriptedSpawn({ delayMs: 5, exitCode: null, signal: 'SIGKILL' }) });
     const { id } = registry.startIndexJob({ collection: 'a', path: './a' });
     await waitFor(() => registry.getJob(id).state !== 'running');
     assert.equal(registry.getJob(id).state, 'failed');
   });
 
   it('running -> cancelling immediately on cancelJob(), then cancelled once the process actually exits', async () => {
-    const registry = createJobRegistry({ spawnFn: makeNeverExitingSpawn([]) });
+    const registry = createJobRegistry({ spawnIndexer: makeNeverExitingSpawn([]) });
     const { id } = registry.startIndexJob({ collection: 'a', path: './a' });
     const afterCancel = registry.cancelJob(id);
     assert.equal(afterCancel.state, 'cancelling', 'must not jump straight to cancelled — the process may still be alive');
@@ -490,7 +533,7 @@ describe('createJobRegistry — state transitions', () => {
 
   it('failed to start (spawn error) marks the job failed with no exit code', async () => {
     const registry = createJobRegistry({
-      spawnFn: () => {
+      spawnIndexer: () => {
         const child = makeFakeChild();
         setTimeout(() => child.emit('error', new Error('ENOENT: node not found')), 5);
         return child;
@@ -505,7 +548,7 @@ describe('createJobRegistry — state transitions', () => {
   });
 
   it('cancelJob on an already-finished job is a no-op that returns the job unchanged', async () => {
-    const registry = createJobRegistry({ spawnFn: makeScriptedSpawn({ delayMs: 5 }) });
+    const registry = createJobRegistry({ spawnIndexer: makeScriptedSpawn({ delayMs: 5 }) });
     const { id } = registry.startIndexJob({ collection: 'a', path: './a' });
     await waitFor(() => registry.getJob(id).state !== 'running');
     const before = registry.getJob(id).state;
@@ -514,7 +557,7 @@ describe('createJobRegistry — state transitions', () => {
   });
 
   it('cancelJob on an unknown id returns null', () => {
-    const registry = createJobRegistry({ spawnFn: makeNeverExitingSpawn([]) });
+    const registry = createJobRegistry({ spawnIndexer: makeNeverExitingSpawn([]) });
     assert.equal(registry.cancelJob('does-not-exist'), null);
   });
 });
@@ -523,7 +566,7 @@ describe('createJobRegistry — state transitions', () => {
 
 describe('createJobRegistry — listJobs', () => {
   it('returns jobs newest first', async () => {
-    const registry = createJobRegistry({ spawnFn: makeScriptedSpawn({ delayMs: 5 }) });
+    const registry = createJobRegistry({ spawnIndexer: makeScriptedSpawn({ delayMs: 5 }) });
     const first = registry.startIndexJob({ collection: 'a', path: './a' });
     await waitFor(() => registry.getJob(first.id).state !== 'running');
     const second = registry.startIndexJob({ collection: 'b', path: './b' });
@@ -543,7 +586,7 @@ function makeAvailableOllamaStub() {
 }
 
 async function withJobApp(spawnFn, fn, { checkOllamaFn = makeAvailableOllamaStub() } = {}) {
-  const jobRegistry = createJobRegistry({ spawnFn });
+  const jobRegistry = createJobRegistry({ spawnIndexer: spawnFn });
   const app = createApp({ jobRegistry, adapter: makeStubAdapter(), checkOllamaFn });
   await new Promise((resolve) => app.listen(0, '127.0.0.1', resolve));
   const base = `http://127.0.0.1:${app.address().port}`;
@@ -697,7 +740,7 @@ describe('POST /api/jobs/index — validation', () => {
         body: JSON.stringify({ collection: 'demo', path: './x', options: { llmSummaries: true } }),
       });
       assert.equal(res.status, 202);
-      assert.equal(calls[0].opts.env.SKELETON_SUMMARY, 'llm');
+      assert.equal(calls[0].env.SKELETON_SUMMARY, 'llm');
     });
   });
 
@@ -769,7 +812,7 @@ describe('POST /api/jobs/index — validation', () => {
     };
     const indexerCalls = [];
     try {
-      const jobRegistry = createJobRegistry({ spawnFn: makeNeverExitingSpawn(indexerCalls) });
+      const jobRegistry = createJobRegistry({ spawnIndexer: makeNeverExitingSpawn(indexerCalls) });
       const app = createApp({ jobRegistry, adapter: makeStubAdapter() }); // no checkOllamaFn override — real checkOllama
       await new Promise((resolve) => app.listen(0, '127.0.0.1', resolve));
       const base = `http://127.0.0.1:${app.address().port}`;
@@ -983,8 +1026,8 @@ describe('POST /api/jobs/:id/cancel', () => {
     // process's real exit is fully under this test's control — an HTTP round
     // trip is enough real time to beat a 1ms auto-exit and make the "still
     // blocked" assertion flaky with the other fake.
-    const { spawnFn, triggerExit } = makeManualExitSpawn();
-    await withJobApp(spawnFn, async (base) => {
+    const { spawnIndexer, triggerExit } = makeManualExitSpawn();
+    await withJobApp(spawnIndexer, async (base) => {
       const start = await fetch(base + '/api/jobs/index', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ collection: 'demo', path: './x' }),

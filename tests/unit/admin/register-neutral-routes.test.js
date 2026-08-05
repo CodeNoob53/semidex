@@ -58,24 +58,37 @@ describe('register-neutral-routes.js — import-graph isolation (real AST, not r
   });
 
   it('post-lazy-shim (matching what the real Lite tarball ships), has zero TRANSITIVE resolved edges into any LOCAL_ONLY_PATH_PATTERNS file either', () => {
-    // Pre-shim (real, unmodified src/), register-neutral-routes.js DOES
-    // transitively reach core/ollama.js — via registerJobsRoutes ->
-    // generation/registry.js -> generation/ollama-provider.js ->
-    // core/ollama-lazy.js's own real `await import('./ollama.js')`. This
-    // is EXPECTED and matches the existing, already-audited *-lazy.js
-    // boundary (docs/design/full-lite-shared-architecture-audit-2026-08-01.md
-    // §2.4/§5.2) — the lazy-shim mechanism, not "this file never mentions
-    // Ollama," is what makes Lite safe. build.mjs (and this repo's own
-    // graph tooling) substitutes core/ollama-lazy.js's CONTENT with its
-    // *.lite.js shim (whose every export throws instead of importing
-    // anything) at STAGING time — the same substitution
-    // packages/lite/build.mjs performs for the real shipped tarball.
-    // applyLiteShims: true models that substitution here, so this check
-    // reflects the REAL, POST-BUILD closure the Lite package ships, not
-    // the pre-substitution graph.
+    // build.mjs (and this repo's own graph tooling) substitutes
+    // core/ollama-lazy.js's CONTENT with its *.lite.js shim (whose every
+    // export throws instead of importing anything) at STAGING time — the
+    // same substitution packages/lite/build.mjs performs for the real
+    // shipped tarball. applyLiteShims: true models that substitution here,
+    // so this check reflects the REAL, POST-BUILD closure the Lite package
+    // ships, not the pre-substitution graph.
     const reachable = computeReachable(graph, [NEUTRAL_ROUTES_FILE], { applyLiteShims: true });
     const localLeaks = [...reachable].filter((f) => LOCAL_ONLY_PATH_PATTERNS.some((p) => p.test(f)));
     assert.deepEqual(localLeaks, [], `register-neutral-routes.js must never transitively reach a local-only module POST-shim (the real shipped-tarball closure), found: ${JSON.stringify(localLeaks)}`);
+  });
+
+  it('PRE-shim too (code review, round 4), has zero TRANSITIVE resolved edges into any LOCAL_ONLY_PATH_PATTERNS file — core/generation/ollama-provider.js no longer statically or dynamically imports core/ollama-lazy.js at all', () => {
+    // Before round 4, register-neutral-routes.js transitively reached
+    // core/ollama.js even PRE-shim — via registerJobsRoutes ->
+    // generation/registry.js -> generation/ollama-provider.js ->
+    // core/ollama-lazy.js's own real `await import('./ollama.js')` — and
+    // relied ENTIRELY on build.mjs's shim substitution (the test above) to
+    // cut that edge for the shipped tarball. Code review flagged this as
+    // still a real structural Lite -> local-runtime dependency, not
+    // genuine isolation: ollama-provider.js's five *Fn defaults now
+    // default to typed-unavailable stubs instead of importing
+    // ollama-lazy.js at all (see that file's own header comment); the REAL
+    // ollama-lazy.js-backed functions are supplied only by
+    // admin/bootstrap.js (Full-only, excluded from the Lite package
+    // entirely), via createGenerationRuntime's own createGenerationProviderFn
+    // DI seam. This assertion is strictly stronger than the post-shim one
+    // above — it holds even WITHOUT the shim substitution ever running.
+    const reachable = computeReachable(graph, [NEUTRAL_ROUTES_FILE], { applyLiteShims: false });
+    const localLeaks = [...reachable].filter((f) => LOCAL_ONLY_PATH_PATTERNS.some((p) => p.test(f)));
+    assert.deepEqual(localLeaks, [], `register-neutral-routes.js must never transitively reach a local-only module even PRE-shim, found: ${JSON.stringify(localLeaks)}`);
   });
 
   it('has zero resolved edges into server-full.js or any other COMPOSITION_FULL_PATTERNS file', () => {
@@ -159,11 +172,22 @@ describe('registerNeutralRoutes() — call-shape determinism (NOT a composition-
     return { router, registered };
   }
 
+  // jobRegistry is now a REQUIRED dependency of registerNeutralRoutes()
+  // (code review, round 4 — no implicit fallback creation; see that
+  // function's own header comment) — a minimal fake satisfying the shape
+  // jobsFn()/registerOperationsRoutes() read from it, never a real
+  // createJobRegistry() (which itself now requires a spawnIndexer with no
+  // safe generic default).
+  function makeFakeJobRegistry() {
+    return { startIndexJob: () => ({ id: 'fake-job' }), getJob: () => null, cancelJob: () => {} };
+  }
+
   it('calling registerNeutralRoutes() directly registers a non-empty, deterministic route set', () => {
     const { router, registered } = makeRecordingRouter();
     registerNeutralRoutes(router, {
       adapter: makeStubAdapter(),
       embedQuery: async () => ({ dense: [], sparse: {} }),
+      jobRegistry: makeFakeJobRegistry(),
       generationModelsFn: () => {},
       jobsFn: () => {},
     });
@@ -190,6 +214,7 @@ describe('registerNeutralRoutes() — call-shape determinism (NOT a composition-
     registerNeutralRoutes(fullRecording.router, {
       adapter: makeStubAdapter(),
       embedQuery: async () => ({ dense: [], sparse: {} }),
+      jobRegistry: makeFakeJobRegistry(),
       pickFolderFn: async () => ({ path: null, cancelled: true }), // Full passes this; Lite never does
       generationModelsFn: () => {},
       jobsFn: () => {},
@@ -199,6 +224,7 @@ describe('registerNeutralRoutes() — call-shape determinism (NOT a composition-
     registerNeutralRoutes(liteRecording.router, {
       adapter: makeStubAdapter(),
       embedQuery: async () => ({ dense: [], sparse: {} }),
+      jobRegistry: makeFakeJobRegistry(),
       generationModelsFn: () => {},
       jobsFn: () => {},
     });

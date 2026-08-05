@@ -7,14 +7,33 @@
 // while a job is running/queued is rejected by the API layer with 409, not
 // silently queued.
 import { randomUUID } from 'node:crypto';
-import { spawn as nodeSpawn } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
 import { sanitiseErrorMessage } from '../../core/doctor-checks.js';
 import { parseProgressLine } from '../../indexer/progress-event.js';
 
-// Absolute path to src/indexer/index.js, resolved once at module load —
-// spawning by absolute path avoids any dependency on the child process's cwd.
-const INDEXER_ENTRY = fileURLToPath(new URL('../../indexer/index.js', import.meta.url));
+// This file itself is edition-neutral (code review, round 4) — it never
+// imports node:child_process, never names an indexer entry path, never
+// imports spawn-indexer-full.js/spawn-indexer-lite.js, and never branches
+// on an 'edition' string. createJobRegistry() REQUIRES a caller-supplied
+// `spawnIndexer({ args, env, stdio, windowsHide }) -> ChildProcess`
+// callback — there is no default. This is deliberate, not an oversight: a
+// default importing spawn-indexer-full.js would put the literal path to
+// index-full.js (a file EXCLUDED from the Lite package) back into this
+// shared file's own source, which packages/lite/build.mjs's closure
+// validator staged for Lite too — exactly the structural edge this whole
+// split exists to remove. Full's own composition root
+// (admin/server-full.js) passes spawn-indexer-full.js's own spawnIndexer
+// explicitly; Lite's own composition root (admin/composition/lite.js)
+// passes spawn-indexer-lite.js's own spawnIndexer explicitly. Each of
+// those two tiny sibling files owns BOTH its own literal indexer entry
+// path AND the actual node:child_process spawn() call — see
+// spawn-indexer-full.js's own header comment for why that pairing (not
+// just the path) has to live outside this shared file. Job state,
+// logging, progress parsing, and cancellation stay exactly this ONE
+// shared implementation for both editions — only which function gets
+// called to actually launch the child process differs, and only because
+// each composition root injects a different one. Tests pass their own
+// fake spawnIndexer (or a fake jobRegistry entirely) — never a real
+// child_process spawn.
 
 const MAX_LOG_LINES = 2000;
 const STATES = Object.freeze({
@@ -124,9 +143,13 @@ function makeLineSplitter(job, stream) {
 }
 
 /**
- * Create a job registry. `spawnFn` defaults to node:child_process.spawn and
- * is dependency-injectable so unit tests never launch a real indexer
- * process — tests pass a fake that returns an EventEmitter-shaped stub.
+ * Create a job registry. `spawnIndexer` is a REQUIRED dependency — no
+ * default (code review, round 4: a default importing spawn-indexer-full.js
+ * would put the literal path to a Lite-excluded file back into this
+ * shared, Lite-staged file's own source; see this module's own header
+ * comment). Tests pass a fake that returns an EventEmitter-shaped stub
+ * instead of launching a real indexer process — never a real
+ * child_process spawn.
  *
  * `baseEnv` is the env object spread as the FIRST layer under
  * buildJobEnv()'s own explicit overrides when spawning the indexer child
@@ -150,9 +173,20 @@ function makeLineSplitter(job, stream) {
  * (ONNX_EMBED, etc., set from the actual job-start request) still apply
  * on top, unaffected by this change.
  *
- * @param {{ spawnFn?: typeof nodeSpawn, baseEnv?: NodeJS.ProcessEnv }} [options]
+ * @param {{ spawnIndexer: (opts: { args: string[], env: NodeJS.ProcessEnv }) => import('node:child_process').ChildProcess, baseEnv?: NodeJS.ProcessEnv }} options
+ *   spawnIndexer (REQUIRED, code review, round 4): launches the indexer
+ *   child process and returns the real ChildProcess (this registry
+ *   attaches its own stdout/stderr/exit/error listeners to whatever is
+ *   returned — the injected function owns only WHICH FILE gets spawned,
+ *   never the listener wiring). admin/server-full.js's createApp() passes
+ *   spawn-indexer-full.js's own spawnIndexer; admin/composition/lite.js's
+ *   createLiteApp() passes spawn-indexer-lite.js's own spawnIndexer.
+ * @throws {TypeError} if spawnIndexer is missing or not a function
  */
-export function createJobRegistry({ spawnFn = nodeSpawn, baseEnv = process.env } = {}) {
+export function createJobRegistry({ spawnIndexer, baseEnv = process.env } = {}) {
+  if (typeof spawnIndexer !== 'function') {
+    throw new TypeError('createJobRegistry: spawnIndexer is required and must be a function — see this file\'s own header comment for why no default is provided.');
+  }
   const jobs = new Map(); // id -> job record, insertion order = start order
   let activeJobId = null;
 
@@ -206,12 +240,12 @@ export function createJobRegistry({ spawnFn = nodeSpawn, baseEnv = process.env }
     activeJobId = id;
 
     const env = { ...baseEnv, ...buildJobEnv(collection, options) };
-    // No shell string interpolation: argument list is a plain array, the
-    // path is never concatenated into a command string.
-    // windowsHide: true — no-op on non-Windows, but on Windows this admin
-    // server is often run from a GUI launcher, and without it every indexing
-    // job flashes a visible console window on top of everything else.
-    const child = spawnFn(process.execPath, [INDEXER_ENTRY, path], { env, windowsHide: true });
+    // spawnIndexer owns the actual node:child_process call and its own
+    // literal entry-file target (see createJobRegistry()'s own header
+    // comment) — this file itself never decides which edition's entry
+    // point to spawn, only the composition root that constructed this
+    // registry instance does, by choosing which spawnIndexer to inject.
+    const child = spawnIndexer({ args: [path], env });
     job.child = child;
     job.state = STATES.RUNNING;
 
