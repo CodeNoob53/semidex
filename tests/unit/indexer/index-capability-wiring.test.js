@@ -22,19 +22,27 @@
 // This test does not spawn the real CLI (that requires live Qdrant/Ollama
 // to get past bootstrapping) — it instead proves the STRUCTURAL fact the
 // review asked for: index-full.js's source, inside its isMainModule guard,
-// imports applyAllCapabilities from run.js (via index-runtime.js's
-// runIndexerCli()) and calls it with real *-lazy.js module objects for
-// every capability slot, before run() is invoked. Combined with
+// builds a real *-lazy.js module object for every capability slot and
+// passes the whole bundle into run({ capabilities }) (via index-runtime.js's
+// runIndexerCli()), in one step — never a two-step mutate-the-module-then-
+// call-bare-run() sequence (Phase 8B Step 3, second review pass: an earlier
+// version of runIndexerCli() called `applyAllCapabilities(capabilities)`
+// to mutate run.js's own module state, then invoked bare `run()` — even
+// though the mutator itself validated correctly, that two-step SHAPE at
+// the caller boundary could still interleave with a second composition
+// root's own call in the same process. run.js now holds no module-scope
+// capability state at all — see run.js's own header comment — and
+// run({ capabilities }) is the whole call). Combined with
 // tests/unit/indexer/phase-capability-injection.test.js's existing
-// behavioral proof that applyAllCapabilities() correctly fans out to every
-// phase seam, this closes the gap: production Full composition now
-// explicitly selects its capability implementations, not merely defaults
-// into them.
+// behavioral proof that run({ capabilities })'s own buildRunContext()
+// correctly validates and threads every phase seam's capability, this
+// closes the gap: production Full composition now explicitly selects its
+// capability implementations, not merely defaults into them.
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-describe('indexer/index-full.js — Full composition explicitly calls applyAllCapabilities()', () => {
+describe('indexer/index-full.js — Full composition explicitly builds and passes its capability bundle to run({ capabilities })', () => {
   const src = readFileSync(new URL('../../../src/indexer/index-full.js', import.meta.url), 'utf-8');
   const runtimeSrc = readFileSync(new URL('../../../src/indexer/index-runtime.js', import.meta.url), 'utf-8');
 
@@ -43,18 +51,23 @@ describe('indexer/index-full.js — Full composition explicitly calls applyAllCa
     assert.match(src, /await runIndexerCli\(\{/);
   });
 
-  it('index-runtime.js\'s runIndexerCli() imports applyAllCapabilities from run.js and calls it with the caller-supplied capabilities', () => {
-    assert.match(runtimeSrc, /applyAllSettings,\s*applyAllCapabilities,\s*run\s*}\s*=\s*await import\(['"]\.\/run\.js['"]\)/);
-    assert.match(runtimeSrc, /applyAllCapabilities\(capabilities\)/);
+  it('index-runtime.js\'s runIndexerCli() imports run from run.js and calls run({ capabilities }) directly — never a two-step mutate-then-call sequence', () => {
+    assert.match(runtimeSrc, /applyAllSettings,\s*run\s*}\s*=\s*await import\(['"]\.\/run\.js['"]\)/);
+    assert.match(runtimeSrc, /run\(\{\s*capabilities\s*\}\)/);
+    // The old two-step shape (mutate run.js's module state, then call bare
+    // run()) must not be present anywhere as real code — proves the caller
+    // boundary itself can't reintroduce the module-scope-state bug class.
+    const codeOnly = runtimeSrc.split('\n').filter((line) => !line.trim().startsWith('*') && !line.trim().startsWith('//')).join('\n');
+    assert.doesNotMatch(codeOnly, /applyAllCapabilities/);
   });
 
-  it('runIndexerCli() delegates run() to runAndReportExitCode() — genuinely awaited, not fire-and-forget (code review, P2)', () => {
+  it('runIndexerCli() delegates run({ capabilities }) to runAndReportExitCode() — genuinely awaited, not fire-and-forget (code review, P2)', () => {
     // The actual await/try-catch/exitCode behavior is proven behaviorally
     // in tests/unit/indexer/index-runtime-run-and-report-exit-code.test.js;
     // this is just the structural wiring check that runIndexerCli() itself
     // delegates to that function rather than reintroducing its own
     // fire-and-forget run().catch(...) call.
-    assert.match(runtimeSrc, /await runAndReportExitCode\(run\)/);
+    assert.match(runtimeSrc, /await runAndReportExitCode\(\(\) => run\(\{\s*capabilities\s*\}\)\)/);
     // Doesn't grep for the bare substring — runAndReportExitCode()'s own
     // doc comment legitimately quotes the old `run().catch(...)` shape in
     // prose, explaining the bug it replaced. What must be absent is that
@@ -134,15 +147,42 @@ describe('indexer/index-lite.js — Lite composition never imports a local-runti
   });
 });
 
-describe('run.js — applyAllCapabilities() accepts a real *-lazy.js namespace object for every slot without validation failure', () => {
-  it('a real ollama-lazy.js/onnx-embed-lazy.js/tag-onnx-lazy.js namespace import satisfies every narrow capability contract applyAllCapabilities() validates against', async () => {
-    const { applyAllCapabilities } = await import('../../../src/indexer/run.js');
-    const ollamaLazy = await import('../../../src/core/ollama-lazy.js');
-    const onnxEmbedLazy = await import('../../../src/core/onnx-embed-lazy.js');
-    const tagOnnxLazy = await import('../../../src/indexer/phases/tag-onnx-lazy.js');
-    assert.doesNotThrow(() => applyAllCapabilities({
-      ollamaGenerate: ollamaLazy, ollamaSummary: ollamaLazy, ollamaEmbed: ollamaLazy, ollamaDiscovery: ollamaLazy,
-      onnxEmbed: onnxEmbedLazy, tagOnnx: tagOnnxLazy,
-    }));
+describe('run.js — run({ capabilities }) accepts a real *-lazy.js namespace object for every slot without validation failure', () => {
+  it('a real ollama-lazy.js/onnx-embed-lazy.js/tag-onnx-lazy.js namespace import satisfies every narrow capability contract run({ capabilities })\'s own buildRunContext() validates against', async () => {
+    // COLLECTION is read once at run.js's own module-evaluation time (a
+    // module-scope const) and main()'s very first check hard process.exit(1)s
+    // if it's unset — so COLLECTION must be set, and run.js dynamically
+    // (re-)imported with a fresh query string, BEFORE this assertion. A
+    // nonexistent process.argv[2] path drives main() to a real, fast throw
+    // (statSync path-validation, before any Qdrant call — see run.js's own
+    // "Path validation FIRST" comment) — proving validation itself passed
+    // without needing a live Qdrant/Ollama server.
+    const originalArgv2 = process.argv[2];
+    const originalCollection = process.env.COLLECTION;
+    process.env.COLLECTION = 'index-capability-wiring-real-lazy-validation-test';
+    process.argv[2] = '/definitely/does/not/exist/on/any/machine';
+    try {
+      const { run } = await import(`../../../src/indexer/run.js?real-lazy-validation-${Date.now()}`);
+      const ollamaLazy = await import('../../../src/core/ollama-lazy.js');
+      const onnxEmbedLazy = await import('../../../src/core/onnx-embed-lazy.js');
+      const tagOnnxLazy = await import('../../../src/indexer/phases/tag-onnx-lazy.js');
+      // run({ capabilities }) validates all six slots synchronously, before
+      // main() does any real work (fail-fast at construction — see run.js's
+      // own buildRunContext()) — so if validation itself passed, the
+      // rejection below must be the real path error, never a
+      // capability-contract mismatch.
+      await assert.rejects(
+        () => run({
+          capabilities: {
+            ollamaGenerate: ollamaLazy, ollamaSummary: ollamaLazy, ollamaEmbed: ollamaLazy, ollamaDiscovery: ollamaLazy,
+            onnxEmbed: onnxEmbedLazy, tagOnnx: tagOnnxLazy,
+          },
+        }),
+        (err) => { assert.match(err.message, /does not exist/); return true; }
+      );
+    } finally {
+      process.argv[2] = originalArgv2;
+      if (originalCollection === undefined) delete process.env.COLLECTION; else process.env.COLLECTION = originalCollection;
+    }
   });
 });

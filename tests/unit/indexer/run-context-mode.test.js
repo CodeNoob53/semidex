@@ -31,6 +31,13 @@ function prepared(rawChunks, { combinedEnabled = false } = {}) {
   };
 }
 
+// The deterministic-context branch never calls any of these — stageB()
+// destructures ctx unconditionally before branching (Phase 8B Step 3: ctx
+// is a real per-call argument, not a module-scope fallback), so a stub ctx
+// with no working methods is enough here; a real call would throw loudly
+// on first use, which these tests treat as their own regression signal.
+const unusedCtx = { ollamaGenerate: null, ollamaSummary: null, tagOnnx: null };
+
 describe('stageB() — CONTEXT_MODE=deterministic (legacy/non-skeleton chunks)', () => {
   it('produces deterministic context for every legacy chunk, with zero Ollama calls, under the default branch', async () => {
     const saved = { CONTEXT_MODE: process.env.CONTEXT_MODE, TAG_GEN: process.env.TAG_GEN };
@@ -38,7 +45,7 @@ describe('stageB() — CONTEXT_MODE=deterministic (legacy/non-skeleton chunks)',
     delete process.env.TAG_GEN;
     try {
       const chunks = [legacyChunk({ chunkIndex: 0, totalChunks: 2 }), legacyChunk({ chunkIndex: 1, totalChunks: 2, section: 'Details' })];
-      const result = await stageB(prepared(chunks));
+      const result = await stageB(prepared(chunks), unusedCtx);
       assert.equal(result.taggedChunks.length, 2);
       assert.equal(result.taggedChunks[0].context, 'report.pdf › Summary');
       assert.equal(result.taggedChunks[1].context, 'report.pdf › Details');
@@ -59,7 +66,7 @@ describe('stageB() — CONTEXT_MODE=deterministic (legacy/non-skeleton chunks)',
       // combinedCfg.enabled: true simulates COMBINED_LLM=1 — stageB must
       // still take the deterministic branch, never the combined-LLM branch
       // below it (which would call generate() and hang/throw here).
-      const result = await stageB(prepared(chunks, { combinedEnabled: true }));
+      const result = await stageB(prepared(chunks, { combinedEnabled: true }), unusedCtx);
       assert.equal(result.taggedChunks[0].context, 'report.pdf › Summary');
     } finally {
       process.env.CONTEXT_MODE = saved.CONTEXT_MODE;
@@ -86,7 +93,7 @@ describe('stageB() — CONTEXT_MODE=deterministic (legacy/non-skeleton chunks)',
     const saved = process.env.CONTEXT_MODE;
     process.env.CONTEXT_MODE = 'deterministic';
     try {
-      const result = await stageB(prepared([]));
+      const result = await stageB(prepared([]), unusedCtx);
       assert.deepEqual(result.taggedChunks, []);
     } finally {
       if (saved === undefined) delete process.env.CONTEXT_MODE; else process.env.CONTEXT_MODE = saved;

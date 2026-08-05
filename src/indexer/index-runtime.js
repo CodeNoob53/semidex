@@ -85,15 +85,25 @@ export async function runAndReportExitCode(runFn, errorLogFn = console.error) {
 
 /**
  * Runs the indexer CLI flow: bootstrap env, construct SettingsService, apply
- * settings, apply the caller-supplied capability bundle, run(). Caller must
- * already have checked isIndexerMainModule() itself before resolving
+ * settings, then run({ capabilities }) — the capability bundle is passed
+ * directly into run() as a real argument, never applied through a
+ * module-scope mutator first (code review, Phase 8B Step 3, second pass: an
+ * earlier version of this file called `applyAllCapabilities(capabilities)`
+ * to mutate run.js's own module state, then invoked bare `run()` — even
+ * though run.js's OWN internals no longer hold module-scope capability
+ * state at all, keeping that two-step shape here would have re-introduced
+ * exactly the same class of bug this fix removes: a caller-facing API that
+ * LOOKS instance-scoped but still routes through a mutate-then-call
+ * sequence one process could interleave with another. run({ capabilities })
+ * is the whole call — one step, no intermediate global to race). Caller
+ * must already have checked isIndexerMainModule() itself before resolving
  * `capabilities` — this function assumes it should always run when called.
  * @param {{
  *   ollamaGenerate: Object, ollamaSummary: Object, ollamaEmbed: Object, ollamaDiscovery: Object,
  *   onnxEmbed: Object, tagOnnx: Object,
- * }} capabilities — the six capability slots run.js's own applyAllCapabilities()
- *   expects, already fully resolved by the caller (real *-lazy.js-backed
- *   objects for index-full.js, typed-unavailable objects for index-lite.js).
+ * }} capabilities — the six capability slots run.js's own run() expects,
+ *   already fully resolved by the caller (real *-lazy.js-backed objects for
+ *   index-full.js, typed-unavailable objects for index-lite.js).
  */
 export async function runIndexerCli(capabilities) {
   const { bootstrapEnv } = await import('../core/env-bootstrap.js');
@@ -102,9 +112,8 @@ export async function runIndexerCli(capabilities) {
   const { createSettingsService } = await import('../core/settings/service.js');
   const settingsService = createSettingsService({ osEnv, dotenvValues });
 
-  const { applyAllSettings, applyAllCapabilities, run } = await import('./run.js');
+  const { applyAllSettings, run } = await import('./run.js');
   applyAllSettings(settingsService);
-  applyAllCapabilities(capabilities);
 
-  await runAndReportExitCode(run);
+  await runAndReportExitCode(() => run({ capabilities }));
 }
