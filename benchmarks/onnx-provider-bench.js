@@ -11,7 +11,7 @@ import { createRequire } from 'node:module';
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { bucketBatches } from '../src/core/length-bucket.js';
+import { bucketBatches } from '../src/local/core/length-bucket.js';
 
 const ROOT      = join(dirname(fileURLToPath(import.meta.url)), '../');
 const MODEL_DIR = process.env.ONNX_BENCH_MODEL_DIR

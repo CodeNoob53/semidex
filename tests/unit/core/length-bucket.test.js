@@ -8,7 +8,7 @@ import {
   bucketIndex,
   bucketBatches,
   embedBucketed,
-} from '../../../src/core/length-bucket.js';
+} from '../../../src/local/core/length-bucket.js';
 
 describe('estimateTokens', () => {
   const cases = [

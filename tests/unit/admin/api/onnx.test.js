@@ -1,5 +1,5 @@
 // Tests for POST /api/system/onnx-probe (src/admin/api/onnx.js) — the
-// admin route wiring around core/onnx-provider-probe.js's
+// admin route wiring around local/core/onnx-provider-probe.js's
 // probeOnnxProvider(). Every test injects a stub runProbeFn — never a real
 // child process, never real onnxruntime-node — matching this endpoint's
 // own contract that the admin server never loads either ONNX Runtime build
@@ -362,7 +362,7 @@ describe('POST /api/system/onnx-probe', () => {
     // stubs, never a real spawn) is exercised exhaustively by
     // onnx-provider-probe.test.js's own suite.
     const { registerOnnxRoutes } = await import('../../../../src/admin/api/onnx.js');
-    const { probeOnnxProvider } = await import('../../../../src/core/onnx-provider-probe.js');
+    const { probeOnnxProvider } = await import('../../../../src/local/core/onnx-provider-probe.js');
 
     const src = registerOnnxRoutes.toString();
     const match = src.match(/function\s+registerOnnxRoutes\s*\(\s*router\s*,\s*\{([^}]*)\}\s*=\s*\{\}\s*\)/);

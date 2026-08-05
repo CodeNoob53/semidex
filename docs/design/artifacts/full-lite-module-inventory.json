@@ -167,7 +167,7 @@
     "entryPoints": [],
     "directDependencies": [
       "src/core/http/http.js",
-      "src/core/onnx-provider-probe.js"
+      "src/local/core/onnx-provider-probe.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
@@ -303,7 +303,9 @@
       "src/core/ce-rerank.js",
       "src/admin/server.js",
       "src/admin/server-full.js",
-      "src/core/generation/runtime.js"
+      "src/core/generation/runtime.js",
+      "src/core/generation/registry.js",
+      "src/core/ollama-lazy.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
@@ -323,7 +325,12 @@
       "src/admin/api/jobs.js",
       "src/admin/api/generation-models.js",
       "src/core/settings/service.js",
-      "src/admin/register-neutral-routes.js"
+      "src/admin/register-neutral-routes.js",
+      "src/core/embeddings.js",
+      "src/admin/jobs/registry.js",
+      "src/admin/jobs/spawn-indexer-lite.js",
+      "src/core/generation/ollama-capability.js",
+      "src/core/onnx-embed-capability.js"
     ],
     "fullReachable": false,
     "liteReachable": true,
@@ -339,10 +346,39 @@
     "entryPoints": [],
     "directDependencies": [
       "src/core/doctor-checks.js",
-      "src/indexer/progress-event.js",
-      "src/indexer/index.js"
+      "src/indexer/progress-event.js"
     ],
     "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/admin/jobs/spawn-indexer-full.js",
+    "classification": "local",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/indexer/index-full.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": false,
+    "liteReachablePreShim": false,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "move"
+  },
+  {
+    "path": "src/admin/jobs/spawn-indexer-lite.js",
+    "classification": "cloud",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/indexer/index-lite.js"
+    ],
+    "fullReachable": false,
     "liteReachable": true,
     "liteReachablePreShim": true,
     "liteTarballStaged": true,
@@ -380,7 +416,6 @@
       "src/admin/api/search.js",
       "src/core/ask-api/v1/route.js",
       "src/admin/api/generation.js",
-      "src/admin/jobs/registry.js",
       "src/admin/jobs/task-registry.js",
       "src/admin/api/operations.js",
       "src/admin/api/system.js",
@@ -430,7 +465,12 @@
       "src/core/ollama-models.js",
       "src/admin/system/ollama.js",
       "src/core/settings/service.js",
-      "src/admin/register-neutral-routes.js"
+      "src/admin/register-neutral-routes.js",
+      "src/core/embeddings.js",
+      "src/admin/jobs/registry.js",
+      "src/admin/jobs/spawn-indexer-full.js",
+      "src/core/ollama-lazy.js",
+      "src/core/onnx-embed-lazy.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
@@ -1438,8 +1478,8 @@
     "runtimeCoupling": "cloud",
     "entryPoints": [],
     "directDependencies": [
-      "src/core/ollama-lazy.js",
-      "src/core/onnx-embed-lazy.js",
+      "src/core/generation/ollama-capability.js",
+      "src/core/onnx-embed-capability.js",
       "src/core/sparse.js",
       "src/core/env.js",
       "src/core/embedding-profile/schema.js",
@@ -1539,13 +1579,24 @@
     "recommendedAction": "keep"
   },
   {
+    "path": "src/core/generation/ollama-capability.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
     "path": "src/core/generation/ollama-provider.js",
     "classification": "shared",
     "runtimeCoupling": "none",
     "entryPoints": [],
-    "directDependencies": [
-      "src/core/ollama-lazy.js"
-    ],
+    "directDependencies": [],
     "fullReachable": true,
     "liteReachable": true,
     "liteReachablePreShim": true,
@@ -1626,19 +1677,6 @@
     "recommendedAction": "keep"
   },
   {
-    "path": "src/core/length-bucket.js",
-    "classification": "local",
-    "runtimeCoupling": "local",
-    "entryPoints": [],
-    "directDependencies": [],
-    "fullReachable": true,
-    "liteReachable": false,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": false,
-    "liteBrowserBundle": false,
-    "recommendedAction": "exclude"
-  },
-  {
     "path": "src/core/node-id.js",
     "classification": "shared",
     "runtimeCoupling": "none",
@@ -1662,8 +1700,8 @@
       "src/core/ollama.js"
     ],
     "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
+    "liteReachable": false,
+    "liteReachablePreShim": false,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "split"
@@ -1706,10 +1744,23 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": true,
+    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "exclude"
+  },
+  {
+    "path": "src/core/onnx-embed-capability.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
   },
   {
     "path": "src/core/onnx-embed-lazy.js",
@@ -1717,12 +1768,12 @@
     "runtimeCoupling": "local",
     "entryPoints": [],
     "directDependencies": [
-      "src/core/onnx-embed.js",
-      "src/core/length-bucket.js"
+      "src/local/core/onnx-embed.js",
+      "src/local/core/length-bucket.js"
     ],
     "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
+    "liteReachable": false,
+    "liteReachablePreShim": false,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "split"
@@ -1741,24 +1792,6 @@
     "recommendedAction": "split"
   },
   {
-    "path": "src/core/onnx-embed.js",
-    "classification": "local",
-    "runtimeCoupling": "local",
-    "entryPoints": [],
-    "directDependencies": [
-      "pkg:@huggingface/tokenizers",
-      "src/core/onnx-paths.js",
-      "src/core/doctor-checks.js",
-      "src/core/onnx-runtime.js"
-    ],
-    "fullReachable": true,
-    "liteReachable": false,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": false,
-    "liteBrowserBundle": false,
-    "recommendedAction": "exclude"
-  },
-  {
     "path": "src/core/onnx-paths.js",
     "classification": "shared",
     "runtimeCoupling": "none",
@@ -1770,51 +1803,6 @@
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
-  },
-  {
-    "path": "src/core/onnx-probe-runner.js",
-    "classification": "local",
-    "runtimeCoupling": "local",
-    "entryPoints": [],
-    "directDependencies": [
-      "src/core/onnx-runtime.js",
-      "src/core/onnx-paths.js"
-    ],
-    "fullReachable": true,
-    "liteReachable": false,
-    "liteReachablePreShim": false,
-    "liteTarballStaged": false,
-    "liteBrowserBundle": false,
-    "recommendedAction": "exclude"
-  },
-  {
-    "path": "src/core/onnx-provider-probe.js",
-    "classification": "local",
-    "runtimeCoupling": "local",
-    "entryPoints": [],
-    "directDependencies": [
-      "src/core/doctor-checks.js",
-      "src/core/onnx-probe-runner.js"
-    ],
-    "fullReachable": true,
-    "liteReachable": false,
-    "liteReachablePreShim": false,
-    "liteTarballStaged": false,
-    "liteBrowserBundle": false,
-    "recommendedAction": "exclude"
-  },
-  {
-    "path": "src/core/onnx-runtime.js",
-    "classification": "local",
-    "runtimeCoupling": "local",
-    "entryPoints": [],
-    "directDependencies": [],
-    "fullReachable": true,
-    "liteReachable": false,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": false,
-    "liteBrowserBundle": false,
-    "recommendedAction": "exclude"
   },
   {
     "path": "src/core/point-id.js",
@@ -2189,7 +2177,7 @@
       "src/core/config.js",
       "src/core/embeddings.js",
       "src/core/onnx-paths.js",
-      "src/core/onnx-provider-probe.js",
+      "src/local/core/onnx-provider-probe.js",
       "package.json"
     ],
     "fullReachable": true,
@@ -2226,12 +2214,45 @@
     "recommendedAction": "keep"
   },
   {
-    "path": "src/indexer/index.js",
-    "classification": "shared",
+    "path": "src/indexer/index-full.js",
+    "classification": "local",
     "runtimeCoupling": "none",
     "entryPoints": [
       "full"
     ],
+    "directDependencies": [
+      "src/indexer/index-runtime.js",
+      "src/core/ollama-lazy.js",
+      "src/core/onnx-embed-lazy.js",
+      "src/indexer/phases/tag-onnx-lazy.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": false,
+    "liteReachablePreShim": false,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "move"
+  },
+  {
+    "path": "src/indexer/index-lite.js",
+    "classification": "cloud",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/indexer/index-runtime.js"
+    ],
+    "fullReachable": false,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/indexer/index-runtime.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
     "directDependencies": [
       "src/core/env-bootstrap.js",
       "src/core/settings/service.js",
@@ -2243,6 +2264,23 @@
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
+  },
+  {
+    "path": "src/indexer/index.js",
+    "classification": "local",
+    "runtimeCoupling": "none",
+    "entryPoints": [
+      "full"
+    ],
+    "directDependencies": [
+      "src/indexer/index-full.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": false,
+    "liteReachablePreShim": false,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "move"
   },
   {
     "path": "src/indexer/phases/chunk.js",
@@ -2273,7 +2311,7 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
-      "src/core/ollama-lazy.js",
+      "src/core/generation/ollama-capability.js",
       "src/indexer/phases/context.js",
       "src/indexer/phases/tag.js"
     ],
@@ -2290,7 +2328,7 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
-      "src/core/ollama-lazy.js",
+      "src/core/generation/ollama-capability.js",
       "src/indexer/batch.js"
     ],
     "fullReachable": true,
@@ -2385,7 +2423,7 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
-      "src/core/ollama-lazy.js",
+      "src/core/generation/ollama-capability.js",
       "pkg:franc-min"
     ],
     "fullReachable": true,
@@ -2414,6 +2452,19 @@
     "recommendedAction": "keep"
   },
   {
+    "path": "src/indexer/phases/tag-onnx-capability.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
     "path": "src/indexer/phases/tag-onnx-lazy.js",
     "classification": "mixed",
     "runtimeCoupling": "local",
@@ -2423,8 +2474,8 @@
       "src/indexer/phases/tag-onnx.js"
     ],
     "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
+    "liteReachable": false,
+    "liteReachablePreShim": false,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "split"
@@ -2455,7 +2506,7 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": true,
+    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "exclude"
@@ -2479,7 +2530,7 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
-      "src/core/ollama-lazy.js"
+      "src/core/generation/ollama-capability.js"
     ],
     "fullReachable": true,
     "liteReachable": true,
@@ -2507,7 +2558,7 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
-      "src/core/ollama-lazy.js"
+      "src/core/generation/ollama-capability.js"
     ],
     "fullReachable": true,
     "liteReachable": true,
@@ -2551,7 +2602,8 @@
       "src/indexer/phases/chunk.js",
       "src/indexer/phases/context.js",
       "src/indexer/phases/tag.js",
-      "src/indexer/phases/tag-onnx-lazy.js",
+      "src/indexer/phases/tag-provider.js",
+      "src/indexer/phases/tag-onnx-capability.js",
       "src/indexer/phases/empty-section.js",
       "src/indexer/phases/combined.js",
       "src/core/doctor-checks.js",
@@ -2578,7 +2630,8 @@
       "src/core/node-id.js",
       "src/indexer/progress-event.js",
       "src/core/settings/service.js",
-      "src/core/ollama-lazy.js"
+      "src/core/generation/ollama-capability.js",
+      "src/core/onnx-embed-capability.js"
     ],
     "fullReachable": true,
     "liteReachable": true,
@@ -2651,7 +2704,83 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": true,
+    "liteReachablePreShim": false,
+    "liteTarballStaged": false,
+    "liteBrowserBundle": false,
+    "recommendedAction": "exclude"
+  },
+  {
+    "path": "src/local/core/length-bucket.js",
+    "classification": "local",
+    "runtimeCoupling": "local",
+    "entryPoints": [],
+    "directDependencies": [],
+    "fullReachable": true,
+    "liteReachable": false,
+    "liteReachablePreShim": false,
+    "liteTarballStaged": false,
+    "liteBrowserBundle": false,
+    "recommendedAction": "exclude"
+  },
+  {
+    "path": "src/local/core/onnx-embed.js",
+    "classification": "local",
+    "runtimeCoupling": "local",
+    "entryPoints": [],
+    "directDependencies": [
+      "pkg:@huggingface/tokenizers",
+      "src/core/onnx-paths.js",
+      "src/core/doctor-checks.js",
+      "src/local/core/onnx-runtime.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": false,
+    "liteReachablePreShim": false,
+    "liteTarballStaged": false,
+    "liteBrowserBundle": false,
+    "recommendedAction": "exclude"
+  },
+  {
+    "path": "src/local/core/onnx-probe-runner.js",
+    "classification": "local",
+    "runtimeCoupling": "local",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/local/core/onnx-runtime.js",
+      "src/core/onnx-paths.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": false,
+    "liteReachablePreShim": false,
+    "liteTarballStaged": false,
+    "liteBrowserBundle": false,
+    "recommendedAction": "exclude"
+  },
+  {
+    "path": "src/local/core/onnx-provider-probe.js",
+    "classification": "local",
+    "runtimeCoupling": "local",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/core/doctor-checks.js",
+      "src/local/core/onnx-probe-runner.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": false,
+    "liteReachablePreShim": false,
+    "liteTarballStaged": false,
+    "liteBrowserBundle": false,
+    "recommendedAction": "exclude"
+  },
+  {
+    "path": "src/local/core/onnx-runtime.js",
+    "classification": "local",
+    "runtimeCoupling": "local",
+    "entryPoints": [],
+    "directDependencies": [],
+    "fullReachable": true,
+    "liteReachable": false,
+    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "exclude"
@@ -2667,6 +2796,9 @@
       "src/core/env-bootstrap.js",
       "src/core/settings/service.js",
       "pkg:@modelcontextprotocol/sdk",
+      "src/core/embeddings.js",
+      "src/core/ollama-lazy.js",
+      "src/core/onnx-embed-lazy.js",
       "src/core/doctor-checks.js",
       "src/mcp/tools/search.js",
       "src/mcp/tools/collections.js",
@@ -3135,7 +3267,7 @@
     "runtimeCoupling": "local",
     "entryPoints": [],
     "directDependencies": [
-      "src/core/onnx-embed.js"
+      "src/local/core/onnx-embed.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
@@ -3271,7 +3403,7 @@
     "runtimeCoupling": "local",
     "entryPoints": [],
     "directDependencies": [
-      "src/core/length-bucket.js"
+      "src/local/core/length-bucket.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
@@ -3907,7 +4039,8 @@
     "directDependencies": [
       "src/core/env-bootstrap.js",
       "src/core/settings/service.js",
-      "src/admin/jobs/registry.js"
+      "src/admin/jobs/registry.js",
+      "src/admin/jobs/spawn-indexer-lite.js"
     ],
     "fullReachable": false,
     "liteReachable": true,
@@ -3943,6 +4076,7 @@
       "src/core/settings/service.js",
       "src/core/settings/service.lite.js",
       "src/admin/jobs/registry.js",
+      "src/admin/jobs/spawn-indexer-lite.js",
       "src/admin/server.js",
       "src/admin/composition/lite.js",
       "src/core/generation/runtime.js"

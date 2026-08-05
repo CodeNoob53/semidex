@@ -23,7 +23,7 @@ import { basename, dirname, resolve, join } from 'node:path';
 import { createHash, randomBytes } from 'node:crypto';
 
 import { bootstrapEnv } from '../../../src/core/env-bootstrap.js';
-import { embedOnnxBatch } from '../../../src/core/onnx-embed.js';
+import { embedOnnxBatch } from '../../../src/local/core/onnx-embed.js';
 
 import { fetchAndValidateScifact, SCIFACT_MD5 } from './fetch-scifact.mjs';
 import {

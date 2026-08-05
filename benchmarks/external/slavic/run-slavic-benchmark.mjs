@@ -34,7 +34,7 @@ import { execSync } from 'node:child_process';
 import { AutoTokenizer } from '@huggingface/transformers';
 
 import { bootstrapEnv } from '../../../src/core/env-bootstrap.js';
-import { embedOnnxBatch } from '../../../src/core/onnx-embed.js';
+import { embedOnnxBatch } from '../../../src/local/core/onnx-embed.js';
 import { ONNX_DENSE_MODEL_ID, ONNX_CACHE_DIR } from '../../../src/core/onnx-paths.js';
 
 import { computeMetrics, toTrecRunFormat } from '../beir/metrics.mjs';

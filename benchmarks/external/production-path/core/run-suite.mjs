@@ -25,7 +25,7 @@ import {
 } from './checkpoint.mjs';
 import { redact } from './redact.mjs';
 import { RUNS_DIR_PATH } from './run-paths.mjs';
-import { probeOnnxProvider } from '../../../../src/core/onnx-provider-probe.js';
+import { probeOnnxProvider } from '../../../../src/local/core/onnx-provider-probe.js';
 
 function deterministicEnvHash() {
   return JSON.stringify(DETERMINISTIC_INDEXING_ENV_BASE);

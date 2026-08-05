@@ -4,7 +4,7 @@ export default async function ({ ok }) {
   const saved = process.env.ONNX_EXECUTION_PROVIDER;
   delete process.env.ONNX_EXECUTION_PROVIDER;
 
-  const { resolveOnnxExecutionProviders } = await import('../../core/onnx-embed.js');
+  const { resolveOnnxExecutionProviders } = await import('../../local/core/onnx-embed.js');
 
   ok('unset → [cpu]',       resolveOnnxExecutionProviders(undefined).join(',') === 'cpu');
   ok('empty string → [cpu]', resolveOnnxExecutionProviders('').join(',') === 'cpu');

@@ -17,7 +17,7 @@ import { shouldUseOnnxBatching, resolveOnnxBatchSize } from '../../../src/core/e
 import { isCudaStrict } from '../../../src/core/doctor-checks.js';
 import { shouldGenerateTags } from '../../../src/indexer/phases/tag.js';
 import { isOnnxTagProvider } from '../../../src/indexer/phases/tag-onnx.js';
-import { resolveOnnxRuntimeModule } from '../../../src/core/onnx-runtime.js';
+import { resolveOnnxRuntimeModule } from '../../../src/local/core/onnx-runtime.js';
 
 function withEnv(overrides, fn) {
   const originals = {};
@@ -108,9 +108,9 @@ describe('ONNXRUNTIME_NODE_PATH: real settings.json -> applyEnvWriteBack() -> pr
       applyEnvWriteBack(reader, fakeProcessEnv);
 
       assert.equal(fakeProcessEnv.ONNXRUNTIME_NODE_PATH, '/custom/ort/build');
-      // And the exact function core/onnx-runtime.js's loadOnnxRuntime()
+      // And the exact function local/core/onnx-runtime.js's loadOnnxRuntime()
       // uses to resolve the module path genuinely observes this env write.
-      const { resolveOnnxRuntimeModule } = await import('../../../src/core/onnx-runtime.js');
+      const { resolveOnnxRuntimeModule } = await import('../../../src/local/core/onnx-runtime.js');
       assert.notEqual(resolveOnnxRuntimeModule(fakeProcessEnv), 'onnxruntime-node');
     } finally {
       rmSync(dir, { recursive: true, force: true });

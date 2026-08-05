@@ -31,7 +31,7 @@ import {
 // an earlier `nonLiteralCount <= 3` fuzzy bound code review correctly
 // flagged as letting new unreviewed non-literal imports slip in silently
 // as long as the total stayed under 3. Every entry here was reviewed:
-// core/onnx-runtime.js's require(resolveOnnxRuntimeModule(env)) resolves
+// local/core/onnx-runtime.js's require(resolveOnnxRuntimeModule(env)) resolves
 // onnxruntime-node's OWN module path from an env var at runtime — a
 // genuinely necessary runtime resolution (the whole point is letting a
 // user point at a custom ORT build), not a closure-validator gap. Adding
@@ -39,7 +39,7 @@ import {
 // non-literal reference needs the same kind of review, not a number to
 // silently increment.
 const ALLOWED_NON_LITERAL_REFERENCES = [
-  { file: 'src/core/onnx-runtime.js', kind: 'require', reason: 'require(resolveOnnxRuntimeModule(env)) — runtime-resolves onnxruntime-node itself, or a user-supplied ONNXRUNTIME_NODE_PATH override; local-only file, never staged into the Lite tarball' },
+  { file: 'src/local/core/onnx-runtime.js', kind: 'require', reason: 'require(resolveOnnxRuntimeModule(env)) — runtime-resolves onnxruntime-node itself, or a user-supplied ONNXRUNTIME_NODE_PATH override; local-only file, never staged into the Lite tarball' },
 ];
 
 describe('full-lite architecture boundary (Phase 1 lock-in)', () => {

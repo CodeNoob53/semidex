@@ -23,7 +23,7 @@ describe('ONNX_DENSE_MODEL_ID', () => {
   it('the literal string appears in exactly one source file (onnx-paths.js\'s own declaration)', async () => {
     const files = [
       'src/core/onnx-paths.js',
-      'src/core/onnx-embed.js',
+      'src/local/core/onnx-embed.js',
       'src/core/config.js',
       'src/core/bge-tokenizer.js',
     ];
@@ -39,8 +39,8 @@ describe('ONNX_DENSE_MODEL_ID', () => {
   });
 
   it('onnx-embed.js imports and re-exports ONNX_DENSE_MODEL_ID from onnx-paths.js', async () => {
-    const src = await readFile(new URL('../../../src/core/onnx-embed.js', import.meta.url), 'utf-8');
-    assert.match(src, /import\s*\{[^}]*ONNX_DENSE_MODEL_ID[^}]*\}\s*from\s*['"]\.\/onnx-paths\.js['"]/);
+    const src = await readFile(new URL('../../../src/local/core/onnx-embed.js', import.meta.url), 'utf-8');
+    assert.match(src, /import\s*\{[^}]*ONNX_DENSE_MODEL_ID[^}]*\}\s*from\s*['"]\.\.\/\.\.\/core\/onnx-paths\.js['"]/);
   });
 
   it('config.js, bge-tokenizer.js import ONNX_DENSE_MODEL_ID from onnx-paths.js', async () => {
@@ -78,8 +78,8 @@ describe('isOnnxModelCached — the ONE definition of "is the model really on di
   });
 
   it('onnx-probe-runner.js imports and calls isOnnxModelCached() rather than re-implementing the same two existsSync checks inline', async () => {
-    const probeRunnerSrc = await readFile(new URL('../../../src/core/onnx-probe-runner.js', import.meta.url), 'utf-8');
-    assert.match(probeRunnerSrc, /import\s*\{[^}]*isOnnxModelCached[^}]*\}\s*from\s*['"]\.\/onnx-paths\.js['"]/);
+    const probeRunnerSrc = await readFile(new URL('../../../src/local/core/onnx-probe-runner.js', import.meta.url), 'utf-8');
+    assert.match(probeRunnerSrc, /import\s*\{[^}]*isOnnxModelCached[^}]*\}\s*from\s*['"]\.\.\/\.\.\/core\/onnx-paths\.js['"]/);
     assert.match(probeRunnerSrc, /const modelCached = isOnnxModelCached\(\)/);
     assert.ok(!/existsSync\(modelPath\)\s*&&\s*existsSync\(modelDataPath\)/.test(probeRunnerSrc), 'must not re-implement the same check inline anymore');
   });

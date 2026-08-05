@@ -39,7 +39,7 @@ const {
 const { loadConfig } = await import('./core/config.js');
 const { SCHEMA_VERSION } = await import('./core/embeddings.js');
 const { getOnnxModelPath } = await import('./core/onnx-paths.js');
-const { probeOnnxProvider } = await import('./core/onnx-provider-probe.js');
+const { probeOnnxProvider } = await import('./local/core/onnx-provider-probe.js');
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const KEY  = process.env.QDRANT_KEY ?? '';
@@ -408,7 +408,7 @@ if (needsOnnxF) {
         'CUDA session probe skipped — ONNX model cache incomplete',
         `${missing} missing; re-run indexing to complete the download`));
     } else {
-      // Runs in an ISOLATED CHILD PROCESS (core/onnx-provider-probe.js) —
+      // Runs in an ISOLATED CHILD PROCESS (local/core/onnx-provider-probe.js) —
       // doctor.js itself never loads onnxruntime-node. Uses the SAME
       // ONNXRUNTIME_NODE_PATH resolution as the real embedding path
       // (already write-backed into process.env above), so this probe

@@ -54,17 +54,16 @@ const EXCLUDE_DIRS = [
   'mcp', // separate entry point, not part of the Lite cloud API/CLI surface
   'smoke', // dev-only test harness, never shipped
   'test-fixtures', // smoke-test-only fixtures (src/smoke/sections/17-pdf-fixture.js is the only consumer, and smoke/ itself is already excluded above)
+  'local', // Phase 8B Step 2 — the physically relocated local-runtime tree (onnx-embed.js, onnx-runtime.js, onnx-probe-runner.js, onnx-provider-probe.js, length-bucket.js under local/core/, and any future local-runtime file moved here) — excluded by directory rather than by individual EXCLUDE_FILES entry, since every file under this directory is local-only by construction of where it physically lives.
 ];
 
 const EXCLUDE_FILES = [
-  // Local ONNX runtime — never statically imported by any kept file after
-  // the onnx-embed-lazy.js edge cut (core/embeddings.js) and the
-  // tag-onnx-lazy.js edge cut (indexer/run.js).
-  'core/onnx-embed.js',
-  'core/onnx-runtime.js',
-  'core/onnx-probe-runner.js',
-  'core/onnx-provider-probe.js',
-  'core/length-bucket.js', // ONNX-batching-only helper, no non-ONNX importer
+  // Local ONNX EMBEDDING runtime (onnx-embed.js, onnx-runtime.js,
+  // onnx-probe-runner.js, onnx-provider-probe.js, length-bucket.js) is no
+  // longer listed here individually — Phase 8B Step 2 physically relocated
+  // all five to local/core/, so EXCLUDE_DIRS's own 'local' entry now
+  // excludes them by directory. Never statically imported by any kept file
+  // after the onnx-embed-lazy.js edge cut (core/embeddings.js).
   'core/ce-rerank.js',
   'core/ce-rerank-worker.js',
   'indexer/phases/tag-onnx.js',

@@ -4,7 +4,7 @@ import test from 'node:test';
 import {
   buildTokenizerBatch,
   truncateTokenizerEncoding,
-} from '../../../src/core/onnx-embed.js';
+} from '../../../src/local/core/onnx-embed.js';
 
 test('truncateTokenizerEncoding preserves a terminal EOS token', () => {
   assert.deepEqual(

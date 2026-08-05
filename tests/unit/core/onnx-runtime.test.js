@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { resolve } from 'node:path';
 import test from 'node:test';
 
-import { resolveOnnxRuntimeModule } from '../../../src/core/onnx-runtime.js';
+import { resolveOnnxRuntimeModule } from '../../../src/local/core/onnx-runtime.js';
 
 test('uses the project onnxruntime-node dependency by default', () => {
   assert.equal(resolveOnnxRuntimeModule({}), 'onnxruntime-node');

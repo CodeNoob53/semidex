@@ -37,7 +37,7 @@ import { randomBytes } from 'node:crypto';
 import { execSync } from 'node:child_process';
 
 import { bootstrapEnv } from '../../../src/core/env-bootstrap.js';
-import { embedOnnxBatch } from '../../../src/core/onnx-embed.js';
+import { embedOnnxBatch } from '../../../src/local/core/onnx-embed.js';
 
 import { computeMetrics, toTrecRunFormat } from '../beir/metrics.mjs';
 import { prepareInputs, formatForLanes } from '../beir/prepare-inputs.mjs';

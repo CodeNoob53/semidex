@@ -2,6 +2,7 @@
   "fullRoots": [
     "src/admin/bootstrap.js",
     "src/indexer/index.js",
+    "src/indexer/index-full.js",
     "src/mcp/server.js",
     "src/sync.js",
     "src/doctor.js",
@@ -18,22 +19,11 @@
     "packages/lite/lite-src/semidex-home.js",
     "packages/lite/lite-src/serve-lite.js"
   ],
-  "lazyShimSubstitutions": {
-    "src/core/ollama-lazy.js": "src/core/ollama-lazy.lite.js",
-    "src/core/onnx-embed-lazy.js": "src/core/onnx-embed-lazy.lite.js",
-    "src/indexer/phases/tag-onnx-lazy.js": "src/indexer/phases/tag-onnx-lazy.lite.js"
-  },
-  "fullReachableCount": 226,
-  "liteReachablePreShimCount": 147,
-  "liteReachableCount": 141,
-  "shimCutFiles": [
-    "src/core/length-bucket.js",
-    "src/core/ollama.js",
-    "src/core/onnx-embed.js",
-    "src/core/onnx-runtime.js",
-    "src/indexer/phases/tag-onnx.js",
-    "src/indexer/workers/tag-onnx-worker.js"
-  ],
+  "lazyShimSubstitutions": {},
+  "fullReachableCount": 232,
+  "liteReachablePreShimCount": 143,
+  "liteReachableCount": 143,
+  "shimCutFiles": [],
   "fullReachableFiles": [
     "src/admin/api/assembly.js",
     "src/admin/api/chunks.js",
@@ -55,6 +45,7 @@
     "src/admin/api/system.js",
     "src/admin/bootstrap.js",
     "src/admin/jobs/registry.js",
+    "src/admin/jobs/spawn-indexer-full.js",
     "src/admin/jobs/task-registry.js",
     "src/admin/register-neutral-routes.js",
     "src/admin/router.js",
@@ -126,22 +117,19 @@
     "src/core/gemini-models.js",
     "src/core/generation/config.js",
     "src/core/generation/gemini-provider.js",
+    "src/core/generation/ollama-capability.js",
     "src/core/generation/ollama-provider.js",
     "src/core/generation/registry.js",
     "src/core/generation/runtime.js",
     "src/core/http/http.js",
     "src/core/http/sse.js",
-    "src/core/length-bucket.js",
     "src/core/node-id.js",
     "src/core/ollama-lazy.js",
     "src/core/ollama-models.js",
     "src/core/ollama.js",
+    "src/core/onnx-embed-capability.js",
     "src/core/onnx-embed-lazy.js",
-    "src/core/onnx-embed.js",
     "src/core/onnx-paths.js",
-    "src/core/onnx-probe-runner.js",
-    "src/core/onnx-provider-probe.js",
-    "src/core/onnx-runtime.js",
     "src/core/point-id.js",
     "src/core/qdrant.js",
     "src/core/qdrant/client.js",
@@ -165,6 +153,8 @@
     "src/doctor.js",
     "src/indexer/batch.js",
     "src/indexer/files.js",
+    "src/indexer/index-full.js",
+    "src/indexer/index-runtime.js",
     "src/indexer/index.js",
     "src/indexer/phases/chunk.js",
     "src/indexer/phases/combined.js",
@@ -176,6 +166,7 @@
     "src/indexer/phases/skeleton-index.js",
     "src/indexer/phases/skeleton-summary.js",
     "src/indexer/phases/skeleton.js",
+    "src/indexer/phases/tag-onnx-capability.js",
     "src/indexer/phases/tag-onnx-lazy.js",
     "src/indexer/phases/tag-onnx.js",
     "src/indexer/phases/tag-provider.js",
@@ -190,6 +181,11 @@
     "src/indexer/skeleton-payload.js",
     "src/indexer/skeleton-warnings.js",
     "src/indexer/workers/tag-onnx-worker.js",
+    "src/local/core/length-bucket.js",
+    "src/local/core/onnx-embed.js",
+    "src/local/core/onnx-probe-runner.js",
+    "src/local/core/onnx-provider-probe.js",
+    "src/local/core/onnx-runtime.js",
     "src/mcp/server.js",
     "src/mcp/tools/collections.js",
     "src/mcp/tools/filters.js",
@@ -286,6 +282,7 @@
     "src/admin/api/system.js",
     "src/admin/composition/lite.js",
     "src/admin/jobs/registry.js",
+    "src/admin/jobs/spawn-indexer-lite.js",
     "src/admin/jobs/task-registry.js",
     "src/admin/register-neutral-routes.js",
     "src/admin/router.js",
@@ -349,19 +346,15 @@
     "src/core/gemini-models.js",
     "src/core/generation/config.js",
     "src/core/generation/gemini-provider.js",
+    "src/core/generation/ollama-capability.js",
     "src/core/generation/ollama-provider.js",
     "src/core/generation/registry.js",
     "src/core/generation/runtime.js",
     "src/core/http/http.js",
     "src/core/http/sse.js",
-    "src/core/length-bucket.js",
     "src/core/node-id.js",
-    "src/core/ollama-lazy.js",
-    "src/core/ollama.js",
-    "src/core/onnx-embed-lazy.js",
-    "src/core/onnx-embed.js",
+    "src/core/onnx-embed-capability.js",
     "src/core/onnx-paths.js",
-    "src/core/onnx-runtime.js",
     "src/core/point-id.js",
     "src/core/qdrant.js",
     "src/core/qdrant/client.js",
@@ -385,7 +378,8 @@
     "src/core/token-count.js",
     "src/indexer/batch.js",
     "src/indexer/files.js",
-    "src/indexer/index.js",
+    "src/indexer/index-lite.js",
+    "src/indexer/index-runtime.js",
     "src/indexer/phases/chunk.js",
     "src/indexer/phases/combined.js",
     "src/indexer/phases/context.js",
@@ -396,8 +390,7 @@
     "src/indexer/phases/skeleton-index.js",
     "src/indexer/phases/skeleton-summary.js",
     "src/indexer/phases/skeleton.js",
-    "src/indexer/phases/tag-onnx-lazy.js",
-    "src/indexer/phases/tag-onnx.js",
+    "src/indexer/phases/tag-onnx-capability.js",
     "src/indexer/phases/tag-provider.js",
     "src/indexer/phases/tag.js",
     "src/indexer/phases/token-budget-split.js",
@@ -408,8 +401,7 @@
     "src/indexer/semaphore.js",
     "src/indexer/serial-queue.js",
     "src/indexer/skeleton-payload.js",
-    "src/indexer/skeleton-warnings.js",
-    "src/indexer/workers/tag-onnx-worker.js"
+    "src/indexer/skeleton-warnings.js"
   ],
   "liteReachableFiles": [
     "packages/lite/lite-src/doctor-lite.js",
@@ -435,6 +427,7 @@
     "src/admin/api/system.js",
     "src/admin/composition/lite.js",
     "src/admin/jobs/registry.js",
+    "src/admin/jobs/spawn-indexer-lite.js",
     "src/admin/jobs/task-registry.js",
     "src/admin/register-neutral-routes.js",
     "src/admin/router.js",
@@ -498,14 +491,14 @@
     "src/core/gemini-models.js",
     "src/core/generation/config.js",
     "src/core/generation/gemini-provider.js",
+    "src/core/generation/ollama-capability.js",
     "src/core/generation/ollama-provider.js",
     "src/core/generation/registry.js",
     "src/core/generation/runtime.js",
     "src/core/http/http.js",
     "src/core/http/sse.js",
     "src/core/node-id.js",
-    "src/core/ollama-lazy.js",
-    "src/core/onnx-embed-lazy.js",
+    "src/core/onnx-embed-capability.js",
     "src/core/onnx-paths.js",
     "src/core/point-id.js",
     "src/core/qdrant.js",
@@ -530,7 +523,8 @@
     "src/core/token-count.js",
     "src/indexer/batch.js",
     "src/indexer/files.js",
-    "src/indexer/index.js",
+    "src/indexer/index-lite.js",
+    "src/indexer/index-runtime.js",
     "src/indexer/phases/chunk.js",
     "src/indexer/phases/combined.js",
     "src/indexer/phases/context.js",
@@ -541,7 +535,7 @@
     "src/indexer/phases/skeleton-index.js",
     "src/indexer/phases/skeleton-summary.js",
     "src/indexer/phases/skeleton.js",
-    "src/indexer/phases/tag-onnx-lazy.js",
+    "src/indexer/phases/tag-onnx-capability.js",
     "src/indexer/phases/tag-provider.js",
     "src/indexer/phases/tag.js",
     "src/indexer/phases/token-budget-split.js",
@@ -588,7 +582,7 @@
     "@huggingface/tokenizers": [
       "src/core/bge-tokenizer.js",
       "src/core/embedding-profile/qdrant-cloud-tokenizer.js",
-      "src/core/onnx-embed.js"
+      "src/local/core/onnx-embed.js"
     ],
     "@opendocsg/pdf2md": [
       "src/indexer/phases/chunk.js"
@@ -641,13 +635,7 @@
     "dotenv": [
       "src/core/config.js",
       "src/core/env-bootstrap.js",
-      "src/core/ollama.js",
       "src/core/qdrant/client.js"
-    ],
-    "@huggingface/tokenizers": [
-      "src/core/bge-tokenizer.js",
-      "src/core/embedding-profile/qdrant-cloud-tokenizer.js",
-      "src/core/onnx-embed.js"
     ],
     "@qdrant/js-client-rest": [
       "src/core/qdrant/client.js"
@@ -655,8 +643,9 @@
     "franc-min": [
       "src/indexer/phases/skeleton-summary.js"
     ],
-    "@huggingface/transformers": [
-      "src/indexer/workers/tag-onnx-worker.js"
+    "@huggingface/tokenizers": [
+      "src/core/bge-tokenizer.js",
+      "src/core/embedding-profile/qdrant-cloud-tokenizer.js"
     ],
     "@opendocsg/pdf2md": [
       "src/indexer/phases/chunk.js"
@@ -692,10 +681,6 @@
       "src/core/gemini-models.js",
       "src/core/generation/gemini-provider.js"
     ],
-    "@huggingface/tokenizers": [
-      "src/core/bge-tokenizer.js",
-      "src/core/embedding-profile/qdrant-cloud-tokenizer.js"
-    ],
     "dotenv": [
       "src/core/config.js",
       "src/core/env-bootstrap.js",
@@ -707,6 +692,10 @@
     "franc-min": [
       "src/indexer/phases/skeleton-summary.js"
     ],
+    "@huggingface/tokenizers": [
+      "src/core/bge-tokenizer.js",
+      "src/core/embedding-profile/qdrant-cloud-tokenizer.js"
+    ],
     "@opendocsg/pdf2md": [
       "src/indexer/phases/chunk.js"
     ],
@@ -717,28 +706,26 @@
       "src/indexer/phases/skeleton.js"
     ]
   },
-  "liteHeavyDepsReachablePreShim": [
-    "@huggingface/transformers"
-  ],
+  "liteHeavyDepsReachablePreShim": [],
   "liteHeavyDepsReachable": [],
   "fullHeavyDepsReachable": [
     "@huggingface/transformers"
   ],
   "cloudImportsLocalViolations": [],
   "classificationCounts": {
-    "shared": 122,
-    "local": 85,
-    "cloud": 10,
+    "shared": 125,
+    "local": 88,
+    "cloud": 12,
     "composition-full": 9,
     "composition-lite": 6,
     "unclear": 2,
     "mixed": 6
   },
   "runtimeCouplingCounts": {
-    "none": 192,
+    "none": 200,
     "cloud": 19,
     "local": 29
   },
   "localGenuinelyCoupled": 22,
-  "localFullOnlyNoCoupling": 63
+  "localFullOnlyNoCoupling": 66
 }

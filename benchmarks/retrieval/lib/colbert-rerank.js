@@ -9,7 +9,7 @@ import { AutoTokenizer } from '@huggingface/transformers';
 import { existsSync, statSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { resolveOnnxExecutionProviders } from '../../../src/core/onnx-embed.js';
+import { resolveOnnxExecutionProviders } from '../../../src/local/core/onnx-embed.js';
 import { extractTokenVecsBGE, maxSimScore } from './colbert-math.js';
 
 const ROOT       = join(dirname(fileURLToPath(import.meta.url)), '../../../');

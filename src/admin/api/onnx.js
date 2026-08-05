@@ -1,5 +1,5 @@
 // POST /api/system/onnx-probe — explicit, user-triggered CUDA/DML/CPU
-// verification. Delegates entirely to core/onnx-provider-probe.js, which
+// verification. Delegates entirely to local/core/onnx-provider-probe.js, which
 // runs the actual ONNX session-creation check in an ISOLATED CHILD
 // PROCESS — this route (and the admin server generally) never loads
 // onnxruntime-node itself merely to answer this request.
@@ -10,7 +10,7 @@
 // in the response always come from the child process's real probe result,
 // never from the setting alone.
 import { sendJson, readJsonBody, badRequest } from '../../core/http/http.js';
-import { probeOnnxProvider } from '../../core/onnx-provider-probe.js';
+import { probeOnnxProvider } from '../../local/core/onnx-provider-probe.js';
 
 const VALID_PROVIDERS = new Set(['cpu', 'dml', 'cuda']);
 

@@ -195,8 +195,8 @@ export const HEAVY_LOCAL_PACKAGES = ['onnxruntime-node', '@huggingface/transform
 // audit script has no dependency on the packaging tool's internals and
 // double-checks it rather than trusting it blindly.
 export const LOCAL_ONLY_PATH_PATTERNS = [
-  /^src\/core\/onnx-embed\.js$/, /^src\/core\/onnx-runtime\.js$/, /^src\/core\/onnx-probe-runner\.js$/,
-  /^src\/core\/onnx-provider-probe\.js$/, /^src\/core\/length-bucket\.js$/, /^src\/core\/ce-rerank\.js$/,
+  /^src\/local\/core\/onnx-embed\.js$/, /^src\/local\/core\/onnx-runtime\.js$/, /^src\/local\/core\/onnx-probe-runner\.js$/,
+  /^src\/local\/core\/onnx-provider-probe\.js$/, /^src\/local\/core\/length-bucket\.js$/, /^src\/core\/ce-rerank\.js$/,
   /^src\/core\/ce-rerank-worker\.js$/, /^src\/core\/ollama\.js$/, /^src\/core\/ollama-models\.js$/,
   /^src\/indexer\/phases\/tag-onnx\.js$/, /^src\/indexer\/workers\/tag-onnx-worker\.js$/,
   /^src\/admin\/system\/ollama\.js$/, /^src\/admin\/api\/onnx\.js$/, /^src\/admin\/api\/ollama-models\.js$/,
@@ -211,20 +211,24 @@ export const CLOUD_ONLY_PATH_PATTERNS = [
 ];
 const LAZY_SHIM_PATTERNS = [/-lazy\.js$/, /-lazy\.lite\.js$/];
 
-// packages/lite/build.mjs's REAL, COMPLETE EXCLUDE_DIRS (4 entries) and
-// EXCLUDE_FILES (18 entries) — extracted verbatim from that file's own
-// source (2026-08-01), not a partial re-derivation. Code review correctly
-// flagged that the earlier version of this script's liteTarballStaged
-// computation only checked LOCAL_ONLY_PATH_PATTERNS (14 files) plus 4
-// directories, silently missing 8 of build.mjs's real 18 exclusions
-// (admin/bootstrap.js, admin/server-full.js, doctor.js, backfill-tags.js,
-// backfill-entity-refs.js, sync.js, smoke.js, bootstrap-docs.js — every
-// one of COMPOSITION_FULL_PATTERNS above, none of which is local-runtime-
-// coupled, all of which are still genuinely EXCLUDED from the Lite
-// tarball) — so those 8 files were wrongly reported liteTarballStaged:
-// true. Fixed by unioning BOTH pattern lists into the exclusion check,
-// matching build.mjs's real EXCLUDE_FILES list file-for-file.
-const EXCLUDE_DIRS = ['src/admin/ui-src/', 'src/mcp/', 'src/smoke/', 'src/test-fixtures/'];
+// packages/lite/build.mjs's REAL, COMPLETE EXCLUDE_DIRS and EXCLUDE_FILES —
+// extracted verbatim from that file's own source, not a partial
+// re-derivation. Code review correctly flagged that an earlier version of
+// this script's liteTarballStaged computation only checked
+// LOCAL_ONLY_PATH_PATTERNS plus the directory list, silently missing several
+// of build.mjs's real exclusions (admin/bootstrap.js, admin/server-full.js,
+// doctor.js, backfill-tags.js, backfill-entity-refs.js, sync.js, smoke.js,
+// bootstrap-docs.js — every one of COMPOSITION_FULL_PATTERNS above, none of
+// which is local-runtime-coupled, all of which are still genuinely EXCLUDED
+// from the Lite tarball) — so those files were wrongly reported
+// liteTarballStaged: true. Fixed by unioning BOTH pattern lists into the
+// exclusion check, matching build.mjs's real EXCLUDE_FILES list file-for-
+// file. Phase 8B Step 2 added 'src/local/' here to mirror build.mjs's own
+// EXCLUDE_DIRS addition, once the ONNX runtime files physically moved under
+// that directory — LOCAL_ONLY_PATH_PATTERNS above is kept in sync too
+// (independent re-derivation, not a shared import, by design — see this
+// comment's own opening line).
+const EXCLUDE_DIRS = ['src/admin/ui-src/', 'src/mcp/', 'src/smoke/', 'src/test-fixtures/', 'src/local/'];
 const ALL_EXCLUDED_FILE_PATTERNS = [...LOCAL_ONLY_PATH_PATTERNS, ...COMPOSITION_FULL_PATTERNS];
 
 // admin/ui-src/entries/{full,lite}.js are the real Vite JS entry points

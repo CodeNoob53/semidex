@@ -1,4 +1,4 @@
-// Re-export from canonical location in src/core.
+// Re-export from canonical location in src/local/core.
 // benchmarks/ must not be the source of truth for production helpers.
 export {
   BUCKET_BOUNDARIES,
@@ -6,4 +6,4 @@ export {
   bucketIndex,
   bucketBatches,
   embedBucketed,
-} from '../../src/core/length-bucket.js';
+} from '../../src/local/core/length-bucket.js';

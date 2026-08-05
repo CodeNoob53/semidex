@@ -1,7 +1,7 @@
 // Process-isolation regression guard: proves — structurally, not just by
 // observation — that no module in the main/MCP/admin process path can ever
 // load BOTH the custom CUDA-enabled onnxruntime-node build (via
-// core/onnx-runtime.js / core/onnx-embed.js) AND @huggingface/transformers
+// local/core/onnx-runtime.js / local/core/onnx-embed.js) AND @huggingface/transformers
 // (which bundles its own, older ONNX Runtime build) at module-load time in
 // the same process. A duplicate ORT backend registration — or, more subtly,
 // two ORT builds' process-global Ort::Env singletons colliding — in one
@@ -21,7 +21,7 @@ import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { resolve, dirname, join } from 'node:path';
 
-import { resolveOnnxRuntimeModule, loadOnnxRuntime } from '../../../src/core/onnx-runtime.js';
+import { resolveOnnxRuntimeModule, loadOnnxRuntime } from '../../../src/local/core/onnx-runtime.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SRC_ROOT = resolve(__dirname, '../../../src');
@@ -128,7 +128,7 @@ describe('tag generation — migrated from worker_threads to child_process for r
     // core/ce-rerank.js: a worker_thread shares the OS process (and any
     // process-global native state, like ONNX Runtime's Ort::Env singleton)
     // with the indexer's main process, which can simultaneously load the
-    // custom CUDA-enabled onnxruntime-node build via core/onnx-embed.js
+    // custom CUDA-enabled onnxruntime-node build via local/core/onnx-embed.js
     // when ONNX_EMBED=1. See docs/cuda-runtime-verification-2026-07-24.md.
     const src = readSrc('indexer/phases/tag-onnx.js');
     assert.match(src, /from ['"]node:child_process['"]/);
@@ -151,14 +151,14 @@ describe('tag generation — migrated from worker_threads to child_process for r
   });
 });
 
-describe('core/onnx-embed.js (the custom CUDA runtime consumer) never imports @huggingface/transformers', () => {
+describe('local/core/onnx-embed.js (the custom CUDA runtime consumer) never imports @huggingface/transformers', () => {
   it('no import/require statement referencing @huggingface/transformers', () => {
-    const src = readSrc('core/onnx-embed.js');
+    const src = readSrc('local/core/onnx-embed.js');
     assert.doesNotMatch(src, TRANSFORMERS_IMPORT_RE);
   });
 
-  it('loads the ONNX runtime through core/onnx-runtime.js (honoring ONNXRUNTIME_NODE_PATH), never a direct onnxruntime-node import', () => {
-    const src = readSrc('core/onnx-embed.js');
+  it('loads the ONNX runtime through local/core/onnx-runtime.js (honoring ONNXRUNTIME_NODE_PATH), never a direct onnxruntime-node import', () => {
+    const src = readSrc('local/core/onnx-embed.js');
     assert.match(src, /from ['"]\.\/onnx-runtime\.js['"]/);
     assert.doesNotMatch(src, /from ['"]onnxruntime-node['"]/);
     assert.doesNotMatch(src, /import\s*\*\s*as\s+\w+\s+from\s+['"]onnxruntime-node['"]/);
@@ -166,7 +166,7 @@ describe('core/onnx-embed.js (the custom CUDA runtime consumer) never imports @h
 });
 
 describe('repo-wide structural guard: no source file imports both the custom ORT loader and @huggingface/transformers', () => {
-  it('every src/**/*.js file that imports core/onnx-runtime.js (directly or via core/onnx-embed.js) does not ALSO statically import @huggingface/transformers', () => {
+  it('every src/**/*.js file that imports local/core/onnx-runtime.js (directly or via local/core/onnx-embed.js) does not ALSO statically import @huggingface/transformers', () => {
     // A lightweight, dependency-free source walk (no glob package needed) —
     // scoped to src/ only, matching every other structural guard test in
     // this repo's own convention (see e.g. onnx-tokenizer.test.js /

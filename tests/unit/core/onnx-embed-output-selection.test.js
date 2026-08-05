@@ -2,7 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
-const sourceUrl = new URL('../../../src/core/onnx-embed.js', import.meta.url);
+const sourceUrl = new URL('../../../src/local/core/onnx-embed.js', import.meta.url);
 
 describe('BGE-M3 retrieval output selection', () => {
   it('requests only dense and sparse outputs from both inference paths', async () => {

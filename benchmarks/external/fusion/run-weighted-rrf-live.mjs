@@ -25,7 +25,7 @@
 //
 // CUDA requirement: local scopes MUST run under strict CUDA
 // (ONNX_EXECUTION_PROVIDER=cuda ONNX_CUDA_STRICT=1) — the harness verifies
-// the EFFECTIVE provider (via core/onnx-embed.js's getOnnxProviderState(),
+// the EFFECTIVE provider (via local/core/onnx-embed.js's getOnnxProviderState(),
 // not just what was requested) after the first local embedding call, and
 // rejects the scope if CUDA was requested but the effective provider was
 // not CUDA. Cloud scopes report ONNX EP as not applicable (n/a) — Qdrant
@@ -53,7 +53,7 @@ import { randomBytes } from 'node:crypto';
 import { execSync } from 'node:child_process';
 
 import { bootstrapEnv } from '../../../src/core/env-bootstrap.js';
-import { embedOnnxBatch, getOnnxProviderState } from '../../../src/core/onnx-embed.js';
+import { embedOnnxBatch, getOnnxProviderState } from '../../../src/local/core/onnx-embed.js';
 
 import { computeMetrics, toTrecRunFormat } from '../beir/metrics.mjs';
 import { prepareInputs, formatForLanes } from '../beir/prepare-inputs.mjs';

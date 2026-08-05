@@ -101,7 +101,7 @@ async function main() {
     process.exit(1);
   }
 
-  const { embedOnnx, embedOnnxBatch } = await import('../src/core/onnx-embed.js');
+  const { embedOnnx, embedOnnxBatch } = await import('../src/local/core/onnx-embed.js');
   const { estimateTokens, bucketBatches, BUCKET_BOUNDARIES, embedBucketed }
     = await import('./lib/length-bucket.js');
 

@@ -35,7 +35,7 @@ import { randomBytes, createHash } from 'node:crypto';
 import { execSync } from 'node:child_process';
 
 import { bootstrapEnv } from '../../../src/core/env-bootstrap.js';
-import { embedOnnxBatch } from '../../../src/core/onnx-embed.js';
+import { embedOnnxBatch } from '../../../src/local/core/onnx-embed.js';
 
 import { computeMetrics, toTrecRunFormat } from '../beir/metrics.mjs';
 import { prepareInputs, formatForLanes } from '../beir/prepare-inputs.mjs';
@@ -71,7 +71,7 @@ const PROVENANCE_FILES = Object.freeze([
   resolve(REPO_ROOT, 'benchmarks/external/beir/harness-core.mjs'),
   resolve(REPO_ROOT, 'benchmarks/external/beir/metrics.mjs'),
   resolve(REPO_ROOT, 'benchmarks/external/beir/prepare-inputs.mjs'),
-  resolve(REPO_ROOT, 'src/core/onnx-embed.js'),
+  resolve(REPO_ROOT, 'src/local/core/onnx-embed.js'),
 ]);
 
 function currentCommitHash() {
@@ -413,7 +413,7 @@ export async function executeProfileRun({
 
 /** Local profile: computes dense+sparse via embedOnnxBatch() (bounded batch
  * size, sequential across batches — no unbounded Promise.all; the batch
- * function itself never requests ColBERT output, per src/core/onnx-embed.js).
+ * function itself never requests ColBERT output, per src/local/core/onnx-embed.js).
  * Cloud profile: server-side inference — dense via {text, model} on the
  * `dense` vector, sparse via {text, model:'qdrant/bm25', options} on the
  * `sparse` vector, with the E5 asymmetric prefix applied ONLY to the dense

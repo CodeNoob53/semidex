@@ -2,7 +2,7 @@ export default async function ({ ok }) {
   console.log('\n[23] length-bucket — pure helpers');
 
   const { BUCKET_BOUNDARIES, estimateTokens, bucketIndex, bucketBatches, embedBucketed }
-    = await import('../../core/length-bucket.js');
+    = await import('../../local/core/length-bucket.js');
 
   // 23a. estimateTokens
   ok('estimateTokens("")   = 0',  estimateTokens('') === 0);

@@ -1,8 +1,11 @@
-// Lazy accessor for core/onnx-embed.js and core/length-bucket.js. Every
-// module that needs local ONNX embedding reaches it THROUGH this module's
-// dynamic loader instead of statically importing onnx-embed.js/
-// length-bucket.js directly — mirrors core/ollama-lazy.js's pattern exactly
-// (see that file's own header comment for the full rationale).
+// Lazy accessor for local/core/onnx-embed.js and local/core/length-bucket.js
+// (Phase 8B Step 2 — physically relocated from core/ to local/core/, this
+// file's own dynamic-import specifiers below are the only thing that
+// changed). Every module that needs local ONNX embedding reaches it THROUGH
+// this module's dynamic loader instead of statically importing
+// onnx-embed.js/length-bucket.js directly — mirrors core/ollama-lazy.js's
+// pattern exactly (see that file's own header comment for the full
+// rationale).
 //
 // Why this matters: Semidex Lite hard-pins DENSE_PROVIDER=qdrant-cloud
 // unconditionally, so the ONNX dispatch branch in core/embeddings.js
@@ -22,12 +25,12 @@ let _onnxEmbedMod = null;
 let _lengthBucketMod = null;
 
 async function loadOnnxEmbedModule() {
-  if (!_onnxEmbedMod) _onnxEmbedMod = await import('./onnx-embed.js');
+  if (!_onnxEmbedMod) _onnxEmbedMod = await import('../local/core/onnx-embed.js');
   return _onnxEmbedMod;
 }
 
 async function loadLengthBucketModule() {
-  if (!_lengthBucketMod) _lengthBucketMod = await import('./length-bucket.js');
+  if (!_lengthBucketMod) _lengthBucketMod = await import('../local/core/length-bucket.js');
   return _lengthBucketMod;
 }
 

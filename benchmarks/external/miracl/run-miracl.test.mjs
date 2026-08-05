@@ -12,8 +12,8 @@ describe('no ColBERT output requested', () => {
     assert.doesNotMatch(source, /colbert_vecs/i);
   });
 
-  test('src/core/onnx-embed.js (the actual embedding implementation this benchmark calls) requests only dense_vecs/sparse_vecs by name', async () => {
-    const source = await readFile(new URL('../../../src/core/onnx-embed.js', import.meta.url), 'utf-8');
+  test('src/local/core/onnx-embed.js (the actual embedding implementation this benchmark calls) requests only dense_vecs/sparse_vecs by name', async () => {
+    const source = await readFile(new URL('../../../src/local/core/onnx-embed.js', import.meta.url), 'utf-8');
     const selectiveRuns = source.match(/session\.run\(feeds, RETRIEVAL_OUTPUT_NAMES\)/g) ?? [];
     assert.equal(selectiveRuns.length, 2);
   });

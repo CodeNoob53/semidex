@@ -1,4 +1,4 @@
-// core/onnx-provider-probe.js — the isolated-child-process ONNX provider
+// local/core/onnx-provider-probe.js — the isolated-child-process ONNX provider
 // probe coordinator. Every test injects a fake `spawnFn` (an
 // EventEmitter-shaped stub, never a real child process) so these tests
 // never load onnxruntime-node, never touch a real model file, and never
@@ -8,7 +8,7 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 
-import { probeOnnxProvider } from '../../../src/core/onnx-provider-probe.js';
+import { probeOnnxProvider } from '../../../src/local/core/onnx-provider-probe.js';
 
 function makeFakeChild() {
   const child = new EventEmitter();

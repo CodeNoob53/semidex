@@ -48,11 +48,11 @@ const REAL_LAZY_MODULES = [
 
 const LOCAL_RUNTIME_TARGETS = [
   'src/core/ollama.js',
-  'src/core/onnx-embed.js',
+  'src/local/core/onnx-embed.js',
   'src/indexer/phases/tag-onnx.js',
   'src/indexer/workers/tag-onnx-worker.js',
-  'src/core/onnx-runtime.js',
-  'src/core/length-bucket.js',
+  'src/local/core/onnx-runtime.js',
+  'src/local/core/length-bucket.js',
 ];
 
 describe('Lite -> local-runtime edges are structurally ABSENT (code review, round 4 — no build-time shim substitution needed)', () => {
@@ -62,7 +62,7 @@ describe('Lite -> local-runtime edges are structurally ABSENT (code review, roun
     assert.deepEqual(leaked, [], `expected zero real *-lazy.js modules reachable from Lite, found: ${JSON.stringify(leaked)}`);
   });
 
-  it('none of the local-runtime targets those *-lazy.js modules would have led to (core/ollama.js, core/onnx-embed.js, indexer/phases/tag-onnx.js and its worker) are reachable from Lite roots either, PRE-shim', () => {
+  it('none of the local-runtime targets those *-lazy.js modules would have led to (core/ollama.js, local/core/onnx-embed.js, indexer/phases/tag-onnx.js and its worker) are reachable from Lite roots either, PRE-shim', () => {
     const reachable = computeReachable(graph, liteSyntheticRoots, { applyLiteShims: false });
     const leaked = LOCAL_RUNTIME_TARGETS.filter((m) => reachable.has(m));
     assert.deepEqual(leaked, [], `expected zero local-runtime targets reachable from Lite, found: ${JSON.stringify(leaked)}`);
@@ -163,9 +163,9 @@ describe('no other local-only module needs a shim of its own (composition-bounda
     assert.ok(!reachable.has('src/core/ce-rerank-worker.js'));
   });
 
-  it('core/onnx-provider-probe.js / core/onnx-probe-runner.js / admin/api/onnx.js stay unreachable from Lite (the composition boundary — admin/composition/lite.js never registers onnx.js\'s routes — already suffices)', () => {
+  it('local/core/onnx-provider-probe.js / local/core/onnx-probe-runner.js / admin/api/onnx.js stay unreachable from Lite (the composition boundary — admin/composition/lite.js never registers onnx.js\'s routes — already suffices)', () => {
     const reachable = computeReachable(graph, liteSyntheticRoots, { applyLiteShims: true });
-    for (const f of ['src/core/onnx-provider-probe.js', 'src/core/onnx-probe-runner.js', 'src/admin/api/onnx.js']) {
+    for (const f of ['src/local/core/onnx-provider-probe.js', 'src/local/core/onnx-probe-runner.js', 'src/admin/api/onnx.js']) {
       assert.ok(!reachable.has(f), `expected ${f} to be unreachable from Lite`);
     }
   });

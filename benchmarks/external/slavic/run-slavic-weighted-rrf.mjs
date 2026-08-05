@@ -49,7 +49,7 @@ import { execSync } from 'node:child_process';
 import { Tokenizer } from '@huggingface/tokenizers';
 
 import { bootstrapEnv } from '../../../src/core/env-bootstrap.js';
-import { embedOnnxBatch, getOnnxProviderState } from '../../../src/core/onnx-embed.js';
+import { embedOnnxBatch, getOnnxProviderState } from '../../../src/local/core/onnx-embed.js';
 import { ONNX_DENSE_MODEL_ID, ONNX_CACHE_DIR } from '../../../src/core/onnx-paths.js';
 
 import { computeMetrics, toTrecRunFormat } from '../beir/metrics.mjs';

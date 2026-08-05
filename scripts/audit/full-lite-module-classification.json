@@ -137,7 +137,7 @@
       "liteReachable": false,
       "directDependencies": [
         "src/core/http/http.js",
-        "src/core/onnx-provider-probe.js"
+        "src/local/core/onnx-provider-probe.js"
       ]
     },
     {
@@ -1159,14 +1159,6 @@
       "directDependencies": []
     },
     {
-      "path": "src/core/length-bucket.js",
-      "category": "local",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": false,
-      "directDependencies": []
-    },
-    {
       "path": "src/core/node-id.js",
       "category": "shared",
       "compositionEdition": null,
@@ -1227,8 +1219,8 @@
       "fullReachable": true,
       "liteReachable": false,
       "directDependencies": [
-        "src/core/length-bucket.js",
-        "src/core/onnx-embed.js"
+        "src/local/core/length-bucket.js",
+        "src/local/core/onnx-embed.js"
       ]
     },
     {
@@ -1240,53 +1232,11 @@
       "directDependencies": []
     },
     {
-      "path": "src/core/onnx-embed.js",
-      "category": "local",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": false,
-      "directDependencies": [
-        "src/core/doctor-checks.js",
-        "src/core/onnx-paths.js",
-        "src/core/onnx-runtime.js"
-      ]
-    },
-    {
       "path": "src/core/onnx-paths.js",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
       "liteReachable": true,
-      "directDependencies": []
-    },
-    {
-      "path": "src/core/onnx-probe-runner.js",
-      "category": "local",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": false,
-      "directDependencies": [
-        "src/core/onnx-paths.js",
-        "src/core/onnx-runtime.js"
-      ]
-    },
-    {
-      "path": "src/core/onnx-provider-probe.js",
-      "category": "local",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": false,
-      "directDependencies": [
-        "src/core/doctor-checks.js",
-        "src/core/onnx-probe-runner.js"
-      ]
-    },
-    {
-      "path": "src/core/onnx-runtime.js",
-      "category": "local",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": false,
       "directDependencies": []
     },
     {
@@ -1543,8 +1493,8 @@
         "src/core/embeddings.js",
         "src/core/env-bootstrap.js",
         "src/core/onnx-paths.js",
-        "src/core/onnx-provider-probe.js",
-        "src/core/settings/service.js"
+        "src/core/settings/service.js",
+        "src/local/core/onnx-provider-probe.js"
       ]
     },
     {
@@ -1889,6 +1839,56 @@
     },
     {
       "path": "src/indexer/workers/tag-onnx-worker.js",
+      "category": "local",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": []
+    },
+    {
+      "path": "src/local/core/length-bucket.js",
+      "category": "local",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": []
+    },
+    {
+      "path": "src/local/core/onnx-embed.js",
+      "category": "local",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/core/doctor-checks.js",
+        "src/core/onnx-paths.js",
+        "src/local/core/onnx-runtime.js"
+      ]
+    },
+    {
+      "path": "src/local/core/onnx-probe-runner.js",
+      "category": "local",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/core/onnx-paths.js",
+        "src/local/core/onnx-runtime.js"
+      ]
+    },
+    {
+      "path": "src/local/core/onnx-provider-probe.js",
+      "category": "local",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/core/doctor-checks.js",
+        "src/local/core/onnx-probe-runner.js"
+      ]
+    },
+    {
+      "path": "src/local/core/onnx-runtime.js",
       "category": "local",
       "compositionEdition": null,
       "fullReachable": true,
@@ -2254,7 +2254,7 @@
       "fullReachable": true,
       "liteReachable": false,
       "directDependencies": [
-        "src/core/onnx-embed.js"
+        "src/local/core/onnx-embed.js"
       ]
     },
     {
@@ -2345,7 +2345,7 @@
       "fullReachable": true,
       "liteReachable": false,
       "directDependencies": [
-        "src/core/length-bucket.js"
+        "src/local/core/length-bucket.js"
       ]
     },
     {
