@@ -30,6 +30,28 @@ const { Server } = await import('@modelcontextprotocol/sdk/server/index.js');
 const { StdioServerTransport } = await import('@modelcontextprotocol/sdk/server/stdio.js');
 const { CallToolRequestSchema, ListToolsRequestSchema } = await import('@modelcontextprotocol/sdk/types.js');
 
+const { embedForSearch } = await import('../core/embeddings.js');
+const ollamaLazy = await import('../core/ollama-lazy.js');
+const onnxEmbedLazy = await import('../core/onnx-embed-lazy.js');
+// core/embeddings.js's applyEmbeddingCapabilities() (the process-wide
+// module-scope fallback) is deliberately NEVER called from this file (code
+// review, round 4 — removed after round 3 made it redundant, same
+// rationale as composition/lite.js's createLiteApp() and
+// server-full.js's createApp()): this server's own search request path
+// reaches embeddings.js exclusively through search.setEmbedQuery() below,
+// which passes capabilities explicitly per call — mutating the shared
+// module-scope fallback here would be pure global side-effecting noise
+// with no real consumer, and risks stomping whatever OTHER composition
+// root (e.g. createLiteApp(), constructed in the same process by a test)
+// happens to share embeddings.js's module scope. The fallback itself still
+// exists in embeddings.js, but now starts UNSET (null) rather than
+// defaulting to the real ollama-lazy.js/onnx-embed-lazy.js modules (code
+// review, round 4 — see embeddings.js's own header comment): a caller that
+// hasn't been updated to pass capabilities explicitly (e.g. a smoke-test
+// script) gets a clear "no capability injected" error instead of a silent
+// real-network default — this file has no reason to touch it in either
+// direction.
+
 const { sanitiseErrorMessage } = await import('../core/doctor-checks.js');
 const search = await import('./tools/search.js');
 const collections = await import('./tools/collections.js');
@@ -45,6 +67,14 @@ const getNode = await import('./tools/getNode.js');
 const getContent = await import('./tools/getContent.js');
 
 search.setSettingsService(settingsService);
+// Binds tools/search.js's own runHybridSearch() call to THIS process's
+// real capability explicitly (code review, round 3 — the actual per-call
+// isolation fix, matching admin/server-full.js's createApp() and
+// admin/composition/lite.js's createLiteApp() own equivalents): this
+// server's own search requests never consult embeddings.js's shared
+// module-scope fallback at all, regardless of what any other composition
+// root does with it in the same process.
+search.setEmbedQuery((profile, query) => embedForSearch(profile, query, { capabilities: { ollama: ollamaLazy, onnxEmbed: onnxEmbedLazy } }));
 
 const tools = [search, collections, getChunk, findByTag, listFiles, listTags, listDirectories, getSkeleton, getSkeletonNode, getSkeletonChildren, getNode, getContent];
 const toolMap = Object.fromEntries(tools.map(t => [t.schema.name, t.handle]));

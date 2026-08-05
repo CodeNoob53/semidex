@@ -66,8 +66,39 @@ if (isMainModule) {
   const { resolveHostConfig, resolvePortConfig } = await import('./server.js');
   const { createApp } = await import('./server-full.js');
   const { createGenerationRuntime } = await import('../core/generation/runtime.js');
+  const { createGenerationProvider } = await import('../core/generation/registry.js');
 
-  const generationRuntime = createGenerationRuntime({ osEnv, dotenvValues, settingsService });
+  // core/generation/ollama-provider.js no longer statically (or
+  // dynamically) imports core/ollama-lazy.js itself (code review, round 4
+  // — that import gave generation/registry.js's BACKENDS map a real static
+  // edge onto core/ollama.js, reachable from Lite's own module graph
+  // regardless of Lite's SEMIDEX_GENERATION_BACKEND=gemini hard pin, since
+  // the map references createOllamaProvider unconditionally). This file is
+  // Full-only (excluded from the Lite package entirely — see
+  // packages/lite/build.mjs's EXCLUDE_FILES), so it is the one safe place
+  // to supply createOllamaProvider's real *Fn overrides. Resolved here,
+  // BEFORE createGenerationRuntime() runs (that function calls
+  // createGenerationProviderFn SYNCHRONOUSLY — it returns a constructed
+  // GenerationProvider object, not a Promise — so the dynamic import must
+  // already be settled by the time this closure runs, not awaited inside
+  // it), so the wrapper below stays a plain sync function.
+  const ollamaLazy = await import('../core/ollama-lazy.js');
+  const createGenerationProviderFn = (opts) => {
+    if (opts?.backend !== 'ollama') return createGenerationProvider(opts);
+    return createGenerationProvider({
+      ...opts,
+      options: {
+        ...opts.options,
+        isOllamaReachableFn: ollamaLazy.isOllamaReachable,
+        listOllamaModelsFn: ollamaLazy.listOllamaModels,
+        validateOllamaModelsFn: ollamaLazy.validateOllamaModels,
+        generateStreamFn: ollamaLazy.generateStream,
+        getModelContextLengthFn: ollamaLazy.getModelContextLength,
+      },
+    });
+  };
+
+  const generationRuntime = createGenerationRuntime({ osEnv, dotenvValues, settingsService, createGenerationProviderFn });
   const { host } = resolveHostConfig(process.env, { settingsService });
   const port = resolvePortConfig(process.env, { settingsService });
   const server = createApp({ generationRuntime, settingsService, jobBaseEnv });

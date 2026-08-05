@@ -24,8 +24,8 @@ describe('POST /api/system/pick-folder — response shape', () => {
 describe('POST /api/collections/:name — names with spaces (served API)', () => {
   it('starts an indexing job for a collection name containing spaces', async () => {
     const calls = [];
-    const spawnFn = (command, args, opts) => { calls.push({ command, args, opts }); return makeFakeChildForSpawn(); };
-    const jobRegistry = createJobRegistry({ spawnFn });
+    const spawnIndexer = ({ args, env }) => { calls.push({ args, env }); return makeFakeChildForSpawn(); };
+    const jobRegistry = createJobRegistry({ spawnIndexer });
     const app = createApp({ adapter: makeStubAdapter(), embedQuery: async () => ({ dense: [], sparse: {} }), jobRegistry });
     await new Promise((resolve) => app.listen(0, '127.0.0.1', resolve));
     const base = `http://127.0.0.1:${app.address().port}`;
@@ -37,7 +37,7 @@ describe('POST /api/collections/:name — names with spaces (served API)', () =>
       assert.equal(res.status, 202);
       const body = await res.json();
       assert.equal(body.job.collection, 'Company Knowledge Base');
-      assert.equal(calls[0].opts.env.COLLECTION, 'Company Knowledge Base');
+      assert.equal(calls[0].env.COLLECTION, 'Company Knowledge Base');
     } finally {
       await new Promise((resolve) => app.close(resolve));
     }

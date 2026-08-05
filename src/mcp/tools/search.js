@@ -59,6 +59,22 @@ function getStorageAdapter() {
 let settingsService = null;
 export function setSettingsService(service) { settingsService = service; }
 
+// embedQuery mirrors setSettingsService()'s own pattern — set once by
+// mcp/server.js at process startup to a closure bound to THIS process's own
+// real capability (code review, round 3): without this, runHybridSearch()'s
+// own `embedQuery = embedForSearch` default would fall through to
+// core/embeddings.js's shared module-scope fallback — a singleton none of
+// the three composition roots mutate anymore as of round 4, so it stays
+// pointed at embeddings.js's own baked-in default regardless of which
+// composition root(s) have run in this process. Binding explicitly here
+// means this server's own search requests never consult that shared
+// fallback at all, isolated from every other composition root by
+// construction rather than by convention. When unset (e.g. a test
+// importing this module directly), runHybridSearch()'s own default
+// applies, unchanged.
+let embedQueryOverride = null;
+export function setEmbedQuery(fn) { embedQueryOverride = fn; }
+
 // next_search fields — refreshIfChanged() is called once per tool
 // invocation (not per read) so a change saved via the admin UI while this
 // MCP process has been running propagates without restarting it, per the
@@ -161,6 +177,7 @@ export async function handle({ query, collection, top = 5, tags, source_file, wi
     top: requestLimit,
     filters: { sourceFile: source_file, tags },
     settingsService,
+    ...(embedQueryOverride ? { embedQuery: embedQueryOverride } : {}),
   });
   if (result.error) {
     return `Cannot search "${collection}": ${result.message}`;
