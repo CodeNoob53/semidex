@@ -1,4 +1,4 @@
-// src/indexer/phases/tag-onnx.js — the child-process coordinator layer for
+// src/local/indexer/phases/tag-onnx.js — the child-process coordinator layer for
 // ONNX-based tag generation (node:child_process's fork(), NOT
 // worker_threads — a worker_thread shares the OS process, and therefore
 // ONNX Runtime's process-global Ort::Env singleton, with the main indexer
@@ -7,19 +7,30 @@
 // genuinely separate process isolates Transformers.js's own bundled ORT
 // build from it).
 //
+// Code review, Phase 8B Step 4 (second pass): tag-onnx.js used to export
+// addTagsOnnxBatch()/shutdownOnnxTagWorker()/__test directly, backed by
+// MODULE-SCOPE singleton coordinator state — a real isolation gap, since
+// every consumer (including two independently-composed Full compositions
+// in one process) shared one worker. Fixed by createTagOnnxCapability(): a
+// factory returning a fresh { addTagsOnnxBatch, shutdownOnnxTagWorker,
+// __test } instance per call, with its own private closure state. Every
+// test in this file now constructs its OWN instance via
+// createTagOnnxCapability() (mirrors production's own
+// "index-full.js calls it once, at composition time" usage) rather than
+// resetting one shared module-scope instance between tests — this is not
+// just a mechanical rename: it is what makes this file itself incapable of
+// silently reintroducing cross-test state leakage the way the module-scope
+// design could.
+//
 // Every test here injects a FAKE worker (EventEmitter-shaped, never a real
-// child process) via __test.setWorkerFactory(), exercising the exact same
-// message protocol the real worker (tag-onnx-worker.js) uses. Previously
-// this module's only coverage was smoke section 38, which tested nothing
-// but the pure isOnnxTagProvider() function — no init timeout, request
-// timeout, serialization, exit/error handling, or shutdown-with-pending-
-// request coverage existed at all (code review finding).
+// child process) via instance.__test.setWorkerFactory(), exercising the
+// exact same message protocol the real worker (tag-onnx-worker.js) uses.
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import {
-  isOnnxTagProvider, addTagsOnnxBatch, shutdownOnnxTagWorker, __test,
-} from '../../../../src/indexer/phases/tag-onnx.js';
+  isOnnxTagProvider, createTagOnnxCapability,
+} from '../../../../src/local/indexer/phases/tag-onnx.js';
 
 describe('isOnnxTagProvider', () => {
   test('TAG_PROVIDER=onnx → true, everything else → false', () => {
@@ -77,20 +88,23 @@ function fixtureChunks() {
 }
 
 describe('tag-onnx worker coordinator', () => {
-  test.beforeEach(() => __test.reset());
-  test.afterEach(() => __test.reset());
+  // Each test constructs its own fresh capability instance — there is no
+  // module-scope state left to reset between tests (see this file's own
+  // header comment).
+  let cap;
+  test.beforeEach(() => { cap = createTagOnnxCapability(); });
 
   test('spawns exactly one worker for concurrent addTagsOnnxBatch() callers (promise-guarded)', async () => {
     let spawnCount = 0;
-    __test.setWorkerFactory(() => { spawnCount += 1; return makeFakeWorker({ tagFn: (chunks) => chunks.map(() => ['tag-a']) }); });
-    await Promise.all([addTagsOnnxBatch(fixtureChunks()), addTagsOnnxBatch(fixtureChunks())]);
+    cap.__test.setWorkerFactory(() => { spawnCount += 1; return makeFakeWorker({ tagFn: (chunks) => chunks.map(() => ['tag-a']) }); });
+    await Promise.all([cap.addTagsOnnxBatch(fixtureChunks()), cap.addTagsOnnxBatch(fixtureChunks())]);
     assert.equal(spawnCount, 1);
   });
 
   test('addTagsOnnxBatch sends exactly one run request with the expected chunk shape (text/section/source_file only)', async () => {
     let worker;
-    __test.setWorkerFactory(() => { worker = makeFakeWorker({ tagFn: (chunks) => chunks.map(() => ['tag-a']) }); return worker; });
-    await addTagsOnnxBatch(fixtureChunks());
+    cap.__test.setWorkerFactory(() => { worker = makeFakeWorker({ tagFn: (chunks) => chunks.map(() => ['tag-a']) }); return worker; });
+    await cap.addTagsOnnxBatch(fixtureChunks());
     const runMsgs = worker.sent.filter((m) => m.kind === 'run');
     assert.equal(runMsgs.length, 1);
     assert.deepEqual(runMsgs[0].chunks, [
@@ -100,19 +114,19 @@ describe('tag-onnx worker coordinator', () => {
   });
 
   test('merges worker-generated tags with any pre-existing chunk.meta.tags, deduplicated', async () => {
-    __test.setWorkerFactory(() => makeFakeWorker({ tagFn: (chunks) => chunks.map(() => ['generated-tag', 'alpha']) }));
+    cap.__test.setWorkerFactory(() => makeFakeWorker({ tagFn: (chunks) => chunks.map(() => ['generated-tag', 'alpha']) }));
     const chunks = [{ text: 'a', section: 's', source_file: 'a.md', meta: { tags: ['alpha', 'existing'] } }];
-    const out = await addTagsOnnxBatch(chunks);
+    const out = await cap.addTagsOnnxBatch(chunks);
     assert.deepEqual(out[0].tags, ['alpha', 'existing', 'generated-tag']);
   });
 
   test('a worker that fails to reach ready (kind: error) marks the session failed and disables ONNX tagging, never retrying', async () => {
-    __test.setWorkerFactory(() => makeFakeWorker({ failReady: 'boom' }));
-    const out1 = await addTagsOnnxBatch(fixtureChunks());
-    const out2 = await addTagsOnnxBatch(fixtureChunks());
+    cap.__test.setWorkerFactory(() => makeFakeWorker({ failReady: 'boom' }));
+    const out1 = await cap.addTagsOnnxBatch(fixtureChunks());
+    const out2 = await cap.addTagsOnnxBatch(fixtureChunks());
     assert.deepEqual(out1.map((c) => c.tags), [[], []]);
     assert.deepEqual(out2.map((c) => c.tags), [[], []]);
-    assert.equal(__test.state().failed, true);
+    assert.equal(cap.__test.state().failed, true);
   });
 
   test('addTagsOnnxBatch() never throws when the worker fails to load — this is the module\'s own documented contract, previously broken by ensureWorker() being called outside the try', async () => {
@@ -120,30 +134,31 @@ describe('tag-onnx worker coordinator', () => {
     // block, so a load failure propagated as an uncaught rejection out of
     // addTagsOnnxBatch() despite this module's own doc comment promising
     // "[] on worker failure; never throws."
-    __test.setWorkerFactory(() => makeFakeWorker({ failReady: 'load failed' }));
-    await assert.doesNotReject(() => addTagsOnnxBatch(fixtureChunks()));
-    const out = await addTagsOnnxBatch(fixtureChunks());
+    cap.__test.setWorkerFactory(() => makeFakeWorker({ failReady: 'load failed' }));
+    await assert.doesNotReject(() => cap.addTagsOnnxBatch(fixtureChunks()));
+    const out = await cap.addTagsOnnxBatch(fixtureChunks());
     assert.deepEqual(out.map((c) => c.tags), [[], []]);
   });
 
   test('a worker that exits (non-zero code) DURING its own init is rejected cleanly, not an uncaught TypeError', async () => {
     // Regression test: the same crash core/ce-rerank.js's own init handler
-    // had — onWorkerExit() (the GLOBAL 'exit' listener) and ensureWorker()'s
-    // local .once('exit', onExit) init-listener BOTH fire on the same
-    // 'exit' event; onWorkerExit() runs first (registered first) and sets
-    // the module-level _worker to null, so the local init handler's
-    // cleanup() must never dereference the (possibly-null) module-level
-    // _worker — it uses a locally-captured `worker` reference instead.
-    __test.setWorkerFactory(() => {
+    // had — onWorkerExit() (this instance's own 'exit' listener) and
+    // ensureWorker()'s local .once('exit', onExit) init-listener BOTH fire
+    // on the same 'exit' event; onWorkerExit() runs first (registered
+    // first) and sets this instance's own _worker to null, so the local
+    // init handler's cleanup() must never dereference the (possibly-null)
+    // closure-level _worker — it uses a locally-captured `worker`
+    // reference instead.
+    cap.__test.setWorkerFactory(() => {
       const worker = new EventEmitter();
       worker.send = () => {};
       worker.kill = () => {};
       queueMicrotask(() => worker.emit('exit', 1)); // exits before ever posting 'ready'
       return worker;
     });
-    const out = await addTagsOnnxBatch(fixtureChunks());
+    const out = await cap.addTagsOnnxBatch(fixtureChunks());
     assert.deepEqual(out.map((c) => c.tags), [[], []]);
-    assert.equal(__test.state().failed, true);
+    assert.equal(cap.__test.state().failed, true);
   });
 
   test('a worker that exits with code 0 DURING its own init (before ever posting ready) is rejected immediately, not left hanging until the 5-minute init timeout', async () => {
@@ -157,7 +172,7 @@ describe('tag-onnx worker coordinator', () => {
     // outcome (init failed) was already known the instant the process
     // exited.
     const keepalive = setTimeout(() => {}, 2000);
-    __test.setWorkerFactory(() => {
+    cap.__test.setWorkerFactory(() => {
       const worker = new EventEmitter();
       worker.send = () => {};
       worker.kill = () => {};
@@ -166,10 +181,10 @@ describe('tag-onnx worker coordinator', () => {
     });
     const t0 = Date.now();
     try {
-      const out = await addTagsOnnxBatch(fixtureChunks());
+      const out = await cap.addTagsOnnxBatch(fixtureChunks());
       const elapsed = Date.now() - t0;
       assert.deepEqual(out.map((c) => c.tags), [[], []]);
-      assert.equal(__test.state().failed, true, 'a worker that can never become ready must disable ONNX tagging for this session');
+      assert.equal(cap.__test.state().failed, true, 'a worker that can never become ready must disable ONNX tagging for this session');
       assert.ok(elapsed < 1000, `must reject immediately on exit, not wait out the 5-minute init timeout (took ${elapsed}ms)`);
     } finally {
       clearTimeout(keepalive);
@@ -178,9 +193,9 @@ describe('tag-onnx worker coordinator', () => {
 
   test('an unexpected worker exit (non-zero code) rejects pending requests and marks the session failed', async () => {
     let worker;
-    __test.setWorkerFactory(() => { worker = makeFakeWorker({ tagFn: () => { throw new Error('unused'); } }); return worker; });
-    await addTagsOnnxBatch([{ text: 'warm', section: 's', source_file: 'warm.md' }]); // ensure worker is spawned+ready first
-    const pending = addTagsOnnxBatch(fixtureChunks());
+    cap.__test.setWorkerFactory(() => { worker = makeFakeWorker({ tagFn: () => { throw new Error('unused'); } }); return worker; });
+    await cap.addTagsOnnxBatch([{ text: 'warm', section: 's', source_file: 'warm.md' }]); // ensure worker is spawned+ready first
+    const pending = cap.addTagsOnnxBatch(fixtureChunks());
     // ensureWorker()'s already-ready fast path is still `async`, so the
     // second addTagsOnnxBatch() call above has already yielded control
     // back here (before it reaches its own worker.send()) — this line
@@ -188,7 +203,7 @@ describe('tag-onnx worker coordinator', () => {
     worker.emit('exit', 1);
     const out = await pending;
     assert.deepEqual(out.map((c) => c.tags), [[], []]); // never throws
-    assert.equal(__test.state().failed, true);
+    assert.equal(cap.__test.state().failed, true);
   });
 
   test('a worker exiting in the gap between ensureWorker() resolving and this request\'s own worker.send() call produces an informative error, not a raw TypeError', async () => {
@@ -203,14 +218,14 @@ describe('tag-onnx worker coordinator', () => {
     // crash) — this test's point is specifically the MESSAGE quality, not
     // just the outcome (already covered by the test above).
     let worker;
-    __test.setWorkerFactory(() => { worker = makeFakeWorker({ tagFn: (chunks) => chunks.map(() => []) }); return worker; });
-    await addTagsOnnxBatch([{ text: 'warm', section: 's', source_file: 'warm.md' }]); // spawn + ready first
+    cap.__test.setWorkerFactory(() => { worker = makeFakeWorker({ tagFn: (chunks) => chunks.map(() => []) }); return worker; });
+    await cap.addTagsOnnxBatch([{ text: 'warm', section: 's', source_file: 'warm.md' }]); // spawn + ready first
 
     const originalWrite = process.stderr.write.bind(process.stderr);
     let captured = '';
     process.stderr.write = (chunk) => { captured += String(chunk); return true; };
     try {
-      const pending = addTagsOnnxBatch(fixtureChunks());
+      const pending = cap.addTagsOnnxBatch(fixtureChunks());
       worker.emit('exit', 1); // races the in-flight call's own worker.send()
       await pending;
     } finally {
@@ -222,10 +237,10 @@ describe('tag-onnx worker coordinator', () => {
 
   test('a clean worker exit (code 0) does not mark the session failed', async () => {
     let worker;
-    __test.setWorkerFactory(() => { worker = makeFakeWorker({ tagFn: (chunks) => chunks.map(() => []) }); return worker; });
-    await addTagsOnnxBatch(fixtureChunks());
+    cap.__test.setWorkerFactory(() => { worker = makeFakeWorker({ tagFn: (chunks) => chunks.map(() => []) }); return worker; });
+    await cap.addTagsOnnxBatch(fixtureChunks());
     worker.emit('exit', 0);
-    assert.equal(__test.state().failed, false);
+    assert.equal(cap.__test.state().failed, false);
   });
 
   test('a worker that never replies to a run request times out per-request, falls back to empty tags for that call, kills the worker, and disables ONNX tagging for the rest of the session', async () => {
@@ -243,7 +258,7 @@ describe('tag-onnx worker coordinator', () => {
     // the timer fires.
     const keepalive = setTimeout(() => {}, 5000);
     let killCalls = 0;
-    __test.setWorkerFactory(() => {
+    cap.__test.setWorkerFactory(() => {
       const worker = makeSilentWorker();
       const originalKill = worker.kill;
       worker.kill = (...args) => { killCalls += 1; return originalKill(...args); };
@@ -254,13 +269,13 @@ describe('tag-onnx worker coordinator', () => {
     // value that actually takes effect.
     process.env.TAG_ONNX_TIMEOUT_MS = '1000';
     try {
-      const out = await addTagsOnnxBatch(fixtureChunks());
+      const out = await cap.addTagsOnnxBatch(fixtureChunks());
       assert.deepEqual(out.map((c) => c.tags), [[], []]);
       assert.equal(killCalls, 1, 'the hung worker must be killed, not left running a stuck inference');
-      assert.equal(__test.state().failed, true, 'a hung worker must disable ONNX tagging for the rest of the session');
+      assert.equal(cap.__test.state().failed, true, 'a hung worker must disable ONNX tagging for the rest of the session');
 
       // A subsequent call must not attempt to reuse the killed worker.
-      const second = await addTagsOnnxBatch(fixtureChunks());
+      const second = await cap.addTagsOnnxBatch(fixtureChunks());
       assert.deepEqual(second.map((c) => c.tags), [[], []]);
     } finally {
       delete process.env.TAG_ONNX_TIMEOUT_MS;
@@ -282,7 +297,7 @@ describe('tag-onnx worker coordinator', () => {
     // of the session, even though NEITHER request actually took longer
     // than 700ms to process once the worker got to it.
     const keepalive = setTimeout(() => {}, 5000);
-    __test.setWorkerFactory(() => {
+    cap.__test.setWorkerFactory(() => {
       // Simulates the REAL worker's FIFO queue faithfully: 'run' messages
       // are processed strictly one at a time, each taking PROCESS_MS,
       // replying only once its own turn is done — not simply delaying
@@ -308,12 +323,12 @@ describe('tag-onnx worker coordinator', () => {
     process.env.TAG_ONNX_TIMEOUT_MS = '1000';
     try {
       const [out1, out2] = await Promise.all([
-        addTagsOnnxBatch([{ text: 'a', section: 's', source_file: 'a.md' }]),
-        addTagsOnnxBatch([{ text: 'b', section: 's', source_file: 'b.md' }]),
+        cap.addTagsOnnxBatch([{ text: 'a', section: 's', source_file: 'a.md' }]),
+        cap.addTagsOnnxBatch([{ text: 'b', section: 's', source_file: 'b.md' }]),
       ]);
       assert.deepEqual(out1.map((c) => c.tags), [[]], 'the first request must succeed');
       assert.deepEqual(out2.map((c) => c.tags), [[]], 'the second request must ALSO succeed — its own processing time (700ms) never exceeded the 1000ms timeout, even though it had to wait behind the first');
-      assert.equal(__test.state().failed, false, 'neither request actually hung — the session must not be disabled');
+      assert.equal(cap.__test.state().failed, false, 'neither request actually hung — the session must not be disabled');
     } finally {
       delete process.env.TAG_ONNX_TIMEOUT_MS;
       clearTimeout(keepalive);
@@ -338,7 +353,7 @@ describe('tag-onnx worker coordinator', () => {
     // user-configurable), so this test is skipped in favor of the
     // structural assertion below.
     const src = await import('node:fs').then((fs) => fs.readFileSync(
-      new URL('../../../../src/indexer/phases/tag-onnx.js', import.meta.url), 'utf-8',
+      new URL('../../../../src/local/indexer/phases/tag-onnx.js', import.meta.url), 'utf-8',
     ));
     assert.match(src, /TAG_ONNX_INIT_TIMEOUT_MS/, 'ensureWorker() must be bounded by an init timeout constant');
     assert.match(src, /did not become ready within/, 'a timed-out init must produce an actionable error message');
@@ -349,40 +364,148 @@ describe('tag-onnx worker coordinator', () => {
     // _pending.clear() — a caller awaiting an in-flight addTagsOnnxBatch()
     // at shutdown time would have its promise never settle.
     let worker;
-    __test.setWorkerFactory(() => {
+    cap.__test.setWorkerFactory(() => {
       worker = makeSilentWorker(); // never replies — request stays pending until shutdown
       return worker;
     });
-    const pending = addTagsOnnxBatch(fixtureChunks());
+    const pending = cap.addTagsOnnxBatch(fixtureChunks());
     // Give addTagsOnnxBatch a tick to spawn+ready the worker and send its
     // run request before shutdown races it.
     await new Promise((resolve) => setTimeout(resolve, 10));
-    await shutdownOnnxTagWorker();
+    await cap.shutdownOnnxTagWorker();
     const out = await pending; // must resolve (with empty-tags fallback), never hang
     assert.deepEqual(out.map((c) => c.tags), [[], []]);
   });
 
   test('shutdownOnnxTagWorker() kills the worker and allows a clean respawn afterward (deliberate shutdown is not mistaken for a crash)', async () => {
     let killCalls = 0;
-    __test.setWorkerFactory(() => {
+    cap.__test.setWorkerFactory(() => {
       const worker = makeFakeWorker({ tagFn: (chunks) => chunks.map(() => []) });
       const originalKill = worker.kill;
       worker.kill = (...args) => { killCalls += 1; return originalKill(...args); };
       return worker;
     });
-    await addTagsOnnxBatch(fixtureChunks());
-    await shutdownOnnxTagWorker();
+    await cap.addTagsOnnxBatch(fixtureChunks());
+    await cap.shutdownOnnxTagWorker();
     assert.equal(killCalls, 1);
-    assert.equal(__test.state().ready, false);
-    assert.equal(__test.state().failed, false, 'a deliberate shutdown must not disable ONNX tagging for a future respawn');
+    assert.equal(cap.__test.state().ready, false);
+    assert.equal(cap.__test.state().failed, false, 'a deliberate shutdown must not disable ONNX tagging for a future respawn');
     // Respawns cleanly.
-    const out = await addTagsOnnxBatch(fixtureChunks());
+    const out = await cap.addTagsOnnxBatch(fixtureChunks());
     assert.deepEqual(out.map((c) => c.tags), [[], []]);
-    assert.equal(__test.state().ready, true);
+    assert.equal(cap.__test.state().ready, true);
   });
 
   test('shutdownOnnxTagWorker() is a no-op (does not throw) when no worker has ever been spawned', async () => {
-    await assert.doesNotReject(() => shutdownOnnxTagWorker());
+    await assert.doesNotReject(() => cap.shutdownOnnxTagWorker());
+  });
+});
+
+describe('two independently-constructed capability instances have genuinely independent worker lifecycles (code review, Phase 8B Step 4, second pass)', () => {
+  // This is the exact regression the review named: the first draft of the
+  // Step 4 architecture test exercised two concurrent addTagsOnnxBatch()
+  // CALLS sharing one module-scope singleton worker and proved request
+  // correlation worked — a real but far weaker claim than "two capability
+  // INSTANCES never share worker state." These tests construct two SEPARATE
+  // createTagOnnxCapability() instances (mirroring two separate
+  // composition roots, or two concurrent run({ capabilities }) calls each
+  // given their own instance) and prove shutting one down never touches
+  // the other's worker or pending requests.
+
+  test('shutting down capability A never kills capability B\'s worker, and B\'s in-flight request still completes successfully', async () => {
+    const capA = createTagOnnxCapability();
+    const capB = createTagOnnxCapability();
+
+    let workerAKillCalls = 0;
+    let workerBKillCalls = 0;
+    capA.__test.setWorkerFactory(() => {
+      const w = makeFakeWorker({ tagFn: (chunks) => chunks.map(() => ['tag-a']) });
+      const originalKill = w.kill;
+      w.kill = (...args) => { workerAKillCalls += 1; return originalKill(...args); };
+      return w;
+    });
+    // B's own worker: replies to 'ready' immediately (like makeFakeWorker)
+    // but deliberately does NOT auto-reply to 'run' — this test replies to
+    // B's run request manually, once it has confirmed A's shutdown did not
+    // touch B at all, using the real requestId B's own send() call used.
+    let workerBSentRequestId = null;
+    let workerB;
+    capB.__test.setWorkerFactory(() => {
+      workerB = new EventEmitter();
+      workerB.send = (msg) => { if (msg?.kind === 'run') workerBSentRequestId = msg.requestId; };
+      const originalKill = () => { workerB.killed = true; queueMicrotask(() => workerB.emit('exit', null)); };
+      workerB.kill = (...args) => { workerBKillCalls += 1; return originalKill(...args); };
+      queueMicrotask(() => workerB.emit('message', { kind: 'ready' }));
+      return workerB;
+    });
+
+    // Start A's own work (resolves quickly) and B's own request (stays
+    // pending — B's fake worker never auto-replies to 'run').
+    await capA.addTagsOnnxBatch(fixtureChunks());
+    const bPending = capB.addTagsOnnxBatch(fixtureChunks());
+    // Give B's addTagsOnnxBatch a tick to spawn its own worker and send its
+    // own run request.
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    assert.equal(capB.__test.state().pendingCount, 1, 'sanity: B has a real pending request in flight');
+    assert.ok(workerBSentRequestId !== null, 'sanity: B\'s own worker actually received a run request');
+
+    // Shut down A ONLY. B's worker must be completely unaffected.
+    await capA.shutdownOnnxTagWorker();
+    assert.equal(workerAKillCalls, 1, 'A\'s own worker was killed by A\'s own shutdown');
+    assert.equal(workerBKillCalls, 0, 'B\'s worker must NOT have been killed by A\'s shutdown');
+    assert.equal(capB.__test.state().pendingCount, 1, 'B\'s pending request must still be pending — A\'s shutdown must not have rejected it');
+
+    // Now let B's own worker reply for real, using the requestId it
+    // actually received — B's request must complete successfully, never
+    // having been touched by A's shutdown. fixtureChunks() has 2 chunks,
+    // so the reply needs one tag array per chunk.
+    workerB.emit('message', { kind: 'done', requestId: workerBSentRequestId, tagArrays: [['tag-b'], ['tag-b']] });
+    const bResult = await bPending;
+    assert.deepEqual(bResult.map((c) => c.tags), [['tag-b'], ['tag-b']], 'B\'s own request resolved with B\'s own real reply, never rejected by A\'s shutdown');
+    assert.equal(workerBKillCalls, 0, 'B\'s worker still must never have been killed');
+  });
+
+  test('independent failure flags — a crash in capability A does not disable capability B', async () => {
+    const capA = createTagOnnxCapability();
+    const capB = createTagOnnxCapability();
+
+    capA.__test.setWorkerFactory(() => makeFakeWorker({ failReady: 'A crashed' }));
+    capB.__test.setWorkerFactory(() => makeFakeWorker({ tagFn: (chunks) => chunks.map(() => ['tag-b']) }));
+
+    const outA = await capA.addTagsOnnxBatch(fixtureChunks());
+    assert.deepEqual(outA.map((c) => c.tags), [[], []], 'A failed to load and fell back to empty tags');
+    assert.equal(capA.__test.state().failed, true, 'A itself is marked failed');
+
+    const outB = await capB.addTagsOnnxBatch(fixtureChunks());
+    assert.deepEqual(outB.map((c) => c.tags), [['tag-b'], ['tag-b']], 'B was never affected by A\'s failure — it generated real tags');
+    assert.equal(capB.__test.state().failed, false, 'B\'s own failure flag is independent of A\'s');
+  });
+
+  test('repeated shutdown is safe per-instance, independently — shutting A down twice never affects B, and B can still be shut down cleanly afterward', async () => {
+    const capA = createTagOnnxCapability();
+    const capB = createTagOnnxCapability();
+
+    let workerBKillCalls = 0;
+    capA.__test.setWorkerFactory(() => makeFakeWorker({ tagFn: (chunks) => chunks.map(() => []) }));
+    capB.__test.setWorkerFactory(() => {
+      const w = makeFakeWorker({ tagFn: (chunks) => chunks.map(() => []) });
+      const originalKill = w.kill;
+      w.kill = (...args) => { workerBKillCalls += 1; return originalKill(...args); };
+      return w;
+    });
+
+    await capA.addTagsOnnxBatch(fixtureChunks());
+    await capB.addTagsOnnxBatch(fixtureChunks());
+
+    await assert.doesNotReject(() => capA.shutdownOnnxTagWorker());
+    await assert.doesNotReject(() => capA.shutdownOnnxTagWorker()); // repeated — still safe
+    assert.equal(workerBKillCalls, 0, 'B\'s worker must still be untouched after A was shut down twice');
+
+    // B still works and can be shut down cleanly on its own.
+    const out = await capB.addTagsOnnxBatch(fixtureChunks());
+    assert.deepEqual(out.map((c) => c.tags), [[], []]);
+    await assert.doesNotReject(() => capB.shutdownOnnxTagWorker());
+    assert.equal(workerBKillCalls, 1);
   });
 });
 
@@ -391,12 +514,16 @@ describe('tag-onnx.js production defaults — structural checks', () => {
     // A missing windowsHide: true on Windows can flash a console window per
     // spawned child process (code review finding). Structural check since
     // exercising the real factory would spawn a real child process.
+    //
+    // Exactly ONE fork(WORKER_PATH, ...) call site is expected now — the
+    // production default and __test.reset() previously duplicated this
+    // call inline; the Step 4 refactor consolidated both onto one shared
+    // defaultWorkerFactory() function (see tag-onnx.js's own source),
+    // which is itself a de-duplication, not a regression.
     const fs = await import('node:fs');
-    const src = fs.readFileSync(new URL('../../../../src/indexer/phases/tag-onnx.js', import.meta.url), 'utf-8');
+    const src = fs.readFileSync(new URL('../../../../src/local/indexer/phases/tag-onnx.js', import.meta.url), 'utf-8');
     const forkCallSites = [...src.matchAll(/fork\(WORKER_PATH,\s*\[\],\s*\{[^}]*\}/gs)];
-    assert.ok(forkCallSites.length >= 2, 'expected both the production factory and the __test.reset() factory to call fork()');
-    for (const [callSite] of forkCallSites) {
-      assert.match(callSite, /windowsHide:\s*true/, `fork() call site missing windowsHide: true:\n${callSite}`);
-    }
+    assert.equal(forkCallSites.length, 1, 'expected exactly one shared fork() call site (defaultWorkerFactory), reused by both production and __test.reset()');
+    assert.match(forkCallSites[0][0], /windowsHide:\s*true/, `fork() call site missing windowsHide: true:\n${forkCallSites[0][0]}`);
   });
 });

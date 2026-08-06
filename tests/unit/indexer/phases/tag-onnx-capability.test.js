@@ -33,10 +33,13 @@ describe('validateTagOnnxCapability', () => {
     }
   });
 
-  test('REQUIRED_TAG_ONNX_CAPABILITY_METHODS matches core/ollama-lazy.js-sibling tag-onnx-lazy.js\'s own worker-touching export surface (isOnnxTagProvider deliberately excluded — see header comment)', async () => {
+  test('REQUIRED_TAG_ONNX_CAPABILITY_METHODS matches the shape createTagOnnxCapability() actually returns (Phase 8B Step 4, second pass — tag-onnx-lazy.js no longer exports the two worker-touching methods directly, only a factory)', async () => {
     const real = await import('../../../../src/indexer/phases/tag-onnx-lazy.js');
-    const realFnNames = Object.keys(real).filter((k) => typeof real[k] === 'function' && k !== 'isOnnxTagProvider').sort();
-    assert.deepEqual([...REQUIRED_TAG_ONNX_CAPABILITY_METHODS].sort(), realFnNames);
+    assert.equal(typeof real.createTagOnnxCapability, 'function', 'sanity: the factory itself is exported');
+    const instance = await real.createTagOnnxCapability();
+    const instanceFnNames = Object.keys(instance).filter((k) => typeof instance[k] === 'function').sort();
+    assert.deepEqual([...REQUIRED_TAG_ONNX_CAPABILITY_METHODS].sort(), instanceFnNames);
+    await instance.shutdownOnnxTagWorker(); // no worker was ever spawned; safe cleanup
   });
 });
 
@@ -69,10 +72,11 @@ describe('shutdownOnnxTagWorker always-safe-no-op contract — a disabled/no-op 
     assert.equal(started, false, 'sanity: no worker lifecycle was ever entered');
   });
 
-  test('the real tag-onnx-lazy.lite.js shim already satisfies this exact contract (cross-check against the existing, already-shipped implementation)', async () => {
+  test('the real tag-onnx-lazy.lite.js shim\'s own createTagOnnxCapability() already satisfies this exact contract (cross-check against the existing, already-shipped implementation)', async () => {
     const shim = await import('../../../../src/indexer/phases/tag-onnx-lazy.lite.js');
-    validateTagOnnxCapability(shim);
-    await assert.doesNotReject(() => shim.shutdownOnnxTagWorker());
-    await assert.rejects(() => shim.addTagsOnnxBatch([]), /not available in Semidex Lite/);
+    const instance = await shim.createTagOnnxCapability();
+    validateTagOnnxCapability(instance);
+    await assert.doesNotReject(() => instance.shutdownOnnxTagWorker());
+    await assert.rejects(() => instance.addTagsOnnxBatch([]), /not available in Semidex Lite/);
   });
 });

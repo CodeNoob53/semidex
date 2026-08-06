@@ -37,11 +37,31 @@ describe('core/onnx-embed-lazy.js — unchanged, still the real default a fresh 
   });
 });
 
-describe('indexer/phases/tag-onnx-lazy.js — unchanged, still the real default a fresh capability seam resolves to', () => {
-  it('exports isOnnxTagProvider (re-export), addTagsOnnxBatch, and shutdownOnnxTagWorker', async () => {
+describe('indexer/phases/tag-onnx-lazy.js — export surface changed in Phase 8B Step 4 (second review pass), same class of fix as onnx-embed-lazy.js above', () => {
+  // tag-onnx-lazy.js used to re-export addTagsOnnxBatch()/
+  // shutdownOnnxTagWorker() as bare async wrappers forwarding to
+  // tag-onnx.js's own module-scope singleton state — a real cross-run
+  // worker-isolation gap (code review found: two concurrent
+  // run({ capabilities }) calls shared the exact same underlying worker,
+  // so one run's cleanup could kill a worker another run's pending
+  // request still needed). Fixed by createTagOnnxCapability(): a factory
+  // returning a fresh, independent instance per call. This test now pins
+  // THAT shape instead.
+  it('exports isOnnxTagProvider (re-export) and createTagOnnxCapability (an async factory, not a bare singleton-backed function)', async () => {
     const mod = await import('../../../src/indexer/phases/tag-onnx-lazy.js');
     const fnNames = Object.keys(mod).filter((k) => typeof mod[k] === 'function').sort();
-    assert.deepEqual(fnNames, ['addTagsOnnxBatch', 'isOnnxTagProvider', 'shutdownOnnxTagWorker']);
+    assert.deepEqual(fnNames, ['createTagOnnxCapability', 'isOnnxTagProvider']);
+  });
+
+  it('createTagOnnxCapability() returns a fresh instance each call, never the same shared object', async () => {
+    const mod = await import('../../../src/indexer/phases/tag-onnx-lazy.js');
+    const capA = await mod.createTagOnnxCapability();
+    const capB = await mod.createTagOnnxCapability();
+    assert.notEqual(capA, capB);
+    assert.equal(typeof capA.addTagsOnnxBatch, 'function');
+    assert.equal(typeof capA.shutdownOnnxTagWorker, 'function');
+    await capA.shutdownOnnxTagWorker();
+    await capB.shutdownOnnxTagWorker();
   });
 });
 

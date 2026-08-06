@@ -1,13 +1,16 @@
 // Semidex Lite package-build staging replacement for
 // indexer/phases/tag-onnx-lazy.js.
 //
-// indexer/phases/tag-onnx.js and indexer/workers/tag-onnx-worker.js are
-// never shipped in the Lite tarball, so the real tag-onnx-lazy.js's
-// `await import('./tag-onnx.js')` is a literal dynamic-import target that
-// would throw ERR_MODULE_NOT_FOUND in an installed Lite package if ever
-// reached. packages/lite/build.mjs substitutes THIS file under the exact
-// same path (indexer/phases/tag-onnx-lazy.js) when staging, so run.js's
-// import specifier is unchanged.
+// local/indexer/phases/tag-onnx.js and local/indexer/workers/
+// tag-onnx-worker.js (Phase 8B Step 4 — physically relocated from
+// indexer/phases/ and indexer/workers/) are never shipped in the Lite
+// tarball, so the real tag-onnx-lazy.js's
+// `await import('../../local/indexer/phases/tag-onnx.js')` is a literal
+// dynamic-import target that would throw ERR_MODULE_NOT_FOUND in an
+// installed Lite package if ever reached. packages/lite/build.mjs
+// substitutes THIS file under the exact same path
+// (indexer/phases/tag-onnx-lazy.js) when staging, so run.js's import
+// specifier is unchanged.
 //
 // isOnnxTagProvider is re-exported for real (not stubbed) — it is a pure
 // TAG_PROVIDER env predicate with no fork()/worker dependency, and Lite's
@@ -30,8 +33,15 @@ export class TagOnnxNotAvailableInLiteError extends Error {
   }
 }
 
-export const addTagsOnnxBatch = async () => { throw new TagOnnxNotAvailableInLiteError('addTagsOnnxBatch'); };
-
+// Mirrors the real tag-onnx-lazy.js's own createTagOnnxCapability() shape
+// (Phase 8B Step 4, second review pass — the real module no longer exports
+// bare addTagsOnnxBatch/shutdownOnnxTagWorker functions, only a factory
+// returning a fresh, independent instance per call) — kept in sync even
+// though this file is dead code today (never staged, never imported; see
+// this file's own header comment), so a future consumer building against
+// "the *-lazy.lite.js shim shape" never diverges from the real one it
+// stands in for.
+//
 // shutdownOnnxTagWorker is DIFFERENT from addTagsOnnxBatch: it is cleanup
 // code, unconditionally called from run.js's own `finally` block on every
 // indexing run regardless of whether ONNX tagging was ever used — the real
@@ -43,4 +53,9 @@ export const addTagsOnnxBatch = async () => { throw new TagOnnxNotAvailableInLit
 // than throw — a real live-indexing run against Qdrant Cloud crashed with
 // TagOnnxNotAvailableInLiteError on this exact call before this fix, even
 // though tagging itself was correctly never attempted.
-export async function shutdownOnnxTagWorker() { /* no-op: no worker is ever started in Semidex Lite */ }
+export async function createTagOnnxCapability() {
+  return {
+    addTagsOnnxBatch: async () => { throw new TagOnnxNotAvailableInLiteError('addTagsOnnxBatch'); },
+    async shutdownOnnxTagWorker() { /* no-op: no worker is ever started in Semidex Lite */ },
+  };
+}

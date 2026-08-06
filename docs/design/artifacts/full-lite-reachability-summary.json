@@ -166,7 +166,6 @@
     "src/indexer/phases/skeleton.js",
     "src/indexer/phases/tag-onnx-capability.js",
     "src/indexer/phases/tag-onnx-lazy.js",
-    "src/indexer/phases/tag-onnx.js",
     "src/indexer/phases/tag-provider.js",
     "src/indexer/phases/tag.js",
     "src/indexer/phases/token-budget-split.js",
@@ -178,7 +177,6 @@
     "src/indexer/serial-queue.js",
     "src/indexer/skeleton-payload.js",
     "src/indexer/skeleton-warnings.js",
-    "src/indexer/workers/tag-onnx-worker.js",
     "src/local/core/length-bucket.js",
     "src/local/core/ollama-models.js",
     "src/local/core/ollama.js",
@@ -186,6 +184,8 @@
     "src/local/core/onnx-probe-runner.js",
     "src/local/core/onnx-provider-probe.js",
     "src/local/core/onnx-runtime.js",
+    "src/local/indexer/phases/tag-onnx.js",
+    "src/local/indexer/workers/tag-onnx-worker.js",
     "src/mcp/server.js",
     "src/mcp/tools/collections.js",
     "src/mcp/tools/filters.js",
@@ -598,7 +598,7 @@
     ],
     "@huggingface/transformers": [
       "src/core/ce-rerank-worker.js",
-      "src/indexer/workers/tag-onnx-worker.js"
+      "src/local/indexer/workers/tag-onnx-worker.js"
     ],
     "@modelcontextprotocol/sdk": [
       "src/mcp/server.js"
@@ -722,10 +722,10 @@
     "mixed": 6
   },
   "runtimeCouplingCounts": {
-    "none": 200,
+    "none": 205,
     "cloud": 19,
-    "local": 29
+    "local": 24
   },
-  "localGenuinelyCoupled": 22,
-  "localFullOnlyNoCoupling": 66
+  "localGenuinelyCoupled": 19,
+  "localFullOnlyNoCoupling": 69
 }

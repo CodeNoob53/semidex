@@ -100,7 +100,7 @@ describe('mixed provider seams', () => {
     const pairs = {
       'src/core/ollama-lazy.js': 'src/local/core/ollama.js',
       'src/core/onnx-embed-lazy.js': 'src/local/core/onnx-embed.js',
-      'src/indexer/phases/tag-onnx-lazy.js': 'src/indexer/phases/tag-onnx.js',
+      'src/indexer/phases/tag-onnx-lazy.js': 'src/local/indexer/phases/tag-onnx.js',
     };
     for (const [shim, target] of Object.entries(pairs)) {
       assert.ok(byPath.get(shim).directDependencies.includes(target));

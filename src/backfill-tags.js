@@ -17,7 +17,14 @@ const settingsService = createSettingsService({ osEnv, dotenvValues });
 
 const { scrollAllPoints, updatePayload } = await import('./core/qdrant.js');
 const { addTagsBatch, applyTagSettings } = await import('./indexer/phases/tag.js');
-const { addTagsOnnxBatch, isOnnxTagProvider, shutdownOnnxTagWorker } = await import('./indexer/phases/tag-onnx.js');
+const { isOnnxTagProvider, createTagOnnxCapability } = await import('./local/indexer/phases/tag-onnx.js');
+// One independent capability instance for this script's own process
+// lifetime (code review, Phase 8B Step 4, second pass — tag-onnx.js no
+// longer exports bare addTagsOnnxBatch/shutdownOnnxTagWorker functions
+// backed by module-scope singleton state; every consumer constructs its
+// own instance, exactly once, up front — mirrors index-full.js's own
+// composition).
+const tagOnnx = createTagOnnxCapability();
 // Full-only tooling script (like sync.js/doctor.js) — imports the real
 // Ollama capability directly via the lazy seam, mirroring
 // indexer/index-full.js's own composition. Never reached unless
@@ -71,7 +78,7 @@ function toChunk(point) {
 }
 
 async function generateTags(chunks) {
-  if (isOnnxTagProvider(process.env)) return addTagsOnnxBatch(chunks);
+  if (isOnnxTagProvider(process.env)) return tagOnnx.addTagsOnnxBatch(chunks);
   return addTagsBatch(chunks, { ollama: ollamaLazy });
 }
 
@@ -107,5 +114,5 @@ try {
     }
   }
 } finally {
-  await shutdownOnnxTagWorker();
+  await tagOnnx.shutdownOnnxTagWorker();
 }

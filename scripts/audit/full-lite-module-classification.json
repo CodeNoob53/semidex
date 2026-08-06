@@ -741,8 +741,8 @@
         "src/core/ollama-lazy.js",
         "src/core/qdrant.js",
         "src/core/settings/service.js",
-        "src/indexer/phases/tag-onnx.js",
-        "src/indexer/phases/tag.js"
+        "src/indexer/phases/tag.js",
+        "src/local/indexer/phases/tag-onnx.js"
       ]
     },
     {
@@ -1665,8 +1665,8 @@
       "fullReachable": true,
       "liteReachable": false,
       "directDependencies": [
-        "src/indexer/phases/tag-onnx.js",
-        "src/indexer/phases/tag-provider.js"
+        "src/indexer/phases/tag-provider.js",
+        "src/local/indexer/phases/tag-onnx.js"
       ]
     },
     {
@@ -1677,17 +1677,6 @@
       "liteReachable": false,
       "directDependencies": [
         "src/indexer/phases/tag-provider.js"
-      ]
-    },
-    {
-      "path": "src/indexer/phases/tag-onnx.js",
-      "category": "local",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": false,
-      "directDependencies": [
-        "src/indexer/phases/tag-provider.js",
-        "src/indexer/workers/tag-onnx-worker.js"
       ]
     },
     {
@@ -1819,14 +1808,6 @@
       "directDependencies": []
     },
     {
-      "path": "src/indexer/workers/tag-onnx-worker.js",
-      "category": "local",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": false,
-      "directDependencies": []
-    },
-    {
       "path": "src/local/core/length-bucket.js",
       "category": "local",
       "compositionEdition": null,
@@ -1888,6 +1869,25 @@
     },
     {
       "path": "src/local/core/onnx-runtime.js",
+      "category": "local",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": []
+    },
+    {
+      "path": "src/local/indexer/phases/tag-onnx.js",
+      "category": "local",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/indexer/phases/tag-provider.js",
+        "src/local/indexer/workers/tag-onnx-worker.js"
+      ]
+    },
+    {
+      "path": "src/local/indexer/workers/tag-onnx-worker.js",
       "category": "local",
       "compositionEdition": null,
       "fullReachable": true,
@@ -2491,7 +2491,7 @@
       "fullReachable": true,
       "liteReachable": false,
       "directDependencies": [
-        "src/indexer/phases/tag-onnx.js"
+        "src/local/indexer/phases/tag-onnx.js"
       ]
     },
     {
