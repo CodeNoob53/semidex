@@ -54,7 +54,7 @@ const EXCLUDE_DIRS = [
   'mcp', // separate entry point, not part of the Lite cloud API/CLI surface
   'smoke', // dev-only test harness, never shipped
   'test-fixtures', // smoke-test-only fixtures (src/smoke/sections/17-pdf-fixture.js is the only consumer, and smoke/ itself is already excluded above)
-  'local', // Phase 8B Steps 2-3 — the physically relocated local-runtime tree (local/core/: onnx-embed.js, onnx-runtime.js, onnx-probe-runner.js, onnx-provider-probe.js, length-bucket.js, ollama.js, ollama-models.js, and any future local-runtime file moved here) — excluded by directory rather than by individual EXCLUDE_FILES entry, since every file under this directory is local-only by construction of where it physically lives.
+  'local', // Phase 8B Steps 2-4 — the physically relocated local-runtime tree (local/core/: onnx-embed.js, onnx-runtime.js, onnx-probe-runner.js, onnx-provider-probe.js, length-bucket.js, ollama.js, ollama-models.js; local/indexer/phases/tag-onnx.js; local/indexer/workers/tag-onnx-worker.js; and any future local-runtime file moved here) — excluded by directory rather than by individual EXCLUDE_FILES entry, since every file under this directory is local-only by construction of where it physically lives.
 ];
 
 const EXCLUDE_FILES = [
@@ -66,8 +66,12 @@ const EXCLUDE_FILES = [
   // after the onnx-embed-lazy.js edge cut (core/embeddings.js).
   'core/ce-rerank.js',
   'core/ce-rerank-worker.js',
-  'indexer/phases/tag-onnx.js',
-  'indexer/workers/tag-onnx-worker.js',
+  // Local ONNX TAG GENERATION runtime (tag-onnx.js, tag-onnx-worker.js) is
+  // no longer listed here individually either — Phase 8B Step 4 physically
+  // relocated both to local/indexer/phases/ and local/indexer/workers/, so
+  // EXCLUDE_DIRS's own 'local' entry now excludes them by directory, the
+  // same as the ONNX embedding and Ollama runtimes before them (Phase 8B
+  // Steps 2-3).
   // Local-only Ollama modules. ollama.js/ollama-models.js are no longer
   // listed here individually — Phase 8B Step 3 physically relocated both
   // to local/core/, so EXCLUDE_DIRS's own 'local' entry now excludes them

@@ -198,7 +198,7 @@ export const LOCAL_ONLY_PATH_PATTERNS = [
   /^src\/local\/core\/onnx-embed\.js$/, /^src\/local\/core\/onnx-runtime\.js$/, /^src\/local\/core\/onnx-probe-runner\.js$/,
   /^src\/local\/core\/onnx-provider-probe\.js$/, /^src\/local\/core\/length-bucket\.js$/, /^src\/core\/ce-rerank\.js$/,
   /^src\/core\/ce-rerank-worker\.js$/, /^src\/local\/core\/ollama\.js$/, /^src\/local\/core\/ollama-models\.js$/,
-  /^src\/indexer\/phases\/tag-onnx\.js$/, /^src\/indexer\/workers\/tag-onnx-worker\.js$/,
+  /^src\/local\/indexer\/phases\/tag-onnx\.js$/, /^src\/local\/indexer\/workers\/tag-onnx-worker\.js$/,
   /^src\/admin\/system\/ollama\.js$/, /^src\/admin\/api\/onnx\.js$/, /^src\/admin\/api\/ollama-models\.js$/,
 ];
 export const COMPOSITION_FULL_PATTERNS = [
