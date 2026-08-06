@@ -37,7 +37,30 @@ import { randomBytes } from 'node:crypto';
 import { execSync } from 'node:child_process';
 
 import { bootstrapEnv } from '../../../src/core/env-bootstrap.js';
-import { embedOnnxBatch } from '../../../src/local/core/onnx-embed.js';
+import { createOnnxEmbeddingCapability } from '../../../src/local/core/onnx-embed.js';
+
+// This benchmark's own single-instance, lazy-construct-on-first-use seam
+// (Phase 8B — onnx-embed.js no longer exports a bare module-scope-backed
+// embedOnnxBatch function). A benchmark script runs as one short-lived
+// process across its whole sweep — no multi-instance isolation concern
+// applies here (that requirement targets production composition roots,
+// each of which now constructs its OWN instance — see
+// local/core/onnx-embed.js's own header comment). Constructed on first
+// call across any scope in the sweep, reused for every subsequent scope,
+// released via shutdownOnnxEmbedCapability() once the whole sweep
+// completes.
+let _onnxCapability = null;
+let _embedOnnxBatch = null;
+async function embedOnnxBatch(texts) {
+  if (!_embedOnnxBatch) {
+    _onnxCapability = createOnnxEmbeddingCapability();
+    ({ embedOnnxBatch: _embedOnnxBatch } = await _onnxCapability.loadOnnxBatch());
+  }
+  return _embedOnnxBatch(texts);
+}
+async function shutdownOnnxEmbedCapability() {
+  if (_onnxCapability) await _onnxCapability.shutdown();
+}
 
 import { computeMetrics, toTrecRunFormat } from '../beir/metrics.mjs';
 import { prepareInputs, formatForLanes } from '../beir/prepare-inputs.mjs';
@@ -1217,9 +1240,11 @@ export function renderMarkdownReport(report) {
 
 const isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (isMain) {
-  main().catch((err) => {
-    const redact = makeRedactor(process.env.QDRANT_KEY);
-    console.error('[rrf-sweep] unhandled error:', redact(err));
-    process.exitCode = 1;
-  });
+  main()
+    .catch((err) => {
+      const redact = makeRedactor(process.env.QDRANT_KEY);
+      console.error('[rrf-sweep] unhandled error:', redact(err));
+      process.exitCode = 1;
+    })
+    .finally(() => shutdownOnnxEmbedCapability());
 }

@@ -1022,7 +1022,7 @@
   {
     "path": "src/backfill-tags.js",
     "classification": "composition-full",
-    "runtimeCoupling": "none",
+    "runtimeCoupling": "local",
     "entryPoints": [
       "full"
     ],
@@ -2437,7 +2437,7 @@
   {
     "path": "src/indexer/phases/tag-onnx-lazy.js",
     "classification": "mixed",
-    "runtimeCoupling": "none",
+    "runtimeCoupling": "local",
     "entryPoints": [],
     "directDependencies": [
       "src/indexer/phases/tag-provider.js",
@@ -2757,7 +2757,7 @@
   {
     "path": "src/local/indexer/phases/tag-onnx.js",
     "classification": "local",
-    "runtimeCoupling": "none",
+    "runtimeCoupling": "local",
     "entryPoints": [],
     "directDependencies": [
       "src/indexer/phases/tag-provider.js",
@@ -2768,12 +2768,12 @@
     "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
-    "recommendedAction": "move"
+    "recommendedAction": "exclude"
   },
   {
     "path": "src/local/indexer/workers/tag-onnx-worker.js",
     "classification": "local",
-    "runtimeCoupling": "none",
+    "runtimeCoupling": "local",
     "entryPoints": [],
     "directDependencies": [
       "pkg:@huggingface/transformers"
@@ -2783,7 +2783,7 @@
     "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
-    "recommendedAction": "move"
+    "recommendedAction": "exclude"
   },
   {
     "path": "src/mcp/server.js",
@@ -3617,7 +3617,7 @@
   {
     "path": "src/smoke/sections/38-tag-onnx-provider.js",
     "classification": "local",
-    "runtimeCoupling": "none",
+    "runtimeCoupling": "local",
     "entryPoints": [],
     "directDependencies": [
       "src/local/indexer/phases/tag-onnx.js"
@@ -3627,7 +3627,7 @@
     "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
-    "recommendedAction": "move"
+    "recommendedAction": "exclude"
   },
   {
     "path": "src/smoke/sections/39-dynamic-overlap.js",

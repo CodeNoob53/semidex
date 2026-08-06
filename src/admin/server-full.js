@@ -29,7 +29,7 @@ import { embedForSearch } from '../core/embeddings.js';
 import { createJobRegistry } from './jobs/registry.js';
 import { spawnIndexer as spawnFullIndexer } from './jobs/spawn-indexer-full.js';
 import * as ollamaLazy from '../core/ollama-lazy.js';
-import * as onnxEmbedLazy from '../core/onnx-embed-lazy.js';
+import { createOnnxEmbeddingCapability } from '../core/onnx-embed-lazy.js';
 
 export function createApp({
   adapter = createStorageAdapter(), embedQuery, jobRegistry, taskRegistry, pickFolderFn, checkOllamaFn,
@@ -65,7 +65,19 @@ export function createApp({
   // if both ran in one process. Binding explicitly here means this server's
   // own search requests never consult that shared fallback at all,
   // regardless of what any other composition root does with it.
-  const resolvedEmbedQuery = embedQuery ?? ((profile, query) => embedForSearch(profile, query, { capabilities: { ollama: ollamaLazy, onnxEmbed: onnxEmbedLazy } }));
+  //
+  // onnxEmbed: createOnnxEmbeddingCapability() constructs ONE fresh,
+  // independent capability instance for THIS createApp() call (code
+  // review — onnx-embed.js no longer exposes a shared module-scope
+  // singleton; every composition root must construct its own instance,
+  // exactly like index-full.js's own indexer-CLI composition does).
+  // Construction itself is cheap and synchronous (no real onnxruntime-node
+  // load happens until the first actual embed call) — safe to call once
+  // per createApp() invocation even for tests that construct many apps in
+  // one process; each gets its own independent, unused-until-needed
+  // capability.
+  const onnxEmbed = createOnnxEmbeddingCapability();
+  const resolvedEmbedQuery = embedQuery ?? ((profile, query) => embedForSearch(profile, query, { capabilities: { ollama: ollamaLazy, onnxEmbed } }));
   // resolvedJobRegistry, if the caller doesn't override it, is built HERE
   // with spawn-indexer-full.js's own spawnIndexer (code review, round 4):
   // Full's real, unchanged behavior. createJobRegistry() itself has no

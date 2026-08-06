@@ -36,9 +36,16 @@ describe('mcp/server.js — never calls applyEmbeddingCapabilities() (code revie
     assert.doesNotMatch(src, /(?<!\/\/[^\n]*)\bapplyEmbeddingCapabilities\s*\(/);
   });
 
-  it('still dynamically imports the real ollama-lazy.js/onnx-embed-lazy.js modules, for search.setEmbedQuery()\'s own bound closure', () => {
+  it('still dynamically imports the real ollama-lazy.js module, and constructs a real onnx-embed-lazy.js capability instance, for search.setEmbedQuery()\'s own bound closure', () => {
     assert.match(src, /await import\(['"]\.\.\/core\/ollama-lazy\.js['"]\)/);
     assert.match(src, /await import\(['"]\.\.\/core\/onnx-embed-lazy\.js['"]\)/);
+    // onnx-embed-lazy.js exposes createOnnxEmbeddingCapability() (instance-
+    // scoped capability, code review parity with tag-onnx-lazy.js's own
+    // Step 4 fix) — mcp/server.js constructs its own instance, exactly
+    // once, rather than passing the bare module namespace as the
+    // capability.
+    assert.match(src, /createOnnxEmbeddingCapability\s*}\s*=\s*await import/);
+    assert.match(src, /const onnxEmbed = createOnnxEmbeddingCapability\(\);/);
   });
 });
 
@@ -50,7 +57,7 @@ describe('mcp/server.js — the real per-call isolation fix: search.setEmbedQuer
     assert.ok(lineMatch, 'expected a real (non-comment) search.setEmbedQuery(...) call');
     assert.match(lineMatch, /embedForSearch\(profile,\s*query,\s*\{\s*capabilities:/);
     assert.match(lineMatch, /ollama:\s*ollamaLazy/);
-    assert.match(lineMatch, /onnxEmbed:\s*onnxEmbedLazy/);
+    assert.match(lineMatch, /onnxEmbed\b/);
   });
 
   it('search.setEmbedQuery() is called after search.setSettingsService(), before the server starts handling requests', () => {

@@ -147,8 +147,8 @@ describe('indexer/index-lite.js — Lite composition never imports a local-runti
   });
 });
 
-describe('run.js — run({ capabilities }) accepts a real *-lazy.js namespace object for every slot without validation failure', () => {
-  it('a real ollama-lazy.js/onnx-embed-lazy.js/tag-onnx-lazy.js namespace import satisfies every narrow capability contract run({ capabilities })\'s own buildRunContext() validates against', async () => {
+describe('run.js — run({ capabilities }) accepts real *-lazy.js-backed capabilities for every slot without validation failure', () => {
+  it('a real ollama-lazy.js namespace import, plus real onnx-embed-lazy.js/tag-onnx-lazy.js capability instances, satisfies every narrow capability contract run({ capabilities })\'s own buildRunContext() validates against', async () => {
     // COLLECTION is read once at run.js's own module-evaluation time (a
     // module-scope const) and main()'s very first check hard process.exit(1)s
     // if it's unset — so COLLECTION must be set, and run.js dynamically
@@ -166,20 +166,38 @@ describe('run.js — run({ capabilities }) accepts a real *-lazy.js namespace ob
       const ollamaLazy = await import('../../../src/core/ollama-lazy.js');
       const onnxEmbedLazy = await import('../../../src/core/onnx-embed-lazy.js');
       const tagOnnxLazy = await import('../../../src/indexer/phases/tag-onnx-lazy.js');
-      // run({ capabilities }) validates all six slots synchronously, before
-      // main() does any real work (fail-fast at construction — see run.js's
-      // own buildRunContext()) — so if validation itself passed, the
-      // rejection below must be the real path error, never a
-      // capability-contract mismatch.
-      await assert.rejects(
-        () => run({
-          capabilities: {
-            ollamaGenerate: ollamaLazy, ollamaSummary: ollamaLazy, ollamaEmbed: ollamaLazy, ollamaDiscovery: ollamaLazy,
-            onnxEmbed: onnxEmbedLazy, tagOnnx: tagOnnxLazy,
-          },
-        }),
-        (err) => { assert.match(err.message, /does not exist/); return true; }
-      );
+      // tag-onnx-lazy.js/onnx-embed-lazy.js each expose a
+      // createXCapability() factory (Phase 8B Step 4 / its onnx-embed
+      // parity fix), not bare singleton-backed exports — every consumer,
+      // including this test, constructs its own instance, exactly like
+      // index-full.js does.
+      const tagOnnx = await tagOnnxLazy.createTagOnnxCapability();
+      const onnxEmbed = onnxEmbedLazy.createOnnxEmbeddingCapability();
+      try {
+        // run({ capabilities }) validates all six slots synchronously,
+        // before main() does any real work (fail-fast at construction —
+        // see run.js's own buildRunContext()) — so if validation itself
+        // passed, the rejection below must be the real path error, never a
+        // capability-contract mismatch.
+        await assert.rejects(
+          () => run({
+            capabilities: {
+              ollamaGenerate: ollamaLazy, ollamaSummary: ollamaLazy, ollamaEmbed: ollamaLazy, ollamaDiscovery: ollamaLazy,
+              onnxEmbed, tagOnnx,
+            },
+          }),
+          (err) => { assert.match(err.message, /does not exist/); return true; }
+        );
+      } finally {
+        // run() itself already calls ctx.tagOnnx.shutdownOnnxTagWorker()
+        // and ctx.onnxEmbed.shutdown() in its own finally block (neither
+        // instance ever spawned a worker/session anyway — safe no-op
+        // either way), but shut down explicitly here too since this test
+        // constructed both instances directly, outside run()'s own
+        // ownership.
+        await tagOnnx.shutdownOnnxTagWorker();
+        await onnxEmbed.shutdown();
+      }
     } finally {
       process.argv[2] = originalArgv2;
       if (originalCollection === undefined) delete process.env.COLLECTION; else process.env.COLLECTION = originalCollection;

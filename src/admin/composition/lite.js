@@ -81,6 +81,17 @@ function unavailableOllamaEmbedCapability() {
 function unavailableOnnxEmbedCapability() {
   const capability = {};
   for (const m of REQUIRED_ONNX_EMBED_CAPABILITY_METHODS) capability[m] = async () => { throw new OnnxEmbedNotAvailableInLiteCompositionError(m); };
+  // shutdown is DIFFERENT from loadOnnx/loadOnnxBatch: it is cleanup code,
+  // unconditionally called from indexer/run.js's own `finally` block on
+  // every indexing run regardless of whether ONNX embedding was ever used
+  // — the real local/core/onnx-embed.js documents this exact function as a
+  // safe no-op when no session was ever created (mirrors tagOnnx's own
+  // shutdownOnnxTagWorker() always-safe-no-op contract, itself fixed after
+  // a real production incident — see tag-onnx-capability.js's own header
+  // comment). Since a session can never have been created in Lite (the
+  // whole point of this function), this must preserve that same no-op
+  // contract rather than throw.
+  capability.shutdown = async () => { /* no-op: no ONNX session is ever created in Semidex Lite */ };
   return capability;
 }
 

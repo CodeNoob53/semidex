@@ -1478,10 +1478,30 @@ export function applyAllSettings(settingsService) {
  * ctx), and every direct embedForIndex()/embedForIndexBatch()/
  * getOllamaEmbeddingDimension()/resolveRunNumCtx() call inside main()
  * itself). Two concurrent run() calls each close over their OWN ctx —
- * nothing is shared, so nothing can be overwritten by the other. The
- * `finally` block's own `ctx.tagOnnx.shutdownOnnxTagWorker()` call targets
- * exactly the tagOnnx capability THIS run() call was given, never whatever
- * some other concurrent call's own capabilities object happens to be.
+ * nothing in run.js is shared, so nothing here can be overwritten by the
+ * other. The `finally` block's own `ctx.tagOnnx.shutdownOnnxTagWorker()`
+ * call always targets the exact object reference THIS run() call's own
+ * `capabilities.tagOnnx` was — run.js itself never substitutes a
+ * different object mid-call.
+ *
+ * That reference-level guarantee is necessary but was NOT, on its own,
+ * sufficient for tagOnnx specifically (code review, Phase 8B Step 4,
+ * second pass): tag-onnx.js used to expose its worker/pending-requests/
+ * dispatch-queue as MODULE-SCOPE singleton state, so every caller's
+ * `capabilities.tagOnnx` — regardless of which run() call passed it in —
+ * was the SAME underlying worker. Two concurrent run() calls each
+ * correctly received "their own" ctx.tagOnnx object reference, but both
+ * references pointed at one shared worker, so the first run's `finally`
+ * block calling `shutdownOnnxTagWorker()` still killed a worker the
+ * second run's still-pending request needed. Fixed at the SOURCE
+ * (local/indexer/phases/tag-onnx.js's own createTagOnnxCapability()
+ * factory, not here) — every piece of coordinator state now lives inside
+ * that factory's own closure, so two capability instances constructed by
+ * two separate createTagOnnxCapability() calls (index-full.js calls it
+ * once, at composition time) have two genuinely independent workers.
+ * run.js's own contract is unchanged (it never held or shared any
+ * capability state to begin with) — the fix lives entirely in what a
+ * `tagOnnx` capability object IS now guaranteed to be.
  * @param {{ capabilities: {
  *   ollamaGenerate: import('../core/generation/ollama-capability.js').OllamaGenerateCapability,
  *   ollamaSummary: import('../core/generation/ollama-capability.js').OllamaSummaryCapability,
@@ -1496,8 +1516,25 @@ export async function run({ capabilities }) {
   try {
     await main(ctx);
   } finally {
-    // Always the tagOnnx capability THIS call's own ctx was built with —
-    // never a shared binding another concurrent run() could have replaced.
+    // Always the exact tagOnnx/onnxEmbed object references THIS call's
+    // own ctx was built with — run.js itself never substitutes or shares
+    // either reference. Whether shutting one down can affect ANOTHER
+    // run() call depends on whether the two calls were given genuinely
+    // independent capability instances (see createTagOnnxCapability() in
+    // local/indexer/phases/tag-onnx.js and createOnnxEmbeddingCapability()
+    // in local/core/onnx-embed.js) — a property of the composition root
+    // that constructed the capabilities, not of run.js.
+    //
+    // ctx.onnxEmbed.shutdown() (added alongside tagOnnx's own shutdown —
+    // code review parity fix): the real ONNX InferenceSession this
+    // capability may have created was previously never released at all
+    // (a native-resource leak for the lifetime of the process); every
+    // OnnxEmbedCapability implementation, including Lite's typed-
+    // unavailable stub, now provides shutdown() as an always-safe no-op
+    // when no session was ever created (see onnx-embed-capability.js's
+    // own header comment) — safe to call unconditionally here exactly
+    // like tagOnnx's own cleanup.
     await ctx.tagOnnx.shutdownOnnxTagWorker();
+    await ctx.onnxEmbed.shutdown();
   }
 }

@@ -78,6 +78,13 @@ function unavailableOnnxEmbedCapability() {
   return {
     loadOnnx: async () => { throw new OnnxEmbedNotAvailableInLiteIndexerError('loadOnnx'); },
     loadOnnxBatch: async () => { throw new OnnxEmbedNotAvailableInLiteIndexerError('loadOnnxBatch'); },
+    // shutdown is DIFFERENT from loadOnnx/loadOnnxBatch: unconditional
+    // cleanup, called from run.js's own `finally` block on every indexing
+    // run regardless of whether ONNX embedding was ever used — mirrors
+    // unavailableTagOnnxCapability()'s own shutdownOnnxTagWorker() no-op
+    // just below, and the real local/core/onnx-embed.js's own
+    // shutdown()'s documented safe-no-op-when-no-session-exists contract.
+    async shutdown() { /* no-op: no ONNX session is ever created in Semidex Lite */ },
   };
 }
 

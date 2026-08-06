@@ -25,7 +25,7 @@ import { randomBytes } from 'node:crypto';
 import { execSync } from 'node:child_process';
 
 import { bootstrapEnv } from '../../../src/core/env-bootstrap.js';
-import { embedOnnxBatch } from '../../../src/local/core/onnx-embed.js';
+import { createOnnxEmbeddingCapability } from '../../../src/local/core/onnx-embed.js';
 
 import { PROFILES, COLLECTION_PREFIX, TOP_K, HYBRID_PREFETCH_LIMIT } from './profiles.mjs';
 import { computeMetrics, toTrecRunFormat } from './metrics.mjs';
@@ -127,7 +127,18 @@ async function main() {
     verdict: null,
   };
 
-  const runReport = await executeMiniRun({ client, redact, corpus, queries, qrels, prepared, trackRss });
+  // createOnnxEmbeddingCapability() (Phase 8B — onnx-embed.js no longer
+  // exports a bare module-scope-backed embedOnnxBatch function; this
+  // benchmark constructs its own instance and releases it explicitly via
+  // capability.shutdown() once the run completes).
+  const onnxCapability = createOnnxEmbeddingCapability();
+  const { embedOnnxBatch } = await onnxCapability.loadOnnxBatch();
+  let runReport;
+  try {
+    runReport = await executeMiniRun({ client, redact, corpus, queries, qrels, prepared, trackRss, embedBatch: embedOnnxBatch });
+  } finally {
+    await onnxCapability.shutdown();
+  }
   report.run = runReport;
 
   clearInterval(rssTimer);
@@ -166,7 +177,7 @@ export async function executeMiniRun({
   qrels,
   prepared,
   trackRss = () => {},
-  embedBatch = embedOnnxBatch,
+  embedBatch,
   writeTrecRun = (path, content) => writeFileSync(path, content, 'utf-8'),
 }) {
   const suffix = `${new Date().toISOString().replace(/[:.]/g, '-')}-${randomBytes(4).toString('hex')}`;

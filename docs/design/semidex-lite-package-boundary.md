@@ -197,8 +197,76 @@ now takes its capability as a real parameter, resolved once per
 `indexer/run.js`'s own `run()` call and threaded through explicitly, with no
 module-scope binding left in any of the five files for a concurrently
 constructed Full/Lite composition to contaminate. `tag-onnx.js` (the one
-remaining shim's local target) remains at its original
-`indexer/phases/tag-onnx.js` location pending Step 4.
+remaining shim's local target) remained at its original
+`indexer/phases/tag-onnx.js` location pending Step 4 — see the Step 4
+update below for its own physical relocation.
+
+**Phase 8B Step 4 update** (`docs/design/phase-8b-step4-local-tag-onnx-relocation-2026-08-06.md`,
+implemented):
+`indexer/phases/tag-onnx.js` and `indexer/workers/tag-onnx-worker.js`
+physically relocated to `local/indexer/phases/tag-onnx.js` and
+`local/indexer/workers/tag-onnx-worker.js` — the last of the three real
+`*-lazy.js` targets to move, completing the pattern Steps 2 (ONNX
+embedding) and 3 (Ollama) established. `tag-onnx-lazy.js`/
+`tag-onnx-lazy.lite.js` themselves stayed put (only the lazy module's own
+dynamic-import specifier changed); both are now covered by the same
+`'local'` `EXCLUDE_DIRS` entry Steps 2-3 relied on. `run.js`'s own
+`ctx.tagOnnx` instance-scoped threading (Step 3's design) required no
+change. `TagOnnxCapability`'s own shape DID change, per a second
+code-review pass on this step: `tag-onnx.js`'s worker coordinator state
+(`_worker`/`_pending`/`_dispatchTail`/failure flags) had been left as
+module-scope singleton bindings by the move's first draft, so every
+composition root's `ctx.tagOnnx` — despite each holding its own object
+reference — pointed at the same underlying worker. Fixed by converting
+`tag-onnx.js` to export `createTagOnnxCapability()`, a factory returning
+a fresh, independent worker lifecycle per call; `tag-onnx-lazy.js`'s own
+export shape changed to match (`createTagOnnxCapability()` instead of
+bare `addTagsOnnxBatch`/`shutdownOnnxTagWorker` re-exports).
+`index-full.js`/`backfill-tags.js` each construct exactly one instance at
+composition time. The persistent-worker lifecycle contract itself (lazy
+creation, per-request correlation, shutdown-before-spawn no-op,
+repeated-shutdown safety) is otherwise unchanged in mechanism — only
+state OWNERSHIP moved from module scope into the factory's own closure —
+re-verified both behaviorally (26 unit/architecture tests, including
+three constructing two separate instances to prove cross-instance
+isolation directly) and via one real, successful, end-to-end live
+indexing run (which predates the isolation fix and exercises the
+now-relocated-into-a-closure but otherwise byte-identical worker
+protocol, not the cross-instance guarantee itself).
+
+**Phase 8B Step 5 update** (`docs/design/phase-8b-step5-onnx-embed-instance-scoping-2026-08-06.md`,
+implemented): the same isolation gap Step 4 found and fixed for
+`tag-onnx.js` also existed for `local/core/onnx-embed.js` (already
+physically relocated by Step 2, above — this step touched no file
+paths). `onnx-embed.js`'s `tokenizer`/`session`/`_loadPromise`/
+`_providerState` were module-scope bindings, and every real composition
+root passed the cached `core/onnx-embed-lazy.js` module namespace itself
+as the `onnxEmbed` capability — so two composition roots sharing one
+process shared one `InferenceSession`. Fixed the same way:
+`onnx-embed.js` now exports `createOnnxEmbeddingCapability()`, a factory
+whose entire runtime lives in its own closure, plus a new `shutdown()`
+method that calls the ONNX Runtime's own documented `session.release()`
+(never called anywhere before this fix — a real native-resource leak).
+`core/onnx-embed-lazy.js`'s own seam is deliberately kept
+**synchronous** (unlike a naive port of Step 4's async factory) so that
+`admin/server-full.js`'s existing synchronous `createApp()` — with 16
+existing call sites — did not need to become async; the real dynamic
+import and factory construction are deferred until the first actual
+method call. `REQUIRED_ONNX_EMBED_CAPABILITY_METHODS` gained `shutdown`
+as a required method, mirroring `TagOnnxCapability`'s own Step 4
+precedent; every Lite "unavailable" capability builder gained a matching
+no-op. `index-full.js`/`admin/server-full.js`/`mcp/server.js` each
+construct exactly one instance at composition time; `run.js`'s `finally`
+block now calls `ctx.onnxEmbed.shutdown()` alongside its existing
+`ctx.tagOnnx.shutdownOnnxTagWorker()` call. Cross-instance isolation —
+including the case where instance B has a genuinely in-flight request at
+the exact moment instance A is shut down — is proven by 18 hermetic unit
+tests (fake session/tokenizer, no real model load) plus 9 composition-
+level architecture tests proving Full and Lite construct in either order
+without contaminating this capability lane. Re-verified live against the
+real cached model: real indexing, real hybrid search, real
+`session.release()` on shutdown, against a disposable Qdrant collection,
+deleted after.
 
 ## Refactor 2 — deterministic context for legacy (non-Markdown) chunks
 

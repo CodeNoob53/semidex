@@ -118,32 +118,32 @@ describe('CE reranking never loads @huggingface/transformers in the coordinator 
 });
 
 describe('tag generation — migrated from worker_threads to child_process for real process isolation', () => {
-  it('indexer/phases/tag-onnx.js (the coordinator) has no import/require statement referencing @huggingface/transformers', () => {
-    const src = readSrc('indexer/phases/tag-onnx.js');
+  it('local/indexer/phases/tag-onnx.js (the coordinator) has no import/require statement referencing @huggingface/transformers', () => {
+    const src = readSrc('local/indexer/phases/tag-onnx.js');
     assert.doesNotMatch(src, TRANSFORMERS_IMPORT_RE);
   });
 
-  it('indexer/phases/tag-onnx.js uses node:child_process (fork), NOT worker_threads, to run tag generation in a genuinely separate OS process', () => {
+  it('local/indexer/phases/tag-onnx.js uses node:child_process (fork), NOT worker_threads, to run tag generation in a genuinely separate OS process', () => {
     // Was previously worker_threads-based — migrated for the same reason as
     // core/ce-rerank.js: a worker_thread shares the OS process (and any
     // process-global native state, like ONNX Runtime's Ort::Env singleton)
     // with the indexer's main process, which can simultaneously load the
     // custom CUDA-enabled onnxruntime-node build via local/core/onnx-embed.js
     // when ONNX_EMBED=1. See docs/cuda-runtime-verification-2026-07-24.md.
-    const src = readSrc('indexer/phases/tag-onnx.js');
+    const src = readSrc('local/indexer/phases/tag-onnx.js');
     assert.match(src, /from ['"]node:child_process['"]/);
     assert.match(src, /\bfork\(/);
     assert.doesNotMatch(src, /from ['"]worker_threads['"]/, 'worker_threads does not isolate native addons from the main process — it must not be used here');
     assert.doesNotMatch(src, /new Worker\(/);
   });
 
-  it('indexer/workers/tag-onnx-worker.js is the only file importing @huggingface/transformers for tag generation', () => {
-    const src = readSrc('indexer/workers/tag-onnx-worker.js');
+  it('local/indexer/workers/tag-onnx-worker.js is the only file importing @huggingface/transformers for tag generation', () => {
+    const src = readSrc('local/indexer/workers/tag-onnx-worker.js');
     assert.match(src, TRANSFORMERS_IMPORT_RE);
   });
 
-  it('indexer/workers/tag-onnx-worker.js runs as a standalone child process entry point (IPC via process.send()/process.on(\'message\'), not worker_threads)', () => {
-    const src = readSrc('indexer/workers/tag-onnx-worker.js');
+  it('local/indexer/workers/tag-onnx-worker.js runs as a standalone child process entry point (IPC via process.send()/process.on(\'message\'), not worker_threads)', () => {
+    const src = readSrc('local/indexer/workers/tag-onnx-worker.js');
     assert.match(src, /process\.send\(/);
     assert.match(src, /process\.on\(['"]message['"]/);
     assert.doesNotMatch(src, /from ['"]worker_threads['"]/);

@@ -156,7 +156,6 @@
     "src/indexer/phases/tag-onnx-capability.js",
     "src/indexer/phases/tag-onnx-lazy.js",
     "src/indexer/phases/tag-onnx-lazy.lite.js",
-    "src/indexer/phases/tag-onnx.js",
     "src/indexer/phases/tag-provider.js",
     "src/indexer/phases/tag.js",
     "src/indexer/phases/token-budget-split.js",
@@ -168,7 +167,6 @@
     "src/indexer/serial-queue.js",
     "src/indexer/skeleton-payload.js",
     "src/indexer/skeleton-warnings.js",
-    "src/indexer/workers/tag-onnx-worker.js",
     "src/local/core/length-bucket.js",
     "src/local/core/ollama-models.js",
     "src/local/core/ollama.js",
@@ -176,6 +174,8 @@
     "src/local/core/onnx-probe-runner.js",
     "src/local/core/onnx-provider-probe.js",
     "src/local/core/onnx-runtime.js",
+    "src/local/indexer/phases/tag-onnx.js",
+    "src/local/indexer/workers/tag-onnx-worker.js",
     "src/mcp/server.js",
     "src/mcp/tools/collections.js",
     "src/mcp/tools/filters.js",
@@ -1869,10 +1869,10 @@
           "resolved": "src/indexer/phases/tag.js"
         },
         {
-          "specifier": "./indexer/phases/tag-onnx.js",
+          "specifier": "./local/indexer/phases/tag-onnx.js",
           "literal": true,
           "kind": "relative",
-          "resolved": "src/indexer/phases/tag-onnx.js"
+          "resolved": "src/local/indexer/phases/tag-onnx.js"
         },
         {
           "specifier": "./core/ollama-lazy.js",
@@ -3565,10 +3565,10 @@
       ],
       "dynamicImports": [
         {
-          "specifier": "./tag-onnx.js",
+          "specifier": "../../local/indexer/phases/tag-onnx.js",
           "literal": true,
           "kind": "relative",
-          "resolved": "src/indexer/phases/tag-onnx.js"
+          "resolved": "src/local/indexer/phases/tag-onnx.js"
         }
       ],
       "requireCalls": [],
@@ -3585,46 +3585,6 @@
       "dynamicImports": [],
       "requireCalls": [],
       "forkSpawnCalls": []
-    },
-    "src/indexer/phases/tag-onnx.js": {
-      "staticImports": [
-        {
-          "specifier": "node:child_process",
-          "kind": "builtin",
-          "resolved": null
-        },
-        {
-          "specifier": "node:path",
-          "kind": "builtin",
-          "resolved": null
-        },
-        {
-          "specifier": "node:url",
-          "kind": "builtin",
-          "resolved": null
-        },
-        {
-          "specifier": "./tag-provider.js",
-          "kind": "relative",
-          "resolved": "src/indexer/phases/tag-provider.js"
-        }
-      ],
-      "dynamicImports": [],
-      "requireCalls": [],
-      "forkSpawnCalls": [
-        {
-          "callee": "fork",
-          "arg": "../workers/tag-onnx-worker.js",
-          "literal": true,
-          "resolved": "src/indexer/workers/tag-onnx-worker.js"
-        },
-        {
-          "callee": "fork",
-          "arg": "../workers/tag-onnx-worker.js",
-          "literal": true,
-          "resolved": "src/indexer/workers/tag-onnx-worker.js"
-        }
-      ]
     },
     "src/indexer/phases/tag-provider.js": {
       "staticImports": [],
@@ -3924,30 +3884,6 @@
       "requireCalls": [],
       "forkSpawnCalls": []
     },
-    "src/indexer/workers/tag-onnx-worker.js": {
-      "staticImports": [
-        {
-          "specifier": "node:path",
-          "kind": "builtin",
-          "resolved": null
-        },
-        {
-          "specifier": "node:fs",
-          "kind": "builtin",
-          "resolved": null
-        }
-      ],
-      "dynamicImports": [
-        {
-          "specifier": "@huggingface/transformers",
-          "literal": true,
-          "kind": "package",
-          "resolved": "@huggingface/transformers"
-        }
-      ],
-      "requireCalls": [],
-      "forkSpawnCalls": []
-    },
     "src/local/core/length-bucket.js": {
       "staticImports": [],
       "dynamicImports": [],
@@ -4098,6 +4034,70 @@
           "resolved": null
         }
       ],
+      "forkSpawnCalls": []
+    },
+    "src/local/indexer/phases/tag-onnx.js": {
+      "staticImports": [
+        {
+          "specifier": "node:child_process",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "node:path",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "node:url",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "../../../indexer/phases/tag-provider.js",
+          "kind": "relative",
+          "resolved": "src/indexer/phases/tag-provider.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": [
+        {
+          "callee": "fork",
+          "arg": "../workers/tag-onnx-worker.js",
+          "literal": true,
+          "resolved": "src/local/indexer/workers/tag-onnx-worker.js"
+        },
+        {
+          "callee": "fork",
+          "arg": "../workers/tag-onnx-worker.js",
+          "literal": true,
+          "resolved": "src/local/indexer/workers/tag-onnx-worker.js"
+        }
+      ]
+    },
+    "src/local/indexer/workers/tag-onnx-worker.js": {
+      "staticImports": [
+        {
+          "specifier": "node:path",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "node:fs",
+          "kind": "builtin",
+          "resolved": null
+        }
+      ],
+      "dynamicImports": [
+        {
+          "specifier": "@huggingface/transformers",
+          "literal": true,
+          "kind": "package",
+          "resolved": "@huggingface/transformers"
+        }
+      ],
+      "requireCalls": [],
       "forkSpawnCalls": []
     },
     "src/mcp/server.js": {
@@ -5335,10 +5335,10 @@
       "staticImports": [],
       "dynamicImports": [
         {
-          "specifier": "../../indexer/phases/tag-onnx.js",
+          "specifier": "../../local/indexer/phases/tag-onnx.js",
           "literal": true,
           "kind": "relative",
-          "resolved": "src/indexer/phases/tag-onnx.js"
+          "resolved": "src/local/indexer/phases/tag-onnx.js"
         }
       ],
       "requireCalls": [],

@@ -722,10 +722,10 @@
     "mixed": 6
   },
   "runtimeCouplingCounts": {
-    "none": 205,
+    "none": 200,
     "cloud": 19,
-    "local": 24
+    "local": 29
   },
-  "localGenuinelyCoupled": 19,
-  "localFullOnlyNoCoupling": 69
+  "localGenuinelyCoupled": 22,
+  "localFullOnlyNoCoupling": 66
 }

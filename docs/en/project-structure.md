@@ -48,10 +48,10 @@ src/core/
   config.js            - config.json helpers, provider resolution, valid provider combos
   env.js               - env var parsing helpers and provider-combo validation
   embeddings.js        - unified embedding layer for indexing and search
-  onnx-embed.js        - BGE-M3 ONNX tokenizer/session/vector extraction
-  onnx-paths.js        - ONNX model cache path resolution
-  onnx-provider-probe.js - execution-provider (cpu/dml/cuda) probing
-  ollama.js            - Ollama REST client for embeddings and LLM generation
+  onnx-embed-lazy.js   - lazy seam to the real ONNX embedding implementation (local/)
+  onnx-embed-capability.js - OnnxEmbedCapability contract (loadOnnx/loadOnnxBatch/shutdown)
+  onnx-paths.js        - ONNX model cache path resolution (path constants only, not local-only)
+  ollama-lazy.js        - lazy seam to the real Ollama client implementation (local/)
   qdrant.js            - stable facade over the Qdrant adapter (re-exports src/core/qdrant/)
   qdrant/
     client.js          - lazy @qdrant/js-client-rest client, cache reset, error helpers
@@ -63,7 +63,6 @@ src/core/
   rerank.js            - optional deterministic reranker
   ce-rerank.js         - optional cross-encoder reranker (RERANK_CE_ENABLED=1)
   token-count.js       - BGE-M3 tokenizer / heuristic token counting
-  length-bucket.js     - length bucketing for DML batch inference
   node-id.js           - deterministic skeleton/structural node IDs
   point-id.js          - deterministic Qdrant point IDs
   doctor-checks.js     - health checks shared by doctor and MCP error sanitising
@@ -82,6 +81,24 @@ src/core/
 These modules are shared by indexing, MCP tools, sync, and benchmarks. Provider
 metadata is resolved here, so changes in this layer can affect both indexing and
 query-time retrieval.
+
+The real local-runtime implementations these two lazy seams reach —
+`onnx-embed.js`/`onnx-runtime.js`/`onnx-probe-runner.js`/
+`onnx-provider-probe.js`/`length-bucket.js` (ONNX embedding) and
+`ollama.js`/`ollama-models.js` (Ollama) — live under `src/local/core/`,
+the same physically-separated tree `tag-onnx.js` moved into (see the
+Indexer Pipeline section below). `onnx-embed.js` exports an
+instance-scoped capability factory, `createOnnxEmbeddingCapability()` —
+its session/tokenizer/in-flight-load/provider-fallback state lives in
+each factory call's own closure, never at module scope, so two
+independently-composed callers in one process (e.g. Full and Lite
+constructed sequentially) never share or contaminate each other's ONNX
+runtime. `ollama.js` itself is a stateless REST client (no session to
+own); Ollama's own instance-scoped injection lives one layer up, in the
+five indexer-phase modules that consume it (Step 3's design — each takes
+its Ollama capability as a real parameter resolved once per `run.js`
+call, with no module-scope binding of its own). Semidex Lite's
+cloud-only package never ships `src/local/`.
 
 ## Indexer Pipeline
 
@@ -106,10 +123,17 @@ src/indexer/
     context.js         - LLM context summaries and boundary merging
     combined.js        - combined context+tags LLM path (COMBINED_LLM=1)
     tag.js             - optional batched semantic tag generation (Ollama)
-    tag-onnx.js        - experimental ONNX tag provider (TAG_PROVIDER=onnx)
-  workers/
-    tag-onnx-worker.js - persistent ONNX CPU tag worker thread
+    tag-onnx-lazy.js   - lazy seam to the real ONNX tag implementation (local/)
 ```
+
+The real ONNX tag-generation implementation
+(`src/local/indexer/phases/tag-onnx.js`, experimental,
+`TAG_PROVIDER=onnx`, plus its persistent worker,
+`src/local/indexer/workers/tag-onnx-worker.js`) lives under `src/local/` —
+Semidex's physically-separated tree for local-only runtime code (Ollama,
+ONNX embedding, ONNX tagging) that Semidex Lite's cloud-only package never
+ships. `tag-onnx-lazy.js` above is the one dynamic-import seam shared code
+reaches it through.
 
 Indexing writes Qdrant points with dense and sparse vectors plus payload fields
 such as `text`, `context`, `section`, `tags`, `source_file`, `chunk_index`, and

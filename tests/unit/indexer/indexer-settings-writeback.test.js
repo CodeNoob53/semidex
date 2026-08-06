@@ -16,7 +16,7 @@ import { resolveTokenCountMode } from '../../../src/core/token-count.js';
 import { shouldUseOnnxBatching, resolveOnnxBatchSize } from '../../../src/core/embeddings.js';
 import { isCudaStrict } from '../../../src/core/doctor-checks.js';
 import { shouldGenerateTags } from '../../../src/indexer/phases/tag.js';
-import { isOnnxTagProvider } from '../../../src/indexer/phases/tag-onnx.js';
+import { isOnnxTagProvider } from '../../../src/local/indexer/phases/tag-onnx.js';
 import { resolveOnnxRuntimeModule } from '../../../src/local/core/onnx-runtime.js';
 
 function withEnv(overrides, fn) {

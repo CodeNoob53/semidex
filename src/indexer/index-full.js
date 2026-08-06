@@ -38,9 +38,18 @@ if (isIndexerMainModule(import.meta.url, [LAUNCHER_ALIAS_URL])) {
   const ollamaLazy = await import('../core/ollama-lazy.js');
   const onnxEmbedLazy = await import('../core/onnx-embed-lazy.js');
   const tagOnnxLazy = await import('./phases/tag-onnx-lazy.js');
+  // createTagOnnxCapability()/createOnnxEmbeddingCapability() each
+  // construct ONE fresh, independent instance for this composition root
+  // (code review — neither tag-onnx.js nor onnx-embed.js exposes a shared
+  // module-scope singleton; every consumer must construct its own
+  // instance). Called exactly once, here, at composition time — never
+  // per-request, never shared with another composition root's own
+  // instance.
+  const tagOnnx = await tagOnnxLazy.createTagOnnxCapability();
+  const onnxEmbed = onnxEmbedLazy.createOnnxEmbeddingCapability();
 
   await runIndexerCli({
     ollamaGenerate: ollamaLazy, ollamaSummary: ollamaLazy, ollamaEmbed: ollamaLazy, ollamaDiscovery: ollamaLazy,
-    onnxEmbed: onnxEmbedLazy, tagOnnx: tagOnnxLazy,
+    onnxEmbed, tagOnnx,
   });
 }

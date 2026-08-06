@@ -23,7 +23,31 @@ import { basename, dirname, resolve, join } from 'node:path';
 import { createHash, randomBytes } from 'node:crypto';
 
 import { bootstrapEnv } from '../../../src/core/env-bootstrap.js';
-import { embedOnnxBatch } from '../../../src/local/core/onnx-embed.js';
+import { createOnnxEmbeddingCapability } from '../../../src/local/core/onnx-embed.js';
+
+// This benchmark's own single-instance, lazy-construct-on-first-use seam
+// (Phase 8B — onnx-embed.js no longer exports a bare module-scope-backed
+// embedOnnxBatch function). A benchmark script runs as one short-lived
+// process with exactly one indexing/query pass — no multi-instance
+// isolation concern applies here (that requirement targets production
+// composition roots, e.g. index-full.js/admin/server-full.js, each of
+// which now constructs its OWN instance — see local/core/onnx-embed.js's
+// own header comment). Constructed on first call, so a cloud-only run
+// (--smoke defaults to cloud, or any run whose matrix never includes the
+// local profile) never touches onnxruntime-node at all; released via
+// shutdownOnnxEmbedCapability() at the end of main().
+let _onnxCapability = null;
+let _embedOnnxBatch = null;
+async function embedOnnxBatch(texts) {
+  if (!_embedOnnxBatch) {
+    _onnxCapability = createOnnxEmbeddingCapability();
+    ({ embedOnnxBatch: _embedOnnxBatch } = await _onnxCapability.loadOnnxBatch());
+  }
+  return _embedOnnxBatch(texts);
+}
+async function shutdownOnnxEmbedCapability() {
+  if (_onnxCapability) await _onnxCapability.shutdown();
+}
 
 import { fetchAndValidateScifact, SCIFACT_MD5 } from './fetch-scifact.mjs';
 import {
@@ -744,9 +768,16 @@ function renderMarkdownReport(report) {
 
 const isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (isMain) {
-  main().catch((err) => {
-    const redact = makeRedactor(process.env.QDRANT_KEY);
-    console.error('[beir-scifact] unhandled error:', redact(err));
-    process.exitCode = 1;
-  });
+  // shutdownOnnxEmbedCapability() runs regardless of which of main()'s own
+  // several early-return paths (--prepare-only, --resume-check, a
+  // cloud-only run matrix) was taken — it is a safe no-op whenever
+  // embedOnnxBatch() was never actually called (see its own definition
+  // above).
+  main()
+    .catch((err) => {
+      const redact = makeRedactor(process.env.QDRANT_KEY);
+      console.error('[beir-scifact] unhandled error:', redact(err));
+      process.exitCode = 1;
+    })
+    .finally(() => shutdownOnnxEmbedCapability());
 }

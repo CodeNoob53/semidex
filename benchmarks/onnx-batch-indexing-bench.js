@@ -101,9 +101,16 @@ async function main() {
     process.exit(1);
   }
 
-  const { embedOnnx, embedOnnxBatch } = await import('../src/local/core/onnx-embed.js');
+  // createOnnxEmbeddingCapability() (Phase 8B — onnx-embed.js no longer
+  // exports bare embedOnnx/embedOnnxBatch module-scope-backed functions;
+  // this benchmark constructs its own instance, releases it explicitly at
+  // the end via capability.shutdown()).
+  const { createOnnxEmbeddingCapability } = await import('../src/local/core/onnx-embed.js');
   const { estimateTokens, bucketBatches, BUCKET_BOUNDARIES, embedBucketed }
     = await import('./lib/length-bucket.js');
+  const capability = createOnnxEmbeddingCapability();
+  const embedOnnx = await capability.loadOnnx();
+  const { embedOnnxBatch } = await capability.loadOnnxBatch();
 
   // ── Load corpus ──
   console.log('\n=== ONNX Batch Indexing Benchmark ===\n');
@@ -218,6 +225,8 @@ async function main() {
   }
 
   console.log('\n' + '─'.repeat(60));
+
+  await capability.shutdown();
 }
 
 main().catch(e => { console.error(e); process.exit(1); });

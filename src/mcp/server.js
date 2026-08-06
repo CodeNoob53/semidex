@@ -32,7 +32,15 @@ const { CallToolRequestSchema, ListToolsRequestSchema } = await import('@modelco
 
 const { embedForSearch } = await import('../core/embeddings.js');
 const ollamaLazy = await import('../core/ollama-lazy.js');
-const onnxEmbedLazy = await import('../core/onnx-embed-lazy.js');
+const { createOnnxEmbeddingCapability } = await import('../core/onnx-embed-lazy.js');
+// onnxEmbed: createOnnxEmbeddingCapability() constructs ONE fresh,
+// independent capability instance for this process's own composition
+// (code review — onnx-embed.js no longer exposes a shared module-scope
+// singleton; every composition root must construct its own instance,
+// exactly like index-full.js's own indexer-CLI composition does).
+// Construction itself is cheap and synchronous (no real onnxruntime-node
+// load happens until the first actual embed call).
+const onnxEmbed = createOnnxEmbeddingCapability();
 // core/embeddings.js's applyEmbeddingCapabilities() (the process-wide
 // module-scope fallback) is deliberately NEVER called from this file (code
 // review, round 4 — removed after round 3 made it redundant, same
@@ -74,7 +82,7 @@ search.setSettingsService(settingsService);
 // server's own search requests never consult embeddings.js's shared
 // module-scope fallback at all, regardless of what any other composition
 // root does with it in the same process.
-search.setEmbedQuery((profile, query) => embedForSearch(profile, query, { capabilities: { ollama: ollamaLazy, onnxEmbed: onnxEmbedLazy } }));
+search.setEmbedQuery((profile, query) => embedForSearch(profile, query, { capabilities: { ollama: ollamaLazy, onnxEmbed } }));
 
 const tools = [search, collections, getChunk, findByTag, listFiles, listTags, listDirectories, getSkeleton, getSkeletonNode, getSkeletonChildren, getNode, getContent];
 const toolMap = Object.fromEntries(tools.map(t => [t.schema.name, t.handle]));

@@ -30,10 +30,20 @@ describe('validateOnnxEmbedCapability', () => {
     }
   });
 
-  test('REQUIRED_ONNX_EMBED_CAPABILITY_METHODS matches core/onnx-embed-lazy.js\'s own real export surface exactly', async () => {
+  test('createOnnxEmbeddingCapability() instances provide every REQUIRED_ONNX_EMBED_CAPABILITY_METHODS entry (instance-scoped capability — core/onnx-embed-lazy.js no longer exports loadOnnx/loadOnnxBatch/shutdown directly, only a factory)', async () => {
     const real = await import('../../../src/core/onnx-embed-lazy.js');
-    const realFnNames = Object.keys(real).filter((k) => typeof real[k] === 'function').sort();
-    assert.deepEqual([...REQUIRED_ONNX_EMBED_CAPABILITY_METHODS].sort(), realFnNames);
+    assert.equal(typeof real.createOnnxEmbeddingCapability, 'function', 'sanity: the factory itself is exported');
+    const instance = real.createOnnxEmbeddingCapability();
+    for (const method of REQUIRED_ONNX_EMBED_CAPABILITY_METHODS) {
+      assert.equal(typeof instance[method], 'function', `instance is missing required method: ${method}`);
+    }
+    // getOnnxProviderState is a real method every instance also provides,
+    // but is deliberately NOT part of REQUIRED_ONNX_EMBED_CAPABILITY_METHODS
+    // (see onnx-embed-capability.js's own header comment — no orchestration
+    // consumer calls it through the capability interface today, only
+    // benchmarks call it directly on the constructed instance).
+    assert.equal(typeof instance.getOnnxProviderState, 'function');
+    await instance.shutdown(); // no session was ever created; safe cleanup
   });
 });
 

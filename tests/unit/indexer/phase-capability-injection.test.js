@@ -264,7 +264,7 @@ describe('indexer/run.js — run({ capabilities }) validates its argument into o
       ollamaDiscovery: fakeDiscoveryCapability({
         isOllamaReachable: async () => true, listOllamaModels: async () => [], validateOllamaModels: async () => null,
       }),
-      onnxEmbed: { loadOnnx: async () => {}, loadOnnxBatch: async () => {} },
+      onnxEmbed: { loadOnnx: async () => {}, loadOnnxBatch: async () => {}, shutdown: async () => {} },
       tagOnnx: fakeTagOnnxCapability(),
       ...overrides,
     };
@@ -363,7 +363,7 @@ describe('indexer/run.js — TWO real concurrent run() calls each clean up only 
       ollamaDiscovery: fakeDiscoveryCapability({
         isOllamaReachable: async () => true, listOllamaModels: async () => [], validateOllamaModels: async () => null,
       }),
-      onnxEmbed: { loadOnnx: async () => {}, loadOnnxBatch: async () => {} },
+      onnxEmbed: { loadOnnx: async () => {}, loadOnnxBatch: async () => {}, shutdown: async () => {} },
       tagOnnx: fakeTagOnnxCapability(),
       ...overrides,
     };

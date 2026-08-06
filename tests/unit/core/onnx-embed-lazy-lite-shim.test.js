@@ -3,6 +3,10 @@
 // ollama-lazy-lite-shim.test.js checks for the Ollama shim: export-surface
 // parity, typed rejection instead of any real import, and no actual
 // (non-comment) reference to the excluded modules in executable code.
+//
+// Both the real and the .lite.js shim now expose createOnnxEmbeddingCapability()
+// (instance-scoped capability factory) rather than bare loadOnnx/
+// loadOnnxBatch exports — every consumer constructs its own instance.
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
@@ -17,13 +21,29 @@ describe('core/onnx-embed-lazy.lite.js — Lite staging shim', () => {
     assert.deepEqual(shimFnNames, realFnNames);
   });
 
-  it('every export rejects with a typed not_available_in_lite error instead of importing anything', async () => {
+  it('createOnnxEmbeddingCapability() is exported as a callable factory, matching the real one\'s shape', async () => {
     const shim = await import('../../../src/core/onnx-embed-lazy.lite.js');
-    const fnNames = Object.keys(shim).filter((k) => typeof shim[k] === 'function' && k !== 'OnnxEmbedNotAvailableInLiteError');
-    assert.ok(fnNames.length > 0, 'sanity: the shim must actually export functions to test');
-    for (const name of fnNames) {
+    assert.equal(typeof shim.createOnnxEmbeddingCapability, 'function');
+    const cap = shim.createOnnxEmbeddingCapability();
+    assert.equal(typeof cap.loadOnnx, 'function');
+    assert.equal(typeof cap.loadOnnxBatch, 'function');
+    assert.equal(typeof cap.getOnnxProviderState, 'function');
+    assert.equal(typeof cap.shutdown, 'function');
+  });
+
+  it('two createOnnxEmbeddingCapability() calls return two distinct objects (no shared state, even in the stub)', async () => {
+    const shim = await import('../../../src/core/onnx-embed-lazy.lite.js');
+    const capA = shim.createOnnxEmbeddingCapability();
+    const capB = shim.createOnnxEmbeddingCapability();
+    assert.notEqual(capA, capB);
+  });
+
+  it('loadOnnx/loadOnnxBatch reject with a typed not_available_in_lite error instead of importing anything', async () => {
+    const shim = await import('../../../src/core/onnx-embed-lazy.lite.js');
+    const cap = shim.createOnnxEmbeddingCapability();
+    for (const name of ['loadOnnx', 'loadOnnxBatch']) {
       await assert.rejects(
-        () => shim[name](),
+        () => cap[name](),
         (err) => {
           assert.equal(err.code, 'not_available_in_lite', `${name}() must reject with code 'not_available_in_lite'`);
           assert.match(err.message, /Semidex Lite/, `${name}()'s error message must explain it is unavailable in Semidex Lite`);
@@ -32,6 +52,13 @@ describe('core/onnx-embed-lazy.lite.js — Lite staging shim', () => {
         },
       );
     }
+  });
+
+  it('getOnnxProviderState() returns null (no session ever exists in Lite) and shutdown() resolves successfully (a genuine no-op, never throws) — run.js calls it unconditionally in its own cleanup path regardless of whether ONNX embedding was ever used', async () => {
+    const shim = await import('../../../src/core/onnx-embed-lazy.lite.js');
+    const cap = shim.createOnnxEmbeddingCapability();
+    assert.equal(cap.getOnnxProviderState(), null);
+    await assert.doesNotReject(() => cap.shutdown());
   });
 
   it('the shim module source contains no ACTUAL (non-comment) dynamic or static import of onnx-embed.js/length-bucket.js', async () => {

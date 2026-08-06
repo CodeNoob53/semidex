@@ -29,11 +29,36 @@ describe('core/ollama-lazy.js — unchanged, still the real default a fresh capa
   });
 });
 
-describe('core/onnx-embed-lazy.js — unchanged, still the real default a fresh capability seam resolves to', () => {
-  it('exports exactly loadOnnx and loadOnnxBatch', async () => {
+describe('core/onnx-embed-lazy.js — export surface changed (instance-scoped capability, code review parity with tag-onnx-lazy.js\'s own Step 4 fix)', () => {
+  // Previously re-exported loadOnnx()/loadOnnxBatch() as bare async
+  // wrappers forwarding to onnx-embed.js's own module-scope singleton
+  // session/tokenizer state — the same cross-composition-root isolation
+  // gap Phase 8B Step 4's code review caught and fixed for
+  // tag-onnx-lazy.js's worker coordinator: index-full.js/
+  // admin/server-full.js/mcp/server.js each passed the SAME cached
+  // module namespace object as their own "capability," so two
+  // independently-composed callers actually shared one ONNX
+  // InferenceSession, one tokenizer, and one provider-fallback record.
+  // Fixed by createOnnxEmbeddingCapability(): a factory returning a
+  // fresh, independent instance per call (synchronous — see
+  // onnx-embed-lazy.js's own header comment for why it is NOT async,
+  // unlike tag-onnx-lazy.js's own factory).
+  it('exports exactly createOnnxEmbeddingCapability (a synchronous factory, not bare singleton-backed loadOnnx/loadOnnxBatch functions)', async () => {
     const mod = await import('../../../src/core/onnx-embed-lazy.js');
     const fnNames = Object.keys(mod).filter((k) => typeof mod[k] === 'function').sort();
-    assert.deepEqual(fnNames, ['loadOnnx', 'loadOnnxBatch']);
+    assert.deepEqual(fnNames, ['createOnnxEmbeddingCapability']);
+  });
+
+  it('createOnnxEmbeddingCapability() returns a fresh instance each call, never the same shared object', async () => {
+    const mod = await import('../../../src/core/onnx-embed-lazy.js');
+    const capA = mod.createOnnxEmbeddingCapability();
+    const capB = mod.createOnnxEmbeddingCapability();
+    assert.notEqual(capA, capB);
+    assert.equal(typeof capA.loadOnnx, 'function');
+    assert.equal(typeof capA.loadOnnxBatch, 'function');
+    assert.equal(typeof capA.shutdown, 'function');
+    await capA.shutdown();
+    await capB.shutdown();
   });
 });
 
