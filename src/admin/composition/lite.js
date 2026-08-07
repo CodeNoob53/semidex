@@ -26,6 +26,11 @@ import { createJobRegistry } from '../jobs/registry.js';
 import { spawnIndexer as spawnLiteIndexer } from '../jobs/spawn-indexer-lite.js';
 import { REQUIRED_OLLAMA_EMBED_CAPABILITY_METHODS } from '../../core/generation/ollama-capability.js';
 import { REQUIRED_ONNX_EMBED_CAPABILITY_METHODS } from '../../core/onnx-embed-capability.js';
+import { createCloudEmbeddingCapability } from '../../cloud/embedding/cloud-embedding-provider.js';
+import { createCloudGenerationCapability } from '../../cloud/generation/cloud-generation-provider.js';
+import { registerQdrantCloudRoutes } from '../../cloud/admin/qdrant-cloud-api.js';
+import { createGenerationRuntime } from '../../core/generation/runtime.js';
+import { createGenerationProvider } from '../../core/generation/registry.js';
 
 // Phase 8B Step 1 (revised, round 3/4) — explicit capability wiring.
 // core/embeddings.js is statically imported by this server's own
@@ -130,13 +135,42 @@ export function createLiteApp({
 } = {}) {
   const ollamaCapability = unavailableOllamaEmbedCapability();
   const onnxEmbedCapability = unavailableOnnxEmbedCapability();
+  // cloudEmbed/cloudGeneration (code review, Phase 8B Step 6): UNLIKE
+  // ollama/onnxEmbed above, Lite constructs the REAL implementation here —
+  // Lite is cloud-only by design, so Qdrant Cloud embedding and Gemini
+  // generation are the ONE local vs. cloud pair where Lite's own
+  // composition root supplies the working implementation rather than a
+  // typed-unavailable stub. A real `composition root -> cloud` edge,
+  // explicitly allowed by the task's own dependency rules.
+  const cloudEmbed = createCloudEmbeddingCapability();
+  const cloudGeneration = createCloudGenerationCapability();
   // embedQuery, if the caller doesn't override it, is bound HERE to this
   // composition root's own typed-unavailable capability (code review,
   // round 3 — the real per-call isolation fix, matching
   // admin/server-full.js's createApp() own equivalent): this server's own
   // search request path never consults embeddings.js's shared module-scope
   // fallback at all, regardless of what any other composition root does.
-  const resolvedEmbedQuery = embedQuery ?? ((profile, query) => embedForSearch(profile, query, { capabilities: { ollama: ollamaCapability, onnxEmbed: onnxEmbedCapability } }));
+  const resolvedEmbedQuery = embedQuery ?? ((profile, query) => embedForSearch(profile, query, { capabilities: { ollama: ollamaCapability, onnxEmbed: onnxEmbedCapability, cloudEmbed } }));
+  // settings (code review, P2): resolved BEFORE resolvedGenerationRuntime
+  // below, and that call site is given `settings`, never the raw
+  // `settingsService` parameter — createGenerationRuntime() treats an
+  // undefined settingsService as "no settings.json tier at all" (see
+  // applySettingsServiceTier() in core/generation/runtime.js), so a
+  // default (no-DI) construction of createLiteApp() previously handed the
+  // runtime a real fallback SettingsService further down. Production
+  // bootstrap always passes settingsService explicitly and was never
+  // affected — this is the public fallback-construction contract.
+  const settings = settingsService ?? createSettingsService({ osEnv: process.env, dotenvValues: {} });
+  // resolvedGenerationRuntime, if the caller doesn't override it, is built
+  // HERE with a createGenerationProviderFn that supplies the real Gemini
+  // factory as a `providers` override — mirrors server-full.js's own
+  // equivalent; this is the ONE real place Lite's Gemini generation
+  // becomes selectable, since registry.js's own BACKENDS default no longer
+  // includes 'gemini'.
+  const resolvedGenerationRuntime = generationRuntime ?? createGenerationRuntime({
+    osEnv: process.env, dotenvValues: {}, settingsService: settings,
+    createGenerationProviderFn: (opts) => createGenerationProvider({ ...opts, providers: { gemini: cloudGeneration.createProvider } }),
+  });
   // resolvedJobRegistry, if the caller doesn't override it, is built HERE
   // with spawn-indexer-lite.js's own spawnIndexer (code review, round 4):
   // this is where Lite tells createJobRegistry() to spawn
@@ -147,14 +181,14 @@ export function createLiteApp({
   // comment), so this call site must always supply one explicitly.
   const resolvedJobRegistry = jobRegistry ?? createJobRegistry({ baseEnv: jobBaseEnv, spawnIndexer: spawnLiteIndexer });
   const router = createRouter();
-  const settings = settingsService ?? createSettingsService({ osEnv: process.env, dotenvValues: {} });
   registerNeutralRoutes(router, {
-    adapter, embedQuery: resolvedEmbedQuery, jobRegistry: resolvedJobRegistry, taskRegistry, assemblyLogFn,
-    generationRuntime, askCoordinator, countTokens, settingsService: settings,
+    adapter, embedQuery: resolvedEmbedQuery, cloudEmbed, jobRegistry: resolvedJobRegistry, taskRegistry, assemblyLogFn,
+    generationRuntime: resolvedGenerationRuntime, askCoordinator, countTokens, settingsService: settings,
     runQdrantCloudProbeFn, resolveNewCollectionProfileFn,
+    registerQdrantCloudRoutesFn: registerQdrantCloudRoutes,
     generationModelsFn: (r, deps) => registerGenerationModelsRoutesGeminiOnly(r, {
       ...deps,
-      ...(discoverGeminiModelsFn ? { discoverGeminiModelsFn } : {}),
+      discoverGeminiModelsFn: discoverGeminiModelsFn ?? cloudGeneration.discoverModels,
     }),
     jobsFn: (r, jobs) => registerJobsRoutes(r, jobs, { jobPolicy }),
   });

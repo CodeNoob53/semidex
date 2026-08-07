@@ -30,12 +30,19 @@ import { createJobRegistry } from './jobs/registry.js';
 import { spawnIndexer as spawnFullIndexer } from './jobs/spawn-indexer-full.js';
 import * as ollamaLazy from '../core/ollama-lazy.js';
 import { createOnnxEmbeddingCapability } from '../core/onnx-embed-lazy.js';
+import { createCloudEmbeddingCapability } from '../cloud/embedding/cloud-embedding-provider.js';
+import { createCloudGenerationCapability } from '../cloud/generation/cloud-generation-provider.js';
+import { registerQdrantCloudRoutes } from '../cloud/admin/qdrant-cloud-api.js';
+import { createGenerationRuntime } from '../core/generation/runtime.js';
+import { createGenerationProvider } from '../core/generation/registry.js';
 
 export function createApp({
   adapter = createStorageAdapter(), embedQuery, jobRegistry, taskRegistry, pickFolderFn, checkOllamaFn,
   assemblyLogFn, generationRuntime, askCoordinator, countTokens, settingsService, jobBaseEnv,
   discoverOllamaModelsFn, discoverGeminiModelsFn, runOnnxProbeFn, runQdrantCloudProbeFn,
-  resolveNewCollectionProfileFn,
+  resolveNewCollectionProfileFn, diagnoseCudaFailureFn,
+  resolveEffectiveOnnxRuntimePathFn, writeVerificationResultFn, onnxManagedRuntimeListingCache,
+  onnxEmbedCapability,
 } = {}) {
   // core/embeddings.js's applyEmbeddingCapabilities() (the process-wide
   // module-scope fallback) is deliberately NEVER called from this function
@@ -76,8 +83,57 @@ export function createApp({
   // per createApp() invocation even for tests that construct many apps in
   // one process; each gets its own independent, unused-until-needed
   // capability.
-  const onnxEmbed = createOnnxEmbeddingCapability();
-  const resolvedEmbedQuery = embedQuery ?? ((profile, query) => embedForSearch(profile, query, { capabilities: { ollama: ollamaLazy, onnxEmbed } }));
+  //
+  // `onnxEmbedCapability` (review finding, P2): bootstrap.js's own
+  // resolveOnnxRuntimeForProcess() call runs BEFORE createApp() and passes
+  // a typed-unavailable capability here instead when the resolved
+  // runtime's cuDNN PATH preparation failed (e.g. a managed selection's
+  // recorded cuDNN directory vanished since install) — this admin server
+  // stays up and serves every non-ONNX route fine, but never attempts to
+  // load a runtime bootstrap.js already proved is broken; every ONNX
+  // embed call fails immediately with a clear, specific reason instead of
+  // a confusing deep failure inside a real request. Defaults to the real
+  // capability, unchanged, when the caller doesn't override it (every
+  // existing test and ad-hoc createApp() call).
+  const onnxEmbed = onnxEmbedCapability ?? createOnnxEmbeddingCapability();
+  // cloudEmbed/cloudGeneration (code review, Phase 8B Step 6): the real
+  // Qdrant Cloud Inference embedding-budget/tokenizer capability and the
+  // real Gemini generation/discovery capability — this composition root
+  // imports src/cloud/ directly (a real `composition root -> cloud` edge,
+  // explicitly allowed), so no shared file (embeddings.js, search.js,
+  // token-count.js, run.js, registry.js, generation-models.js,
+  // register-neutral-routes.js) needs to import it itself. Cheap,
+  // stateless construction — safe to call once per createApp() invocation.
+  const cloudEmbed = createCloudEmbeddingCapability();
+  const cloudGeneration = createCloudGenerationCapability();
+  const resolvedEmbedQuery = embedQuery ?? ((profile, query) => embedForSearch(profile, query, { capabilities: { ollama: ollamaLazy, onnxEmbed, cloudEmbed } }));
+  // settings (code review, P2): resolved BEFORE resolvedGenerationRuntime
+  // below, and that call site is given `settings`, never the raw
+  // `settingsService` parameter. settingsService is optional DI — tests
+  // and ad-hoc createApp() callers that don't care about settings.json
+  // provenance get a safe env-only fallback (no file I/O beyond a single
+  // settings.json read, same "import/construction-safe" contract
+  // generationRuntime's own fallback documents). The real production
+  // entry point (bootstrap.js) always passes its own properly bootstrapped
+  // instance and was never affected — this is the public
+  // fallback-construction contract for ad-hoc/default createApp() calls:
+  // createGenerationRuntime() treats an undefined settingsService as "no
+  // settings.json tier at all" (applySettingsServiceTier() in
+  // core/generation/runtime.js), so passing the raw parameter here would
+  // silently make settings.json invisible to the generation runtime while
+  // routes below still see the real fallback service.
+  const settings = settingsService ?? createSettingsService({ osEnv: process.env, dotenvValues: {} });
+  // resolvedGenerationRuntime, if the caller doesn't override it, is built
+  // HERE with a createGenerationProviderFn that supplies the real Gemini
+  // factory as a `providers` override — registry.js's own BACKENDS default
+  // no longer includes 'gemini' (code review fix), so this is the ONE real
+  // place Full's Gemini generation becomes selectable at all. Mirrors
+  // resolvedJobRegistry's own "construct here if the caller didn't
+  // override" convention below.
+  const resolvedGenerationRuntime = generationRuntime ?? createGenerationRuntime({
+    osEnv: process.env, dotenvValues: {}, settingsService: settings,
+    createGenerationProviderFn: (opts) => createGenerationProvider({ ...opts, providers: { gemini: cloudGeneration.createProvider } }),
+  });
   // resolvedJobRegistry, if the caller doesn't override it, is built HERE
   // with spawn-indexer-full.js's own spawnIndexer (code review, round 4):
   // Full's real, unchanged behavior. createJobRegistry() itself has no
@@ -85,26 +141,20 @@ export function createApp({
   // see that function's own header comment.
   const resolvedJobRegistry = jobRegistry ?? createJobRegistry({ baseEnv: jobBaseEnv, spawnIndexer: spawnFullIndexer });
   const router = createRouter();
-  // settingsService is optional DI — tests and ad-hoc createApp() callers
-  // that don't care about settings.json provenance get a safe env-only
-  // fallback (no file I/O beyond a single settings.json read, same
-  // "import/construction-safe" contract generationRuntime's own fallback
-  // documents). The real production entry point (bootstrap.js) always
-  // passes its own properly bootstrapped instance.
-  const settings = settingsService ?? createSettingsService({ osEnv: process.env, dotenvValues: {} });
   // discoverOllamaModelsFn is optional DI (tests inject a stub so unit
   // tests never probe a real Ollama instance) — same convention as
   // checkOllamaFn below. Full-only: this module is the one place that
   // imports local/core/ollama-models.js and passes it through.
   registerOllamaModelsRoutes(router, { settingsService: settings, ...(discoverOllamaModelsFn ? { discoverOllamaModelsFn } : {}) });
   registerNeutralRoutes(router, {
-    adapter, embedQuery: resolvedEmbedQuery, jobRegistry: resolvedJobRegistry, taskRegistry, assemblyLogFn, pickFolderFn,
-    generationRuntime, askCoordinator, countTokens, settingsService: settings,
+    adapter, embedQuery: resolvedEmbedQuery, cloudEmbed, jobRegistry: resolvedJobRegistry, taskRegistry, assemblyLogFn, pickFolderFn,
+    generationRuntime: resolvedGenerationRuntime, askCoordinator, countTokens, settingsService: settings,
     runQdrantCloudProbeFn, resolveNewCollectionProfileFn,
+    registerQdrantCloudRoutesFn: registerQdrantCloudRoutes,
     generationModelsFn: (r, deps) => registerGenerationModelsRoutes(r, {
       ...deps,
       discoverOllamaModelsFn: discoverOllamaModelsFn ?? discoverOllamaModels,
-      ...(discoverGeminiModelsFn ? { discoverGeminiModelsFn } : {}),
+      discoverGeminiModelsFn: discoverGeminiModelsFn ?? cloudGeneration.discoverModels,
     }),
     jobsFn: (r, jobs) => registerJobsRoutes(r, jobs, {
       jobPolicy: FULL_JOB_POLICY,
@@ -117,9 +167,17 @@ export function createApp({
   // function's own comment on why a second registration here would be
   // silently ineffective, not an override).
   registerOllamaStatusRoutes(router, { checkOllamaFn: checkOllamaFn ?? checkOllama });
-  // runOnnxProbeFn is optional DI (tests inject a stub so unit tests never
-  // spawn a real child process/load onnxruntime-node) — same convention as
-  // pickFolderFn/checkOllamaFn above.
-  registerOnnxRoutes(router, { settingsService: settings, ...(runOnnxProbeFn ? { runProbeFn: runOnnxProbeFn } : {}) });
+  // runOnnxProbeFn/diagnoseCudaFailureFn are optional DI (tests inject
+  // stubs so unit tests never spawn a real child process/nvidia-smi or
+  // load onnxruntime-node) — same convention as pickFolderFn/checkOllamaFn
+  // above.
+  registerOnnxRoutes(router, {
+    settingsService: settings,
+    ...(runOnnxProbeFn ? { runProbeFn: runOnnxProbeFn } : {}),
+    ...(diagnoseCudaFailureFn ? { diagnoseCudaFailureFn } : {}),
+    ...(resolveEffectiveOnnxRuntimePathFn ? { resolveEffectiveOnnxRuntimePathFn } : {}),
+    ...(writeVerificationResultFn ? { writeVerificationResultFn } : {}),
+    ...(onnxManagedRuntimeListingCache ? { listingCache: onnxManagedRuntimeListingCache } : {}),
+  });
   return createHttpServer(router);
 }
