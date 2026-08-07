@@ -4,9 +4,9 @@
 // embedded in the body — matches api/generation.js's established
 // "probe/status endpoint" convention, since an unreachable Ollama is a
 // normal state to report, not a server error.
-import { sendJson } from '../../core/http/http.js';
-import { sanitiseErrorMessage } from '../../shared/core/doctor-checks.js';
-import { discoverOllamaModels } from '../../local/core/ollama-models.js';
+import { sendJson } from '../../../core/http/http.js';
+import { sanitiseErrorMessage } from '../../../shared/core/doctor-checks.js';
+import { discoverOllamaModels } from '../../core/ollama-models.js';
 
 // Same redaction pattern as api/generation.js's safeMessage() — the
 // reason string can embed a raw configured OLLAMA_URL, and this route

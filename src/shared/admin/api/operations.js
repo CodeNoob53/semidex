@@ -8,7 +8,7 @@
 // POST /api/jobs/index and POST /api/collections/:name/sync-schema remain
 // the two write endpoints (unchanged contracts, api/jobs.js and
 // api/collections.js) — this module only reads and normalizes.
-import { sendJson, notFound } from '../../core/http/http.js';
+import { sendJson, notFound } from '../../../core/http/http.js';
 import { toJobSummary, toJobDetail } from './jobs.js';
 
 // The concise, already-sanitised (job.log lines are redacted at capture

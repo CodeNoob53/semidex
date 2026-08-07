@@ -4,8 +4,8 @@
 // (or receives via DI) — this route never touches settings.json or
 // process.env directly, and never derives writable/secret/override
 // behavior itself; SettingsService is the single source of truth.
-import { sendJson, readJsonBody, HttpError } from '../../core/http/http.js';
-import { CATEGORIES } from '../../core/settings/definitions.js';
+import { sendJson, readJsonBody, HttpError } from '../../../core/http/http.js';
+import { CATEGORIES } from '../../../core/settings/definitions.js';
 
 const ERROR_CODE_STATUS = {
   unknown_key: 400,

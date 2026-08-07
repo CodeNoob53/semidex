@@ -9,7 +9,7 @@
 // Reachability/model-list logic is shared with the indexer's own preflight
 // (src/indexer/preflight.js) via src/local/core/ollama.js — one
 // implementation, not two drifting copies.
-import { isOllamaReachable, listOllamaModels, validateOllamaModels } from '../../local/core/ollama.js';
+import { isOllamaReachable, listOllamaModels, validateOllamaModels } from '../../core/ollama.js';
 
 const DEFAULT_URL = process.env.OLLAMA_URL || 'http://localhost:11434';
 

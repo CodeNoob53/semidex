@@ -1,6 +1,6 @@
 // GET /api/collections/:name/node — full structural content node
 // (table, code_block, checklist, image, ...). StorageAdapter-only.
-import { sendJson, notFound } from '../../core/http/http.js';
+import { sendJson, notFound } from '../../../core/http/http.js';
 import { requireExactlyOne } from './query-params.js';
 
 export function registerNodeRoutes(router, adapter) {

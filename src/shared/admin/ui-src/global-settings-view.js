@@ -34,7 +34,7 @@ import { renderSettingsNav, syncSidebarMode, markActive } from './sidebar.js';
 // Pure-data module only (zero deps: no fs/fetch/tokenizer) — safe to bundle
 // into the browser. Never import qdrant-cloud-catalog.js itself here — it
 // pulls in qdrant-cloud-tokenizer.js's Node-only fs/fetch code.
-import { findDenseModel as findQdrantCloudDenseModel, isCatalogCompatibleWithChunking } from '../../core/embedding-profile/qdrant-cloud-models.js';
+import { findDenseModel as findQdrantCloudDenseModel, isCatalogCompatibleWithChunking } from '../../../core/embedding-profile/qdrant-cloud-models.js';
 
 // null by default (Lite's real, shipped state — entries/lite.js never
 // calls the setter below). entries/full.js calls

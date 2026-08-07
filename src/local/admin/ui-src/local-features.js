@@ -17,7 +17,7 @@
 // to that file since they're shared with genuinely provider-neutral fields
 // too (e.g. currentPendingValue is used for every setting, not just
 // ONNX/Ollama ones).
-import { api, apiPost } from './api.js';
+import { api, apiPost } from '../../../shared/admin/ui-src/api.js';
 
 const ONNX_PROBE_PROVIDERS = new Set(['cuda', 'dml']);
 

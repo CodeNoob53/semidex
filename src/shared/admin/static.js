@@ -6,12 +6,12 @@ import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { extname, join, normalize, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { sendError } from '../core/http/http.js';
+import { sendError } from '../../core/http/http.js';
 
 // Exported so tests can assert the server points at dist/admin-ui (not the
 // old src/admin/ui build target) and so callers can override it (dependency
 // injection) to simulate a missing build without touching the real filesystem.
-export const UI_DIR = fileURLToPath(new URL('../../dist/admin-ui/', import.meta.url));
+export const UI_DIR = fileURLToPath(new URL('../../../dist/admin-ui/', import.meta.url));
 
 // Only the types the shell actually ships. Anything else 404s — the UI dir
 // is not a general-purpose file server.

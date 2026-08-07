@@ -2,8 +2,8 @@
 // — segment-by-segment matching is enough for the handful of routes this API
 // needs. Route params (":name") are URL-decoded before being handed to
 // handlers, so a handler never has to think about percent-encoding.
-import { sendError, HttpError } from '../core/http/http.js';
-import { sanitiseErrorMessage } from '../shared/core/doctor-checks.js';
+import { sendError, HttpError } from '../../core/http/http.js';
+import { sanitiseErrorMessage } from '../core/doctor-checks.js';
 
 /**
  * @typedef {(ctx: { req, res, params: Object, query: URLSearchParams }) => Promise<void>|void} RouteHandler

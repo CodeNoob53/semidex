@@ -9,13 +9,13 @@
 // that gap: effectiveProvider/fellBackToCpu/runtimeSource/runtimeVersion
 // in the response always come from the child process's real probe result,
 // never from the setting alone.
-import { sendJson, readJsonBody, badRequest } from '../../core/http/http.js';
-import { probeOnnxProvider } from '../../local/core/onnx-provider-probe.js';
-import { diagnoseCudaFailure } from '../../local/core/cuda-diagnosis.js';
-import { resolveSemidexHomePaths } from '../../local/core/semidex-home.js';
-import { resolveEffectiveOnnxRuntimePath, prepareOnnxRuntimeProcessEnv } from '../../local/core/onnx-runtime-source-resolution.js';
-import { readManagedRuntimeManifest, computeManifestIdentityFingerprint, writeVerificationResult } from '../../local/core/managed-onnx-runtime-manifest.js';
-import { createManagedRuntimeListingCache } from '../../local/core/managed-runtime-listing.js';
+import { sendJson, readJsonBody, badRequest } from '../../../core/http/http.js';
+import { probeOnnxProvider } from '../../core/onnx-provider-probe.js';
+import { diagnoseCudaFailure } from '../../core/cuda-diagnosis.js';
+import { resolveSemidexHomePaths } from '../../core/semidex-home.js';
+import { resolveEffectiveOnnxRuntimePath, prepareOnnxRuntimeProcessEnv } from '../../core/onnx-runtime-source-resolution.js';
+import { readManagedRuntimeManifest, computeManifestIdentityFingerprint, writeVerificationResult } from '../../core/managed-onnx-runtime-manifest.js';
+import { createManagedRuntimeListingCache } from '../../core/managed-runtime-listing.js';
 
 const VALID_PROVIDERS = new Set(['cpu', 'dml', 'cuda']);
 
@@ -41,7 +41,7 @@ function readManagedRuntimeManifestProjection(runtimeDir) {
 /**
  * @param {Object} router
  * @param {{
- *   settingsService: ReturnType<typeof import('../../core/settings/service.js').createSettingsService>,
+ *   settingsService: ReturnType<typeof import('../../../core/settings/service.js').createSettingsService>,
  *   runProbeFn?: typeof probeOnnxProvider,  // injectable for tests — never
  *                                           // a real child process in a unit test.
  *   diagnoseCudaFailureFn?: typeof diagnoseCudaFailure,  // injectable for

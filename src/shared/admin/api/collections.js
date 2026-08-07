@@ -1,7 +1,7 @@
 // GET /api/collections, GET /api/collections/:name,
 // POST /api/collections/:name/sync-schema, DELETE /api/collections/:name
 // — StorageAdapter-only.
-import { sendJson, notFound } from '../../core/http/http.js';
+import { sendJson, notFound } from '../../../core/http/http.js';
 
 // taskRegistry is optional DI, same convention as jobRegistry in
 // api/jobs.js — tests that don't care about operation tracking can omit it

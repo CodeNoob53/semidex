@@ -3,7 +3,7 @@
 // GET /api/collections/:name/skeleton/children
 // GET /api/collections/:name/skeleton/anchor
 // StorageAdapter-only.
-import { sendJson, notFound } from '../../core/http/http.js';
+import { sendJson, notFound } from '../../../core/http/http.js';
 import { requireExactlyOne, parseIntParam } from './query-params.js';
 
 export function registerSkeletonRoutes(router, adapter) {

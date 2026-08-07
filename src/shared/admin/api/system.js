@@ -10,7 +10,7 @@
 // module-level default statically imports admin/system/ollama.js anymore —
 // only the full composition root (createApp(), admin/server-full.js)
 // imports the real checkOllama and passes it in.
-import { sendJson, badRequest } from '../../core/http/http.js';
+import { sendJson, badRequest } from '../../../core/http/http.js';
 import { pickFolder } from '../system/folder-picker.js';
 
 const PICKER_ERROR_STATUS = {

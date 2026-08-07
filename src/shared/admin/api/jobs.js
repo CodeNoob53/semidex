@@ -13,8 +13,8 @@
 // that imports the real checkOllama and passes it in; Lite's composition
 // root passes none, and jobPolicy.allowLlmSummaries=false makes the
 // llmSummaries branch unreachable anyway (see registerJobsRoutes below).
-import { sendJson, badRequest, notFound, conflict, dependencyUnavailable, HttpError } from '../../core/http/http.js';
-import { readJsonBody } from '../../core/http/http.js';
+import { sendJson, badRequest, notFound, conflict, dependencyUnavailable, HttpError } from '../../../core/http/http.js';
+import { readJsonBody } from '../../../core/http/http.js';
 
 const DEFAULT_CONTEXT_MODEL = process.env.CONTEXT_MODEL || 'gemma3:4b';
 

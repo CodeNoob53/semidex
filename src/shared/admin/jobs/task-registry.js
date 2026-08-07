@@ -18,7 +18,7 @@
 // UI — this file's job is only to track repair tasks; the merge point is
 // what makes the modal render both through a single shared shape (Phase 3S).
 import { randomUUID } from 'node:crypto';
-import { sanitiseErrorMessage } from '../../shared/core/doctor-checks.js';
+import { sanitiseErrorMessage } from '../../core/doctor-checks.js';
 
 export const TASK_STATES = Object.freeze({
   RUNNING: 'running',
