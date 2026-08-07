@@ -1,4 +1,4 @@
-// Tests for src/core/embedding-profile/qdrant-cloud-tokenizer.js's cache
+// Tests for src/cloud/embedding/qdrant-cloud-tokenizer.js's cache
 // integrity: atomic download (never a partial file observable at the final
 // path) and corrupt-cache eviction/recovery (a cached file that parses
 // wrong is deleted and re-fetched, not treated as permanently cached).
@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync, writeFileSync, readFileSync, existsSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { downloadFile, readJsonOrEvict, loadQdrantCloudTokenizer } from '../../../../src/core/embedding-profile/qdrant-cloud-tokenizer.js';
+import { downloadFile, readJsonOrEvict, loadQdrantCloudTokenizer } from '../../../../src/cloud/embedding/qdrant-cloud-tokenizer.js';
 
 let originalFetch;
 let dir;

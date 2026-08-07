@@ -1,8 +1,7 @@
 import { fetchWindowChunks } from '../../core/qdrant.js';
-import { rerankResults } from '../../core/rerank.js';
-import { ceRerank, withCETimeout, getCeRerankConfig } from '../../core/ce-rerank.js';
 import { createStorageAdapter } from '../../core/storage/factory.js';
 import { runHybridSearch } from '../../core/retrieval/search.js';
+import { validateRerankCapability } from '../../core/rerank-capability.js';
 
 import { envInt } from '../../core/env.js';
 
@@ -74,6 +73,33 @@ export function setSettingsService(service) { settingsService = service; }
 // applies, unchanged.
 let embedQueryOverride = null;
 export function setEmbedQuery(fn) { embedQueryOverride = fn; }
+
+// cloudEmbed mirrors setEmbedQuery()'s own pattern (code review, Phase 8B
+// Step 6) — set once by mcp/server.js at process startup to this process's
+// own real CloudEmbeddingCapability. Without this, a qdrant-cloud
+// collection's search would have no capability to reach
+// checkEmbedInputFits()/buildCloudQueryInputs() with. When unset (e.g. a
+// test importing this module directly, or a query against a
+// client-execution collection), runHybridSearch() simply never
+// dereferences it.
+let cloudEmbedOverride = null;
+export function setCloudEmbed(capability) { cloudEmbedOverride = capability; }
+
+// rerank (code review, Phase 8B Step 6 second pass, P1 fix): this module
+// previously imported core/rerank.js/core/ce-rerank.js directly — a real
+// `shared -> local implementation` edge (ce-rerank.js spawns a persistent
+// local child process; this file is declared 'shared' in the architecture
+// manifest). Set once by src/mcp/server.js at process startup to its own
+// real RerankCapability (core/rerank-provider.js's createRerankCapability()
+// — see core/rerank-capability.js for the contract), mirroring
+// setCloudEmbed()'s own pattern. handle() below throws a clear, actionable
+// error if reranking is enabled but no capability was ever injected — no
+// silent real-import fallback.
+let rerankOverride = null;
+export function setRerank(capability) {
+  if (capability !== null) validateRerankCapability(capability);
+  rerankOverride = capability;
+}
 
 // next_search fields — refreshIfChanged() is called once per tool
 // invocation (not per read) so a change saved via the admin UI while this
@@ -178,6 +204,7 @@ export async function handle({ query, collection, top = 5, tags, source_file, wi
     filters: { sourceFile: source_file, tags },
     settingsService,
     ...(embedQueryOverride ? { embedQuery: embedQueryOverride } : {}),
+    ...(cloudEmbedOverride ? { cloudEmbed: cloudEmbedOverride } : {}),
   });
   if (result.error) {
     return `Cannot search "${collection}": ${result.message}`;
@@ -191,6 +218,10 @@ export async function handle({ query, collection, top = 5, tags, source_file, wi
   // chunkToLegacyPoint() adapts runHybridSearch's Chunk objects for them.
   let results;
   if (RERANK_ENABLED || RERANK_CE_ENABLED) {
+    if (!rerankOverride) {
+      throw new Error('mcp/tools/search.js: reranking is enabled but no RerankCapability was injected — call setRerank(capability) first (src/mcp/server.js does this at startup), or setRerank(createRerankCapability()) in a test.');
+    }
+    const { rerankResults, ceRerank, withCETimeout, getCeRerankConfig } = rerankOverride;
     let pool = result.hits.map(chunkToLegacyPoint);
 
     if (RERANK_ENABLED) {

@@ -17,9 +17,17 @@
 // never references it at all. The full composition root (createApp(), in
 // admin/server-full.js) imports local/core/ollama-models.js itself and passes
 // discoverOllamaModels in explicitly.
+//
+// discoverGeminiModelsFn is REQUIRED (no default either — code review,
+// Phase 8B Step 6): this module used to statically import
+// src/cloud/generation/gemini-models.js and default to it, giving a
+// `shared -> cloud implementation` edge exactly like the Ollama one above
+// was already correctly avoided. Both composition roots (createApp(),
+// createLiteApp()) now construct the real CloudGenerationCapability once,
+// at composition time, and pass `discoverModels` in explicitly — mirroring
+// how discoverOllamaModelsFn already worked.
 import { sendJson, badRequest } from '../../core/http/http.js';
 import { sanitiseErrorMessage } from '../../core/doctor-checks.js';
-import { discoverGeminiModels } from '../../core/gemini-models.js';
 
 function safeMessage(message, apiKey) {
   if (message == null) return null;
@@ -37,20 +45,22 @@ async function handleGeminiBackend(res, settingsService, discoverGeminiModelsFn,
 }
 
 /**
- * Full-Semidex variant: both Ollama and Gemini backends. discoverOllamaModelsFn
- * has no default — the caller (createApp(), server-full.js) must pass the real
- * one explicitly, since this module itself never imports local/core/ollama-models.js.
+ * Full-Semidex variant: both Ollama and Gemini backends. Neither
+ * discoverOllamaModelsFn nor discoverGeminiModelsFn has a default — the
+ * caller (createApp(), server-full.js) must pass both real functions
+ * explicitly, since this module itself never imports
+ * local/core/ollama-models.js or src/cloud/generation/gemini-models.js.
  * @param {Object} router
  * @param {{
  *   settingsService: ReturnType<typeof import('../../core/settings/service.js').createSettingsService>,
  *   discoverOllamaModelsFn: (baseUrl: string, opts?: object) => Promise<object>,
- *   discoverGeminiModelsFn?: typeof discoverGeminiModels,
+ *   discoverGeminiModelsFn: (options: Object) => Promise<Object>,
  * }} deps
  */
 export function registerGenerationModelsRoutes(router, {
   settingsService,
   discoverOllamaModelsFn,
-  discoverGeminiModelsFn = discoverGeminiModels,
+  discoverGeminiModelsFn,
 }) {
   router.get('/api/generation/models', async ({ res, query }) => {
     const backend = query.get('backend');
@@ -80,16 +90,18 @@ export function registerGenerationModelsRoutes(router, {
  * in any way — a `backend=ollama` request gets a clear 400, not a 500 from
  * a missing dependency, and the module import graph itself has no Ollama
  * edge at all (unlike the full variant above, whose Ollama edge is DI-only
- * but whose CALLER still imports the real module).
+ * but whose CALLER still imports the real module). discoverGeminiModelsFn
+ * is REQUIRED here too (no default) — the caller (createLiteApp(),
+ * composition/lite.js) must pass the real one explicitly.
  * @param {Object} router
  * @param {{
  *   settingsService: ReturnType<typeof import('../../core/settings/service.js').createSettingsService>,
- *   discoverGeminiModelsFn?: typeof discoverGeminiModels,
+ *   discoverGeminiModelsFn: (options: Object) => Promise<Object>,
  * }} deps
  */
 export function registerGenerationModelsRoutesGeminiOnly(router, {
   settingsService,
-  discoverGeminiModelsFn = discoverGeminiModels,
+  discoverGeminiModelsFn,
 }) {
   router.get('/api/generation/models', async ({ res, query }) => {
     const backend = query.get('backend');

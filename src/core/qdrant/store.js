@@ -308,7 +308,7 @@ export async function hybridSearch(collection, denseVector, sparseVector, limit 
 
 // Cloud-inference counterpart of hybridSearch() — denseQuery/sparseQuery
 // are ALREADY-BUILT {text, model} inference descriptors (see
-// core/embedding-profile/qdrant-cloud-catalog.js's buildCloudQueryInputs())
+// cloud/embedding/qdrant-cloud-catalog.js's buildCloudQueryInputs())
 // — this function never constructs or calls an embedding function itself,
 // only forwards data the caller already built, exactly like hybridSearch()
 // only forwards real vectors it's handed. RRF fusion stays server-side —

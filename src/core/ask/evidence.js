@@ -79,6 +79,7 @@ async function truncateToBudget(text, maxTokens, countTokens) {
  *   top?: number,
  *   perSourceTokenBudget?: number,
  *   settingsService?: ReturnType<typeof import('../settings/service.js').createSettingsService>,
+ *   cloudEmbed?: import('../embedding-profile/cloud-embedding-capability.js').CloudEmbeddingCapability,
  * }} opts
  * @returns {Promise<{ error: string, message: string } | { sources: Array<Object>, searchMode: string }>}
  *   Each source: { n, sourceFile, chunkIndex, section, snippet, nodeId,
@@ -88,14 +89,17 @@ async function truncateToBudget(text, maxTokens, countTokens) {
  *   mode that ran (currently always 'hybrid' on success), independent of
  *   whether any hits came back. settingsService is optional DI, forwarded
  *   to runHybridSearch() so HYBRID_PREFETCH_LIMIT/RRF_K apply to Ask's own
- *   retrieval too (code review finding).
+ *   retrieval too (code review finding). cloudEmbed is optional DI (code
+ *   review, Phase 8B Step 6) — only dereferenced when the resolved
+ *   collection turns out to be qdrant-cloud; the composition root supplies
+ *   the real one.
  */
 export async function buildEvidence({
   adapter, embedQuery, countTokens, collection, question, sourceFile, top = DEFAULT_TOP,
-  perSourceTokenBudget = DEFAULT_PER_SOURCE_TOKEN_BUDGET, settingsService,
+  perSourceTokenBudget = DEFAULT_PER_SOURCE_TOKEN_BUDGET, settingsService, cloudEmbed,
 }) {
   const result = await runHybridSearch({
-    adapter, embedQuery, collection, query: question, top, filters: { sourceFile }, settingsService,
+    adapter, embedQuery, cloudEmbed, collection, query: question, top, filters: { sourceFile }, settingsService,
   });
   if (result.error) return result;
 

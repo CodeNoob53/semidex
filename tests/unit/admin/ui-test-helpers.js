@@ -26,13 +26,18 @@ export function readUiSource(relativePath) {
   return readFileSync(UI_SRC_DIR + relativePath, 'utf-8');
 }
 
-// global-settings-view.js imports one zero-dependency core/ module directly
-// (qdrant-cloud-models.js — pure catalog data, safe to bundle into the
-// browser; never qdrant-cloud-catalog.js itself, which pulls in Node-only
-// fs/fetch via the tokenizer module) — this repo-relative reader mirrors
-// readUiSource() for that one cross-boundary case.
+// global-settings-view.js imports one zero-dependency catalog module
+// directly (qdrant-cloud-models.js — pure catalog data, safe to bundle
+// into the browser; never qdrant-cloud-catalog.js/qdrant-cloud-tokenizer.js,
+// which pull in Node-only fs/fetch and correctly stay under src/cloud/) —
+// this repo-relative reader mirrors readUiSource() for that file.
+// Phase 8B Step 6 code review fix: qdrant-cloud-models.js is genuinely
+// neutral catalog/metadata data (zero dependencies) and was moved BACK to
+// src/core/embedding-profile/ — a real `shared -> cloud implementation`
+// import would defeat the whole point of the cloud-boundary task, so this
+// helper reads from src/core/, not src/cloud/.
 const CORE_SRC_DIR = fileURLToPath(new URL('../../../src/core/', import.meta.url));
-export function readCoreSource(relativePath) {
+export function readCloudSource(relativePath) {
   return readFileSync(CORE_SRC_DIR + relativePath, 'utf-8');
 }
 
@@ -923,7 +928,7 @@ function getGlobalSettingsScript() {
       + stripImports(readUiSource('icons.js'))
       + stripImports(readUiSource('routes.js'))
       + stripImports(readUiSource('sidebar.js'))
-      + stripImports(readCoreSource('embedding-profile/qdrant-cloud-models.js'))
+      + stripImports(readCloudSource('embedding-profile/qdrant-cloud-models.js'))
       // global-settings-view.js's own source imports findDenseModel aliased
       // as findQdrantCloudDenseModel — the real import statement (stripped
       // above) is what does that aliasing in production; re-bind it here so
@@ -947,11 +952,11 @@ function getGlobalSettingsScript() {
       // genuinely separate; this harness has no module loader, so it must
       // separate them by renaming instead.
       + stripImports(readUiSource('local-features.js')).replace(
-        /\b(onnxProbePanel|wireOnnxProbePanel|categoryNeedsOllamaModels|refreshOllamaModels)\b/g,
+        /\b(onnxProbePanel|wireOnnxProbePanel|categoryNeedsOllamaModels|refreshOllamaModels|categoryNeedsManagedRuntimes|refreshManagedRuntimes)\b/g,
         '__lf_$1',
       )
       + stripImports(readUiSource('global-settings-view.js'))
-      + '\nsetLocalSettingsCapabilities({ onnxProbePanel: __lf_onnxProbePanel, wireOnnxProbePanel: __lf_wireOnnxProbePanel, categoryNeedsOllamaModels: __lf_categoryNeedsOllamaModels, refreshOllamaModels: __lf_refreshOllamaModels });\n';
+      + '\nsetLocalSettingsCapabilities({ onnxProbePanel: __lf_onnxProbePanel, wireOnnxProbePanel: __lf_wireOnnxProbePanel, categoryNeedsOllamaModels: __lf_categoryNeedsOllamaModels, refreshOllamaModels: __lf_refreshOllamaModels, categoryNeedsManagedRuntimes: __lf_categoryNeedsManagedRuntimes, refreshManagedRuntimes: __lf_refreshManagedRuntimes });\n';
     cachedGlobalSettingsScript = new vm.Script(src, { filename: 'global-settings-view-bundle.js' });
   }
   return cachedGlobalSettingsScript;

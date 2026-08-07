@@ -50,12 +50,30 @@ function onnxRuntimeNodePathEntry(overrides = {}) {
   });
 }
 
+function onnxManagedRuntimeEntry(overrides = {}) {
+  return makeEntry({
+    key: 'ONNX_MANAGED_RUNTIME', category: 'embeddings', type: 'string', advanced: true,
+    configuredValue: '', activeValue: '', allowEmpty: true,
+    visibleWhen: [
+      { key: 'EMBEDDING_BACKEND', equals: 'bge-m3-onnx' },
+      { key: 'ONNX_EXECUTION_PROVIDER', equals: 'cuda' },
+    ],
+    dynamicOptions: { source: 'managed_onnx_runtimes' },
+    appliesAt: 'next_restart',
+    ...overrides,
+  });
+}
+
 function baseEntries(overrides = {}) {
   return [
     embeddingBackendEntry(overrides.backend),
     onnxExecutionProviderEntry(overrides.provider),
     onnxRuntimeNodePathEntry(overrides.runtimePath),
   ];
+}
+
+function baseEntriesWithManaged(overrides = {}) {
+  return [...baseEntries(overrides), onnxManagedRuntimeEntry(overrides.managedRuntime)];
 }
 
 // loadGlobalSettingsHelpers() exposes renderGlobalSettingsView on its
@@ -366,5 +384,353 @@ describe('ONNX hardware status panel', () => {
     await new Promise((resolve) => setImmediate(resolve));
 
     assert.equal(panel.querySelector('.gs-onnx-staged-path-notice').hidden, true);
+  });
+});
+
+// CUDA guided-setup diagnosis — result.diagnosis (added by
+// src/admin/api/onnx.js only for a failed CUDA probe, from real
+// nvidia-smi/CUDA_PATH/cuDNN system checks server-side). Renders into the
+// .gs-onnx-diagnosis block inside .gs-onnx-result. Every apiPostImpl stub
+// here plays the role of that server response — never a real probe/spawn.
+describe('ONNX hardware status panel — CUDA guided-setup diagnosis', () => {
+  it('a diagnosis object renders details plus one <li> per nextSteps entry, and unhides the block', async () => {
+    const { document } = await renderCategory(
+      baseEntries({ provider: { configuredValue: 'cuda', activeValue: 'cuda' } }),
+      { apiPostImpl: async () => ({
+        ok: false, requestedProvider: 'cuda', effectiveProvider: null, fellBackToCpu: false,
+        runtimeSource: 'npm', runtimeVersion: '1.24.3', modelCached: true,
+        restartRequired: false, message: 'no available backend found. ERR: [cuda] backend not found.',
+        diagnosis: {
+          reason: 'no_custom_build',
+          details: 'GPU, driver, CUDA Toolkit, and cuDNN are all present, but the currently loaded onnxruntime-node is the default npm package.',
+          nextSteps: ['Set ONNXRUNTIME_NODE_PATH to a compatible custom build.', 'See: docs/en/configuration.md'],
+        },
+      }) },
+    );
+    const panel = document.querySelector('.gs-onnx-probe-panel');
+    panel.querySelector('.gs-onnx-test-button').dispatchEvent(new Event('click'));
+    await new Promise((resolve) => setImmediate(resolve));
+    await new Promise((resolve) => setImmediate(resolve));
+
+    const diagBlock = panel.querySelector('.gs-onnx-diagnosis');
+    assert.equal(diagBlock.hidden, false);
+    assert.match(diagBlock.querySelector('.gs-onnx-diagnosis-details').textContent, /default npm package/);
+    const steps = [...diagBlock.querySelectorAll('.gs-onnx-diagnosis-steps li')].map((li) => li.textContent);
+    assert.deepEqual(steps, [
+      'Set ONNXRUNTIME_NODE_PATH to a compatible custom build.',
+      'See: docs/en/configuration.md',
+    ]);
+  });
+
+  it('diagnosis: null (a successful CUDA probe, or an older cached shape) keeps the block hidden', async () => {
+    const { document } = await renderCategory(
+      baseEntries({ provider: { configuredValue: 'cuda', activeValue: 'cuda' } }),
+      { apiPostImpl: async () => ({
+        ok: true, requestedProvider: 'cuda', effectiveProvider: 'cuda', fellBackToCpu: false,
+        runtimeSource: 'custom', runtimeVersion: '1.26.0', modelCached: true,
+        restartRequired: false, message: 'CUDA session created successfully', diagnosis: null,
+      }) },
+    );
+    const panel = document.querySelector('.gs-onnx-probe-panel');
+    panel.querySelector('.gs-onnx-test-button').dispatchEvent(new Event('click'));
+    await new Promise((resolve) => setImmediate(resolve));
+    await new Promise((resolve) => setImmediate(resolve));
+
+    assert.equal(panel.querySelector('.gs-onnx-diagnosis').hidden, true);
+  });
+
+  it('a response with the diagnosis key entirely absent (older cached shape) is treated identically to null — block stays hidden, no crash', async () => {
+    const { document } = await renderCategory(
+      baseEntries({ provider: { configuredValue: 'cuda', activeValue: 'cuda' } }),
+      { apiPostImpl: async () => ({
+        ok: true, requestedProvider: 'cuda', effectiveProvider: 'cuda', fellBackToCpu: false,
+        runtimeSource: 'custom', runtimeVersion: '1.26.0', modelCached: true,
+        restartRequired: false, message: 'CUDA session created successfully',
+        // no `diagnosis` key at all
+      }) },
+    );
+    const panel = document.querySelector('.gs-onnx-probe-panel');
+    panel.querySelector('.gs-onnx-test-button').dispatchEvent(new Event('click'));
+    await new Promise((resolve) => setImmediate(resolve));
+    await new Promise((resolve) => setImmediate(resolve));
+
+    assert.equal(panel.querySelector('.gs-onnx-diagnosis').hidden, true);
+  });
+
+  it('reason: "unknown" with an empty nextSteps array renders details but zero <li> elements — never fabricated advice', async () => {
+    const { document } = await renderCategory(
+      baseEntries({ provider: { configuredValue: 'cuda', activeValue: 'cuda' } }),
+      { apiPostImpl: async () => ({
+        ok: false, requestedProvider: 'cuda', effectiveProvider: null, fellBackToCpu: false,
+        runtimeSource: 'custom', runtimeVersion: '1.26.0', modelCached: true,
+        restartRequired: false, message: 'unrecognized ORT failure',
+        diagnosis: { reason: 'unknown', details: 'Everything checked out but the session still failed.', nextSteps: [] },
+      }) },
+    );
+    const panel = document.querySelector('.gs-onnx-probe-panel');
+    panel.querySelector('.gs-onnx-test-button').dispatchEvent(new Event('click'));
+    await new Promise((resolve) => setImmediate(resolve));
+    await new Promise((resolve) => setImmediate(resolve));
+
+    const diagBlock = panel.querySelector('.gs-onnx-diagnosis');
+    assert.equal(diagBlock.hidden, false);
+    assert.equal(diagBlock.querySelector('.gs-onnx-diagnosis-details').textContent, 'Everything checked out but the session still failed.');
+    assert.equal(diagBlock.querySelectorAll('.gs-onnx-diagnosis-steps li').length, 0);
+  });
+
+  it('a network/transport failure hides the diagnosis block, even after a prior successful click left it visible', async () => {
+    let callCount = 0;
+    const { document } = await renderCategory(
+      baseEntries({ provider: { configuredValue: 'cuda', activeValue: 'cuda' } }),
+      { apiPostImpl: async () => {
+        callCount += 1;
+        if (callCount === 1) {
+          return {
+            ok: false, requestedProvider: 'cuda', effectiveProvider: null, fellBackToCpu: false,
+            runtimeSource: 'npm', runtimeVersion: '1.24.3', modelCached: true,
+            restartRequired: false, message: 'no available backend found. ERR: [cuda] backend not found.',
+            diagnosis: { reason: 'no_custom_build', details: 'npm build in use.', nextSteps: ['Set ONNXRUNTIME_NODE_PATH.'] },
+          };
+        }
+        throw new Error('network error');
+      } },
+    );
+    const panel = document.querySelector('.gs-onnx-probe-panel');
+    const button = panel.querySelector('.gs-onnx-test-button');
+
+    button.dispatchEvent(new Event('click'));
+    await new Promise((resolve) => setImmediate(resolve));
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(panel.querySelector('.gs-onnx-diagnosis').hidden, false, 'test setup: diagnosis must be visible after the first (successful-shape) click');
+
+    button.dispatchEvent(new Event('click'));
+    await new Promise((resolve) => setImmediate(resolve));
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(panel.querySelector('.gs-onnx-diagnosis').hidden, true, 'a later network error must hide a stale diagnosis from a prior click, not leave it lingering');
+  });
+});
+
+describe('ONNX_MANAGED_RUNTIME dropdown', () => {
+  async function renderCategoryWithManagedFetch(entries, { runtimes = [], apiResponses = {}, ...opts } = {}) {
+    const ctx = loadGlobalSettingsHelpers({
+      apiResponses: {
+        '/api/settings': settingsPayload(entries),
+        '/api/system/onnx-managed-runtimes': { runtimes },
+        ...apiResponses,
+      },
+      ...opts,
+    });
+    await ctx.renderGlobalSettingsView(ctx.document.getElementById('main'), 'embeddings');
+    ctx.document.querySelector('.gs-advanced')?.setAttribute('open', '');
+    // renderCategoryContent's managed-runtimes refresh resolves and
+    // re-renders asynchronously — wait a tick before asserting on the DOM.
+    await new Promise((resolve) => setImmediate(resolve));
+    await new Promise((resolve) => setImmediate(resolve));
+    return ctx;
+  }
+
+  it('renders a <select>, not a bare text field, for ONNX_MANAGED_RUNTIME', async () => {
+    const { document } = await renderCategoryWithManagedFetch(
+      baseEntriesWithManaged({ provider: { configuredValue: 'cuda', activeValue: 'cuda' } }),
+    );
+    const select = document.querySelector('[data-field="ONNX_MANAGED_RUNTIME"] select[data-key="ONNX_MANAGED_RUNTIME"]');
+    assert.ok(select, 'expected a <select> control for ONNX_MANAGED_RUNTIME');
+  });
+
+  it('lists one option per installed runtime, labeled with ORT/CUDA version and verification status', async () => {
+    const { document } = await renderCategoryWithManagedFetch(
+      baseEntriesWithManaged({ provider: { configuredValue: 'cuda', activeValue: 'cuda' } }),
+      { runtimes: [
+        { id: '1.26.0-cuda13', ortVersion: '1.26.0', cudaMajor: '13', verification: { status: 'verified', verifiedAt: '2026-08-07T00:00:00.000Z', effectiveProvider: 'cuda' } },
+        { id: '1.27.0-cuda13', ortVersion: '1.27.0', cudaMajor: '13', verification: { status: 'unverified', verifiedAt: null, effectiveProvider: null } },
+      ] },
+    );
+    const select = document.querySelector('select[data-key="ONNX_MANAGED_RUNTIME"]');
+    const optionTexts = [...select.querySelectorAll('option')].map((o) => o.textContent);
+    assert.ok(optionTexts.some((t) => t.includes('1.26.0') && t.includes('CUDA 13') && t.includes('verified')));
+    assert.ok(optionTexts.some((t) => t.includes('1.27.0') && t.includes('unverified')));
+  });
+
+  it('a saved selection that no longer resolves in the fetched list is preserved as a distinct "(not installed)" option, never silently dropped', async () => {
+    const { document } = await renderCategoryWithManagedFetch(
+      baseEntriesWithManaged({
+        provider: { configuredValue: 'cuda', activeValue: 'cuda' },
+        managedRuntime: { configuredValue: '9.9.9-cuda99', activeValue: '9.9.9-cuda99' },
+      }),
+      { runtimes: [] },
+    );
+    const select = document.querySelector('select[data-key="ONNX_MANAGED_RUNTIME"]');
+    const selected = select.querySelector('option[selected]');
+    assert.ok(selected);
+    assert.match(selected.textContent, /9\.9\.9-cuda99.*not installed/);
+  });
+
+  it('defaults to the "(none — use default npm package)" option when no selection is configured', async () => {
+    const { document } = await renderCategoryWithManagedFetch(
+      baseEntriesWithManaged({ provider: { configuredValue: 'cuda', activeValue: 'cuda' } }),
+      { runtimes: [{ id: '1.26.0-cuda13', ortVersion: '1.26.0', cudaMajor: '13', verification: { status: 'verified', verifiedAt: null, effectiveProvider: 'cuda' } }] },
+    );
+    const select = document.querySelector('select[data-key="ONNX_MANAGED_RUNTIME"]');
+    const selected = select.querySelector('option[selected]');
+    assert.equal(selected.getAttribute('value'), '');
+  });
+
+  it('a non-empty ONNXRUNTIME_NODE_PATH (explicit path) disables the managed-runtime select AND shows the exact required override note', async () => {
+    const { document } = await renderCategoryWithManagedFetch(
+      baseEntriesWithManaged({
+        provider: { configuredValue: 'cuda', activeValue: 'cuda' },
+        runtimePath: { configuredValue: 'D:\\custom\\onnxruntime-node', activeValue: 'D:\\custom\\onnxruntime-node' },
+      }),
+      { runtimes: [] },
+    );
+    const select = document.querySelector('select[data-key="ONNX_MANAGED_RUNTIME"]');
+    assert.equal(select.disabled, true);
+    const mount = select.closest('.gs-field-control-mount');
+    const note = [...mount.querySelectorAll('.gs-field-source')].find((el) => el.textContent === 'Custom runtime path overrides the managed runtime selection.');
+    assert.ok(note, 'expected the exact required override note text');
+  });
+
+  it('an EMPTY ONNXRUNTIME_NODE_PATH leaves the managed-runtime select enabled, with no override note', async () => {
+    const { document } = await renderCategoryWithManagedFetch(
+      baseEntriesWithManaged({ provider: { configuredValue: 'cuda', activeValue: 'cuda' } }),
+      { runtimes: [] },
+    );
+    const select = document.querySelector('select[data-key="ONNX_MANAGED_RUNTIME"]');
+    assert.equal(select.disabled, false);
+    const mount = select.closest('.gs-field-control-mount');
+    const note = [...mount.querySelectorAll('.gs-field-source')].find((el) => el.textContent === 'Custom runtime path overrides the managed runtime selection.');
+    assert.equal(note, undefined);
+  });
+
+  it('typing into ONNXRUNTIME_NODE_PATH live-disables the managed-runtime select without a full category rebuild', async () => {
+    const { document } = await renderCategoryWithManagedFetch(
+      baseEntriesWithManaged({ provider: { configuredValue: 'cuda', activeValue: 'cuda' } }),
+      { runtimes: [] },
+    );
+    const pathInput = document.querySelector('.gs-path-input[data-key="ONNXRUNTIME_NODE_PATH"]');
+    const select = document.querySelector('select[data-key="ONNX_MANAGED_RUNTIME"]');
+    assert.equal(select.disabled, false);
+
+    pathInput.value = 'D:\\typed\\path';
+    pathInput.dispatchEvent(new Event('input'));
+    assert.equal(select.disabled, true, 'the managed-runtime select must react live to typing, not just at render time');
+
+    pathInput.value = '';
+    pathInput.dispatchEvent(new Event('input'));
+    assert.equal(select.disabled, false, 'clearing the explicit path must re-enable the managed-runtime select');
+  });
+
+  it('a category with no ONNX_MANAGED_RUNTIME field never fetches /api/system/onnx-managed-runtimes', async () => {
+    const ctx = loadGlobalSettingsHelpers({
+      apiResponses: {
+        '/api/settings': settingsPayload(baseEntries({ provider: { configuredValue: 'cuda', activeValue: 'cuda' } })),
+      },
+    });
+    await ctx.renderGlobalSettingsView(ctx.document.getElementById('main'), 'embeddings');
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.ok(!ctx.__apiCalls.includes('/api/system/onnx-managed-runtimes'));
+  });
+});
+
+describe('ONNX hardware status panel — managedRuntimeManifest field', () => {
+  it('a probe result with managedRuntimeManifest renders the ORT/CUDA version and verification status', async () => {
+    const { document } = await renderCategory(
+      baseEntries({ provider: { configuredValue: 'cuda', activeValue: 'cuda' } }),
+      { apiPostImpl: async () => ({
+        ok: true, requestedProvider: 'cuda', effectiveProvider: 'cuda', fellBackToCpu: false,
+        runtimeSource: 'managed', runtimeVersion: '1.26.0', modelCached: true,
+        restartRequired: false, message: 'CUDA session created successfully',
+        managedRuntimeManifest: { ortVersion: '1.26.0', cudaMajor: '13', verification: { status: 'verified', verifiedAt: '2026-08-07T00:00:00.000Z', effectiveProvider: 'cuda' } },
+      }) },
+    );
+    const panel = document.querySelector('.gs-onnx-probe-panel');
+    panel.querySelector('.gs-onnx-test-button').dispatchEvent(new Event('click'));
+    await new Promise((resolve) => setImmediate(resolve));
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(panel.querySelector('.gs-onnx-managed-runtime').textContent, 'ORT 1.26.0 / CUDA 13 (verified)');
+  });
+
+  it('a probe result with managedRuntimeManifest: null renders "—", never a stale value from a prior click', async () => {
+    let callCount = 0;
+    const { document } = await renderCategory(
+      baseEntries({ provider: { configuredValue: 'cuda', activeValue: 'cuda' } }),
+      { apiPostImpl: async () => {
+        callCount += 1;
+        if (callCount === 1) {
+          return {
+            ok: true, requestedProvider: 'cuda', effectiveProvider: 'cuda', fellBackToCpu: false,
+            runtimeSource: 'managed', runtimeVersion: '1.26.0', modelCached: true, message: 'ok',
+            managedRuntimeManifest: { ortVersion: '1.26.0', cudaMajor: '13', verification: { status: 'verified', verifiedAt: null, effectiveProvider: 'cuda' } },
+          };
+        }
+        return {
+          ok: true, requestedProvider: 'cuda', effectiveProvider: 'cuda', fellBackToCpu: false,
+          runtimeSource: 'custom', runtimeVersion: '1.26.0', modelCached: true, message: 'ok',
+          managedRuntimeManifest: null,
+        };
+      } },
+    );
+    const panel = document.querySelector('.gs-onnx-probe-panel');
+    const button = panel.querySelector('.gs-onnx-test-button');
+    button.dispatchEvent(new Event('click'));
+    await new Promise((resolve) => setImmediate(resolve));
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.notEqual(panel.querySelector('.gs-onnx-managed-runtime').textContent, '—');
+
+    button.dispatchEvent(new Event('click'));
+    await new Promise((resolve) => setImmediate(resolve));
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(panel.querySelector('.gs-onnx-managed-runtime').textContent, '—');
+  });
+
+  it('starts as "—" before any probe has run', async () => {
+    const { document } = await renderCategory(baseEntries({ provider: { configuredValue: 'cuda', activeValue: 'cuda' } }));
+    const panel = document.querySelector('.gs-onnx-probe-panel');
+    assert.equal(panel.querySelector('.gs-onnx-managed-runtime').textContent, '—');
+  });
+
+  it('a network/transport failure resets .gs-onnx-managed-runtime to "—"', async () => {
+    const { document } = await renderCategory(
+      baseEntries({ provider: { configuredValue: 'cuda', activeValue: 'cuda' } }),
+      { apiPostImpl: async () => { throw new Error('network error'); } },
+    );
+    const panel = document.querySelector('.gs-onnx-probe-panel');
+    panel.querySelector('.gs-onnx-test-button').dispatchEvent(new Event('click'));
+    await new Promise((resolve) => setImmediate(resolve));
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(panel.querySelector('.gs-onnx-managed-runtime').textContent, '—');
+  });
+
+  it('sends managedRuntimeId from the live <select> value at click time (staged, not a stale snapshot)', async () => {
+    const calls = [];
+    const ctx = loadGlobalSettingsHelpers({
+      apiResponses: {
+        '/api/settings': settingsPayload(baseEntriesWithManaged({ provider: { configuredValue: 'cuda', activeValue: 'cuda' } })),
+        '/api/system/onnx-managed-runtimes': { runtimes: [
+          { id: '1.26.0-cuda13', ortVersion: '1.26.0', cudaMajor: '13', verification: { status: 'verified', verifiedAt: null, effectiveProvider: 'cuda' } },
+        ] },
+      },
+      apiPostImpl: async (url, body) => {
+        calls.push({ url, managedRuntimeId: body?.managedRuntimeId });
+        return {
+          ok: true, requestedProvider: 'cuda', effectiveProvider: 'cuda', fellBackToCpu: false,
+          runtimeSource: 'managed', runtimeVersion: '1.26.0', modelCached: true, message: 'ok',
+          managedRuntimeManifest: null,
+        };
+      },
+    });
+    await ctx.renderGlobalSettingsView(ctx.document.getElementById('main'), 'embeddings');
+    ctx.document.querySelector('.gs-advanced')?.setAttribute('open', '');
+    await new Promise((resolve) => setImmediate(resolve));
+    await new Promise((resolve) => setImmediate(resolve));
+
+    const select = ctx.document.querySelector('select[data-key="ONNX_MANAGED_RUNTIME"]');
+    select.querySelector('option[value="1.26.0-cuda13"]').selected = true;
+    const panel = ctx.document.querySelector('.gs-onnx-probe-panel');
+    panel.querySelector('.gs-onnx-test-button').dispatchEvent(new Event('click'));
+    await new Promise((resolve) => setImmediate(resolve));
+    await new Promise((resolve) => setImmediate(resolve));
+
+    assert.deepEqual(calls, [{ url: '/api/system/onnx-probe', managedRuntimeId: '1.26.0-cuda13' }]);
   });
 });

@@ -167,7 +167,10 @@ describe('run.js — setIndexingState() is called after a successful run (P2 fix
     // Topology-aware (code review, P2): indexingSchemaVersion picks between
     // the two topology-specific constants based on whether this collection's
     // profile requires a token budget, never a single hardcoded constant.
-    assert.match(precedingBlock, /indexingSchemaVersion:\s*resolveEmbeddingBudget\(EMBEDDING_PROFILE\)\s*!==\s*null\s*\r?\n?\s*\?\s*INDEXING_SCHEMA_VERSION_PROFILE_BUDGET\s*:\s*INDEXING_SCHEMA_VERSION_BASE/);
+    // Code review fix (Phase 8B Step 6): resolveEmbeddingBudget is now
+    // reached via the injected ctx.cloudEmbed capability, not a direct
+    // module-level import of the concrete cloud implementation.
+    assert.match(precedingBlock, /indexingSchemaVersion:\s*ctx\.cloudEmbed\.resolveEmbeddingBudget\(EMBEDDING_PROFILE\)\s*!==\s*null\s*\r?\n?\s*\?\s*INDEXING_SCHEMA_VERSION_PROFILE_BUDGET\s*:\s*INDEXING_SCHEMA_VERSION_BASE/);
     assert.match(precedingBlock, /chunkingSchemaVersion:\s*CHUNKING_SCHEMA_VERSION/);
   });
 

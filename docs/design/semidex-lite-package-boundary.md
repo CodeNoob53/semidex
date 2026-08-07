@@ -28,9 +28,11 @@ build time if it's ever actually reachable.**
 and never touches an inference runtime. Semidex uses it in two places, both
 kept in Lite:
 
-- `core/embedding-profile/qdrant-cloud-tokenizer.js` — validates a text
-  chunk fits inside the target Qdrant Cloud Inference model's input budget
-  before sending it (`checkEmbedInputFits`).
+- `cloud/embedding/qdrant-cloud-tokenizer.js` (Phase 8B Step 6 — physically
+  relocated from `core/embedding-profile/`, see that step's own update
+  below) — validates a text chunk fits inside the target Qdrant Cloud
+  Inference model's input budget before sending it (`checkEmbedInputFits`,
+  `cloud/embedding/qdrant-cloud-catalog.js`).
 - `core/bge-tokenizer.js` (via `core/token-count.js`) — the default
   `TOKEN_COUNT=bge-m3` real-tokenizer chunk-sizing mode. Verified during
   this work to have **zero** dependency on `onnx-embed.js` or
@@ -267,6 +269,54 @@ without contaminating this capability lane. Re-verified live against the
 real cached model: real indexing, real hybrid search, real
 `session.release()` on shutdown, against a disposable Qdrant collection,
 deleted after.
+
+**Phase 8B Step 6 update** (`docs/design/phase-8b-step6-cloud-runtime-relocation-2026-08-06.md`,
+implemented): a different kind of move from Steps 2-5 above — those
+physically relocated LOCAL-only runtime code (excluded from Lite); this
+step physically relocated the seven CLOUD-only provider implementations
+(Qdrant Cloud Inference, Gemini) into one top-level `src/cloud/` boundary,
+per the original migration plan's own Step 5
+(`phase-8a-shared-cloud-local-migration-audit-2026-08-02.md` §7). Moved,
+via `git mv`: `core/embedding-profile/qdrant-cloud-{catalog,models,tokenizer}.js`
+→ `cloud/embedding/qdrant-cloud-{catalog,models,tokenizer}.js`;
+`core/generation/gemini-provider.js` → `cloud/generation/gemini-provider.js`;
+`core/gemini-models.js` → `cloud/generation/gemini-models.js`;
+`admin/api/qdrant-cloud.js` → `cloud/admin/qdrant-cloud-api.js`;
+`admin/system/qdrant-cloud.js` → `cloud/admin/qdrant-cloud-system.js` (the
+last two renamed, not just relocated, to avoid a same-name collision once
+both siblings share one directory). Because Semidex Lite is cloud-only by
+design, this is NOT an exclusion move the way Steps 2-4 were — all seven
+files must continue shipping in the Lite tarball, at their new path, and
+do: `packages/lite/build.mjs`'s directory walk picks up `src/cloud/`
+automatically (it stages every file not explicitly excluded), so this
+step required zero `EXCLUDE_DIRS`/`EXCLUDE_FILES` changes at all — the
+117-staged-file count is unchanged, and both admin UI builds are
+byte-identical to their pre-move hashes. No `*-lazy.js` shim was
+introduced (the task's own explicit constraint) — every one of the
+fourteen real production importers (`core/embeddings.js`,
+`core/retrieval/search.js`, `core/embedding-profile/{resolve,availability}.js`,
+`core/token-count.js`, `core/config.js`, `core/settings/definitions.js`,
+`core/generation/registry.js`, `indexer/run.js`,
+`admin/register-neutral-routes.js`, `admin/api/generation-models.js`,
+`admin/ui-src/global-settings-view.js`, plus the two moved files'
+own internal cross-references and `packages/lite/lite-src/doctor-lite.js`'s
+cross-package imports) now imports the real file directly at its new
+`src/cloud/` path, in both Full and Lite composition identically —
+mirroring how these files were already imported directly, unconditionally,
+before the move (cloud capabilities never needed Steps 2-4's own
+Full/Lite-unavailable-stub pattern, since Lite always needs the real
+implementation, never a disabled one).
+`node scripts/audit/find-dependency-violations.mjs` reports the exact
+same baseline after the move as before it — `0` dependency-direction
+violations, `0` shared→cloud edges (the manifest's own iterative
+`mixed`-propagation pass, driven by `core/token-count.js`'s own
+dual local/cloud tokenizer role, already absorbs what an earlier design
+note called "12 shared→cloud edges" into `mixed`-classified orchestration
+files well before this step — this step's own move changed which PATH
+those edges point at, not their count or classification). Verified via a
+real, un-mocked `npm pack` clean-install acceptance run (read-only
+installed package directory): `doctor` and `serve` both start and
+correctly reach the relocated Qdrant Cloud/Gemini code paths.
 
 ## Refactor 2 — deterministic context for legacy (non-Markdown) chunks
 

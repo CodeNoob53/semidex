@@ -144,6 +144,7 @@ export const LITE_SETTINGS_POLICY = Object.freeze({
   ONNX_BATCH_SIZE: excluded(LOCAL_RUNTIME),
   ONNX_CUDA_STRICT: excluded(LOCAL_RUNTIME),
   ONNXRUNTIME_NODE_PATH: excluded(LOCAL_RUNTIME),
+  ONNX_MANAGED_RUNTIME: excluded(LOCAL_RUNTIME),
   // Cloud-native display rows (tokenizer identity/context window derived
   // from the selected Qdrant Cloud dense model) — NOT local-runtime- or
   // local-model-coupled, but not yet part of Lite's Settings API surface

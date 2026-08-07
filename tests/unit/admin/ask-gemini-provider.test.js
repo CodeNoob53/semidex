@@ -12,7 +12,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { createApp } from '../../../src/admin/server-full.js';
 import { createAskCoordinator } from '../../../src/core/ask/coordinator.js';
-import { createGeminiProvider } from '../../../src/core/generation/gemini-provider.js';
+import { createGeminiProvider } from '../../../src/cloud/generation/gemini-provider.js';
 import { createOllamaProvider } from '../../../src/core/generation/ollama-provider.js';
 import { ASK_PATH } from '../../../src/core/ask-api/v1/contract.js';
 

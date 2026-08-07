@@ -66,6 +66,13 @@ const EXCLUDE_FILES = [
   // after the onnx-embed-lazy.js edge cut (core/embeddings.js).
   'core/ce-rerank.js',
   'core/ce-rerank-worker.js',
+  // core/rerank-provider.js (code review, Phase 8B Step 6 second pass, P1
+  // fix): the one real RerankCapability factory — imports ce-rerank.js
+  // directly. Its only real consumer is mcp/server.js (already excluded
+  // above, 'mcp' — Lite ships no MCP server), so it would otherwise be a
+  // dangling static import onto an excluded file, exactly the closure
+  // violation class this validator exists to catch.
+  'core/rerank-provider.js',
   // Local ONNX TAG GENERATION runtime (tag-onnx.js, tag-onnx-worker.js) is
   // no longer listed here individually either — Phase 8B Step 4 physically
   // relocated both to local/indexer/phases/ and local/indexer/workers/, so
@@ -728,7 +735,7 @@ function checkUiAssets(uiDir = join(STAGED_DIST, 'admin-ui')) {
   const FORBIDDEN_MARKERS = [
     // Local-only setting keys (concrete field names, not shared
     // visibleWhen/dynamicOptions infrastructure).
-    'ONNX_EXECUTION_PROVIDER', 'ONNXRUNTIME_NODE_PATH', 'OLLAMA_URL', 'GENERATION_DEVICE',
+    'ONNX_EXECUTION_PROVIDER', 'ONNXRUNTIME_NODE_PATH', 'ONNX_MANAGED_RUNTIME', 'OLLAMA_URL', 'GENERATION_DEVICE',
     'ONNX_BATCH_SIZE', 'ONNX_CUDA_STRICT', 'TAG_ONNX_MODEL', 'TAG_ONNX_THREADS', 'TAG_ONNX_ALLOW_DOWNLOAD',
     // Local-only HTML template ids.
     'tpl-gs-onnx-probe-panel',
@@ -737,6 +744,7 @@ function checkUiAssets(uiDir = join(STAGED_DIST, 'admin-ui')) {
     // createLiteApp() never registers (a 404 at runtime, but proof the
     // dead-code path was not actually eliminated).
     '/api/system/onnx-probe', '/api/ollama-models', '/api/system/ollama-status',
+    '/api/system/onnx-managed-runtimes',
   ];
   const files = listAllFiles(uiDir).filter((f) => /\.(html|js|css)$/.test(f));
   if (files.length === 0) {

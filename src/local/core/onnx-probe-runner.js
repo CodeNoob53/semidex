@@ -8,10 +8,17 @@
 // Reads its single configuration from environment variables (set by the
 // parent via `env` passed to child_process.spawn — never CLI args, so
 // nothing sensitive is visible in a process listing):
-//   ONNX_PROBE_PROVIDER      — the ONNX execution provider to test ('cpu' | 'dml' | 'cuda')
-//   ONNXRUNTIME_NODE_PATH    — (optional) custom onnxruntime-node build path,
-//                              read the exact same way local/core/onnx-runtime.js's
-//                              resolveOnnxRuntimeModule() does
+//   ONNX_PROBE_PROVIDER          — the ONNX execution provider to test ('cpu' | 'dml' | 'cuda')
+//   ONNXRUNTIME_NODE_PATH        — (optional) custom or managed onnxruntime-node build path,
+//                                  read the exact same way local/core/onnx-runtime.js's
+//                                  resolveOnnxRuntimeModule() does
+//   ONNX_MANAGED_RUNTIME_ACTIVE  — (optional) set by src/local/core/
+//                                  onnx-runtime-source-resolution.js's
+//                                  applyOnnxRuntimeEnvPatch() ONLY when
+//                                  ONNXRUNTIME_NODE_PATH came from a
+//                                  managed selection, never a hand-typed
+//                                  custom path — distinguishes
+//                                  runtimeSource 'managed' from 'custom'.
 //
 // Writes exactly ONE line of JSON to stdout on completion (success or
 // failure) and exits 0. A non-JSON stdout line, a non-zero exit, or no
@@ -46,9 +53,14 @@ function readRuntimeVersion(env) {
   }
 }
 
+function computeRuntimeSource(env) {
+  if (!env.ONNXRUNTIME_NODE_PATH?.trim()) return 'npm';
+  return env.ONNX_MANAGED_RUNTIME_ACTIVE?.trim() ? 'managed' : 'custom';
+}
+
 async function main() {
   const requestedProvider = (process.env.ONNX_PROBE_PROVIDER ?? 'cpu').trim().toLowerCase();
-  const runtimeSource = process.env.ONNXRUNTIME_NODE_PATH?.trim() ? 'custom' : 'npm';
+  const runtimeSource = computeRuntimeSource(process.env);
   const runtimeVersion = readRuntimeVersion(process.env);
 
   const modelPath = getOnnxModelPath();
@@ -134,7 +146,7 @@ main().catch((err) => {
     requestedProvider: (process.env.ONNX_PROBE_PROVIDER ?? 'cpu').trim().toLowerCase(),
     effectiveProvider: null,
     fellBackToCpu: false,
-    runtimeSource: process.env.ONNXRUNTIME_NODE_PATH?.trim() ? 'custom' : 'npm',
+    runtimeSource: computeRuntimeSource(process.env),
     runtimeVersion: null,
     modelCached: null,
     message: `probe runner crashed: ${oneLine(err)}`,

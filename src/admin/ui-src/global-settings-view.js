@@ -238,6 +238,14 @@ let lastOllamaModels = null;
 let lastGenerationModels = null;
 let lastGenerationModelsBackend = null;
 
+// Same lifecycle as lastOllamaModels — populated only when the resolved
+// category contains ONNX_MANAGED_RUNTIME, from GET
+// /api/system/onnx-managed-runtimes. null before the first fetch;
+// { runtimes: [...] } afterward — see local/core/managed-runtime-listing.js
+// for the shape. Display-only, matching that module's own contract: never
+// used to decide what actually loads, only what the dropdown shows.
+let lastManagedRuntimes = null;
+
 // Monotonic request token guarding against async races: fast category
 // switching (or navigating away from Settings entirely while a fetch/save
 // is in flight) must never let a stale response repaint over whatever is
@@ -484,6 +492,50 @@ function dynamicOptionsControl(entry, value, disabled, { discovery, backend, una
   return { control: select, extras };
 }
 
+// Builds a <select> for ONNX_MANAGED_RUNTIME — deliberately its OWN
+// function, NOT a routing through dynamicOptionsControl() (per the design
+// review's own requirement: that function is purpose-built around
+// model-capability/backend filtering — forcing a filesystem-scanned
+// runtime list through it would add irrelevant capability/backend
+// parameters for no benefit). One <option> per verified-or-unverified-
+// but-intact managed runtime (label shows version + verification status),
+// a "(not installed)" preserved-value option if the saved selection no
+// longer resolves in the fetched list — never silently dropped.
+//
+// `explicitRuntimePathValue` is the LIVE current value of
+// ONNXRUNTIME_NODE_PATH's own input (read the same way runOnnxProbe()
+// reads it — at render/event time, not a stale snapshot) — whenever it's
+// non-empty, this control renders disabled with the exact required note
+// text, since a managed selection has no effect while an explicit path
+// is set (onnx-runtime-source-resolution.js's own explicit>managed>npm
+// precedence).
+function managedRuntimeSelectControl(entry, value, disabled, { listing, explicitRuntimePathValue }) {
+  const select = templateRoot('tpl-gs-control-select');
+  select.dataset.key = entry.key;
+  const extras = [];
+
+  const runtimes = listing?.runtimes ?? [];
+  const installedIds = new Set(runtimes.map((r) => r.id));
+
+  select.append(selectOption('', '(none — use default npm package)', { selected: !value }));
+  if (value && !installedIds.has(value)) {
+    select.append(selectOption(value, `${value} (not installed)`, { selected: true }));
+  }
+  for (const runtime of runtimes) {
+    const label = `ORT ${runtime.ortVersion} / CUDA ${runtime.cudaMajor} (${runtime.verification.status})`;
+    select.append(selectOption(runtime.id, label, { selected: runtime.id === value }));
+  }
+
+  const explicitPathSet = Boolean(explicitRuntimePathValue);
+  select.disabled = disabled || explicitPathSet;
+  if (explicitPathSet) {
+    const note = templateRoot('tpl-gs-control-note');
+    note.textContent = 'Custom runtime path overrides the managed runtime selection.';
+    extras.push(note);
+  }
+  return { control: select, extras };
+}
+
 function fieldControl(category, entry) {
   const value = currentPendingValue(category, entry);
   const disabled = entry.configuredSource === 'os_env' || entry.configuredSource === 'dotenv';
@@ -515,6 +567,16 @@ function fieldControl(category, entry) {
       unavailableLabel: backend === 'gemini' ? 'Gemini unavailable — models unknown' : 'Ollama unreachable — models unknown',
       unavailableReason: backend === 'gemini' ? 'Gemini models are unknown.' : 'Ollama models are unknown.',
     });
+  } else if (entry.dynamicOptions?.source === 'managed_onnx_runtimes') {
+    // Never hardcodes the sibling explicit-path field's key as a literal
+    // string (that string is Lite-forbidden — see packages/lite/build.mjs's
+    // FORBIDDEN_MARKERS list; a literal local-only setting key must never
+    // appear in this shared file's compiled output). Found generically via
+    // entry.pathPicker, the same registry-declared flag the pathPicker
+    // branch below already uses for the identical reason.
+    const explicitPathEntry = lastFetchedPayload?.settings.find((s) => s.pathPicker);
+    const explicitRuntimePathValue = explicitPathEntry ? currentPendingValue(category, explicitPathEntry) : '';
+    return managedRuntimeSelectControl(entry, value, disabled, { listing: lastManagedRuntimes, explicitRuntimePathValue });
   } else if (entry.pathPicker) {
     // A filesystem-path field with a Browse button wired to the existing
     // POST /api/system/pick-folder endpoint (see wireCategoryEvents()'s
@@ -697,7 +759,7 @@ function wireOnnxProbePanel(container, category) {
 }
 
 // Label/CSS-class lookup for the settings-time 4-status availability
-// classification (admin/system/qdrant-cloud.js's classifyInferenceProbeError()
+// classification (cloud/admin/qdrant-cloud-system.js's classifyInferenceProbeError()
 // — available/unavailable_for_cluster/unsupported_by_semidex/unverified).
 // Mirrors collection-view.js's own availabilityChip() lookup-object
 // pattern, applied to a DIFFERENT status vocabulary: that one describes an
@@ -769,7 +831,7 @@ async function runQdrantCloudProbe(container, btn) {
     const timestamp = new Date().toLocaleTimeString();
     verified.textContent = `${result.status} (${timestamp})`;
     // availability (added alongside the original status/message fields —
-    // see admin/api/qdrant-cloud.js's own comment) is what drives the
+    // see cloud/admin/qdrant-cloud-api.js's own comment) is what drives the
     // badge; the original status/message pair still drives the existing
     // verified-timestamp line and message text unchanged.
     renderAvailabilityBadge(badge, result.availability);
@@ -852,7 +914,8 @@ function wireCategoryEvents(container, category) {
     // enum <select>), so it follows the enum branch below, not the
     // free-text string branch's allowEmpty validation.
     const isDynamicSelect = entry.type === 'string'
-      && (entry.dynamicOptions?.source === 'ollama_models' || entry.dynamicOptions?.source === 'generation_models');
+      && (entry.dynamicOptions?.source === 'ollama_models' || entry.dynamicOptions?.source === 'generation_models'
+        || entry.dynamicOptions?.source === 'managed_onnx_runtimes');
     const handler = () => {
       const beforeVisible = visibleKeySet(category);
       if (entry.type === 'boolean') {
@@ -925,6 +988,37 @@ function wireCategoryEvents(container, category) {
         } else {
           markInvalid(category, key, false);
           stagePending(category, key, raw, entry);
+        }
+        // A pathPicker field's own live value drives the managed-runtime
+        // <select>'s disabled state (explicit>managed precedence) — reacts
+        // on the SAME input/change event, without a full category rebuild,
+        // matching the "don't rebuild the field being edited" constraint.
+        // Never hardcodes either field's key as a literal string — both are
+        // Lite-forbidden markers (see the dynamicOptions branch above's own
+        // comment) — found generically via entry.pathPicker and the sibling
+        // managed-runtime entry's own dynamicOptions.source. A no-op when
+        // this category has neither field.
+        const managedRuntimeEntry = entry.pathPicker
+          ? lastFetchedPayload?.settings.find((s) => s.dynamicOptions?.source === 'managed_onnx_runtimes')
+          : null;
+        if (managedRuntimeEntry) {
+          const managedSelect = container.querySelector(`.gs-field-control[data-key="${managedRuntimeEntry.key}"]`);
+          if (managedSelect) {
+            const explicitPathSet = Boolean(raw);
+            managedSelect.disabled = explicitPathSet;
+            const wrapper = managedSelect.closest('.gs-field-control-mount');
+            let note = wrapper?.querySelector('.gs-managed-runtime-override-note');
+            if (explicitPathSet) {
+              if (!note && wrapper) {
+                note = templateRoot('tpl-gs-control-note');
+                note.classList.add('gs-managed-runtime-override-note');
+                note.textContent = 'Custom runtime path overrides the managed runtime selection.';
+                wrapper.append(note);
+              }
+            } else if (note) {
+              note.remove();
+            }
+          }
         }
       }
       el.toggleAttribute('aria-invalid', Boolean(invalidByCategory.get(category)?.has(key)));
@@ -1144,6 +1238,13 @@ function categoryNeedsGenerationModels(category) {
   );
 }
 
+// Full-only — real implementation in local-features.js. null in Lite (see
+// this file's own header comment on the capability seam).
+function categoryNeedsManagedRuntimes(category) {
+  if (!localCapabilities) return false;
+  return localCapabilities.categoryNeedsManagedRuntimes(category, lastFetchedPayload);
+}
+
 // Fetches /api/ollama-models fresh and re-renders — reused directly by
 // both the initial category render (below) and the "Refresh models"
 // button, so there is exactly one fetch/render path for this data, never
@@ -1184,6 +1285,17 @@ async function refreshGenerationModels(main, category, myGeneration, { forceRefr
   if (content) renderEditableCategory(content, category);
 }
 
+// Fetches GET /api/system/onnx-managed-runtimes fresh and re-renders — same
+// one-fetch-path discipline as refreshOllamaModels() above. Full-only —
+// real implementation in local-features.js; null in Lite.
+async function refreshManagedRuntimes(main, category, myGeneration) {
+  if (!localCapabilities) return;
+  await localCapabilities.refreshManagedRuntimes((listing) => { lastManagedRuntimes = listing; });
+  if (myGeneration !== renderGeneration) return;
+  const content = main.querySelector('#gs-content');
+  if (content) renderEditableCategory(content, category);
+}
+
 // ── Top-level render ─────────────────────────────────────────────────────────
 
 async function renderCategoryContent(main, category, payload, myGeneration) {
@@ -1194,21 +1306,31 @@ async function renderCategoryContent(main, category, payload, myGeneration) {
   }
   if (myGeneration !== renderGeneration) return;
 
-  if (categoryNeedsOllamaModels(category)) {
-    // Render once immediately with whatever's cached (or nothing, on a
-    // fresh page load) so the category isn't blocked on this fetch, then
-    // refresh in the background and re-render when it resolves — mirrors
-    // the status category's own "render skeleton, fill in async" shape.
+  // A category can need more than one of these independently (e.g.
+  // 'embeddings' holds BOTH EMBED_MODEL's ollama_models source AND
+  // ONNX_MANAGED_RUNTIME's managed_onnx_runtimes source — their own
+  // mutually-exclusive visibleWhen conditions mean only one is ever
+  // actually SHOWN at a time, but categoryNeeds*() checks the whole
+  // category's field list, not current visibility, so both can be true
+  // simultaneously). Each need renders once immediately with whatever's
+  // cached (or nothing, on a fresh page load) so the category isn't
+  // blocked on any one fetch, then all needed refreshes run and each
+  // re-renders when it resolves — mirrors the status category's own
+  // "render skeleton, fill in async" shape, just for however many sources
+  // this category actually needs, not assumed to be at most one.
+  const needsOllama = categoryNeedsOllamaModels(category);
+  const needsGeneration = categoryNeedsGenerationModels(category);
+  const needsManagedRuntimes = categoryNeedsManagedRuntimes(category);
+  if (!needsOllama && !needsGeneration && !needsManagedRuntimes) {
     renderEditableCategory(content, category);
-    await refreshOllamaModels(main, category, myGeneration);
-    return;
-  }
-  if (categoryNeedsGenerationModels(category)) {
-    renderEditableCategory(content, category);
-    await refreshGenerationModels(main, category, myGeneration);
     return;
   }
   renderEditableCategory(content, category);
+  const refreshes = [];
+  if (needsOllama) refreshes.push(refreshOllamaModels(main, category, myGeneration));
+  if (needsGeneration) refreshes.push(refreshGenerationModels(main, category, myGeneration));
+  if (needsManagedRuntimes) refreshes.push(refreshManagedRuntimes(main, category, myGeneration));
+  await Promise.all(refreshes);
 }
 
 export async function renderGlobalSettingsView(main, requestedCategory) {

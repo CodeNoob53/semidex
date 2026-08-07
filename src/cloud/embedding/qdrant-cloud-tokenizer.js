@@ -16,7 +16,7 @@ import { existsSync, mkdirSync, createWriteStream, readFileSync, statSync, renam
 import { join } from 'path';
 import { randomBytes } from 'crypto';
 
-import { TOKENIZER_CACHE_DIR } from '../onnx-paths.js';
+import { TOKENIZER_CACHE_DIR } from '../../core/onnx-paths.js';
 
 const HF_BASE = 'https://huggingface.co';
 

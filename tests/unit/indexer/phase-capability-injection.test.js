@@ -39,6 +39,7 @@ import { addContextAndTags } from '../../../src/indexer/phases/combined.js';
 import { resolveRunNumCtx, generateNavSummaries } from '../../../src/indexer/phases/skeleton-summary.js';
 import { checkOllamaPreflight } from '../../../src/indexer/preflight.js';
 import { run, stageB } from '../../../src/indexer/run.js';
+import { createCloudEmbeddingCapability } from '../../../src/cloud/embedding/cloud-embedding-provider.js';
 
 function fakeGenerateCapability(overrides = {}) {
   const base = {};
@@ -365,6 +366,10 @@ describe('indexer/run.js — TWO real concurrent run() calls each clean up only 
       }),
       onnxEmbed: { loadOnnx: async () => {}, loadOnnxBatch: async () => {}, shutdown: async () => {} },
       tagOnnx: fakeTagOnnxCapability(),
+      // cloudEmbed (code review, Phase 8B Step 6): buildRunContext() now
+      // validates a cloudEmbed slot too — the real factory is a pure
+      // constructor (no network I/O until a method is called).
+      cloudEmbed: createCloudEmbeddingCapability(),
       ...overrides,
     };
   }

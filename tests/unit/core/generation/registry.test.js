@@ -3,6 +3,15 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { createGenerationProvider } from '../../../../src/core/generation/registry.js';
 import { validateGenerationProvider } from '../../../../src/core/generation/provider.js';
+import { createCloudGenerationCapability } from '../../../../src/cloud/generation/cloud-generation-provider.js';
+
+// Code review fix (Phase 8B Step 6): registry.js no longer registers
+// 'gemini' by default — a composition root must supply it explicitly via
+// `providers: { gemini: ... }`. These tests use the real cloud capability
+// factory (not a fake) since it's a pure constructor with no network I/O
+// until a provider method is actually called.
+const cloudGeneration = createCloudGenerationCapability();
+const withGemini = { gemini: cloudGeneration.createProvider };
 
 describe('createGenerationProvider', () => {
   test('defaults to the ollama backend', () => {
@@ -11,10 +20,17 @@ describe('createGenerationProvider', () => {
     assert.equal(validateGenerationProvider(provider), true);
   });
 
-  test('selects the gemini backend by name', () => {
-    const provider = createGenerationProvider({ backend: 'gemini', options: { apiKey: 'k', model: 'gemini-2.5-flash' } });
+  test('selects the gemini backend by name when a composition root supplies it via providers', () => {
+    const provider = createGenerationProvider({ backend: 'gemini', options: { apiKey: 'k', model: 'gemini-2.5-flash' }, providers: withGemini });
     assert.equal(provider.name(), 'gemini');
     assert.equal(validateGenerationProvider(provider), true);
+  });
+
+  test('gemini is NOT selectable without an explicit providers override', () => {
+    assert.throws(
+      () => createGenerationProvider({ backend: 'gemini', options: { apiKey: 'k', model: 'gemini-2.5-flash' } }),
+      /unknown backend "gemini".*known backends: ollama/
+    );
   });
 
   test('code review finding: ollama and gemini report genuinely different upstreamCancellation, never a flattened shared value', () => {
@@ -26,7 +42,7 @@ describe('createGenerationProvider', () => {
     // any caller — clientAbort/upstreamCancellation must disagree here for
     // exactly the two backends currently registered.
     const ollama = createGenerationProvider({ backend: 'ollama' });
-    const gemini = createGenerationProvider({ backend: 'gemini', options: { apiKey: 'k', model: 'gemini-2.5-flash' } });
+    const gemini = createGenerationProvider({ backend: 'gemini', options: { apiKey: 'k', model: 'gemini-2.5-flash' }, providers: withGemini });
     assert.equal(ollama.capabilities().upstreamCancellation, true);
     assert.equal(gemini.capabilities().upstreamCancellation, false);
     assert.equal(ollama.capabilities().clientAbort, true);
@@ -36,6 +52,13 @@ describe('createGenerationProvider', () => {
   test('throws an actionable error for an unknown backend', () => {
     assert.throws(
       () => createGenerationProvider({ backend: 'nonexistent' }),
+      /unknown backend "nonexistent".*known backends: ollama/
+    );
+  });
+
+  test('the known-backends list in the error reflects any providers override too', () => {
+    assert.throws(
+      () => createGenerationProvider({ backend: 'nonexistent', providers: withGemini }),
       /unknown backend "nonexistent".*known backends: ollama, gemini/
     );
   });

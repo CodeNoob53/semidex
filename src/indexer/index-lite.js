@@ -28,6 +28,14 @@
 //
 // Usage: COLLECTION=my-collection node src/indexer/index-lite.js <file|folder>
 import { isIndexerMainModule, runIndexerCli } from './index-runtime.js';
+// createCloudEmbeddingCapability() (code review, Phase 8B Step 6): unlike
+// ollama/onnxEmbed above (Lite builds typed-unavailable stubs for both —
+// local providers Lite never ships), Lite genuinely NEEDS the real Qdrant
+// Cloud Inference embedding-budget/tokenizer capability — Lite is
+// cloud-only by design, so this is the ONE real implementation it
+// constructs directly. A real `composition root -> cloud` edge, explicitly
+// allowed by the task's own dependency rules.
+import { createCloudEmbeddingCapability } from '../cloud/embedding/cloud-embedding-provider.js';
 
 class OllamaNotAvailableInLiteIndexerError extends Error {
   constructor(fnName) {
@@ -110,5 +118,6 @@ if (isIndexerMainModule(import.meta.url)) {
     ollamaDiscovery: unavailableOllamaCapability(),
     onnxEmbed: unavailableOnnxEmbedCapability(),
     tagOnnx: unavailableTagOnnxCapability(),
+    cloudEmbed: createCloudEmbeddingCapability(),
   });
 }

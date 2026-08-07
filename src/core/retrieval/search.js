@@ -17,8 +17,22 @@
 import { embedForSearch } from '../embeddings.js';
 import { resolveExistingCollectionProfile } from '../embedding-profile/resolve.js';
 import { EXECUTION } from '../embedding-profile/schema.js';
-import { buildCloudQueryInputs, checkEmbedInputFits, findDenseModel } from '../embedding-profile/qdrant-cloud-catalog.js';
+import { findDenseModel } from '../embedding-profile/qdrant-cloud-models.js';
 import { emitTelemetry } from '../bench-telemetry.js';
+
+// Code review fix (Phase 8B Step 6): this module used to statically import
+// buildCloudQueryInputs()/checkEmbedInputFits() from
+// src/cloud/embedding/qdrant-cloud-catalog.js directly — a real
+// `shared -> cloud IMPLEMENTATION` edge. `findDenseModel` (genuinely
+// neutral typed catalog metadata — zero dependencies, no network, no
+// tokenizer) stays a direct import, same as embeddings.js's own choice.
+// `cloudEmbed` (the DI parameter below) is REQUIRED whenever a qdrant-cloud
+// profile is actually resolved — never a module-scope default here, since
+// this file has no composition-time hook of its own the way embeddings.js
+// does (applyEmbeddingCapabilities()); every real caller
+// (admin/api/search.js, core/ask/evidence.js, mcp/tools/search.js)
+// receives its own `cloudEmbed` from ITS composition root and threads it
+// through explicitly, mirroring how `embedQuery` already worked.
 
 /**
  * @typedef {Object} RetrievalError
@@ -45,6 +59,7 @@ export function resolveSearchMode(capabilities) {
  * @param {{
  *   adapter: import('../storage/adapter.js').StorageAdapter,
  *   embedQuery?: (profile: Object, query: string) => Promise<{ dense: number[], sparse: Object }>,
+ *   cloudEmbed?: import('../embedding-profile/cloud-embedding-capability.js').CloudEmbeddingCapability,
  *   collection: string,
  *   query: string,
  *   top: number,
@@ -56,10 +71,13 @@ export function resolveSearchMode(capabilities) {
  *   HYBRID_PREFETCH_LIMIT/RRF_K (next_search settings) apply to admin
  *   /api/search, Ask, and MCP search uniformly — without it, this service
  *   silently fell back to qdrant/store.js's own direct envInt() reads
- *   (code review finding).
+ *   (code review finding). `cloudEmbed` is only actually dereferenced when
+ *   the resolved collection's own profile turns out to be qdrant-cloud —
+ *   a caller that only ever searches client-execution collections may omit
+ *   it safely.
  * @returns {Promise<{ searchMode: string, hits: Object[] } | RetrievalError>}
  */
-export async function runHybridSearch({ adapter, embedQuery = embedForSearch, collection, query, top, filters = {}, settingsService } = {}) {
+export async function runHybridSearch({ adapter, embedQuery = embedForSearch, cloudEmbed, collection, query, top, filters = {}, settingsService } = {}) {
   const searchMode = resolveSearchMode(adapter.capabilities());
   if (searchMode === null) {
     return { error: 'not_implemented', message: 'This storage backend does not support hybrid search.' };
@@ -101,12 +119,15 @@ export async function runHybridSearch({ adapter, embedQuery = embedForSearch, co
     // truncated by Qdrant. Checked against the SAME dense catalog entry
     // embedForIndexCloud validates against, so an unknown/unsupported
     // dense model is reported the same way on both the index and query paths.
+    if (!cloudEmbed) {
+      return { error: 'embedding_failed', message: `Collection "${collection}" uses qdrant-cloud execution, but no cloudEmbed capability was supplied to runHybridSearch().` };
+    }
     const denseModelId = resolution.profile.embedding.dense.model;
     const denseCatalog = findDenseModel(denseModelId);
     if (!denseCatalog || denseCatalog.status !== 'supported') {
       return { error: 'embedding_unsupported', message: `Collection "${collection}"'s dense model "${denseModelId}" is not a supported Qdrant Cloud model.` };
     }
-    const fit = await checkEmbedInputFits(denseCatalog, query);
+    const fit = await cloudEmbed.checkEmbedInputFits(denseCatalog, query);
     if (!fit.fits) {
       return { error: 'embedding_failed', message: `Query is too long for "${denseModelId}" (code: ${fit.code}${fit.tokenCount ? `, ${fit.tokenCount}/${fit.contextWindow} tokens` : ''}).` };
     }
@@ -115,7 +136,7 @@ export async function runHybridSearch({ adapter, embedQuery = embedForSearch, co
     // embedding call, no network call, nothing ONNX/Ollama could touch.
     // buildCloudQueryInputs() — NOT embedForSearch, which stays
     // client-only. embedQuery (the DI param) is never used on this branch.
-    const { denseQuery, sparseQuery } = buildCloudQueryInputs(resolution.profile, query);
+    const { denseQuery, sparseQuery } = cloudEmbed.buildCloudQueryInputs(resolution.profile, query);
     // Opt-in benchmark telemetry (no-op unless SEMIDEX_BENCH_TELEMETRY_PATH
     // is set — see src/core/bench-telemetry.js). Query-side counterpart of
     // embedForIndexCloud's own indexing-side emit — the only other place a

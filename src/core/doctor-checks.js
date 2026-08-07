@@ -217,6 +217,20 @@ export function formatCudaProbeFailure(errMessage, platform) {
   return guidance;
 }
 
+// Renders a { reason, details, nextSteps } diagnosis (from
+// local/core/cuda-diagnosis.js's diagnoseCudaFailure() — real nvidia-smi/
+// CUDA_PATH/cuDNN system checks, run by the CALLER, never here) into a
+// doctor detail string: the details sentence, then each nextSteps entry as
+// an indented bullet, matching formatResult()'s own indentation convention.
+// Returns '' for a null/undefined diagnosis, so callers fall back to the
+// static formatCudaProbeFailure() guidance — this file itself still does
+// zero I/O, per its own header comment.
+export function formatCudaDiagnosis(diagnosis) {
+  if (!diagnosis) return '';
+  const lines = [diagnosis.details, ...(diagnosis.nextSteps ?? []).map((step) => `- ${step}`)];
+  return lines.filter(Boolean).join('\n             ');
+}
+
 // ── COMBINED_LLM config helper ────────────────────────────────────────────────
 
 const DEFAULT_CONTEXT_MODEL = 'gemma3:4b';

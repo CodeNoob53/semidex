@@ -2,6 +2,7 @@ import { fileURLToPath } from 'url';
 import { join, dirname } from 'path';
 import { bootstrapEnv } from '../core/env-bootstrap.js';
 import { createSettingsService, applyEnvWriteBack } from '../core/settings/service.js';
+import { resolveOnnxEmbedCapabilityForMcp } from './onnx-runtime-resolution.js';
 
 // Bootstrap env FIRST (before any import below could mutate process.env via
 // a static 'dotenv/config' import) — same provenance-correct pattern
@@ -32,15 +33,36 @@ const { CallToolRequestSchema, ListToolsRequestSchema } = await import('@modelco
 
 const { embedForSearch } = await import('../core/embeddings.js');
 const ollamaLazy = await import('../core/ollama-lazy.js');
-const { createOnnxEmbeddingCapability } = await import('../core/onnx-embed-lazy.js');
-// onnxEmbed: createOnnxEmbeddingCapability() constructs ONE fresh,
-// independent capability instance for this process's own composition
-// (code review — onnx-embed.js no longer exposes a shared module-scope
-// singleton; every composition root must construct its own instance,
-// exactly like index-full.js's own indexer-CLI composition does).
-// Construction itself is cheap and synchronous (no real onnxruntime-node
-// load happens until the first actual embed call).
-const onnxEmbed = createOnnxEmbeddingCapability();
+// createCloudEmbeddingCapability() (code review, Phase 8B Step 6): the real
+// Qdrant Cloud Inference embedding-budget/tokenizer capability — this
+// process imports src/cloud/ directly (a real `composition root -> cloud`
+// edge, explicitly allowed), so embeddings.js/search.js/tools/search.js
+// never need to import it themselves.
+const { createCloudEmbeddingCapability } = await import('../cloud/embedding/cloud-embedding-provider.js');
+const cloudEmbed = createCloudEmbeddingCapability();
+// onnxEmbed: resolveOnnxEmbedCapabilityForMcp() (mcp/onnx-runtime-resolution.js,
+// real behavioral test coverage in tests/unit/mcp/onnx-runtime-resolution.test.js
+// — not just source-regex) constructs ONE fresh, independent capability
+// instance for this process's own composition (code review — onnx-embed.js
+// no longer exposes a shared module-scope singleton; every composition
+// root must construct its own instance, exactly like index-full.js's own
+// indexer-CLI composition does).
+//
+// Review finding (P1/P2): this process used to write settings back into
+// process.env but never resolved which onnxruntime-node build to
+// actually load — a managed CUDA selection (ONNX_MANAGED_RUNTIME) had no
+// effect here, so MCP search against an ONNX-backed collection could
+// silently load the plain npm package (no CUDA) even when Admin/the
+// indexer correctly picked up the managed runtime.
+// resolveOnnxEmbedCapabilityForMcp() is the ONE place this process
+// resolves which onnxruntime-node build to load and builds the
+// real-vs-typed-unavailable capability decision together, so it can
+// never drift out of sync with indexer/index-full.js's/admin/bootstrap.js's
+// own equivalent resolution again. Runs BEFORE any real embed call —
+// createOnnxEmbeddingCapability() itself defers the actual heavy load
+// until first use, but the env patch this applies must be in place well
+// before that.
+const onnxEmbed = await resolveOnnxEmbedCapabilityForMcp({ settingsService });
 // core/embeddings.js's applyEmbeddingCapabilities() (the process-wide
 // module-scope fallback) is deliberately NEVER called from this file (code
 // review, round 4 — removed after round 3 made it redundant, same
@@ -61,6 +83,7 @@ const onnxEmbed = createOnnxEmbeddingCapability();
 // direction.
 
 const { sanitiseErrorMessage } = await import('../core/doctor-checks.js');
+const { createRerankCapability } = await import('../core/rerank-provider.js');
 const search = await import('./tools/search.js');
 const collections = await import('./tools/collections.js');
 const getChunk = await import('./tools/getChunk.js');
@@ -82,7 +105,16 @@ search.setSettingsService(settingsService);
 // server's own search requests never consult embeddings.js's shared
 // module-scope fallback at all, regardless of what any other composition
 // root does with it in the same process.
-search.setEmbedQuery((profile, query) => embedForSearch(profile, query, { capabilities: { ollama: ollamaLazy, onnxEmbed } }));
+search.setEmbedQuery((profile, query) => embedForSearch(profile, query, { capabilities: { ollama: ollamaLazy, onnxEmbed, cloudEmbed } }));
+search.setCloudEmbed(cloudEmbed);
+// setRerank()/setOllamaDiscovery() (code review, Phase 8B Step 6 second
+// pass, P1 fix): binds tools/search.js's/tools/collections.js's own
+// local-runtime-coupled operations (CE reranking, Ollama discovery) to
+// THIS process's real capabilities explicitly — mirrors setCloudEmbed()'s
+// own pattern. Neither tool module imports core/ce-rerank.js,
+// core/rerank.js, or local/core/ollama.js directly anymore.
+search.setRerank(createRerankCapability());
+collections.setOllamaDiscovery(ollamaLazy);
 
 const tools = [search, collections, getChunk, findByTag, listFiles, listTags, listDirectories, getSkeleton, getSkeletonNode, getSkeletonChildren, getNode, getContent];
 const toolMap = Object.fromEntries(tools.map(t => [t.schema.name, t.handle]));

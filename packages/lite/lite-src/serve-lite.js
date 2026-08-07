@@ -65,7 +65,18 @@ export async function startLite({ settingsPath } = {}) {
   const port = resolvePortConfig(process.env, { settingsService: realSettings });
 
   const { createGenerationRuntime } = await import('../src/core/generation/runtime.js');
-  const generationRuntime = createGenerationRuntime({ osEnv, dotenvValues, settingsService: realSettings });
+  const { createGenerationProvider } = await import('../src/core/generation/registry.js');
+  // createCloudGenerationCapability() (code review, Phase 8B Step 6): the
+  // real Gemini GenerationProvider factory — registry.js's own BACKENDS
+  // default no longer includes 'gemini', so `providers: { gemini: ... }`
+  // below is what actually makes it selectable. Mirrors
+  // admin/bootstrap.js's own equivalent for Full.
+  const { createCloudGenerationCapability } = await import('../src/cloud/generation/cloud-generation-provider.js');
+  const cloudGeneration = createCloudGenerationCapability();
+  const generationRuntime = createGenerationRuntime({
+    osEnv, dotenvValues, settingsService: realSettings,
+    createGenerationProviderFn: (opts) => createGenerationProvider({ ...opts, providers: { gemini: cloudGeneration.createProvider } }),
+  });
 
   const server = createLiteApp({ generationRuntime, settingsService, jobRegistry, jobBaseEnv });
   return { server, host, port, settingsService };

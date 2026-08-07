@@ -13,8 +13,9 @@ import {
   QDRANT_CLOUD_DENSE_MODELS, QDRANT_CLOUD_SPARSE_MODELS,
   findDenseModel, findSparseModel, isDenseModelSupported, isCatalogCompatibleWithChunking,
 } from '../../../../src/core/embedding-profile/qdrant-cloud-models.js';
-import { checkEmbedInputFits, fitContextToBudget, buildCloudQueryInputs } from '../../../../src/core/embedding-profile/qdrant-cloud-catalog.js';
-import { loadQdrantCloudTokenizer } from '../../../../src/core/embedding-profile/qdrant-cloud-tokenizer.js';
+import { checkEmbedInputFits, fitContextToBudget, buildCloudQueryInputs } from '../../../../src/cloud/embedding/qdrant-cloud-catalog.js';
+import { loadQdrantCloudTokenizer } from '../../../../src/cloud/embedding/qdrant-cloud-tokenizer.js';
+import { createCloudEmbeddingCapability } from '../../../../src/cloud/embedding/cloud-embedding-provider.js';
 
 const E5 = findDenseModel('intfloat/multilingual-e5-small');
 const MINILM = findDenseModel('sentence-transformers/all-minilm-l6-v2');
@@ -256,7 +257,7 @@ describe('fitContextToBudget() — REGRESSION for P1: a typical chunk (body near
       },
       embeddingSchemaVersion: 2,
     };
-    const result = await embedForIndex(cloudProfile, `${context}\n\n${text}`, { context });
+    const result = await embedForIndex(cloudProfile, `${context}\n\n${text}`, { context, capabilities: { cloudEmbed: createCloudEmbeddingCapability() } });
     assert.ok(result.dense.text.endsWith(text), 'the returned embed text must still end with the FULL, untouched chunk body');
     assert.ok(result.dense.text.length < `${context}\n\n${text}`.length, 'the returned embed text must be shorter than the untrimmed assembly (context was trimmed)');
   });
@@ -279,7 +280,7 @@ describe('fitContextToBudget() — REGRESSION for P1: a typical chunk (body near
       embeddingSchemaVersion: 2,
     };
     await assert.rejects(
-      () => embedForIndex(cloudProfile, `short context\n\n${text}`, { context: 'short context' }),
+      () => embedForIndex(cloudProfile, `short context\n\n${text}`, { context: 'short context', capabilities: { cloudEmbed: createCloudEmbeddingCapability() } }),
       (err) => {
         assert.ok(err instanceof EmbeddingInputTooLongError);
         assert.equal(err.code, 'EMBEDDING_INPUT_TOO_LONG');

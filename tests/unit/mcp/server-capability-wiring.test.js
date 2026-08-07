@@ -36,16 +36,18 @@ describe('mcp/server.js — never calls applyEmbeddingCapabilities() (code revie
     assert.doesNotMatch(src, /(?<!\/\/[^\n]*)\bapplyEmbeddingCapabilities\s*\(/);
   });
 
-  it('still dynamically imports the real ollama-lazy.js module, and constructs a real onnx-embed-lazy.js capability instance, for search.setEmbedQuery()\'s own bound closure', () => {
+  it('still dynamically imports the real ollama-lazy.js module for search.setEmbedQuery()\'s own bound closure', () => {
     assert.match(src, /await import\(['"]\.\.\/core\/ollama-lazy\.js['"]\)/);
-    assert.match(src, /await import\(['"]\.\.\/core\/onnx-embed-lazy\.js['"]\)/);
-    // onnx-embed-lazy.js exposes createOnnxEmbeddingCapability() (instance-
-    // scoped capability, code review parity with tag-onnx-lazy.js's own
-    // Step 4 fix) — mcp/server.js constructs its own instance, exactly
-    // once, rather than passing the bare module namespace as the
-    // capability.
-    assert.match(src, /createOnnxEmbeddingCapability\s*}\s*=\s*await import/);
-    assert.match(src, /const onnxEmbed = createOnnxEmbeddingCapability\(\);/);
+  });
+
+  it('resolves onnxEmbed via mcp/onnx-runtime-resolution.js\'s resolveOnnxEmbedCapabilityForMcp() — review finding (P1): this is what makes a managed CUDA selection (ONNX_MANAGED_RUNTIME) actually reach the MCP process; real behavioral coverage lives in tests/unit/mcp/onnx-runtime-resolution.test.js, this is structural wiring proof only', () => {
+    assert.match(src, /import \{ resolveOnnxEmbedCapabilityForMcp \} from '\.\/onnx-runtime-resolution\.js'/);
+    assert.match(src, /const onnxEmbed = await resolveOnnxEmbedCapabilityForMcp\(\{ settingsService \}\);/);
+    // onnx-embed-lazy.js's createOnnxEmbeddingCapability() itself is no
+    // longer imported/called directly in THIS file — it moved into
+    // onnx-runtime-resolution.js, which is the one place that decides
+    // between the real capability and the typed-unavailable one.
+    assert.doesNotMatch(src, /await import\(['"]\.\.\/core\/onnx-embed-lazy\.js['"]\)/);
   });
 });
 

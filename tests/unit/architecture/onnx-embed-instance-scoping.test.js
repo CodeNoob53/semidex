@@ -75,10 +75,10 @@ describe('indexer/index-full.js — constructs its own ONNX embedding capability
 });
 
 describe('admin/server-full.js — constructs its own ONNX embedding capability instance, not the bare *-lazy.js namespace', () => {
-  it('imports createOnnxEmbeddingCapability and calls it once, at createApp() composition time', () => {
+  it('imports createOnnxEmbeddingCapability and calls it once by default, at createApp() composition time — or uses the injected onnxEmbedCapability override when bootstrap.js supplies a typed-unavailable one (review finding, P2)', () => {
     const src = readFileSync(new URL('../../../src/admin/server-full.js', import.meta.url), 'utf-8');
     assert.match(src, /import\s*\{\s*createOnnxEmbeddingCapability\s*\}\s*from\s*['"]\.\.\/core\/onnx-embed-lazy\.js['"]/);
-    assert.match(src, /const onnxEmbed = createOnnxEmbeddingCapability\(\);/);
+    assert.match(src, /const onnxEmbed = onnxEmbedCapability \?\? createOnnxEmbeddingCapability\(\);/);
     // The old bare-namespace pattern must be gone entirely.
     assert.doesNotMatch(src, /import\s*\*\s*as\s+onnxEmbedLazy/);
     assert.doesNotMatch(src, /onnxEmbed:\s*onnxEmbedLazy\b/);
@@ -101,14 +101,20 @@ describe('admin/server-full.js — constructs its own ONNX embedding capability 
 });
 
 describe('mcp/server.js — constructs its own ONNX embedding capability instance, not the bare *-lazy.js namespace', () => {
-  it('imports createOnnxEmbeddingCapability and calls it once, at module composition time', () => {
+  it('resolves onnxEmbed via mcp/onnx-runtime-resolution.js\'s resolveOnnxEmbedCapabilityForMcp() (review finding, P1/P2) — that function itself constructs a fresh createOnnxEmbeddingCapability() instance (or a typed-unavailable one) exactly once, at module composition time; real behavioral coverage lives in tests/unit/mcp/onnx-runtime-resolution.test.js', () => {
     const src = readFileSync(new URL('../../../src/mcp/server.js', import.meta.url), 'utf-8');
-    assert.match(src, /createOnnxEmbeddingCapability\s*\}\s*=\s*await import\(['"]\.\.\/core\/onnx-embed-lazy\.js['"]\)/);
-    assert.match(src, /const onnxEmbed = createOnnxEmbeddingCapability\(\);/);
+    assert.match(src, /import \{ resolveOnnxEmbedCapabilityForMcp \} from '\.\/onnx-runtime-resolution\.js'/);
+    assert.match(src, /const onnxEmbed = await resolveOnnxEmbedCapabilityForMcp\(\{ settingsService \}\);/);
     const codeOnly = src.split('\n').filter((line) => !line.trim().startsWith('//'));
     const setEmbedQueryLine = codeOnly.find((line) => line.includes('search.setEmbedQuery('));
     assert.ok(setEmbedQueryLine);
     assert.doesNotMatch(setEmbedQueryLine, /onnxEmbed:\s*onnxEmbedLazy\b/);
+  });
+
+  it('mcp/onnx-runtime-resolution.js itself constructs a fresh createOnnxEmbeddingCapability() instance, not the bare *-lazy.js namespace, when the resolved runtime is healthy', () => {
+    const src = readFileSync(new URL('../../../src/mcp/onnx-runtime-resolution.js', import.meta.url), 'utf-8');
+    assert.match(src, /import \{ createOnnxEmbeddingCapability \} from '\.\.\/core\/onnx-embed-lazy\.js'/);
+    assert.match(src, /return createOnnxEmbeddingCapabilityFn\(\);/);
   });
 });
 

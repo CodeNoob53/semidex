@@ -46,12 +46,19 @@ function isToolingFile(file, { fullReachable, liteReachable }) {
 const SHARED_CONTRACT_FILES = new Set([
   'src/core/generation/provider.js',
   'src/core/storage/adapter.js',
+  // rerank-capability.js (code review, Phase 8B Step 6 second pass, P1
+  // fix): a pure capability contract, zero dependencies, same class as
+  // onnx-embed-capability.js/embedding-profile/cloud-embedding-capability.js
+  // (both already 'shared' via genuine Full+Lite dual reachability) — but
+  // MCP tools (its one real consumer) are not currently reachable from any
+  // Lite root at all, so reachability alone would misclassify it 'local'.
+  // Explicit override for the same reason provider.js/adapter.js are here.
+  'src/core/rerank-capability.js',
 ]);
 
 const COMPOSITION_COMMON_FILES = new Set([
   'src/admin/register-neutral-routes.js',
   'src/admin/composition/lite.js',
-  'src/core/generation/registry.js',
   'src/core/settings/lite-policy.js',
   'src/core/settings/service.lite.js',
 ]);
@@ -119,10 +126,38 @@ export function buildManifest() {
 
     // Explicit contracts and composition roots take precedence. Remaining
     // files use Full/Lite reachability only as a baseline classification.
+    //
+    // mcp/onnx-runtime-resolution.js (review finding, P1 fix — MCP now
+    // resolves ONNX_MANAGED_RUNTIME the same way indexer/admin do):
+    // pulled OUT of mcp/server.js's own top level specifically so it has
+    // real behavioral test coverage (mcp/server.js itself is a
+    // self-starting script with no isMainModule guard, so it can never be
+    // imported by a test). It performs the SAME kind of decision
+    // mcp/server.js's own composition-root body does — choosing between
+    // the real onnxEmbed capability and a typed-unavailable one — so it
+    // is classified alongside mcp/server.js as composition-full, not
+    // 'local' by bare reachability. Without this, its own real
+    // (and correct) local/core-> onnx-embed-lazy.js import edge would be
+    // flagged as a local_to_mixed direction violation purely because it
+    // lives in its own file instead of inline in mcp/server.js.
     let richClassification;
     if (LOCAL_ONLY_PATH_PATTERNS.some((p) => p.test(file))) richClassification = 'local';
-    else if (file === 'src/mcp/server.js') richClassification = 'composition-full';
+    else if (file === 'src/mcp/server.js' || file === 'src/mcp/onnx-runtime-resolution.js') richClassification = 'composition-full';
     else if (COMPOSITION_COMMON_FILES.has(file)) richClassification = 'composition';
+    // index-full.js/index-lite.js (code review, Phase 8B Step 6 — second
+    // pass): each is the real per-edition indexer CLI composition root
+    // (builds and injects its own capability bundle — see run.js's own
+    // buildRunContext()), not a "local implementation" or "cloud
+    // implementation" file. Without this, index-full.js's fullReachable-
+    // only/liteReachable:false baseline previously mapped it to 'local'
+    // purely from reachability, which then masked its genuine (and
+    // correct) composition-root imports of ollama-lazy.js/onnx-embed-lazy.js/
+    // tag-onnx-lazy.js/cloud-embedding-provider.js as 'local_to_mixed'/
+    // 'local_to_cloud' violations — they are not violations; a composition
+    // root importing every capability implementation it composes is exactly
+    // its job.
+    else if (file === 'src/indexer/index-full.js') richClassification = 'composition-full';
+    else if (file === 'src/indexer/index-lite.js') richClassification = 'composition-lite';
     else if (COMPOSITION_FULL_PATTERNS.some((p) => p.test(file)) || file === 'src/admin/ui-src/entries/full.js') richClassification = 'composition-full';
     else if (file === 'src/admin/ui-src/entries/lite.js') richClassification = 'composition-lite';
     else if (CLOUD_ONLY_PATH_PATTERNS.some((p) => p.test(file))) richClassification = 'cloud';
@@ -134,9 +169,32 @@ export function buildManifest() {
     else if (!inFull && inLite) richClassification = 'cloud';
     else richClassification = 'unclear';
 
+    const declaredCategory = mapToTaskCategory(richClassification, tooling);
     modules.push({
       path: file,
-      category: mapToTaskCategory(richClassification, tooling),
+      // declaredCategory: this module's OWN classification, from explicit
+      // boundaries (LOCAL_ONLY/CLOUD_ONLY_PATH_PATTERNS, composition roots,
+      // reachability) only — never rewritten by the propagation pass below.
+      // Code review fix (Phase 8B Step 6, second pass): an earlier version
+      // of this script overwrote `category` in place the moment a forbidden
+      // dependency was found, which meant a shared module that reached into
+      // src/cloud/ was silently relabeled 'mixed' BEFORE
+      // find-dependency-violations.mjs ever got to see it as 'shared' — a
+      // module's own ownership can never be determined by which imports it
+      // happens to have; that circularity is exactly what let a real
+      // shared->cloud edge hide behind a clean-looking violation count.
+      // declaredCategory is that ownership fact, fixed at classification
+      // time, independent of dependency-direction correctness.
+      declaredCategory,
+      // category: the EFFECTIVE, propagation-refined classification —
+      // 'mixed' once a module (transitively) depends on something outside
+      // its own declared category's allowed targets. This is the field
+      // most consumers (tests asserting "is this lazy shim/provider-coupled
+      // orchestration classified mixed") should keep reading; it describes
+      // real packaging/coupling, not ownership. find-dependency-violations.mjs
+      // reads declaredCategory instead, specifically so a shared->cloud edge
+      // is reported as a violation rather than pre-absorbed into 'mixed'.
+      category: declaredCategory,
       compositionEdition: tooling ? null : compositionEdition(richClassification),
       fullReachable: inFull,
       liteReachable: inLite,
@@ -145,8 +203,9 @@ export function buildManifest() {
   }
 
   // Reachability describes packaging, not architectural identity. Propagate
-  // incompatible provider dependencies up to the nearest composition root;
-  // otherwise callers of mixed modules would still be mislabeled shared.
+  // incompatible provider dependencies up to the nearest composition root
+  // by refining `category` (never `declaredCategory` — see above); otherwise
+  // callers of mixed modules would still be mislabeled shared.
   const byPath = new Map(modules.map((module) => [module.path, module]));
   const allowedTargets = {
     shared: new Set(['shared']),

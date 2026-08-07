@@ -72,8 +72,9 @@ src/core/
                          contract (constants, request validation, event
                          projection, route registration); the only module
                          that knows the public wire shape
-  generation/          - provider-neutral generation contract, Ollama and
-                         Gemini implementations, and the runtime seam
+  generation/          - provider-neutral generation contract, the Ollama
+                         implementation, and the runtime seam (the Gemini
+                         implementation itself lives under src/cloud/, see below)
   http/                - generic node:http JSON/SSE primitives shared by
                          every HTTP route (admin API and ask-api/v1 alike)
 ```
@@ -99,6 +100,39 @@ five indexer-phase modules that consume it (Step 3's design — each takes
 its Ollama capability as a real parameter resolved once per `run.js`
 call, with no module-scope binding of its own). Semidex Lite's
 cloud-only package never ships `src/local/`.
+
+## Cloud Providers
+
+```text
+src/cloud/
+  embedding/
+    qdrant-cloud-catalog.js   - checkEmbedInputFits/fitContextToBudget (real per-model
+                                tokenizer), buildCloudQueryInputs, resolveEmbeddingBudget
+    qdrant-cloud-models.js    - pure catalog data (dense/sparse model lists, zero dependencies)
+    qdrant-cloud-tokenizer.js - per-model @huggingface/tokenizers loader (tokenizer.json only,
+                                never model weights or an inference runtime)
+  generation/
+    gemini-provider.js  - createGeminiProvider(), the Gemini GenerationProvider (@google/genai SDK)
+    gemini-models.js    - discoverGeminiModels(), Gemini model discovery/listing
+  admin/
+    qdrant-cloud-api.js    - POST /api/system/qdrant-cloud-probe route wiring
+    qdrant-cloud-system.js - Tier 1 (checkQdrantReachable)/Tier 2 (probeQdrantCloudInference)
+                             probe logic and 4-status classification
+```
+
+Unlike `src/local/` (Full-only, excluded from Semidex Lite), `src/cloud/`
+ships in BOTH editions — Semidex Lite is cloud-only by design (Qdrant
+Cloud Inference + Gemini), so every file here is reachable from, and
+required by, both Full and Lite composition roots. No `*-lazy.js` shim
+exists for any of these seven files: every consumer (`core/embeddings.js`,
+`core/retrieval/search.js`, `core/embedding-profile/{resolve,availability}.js`,
+`core/token-count.js`, `core/config.js`, `core/settings/definitions.js`,
+`core/generation/registry.js`, `indexer/run.js`,
+`admin/register-neutral-routes.js`, `admin/api/generation-models.js`,
+`admin/ui-src/global-settings-view.js`) imports the real file directly,
+at its `src/cloud/` path, in both editions identically. `qdrant-cloud-models.js`
+is pure, zero-dependency data — the Admin Settings UI (browser bundle)
+imports it directly, alongside every server-side consumer.
 
 ## Indexer Pipeline
 

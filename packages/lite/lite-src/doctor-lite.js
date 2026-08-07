@@ -14,11 +14,11 @@ import {
   makeResult, aggregateExitCode, formatResult,
   checkNodeVersion, STATUS,
 } from '../src/core/doctor-checks.js';
-import { checkQdrantReachable, probeQdrantCloudInference } from '../src/admin/system/qdrant-cloud.js';
+import { checkQdrantReachable, probeQdrantCloudInference } from '../src/cloud/admin/qdrant-cloud-system.js';
 import {
   QDRANT_CLOUD_DENSE_MODELS,
   findDenseModel,
-} from '../src/core/embedding-profile/qdrant-cloud-catalog.js';
+} from '../src/cloud/embedding/qdrant-cloud-catalog.js';
 import { resolveNewCollectionProfile } from '../src/core/embedding-profile/resolve.js';
 
 function safe(msg) {
@@ -28,7 +28,7 @@ function safe(msg) {
 /**
  * checkQdrantReachableFn/probeQdrantCloudInferenceFn are dependency-
  * injectable so unit tests never issue a real Qdrant Cloud request — same
- * DI convention as admin/api/qdrant-cloud.js's own runProbeFn.
+ * DI convention as cloud/admin/qdrant-cloud-api.js's own runProbeFn.
  * @param {{ probeInference?: boolean, semidexHome?: string, checkQdrantReachableFn?: typeof checkQdrantReachable, probeQdrantCloudInferenceFn?: typeof probeQdrantCloudInference }} [opts]
  * @returns {Promise<number>} process exit code (0 = PASS/WARN/SKIP only, 1 = any FAIL)
  */

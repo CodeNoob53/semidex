@@ -16,7 +16,6 @@
     "src/admin/api/ollama-models.js",
     "src/admin/api/onnx.js",
     "src/admin/api/operations.js",
-    "src/admin/api/qdrant-cloud.js",
     "src/admin/api/query-params.js",
     "src/admin/api/search.js",
     "src/admin/api/settings.js",
@@ -35,7 +34,6 @@
     "src/admin/static.js",
     "src/admin/system/folder-picker.js",
     "src/admin/system/ollama.js",
-    "src/admin/system/qdrant-cloud.js",
     "src/admin/ui-src/api.js",
     "src/admin/ui-src/app.js",
     "src/admin/ui-src/assembly-view.js",
@@ -65,6 +63,15 @@
     "src/backfill-entity-refs.js",
     "src/backfill-tags.js",
     "src/bootstrap-docs.js",
+    "src/cloud/admin/qdrant-cloud-api.js",
+    "src/cloud/admin/qdrant-cloud-system.js",
+    "src/cloud/embedding/cloud-embedding-provider.js",
+    "src/cloud/embedding/qdrant-cloud-catalog.js",
+    "src/cloud/embedding/qdrant-cloud-tokenizer.js",
+    "src/cloud/generation/cloud-generation-provider.js",
+    "src/cloud/generation/gemini-models.js",
+    "src/cloud/generation/gemini-provider.js",
+    "src/core/app-data-dir.js",
     "src/core/ask/citations.js",
     "src/core/ask/coordinator.js",
     "src/core/ask/evidence.js",
@@ -84,21 +91,19 @@
     "src/core/config.js",
     "src/core/doctor-checks.js",
     "src/core/embedding-profile/availability.js",
+    "src/core/embedding-profile/cloud-embedding-capability.js",
     "src/core/embedding-profile/config-cache.js",
     "src/core/embedding-profile/migrate.js",
     "src/core/embedding-profile/onnx-lane.js",
-    "src/core/embedding-profile/qdrant-cloud-catalog.js",
     "src/core/embedding-profile/qdrant-cloud-models.js",
-    "src/core/embedding-profile/qdrant-cloud-tokenizer.js",
     "src/core/embedding-profile/resolve.js",
     "src/core/embedding-profile/schema.js",
     "src/core/embeddings.js",
     "src/core/entity-reference.js",
     "src/core/env-bootstrap.js",
     "src/core/env.js",
-    "src/core/gemini-models.js",
+    "src/core/generation/cloud-generation-capability.js",
     "src/core/generation/config.js",
-    "src/core/generation/gemini-provider.js",
     "src/core/generation/ollama-capability.js",
     "src/core/generation/ollama-provider.js",
     "src/core/generation/provider.js",
@@ -122,6 +127,8 @@
     "src/core/qdrant/schema.js",
     "src/core/qdrant/store.js",
     "src/core/qdrant.js",
+    "src/core/rerank-capability.js",
+    "src/core/rerank-provider.js",
     "src/core/rerank.js",
     "src/core/retrieval/search.js",
     "src/core/settings/definitions.js",
@@ -167,15 +174,26 @@
     "src/indexer/serial-queue.js",
     "src/indexer/skeleton-payload.js",
     "src/indexer/skeleton-warnings.js",
+    "src/local/core/cuda-diagnosis.js",
     "src/local/core/length-bucket.js",
+    "src/local/core/managed-onnx-runtime-manifest.js",
+    "src/local/core/managed-runtime-id.js",
+    "src/local/core/managed-runtime-listing.js",
     "src/local/core/ollama-models.js",
     "src/local/core/ollama.js",
+    "src/local/core/onnx-cuda-installer-logic.js",
+    "src/local/core/onnx-cuda-installer-verify.js",
+    "src/local/core/onnx-cuda-prereq-check.js",
     "src/local/core/onnx-embed.js",
     "src/local/core/onnx-probe-runner.js",
     "src/local/core/onnx-provider-probe.js",
+    "src/local/core/onnx-runtime-source-resolution.js",
+    "src/local/core/onnx-runtime-unavailable-capability.js",
     "src/local/core/onnx-runtime.js",
+    "src/local/core/semidex-home.js",
     "src/local/indexer/phases/tag-onnx.js",
     "src/local/indexer/workers/tag-onnx-worker.js",
+    "src/mcp/onnx-runtime-resolution.js",
     "src/mcp/server.js",
     "src/mcp/tools/collections.js",
     "src/mcp/tools/filters.js",
@@ -333,11 +351,6 @@
           "specifier": "../../core/doctor-checks.js",
           "kind": "relative",
           "resolved": "src/core/doctor-checks.js"
-        },
-        {
-          "specifier": "../../core/gemini-models.js",
-          "kind": "relative",
-          "resolved": "src/core/gemini-models.js"
         }
       ],
       "dynamicImports": [],
@@ -445,6 +458,31 @@
           "specifier": "../../local/core/onnx-provider-probe.js",
           "kind": "relative",
           "resolved": "src/local/core/onnx-provider-probe.js"
+        },
+        {
+          "specifier": "../../local/core/cuda-diagnosis.js",
+          "kind": "relative",
+          "resolved": "src/local/core/cuda-diagnosis.js"
+        },
+        {
+          "specifier": "../../local/core/semidex-home.js",
+          "kind": "relative",
+          "resolved": "src/local/core/semidex-home.js"
+        },
+        {
+          "specifier": "../../local/core/onnx-runtime-source-resolution.js",
+          "kind": "relative",
+          "resolved": "src/local/core/onnx-runtime-source-resolution.js"
+        },
+        {
+          "specifier": "../../local/core/managed-onnx-runtime-manifest.js",
+          "kind": "relative",
+          "resolved": "src/local/core/managed-onnx-runtime-manifest.js"
+        },
+        {
+          "specifier": "../../local/core/managed-runtime-listing.js",
+          "kind": "relative",
+          "resolved": "src/local/core/managed-runtime-listing.js"
         }
       ],
       "dynamicImports": [],
@@ -462,33 +500,6 @@
           "specifier": "./jobs.js",
           "kind": "relative",
           "resolved": "src/admin/api/jobs.js"
-        }
-      ],
-      "dynamicImports": [],
-      "requireCalls": [],
-      "forkSpawnCalls": []
-    },
-    "src/admin/api/qdrant-cloud.js": {
-      "staticImports": [
-        {
-          "specifier": "../../core/http/http.js",
-          "kind": "relative",
-          "resolved": "src/core/http/http.js"
-        },
-        {
-          "specifier": "../system/qdrant-cloud.js",
-          "kind": "relative",
-          "resolved": "src/admin/system/qdrant-cloud.js"
-        },
-        {
-          "specifier": "../../core/embedding-profile/qdrant-cloud-catalog.js",
-          "kind": "relative",
-          "resolved": "src/core/embedding-profile/qdrant-cloud-catalog.js"
-        },
-        {
-          "specifier": "../../core/embedding-profile/resolve.js",
-          "kind": "relative",
-          "resolved": "src/core/embedding-profile/resolve.js"
         }
       ],
       "dynamicImports": [],
@@ -603,6 +614,16 @@
           "resolved": "src/core/settings/service.js"
         },
         {
+          "specifier": "../local/core/onnx-runtime-source-resolution.js",
+          "kind": "relative",
+          "resolved": "src/local/core/onnx-runtime-source-resolution.js"
+        },
+        {
+          "specifier": "../local/core/onnx-runtime-unavailable-capability.js",
+          "kind": "relative",
+          "resolved": "src/local/core/onnx-runtime-unavailable-capability.js"
+        },
+        {
           "specifier": "../core/env-bootstrap.js",
           "kind": "relative",
           "resolved": "src/core/env-bootstrap.js"
@@ -644,6 +665,12 @@
           "literal": true,
           "kind": "relative",
           "resolved": "src/core/ollama-lazy.js"
+        },
+        {
+          "specifier": "../cloud/generation/cloud-generation-provider.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/cloud/generation/cloud-generation-provider.js"
         }
       ],
       "requireCalls": [],
@@ -705,6 +732,31 @@
           "specifier": "../../core/onnx-embed-capability.js",
           "kind": "relative",
           "resolved": "src/core/onnx-embed-capability.js"
+        },
+        {
+          "specifier": "../../cloud/embedding/cloud-embedding-provider.js",
+          "kind": "relative",
+          "resolved": "src/cloud/embedding/cloud-embedding-provider.js"
+        },
+        {
+          "specifier": "../../cloud/generation/cloud-generation-provider.js",
+          "kind": "relative",
+          "resolved": "src/cloud/generation/cloud-generation-provider.js"
+        },
+        {
+          "specifier": "../../cloud/admin/qdrant-cloud-api.js",
+          "kind": "relative",
+          "resolved": "src/cloud/admin/qdrant-cloud-api.js"
+        },
+        {
+          "specifier": "../../core/generation/runtime.js",
+          "kind": "relative",
+          "resolved": "src/core/generation/runtime.js"
+        },
+        {
+          "specifier": "../../core/generation/registry.js",
+          "kind": "relative",
+          "resolved": "src/core/generation/registry.js"
         }
       ],
       "dynamicImports": [],
@@ -871,11 +923,6 @@
           "resolved": "src/admin/api/system.js"
         },
         {
-          "specifier": "./api/qdrant-cloud.js",
-          "kind": "relative",
-          "resolved": "src/admin/api/qdrant-cloud.js"
-        },
-        {
           "specifier": "./api/settings.js",
           "kind": "relative",
           "resolved": "src/admin/api/settings.js"
@@ -1003,6 +1050,31 @@
           "specifier": "../core/onnx-embed-lazy.js",
           "kind": "relative",
           "resolved": "src/core/onnx-embed-lazy.js"
+        },
+        {
+          "specifier": "../cloud/embedding/cloud-embedding-provider.js",
+          "kind": "relative",
+          "resolved": "src/cloud/embedding/cloud-embedding-provider.js"
+        },
+        {
+          "specifier": "../cloud/generation/cloud-generation-provider.js",
+          "kind": "relative",
+          "resolved": "src/cloud/generation/cloud-generation-provider.js"
+        },
+        {
+          "specifier": "../cloud/admin/qdrant-cloud-api.js",
+          "kind": "relative",
+          "resolved": "src/cloud/admin/qdrant-cloud-api.js"
+        },
+        {
+          "specifier": "../core/generation/runtime.js",
+          "kind": "relative",
+          "resolved": "src/core/generation/runtime.js"
+        },
+        {
+          "specifier": "../core/generation/registry.js",
+          "kind": "relative",
+          "resolved": "src/core/generation/registry.js"
         }
       ],
       "dynamicImports": [],
@@ -1077,23 +1149,6 @@
           "specifier": "../../local/core/ollama.js",
           "kind": "relative",
           "resolved": "src/local/core/ollama.js"
-        }
-      ],
-      "dynamicImports": [],
-      "requireCalls": [],
-      "forkSpawnCalls": []
-    },
-    "src/admin/system/qdrant-cloud.js": {
-      "staticImports": [
-        {
-          "specifier": "../../core/storage/factory.js",
-          "kind": "relative",
-          "resolved": "src/core/storage/factory.js"
-        },
-        {
-          "specifier": "../../core/doctor-checks.js",
-          "kind": "relative",
-          "resolved": "src/core/doctor-checks.js"
         }
       ],
       "dynamicImports": [],
@@ -1948,6 +2003,197 @@
       "requireCalls": [],
       "forkSpawnCalls": []
     },
+    "src/cloud/admin/qdrant-cloud-api.js": {
+      "staticImports": [
+        {
+          "specifier": "../../core/http/http.js",
+          "kind": "relative",
+          "resolved": "src/core/http/http.js"
+        },
+        {
+          "specifier": "./qdrant-cloud-system.js",
+          "kind": "relative",
+          "resolved": "src/cloud/admin/qdrant-cloud-system.js"
+        },
+        {
+          "specifier": "../embedding/qdrant-cloud-catalog.js",
+          "kind": "relative",
+          "resolved": "src/cloud/embedding/qdrant-cloud-catalog.js"
+        },
+        {
+          "specifier": "../../core/embedding-profile/resolve.js",
+          "kind": "relative",
+          "resolved": "src/core/embedding-profile/resolve.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/cloud/admin/qdrant-cloud-system.js": {
+      "staticImports": [
+        {
+          "specifier": "../../core/storage/factory.js",
+          "kind": "relative",
+          "resolved": "src/core/storage/factory.js"
+        },
+        {
+          "specifier": "../../core/doctor-checks.js",
+          "kind": "relative",
+          "resolved": "src/core/doctor-checks.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/cloud/embedding/cloud-embedding-provider.js": {
+      "staticImports": [
+        {
+          "specifier": "./qdrant-cloud-catalog.js",
+          "kind": "relative",
+          "resolved": "src/cloud/embedding/qdrant-cloud-catalog.js"
+        },
+        {
+          "specifier": "./qdrant-cloud-tokenizer.js",
+          "kind": "relative",
+          "resolved": "src/cloud/embedding/qdrant-cloud-tokenizer.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/cloud/embedding/qdrant-cloud-catalog.js": {
+      "staticImports": [
+        {
+          "specifier": "../../core/token-count.js",
+          "kind": "relative",
+          "resolved": "src/core/token-count.js"
+        },
+        {
+          "specifier": "./qdrant-cloud-tokenizer.js",
+          "kind": "relative",
+          "resolved": "src/cloud/embedding/qdrant-cloud-tokenizer.js"
+        },
+        {
+          "specifier": "../../core/embedding-profile/qdrant-cloud-models.js",
+          "kind": "relative",
+          "resolved": "src/core/embedding-profile/qdrant-cloud-models.js"
+        },
+        {
+          "specifier": "../../core/embedding-profile/qdrant-cloud-models.js",
+          "kind": "relative",
+          "resolved": "src/core/embedding-profile/qdrant-cloud-models.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/cloud/embedding/qdrant-cloud-tokenizer.js": {
+      "staticImports": [
+        {
+          "specifier": "@huggingface/tokenizers",
+          "kind": "package",
+          "resolved": "@huggingface/tokenizers"
+        },
+        {
+          "specifier": "fs",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "path",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "crypto",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "../../core/onnx-paths.js",
+          "kind": "relative",
+          "resolved": "src/core/onnx-paths.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/cloud/generation/cloud-generation-provider.js": {
+      "staticImports": [
+        {
+          "specifier": "./gemini-provider.js",
+          "kind": "relative",
+          "resolved": "src/cloud/generation/gemini-provider.js"
+        },
+        {
+          "specifier": "./gemini-models.js",
+          "kind": "relative",
+          "resolved": "src/cloud/generation/gemini-models.js"
+        },
+        {
+          "specifier": "../../core/generation/cloud-generation-capability.js",
+          "kind": "relative",
+          "resolved": "src/core/generation/cloud-generation-capability.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/cloud/generation/gemini-models.js": {
+      "staticImports": [],
+      "dynamicImports": [
+        {
+          "specifier": "@google/genai",
+          "literal": true,
+          "kind": "package",
+          "resolved": "@google/genai"
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/cloud/generation/gemini-provider.js": {
+      "staticImports": [
+        {
+          "specifier": "../../core/generation/config.js",
+          "kind": "relative",
+          "resolved": "src/core/generation/config.js"
+        }
+      ],
+      "dynamicImports": [
+        {
+          "specifier": "@google/genai",
+          "literal": true,
+          "kind": "package",
+          "resolved": "@google/genai"
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/app-data-dir.js": {
+      "staticImports": [
+        {
+          "specifier": "node:os",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "node:path",
+          "kind": "builtin",
+          "resolved": null
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
     "src/core/ask/citations.js": {
       "staticImports": [
         {
@@ -2249,9 +2495,9 @@
           "resolved": "src/core/onnx-paths.js"
         },
         {
-          "specifier": "./embedding-profile/qdrant-cloud-catalog.js",
+          "specifier": "./embedding-profile/qdrant-cloud-models.js",
           "kind": "relative",
-          "resolved": "src/core/embedding-profile/qdrant-cloud-catalog.js"
+          "resolved": "src/core/embedding-profile/qdrant-cloud-models.js"
         }
       ],
       "dynamicImports": [],
@@ -2277,11 +2523,17 @@
           "resolved": "src/core/embedding-profile/schema.js"
         },
         {
-          "specifier": "./qdrant-cloud-catalog.js",
+          "specifier": "./qdrant-cloud-models.js",
           "kind": "relative",
-          "resolved": "src/core/embedding-profile/qdrant-cloud-catalog.js"
+          "resolved": "src/core/embedding-profile/qdrant-cloud-models.js"
         }
       ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/embedding-profile/cloud-embedding-capability.js": {
+      "staticImports": [],
       "dynamicImports": [],
       "requireCalls": [],
       "forkSpawnCalls": []
@@ -2326,67 +2578,8 @@
       "requireCalls": [],
       "forkSpawnCalls": []
     },
-    "src/core/embedding-profile/qdrant-cloud-catalog.js": {
-      "staticImports": [
-        {
-          "specifier": "../token-count.js",
-          "kind": "relative",
-          "resolved": "src/core/token-count.js"
-        },
-        {
-          "specifier": "./qdrant-cloud-tokenizer.js",
-          "kind": "relative",
-          "resolved": "src/core/embedding-profile/qdrant-cloud-tokenizer.js"
-        },
-        {
-          "specifier": "./qdrant-cloud-models.js",
-          "kind": "relative",
-          "resolved": "src/core/embedding-profile/qdrant-cloud-models.js"
-        },
-        {
-          "specifier": "./qdrant-cloud-models.js",
-          "kind": "relative",
-          "resolved": "src/core/embedding-profile/qdrant-cloud-models.js"
-        }
-      ],
-      "dynamicImports": [],
-      "requireCalls": [],
-      "forkSpawnCalls": []
-    },
     "src/core/embedding-profile/qdrant-cloud-models.js": {
       "staticImports": [],
-      "dynamicImports": [],
-      "requireCalls": [],
-      "forkSpawnCalls": []
-    },
-    "src/core/embedding-profile/qdrant-cloud-tokenizer.js": {
-      "staticImports": [
-        {
-          "specifier": "@huggingface/tokenizers",
-          "kind": "package",
-          "resolved": "@huggingface/tokenizers"
-        },
-        {
-          "specifier": "fs",
-          "kind": "builtin",
-          "resolved": null
-        },
-        {
-          "specifier": "path",
-          "kind": "builtin",
-          "resolved": null
-        },
-        {
-          "specifier": "crypto",
-          "kind": "builtin",
-          "resolved": null
-        },
-        {
-          "specifier": "../onnx-paths.js",
-          "kind": "relative",
-          "resolved": "src/core/onnx-paths.js"
-        }
-      ],
       "dynamicImports": [],
       "requireCalls": [],
       "forkSpawnCalls": []
@@ -2409,9 +2602,9 @@
           "resolved": "src/core/onnx-paths.js"
         },
         {
-          "specifier": "./qdrant-cloud-catalog.js",
+          "specifier": "./qdrant-cloud-models.js",
           "kind": "relative",
-          "resolved": "src/core/embedding-profile/qdrant-cloud-catalog.js"
+          "resolved": "src/core/embedding-profile/qdrant-cloud-models.js"
         }
       ],
       "dynamicImports": [],
@@ -2437,6 +2630,11 @@
           "resolved": "src/core/onnx-embed-capability.js"
         },
         {
+          "specifier": "./embedding-profile/cloud-embedding-capability.js",
+          "kind": "relative",
+          "resolved": "src/core/embedding-profile/cloud-embedding-capability.js"
+        },
+        {
           "specifier": "./sparse.js",
           "kind": "relative",
           "resolved": "src/core/sparse.js"
@@ -2452,9 +2650,9 @@
           "resolved": "src/core/embedding-profile/schema.js"
         },
         {
-          "specifier": "./embedding-profile/qdrant-cloud-catalog.js",
+          "specifier": "./embedding-profile/qdrant-cloud-models.js",
           "kind": "relative",
-          "resolved": "src/core/embedding-profile/qdrant-cloud-catalog.js"
+          "resolved": "src/core/embedding-profile/qdrant-cloud-models.js"
         },
         {
           "specifier": "./bench-telemetry.js",
@@ -2500,41 +2698,15 @@
       "requireCalls": [],
       "forkSpawnCalls": []
     },
-    "src/core/gemini-models.js": {
+    "src/core/generation/cloud-generation-capability.js": {
       "staticImports": [],
-      "dynamicImports": [
-        {
-          "specifier": "@google/genai",
-          "literal": true,
-          "kind": "package",
-          "resolved": "@google/genai"
-        }
-      ],
+      "dynamicImports": [],
       "requireCalls": [],
       "forkSpawnCalls": []
     },
     "src/core/generation/config.js": {
       "staticImports": [],
       "dynamicImports": [],
-      "requireCalls": [],
-      "forkSpawnCalls": []
-    },
-    "src/core/generation/gemini-provider.js": {
-      "staticImports": [
-        {
-          "specifier": "./config.js",
-          "kind": "relative",
-          "resolved": "src/core/generation/config.js"
-        }
-      ],
-      "dynamicImports": [
-        {
-          "specifier": "@google/genai",
-          "literal": true,
-          "kind": "package",
-          "resolved": "@google/genai"
-        }
-      ],
       "requireCalls": [],
       "forkSpawnCalls": []
     },
@@ -2562,11 +2734,6 @@
           "specifier": "./ollama-provider.js",
           "kind": "relative",
           "resolved": "src/core/generation/ollama-provider.js"
-        },
-        {
-          "specifier": "./gemini-provider.js",
-          "kind": "relative",
-          "resolved": "src/core/generation/gemini-provider.js"
         }
       ],
       "dynamicImports": [],
@@ -2841,6 +3008,29 @@
       "requireCalls": [],
       "forkSpawnCalls": []
     },
+    "src/core/rerank-capability.js": {
+      "staticImports": [],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/core/rerank-provider.js": {
+      "staticImports": [
+        {
+          "specifier": "./rerank.js",
+          "kind": "relative",
+          "resolved": "src/core/rerank.js"
+        },
+        {
+          "specifier": "./ce-rerank.js",
+          "kind": "relative",
+          "resolved": "src/core/ce-rerank.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
     "src/core/rerank.js": {
       "staticImports": [
         {
@@ -2876,9 +3066,9 @@
           "resolved": "src/core/embedding-profile/schema.js"
         },
         {
-          "specifier": "../embedding-profile/qdrant-cloud-catalog.js",
+          "specifier": "../embedding-profile/qdrant-cloud-models.js",
           "kind": "relative",
-          "resolved": "src/core/embedding-profile/qdrant-cloud-catalog.js"
+          "resolved": "src/core/embedding-profile/qdrant-cloud-models.js"
         },
         {
           "specifier": "../bench-telemetry.js",
@@ -3085,11 +3275,6 @@
           "resolved": "src/core/bge-tokenizer.js"
         },
         {
-          "specifier": "./embedding-profile/qdrant-cloud-tokenizer.js",
-          "kind": "relative",
-          "resolved": "src/core/embedding-profile/qdrant-cloud-tokenizer.js"
-        },
-        {
           "specifier": "./embedding-profile/schema.js",
           "kind": "relative",
           "resolved": "src/core/embedding-profile/schema.js"
@@ -3163,6 +3348,18 @@
           "resolved": "src/local/core/onnx-provider-probe.js"
         },
         {
+          "specifier": "./local/core/cuda-diagnosis.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/local/core/cuda-diagnosis.js"
+        },
+        {
+          "specifier": "./local/core/onnx-cuda-prereq-check.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/local/core/onnx-cuda-prereq-check.js"
+        },
+        {
           "specifier": "module",
           "literal": true,
           "kind": "builtin",
@@ -3208,9 +3405,30 @@
           "specifier": "./index-runtime.js",
           "kind": "relative",
           "resolved": "src/indexer/index-runtime.js"
+        },
+        {
+          "specifier": "../cloud/embedding/cloud-embedding-provider.js",
+          "kind": "relative",
+          "resolved": "src/cloud/embedding/cloud-embedding-provider.js"
+        },
+        {
+          "specifier": "../core/settings/service.js",
+          "kind": "relative",
+          "resolved": "src/core/settings/service.js"
+        },
+        {
+          "specifier": "../core/env-bootstrap.js",
+          "kind": "relative",
+          "resolved": "src/core/env-bootstrap.js"
         }
       ],
       "dynamicImports": [
+        {
+          "specifier": "../local/core/onnx-runtime-source-resolution.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/local/core/onnx-runtime-source-resolution.js"
+        },
         {
           "specifier": "../core/ollama-lazy.js",
           "literal": true,
@@ -3239,6 +3457,11 @@
           "specifier": "./index-runtime.js",
           "kind": "relative",
           "resolved": "src/indexer/index-runtime.js"
+        },
+        {
+          "specifier": "../cloud/embedding/cloud-embedding-provider.js",
+          "kind": "relative",
+          "resolved": "src/cloud/embedding/cloud-embedding-provider.js"
         }
       ],
       "dynamicImports": [],
@@ -3737,9 +3960,14 @@
           "resolved": "src/core/embedding-profile/resolve.js"
         },
         {
-          "specifier": "../core/embedding-profile/qdrant-cloud-catalog.js",
+          "specifier": "../core/embedding-profile/qdrant-cloud-models.js",
           "kind": "relative",
-          "resolved": "src/core/embedding-profile/qdrant-cloud-catalog.js"
+          "resolved": "src/core/embedding-profile/qdrant-cloud-models.js"
+        },
+        {
+          "specifier": "../core/embedding-profile/cloud-embedding-capability.js",
+          "kind": "relative",
+          "resolved": "src/core/embedding-profile/cloud-embedding-capability.js"
         },
         {
           "specifier": "../core/embedding-profile/config-cache.js",
@@ -3884,8 +4112,108 @@
       "requireCalls": [],
       "forkSpawnCalls": []
     },
+    "src/local/core/cuda-diagnosis.js": {
+      "staticImports": [
+        {
+          "specifier": "node:child_process",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "node:fs",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "node:path",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "node:os",
+          "kind": "builtin",
+          "resolved": null
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": [
+        {
+          "callee": "spawn",
+          "arg": "nvidia-smi",
+          "literal": true,
+          "resolved": null
+        }
+      ]
+    },
     "src/local/core/length-bucket.js": {
       "staticImports": [],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/local/core/managed-onnx-runtime-manifest.js": {
+      "staticImports": [
+        {
+          "specifier": "node:crypto",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "node:crypto",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "node:fs",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "node:path",
+          "kind": "builtin",
+          "resolved": null
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/local/core/managed-runtime-id.js": {
+      "staticImports": [
+        {
+          "specifier": "node:path",
+          "kind": "builtin",
+          "resolved": null
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/local/core/managed-runtime-listing.js": {
+      "staticImports": [
+        {
+          "specifier": "node:fs",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "node:path",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "./managed-runtime-id.js",
+          "kind": "relative",
+          "resolved": "src/local/core/managed-runtime-id.js"
+        },
+        {
+          "specifier": "./managed-onnx-runtime-manifest.js",
+          "kind": "relative",
+          "resolved": "src/local/core/managed-onnx-runtime-manifest.js"
+        }
+      ],
       "dynamicImports": [],
       "requireCalls": [],
       "forkSpawnCalls": []
@@ -3908,6 +4236,82 @@
           "specifier": "dotenv/config",
           "kind": "package",
           "resolved": "dotenv"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/local/core/onnx-cuda-installer-logic.js": {
+      "staticImports": [
+        {
+          "specifier": "node:url",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "./managed-onnx-runtime-manifest.js",
+          "kind": "relative",
+          "resolved": "src/local/core/managed-onnx-runtime-manifest.js"
+        }
+      ],
+      "dynamicImports": [
+        {
+          "specifier": "./managed-onnx-runtime-manifest.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/local/core/managed-onnx-runtime-manifest.js"
+        },
+        {
+          "specifier": "node:fs",
+          "literal": true,
+          "kind": "builtin",
+          "resolved": null
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/local/core/onnx-cuda-installer-verify.js": {
+      "staticImports": [
+        {
+          "specifier": "node:url",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "./managed-onnx-runtime-manifest.js",
+          "kind": "relative",
+          "resolved": "src/local/core/managed-onnx-runtime-manifest.js"
+        },
+        {
+          "specifier": "./onnx-runtime-source-resolution.js",
+          "kind": "relative",
+          "resolved": "src/local/core/onnx-runtime-source-resolution.js"
+        }
+      ],
+      "dynamicImports": [
+        {
+          "specifier": "./onnx-provider-probe.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/local/core/onnx-provider-probe.js"
+        }
+      ],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/local/core/onnx-cuda-prereq-check.js": {
+      "staticImports": [
+        {
+          "specifier": "node:url",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "./cuda-diagnosis.js",
+          "kind": "relative",
+          "resolved": "src/local/core/cuda-diagnosis.js"
         }
       ],
       "dynamicImports": [],
@@ -4012,6 +4416,50 @@
         }
       ]
     },
+    "src/local/core/onnx-runtime-source-resolution.js": {
+      "staticImports": [
+        {
+          "specifier": "node:fs",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "node:path",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "./managed-onnx-runtime-manifest.js",
+          "kind": "relative",
+          "resolved": "src/local/core/managed-onnx-runtime-manifest.js"
+        },
+        {
+          "specifier": "./managed-runtime-id.js",
+          "kind": "relative",
+          "resolved": "src/local/core/managed-runtime-id.js"
+        },
+        {
+          "specifier": "./semidex-home.js",
+          "kind": "relative",
+          "resolved": "src/local/core/semidex-home.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/local/core/onnx-runtime-unavailable-capability.js": {
+      "staticImports": [
+        {
+          "specifier": "../../core/onnx-embed-capability.js",
+          "kind": "relative",
+          "resolved": "src/core/onnx-embed-capability.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
     "src/local/core/onnx-runtime.js": {
       "staticImports": [
         {
@@ -4034,6 +4482,23 @@
           "resolved": null
         }
       ],
+      "forkSpawnCalls": []
+    },
+    "src/local/core/semidex-home.js": {
+      "staticImports": [
+        {
+          "specifier": "node:path",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "../../core/app-data-dir.js",
+          "kind": "relative",
+          "resolved": "src/core/app-data-dir.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
       "forkSpawnCalls": []
     },
     "src/local/indexer/phases/tag-onnx.js": {
@@ -4067,12 +4532,6 @@
           "arg": "../workers/tag-onnx-worker.js",
           "literal": true,
           "resolved": "src/local/indexer/workers/tag-onnx-worker.js"
-        },
-        {
-          "callee": "fork",
-          "arg": "../workers/tag-onnx-worker.js",
-          "literal": true,
-          "resolved": "src/local/indexer/workers/tag-onnx-worker.js"
         }
       ]
     },
@@ -4100,6 +4559,28 @@
       "requireCalls": [],
       "forkSpawnCalls": []
     },
+    "src/mcp/onnx-runtime-resolution.js": {
+      "staticImports": [
+        {
+          "specifier": "../local/core/onnx-runtime-source-resolution.js",
+          "kind": "relative",
+          "resolved": "src/local/core/onnx-runtime-source-resolution.js"
+        },
+        {
+          "specifier": "../local/core/onnx-runtime-unavailable-capability.js",
+          "kind": "relative",
+          "resolved": "src/local/core/onnx-runtime-unavailable-capability.js"
+        },
+        {
+          "specifier": "../core/onnx-embed-lazy.js",
+          "kind": "relative",
+          "resolved": "src/core/onnx-embed-lazy.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
     "src/mcp/server.js": {
       "staticImports": [
         {
@@ -4121,6 +4602,11 @@
           "specifier": "../core/settings/service.js",
           "kind": "relative",
           "resolved": "src/core/settings/service.js"
+        },
+        {
+          "specifier": "./onnx-runtime-resolution.js",
+          "kind": "relative",
+          "resolved": "src/mcp/onnx-runtime-resolution.js"
         }
       ],
       "dynamicImports": [
@@ -4155,16 +4641,22 @@
           "resolved": "src/core/ollama-lazy.js"
         },
         {
-          "specifier": "../core/onnx-embed-lazy.js",
+          "specifier": "../cloud/embedding/cloud-embedding-provider.js",
           "literal": true,
           "kind": "relative",
-          "resolved": "src/core/onnx-embed-lazy.js"
+          "resolved": "src/cloud/embedding/cloud-embedding-provider.js"
         },
         {
           "specifier": "../core/doctor-checks.js",
           "literal": true,
           "kind": "relative",
           "resolved": "src/core/doctor-checks.js"
+        },
+        {
+          "specifier": "../core/rerank-provider.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/core/rerank-provider.js"
         },
         {
           "specifier": "./tools/search.js",
@@ -4271,9 +4763,9 @@
           "resolved": "src/core/embedding-profile/onnx-lane.js"
         },
         {
-          "specifier": "../../local/core/ollama.js",
+          "specifier": "../../core/generation/ollama-capability.js",
           "kind": "relative",
-          "resolved": "src/local/core/ollama.js"
+          "resolved": "src/core/generation/ollama-capability.js"
         }
       ],
       "dynamicImports": [],
@@ -4450,16 +4942,6 @@
           "resolved": "src/core/qdrant.js"
         },
         {
-          "specifier": "../../core/rerank.js",
-          "kind": "relative",
-          "resolved": "src/core/rerank.js"
-        },
-        {
-          "specifier": "../../core/ce-rerank.js",
-          "kind": "relative",
-          "resolved": "src/core/ce-rerank.js"
-        },
-        {
           "specifier": "../../core/storage/factory.js",
           "kind": "relative",
           "resolved": "src/core/storage/factory.js"
@@ -4468,6 +4950,11 @@
           "specifier": "../../core/retrieval/search.js",
           "kind": "relative",
           "resolved": "src/core/retrieval/search.js"
+        },
+        {
+          "specifier": "../../core/rerank-capability.js",
+          "kind": "relative",
+          "resolved": "src/core/rerank-capability.js"
         },
         {
           "specifier": "../../core/env.js",
@@ -5942,14 +6429,14 @@
           "resolved": "src/core/doctor-checks.js"
         },
         {
-          "specifier": "../src/admin/system/qdrant-cloud.js",
+          "specifier": "../src/cloud/admin/qdrant-cloud-system.js",
           "kind": "relative",
-          "resolved": "src/admin/system/qdrant-cloud.js"
+          "resolved": "src/cloud/admin/qdrant-cloud-system.js"
         },
         {
-          "specifier": "../src/core/embedding-profile/qdrant-cloud-catalog.js",
+          "specifier": "../src/cloud/embedding/qdrant-cloud-catalog.js",
           "kind": "relative",
-          "resolved": "src/core/embedding-profile/qdrant-cloud-catalog.js"
+          "resolved": "src/cloud/embedding/qdrant-cloud-catalog.js"
         },
         {
           "specifier": "../src/core/embedding-profile/resolve.js",
@@ -5997,14 +6484,14 @@
     "packages/lite/lite-src/semidex-home.js": {
       "staticImports": [
         {
-          "specifier": "node:os",
+          "specifier": "node:path",
           "kind": "builtin",
           "resolved": null
         },
         {
-          "specifier": "node:path",
-          "kind": "builtin",
-          "resolved": null
+          "specifier": "../src/core/app-data-dir.js",
+          "kind": "relative",
+          "resolved": "src/core/app-data-dir.js"
         }
       ],
       "dynamicImports": [],
@@ -6057,6 +6544,18 @@
           "literal": true,
           "kind": "relative",
           "resolved": "src/core/generation/runtime.js"
+        },
+        {
+          "specifier": "../src/core/generation/registry.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/core/generation/registry.js"
+        },
+        {
+          "specifier": "../src/cloud/generation/cloud-generation-provider.js",
+          "literal": true,
+          "kind": "relative",
+          "resolved": "src/cloud/generation/cloud-generation-provider.js"
         }
       ],
       "requireCalls": [],

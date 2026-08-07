@@ -22,7 +22,7 @@
 import { buildEmbeddingProfile, EXECUTION } from './schema.js';
 import { assertProviderCombo } from '../env.js';
 import { ONNX_DENSE_MODEL_ID } from '../onnx-paths.js';
-import { findDenseModel, findSparseModel } from './qdrant-cloud-catalog.js';
+import { findDenseModel, findSparseModel } from './qdrant-cloud-models.js';
 
 /**
  * @param {import('../storage/adapter.js').StorageAdapter} adapter

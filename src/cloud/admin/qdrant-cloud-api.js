@@ -1,6 +1,6 @@
 // POST /api/system/qdrant-cloud-probe — explicit, user-triggered Qdrant
 // Cloud Inference verification. Delegates entirely to
-// admin/system/qdrant-cloud.js's probeQdrantCloudInference() (Tier 2) —
+// qdrant-cloud-system.js's probeQdrantCloudInference() (Tier 2) —
 // the ONLY code path that ever calls it. Routine Settings rendering and
 // collection browsing both stay on Tier 1 (checkQdrantReachable(), wired
 // into core/embedding-profile/availability.js) until a user explicitly
@@ -10,8 +10,8 @@
 // already redacts QDRANT_KEY/URL via sanitiseErrorMessage() before
 // returning; this route does not need its own redaction pass.
 import { sendJson, readJsonBody, badRequest } from '../../core/http/http.js';
-import { probeQdrantCloudInference, classifyInferenceProbeError } from '../system/qdrant-cloud.js';
-import { findDenseModel, findSparseModel } from '../../core/embedding-profile/qdrant-cloud-catalog.js';
+import { probeQdrantCloudInference, classifyInferenceProbeError } from './qdrant-cloud-system.js';
+import { findDenseModel, findSparseModel } from '../embedding/qdrant-cloud-catalog.js';
 import { resolveNewCollectionProfile } from '../../core/embedding-profile/resolve.js';
 
 /**

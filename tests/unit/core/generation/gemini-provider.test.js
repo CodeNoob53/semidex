@@ -1,7 +1,7 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { createGeminiProvider } from '../../../../src/core/generation/gemini-provider.js';
+import { createGeminiProvider } from '../../../../src/cloud/generation/gemini-provider.js';
 import { validateGenerationProvider } from '../../../../src/core/generation/provider.js';
 
 function stubClient({ getFn, streamFn } = {}) {
@@ -32,7 +32,7 @@ describe('createGeminiProvider', () => {
   });
 
   test('never reads process.env directly', async () => {
-    const src = await readFile(new URL('../../../../src/core/generation/gemini-provider.js', import.meta.url), 'utf-8');
+    const src = await readFile(new URL('../../../../src/cloud/generation/gemini-provider.js', import.meta.url), 'utf-8');
     assert.ok(!/process\.env\./.test(src), 'gemini-provider.js must not read any process.env.* value');
   });
 

@@ -39,6 +39,12 @@ async function httpPostRaw(base, path, rawBody) {
   return { status: res.status, json };
 }
 
+async function httpGetJson(base, path) {
+  const res = await fetch(`${base}${path}`);
+  const json = await res.json();
+  return { status: res.status, json };
+}
+
 const STABLE_SUCCESS_RESULT = {
   ok: true, requestedProvider: 'cuda', effectiveProvider: 'cuda', fellBackToCpu: false,
   runtimeSource: 'custom', runtimeVersion: '1.26.0', modelCached: true,
@@ -61,6 +67,8 @@ describe('POST /api/system/onnx-probe', () => {
         runtimeSource: 'custom', runtimeVersion: '1.26.0', modelCached: true,
         restartRequired: false, testedStagedRuntimePath: false,
         message: 'CUDA session created successfully',
+        diagnosis: null,
+        managedRuntimeManifest: null,
       });
     }, { settingsService, runOnnxProbeFn });
   });
@@ -365,20 +373,290 @@ describe('POST /api/system/onnx-probe', () => {
     const { probeOnnxProvider } = await import('../../../../src/local/core/onnx-provider-probe.js');
 
     const src = registerOnnxRoutes.toString();
-    const match = src.match(/function\s+registerOnnxRoutes\s*\(\s*router\s*,\s*\{([^}]*)\}\s*=\s*\{\}\s*\)/);
+    // `s` flag: the destructured-params block now spans multiple lines
+    // (several more DI defaults were added alongside runProbeFn).
+    const match = src.match(/function\s+registerOnnxRoutes\s*\(\s*router\s*,\s*\{([^}]*)\}\s*=\s*\{\}\s*\)/s);
     assert.ok(match, 'expected registerOnnxRoutes(router, { ... } = {}) destructured-params signature');
     assert.match(match[1], /runProbeFn\s*=\s*probeOnnxProvider\b/, 'runProbeFn must default to the identifier probeOnnxProvider');
 
     // Confirm construction still succeeds with no runProbeFn override (a
     // real regression here — e.g. a required-without-default param — would
     // throw at this call, independent of the source-text check above).
+    // fakeRouter needs both .post (the probe route) and .get (the new
+    // managed-runtime listing route) — registerOnnxRoutes() registers one
+    // of each.
     const settingsService = createSettingsService({ osEnv: {}, dotenvValues: {}, settingsPath: tempSettingsPath(dir) });
-    const registered = [];
-    const fakeRouter = { post: (path, handler) => registered.push({ path, handler }) };
+    const registeredPost = [];
+    const registeredGet = [];
+    const fakeRouter = {
+      post: (path, handler) => registeredPost.push({ path, handler }),
+      get: (path, handler) => registeredGet.push({ path, handler }),
+    };
     registerOnnxRoutes(fakeRouter, { settingsService });
-    assert.equal(registered.length, 1);
-    assert.equal(registered[0].path, '/api/system/onnx-probe');
-    assert.equal(typeof registered[0].handler, 'function');
+    assert.equal(registeredPost.length, 1);
+    assert.equal(registeredPost[0].path, '/api/system/onnx-probe');
+    assert.equal(typeof registeredPost[0].handler, 'function');
+    assert.equal(registeredGet.length, 1);
+    assert.equal(registeredGet[0].path, '/api/system/onnx-managed-runtimes');
+    assert.equal(typeof registeredGet[0].handler, 'function');
     assert.equal(typeof probeOnnxProvider, 'function');
+  });
+
+  // managedRuntimeManifest field + verification write-back — every test
+  // injects a stub resolveEffectiveOnnxRuntimePathFn (never real fs) and a
+  // stub writeVerificationResultFn (never a real manifest write).
+  describe('managedRuntimeManifest field + verification write-back', () => {
+    const MANAGED_RESOLVED = {
+      path: 'C:\\fake\\runtimes\\onnxruntime-node-cuda\\1.26.0-cuda13',
+      source: 'managed', managedId: '1.26.0-cuda13', cudnnBinPath: null,
+    };
+
+    test('a successful CUDA probe against a managed selection returns managedRuntimeManifest and writes verification.status "verified"', async () => {
+      const settingsService = createSettingsService({ osEnv: {}, dotenvValues: {}, settingsPath: tempSettingsPath(dir) });
+      const resolveEffectiveOnnxRuntimePathFn = () => MANAGED_RESOLVED;
+      const runOnnxProbeFn = async () => ({
+        ok: true, requestedProvider: 'cuda', effectiveProvider: 'cuda', fellBackToCpu: false,
+        runtimeSource: 'managed', runtimeVersion: '1.26.0', modelCached: true, message: 'CUDA session created successfully',
+      });
+      let writeCall = null;
+      const writeVerificationResultFn = (dirPath, update) => { writeCall = { dirPath, update }; return { ok: true, manifest: {} }; };
+
+      // readManagedRuntimeManifest/computeManifestIdentityFingerprint are
+      // NOT injectable (real, pure, no I/O side effect issue — but they DO
+      // read real fs). Since this route only calls them when
+      // resolved.source === 'managed', and this test's fake path doesn't
+      // exist on disk, readManagedRuntimeManifest() will report not_found
+      // and the route's own `before.ok` guard skips the write — so this
+      // specific assertion (write DID happen) requires a real manifest on
+      // disk. Covered instead by the dedicated integration test below
+      // using a real temp directory.
+      await withServer(async (base) => {
+        const { json } = await httpPostJson(base, '/api/system/onnx-probe', { provider: 'cuda' });
+        assert.equal(json.managedRuntimeManifest, null); // no real manifest on disk in this test
+      }, { settingsService, runOnnxProbeFn, resolveEffectiveOnnxRuntimePathFn, writeVerificationResultFn });
+      assert.equal(writeCall, null, 'write-back is correctly skipped when no real manifest exists to read a fingerprint from');
+    });
+
+    test('with a REAL manifest on disk: a successful managed-runtime probe writes verification.status "verified" and returns the manifest projection', async () => {
+      const { mkdtempSync: mkdtemp, mkdirSync, writeFileSync: writeFile } = await import('node:fs');
+      const { tmpdir: osTmpdir } = await import('node:os');
+      const runtimeDir = mkdtemp(join(osTmpdir(), 'semidex-managed-runtime-'));
+      const sha = 'a'.repeat(64);
+      const manifest = {
+        schemaVersion: 2, ortVersion: '1.26.0', cudaMajor: '13', platform: 'win32', arch: 'x64',
+        provenance: {
+          sourceRepository: 'x', sourceTag: 'v1.26.0', sourceCommit: '8c546c37b43caaca1fa25db430dab94b901cf277',
+          runtimeAssetUrl: 'x', runtimeAssetSha256: sha, checksumTrust: 'locked',
+        },
+        artifacts: {
+          'onnxruntime.dll': { sha256: sha, bytes: 1 },
+          'onnxruntime_binding.node': { sha256: sha, bytes: 1 },
+          'onnxruntime_providers_cuda.dll': { sha256: sha, bytes: 1 },
+          'onnxruntime_providers_shared.dll': { sha256: sha, bytes: 1 },
+        },
+        dependencies: { cudnnBinPath: 'C:\\cudnn\\bin' },
+        builtAt: '2026-08-07T00:00:00.000Z', buildHost: { platform: 'win32', nodeVersion: '25.2.1' }, installerVersion: '2',
+        verification: { status: 'unverified', verifiedAt: null, effectiveProvider: null },
+      };
+      writeFile(join(runtimeDir, 'manifest.json'), JSON.stringify(manifest), 'utf-8');
+
+      const settingsService = createSettingsService({ osEnv: {}, dotenvValues: {}, settingsPath: tempSettingsPath(dir) });
+      const resolveEffectiveOnnxRuntimePathFn = () => ({ path: runtimeDir, source: 'managed', managedId: '1.26.0-cuda13', cudnnBinPath: null });
+      const runOnnxProbeFn = async () => ({
+        ok: true, requestedProvider: 'cuda', effectiveProvider: 'cuda', fellBackToCpu: false,
+        runtimeSource: 'managed', runtimeVersion: '1.26.0', modelCached: true, message: 'CUDA session created successfully',
+      });
+      try {
+        await withServer(async (base) => {
+          const { json } = await httpPostJson(base, '/api/system/onnx-probe', { provider: 'cuda' });
+          assert.deepEqual(json.managedRuntimeManifest, {
+            ortVersion: '1.26.0', cudaMajor: '13',
+            verification: { status: 'verified', verifiedAt: json.managedRuntimeManifest.verification.verifiedAt, effectiveProvider: 'cuda' },
+          });
+          assert.notEqual(json.managedRuntimeManifest.verification.verifiedAt, null);
+        }, { settingsService, runOnnxProbeFn, resolveEffectiveOnnxRuntimePathFn });
+
+        const { readManagedRuntimeManifest } = await import('../../../../src/local/core/managed-onnx-runtime-manifest.js');
+        const onDisk = readManagedRuntimeManifest(runtimeDir);
+        assert.equal(onDisk.manifest.verification.status, 'verified');
+      } finally {
+        const { rmSync: rm } = await import('node:fs');
+        rm(runtimeDir, { recursive: true, force: true });
+      }
+    });
+
+    test('a FAILED managed-runtime probe writes verification.status "failed", not "verified"', async () => {
+      const { mkdtempSync: mkdtemp, writeFileSync: writeFile, rmSync: rm } = await import('node:fs');
+      const { tmpdir: osTmpdir } = await import('node:os');
+      const runtimeDir = mkdtemp(join(osTmpdir(), 'semidex-managed-runtime-'));
+      const sha = 'b'.repeat(64);
+      const manifest = {
+        schemaVersion: 2, ortVersion: '1.26.0', cudaMajor: '13', platform: 'win32', arch: 'x64',
+        provenance: {
+          sourceRepository: 'x', sourceTag: 'v1.26.0', sourceCommit: '8c546c37b43caaca1fa25db430dab94b901cf277',
+          runtimeAssetUrl: 'x', runtimeAssetSha256: sha, checksumTrust: 'locked',
+        },
+        artifacts: {
+          'onnxruntime.dll': { sha256: sha, bytes: 1 },
+          'onnxruntime_binding.node': { sha256: sha, bytes: 1 },
+          'onnxruntime_providers_cuda.dll': { sha256: sha, bytes: 1 },
+          'onnxruntime_providers_shared.dll': { sha256: sha, bytes: 1 },
+        },
+        dependencies: { cudnnBinPath: 'C:\\cudnn\\bin' },
+        builtAt: '2026-08-07T00:00:00.000Z', buildHost: { platform: 'win32', nodeVersion: '25.2.1' }, installerVersion: '2',
+        verification: { status: 'unverified', verifiedAt: null, effectiveProvider: null },
+      };
+      writeFile(join(runtimeDir, 'manifest.json'), JSON.stringify(manifest), 'utf-8');
+
+      const settingsService = createSettingsService({ osEnv: {}, dotenvValues: {}, settingsPath: tempSettingsPath(dir) });
+      const resolveEffectiveOnnxRuntimePathFn = () => ({ path: runtimeDir, source: 'managed', managedId: '1.26.0-cuda13', cudnnBinPath: null });
+      const runOnnxProbeFn = async () => ({
+        ok: false, requestedProvider: 'cuda', effectiveProvider: null, fellBackToCpu: false,
+        runtimeSource: 'managed', runtimeVersion: '1.26.0', modelCached: true, message: 'CUDA session creation failed',
+      });
+      try {
+        await withServer(async (base) => {
+          const { json } = await httpPostJson(base, '/api/system/onnx-probe', { provider: 'cuda' });
+          assert.equal(json.managedRuntimeManifest.verification.status, 'failed');
+        }, { settingsService, runOnnxProbeFn, resolveEffectiveOnnxRuntimePathFn });
+      } finally {
+        rm(runtimeDir, { recursive: true, force: true });
+      }
+    });
+
+    test('a non-managed (explicit/npm) resolution never writes a verification result and returns managedRuntimeManifest: null', async () => {
+      const settingsService = createSettingsService({ osEnv: {}, dotenvValues: {}, settingsPath: tempSettingsPath(dir) });
+      const resolveEffectiveOnnxRuntimePathFn = () => ({ path: 'D:\\custom', source: 'explicit', managedId: null, cudnnBinPath: null });
+      let writeCalled = false;
+      const writeVerificationResultFn = () => { writeCalled = true; return { ok: true }; };
+      const runOnnxProbeFn = async () => ({
+        ok: true, requestedProvider: 'cuda', effectiveProvider: 'cuda', fellBackToCpu: false,
+        runtimeSource: 'custom', runtimeVersion: '1.26.0', modelCached: true, message: 'CUDA session created successfully',
+      });
+      await withServer(async (base) => {
+        const { json } = await httpPostJson(base, '/api/system/onnx-probe', { provider: 'cuda' });
+        assert.equal(json.managedRuntimeManifest, null);
+      }, { settingsService, runOnnxProbeFn, resolveEffectiveOnnxRuntimePathFn, writeVerificationResultFn });
+      assert.equal(writeCalled, false);
+    });
+
+    test('an invalid/corrupt managed selection surfaces a warning via the diagnosis field, never silently falls back with no explanation', async () => {
+      const settingsService = createSettingsService({ osEnv: {}, dotenvValues: {}, settingsPath: tempSettingsPath(dir) });
+      const resolveEffectiveOnnxRuntimePathFn = () => ({
+        path: '', source: 'npm', managedId: null, cudnnBinPath: null,
+        warning: 'managed runtime selected but invalid/corrupt: integrity check failed',
+      });
+      const runOnnxProbeFn = async () => ({
+        ok: false, requestedProvider: 'cuda', effectiveProvider: null, fellBackToCpu: false,
+        runtimeSource: 'npm', runtimeVersion: null, modelCached: true, message: 'no available backend found.',
+      });
+      await withServer(async (base) => {
+        const { json } = await httpPostJson(base, '/api/system/onnx-probe', { provider: 'cuda' });
+        assert.equal(json.diagnosis.reason, 'managed_runtime_resolution');
+        assert.match(json.diagnosis.details, /integrity check failed/);
+      }, { settingsService, runOnnxProbeFn, resolveEffectiveOnnxRuntimePathFn });
+    });
+  });
+
+  // diagnosis field — real system checks (nvidia-smi, CUDA_PATH/toolkit
+  // dir, cuDNN DLL presence), only ever run for a FAILED CUDA probe. Every
+  // test injects a stub diagnoseCudaFailureFn — never a real nvidia-smi
+  // spawn, never real filesystem access.
+  describe('diagnosis field (CUDA guided-setup)', () => {
+    const FAILED_CUDA_RESULT = {
+      ok: false, requestedProvider: 'cuda', effectiveProvider: null, fellBackToCpu: false,
+      runtimeSource: 'npm', runtimeVersion: '1.24.3', modelCached: true,
+      message: 'no available backend found. ERR: [cuda] backend not found.',
+    };
+    const STUB_DIAGNOSIS = { reason: 'no_custom_build', details: 'GPU/driver/toolkit present, npm build in use.', nextSteps: ['Set ONNXRUNTIME_NODE_PATH.'] };
+
+    test('a failed CUDA probe includes the diagnosis object exactly as returned by diagnoseCudaFailureFn', async () => {
+      const settingsService = createSettingsService({ osEnv: {}, dotenvValues: {}, settingsPath: tempSettingsPath(dir) });
+      const runOnnxProbeFn = async () => FAILED_CUDA_RESULT;
+      const diagnoseCudaFailureFn = async () => STUB_DIAGNOSIS;
+      await withServer(async (base) => {
+        const { json } = await httpPostJson(base, '/api/system/onnx-probe', { provider: 'cuda' });
+        assert.deepEqual(json.diagnosis, STUB_DIAGNOSIS);
+      }, { settingsService, runOnnxProbeFn, diagnoseCudaFailureFn });
+    });
+
+    test('a failed DML probe never calls diagnoseCudaFailureFn — diagnosis stays null', async () => {
+      const settingsService = createSettingsService({ osEnv: {}, dotenvValues: {}, settingsPath: tempSettingsPath(dir) });
+      const runOnnxProbeFn = async () => ({
+        ok: false, requestedProvider: 'dml', effectiveProvider: null, fellBackToCpu: false,
+        runtimeSource: 'npm', runtimeVersion: '1.24.3', modelCached: true, message: 'dml session failed',
+      });
+      let called = false;
+      const diagnoseCudaFailureFn = async () => { called = true; return STUB_DIAGNOSIS; };
+      await withServer(async (base) => {
+        const { json } = await httpPostJson(base, '/api/system/onnx-probe', { provider: 'dml' });
+        assert.equal(json.diagnosis, null);
+      }, { settingsService, runOnnxProbeFn, diagnoseCudaFailureFn });
+      assert.equal(called, false, 'diagnosis must never run for a non-CUDA probe');
+    });
+
+    test('a successful CUDA probe never calls diagnoseCudaFailureFn — diagnosis stays null', async () => {
+      const settingsService = createSettingsService({ osEnv: {}, dotenvValues: {}, settingsPath: tempSettingsPath(dir) });
+      const runOnnxProbeFn = async () => STABLE_SUCCESS_RESULT;
+      let called = false;
+      const diagnoseCudaFailureFn = async () => { called = true; return STUB_DIAGNOSIS; };
+      await withServer(async (base) => {
+        const { json } = await httpPostJson(base, '/api/system/onnx-probe', { provider: 'cuda' });
+        assert.equal(json.diagnosis, null);
+      }, { settingsService, runOnnxProbeFn, diagnoseCudaFailureFn });
+      assert.equal(called, false, 'diagnosis must never run for a successful probe');
+    });
+
+    test('a diagnoseCudaFailureFn that throws never degrades or crashes the probe response — diagnosis falls back to null', async () => {
+      const settingsService = createSettingsService({ osEnv: {}, dotenvValues: {}, settingsPath: tempSettingsPath(dir) });
+      const runOnnxProbeFn = async () => FAILED_CUDA_RESULT;
+      const diagnoseCudaFailureFn = async () => { throw new Error('nvidia-smi exploded'); };
+      await withServer(async (base) => {
+        const { status, json } = await httpPostJson(base, '/api/system/onnx-probe', { provider: 'cuda' });
+        assert.equal(status, 200);
+        assert.equal(json.ok, false);
+        assert.equal(json.message, FAILED_CUDA_RESULT.message);
+        assert.equal(json.diagnosis, null);
+      }, { settingsService, runOnnxProbeFn, diagnoseCudaFailureFn });
+    });
+  });
+});
+
+describe('GET /api/system/onnx-managed-runtimes', () => {
+  let dir;
+  test.beforeEach(() => { dir = mkdtempSync(join(tmpdir(), 'semidex-onnx-listing-api-test-')); });
+  test.afterEach(() => { rmSync(dir, { recursive: true, force: true }); });
+
+  test('returns { runtimes: [...] } from the injected listing cache, display-only', async () => {
+    const settingsService = createSettingsService({ osEnv: {}, dotenvValues: {}, settingsPath: tempSettingsPath(dir) });
+    const fakeRuntimes = [
+      { id: '1.26.0-cuda13', ortVersion: '1.26.0', cudaMajor: '13', verification: { status: 'verified', verifiedAt: '2026-08-07T00:00:00.000Z', effectiveProvider: 'cuda' } },
+    ];
+    const onnxManagedRuntimeListingCache = { listManagedRuntimes: () => fakeRuntimes };
+    await withServer(async (base) => {
+      const { status, json } = await httpGetJson(base, '/api/system/onnx-managed-runtimes');
+      assert.equal(status, 200);
+      assert.deepEqual(json, { runtimes: fakeRuntimes });
+    }, { settingsService, onnxManagedRuntimeListingCache });
+  });
+
+  test('returns an empty list, never throws, when no managed runtimes are installed', async () => {
+    const settingsService = createSettingsService({ osEnv: {}, dotenvValues: {}, settingsPath: tempSettingsPath(dir) });
+    const onnxManagedRuntimeListingCache = { listManagedRuntimes: () => [] };
+    await withServer(async (base) => {
+      const { status, json } = await httpGetJson(base, '/api/system/onnx-managed-runtimes');
+      assert.equal(status, 200);
+      assert.deepEqual(json, { runtimes: [] });
+    }, { settingsService, onnxManagedRuntimeListingCache });
+  });
+
+  test('calls listManagedRuntimes() with the real SemidexHome runtimesDir, not a hardcoded/guessed path', async () => {
+    const settingsService = createSettingsService({ osEnv: {}, dotenvValues: {}, settingsPath: tempSettingsPath(dir) });
+    let receivedRuntimesDir = null;
+    const onnxManagedRuntimeListingCache = { listManagedRuntimes: (runtimesDir) => { receivedRuntimesDir = runtimesDir; return []; } };
+    await withServer(async (base) => {
+      await httpGetJson(base, '/api/system/onnx-managed-runtimes');
+    }, { settingsService, onnxManagedRuntimeListingCache });
+    assert.ok(receivedRuntimesDir && receivedRuntimesDir.length > 0);
   });
 });

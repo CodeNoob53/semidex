@@ -1,4 +1,4 @@
-// Thin admin-layer wrapper tests for src/admin/system/qdrant-cloud.js —
+// Thin admin-layer wrapper tests for src/cloud/admin/qdrant-cloud-system.js —
 // this module now delegates ALL Qdrant-specific work to a StorageAdapter
 // (never the raw SDK/client directly, per the src/admin/ layering
 // boundary tests/unit/admin/server.test.js enforces), so these tests
@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 import {
   checkQdrantReachable, probeQdrantCloudInference,
   classifyInferenceProbeError, probeModelAvailability,
-} from '../../../../src/admin/system/qdrant-cloud.js';
+} from '../../../../src/cloud/admin/qdrant-cloud-system.js';
 
 const cloudProfile = {
   embedding: {
@@ -75,7 +75,7 @@ describe('probeQdrantCloudInference() — thin wrapper over adapter.probeInferen
   });
 
   it('this module never imports the Qdrant SDK/client/store directly — only createStorageAdapter and sanitiseErrorMessage', () => {
-    const src = readFileSync(fileURLToPath(new URL('../../../../src/admin/system/qdrant-cloud.js', import.meta.url)), 'utf-8');
+    const src = readFileSync(fileURLToPath(new URL('../../../../src/cloud/admin/qdrant-cloud-system.js', import.meta.url)), 'utf-8');
     assert.ok(!/@qdrant\/js-client-rest/.test(src));
     assert.ok(!/core\/qdrant\/(client|store)\.js/.test(src));
   });

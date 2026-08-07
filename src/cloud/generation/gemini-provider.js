@@ -22,7 +22,7 @@
 // difference from Ollama (whose fetch-based stream genuinely aborts the
 // underlying HTTP request via `signal`), reported honestly rather than
 // papered over.
-import { DEFAULT_MODEL_BY_BACKEND } from './config.js';
+import { DEFAULT_MODEL_BY_BACKEND } from '../../core/generation/config.js';
 
 // Keep direct provider construction aligned with the runtime and Settings.
 const FALLBACK_MODEL = DEFAULT_MODEL_BY_BACKEND.gemini;

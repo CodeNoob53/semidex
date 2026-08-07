@@ -11,6 +11,8 @@
 import { pathToFileURL } from 'node:url';
 import { bootstrapEnv } from '../core/env-bootstrap.js';
 import { createSettingsService, applyEnvWriteBack } from '../core/settings/service.js';
+import { resolveOnnxRuntimeForProcess } from '../local/core/onnx-runtime-source-resolution.js';
+import { createOnnxRuntimeUnavailableCapability } from '../local/core/onnx-runtime-unavailable-capability.js';
 
 export { snapshotOsEnv, loadDotenvValues, applyDotenvValues, bootstrapEnv } from '../core/env-bootstrap.js';
 
@@ -46,6 +48,33 @@ if (isMainModule) {
   //     (picking up any edit made after admin started) and classifies it
   //     correctly as dotenv, not os_env (code review finding, P2).
   const jobBaseEnv = { ...osEnv };
+
+  // Resolve which onnxruntime-node build THIS process should load —
+  // explicit ONNXRUNTIME_NODE_PATH > managed CUDA runtime selection
+  // (ONNX_MANAGED_RUNTIME) > default npm package — via the one shared
+  // resolution module every real caller (this file, indexer/index-full.js,
+  // mcp/server.js, the Admin probe route) goes through, so the precedence
+  // and the cuDNN PATH preparation it requires never drift apart between
+  // processes. Written once, at startup, for the Admin process's own
+  // background embed calls (e.g. Ask/search embedding a live ONNX-backed
+  // collection) — the probe route (admin/api/onnx.js) separately resolves
+  // into its own per-request env object to test a staged/unsaved
+  // selection without mutating this real process.env.
+  //
+  // Review finding (P2): a broken resolved runtime (prepared.ok === false)
+  // must never be silently attempted later, deep inside a real embed
+  // call — this server stays up (never fail-fast, unlike the indexer CLI:
+  // Admin serves many non-ONNX routes fine even when the local ONNX
+  // runtime is broken), but createApp() below receives a typed,
+  // immediately-throwing "unavailable" onnxEmbedCapability instead of
+  // ever attempting to load the runtime this resolution just proved is
+  // broken.
+  const onnxRuntimeResolution = resolveOnnxRuntimeForProcess({ settingsService, env: process.env });
+  if (onnxRuntimeResolution.resolutionWarning) console.warn(`[admin] ${onnxRuntimeResolution.resolutionWarning}`);
+  if (!onnxRuntimeResolution.prepared.ok) console.warn(`[admin] ${onnxRuntimeResolution.prepared.reason}`);
+  const onnxEmbedCapability = onnxRuntimeResolution.prepared.ok
+    ? undefined
+    : createOnnxRuntimeUnavailableCapability(onnxRuntimeResolution.prepared.reason);
 
   // Writes every writable setting's active value into process.env — in
   // particular QDRANT_URL, which core/qdrant/client.js still reads via a
@@ -83,10 +112,19 @@ if (isMainModule) {
   // already be settled by the time this closure runs, not awaited inside
   // it), so the wrapper below stays a plain sync function.
   const ollamaLazy = await import('../core/ollama-lazy.js');
+  // createCloudGenerationCapability() (code review, Phase 8B Step 6): the
+  // real Gemini GenerationProvider factory — registry.js's own BACKENDS
+  // default no longer includes 'gemini', so `providers: { gemini: ... }`
+  // below is what actually makes it selectable. This file is Full-only
+  // (excluded from the Lite package), so it is a safe place to import
+  // src/cloud/ directly, same rationale as the Ollama override above.
+  const { createCloudGenerationCapability } = await import('../cloud/generation/cloud-generation-provider.js');
+  const cloudGeneration = createCloudGenerationCapability();
   const createGenerationProviderFn = (opts) => {
-    if (opts?.backend !== 'ollama') return createGenerationProvider(opts);
+    const withGeminiProvider = { ...opts, providers: { ...opts.providers, gemini: cloudGeneration.createProvider } };
+    if (opts?.backend !== 'ollama') return createGenerationProvider(withGeminiProvider);
     return createGenerationProvider({
-      ...opts,
+      ...withGeminiProvider,
       options: {
         ...opts.options,
         isOllamaReachableFn: ollamaLazy.isOllamaReachable,
@@ -101,7 +139,7 @@ if (isMainModule) {
   const generationRuntime = createGenerationRuntime({ osEnv, dotenvValues, settingsService, createGenerationProviderFn });
   const { host } = resolveHostConfig(process.env, { settingsService });
   const port = resolvePortConfig(process.env, { settingsService });
-  const server = createApp({ generationRuntime, settingsService, jobBaseEnv });
+  const server = createApp({ generationRuntime, settingsService, jobBaseEnv, onnxEmbedCapability });
   server.listen(port, host, () => {
     console.log(`[admin] Semidex Local API listening on http://${host}:${port}`);
   });

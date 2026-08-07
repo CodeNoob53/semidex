@@ -1,5 +1,5 @@
-// Tests for POST /api/system/qdrant-cloud-probe (src/admin/api/qdrant-cloud.js)
-// — the admin route wiring around admin/system/qdrant-cloud.js's Tier 2
+// Tests for POST /api/system/qdrant-cloud-probe (src/cloud/admin/qdrant-cloud-api.js)
+// — the admin route wiring around cloud/admin/qdrant-cloud-system.js's Tier 2
 // probeQdrantCloudInference(). Every test injects a stub runQdrantCloudProbeFn
 // — never a real Qdrant Cloud Inference round-trip, matching this endpoint's
 // own contract (mirrors tests/unit/admin/api/onnx.test.js's conventions).
@@ -178,8 +178,8 @@ describe('POST /api/system/qdrant-cloud-probe', () => {
   });
 
   test('registerQdrantCloudRoutes()\'s runProbeFn default parameter is genuinely bound to probeQdrantCloudInference — proven via the live function object, not a re-read of the source file', async () => {
-    const { registerQdrantCloudRoutes } = await import('../../../../src/admin/api/qdrant-cloud.js');
-    const { probeQdrantCloudInference } = await import('../../../../src/admin/system/qdrant-cloud.js');
+    const { registerQdrantCloudRoutes } = await import('../../../../src/cloud/admin/qdrant-cloud-api.js');
+    const { probeQdrantCloudInference } = await import('../../../../src/cloud/admin/qdrant-cloud-system.js');
 
     const src = registerQdrantCloudRoutes.toString();
     const match = src.match(/function\s+registerQdrantCloudRoutes\s*\(\s*router\s*,\s*\{([^}]*)\}\s*=\s*\{\}\s*\)/);

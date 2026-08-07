@@ -41,6 +41,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { runFullIndexerComposition } from '../../../src/indexer/index-full.js';
 
 describe('indexer/index-full.js — Full composition explicitly builds and passes its capability bundle to run({ capabilities })', () => {
   const src = readFileSync(new URL('../../../src/indexer/index-full.js', import.meta.url), 'utf-8');
@@ -48,7 +49,7 @@ describe('indexer/index-full.js — Full composition explicitly builds and passe
 
   it('imports runIndexerCli from index-runtime.js and calls it with a capability bundle', () => {
     assert.match(src, /import \{ isIndexerMainModule, runIndexerCli \} from '\.\/index-runtime\.js'/);
-    assert.match(src, /await runIndexerCli\(\{/);
+    assert.match(src, /await runIndexerCliFn\(\{/);
   });
 
   it('index-runtime.js\'s runIndexerCli() imports run from run.js and calls run({ capabilities }) directly — never a two-step mutate-then-call sequence', () => {
@@ -76,32 +77,127 @@ describe('indexer/index-full.js — Full composition explicitly builds and passe
     assert.doesNotMatch(codeOnly, /run\(\)\.catch\(/);
   });
 
-  it('index-full.js supplies a real capability for every slot (ollamaGenerate, ollamaSummary, ollamaEmbed, ollamaDiscovery, onnxEmbed, tagOnnx)', () => {
-    const callMatch = src.match(/await runIndexerCli\(\{([\s\S]*?)\}\);/);
-    assert.ok(callMatch, 'expected a real runIndexerCli({...}) call in index-full.js');
-    const callBody = callMatch[1];
-    for (const key of ['ollamaGenerate', 'ollamaSummary', 'ollamaEmbed', 'ollamaDiscovery', 'onnxEmbed', 'tagOnnx']) {
-      assert.match(callBody, new RegExp(key), `runIndexerCli() call must supply ${key}`);
-    }
-  });
-
-  it('the call happens INSIDE the isIndexerMainModule guard — never as an import-time side effect', () => {
-    const guardStart = src.indexOf('if (isIndexerMainModule(');
-    // lastIndexOf, not indexOf: this file's own header comment ALSO
-    // mentions `await import('../core/ollama-lazy.js')` in prose (as an
-    // example of the pattern), which sits BEFORE the guard — the real
-    // code import is the LAST occurrence in the file.
-    const ollamaLazyImport = src.lastIndexOf("import('../core/ollama-lazy.js')");
-    const runIndexerCliCall = src.indexOf('await runIndexerCli({');
-    assert.ok(guardStart >= 0, 'expected an isIndexerMainModule() guard in index-full.js');
-    assert.ok(ollamaLazyImport > guardStart, 'the ollama-lazy.js import must be inside the isIndexerMainModule guard');
-    assert.ok(runIndexerCliCall > ollamaLazyImport, 'runIndexerCli() must be called after the capability imports');
-  });
-
   it('the capability objects passed are dynamically imported *-lazy.js modules (real, working implementations — not stubs)', () => {
     assert.match(src, /await import\(['"]\.\.\/core\/ollama-lazy\.js['"]\)/);
     assert.match(src, /await import\(['"]\.\.\/core\/onnx-embed-lazy\.js['"]\)/);
     assert.match(src, /await import\(['"]\.\/phases\/tag-onnx-lazy\.js['"]\)/);
+  });
+
+  it('runFullIndexerComposition() is exported and called from inside the isIndexerMainModule guard, never as an import-time side effect', () => {
+    assert.match(src, /export async function runFullIndexerComposition/);
+    const guardStart = src.indexOf('if (isIndexerMainModule(');
+    const compositionCall = src.indexOf('await runFullIndexerComposition();');
+    assert.ok(guardStart >= 0, 'expected an isIndexerMainModule() guard in index-full.js');
+    assert.ok(compositionCall > guardStart, 'runFullIndexerComposition() must be called inside the guard');
+  });
+});
+
+// runFullIndexerComposition() — review finding (P2): the indexer CLI is a
+// one-shot job; a broken ONNX runtime resolution must fail fast (no job
+// starts, exit code 1) rather than silently proceeding to attempt a
+// runtime already proven broken. Every test here is BEHAVIORAL: it calls
+// the real exported function with fully injected fakes and asserts on
+// what it actually does/returns — not source-text regex.
+describe('runFullIndexerComposition() — fail-fast on a broken ONNX runtime resolution (review finding, P2)', () => {
+  function fakeSettingsService() {
+    return { getActiveValue: () => '' };
+  }
+
+  it('a successful resolution (prepared.ok: true) proceeds to build capabilities and call runIndexerCliFn — started: true', async () => {
+    let runIndexerCliCalled = false;
+    let receivedCapabilities = null;
+    const result = await runFullIndexerComposition({
+      resolveOnnxRuntimeForProcessFn: () => ({ resolved: { source: 'npm' }, resolutionWarning: null, prepared: { ok: true } }),
+      bootstrapEnvFn: () => ({ osEnv: {}, dotenvValues: {} }),
+      createSettingsServiceFn: fakeSettingsService,
+      runIndexerCliFn: async (capabilities) => { runIndexerCliCalled = true; receivedCapabilities = capabilities; },
+    });
+    assert.equal(result.started, true);
+    assert.equal(runIndexerCliCalled, true);
+    assert.ok(receivedCapabilities.onnxEmbed);
+    assert.ok(receivedCapabilities.tagOnnx);
+    assert.ok(receivedCapabilities.cloudEmbed);
+  });
+
+  it('a broken resolution (prepared.ok: false) returns started:false, exitCode:1, and NEVER calls runIndexerCliFn — no job starts against a runtime already proven broken', async () => {
+    let runIndexerCliCalled = false;
+    const errors = [];
+    const result = await runFullIndexerComposition({
+      resolveOnnxRuntimeForProcessFn: () => ({
+        resolved: { source: 'managed', managedId: '1.26.0-cuda13' },
+        resolutionWarning: null,
+        prepared: { ok: false, reason: 'recorded cuDNN directory no longer exists on disk' },
+      }),
+      bootstrapEnvFn: () => ({ osEnv: {}, dotenvValues: {} }),
+      createSettingsServiceFn: fakeSettingsService,
+      runIndexerCliFn: async () => { runIndexerCliCalled = true; },
+      errorLogFn: (msg) => errors.push(msg),
+    });
+    assert.deepEqual(result, { started: false, exitCode: 1 });
+    assert.equal(runIndexerCliCalled, false, 'a one-shot job must never start against a runtime already proven broken');
+    assert.ok(errors.some((e) => e.includes('recorded cuDNN directory no longer exists on disk')), 'the specific failure reason must be logged, not swallowed');
+  });
+
+  // Review finding (P1): an invalid/corrupt EXPLICIT managed selection is
+  // no longer a scenario where prepared.ok can be true — real
+  // resolveOnnxRuntimeForProcess() now folds that failure into
+  // prepared.ok:false (see onnx-runtime-source-resolution.js's own
+  // resolutionFailed mechanism and its dedicated test coverage in
+  // onnx-runtime-source-resolution.test.js). This test instead proves
+  // runFullIndexerComposition() trusts `prepared.ok` alone to decide
+  // fail-fast — not resolutionWarning's mere presence — using a
+  // resolutionWarning shape that is NOT a broken-selection failure (e.g.
+  // a hypothetical future informational note), so the job legitimately
+  // proceeds.
+  it('a resolutionWarning that is NOT paired with prepared.ok:false is logged but does not by itself fail the job — only prepared.ok decides that', async () => {
+    let runIndexerCliCalled = false;
+    const warnings = [];
+    const result = await runFullIndexerComposition({
+      resolveOnnxRuntimeForProcessFn: () => ({
+        resolved: { source: 'npm', managedId: null },
+        resolutionWarning: 'informational: no ONNX_MANAGED_RUNTIME configured, using default npm package',
+        prepared: { ok: true },
+      }),
+      bootstrapEnvFn: () => ({ osEnv: {}, dotenvValues: {} }),
+      createSettingsServiceFn: fakeSettingsService,
+      runIndexerCliFn: async () => { runIndexerCliCalled = true; },
+      warnLogFn: (msg) => warnings.push(msg),
+    });
+    assert.equal(result.started, true);
+    assert.equal(runIndexerCliCalled, true);
+    assert.ok(warnings.some((w) => w.includes('informational')));
+  });
+
+  it('an invalid/corrupt EXPLICIT managed selection now produces prepared.ok:false (via resolutionFailed) and fails the job — the exact scenario the review finding closed', async () => {
+    let runIndexerCliCalled = false;
+    const errors = [];
+    const result = await runFullIndexerComposition({
+      resolveOnnxRuntimeForProcessFn: () => ({
+        resolved: { source: 'npm', managedId: null, resolutionFailed: true },
+        resolutionWarning: 'managed runtime selected but invalid/corrupt: invalid managed runtime id "x"',
+        prepared: { ok: false, reason: 'managed runtime selected but invalid/corrupt: invalid managed runtime id "x"' },
+      }),
+      bootstrapEnvFn: () => ({ osEnv: {}, dotenvValues: {} }),
+      createSettingsServiceFn: fakeSettingsService,
+      runIndexerCliFn: async () => { runIndexerCliCalled = true; },
+      errorLogFn: (msg) => errors.push(msg),
+    });
+    assert.deepEqual(result, { started: false, exitCode: 1 });
+    assert.equal(runIndexerCliCalled, false, 'the indexer must never proceed on CPU/npm when the user explicitly selected a managed CUDA runtime that failed to resolve');
+    assert.ok(errors.some((e) => e.includes('invalid/corrupt')));
+  });
+
+  it('reads settingsService via createSettingsServiceFn({ osEnv, dotenvValues }) from bootstrapEnvFn()\'s own output — real provenance wiring, not a raw process.env read', async () => {
+    let receivedBootstrapArgs = undefined;
+    let receivedEnvArgs = null;
+    await runFullIndexerComposition({
+      resolveOnnxRuntimeForProcessFn: () => ({ resolved: { source: 'npm' }, resolutionWarning: null, prepared: { ok: true } }),
+      bootstrapEnvFn: (...args) => { receivedBootstrapArgs = args; return { osEnv: { FAKE: '1' }, dotenvValues: { OTHER: '2' } }; },
+      createSettingsServiceFn: (args) => { receivedEnvArgs = args; return fakeSettingsService(); },
+      runIndexerCliFn: async () => {},
+    });
+    assert.deepEqual(receivedBootstrapArgs, []);
+    assert.deepEqual(receivedEnvArgs, { osEnv: { FAKE: '1' }, dotenvValues: { OTHER: '2' } });
   });
 });
 
@@ -141,7 +237,7 @@ describe('indexer/index-lite.js — Lite composition never imports a local-runti
     assert.ok(guardStart >= 0 && runIndexerCliCall > guardStart);
     const callMatch = src.match(/await runIndexerCli\(\{([\s\S]*?)\}\);/);
     assert.ok(callMatch, 'expected a real runIndexerCli({...}) call in index-lite.js');
-    for (const key of ['ollamaGenerate', 'ollamaSummary', 'ollamaEmbed', 'ollamaDiscovery', 'onnxEmbed', 'tagOnnx']) {
+    for (const key of ['ollamaGenerate', 'ollamaSummary', 'ollamaEmbed', 'ollamaDiscovery', 'onnxEmbed', 'tagOnnx', 'cloudEmbed']) {
       assert.match(callMatch[1], new RegExp(key));
     }
   });
@@ -173,8 +269,14 @@ describe('run.js — run({ capabilities }) accepts real *-lazy.js-backed capabil
       // index-full.js does.
       const tagOnnx = await tagOnnxLazy.createTagOnnxCapability();
       const onnxEmbed = onnxEmbedLazy.createOnnxEmbeddingCapability();
+      // cloudEmbed (code review, Phase 8B Step 6): buildRunContext() now
+      // also validates a cloudEmbed capability slot — the real factory is a
+      // pure constructor (no network I/O until a method is actually
+      // called), so it's supplied here the same way index-full.js does.
+      const { createCloudEmbeddingCapability } = await import('../../../src/cloud/embedding/cloud-embedding-provider.js');
+      const cloudEmbed = createCloudEmbeddingCapability();
       try {
-        // run({ capabilities }) validates all six slots synchronously,
+        // run({ capabilities }) validates all seven slots synchronously,
         // before main() does any real work (fail-fast at construction —
         // see run.js's own buildRunContext()) — so if validation itself
         // passed, the rejection below must be the real path error, never a
@@ -183,7 +285,7 @@ describe('run.js — run({ capabilities }) accepts real *-lazy.js-backed capabil
           () => run({
             capabilities: {
               ollamaGenerate: ollamaLazy, ollamaSummary: ollamaLazy, ollamaEmbed: ollamaLazy, ollamaDiscovery: ollamaLazy,
-              onnxEmbed, tagOnnx,
+              onnxEmbed, tagOnnx, cloudEmbed,
             },
           }),
           (err) => { assert.match(err.message, /does not exist/); return true; }

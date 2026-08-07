@@ -61,6 +61,31 @@ export function wireOnnxProbePanel(container, category) {
   btn.addEventListener('click', () => runOnnxProbe(container, category, btn));
 }
 
+// Renders a { reason, details, nextSteps } CUDA diagnosis (from the probe
+// response's `diagnosis` field — real nvidia-smi/CUDA_PATH/cuDNN system
+// checks, run server-side) into the panel's .gs-onnx-diagnosis block.
+// diagnosis is null/undefined for every non-CUDA probe, every successful
+// CUDA probe, and any older cached response shape — hides the block for
+// all of those identically via truthiness, no shape-detection needed.
+// nextSteps items are appended as real <li> elements, never innerHTML'd —
+// matching this codebase's DOM-construction convention throughout.
+function renderCudaDiagnosis(panel, diagnosis) {
+  const block = panel.querySelector('.gs-onnx-diagnosis');
+  if (!diagnosis) {
+    block.hidden = true;
+    return;
+  }
+  block.hidden = false;
+  block.querySelector('.gs-onnx-diagnosis-details').textContent = diagnosis.details ?? '';
+  const stepsList = block.querySelector('.gs-onnx-diagnosis-steps');
+  stepsList.replaceChildren();
+  for (const step of diagnosis.nextSteps ?? []) {
+    const li = document.createElement('li');
+    li.textContent = step;
+    stepsList.appendChild(li);
+  }
+}
+
 async function runOnnxProbe(container, category, btn) {
   const panel = btn.closest('.gs-onnx-probe-panel');
   const verified = panel.querySelector('.gs-onnx-verified');
@@ -78,9 +103,14 @@ async function runOnnxProbe(container, category, btn) {
   // staged-but-unsaved provider, rather than silently falling back to
   // whatever path was last actually saved.
   const pathInput = container.querySelector('.gs-path-input[data-key="ONNXRUNTIME_NODE_PATH"]');
-  const requestBody = pathInput
-    ? { provider, runtimePath: pathInput.value }
-    : { provider };
+  // Same live-read rationale as pathInput above: the managed-runtime
+  // <select>'s own current value (staged or saved) is read fresh at click
+  // time, so "Test" exercises whatever combination is actually on screen,
+  // never a stale render-time snapshot.
+  const managedRuntimeSelect = container.querySelector('.gs-field-control[data-key="ONNX_MANAGED_RUNTIME"]');
+  const requestBody = { provider };
+  if (pathInput) requestBody.runtimePath = pathInput.value;
+  if (managedRuntimeSelect) requestBody.managedRuntimeId = managedRuntimeSelect.value;
 
   btn.disabled = true;
   const originalLabel = btn.textContent;
@@ -115,14 +145,23 @@ async function runOnnxProbe(container, category, btn) {
     panel.querySelector('.gs-onnx-runtime-source').textContent = result.runtimeSource ?? 'unknown';
     panel.querySelector('.gs-onnx-runtime-version').textContent = result.runtimeVersion ?? 'unknown';
     panel.querySelector('.gs-onnx-model-cached').textContent = result.modelCached ? 'yes' : 'no';
+    panel.querySelector('.gs-onnx-managed-runtime').textContent = result.managedRuntimeManifest
+      ? `ORT ${result.managedRuntimeManifest.ortVersion} / CUDA ${result.managedRuntimeManifest.cudaMajor} (${result.managedRuntimeManifest.verification.status})`
+      : '—';
     panel.querySelector('.gs-onnx-message').textContent = result.message ?? '';
+    renderCudaDiagnosis(panel, result.diagnosis);
   } catch (err) {
     verified.textContent = 'Test failed';
     resultBlock.hidden = false;
     panel.querySelector('.gs-onnx-runtime-source').textContent = 'unknown';
     panel.querySelector('.gs-onnx-runtime-version').textContent = 'unknown';
     panel.querySelector('.gs-onnx-model-cached').textContent = 'unknown';
+    panel.querySelector('.gs-onnx-managed-runtime').textContent = '—';
     panel.querySelector('.gs-onnx-message').textContent = err?.message ?? 'The probe request failed.';
+    // A network/route failure never has a diagnosis — explicitly hide the
+    // block so a stale diagnosis from a previous successful-then-failed
+    // click sequence never lingers visibly across an unrelated error.
+    renderCudaDiagnosis(panel, null);
   } finally {
     btn.disabled = false;
     btn.textContent = originalLabel;
@@ -149,6 +188,28 @@ export async function refreshOllamaModels(forceRefresh, onModelsFetched) {
     models = { available: false, reason: err.message, models: [] };
   }
   onModelsFetched(models);
+}
+
+export function categoryNeedsManagedRuntimes(category, lastFetchedPayload) {
+  return lastFetchedPayload.settings.some(
+    (s) => s.category === category && s.dynamicOptions?.source === 'managed_onnx_runtimes'
+  );
+}
+
+// Fetches GET /api/system/onnx-managed-runtimes — the DISPLAY-ONLY listing
+// (see managed-runtime-listing.js's own header) for the ONNX_MANAGED_RUNTIME
+// dropdown. Same shape/lifecycle contract as refreshOllamaModels() above:
+// `onRuntimesFetched(listing)` lets the caller store the result into its
+// own private lastManagedRuntimes state and re-render; this module holds
+// no state of its own.
+export async function refreshManagedRuntimes(onRuntimesFetched) {
+  let listing;
+  try {
+    listing = await api('/api/system/onnx-managed-runtimes');
+  } catch {
+    listing = { runtimes: [] };
+  }
+  onRuntimesFetched(listing);
 }
 
 // ── collection-creation/reindex forms (jobs-view.js, settings-view.js) ─────

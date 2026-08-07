@@ -429,14 +429,16 @@ only for the formats in the final row.
 
 **Windows 10/11** is the verified end-to-end target. ONNX embeddings support
 CPU and DirectML out of the box via the standard npm-installed
-`onnxruntime-node` package. CUDA is also configurable, but requires a
-compatible **custom** `onnxruntime-node` build (`ONNXRUNTIME_NODE_PATH`) —
-the standard package has no CUDA execution provider compiled in, and CUDA
-Toolkit/cuDNN are OS-level prerequisites semidex does not install or manage.
-Selecting `cuda` configures the request only; it does not prove CUDA
-actually loaded. Verify the effective provider with the Admin UI's
-"Test CUDA configuration" probe or `npm run doctor`, never from the setting
-alone. Ollama independently selects its available local hardware backend.
+`onnxruntime-node` package. On Windows specifically, that standard package
+has no CUDA execution provider compiled in — CUDA is still configurable, but
+needs either a **managed** runtime (`.\scripts\install-onnxruntime-cuda-windows.ps1`,
+see [windows-cuda-onnxruntime-install.md](docs/en/windows-cuda-onnxruntime-install.md))
+or a compatible **custom** build (`ONNXRUNTIME_NODE_PATH`). CUDA Toolkit/cuDNN
+are OS-level prerequisites semidex does not install or manage. Selecting
+`cuda` configures the request only; it does not prove CUDA actually loaded.
+Verify the effective provider with the Admin UI's "Test CUDA configuration"
+probe or `npm run doctor`, never from the setting alone. Ollama independently
+selects its available local hardware backend.
 
 Linux and macOS are **experimental and unverified**. The Node.js and CPU paths
 are intended to be portable, but semidex does not claim end-to-end support on

@@ -5,7 +5,14 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runHybridSearch, resolveSearchMode } from '../../../../src/core/retrieval/search.js';
-import { loadQdrantCloudTokenizer } from '../../../../src/core/embedding-profile/qdrant-cloud-tokenizer.js';
+import { loadQdrantCloudTokenizer } from '../../../../src/cloud/embedding/qdrant-cloud-tokenizer.js';
+import { createCloudEmbeddingCapability } from '../../../../src/cloud/embedding/cloud-embedding-provider.js';
+
+// Code review fix (Phase 8B Step 6): runHybridSearch() no longer imports a
+// concrete cloud embedding implementation itself — every qdrant-cloud-
+// execution call site here must supply the real capability explicitly, the
+// same way a composition root does.
+const cloudEmbed = createCloudEmbeddingCapability();
 
 let e5TokenizerAvailable = true;
 try {
@@ -162,7 +169,7 @@ describe('runHybridSearch', () => {
       },
     };
     const adapter = fakeAdapter({ embeddingProfileResult: { state: 'valid', profile: removedModelProfile } });
-    const result = await runHybridSearch({ adapter, collection: 'c', query: 'q', top: 5 });
+    const result = await runHybridSearch({ adapter, cloudEmbed, collection: 'c', query: 'q', top: 5 });
     assert.equal(result.error, 'embedding_unsupported');
     assert.match(result.message, /some-model-removed-from-catalog/);
     assert.match(result.message, /not a supported Qdrant Cloud model/);
@@ -178,7 +185,7 @@ describe('runHybridSearch', () => {
       },
     };
     const adapter = fakeAdapter({ embeddingProfileResult: { state: 'valid', profile: plannedModelProfile } });
-    const result = await runHybridSearch({ adapter, collection: 'c', query: 'q', top: 5 });
+    const result = await runHybridSearch({ adapter, cloudEmbed, collection: 'c', query: 'q', top: 5 });
     assert.equal(result.error, 'embedding_unsupported');
     assert.equal(fakeAdapter.lastInferenceCall, undefined);
   });
@@ -194,7 +201,7 @@ describe('runHybridSearch', () => {
     const adapter = fakeAdapter({ embeddingProfileResult: { state: 'valid', profile: cloudProfile } });
     let embedQueryCalled = false;
     const embedQuery = async () => { embedQueryCalled = true; return { dense: [1], sparse: {} }; };
-    const result = await runHybridSearch({ adapter, embedQuery, collection: 'c', query: 'ukrainian query', top: 5 });
+    const result = await runHybridSearch({ adapter, embedQuery, cloudEmbed, collection: 'c', query: 'ukrainian query', top: 5 });
     assert.equal(embedQueryCalled, false, 'embedQuery (the client-only DI) must never be called for a cloud profile');
     assert.equal(result.searchMode, 'hybrid');
     assert.deepEqual(fakeAdapter.lastInferenceCall.opts.denseQuery, { text: 'ukrainian query', model: 'intfloat/multilingual-e5-small' });
@@ -238,7 +245,7 @@ describe('runHybridSearch', () => {
         return undefined;
       },
     };
-    const result = await runHybridSearch({ adapter, collection: 'existing-e5-collection', query: 'query text', top: 5, settingsService });
+    const result = await runHybridSearch({ adapter, cloudEmbed, collection: 'existing-e5-collection', query: 'query text', top: 5, settingsService });
     assert.equal(result.searchMode, 'hybrid');
     assert.equal(fakeAdapter.lastInferenceCall.opts.denseQuery.model, 'intfloat/multilingual-e5-small', 'must use the COLLECTION\'S stored E5 model, never the (hypothetically changed) global default');
   });
@@ -278,7 +285,7 @@ describe('runHybridSearch', () => {
       heuristicEstimate = Math.ceil(longQuery.length / 4);
     }
     fakeAdapter.lastInferenceCall = undefined; // reset the shared static before asserting it stays unset
-    const result = await runHybridSearch({ adapter, collection: 'c', query: longQuery, top: 5 });
+    const result = await runHybridSearch({ adapter, cloudEmbed, collection: 'c', query: longQuery, top: 5 });
     assert.equal(result.error, 'embedding_failed');
     assert.match(result.message, /too long/);
     assert.equal(fakeAdapter.lastInferenceCall, undefined, 'searchHybridInference must never be called for a rejected query — no partial/truncated request sent');
@@ -293,7 +300,7 @@ describe('runHybridSearch', () => {
       },
     };
     const adapter = fakeAdapter({ embeddingProfileResult: { state: 'valid', profile: cloudProfile } });
-    const result = await runHybridSearch({ adapter, collection: 'c', query: 'a normal length query', top: 5 });
+    const result = await runHybridSearch({ adapter, cloudEmbed, collection: 'c', query: 'a normal length query', top: 5 });
     assert.equal(result.error, undefined);
     assert.equal(result.searchMode, 'hybrid');
   });
@@ -329,7 +336,7 @@ describe('runHybridSearch — query-side opt-in benchmark telemetry (SEMIDEX_BEN
   test('a qdrant-cloud query emits exactly one dense and one sparse phase:"query" event', async () => {
     process.env.SEMIDEX_BENCH_TELEMETRY_PATH = telemetryPath;
     const adapter = fakeAdapter({ embeddingProfileResult: { state: 'valid', profile: cloudProfile } });
-    await runHybridSearch({ adapter, collection: 'c', query: 'ukrainian query', top: 5 });
+    await runHybridSearch({ adapter, cloudEmbed, collection: 'c', query: 'ukrainian query', top: 5 });
     const events = readEvents();
     assert.equal(events.length, 2);
     assert.equal(events[0].kind, 'inference');
@@ -352,7 +359,7 @@ describe('runHybridSearch — query-side opt-in benchmark telemetry (SEMIDEX_BEN
   test('emits no telemetry when SEMIDEX_BENCH_TELEMETRY_PATH is unset', async () => {
     delete process.env.SEMIDEX_BENCH_TELEMETRY_PATH;
     const adapter = fakeAdapter({ embeddingProfileResult: { state: 'valid', profile: cloudProfile } });
-    await runHybridSearch({ adapter, collection: 'c', query: 'ukrainian query', top: 5 });
+    await runHybridSearch({ adapter, cloudEmbed, collection: 'c', query: 'ukrainian query', top: 5 });
     assert.deepEqual(readEvents(), []);
   });
 
@@ -366,7 +373,7 @@ describe('runHybridSearch — query-side opt-in benchmark telemetry (SEMIDEX_BEN
       longQuery += chunk;
       heuristicEstimate = Math.ceil(longQuery.length / 4);
     }
-    const result = await runHybridSearch({ adapter, collection: 'c', query: longQuery, top: 5 });
+    const result = await runHybridSearch({ adapter, cloudEmbed, collection: 'c', query: longQuery, top: 5 });
     assert.equal(result.error, 'embedding_failed');
     assert.deepEqual(readEvents(), []);
   });

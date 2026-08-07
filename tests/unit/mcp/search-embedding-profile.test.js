@@ -13,9 +13,10 @@
 // existing scope boundary for this file.
 import { describe, it, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { handle, setStorageAdapter, chunkToLegacyPoint } from '../../../src/mcp/tools/search.js';
+import { handle, setStorageAdapter, setCloudEmbed, chunkToLegacyPoint } from '../../../src/mcp/tools/search.js';
+import { createCloudEmbeddingCapability } from '../../../src/cloud/embedding/cloud-embedding-provider.js';
 
-afterEach(() => { setStorageAdapter(null); });
+afterEach(() => { setStorageAdapter(null); setCloudEmbed(null); });
 
 function fakeAdapter({ getEmbeddingProfileResult, collection = { name: 'c' }, hits } = {}) {
   return {
@@ -67,6 +68,7 @@ describe('mcp/tools/search.js — handle() routes through runHybridSearch()', ()
       embeddingSchemaVersion: 2,
     };
     setStorageAdapter(fakeAdapter({ getEmbeddingProfileResult: { state: 'valid', profile: cloudProfile }, hits: [] }));
+    setCloudEmbed(createCloudEmbeddingCapability());
     const result = await handle({ query: 'q', collection: 'c' });
     assert.equal(result, 'No results found.');
   });

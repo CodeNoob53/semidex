@@ -20,10 +20,21 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   embedForIndex, embedForIndexBatch, embedForSearch, SCHEMA_VERSION, shouldUseOnnxBatching, resolveOnnxBatchSize,
-  EmbeddingInputTooLongError, setLocalEmbedOverrideForTest,
+  EmbeddingInputTooLongError, setLocalEmbedOverrideForTest, applyEmbeddingCapabilities,
 } from '../../../src/core/embeddings.js';
+import { createCloudEmbeddingCapability } from '../../../src/cloud/embedding/cloud-embedding-provider.js';
 
 afterEach(() => setLocalEmbedOverrideForTest(null));
+
+// Real capability (code review, Phase 8B Step 6) — embeddings.js's own
+// qdrant-cloud dispatch branch now requires an injected `cloudEmbed`
+// capability rather than importing qdrant-cloud-catalog.js itself. These
+// tests don't exercise instance-isolation concerns, so populating the
+// module-scope fallback once (the documented "a test that hasn't been
+// updated to pass capabilities explicitly" path from embeddings.js's own
+// header comment) is simpler than threading `{ capabilities: { cloudEmbed } }`
+// through every one of the many cloudProfile() call sites below.
+applyEmbeddingCapabilities({ cloudEmbed: createCloudEmbeddingCapability() });
 
 function profile({ denseProvider = 'ollama', sparseProvider = 'hashed-tf', execution = 'client', sparseExecution = execution } = {}) {
   return {

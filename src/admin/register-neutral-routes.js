@@ -33,7 +33,6 @@ import { registerGenerationRoutes } from './api/generation.js';
 import { createTaskRegistry } from './jobs/task-registry.js';
 import { registerOperationsRoutes } from './api/operations.js';
 import { registerFolderPickRoutes } from './api/system.js';
-import { registerQdrantCloudRoutes } from './api/qdrant-cloud.js';
 import { registerSettingsRoutes } from './api/settings.js';
 import { handleStatic } from './static.js';
 import { createGenerationRuntime } from '../core/generation/runtime.js';
@@ -62,9 +61,9 @@ async function defaultCountTokens(text) {
 // inside the shared function, so the SAME job registry instance is reused
 // by registerOperationsRoutes below rather than constructed twice.
 export function registerNeutralRoutes(router, {
-  adapter, embedQuery, jobRegistry, taskRegistry, assemblyLogFn, pickFolderFn,
+  adapter, embedQuery, cloudEmbed, jobRegistry, taskRegistry, assemblyLogFn, pickFolderFn,
   generationRuntime, askCoordinator, countTokens, settingsService,
-  runQdrantCloudProbeFn, resolveNewCollectionProfileFn, generationModelsFn, jobsFn,
+  runQdrantCloudProbeFn, resolveNewCollectionProfileFn, generationModelsFn, jobsFn, registerQdrantCloudRoutesFn,
 }) {
   registerSettingsRoutes(router, { settingsService });
   generationModelsFn(router, { settingsService });
@@ -87,7 +86,7 @@ export function registerNeutralRoutes(router, {
   // is always passed (the same instance every other route already shares)
   // so HYBRID_PREFETCH_LIMIT/RRF_K settings apply to admin search too, not
   // just MCP (code review finding).
-  registerSearchRoutes(router, adapter, { ...(embedQuery ? { embedQuery } : {}), settingsService });
+  registerSearchRoutes(router, adapter, { ...(embedQuery ? { embedQuery } : {}), cloudEmbed, settingsService });
   // generationRuntime/askCoordinator/countTokens are optional DI — tests
   // inject stubs so unit tests never initialize Ollama or the real BGE-M3
   // tokenizer. Defaulted here (not inside the ask-api route module) so the
@@ -108,7 +107,7 @@ export function registerNeutralRoutes(router, {
   registerGenerationRoutes(router, { generationRuntime: generation });
   const ask = askCoordinator ?? createAskCoordinator({
     adapter, embedQuery, countTokens: countTokens ?? defaultCountTokens, generationProvider: generation,
-    settingsService,
+    settingsService, cloudEmbed,
   });
   // POST /api/v1/ask — the ONE canonical, versioned Ask endpoint (see
   // src/core/ask-api/v1/route.js). The unversioned POST /api/ask seed route
@@ -132,13 +131,24 @@ export function registerNeutralRoutes(router, {
   }
   jobsFn(router, jobRegistry);
   registerOperationsRoutes(router, { jobRegistry, taskRegistry: tasks });
-  // runQdrantCloudProbeFn is optional DI (tests inject a stub so unit
-  // tests never issue a real Qdrant Cloud Inference round-trip).
-  // resolveNewCollectionProfileFn is optional DI (tests inject a spy so a
-  // test can prove the exact sparseModel value the route received reaches
-  // this call, independent of what the real catalog's current default
-  // sparse model happens to be — see qdrant-cloud.js's own header comment).
-  registerQdrantCloudRoutes(router, {
+  // registerQdrantCloudRoutesFn is a REQUIRED dependency (code review,
+  // Phase 8B Step 6 — this file used to statically import
+  // src/cloud/admin/qdrant-cloud-api.js directly, a real
+  // `shared -> cloud IMPLEMENTATION` edge). Mirrors jobRegistry's own
+  // "no fallback default" contract above — this file is shared/staged for
+  // BOTH editions, so it can never safely import the real cloud
+  // implementation itself; the composition root (createApp(),
+  // createLiteApp()) constructs it once, at composition time, via
+  // src/cloud/admin/qdrant-cloud-api.js's real registerQdrantCloudRoutes,
+  // and passes it in explicitly. runQdrantCloudProbeFn/
+  // resolveNewCollectionProfileFn stay optional DI on TOP of that (tests
+  // inject a stub so unit tests never issue a real Qdrant Cloud Inference
+  // round-trip; resolveNewCollectionProfileFn lets a test prove the exact
+  // sparseModel value the route received reaches this call).
+  if (!registerQdrantCloudRoutesFn) {
+    throw new TypeError('registerNeutralRoutes: registerQdrantCloudRoutesFn is required — pass the real registerQdrantCloudRoutes (src/cloud/admin/qdrant-cloud-api.js) from a composition root, or a test stub.');
+  }
+  registerQdrantCloudRoutesFn(router, {
     settingsService,
     ...(runQdrantCloudProbeFn ? { runProbeFn: runQdrantCloudProbeFn } : {}),
     ...(resolveNewCollectionProfileFn ? { resolveNewCollectionProfileFn } : {}),

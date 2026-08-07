@@ -3,17 +3,19 @@
 // builder (buildCloudQueryInputs) that are NOT safe to bundle into the
 // Admin Settings UI (browser code). The catalog DATA itself
 // (QDRANT_CLOUD_DENSE_MODELS/SPARSE_MODELS, findDenseModel/findSparseModel,
-// isDenseModelSupported, isCatalogCompatibleWithChunking) lives in
-// qdrant-cloud-models.js, a zero-dependency sibling module the Admin UI
-// imports directly — re-exported here unchanged so every existing
-// server-side caller of this file keeps working without a second import
-// path. No model-discovery API exists (a live-spike finding — see
+// isDenseModelSupported, isCatalogCompatibleWithChunking) is genuinely
+// neutral, zero-dependency typed metadata — not a cloud-provider
+// IMPLEMENTATION (no network call, no SDK, no tokenizer I/O) — and lives
+// in src/core/embedding-profile/qdrant-cloud-models.js, a shared contract
+// module, re-exported here unchanged so every existing server-side caller
+// of THIS file keeps working without a second import path. No
+// model-discovery API exists (a live-spike finding — see
 // benchmarks/results/2026-07-21-qdrant-cloud-inference-live-spike.md), so
 // the catalog itself is a hand-maintained list, confirmed against the
 // Qdrant Cloud Console for one account on 2026-07-21.
-import { heuristicTokenCount } from '../token-count.js';
+import { heuristicTokenCount } from '../../core/token-count.js';
 import { loadQdrantCloudTokenizer, qdrantCloudTokenCount } from './qdrant-cloud-tokenizer.js';
-import { findDenseModel } from './qdrant-cloud-models.js';
+import { findDenseModel } from '../../core/embedding-profile/qdrant-cloud-models.js';
 
 export {
   QDRANT_CLOUD_DENSE_MODELS,
@@ -22,7 +24,7 @@ export {
   findSparseModel,
   isDenseModelSupported,
   isCatalogCompatibleWithChunking,
-} from './qdrant-cloud-models.js';
+} from '../../core/embedding-profile/qdrant-cloud-models.js';
 
 /**
  * Real per-embed input check — the exact, embed-time gate. Uses a REAL

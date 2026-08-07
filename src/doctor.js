@@ -33,13 +33,15 @@ const {
   makeResult, aggregateExitCode, formatResult,
   checkNodeVersion, classifyVectorSchema,
   checkProviderAgreement, checkSchemaVersion,
-  missingModelCommands, formatCudaProbeFailure, STATUS,
+  missingModelCommands, formatCudaProbeFailure, formatCudaDiagnosis, STATUS,
   resolveCombinedLlmConfig,
 } = await import('./core/doctor-checks.js');
 const { loadConfig } = await import('./core/config.js');
 const { SCHEMA_VERSION } = await import('./core/embeddings.js');
 const { getOnnxModelPath } = await import('./core/onnx-paths.js');
 const { probeOnnxProvider } = await import('./local/core/onnx-provider-probe.js');
+const { diagnoseCudaFailure } = await import('./local/core/cuda-diagnosis.js');
+const { checkPrerequisites } = await import('./local/core/onnx-cuda-prereq-check.js');
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const KEY  = process.env.QDRANT_KEY ?? '';
@@ -421,9 +423,45 @@ if (needsOnnxF) {
       } else if (result.modelCached === false) {
         report('F', makeResult(STATUS.SKIP, 'CUDA session probe', 'model not cached'));
       } else {
+        // Real system checks (nvidia-smi, CUDA_PATH/toolkit dir, cuDNN DLL
+        // presence) explain WHY, beyond the raw ORT error string —
+        // diagnoseCudaFailure() never throws (see its own header comment),
+        // but this stays defensive belt-and-braces, matching this file's
+        // existing style, so a diagnosis bug can never turn this WARN into
+        // an uncaught crash.
+        let detail;
+        try {
+          const diagnosis = await diagnoseCudaFailure({
+            errMessage: result.message, runtimeSource: result.runtimeSource,
+          });
+          detail = formatCudaDiagnosis(diagnosis) || formatCudaProbeFailure(result.message, process.platform);
+        } catch {
+          detail = formatCudaProbeFailure(result.message, process.platform);
+        }
         report('F', makeResult(STATUS.WARN,
           `CUDA session probe failed — CUDA provider unavailable${runtimeNote}`,
-          formatCudaProbeFailure(result.message, process.platform)));
+          detail));
+
+        // Raw GPU-stack prerequisite state (nvidia-smi driver, CUDA
+        // Toolkit, cuDNN) — the same composed check
+        // scripts/install-onnxruntime-cuda-windows.ps1 uses to decide
+        // whether it's even worth attempting a managed CUDA build. Never
+        // throws (checkPrerequisites() composes cuda-diagnosis.js's own
+        // already-defensive checks), but kept in its own try/catch as
+        // belt-and-braces, matching this block's existing style, so a
+        // prerequisite-check bug can never turn this WARN into an
+        // uncaught doctor crash.
+        try {
+          const prereqs = await checkPrerequisites();
+          const driverNote = prereqs.nvidiaDriver.available
+            ? `driver ${prereqs.nvidiaDriver.driverVersion ?? 'unknown'} (${prereqs.nvidiaDriver.gpuName ?? 'unknown GPU'})`
+            : 'not detected';
+          const toolkitNote = prereqs.cudaToolkit.found ? (prereqs.cudaToolkit.path ?? 'found') : 'not found';
+          const cudnnNote = prereqs.cudnn.found === true ? 'found' : prereqs.cudnn.found === false ? 'not found' : 'unknown (no CUDA Toolkit path to search under)';
+          report('F', makeResult(STATUS.PASS,
+            'GPU-stack prerequisites (informational)',
+            `NVIDIA driver: ${driverNote} | CUDA Toolkit: ${toolkitNote} | cuDNN: ${cudnnNote}`));
+        } catch { /* purely informational — never escalate a check-of-a-check failure */ }
       }
     }
   } else if (ep === 'dml') {

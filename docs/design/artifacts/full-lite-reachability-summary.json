@@ -10,7 +10,10 @@
     "src/backfill-entity-refs.js",
     "src/smoke.js",
     "src/bootstrap-docs.js",
-    "src/admin/ui-src/entries/full.js"
+    "src/admin/ui-src/entries/full.js",
+    "src/local/core/onnx-cuda-installer-logic.js",
+    "src/local/core/onnx-cuda-prereq-check.js",
+    "src/local/core/onnx-cuda-installer-verify.js"
   ],
   "liteSyntheticRoots": [
     "packages/lite/lite-src/doctor-lite.js",
@@ -20,9 +23,9 @@
     "packages/lite/lite-src/serve-lite.js"
   ],
   "lazyShimSubstitutions": {},
-  "fullReachableCount": 232,
-  "liteReachablePreShimCount": 143,
-  "liteReachableCount": 143,
+  "fullReachableCount": 250,
+  "liteReachablePreShimCount": 148,
+  "liteReachableCount": 148,
   "shimCutFiles": [],
   "fullReachableFiles": [
     "src/admin/api/assembly.js",
@@ -37,7 +40,6 @@
     "src/admin/api/ollama-models.js",
     "src/admin/api/onnx.js",
     "src/admin/api/operations.js",
-    "src/admin/api/qdrant-cloud.js",
     "src/admin/api/query-params.js",
     "src/admin/api/search.js",
     "src/admin/api/settings.js",
@@ -54,7 +56,6 @@
     "src/admin/static.js",
     "src/admin/system/folder-picker.js",
     "src/admin/system/ollama.js",
-    "src/admin/system/qdrant-cloud.js",
     "src/admin/ui-src/api.js",
     "src/admin/ui-src/app.js",
     "src/admin/ui-src/assembly-view.js",
@@ -83,6 +84,15 @@
     "src/backfill-entity-refs.js",
     "src/backfill-tags.js",
     "src/bootstrap-docs.js",
+    "src/cloud/admin/qdrant-cloud-api.js",
+    "src/cloud/admin/qdrant-cloud-system.js",
+    "src/cloud/embedding/cloud-embedding-provider.js",
+    "src/cloud/embedding/qdrant-cloud-catalog.js",
+    "src/cloud/embedding/qdrant-cloud-tokenizer.js",
+    "src/cloud/generation/cloud-generation-provider.js",
+    "src/cloud/generation/gemini-models.js",
+    "src/cloud/generation/gemini-provider.js",
+    "src/core/app-data-dir.js",
     "src/core/ask-api/v1/contract.js",
     "src/core/ask-api/v1/request.js",
     "src/core/ask-api/v1/route.js",
@@ -102,21 +112,19 @@
     "src/core/config.js",
     "src/core/doctor-checks.js",
     "src/core/embedding-profile/availability.js",
+    "src/core/embedding-profile/cloud-embedding-capability.js",
     "src/core/embedding-profile/config-cache.js",
     "src/core/embedding-profile/migrate.js",
     "src/core/embedding-profile/onnx-lane.js",
-    "src/core/embedding-profile/qdrant-cloud-catalog.js",
     "src/core/embedding-profile/qdrant-cloud-models.js",
-    "src/core/embedding-profile/qdrant-cloud-tokenizer.js",
     "src/core/embedding-profile/resolve.js",
     "src/core/embedding-profile/schema.js",
     "src/core/embeddings.js",
     "src/core/entity-reference.js",
     "src/core/env-bootstrap.js",
     "src/core/env.js",
-    "src/core/gemini-models.js",
+    "src/core/generation/cloud-generation-capability.js",
     "src/core/generation/config.js",
-    "src/core/generation/gemini-provider.js",
     "src/core/generation/ollama-capability.js",
     "src/core/generation/ollama-provider.js",
     "src/core/generation/registry.js",
@@ -137,6 +145,8 @@
     "src/core/qdrant/payload.js",
     "src/core/qdrant/schema.js",
     "src/core/qdrant/store.js",
+    "src/core/rerank-capability.js",
+    "src/core/rerank-provider.js",
     "src/core/rerank.js",
     "src/core/retrieval/search.js",
     "src/core/settings/definitions.js",
@@ -177,15 +187,26 @@
     "src/indexer/serial-queue.js",
     "src/indexer/skeleton-payload.js",
     "src/indexer/skeleton-warnings.js",
+    "src/local/core/cuda-diagnosis.js",
     "src/local/core/length-bucket.js",
+    "src/local/core/managed-onnx-runtime-manifest.js",
+    "src/local/core/managed-runtime-id.js",
+    "src/local/core/managed-runtime-listing.js",
     "src/local/core/ollama-models.js",
     "src/local/core/ollama.js",
+    "src/local/core/onnx-cuda-installer-logic.js",
+    "src/local/core/onnx-cuda-installer-verify.js",
+    "src/local/core/onnx-cuda-prereq-check.js",
     "src/local/core/onnx-embed.js",
     "src/local/core/onnx-probe-runner.js",
     "src/local/core/onnx-provider-probe.js",
+    "src/local/core/onnx-runtime-source-resolution.js",
+    "src/local/core/onnx-runtime-unavailable-capability.js",
     "src/local/core/onnx-runtime.js",
+    "src/local/core/semidex-home.js",
     "src/local/indexer/phases/tag-onnx.js",
     "src/local/indexer/workers/tag-onnx-worker.js",
+    "src/mcp/onnx-runtime-resolution.js",
     "src/mcp/server.js",
     "src/mcp/tools/collections.js",
     "src/mcp/tools/filters.js",
@@ -274,7 +295,6 @@
     "src/admin/api/jobs.js",
     "src/admin/api/node.js",
     "src/admin/api/operations.js",
-    "src/admin/api/qdrant-cloud.js",
     "src/admin/api/query-params.js",
     "src/admin/api/search.js",
     "src/admin/api/settings.js",
@@ -289,7 +309,6 @@
     "src/admin/server.js",
     "src/admin/static.js",
     "src/admin/system/folder-picker.js",
-    "src/admin/system/qdrant-cloud.js",
     "src/admin/ui-src/api.js",
     "src/admin/ui-src/app.js",
     "src/admin/ui-src/assembly-view.js",
@@ -314,6 +333,15 @@
     "src/admin/ui-src/structural-renderer.js",
     "src/admin/ui-src/toasts.js",
     "src/admin/ui-src/topbar.js",
+    "src/cloud/admin/qdrant-cloud-api.js",
+    "src/cloud/admin/qdrant-cloud-system.js",
+    "src/cloud/embedding/cloud-embedding-provider.js",
+    "src/cloud/embedding/qdrant-cloud-catalog.js",
+    "src/cloud/embedding/qdrant-cloud-tokenizer.js",
+    "src/cloud/generation/cloud-generation-provider.js",
+    "src/cloud/generation/gemini-models.js",
+    "src/cloud/generation/gemini-provider.js",
+    "src/core/app-data-dir.js",
     "src/core/ask-api/v1/contract.js",
     "src/core/ask-api/v1/request.js",
     "src/core/ask-api/v1/route.js",
@@ -331,21 +359,19 @@
     "src/core/config.js",
     "src/core/doctor-checks.js",
     "src/core/embedding-profile/availability.js",
+    "src/core/embedding-profile/cloud-embedding-capability.js",
     "src/core/embedding-profile/config-cache.js",
     "src/core/embedding-profile/migrate.js",
     "src/core/embedding-profile/onnx-lane.js",
-    "src/core/embedding-profile/qdrant-cloud-catalog.js",
     "src/core/embedding-profile/qdrant-cloud-models.js",
-    "src/core/embedding-profile/qdrant-cloud-tokenizer.js",
     "src/core/embedding-profile/resolve.js",
     "src/core/embedding-profile/schema.js",
     "src/core/embeddings.js",
     "src/core/entity-reference.js",
     "src/core/env-bootstrap.js",
     "src/core/env.js",
-    "src/core/gemini-models.js",
+    "src/core/generation/cloud-generation-capability.js",
     "src/core/generation/config.js",
-    "src/core/generation/gemini-provider.js",
     "src/core/generation/ollama-capability.js",
     "src/core/generation/ollama-provider.js",
     "src/core/generation/registry.js",
@@ -419,7 +445,6 @@
     "src/admin/api/jobs.js",
     "src/admin/api/node.js",
     "src/admin/api/operations.js",
-    "src/admin/api/qdrant-cloud.js",
     "src/admin/api/query-params.js",
     "src/admin/api/search.js",
     "src/admin/api/settings.js",
@@ -434,7 +459,6 @@
     "src/admin/server.js",
     "src/admin/static.js",
     "src/admin/system/folder-picker.js",
-    "src/admin/system/qdrant-cloud.js",
     "src/admin/ui-src/api.js",
     "src/admin/ui-src/app.js",
     "src/admin/ui-src/assembly-view.js",
@@ -459,6 +483,15 @@
     "src/admin/ui-src/structural-renderer.js",
     "src/admin/ui-src/toasts.js",
     "src/admin/ui-src/topbar.js",
+    "src/cloud/admin/qdrant-cloud-api.js",
+    "src/cloud/admin/qdrant-cloud-system.js",
+    "src/cloud/embedding/cloud-embedding-provider.js",
+    "src/cloud/embedding/qdrant-cloud-catalog.js",
+    "src/cloud/embedding/qdrant-cloud-tokenizer.js",
+    "src/cloud/generation/cloud-generation-provider.js",
+    "src/cloud/generation/gemini-models.js",
+    "src/cloud/generation/gemini-provider.js",
+    "src/core/app-data-dir.js",
     "src/core/ask-api/v1/contract.js",
     "src/core/ask-api/v1/request.js",
     "src/core/ask-api/v1/route.js",
@@ -476,21 +509,19 @@
     "src/core/config.js",
     "src/core/doctor-checks.js",
     "src/core/embedding-profile/availability.js",
+    "src/core/embedding-profile/cloud-embedding-capability.js",
     "src/core/embedding-profile/config-cache.js",
     "src/core/embedding-profile/migrate.js",
     "src/core/embedding-profile/onnx-lane.js",
-    "src/core/embedding-profile/qdrant-cloud-catalog.js",
     "src/core/embedding-profile/qdrant-cloud-models.js",
-    "src/core/embedding-profile/qdrant-cloud-tokenizer.js",
     "src/core/embedding-profile/resolve.js",
     "src/core/embedding-profile/schema.js",
     "src/core/embeddings.js",
     "src/core/entity-reference.js",
     "src/core/env-bootstrap.js",
     "src/core/env.js",
-    "src/core/gemini-models.js",
+    "src/core/generation/cloud-generation-capability.js",
     "src/core/generation/config.js",
-    "src/core/generation/gemini-provider.js",
     "src/core/generation/ollama-capability.js",
     "src/core/generation/ollama-provider.js",
     "src/core/generation/registry.js",
@@ -579,11 +610,6 @@
     "@qdrant/js-client-rest": [
       "src/core/qdrant/client.js"
     ],
-    "@huggingface/tokenizers": [
-      "src/core/bge-tokenizer.js",
-      "src/core/embedding-profile/qdrant-cloud-tokenizer.js",
-      "src/local/core/onnx-embed.js"
-    ],
     "@opendocsg/pdf2md": [
       "src/indexer/phases/chunk.js"
     ],
@@ -592,6 +618,11 @@
     ],
     "remark-frontmatter": [
       "src/indexer/phases/skeleton.js"
+    ],
+    "@huggingface/tokenizers": [
+      "src/cloud/embedding/qdrant-cloud-tokenizer.js",
+      "src/core/bge-tokenizer.js",
+      "src/local/core/onnx-embed.js"
     ],
     "franc-min": [
       "src/indexer/phases/skeleton-summary.js"
@@ -604,8 +635,8 @@
       "src/mcp/server.js"
     ],
     "@google/genai": [
-      "src/core/gemini-models.js",
-      "src/core/generation/gemini-provider.js"
+      "src/cloud/generation/gemini-models.js",
+      "src/cloud/generation/gemini-provider.js"
     ]
   },
   "liteExternalDepsPreShim": {
@@ -629,8 +660,12 @@
       "src/admin/ui-src/settings-view.js"
     ],
     "@google/genai": [
-      "src/core/gemini-models.js",
-      "src/core/generation/gemini-provider.js"
+      "src/cloud/generation/gemini-models.js",
+      "src/cloud/generation/gemini-provider.js"
+    ],
+    "@huggingface/tokenizers": [
+      "src/cloud/embedding/qdrant-cloud-tokenizer.js",
+      "src/core/bge-tokenizer.js"
     ],
     "dotenv": [
       "src/core/config.js",
@@ -642,10 +677,6 @@
     ],
     "franc-min": [
       "src/indexer/phases/skeleton-summary.js"
-    ],
-    "@huggingface/tokenizers": [
-      "src/core/bge-tokenizer.js",
-      "src/core/embedding-profile/qdrant-cloud-tokenizer.js"
     ],
     "@opendocsg/pdf2md": [
       "src/indexer/phases/chunk.js"
@@ -678,8 +709,12 @@
       "src/admin/ui-src/settings-view.js"
     ],
     "@google/genai": [
-      "src/core/gemini-models.js",
-      "src/core/generation/gemini-provider.js"
+      "src/cloud/generation/gemini-models.js",
+      "src/cloud/generation/gemini-provider.js"
+    ],
+    "@huggingface/tokenizers": [
+      "src/cloud/embedding/qdrant-cloud-tokenizer.js",
+      "src/core/bge-tokenizer.js"
     ],
     "dotenv": [
       "src/core/config.js",
@@ -691,10 +726,6 @@
     ],
     "franc-min": [
       "src/indexer/phases/skeleton-summary.js"
-    ],
-    "@huggingface/tokenizers": [
-      "src/core/bge-tokenizer.js",
-      "src/core/embedding-profile/qdrant-cloud-tokenizer.js"
     ],
     "@opendocsg/pdf2md": [
       "src/indexer/phases/chunk.js"
@@ -713,19 +744,19 @@
   ],
   "cloudImportsLocalViolations": [],
   "classificationCounts": {
-    "shared": 125,
-    "local": 88,
-    "cloud": 12,
+    "shared": 129,
+    "local": 101,
     "composition-full": 9,
+    "cloud": 13,
     "composition-lite": 6,
     "unclear": 2,
     "mixed": 6
   },
   "runtimeCouplingCounts": {
-    "none": 200,
-    "cloud": 19,
-    "local": 29
+    "none": 218,
+    "local": 38,
+    "cloud": 10
   },
-  "localGenuinelyCoupled": 22,
-  "localFullOnlyNoCoupling": 66
+  "localGenuinelyCoupled": 31,
+  "localFullOnlyNoCoupling": 70
 }

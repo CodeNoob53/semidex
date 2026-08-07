@@ -146,16 +146,21 @@ export async function expandWindows(adapter, collection, hits, { window, windowF
  * @param {import('../../core/storage/adapter.js').StorageAdapter} adapter
  * @param {{
  *   embedQuery?: (profile: Object, query: string) => Promise<{dense: number[], sparse: Object}>,
+ *   cloudEmbed?: import('../../core/embedding-profile/cloud-embedding-capability.js').CloudEmbeddingCapability,
  *   settingsService?: ReturnType<typeof import('../../core/settings/service.js').createSettingsService>,
  * }} [deps]
  *   embedQuery is dependency-injectable so tests never need ONNX/Ollama.
  *   The default delegates to core/embeddings.js, which embeds with the
- *   collection's configured provider. settingsService is optional DI,
- *   forwarded to runHybridSearch() so HYBRID_PREFETCH_LIMIT/RRF_K apply
+ *   collection's configured provider. cloudEmbed is optional DI (code
+ *   review, Phase 8B Step 6) — only dereferenced by runHybridSearch() when
+ *   the resolved collection turns out to be qdrant-cloud; the composition
+ *   root supplies the real one (see server-full.js's/composition/lite.js's
+ *   own createCloudEmbeddingCapability() call). settingsService is optional
+ *   DI, forwarded to runHybridSearch() so HYBRID_PREFETCH_LIMIT/RRF_K apply
  *   here too, not just to MCP search — see core/retrieval/search.js's own
  *   JSDoc for why this matters (code review finding).
  */
-export function registerSearchRoutes(router, adapter, { embedQuery = embedForSearch, settingsService } = {}) {
+export function registerSearchRoutes(router, adapter, { embedQuery = embedForSearch, cloudEmbed, settingsService } = {}) {
   router.post('/api/search', async ({ req, res }) => {
     const body = await readJsonBody(req);
     const { collection, query, top, window, windowFormat, sourceFile, tags } = parseSearchRequest(body);
@@ -166,7 +171,7 @@ export function registerSearchRoutes(router, adapter, { embedQuery = embedForSea
     settingsService?.refreshIfChanged();
 
     const result = await runHybridSearch({
-      adapter, embedQuery, collection, query, top, filters: { sourceFile, tags }, settingsService,
+      adapter, embedQuery, cloudEmbed, collection, query, top, filters: { sourceFile, tags }, settingsService,
     });
 
     if (result.error === 'not_implemented') throw new HttpError(501, result.error, result.message);

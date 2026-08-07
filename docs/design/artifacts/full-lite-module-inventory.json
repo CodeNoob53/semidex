@@ -66,12 +66,11 @@
   {
     "path": "src/admin/api/generation-models.js",
     "classification": "shared",
-    "runtimeCoupling": "cloud",
+    "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
       "src/core/http/http.js",
-      "src/core/doctor-checks.js",
-      "src/core/gemini-models.js"
+      "src/core/doctor-checks.js"
     ],
     "fullReachable": true,
     "liteReachable": true,
@@ -167,7 +166,12 @@
     "entryPoints": [],
     "directDependencies": [
       "src/core/http/http.js",
-      "src/local/core/onnx-provider-probe.js"
+      "src/local/core/onnx-provider-probe.js",
+      "src/local/core/cuda-diagnosis.js",
+      "src/local/core/semidex-home.js",
+      "src/local/core/onnx-runtime-source-resolution.js",
+      "src/local/core/managed-onnx-runtime-manifest.js",
+      "src/local/core/managed-runtime-listing.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
@@ -184,24 +188,6 @@
     "directDependencies": [
       "src/core/http/http.js",
       "src/admin/api/jobs.js"
-    ],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/admin/api/qdrant-cloud.js",
-    "classification": "cloud",
-    "runtimeCoupling": "cloud",
-    "entryPoints": [],
-    "directDependencies": [
-      "src/core/http/http.js",
-      "src/admin/system/qdrant-cloud.js",
-      "src/core/embedding-profile/qdrant-cloud-catalog.js",
-      "src/core/embedding-profile/resolve.js"
     ],
     "fullReachable": true,
     "liteReachable": true,
@@ -300,12 +286,15 @@
     "directDependencies": [
       "src/core/env-bootstrap.js",
       "src/core/settings/service.js",
+      "src/local/core/onnx-runtime-source-resolution.js",
+      "src/local/core/onnx-runtime-unavailable-capability.js",
       "src/core/ce-rerank.js",
       "src/admin/server.js",
       "src/admin/server-full.js",
       "src/core/generation/runtime.js",
       "src/core/generation/registry.js",
-      "src/core/ollama-lazy.js"
+      "src/core/ollama-lazy.js",
+      "src/cloud/generation/cloud-generation-provider.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
@@ -317,7 +306,7 @@
   {
     "path": "src/admin/composition/lite.js",
     "classification": "cloud",
-    "runtimeCoupling": "none",
+    "runtimeCoupling": "cloud",
     "entryPoints": [],
     "directDependencies": [
       "src/core/storage/factory.js",
@@ -330,7 +319,12 @@
       "src/admin/jobs/registry.js",
       "src/admin/jobs/spawn-indexer-lite.js",
       "src/core/generation/ollama-capability.js",
-      "src/core/onnx-embed-capability.js"
+      "src/core/onnx-embed-capability.js",
+      "src/cloud/embedding/cloud-embedding-provider.js",
+      "src/cloud/generation/cloud-generation-provider.js",
+      "src/cloud/admin/qdrant-cloud-api.js",
+      "src/core/generation/runtime.js",
+      "src/core/generation/registry.js"
     ],
     "fullReachable": false,
     "liteReachable": true,
@@ -403,7 +397,7 @@
   {
     "path": "src/admin/register-neutral-routes.js",
     "classification": "shared",
-    "runtimeCoupling": "cloud",
+    "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
       "src/admin/api/health.js",
@@ -419,7 +413,6 @@
       "src/admin/jobs/task-registry.js",
       "src/admin/api/operations.js",
       "src/admin/api/system.js",
-      "src/admin/api/qdrant-cloud.js",
       "src/admin/api/settings.js",
       "src/admin/static.js",
       "src/core/generation/runtime.js",
@@ -470,7 +463,12 @@
       "src/admin/jobs/registry.js",
       "src/admin/jobs/spawn-indexer-full.js",
       "src/core/ollama-lazy.js",
-      "src/core/onnx-embed-lazy.js"
+      "src/core/onnx-embed-lazy.js",
+      "src/cloud/embedding/cloud-embedding-provider.js",
+      "src/cloud/generation/cloud-generation-provider.js",
+      "src/cloud/admin/qdrant-cloud-api.js",
+      "src/core/generation/runtime.js",
+      "src/core/generation/registry.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
@@ -534,22 +532,6 @@
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "exclude"
-  },
-  {
-    "path": "src/admin/system/qdrant-cloud.js",
-    "classification": "cloud",
-    "runtimeCoupling": "cloud",
-    "entryPoints": [],
-    "directDependencies": [
-      "src/core/storage/factory.js",
-      "src/core/doctor-checks.js"
-    ],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
   },
   {
     "path": "src/admin/ui-src/api.js",
@@ -709,7 +691,7 @@
   {
     "path": "src/admin/ui-src/global-settings-view.js",
     "classification": "shared",
-    "runtimeCoupling": "cloud",
+    "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
       "src/admin/ui-src/dom.js",
@@ -1063,6 +1045,150 @@
     "recommendedAction": "keep"
   },
   {
+    "path": "src/cloud/admin/qdrant-cloud-api.js",
+    "classification": "cloud",
+    "runtimeCoupling": "cloud",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/core/http/http.js",
+      "src/cloud/admin/qdrant-cloud-system.js",
+      "src/cloud/embedding/qdrant-cloud-catalog.js",
+      "src/core/embedding-profile/resolve.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/cloud/admin/qdrant-cloud-system.js",
+    "classification": "cloud",
+    "runtimeCoupling": "cloud",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/core/storage/factory.js",
+      "src/core/doctor-checks.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/cloud/embedding/cloud-embedding-provider.js",
+    "classification": "cloud",
+    "runtimeCoupling": "cloud",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/cloud/embedding/qdrant-cloud-catalog.js",
+      "src/cloud/embedding/qdrant-cloud-tokenizer.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/cloud/embedding/qdrant-cloud-catalog.js",
+    "classification": "cloud",
+    "runtimeCoupling": "cloud",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/core/token-count.js",
+      "src/cloud/embedding/qdrant-cloud-tokenizer.js",
+      "src/core/embedding-profile/qdrant-cloud-models.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/cloud/embedding/qdrant-cloud-tokenizer.js",
+    "classification": "cloud",
+    "runtimeCoupling": "cloud",
+    "entryPoints": [],
+    "directDependencies": [
+      "pkg:@huggingface/tokenizers",
+      "src/core/onnx-paths.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/cloud/generation/cloud-generation-provider.js",
+    "classification": "cloud",
+    "runtimeCoupling": "cloud",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/cloud/generation/gemini-provider.js",
+      "src/cloud/generation/gemini-models.js",
+      "src/core/generation/cloud-generation-capability.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/cloud/generation/gemini-models.js",
+    "classification": "cloud",
+    "runtimeCoupling": "cloud",
+    "entryPoints": [],
+    "directDependencies": [
+      "pkg:@google/genai"
+    ],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/cloud/generation/gemini-provider.js",
+    "classification": "cloud",
+    "runtimeCoupling": "cloud",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/core/generation/config.js",
+      "pkg:@google/genai"
+    ],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/core/app-data-dir.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
     "path": "src/core/ask/citations.js",
     "classification": "shared",
     "runtimeCoupling": "none",
@@ -1306,13 +1432,13 @@
   {
     "path": "src/core/config.js",
     "classification": "shared",
-    "runtimeCoupling": "cloud",
+    "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
       "pkg:dotenv",
       "src/core/env.js",
       "src/core/onnx-paths.js",
-      "src/core/embedding-profile/qdrant-cloud-catalog.js"
+      "src/core/embedding-profile/qdrant-cloud-models.js"
     ],
     "fullReachable": true,
     "liteReachable": true,
@@ -1337,13 +1463,26 @@
   {
     "path": "src/core/embedding-profile/availability.js",
     "classification": "shared",
-    "runtimeCoupling": "cloud",
+    "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
       "src/core/storage/embedding-profile-cache.js",
       "src/core/embedding-profile/schema.js",
-      "src/core/embedding-profile/qdrant-cloud-catalog.js"
+      "src/core/embedding-profile/qdrant-cloud-models.js"
     ],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/core/embedding-profile/cloud-embedding-capability.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [],
     "fullReachable": true,
     "liteReachable": true,
     "liteReachablePreShim": true,
@@ -1397,26 +1536,9 @@
     "recommendedAction": "keep"
   },
   {
-    "path": "src/core/embedding-profile/qdrant-cloud-catalog.js",
-    "classification": "cloud",
-    "runtimeCoupling": "cloud",
-    "entryPoints": [],
-    "directDependencies": [
-      "src/core/token-count.js",
-      "src/core/embedding-profile/qdrant-cloud-tokenizer.js",
-      "src/core/embedding-profile/qdrant-cloud-models.js"
-    ],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
-  },
-  {
     "path": "src/core/embedding-profile/qdrant-cloud-models.js",
-    "classification": "cloud",
-    "runtimeCoupling": "cloud",
+    "classification": "shared",
+    "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [],
     "fullReachable": true,
@@ -1427,31 +1549,15 @@
     "recommendedAction": "keep"
   },
   {
-    "path": "src/core/embedding-profile/qdrant-cloud-tokenizer.js",
-    "classification": "cloud",
-    "runtimeCoupling": "cloud",
-    "entryPoints": [],
-    "directDependencies": [
-      "pkg:@huggingface/tokenizers",
-      "src/core/onnx-paths.js"
-    ],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
-  },
-  {
     "path": "src/core/embedding-profile/resolve.js",
     "classification": "shared",
-    "runtimeCoupling": "cloud",
+    "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
       "src/core/embedding-profile/schema.js",
       "src/core/env.js",
       "src/core/onnx-paths.js",
-      "src/core/embedding-profile/qdrant-cloud-catalog.js"
+      "src/core/embedding-profile/qdrant-cloud-models.js"
     ],
     "fullReachable": true,
     "liteReachable": true,
@@ -1476,15 +1582,16 @@
   {
     "path": "src/core/embeddings.js",
     "classification": "shared",
-    "runtimeCoupling": "cloud",
+    "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
       "src/core/generation/ollama-capability.js",
       "src/core/onnx-embed-capability.js",
+      "src/core/embedding-profile/cloud-embedding-capability.js",
       "src/core/sparse.js",
       "src/core/env.js",
       "src/core/embedding-profile/schema.js",
-      "src/core/embedding-profile/qdrant-cloud-catalog.js",
+      "src/core/embedding-profile/qdrant-cloud-models.js",
       "src/core/bench-telemetry.js"
     ],
     "fullReachable": true,
@@ -1536,13 +1643,11 @@
     "recommendedAction": "keep"
   },
   {
-    "path": "src/core/gemini-models.js",
-    "classification": "cloud",
-    "runtimeCoupling": "cloud",
+    "path": "src/core/generation/cloud-generation-capability.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
     "entryPoints": [],
-    "directDependencies": [
-      "pkg:@google/genai"
-    ],
+    "directDependencies": [],
     "fullReachable": true,
     "liteReachable": true,
     "liteReachablePreShim": true,
@@ -1556,22 +1661,6 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/core/generation/gemini-provider.js",
-    "classification": "cloud",
-    "runtimeCoupling": "cloud",
-    "entryPoints": [],
-    "directDependencies": [
-      "src/core/generation/config.js",
-      "pkg:@google/genai"
-    ],
     "fullReachable": true,
     "liteReachable": true,
     "liteReachablePreShim": true,
@@ -1621,11 +1710,10 @@
   {
     "path": "src/core/generation/registry.js",
     "classification": "shared",
-    "runtimeCoupling": "cloud",
+    "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
-      "src/core/generation/ollama-provider.js",
-      "src/core/generation/gemini-provider.js"
+      "src/core/generation/ollama-provider.js"
     ],
     "fullReachable": true,
     "liteReachable": true,
@@ -1915,6 +2003,35 @@
     "recommendedAction": "keep"
   },
   {
+    "path": "src/core/rerank-capability.js",
+    "classification": "local",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [],
+    "fullReachable": true,
+    "liteReachable": false,
+    "liteReachablePreShim": false,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "move"
+  },
+  {
+    "path": "src/core/rerank-provider.js",
+    "classification": "local",
+    "runtimeCoupling": "local",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/core/rerank.js",
+      "src/core/ce-rerank.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": false,
+    "liteReachablePreShim": false,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "exclude"
+  },
+  {
     "path": "src/core/rerank.js",
     "classification": "local",
     "runtimeCoupling": "none",
@@ -1933,13 +2050,13 @@
   {
     "path": "src/core/retrieval/search.js",
     "classification": "shared",
-    "runtimeCoupling": "cloud",
+    "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
       "src/core/embeddings.js",
       "src/core/embedding-profile/resolve.js",
       "src/core/embedding-profile/schema.js",
-      "src/core/embedding-profile/qdrant-cloud-catalog.js",
+      "src/core/embedding-profile/qdrant-cloud-models.js",
       "src/core/bench-telemetry.js"
     ],
     "fullReachable": true,
@@ -1952,7 +2069,7 @@
   {
     "path": "src/core/settings/definitions.js",
     "classification": "shared",
-    "runtimeCoupling": "cloud",
+    "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
       "src/core/onnx-paths.js",
@@ -2120,11 +2237,10 @@
   {
     "path": "src/core/token-count.js",
     "classification": "shared",
-    "runtimeCoupling": "cloud",
+    "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
       "src/core/bge-tokenizer.js",
-      "src/core/embedding-profile/qdrant-cloud-tokenizer.js",
       "src/core/embedding-profile/schema.js"
     ],
     "fullReachable": true,
@@ -2149,6 +2265,8 @@
       "src/core/embeddings.js",
       "src/core/onnx-paths.js",
       "src/local/core/onnx-provider-probe.js",
+      "src/local/core/cuda-diagnosis.js",
+      "src/local/core/onnx-cuda-prereq-check.js",
       "package.json"
     ],
     "fullReachable": true,
@@ -2187,12 +2305,16 @@
   {
     "path": "src/indexer/index-full.js",
     "classification": "local",
-    "runtimeCoupling": "none",
+    "runtimeCoupling": "local",
     "entryPoints": [
       "full"
     ],
     "directDependencies": [
       "src/indexer/index-runtime.js",
+      "src/cloud/embedding/cloud-embedding-provider.js",
+      "src/core/settings/service.js",
+      "src/core/env-bootstrap.js",
+      "src/local/core/onnx-runtime-source-resolution.js",
       "src/core/ollama-lazy.js",
       "src/core/onnx-embed-lazy.js",
       "src/indexer/phases/tag-onnx-lazy.js"
@@ -2202,15 +2324,16 @@
     "liteReachablePreShim": false,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
-    "recommendedAction": "move"
+    "recommendedAction": "exclude"
   },
   {
     "path": "src/indexer/index-lite.js",
     "classification": "cloud",
-    "runtimeCoupling": "none",
+    "runtimeCoupling": "cloud",
     "entryPoints": [],
     "directDependencies": [
-      "src/indexer/index-runtime.js"
+      "src/indexer/index-runtime.js",
+      "src/cloud/embedding/cloud-embedding-provider.js"
     ],
     "fullReachable": false,
     "liteReachable": true,
@@ -2550,7 +2673,7 @@
   {
     "path": "src/indexer/run.js",
     "classification": "shared",
-    "runtimeCoupling": "cloud",
+    "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
       "src/indexer/phases/chunk.js",
@@ -2570,7 +2693,8 @@
       "src/core/embeddings.js",
       "src/core/storage/factory.js",
       "src/core/embedding-profile/resolve.js",
-      "src/core/embedding-profile/qdrant-cloud-catalog.js",
+      "src/core/embedding-profile/qdrant-cloud-models.js",
+      "src/core/embedding-profile/cloud-embedding-capability.js",
       "src/core/embedding-profile/config-cache.js",
       "src/indexer/preflight.js",
       "src/core/token-count.js",
@@ -2649,11 +2773,66 @@
     "recommendedAction": "keep"
   },
   {
+    "path": "src/local/core/cuda-diagnosis.js",
+    "classification": "local",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [],
+    "fullReachable": true,
+    "liteReachable": false,
+    "liteReachablePreShim": false,
+    "liteTarballStaged": false,
+    "liteBrowserBundle": false,
+    "recommendedAction": "move"
+  },
+  {
     "path": "src/local/core/length-bucket.js",
     "classification": "local",
     "runtimeCoupling": "local",
     "entryPoints": [],
     "directDependencies": [],
+    "fullReachable": true,
+    "liteReachable": false,
+    "liteReachablePreShim": false,
+    "liteTarballStaged": false,
+    "liteBrowserBundle": false,
+    "recommendedAction": "exclude"
+  },
+  {
+    "path": "src/local/core/managed-onnx-runtime-manifest.js",
+    "classification": "local",
+    "runtimeCoupling": "local",
+    "entryPoints": [],
+    "directDependencies": [],
+    "fullReachable": true,
+    "liteReachable": false,
+    "liteReachablePreShim": false,
+    "liteTarballStaged": false,
+    "liteBrowserBundle": false,
+    "recommendedAction": "exclude"
+  },
+  {
+    "path": "src/local/core/managed-runtime-id.js",
+    "classification": "local",
+    "runtimeCoupling": "local",
+    "entryPoints": [],
+    "directDependencies": [],
+    "fullReachable": true,
+    "liteReachable": false,
+    "liteReachablePreShim": false,
+    "liteTarballStaged": false,
+    "liteBrowserBundle": false,
+    "recommendedAction": "exclude"
+  },
+  {
+    "path": "src/local/core/managed-runtime-listing.js",
+    "classification": "local",
+    "runtimeCoupling": "local",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/local/core/managed-runtime-id.js",
+      "src/local/core/managed-onnx-runtime-manifest.js"
+    ],
     "fullReachable": true,
     "liteReachable": false,
     "liteReachablePreShim": false,
@@ -2683,6 +2862,59 @@
     "entryPoints": [],
     "directDependencies": [
       "pkg:dotenv"
+    ],
+    "fullReachable": true,
+    "liteReachable": false,
+    "liteReachablePreShim": false,
+    "liteTarballStaged": false,
+    "liteBrowserBundle": false,
+    "recommendedAction": "exclude"
+  },
+  {
+    "path": "src/local/core/onnx-cuda-installer-logic.js",
+    "classification": "local",
+    "runtimeCoupling": "local",
+    "entryPoints": [
+      "full"
+    ],
+    "directDependencies": [
+      "src/local/core/managed-onnx-runtime-manifest.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": false,
+    "liteReachablePreShim": false,
+    "liteTarballStaged": false,
+    "liteBrowserBundle": false,
+    "recommendedAction": "exclude"
+  },
+  {
+    "path": "src/local/core/onnx-cuda-installer-verify.js",
+    "classification": "local",
+    "runtimeCoupling": "local",
+    "entryPoints": [
+      "full"
+    ],
+    "directDependencies": [
+      "src/local/core/managed-onnx-runtime-manifest.js",
+      "src/local/core/onnx-runtime-source-resolution.js",
+      "src/local/core/onnx-provider-probe.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": false,
+    "liteReachablePreShim": false,
+    "liteTarballStaged": false,
+    "liteBrowserBundle": false,
+    "recommendedAction": "exclude"
+  },
+  {
+    "path": "src/local/core/onnx-cuda-prereq-check.js",
+    "classification": "local",
+    "runtimeCoupling": "local",
+    "entryPoints": [
+      "full"
+    ],
+    "directDependencies": [
+      "src/local/core/cuda-diagnosis.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
@@ -2742,11 +2974,58 @@
     "recommendedAction": "exclude"
   },
   {
+    "path": "src/local/core/onnx-runtime-source-resolution.js",
+    "classification": "local",
+    "runtimeCoupling": "local",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/local/core/managed-onnx-runtime-manifest.js",
+      "src/local/core/managed-runtime-id.js",
+      "src/local/core/semidex-home.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": false,
+    "liteReachablePreShim": false,
+    "liteTarballStaged": false,
+    "liteBrowserBundle": false,
+    "recommendedAction": "exclude"
+  },
+  {
+    "path": "src/local/core/onnx-runtime-unavailable-capability.js",
+    "classification": "local",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/core/onnx-embed-capability.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": false,
+    "liteReachablePreShim": false,
+    "liteTarballStaged": false,
+    "liteBrowserBundle": false,
+    "recommendedAction": "move"
+  },
+  {
     "path": "src/local/core/onnx-runtime.js",
     "classification": "local",
     "runtimeCoupling": "local",
     "entryPoints": [],
     "directDependencies": [],
+    "fullReachable": true,
+    "liteReachable": false,
+    "liteReachablePreShim": false,
+    "liteTarballStaged": false,
+    "liteBrowserBundle": false,
+    "recommendedAction": "exclude"
+  },
+  {
+    "path": "src/local/core/semidex-home.js",
+    "classification": "local",
+    "runtimeCoupling": "local",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/core/app-data-dir.js"
+    ],
     "fullReachable": true,
     "liteReachable": false,
     "liteReachablePreShim": false,
@@ -2786,6 +3065,23 @@
     "recommendedAction": "exclude"
   },
   {
+    "path": "src/mcp/onnx-runtime-resolution.js",
+    "classification": "local",
+    "runtimeCoupling": "local",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/local/core/onnx-runtime-source-resolution.js",
+      "src/local/core/onnx-runtime-unavailable-capability.js",
+      "src/core/onnx-embed-lazy.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": false,
+    "liteReachablePreShim": false,
+    "liteTarballStaged": false,
+    "liteBrowserBundle": false,
+    "recommendedAction": "exclude"
+  },
+  {
     "path": "src/mcp/server.js",
     "classification": "local",
     "runtimeCoupling": "local",
@@ -2795,11 +3091,13 @@
     "directDependencies": [
       "src/core/env-bootstrap.js",
       "src/core/settings/service.js",
+      "src/mcp/onnx-runtime-resolution.js",
       "pkg:@modelcontextprotocol/sdk",
       "src/core/embeddings.js",
       "src/core/ollama-lazy.js",
-      "src/core/onnx-embed-lazy.js",
+      "src/cloud/embedding/cloud-embedding-provider.js",
       "src/core/doctor-checks.js",
+      "src/core/rerank-provider.js",
       "src/mcp/tools/search.js",
       "src/mcp/tools/collections.js",
       "src/mcp/tools/getChunk.js",
@@ -2824,21 +3122,21 @@
   {
     "path": "src/mcp/tools/collections.js",
     "classification": "local",
-    "runtimeCoupling": "local",
+    "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
       "src/core/storage/factory.js",
       "src/core/embedding-profile/resolve.js",
       "src/core/embedding-profile/availability.js",
       "src/core/embedding-profile/onnx-lane.js",
-      "src/local/core/ollama.js"
+      "src/core/generation/ollama-capability.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
     "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
-    "recommendedAction": "exclude"
+    "recommendedAction": "move"
   },
   {
     "path": "src/mcp/tools/filters.js",
@@ -3014,14 +3312,13 @@
   {
     "path": "src/mcp/tools/search.js",
     "classification": "local",
-    "runtimeCoupling": "local",
+    "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
       "src/core/qdrant.js",
-      "src/core/rerank.js",
-      "src/core/ce-rerank.js",
       "src/core/storage/factory.js",
       "src/core/retrieval/search.js",
+      "src/core/rerank-capability.js",
       "src/core/env.js"
     ],
     "fullReachable": true,
@@ -3029,7 +3326,7 @@
     "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
-    "recommendedAction": "exclude"
+    "recommendedAction": "move"
   },
   {
     "path": "src/smoke/helpers.js",
@@ -4003,8 +4300,8 @@
     ],
     "directDependencies": [
       "src/core/doctor-checks.js",
-      "src/admin/system/qdrant-cloud.js",
-      "src/core/embedding-profile/qdrant-cloud-catalog.js",
+      "src/cloud/admin/qdrant-cloud-system.js",
+      "src/cloud/embedding/qdrant-cloud-catalog.js",
       "src/core/embedding-profile/resolve.js"
     ],
     "fullReachable": false,
@@ -4056,7 +4353,9 @@
     "entryPoints": [
       "lite"
     ],
-    "directDependencies": [],
+    "directDependencies": [
+      "src/core/app-data-dir.js"
+    ],
     "fullReachable": false,
     "liteReachable": true,
     "liteReachablePreShim": true,
@@ -4079,7 +4378,9 @@
       "src/admin/jobs/spawn-indexer-lite.js",
       "src/admin/server.js",
       "src/admin/composition/lite.js",
-      "src/core/generation/runtime.js"
+      "src/core/generation/runtime.js",
+      "src/core/generation/registry.js",
+      "src/cloud/generation/cloud-generation-provider.js"
     ],
     "fullReachable": false,
     "liteReachable": true,

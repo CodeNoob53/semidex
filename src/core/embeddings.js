@@ -25,10 +25,11 @@
 
 import { validateOllamaEmbedCapability } from './generation/ollama-capability.js';
 import { validateOnnxEmbedCapability } from './onnx-embed-capability.js';
+import { validateCloudEmbeddingCapability } from './embedding-profile/cloud-embedding-capability.js';
 import { encode as hashedTfEncode } from './sparse.js';
 import { assertProviderCombo } from './env.js';
 import { EXECUTION } from './embedding-profile/schema.js';
-import { findDenseModel, checkEmbedInputFits, fitContextToBudget } from './embedding-profile/qdrant-cloud-catalog.js';
+import { findDenseModel } from './embedding-profile/qdrant-cloud-models.js';
 import { emitTelemetry } from './bench-telemetry.js';
 
 export const SCHEMA_VERSION = 2;
@@ -103,24 +104,47 @@ export function resolveOnnxBatchSize(env) {
 // a real local-runtime import this module must never statically depend on.
 let _ollamaDefault = null;
 let _onnxEmbedDefault = null;
+// Code review fix (Phase 8B Step 6): this module used to statically import
+// src/cloud/embedding/qdrant-cloud-catalog.js directly for
+// checkEmbedInputFits()/fitContextToBudget() — a real `shared -> cloud
+// IMPLEMENTATION` edge, unlike the ollama/onnxEmbed capabilities above,
+// which were already injected. Mirrors the exact same two-layer pattern:
+// a per-call `capabilities.cloudEmbed` (layer 1) or this module-scope
+// fallback (layer 2, set by applyEmbeddingCapabilities(), unset by
+// default — no silent real-network default).
+let _cloudEmbedDefault = null;
 
 /**
- * Composition-time seam: sets the module-scope FALLBACK Ollama/ONNX
+ * Composition-time seam: sets the module-scope FALLBACK Ollama/ONNX/cloud
  * embedding capabilities used only when a caller passes no per-call
  * `capabilities` argument to embedForIndex/embedForIndexBatch/embedForSearch.
  * Call once, at process composition time (mirrors
- * applyContextSettings()/applyTagSettings()) — never per-request. Either
- * capability may be omitted to leave the other's current binding unchanged.
- * Prefer passing `capabilities` per call (layer 1, above) over relying on
- * this fallback where a real per-call capability is available. Unset by
- * default (code review, round 4) — a caller relying on this fallback
- * without ever calling this function gets a clear "capability not
- * injected" error, never a silent real-local-runtime default.
- * @param {{ ollama?: import('./generation/ollama-capability.js').OllamaEmbedCapability, onnxEmbed?: import('./onnx-embed-capability.js').OnnxEmbedCapability }} capabilities
+ * applyContextSettings()/applyTagSettings()) — never per-request. Any
+ * capability may be omitted to leave the others' current binding
+ * unchanged. Prefer passing `capabilities` per call (layer 1, above) over
+ * relying on this fallback where a real per-call capability is available.
+ * Unset by default (code review, round 4) — a caller relying on this
+ * fallback without ever calling this function gets a clear "capability not
+ * injected" error, never a silent real-local-runtime/cloud default.
+ * @param {{ ollama?: import('./generation/ollama-capability.js').OllamaEmbedCapability, onnxEmbed?: import('./onnx-embed-capability.js').OnnxEmbedCapability, cloudEmbed?: import('./embedding-profile/cloud-embedding-capability.js').CloudEmbeddingCapability }} capabilities
  */
-export function applyEmbeddingCapabilities({ ollama, onnxEmbed } = {}) {
+export function applyEmbeddingCapabilities({ ollama, onnxEmbed, cloudEmbed } = {}) {
   if (ollama) { validateOllamaEmbedCapability(ollama); _ollamaDefault = ollama; }
   if (onnxEmbed) { validateOnnxEmbedCapability(onnxEmbed); _onnxEmbedDefault = onnxEmbed; }
+  if (cloudEmbed) { validateCloudEmbeddingCapability(cloudEmbed); _cloudEmbedDefault = cloudEmbed; }
+}
+
+// Resolves the effective cloud-embedding capability for one call: per-call
+// `capabilities.cloudEmbed` wins, falling back to the module-scope default;
+// throws a clear, actionable error (never a silent local/network default)
+// if neither was ever supplied — mirrors _embed()'s own
+// "no X capability available" error shape for ollama/onnxEmbed below.
+function resolveCloudEmbed(capabilities) {
+  const cloudEmbed = capabilities?.cloudEmbed ?? _cloudEmbedDefault;
+  if (!cloudEmbed) {
+    throw new Error('embeddings.js: no cloudEmbed capability available — pass { capabilities: { cloudEmbed } } or call applyEmbeddingCapabilities({ cloudEmbed }) first.');
+  }
+  return cloudEmbed;
 }
 
 // Adapts a resolved embedding profile's dense/sparse lanes into the small
@@ -192,7 +216,8 @@ const CONTEXT_TEXT_SEPARATOR = '\n\n';
 // no real context prefix to trim), behavior is unchanged from before this
 // fix: `text` is checked as-is, and a failing check throws immediately
 // with no retry.
-async function embedForIndexCloud(profile, text, context = null) {
+async function embedForIndexCloud(profile, text, context, capabilities) {
+  const { checkEmbedInputFits, fitContextToBudget } = resolveCloudEmbed(capabilities);
   const denseModelId = profile.embedding.dense.model;
   const sparseModelId = profile.embedding.sparse?.model;
 
@@ -261,13 +286,13 @@ async function embedForIndexCloud(profile, text, context = null) {
  * @param {string} text — the full assembled embed input (context+text for a
  *   real chunk, or a bare summary string for e.g. a directory/skeleton
  *   summary with no separate context to reserve budget for)
- * @param {{ context?: string, capabilities?: { ollama?: import('./generation/ollama-capability.js').OllamaEmbedCapability, onnxEmbed?: import('./onnx-embed-capability.js').OnnxEmbedCapability } }} [opts] —
+ * @param {{ context?: string, capabilities?: { ollama?: import('./generation/ollama-capability.js').OllamaEmbedCapability, onnxEmbed?: import('./onnx-embed-capability.js').OnnxEmbedCapability, cloudEmbed?: import('./embedding-profile/cloud-embedding-capability.js').CloudEmbeddingCapability } }} [opts] —
  *   `context` (cloud-only): the context prefix already folded into `text`,
  *   supplied separately so a too-long input can have ITS CONTEXT trimmed
  *   (never the chunk body) and be retried once before failing. Ignored for
- *   a client-execution profile. `capabilities` (client-only): the REAL
- *   isolation seam — when supplied, this call dispatches through EXACTLY
- *   these objects, never touching the module-scope
+ *   a client-execution profile. `capabilities` (client- AND cloud-lane):
+ *   the REAL isolation seam — when supplied, this call dispatches through
+ *   EXACTLY these objects, never touching the module-scope
  *   applyEmbeddingCapabilities() fallback at all, so two callers in the
  *   same process (e.g. a Full and a Lite composition root) can never step
  *   on each other via this call. Omitted fields fall back to the
@@ -276,7 +301,7 @@ async function embedForIndexCloud(profile, text, context = null) {
  */
 export async function embedForIndex(profile, text, { context = null, capabilities } = {}) {
   if (profile.embedding.dense.execution === EXECUTION.QDRANT_CLOUD) {
-    return embedForIndexCloud(profile, text, context);
+    return embedForIndexCloud(profile, text, context, capabilities);
   }
   assertClientExecution(profile);
   const cfg = laneConfig(profile);
@@ -307,8 +332,8 @@ export async function embedForIndex(profile, text, { context = null, capabilitie
  * @param {{ contexts?: (string|null)[], capabilities?: Object }} [opts] —
  *   `contexts` (cloud-only): per-text context prefixes (same index order as
  *   `texts`), see embedForIndex()'s own `context` option. `capabilities`
- *   (client-only): see embedForIndex()'s own `capabilities` option — the
- *   same object is used for every text in this batch.
+ *   (client- AND cloud-lane): see embedForIndex()'s own `capabilities`
+ *   option — the same object is used for every text in this batch.
  * @returns {Promise<Array<{ dense: number[], sparse: object, meta: object }>>}
  */
 export async function embedForIndexBatch(profile, texts, runBatched, batchSize, { contexts = null, capabilities } = {}) {
@@ -324,7 +349,7 @@ export async function embedForIndexBatch(profile, texts, runBatched, batchSize, 
     // indexing into `contexts` inside the callback) is what keeps each
     // text matched to its own context correctly across every batch.
     const pairs = texts.map((text, i) => ({ text, context: contexts?.[i] ?? null }));
-    return runBatched(pairs, batchSize, ({ text, context }) => embedForIndexCloud(profile, text, context));
+    return runBatched(pairs, batchSize, ({ text, context }) => embedForIndexCloud(profile, text, context, capabilities));
   }
   assertClientExecution(profile);
   const cfg = laneConfig(profile);

@@ -358,7 +358,7 @@ export const DEFINITIONS = {
     derivedWhen: { key: 'EMBEDDING_BACKEND', equals: 'bge-m3-onnx', value: ONNX_DENSE_MODEL_ID },
     ...stringField({ envVar: 'DENSE_MODEL', defaultVal: 'bge-m3' }),
   },
-  // Static catalog-backed selector (src/core/embedding-profile/qdrant-cloud-catalog.js)
+  // Static catalog-backed selector (src/cloud/embedding/qdrant-cloud-catalog.js)
   // — NOT dynamicOptions/live discovery. No model-discovery API exists for
   // Qdrant Cloud Inference (a confirmed spike finding); pretending a static
   // list is live discovery would misrepresent what this control actually
@@ -509,6 +509,28 @@ export const DEFINITIONS = {
     ],
     pathPicker: true,
     ...stringField({ envVar: 'ONNXRUNTIME_NODE_PATH', defaultVal: '', allowEmpty: true }),
+  },
+  // CUDA-only. Selects a managed CUDA runtime previously installed by
+  // scripts/install-onnxruntime-cuda-windows.ps1 into SEMIDEX_HOME (see
+  // local/core/semidex-home.js), identified by its validated
+  // `<ortVersion>-cuda<cudaMajor>` id (local/core/managed-runtime-id.js).
+  // Kept fully independent of ONNXRUNTIME_NODE_PATH at the storage layer —
+  // selecting one never writes/clears the other; precedence between them
+  // is resolved at load time by local/core/onnx-runtime-source-resolution.js
+  // (explicit ONNXRUNTIME_NODE_PATH > this managed selection > default npm
+  // package), never here. Empty means "no managed runtime selected."
+  // Re-validated (format + on-disk integrity) on every read — this field
+  // is never trusted blindly from settings.json alone.
+  ONNX_MANAGED_RUNTIME: {
+    category: 'embeddings', label: 'Managed CUDA runtime', type: 'string', envVar: 'ONNX_MANAGED_RUNTIME',
+    description: 'Select a CUDA-enabled onnxruntime-node build previously installed via scripts/install-onnxruntime-cuda-windows.ps1. Ignored while a custom runtime path is set above. Selecting this does not prove CUDA loaded — use the Admin CUDA probe or npm run doctor to verify.', advanced: true,
+    appliesAt: 'next_restart', requiresReindex: false, requiresBackfill: false,
+    visibleWhen: [
+      { key: 'EMBEDDING_BACKEND', equals: 'bge-m3-onnx' },
+      { key: 'ONNX_EXECUTION_PROVIDER', equals: 'cuda' },
+    ],
+    dynamicOptions: { source: 'managed_onnx_runtimes' },
+    ...stringField({ envVar: 'ONNX_MANAGED_RUNTIME', defaultVal: '', allowEmpty: true }),
   },
 
   // ── retrieval & ranking ─────────────────────────────────────────────────

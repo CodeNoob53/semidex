@@ -28,14 +28,14 @@ describe('core/onnx-paths.js — SEMIDEX_TOKENIZER_CACHE_DIR override (set)', ()
     assert.ok(ONNX_CACHE_DIR.endsWith('models'), 'ONNX_CACHE_DIR must remain the package-relative models/ dir');
   });
 
-  it('embedding-profile/qdrant-cloud-tokenizer.js (imported from the same process) observes the identical override, since it imports TOKENIZER_CACHE_DIR from onnx-paths.js', async () => {
+  it('cloud/embedding/qdrant-cloud-tokenizer.js (imported from the same process) observes the identical override, since it imports TOKENIZER_CACHE_DIR from onnx-paths.js', async () => {
     const { TOKENIZER_CACHE_DIR } = await import('../../../src/core/onnx-paths.js');
     // Importing qdrant-cloud-tokenizer.js must not throw and must be wired
     // to the same constant this file already observed as the override —
     // proven indirectly here since tokenizerDir() is module-private; the
     // real download round-trip is covered by qdrant-cloud-tokenizer's own
     // existing corrupt-cache-recovery integration tests.
-    const mod = await import('../../../src/core/embedding-profile/qdrant-cloud-tokenizer.js');
+    const mod = await import('../../../src/cloud/embedding/qdrant-cloud-tokenizer.js');
     assert.ok(typeof mod === 'object');
     assert.equal(TOKENIZER_CACHE_DIR, process.env.SEMIDEX_TOKENIZER_CACHE_DIR);
   });

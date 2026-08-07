@@ -10,6 +10,7 @@
 // entry script, so the guard already prevents that).
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
   snapshotOsEnv, loadDotenvValues, applyDotenvValues, bootstrapEnv,
 } from '../../../src/admin/bootstrap.js';
@@ -21,6 +22,37 @@ describe('bootstrap.js — re-exports env-bootstrap.js unchanged', () => {
     assert.equal(loadDotenvValues, envBootstrap.loadDotenvValues);
     assert.equal(applyDotenvValues, envBootstrap.applyDotenvValues);
     assert.equal(bootstrapEnv, envBootstrap.bootstrapEnv);
+  });
+});
+
+describe('bootstrap.js — resolves the effective ONNX CUDA runtime before applyEnvWriteBack()', () => {
+  const src = readFileSync(new URL('../../../src/admin/bootstrap.js', import.meta.url), 'utf-8');
+
+  // Structural wiring only — bootstrap.js is a self-starting isMainModule
+  // script with no exported composition function (unlike
+  // indexer/index-full.js's own runFullIndexerComposition()), so it
+  // cannot be called directly with injected fakes in a test. The
+  // resolution/typed-unavailable-capability BEHAVIOR itself has full
+  // behavioral coverage elsewhere: resolveOnnxRuntimeForProcess() in
+  // tests/unit/local/core/onnx-runtime-source-resolution.test.js, and
+  // createOnnxRuntimeUnavailableCapability() in
+  // tests/unit/local/core/onnx-runtime-unavailable-capability.test.js.
+  test('resolves via the shared resolveOnnxRuntimeForProcess() INSIDE the isMainModule guard, right after settingsService is constructed and before applyEnvWriteBack()', () => {
+    const guardStart = src.indexOf('if (isMainModule)');
+    const settingsServiceLine = src.indexOf('createSettingsService({ osEnv, dotenvValues })');
+    const resolveCall = src.indexOf('resolveOnnxRuntimeForProcess({ settingsService, env: process.env })');
+    const writeBackCall = src.indexOf('applyEnvWriteBack(settingsService)');
+    const createAppCall = src.indexOf('createApp({ generationRuntime, settingsService, jobBaseEnv, onnxEmbedCapability })');
+    assert.ok(guardStart >= 0);
+    assert.ok(settingsServiceLine > guardStart);
+    assert.ok(resolveCall > settingsServiceLine, 'resolution must run after settingsService is constructed');
+    assert.ok(writeBackCall > resolveCall, 'resolution must run before applyEnvWriteBack()');
+    assert.ok(createAppCall > resolveCall, 'the resolved onnxEmbedCapability must reach createApp()');
+  });
+
+  test('a non-ok prepared result builds a typed-unavailable onnxEmbedCapability via createOnnxRuntimeUnavailableCapability(), passed into createApp() — never throws/crashes admin startup', () => {
+    assert.match(src, /import \{ createOnnxRuntimeUnavailableCapability \} from '\.\.\/local\/core\/onnx-runtime-unavailable-capability\.js'/);
+    assert.match(src, /const onnxEmbedCapability = onnxRuntimeResolution\.prepared\.ok\s*\n\s*\? undefined\s*\n\s*: createOnnxRuntimeUnavailableCapability\(onnxRuntimeResolution\.prepared\.reason\);/);
   });
 });
 

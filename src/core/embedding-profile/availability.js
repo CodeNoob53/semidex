@@ -9,7 +9,7 @@
 // Semantic/hybrid search is what becomes unavailable.
 import { createProfileCache } from '../storage/embedding-profile-cache.js';
 import { EXECUTION } from './schema.js';
-import { findDenseModel, findSparseModel } from './qdrant-cloud-catalog.js';
+import { findDenseModel, findSparseModel } from './qdrant-cloud-models.js';
 
 // Per-model lane-availability cache — SEPARATE from the per-collection
 // resolved-profile cache (storage/embedding-profile-cache.js's
@@ -57,7 +57,7 @@ export const LANE_STATUS = Object.freeze({
   NOT_CACHED: 'not_cached',
   RUNTIME_UNAVAILABLE: 'runtime_unavailable', // only ever produced by the EXPLICIT full probe path, never by resolveAvailability's routine call
   // qdrant-cloud lane states (Tier 1/Tier 2 split — see
-  // src/admin/system/qdrant-cloud.js's probeQdrantCloudInference() for
+  // src/cloud/admin/qdrant-cloud-system.js's probeQdrantCloudInference() for
   // Tier 2). Tier 1 (resolveLaneAvailability, routine/cheap) can only ever
   // prove Qdrant itself is reachable and authenticated — it CANNOT prove
   // Cloud Inference actually works (no dry-run/verify-only endpoint

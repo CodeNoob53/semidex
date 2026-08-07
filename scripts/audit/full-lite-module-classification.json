@@ -10,16 +10,17 @@
     "unclassified"
   ],
   "counts": {
-    "shared": 111,
-    "mixed": 41,
-    "local": 16,
-    "composition": 10,
+    "shared": 144,
+    "local": 27,
+    "composition": 12,
+    "mixed": 9,
     "tooling": 61,
-    "cloud": 4
+    "cloud": 8
   },
   "modules": [
     {
       "path": "src/admin/api/assembly.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -32,6 +33,7 @@
     },
     {
       "path": "src/admin/api/chunks.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -43,6 +45,7 @@
     },
     {
       "path": "src/admin/api/collections.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -53,6 +56,7 @@
     },
     {
       "path": "src/admin/api/documents.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -64,18 +68,19 @@
     },
     {
       "path": "src/admin/api/generation-models.js",
-      "category": "mixed",
+      "declaredCategory": "shared",
+      "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
       "liteReachable": true,
       "directDependencies": [
         "src/core/doctor-checks.js",
-        "src/core/gemini-models.js",
         "src/core/http/http.js"
       ]
     },
     {
       "path": "src/admin/api/generation.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -87,6 +92,7 @@
     },
     {
       "path": "src/admin/api/health.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -98,6 +104,7 @@
     },
     {
       "path": "src/admin/api/jobs.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -108,6 +115,7 @@
     },
     {
       "path": "src/admin/api/node.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -119,6 +127,7 @@
     },
     {
       "path": "src/admin/api/ollama-models.js",
+      "declaredCategory": "local",
       "category": "local",
       "compositionEdition": null,
       "fullReachable": true,
@@ -131,17 +140,24 @@
     },
     {
       "path": "src/admin/api/onnx.js",
+      "declaredCategory": "local",
       "category": "local",
       "compositionEdition": null,
       "fullReachable": true,
       "liteReachable": false,
       "directDependencies": [
         "src/core/http/http.js",
-        "src/local/core/onnx-provider-probe.js"
+        "src/local/core/cuda-diagnosis.js",
+        "src/local/core/managed-onnx-runtime-manifest.js",
+        "src/local/core/managed-runtime-listing.js",
+        "src/local/core/onnx-provider-probe.js",
+        "src/local/core/onnx-runtime-source-resolution.js",
+        "src/local/core/semidex-home.js"
       ]
     },
     {
       "path": "src/admin/api/operations.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -152,20 +168,8 @@
       ]
     },
     {
-      "path": "src/admin/api/qdrant-cloud.js",
-      "category": "mixed",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": [
-        "src/admin/system/qdrant-cloud.js",
-        "src/core/embedding-profile/qdrant-cloud-catalog.js",
-        "src/core/embedding-profile/resolve.js",
-        "src/core/http/http.js"
-      ]
-    },
-    {
       "path": "src/admin/api/query-params.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -176,7 +180,8 @@
     },
     {
       "path": "src/admin/api/search.js",
-      "category": "mixed",
+      "declaredCategory": "shared",
+      "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
       "liteReachable": true,
@@ -188,7 +193,8 @@
     },
     {
       "path": "src/admin/api/settings.js",
-      "category": "mixed",
+      "declaredCategory": "shared",
+      "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
       "liteReachable": true,
@@ -199,6 +205,7 @@
     },
     {
       "path": "src/admin/api/skeleton.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -210,6 +217,7 @@
     },
     {
       "path": "src/admin/api/system.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -221,6 +229,7 @@
     },
     {
       "path": "src/admin/bootstrap.js",
+      "declaredCategory": "composition",
       "category": "composition",
       "compositionEdition": "full",
       "fullReachable": true,
@@ -228,16 +237,20 @@
       "directDependencies": [
         "src/admin/server-full.js",
         "src/admin/server.js",
+        "src/cloud/generation/cloud-generation-provider.js",
         "src/core/ce-rerank.js",
         "src/core/env-bootstrap.js",
         "src/core/generation/registry.js",
         "src/core/generation/runtime.js",
         "src/core/ollama-lazy.js",
-        "src/core/settings/service.js"
+        "src/core/settings/service.js",
+        "src/local/core/onnx-runtime-source-resolution.js",
+        "src/local/core/onnx-runtime-unavailable-capability.js"
       ]
     },
     {
       "path": "src/admin/composition/lite.js",
+      "declaredCategory": "composition",
       "category": "composition",
       "compositionEdition": null,
       "fullReachable": false,
@@ -249,8 +262,13 @@
         "src/admin/jobs/spawn-indexer-lite.js",
         "src/admin/register-neutral-routes.js",
         "src/admin/router.js",
+        "src/cloud/admin/qdrant-cloud-api.js",
+        "src/cloud/embedding/cloud-embedding-provider.js",
+        "src/cloud/generation/cloud-generation-provider.js",
         "src/core/embeddings.js",
         "src/core/generation/ollama-capability.js",
+        "src/core/generation/registry.js",
+        "src/core/generation/runtime.js",
         "src/core/onnx-embed-capability.js",
         "src/core/settings/service.js",
         "src/core/storage/factory.js"
@@ -258,6 +276,7 @@
     },
     {
       "path": "src/admin/jobs/registry.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -269,6 +288,7 @@
     },
     {
       "path": "src/admin/jobs/spawn-indexer-full.js",
+      "declaredCategory": "local",
       "category": "mixed",
       "compositionEdition": null,
       "fullReachable": true,
@@ -279,6 +299,7 @@
     },
     {
       "path": "src/admin/jobs/spawn-indexer-lite.js",
+      "declaredCategory": "cloud",
       "category": "mixed",
       "compositionEdition": null,
       "fullReachable": false,
@@ -289,6 +310,7 @@
     },
     {
       "path": "src/admin/jobs/task-registry.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -299,6 +321,7 @@
     },
     {
       "path": "src/admin/register-neutral-routes.js",
+      "declaredCategory": "composition",
       "category": "composition",
       "compositionEdition": null,
       "fullReachable": true,
@@ -312,7 +335,6 @@
         "src/admin/api/health.js",
         "src/admin/api/node.js",
         "src/admin/api/operations.js",
-        "src/admin/api/qdrant-cloud.js",
         "src/admin/api/search.js",
         "src/admin/api/settings.js",
         "src/admin/api/skeleton.js",
@@ -327,6 +349,7 @@
     },
     {
       "path": "src/admin/router.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -338,6 +361,7 @@
     },
     {
       "path": "src/admin/server-full.js",
+      "declaredCategory": "composition",
       "category": "composition",
       "compositionEdition": "full",
       "fullReachable": true,
@@ -353,7 +377,12 @@
         "src/admin/register-neutral-routes.js",
         "src/admin/router.js",
         "src/admin/system/ollama.js",
+        "src/cloud/admin/qdrant-cloud-api.js",
+        "src/cloud/embedding/cloud-embedding-provider.js",
+        "src/cloud/generation/cloud-generation-provider.js",
         "src/core/embeddings.js",
+        "src/core/generation/registry.js",
+        "src/core/generation/runtime.js",
         "src/core/ollama-lazy.js",
         "src/core/onnx-embed-lazy.js",
         "src/core/settings/service.js",
@@ -363,6 +392,7 @@
     },
     {
       "path": "src/admin/server.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -371,6 +401,7 @@
     },
     {
       "path": "src/admin/static.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -381,6 +412,7 @@
     },
     {
       "path": "src/admin/system/folder-picker.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -389,6 +421,7 @@
     },
     {
       "path": "src/admin/system/ollama.js",
+      "declaredCategory": "local",
       "category": "local",
       "compositionEdition": null,
       "fullReachable": true,
@@ -398,18 +431,8 @@
       ]
     },
     {
-      "path": "src/admin/system/qdrant-cloud.js",
-      "category": "mixed",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": [
-        "src/core/doctor-checks.js",
-        "src/core/storage/factory.js"
-      ]
-    },
-    {
       "path": "src/admin/ui-src/api.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -418,7 +441,8 @@
     },
     {
       "path": "src/admin/ui-src/app.js",
-      "category": "mixed",
+      "declaredCategory": "shared",
+      "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
       "liteReachable": true,
@@ -434,6 +458,7 @@
     },
     {
       "path": "src/admin/ui-src/assembly-view.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -445,6 +470,7 @@
     },
     {
       "path": "src/admin/ui-src/collection-view.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -460,6 +486,7 @@
     },
     {
       "path": "src/admin/ui-src/dom.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -468,6 +495,7 @@
     },
     {
       "path": "src/admin/ui-src/entries/full.js",
+      "declaredCategory": "composition",
       "category": "composition",
       "compositionEdition": "full",
       "fullReachable": true,
@@ -483,6 +511,7 @@
     },
     {
       "path": "src/admin/ui-src/entries/lite.js",
+      "declaredCategory": "composition",
       "category": "composition",
       "compositionEdition": "lite",
       "fullReachable": false,
@@ -494,6 +523,7 @@
     },
     {
       "path": "src/admin/ui-src/file-view.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -510,6 +540,7 @@
     },
     {
       "path": "src/admin/ui-src/format.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -518,7 +549,8 @@
     },
     {
       "path": "src/admin/ui-src/global-settings-view.js",
-      "category": "mixed",
+      "declaredCategory": "shared",
+      "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
       "liteReachable": true,
@@ -532,6 +564,7 @@
     },
     {
       "path": "src/admin/ui-src/icons.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -540,6 +573,7 @@
     },
     {
       "path": "src/admin/ui-src/jobs-view.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -553,6 +587,7 @@
     },
     {
       "path": "src/admin/ui-src/local-features.js",
+      "declaredCategory": "local",
       "category": "local",
       "compositionEdition": null,
       "fullReachable": true,
@@ -563,6 +598,7 @@
     },
     {
       "path": "src/admin/ui-src/operation-modal.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -577,6 +613,7 @@
     },
     {
       "path": "src/admin/ui-src/operation-render.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -587,6 +624,7 @@
     },
     {
       "path": "src/admin/ui-src/operation-store.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -597,7 +635,8 @@
     },
     {
       "path": "src/admin/ui-src/router.js",
-      "category": "mixed",
+      "declaredCategory": "shared",
+      "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
       "liteReachable": true,
@@ -616,6 +655,7 @@
     },
     {
       "path": "src/admin/ui-src/routes.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -624,6 +664,7 @@
     },
     {
       "path": "src/admin/ui-src/search.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -639,6 +680,7 @@
     },
     {
       "path": "src/admin/ui-src/settings-view.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -654,6 +696,7 @@
     },
     {
       "path": "src/admin/ui-src/sidebar-resize.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -662,6 +705,7 @@
     },
     {
       "path": "src/admin/ui-src/sidebar.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -677,6 +721,7 @@
     },
     {
       "path": "src/admin/ui-src/state.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -685,6 +730,7 @@
     },
     {
       "path": "src/admin/ui-src/structural-renderer.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -693,6 +739,7 @@
     },
     {
       "path": "src/admin/ui-src/toasts.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -703,6 +750,7 @@
     },
     {
       "path": "src/admin/ui-src/topbar.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -717,6 +765,7 @@
     },
     {
       "path": "src/backfill-entity-refs.js",
+      "declaredCategory": "tooling",
       "category": "tooling",
       "compositionEdition": null,
       "fullReachable": true,
@@ -732,6 +781,7 @@
     },
     {
       "path": "src/backfill-tags.js",
+      "declaredCategory": "tooling",
       "category": "tooling",
       "compositionEdition": null,
       "fullReachable": true,
@@ -747,6 +797,7 @@
     },
     {
       "path": "src/bootstrap-docs.js",
+      "declaredCategory": "tooling",
       "category": "tooling",
       "compositionEdition": null,
       "fullReachable": true,
@@ -760,7 +811,112 @@
       ]
     },
     {
+      "path": "src/cloud/admin/qdrant-cloud-api.js",
+      "declaredCategory": "cloud",
+      "category": "cloud",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/cloud/admin/qdrant-cloud-system.js",
+        "src/cloud/embedding/qdrant-cloud-catalog.js",
+        "src/core/embedding-profile/resolve.js",
+        "src/core/http/http.js"
+      ]
+    },
+    {
+      "path": "src/cloud/admin/qdrant-cloud-system.js",
+      "declaredCategory": "cloud",
+      "category": "cloud",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/doctor-checks.js",
+        "src/core/storage/factory.js"
+      ]
+    },
+    {
+      "path": "src/cloud/embedding/cloud-embedding-provider.js",
+      "declaredCategory": "cloud",
+      "category": "cloud",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/cloud/embedding/qdrant-cloud-catalog.js",
+        "src/cloud/embedding/qdrant-cloud-tokenizer.js"
+      ]
+    },
+    {
+      "path": "src/cloud/embedding/qdrant-cloud-catalog.js",
+      "declaredCategory": "cloud",
+      "category": "cloud",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/cloud/embedding/qdrant-cloud-tokenizer.js",
+        "src/core/embedding-profile/qdrant-cloud-models.js",
+        "src/core/token-count.js"
+      ]
+    },
+    {
+      "path": "src/cloud/embedding/qdrant-cloud-tokenizer.js",
+      "declaredCategory": "cloud",
+      "category": "cloud",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/onnx-paths.js"
+      ]
+    },
+    {
+      "path": "src/cloud/generation/cloud-generation-provider.js",
+      "declaredCategory": "cloud",
+      "category": "cloud",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/cloud/generation/gemini-models.js",
+        "src/cloud/generation/gemini-provider.js",
+        "src/core/generation/cloud-generation-capability.js"
+      ]
+    },
+    {
+      "path": "src/cloud/generation/gemini-models.js",
+      "declaredCategory": "cloud",
+      "category": "cloud",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/cloud/generation/gemini-provider.js",
+      "declaredCategory": "cloud",
+      "category": "cloud",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/generation/config.js"
+      ]
+    },
+    {
+      "path": "src/core/app-data-dir.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
       "path": "src/core/ask-api/v1/contract.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -769,6 +925,7 @@
     },
     {
       "path": "src/core/ask-api/v1/request.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -779,6 +936,7 @@
     },
     {
       "path": "src/core/ask-api/v1/route.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -793,6 +951,7 @@
     },
     {
       "path": "src/core/ask/citations.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -803,7 +962,8 @@
     },
     {
       "path": "src/core/ask/coordinator.js",
-      "category": "mixed",
+      "declaredCategory": "shared",
+      "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
       "liteReachable": true,
@@ -815,7 +975,8 @@
     },
     {
       "path": "src/core/ask/evidence.js",
-      "category": "mixed",
+      "declaredCategory": "shared",
+      "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
       "liteReachable": true,
@@ -827,6 +988,7 @@
     },
     {
       "path": "src/core/ask/prompt.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -835,6 +997,7 @@
     },
     {
       "path": "src/core/assembly/anchored-content.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -846,6 +1009,7 @@
     },
     {
       "path": "src/core/assembly/assemble.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -857,6 +1021,7 @@
     },
     {
       "path": "src/core/assembly/contract.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -865,6 +1030,7 @@
     },
     {
       "path": "src/core/assembly/cursor.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -873,6 +1039,7 @@
     },
     {
       "path": "src/core/assembly/window.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -883,6 +1050,7 @@
     },
     {
       "path": "src/core/bench-telemetry.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -891,6 +1059,7 @@
     },
     {
       "path": "src/core/bge-tokenizer.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -901,6 +1070,7 @@
     },
     {
       "path": "src/core/ce-rerank-worker.js",
+      "declaredCategory": "local",
       "category": "local",
       "compositionEdition": null,
       "fullReachable": true,
@@ -909,6 +1079,7 @@
     },
     {
       "path": "src/core/ce-rerank.js",
+      "declaredCategory": "local",
       "category": "local",
       "compositionEdition": null,
       "fullReachable": true,
@@ -919,18 +1090,20 @@
     },
     {
       "path": "src/core/config.js",
-      "category": "mixed",
+      "declaredCategory": "shared",
+      "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
       "liteReachable": true,
       "directDependencies": [
-        "src/core/embedding-profile/qdrant-cloud-catalog.js",
+        "src/core/embedding-profile/qdrant-cloud-models.js",
         "src/core/env.js",
         "src/core/onnx-paths.js"
       ]
     },
     {
       "path": "src/core/doctor-checks.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -939,18 +1112,29 @@
     },
     {
       "path": "src/core/embedding-profile/availability.js",
-      "category": "mixed",
+      "declaredCategory": "shared",
+      "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
       "liteReachable": true,
       "directDependencies": [
-        "src/core/embedding-profile/qdrant-cloud-catalog.js",
+        "src/core/embedding-profile/qdrant-cloud-models.js",
         "src/core/embedding-profile/schema.js",
         "src/core/storage/embedding-profile-cache.js"
       ]
     },
     {
+      "path": "src/core/embedding-profile/cloud-embedding-capability.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
       "path": "src/core/embedding-profile/config-cache.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -959,6 +1143,7 @@
     },
     {
       "path": "src/core/embedding-profile/migrate.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -970,7 +1155,8 @@
     },
     {
       "path": "src/core/embedding-profile/onnx-lane.js",
-      "category": "mixed",
+      "declaredCategory": "shared",
+      "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
       "liteReachable": true,
@@ -980,43 +1166,23 @@
       ]
     },
     {
-      "path": "src/core/embedding-profile/qdrant-cloud-catalog.js",
-      "category": "mixed",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": [
-        "src/core/embedding-profile/qdrant-cloud-models.js",
-        "src/core/embedding-profile/qdrant-cloud-tokenizer.js",
-        "src/core/token-count.js"
-      ]
-    },
-    {
       "path": "src/core/embedding-profile/qdrant-cloud-models.js",
-      "category": "cloud",
+      "declaredCategory": "shared",
+      "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
       "liteReachable": true,
       "directDependencies": []
     },
     {
-      "path": "src/core/embedding-profile/qdrant-cloud-tokenizer.js",
-      "category": "cloud",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": [
-        "src/core/onnx-paths.js"
-      ]
-    },
-    {
       "path": "src/core/embedding-profile/resolve.js",
-      "category": "mixed",
+      "declaredCategory": "shared",
+      "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
       "liteReachable": true,
       "directDependencies": [
-        "src/core/embedding-profile/qdrant-cloud-catalog.js",
+        "src/core/embedding-profile/qdrant-cloud-models.js",
         "src/core/embedding-profile/schema.js",
         "src/core/env.js",
         "src/core/onnx-paths.js"
@@ -1024,6 +1190,7 @@
     },
     {
       "path": "src/core/embedding-profile/schema.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -1032,13 +1199,15 @@
     },
     {
       "path": "src/core/embeddings.js",
-      "category": "mixed",
+      "declaredCategory": "shared",
+      "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
       "liteReachable": true,
       "directDependencies": [
         "src/core/bench-telemetry.js",
-        "src/core/embedding-profile/qdrant-cloud-catalog.js",
+        "src/core/embedding-profile/cloud-embedding-capability.js",
+        "src/core/embedding-profile/qdrant-cloud-models.js",
         "src/core/embedding-profile/schema.js",
         "src/core/env.js",
         "src/core/generation/ollama-capability.js",
@@ -1048,6 +1217,7 @@
     },
     {
       "path": "src/core/entity-reference.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -1056,6 +1226,7 @@
     },
     {
       "path": "src/core/env-bootstrap.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -1064,6 +1235,7 @@
     },
     {
       "path": "src/core/env.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -1071,8 +1243,9 @@
       "directDependencies": []
     },
     {
-      "path": "src/core/gemini-models.js",
-      "category": "cloud",
+      "path": "src/core/generation/cloud-generation-capability.js",
+      "declaredCategory": "shared",
+      "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
       "liteReachable": true,
@@ -1080,6 +1253,7 @@
     },
     {
       "path": "src/core/generation/config.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -1087,17 +1261,8 @@
       "directDependencies": []
     },
     {
-      "path": "src/core/generation/gemini-provider.js",
-      "category": "cloud",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": [
-        "src/core/generation/config.js"
-      ]
-    },
-    {
       "path": "src/core/generation/ollama-capability.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -1106,6 +1271,7 @@
     },
     {
       "path": "src/core/generation/ollama-provider.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -1114,6 +1280,7 @@
     },
     {
       "path": "src/core/generation/provider.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": false,
@@ -1122,18 +1289,19 @@
     },
     {
       "path": "src/core/generation/registry.js",
-      "category": "composition",
+      "declaredCategory": "shared",
+      "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
       "liteReachable": true,
       "directDependencies": [
-        "src/core/generation/gemini-provider.js",
         "src/core/generation/ollama-provider.js"
       ]
     },
     {
       "path": "src/core/generation/runtime.js",
-      "category": "mixed",
+      "declaredCategory": "shared",
+      "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
       "liteReachable": true,
@@ -1145,6 +1313,7 @@
     },
     {
       "path": "src/core/http/http.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -1153,6 +1322,7 @@
     },
     {
       "path": "src/core/http/sse.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -1161,6 +1331,7 @@
     },
     {
       "path": "src/core/node-id.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -1171,6 +1342,7 @@
     },
     {
       "path": "src/core/ollama-lazy.js",
+      "declaredCategory": "mixed",
       "category": "mixed",
       "compositionEdition": null,
       "fullReachable": true,
@@ -1181,6 +1353,7 @@
     },
     {
       "path": "src/core/ollama-lazy.lite.js",
+      "declaredCategory": "mixed",
       "category": "mixed",
       "compositionEdition": null,
       "fullReachable": false,
@@ -1189,6 +1362,7 @@
     },
     {
       "path": "src/core/onnx-embed-capability.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -1197,6 +1371,7 @@
     },
     {
       "path": "src/core/onnx-embed-lazy.js",
+      "declaredCategory": "mixed",
       "category": "mixed",
       "compositionEdition": null,
       "fullReachable": true,
@@ -1208,6 +1383,7 @@
     },
     {
       "path": "src/core/onnx-embed-lazy.lite.js",
+      "declaredCategory": "mixed",
       "category": "mixed",
       "compositionEdition": null,
       "fullReachable": false,
@@ -1216,6 +1392,7 @@
     },
     {
       "path": "src/core/onnx-paths.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -1224,6 +1401,7 @@
     },
     {
       "path": "src/core/point-id.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -1232,6 +1410,7 @@
     },
     {
       "path": "src/core/qdrant.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -1242,6 +1421,7 @@
     },
     {
       "path": "src/core/qdrant/client.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -1252,6 +1432,7 @@
     },
     {
       "path": "src/core/qdrant/ensure-schema.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -1264,6 +1445,7 @@
     },
     {
       "path": "src/core/qdrant/index.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -1278,6 +1460,7 @@
     },
     {
       "path": "src/core/qdrant/nav-filter.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -1286,6 +1469,7 @@
     },
     {
       "path": "src/core/qdrant/payload.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -1294,6 +1478,7 @@
     },
     {
       "path": "src/core/qdrant/schema.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -1302,6 +1487,7 @@
     },
     {
       "path": "src/core/qdrant/store.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -1315,7 +1501,29 @@
       ]
     },
     {
+      "path": "src/core/rerank-capability.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": []
+    },
+    {
+      "path": "src/core/rerank-provider.js",
+      "declaredCategory": "local",
+      "category": "local",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/core/ce-rerank.js",
+        "src/core/rerank.js"
+      ]
+    },
+    {
       "path": "src/core/rerank.js",
+      "declaredCategory": "local",
       "category": "local",
       "compositionEdition": null,
       "fullReachable": true,
@@ -1326,13 +1534,14 @@
     },
     {
       "path": "src/core/retrieval/search.js",
-      "category": "mixed",
+      "declaredCategory": "shared",
+      "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
       "liteReachable": true,
       "directDependencies": [
         "src/core/bench-telemetry.js",
-        "src/core/embedding-profile/qdrant-cloud-catalog.js",
+        "src/core/embedding-profile/qdrant-cloud-models.js",
         "src/core/embedding-profile/resolve.js",
         "src/core/embedding-profile/schema.js",
         "src/core/embeddings.js"
@@ -1340,7 +1549,8 @@
     },
     {
       "path": "src/core/settings/definitions.js",
-      "category": "mixed",
+      "declaredCategory": "shared",
+      "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
       "liteReachable": true,
@@ -1351,6 +1561,7 @@
     },
     {
       "path": "src/core/settings/lite-policy.js",
+      "declaredCategory": "composition",
       "category": "composition",
       "compositionEdition": null,
       "fullReachable": false,
@@ -1359,7 +1570,8 @@
     },
     {
       "path": "src/core/settings/service.js",
-      "category": "mixed",
+      "declaredCategory": "shared",
+      "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
       "liteReachable": true,
@@ -1372,6 +1584,7 @@
     },
     {
       "path": "src/core/settings/service.lite.js",
+      "declaredCategory": "composition",
       "category": "composition",
       "compositionEdition": null,
       "fullReachable": false,
@@ -1382,6 +1595,7 @@
     },
     {
       "path": "src/core/settings/settings-store.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -1390,6 +1604,7 @@
     },
     {
       "path": "src/core/sparse.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -1398,6 +1613,7 @@
     },
     {
       "path": "src/core/storage/adapter.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": false,
@@ -1406,6 +1622,7 @@
     },
     {
       "path": "src/core/storage/capabilities.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -1414,6 +1631,7 @@
     },
     {
       "path": "src/core/storage/embedding-profile-cache.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -1422,7 +1640,8 @@
     },
     {
       "path": "src/core/storage/factory.js",
-      "category": "mixed",
+      "declaredCategory": "shared",
+      "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
       "liteReachable": true,
@@ -1432,7 +1651,8 @@
     },
     {
       "path": "src/core/storage/qdrant-adapter.js",
-      "category": "mixed",
+      "declaredCategory": "shared",
+      "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
       "liteReachable": true,
@@ -1453,18 +1673,19 @@
     },
     {
       "path": "src/core/token-count.js",
-      "category": "mixed",
+      "declaredCategory": "shared",
+      "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
       "liteReachable": true,
       "directDependencies": [
         "src/core/bge-tokenizer.js",
-        "src/core/embedding-profile/qdrant-cloud-tokenizer.js",
         "src/core/embedding-profile/schema.js"
       ]
     },
     {
       "path": "src/doctor.js",
+      "declaredCategory": "tooling",
       "category": "tooling",
       "compositionEdition": null,
       "fullReachable": true,
@@ -1477,11 +1698,14 @@
         "src/core/env-bootstrap.js",
         "src/core/onnx-paths.js",
         "src/core/settings/service.js",
+        "src/local/core/cuda-diagnosis.js",
+        "src/local/core/onnx-cuda-prereq-check.js",
         "src/local/core/onnx-provider-probe.js"
       ]
     },
     {
       "path": "src/indexer/batch.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -1490,6 +1714,7 @@
     },
     {
       "path": "src/indexer/files.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -1498,30 +1723,38 @@
     },
     {
       "path": "src/indexer/index-full.js",
-      "category": "mixed",
-      "compositionEdition": null,
+      "declaredCategory": "composition",
+      "category": "composition",
+      "compositionEdition": "full",
       "fullReachable": true,
       "liteReachable": false,
       "directDependencies": [
+        "src/cloud/embedding/cloud-embedding-provider.js",
+        "src/core/env-bootstrap.js",
         "src/core/ollama-lazy.js",
         "src/core/onnx-embed-lazy.js",
+        "src/core/settings/service.js",
         "src/indexer/index-runtime.js",
-        "src/indexer/phases/tag-onnx-lazy.js"
+        "src/indexer/phases/tag-onnx-lazy.js",
+        "src/local/core/onnx-runtime-source-resolution.js"
       ]
     },
     {
       "path": "src/indexer/index-lite.js",
-      "category": "mixed",
-      "compositionEdition": null,
+      "declaredCategory": "composition",
+      "category": "composition",
+      "compositionEdition": "lite",
       "fullReachable": false,
       "liteReachable": true,
       "directDependencies": [
+        "src/cloud/embedding/cloud-embedding-provider.js",
         "src/indexer/index-runtime.js"
       ]
     },
     {
       "path": "src/indexer/index-runtime.js",
-      "category": "mixed",
+      "declaredCategory": "shared",
+      "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
       "liteReachable": true,
@@ -1533,6 +1766,7 @@
     },
     {
       "path": "src/indexer/index.js",
+      "declaredCategory": "local",
       "category": "mixed",
       "compositionEdition": null,
       "fullReachable": true,
@@ -1543,7 +1777,8 @@
     },
     {
       "path": "src/indexer/phases/chunk.js",
-      "category": "mixed",
+      "declaredCategory": "shared",
+      "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
       "liteReachable": true,
@@ -1559,6 +1794,7 @@
     },
     {
       "path": "src/indexer/phases/combined.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -1571,6 +1807,7 @@
     },
     {
       "path": "src/indexer/phases/context.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -1582,6 +1819,7 @@
     },
     {
       "path": "src/indexer/phases/empty-section.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -1590,6 +1828,7 @@
     },
     {
       "path": "src/indexer/phases/entity-split.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -1600,6 +1839,7 @@
     },
     {
       "path": "src/indexer/phases/node-policy.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -1611,7 +1851,8 @@
     },
     {
       "path": "src/indexer/phases/skeleton-chunk.js",
-      "category": "mixed",
+      "declaredCategory": "shared",
+      "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
       "liteReachable": true,
@@ -1625,6 +1866,7 @@
     },
     {
       "path": "src/indexer/phases/skeleton-index.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -1636,6 +1878,7 @@
     },
     {
       "path": "src/indexer/phases/skeleton-summary.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -1644,6 +1887,7 @@
     },
     {
       "path": "src/indexer/phases/skeleton.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -1652,6 +1896,7 @@
     },
     {
       "path": "src/indexer/phases/tag-onnx-capability.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -1660,6 +1905,7 @@
     },
     {
       "path": "src/indexer/phases/tag-onnx-lazy.js",
+      "declaredCategory": "mixed",
       "category": "mixed",
       "compositionEdition": null,
       "fullReachable": true,
@@ -1671,6 +1917,7 @@
     },
     {
       "path": "src/indexer/phases/tag-onnx-lazy.lite.js",
+      "declaredCategory": "mixed",
       "category": "mixed",
       "compositionEdition": null,
       "fullReachable": false,
@@ -1681,6 +1928,7 @@
     },
     {
       "path": "src/indexer/phases/tag-provider.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -1689,6 +1937,7 @@
     },
     {
       "path": "src/indexer/phases/tag.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -1699,6 +1948,7 @@
     },
     {
       "path": "src/indexer/phases/token-budget-split.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -1707,6 +1957,7 @@
     },
     {
       "path": "src/indexer/preflight.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -1717,6 +1968,7 @@
     },
     {
       "path": "src/indexer/profiler.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -1725,6 +1977,7 @@
     },
     {
       "path": "src/indexer/progress-event.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -1733,15 +1986,17 @@
     },
     {
       "path": "src/indexer/run.js",
-      "category": "mixed",
+      "declaredCategory": "shared",
+      "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
       "liteReachable": true,
       "directDependencies": [
         "src/core/config.js",
         "src/core/doctor-checks.js",
+        "src/core/embedding-profile/cloud-embedding-capability.js",
         "src/core/embedding-profile/config-cache.js",
-        "src/core/embedding-profile/qdrant-cloud-catalog.js",
+        "src/core/embedding-profile/qdrant-cloud-models.js",
         "src/core/embedding-profile/resolve.js",
         "src/core/embedding-profile/schema.js",
         "src/core/embeddings.js",
@@ -1775,6 +2030,7 @@
     },
     {
       "path": "src/indexer/semaphore.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -1783,6 +2039,7 @@
     },
     {
       "path": "src/indexer/serial-queue.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -1791,6 +2048,7 @@
     },
     {
       "path": "src/indexer/skeleton-payload.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -1801,6 +2059,7 @@
     },
     {
       "path": "src/indexer/skeleton-warnings.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -1808,7 +2067,8 @@
       "directDependencies": []
     },
     {
-      "path": "src/local/core/length-bucket.js",
+      "path": "src/local/core/cuda-diagnosis.js",
+      "declaredCategory": "local",
       "category": "local",
       "compositionEdition": null,
       "fullReachable": true,
@@ -1816,7 +2076,47 @@
       "directDependencies": []
     },
     {
+      "path": "src/local/core/length-bucket.js",
+      "declaredCategory": "local",
+      "category": "local",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": []
+    },
+    {
+      "path": "src/local/core/managed-onnx-runtime-manifest.js",
+      "declaredCategory": "local",
+      "category": "local",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": []
+    },
+    {
+      "path": "src/local/core/managed-runtime-id.js",
+      "declaredCategory": "local",
+      "category": "local",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": []
+    },
+    {
+      "path": "src/local/core/managed-runtime-listing.js",
+      "declaredCategory": "local",
+      "category": "local",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/local/core/managed-onnx-runtime-manifest.js",
+        "src/local/core/managed-runtime-id.js"
+      ]
+    },
+    {
       "path": "src/local/core/ollama-models.js",
+      "declaredCategory": "local",
       "category": "local",
       "compositionEdition": null,
       "fullReachable": true,
@@ -1827,6 +2127,7 @@
     },
     {
       "path": "src/local/core/ollama.js",
+      "declaredCategory": "local",
       "category": "local",
       "compositionEdition": null,
       "fullReachable": true,
@@ -1834,7 +2135,43 @@
       "directDependencies": []
     },
     {
+      "path": "src/local/core/onnx-cuda-installer-logic.js",
+      "declaredCategory": "local",
+      "category": "local",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/local/core/managed-onnx-runtime-manifest.js"
+      ]
+    },
+    {
+      "path": "src/local/core/onnx-cuda-installer-verify.js",
+      "declaredCategory": "local",
+      "category": "local",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/local/core/managed-onnx-runtime-manifest.js",
+        "src/local/core/onnx-provider-probe.js",
+        "src/local/core/onnx-runtime-source-resolution.js"
+      ]
+    },
+    {
+      "path": "src/local/core/onnx-cuda-prereq-check.js",
+      "declaredCategory": "local",
+      "category": "local",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/local/core/cuda-diagnosis.js"
+      ]
+    },
+    {
       "path": "src/local/core/onnx-embed.js",
+      "declaredCategory": "local",
       "category": "local",
       "compositionEdition": null,
       "fullReachable": true,
@@ -1847,6 +2184,7 @@
     },
     {
       "path": "src/local/core/onnx-probe-runner.js",
+      "declaredCategory": "local",
       "category": "local",
       "compositionEdition": null,
       "fullReachable": true,
@@ -1858,6 +2196,7 @@
     },
     {
       "path": "src/local/core/onnx-provider-probe.js",
+      "declaredCategory": "local",
       "category": "local",
       "compositionEdition": null,
       "fullReachable": true,
@@ -1868,7 +2207,32 @@
       ]
     },
     {
+      "path": "src/local/core/onnx-runtime-source-resolution.js",
+      "declaredCategory": "local",
+      "category": "local",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/local/core/managed-onnx-runtime-manifest.js",
+        "src/local/core/managed-runtime-id.js",
+        "src/local/core/semidex-home.js"
+      ]
+    },
+    {
+      "path": "src/local/core/onnx-runtime-unavailable-capability.js",
+      "declaredCategory": "local",
+      "category": "local",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/core/onnx-embed-capability.js"
+      ]
+    },
+    {
       "path": "src/local/core/onnx-runtime.js",
+      "declaredCategory": "local",
       "category": "local",
       "compositionEdition": null,
       "fullReachable": true,
@@ -1876,7 +2240,19 @@
       "directDependencies": []
     },
     {
+      "path": "src/local/core/semidex-home.js",
+      "declaredCategory": "local",
+      "category": "local",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/core/app-data-dir.js"
+      ]
+    },
+    {
       "path": "src/local/indexer/phases/tag-onnx.js",
+      "declaredCategory": "local",
       "category": "local",
       "compositionEdition": null,
       "fullReachable": true,
@@ -1888,6 +2264,7 @@
     },
     {
       "path": "src/local/indexer/workers/tag-onnx-worker.js",
+      "declaredCategory": "local",
       "category": "local",
       "compositionEdition": null,
       "fullReachable": true,
@@ -1895,19 +2272,35 @@
       "directDependencies": []
     },
     {
-      "path": "src/mcp/server.js",
+      "path": "src/mcp/onnx-runtime-resolution.js",
+      "declaredCategory": "composition",
       "category": "composition",
       "compositionEdition": "full",
       "fullReachable": true,
       "liteReachable": false,
       "directDependencies": [
+        "src/core/onnx-embed-lazy.js",
+        "src/local/core/onnx-runtime-source-resolution.js",
+        "src/local/core/onnx-runtime-unavailable-capability.js"
+      ]
+    },
+    {
+      "path": "src/mcp/server.js",
+      "declaredCategory": "composition",
+      "category": "composition",
+      "compositionEdition": "full",
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/cloud/embedding/cloud-embedding-provider.js",
         "src/core/ce-rerank.js",
         "src/core/doctor-checks.js",
         "src/core/embeddings.js",
         "src/core/env-bootstrap.js",
         "src/core/ollama-lazy.js",
-        "src/core/onnx-embed-lazy.js",
+        "src/core/rerank-provider.js",
         "src/core/settings/service.js",
+        "src/mcp/onnx-runtime-resolution.js",
         "src/mcp/tools/collections.js",
         "src/mcp/tools/findByTag.js",
         "src/mcp/tools/getChunk.js",
@@ -1924,7 +2317,8 @@
     },
     {
       "path": "src/mcp/tools/collections.js",
-      "category": "mixed",
+      "declaredCategory": "shared",
+      "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
       "liteReachable": false,
@@ -1932,12 +2326,13 @@
         "src/core/embedding-profile/availability.js",
         "src/core/embedding-profile/onnx-lane.js",
         "src/core/embedding-profile/resolve.js",
-        "src/core/storage/factory.js",
-        "src/local/core/ollama.js"
+        "src/core/generation/ollama-capability.js",
+        "src/core/storage/factory.js"
       ]
     },
     {
       "path": "src/mcp/tools/filters.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -1948,6 +2343,7 @@
     },
     {
       "path": "src/mcp/tools/findByTag.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -1959,6 +2355,7 @@
     },
     {
       "path": "src/mcp/tools/getChunk.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -1969,7 +2366,8 @@
     },
     {
       "path": "src/mcp/tools/getContent.js",
-      "category": "mixed",
+      "declaredCategory": "shared",
+      "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
       "liteReachable": false,
@@ -1981,6 +2379,7 @@
     },
     {
       "path": "src/mcp/tools/getNode.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -1991,6 +2390,7 @@
     },
     {
       "path": "src/mcp/tools/getSkeleton.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -2001,6 +2401,7 @@
     },
     {
       "path": "src/mcp/tools/getSkeletonChildren.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -2011,6 +2412,7 @@
     },
     {
       "path": "src/mcp/tools/getSkeletonNode.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -2021,6 +2423,7 @@
     },
     {
       "path": "src/mcp/tools/listDirectories.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -2032,6 +2435,7 @@
     },
     {
       "path": "src/mcp/tools/listFiles.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -2043,6 +2447,7 @@
     },
     {
       "path": "src/mcp/tools/listTags.js",
+      "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
@@ -2054,21 +2459,22 @@
     },
     {
       "path": "src/mcp/tools/search.js",
-      "category": "mixed",
+      "declaredCategory": "shared",
+      "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
       "liteReachable": false,
       "directDependencies": [
-        "src/core/ce-rerank.js",
         "src/core/env.js",
         "src/core/qdrant.js",
-        "src/core/rerank.js",
+        "src/core/rerank-capability.js",
         "src/core/retrieval/search.js",
         "src/core/storage/factory.js"
       ]
     },
     {
       "path": "src/smoke.js",
+      "declaredCategory": "tooling",
       "category": "tooling",
       "compositionEdition": null,
       "fullReachable": true,
@@ -2079,6 +2485,7 @@
     },
     {
       "path": "src/smoke/helpers.js",
+      "declaredCategory": "tooling",
       "category": "tooling",
       "compositionEdition": null,
       "fullReachable": true,
@@ -2087,6 +2494,7 @@
     },
     {
       "path": "src/smoke/index.js",
+      "declaredCategory": "tooling",
       "category": "tooling",
       "compositionEdition": null,
       "fullReachable": true,
@@ -2150,6 +2558,7 @@
     },
     {
       "path": "src/smoke/sections/01-default-provider.js",
+      "declaredCategory": "tooling",
       "category": "tooling",
       "compositionEdition": null,
       "fullReachable": true,
@@ -2160,6 +2569,7 @@
     },
     {
       "path": "src/smoke/sections/02-onnx-embed.js",
+      "declaredCategory": "tooling",
       "category": "tooling",
       "compositionEdition": null,
       "fullReachable": true,
@@ -2170,6 +2580,7 @@
     },
     {
       "path": "src/smoke/sections/03-invalid-combo-resolve.js",
+      "declaredCategory": "tooling",
       "category": "tooling",
       "compositionEdition": null,
       "fullReachable": true,
@@ -2180,6 +2591,7 @@
     },
     {
       "path": "src/smoke/sections/04-embed-runtime-guard.js",
+      "declaredCategory": "tooling",
       "category": "tooling",
       "compositionEdition": null,
       "fullReachable": true,
@@ -2190,6 +2602,7 @@
     },
     {
       "path": "src/smoke/sections/05-reindex-detection.js",
+      "declaredCategory": "tooling",
       "category": "tooling",
       "compositionEdition": null,
       "fullReachable": true,
@@ -2198,6 +2611,7 @@
     },
     {
       "path": "src/smoke/sections/06-chunking-edge-cases.js",
+      "declaredCategory": "tooling",
       "category": "tooling",
       "compositionEdition": null,
       "fullReachable": true,
@@ -2208,6 +2622,7 @@
     },
     {
       "path": "src/smoke/sections/07-reranker-top1.js",
+      "declaredCategory": "tooling",
       "category": "tooling",
       "compositionEdition": null,
       "fullReachable": true,
@@ -2218,6 +2633,7 @@
     },
     {
       "path": "src/smoke/sections/08-compact-window.js",
+      "declaredCategory": "tooling",
       "category": "tooling",
       "compositionEdition": null,
       "fullReachable": true,
@@ -2228,6 +2644,7 @@
     },
     {
       "path": "src/smoke/sections/09-stale-source-files.js",
+      "declaredCategory": "tooling",
       "category": "tooling",
       "compositionEdition": null,
       "fullReachable": true,
@@ -2238,6 +2655,7 @@
     },
     {
       "path": "src/smoke/sections/11-recursive-chunk-text.js",
+      "declaredCategory": "tooling",
       "category": "tooling",
       "compositionEdition": null,
       "fullReachable": true,
@@ -2248,6 +2666,7 @@
     },
     {
       "path": "src/smoke/sections/12-onnx-providers.js",
+      "declaredCategory": "tooling",
       "category": "tooling",
       "compositionEdition": null,
       "fullReachable": true,
@@ -2258,6 +2677,7 @@
     },
     {
       "path": "src/smoke/sections/13-semidex-payload.js",
+      "declaredCategory": "tooling",
       "category": "tooling",
       "compositionEdition": null,
       "fullReachable": true,
@@ -2268,6 +2688,7 @@
     },
     {
       "path": "src/smoke/sections/14-profiler.js",
+      "declaredCategory": "tooling",
       "category": "tooling",
       "compositionEdition": null,
       "fullReachable": true,
@@ -2278,6 +2699,7 @@
     },
     {
       "path": "src/smoke/sections/15-bootstrap-docs.js",
+      "declaredCategory": "tooling",
       "category": "tooling",
       "compositionEdition": null,
       "fullReachable": true,
@@ -2289,6 +2711,7 @@
     },
     {
       "path": "src/smoke/sections/16-extract-json-array.js",
+      "declaredCategory": "tooling",
       "category": "tooling",
       "compositionEdition": null,
       "fullReachable": true,
@@ -2299,6 +2722,7 @@
     },
     {
       "path": "src/smoke/sections/17-pdf-fixture.js",
+      "declaredCategory": "tooling",
       "category": "tooling",
       "compositionEdition": null,
       "fullReachable": true,
@@ -2309,6 +2733,7 @@
     },
     {
       "path": "src/smoke/sections/18-validate-ollama-models.js",
+      "declaredCategory": "tooling",
       "category": "tooling",
       "compositionEdition": null,
       "fullReachable": true,
@@ -2319,6 +2744,7 @@
     },
     {
       "path": "src/smoke/sections/19-doctor-checks.js",
+      "declaredCategory": "tooling",
       "category": "tooling",
       "compositionEdition": null,
       "fullReachable": true,
@@ -2329,6 +2755,7 @@
     },
     {
       "path": "src/smoke/sections/20-colbert-math.js",
+      "declaredCategory": "tooling",
       "category": "tooling",
       "compositionEdition": null,
       "fullReachable": true,
@@ -2339,6 +2766,7 @@
     },
     {
       "path": "src/smoke/sections/23-length-bucket.js",
+      "declaredCategory": "tooling",
       "category": "tooling",
       "compositionEdition": null,
       "fullReachable": true,
@@ -2349,6 +2777,7 @@
     },
     {
       "path": "src/smoke/sections/24-dml-batching-gate.js",
+      "declaredCategory": "tooling",
       "category": "tooling",
       "compositionEdition": null,
       "fullReachable": true,
@@ -2359,6 +2788,7 @@
     },
     {
       "path": "src/smoke/sections/26-extract-context-tags-array.js",
+      "declaredCategory": "tooling",
       "category": "tooling",
       "compositionEdition": null,
       "fullReachable": true,
@@ -2369,6 +2799,7 @@
     },
     {
       "path": "src/smoke/sections/27-combined-phase.js",
+      "declaredCategory": "tooling",
       "category": "tooling",
       "compositionEdition": null,
       "fullReachable": true,
@@ -2379,6 +2810,7 @@
     },
     {
       "path": "src/smoke/sections/28-setext-headings.js",
+      "declaredCategory": "tooling",
       "category": "tooling",
       "compositionEdition": null,
       "fullReachable": true,
@@ -2389,6 +2821,7 @@
     },
     {
       "path": "src/smoke/sections/29-semidex-ignore.js",
+      "declaredCategory": "tooling",
       "category": "tooling",
       "compositionEdition": null,
       "fullReachable": true,
@@ -2399,6 +2832,7 @@
     },
     {
       "path": "src/smoke/sections/30-tag-gen-flag.js",
+      "declaredCategory": "tooling",
       "category": "tooling",
       "compositionEdition": null,
       "fullReachable": true,
@@ -2409,6 +2843,7 @@
     },
     {
       "path": "src/smoke/sections/31-empty-section.js",
+      "declaredCategory": "tooling",
       "category": "tooling",
       "compositionEdition": null,
       "fullReachable": true,
@@ -2420,6 +2855,7 @@
     },
     {
       "path": "src/smoke/sections/32-deterministic-point-id.js",
+      "declaredCategory": "tooling",
       "category": "tooling",
       "compositionEdition": null,
       "fullReachable": true,
@@ -2430,6 +2866,7 @@
     },
     {
       "path": "src/smoke/sections/33-duplicate-repair-helpers.js",
+      "declaredCategory": "tooling",
       "category": "tooling",
       "compositionEdition": null,
       "fullReachable": true,
@@ -2441,6 +2878,7 @@
     },
     {
       "path": "src/smoke/sections/34-mcp-navigation-tools.js",
+      "declaredCategory": "tooling",
       "category": "tooling",
       "compositionEdition": null,
       "fullReachable": true,
@@ -2452,6 +2890,7 @@
     },
     {
       "path": "src/smoke/sections/35-mcp-ux-polish.js",
+      "declaredCategory": "tooling",
       "category": "tooling",
       "compositionEdition": null,
       "fullReachable": true,
@@ -2464,6 +2903,7 @@
     },
     {
       "path": "src/smoke/sections/36-token-count.js",
+      "declaredCategory": "tooling",
       "category": "tooling",
       "compositionEdition": null,
       "fullReachable": true,
@@ -2475,6 +2915,7 @@
     },
     {
       "path": "src/smoke/sections/37-pipeline-primitives.js",
+      "declaredCategory": "tooling",
       "category": "tooling",
       "compositionEdition": null,
       "fullReachable": true,
@@ -2486,6 +2927,7 @@
     },
     {
       "path": "src/smoke/sections/38-tag-onnx-provider.js",
+      "declaredCategory": "tooling",
       "category": "tooling",
       "compositionEdition": null,
       "fullReachable": true,
@@ -2496,6 +2938,7 @@
     },
     {
       "path": "src/smoke/sections/39-dynamic-overlap.js",
+      "declaredCategory": "tooling",
       "category": "tooling",
       "compositionEdition": null,
       "fullReachable": true,
@@ -2507,6 +2950,7 @@
     },
     {
       "path": "src/smoke/sections/40-colbert-guard.js",
+      "declaredCategory": "tooling",
       "category": "tooling",
       "compositionEdition": null,
       "fullReachable": true,
@@ -2517,6 +2961,7 @@
     },
     {
       "path": "src/smoke/sections/41-ce-rerank-stub.js",
+      "declaredCategory": "tooling",
       "category": "tooling",
       "compositionEdition": null,
       "fullReachable": true,
@@ -2527,6 +2972,7 @@
     },
     {
       "path": "src/smoke/sections/42-skeleton-parse.js",
+      "declaredCategory": "tooling",
       "category": "tooling",
       "compositionEdition": null,
       "fullReachable": true,
@@ -2538,6 +2984,7 @@
     },
     {
       "path": "src/smoke/sections/43-skeleton-policy.js",
+      "declaredCategory": "tooling",
       "category": "tooling",
       "compositionEdition": null,
       "fullReachable": true,
@@ -2549,6 +2996,7 @@
     },
     {
       "path": "src/smoke/sections/44-skeleton-warnings.js",
+      "declaredCategory": "tooling",
       "category": "tooling",
       "compositionEdition": null,
       "fullReachable": true,
@@ -2560,6 +3008,7 @@
     },
     {
       "path": "src/smoke/sections/45-skeleton-chunk.js",
+      "declaredCategory": "tooling",
       "category": "tooling",
       "compositionEdition": null,
       "fullReachable": true,
@@ -2572,6 +3021,7 @@
     },
     {
       "path": "src/smoke/sections/46-skeleton-payload.js",
+      "declaredCategory": "tooling",
       "category": "tooling",
       "compositionEdition": null,
       "fullReachable": true,
@@ -2585,6 +3035,7 @@
     },
     {
       "path": "src/smoke/sections/47-skeleton-nav.js",
+      "declaredCategory": "tooling",
       "category": "tooling",
       "compositionEdition": null,
       "fullReachable": true,
@@ -2598,6 +3049,7 @@
     },
     {
       "path": "src/smoke/sections/48-nav-filter.js",
+      "declaredCategory": "tooling",
       "category": "tooling",
       "compositionEdition": null,
       "fullReachable": true,
@@ -2612,6 +3064,7 @@
     },
     {
       "path": "src/smoke/sections/49-skeleton-edge-cases.js",
+      "declaredCategory": "tooling",
       "category": "tooling",
       "compositionEdition": null,
       "fullReachable": true,
@@ -2625,6 +3078,7 @@
     },
     {
       "path": "src/smoke/sections/50-nav-upsert.js",
+      "declaredCategory": "tooling",
       "category": "tooling",
       "compositionEdition": null,
       "fullReachable": true,
@@ -2639,6 +3093,7 @@
     },
     {
       "path": "src/smoke/sections/51-skeleton-summary.js",
+      "declaredCategory": "tooling",
       "category": "tooling",
       "compositionEdition": null,
       "fullReachable": true,
@@ -2652,6 +3107,7 @@
     },
     {
       "path": "src/smoke/sections/52-run-num-ctx.js",
+      "declaredCategory": "tooling",
       "category": "tooling",
       "compositionEdition": null,
       "fullReachable": true,
@@ -2665,6 +3121,7 @@
     },
     {
       "path": "src/smoke/sections/53-skeleton-nav-tools.js",
+      "declaredCategory": "tooling",
       "category": "tooling",
       "compositionEdition": null,
       "fullReachable": true,
@@ -2677,6 +3134,7 @@
     },
     {
       "path": "src/smoke/sections/54-adaptive-skeleton-summaries.js",
+      "declaredCategory": "tooling",
       "category": "tooling",
       "compositionEdition": null,
       "fullReachable": true,
@@ -2691,6 +3149,7 @@
     },
     {
       "path": "src/smoke/sections/55-hierarchical-skeleton-summaries.js",
+      "declaredCategory": "tooling",
       "category": "tooling",
       "compositionEdition": null,
       "fullReachable": true,
@@ -2705,6 +3164,7 @@
     },
     {
       "path": "src/smoke/sections/56-get-node-tool.js",
+      "declaredCategory": "tooling",
       "category": "tooling",
       "compositionEdition": null,
       "fullReachable": true,
@@ -2715,6 +3175,7 @@
     },
     {
       "path": "src/smoke/sections/57-skeleton-carryover.js",
+      "declaredCategory": "tooling",
       "category": "tooling",
       "compositionEdition": null,
       "fullReachable": true,
@@ -2726,6 +3187,7 @@
     },
     {
       "path": "src/sync.js",
+      "declaredCategory": "tooling",
       "category": "tooling",
       "compositionEdition": null,
       "fullReachable": true,

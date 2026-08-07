@@ -433,7 +433,7 @@ Controls which hardware backend ONNX Runtime uses for inference. Only relevant w
 |-------|---------|-------|
 | `cpu` (default) | CPU | Verified on Windows. Intended to be portable, but Linux and macOS remain experimental until validated end-to-end. |
 | `dml` | DirectML | Verified Windows GPU acceleration path. Falls back to CPU if DirectML is unavailable. No extra package needed — the standard npm-installed `onnxruntime-node` package includes DirectML support on Windows. |
-| `cuda` | NVIDIA CUDA | The standard npm-installed `onnxruntime-node` package has **no CUDA execution provider compiled in**, on any platform. CUDA requires a compatible **custom** `onnxruntime-node` build, pointed to via `ONNXRUNTIME_NODE_PATH` (see below). CUDA Toolkit/cuDNN are OS-level prerequisites semidex does not install or manage. Selecting `cuda` only configures the request — it does not prove CUDA loaded. Verify with the Admin UI's "Test CUDA configuration" probe or `npm run doctor`. |
+| `cuda` | NVIDIA CUDA | CUDA support in the standard npm-installed `onnxruntime-node` package differs **by platform** — see the [Platform comparison: CUDA support](#platform-comparison-cuda-support) callout below. On **Windows**, the npm package ships CPU/DirectML only; CUDA requires either a **managed** runtime (`scripts/install-onnxruntime-cuda-windows.ps1`, see [Windows: managed CUDA runtime installer](./windows-cuda-onnxruntime-install.md)) or a compatible **custom** build pointed to via `ONNXRUNTIME_NODE_PATH` (see below). CUDA Toolkit/cuDNN are OS-level prerequisites semidex does not install or manage. Selecting `cuda` only configures the request — it does not prove CUDA loaded. Verify with the Admin UI's "Test CUDA configuration" probe or `npm run doctor`. |
 
 `dml` and `cpu` are **performance-only** — they do not change the embedding model or provider metadata and do not require reindexing; minor numeric differences between execution providers are possible and do not affect retrieval quality. The same is true of `cuda`: switching execution providers only affects inference speed, never the vector schema, and never requires reindexing.
 
@@ -510,6 +510,31 @@ cuDNN 9 + `LD_LIBRARY_PATH`. To fall back to CPU, unset `ONNX_CUDA_STRICT` or se
 `ONNX_EXECUTION_PROVIDER=cpu`.
 
 Invalid values produce a warning and fall back to `cpu`.
+
+### Platform comparison: CUDA support
+
+Whether `ONNX_EXECUTION_PROVIDER=cuda` works out of the box with the plain
+npm-installed `onnxruntime-node` package genuinely differs by platform —
+semidex used to describe this identically for every platform, which was
+inaccurate. The real, current state (verify against
+[onnxruntime.ai's own install docs](https://onnxruntime.ai/docs/install/)
+and [CUDA Execution Provider docs](https://onnxruntime.ai/docs/execution-providers/CUDA-ExecutionProvider.html)
+before relying on this table, since upstream packaging can change release
+to release):
+
+| Platform | Plain `npm install onnxruntime-node` | How to get CUDA |
+|----------|----------------------------------------|------------------|
+| **Windows** | CPU + DirectML only — no CUDA execution provider compiled in. | A **managed** runtime via `scripts/install-onnxruntime-cuda-windows.ps1` (see [Windows: managed CUDA runtime installer](./windows-cuda-onnxruntime-install.md)), or a compatible **custom** build via `ONNXRUNTIME_NODE_PATH` (see above). |
+| **Linux x64** | Ships a real, officially-supported CUDA execution provider — the post-install step downloads CUDA EP binaries automatically (built/tested against CUDA 12.x + cuDNN 9; `ONNXRUNTIME_NODE_INSTALL=skip` opts out). | Set `ONNX_EXECUTION_PROVIDER=cuda`; no custom build needed upstream. **Semidex itself has not run its own end-to-end acceptance pass on this path** — treat it as experimental within semidex specifically until validated, even though upstream officially supports it. |
+| **macOS** | CUDA is not supported at all (no NVIDIA GPU support on macOS). CoreML is the relevant hardware-acceleration path, not covered by `ONNX_EXECUTION_PROVIDER=cuda`. | Not applicable. |
+
+The Windows-specific custom/managed-build requirement is a real,
+upstream-documented gap — not a semidex limitation invented for this
+project. The Linux "experimental within semidex" caveat is the reverse
+situation: upstream support is real, but semidex's own indexing/search/
+Ask pipeline has not yet been exercised end-to-end against it on real
+Linux+CUDA hardware, so treat a real Linux CUDA run as unverified until
+your own probe/indexing/search cycle confirms it.
 
 ## Indexing (per-run)
 

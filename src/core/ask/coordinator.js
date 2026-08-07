@@ -89,13 +89,17 @@ function createSentinelGuard(onToken) {
  *   countTokens: (text: string) => number|Promise<number>,
  *   generationProvider: import('../generation/provider.js').GenerationProvider,
  *   settingsService?: ReturnType<typeof import('../settings/service.js').createSettingsService>,
+ *   cloudEmbed?: import('../embedding-profile/cloud-embedding-capability.js').CloudEmbeddingCapability,
  * }} deps
  *   settingsService is optional DI, forwarded to buildEvidence() so
  *   HYBRID_PREFETCH_LIMIT/RRF_K apply to Ask's own retrieval (code review
  *   finding — Ask previously always used qdrant/store.js's own direct env
- *   reads, silently ignoring a settings.json override).
+ *   reads, silently ignoring a settings.json override). cloudEmbed is
+ *   optional DI (code review, Phase 8B Step 6), forwarded to
+ *   buildEvidence()/runHybridSearch() — only dereferenced when the
+ *   resolved collection turns out to be qdrant-cloud.
  */
-export function createAskCoordinator({ adapter, embedQuery, countTokens, generationProvider, settingsService }) {
+export function createAskCoordinator({ adapter, embedQuery, countTokens, generationProvider, settingsService, cloudEmbed }) {
   let busy = false;
 
   /**
@@ -136,7 +140,7 @@ export function createAskCoordinator({ adapter, embedQuery, countTokens, generat
       // without a restart — same reasoning as MCP's search tool handler
       // and admin /api/search's route handler.
       settingsService?.refreshIfChanged();
-      const evidence = await buildEvidence({ adapter, embedQuery, countTokens, collection, question, sourceFile, top, settingsService });
+      const evidence = await buildEvidence({ adapter, embedQuery, countTokens, collection, question, sourceFile, top, settingsService, cloudEmbed });
       if (evidence.error) {
         return { status: 'error', code: evidence.error, message: evidence.message };
       }

@@ -33,7 +33,8 @@ import { loadConfig, saveConfig, resolveEnvProviders } from '../core/config.js';
 import { embedForIndex, embedForIndexBatch, shouldUseOnnxBatching, SCHEMA_VERSION } from '../core/embeddings.js';
 import { createStorageAdapter } from '../core/storage/factory.js';
 import { resolveExistingCollectionProfile, resolveNewCollectionProfile } from '../core/embedding-profile/resolve.js';
-import { findDenseModel, resolveEmbeddingBudget, isCatalogCompatibleWithChunking } from '../core/embedding-profile/qdrant-cloud-catalog.js';
+import { findDenseModel, isCatalogCompatibleWithChunking } from '../core/embedding-profile/qdrant-cloud-models.js';
+import { validateCloudEmbeddingCapability } from '../core/embedding-profile/cloud-embedding-capability.js';
 import { resolveCollectionConfigEntry } from '../core/embedding-profile/config-cache.js';
 import { ensureOllamaPreflight } from './preflight.js';
 import { CHUNKING_SCHEMA_VERSION, getTokenCounter, resolveTokenCountMode, QDRANT_CLOUD_TOKEN_MODE_PREFIX } from '../core/token-count.js';
@@ -104,28 +105,30 @@ import { validateOnnxEmbedCapability } from '../core/onnx-embed-capability.js';
  *   ollamaDiscovery: import('../core/generation/ollama-capability.js').OllamaDiscoveryCapability,
  *   onnxEmbed: import('../core/onnx-embed-capability.js').OnnxEmbedCapability,
  *   tagOnnx: import('./phases/tag-onnx-capability.js').TagOnnxCapability,
+ *   cloudEmbed: import('../core/embedding-profile/cloud-embedding-capability.js').CloudEmbeddingCapability,
  * }} capabilities — every slot required; run() is the one real caller
  *   (via index-runtime.js's runIndexerCli()), and every real entry point
- *   (index-full.js, index-lite.js) already supplies all six.
- * @returns {{ ollamaGenerate: Object, ollamaSummary: Object, ollamaEmbed: Object, ollamaDiscovery: Object, onnxEmbed: Object, tagOnnx: Object }}
+ *   (index-full.js, index-lite.js) already supplies all seven.
+ * @returns {{ ollamaGenerate: Object, ollamaSummary: Object, ollamaEmbed: Object, ollamaDiscovery: Object, onnxEmbed: Object, tagOnnx: Object, cloudEmbed: Object }}
  */
-function buildRunContext({ ollamaGenerate, ollamaSummary, ollamaEmbed, ollamaDiscovery, onnxEmbed, tagOnnx } = {}) {
+function buildRunContext({ ollamaGenerate, ollamaSummary, ollamaEmbed, ollamaDiscovery, onnxEmbed, tagOnnx, cloudEmbed } = {}) {
   validateOllamaGenerateCapability(ollamaGenerate);
   validateOllamaSummaryCapability(ollamaSummary);
   validateOllamaEmbedCapability(ollamaEmbed);
   validateOllamaDiscoveryCapability(ollamaDiscovery);
   validateOnnxEmbedCapability(onnxEmbed);
   validateTagOnnxCapability(tagOnnx);
-  return { ollamaGenerate, ollamaSummary, ollamaEmbed, ollamaDiscovery, onnxEmbed, tagOnnx };
+  validateCloudEmbeddingCapability(cloudEmbed);
+  return { ollamaGenerate, ollamaSummary, ollamaEmbed, ollamaDiscovery, onnxEmbed, tagOnnx, cloudEmbed };
 }
 
-// The exact { ollama, onnxEmbed } shape embedForIndex()/embedForIndexBatch()
-// expect as their own `capabilities` option — a tiny, pure reshaping helper
-// so every embed call site below reads `embedCapabilitiesFrom(ctx)` instead
-// of repeating the `{ ollama: ctx.ollamaEmbed, onnxEmbed: ctx.onnxEmbed }`
-// literal at each of the 6 real call sites.
+// The exact { ollama, onnxEmbed, cloudEmbed } shape
+// embedForIndex()/embedForIndexBatch() expect as their own `capabilities`
+// option — a tiny, pure reshaping helper so every embed call site below
+// reads `embedCapabilitiesFrom(ctx)` instead of repeating the literal at
+// each of the 6 real call sites.
 function embedCapabilitiesFrom(ctx) {
-  return { ollama: ctx.ollamaEmbed, onnxEmbed: ctx.onnxEmbed };
+  return { ollama: ctx.ollamaEmbed, onnxEmbed: ctx.onnxEmbed, cloudEmbed: ctx.cloudEmbed };
 }
 
 // let (not const): LLM_BATCH_SIZE is re-resolved from the settings registry.
@@ -259,7 +262,7 @@ async function stageA(filePath, rootPath, collection, profiler, ctx, reporter = 
   // below and the actual chunking call further down use the SAME budget —
   // null for a client-execution profile, which preserves whole-entity
   // chunking exactly as before oversized-entity splitting existed.
-  const chunkingBudget = resolveEmbeddingBudget(EMBEDDING_PROFILE);
+  const chunkingBudget = ctx.cloudEmbed.resolveEmbeddingBudget(EMBEDDING_PROFILE);
   const budgetAwareTopology = chunkingBudget !== null;
 
   const fileHash   = await hashFile(filePath);
@@ -314,7 +317,7 @@ async function stageA(filePath, rootPath, collection, profiler, ctx, reporter = 
   // fetching the model's tokenizer.json), and that failure must be
   // surfaced here, before any Qdrant write, exactly like the BGE-M3 case.
   if (tokenCountMode === 'bge-m3' || tokenCountMode.startsWith(QDRANT_CLOUD_TOKEN_MODE_PREFIX)) {
-    await getTokenCounter({ mode: tokenCountMode });
+    await getTokenCounter({ mode: tokenCountMode, cloudEmbed: ctx.cloudEmbed });
   }
 
   // Compute whether a pre-delete is needed, but do NOT execute it yet.
@@ -1354,7 +1357,7 @@ async function main(ctx) {
               tokenCountMode: resolveTokenCountMode(process.env, EMBEDDING_PROFILE),
               chunkingSchemaVersion: CHUNKING_SCHEMA_VERSION,
               embedMeta: dirEmbeds[i].meta,
-              budgetAwareTopology: resolveEmbeddingBudget(EMBEDDING_PROFILE) !== null,
+              budgetAwareTopology: ctx.cloudEmbed.resolveEmbeddingBudget(EMBEDDING_PROFILE) !== null,
             }),
           }));
           await upsertPoints(COLLECTION, dirPoints);
@@ -1403,7 +1406,7 @@ async function main(ctx) {
             tokenCountMode: resolveTokenCountMode(process.env, EMBEDDING_PROFILE),
             chunkingSchemaVersion: CHUNKING_SCHEMA_VERSION,
             embedMeta: meta,
-            budgetAwareTopology: resolveEmbeddingBudget(EMBEDDING_PROFILE) !== null,
+            budgetAwareTopology: ctx.cloudEmbed.resolveEmbeddingBudget(EMBEDDING_PROFILE) !== null,
           }),
         }]);
         console.log(`\nCollection nav node updated (${fileNodes.length} file summaries, ${enrichedDirs.length} directory summaries).`);
@@ -1426,7 +1429,7 @@ async function main(ctx) {
       // Topology-aware (code review, P2): matches expectedChunkingMeta's
       // own per-file logic — this collection's profile decides which
       // version applies, never a hardcoded ceiling constant.
-      indexingSchemaVersion: resolveEmbeddingBudget(EMBEDDING_PROFILE) !== null
+      indexingSchemaVersion: ctx.cloudEmbed.resolveEmbeddingBudget(EMBEDDING_PROFILE) !== null
         ? INDEXING_SCHEMA_VERSION_PROFILE_BUDGET : INDEXING_SCHEMA_VERSION_BASE,
       chunkingSchemaVersion: CHUNKING_SCHEMA_VERSION,
     }));

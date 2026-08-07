@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "entries": [
+    {
+      "ortVersion": "1.26.0",
+      "cudaMajor": "13",
+      "platform": "win32",
+      "arch": "x64",
+      "sourceRepository": "https://github.com/microsoft/onnxruntime.git",
+      "sourceTag": "v1.26.0",
+      "sourceCommit": "8c546c37b43caaca1fa25db430dab94b901cf277",
+      "runtimeAssetUrl": "https://github.com/microsoft/onnxruntime/releases/download/v1.26.0/onnxruntime-win-x64-gpu_cuda13-1.26.0.zip",
+      "runtimeAssetSha256": "4fa096030ee766b2e590d71fb6676bbd00595c92ab87acf497fe075e98834d8b",
+      "runtimeAssetBytes": 308611829,
+      "verifiedStatus": "verified_on_reference_machine"
+    }
+  ]
+}

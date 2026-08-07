@@ -4,7 +4,7 @@ import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { assertProviderCombo, resolveEffectiveEmbeddingBackend } from './env.js';
 import { ONNX_DENSE_MODEL_ID } from './onnx-paths.js';
-import { QDRANT_CLOUD_DENSE_MODELS, QDRANT_CLOUD_SPARSE_MODELS } from './embedding-profile/qdrant-cloud-catalog.js';
+import { QDRANT_CLOUD_DENSE_MODELS, QDRANT_CLOUD_SPARSE_MODELS } from './embedding-profile/qdrant-cloud-models.js';
 
 // SEMIDEX_CONFIG_PATH lets a caller (e.g. an external benchmark harness
 // spawning the indexer as a subprocess) redirect config.json to an

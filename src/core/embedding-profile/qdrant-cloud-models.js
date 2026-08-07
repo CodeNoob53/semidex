@@ -66,7 +66,7 @@ export const QDRANT_CLOUD_DENSE_MODELS = Object.freeze([
   // probe against a free-tier cluster returns HTTP 401 with a message
   // naming the model and stating the tier restriction explicitly (distinct
   // from an "unsupported model" 400 — see
-  // admin/system/qdrant-cloud.js's classifyInferenceProbeError()). Never
+  // cloud/admin/qdrant-cloud-system.js's classifyInferenceProbeError()). Never
   // returned by isDenseModelSupported()/any status==='supported' filter;
   // never selectable in the Settings UI. Promote to 'supported' only after
   // adding real per-cluster tier detection (out of scope for this task —

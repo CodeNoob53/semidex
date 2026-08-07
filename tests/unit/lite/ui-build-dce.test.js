@@ -30,10 +30,11 @@ const LITE_DIST = join(REPO_ROOT, 'dist', 'admin-ui-lite');
 const FULL_DIST = join(REPO_ROOT, 'dist', 'admin-ui');
 
 const FORBIDDEN_MARKERS = [
-  'ONNX_EXECUTION_PROVIDER', 'ONNXRUNTIME_NODE_PATH', 'OLLAMA_URL', 'GENERATION_DEVICE',
+  'ONNX_EXECUTION_PROVIDER', 'ONNXRUNTIME_NODE_PATH', 'ONNX_MANAGED_RUNTIME', 'OLLAMA_URL', 'GENERATION_DEVICE',
   'ONNX_BATCH_SIZE', 'ONNX_CUDA_STRICT', 'TAG_ONNX_MODEL', 'TAG_ONNX_THREADS', 'TAG_ONNX_ALLOW_DOWNLOAD',
   'tpl-gs-onnx-probe-panel',
   '/api/system/onnx-probe', '/api/ollama-models', '/api/system/ollama-status',
+  '/api/system/onnx-managed-runtimes',
   'opt-onnx', 'opt-llm-summaries', 'opt-tags',
 ];
 

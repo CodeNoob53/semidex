@@ -182,6 +182,14 @@ describe('registerNeutralRoutes() — call-shape determinism (NOT a composition-
     return { startIndexJob: () => ({ id: 'fake-job' }), getJob: () => null, cancelJob: () => {} };
   }
 
+  // registerQdrantCloudRoutesFn is now a REQUIRED dependency too (code
+  // review, Phase 8B Step 6 — no implicit fallback to the real
+  // src/cloud/admin/qdrant-cloud-api.js import; see that function's own
+  // header comment). A no-op fake is enough here — these tests only assert
+  // on the OTHER neutral routes' presence/determinism, never on the
+  // qdrant-cloud-specific routes this fake would register.
+  function fakeRegisterQdrantCloudRoutesFn() {}
+
   it('calling registerNeutralRoutes() directly registers a non-empty, deterministic route set', () => {
     const { router, registered } = makeRecordingRouter();
     registerNeutralRoutes(router, {
@@ -190,6 +198,7 @@ describe('registerNeutralRoutes() — call-shape determinism (NOT a composition-
       jobRegistry: makeFakeJobRegistry(),
       generationModelsFn: () => {},
       jobsFn: () => {},
+      registerQdrantCloudRoutesFn: fakeRegisterQdrantCloudRoutesFn,
     });
     assert.ok(registered.length > 0, 'expected registerNeutralRoutes() to register at least one route');
     // Sanity check a handful of well-known neutral routes are really
@@ -218,6 +227,7 @@ describe('registerNeutralRoutes() — call-shape determinism (NOT a composition-
       pickFolderFn: async () => ({ path: null, cancelled: true }), // Full passes this; Lite never does
       generationModelsFn: () => {},
       jobsFn: () => {},
+      registerQdrantCloudRoutesFn: fakeRegisterQdrantCloudRoutesFn,
     });
 
     const liteRecording = makeRecordingRouter();
@@ -227,6 +237,7 @@ describe('registerNeutralRoutes() — call-shape determinism (NOT a composition-
       jobRegistry: makeFakeJobRegistry(),
       generationModelsFn: () => {},
       jobsFn: () => {},
+      registerQdrantCloudRoutesFn: fakeRegisterQdrantCloudRoutesFn,
     });
 
     assert.deepEqual(

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { sanitiseErrorMessage } from '../../../src/core/doctor-checks.js';
+import { sanitiseErrorMessage, formatCudaDiagnosis } from '../../../src/core/doctor-checks.js';
 
 test('sanitiseErrorMessage — single secret (string) is redacted, backward compatible', () => {
   const out = sanitiseErrorMessage('request failed: key=sk-abc123 rejected', 'sk-abc123');
@@ -35,4 +35,36 @@ test('sanitiseErrorMessage — empty/null message returns empty string regardles
   assert.equal(sanitiseErrorMessage('', ['a', 'b']), '');
   assert.equal(sanitiseErrorMessage(null, ['a', 'b']), '');
   assert.equal(sanitiseErrorMessage(undefined), '');
+});
+
+// formatCudaDiagnosis() — renders local/core/cuda-diagnosis.js's own
+// { reason, details, nextSteps } shape into a doctor detail string. This
+// file stays pure/zero-I/O (per its own header comment) — the real
+// nvidia-smi/filesystem checks live in cuda-diagnosis.js, never here.
+
+test('formatCudaDiagnosis — a full diagnosis renders details plus each nextSteps entry as an indented bullet', () => {
+  const diagnosis = {
+    reason: 'no_cuda_toolkit',
+    details: 'GPU driver 551.23 detected (RTX 4070); CUDA_PATH not set.',
+    nextSteps: ['Install the CUDA Toolkit.', 'Set CUDA_PATH.'],
+  };
+  const out = formatCudaDiagnosis(diagnosis);
+  assert.match(out, /GPU driver 551\.23 detected \(RTX 4070\); CUDA_PATH not set\./);
+  assert.match(out, /- Install the CUDA Toolkit\./);
+  assert.match(out, /- Set CUDA_PATH\./);
+  // Indentation matches formatResult()'s own convention (13 spaces before
+  // the continuation, mirroring formatCudaProbeFailure()'s existing shape).
+  assert.match(out, /\n {13}- Install the CUDA Toolkit\./);
+});
+
+test('formatCudaDiagnosis — an empty nextSteps array (the unknown-reason case) still includes details, no stray bullet artifacts', () => {
+  const diagnosis = { reason: 'unknown', details: 'Everything checked out but the probe still failed.', nextSteps: [] };
+  const out = formatCudaDiagnosis(diagnosis);
+  assert.equal(out, 'Everything checked out but the probe still failed.');
+  assert.ok(!out.includes('- '), 'no stray bullet marker when nextSteps is empty');
+});
+
+test('formatCudaDiagnosis — null/undefined diagnosis returns an empty string, so callers fall back to formatCudaProbeFailure()', () => {
+  assert.equal(formatCudaDiagnosis(null), '');
+  assert.equal(formatCudaDiagnosis(undefined), '');
 });

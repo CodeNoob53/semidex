@@ -10,6 +10,7 @@ Other languages: [Українська](../ua/README.md)
 | [retrieval.md](retrieval.md) | Hybrid search, providers, RRF, and reranking |
 | [mcp-tools.md](mcp-tools.md) | MCP tool reference and agent workflows |
 | [configuration.md](configuration.md) | Environment variables, formats, provider config, indexes |
+| [windows-cuda-onnxruntime-install.md](windows-cuda-onnxruntime-install.md) | Reproducible managed CUDA `onnxruntime-node` installer for Windows |
 | [chunking-quality.md](chunking-quality.md) | Chunking guarantees, failure modes, quality metrics, large-doc benchmark plan |
 | [testing.md](testing.md) | Unit tests (node:test), conventions, smoke→unit migration plan |
 | [benchmarking.md](benchmarking.md) | Smoke tests, retrieval benchmark, metrics, regression workflow |

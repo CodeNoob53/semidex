@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { discoverGeminiModels } from '../../../src/core/gemini-models.js';
+import { discoverGeminiModels } from '../../../src/cloud/generation/gemini-models.js';
 
 function makePager(models) {
   return {

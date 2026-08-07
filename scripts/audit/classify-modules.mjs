@@ -16,7 +16,7 @@
 // actually missing the new edge). Writes
 // docs/design/artifacts/full-lite-module-inventory.json. Never modifies
 // src/, packages/lite/, or any other production file.
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from 'node:fs';
 import { dirname, join, resolve, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildGraph } from './build-import-graph.mjs';
@@ -49,7 +49,7 @@ const ARTIFACTS_DIR = join(REPO_ROOT, 'docs', 'design', 'artifacts');
 // separately). Adding it as a real root closes that gap: the UI's own
 // import graph (app.js, router.js, global-settings-view.js, etc., plus the
 // one real cross-boundary edge into
-// core/embedding-profile/qdrant-cloud-models.js, a pure-data zero-dependency
+// cloud/embedding/qdrant-cloud-models.js, a pure-data zero-dependency
 // module — confirmed by reading its own header comment) is now traced the
 // same way every other entry point is, not hand-verified prose.
 export const FULL_ROOTS = [
@@ -64,7 +64,116 @@ export const FULL_ROOTS = [
   'src/smoke.js',
   'src/bootstrap-docs.js',
   'src/admin/ui-src/entries/full.js',
+  // scripts/*.ps1 -> `node <js-path>` invocations, computed below by
+  // findPowerShellInvokedRoots() and spread in — a real cross-language
+  // process boundary (PowerShell spawning node as its own child process)
+  // that build-import-graph.mjs's AST parser cannot see and never will,
+  // since it only parses .js/.mjs files. Not a hand-maintained list: any
+  // `.ps1` under scripts/ that invokes a src/ file via `node <path>` is
+  // picked up automatically, so a file genuinely reachable only from a
+  // PowerShell installer/maintenance script is never misclassified as
+  // dead code by shared-cloud-local-manifest.test.js's zero-unclassified
+  // guard. See findPowerShellInvokedRoots()'s own header for the exact
+  // pattern it matches.
+  ...findPowerShellInvokedRoots(),
 ];
+
+// Scans every scripts/**/*.ps1 file's own text for `node <relative-path>`
+// invocations (the exact shape src/local/core/*.js's own CLI-entry files
+// document as their invocation contract — see e.g.
+// onnx-cuda-prereq-check.js's header comment) and resolves each matched
+// path to a REPO_ROOT-relative src/ file path. Deliberately simple/
+// conservative: matches `node <path-ending-in-.js>` where <path> is a
+// bare relative path (no shell variables, no quoting) — exactly the
+// literal shape every real .ps1 caller in this repo uses today (verified
+// by reading install-onnxruntime-cuda-windows.ps1's own $scriptPath /
+// $verifyScript invocation lines). A more elaborate path expression
+// (variable interpolation, string concatenation) would silently fail to
+// match here — this is intentionally NOT a full PowerShell parser, only
+// a targeted scan for the one pattern this codebase's own CLI-entry files
+// are documented to expect. If a future .ps1 script invokes a src/ file
+// through a shape this regex can't see, that file's reachability must be
+// re-established some other way (e.g. a doctor.js call, as
+// onnx-cuda-prereq-check.js's own header comment discusses) — this
+// function does not silently paper over that gap, it simply won't find
+// an edge that isn't there in the exact literal shape it looks for.
+function findPowerShellInvokedRoots() {
+  const scriptsDir = join(REPO_ROOT, 'scripts');
+  if (!existsSync(scriptsDir)) return [];
+  const roots = new Set();
+  const NODE_INVOCATION_RE = /\bnode\s+(?:\$\w+\s*=\s*)?(?:["'`]?)([\w./\\-]+\.js)(?:["'`]?)/g;
+  const walk = (dir) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) { walk(full); continue; }
+      // .psm1 too — Invoke-NodeDecision/Invoke-VerifierSafely (the actual
+      // `node <path>` call sites) were pulled out of
+      // install-onnxruntime-cuda-windows.ps1 into a sibling .psm1 module
+      // (Invoke-VerifierSafely's own P1 fix — pulling the helper into its
+      // own importable module is what let a real PowerShell test exercise
+      // it directly, see tests/powershell/install-onnxruntime-cuda-windows.tests.ps1),
+      // so the .ps1 file alone no longer contains every real invocation
+      // this scan needs to find.
+      if (!entry.name.endsWith('.ps1') && !entry.name.endsWith('.psm1')) continue;
+      const text = readFileSync(full, 'utf-8');
+      for (const line of text.split('\n')) {
+        // Only lines that actually invoke `node` as a command (not merely
+        // mentioning the word) AND reference a path under src/ — a
+        // $scriptPath variable assigned from Join-Path is resolved
+        // one line prior in every real caller in this repo, so this scans
+        // for the literal `node $scriptPath`-style call by instead
+        // matching direct relative-path invocations AND the two-line
+        // $var = Join-Path ...; node $var pattern via a second pass below.
+        const directMatch = [...line.matchAll(NODE_INVOCATION_RE)];
+        for (const m of directMatch) {
+          const rel = m[1].replace(/\\/g, '/');
+          if (rel.startsWith('src/')) roots.add(rel);
+        }
+      }
+      // Second pass: `$scriptPath = Join-Path $RepoRoot 'src\...\x.js'` ...
+      // `node $scriptPath` — resolves the variable's own MOST RECENTLY
+      // assigned path literal at the point of use (matching PowerShell's
+      // actual reassignment semantics — the same variable name, e.g.
+      // $scriptPath, is legitimately reused for different paths across
+      // different helper functions in the same file, so a whole-file
+      // name->path map would silently let a later assignment overwrite an
+      // earlier one before its own `node $var` call is ever matched
+      // against it). Walked line-by-line, tracking the live value of each
+      // variable as the scan proceeds top-to-bottom.
+      const varAssignRe = /^\s*\$(\w+)\s*=\s*Join-Path\s+\$\w+\s+['"]([^'"]+\.js)['"]/;
+      // Matches BOTH a direct `node $var` call AND an indirect one through
+      // a wrapper function's own -<Param> $var argument (e.g.
+      // `Invoke-VerifierSafely -RuntimeDir $TargetDir -VerifyScript
+      // $verifyScript`, defined in install-onnxruntime-cuda-windows.lib.psm1,
+      // which itself calls `& $NodeCommand $VerifyScript` — a shape this
+      // regex-based scan cannot trace through a second file/function
+      // boundary). Any named parameter whose own name ends in
+      // Script/Path is treated as carrying a script path through to a
+      // real `node` invocation somewhere inside the function it's passed
+      // to — deliberately broad (would also match a hypothetical
+      // -ConfigPath $var that has nothing to do with node), but this is
+      // scripts/ only, a small, human-reviewed directory, not arbitrary
+      // user input, so a rare false-positive root is a acceptable
+      // trade-off for not silently missing a real one.
+      const nodeVarCallRe = /\bnode\s+\$(\w+)\b|-(?:\w*(?:Script|Path))\s+\$(\w+)\b/;
+      const liveVarToPath = new Map();
+      for (const line of text.split('\n')) {
+        const assign = line.match(varAssignRe);
+        if (assign) {
+          liveVarToPath.set(assign[1], assign[2].replace(/\\/g, '/'));
+          continue;
+        }
+        const call = line.match(nodeVarCallRe);
+        const varName = call ? (call[1] ?? call[2]) : null;
+        if (varName && liveVarToPath.has(varName)) {
+          roots.add(liveVarToPath.get(varName));
+        }
+      }
+    }
+  };
+  walk(scriptsDir);
+  return [...roots];
+}
 
 // "Lite" reachability starts from packages/lite/lite-src/*.js — now REAL
 // parsed graph nodes (build-import-graph.mjs walks that directory too),
@@ -200,14 +309,55 @@ export const LOCAL_ONLY_PATH_PATTERNS = [
   /^src\/core\/ce-rerank-worker\.js$/, /^src\/local\/core\/ollama\.js$/, /^src\/local\/core\/ollama-models\.js$/,
   /^src\/local\/indexer\/phases\/tag-onnx\.js$/, /^src\/local\/indexer\/workers\/tag-onnx-worker\.js$/,
   /^src\/admin\/system\/ollama\.js$/, /^src\/admin\/api\/onnx\.js$/, /^src\/admin\/api\/ollama-models\.js$/,
+  // Reproducible Windows CUDA onnxruntime-node managed installer — every
+  // new src/local/core/ file this task added, mirroring build.mjs's own
+  // wholesale 'local' EXCLUDE_DIRS entry (see this const's own header
+  // comment: this list is a file-by-file double-check of that directory
+  // exclusion, not a separate policy).
+  //
+  // onnx-cuda-prereq-check.js, onnx-cuda-installer-logic.js, and
+  // onnx-cuda-installer-verify.js are each invoked by
+  // scripts/install-onnxruntime-cuda-windows.ps1 as `node <path>` — a real
+  // cross-language process boundary this JS-only import-graph parser
+  // cannot see as a static/dynamic import edge. FULL_ROOTS above spreads
+  // in findPowerShellInvokedRoots()'s own automated scan of every
+  // scripts/**/*.ps1 file for exactly this invocation shape, so these
+  // files are genuinely graph-provable Full-reachable roots, not
+  // hand-asserted exceptions — see that function's own header comment for
+  // the exact pattern it matches. onnx-cuda-prereq-check.js is ALSO
+  // called directly from src/doctor.js (see its "GPU-stack prerequisites
+  // (informational)" report line), independent of the .ps1 scan.
+  /^src\/local\/core\/semidex-home\.js$/, /^src\/local\/core\/managed-runtime-id\.js$/,
+  /^src\/local\/core\/managed-onnx-runtime-manifest\.js$/, /^src\/local\/core\/onnx-cuda-prereq-check\.js$/,
+  /^src\/local\/core\/onnx-runtime-source-resolution\.js$/, /^src\/local\/core\/onnx-cuda-installer-logic\.js$/,
+  /^src\/local\/core\/onnx-cuda-installer-verify\.js$/,
 ];
 export const COMPOSITION_FULL_PATTERNS = [
   /^src\/admin\/bootstrap\.js$/, /^src\/admin\/server-full\.js$/, /^src\/doctor\.js$/, /^src\/backfill-tags\.js$/,
   /^src\/backfill-entity-refs\.js$/, /^src\/sync\.js$/, /^src\/smoke\.js$/, /^src\/bootstrap-docs\.js$/,
 ];
+// Phase 8B Step 6 — physically relocated from src/core/embedding-profile/
+// (qdrant-cloud-{catalog,tokenizer}.js — qdrant-cloud-models.js itself moved
+// BACK to src/core/embedding-profile/, see the code review fix below),
+// src/core/gemini-models.js, src/core/generation/gemini-provider.js,
+// src/admin/api/qdrant-cloud.js, and src/admin/system/qdrant-cloud.js to
+// src/cloud/{embedding,generation,admin}/.
+//
+// Code review fix (Phase 8B Step 6, second pass): qdrant-cloud-models.js is
+// genuinely neutral catalog/typed-metadata data (zero dependencies, no fs,
+// no fetch, no tokenizer) and was moved back to src/core/embedding-profile/
+// — a real architectural boundary requires distinguishing pure data from
+// implementation, not just where a file happens to sit. cloud-embedding-
+// provider.js/cloud-generation-provider.js are the two narrow composition-
+// facing factories (createCloudEmbeddingCapability()/
+// createCloudGenerationCapability()) that a composition root imports to
+// obtain the real capability — they physically live in src/cloud/ and are
+// never imported by shared code, so they belong in this pattern list too.
 export const CLOUD_ONLY_PATH_PATTERNS = [
-  /^src\/core\/embedding-profile\/qdrant-cloud/, /^src\/admin\/system\/qdrant-cloud\.js$/,
-  /^src\/admin\/api\/qdrant-cloud\.js$/, /^src\/core\/gemini-models\.js$/, /^src\/core\/generation\/gemini-provider\.js$/,
+  /^src\/cloud\/embedding\/qdrant-cloud/, /^src\/cloud\/admin\/qdrant-cloud-system\.js$/,
+  /^src\/cloud\/admin\/qdrant-cloud-api\.js$/, /^src\/cloud\/generation\/gemini-models\.js$/,
+  /^src\/cloud\/generation\/gemini-provider\.js$/, /^src\/cloud\/embedding\/cloud-embedding-provider\.js$/,
+  /^src\/cloud\/generation\/cloud-generation-provider\.js$/,
 ];
 const LAZY_SHIM_PATTERNS = [/-lazy\.js$/, /-lazy\.lite\.js$/];
 
