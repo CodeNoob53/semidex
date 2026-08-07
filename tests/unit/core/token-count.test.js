@@ -16,6 +16,14 @@ import {
   countTokens,
   takeLastTokens,
 } from '../../../src/core/token-count.js';
+import { createCloudEmbeddingCapability } from '../../../src/cloud/embedding/cloud-embedding-provider.js';
+
+// Real capability (code review, Phase 8B Step 6) — token-count.js's own
+// getCloudTokenCounter() now requires an injected `cloudEmbed` capability
+// rather than importing the real qdrant-cloud-tokenizer.js itself. These
+// tests already exercise the real cached tokenizer via localFilesOnly, so
+// the real (not faked) capability is the correct choice here.
+const cloudEmbed = createCloudEmbeddingCapability();
 
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '../../../');
 function tokenizerCached(modelId) {
@@ -175,7 +183,7 @@ describe('bge-m3 tokenizer (skipped when local cache is absent)', () => {
 describe('E5 profile (qdrant-cloud) — real tokenizer, 384d/512-token identity', { skip: !e5Cached }, () => {
   it('getTokenCounter resolves the E5 tokenizer for a qdrant-cloud:<E5-id> mode, never BGE-M3', async () => {
     const mode = resolveTokenCountMode({}, cloudProfile(E5_ID));
-    const counter = await getTokenCounter({ mode, localFilesOnly: true });
+    const counter = await getTokenCounter({ mode, localFilesOnly: true, cloudEmbed });
     assert.equal(typeof counter, 'function');
     const count = await counter('A short sentence about semidex.');
     assert.equal(typeof count, 'number');
@@ -185,8 +193,8 @@ describe('E5 profile (qdrant-cloud) — real tokenizer, 384d/512-token identity'
   it('countTokens agrees with a direct getTokenCounter call for the same E5 mode', async () => {
     const mode = resolveTokenCountMode({}, cloudProfile(E5_ID));
     const text = 'Семідекс — це локальний RAG-індексатор.';
-    const direct = await (await getTokenCounter({ mode, localFilesOnly: true }))(text);
-    const viaCountTokens = await countTokens(text, { mode, localFilesOnly: true });
+    const direct = await (await getTokenCounter({ mode, localFilesOnly: true, cloudEmbed }))(text);
+    const viaCountTokens = await countTokens(text, { mode, localFilesOnly: true, cloudEmbed });
     assert.equal(direct, viaCountTokens);
   });
 });
@@ -194,7 +202,7 @@ describe('E5 profile (qdrant-cloud) — real tokenizer, 384d/512-token identity'
 describe('MiniLM profile (qdrant-cloud) — real tokenizer, 384d/256-token identity', { skip: !minilmCached }, () => {
   it('getTokenCounter resolves the MiniLM tokenizer for a qdrant-cloud:<MiniLM-id> mode, never BGE-M3', async () => {
     const mode = resolveTokenCountMode({}, cloudProfile(MINILM_ID));
-    const counter = await getTokenCounter({ mode, localFilesOnly: true });
+    const counter = await getTokenCounter({ mode, localFilesOnly: true, cloudEmbed });
     const count = await counter('A short sentence about semidex.');
     assert.equal(typeof count, 'number');
     assert.ok(count > 0);
@@ -215,5 +223,131 @@ describe('Cloud profile — never loads BGE-M3 (the exact live bug this fix clos
     const mode = resolveTokenCountMode({ TOKEN_COUNT: 'bge-m3' }, cloudProfile(E5_ID));
     assert.notEqual(mode, 'bge-m3');
     assert.ok(mode.startsWith(QDRANT_CLOUD_TOKEN_MODE_PREFIX));
+  });
+});
+
+// Review finding (P1): getCloudTokenCounter()'s own counter/text caches
+// used to be keyed ONLY by `modelId\0localFilesOnly` in a single
+// module-scope Map — indistinguishable from a SECOND, independently
+// constructed `cloudEmbed` capability resolving the SAME model id. The
+// first composition root to ever resolve a given model id in a process
+// silently became the ONLY one whose cloudEmbed.getCloudTokenCounter()
+// was ever actually invoked; every other capability's calls for that
+// model id transparently returned the first one's cached counter/results
+// instead — real cross-instance state leakage, not a plain shared cache.
+// Fixed via a WeakMap<cloudEmbed, {...}> — every test below uses fully
+// fake, injected `cloudEmbed` objects (never the real network-backed
+// tokenizer) specifically so the counter VALUE itself (not just "was it
+// called") can be asserted deterministically.
+describe('getCloudTokenCounter() — capability-scoped caching (review finding, P1)', () => {
+  function fakeCloudEmbed(counterValue) {
+    let calls = 0;
+    return {
+      calls: () => calls,
+      async getCloudTokenCounter(modelId, opts) {
+        calls += 1;
+        return async (text) => counterValue;
+      },
+    };
+  }
+
+  it('two independent cloudEmbed instances resolving the SAME modelId each get their OWN counter — never the other instance\'s cached value (the exact repro from the review finding)', async () => {
+    const capabilityA = fakeCloudEmbed(11);
+    const capabilityB = fakeCloudEmbed(22);
+    const modelId = 'shared-model-id';
+
+    const modeA = `${QDRANT_CLOUD_TOKEN_MODE_PREFIX}${modelId}`;
+    const modeB = `${QDRANT_CLOUD_TOKEN_MODE_PREFIX}${modelId}`;
+
+    const countA = await countTokens('hello world', { mode: modeA, cloudEmbed: capabilityA });
+    const countB = await countTokens('hello world', { mode: modeB, cloudEmbed: capabilityB });
+
+    assert.equal(countA, 11, 'capability A must resolve its own counter value');
+    assert.equal(countB, 22, 'capability B must resolve its own counter value, never A\'s cached 11');
+    assert.equal(capabilityA.calls(), 1, 'capability A\'s getCloudTokenCounter() must actually be invoked');
+    assert.equal(capabilityB.calls(), 1, 'capability B\'s getCloudTokenCounter() must actually be invoked — the old bug meant this call never happened at all');
+  });
+
+  it('a SECOND call to the SAME cloudEmbed instance for the same modelId reuses its own cached counter (no repeated getCloudTokenCounter() calls) — caching itself is preserved, only cross-instance sharing was removed', async () => {
+    const capability = fakeCloudEmbed(42);
+    const modelId = 'reused-model-id';
+    const mode = `${QDRANT_CLOUD_TOKEN_MODE_PREFIX}${modelId}`;
+
+    const first = await countTokens('text one', { mode, cloudEmbed: capability });
+    const second = await countTokens('text two', { mode, cloudEmbed: capability });
+
+    assert.equal(first, 42);
+    assert.equal(second, 42);
+    assert.equal(capability.calls(), 1, 'the SAME cloudEmbed instance must only ever call its own getCloudTokenCounter() once per modelId/localFilesOnly combination');
+  });
+
+  it('the per-text result cache is also capability-scoped — two capabilities never see each other\'s cached per-text counts, even for the identical model id and text', async () => {
+    let capabilityACallCount = 0;
+    let capabilityBCallCount = 0;
+    const capabilityA = {
+      async getCloudTokenCounter() {
+        return async (text) => { capabilityACallCount += 1; return 100; };
+      },
+    };
+    const capabilityB = {
+      async getCloudTokenCounter() {
+        return async (text) => { capabilityBCallCount += 1; return 200; };
+      },
+    };
+    const modelId = 'text-cache-model-id';
+    const mode = `${QDRANT_CLOUD_TOKEN_MODE_PREFIX}${modelId}`;
+    const text = 'the exact same text string';
+
+    const resultA1 = await countTokens(text, { mode, cloudEmbed: capabilityA });
+    const resultB1 = await countTokens(text, { mode, cloudEmbed: capabilityB });
+    // Second call to A for the identical text must hit A's OWN cache
+    // (capabilityACallCount stays 1), never B's.
+    const resultA2 = await countTokens(text, { mode, cloudEmbed: capabilityA });
+
+    assert.equal(resultA1, 100);
+    assert.equal(resultB1, 200, 'capability B must compute its own result for the identical text, never reuse A\'s cached 100');
+    assert.equal(resultA2, 100);
+    assert.equal(capabilityACallCount, 1, 'A\'s underlying counter fn must only be invoked once — the second call hits A\'s own per-text cache');
+    assert.equal(capabilityBCallCount, 1);
+  });
+
+  it('within a SINGLE cloudEmbed instance, two different models never share a per-text cached count for the same text (review finding, P1 follow-up — the exact E5/MiniLM repro)', async () => {
+    let modelACallCount = 0;
+    let modelBCallCount = 0;
+    const capability = {
+      async getCloudTokenCounter(modelId) {
+        if (modelId === 'model-a') return async (text) => { modelACallCount += 1; return 11; };
+        return async (text) => { modelBCallCount += 1; return 22; };
+      },
+    };
+    const text = 'the exact same text string';
+    const modeA = `${QDRANT_CLOUD_TOKEN_MODE_PREFIX}model-a`;
+    const modeB = `${QDRANT_CLOUD_TOKEN_MODE_PREFIX}model-b`;
+
+    const resultA = await countTokens(text, { mode: modeA, cloudEmbed: capability });
+    const resultB = await countTokens(text, { mode: modeB, cloudEmbed: capability });
+
+    assert.equal(resultA, 11, 'model-a must resolve its own counter value');
+    assert.equal(resultB, 22, 'model-b must compute its own result for the identical text, never reuse model-a\'s cached 11 (the bug: a bare-text-keyed per-text cache shared across every counterCacheKey within one capability)');
+    assert.equal(modelACallCount, 1);
+    assert.equal(modelBCallCount, 1, 'model-b\'s underlying counter fn must actually be invoked — the old bug meant this call never happened at all');
+  });
+
+  it('within a SINGLE cloudEmbed instance, the same model+localFilesOnly combination still reuses its own per-text cache across repeated calls (caching itself is preserved, only cross-model sharing was removed)', async () => {
+    let callCount = 0;
+    const capability = {
+      async getCloudTokenCounter() {
+        return async (text) => { callCount += 1; return 7; };
+      },
+    };
+    const text = 'reused text for one model';
+    const mode = `${QDRANT_CLOUD_TOKEN_MODE_PREFIX}model-a`;
+
+    const first = await countTokens(text, { mode, cloudEmbed: capability });
+    const second = await countTokens(text, { mode, cloudEmbed: capability });
+
+    assert.equal(first, 7);
+    assert.equal(second, 7);
+    assert.equal(callCount, 1, 'the second call for the SAME model+text must hit the per-text cache, not recompute');
   });
 });

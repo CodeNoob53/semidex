@@ -14,12 +14,13 @@
 //    choice — it is dictated entirely by the active dense model, since a
 //    Qdrant Cloud Inference model tokenizes its own input server-side, and
 //    Semidex must count tokens the SAME way that model will to avoid a
-//    silent over/under-budget mismatch. Routed through
-//    core/embedding-profile/qdrant-cloud-tokenizer.js's
-//    loadQdrantCloudTokenizer()/qdrantCloudTokenCount() — imported
-//    directly (not via qdrant-cloud-catalog.js, which itself imports
-//    heuristicTokenCount FROM this file; importing back from it here would
-//    be circular). TOKEN_COUNT is never consulted for a cloud profile —
+//    silent over/under-budget mismatch. Routed through an injected
+//    `cloudEmbed` capability's own getCloudTokenCounter() (code review
+//    fix, Phase 8B Step 6 — this file used to statically import
+//    src/cloud/embedding/qdrant-cloud-tokenizer.js directly, a real
+//    `shared -> cloud IMPLEMENTATION` edge; see
+//    core/embedding-profile/cloud-embedding-capability.js for the
+//    contract). TOKEN_COUNT is never consulted for a cloud profile —
 //    there is no bge-m3/heuristic choice to make.
 //
 // Previously, resolveTokenCountMode()/getTokenCounter() were completely
@@ -32,7 +33,6 @@
 // both functions profile-aware.
 
 import { loadBgeTokenizer, bgeTokenCount } from './bge-tokenizer.js';
-import { loadQdrantCloudTokenizer, qdrantCloudTokenCount } from './embedding-profile/qdrant-cloud-tokenizer.js';
 import { EXECUTION } from './embedding-profile/schema.js';
 
 export const CHUNKING_SCHEMA_VERSION = 4;
@@ -113,35 +113,91 @@ export function resolveTokenCountMode(env = process.env, profile = null) {
   );
 }
 
-// Per-model-id cloud tokenizer cache — mirrors _tokenCountCache's own
-// per-text cache below (both are safe to share across calls within one
-// process: a tokenizer's own encode() result for a given model+text pair
-// never changes mid-process). Keyed by dense model id, not by the full
-// `qdrant-cloud:<id>` mode string, since loadQdrantCloudTokenizer() itself
-// already caches per model id internally — this second cache just avoids
-// re-deriving the counter closure on every getTokenCounter() call.
-const _cloudCounterCache = new Map();
+// Review finding (P1): a bare module-scope Map keyed only on
+// `modelId\0localFilesOnly` silently conflated the counter/text caches of
+// TWO DIFFERENT `cloudEmbed` capability instances the moment they shared
+// a model id — the SECOND composition root constructed in a process (e.g.
+// a test harness building two independent capabilities, or any future
+// caller that legitimately wants a differently-behaved counter for the
+// "same" model id) would never actually call its OWN cloudEmbed at all;
+// it would silently receive the FIRST capability's cached counter/results
+// instead. Reproduced directly: capability A resolves modelId "x" to
+// counter 11, capability B (a distinct instance) resolves the same
+// modelId to counter 22 — with the old bare-Map cache, only A's
+// getCloudTokenCounter() was ever actually invoked, and B's calls
+// silently returned A's counter value.
+//
+// Fixed by keying the ENTIRE per-model cache (both the counter-closure
+// cache and its own per-text result cache) on the `cloudEmbed` object
+// reference itself, via a WeakMap: two distinct cloudEmbed instances can
+// never observe or share each other's cached state, and an instance that
+// becomes unreachable (no other reference held) lets its own cache
+// entries be garbage-collected along with it — no manual cache eviction
+// needed for capability lifecycle, unlike the bounded/LRU-ish
+// _tokenCountCache below (which stays keyed by bare text, since it is
+// exclusively the BGE-M3-mode cache — see getTokenCounter()'s own
+// 'bge-m3' branch — and was never part of this conflation in the first
+// place: BGE-M3 has exactly one tokenizer per process, not one per
+// composition root).
+const _cloudCapabilityCaches = new WeakMap();
 
-async function getCloudTokenCounter(modelId, { localFilesOnly = false } = {}) {
+function getCloudCapabilityCache(cloudEmbed) {
+  let entry = _cloudCapabilityCaches.get(cloudEmbed);
+  if (!entry) {
+    entry = { counters: new Map(), texts: new Map() };
+    _cloudCapabilityCaches.set(cloudEmbed, entry);
+  }
+  return entry;
+}
+
+// `cloudEmbed` is REQUIRED whenever a caller actually resolves a
+// qdrant-cloud mode string — no module-scope default exists here (code
+// review, Phase 8B Step 6): every real caller (indexer/run.js,
+// admin/register-neutral-routes.js's own defaultCountTokens() where
+// relevant) receives its own real CloudEmbeddingCapability from its
+// composition root and threads it through explicitly.
+async function getCloudTokenCounter(modelId, { localFilesOnly = false, cloudEmbed } = {}) {
+  if (!cloudEmbed) {
+    throw new Error('token-count.js: no cloudEmbed capability available for a qdrant-cloud token-count mode — pass { cloudEmbed } explicitly.');
+  }
+  const { counters, texts } = getCloudCapabilityCache(cloudEmbed);
   // Counter-cache key includes localFilesOnly: a prior localFilesOnly:true
   // call that failed (or a differently-scoped counter) must never be
   // returned for a later call that actually needs network access, or vice
   // versa.
   const counterCacheKey = `${modelId}\0${localFilesOnly}`;
-  if (_cloudCounterCache.has(counterCacheKey)) return _cloudCounterCache.get(counterCacheKey);
-  const tok = await loadQdrantCloudTokenizer(modelId, { localFilesOnly });
+  if (counters.has(counterCacheKey)) return counters.get(counterCacheKey);
+  const rawCounter = await cloudEmbed.getCloudTokenCounter(modelId, { localFilesOnly });
   const counter = async function cloudCount(text) {
-    // NUL (\0) can never appear in real indexed text or a model id --
-    // using it as the join separator guarantees this per-TEXT cache key
-    // can never collide with a plain BGE-M3-mode entry (which keys
-    // directly on `text`, no prefix at all).
-    const textCacheKey = `${modelId}\0${text}`;
-    if (_tokenCountCache.has(textCacheKey)) return _tokenCountCache.get(textCacheKey);
-    const count = qdrantCloudTokenCount(tok, text);
-    cacheTokenCount(textCacheKey, count);
+    // Per-text cache lives in the SAME per-cloudEmbed entry as the
+    // counter closure above — never the shared, BGE-M3-only
+    // _tokenCountCache — so two capabilities can never see each other's
+    // cached token counts for a text either, even for the identical
+    // model id and text string. Review finding (P1, follow-up): `texts`
+    // is a SINGLE Map shared by every counterCacheKey within one
+    // capability entry (one CloudEmbeddingCapability can resolve many
+    // distinct models/localFilesOnly combinations over its lifetime), so
+    // the key must include counterCacheKey too — keying by bare `text`
+    // alone let a second model (e.g. MiniLM) silently reuse a first
+    // model's (e.g. E5) cached count for the identical text.
+    const textCacheKey = `${counterCacheKey}\0${text}`;
+    if (texts.has(textCacheKey)) return texts.get(textCacheKey);
+    // Simple bounded FIFO eviction, same intent as _tokenCountCache's own
+    // entry cap below (avoids unbounded growth over a long-lived
+    // process/large indexing run) — a per-char budget isn't tracked here
+    // since this cache is scoped to one capability instance already
+    // (garbage-collected with it via the outer WeakMap), unlike
+    // _tokenCountCache, which is shared process-wide for the entire
+    // process lifetime.
+    if (texts.size >= TOKEN_COUNT_CACHE_MAX_ENTRIES) {
+      const oldest = texts.keys().next().value;
+      if (oldest !== undefined) texts.delete(oldest);
+    }
+    const count = await rawCounter(text);
+    texts.set(textCacheKey, count);
     return count;
   };
-  _cloudCounterCache.set(counterCacheKey, counter);
+  counters.set(counterCacheKey, counter);
   return counter;
 }
 
@@ -151,23 +207,26 @@ async function getCloudTokenCounter(modelId, { localFilesOnly = false } = {}) {
  *   BGE-M3 tokenizer (core/bge-tokenizer.js).
  * mode 'heuristic': returns sync (text) => number backed by chars/4.
  * mode `qdrant-cloud:<model-id>`: returns async (text) => Promise<number>
- *   backed by that EXACT model's real tokenizer
- *   (embedding-profile/qdrant-cloud-tokenizer.js) — never BGE-M3, never
- *   the heuristic. A supported-status cloud model with no available
- *   tokenizer throws (loadQdrantCloudTokenizer's own contract) — this is
- *   an intentional fail-fast, never a silent char/4 fallback, since a
- *   wrong token count for a cloud model risks a real over-budget embed
- *   request Qdrant itself would reject.
+ *   backed by that EXACT model's real tokenizer (via the injected
+ *   `cloudEmbed` capability) — never BGE-M3, never the heuristic. A
+ *   supported-status cloud model with no available tokenizer throws
+ *   (cloudEmbed.getCloudTokenCounter()'s own contract) — this is an
+ *   intentional fail-fast, never a silent char/4 fallback, since a wrong
+ *   token count for a cloud model risks a real over-budget embed request
+ *   Qdrant itself would reject.
  * Default: bge-m3.
  *
- * @param {{ mode?: 'bge-m3' | 'heuristic' | string, localFilesOnly?: boolean }} [options]
+ * @param {{ mode?: 'bge-m3' | 'heuristic' | string, localFilesOnly?: boolean, cloudEmbed?: import('./embedding-profile/cloud-embedding-capability.js').CloudEmbeddingCapability }} [options]
+ *   `cloudEmbed` is required only when `mode` resolves to a
+ *   `qdrant-cloud:<model-id>` string — omit it safely for bge-m3/heuristic
+ *   modes.
  * @returns {Promise<(text: string) => number | Promise<number>>}
  */
 export async function getTokenCounter(options = {}) {
   const mode = options.mode ?? resolveTokenCountMode();
   if (mode.startsWith(QDRANT_CLOUD_TOKEN_MODE_PREFIX)) {
     const modelId = mode.slice(QDRANT_CLOUD_TOKEN_MODE_PREFIX.length);
-    return getCloudTokenCounter(modelId, { localFilesOnly: options.localFilesOnly });
+    return getCloudTokenCounter(modelId, { localFilesOnly: options.localFilesOnly, cloudEmbed: options.cloudEmbed });
   }
   if (mode !== 'bge-m3') return heuristicTokenCount;
 
