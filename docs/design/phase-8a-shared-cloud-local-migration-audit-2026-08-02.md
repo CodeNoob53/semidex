@@ -799,7 +799,7 @@ stay cloud" are never mixed in one diff.
 drift test.
 **Separate PR**: yes.
 
-### Step 6 — Physically relocate stable shared modules — IMPLEMENTED in two parts (see `docs/design/phase-8b-step7a-shared-core-relocation-2026-08-07.md` for top-level src/core/*.js, `docs/design/phase-8b-step7b-shared-indexer-relocation-2026-08-07.md` for src/indexer/'s shared files; this repo's dated reports call these Step 7A and Step 7B)
+### Step 6 — Physically relocate stable shared modules — IMPLEMENTED in three parts (see `docs/design/phase-8b-step7a-shared-core-relocation-2026-08-07.md` for top-level src/core/*.js, `docs/design/phase-8b-step7b-shared-indexer-relocation-2026-08-07.md` for src/indexer/'s shared files, `docs/design/phase-8b-step7c-admin-relocation-2026-08-08.md` for src/admin/'s shared files; this repo's dated reports call these Step 7A, Step 7B, and Step 7C)
 
 **Files**: the remaining `src/core/*.js` top-level files (14) into
 `src/shared/core/`, plus `src/indexer/`'s 24 remaining shared files,
@@ -863,6 +863,42 @@ baseline, `npm test` (3264/3264), `npm run smoke` (1316/1316), both admin
 UI builds byte-identical, Lite closure clean (123 staged files,
 unchanged, zero `local/` files, zero `tag-onnx.js`/`tag-onnx-worker.js`
 staged at any path), real `npm pack` clean-install acceptance green.
+
+**As implemented (Step 7C)** (`docs/design/phase-8b-step7c-admin-relocation-2026-08-08.md`):
+the `src/admin/`'s-shared-files portion deferred by Step 7A/7B above,
+covering the Admin runtime AND Admin UI together (this repo's own dated
+report combines both, since they share one composition-root wiring
+point). An actual import-graph inventory found: 4 top-level Admin
+infrastructure files (`router.js`/`server.js`/`static.js`/
+`register-neutral-routes.js`), 15 API route modules, 2 job-registry
+files, 1 system file (`folder-picker.js`), and 23 shared UI modules (plus
+`app.css` and the 12 shared HTML partial templates under
+`ui-src/partials/shared/`) genuinely `shared` — moved to
+`src/shared/admin/`, preserving internal directory structure
+(`api/`, `jobs/`, `system/`, `ui-src/`). 3 local-only files
+(`api/onnx.js`, `api/ollama-models.js`, `system/ollama.js`) plus
+`ui-src/local-features.js` and `ui-src/partials/full/` (3 HTML files)
+moved to `src/local/admin/`. Left at `src/admin/`: `bootstrap.js`,
+`server-full.js`, `composition/lite.js` (the two composition roots — never
+shared, same reasoning as `index-full.js`/`index-lite.js` in Step 7B),
+`jobs/spawn-indexer-{full,lite}.js`, and `ui-src/{entries/,index.html,
+lite-entry/,partials/lite/}` (the two edition UI entry points — Lite's own
+`partials/lite/` markup is composition-owned, neither shared nor
+local-only, confirmed by explicit scope decision during execution, not
+directory-name assumption). `src/cloud/admin/` (Step 6) was unaffected.
+Two Vite configs (`vite.config.js`'s `edition` alias and `fullReload()`
+glob; `vite.config.lite.js` needed zero changes since its own `root`/UI
+tree never physically moved) and `packages/lite/build.mjs`'s
+`EXCLUDE_DIRS`/`EXCLUDE_FILES` needed depth-sensitive updates — mechanical
+consequences of the move, not logic changes, each verified via a real
+`npm run admin:build`/`admin:build:lite`/`node packages/lite/build.mjs`
+run, not just `node --check`. Verified: 0 dependency-direction
+violations, 0 shared→local/cloud edges, 0 unclassified modules, category
+counts unchanged from the pre-move baseline (144 shared/27 local/12
+composition/9 mixed/61 tooling/8 cloud), `npm test`, `npm run smoke`,
+both admin UI builds succeed with zero local-only markers leaked into the
+Lite bundle, Lite closure clean (123 staged files), real `npm pack`
+clean-install acceptance green.
 
 ### Step 7 — Update every import path
 

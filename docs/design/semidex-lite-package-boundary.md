@@ -359,6 +359,26 @@ composition roots), and the one remaining `phases/tag-onnx-lazy.js`/
 out of this step's own scope. See that report for the full file-by-file
 classification table and verification results.
 
+**Phase 8B Step 7C update** (`docs/design/phase-8b-step7c-admin-relocation-2026-08-08.md`,
+implemented): the Admin runtime and UI physically split by ownership.
+Every `admin/router.js`/`admin/server.js`/`admin/static.js`/
+`admin/register-neutral-routes.js`, `admin/api/*.js` (15 provider-neutral
+route modules), `admin/jobs/{registry,task-registry}.js`,
+`admin/system/folder-picker.js`, and `admin/ui-src/*.js`/`*.css` (23
+shared UI modules) plus `admin/ui-src/partials/shared/**` path named
+anywhere above in this document now reads `shared/admin/...` — read this
+note as the authoritative "where these files live now" pointer, the same
+convention the Step 7A/7B notes above establish. `admin/api/onnx.js`,
+`admin/api/ollama-models.js`, `admin/system/ollama.js`,
+`admin/ui-src/local-features.js`, and `admin/ui-src/partials/full/**` are
+now `local/admin/...`. `admin/bootstrap.js`, `admin/server-full.js`,
+`admin/composition/lite.js`, `admin/jobs/spawn-indexer-{full,lite}.js`,
+and `admin/ui-src/{entries/,index.html,lite-entry/,partials/lite/}`
+stayed at `src/admin/` — the two composition roots and their edition
+entry points, explicitly out of this step's own scope. `cloud/admin/` was
+unaffected (already relocated by Step 6). See that report for the full
+file-by-file classification table and verification results.
+
 ## Refactor 2 — deterministic context for legacy (non-Markdown) chunks
 
 `chunk.js` routes PDF/Pandoc/plain-text through the legacy chunker, and

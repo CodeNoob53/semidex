@@ -12,8 +12,9 @@ src/
   mcp/
     server.js        - MCP stdio server used by AI clients
   admin/
-    server.js        - operator UI and application HTTP/SSE server; mounts
-                       the versioned Ask route via registerAskRoutesV1()
+    bootstrap.js     - Full Semidex admin server entry point; mounts the
+                       versioned Ask route via registerAskRoutesV1() (shared
+                       route wiring lives in src/shared/admin/, see below)
   sync.js            - syncs config.json and Qdrant payload indexes
   smoke.js           - offline smoke tests (thin wrapper over src/smoke/)
   doctor.js          - read-only environment health check (npm run doctor)
@@ -147,8 +148,8 @@ exists for any of these seven files: every consumer (`shared/core/embeddings.js`
 `core/retrieval/search.js`, `core/embedding-profile/{resolve,availability}.js`,
 `shared/core/token-count.js`, `shared/core/config.js`, `core/settings/definitions.js`,
 `core/generation/registry.js`, `shared/indexer/run.js`,
-`admin/register-neutral-routes.js`, `admin/api/generation-models.js`,
-`admin/ui-src/global-settings-view.js`) imports the real file directly,
+`shared/admin/register-neutral-routes.js`, `shared/admin/api/generation-models.js`,
+`shared/admin/ui-src/global-settings-view.js`) imports the real file directly,
 at its `src/cloud/` path, in both editions identically. `qdrant-cloud-models.js`
 is pure, zero-dependency data — the Admin Settings UI (browser bundle)
 imports it directly, alongside every server-side consumer.
@@ -213,6 +214,55 @@ reaches it through.
 Indexing writes Qdrant points with dense and sparse vectors plus payload fields
 such as `text`, `context`, `section`, `tags`, `source_file`, `chunk_index`, and
 provider metadata.
+
+## Admin Runtime And UI
+
+`src/shared/admin/` holds the edition-neutral Admin server infrastructure,
+API routes, jobs, and UI source — physically relocated there from
+`src/admin/` in Phase 8B Step 7C (a pure `git mv` + import-path-update
+step, no route/contract/UI change): every file the real import graph
+confirms is Full- and Lite-reachable. `src/local/admin/` holds the
+local-only Admin API/system/UI (ONNX, Ollama). `src/cloud/admin/` holds
+the cloud-only Admin API/system (Qdrant Cloud, relocated earlier in Phase
+8B Step 6). `src/admin/` now holds only the two composition roots and
+their edition entry points.
+
+```text
+src/shared/admin/
+  router.js / server.js / static.js / register-neutral-routes.js - shared route wiring, bind config, static asset serving
+  api/            - 15 provider-neutral API route modules (collections, search, jobs, settings, health, ...)
+  jobs/           - registry.js (job registry, spawnIndexer injected), task-registry.js
+  system/         - folder-picker.js
+  ui-src/         - shared browser UI source (app.js, view modules, partials/shared/)
+
+src/local/admin/
+  api/            - onnx.js, ollama-models.js (Full-only routes)
+  system/         - ollama.js (readiness-check wrapper)
+  ui-src/         - local-features.js, partials/full/ (ONNX probe panel, Full-only settings markup)
+
+src/cloud/admin/
+  qdrant-cloud-api.js    - POST /api/system/qdrant-cloud-probe route wiring
+  qdrant-cloud-system.js - Qdrant Cloud reachability/inference probe logic
+
+src/admin/
+  bootstrap.js               - Full Semidex entry point
+  server-full.js             - Full composition root: createApp()
+  composition/lite.js        - Lite composition root: createLiteApp()
+  jobs/spawn-indexer-{full,lite}.js - edition-specific indexer spawn targets
+  ui-src/
+    entries/{full,lite}.js   - Vite JS entry points (Full wires local-features.js in; Lite never imports it)
+    index.html               - Full HTML entry (built into dist/admin-ui/)
+    lite-entry/index.html    - Lite HTML entry (built into dist/admin-ui-lite/)
+    partials/lite/           - Lite-only settings/index-view markup (composition-owned, neither shared nor local)
+```
+
+Semidex Lite's package build (`packages/lite/build.mjs`) stages
+`src/shared/admin/` and `src/cloud/admin/` into the tarball, excludes all
+of `src/local/` (including `src/local/admin/`) by directory, and excludes
+the Full-only composition files (`admin/bootstrap.js`,
+`admin/server-full.js`, `admin/jobs/spawn-indexer-full.js`) individually —
+the same pattern already used for the indexer and cloud-provider trees
+above.
 
 ## MCP Tools
 
