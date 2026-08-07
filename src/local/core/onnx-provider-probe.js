@@ -26,7 +26,7 @@
 // unbounded memory growth from a misbehaving child.
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { sanitiseErrorMessage } from '../../core/doctor-checks.js';
+import { sanitiseErrorMessage } from '../../shared/core/doctor-checks.js';
 
 const RUNNER_PATH = fileURLToPath(new URL('./onnx-probe-runner.js', import.meta.url));
 const DEFAULT_TIMEOUT_MS = 30_000;

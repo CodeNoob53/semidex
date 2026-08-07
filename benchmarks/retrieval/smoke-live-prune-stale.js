@@ -16,8 +16,8 @@ import { fileURLToPath } from 'url';
 import { spawnSync } from 'child_process';
 import { tmpdir } from 'os';
 
-import { listSourceFiles, deleteCollection } from '../../src/core/qdrant.js';
-import { loadConfig, saveConfig } from '../../src/core/config.js';
+import { listSourceFiles, deleteCollection } from '../../src/shared/core/qdrant.js';
+import { loadConfig, saveConfig } from '../../src/shared/core/config.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const COLLECTION = `smoke-prune-${Date.now()}`;

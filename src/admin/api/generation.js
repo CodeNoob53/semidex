@@ -10,7 +10,7 @@
 // indexing-summary role — Ask/Settings should never read that route for
 // generation status).
 import { sendJson } from '../../core/http/http.js';
-import { sanitiseErrorMessage } from '../../core/doctor-checks.js';
+import { sanitiseErrorMessage } from '../../shared/core/doctor-checks.js';
 
 // Same redaction helper used by core/ask-api/v1/route.js — a readiness "reason" string
 // can embed a raw configured baseUrl (e.g. "Ollama is not reachable at

@@ -4,8 +4,8 @@ import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { createRequire } from 'module';
 import pdf2md from '@opendocsg/pdf2md';
-import { heuristicTokenCount, getTokenCounter, resolveTokenCountMode } from '../../core/token-count.js';
-import { envInt } from '../../core/env.js';
+import { heuristicTokenCount, getTokenCounter, resolveTokenCountMode } from '../../shared/core/token-count.js';
+import { envInt } from '../../shared/core/env.js';
 import { splitOversizedUnitIntoPieces, canonicalWhitespace } from './token-budget-split.js';
 
 const require = createRequire(import.meta.url);

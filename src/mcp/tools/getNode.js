@@ -1,4 +1,4 @@
-import { getContentNodeById, getContentNodeByPath, getAnyNodeById, getAnyNodeByPath } from '../../core/qdrant.js';
+import { getContentNodeById, getContentNodeByPath, getAnyNodeById, getAnyNodeByPath } from '../../shared/core/qdrant.js';
 
 export const schema = {
   name: 'qdrant_get_node',

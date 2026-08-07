@@ -53,8 +53,8 @@ import { buildFileSkeleton } from '../../../src/indexer/phases/skeleton-index.js
 import {
   deleteCollection,
   upsertPoints, hybridSearch, scroll,
-} from '../../../src/core/qdrant.js';
-import { embedForIndex, embedForSearch } from '../../../src/core/embeddings.js';
+} from '../../../src/shared/core/qdrant.js';
+import { embedForIndex, embedForSearch } from '../../../src/shared/core/embeddings.js';
 import { createStorageAdapter } from '../../../src/core/storage/factory.js';
 import { resolveBenchProfile } from '../../lib/resolve-profile.js';
 

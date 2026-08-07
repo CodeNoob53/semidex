@@ -1,6 +1,6 @@
 import { fileURLToPath } from 'url';
 import { join, dirname } from 'path';
-import { bootstrapEnv } from '../core/env-bootstrap.js';
+import { bootstrapEnv } from '../shared/core/env-bootstrap.js';
 import { createSettingsService, applyEnvWriteBack } from '../core/settings/service.js';
 import { resolveOnnxEmbedCapabilityForMcp } from './onnx-runtime-resolution.js';
 
@@ -31,7 +31,7 @@ const { Server } = await import('@modelcontextprotocol/sdk/server/index.js');
 const { StdioServerTransport } = await import('@modelcontextprotocol/sdk/server/stdio.js');
 const { CallToolRequestSchema, ListToolsRequestSchema } = await import('@modelcontextprotocol/sdk/types.js');
 
-const { embedForSearch } = await import('../core/embeddings.js');
+const { embedForSearch } = await import('../shared/core/embeddings.js');
 const ollamaLazy = await import('../core/ollama-lazy.js');
 // createCloudEmbeddingCapability() (code review, Phase 8B Step 6): the real
 // Qdrant Cloud Inference embedding-budget/tokenizer capability — this
@@ -82,7 +82,7 @@ const onnxEmbed = await resolveOnnxEmbedCapabilityForMcp({ settingsService });
 // real-network default — this file has no reason to touch it in either
 // direction.
 
-const { sanitiseErrorMessage } = await import('../core/doctor-checks.js');
+const { sanitiseErrorMessage } = await import('../shared/core/doctor-checks.js');
 const { createRerankCapability } = await import('../core/rerank-provider.js');
 const search = await import('./tools/search.js');
 const collections = await import('./tools/collections.js');

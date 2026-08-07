@@ -24,7 +24,7 @@ import { dirname, resolve, join } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { execSync } from 'node:child_process';
 
-import { bootstrapEnv } from '../../../src/core/env-bootstrap.js';
+import { bootstrapEnv } from '../../../src/shared/core/env-bootstrap.js';
 import { createOnnxEmbeddingCapability } from '../../../src/local/core/onnx-embed.js';
 
 import { PROFILES, COLLECTION_PREFIX, TOP_K, HYBRID_PREFETCH_LIMIT } from './profiles.mjs';

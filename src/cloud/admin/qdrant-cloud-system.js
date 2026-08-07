@@ -8,7 +8,7 @@
 // check). This module's only jobs are: call the adapter, redact secrets
 // from any error text, and shape the result for the Admin API route.
 import { createStorageAdapter } from '../../core/storage/factory.js';
-import { sanitiseErrorMessage } from '../../core/doctor-checks.js';
+import { sanitiseErrorMessage } from '../../shared/core/doctor-checks.js';
 
 /**
  * Tier 1 — cheap reachability + auth check. Never attempts inference.

@@ -2,7 +2,7 @@ export default async function ({ ok }) {
   console.log('\n[24] dml-batching-gate — pure config helpers');
 
   const { shouldUseOnnxBatching, resolveOnnxBatchSize }
-    = await import('../../core/embeddings.js');
+    = await import('../../shared/core/embeddings.js');
 
   // 24a–24g: shouldUseOnnxBatching
   ok('shouldUseOnnxBatching({}) === false',

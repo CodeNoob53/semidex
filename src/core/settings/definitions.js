@@ -16,7 +16,7 @@
 // serialize(value): value -> JSON-safe value for settings.json (identity
 //   for every current type; exists as one place to extend later).
 
-import { ONNX_DENSE_MODEL_ID } from '../onnx-paths.js';
+import { ONNX_DENSE_MODEL_ID } from '../../shared/core/onnx-paths.js';
 import { QDRANT_CLOUD_DENSE_MODELS, QDRANT_CLOUD_SPARSE_MODELS, findDenseModel } from '../embedding-profile/qdrant-cloud-models.js';
 
 function warnInvalid(prefix, name, raw, fallback) {

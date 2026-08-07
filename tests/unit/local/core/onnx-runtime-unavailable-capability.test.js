@@ -7,7 +7,7 @@
 // calls it unconditionally).
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { REQUIRED_ONNX_EMBED_CAPABILITY_METHODS, validateOnnxEmbedCapability } from '../../../../src/core/onnx-embed-capability.js';
+import { REQUIRED_ONNX_EMBED_CAPABILITY_METHODS, validateOnnxEmbedCapability } from '../../../../src/shared/core/onnx-embed-capability.js';
 import { createOnnxRuntimeUnavailableCapability, OnnxRuntimeUnavailableError } from '../../../../src/local/core/onnx-runtime-unavailable-capability.js';
 
 describe('createOnnxRuntimeUnavailableCapability()', () => {

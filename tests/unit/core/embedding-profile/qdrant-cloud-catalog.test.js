@@ -240,7 +240,7 @@ describe('fitContextToBudget() — REGRESSION for P1: a typical chunk (body near
   });
 
   it('embedForIndexCloud (embeddings.js) integration: a typical over-budget chunk succeeds via the trim-and-retry path instead of throwing EmbeddingInputTooLongError', { skip: !e5TokenizerAvailable }, async () => {
-    const { embedForIndex } = await import('../../../../src/core/embeddings.js');
+    const { embedForIndex } = await import('../../../../src/shared/core/embeddings.js');
     const context = 'Semidex Lite > Architecture > Storage Adapter > Qdrant Adapter > Embedding Profile > Schema Building > '.repeat(4);
     const chunk = 'This function derives the full Qdrant collection-creation vector schema object from the resolved embedding profile alone. ';
     let text = '';
@@ -263,7 +263,7 @@ describe('fitContextToBudget() — REGRESSION for P1: a typical chunk (body near
   });
 
   it('embedForIndexCloud still throws EmbeddingInputTooLongError when even an empty context cannot rescue an over-budget body', { skip: !e5TokenizerAvailable }, async () => {
-    const { embedForIndex, EmbeddingInputTooLongError } = await import('../../../../src/core/embeddings.js');
+    const { embedForIndex, EmbeddingInputTooLongError } = await import('../../../../src/shared/core/embeddings.js');
     const chunk = 'resolveEmbeddingProfileFromCollectionInfoConfigMetadataParamsVectorsSparseVectors ';
     let text = '';
     let heuristicEstimate = 0;

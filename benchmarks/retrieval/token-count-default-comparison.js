@@ -5,7 +5,7 @@ import { readdirSync, statSync } from 'fs';
 import { join } from 'path';
 import { performance } from 'perf_hooks';
 import { chunkFileFromPath } from '../../src/indexer/phases/chunk.js';
-import { getTokenCounter } from '../../src/core/token-count.js';
+import { getTokenCounter } from '../../src/shared/core/token-count.js';
 
 const realCount = await getTokenCounter({ mode: 'bge-m3', localFilesOnly: true });
 

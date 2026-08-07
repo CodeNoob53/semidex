@@ -59,7 +59,7 @@ export function buildIndexerEnv(baseEnv = process.env, repoRoot = resolveRepoRoo
 // here, main() has already called bootstrapEnv() first (see the
 // isMainModule guard at the bottom of this file).
 async function resolveProvidersFromEnv(env) {
-  const { resolveEnvProviders } = await import('./core/config.js');
+  const { resolveEnvProviders } = await import('./shared/core/config.js');
   const keys = ['ONNX_EMBED', 'DENSE_PROVIDER', 'SPARSE_PROVIDER', 'DENSE_MODEL', 'EMBED_MODEL'];
   const saved = new Map(keys.map(k => [k, process.env[k]]));
   for (const key of keys) {
@@ -77,7 +77,7 @@ async function resolveProvidersFromEnv(env) {
 }
 
 export async function applyManagedConfig(config, env = process.env) {
-  const { SCHEMA_VERSION } = await import('./core/embeddings.js');
+  const { SCHEMA_VERSION } = await import('./shared/core/embeddings.js');
   const cfg = {
     ...config,
     collections: { ...(config.collections ?? {}) },
@@ -128,8 +128,8 @@ async function main() {
   // imported here, AFTER the isMainModule guard's bootstrapEnv() call
   // below has already run, so .env is loaded only once OS-env has been
   // safely snapshotted.
-  const { loadConfig, saveConfig } = await import('./core/config.js');
-  const { listCollections } = await import('./core/qdrant.js');
+  const { loadConfig, saveConfig } = await import('./shared/core/config.js');
+  const { listCollections } = await import('./shared/core/qdrant.js');
 
   const repoRoot = resolveRepoRoot();
   const sources  = getBootstrapSources(repoRoot);
@@ -182,7 +182,7 @@ async function main() {
 }
 
 if (process.argv[1] && (process.argv[1].endsWith('bootstrap-docs.js') || process.argv[1].endsWith('bootstrap-docs'))) {
-  const { bootstrapEnv } = await import('./core/env-bootstrap.js');
+  const { bootstrapEnv } = await import('./shared/core/env-bootstrap.js');
   const { osEnv, dotenvValues } = bootstrapEnv();
   // main()'s own listCollections()/loadConfig() calls (before the indexer
   // child is even spawned) need QDRANT_URL and the embedding-provider

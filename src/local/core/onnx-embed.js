@@ -36,8 +36,8 @@ import { existsSync, mkdirSync, createWriteStream, readFileSync, statSync } from
 import { join, resolve } from 'path';
 import { fileURLToPath } from 'url';
 
-import { ONNX_CACHE_DIR as CACHE_DIR, ONNX_MODEL_DIR as MODEL_DIR, ONNX_DENSE_MODEL_ID } from '../../core/onnx-paths.js';
-import { isCudaStrict, buildCudaStrictError } from '../../core/doctor-checks.js';
+import { ONNX_CACHE_DIR as CACHE_DIR, ONNX_MODEL_DIR as MODEL_DIR, ONNX_DENSE_MODEL_ID } from '../../shared/core/onnx-paths.js';
+import { isCudaStrict, buildCudaStrictError } from '../../shared/core/doctor-checks.js';
 import { loadOnnxRuntime } from './onnx-runtime.js';
 
 // Re-exported for backward compatibility — the canonical declaration now

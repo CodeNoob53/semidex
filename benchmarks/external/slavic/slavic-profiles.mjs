@@ -9,7 +9,7 @@
 // question is already covered by benchmarks/external/fusion/). No Qdrant
 // Cloud E5/BM25 profile — adding a second, different model pair would
 // reintroduce exactly the confound this benchmark exists to remove.
-import { ONNX_DENSE_MODEL_ID } from '../../../src/core/onnx-paths.js';
+import { ONNX_DENSE_MODEL_ID } from '../../../src/shared/core/onnx-paths.js';
 
 // The final, user-decided language matrix (see README.md's "Language
 // matrix and why" section for the full decision trail — bel_Cyrl and

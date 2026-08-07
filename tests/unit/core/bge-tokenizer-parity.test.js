@@ -19,8 +19,8 @@ import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { loadBgeTokenizer, bgeTokenCount } from '../../../src/core/bge-tokenizer.js';
-import { ONNX_CACHE_DIR, ONNX_DENSE_MODEL_ID } from '../../../src/core/onnx-paths.js';
+import { loadBgeTokenizer, bgeTokenCount } from '../../../src/shared/core/bge-tokenizer.js';
+import { ONNX_CACHE_DIR, ONNX_DENSE_MODEL_ID } from '../../../src/shared/core/onnx-paths.js';
 
 const TOKENIZER_DIR = join(ONNX_CACHE_DIR, ...ONNX_DENSE_MODEL_ID.split('/'));
 const CACHE_AVAILABLE = existsSync(join(TOKENIZER_DIR, 'tokenizer.json'))
@@ -104,7 +104,7 @@ describe('bge-tokenizer parity vs. the previous AutoTokenizer implementation', (
 
   it('never imports @huggingface/transformers — no import/require statement referencing it anywhere in its module source (module-header PROSE may still name it, to explain what is deliberately avoided)', async () => {
     const { readFileSync } = await import('node:fs');
-    const src = readFileSync(new URL('../../../src/core/bge-tokenizer.js', import.meta.url), 'utf-8');
+    const src = readFileSync(new URL('../../../src/shared/core/bge-tokenizer.js', import.meta.url), 'utf-8');
     assert.doesNotMatch(src, /(?:import|require)\s*\(?[^)\n]*@huggingface\/transformers/);
   });
 });

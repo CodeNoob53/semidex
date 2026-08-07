@@ -24,7 +24,7 @@
 import { isIndexerMainModule, runIndexerCli } from './index-runtime.js';
 import { createCloudEmbeddingCapability } from '../cloud/embedding/cloud-embedding-provider.js';
 import { createSettingsService } from '../core/settings/service.js';
-import { bootstrapEnv } from '../core/env-bootstrap.js';
+import { bootstrapEnv } from '../shared/core/env-bootstrap.js';
 
 // indexer/index.js is the backward-compatible launcher (see its own header
 // comment) — a direct `node src/indexer/index.js <path>` invocation sets

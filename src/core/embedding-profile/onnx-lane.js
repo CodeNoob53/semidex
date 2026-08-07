@@ -6,7 +6,7 @@
 // deliberate, explicit actions (npm run doctor, the Admin API's existing
 // POST /api/system/onnx-probe endpoint), never by routine collection
 // browsing/availability resolution.
-import { isOnnxModelCached } from '../onnx-paths.js';
+import { isOnnxModelCached } from '../../shared/core/onnx-paths.js';
 import { LANE_STATUS } from './availability.js';
 
 /**

@@ -33,7 +33,7 @@ kept in Lite:
   below) — validates a text chunk fits inside the target Qdrant Cloud
   Inference model's input budget before sending it (`checkEmbedInputFits`,
   `cloud/embedding/qdrant-cloud-catalog.js`).
-- `core/bge-tokenizer.js` (via `core/token-count.js`) — the default
+- `shared/core/bge-tokenizer.js` (via `shared/core/token-count.js`) — the default
   `TOKEN_COUNT=bge-m3` real-tokenizer chunk-sizing mode. Verified during
   this work to have **zero** dependency on `onnx-embed.js` or
   `@huggingface/transformers` — it only downloads and parses the tokenizer
@@ -62,9 +62,9 @@ unset:
 | Var | Resolves to | Consumer |
 |---|---|---|
 | `SEMIDEX_HOME` | Lite app home (`%LOCALAPPDATA%\semidex-lite`, `~/Library/Application Support/semidex-lite`, or `$XDG_DATA_HOME/semidex-lite`) | the Lite CLI itself |
-| `SEMIDEX_CONFIG_PATH` | `SEMIDEX_HOME/config.json` | `core/config.js` (existing seam) |
+| `SEMIDEX_CONFIG_PATH` | `SEMIDEX_HOME/config.json` | `shared/core/config.js` (existing seam) |
 | `SEMIDEX_SETTINGS_PATH` | `SEMIDEX_HOME/settings.json` | `core/settings/settings-store.js` (new) |
-| `SEMIDEX_TOKENIZER_CACHE_DIR` | `SEMIDEX_HOME/cache/tokenizers` | `core/onnx-paths.js` (new) |
+| `SEMIDEX_TOKENIZER_CACHE_DIR` | `SEMIDEX_HOME/cache/tokenizers` | `shared/core/onnx-paths.js` (new) |
 
 The Lite CLI (`packages/lite/lite-src/semidex-home.js`) derives all three
 child paths from `SEMIDEX_HOME` and sets them **before any runtime module
@@ -317,6 +317,26 @@ those edges point at, not their count or classification). Verified via a
 real, un-mocked `npm pack` clean-install acceptance run (read-only
 installed package directory): `doctor` and `serve` both start and
 correctly reach the relocated Qdrant Cloud/Gemini code paths.
+
+**Phase 8B Step 7A update** (`docs/design/phase-8b-step7a-shared-core-relocation-2026-08-07.md`,
+implemented): the 17 stable, top-level `src/core/*.js` files the real
+import graph confirms are genuinely `shared` (Full- and Lite-reachable,
+plus `rerank-capability.js` — a zero-dependency contract, same class as
+`onnx-embed-capability.js`) physically relocated to `src/shared/core/`.
+Every `core/embeddings.js`/`core/config.js`/`core/token-count.js`/etc.
+path named above in this Step 6 entry now reads `shared/core/embeddings.js`/
+`shared/core/config.js`/`shared/core/token-count.js` — that renaming is
+NOT retroactively edited into the Step 6 prose above (kept as an accurate
+historical record of what Step 6 itself did, at the paths that existed
+then); read this note as the authoritative "where these files live now"
+pointer instead. `core/embedding-profile/`, `core/generation/`,
+`core/qdrant/`, `core/retrieval/`, `core/settings/`, `core/storage/`
+(subdirectories) and the 4 files that stayed at top-level `src/core/`
+(the real `ce-rerank.js`/`ce-rerank-worker.js`/`rerank.js`/
+`rerank-provider.js` local-runtime implementation, plus the 3 remaining
+`*-lazy.js`/`*-lazy.lite.js` transitional shim pairs) were explicitly out
+of this step's own scope. See that report for the full file-by-file
+classification table and verification results.
 
 ## Refactor 2 — deterministic context for legacy (non-Markdown) chunks
 

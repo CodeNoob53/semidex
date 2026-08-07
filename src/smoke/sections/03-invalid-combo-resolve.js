@@ -1,7 +1,7 @@
 export default async function ({ ok, throws }) {
   console.log('\n[3] Invalid provider combo — resolveEnvProviders');
 
-  const { resolveEnvProviders } = await import('../../core/config.js');
+  const { resolveEnvProviders } = await import('../../shared/core/config.js');
 
   process.env.DENSE_PROVIDER  = 'ollama';
   process.env.SPARSE_PROVIDER = 'bge-m3-onnx';

@@ -1,10 +1,10 @@
 // OnnxEmbedCapability contract (Phase 8B Step 1) — mirrors provider.test.js's
-// shape-validator test style. See ../../../src/core/onnx-embed-capability.js
+// shape-validator test style. See ../../../src/shared/core/onnx-embed-capability.js
 // for the full rationale.
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { validateOnnxEmbedCapability, REQUIRED_ONNX_EMBED_CAPABILITY_METHODS } from '../../../src/core/onnx-embed-capability.js';
+import { validateOnnxEmbedCapability, REQUIRED_ONNX_EMBED_CAPABILITY_METHODS } from '../../../src/shared/core/onnx-embed-capability.js';
 
 function validCapability() {
   const capability = {};
@@ -49,7 +49,7 @@ describe('validateOnnxEmbedCapability', () => {
 
 describe('onnx-embed-capability.js — zero backend imports (contract, not implementation)', () => {
   test('the contract module source has no import of local/core/onnx-embed.js, local/core/length-bucket.js, local/core/onnx-runtime.js, onnxruntime-node, or @huggingface/transformers', () => {
-    const src = readFileSync(new URL('../../../src/core/onnx-embed-capability.js', import.meta.url), 'utf-8');
+    const src = readFileSync(new URL('../../../src/shared/core/onnx-embed-capability.js', import.meta.url), 'utf-8');
     const codeOnly = src.split('\n').filter((line) => !line.trim().startsWith('//')).join('\n');
     assert.ok(!/from ['"].*onnx-embed(-lazy)?\.js['"]/.test(codeOnly), 'must not import local/core/onnx-embed.js or core/onnx-embed-lazy.js');
     assert.ok(!/from ['"].*length-bucket\.js['"]/.test(codeOnly), 'must not import local/core/length-bucket.js');
@@ -59,7 +59,7 @@ describe('onnx-embed-capability.js — zero backend imports (contract, not imple
   });
 
   test('importing the contract module in isolation performs zero network/filesystem side effects', async () => {
-    const mod = await import('../../../src/core/onnx-embed-capability.js');
+    const mod = await import('../../../src/shared/core/onnx-embed-capability.js');
     assert.ok(typeof mod.validateOnnxEmbedCapability === 'function');
     assert.ok(Array.isArray(mod.REQUIRED_ONNX_EMBED_CAPABILITY_METHODS));
   });

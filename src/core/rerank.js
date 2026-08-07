@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { envInt } from './env.js';
+import { envInt } from '../shared/core/env.js';
 
 function envFloat(name, defaultVal, min, max) {
   const v = parseFloat(process.env[name] ?? '');

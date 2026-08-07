@@ -1,4 +1,4 @@
-import { makePointId } from '../../core/point-id.js';
+import { makePointId } from '../../shared/core/point-id.js';
 
 export default async function ({ ok }) {
   console.log('\n[32] Deterministic point IDs');

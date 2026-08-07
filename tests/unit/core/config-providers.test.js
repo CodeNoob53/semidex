@@ -4,7 +4,7 @@
 import '../../helpers/setup.js';
 import { describe, it, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { resolveEnvProviders } from '../../../src/core/config.js';
+import { resolveEnvProviders } from '../../../src/shared/core/config.js';
 
 const ENV_KEYS = ['DENSE_PROVIDER', 'SPARSE_PROVIDER', 'DENSE_MODEL', 'EMBED_MODEL', 'ONNX_EMBED', 'QDRANT_CLOUD_DENSE_MODEL', 'QDRANT_SPARSE_MODEL'];
 let saved;

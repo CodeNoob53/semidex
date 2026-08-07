@@ -41,7 +41,7 @@ export default async function ({ ok }) {
   console.log('\n[42] skeleton — parseSkeleton structure (AST, positions, ordinals)');
 
   const { parseSkeleton } = await import('../../indexer/phases/skeleton.js');
-  const { makeNodeId } = await import('../../core/node-id.js');
+  const { makeNodeId } = await import('../../shared/core/node-id.js');
 
   const nodes = parseSkeleton(FIXTURE, { sourceFile: 'fixture.md' });
   const byType = t => nodes.filter(n => n.nodeType === t);

@@ -12,13 +12,13 @@
 //   Linux:   $XDG_DATA_HOME/semidex-lite -> ~/.local/share/semidex-lite
 //
 // Platform-branching logic delegates to the shared, neutral
-// ../src/core/app-data-dir.js (packages/lite/lite-src/*.js already
-// imports freely from ../src/core/*.js — doctor-lite.js, index-lite.js,
-// serve-lite.js all do this today) so Full and Lite's directory-naming
-// logic is provably one tested function, never two copies that could
-// silently drift apart.
+// ../src/shared/core/app-data-dir.js (packages/lite/lite-src/*.js already
+// imports freely from ../src/core/*.js and ../src/shared/core/*.js —
+// doctor-lite.js, index-lite.js, serve-lite.js all do this today) so Full
+// and Lite's directory-naming logic is provably one tested function,
+// never two copies that could silently drift apart.
 import { join } from 'node:path';
-import { resolveAppDataDir } from '../src/core/app-data-dir.js';
+import { resolveAppDataDir } from '../src/shared/core/app-data-dir.js';
 
 /**
  * @param {{ platform?: string, env?: NodeJS.ProcessEnv }} [opts]

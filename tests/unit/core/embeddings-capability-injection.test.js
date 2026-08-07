@@ -21,9 +21,9 @@
 // afterEach convention in that sibling file).
 import { describe, it, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { embedForSearch, embedForIndex, applyEmbeddingCapabilities } from '../../../src/core/embeddings.js';
+import { embedForSearch, embedForIndex, applyEmbeddingCapabilities } from '../../../src/shared/core/embeddings.js';
 import { REQUIRED_OLLAMA_EMBED_CAPABILITY_METHODS } from '../../../src/core/generation/ollama-capability.js';
-import { REQUIRED_ONNX_EMBED_CAPABILITY_METHODS } from '../../../src/core/onnx-embed-capability.js';
+import { REQUIRED_ONNX_EMBED_CAPABILITY_METHODS } from '../../../src/shared/core/onnx-embed-capability.js';
 
 function fakeOllamaCapability(overrides = {}) {
   const base = {};

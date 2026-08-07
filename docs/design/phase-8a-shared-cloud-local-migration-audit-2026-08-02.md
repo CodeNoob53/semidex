@@ -799,7 +799,7 @@ stay cloud" are never mixed in one diff.
 drift test.
 **Separate PR**: yes.
 
-### Step 6 — Physically relocate stable shared modules
+### Step 6 — Physically relocate stable shared modules — IMPLEMENTED, top-level src/core/*.js only (see `docs/design/phase-8b-step7a-shared-core-relocation-2026-08-07.md`; this repo's dated report calls it Step 7A)
 
 **Files**: the remaining `src/core/*.js` top-level files (14) into
 `src/shared/core/`, plus `src/indexer/`'s 24 remaining shared files,
@@ -817,6 +817,28 @@ builds+closure validator+clean-install acceptance, all green.
 sub-directory (`core/` first, `indexer/` second, `admin/` third) if
 review load is a concern at execution time — not decided here, a
 call for whoever executes this step.
+
+**As implemented (Step 7A)**: narrower than this section's original
+scope — only the top-level `src/core/*.js` files were moved (17, not the
+14 counted here; the extra 3 are `app-data-dir.js`/`bench-telemetry.js`
+(added to `src/core/` after this plan was written) and
+`rerank-capability.js`, a zero-dependency contract confirmed `shared` by
+the same reasoning as `onnx-embed-capability.js` despite its one real
+consumer, MCP tools, not currently being Lite-reachable). `src/indexer/`'s
+24 shared files and `src/admin/`'s shared files were explicitly deferred
+— a later step's own scope, per the executing task's own instructions,
+not a gap found during execution. 4 top-level `src/core/*.js` files that
+looked like `move` candidates by directory alone were confirmed `local`
+(real implementation: `ce-rerank.js`/`ce-rerank-worker.js`/`rerank.js`/
+`rerank-provider.js`) or `mixed` (the 3 remaining lazy-shim pairs) by the
+real import graph and correctly left in place — the exact "verify via
+import graph, not directory-name assumption" discipline this plan's own
+Part A calls for. Verified: 0 dependency-direction violations, 0
+shared→local/cloud edges, 0 unclassified modules, category counts
+unchanged from the pre-move baseline (144 shared/27 local/12
+composition/9 mixed/61 tooling/8 cloud), `npm test` (3187/3187), `npm run
+smoke`, both admin UI builds byte-identical, Lite closure clean (123
+staged files, unchanged), real `npm pack` clean-install acceptance green.
 
 ### Step 7 — Update every import path
 

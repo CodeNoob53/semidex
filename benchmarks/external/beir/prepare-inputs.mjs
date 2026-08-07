@@ -5,7 +5,7 @@ import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'no
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { ONNX_CACHE_DIR, ONNX_DENSE_MODEL_ID } from '../../../src/core/onnx-paths.js';
+import { ONNX_CACHE_DIR, ONNX_DENSE_MODEL_ID } from '../../../src/shared/core/onnx-paths.js';
 import { E5_MODEL_ID, E5_PREFIX, COMMON_REGIME_TOKEN_BUDGET } from './profiles.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));

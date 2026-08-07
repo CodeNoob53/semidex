@@ -42,7 +42,7 @@ describe('createApp()/createLiteApp() never mutate core/embeddings.js\'s shared 
   });
 
   it('constructing createLiteApp() then createApp() in the same process leaves embeddings.js\'s own module-scope fallback untouched by either — a caller relying on the bare fallback still gets the same "no capability injected" error before and after both constructions', async () => {
-    const embeddings = await import('../../../src/core/embeddings.js?fallback-untouched-check');
+    const embeddings = await import('../../../src/shared/core/embeddings.js?fallback-untouched-check');
     const profile = {
       schemaVersion: 1, managedBy: 'semidex', embeddingSchemaVersion: 2,
       embedding: {

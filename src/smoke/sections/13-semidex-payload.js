@@ -1,7 +1,7 @@
 export default async function ({ ok }) {
   console.log('\n[13] isSemidexPayload (pure, no Qdrant)');
 
-  const { isSemidexPayload } = await import('../../core/qdrant.js');
+  const { isSemidexPayload } = await import('../../shared/core/qdrant.js');
 
   const FULL = {
     source_file: 'docs/readme.md',

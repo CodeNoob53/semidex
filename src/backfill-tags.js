@@ -10,12 +10,12 @@
 // constructed and applied, matching indexer/index.js's own
 // applyTagSettings() pattern — a backfill run should honor the same
 // settings.json-tiered TAG_* values an indexing run would.
-const { bootstrapEnv } = await import('./core/env-bootstrap.js');
+const { bootstrapEnv } = await import('./shared/core/env-bootstrap.js');
 const { createSettingsService, applyEnvWriteBack } = await import('./core/settings/service.js');
 const { osEnv, dotenvValues } = bootstrapEnv();
 const settingsService = createSettingsService({ osEnv, dotenvValues });
 
-const { scrollAllPoints, updatePayload } = await import('./core/qdrant.js');
+const { scrollAllPoints, updatePayload } = await import('./shared/core/qdrant.js');
 const { addTagsBatch, applyTagSettings } = await import('./indexer/phases/tag.js');
 const { isOnnxTagProvider, createTagOnnxCapability } = await import('./local/indexer/phases/tag-onnx.js');
 // One independent capability instance for this script's own process

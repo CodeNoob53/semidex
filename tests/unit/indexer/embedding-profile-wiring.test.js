@@ -24,7 +24,9 @@ describe('run.js — EMBEDDING_PROFILE is resolved once, module-level, never per
   });
 
   it('no longer imports getEmbeddingConfig from embeddings.js (removed — profile-driven instead)', () => {
-    const importLine = src.slice(src.indexOf("from '../core/embeddings.js'") - 200, src.indexOf("from '../core/embeddings.js'"));
+    const idx = src.indexOf("from '../shared/core/embeddings.js'");
+    assert.notEqual(idx, -1, 'expected run.js to import from ../shared/core/embeddings.js');
+    const importLine = src.slice(idx - 200, idx);
     assert.ok(!/getEmbeddingConfig/.test(importLine), 'getEmbeddingConfig must be fully removed from run.js\'s embeddings.js import');
   });
 });

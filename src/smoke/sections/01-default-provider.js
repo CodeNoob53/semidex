@@ -6,7 +6,7 @@ export default async function ({ ok }) {
   delete process.env.ONNX_EMBED;
   delete process.env.EMBED_MODEL;
 
-  const { resolveEnvProviders } = await import('../../core/config.js');
+  const { resolveEnvProviders } = await import('../../shared/core/config.js');
   const p = resolveEnvProviders();
   ok('denseProvider = ollama',     p.denseProvider  === 'ollama');
   ok('sparseProvider = hashed-tf', p.sparseProvider === 'hashed-tf');

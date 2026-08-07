@@ -11,7 +11,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   snapshotOsEnv, loadDotenvValues, applyDotenvValues, bootstrapEnv,
-} from '../../../src/core/env-bootstrap.js';
+} from '../../../src/shared/core/env-bootstrap.js';
 
 describe('snapshotOsEnv', () => {
   test('returns a plain-object copy, not a live reference to the input', () => {

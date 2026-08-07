@@ -150,7 +150,7 @@ describe('Lite composition roots continue to supply only a typed-unavailable ONN
 
 describe('Full and Lite composition roots construct in either order with no ONNX-embedding-capability contamination', () => {
   it('constructing createLiteApp() then createApp() (and vice versa), repeatedly, in one process, never errors and never leaves core/embeddings.js\'s own module-scope fallback contaminated', async () => {
-    const embeddings = await import('../../../src/core/embeddings.js?onnx-embed-order-check');
+    const embeddings = await import('../../../src/shared/core/embeddings.js?onnx-embed-order-check');
     const profile = {
       schemaVersion: 1, managedBy: 'semidex', embeddingSchemaVersion: 2,
       embedding: {

@@ -10,7 +10,7 @@
 // — this module does not apply them itself, since bin/semidex-lite.js must
 // set them before its own bootstrapEnv() call for every subcommand
 // (doctor/serve/index alike), not just serve.
-import { bootstrapEnv } from '../src/core/env-bootstrap.js';
+import { bootstrapEnv } from '../src/shared/core/env-bootstrap.js';
 import { createSettingsService, applyEnvWriteBack } from '../src/core/settings/service.js';
 import { createLiteSettingsService } from '../src/core/settings/service.lite.js';
 import { createJobRegistry } from '../src/admin/jobs/registry.js';

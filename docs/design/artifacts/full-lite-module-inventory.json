@@ -70,7 +70,7 @@
     "entryPoints": [],
     "directDependencies": [
       "src/core/http/http.js",
-      "src/core/doctor-checks.js"
+      "src/shared/core/doctor-checks.js"
     ],
     "fullReachable": true,
     "liteReachable": true,
@@ -86,7 +86,7 @@
     "entryPoints": [],
     "directDependencies": [
       "src/core/http/http.js",
-      "src/core/doctor-checks.js"
+      "src/shared/core/doctor-checks.js"
     ],
     "fullReachable": true,
     "liteReachable": true,
@@ -102,7 +102,7 @@
     "entryPoints": [],
     "directDependencies": [
       "src/core/http/http.js",
-      "src/core/doctor-checks.js"
+      "src/shared/core/doctor-checks.js"
     ],
     "fullReachable": true,
     "liteReachable": true,
@@ -149,7 +149,7 @@
     "entryPoints": [],
     "directDependencies": [
       "src/core/http/http.js",
-      "src/core/doctor-checks.js",
+      "src/shared/core/doctor-checks.js",
       "src/local/core/ollama-models.js"
     ],
     "fullReachable": true,
@@ -218,7 +218,7 @@
     "entryPoints": [],
     "directDependencies": [
       "src/core/http/http.js",
-      "src/core/embeddings.js",
+      "src/shared/core/embeddings.js",
       "src/core/retrieval/search.js"
     ],
     "fullReachable": true,
@@ -284,7 +284,7 @@
       "full"
     ],
     "directDependencies": [
-      "src/core/env-bootstrap.js",
+      "src/shared/core/env-bootstrap.js",
       "src/core/settings/service.js",
       "src/local/core/onnx-runtime-source-resolution.js",
       "src/local/core/onnx-runtime-unavailable-capability.js",
@@ -315,11 +315,11 @@
       "src/admin/api/generation-models.js",
       "src/core/settings/service.js",
       "src/admin/register-neutral-routes.js",
-      "src/core/embeddings.js",
+      "src/shared/core/embeddings.js",
       "src/admin/jobs/registry.js",
       "src/admin/jobs/spawn-indexer-lite.js",
       "src/core/generation/ollama-capability.js",
-      "src/core/onnx-embed-capability.js",
+      "src/shared/core/onnx-embed-capability.js",
       "src/cloud/embedding/cloud-embedding-provider.js",
       "src/cloud/generation/cloud-generation-provider.js",
       "src/cloud/admin/qdrant-cloud-api.js",
@@ -339,7 +339,7 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
-      "src/core/doctor-checks.js",
+      "src/shared/core/doctor-checks.js",
       "src/indexer/progress-event.js"
     ],
     "fullReachable": true,
@@ -385,7 +385,7 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
-      "src/core/doctor-checks.js"
+      "src/shared/core/doctor-checks.js"
     ],
     "fullReachable": true,
     "liteReachable": true,
@@ -417,7 +417,7 @@
       "src/admin/static.js",
       "src/core/generation/runtime.js",
       "src/core/ask/coordinator.js",
-      "src/core/token-count.js"
+      "src/shared/core/token-count.js"
     ],
     "fullReachable": true,
     "liteReachable": true,
@@ -433,7 +433,7 @@
     "entryPoints": [],
     "directDependencies": [
       "src/core/http/http.js",
-      "src/core/doctor-checks.js"
+      "src/shared/core/doctor-checks.js"
     ],
     "fullReachable": true,
     "liteReachable": true,
@@ -459,7 +459,7 @@
       "src/admin/system/ollama.js",
       "src/core/settings/service.js",
       "src/admin/register-neutral-routes.js",
-      "src/core/embeddings.js",
+      "src/shared/core/embeddings.js",
       "src/admin/jobs/registry.js",
       "src/admin/jobs/spawn-indexer-full.js",
       "src/core/ollama-lazy.js",
@@ -989,10 +989,10 @@
     "directDependencies": [
       "src/core/qdrant/nav-filter.js",
       "src/indexer/skeleton-payload.js",
-      "src/core/entity-reference.js",
-      "src/core/env-bootstrap.js",
+      "src/shared/core/entity-reference.js",
+      "src/shared/core/env-bootstrap.js",
       "src/core/settings/service.js",
-      "src/core/qdrant.js"
+      "src/shared/core/qdrant.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
@@ -1009,9 +1009,9 @@
       "full"
     ],
     "directDependencies": [
-      "src/core/env-bootstrap.js",
+      "src/shared/core/env-bootstrap.js",
       "src/core/settings/service.js",
-      "src/core/qdrant.js",
+      "src/shared/core/qdrant.js",
       "src/indexer/phases/tag.js",
       "src/local/indexer/phases/tag-onnx.js",
       "src/core/ollama-lazy.js"
@@ -1031,10 +1031,10 @@
       "full"
     ],
     "directDependencies": [
-      "src/core/config.js",
-      "src/core/embeddings.js",
-      "src/core/qdrant.js",
-      "src/core/env-bootstrap.js",
+      "src/shared/core/config.js",
+      "src/shared/core/embeddings.js",
+      "src/shared/core/qdrant.js",
+      "src/shared/core/env-bootstrap.js",
       "src/core/settings/service.js"
     ],
     "fullReachable": true,
@@ -1069,7 +1069,7 @@
     "entryPoints": [],
     "directDependencies": [
       "src/core/storage/factory.js",
-      "src/core/doctor-checks.js"
+      "src/shared/core/doctor-checks.js"
     ],
     "fullReachable": true,
     "liteReachable": true,
@@ -1100,7 +1100,7 @@
     "runtimeCoupling": "cloud",
     "entryPoints": [],
     "directDependencies": [
-      "src/core/token-count.js",
+      "src/shared/core/token-count.js",
       "src/cloud/embedding/qdrant-cloud-tokenizer.js",
       "src/core/embedding-profile/qdrant-cloud-models.js"
     ],
@@ -1118,7 +1118,7 @@
     "entryPoints": [],
     "directDependencies": [
       "pkg:@huggingface/tokenizers",
-      "src/core/onnx-paths.js"
+      "src/shared/core/onnx-paths.js"
     ],
     "fullReachable": true,
     "liteReachable": true,
@@ -1168,19 +1168,6 @@
       "src/core/generation/config.js",
       "pkg:@google/genai"
     ],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/core/app-data-dir.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [],
     "fullReachable": true,
     "liteReachable": true,
     "liteReachablePreShim": true,
@@ -1286,7 +1273,7 @@
     "directDependencies": [
       "src/core/http/http.js",
       "src/core/http/sse.js",
-      "src/core/doctor-checks.js",
+      "src/shared/core/doctor-checks.js",
       "src/core/ask-api/v1/request.js",
       "src/core/ask-api/v1/contract.js"
     ],
@@ -1319,7 +1306,7 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
-      "src/core/entity-reference.js",
+      "src/shared/core/entity-reference.js",
       "src/core/assembly/contract.js"
     ],
     "fullReachable": true,
@@ -1371,35 +1358,6 @@
     "recommendedAction": "keep"
   },
   {
-    "path": "src/core/bench-telemetry.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/core/bge-tokenizer.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [
-      "pkg:@huggingface/tokenizers",
-      "src/core/onnx-paths.js"
-    ],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
-  },
-  {
     "path": "src/core/ce-rerank-worker.js",
     "classification": "local",
     "runtimeCoupling": "local",
@@ -1428,37 +1386,6 @@
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "exclude"
-  },
-  {
-    "path": "src/core/config.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [
-      "pkg:dotenv",
-      "src/core/env.js",
-      "src/core/onnx-paths.js",
-      "src/core/embedding-profile/qdrant-cloud-models.js"
-    ],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/core/doctor-checks.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
   },
   {
     "path": "src/core/embedding-profile/availability.js",
@@ -1509,7 +1436,7 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
-      "src/core/env.js",
+      "src/shared/core/env.js",
       "src/core/embedding-profile/schema.js"
     ],
     "fullReachable": true,
@@ -1525,7 +1452,7 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
-      "src/core/onnx-paths.js",
+      "src/shared/core/onnx-paths.js",
       "src/core/embedding-profile/availability.js"
     ],
     "fullReachable": true,
@@ -1555,8 +1482,8 @@
     "entryPoints": [],
     "directDependencies": [
       "src/core/embedding-profile/schema.js",
-      "src/core/env.js",
-      "src/core/onnx-paths.js",
+      "src/shared/core/env.js",
+      "src/shared/core/onnx-paths.js",
       "src/core/embedding-profile/qdrant-cloud-models.js"
     ],
     "fullReachable": true,
@@ -1568,69 +1495,6 @@
   },
   {
     "path": "src/core/embedding-profile/schema.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/core/embeddings.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [
-      "src/core/generation/ollama-capability.js",
-      "src/core/onnx-embed-capability.js",
-      "src/core/embedding-profile/cloud-embedding-capability.js",
-      "src/core/sparse.js",
-      "src/core/env.js",
-      "src/core/embedding-profile/schema.js",
-      "src/core/embedding-profile/qdrant-cloud-models.js",
-      "src/core/bench-telemetry.js"
-    ],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/core/entity-reference.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/core/env-bootstrap.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [
-      "pkg:dotenv"
-    ],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/core/env.js",
     "classification": "shared",
     "runtimeCoupling": "none",
     "entryPoints": [],
@@ -1730,7 +1594,7 @@
     "directDependencies": [
       "src/core/generation/config.js",
       "src/core/generation/registry.js",
-      "src/core/doctor-checks.js"
+      "src/shared/core/doctor-checks.js"
     ],
     "fullReachable": true,
     "liteReachable": true,
@@ -1758,21 +1622,6 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/core/node-id.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [
-      "src/core/point-id.js"
-    ],
     "fullReachable": true,
     "liteReachable": true,
     "liteReachablePreShim": true,
@@ -1809,19 +1658,6 @@
     "recommendedAction": "split"
   },
   {
-    "path": "src/core/onnx-embed-capability.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
-  },
-  {
     "path": "src/core/onnx-embed-lazy.js",
     "classification": "mixed",
     "runtimeCoupling": "local",
@@ -1851,32 +1687,6 @@
     "recommendedAction": "split"
   },
   {
-    "path": "src/core/onnx-paths.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/core/point-id.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
-  },
-  {
     "path": "src/core/qdrant/client.js",
     "classification": "shared",
     "runtimeCoupling": "none",
@@ -1884,7 +1694,7 @@
     "directDependencies": [
       "pkg:dotenv",
       "pkg:@qdrant/js-client-rest",
-      "src/core/bench-telemetry.js"
+      "src/shared/core/bench-telemetry.js"
     ],
     "fullReachable": true,
     "liteReachable": true,
@@ -1901,7 +1711,7 @@
     "directDependencies": [
       "src/core/qdrant/store.js",
       "src/core/qdrant/schema.js",
-      "src/core/doctor-checks.js"
+      "src/shared/core/doctor-checks.js"
     ],
     "fullReachable": true,
     "liteReachable": true,
@@ -1977,7 +1787,7 @@
       "src/core/qdrant/client.js",
       "src/core/qdrant/payload.js",
       "src/core/qdrant/schema.js",
-      "src/core/env.js",
+      "src/shared/core/env.js",
       "src/core/qdrant/nav-filter.js"
     ],
     "fullReachable": true,
@@ -1986,34 +1796,6 @@
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
-  },
-  {
-    "path": "src/core/qdrant.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [
-      "src/core/qdrant/index.js"
-    ],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/core/rerank-capability.js",
-    "classification": "local",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [],
-    "fullReachable": true,
-    "liteReachable": false,
-    "liteReachablePreShim": false,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "move"
   },
   {
     "path": "src/core/rerank-provider.js",
@@ -2038,7 +1820,7 @@
     "entryPoints": [],
     "directDependencies": [
       "pkg:dotenv",
-      "src/core/env.js"
+      "src/shared/core/env.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
@@ -2053,11 +1835,11 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
-      "src/core/embeddings.js",
+      "src/shared/core/embeddings.js",
       "src/core/embedding-profile/resolve.js",
       "src/core/embedding-profile/schema.js",
       "src/core/embedding-profile/qdrant-cloud-models.js",
-      "src/core/bench-telemetry.js"
+      "src/shared/core/bench-telemetry.js"
     ],
     "fullReachable": true,
     "liteReachable": true,
@@ -2072,7 +1854,7 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
-      "src/core/onnx-paths.js",
+      "src/shared/core/onnx-paths.js",
       "src/core/embedding-profile/qdrant-cloud-models.js"
     ],
     "fullReachable": true,
@@ -2103,7 +1885,7 @@
     "directDependencies": [
       "src/core/settings/definitions.js",
       "src/core/settings/settings-store.js",
-      "src/core/env.js",
+      "src/shared/core/env.js",
       "src/core/generation/config.js"
     ],
     "fullReachable": true,
@@ -2130,19 +1912,6 @@
   },
   {
     "path": "src/core/settings/settings-store.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/core/sparse.js",
     "classification": "shared",
     "runtimeCoupling": "none",
     "entryPoints": [],
@@ -2217,31 +1986,15 @@
       "src/core/qdrant/store.js",
       "src/core/qdrant/payload.js",
       "src/core/qdrant/ensure-schema.js",
-      "src/core/doctor-checks.js",
+      "src/shared/core/doctor-checks.js",
       "src/core/qdrant/nav-filter.js",
-      "src/core/config.js",
+      "src/shared/core/config.js",
       "src/core/storage/capabilities.js",
       "src/core/storage/embedding-profile-cache.js",
       "src/core/embedding-profile/schema.js",
       "src/core/embedding-profile/migrate.js",
       "src/core/embedding-profile/availability.js",
       "src/core/embedding-profile/onnx-lane.js"
-    ],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/core/token-count.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [
-      "src/core/bge-tokenizer.js",
-      "src/core/embedding-profile/schema.js"
     ],
     "fullReachable": true,
     "liteReachable": true,
@@ -2258,12 +2011,12 @@
       "full"
     ],
     "directDependencies": [
-      "src/core/env-bootstrap.js",
+      "src/shared/core/env-bootstrap.js",
       "src/core/settings/service.js",
-      "src/core/doctor-checks.js",
-      "src/core/config.js",
-      "src/core/embeddings.js",
-      "src/core/onnx-paths.js",
+      "src/shared/core/doctor-checks.js",
+      "src/shared/core/config.js",
+      "src/shared/core/embeddings.js",
+      "src/shared/core/onnx-paths.js",
       "src/local/core/onnx-provider-probe.js",
       "src/local/core/cuda-diagnosis.js",
       "src/local/core/onnx-cuda-prereq-check.js",
@@ -2313,7 +2066,7 @@
       "src/indexer/index-runtime.js",
       "src/cloud/embedding/cloud-embedding-provider.js",
       "src/core/settings/service.js",
-      "src/core/env-bootstrap.js",
+      "src/shared/core/env-bootstrap.js",
       "src/local/core/onnx-runtime-source-resolution.js",
       "src/core/ollama-lazy.js",
       "src/core/onnx-embed-lazy.js",
@@ -2348,7 +2101,7 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
-      "src/core/env-bootstrap.js",
+      "src/shared/core/env-bootstrap.js",
       "src/core/settings/service.js",
       "src/indexer/run.js"
     ],
@@ -2383,8 +2136,8 @@
     "entryPoints": [],
     "directDependencies": [
       "pkg:@opendocsg/pdf2md",
-      "src/core/token-count.js",
-      "src/core/env.js",
+      "src/shared/core/token-count.js",
+      "src/shared/core/env.js",
       "src/indexer/phases/token-budget-split.js",
       "src/indexer/phases/skeleton.js",
       "src/indexer/phases/skeleton-chunk.js",
@@ -2466,8 +2219,8 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
-      "src/core/env.js",
-      "src/core/entity-reference.js"
+      "src/shared/core/env.js",
+      "src/shared/core/entity-reference.js"
     ],
     "fullReachable": true,
     "liteReachable": true,
@@ -2484,8 +2237,8 @@
     "directDependencies": [
       "src/indexer/phases/chunk.js",
       "src/indexer/phases/node-policy.js",
-      "src/core/node-id.js",
-      "src/core/entity-reference.js",
+      "src/shared/core/node-id.js",
+      "src/shared/core/entity-reference.js",
       "src/indexer/phases/entity-split.js"
     ],
     "fullReachable": true,
@@ -2501,7 +2254,7 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
-      "src/core/node-id.js",
+      "src/shared/core/node-id.js",
       "src/indexer/phases/node-policy.js"
     ],
     "fullReachable": true,
@@ -2683,33 +2436,33 @@
       "src/indexer/phases/tag-onnx-capability.js",
       "src/indexer/phases/empty-section.js",
       "src/indexer/phases/combined.js",
-      "src/core/doctor-checks.js",
+      "src/shared/core/doctor-checks.js",
       "src/indexer/batch.js",
       "src/indexer/files.js",
       "src/indexer/profiler.js",
-      "src/core/qdrant.js",
-      "src/core/point-id.js",
-      "src/core/config.js",
-      "src/core/embeddings.js",
+      "src/shared/core/qdrant.js",
+      "src/shared/core/point-id.js",
+      "src/shared/core/config.js",
+      "src/shared/core/embeddings.js",
       "src/core/storage/factory.js",
       "src/core/embedding-profile/resolve.js",
       "src/core/embedding-profile/qdrant-cloud-models.js",
       "src/core/embedding-profile/cloud-embedding-capability.js",
       "src/core/embedding-profile/config-cache.js",
       "src/indexer/preflight.js",
-      "src/core/token-count.js",
+      "src/shared/core/token-count.js",
       "src/indexer/semaphore.js",
       "src/indexer/serial-queue.js",
-      "src/core/env.js",
+      "src/shared/core/env.js",
       "src/indexer/skeleton-payload.js",
       "src/core/embedding-profile/schema.js",
       "src/indexer/phases/skeleton-summary.js",
       "src/indexer/phases/skeleton-index.js",
-      "src/core/node-id.js",
+      "src/shared/core/node-id.js",
       "src/indexer/progress-event.js",
       "src/core/settings/service.js",
       "src/core/generation/ollama-capability.js",
-      "src/core/onnx-embed-capability.js"
+      "src/shared/core/onnx-embed-capability.js"
     ],
     "fullReachable": true,
     "liteReachable": true,
@@ -2750,7 +2503,7 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
-      "src/core/point-id.js"
+      "src/shared/core/point-id.js"
     ],
     "fullReachable": true,
     "liteReachable": true,
@@ -2930,8 +2683,8 @@
     "entryPoints": [],
     "directDependencies": [
       "pkg:@huggingface/tokenizers",
-      "src/core/onnx-paths.js",
-      "src/core/doctor-checks.js",
+      "src/shared/core/onnx-paths.js",
+      "src/shared/core/doctor-checks.js",
       "src/local/core/onnx-runtime.js"
     ],
     "fullReachable": true,
@@ -2948,7 +2701,7 @@
     "entryPoints": [],
     "directDependencies": [
       "src/local/core/onnx-runtime.js",
-      "src/core/onnx-paths.js"
+      "src/shared/core/onnx-paths.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
@@ -2963,7 +2716,7 @@
     "runtimeCoupling": "local",
     "entryPoints": [],
     "directDependencies": [
-      "src/core/doctor-checks.js",
+      "src/shared/core/doctor-checks.js",
       "src/local/core/onnx-probe-runner.js"
     ],
     "fullReachable": true,
@@ -2996,7 +2749,7 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
-      "src/core/onnx-embed-capability.js"
+      "src/shared/core/onnx-embed-capability.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
@@ -3024,7 +2777,7 @@
     "runtimeCoupling": "local",
     "entryPoints": [],
     "directDependencies": [
-      "src/core/app-data-dir.js"
+      "src/shared/core/app-data-dir.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
@@ -3089,14 +2842,14 @@
       "full"
     ],
     "directDependencies": [
-      "src/core/env-bootstrap.js",
+      "src/shared/core/env-bootstrap.js",
       "src/core/settings/service.js",
       "src/mcp/onnx-runtime-resolution.js",
       "pkg:@modelcontextprotocol/sdk",
-      "src/core/embeddings.js",
+      "src/shared/core/embeddings.js",
       "src/core/ollama-lazy.js",
       "src/cloud/embedding/cloud-embedding-provider.js",
-      "src/core/doctor-checks.js",
+      "src/shared/core/doctor-checks.js",
       "src/core/rerank-provider.js",
       "src/mcp/tools/search.js",
       "src/mcp/tools/collections.js",
@@ -3159,7 +2912,7 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
-      "src/core/qdrant.js",
+      "src/shared/core/qdrant.js",
       "src/mcp/tools/filters.js"
     ],
     "fullReachable": true,
@@ -3175,7 +2928,7 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
-      "src/core/qdrant.js"
+      "src/shared/core/qdrant.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
@@ -3192,7 +2945,7 @@
     "directDependencies": [
       "src/core/storage/factory.js",
       "src/core/assembly/anchored-content.js",
-      "src/core/token-count.js"
+      "src/shared/core/token-count.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
@@ -3207,7 +2960,7 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
-      "src/core/qdrant.js"
+      "src/shared/core/qdrant.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
@@ -3222,7 +2975,7 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
-      "src/core/qdrant.js"
+      "src/shared/core/qdrant.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
@@ -3237,7 +2990,7 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
-      "src/core/qdrant.js"
+      "src/shared/core/qdrant.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
@@ -3252,7 +3005,7 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
-      "src/core/qdrant.js"
+      "src/shared/core/qdrant.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
@@ -3267,7 +3020,7 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
-      "src/core/qdrant.js",
+      "src/shared/core/qdrant.js",
       "src/mcp/tools/filters.js"
     ],
     "fullReachable": true,
@@ -3283,7 +3036,7 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
-      "src/core/qdrant.js",
+      "src/shared/core/qdrant.js",
       "src/mcp/tools/filters.js"
     ],
     "fullReachable": true,
@@ -3299,7 +3052,7 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
-      "src/core/qdrant.js",
+      "src/shared/core/qdrant.js",
       "src/mcp/tools/filters.js"
     ],
     "fullReachable": true,
@@ -3315,11 +3068,11 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
-      "src/core/qdrant.js",
+      "src/shared/core/qdrant.js",
       "src/core/storage/factory.js",
       "src/core/retrieval/search.js",
-      "src/core/rerank-capability.js",
-      "src/core/env.js"
+      "src/shared/core/rerank-capability.js",
+      "src/shared/core/env.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
@@ -3327,6 +3080,253 @@
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
+  },
+  {
+    "path": "src/shared/core/app-data-dir.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/core/bench-telemetry.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/core/bge-tokenizer.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [
+      "pkg:@huggingface/tokenizers",
+      "src/shared/core/onnx-paths.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/core/config.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [
+      "pkg:dotenv",
+      "src/shared/core/env.js",
+      "src/shared/core/onnx-paths.js",
+      "src/core/embedding-profile/qdrant-cloud-models.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/core/doctor-checks.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/core/embeddings.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/core/generation/ollama-capability.js",
+      "src/shared/core/onnx-embed-capability.js",
+      "src/core/embedding-profile/cloud-embedding-capability.js",
+      "src/shared/core/sparse.js",
+      "src/shared/core/env.js",
+      "src/core/embedding-profile/schema.js",
+      "src/core/embedding-profile/qdrant-cloud-models.js",
+      "src/shared/core/bench-telemetry.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/core/entity-reference.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/core/env-bootstrap.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [
+      "pkg:dotenv"
+    ],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/core/env.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/core/node-id.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/shared/core/point-id.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/core/onnx-embed-capability.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/core/onnx-paths.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/core/point-id.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/core/qdrant.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/core/qdrant/index.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/core/rerank-capability.js",
+    "classification": "local",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [],
+    "fullReachable": true,
+    "liteReachable": false,
+    "liteReachablePreShim": false,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "move"
+  },
+  {
+    "path": "src/shared/core/sparse.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/core/token-count.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/shared/core/bge-tokenizer.js",
+      "src/core/embedding-profile/schema.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
   },
   {
     "path": "src/smoke/helpers.js",
@@ -3416,7 +3416,7 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
-      "src/core/config.js"
+      "src/shared/core/config.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
@@ -3431,7 +3431,7 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
-      "src/core/config.js"
+      "src/shared/core/config.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
@@ -3446,7 +3446,7 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
-      "src/core/config.js"
+      "src/shared/core/config.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
@@ -3461,7 +3461,7 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
-      "src/core/embeddings.js"
+      "src/shared/core/embeddings.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
@@ -3579,7 +3579,7 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
-      "src/core/qdrant.js"
+      "src/shared/core/qdrant.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
@@ -3610,7 +3610,7 @@
     "entryPoints": [],
     "directDependencies": [
       "src/bootstrap-docs.js",
-      "src/core/config.js"
+      "src/shared/core/config.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
@@ -3670,7 +3670,7 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
-      "src/core/doctor-checks.js"
+      "src/shared/core/doctor-checks.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
@@ -3715,7 +3715,7 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
-      "src/core/embeddings.js"
+      "src/shared/core/embeddings.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
@@ -3821,7 +3821,7 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
-      "src/core/point-id.js"
+      "src/shared/core/point-id.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
@@ -3837,7 +3837,7 @@
     "entryPoints": [],
     "directDependencies": [
       "benchmarks/retrieval/duplicate-point-repair.js",
-      "src/core/point-id.js"
+      "src/shared/core/point-id.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
@@ -3885,7 +3885,7 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
-      "src/core/token-count.js",
+      "src/shared/core/token-count.js",
       "src/indexer/phases/chunk.js"
     ],
     "fullReachable": true,
@@ -3933,7 +3933,7 @@
     "entryPoints": [],
     "directDependencies": [
       "src/indexer/phases/chunk.js",
-      "src/core/token-count.js"
+      "src/shared/core/token-count.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
@@ -3979,7 +3979,7 @@
     "entryPoints": [],
     "directDependencies": [
       "src/indexer/phases/skeleton.js",
-      "src/core/node-id.js"
+      "src/shared/core/node-id.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
@@ -4044,7 +4044,7 @@
     "entryPoints": [],
     "directDependencies": [
       "src/indexer/skeleton-payload.js",
-      "src/core/point-id.js",
+      "src/shared/core/point-id.js",
       "src/indexer/phases/skeleton.js",
       "src/indexer/phases/skeleton-chunk.js"
     ],
@@ -4098,7 +4098,7 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
-      "src/core/node-id.js",
+      "src/shared/core/node-id.js",
       "src/indexer/phases/skeleton.js",
       "src/indexer/phases/skeleton-chunk.js",
       "src/indexer/phases/skeleton-index.js"
@@ -4117,7 +4117,7 @@
     "entryPoints": [],
     "directDependencies": [
       "src/indexer/skeleton-payload.js",
-      "src/core/qdrant.js",
+      "src/shared/core/qdrant.js",
       "src/mcp/tools/filters.js",
       "src/indexer/phases/skeleton.js",
       "src/indexer/phases/skeleton-index.js"
@@ -4276,11 +4276,11 @@
       "full"
     ],
     "directDependencies": [
-      "src/core/env-bootstrap.js",
+      "src/shared/core/env-bootstrap.js",
       "src/core/settings/service.js",
-      "src/core/config.js",
-      "src/core/qdrant.js",
-      "src/core/doctor-checks.js",
+      "src/shared/core/config.js",
+      "src/shared/core/qdrant.js",
+      "src/shared/core/doctor-checks.js",
       "src/core/storage/factory.js",
       "src/core/embedding-profile/config-cache.js"
     ],
@@ -4299,7 +4299,7 @@
       "lite"
     ],
     "directDependencies": [
-      "src/core/doctor-checks.js",
+      "src/shared/core/doctor-checks.js",
       "src/cloud/admin/qdrant-cloud-system.js",
       "src/cloud/embedding/qdrant-cloud-catalog.js",
       "src/core/embedding-profile/resolve.js"
@@ -4334,7 +4334,7 @@
       "lite"
     ],
     "directDependencies": [
-      "src/core/env-bootstrap.js",
+      "src/shared/core/env-bootstrap.js",
       "src/core/settings/service.js",
       "src/admin/jobs/registry.js",
       "src/admin/jobs/spawn-indexer-lite.js"
@@ -4354,7 +4354,7 @@
       "lite"
     ],
     "directDependencies": [
-      "src/core/app-data-dir.js"
+      "src/shared/core/app-data-dir.js"
     ],
     "fullReachable": false,
     "liteReachable": true,
@@ -4371,7 +4371,7 @@
       "lite"
     ],
     "directDependencies": [
-      "src/core/env-bootstrap.js",
+      "src/shared/core/env-bootstrap.js",
       "src/core/settings/service.js",
       "src/core/settings/service.lite.js",
       "src/admin/jobs/registry.js",

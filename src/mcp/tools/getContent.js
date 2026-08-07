@@ -14,7 +14,7 @@
 // this tool only ever reads already-indexed structure through the adapter.
 import { createStorageAdapter } from '../../core/storage/factory.js';
 import { getAnchoredContent } from '../../core/assembly/anchored-content.js';
-import { getTokenCounter } from '../../core/token-count.js';
+import { getTokenCounter } from '../../shared/core/token-count.js';
 
 const MAX_TOKENS_DEFAULT = 2000;
 const MAX_TOKENS_MIN = 200;

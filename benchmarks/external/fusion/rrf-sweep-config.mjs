@@ -18,7 +18,7 @@ import {
   E5_MODEL_ID, E5_DENSE_SIZE, BM25_MODEL_ID, BM25_OPTIONS,
   TOP_K, HYBRID_PREFETCH_LIMIT,
 } from '../beir/profiles.mjs';
-import { ONNX_DENSE_MODEL_ID } from '../../../src/core/onnx-paths.js';
+import { ONNX_DENSE_MODEL_ID } from '../../../src/shared/core/onnx-paths.js';
 
 export { TOP_K, HYBRID_PREFETCH_LIMIT, BM25_MODEL_ID, BM25_OPTIONS, E5_MODEL_ID, E5_DENSE_SIZE };
 

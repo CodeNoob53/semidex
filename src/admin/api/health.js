@@ -1,7 +1,7 @@
 // GET /api/health, GET /api/capabilities — StorageAdapter-only, no direct
 // Qdrant/store access.
 import { sendJson } from '../../core/http/http.js';
-import { sanitiseErrorMessage } from '../../core/doctor-checks.js';
+import { sanitiseErrorMessage } from '../../shared/core/doctor-checks.js';
 
 // adapter.ping()'s `detail` on failure is a raw err.message from the
 // underlying store client (e.g. qdrant-adapter.js's ping() catch block) —

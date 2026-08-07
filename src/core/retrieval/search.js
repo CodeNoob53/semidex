@@ -14,11 +14,11 @@
 // No HTTP concerns here (no HttpError, no req/res) — errors are reported via
 // a typed { error } result so both an HTTP adapter and a non-HTTP caller
 // (Ask) can render them however they need to.
-import { embedForSearch } from '../embeddings.js';
+import { embedForSearch } from '../../shared/core/embeddings.js';
 import { resolveExistingCollectionProfile } from '../embedding-profile/resolve.js';
 import { EXECUTION } from '../embedding-profile/schema.js';
 import { findDenseModel } from '../embedding-profile/qdrant-cloud-models.js';
-import { emitTelemetry } from '../bench-telemetry.js';
+import { emitTelemetry } from '../../shared/core/bench-telemetry.js';
 
 // Code review fix (Phase 8B Step 6): this module used to statically import
 // buildCloudQueryInputs()/checkEmbedInputFits() from

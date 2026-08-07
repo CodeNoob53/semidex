@@ -26,7 +26,7 @@ describe('config.js — SEMIDEX_CONFIG_PATH override', () => {
     const overridePath = join(dir, 'isolated-config.json');
     process.env.SEMIDEX_CONFIG_PATH = overridePath;
     try {
-      const { loadConfig, saveConfig } = await import('../../../src/core/config.js');
+      const { loadConfig, saveConfig } = await import('../../../src/shared/core/config.js');
       assert.equal(loadConfig().collections && typeof loadConfig().collections, 'object');
       saveConfig({ collections: { 'test-collection': { denseProvider: 'qdrant-cloud' } } });
       assert.ok(existsSync(overridePath), 'expected the isolated config file to be written');
@@ -43,7 +43,7 @@ describe('config.js — SEMIDEX_CONFIG_PATH override', () => {
     const overridePath = join(dir, 'does-not-exist.json');
     process.env.SEMIDEX_CONFIG_PATH = overridePath;
     try {
-      const { loadConfig } = await import('../../../src/core/config.js');
+      const { loadConfig } = await import('../../../src/shared/core/config.js');
       assert.deepEqual(loadConfig(), { collections: {} });
     } finally {
       delete process.env.SEMIDEX_CONFIG_PATH;

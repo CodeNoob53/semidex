@@ -53,7 +53,9 @@ const SHARED_CONTRACT_FILES = new Set([
   // MCP tools (its one real consumer) are not currently reachable from any
   // Lite root at all, so reachability alone would misclassify it 'local'.
   // Explicit override for the same reason provider.js/adapter.js are here.
-  'src/core/rerank-capability.js',
+  // Path updated (Phase 8B Step 7A — physical relocation of stable shared
+  // core modules into src/shared/core/).
+  'src/shared/core/rerank-capability.js',
 ]);
 
 const COMPOSITION_COMMON_FILES = new Set([

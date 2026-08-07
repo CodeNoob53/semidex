@@ -14,7 +14,7 @@
 // wrong-mode search.
 import { sendJson, badRequest, notFound, HttpError } from '../../core/http/http.js';
 import { readJsonBody } from '../../core/http/http.js';
-import { embedForSearch } from '../../core/embeddings.js';
+import { embedForSearch } from '../../shared/core/embeddings.js';
 import { runHybridSearch, resolveSearchMode } from '../../core/retrieval/search.js';
 
 export { resolveSearchMode };

@@ -13,7 +13,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { ONNX_DENSE_MODEL_ID } from '../../../src/core/onnx-paths.js';
+import { ONNX_DENSE_MODEL_ID } from '../../../src/shared/core/onnx-paths.js';
 
 describe('ONNX_DENSE_MODEL_ID', () => {
   it('is the expected HF repo id', () => {
@@ -22,15 +22,15 @@ describe('ONNX_DENSE_MODEL_ID', () => {
 
   it('the literal string appears in exactly one source file (onnx-paths.js\'s own declaration)', async () => {
     const files = [
-      'src/core/onnx-paths.js',
+      'src/shared/core/onnx-paths.js',
       'src/local/core/onnx-embed.js',
-      'src/core/config.js',
-      'src/core/bge-tokenizer.js',
+      'src/shared/core/config.js',
+      'src/shared/core/bge-tokenizer.js',
     ];
     for (const relPath of files) {
       const src = await readFile(new URL(`../../../${relPath}`, import.meta.url), 'utf-8');
       const literalMatches = src.match(/'aapot\/bge-m3-onnx'/g) ?? [];
-      if (relPath === 'src/core/onnx-paths.js') {
+      if (relPath === 'src/shared/core/onnx-paths.js') {
         assert.equal(literalMatches.length, 1, `${relPath}: expected exactly one declaration of the literal`);
       } else {
         assert.equal(literalMatches.length, 0, `${relPath}: must import ONNX_DENSE_MODEL_ID, not re-hardcode the literal string`);
@@ -40,11 +40,11 @@ describe('ONNX_DENSE_MODEL_ID', () => {
 
   it('onnx-embed.js imports and re-exports ONNX_DENSE_MODEL_ID from onnx-paths.js', async () => {
     const src = await readFile(new URL('../../../src/local/core/onnx-embed.js', import.meta.url), 'utf-8');
-    assert.match(src, /import\s*\{[^}]*ONNX_DENSE_MODEL_ID[^}]*\}\s*from\s*['"]\.\.\/\.\.\/core\/onnx-paths\.js['"]/);
+    assert.match(src, /import\s*\{[^}]*ONNX_DENSE_MODEL_ID[^}]*\}\s*from\s*['"]\.\.\/\.\.\/shared\/core\/onnx-paths\.js['"]/);
   });
 
   it('config.js, bge-tokenizer.js import ONNX_DENSE_MODEL_ID from onnx-paths.js', async () => {
-    const configSrc = await readFile(new URL('../../../src/core/config.js', import.meta.url), 'utf-8');
+    const configSrc = await readFile(new URL('../../../src/shared/core/config.js', import.meta.url), 'utf-8');
     assert.match(configSrc, /import\s*\{\s*ONNX_DENSE_MODEL_ID\s*\}\s*from\s*['"]\.\/onnx-paths\.js['"]/);
 
     // token-count.js delegates tokenizer loading to bge-tokenizer.js
@@ -52,7 +52,7 @@ describe('ONNX_DENSE_MODEL_ID', () => {
     // @huggingface/tokenizers from the CUDA-sensitive onnxruntime-node
     // load path) and no longer needs ONNX_DENSE_MODEL_ID directly —
     // bge-tokenizer.js is the actual consumer now.
-    const tokenizerSrc = await readFile(new URL('../../../src/core/bge-tokenizer.js', import.meta.url), 'utf-8');
+    const tokenizerSrc = await readFile(new URL('../../../src/shared/core/bge-tokenizer.js', import.meta.url), 'utf-8');
     assert.match(tokenizerSrc, /import\s*\{[^}]*ONNX_DENSE_MODEL_ID[^}]*\}\s*from\s*['"]\.\/onnx-paths\.js['"]/);
   });
 
@@ -62,7 +62,7 @@ describe('ONNX_DENSE_MODEL_ID', () => {
   });
 
   it('token-count.js does not import ONNX_DENSE_MODEL_ID directly — it delegates tokenizer loading to bge-tokenizer.js', async () => {
-    const tokenCountSrc = await readFile(new URL('../../../src/core/token-count.js', import.meta.url), 'utf-8');
+    const tokenCountSrc = await readFile(new URL('../../../src/shared/core/token-count.js', import.meta.url), 'utf-8');
     assert.ok(!/ONNX_DENSE_MODEL_ID/.test(tokenCountSrc));
     assert.match(tokenCountSrc, /import\s*\{[^}]*loadBgeTokenizer[^}]*\}\s*from\s*['"]\.\/bge-tokenizer\.js['"]/);
   });
@@ -71,7 +71,7 @@ describe('ONNX_DENSE_MODEL_ID', () => {
 describe('isOnnxModelCached — the ONE definition of "is the model really on disk"', () => {
   it('matches existsSync(model.onnx) && existsSync(model.onnx.data) against the real filesystem (whatever state it happens to be in)', async () => {
     const { existsSync } = await import('node:fs');
-    const { isOnnxModelCached, getOnnxModelPath } = await import('../../../src/core/onnx-paths.js');
+    const { isOnnxModelCached, getOnnxModelPath } = await import('../../../src/shared/core/onnx-paths.js');
     const modelPath = getOnnxModelPath();
     const expected = existsSync(modelPath) && existsSync(`${modelPath}.data`);
     assert.equal(isOnnxModelCached(), expected);
@@ -79,7 +79,7 @@ describe('isOnnxModelCached — the ONE definition of "is the model really on di
 
   it('onnx-probe-runner.js imports and calls isOnnxModelCached() rather than re-implementing the same two existsSync checks inline', async () => {
     const probeRunnerSrc = await readFile(new URL('../../../src/local/core/onnx-probe-runner.js', import.meta.url), 'utf-8');
-    assert.match(probeRunnerSrc, /import\s*\{[^}]*isOnnxModelCached[^}]*\}\s*from\s*['"]\.\.\/\.\.\/core\/onnx-paths\.js['"]/);
+    assert.match(probeRunnerSrc, /import\s*\{[^}]*isOnnxModelCached[^}]*\}\s*from\s*['"]\.\.\/\.\.\/shared\/core\/onnx-paths\.js['"]/);
     assert.match(probeRunnerSrc, /const modelCached = isOnnxModelCached\(\)/);
     assert.ok(!/existsSync\(modelPath\)\s*&&\s*existsSync\(modelDataPath\)/.test(probeRunnerSrc), 'must not re-implement the same check inline anymore');
   });

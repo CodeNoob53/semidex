@@ -1,4 +1,4 @@
-import { getSkeletonNodeById, getSkeletonNodeByPath, getSkeletonChildren as fetchChildren } from '../../core/qdrant.js';
+import { getSkeletonNodeById, getSkeletonNodeByPath, getSkeletonChildren as fetchChildren } from '../../shared/core/qdrant.js';
 
 export const schema = {
   name: 'qdrant_get_skeleton_children',

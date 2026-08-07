@@ -13,7 +13,7 @@ import {
   redactKey, redactUrl, sanitiseErrorMessage,
   makeResult, aggregateExitCode, formatResult,
   checkNodeVersion, STATUS,
-} from '../src/core/doctor-checks.js';
+} from '../src/shared/core/doctor-checks.js';
 import { checkQdrantReachable, probeQdrantCloudInference } from '../src/cloud/admin/qdrant-cloud-system.js';
 import {
   QDRANT_CLOUD_DENSE_MODELS,

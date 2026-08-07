@@ -1,4 +1,4 @@
-import { fetchWindowChunks } from '../../core/qdrant.js';
+import { fetchWindowChunks } from '../../shared/core/qdrant.js';
 
 export const schema = {
   name: 'qdrant_get_chunk',

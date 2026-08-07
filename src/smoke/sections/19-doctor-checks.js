@@ -18,7 +18,7 @@ export default async function ({ ok }) {
     cudaProbeGuidance,
     formatCudaProbeFailure,
     STATUS,
-  } = await import('../../core/doctor-checks.js');
+  } = await import('../../shared/core/doctor-checks.js');
 
   // 19a. redactKey
   ok('redactKey present 8-char value', redactKey('abcd1234') === 'present (8 chars)');
@@ -214,7 +214,7 @@ export default async function ({ ok }) {
 
   // 19o. resolveCombinedLlmConfig
   {
-    const { resolveCombinedLlmConfig } = await import('../../core/doctor-checks.js');
+    const { resolveCombinedLlmConfig } = await import('../../shared/core/doctor-checks.js');
 
     const off = resolveCombinedLlmConfig({});
     ok('19o: disabled by default (unset)',        !off.enabled);

@@ -11,7 +11,7 @@
 //      chunking_model IS the legacy marker).
 
 import { extname } from 'path';
-import { uuidv5 } from '../core/point-id.js';
+import { uuidv5 } from '../shared/core/point-id.js';
 
 export const SKELETON_CHUNKING_MODEL = 'skeleton-v1';
 // Indexing schema (impl spec §9): versions the point model + chunking behavior,

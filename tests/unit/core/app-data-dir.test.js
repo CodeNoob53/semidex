@@ -7,7 +7,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
-import { resolveAppDataDir } from '../../../src/core/app-data-dir.js';
+import { resolveAppDataDir } from '../../../src/shared/core/app-data-dir.js';
 
 describe('resolveAppDataDir()', () => {
   it('windows: uses LOCALAPPDATA when set', () => {

@@ -18,18 +18,18 @@ process.env.SEMIDEX_TOKENIZER_CACHE_DIR = join('C:', 'lite-home', 'cache', 'toke
 
 describe('core/onnx-paths.js — SEMIDEX_TOKENIZER_CACHE_DIR override (set)', () => {
   it('TOKENIZER_CACHE_DIR resolves to the override', async () => {
-    const { TOKENIZER_CACHE_DIR } = await import('../../../src/core/onnx-paths.js');
+    const { TOKENIZER_CACHE_DIR } = await import('../../../src/shared/core/onnx-paths.js');
     assert.equal(TOKENIZER_CACHE_DIR, process.env.SEMIDEX_TOKENIZER_CACHE_DIR);
   });
 
   it('the ONNX model cache stays on its own default — redirecting the tokenizer cache never moves it', async () => {
-    const { ONNX_CACHE_DIR } = await import('../../../src/core/onnx-paths.js');
+    const { ONNX_CACHE_DIR } = await import('../../../src/shared/core/onnx-paths.js');
     assert.notEqual(ONNX_CACHE_DIR, process.env.SEMIDEX_TOKENIZER_CACHE_DIR);
     assert.ok(ONNX_CACHE_DIR.endsWith('models'), 'ONNX_CACHE_DIR must remain the package-relative models/ dir');
   });
 
   it('cloud/embedding/qdrant-cloud-tokenizer.js (imported from the same process) observes the identical override, since it imports TOKENIZER_CACHE_DIR from onnx-paths.js', async () => {
-    const { TOKENIZER_CACHE_DIR } = await import('../../../src/core/onnx-paths.js');
+    const { TOKENIZER_CACHE_DIR } = await import('../../../src/shared/core/onnx-paths.js');
     // Importing qdrant-cloud-tokenizer.js must not throw and must be wired
     // to the same constant this file already observed as the override —
     // proven indirectly here since tokenizerDir() is module-private; the

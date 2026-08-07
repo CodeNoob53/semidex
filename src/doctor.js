@@ -18,7 +18,7 @@
 // provenance line for each field states which tier actually won, so a
 // stray/misconfigured OS env var is still fully visible, not hidden by
 // settings.json.
-const { bootstrapEnv } = await import('./core/env-bootstrap.js');
+const { bootstrapEnv } = await import('./shared/core/env-bootstrap.js');
 const { osEnv, dotenvValues } = bootstrapEnv();
 const { createSettingsService, applyEnvWriteBack } = await import('./core/settings/service.js');
 const settingsService = createSettingsService({ osEnv, dotenvValues });
@@ -35,10 +35,10 @@ const {
   checkProviderAgreement, checkSchemaVersion,
   missingModelCommands, formatCudaProbeFailure, formatCudaDiagnosis, STATUS,
   resolveCombinedLlmConfig,
-} = await import('./core/doctor-checks.js');
-const { loadConfig } = await import('./core/config.js');
-const { SCHEMA_VERSION } = await import('./core/embeddings.js');
-const { getOnnxModelPath } = await import('./core/onnx-paths.js');
+} = await import('./shared/core/doctor-checks.js');
+const { loadConfig } = await import('./shared/core/config.js');
+const { SCHEMA_VERSION } = await import('./shared/core/embeddings.js');
+const { getOnnxModelPath } = await import('./shared/core/onnx-paths.js');
 const { probeOnnxProvider } = await import('./local/core/onnx-provider-probe.js');
 const { diagnoseCudaFailure } = await import('./local/core/cuda-diagnosis.js');
 const { checkPrerequisites } = await import('./local/core/onnx-cuda-prereq-check.js');

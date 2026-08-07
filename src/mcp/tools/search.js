@@ -1,9 +1,9 @@
-import { fetchWindowChunks } from '../../core/qdrant.js';
+import { fetchWindowChunks } from '../../shared/core/qdrant.js';
 import { createStorageAdapter } from '../../core/storage/factory.js';
 import { runHybridSearch } from '../../core/retrieval/search.js';
-import { validateRerankCapability } from '../../core/rerank-capability.js';
+import { validateRerankCapability } from '../../shared/core/rerank-capability.js';
 
-import { envInt } from '../../core/env.js';
+import { envInt } from '../../shared/core/env.js';
 
 // runHybridSearch() returns adapter Chunk objects (camelCase, via
 // toChunk()) — rerankResults()/ceRerank() both read the raw snake_case

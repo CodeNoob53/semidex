@@ -24,11 +24,11 @@ process.env.ONNX_EMBED ??= '1';
 await import('dotenv/config');
 
 const { listCollections, hybridSearch, fetchWindowChunks } =
-  await import('../../../src/core/qdrant.js');
+  await import('../../../src/shared/core/qdrant.js');
 const { assembleWindowChunks } =
   await import('../../../src/mcp/tools/search.js');
 const { embedForSearch } =
-  await import('../../../src/core/embeddings.js');
+  await import('../../../src/shared/core/embeddings.js');
 const { createStorageAdapter } =
   await import('../../../src/core/storage/factory.js');
 const { resolveExistingCollectionProfile } =

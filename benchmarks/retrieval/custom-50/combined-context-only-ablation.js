@@ -41,10 +41,10 @@ import { fileURLToPath } from 'url';
 import {
   deleteCollection,
   hybridSearch,
-} from '../../../src/core/qdrant.js';
+} from '../../../src/shared/core/qdrant.js';
 import { stableSortResults } from './sort-results.js';
-import { embedForSearch } from '../../../src/core/embeddings.js';
-import { loadConfig, saveConfig } from '../../../src/core/config.js';
+import { embedForSearch } from '../../../src/shared/core/embeddings.js';
+import { loadConfig, saveConfig } from '../../../src/shared/core/config.js';
 import { createStorageAdapter } from '../../../src/core/storage/factory.js';
 import { resolveBenchProfile } from '../../lib/resolve-profile.js';
 

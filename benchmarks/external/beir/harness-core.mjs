@@ -10,7 +10,7 @@
 import { QdrantClient } from '@qdrant/js-client-rest';
 import { createHash } from 'node:crypto';
 
-import { sanitiseErrorMessage } from '../../../src/core/doctor-checks.js';
+import { sanitiseErrorMessage } from '../../../src/shared/core/doctor-checks.js';
 
 export const MAX_RETRIES = 5;
 export const BASE_BACKOFF_MS = 500;

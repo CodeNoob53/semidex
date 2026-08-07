@@ -135,7 +135,7 @@ export default async function ({ ok, throws }) {
   // ── computeDeterministicId ────────────────────────────────────────────────
 
   // Must match src/core/point-id.js makePointId exactly
-  const { makePointId } = await import('../../core/point-id.js');
+  const { makePointId } = await import('../../shared/core/point-id.js');
 
   const idArgs = { collection: 'test-col', sourceFile: 'docs/intro.md', chunkIndex: 0, embeddingSchemaVersion: 2 };
 

@@ -6,7 +6,7 @@
 // no client construction, no network probes.
 import 'dotenv/config';
 import { QdrantClient } from '@qdrant/js-client-rest';
-import { emitTelemetry } from '../bench-telemetry.js';
+import { emitTelemetry } from '../../shared/core/bench-telemetry.js';
 
 // Timeouts preserve the pre-SDK wrapper's behavior: 30 s reads, 60 s writes.
 // The SDK supports one timeout per client instance, hence two cached clients.

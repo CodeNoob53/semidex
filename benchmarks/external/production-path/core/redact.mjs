@@ -4,7 +4,7 @@
 // secrets/credentialed URLs, plus a narrow regex for this harness's own
 // local path shapes (materialized fixture dirs, isolated config.json
 // copies, telemetry JSONL files) — never a general path scrubber.
-import { sanitiseErrorMessage } from '../../../../src/core/doctor-checks.js';
+import { sanitiseErrorMessage } from '../../../../src/shared/core/doctor-checks.js';
 
 // Matches this harness's own .cache/{materialized,config,telemetry}/
 // path segments wherever they appear (e.g. embedded in a spawned

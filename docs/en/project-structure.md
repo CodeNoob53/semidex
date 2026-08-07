@@ -25,9 +25,9 @@ The indexer is the writer side. The MCP server exposes retrieval primitives to
 external agents. The admin/application server operates collections and hosts
 the versioned `POST /api/v1/ask` runtime for application clients (contract
 owned by `src/core/ask-api/v1/`, outside `src/admin/` — see Core Modules
-below). All three use shared modules under `src/core/`; external
-integrations should target `src/core/ask-api/v1/` directly rather than
-importing admin UI modules.
+below). All three use shared modules under `src/shared/core/` and
+`src/core/`; external integrations should target `src/core/ask-api/v1/`
+directly rather than importing admin UI modules.
 
 ## Tests
 
@@ -43,29 +43,48 @@ smoke→unit migration plan. The legacy offline smoke suite lives in
 
 ## Core Modules
 
+`src/shared/core/` holds top-level modules the real import graph confirms
+are reachable from BOTH Full and Lite composition roots — physically
+relocated there from `src/core/` in Phase 8B Step 7A (a pure `git mv` +
+import-path-update step, no behavior change). `src/core/` still holds
+every subdirectory (`ask/`, `ask-api/`, `assembly/`, `embedding-profile/`,
+`generation/`, `http/`, `qdrant/`, `retrieval/`, `settings/`, `storage/`
+— out of scope for that step) plus the handful of top-level files that
+are genuinely `local`-classified (real local-runtime implementation, not
+a shared contract) or a transitional lazy-shim seam.
+
 ```text
-src/core/
+src/shared/core/
   config.js            - config.json helpers, provider resolution, valid provider combos
   env.js               - env var parsing helpers and provider-combo validation
+  env-bootstrap.js      - env snapshot/dotenv-load helpers (OS env vs .env provenance)
   embeddings.js        - unified embedding layer for indexing and search
-  onnx-embed-lazy.js   - lazy seam to the real ONNX embedding implementation (local/)
   onnx-embed-capability.js - OnnxEmbedCapability contract (loadOnnx/loadOnnxBatch/shutdown)
   onnx-paths.js        - ONNX model cache path resolution (path constants only, not local-only)
-  ollama-lazy.js        - lazy seam to the real Ollama client implementation (local/)
   qdrant.js            - stable facade over the Qdrant adapter (re-exports src/core/qdrant/)
+  sparse.js            - zero-dependency hashed sparse TF fallback
+  rerank-capability.js - RerankCapability contract (rerankResults/ceRerank), zero backend imports
+  token-count.js       - BGE-M3 tokenizer / heuristic token counting
+  bge-tokenizer.js      - the real BGE-M3 tokenizer load path (via @huggingface/tokenizers)
+  node-id.js           - deterministic skeleton/structural node IDs
+  point-id.js          - deterministic Qdrant point IDs
+  entity-reference.js   - structural entity-reference placeholder format/matcher
+  doctor-checks.js     - health checks shared by doctor and MCP error sanitising
+  bench-telemetry.js    - opt-in benchmark instrumentation (SEMIDEX_BENCH_TELEMETRY)
+  app-data-dir.js       - neutral, edition-agnostic per-user app-data directory resolver
+
+src/core/
+  onnx-embed-lazy.js   - lazy seam to the real ONNX embedding implementation (local/)
+  ollama-lazy.js        - lazy seam to the real Ollama client implementation (local/)
+  rerank.js            - optional deterministic reranker (real local-runtime implementation)
+  ce-rerank.js         - optional cross-encoder reranker (RERANK_CE_ENABLED=1)
+  rerank-provider.js    - the RerankCapability factory (imports rerank.js/ce-rerank.js)
   qdrant/
     client.js          - lazy @qdrant/js-client-rest client, cache reset, error helpers
     store.js           - all network operations: upsert, search, scroll, indexes, skeleton lookups
     payload.js         - pure payload helpers (isSemidexPayload) and field constants
     schema.js          - canonical vector schema + required payload indexes (single source of truth)
     index.js           - adapter public surface
-  sparse.js            - zero-dependency hashed sparse TF fallback
-  rerank.js            - optional deterministic reranker
-  ce-rerank.js         - optional cross-encoder reranker (RERANK_CE_ENABLED=1)
-  token-count.js       - BGE-M3 tokenizer / heuristic token counting
-  node-id.js           - deterministic skeleton/structural node IDs
-  point-id.js          - deterministic Qdrant point IDs
-  doctor-checks.js     - health checks shared by doctor and MCP error sanitising
   ask/                 - retrieval evidence, grounded prompt, citations, coordinator
                          (transport-neutral — no HTTP/SSE concerns)
   ask-api/v1/          - the versioned, application-facing public Ask
@@ -124,9 +143,9 @@ Unlike `src/local/` (Full-only, excluded from Semidex Lite), `src/cloud/`
 ships in BOTH editions — Semidex Lite is cloud-only by design (Qdrant
 Cloud Inference + Gemini), so every file here is reachable from, and
 required by, both Full and Lite composition roots. No `*-lazy.js` shim
-exists for any of these seven files: every consumer (`core/embeddings.js`,
+exists for any of these seven files: every consumer (`shared/core/embeddings.js`,
 `core/retrieval/search.js`, `core/embedding-profile/{resolve,availability}.js`,
-`core/token-count.js`, `core/config.js`, `core/settings/definitions.js`,
+`shared/core/token-count.js`, `shared/core/config.js`, `core/settings/definitions.js`,
 `core/generation/registry.js`, `indexer/run.js`,
 `admin/register-neutral-routes.js`, `admin/api/generation-models.js`,
 `admin/ui-src/global-settings-view.js`) imports the real file directly,

@@ -54,23 +54,23 @@ describe('ONNXRUNTIME_NODE_PATH resolution (main process)', () => {
 });
 
 describe('token counting never loads @huggingface/transformers', () => {
-  it('core/bge-tokenizer.js has no import/require statement referencing @huggingface/transformers', () => {
-    const src = readSrc('core/bge-tokenizer.js');
+  it('shared/core/bge-tokenizer.js has no import/require statement referencing @huggingface/transformers', () => {
+    const src = readSrc('shared/core/bge-tokenizer.js');
     assert.doesNotMatch(src, TRANSFORMERS_IMPORT_RE);
   });
 
-  it('core/bge-tokenizer.js imports @huggingface/tokenizers instead (the non-ORT-backed library)', () => {
-    const src = readSrc('core/bge-tokenizer.js');
+  it('shared/core/bge-tokenizer.js imports @huggingface/tokenizers instead (the non-ORT-backed library)', () => {
+    const src = readSrc('shared/core/bge-tokenizer.js');
     assert.match(src, /from ['"]@huggingface\/tokenizers['"]/);
   });
 
-  it('core/token-count.js no longer imports @huggingface/transformers anywhere', () => {
-    const src = readSrc('core/token-count.js');
+  it('shared/core/token-count.js no longer imports @huggingface/transformers anywhere', () => {
+    const src = readSrc('shared/core/token-count.js');
     assert.doesNotMatch(src, TRANSFORMERS_IMPORT_RE);
   });
 
-  it('core/token-count.js sources its tokenizer from core/bge-tokenizer.js', () => {
-    const src = readSrc('core/token-count.js');
+  it('shared/core/token-count.js sources its tokenizer from shared/core/bge-tokenizer.js', () => {
+    const src = readSrc('shared/core/token-count.js');
     assert.match(src, /from ['"]\.\/bge-tokenizer\.js['"]/);
   });
 });

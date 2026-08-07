@@ -2,7 +2,7 @@
 // long-prose splitting, heading-stack resets, node_id isolation,
 // collectSkeletonWarnings, path traversal guard. Fills gaps not covered by 42–46.
 
-import { makeNodeId } from '../../core/node-id.js';
+import { makeNodeId } from '../../shared/core/node-id.js';
 
 export default async function ({ ok }) {
   console.log('\n[49] skeleton edge cases — placeholder placement, boundaries, splitting, warnings');

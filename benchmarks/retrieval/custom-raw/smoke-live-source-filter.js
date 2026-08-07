@@ -21,7 +21,7 @@ process.env.ONNX_EMBED ??= '1';
 await import('dotenv/config');
 
 const { listCollections } =
-  await import('../../../src/core/qdrant.js');
+  await import('../../../src/shared/core/qdrant.js');
 const { handle } =
   await import('../../../src/mcp/tools/search.js');
 

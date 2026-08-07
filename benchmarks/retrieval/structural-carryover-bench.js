@@ -21,11 +21,11 @@ const {
   listCollections,
   upsertPoints,
   hybridSearch,
-} = await import('../../src/core/qdrant.js');
+} = await import('../../src/shared/core/qdrant.js');
 const {
   embedForIndex,
   embedForSearch,
-} = await import('../../src/core/embeddings.js');
+} = await import('../../src/shared/core/embeddings.js');
 const { createStorageAdapter } = await import('../../src/core/storage/factory.js');
 const { resolveBenchProfile } = await import('../lib/resolve-profile.js');
 

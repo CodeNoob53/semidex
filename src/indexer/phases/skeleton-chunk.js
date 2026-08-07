@@ -23,8 +23,8 @@
 
 import { recursiveChunkTextForBudget } from './chunk.js';
 import { applyNodePolicy, isContentBearing, POINT_KINDS } from './node-policy.js';
-import { makeNodeId } from '../../core/node-id.js';
-import { placeholderForReference, attachEntityRefs } from '../../core/entity-reference.js';
+import { makeNodeId } from '../../shared/core/node-id.js';
+import { placeholderForReference, attachEntityRefs } from '../../shared/core/entity-reference.js';
 import { splitStructuralEntity } from './entity-split.js';
 
 const CHUNKING_MODEL = 'skeleton-v1';

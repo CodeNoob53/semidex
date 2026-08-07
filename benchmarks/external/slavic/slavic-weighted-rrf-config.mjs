@@ -23,7 +23,7 @@
 // config file carries no CUDA-specific fields itself; the harness reads
 // ONNX_EXECUTION_PROVIDER/ONNX_CUDA_STRICT directly, exactly like
 // run-weighted-rrf-live.mjs and run-slavic-benchmark.mjs already do.
-import { ONNX_DENSE_MODEL_ID } from '../../../src/core/onnx-paths.js';
+import { ONNX_DENSE_MODEL_ID } from '../../../src/shared/core/onnx-paths.js';
 import {
   FUSION_MODES, FUSION_MODE_IDS, fusionModeById,
   PRIMARY_CANDIDATE_ID, DIAGNOSTIC_CANDIDATE_ID, EQUAL_RRF_CONTROL_IDS,

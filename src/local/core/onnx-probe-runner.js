@@ -37,7 +37,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { loadOnnxRuntime, resolveOnnxRuntimeModule } from './onnx-runtime.js';
-import { getOnnxModelPath, isOnnxModelCached } from '../../core/onnx-paths.js';
+import { getOnnxModelPath, isOnnxModelCached } from '../../shared/core/onnx-paths.js';
 
 function readRuntimeVersion(env) {
   const modulePath = resolveOnnxRuntimeModule(env);

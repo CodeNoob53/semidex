@@ -26,7 +26,7 @@
 // preserved byte-for-byte except the newline normalization line removal
 // makes unavoidable (a removed line's leftover blank-line run is collapsed).
 
-import { attachEntityRefs, STRUCTURAL_TYPES } from '../entity-reference.js';
+import { attachEntityRefs, STRUCTURAL_TYPES } from '../../shared/core/entity-reference.js';
 import { ASSEMBLY_MODES, SEGMENT_KINDS, ASSEMBLY_WARNINGS } from './contract.js';
 
 function isStructuralChunk(chunk) {

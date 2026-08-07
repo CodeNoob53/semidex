@@ -94,7 +94,7 @@ describe('every former *-lazy.js consumer now requires explicit capability injec
   it('core/embeddings.js, indexer/phases/{context,tag,combined,skeleton-summary}.js, indexer/preflight.js, indexer/run.js, and core/generation/ollama-provider.js no longer import ollama-lazy.js/onnx-embed-lazy.js/tag-onnx-lazy.js at all', async () => {
     const { readFileSync } = await import('node:fs');
     const files = [
-      '../../../src/core/embeddings.js',
+      '../../../src/shared/core/embeddings.js',
       '../../../src/indexer/phases/context.js',
       '../../../src/indexer/phases/tag.js',
       '../../../src/indexer/phases/combined.js',
@@ -116,7 +116,7 @@ describe('every former *-lazy.js consumer now requires explicit capability injec
   });
 
   it('core/embeddings.js\'s applyEmbeddingCapabilities() default starts unset (null) — a bare call with no injected capability throws a clear error, never a silent real network attempt', async () => {
-    const embeddings = await import('../../../src/core/embeddings.js?backward-compat-unset-check');
+    const embeddings = await import('../../../src/shared/core/embeddings.js?backward-compat-unset-check');
     const profile = {
       schemaVersion: 1, managedBy: 'semidex', embeddingSchemaVersion: 2,
       embedding: {

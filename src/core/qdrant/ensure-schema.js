@@ -6,7 +6,7 @@
 // collection list diffing) is sync.js's own concern, not a storage-layer one.
 import { getCollectionInfo, createPayloadIndex, addSparseVectorSupport, hasSparseVectors } from './store.js';
 import { REQUIRED_PAYLOAD_INDEXES } from './schema.js';
-import { classifyVectorSchema } from '../doctor-checks.js';
+import { classifyVectorSchema } from '../../shared/core/doctor-checks.js';
 
 /**
  * Ensure a single collection has the required payload indexes and sparse

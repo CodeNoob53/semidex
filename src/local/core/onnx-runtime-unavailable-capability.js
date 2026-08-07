@@ -15,7 +15,7 @@
 // has a local ONNX runtime at all; this one exists because Full's
 // selected local ONNX runtime turned out to be broken. Two different
 // reasons, one shared shape.
-import { REQUIRED_ONNX_EMBED_CAPABILITY_METHODS } from '../../core/onnx-embed-capability.js';
+import { REQUIRED_ONNX_EMBED_CAPABILITY_METHODS } from '../../shared/core/onnx-embed-capability.js';
 
 export class OnnxRuntimeUnavailableError extends Error {
   constructor(reason, method) {
@@ -31,7 +31,7 @@ export class OnnxRuntimeUnavailableError extends Error {
  *   prepareOnnxRuntimeProcessEnv()'s own non-ok result, so the thrown
  *   error names the real, specific cause (e.g. a vanished cuDNN
  *   directory) rather than a generic "unavailable" message.
- * @returns {import('../../core/onnx-embed-capability.js').OnnxEmbedCapability}
+ * @returns {import('../../shared/core/onnx-embed-capability.js').OnnxEmbedCapability}
  */
 export function createOnnxRuntimeUnavailableCapability(reason) {
   const capability = {};

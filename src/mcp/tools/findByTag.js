@@ -1,4 +1,4 @@
-import { scroll } from '../../core/qdrant.js';
+import { scroll } from '../../shared/core/qdrant.js';
 import { withNavExcluded, isNavPoint } from './filters.js';
 
 export const schema = {

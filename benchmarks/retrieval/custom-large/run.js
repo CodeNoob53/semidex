@@ -76,8 +76,8 @@ import { chunkFile, getChunkingConfig } from '../../../src/indexer/phases/chunk.
 import {
   deleteBySourceFile,
   upsertPoints, hybridSearch, scroll,
-} from '../../../src/core/qdrant.js';
-import { embedForIndex, embedForSearch } from '../../../src/core/embeddings.js';
+} from '../../../src/shared/core/qdrant.js';
+import { embedForIndex, embedForSearch } from '../../../src/shared/core/embeddings.js';
 import { createStorageAdapter } from '../../../src/core/storage/factory.js';
 import { resolveBenchProfile } from '../../lib/resolve-profile.js';
 

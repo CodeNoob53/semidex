@@ -25,7 +25,7 @@ import { discoverOllamaModels } from '../local/core/ollama-models.js';
 import { checkOllama } from './system/ollama.js';
 import { createSettingsService } from '../core/settings/service.js';
 import { registerNeutralRoutes, createHttpServer } from './register-neutral-routes.js';
-import { embedForSearch } from '../core/embeddings.js';
+import { embedForSearch } from '../shared/core/embeddings.js';
 import { createJobRegistry } from './jobs/registry.js';
 import { spawnIndexer as spawnFullIndexer } from './jobs/spawn-indexer-full.js';
 import * as ollamaLazy from '../core/ollama-lazy.js';

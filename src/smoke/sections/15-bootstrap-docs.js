@@ -54,7 +54,7 @@ export default async function ({ ok, withConfig }) {
   await withConfig(
     { collections: { 'semidex-docs': { semidexManaged: true, description: 'test' } } },
     async () => {
-      const { loadConfig } = await import('../../core/config.js');
+      const { loadConfig } = await import('../../shared/core/config.js');
       const cfg = loadConfig();
       ok('semidexManaged:true survives loadConfig round-trip',
         cfg.collections?.['semidex-docs']?.semidexManaged === true);

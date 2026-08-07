@@ -34,8 +34,8 @@ import { existsSync, mkdirSync, copyFileSync, rmSync, writeFileSync } from 'fs';
 import { resolve, join, relative, dirname, basename } from 'path';
 import { fileURLToPath } from 'url';
 
-import { deleteCollection } from '../../src/core/qdrant.js';
-import { loadConfig, saveConfig } from '../../src/core/config.js';
+import { deleteCollection } from '../../src/shared/core/qdrant.js';
+import { loadConfig, saveConfig } from '../../src/shared/core/config.js';
 
 const ROOT        = resolve(dirname(fileURLToPath(import.meta.url)), '../../');
 const RESULTS_DIR = join(ROOT, 'benchmarks', 'retrieval', 'results');

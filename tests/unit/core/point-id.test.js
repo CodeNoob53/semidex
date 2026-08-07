@@ -2,7 +2,7 @@
 import '../../helpers/setup.js';
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { makePointId } from '../../../src/core/point-id.js';
+import { makePointId } from '../../../src/shared/core/point-id.js';
 
 const base = {
   collection: 'test-col',

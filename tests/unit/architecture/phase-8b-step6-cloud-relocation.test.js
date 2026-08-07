@@ -225,9 +225,9 @@ describe('Phase 8B Step 6 code review fix (second pass) — declared-shared modu
     const manifest = buildManifest();
     const byPath = new Map(manifest.modules.map((module) => [module.path, module]));
     const named = [
-      'src/core/embeddings.js',
+      'src/shared/core/embeddings.js',
       'src/core/generation/registry.js',
-      'src/core/token-count.js',
+      'src/shared/core/token-count.js',
       'src/core/retrieval/search.js',
       'src/indexer/run.js',
       'src/admin/register-neutral-routes.js',

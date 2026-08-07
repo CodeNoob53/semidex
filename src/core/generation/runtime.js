@@ -15,7 +15,7 @@
 // config.
 import { resolveGenerationRuntimeConfig, GenerationConfigError, SUPPORTED_DEVICE_POLICIES } from './config.js';
 import { createGenerationProvider } from './registry.js';
-import { redactUrl } from '../doctor-checks.js';
+import { redactUrl } from '../../shared/core/doctor-checks.js';
 
 // Generation settings (ASK_MODEL/OLLAMA_URL/ASK_NUM_CTX/GENERATION_DEVICE)
 // are tagged `next_restart` in core/settings/definitions.js — when a

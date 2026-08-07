@@ -21,7 +21,7 @@ import { join } from 'node:path';
 import {
   embedForIndex, embedForIndexBatch, embedForSearch, SCHEMA_VERSION, shouldUseOnnxBatching, resolveOnnxBatchSize,
   EmbeddingInputTooLongError, setLocalEmbedOverrideForTest, applyEmbeddingCapabilities,
-} from '../../../src/core/embeddings.js';
+} from '../../../src/shared/core/embeddings.js';
 import { createCloudEmbeddingCapability } from '../../../src/cloud/embedding/cloud-embedding-provider.js';
 
 afterEach(() => setLocalEmbedOverrideForTest(null));

@@ -27,8 +27,8 @@ import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { QdrantClient } from '@qdrant/js-client-rest';
-import { bootstrapEnv } from '../../src/core/env-bootstrap.js';
-import { sanitiseErrorMessage } from '../../src/core/doctor-checks.js';
+import { bootstrapEnv } from '../../src/shared/core/env-bootstrap.js';
+import { sanitiseErrorMessage } from '../../src/shared/core/doctor-checks.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(__dirname, '../..');

@@ -11,7 +11,7 @@ delete process.env.QDRANT_KEY;
 // payload.js must be pure: no dotenv, no SDK, no env reads.
 const payload = await import('../../../src/core/qdrant/payload.js');
 const schema = await import('../../../src/core/qdrant/schema.js');
-const facade = await import('../../../src/core/qdrant.js');
+const facade = await import('../../../src/shared/core/qdrant.js');
 
 describe('payload.js is pure', () => {
   it('isSemidexPayload works with no env at all', () => {

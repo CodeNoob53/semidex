@@ -22,7 +22,7 @@
 // core/onnx-paths.js's TOKENIZER_CACHE_DIR is an import-time constant).
 // This is a lazily-called, pure path-computation helper.
 import { join } from 'node:path';
-import { resolveAppDataDir } from '../../core/app-data-dir.js';
+import { resolveAppDataDir } from '../../shared/core/app-data-dir.js';
 
 /**
  * @param {{ env?: NodeJS.ProcessEnv, platform?: string }} [opts]

@@ -38,7 +38,7 @@ import { createOnnxEmbeddingCapability } from '../core/onnx-embed-lazy.js';
  *   createOnnxRuntimeUnavailableCapabilityFn?: typeof createOnnxRuntimeUnavailableCapability,
  *   warnLogFn?: (msg: string) => void,
  * }} opts
- * @returns {Promise<import('../core/onnx-embed-capability.js').OnnxEmbedCapability>}
+ * @returns {Promise<import('../shared/core/onnx-embed-capability.js').OnnxEmbedCapability>}
  */
 export async function resolveOnnxEmbedCapabilityForMcp({
   settingsService, env = process.env,

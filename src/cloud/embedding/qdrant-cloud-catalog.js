@@ -13,7 +13,7 @@
 // benchmarks/results/2026-07-21-qdrant-cloud-inference-live-spike.md), so
 // the catalog itself is a hand-maintained list, confirmed against the
 // Qdrant Cloud Console for one account on 2026-07-21.
-import { heuristicTokenCount } from '../../core/token-count.js';
+import { heuristicTokenCount } from '../../shared/core/token-count.js';
 import { loadQdrantCloudTokenizer, qdrantCloudTokenCount } from './qdrant-cloud-tokenizer.js';
 import { findDenseModel } from '../../core/embedding-profile/qdrant-cloud-models.js';
 

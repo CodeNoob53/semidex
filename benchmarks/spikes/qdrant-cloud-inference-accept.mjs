@@ -37,7 +37,7 @@ import { spawn } from 'node:child_process';
 import { createStorageAdapter } from '../../src/core/storage/factory.js';
 import { resolveExistingCollectionProfile } from '../../src/core/embedding-profile/resolve.js';
 import { runHybridSearch } from '../../src/core/retrieval/search.js';
-import { sanitiseErrorMessage } from '../../src/core/doctor-checks.js';
+import { sanitiseErrorMessage } from '../../src/shared/core/doctor-checks.js';
 import { getFileChunks, getContentNodeById } from '../../src/core/qdrant/store.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));

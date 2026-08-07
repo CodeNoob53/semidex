@@ -1,7 +1,7 @@
 export default async function ({ ok, throwsAsync }) {
   console.log('\n[4] Invalid provider combo — embedForSearch runtime guard');
 
-  const embMod = await import('../../core/embeddings.js');
+  const embMod = await import('../../shared/core/embeddings.js');
   ok('SCHEMA_VERSION is 2', embMod.SCHEMA_VERSION === 2);
 
   // embedForSearch now takes an already-resolved embedding profile

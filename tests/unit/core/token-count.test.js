@@ -15,7 +15,7 @@ import {
   getTokenCounter,
   countTokens,
   takeLastTokens,
-} from '../../../src/core/token-count.js';
+} from '../../../src/shared/core/token-count.js';
 import { createCloudEmbeddingCapability } from '../../../src/cloud/embedding/cloud-embedding-provider.js';
 
 // Real capability (code review, Phase 8B Step 6) — token-count.js's own

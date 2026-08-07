@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { sanitiseErrorMessage, formatCudaDiagnosis } from '../../../src/core/doctor-checks.js';
+import { sanitiseErrorMessage, formatCudaDiagnosis } from '../../../src/shared/core/doctor-checks.js';
 
 test('sanitiseErrorMessage — single secret (string) is redacted, backward compatible', () => {
   const out = sanitiseErrorMessage('request failed: key=sk-abc123 rejected', 'sk-abc123');

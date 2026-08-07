@@ -4,7 +4,7 @@ export default async function ({ ok, throwsAsync }) {
   console.log('\n[36] token-count.js and production BGE-M3 chunking');
 
   const { CHUNKING_SCHEMA_VERSION, heuristicTokenCount, resolveTokenCountMode, getTokenCounter, countTokens, takeLastTokens } =
-    await import('../../core/token-count.js');
+    await import('../../shared/core/token-count.js');
 
   // 36a. Production default is bge-m3; heuristic remains an explicit opt-out.
   ok('CHUNKING_SCHEMA_VERSION === 4', CHUNKING_SCHEMA_VERSION === 4);

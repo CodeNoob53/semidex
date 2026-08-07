@@ -12,15 +12,15 @@
 // sync.js consumes settings-registry fields via QDRANT_URL (read by
 // core/qdrant/client.js) — a settings.json-saved value must be visible to
 // `npm run sync` the same way it is to the indexer/admin/MCP.
-const { bootstrapEnv } = await import('./core/env-bootstrap.js');
+const { bootstrapEnv } = await import('./shared/core/env-bootstrap.js');
 const { osEnv, dotenvValues } = bootstrapEnv();
 const { createSettingsService, applyEnvWriteBack } = await import('./core/settings/service.js');
 const settingsService = createSettingsService({ osEnv, dotenvValues });
 applyEnvWriteBack(settingsService);
 
-const { loadConfig, saveConfig } = await import('./core/config.js');
-const { listCollections, getCollectionInfo, ensureCollectionSchema } = await import('./core/qdrant.js');
-const { classifyVectorSchema } = await import('./core/doctor-checks.js');
+const { loadConfig, saveConfig } = await import('./shared/core/config.js');
+const { listCollections, getCollectionInfo, ensureCollectionSchema } = await import('./shared/core/qdrant.js');
+const { classifyVectorSchema } = await import('./shared/core/doctor-checks.js');
 const { createStorageAdapter } = await import('./core/storage/factory.js');
 const { resolveCollectionConfigEntry } = await import('./core/embedding-profile/config-cache.js');
 

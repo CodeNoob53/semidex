@@ -27,8 +27,8 @@ import { existsSync, mkdirSync, readdirSync, copyFileSync, rmSync, writeFileSync
 import { resolve, join, dirname }                       from 'path';
 import { fileURLToPath }                                from 'url';
 
-import { deleteCollection, hybridSearch }                from '../../../src/core/qdrant.js';
-import { embedForSearch }                                from '../../../src/core/embeddings.js';
+import { deleteCollection, hybridSearch }                from '../../../src/shared/core/qdrant.js';
+import { embedForSearch }                                from '../../../src/shared/core/embeddings.js';
 import { createStorageAdapter }                          from '../../../src/core/storage/factory.js';
 import { resolveBenchProfile }                           from '../../lib/resolve-profile.js';
 

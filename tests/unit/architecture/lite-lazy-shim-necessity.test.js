@@ -131,7 +131,7 @@ describe('index-full.js (Full-only) is the ONE file that still statically/dynami
 
 describe('every OTHER former real-*-lazy.js consumer (core/embeddings.js, the phase modules, preflight.js, run.js, ollama-provider.js) no longer imports any of the three modules either', () => {
   const FORMER_CONSUMERS = [
-    'src/core/embeddings.js',
+    'src/shared/core/embeddings.js',
     'src/indexer/run.js',
     'src/indexer/phases/context.js',
     'src/indexer/phases/tag.js',

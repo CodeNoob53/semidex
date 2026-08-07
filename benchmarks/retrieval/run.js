@@ -58,8 +58,8 @@ import { chunkFile } from '../../src/indexer/phases/chunk.js';
 import {
   deleteBySourceFile,
   upsertPoints, hybridSearch, mmrSearch, scroll,
-} from '../../src/core/qdrant.js';
-import { embedForIndex, embedForSearch } from '../../src/core/embeddings.js';
+} from '../../src/shared/core/qdrant.js';
+import { embedForIndex, embedForSearch } from '../../src/shared/core/embeddings.js';
 import { rerankResults } from '../../src/core/rerank.js';
 import { createStorageAdapter } from '../../src/core/storage/factory.js';
 import { resolveBenchProfile } from '../lib/resolve-profile.js';

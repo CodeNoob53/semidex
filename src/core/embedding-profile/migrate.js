@@ -10,7 +10,7 @@
 // Semidex provider combinations are ever inferred. Any payload that
 // disagrees across points, or maps to an unrecognized combination, is
 // reported ambiguous — never guessed.
-import { VALID_PROVIDER_COMBOS } from '../env.js';
+import { VALID_PROVIDER_COMBOS } from '../../shared/core/env.js';
 import { buildEmbeddingProfile } from './schema.js';
 
 const IDENTITY_FIELDS = [

@@ -14,7 +14,7 @@
 import { pathToFileURL } from 'url';
 import { isNavPoint } from './core/qdrant/nav-filter.js';
 import { isSkeletonChunk } from './indexer/skeleton-payload.js';
-import { attachEntityRefs } from './core/entity-reference.js';
+import { attachEntityRefs } from './shared/core/entity-reference.js';
 
 export const PAYLOAD_FIELDS = [
   'point_kind', 'node_type', 'node_id', 'node_path', 'section',
@@ -215,13 +215,13 @@ if (isMainModule) {
   // reachable (code review finding, P2: this file previously called raw
   // dotenv.config() and never constructed a SettingsService at all, so a
   // settings.json-saved QDRANT_URL was invisible to it).
-  const { bootstrapEnv } = await import('./core/env-bootstrap.js');
+  const { bootstrapEnv } = await import('./shared/core/env-bootstrap.js');
   const { osEnv, dotenvValues } = bootstrapEnv();
   const { createSettingsService, applyEnvWriteBack } = await import('./core/settings/service.js');
   const settingsService = createSettingsService({ osEnv, dotenvValues });
   applyEnvWriteBack(settingsService);
 
-  const { scrollAllPoints, updatePayload, deletePayloadKeys } = await import('./core/qdrant.js');
+  const { scrollAllPoints, updatePayload, deletePayloadKeys } = await import('./shared/core/qdrant.js');
 
   const COLLECTION = process.env.COLLECTION;
   const DRY_RUN = process.env.DRY_RUN === '1';

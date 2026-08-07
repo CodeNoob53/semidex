@@ -8,7 +8,7 @@ export default async function ({ ok }) {
     expectedChunkingMeta, skeletonPayloadFields, isSkeletonChunk, makeSkeletonPointId,
     SKELETON_CHUNKING_MODEL, INDEXING_SCHEMA_VERSION_BASE, INDEXING_SCHEMA_VERSION_PROFILE_BUDGET,
   } = await import('../../indexer/skeleton-payload.js');
-  const { makePointId } = await import('../../core/point-id.js');
+  const { makePointId } = await import('../../shared/core/point-id.js');
 
   // ── expectedChunkingMeta (B1: skip-tuple input) ─────────────────────────────
   // Signature dropped its env parameter — skeleton chunking is unconditional

@@ -7,7 +7,7 @@
 // what it actually returns/does), not source-text regex.
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { REQUIRED_ONNX_EMBED_CAPABILITY_METHODS } from '../../../src/core/onnx-embed-capability.js';
+import { REQUIRED_ONNX_EMBED_CAPABILITY_METHODS } from '../../../src/shared/core/onnx-embed-capability.js';
 import { OnnxRuntimeUnavailableError } from '../../../src/local/core/onnx-runtime-unavailable-capability.js';
 import { resolveOnnxEmbedCapabilityForMcp } from '../../../src/mcp/onnx-runtime-resolution.js';
 

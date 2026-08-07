@@ -13,7 +13,7 @@ delete process.env.QDRANT_KEY;
 
 // Import must not throw even with QDRANT_URL unset (pre-migration qdrant.js
 // threw at import time; this is the core regression guard).
-const qdrant = await import('../../../src/core/qdrant.js');
+const qdrant = await import('../../../src/shared/core/qdrant.js');
 
 const ENV_KEYS = ['QDRANT_URL', 'QDRANT_KEY'];
 let saved;

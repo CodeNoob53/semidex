@@ -9,12 +9,12 @@
 // block: bootstrap env, construct the shared SettingsService, construct the
 // generation runtime, start the HTTP server.
 import { pathToFileURL } from 'node:url';
-import { bootstrapEnv } from '../core/env-bootstrap.js';
+import { bootstrapEnv } from '../shared/core/env-bootstrap.js';
 import { createSettingsService, applyEnvWriteBack } from '../core/settings/service.js';
 import { resolveOnnxRuntimeForProcess } from '../local/core/onnx-runtime-source-resolution.js';
 import { createOnnxRuntimeUnavailableCapability } from '../local/core/onnx-runtime-unavailable-capability.js';
 
-export { snapshotOsEnv, loadDotenvValues, applyDotenvValues, bootstrapEnv } from '../core/env-bootstrap.js';
+export { snapshotOsEnv, loadDotenvValues, applyDotenvValues, bootstrapEnv } from '../shared/core/env-bootstrap.js';
 
 const isMainModule = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 

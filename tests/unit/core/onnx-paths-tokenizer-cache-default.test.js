@@ -10,7 +10,7 @@ delete process.env.SEMIDEX_TOKENIZER_CACHE_DIR;
 
 describe('core/onnx-paths.js — SEMIDEX_TOKENIZER_CACHE_DIR unset (default)', () => {
   it('TOKENIZER_CACHE_DIR falls back to ONNX_CACHE_DIR exactly — full Semidex behavior unchanged', async () => {
-    const { TOKENIZER_CACHE_DIR, ONNX_CACHE_DIR } = await import('../../../src/core/onnx-paths.js');
+    const { TOKENIZER_CACHE_DIR, ONNX_CACHE_DIR } = await import('../../../src/shared/core/onnx-paths.js');
     assert.equal(TOKENIZER_CACHE_DIR, ONNX_CACHE_DIR);
     assert.ok(TOKENIZER_CACHE_DIR.endsWith('models'), 'must be the exact pre-existing package-relative default');
   });

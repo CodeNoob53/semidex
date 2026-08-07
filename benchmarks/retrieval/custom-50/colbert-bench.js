@@ -65,8 +65,8 @@ import { chunkFile } from '../../../src/indexer/phases/chunk.js';
 import {
   deleteBySourceFile,
   upsertPoints, hybridSearch, scroll,
-} from '../../../src/core/qdrant.js';
-import { embedForIndex, embedForSearch } from '../../../src/core/embeddings.js';
+} from '../../../src/shared/core/qdrant.js';
+import { embedForIndex, embedForSearch } from '../../../src/shared/core/embeddings.js';
 import { rerankResults } from '../../../src/core/rerank.js';
 import { validateQueryTypes, formatTypeDistribution } from './query-types.js';
 import { createStorageAdapter } from '../../../src/core/storage/factory.js';

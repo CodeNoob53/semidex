@@ -5,7 +5,7 @@
 // `serve` command's job API uses, so the two paths can never drift on how
 // an indexing job is spawned. Prints progress/log lines to stdout as they
 // arrive and resolves with the child's exit code.
-import { bootstrapEnv } from '../src/core/env-bootstrap.js';
+import { bootstrapEnv } from '../src/shared/core/env-bootstrap.js';
 import { createSettingsService, applyEnvWriteBack } from '../src/core/settings/service.js';
 import { createJobRegistry } from '../src/admin/jobs/registry.js';
 import { spawnIndexer as defaultSpawnLiteIndexer } from '../src/admin/jobs/spawn-indexer-lite.js';

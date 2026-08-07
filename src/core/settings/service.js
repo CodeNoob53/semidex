@@ -9,7 +9,7 @@
 // settings.json directly (see settings-store.js's own header comment).
 import { DEFINITIONS } from './definitions.js';
 import { readSettingsFile, writeSettingsFileAtomic, statMtime, DEFAULT_SETTINGS_PATH } from './settings-store.js';
-import { resolveEffectiveEmbeddingBackend, assertProviderCombo } from '../env.js';
+import { resolveEffectiveEmbeddingBackend, assertProviderCombo } from '../../shared/core/env.js';
 import { DEFAULT_MODEL_BY_BACKEND } from '../generation/config.js';
 
 const SOURCES = Object.freeze({

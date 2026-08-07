@@ -227,7 +227,7 @@ describe('Phase 8B Step 3 — classifier labels the moved Ollama files "local"',
 
 describe('Phase 8B Step 3 — Full and Lite composition roots construct in either order with no Ollama-capability contamination', () => {
   it('constructing createLiteApp() then createApp() (and vice versa) in one process leaves core/embeddings.js\'s own module-scope fallback untouched by either — mirrors the existing per-call isolation guarantee, extended to confirm order-independence for the Ollama lane specifically', async () => {
-    const embeddings = await import('../../../src/core/embeddings.js?step3-order-check');
+    const embeddings = await import('../../../src/shared/core/embeddings.js?step3-order-check');
     const profile = {
       schemaVersion: 1, managedBy: 'semidex', embeddingSchemaVersion: 2,
       embedding: {

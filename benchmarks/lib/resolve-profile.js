@@ -12,8 +12,8 @@
 //   const { dense, sparse, meta } = await embedForIndex(profile, chunk.text);
 //   const { dense, sparse } = await embedForSearch(profile, queryText);
 import { resolveExistingCollectionProfile, resolveNewCollectionProfile } from '../../src/core/embedding-profile/resolve.js';
-import { resolveEnvProviders } from '../../src/core/config.js';
-import { SCHEMA_VERSION } from '../../src/core/embeddings.js';
+import { resolveEnvProviders } from '../../src/shared/core/config.js';
+import { SCHEMA_VERSION } from '../../src/shared/core/embeddings.js';
 
 /**
  * Resolves (or creates) the embedding profile for a benchmark collection.

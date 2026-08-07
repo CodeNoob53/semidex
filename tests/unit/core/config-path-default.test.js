@@ -9,7 +9,7 @@ delete process.env.SEMIDEX_CONFIG_PATH;
 
 describe('config.js — SEMIDEX_CONFIG_PATH unset (default)', () => {
   it('loadConfig() does not throw and returns the {collections:{}} shape at the default repo-relative path', async () => {
-    const { loadConfig } = await import('../../../src/core/config.js');
+    const { loadConfig } = await import('../../../src/shared/core/config.js');
     const result = loadConfig();
     assert.ok(result && typeof result.collections === 'object');
   });
@@ -31,7 +31,7 @@ describe('config.js — SEMIDEX_CONFIG_PATH unset (default)', () => {
     const decoyPath = join(dir, 'config.json');
     writeFileSync(decoyPath, JSON.stringify({ collections: { decoy: {} } }));
     try {
-      const { loadConfig } = await import('../../../src/core/config.js');
+      const { loadConfig } = await import('../../../src/shared/core/config.js');
       const result = loadConfig();
       assert.ok(!('decoy' in result.collections), 'must never read the decoy path — only the real default location');
     } finally {

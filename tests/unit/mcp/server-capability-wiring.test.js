@@ -26,8 +26,8 @@ import { readFileSync } from 'node:fs';
 describe('mcp/server.js — never calls applyEmbeddingCapabilities() (code review, round 4)', () => {
   const src = readFileSync(new URL('../../../src/mcp/server.js', import.meta.url), 'utf-8');
 
-  it('imports embedForSearch from core/embeddings.js, but not applyEmbeddingCapabilities', () => {
-    assert.match(src, /\{\s*embedForSearch\s*}\s*=\s*await import\(['"]\.\.\/core\/embeddings\.js['"]\)/);
+  it('imports embedForSearch from shared/core/embeddings.js, but not applyEmbeddingCapabilities', () => {
+    assert.match(src, /\{\s*embedForSearch\s*}\s*=\s*await import\(['"]\.\.\/shared\/core\/embeddings\.js['"]\)/);
     // Doesn't grep for the bare identifier — this file's own header
     // comment legitimately mentions applyEmbeddingCapabilities() in prose
     // explaining why it is no longer called. What must be absent is an

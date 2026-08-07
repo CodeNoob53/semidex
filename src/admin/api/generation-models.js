@@ -27,7 +27,7 @@
 // at composition time, and pass `discoverModels` in explicitly — mirroring
 // how discoverOllamaModelsFn already worked.
 import { sendJson, badRequest } from '../../core/http/http.js';
-import { sanitiseErrorMessage } from '../../core/doctor-checks.js';
+import { sanitiseErrorMessage } from '../../shared/core/doctor-checks.js';
 
 function safeMessage(message, apiKey) {
   if (message == null) return null;

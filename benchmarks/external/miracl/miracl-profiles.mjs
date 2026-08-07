@@ -21,7 +21,7 @@ import {
   RRF_K_QDRANT_DEFAULT, RRF_K_SEMIDEX_DEFAULT, TOP_K, HYBRID_PREFETCH_LIMIT,
   COMMON_REGIME_TOKEN_BUDGET,
 } from '../beir/profiles.mjs';
-import { ONNX_DENSE_MODEL_ID } from '../../../src/core/onnx-paths.js';
+import { ONNX_DENSE_MODEL_ID } from '../../../src/shared/core/onnx-paths.js';
 
 export {
   BM25_MODEL_ID, E5_MODEL_ID, E5_DENSE_SIZE, E5_PREFIX, BM25_OPTIONS,

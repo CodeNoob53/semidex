@@ -50,7 +50,7 @@ import { readFileSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
-import { scroll } from '../../../src/core/qdrant.js';
+import { scroll } from '../../../src/shared/core/qdrant.js';
 
 const __dirname   = dirname(fileURLToPath(import.meta.url));
 const QUERIES_PATH = resolve(__dirname, 'queries.json');

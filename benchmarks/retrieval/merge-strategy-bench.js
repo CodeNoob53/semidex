@@ -38,9 +38,9 @@ import { mergeChunksWithDecisions, mergeChunksDeterministic, shouldMerge } from 
 import {
   deleteBySourceFile,
   upsertPoints, hybridSearch, scroll,
-} from '../../src/core/qdrant.js';
-import { embedForIndex, embedForSearch } from '../../src/core/embeddings.js';
-import { resolveEnvProviders } from '../../src/core/config.js';
+} from '../../src/shared/core/qdrant.js';
+import { embedForIndex, embedForSearch } from '../../src/shared/core/embeddings.js';
+import { resolveEnvProviders } from '../../src/shared/core/config.js';
 import { createStorageAdapter } from '../../src/core/storage/factory.js';
 import { resolveBenchProfile } from '../lib/resolve-profile.js';
 

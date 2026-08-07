@@ -34,7 +34,7 @@ import { dirname, resolve, join } from 'node:path';
 import { randomBytes, createHash } from 'node:crypto';
 import { execSync } from 'node:child_process';
 
-import { bootstrapEnv } from '../../../src/core/env-bootstrap.js';
+import { bootstrapEnv } from '../../../src/shared/core/env-bootstrap.js';
 import { createOnnxEmbeddingCapability } from '../../../src/local/core/onnx-embed.js';
 
 // This benchmark's own single-instance, lazy-construct-on-first-use seam

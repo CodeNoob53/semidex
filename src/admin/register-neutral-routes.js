@@ -37,7 +37,7 @@ import { registerSettingsRoutes } from './api/settings.js';
 import { handleStatic } from './static.js';
 import { createGenerationRuntime } from '../core/generation/runtime.js';
 import { createAskCoordinator } from '../core/ask/coordinator.js';
-import { getTokenCounter } from '../core/token-count.js';
+import { getTokenCounter } from '../shared/core/token-count.js';
 
 // Lazily resolves the real BGE-M3 tokenizer on first Ask request, never at
 // import/startup time — importing this module (e.g. for its route wiring

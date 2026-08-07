@@ -3,8 +3,8 @@ import { readFileSync, writeFileSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
-import { scroll, listCollections, hybridSearch } from '../../../src/core/qdrant.js';
-import { embedForSearch } from '../../../src/core/embeddings.js';
+import { scroll, listCollections, hybridSearch } from '../../../src/shared/core/qdrant.js';
+import { embedForSearch } from '../../../src/shared/core/embeddings.js';
 import { createStorageAdapter } from '../../../src/core/storage/factory.js';
 import { resolveExistingCollectionProfile } from '../../../src/core/embedding-profile/resolve.js';
 

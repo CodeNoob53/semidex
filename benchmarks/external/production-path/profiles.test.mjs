@@ -11,7 +11,7 @@ import {
   buildIndexEnv, collectionName, applyDeterministicHarnessEnv, restoreHarnessEnv,
   COLLECTION_PREFIX,
 } from './core/profiles.mjs';
-import { VALID_PROVIDER_COMBOS } from '../../../src/core/env.js';
+import { VALID_PROVIDER_COMBOS } from '../../../src/shared/core/env.js';
 
 describe('DETERMINISTIC_INDEXING_ENV_BASE — every key pinned, never relying on ambient absence', () => {
   const expectedKeys = [

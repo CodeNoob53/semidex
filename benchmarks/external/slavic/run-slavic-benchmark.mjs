@@ -33,9 +33,9 @@ import { randomBytes } from 'node:crypto';
 import { execSync } from 'node:child_process';
 import { AutoTokenizer } from '@huggingface/transformers';
 
-import { bootstrapEnv } from '../../../src/core/env-bootstrap.js';
+import { bootstrapEnv } from '../../../src/shared/core/env-bootstrap.js';
 import { createOnnxEmbeddingCapability } from '../../../src/local/core/onnx-embed.js';
-import { ONNX_DENSE_MODEL_ID, ONNX_CACHE_DIR } from '../../../src/core/onnx-paths.js';
+import { ONNX_DENSE_MODEL_ID, ONNX_CACHE_DIR } from '../../../src/shared/core/onnx-paths.js';
 
 // This benchmark's own single-instance, lazy-construct-on-first-use seam
 // (Phase 8B — onnx-embed.js no longer exports a bare module-scope-backed

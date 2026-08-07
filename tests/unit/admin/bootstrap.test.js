@@ -14,7 +14,7 @@ import { readFileSync } from 'node:fs';
 import {
   snapshotOsEnv, loadDotenvValues, applyDotenvValues, bootstrapEnv,
 } from '../../../src/admin/bootstrap.js';
-import * as envBootstrap from '../../../src/core/env-bootstrap.js';
+import * as envBootstrap from '../../../src/shared/core/env-bootstrap.js';
 
 describe('bootstrap.js — re-exports env-bootstrap.js unchanged', () => {
   test('snapshotOsEnv/loadDotenvValues/applyDotenvValues/bootstrapEnv are the same functions as core/env-bootstrap.js', () => {

@@ -8,9 +8,9 @@
 import * as store from '../qdrant/store.js';
 import { isSemidexPayload } from '../qdrant/payload.js';
 import { ensureCollectionSchema } from '../qdrant/ensure-schema.js';
-import { classifyVectorSchema } from '../doctor-checks.js';
+import { classifyVectorSchema } from '../../shared/core/doctor-checks.js';
 import { withNavExcluded, isNavPoint } from '../qdrant/nav-filter.js';
-import { loadConfig } from '../config.js';
+import { loadConfig } from '../../shared/core/config.js';
 import { mergeCapabilities } from './capabilities.js';
 import { createProfileCache } from './embedding-profile-cache.js';
 import {

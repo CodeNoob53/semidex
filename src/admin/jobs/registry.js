@@ -7,7 +7,7 @@
 // while a job is running/queued is rejected by the API layer with 409, not
 // silently queued.
 import { randomUUID } from 'node:crypto';
-import { sanitiseErrorMessage } from '../../core/doctor-checks.js';
+import { sanitiseErrorMessage } from '../../shared/core/doctor-checks.js';
 import { parseProgressLine } from '../../indexer/progress-event.js';
 
 // This file itself is edition-neutral (code review, round 4) — it never

@@ -17,7 +17,7 @@
 // interface.
 import { sendJson, notFound, readJsonBody, HttpError } from '../../http/http.js';
 import { startSse, writeSseEvent, waitForDrain } from '../../http/sse.js';
-import { sanitiseErrorMessage } from '../../doctor-checks.js';
+import { sanitiseErrorMessage } from '../../../shared/core/doctor-checks.js';
 import { parseAskRequestV1 } from './request.js';
 import {
   ASK_PATH, SSE_EVENTS, ERROR_CODES,

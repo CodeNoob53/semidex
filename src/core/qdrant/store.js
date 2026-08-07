@@ -10,7 +10,7 @@
 import { getQdrantClient, qdrantCall, errText } from './client.js';
 import { NAV_PAYLOAD_FIELDS, CONTENT_NODE_FIELDS } from './payload.js';
 import { collectionVectorSchema, SPARSE_VECTOR_SCHEMA, REQUIRED_PAYLOAD_INDEXES } from './schema.js';
-import { envInt } from '../env.js';
+import { envInt } from '../../shared/core/env.js';
 import { withNavExcluded, isNavPoint } from './nav-filter.js';
 
 // ── Collections ───────────────────────────────────────────────────────────────

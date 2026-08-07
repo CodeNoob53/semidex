@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync, rmSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { emitTelemetry } from '../../../src/core/bench-telemetry.js';
+import { emitTelemetry } from '../../../src/shared/core/bench-telemetry.js';
 
 describe('emitTelemetry()', () => {
   it('is a no-op (no file written) when SEMIDEX_BENCH_TELEMETRY_PATH is unset', () => {

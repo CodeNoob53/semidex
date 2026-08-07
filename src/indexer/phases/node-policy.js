@@ -16,8 +16,8 @@
 // logged separately to the warnings JSONL. Indexing and logging are two
 // independent streams.
 
-import { envInt } from '../../core/env.js';
-import { PLACEHOLDER_LINE_RE } from '../../core/entity-reference.js';
+import { envInt } from '../../shared/core/env.js';
+import { PLACEHOLDER_LINE_RE } from '../../shared/core/entity-reference.js';
 
 export const POINT_KINDS = Object.freeze({
   RETRIEVAL:  'retrieval_content',

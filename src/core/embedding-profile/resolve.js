@@ -20,8 +20,8 @@
 // (adapter.migrateEmbeddingProfile) run only from sync.js or the indexer's
 // own preflight — never implicitly from either function in this file.
 import { buildEmbeddingProfile, EXECUTION } from './schema.js';
-import { assertProviderCombo } from '../env.js';
-import { ONNX_DENSE_MODEL_ID } from '../onnx-paths.js';
+import { assertProviderCombo } from '../../shared/core/env.js';
+import { ONNX_DENSE_MODEL_ID } from '../../shared/core/onnx-paths.js';
 import { findDenseModel, findSparseModel } from './qdrant-cloud-models.js';
 
 /**
