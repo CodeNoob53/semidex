@@ -369,7 +369,7 @@ describe('POST /api/system/onnx-probe', () => {
     // avoids. probeOnnxProvider's own behavior (with injected spawnFn
     // stubs, never a real spawn) is exercised exhaustively by
     // onnx-provider-probe.test.js's own suite.
-    const { registerOnnxRoutes } = await import('../../../../src/admin/api/onnx.js');
+    const { registerOnnxRoutes } = await import('../../../../src/local/admin/api/onnx.js');
     const { probeOnnxProvider } = await import('../../../../src/local/core/onnx-provider-probe.js');
 
     const src = registerOnnxRoutes.toString();

@@ -2,7 +2,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadFileViewRenderHelpers, loadFileViewBehaviorHelpers, withServer, readUiSource } from './ui-test-helpers.js';
-import { renderChunkContent } from '../../../src/admin/ui-src/structural-renderer.js';
+import { renderChunkContent } from '../../../src/shared/admin/ui-src/structural-renderer.js';
 
 // ── Phase 3H: file/section browse cards are evidence-free — this is browse
 // mode, not search-evidence mode. Search results (tpl-search-result) show

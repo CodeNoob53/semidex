@@ -10,7 +10,7 @@ import {
   embeddingDimensionFromShow, getOllamaEmbeddingDimension,
 } from '../../../src/local/core/ollama.js';
 import { checkOllamaPreflight } from '../../../src/shared/indexer/preflight.js';
-import { checkOllama } from '../../../src/admin/system/ollama.js';
+import { checkOllama } from '../../../src/local/admin/system/ollama.js';
 import * as ollamaLazy from '../../../src/core/ollama-lazy.js';
 
 // preflight.js has no module-scope capability of its own at all (Phase 8B
@@ -355,9 +355,9 @@ describe('shared Ollama logic — no duplication between indexer and admin', () 
     assert.ok(!/fetch\(.*\/api\/tags/.test(src), 'ollama-lazy.js must not re-implement its own /api/tags fetch');
   });
 
-  it('src/admin/system/ollama.js imports isOllamaReachable/listOllamaModels from local/core/ollama.js', async () => {
-    const src = await readFile(new URL('../../../src/admin/system/ollama.js', import.meta.url), 'utf-8');
-    assert.match(src, /from ['"]\.\.\/\.\.\/local\/core\/ollama\.js['"]/);
+  it('src/local/admin/system/ollama.js imports isOllamaReachable/listOllamaModels from local/core/ollama.js', async () => {
+    const src = await readFile(new URL('../../../src/local/admin/system/ollama.js', import.meta.url), 'utf-8');
+    assert.match(src, /from ['"]\.\.\/\.\.\/core\/ollama\.js['"]/);
     assert.match(src, /isOllamaReachable/);
     assert.match(src, /listOllamaModels/);
     assert.ok(!/fetch\(.*\/api\/version/.test(src), 'admin ollama.js must not re-implement its own /api/version fetch');

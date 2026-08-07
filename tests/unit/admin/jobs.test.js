@@ -14,7 +14,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
-import { createJobRegistry, buildJobEnv } from '../../../src/admin/jobs/registry.js';
+import { createJobRegistry, buildJobEnv } from '../../../src/shared/admin/jobs/registry.js';
 import { createApp } from '../../../src/admin/server-full.js';
 
 // ── fake spawn helpers ──────────────────────────────────────────────────────

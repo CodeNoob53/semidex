@@ -38,9 +38,16 @@ function reachableFrom(root) {
   return reachable;
 }
 
+// Phase 8B Step 7C physically relocated admin/ui-src/ by ownership:
+// entries/lite-entry/partials-lite stayed at the composition root
+// (src/admin/ui-src/); shared JS modules and shared partials moved to
+// src/shared/admin/ui-src/; local-only local-features.js and partials/full/
+// moved to src/local/admin/ui-src/. Every graph-key string below was
+// updated to the new physical location — the assertions themselves (what
+// must/must-not be reachable) are unchanged from the original phase.
 describe('entries/lite.js — import-graph isolation from local-only UI code (real AST, not regex)', () => {
   const LITE_ENTRY = 'src/admin/ui-src/entries/lite.js';
-  const LOCAL_FEATURES = 'src/admin/ui-src/local-features.js';
+  const LOCAL_FEATURES = 'src/local/admin/ui-src/local-features.js';
 
   it('exists as a real, non-empty graph node', () => {
     assert.ok(graph.nodes[LITE_ENTRY], `expected ${LITE_ENTRY} to exist in the graph`);
@@ -66,13 +73,13 @@ describe('entries/lite.js — import-graph isolation from local-only UI code (re
   it('reaches every genuinely shared module (app.js, router.js, global-settings-view.js, jobs-view.js, settings-view.js) — proves this isn\'t isolated by accident (e.g. a broken import), only local-features.js is excluded', () => {
     const reachable = reachableFrom(LITE_ENTRY);
     for (const shared of [
-      'src/admin/ui-src/app.js',
-      'src/admin/ui-src/router.js',
-      'src/admin/ui-src/global-settings-view.js',
-      'src/admin/ui-src/jobs-view.js',
-      'src/admin/ui-src/settings-view.js',
-      'src/admin/ui-src/collection-view.js',
-      'src/admin/ui-src/search.js',
+      'src/shared/admin/ui-src/app.js',
+      'src/shared/admin/ui-src/router.js',
+      'src/shared/admin/ui-src/global-settings-view.js',
+      'src/shared/admin/ui-src/jobs-view.js',
+      'src/shared/admin/ui-src/settings-view.js',
+      'src/shared/admin/ui-src/collection-view.js',
+      'src/shared/admin/ui-src/search.js',
     ]) {
       assert.ok(reachable.has(shared), `expected entries/lite.js to reach ${shared} (shared code must still be shared) — reachable set: ${JSON.stringify([...reachable])}`);
     }
@@ -81,7 +88,7 @@ describe('entries/lite.js — import-graph isolation from local-only UI code (re
 
 describe('entries/full.js — import-graph reaches local-features.js (the mirror-image positive check)', () => {
   const FULL_ENTRY = 'src/admin/ui-src/entries/full.js';
-  const LOCAL_FEATURES = 'src/admin/ui-src/local-features.js';
+  const LOCAL_FEATURES = 'src/local/admin/ui-src/local-features.js';
 
   it('exists as a real, non-empty graph node', () => {
     assert.ok(graph.nodes[FULL_ENTRY], `expected ${FULL_ENTRY} to exist in the graph`);
@@ -103,9 +110,9 @@ describe('entries/full.js — import-graph reaches local-features.js (the mirror
 
 describe('shared modules never import Full or Lite composition roots', () => {
   const SHARED_MODULES = [
-    'src/admin/ui-src/app.js', 'src/admin/ui-src/router.js', 'src/admin/ui-src/global-settings-view.js',
-    'src/admin/ui-src/jobs-view.js', 'src/admin/ui-src/settings-view.js', 'src/admin/ui-src/collection-view.js',
-    'src/admin/ui-src/dom.js', 'src/admin/ui-src/api.js', 'src/admin/ui-src/sidebar.js',
+    'src/shared/admin/ui-src/app.js', 'src/shared/admin/ui-src/router.js', 'src/shared/admin/ui-src/global-settings-view.js',
+    'src/shared/admin/ui-src/jobs-view.js', 'src/shared/admin/ui-src/settings-view.js', 'src/shared/admin/ui-src/collection-view.js',
+    'src/shared/admin/ui-src/dom.js', 'src/shared/admin/ui-src/api.js', 'src/shared/admin/ui-src/sidebar.js',
   ];
 
   it('no shared module imports entries/full.js or entries/lite.js', () => {
@@ -131,11 +138,11 @@ describe('shared modules never import Full or Lite composition roots', () => {
 
   it('local-features.js is never imported by global-settings-view.js/jobs-view.js/settings-view.js directly (only by entries/full.js, via the capability seam)', () => {
     const offenders = [];
-    for (const file of ['src/admin/ui-src/global-settings-view.js', 'src/admin/ui-src/jobs-view.js', 'src/admin/ui-src/settings-view.js']) {
+    for (const file of ['src/shared/admin/ui-src/global-settings-view.js', 'src/shared/admin/ui-src/jobs-view.js', 'src/shared/admin/ui-src/settings-view.js']) {
       const node = graph.nodes[file];
       if (!node) continue;
       const relDeps = node.staticImports.filter((r) => r.kind === 'relative').map((r) => r.resolved).filter(Boolean);
-      if (relDeps.includes('src/admin/ui-src/local-features.js')) offenders.push(file);
+      if (relDeps.includes('src/local/admin/ui-src/local-features.js')) offenders.push(file);
     }
     assert.deepEqual(offenders, [], `these shared view modules must never import local-features.js directly — the whole point of the capability seam is that only entries/full.js does: ${JSON.stringify(offenders)}`);
   });
@@ -151,7 +158,10 @@ describe('physical partial ownership — no source-stripping mechanism remains',
   });
 
   it('no partial file contains a semidex-lite-strip marker comment', () => {
-    const partialsDir = new URL('../../../src/admin/ui-src/partials/', import.meta.url);
+    // Phase 8B Step 7C: partials now live under three physical roots —
+    // admin/ui-src/partials/ (composition-owned, partials/lite/ only),
+    // shared/admin/ui-src/partials/ (shared), and local/admin/ui-src/partials/
+    // (local-only, partials/full/) — walk all three.
     function walk(dirUrl) {
       const dirPath = dirUrl.pathname.replace(/^\/([a-zA-Z]):/, '$1:');
       const out = [];
@@ -163,31 +173,41 @@ describe('physical partial ownership — no source-stripping mechanism remains',
       }
       return out;
     }
+    const partialsDirs = [
+      new URL('../../../src/admin/ui-src/partials/', import.meta.url),
+      new URL('../../../src/shared/admin/ui-src/partials/', import.meta.url),
+      new URL('../../../src/local/admin/ui-src/partials/', import.meta.url),
+    ];
     const offenders = [];
-    for (const file of walk(partialsDir)) {
-      if (!file.endsWith('.html')) continue;
-      const content = readFileSync(file, 'utf-8');
-      if (content.includes('semidex-lite-strip')) offenders.push(file);
+    for (const partialsDir of partialsDirs) {
+      for (const file of walk(partialsDir)) {
+        if (!file.endsWith('.html')) continue;
+        const content = readFileSync(file, 'utf-8');
+        if (content.includes('semidex-lite-strip')) offenders.push(file);
+      }
     }
     assert.deepEqual(offenders, [], `no partial should still carry a semidex-lite-strip marker — the marker-based mechanism was removed entirely: ${JSON.stringify(offenders)}`);
   });
 
-  it('partials/full/ and partials/lite/ each physically exist with their own index-view.html and settings-shell.html', () => {
-    const base = new URL('../../../src/admin/ui-src/partials/', import.meta.url).pathname.replace(/^\/([a-zA-Z]):/, '$1:');
-    for (const edition of ['full', 'lite']) {
-      for (const file of ['index-view.html', 'settings-shell.html']) {
-        assert.ok(existsSync(`${base}${edition}/${file}`), `expected partials/${edition}/${file} to exist`);
-      }
+  it('partials/full/ (local/admin/ui-src/) and partials/lite/ (admin/ui-src/, composition-owned) each physically exist with their own index-view.html and settings-shell.html', () => {
+    const fullBase = new URL('../../../src/local/admin/ui-src/partials/full/', import.meta.url).pathname.replace(/^\/([a-zA-Z]):/, '$1:');
+    const liteBase = new URL('../../../src/admin/ui-src/partials/lite/', import.meta.url).pathname.replace(/^\/([a-zA-Z]):/, '$1:');
+    for (const file of ['index-view.html', 'settings-shell.html']) {
+      assert.ok(existsSync(`${fullBase}${file}`), `expected partials/full/${file} to exist`);
+      assert.ok(existsSync(`${liteBase}${file}`), `expected partials/lite/${file} to exist`);
     }
-    assert.ok(existsSync(`${base}full/onnx-probe-panel.html`), 'expected partials/full/onnx-probe-panel.html to exist (Full-only)');
-    assert.ok(!existsSync(`${base}lite/onnx-probe-panel.html`), 'partials/lite/ must not have its own onnx-probe-panel.html — Lite never needs one');
+    assert.ok(existsSync(`${fullBase}onnx-probe-panel.html`), 'expected partials/full/onnx-probe-panel.html to exist (Full-only)');
+    assert.ok(!existsSync(`${liteBase}onnx-probe-panel.html`), 'partials/lite/ must not have its own onnx-probe-panel.html — Lite never needs one');
   });
 
   it('there is no single flat partials/index-view.html, partials/settings-shell.html, or partials/templates/global-settings.html any more', () => {
-    const base = new URL('../../../src/admin/ui-src/partials/', import.meta.url).pathname.replace(/^\/([a-zA-Z]):/, '$1:');
-    assert.ok(!existsSync(`${base}index-view.html`));
-    assert.ok(!existsSync(`${base}settings-shell.html`));
-    assert.ok(!existsSync(`${base}templates/global-settings.html`));
+    const compositionBase = new URL('../../../src/admin/ui-src/partials/', import.meta.url).pathname.replace(/^\/([a-zA-Z]):/, '$1:');
+    const sharedBase = new URL('../../../src/shared/admin/ui-src/partials/', import.meta.url).pathname.replace(/^\/([a-zA-Z]):/, '$1:');
+    assert.ok(!existsSync(`${compositionBase}index-view.html`));
+    assert.ok(!existsSync(`${compositionBase}settings-shell.html`));
+    assert.ok(!existsSync(`${sharedBase}index-view.html`));
+    assert.ok(!existsSync(`${sharedBase}settings-shell.html`));
+    assert.ok(!existsSync(`${sharedBase}templates/global-settings.html`), 'global-settings.html must live under partials/shared/templates/, not directly under partials/templates/');
   });
 });
 
@@ -202,10 +222,10 @@ describe('separate HTML entry documents', () => {
     assert.match(html, /<script[^>]+src="\.\.\/entries\/lite\.js"/);
   });
 
-  it('only index.html <load>s partials/full/onnx-probe-panel.html', () => {
+  it('only index.html <load>s the local-only onnx-probe-panel.html', () => {
     const fullHtml = readFileSync(new URL('../../../src/admin/ui-src/index.html', import.meta.url), 'utf-8');
     const liteHtml = readFileSync(new URL('../../../src/admin/ui-src/lite-entry/index.html', import.meta.url), 'utf-8');
-    assert.match(fullHtml, /<load src="partials\/full\/onnx-probe-panel\.html"/);
+    assert.match(fullHtml, /<load src="[^"]*local\/admin\/ui-src\/partials\/full\/onnx-probe-panel\.html"/);
     assert.ok(!liteHtml.includes('onnx-probe-panel.html'), 'lite-entry/index.html must never <load> the ONNX probe panel');
   });
 });

@@ -98,8 +98,8 @@ describe('build.mjs extractReferences() — real-source regression (code review,
     );
   });
 
-  it('admin/jobs/registry.js itself has zero spawn()/fork() calls — spawnIndexer is a required, injected dependency', () => {
-    const ast = parseFile(join(REPO_SRC, 'admin', 'jobs', 'registry.js'));
+  it('shared/admin/jobs/registry.js itself has zero spawn()/fork() calls — spawnIndexer is a required, injected dependency', () => {
+    const ast = parseFile(join(REPO_SRC, 'shared', 'admin', 'jobs', 'registry.js'));
     const refs = extractReferences(ast);
     assert.deepEqual(refs.forkSpawnCalls, []);
   });
@@ -351,17 +351,17 @@ describe('build.mjs extractReferences() — non-literal specifiers never become 
 });
 
 describe('build.mjs extractReferences() — third-party OS executables are never treated as local JS entry points', () => {
-  it('admin/system/folder-picker.js: spawn("powershell.exe", ...) is extracted as a literal string, but resolveRelativeSpecifier() correctly refuses to resolve it as a repo path', () => {
-    const ast = parseFile(join(REPO_SRC, 'admin', 'system', 'folder-picker.js'));
+  it('shared/admin/system/folder-picker.js: spawn("powershell.exe", ...) is extracted as a literal string, but resolveRelativeSpecifier() correctly refuses to resolve it as a repo path', () => {
+    const ast = parseFile(join(REPO_SRC, 'shared', 'admin', 'system', 'folder-picker.js'));
     const refs = extractReferences(ast);
     const spawnCalls = refs.forkSpawnCalls.filter((c) => c.callee === 'spawn');
     assert.ok(spawnCalls.some((c) => c.arg === 'powershell.exe' && c.literal === true), `expected a literal spawn('powershell.exe', ...) call, got: ${JSON.stringify(spawnCalls)}`);
-    const resolved = resolveRelativeSpecifier('powershell.exe', 'admin/system/folder-picker.js');
+    const resolved = resolveRelativeSpecifier('powershell.exe', 'shared/admin/system/folder-picker.js');
     assert.equal(resolved, null, 'a bare OS-command name (no leading "." ) must never resolve to a staged file path');
   });
 
   it('a hypothetical spawn("./powershell.exe") WOULD be treated as a local path attempt (proves the guard is startsWith(".") based, not a name-based allow-list) and correctly fails to resolve since no such staged file exists', () => {
-    const resolved = resolveRelativeSpecifier('./powershell.exe', 'admin/system/folder-picker.js');
+    const resolved = resolveRelativeSpecifier('./powershell.exe', 'shared/admin/system/folder-picker.js');
     assert.equal(resolved, null);
   });
 
@@ -591,7 +591,7 @@ describe('build.mjs runValidator() — real staged-tree sanity check (read-only,
   });
 
   it('registry.js itself has zero spawn/fork CALLS of its own in the real staged tree (spawnIndexer is injected, never called directly here)', () => {
-    const src = readFileSync(join(STAGED_SRC, 'admin', 'jobs', 'registry.js'), 'utf-8');
+    const src = readFileSync(join(STAGED_SRC, 'shared', 'admin', 'jobs', 'registry.js'), 'utf-8');
     const ast = parseSource(src);
     const refs = extractReferences(ast);
     assert.deepEqual(refs.forkSpawnCalls, []);

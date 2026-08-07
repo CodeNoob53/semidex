@@ -10,7 +10,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseHTML, Event } from 'linkedom';
-import { renderChunkContent, STRUCTURAL_RENDER_TYPES } from '../../../src/admin/ui-src/structural-renderer.js';
+import { renderChunkContent, STRUCTURAL_RENDER_TYPES } from '../../../src/shared/admin/ui-src/structural-renderer.js';
 
 const { document } = parseHTML('<div></div>');
 

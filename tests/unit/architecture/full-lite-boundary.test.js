@@ -140,8 +140,8 @@ describe('full-lite architecture boundary (Phase 1 lock-in)', () => {
     }
     // registry.js itself: confirm the shared file has NO spawn() call of
     // its own anymore.
-    const registryNode = graph.nodes['src/admin/jobs/registry.js'];
-    assert.ok(registryNode, 'src/admin/jobs/registry.js must exist in the graph');
+    const registryNode = graph.nodes['src/shared/admin/jobs/registry.js'];
+    assert.ok(registryNode, 'src/shared/admin/jobs/registry.js must exist in the graph');
     const registrySpawnCalls = registryNode.forkSpawnCalls.filter((c) => c.callee === 'spawn');
     assert.deepEqual(registrySpawnCalls, [], 'registry.js must contain zero spawn() calls of its own — spawnIndexer is injected');
   });

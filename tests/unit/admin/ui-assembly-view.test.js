@@ -6,7 +6,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadFileViewBehaviorHelpers, withServer, readUiSource } from './ui-test-helpers.js';
-import { renderChunkContent } from '../../../src/admin/ui-src/structural-renderer.js';
+import { renderChunkContent } from '../../../src/shared/admin/ui-src/structural-renderer.js';
 
 function fileAssembly(overrides = {}) {
   return {

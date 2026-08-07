@@ -2,7 +2,7 @@
 // counterpart to jobs/registry.js's spawned-process job registry (Phase 3S).
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { createTaskRegistry, TASK_STATES } from '../../../src/admin/jobs/task-registry.js';
+import { createTaskRegistry, TASK_STATES } from '../../../src/shared/admin/jobs/task-registry.js';
 
 describe('createTaskRegistry()', () => {
   it('starts a task as "running" immediately — no queued stage for an in-process function', async () => {

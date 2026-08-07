@@ -5,7 +5,7 @@ import {
   requireIntParam,
   requireExactlyOne,
   requireStringParam,
-} from '../../../src/admin/api/query-params.js';
+} from '../../../src/shared/admin/api/query-params.js';
 
 function qs(str) {
   return new URLSearchParams(str);

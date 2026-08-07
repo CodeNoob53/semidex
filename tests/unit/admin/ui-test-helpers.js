@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 import { parseHTML, HTMLElement, HTMLInputElement, Event } from 'linkedom';
 import { createApp } from '../../../src/admin/server-full.js';
-import { createJobRegistry } from '../../../src/admin/jobs/registry.js';
+import { createJobRegistry } from '../../../src/shared/admin/jobs/registry.js';
 
 // Keep the shared helper free of the heavy unified/remark/highlight graph.
 // Structural-renderer tests inject the real implementation explicitly.
@@ -21,9 +21,25 @@ function renderChunkContentPlain(container, chunk) {
 // without preserving the declaration site's text). Tests that need original
 // function names read unminified ui-src source directly instead — no build
 // step required for these, and immune to minification.
-const UI_SRC_DIR = fileURLToPath(new URL('../../../src/admin/ui-src/', import.meta.url));
+//
+// Phase 8B Step 7C physically split admin/ui-src/ by ownership:
+// index.html/entries/lite-entry/partials-lite stayed at the composition
+// root (admin/ui-src/); every shared JS module and shared partial moved to
+// shared/admin/ui-src/; local-only local-features.js and partials/full/
+// moved to local/admin/ui-src/. Callers of readUiSource() still pass the
+// SAME bare relative paths they always did (e.g. 'app.js',
+// 'partials/full/index-view.html') — this resolver picks the correct
+// physical root per path so no call site needed to change.
+const COMPOSITION_UI_SRC_DIR = fileURLToPath(new URL('../../../src/admin/ui-src/', import.meta.url));
+const SHARED_UI_SRC_DIR = fileURLToPath(new URL('../../../src/shared/admin/ui-src/', import.meta.url));
+const LOCAL_UI_SRC_DIR = fileURLToPath(new URL('../../../src/local/admin/ui-src/', import.meta.url));
+function resolveUiSourceDir(relativePath) {
+  if (relativePath === 'index.html') return COMPOSITION_UI_SRC_DIR;
+  if (relativePath === 'local-features.js' || relativePath.startsWith('partials/full/')) return LOCAL_UI_SRC_DIR;
+  return SHARED_UI_SRC_DIR;
+}
 export function readUiSource(relativePath) {
-  return readFileSync(UI_SRC_DIR + relativePath, 'utf-8');
+  return readFileSync(resolveUiSourceDir(relativePath) + relativePath, 'utf-8');
 }
 
 // global-settings-view.js imports one zero-dependency catalog module

@@ -1,7 +1,7 @@
 // createRouter() unit tests — no HTTP server, fake req/res objects.
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { createRouter } from '../../../src/admin/router.js';
+import { createRouter } from '../../../src/shared/admin/router.js';
 
 function fakeReq(method, url) {
   return { method, url };

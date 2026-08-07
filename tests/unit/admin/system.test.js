@@ -9,8 +9,8 @@
 import { describe, it, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
-import { pickFolder } from '../../../src/admin/system/folder-picker.js';
-import { checkOllama } from '../../../src/admin/system/ollama.js';
+import { pickFolder } from '../../../src/shared/admin/system/folder-picker.js';
+import { checkOllama } from '../../../src/local/admin/system/ollama.js';
 import { createApp } from '../../../src/admin/server-full.js';
 
 function makeStubAdapter() {
@@ -218,7 +218,7 @@ describe('checkOllama', () => {
 
   it('does not import node:child_process — checking status can never spawn a process', async () => {
     const src = await (await import('node:fs/promises')).readFile(
-      new URL('../../../src/admin/system/ollama.js', import.meta.url), 'utf-8',
+      new URL('../../../src/local/admin/system/ollama.js', import.meta.url), 'utf-8',
     );
     assert.ok(!/child_process/.test(src), 'ollama.js must not import node:child_process at all');
   });

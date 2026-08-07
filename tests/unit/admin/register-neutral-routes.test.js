@@ -36,12 +36,12 @@ import { buildGraph } from '../../../scripts/audit/build-import-graph.mjs';
 import {
   LOCAL_ONLY_PATH_PATTERNS, COMPOSITION_FULL_PATTERNS, computeReachable,
 } from '../../../scripts/audit/classify-modules.mjs';
-import { registerNeutralRoutes } from '../../../src/admin/register-neutral-routes.js';
+import { registerNeutralRoutes } from '../../../src/shared/admin/register-neutral-routes.js';
 import { createApp } from '../../../src/admin/server-full.js';
 import { createLiteApp } from '../../../src/admin/composition/lite.js';
 import { makeStubAdapter } from './ui-test-helpers.js';
 
-const NEUTRAL_ROUTES_FILE = 'src/admin/register-neutral-routes.js';
+const NEUTRAL_ROUTES_FILE = 'src/shared/admin/register-neutral-routes.js';
 
 describe('register-neutral-routes.js — import-graph isolation (real AST, not regex)', () => {
   const graph = buildGraph();
@@ -128,8 +128,8 @@ describe('register-neutral-routes.js — import-graph isolation (real AST, not r
     assert.ok(compositionLiteDeps.includes(NEUTRAL_ROUTES_FILE), `expected composition/lite.js to import ${NEUTRAL_ROUTES_FILE}, got: ${JSON.stringify(compositionLiteDeps)}`);
     assert.ok(!serverFullDeps.includes('src/admin/composition/lite.js'), 'server-full.js must never import composition/lite.js (would give Full a real edge to the Lite-only composition root)');
     assert.ok(!compositionLiteDeps.includes('src/admin/server-full.js'), 'composition/lite.js must never import server-full.js (would give Lite a real edge to the full-only composition root)');
-    assert.ok(!serverFullDeps.includes('src/admin/server.js'), 'server-full.js must import the shared route wiring from register-neutral-routes.js directly, not re-import it via server.js');
-    assert.ok(!compositionLiteDeps.includes('src/admin/server.js'), 'composition/lite.js must import the shared route wiring from register-neutral-routes.js directly, not re-import it via server.js');
+    assert.ok(!serverFullDeps.includes('src/shared/admin/server.js'), 'server-full.js must import the shared route wiring from register-neutral-routes.js directly, not re-import it via server.js');
+    assert.ok(!compositionLiteDeps.includes('src/shared/admin/server.js'), 'composition/lite.js must import the shared route wiring from register-neutral-routes.js directly, not re-import it via server.js');
   });
 });
 

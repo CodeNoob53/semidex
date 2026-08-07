@@ -5,7 +5,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { resolveHostConfig, resolvePortConfig } from '../../../src/admin/server.js';
+import { resolveHostConfig, resolvePortConfig } from '../../../src/shared/admin/server.js';
 import { createApp } from '../../../src/admin/server-full.js';
 
 function makeStubAdapter(overrides = {}) {
@@ -678,7 +678,7 @@ describe('resolvePortConfig', () => {
   });
 });
 
-describe('layering — src/admin/ never imports Qdrant or Ollama directly', () => {
+describe('layering — Admin runtime never imports Qdrant or Ollama directly', () => {
   const FORBIDDEN = [
     /from\s+['"][^'"]*core\/qdrant\/store\.js['"]/,
     /from\s+['"]@qdrant\/js-client-rest['"]/,
@@ -702,18 +702,23 @@ describe('layering — src/admin/ never imports Qdrant or Ollama directly', () =
   // generation. The layering rule this test enforces is about the NEW
   // seam — no route or ask module may bypass GenerationProvider to call
   // local/core/ollama.js for generation — so this one pre-existing, non-generation
-  // wrapper is an intentional, narrow exemption, not a gap.
+  // wrapper is an intentional, narrow exemption, not a gap. Phase 8B Step
+  // 7C physically relocated it to local/admin/system/ollama.js, so the
+  // exemption is now matched against the local/admin/ root, not src/admin/.
   const EXEMPT = new Set(['system/ollama.js']);
 
-  it('no file under src/admin/ imports the Qdrant store/client/SDK or local/core/ollama.js directly', () => {
-    const dir = fileURLToPath(new URL('../../../src/admin/', import.meta.url)).replace(/\/$/, '');
+  it('no file under src/admin/, src/shared/admin/, src/local/admin/, or src/cloud/admin/ imports the Qdrant store/client/SDK or local/core/ollama.js directly', () => {
+    const roots = ['../../../src/admin/', '../../../src/shared/admin/', '../../../src/local/admin/', '../../../src/cloud/admin/'];
     const offenders = [];
-    for (const file of walk(dir)) {
-      const relative = file.slice(dir.length + 1).replace(/\\/g, '/');
-      if (EXEMPT.has(relative)) continue;
-      const content = readFileSync(file, 'utf-8');
-      if (FORBIDDEN.some((re) => re.test(content))) offenders.push(file);
+    for (const root of roots) {
+      const dir = fileURLToPath(new URL(root, import.meta.url)).replace(/\/$/, '');
+      for (const file of walk(dir)) {
+        const relative = file.slice(dir.length + 1).replace(/\\/g, '/');
+        if (EXEMPT.has(relative)) continue;
+        const content = readFileSync(file, 'utf-8');
+        if (FORBIDDEN.some((re) => re.test(content))) offenders.push(file);
+      }
     }
-    assert.deepEqual(offenders, [], `src/admin/ must depend on StorageAdapter/GenerationProvider only: ${offenders.join(', ')}`);
+    assert.deepEqual(offenders, [], `Admin runtime must depend on StorageAdapter/GenerationProvider only: ${offenders.join(', ')}`);
   });
 });

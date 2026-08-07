@@ -125,7 +125,7 @@ describe('ONNXRUNTIME_NODE_PATH: real settings.json -> applyEnvWriteBack() -> pr
     // baseEnv + the child's own bootstrapEnv(), never a per-job override),
     // and createJobRegistry() must genuinely use the injected baseEnv
     // rather than defaulting to live process.env when one is supplied.
-    const { createJobRegistry, buildJobEnv } = await import('../../../src/admin/jobs/registry.js');
+    const { createJobRegistry, buildJobEnv } = await import('../../../src/shared/admin/jobs/registry.js');
 
     const jobEnvKeys = Object.keys(buildJobEnv('test-collection', {}));
     assert.ok(!jobEnvKeys.includes('ONNXRUNTIME_NODE_PATH'), 'buildJobEnv must never set ONNXRUNTIME_NODE_PATH directly — it must come from baseEnv + the child\'s own settings.json read');

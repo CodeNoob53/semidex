@@ -7,7 +7,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { resolveStaticPath, UI_DIR, handleStatic } from '../../../src/admin/static.js';
+import { resolveStaticPath, UI_DIR, handleStatic } from '../../../src/shared/admin/static.js';
 import { readUiSource, getBuiltAssetPaths, withServer } from './ui-test-helpers.js';
 
 describe('static UI serving', () => {

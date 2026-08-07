@@ -9,7 +9,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { readUiSource } from './ui-test-helpers.js';
 
-const CSS_PATH = fileURLToPath(new URL('../../../src/admin/ui-src/app.css', import.meta.url));
+const CSS_PATH = fileURLToPath(new URL('../../../src/shared/admin/ui-src/app.css', import.meta.url));
 const css = () => readFileSync(CSS_PATH, 'utf-8');
 
 function relativeLuminance(hex) {

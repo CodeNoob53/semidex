@@ -5,8 +5,8 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
-import { createJobRegistry } from '../../../src/admin/jobs/registry.js';
-import { createTaskRegistry } from '../../../src/admin/jobs/task-registry.js';
+import { createJobRegistry } from '../../../src/shared/admin/jobs/registry.js';
+import { createTaskRegistry } from '../../../src/shared/admin/jobs/task-registry.js';
 import { createApp } from '../../../src/admin/server-full.js';
 
 function makeFakeChild() {

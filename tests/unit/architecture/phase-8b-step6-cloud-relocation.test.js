@@ -230,7 +230,7 @@ describe('Phase 8B Step 6 code review fix (second pass) — declared-shared modu
       'src/shared/core/token-count.js',
       'src/core/retrieval/search.js',
       'src/shared/indexer/run.js',
-      'src/admin/register-neutral-routes.js',
+      'src/shared/admin/register-neutral-routes.js',
     ];
     for (const path of named) {
       const category = byPath.get(path)?.declaredCategory ?? byPath.get(path)?.category;

@@ -18,12 +18,12 @@
 // are new to Phase 4.
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import * as serverModule from '../../../src/admin/server.js';
+import * as serverModule from '../../../src/shared/admin/server.js';
 import * as compositionLiteModule from '../../../src/admin/composition/lite.js';
 import { buildGraph } from '../../../scripts/audit/build-import-graph.mjs';
 import { LOCAL_ONLY_PATH_PATTERNS, COMPOSITION_FULL_PATTERNS, computeReachable } from '../../../scripts/audit/classify-modules.mjs';
 
-const SERVER_FILE = 'src/admin/server.js';
+const SERVER_FILE = 'src/shared/admin/server.js';
 const COMPOSITION_LITE_FILE = 'src/admin/composition/lite.js';
 
 describe('Phase 4 — canonical ownership of createLiteApp/LITE_JOB_POLICY', () => {
@@ -53,11 +53,11 @@ describe('Phase 4 — src/admin/server.js import boundary (real AST, not regex)'
     const node = graph.nodes[SERVER_FILE];
     assert.ok(node, `expected ${SERVER_FILE} to exist in the graph`);
     const relDeps = node.staticImports.filter((r) => r.kind === 'relative').map((r) => r.resolved);
-    assert.ok(!relDeps.includes('src/admin/register-neutral-routes.js'), `server.js must no longer import register-neutral-routes.js, got deps: ${JSON.stringify(relDeps)}`);
+    assert.ok(!relDeps.includes('src/shared/admin/register-neutral-routes.js'), `server.js must no longer import register-neutral-routes.js, got deps: ${JSON.stringify(relDeps)}`);
     assert.ok(!relDeps.includes('src/admin/composition/lite.js'), 'server.js must not import composition/lite.js (that would be a backwards edge — server.js has no reason to depend on its own former composition logic)');
     assert.ok(!relDeps.includes('src/admin/server-full.js'), 'server.js must never import server-full.js');
     assert.ok(!relDeps.includes('src/core/storage/factory.js'), `server.js must no longer import createStorageAdapter's module, got deps: ${JSON.stringify(relDeps)}`);
-    assert.ok(!relDeps.includes('src/admin/api/jobs.js'), `server.js must no longer import registerJobsRoutes' module, got deps: ${JSON.stringify(relDeps)}`);
+    assert.ok(!relDeps.includes('src/shared/admin/api/jobs.js'), `server.js must no longer import registerJobsRoutes' module, got deps: ${JSON.stringify(relDeps)}`);
   });
 
   it('src/admin/server.js has zero relative-import dependencies at all — pure bind-config logic, no composition imports of any kind', () => {
@@ -123,6 +123,6 @@ describe('Phase 4 — src/admin/composition/lite.js import boundary (real AST, n
   it('statically imports registerNeutralRoutes/createHttpServer from register-neutral-routes.js — the same shared module server-full.js uses', () => {
     const node = graph.nodes[COMPOSITION_LITE_FILE];
     const relDeps = node.staticImports.filter((r) => r.kind === 'relative').map((r) => r.resolved);
-    assert.ok(relDeps.includes('src/admin/register-neutral-routes.js'), `expected composition/lite.js to import register-neutral-routes.js, got: ${JSON.stringify(relDeps)}`);
+    assert.ok(relDeps.includes('src/shared/admin/register-neutral-routes.js'), `expected composition/lite.js to import register-neutral-routes.js, got: ${JSON.stringify(relDeps)}`);
   });
 });
