@@ -1,28 +1,30 @@
 // Semidex Lite composition root — createLiteApp() — moved out of
-// ../server.js (Phase 4 of
+// server.js (Phase 4 of
 // ../../../docs/design/full-lite-shared-architecture-audit-2026-08-01.md)
 // as a pure mechanical extraction — no behavior change, same DI arguments
-// and defaults, same route registration order. ../server.js now owns only
-// shared bind configuration (resolveHostConfig/resolvePortConfig); this
-// file owns Lite's own provider composition. The provider-neutral route
-// wiring itself (registerNeutralRoutes, createHttpServer) still lives in
-// ../register-neutral-routes.js — this file imports it, it does not define
-// it. createApp() (the FULL composition root) lives in ../server-full.js
-// and must never be imported from here — that is exactly the edge this
-// module's existence prevents Lite's dependency graph from having.
+// and defaults, same route registration order. src/shared/admin/server.js
+// (physically relocated, Phase 8B Step 7C) now owns only shared bind
+// configuration (resolveHostConfig/resolvePortConfig); this file owns
+// Lite's own provider composition. The provider-neutral route wiring
+// itself (registerNeutralRoutes, createHttpServer) still lives in
+// src/shared/admin/register-neutral-routes.js — this file imports it, it
+// does not define it. createApp() (the FULL composition root) lives in
+// ../server-full.js and must never be imported from here — that is
+// exactly the edge this module's existence prevents Lite's dependency
+// graph from having.
 //
 // No self-start block here — packages/lite/lite-src/serve-lite.js snapshots
 // the OS environment (bootstrapEnv()) BEFORE dynamically importing this
 // file, same ordering guarantee ../server.js's own header comment used to
 // document for createLiteApp() when it lived there.
 import { createStorageAdapter } from '../../core/storage/factory.js';
-import { createRouter } from '../router.js';
-import { registerJobsRoutes } from '../api/jobs.js';
-import { registerGenerationModelsRoutesGeminiOnly } from '../api/generation-models.js';
+import { createRouter } from '../../shared/admin/router.js';
+import { registerJobsRoutes } from '../../shared/admin/api/jobs.js';
+import { registerGenerationModelsRoutesGeminiOnly } from '../../shared/admin/api/generation-models.js';
 import { createSettingsService } from '../../core/settings/service.js';
-import { registerNeutralRoutes, createHttpServer } from '../register-neutral-routes.js';
+import { registerNeutralRoutes, createHttpServer } from '../../shared/admin/register-neutral-routes.js';
 import { embedForSearch } from '../../shared/core/embeddings.js';
-import { createJobRegistry } from '../jobs/registry.js';
+import { createJobRegistry } from '../../shared/admin/jobs/registry.js';
 import { spawnIndexer as spawnLiteIndexer } from '../jobs/spawn-indexer-lite.js';
 import { REQUIRED_OLLAMA_EMBED_CAPABILITY_METHODS } from '../../core/generation/ollama-capability.js';
 import { REQUIRED_ONNX_EMBED_CAPABILITY_METHODS } from '../../shared/core/onnx-embed-capability.js';

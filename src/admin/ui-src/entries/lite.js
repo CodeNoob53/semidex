@@ -10,7 +10,7 @@
 // physical isolation from local-runtime UI code: local-features.js is
 // simply never reachable from this module graph at all, not merely
 // dead-code-eliminated.
-import '../app.css';
-import { startAdminApp } from '../app.js';
+import '../../../shared/admin/ui-src/app.css';
+import { startAdminApp } from '../../../shared/admin/ui-src/app.js';
 
 startAdminApp();

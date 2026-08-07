@@ -92,7 +92,7 @@ if (isMainModule) {
   // reranking (see admin/api/search.js / core/ask/coordinator.js).
   const { applyCeRerankSettings, shutdownCEWorker } = await import('../core/ce-rerank.js');
   applyCeRerankSettings(settingsService);
-  const { resolveHostConfig, resolvePortConfig } = await import('./server.js');
+  const { resolveHostConfig, resolvePortConfig } = await import('../shared/admin/server.js');
   const { createApp } = await import('./server-full.js');
   const { createGenerationRuntime } = await import('../core/generation/runtime.js');
   const { createGenerationProvider } = await import('../core/generation/registry.js');

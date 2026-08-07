@@ -15,18 +15,18 @@
 // createApp directly from this file, which is excluded from the Lite
 // package.
 import { createStorageAdapter } from '../core/storage/factory.js';
-import { createRouter } from './router.js';
-import { registerJobsRoutes, FULL_JOB_POLICY } from './api/jobs.js';
-import { registerOllamaStatusRoutes } from './api/system.js';
-import { registerOnnxRoutes } from './api/onnx.js';
-import { registerOllamaModelsRoutes } from './api/ollama-models.js';
-import { registerGenerationModelsRoutes } from './api/generation-models.js';
+import { createRouter } from '../shared/admin/router.js';
+import { registerJobsRoutes, FULL_JOB_POLICY } from '../shared/admin/api/jobs.js';
+import { registerOllamaStatusRoutes } from '../shared/admin/api/system.js';
+import { registerOnnxRoutes } from '../local/admin/api/onnx.js';
+import { registerOllamaModelsRoutes } from '../local/admin/api/ollama-models.js';
+import { registerGenerationModelsRoutes } from '../shared/admin/api/generation-models.js';
 import { discoverOllamaModels } from '../local/core/ollama-models.js';
-import { checkOllama } from './system/ollama.js';
+import { checkOllama } from '../local/admin/system/ollama.js';
 import { createSettingsService } from '../core/settings/service.js';
-import { registerNeutralRoutes, createHttpServer } from './register-neutral-routes.js';
+import { registerNeutralRoutes, createHttpServer } from '../shared/admin/register-neutral-routes.js';
 import { embedForSearch } from '../shared/core/embeddings.js';
-import { createJobRegistry } from './jobs/registry.js';
+import { createJobRegistry } from '../shared/admin/jobs/registry.js';
 import { spawnIndexer as spawnFullIndexer } from './jobs/spawn-indexer-full.js';
 import * as ollamaLazy from '../core/ollama-lazy.js';
 import { createOnnxEmbeddingCapability } from '../core/onnx-embed-lazy.js';

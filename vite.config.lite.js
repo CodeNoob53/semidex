@@ -4,9 +4,10 @@ import injectHTML from 'vite-plugin-html-inject';
 
 // npm run admin:build:lite — produces dist/admin-ui-lite/, the UI Semidex
 // Lite's packages/lite/build.mjs stages into packages/lite/dist/admin-ui/.
-// Reuses the FULL admin UI source tree (src/admin/ui-src/) unchanged for
-// every genuinely shared module/partial — no separate ui-src-lite/ source
-// duplication.
+// Reuses the shared admin UI source tree (src/shared/admin/ui-src/,
+// physically relocated from src/admin/ui-src/ in Phase 8B Step 7C)
+// unchanged for every genuinely shared module/partial — no separate
+// ui-src-lite/ source duplication.
 //
 // Phase 6 (docs/design/full-lite-shared-architecture-audit-2026-08-01.md):
 // this config now builds a real, separate Lite HTML entry document
@@ -14,15 +15,17 @@ import injectHTML from 'vite-plugin-html-inject';
 // (entries/lite.js), composed from Lite's own physical partial files
 // (partials/lite/*.html) — the ONNX probe panel template and the ONNX/
 // LLM-summaries/tag-gen checkboxes are never included in the first place,
-// because lite-entry/index.html never <load>s
-// partials/full/onnx-probe-panel.html, and jobs-view.js's/settings-view.js's
-// ?raw partial imports resolve (via resolve.alias below) to
-// partials/lite/index-view.html and partials/lite/settings-shell.html, not
-// the Full edition's files at all. There is no post-build HTML/JS
-// string-stripping step here any more (the old stripHtmlMarkers()/
-// HTML_STRIPS mechanism, and every semidex-lite-strip:* marker it looked
-// for, are gone) — Lite's local-only markup is never composed into the
-// page or bundle to begin with, so there is nothing to strip.
+// because lite-entry/index.html never <load>s the local-only
+// onnx-probe-panel.html (physically relocated to
+// src/local/admin/ui-src/partials/full/, Phase 8B Step 7C), and
+// jobs-view.js's/settings-view.js's ?raw partial imports resolve (via
+// resolve.alias below) to partials/lite/index-view.html and
+// partials/lite/settings-shell.html, not the Full edition's files at all.
+// There is no post-build HTML/JS string-stripping step here any more (the
+// old stripHtmlMarkers()/HTML_STRIPS mechanism, and every
+// semidex-lite-strip:* marker it looked for, are gone) — Lite's local-only
+// markup is never composed into the page or bundle to begin with, so
+// there is nothing to strip.
 // entries/lite.js also never imports local-features.js (see that file's
 // own header comment), so onnxProbePanel()/wireOnnxProbePanel()/
 // categoryNeedsOllamaModels()/refreshOllamaModels() all stay unreachable
