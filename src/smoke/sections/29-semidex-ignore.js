@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync, rmSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
-import { collectFiles, loadIgnorePatterns, isIgnored } from '../../indexer/files.js';
+import { collectFiles, loadIgnorePatterns, isIgnored } from '../../shared/indexer/files.js';
 
 export default async function ({ ok }) {
   console.log('\n[29] .semidexignore — collectFiles exclusion');

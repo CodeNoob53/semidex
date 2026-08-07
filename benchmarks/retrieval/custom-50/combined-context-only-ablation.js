@@ -556,7 +556,7 @@ function buildReport({ dateStr, baseRun, baseCount, ctxTagsRun, ctxTagsCount, ct
 
   lines.push('## Notes');
   lines.push('');
-  lines.push('- `BENCH_COMBINED_CONTEXT_ONLY=1` is a benchmark-only flag in `src/indexer/phases/combined.js`.');
+  lines.push('- `BENCH_COMBINED_CONTEXT_ONLY=1` is a benchmark-only flag in `src/shared/indexer/phases/combined.js`.');
   lines.push('  Do not use it in production. Not documented as stable config.');
   lines.push('- ctx-only variant stores tags=[] — tag-based retrieval (qdrant_find_by_tag) not usable for those chunks.');
   lines.push('- Production default (baseline separate path) unchanged.');

@@ -4,7 +4,7 @@
 // specifically so they can be pinned without that dependency.
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { shouldSkipCollectionNavRollup, collectionNavRollupNeeded } from '../../../src/indexer/run.js';
+import { shouldSkipCollectionNavRollup, collectionNavRollupNeeded } from '../../../src/shared/indexer/run.js';
 
 describe('shouldSkipCollectionNavRollup', () => {
   test('true for an empty fileNodes array — nothing to roll up', () => {

@@ -1,7 +1,7 @@
 export default async function ({ ok }) {
   console.log('\n[27] combined context+tags phase (pure parser + guard)');
 
-  const { parseCombinedResponse, COMBINED_MIN_CHARS } = await import('../../indexer/phases/combined.js');
+  const { parseCombinedResponse, COMBINED_MIN_CHARS } = await import('../../shared/indexer/phases/combined.js');
 
   // ── parseCombinedResponse ──────────────────────────────────────────────────
 

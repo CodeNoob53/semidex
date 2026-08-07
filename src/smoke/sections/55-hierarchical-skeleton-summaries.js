@@ -11,11 +11,11 @@ export default async function ({ ok }) {
     generateDirectorySummaries,
     buildCollectionSummary,
     SUMMARY_VERSION,
-  } = await import('../../indexer/phases/skeleton-summary.js');
+  } = await import('../../shared/indexer/phases/skeleton-summary.js');
 
-  const { parseSkeleton }     = await import('../../indexer/phases/skeleton.js');
-  const { chunkFromSkeleton } = await import('../../indexer/phases/skeleton-chunk.js');
-  const { buildFileSkeleton } = await import('../../indexer/phases/skeleton-index.js');
+  const { parseSkeleton }     = await import('../../shared/indexer/phases/skeleton.js');
+  const { chunkFromSkeleton } = await import('../../shared/indexer/phases/skeleton-chunk.js');
+  const { buildFileSkeleton } = await import('../../shared/indexer/phases/skeleton-index.js');
 
   // ── Shared stub helpers ───────────────────────────────────────────────────────
 
@@ -260,7 +260,7 @@ export default async function ({ ok }) {
 
   // ── summary_kind: 'propagated' passes through buildNavPointPayload ────────────
 
-  const { buildNavPointPayload } = await import('../../indexer/skeleton-payload.js');
+  const { buildNavPointPayload } = await import('../../shared/indexer/skeleton-payload.js');
   const propNav = {
     point_kind: 'skeleton_nav', node_type: 'file',
     node_id: 'prop-id', node_path: 'f.md#file',

@@ -1,7 +1,7 @@
 export default async function ({ ok }) {
   console.log('\n[28] Setext heading support in parseMarkdown');
 
-  const { chunkFile } = await import('../../indexer/phases/chunk.js');
+  const { chunkFile } = await import('../../shared/indexer/phases/chunk.js');
 
   // 28a. h1 setext (===) creates a section boundary.
   const h1 = `Title\n=====\nSome content under title.`;

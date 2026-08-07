@@ -9,7 +9,7 @@
 // never touches a real Qdrant instance or the real config.json.
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { createNewCollectionWithConfigCache } from '../../../src/indexer/run.js';
+import { createNewCollectionWithConfigCache } from '../../../src/shared/indexer/run.js';
 
 const PROFILE = { embedding: { dense: { model: 'intfloat/multilingual-e5-small' } } };
 

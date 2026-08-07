@@ -1,4 +1,4 @@
-import { validateOllamaGenerateCapability } from '../../core/generation/ollama-capability.js';
+import { validateOllamaGenerateCapability } from '../../../core/generation/ollama-capability.js';
 import { addContext } from './context.js';
 import { addTagsWithModel } from './tag.js';
 
@@ -209,7 +209,7 @@ ${chunk.text.slice(0, 1000)}`;
  * @param {Object} chunk
  * @param {string} model
  * @param {Object[]} chunks
- * @param {{ ollama: import('../../core/generation/ollama-capability.js').OllamaGenerateCapability }} opts
+ * @param {{ ollama: import('../../../core/generation/ollama-capability.js').OllamaGenerateCapability }} opts
  *   — required; no module-scope fallback exists. Threaded unchanged into
  *   the fallback path's own addContext()/addTagsWithModel() calls.
  */

@@ -241,7 +241,7 @@ function writeReport({ included, skipped, run, perFile, audit, verdict }) {
     '## Purpose',
     '',
     'Verify that `(empty section: ...)` chunks are routed around context/tag LLM calls',
-    'after the fix in `src/indexer/phases/empty-section.js` + `src/indexer/index.js`.',
+    'after the fix in `src/shared/indexer/phases/empty-section.js` + `src/indexer/index.js`.',
     '',
     '## Environment',
     '',

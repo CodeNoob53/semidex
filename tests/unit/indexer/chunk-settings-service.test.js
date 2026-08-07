@@ -5,7 +5,7 @@
 // subsequent real chunkText() call reflects the new bound.
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { getChunkingConfig, applyChunkingSettings } from '../../../src/indexer/phases/chunk.js';
+import { getChunkingConfig, applyChunkingSettings } from '../../../src/shared/indexer/phases/chunk.js';
 
 function fakeSettingsService(values) {
   return { getActiveValue: (key) => values[key] };

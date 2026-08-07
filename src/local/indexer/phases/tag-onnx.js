@@ -92,12 +92,13 @@
 import { fork } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-// tag-provider.js deliberately stays in src/indexer/phases/ (shared,
-// dependency-free — see its own header comment) even though this file
-// moved to src/local/indexer/phases/ (Phase 8B Step 4) — a local file
-// importing a shared one is the normal, allowed direction; only
-// shared -> local is forbidden.
-import { isOnnxTagProvider } from '../../../indexer/phases/tag-provider.js';
+// tag-provider.js deliberately stays shared, dependency-free (see its own
+// header comment) — physically relocated to src/shared/indexer/phases/
+// (Phase 8B Step 7B) — even though this file moved to
+// src/local/indexer/phases/ (Phase 8B Step 4) — a local file importing a
+// shared one is the normal, allowed direction; only shared -> local is
+// forbidden.
+import { isOnnxTagProvider } from '../../../shared/indexer/phases/tag-provider.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const WORKER_PATH = join(__dirname, '../workers/tag-onnx-worker.js');

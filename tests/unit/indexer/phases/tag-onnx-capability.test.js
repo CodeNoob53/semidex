@@ -1,13 +1,13 @@
 // TagOnnxCapability contract (Phase 8B Step 1) — mirrors provider.test.js's
 // shape-validator test style. See
-// ../../../../src/indexer/phases/tag-onnx-capability.js for the full
+// ../../../../src/shared/indexer/phases/tag-onnx-capability.js for the full
 // rationale, in particular the shutdownOnnxTagWorker always-safe-no-op
 // contract (Phase 8A Part D finding, a real production-incident-derived
 // requirement).
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { validateTagOnnxCapability, REQUIRED_TAG_ONNX_CAPABILITY_METHODS } from '../../../../src/indexer/phases/tag-onnx-capability.js';
+import { validateTagOnnxCapability, REQUIRED_TAG_ONNX_CAPABILITY_METHODS } from '../../../../src/shared/indexer/phases/tag-onnx-capability.js';
 
 function validCapability() {
   const capability = {};
@@ -45,7 +45,7 @@ describe('validateTagOnnxCapability', () => {
 
 describe('tag-onnx-capability.js — zero backend imports (contract, not implementation)', () => {
   test('the contract module source has no import of tag-onnx.js, tag-onnx-worker.js, onnxruntime-node, or @huggingface/transformers', () => {
-    const src = readFileSync(new URL('../../../../src/indexer/phases/tag-onnx-capability.js', import.meta.url), 'utf-8');
+    const src = readFileSync(new URL('../../../../src/shared/indexer/phases/tag-onnx-capability.js', import.meta.url), 'utf-8');
     const codeOnly = src.split('\n').filter((line) => !line.trim().startsWith('//')).join('\n');
     assert.ok(!/from ['"].*tag-onnx(-lazy)?\.js['"]/.test(codeOnly), 'must not import tag-onnx.js or tag-onnx-lazy.js');
     assert.ok(!/from ['"].*tag-onnx-worker\.js['"]/.test(codeOnly), 'must not import tag-onnx-worker.js');
@@ -54,7 +54,7 @@ describe('tag-onnx-capability.js — zero backend imports (contract, not impleme
   });
 
   test('importing the contract module in isolation performs zero network/filesystem side effects', async () => {
-    const mod = await import('../../../../src/indexer/phases/tag-onnx-capability.js');
+    const mod = await import('../../../../src/shared/indexer/phases/tag-onnx-capability.js');
     assert.ok(typeof mod.validateTagOnnxCapability === 'function');
     assert.ok(Array.isArray(mod.REQUIRED_TAG_ONNX_CAPABILITY_METHODS));
   });

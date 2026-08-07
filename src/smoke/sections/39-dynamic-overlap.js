@@ -16,7 +16,7 @@
 export default async function ({ ok }) {
   console.log('\n[39] Dynamic token-budgeted overlap');
 
-  const { chunkFileAsync, getChunkingConfig } = await import('../../indexer/phases/chunk.js');
+  const { chunkFileAsync, getChunkingConfig } = await import('../../shared/indexer/phases/chunk.js');
   const { getTokenCounter } = await import('../../shared/core/token-count.js');
 
   const countFn = await getTokenCounter({ mode: 'bge-m3' });

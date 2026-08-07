@@ -9,7 +9,7 @@
 // both cases must agree with.
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { shouldSkipOllamaPreflight } from '../../../src/indexer/run.js';
+import { shouldSkipOllamaPreflight } from '../../../src/shared/indexer/run.js';
 
 function skeletonChunkMeta() {
   return { chunkingModel: 'skeleton-v1' };

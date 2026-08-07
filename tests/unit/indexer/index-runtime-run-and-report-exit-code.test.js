@@ -10,7 +10,7 @@
 // main()).
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { runAndReportExitCode } from '../../../src/indexer/index-runtime.js';
+import { runAndReportExitCode } from '../../../src/shared/indexer/index-runtime.js';
 
 describe('runAndReportExitCode()', () => {
   it('does not resolve until runFn() itself resolves — genuinely awaits, never fire-and-forget', async () => {

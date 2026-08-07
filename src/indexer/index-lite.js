@@ -27,7 +27,7 @@
 // spawn-indexer-lite.js's spawnIndexer explicitly.
 //
 // Usage: COLLECTION=my-collection node src/indexer/index-lite.js <file|folder>
-import { isIndexerMainModule, runIndexerCli } from './index-runtime.js';
+import { isIndexerMainModule, runIndexerCli } from '../shared/indexer/index-runtime.js';
 // createCloudEmbeddingCapability() (code review, Phase 8B Step 6): unlike
 // ollama/onnxEmbed above (Lite builds typed-unavailable stubs for both —
 // local providers Lite never ships), Lite genuinely NEEDS the real Qdrant

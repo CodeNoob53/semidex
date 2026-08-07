@@ -13,7 +13,7 @@
 // way it does for every other phase module. checkOllamaPreflight() only
 // ever RUNS when a local Ollama model is actually required (run.js gates
 // it behind !skeletonNoLlm and never calls it in cloud/deterministic mode).
-import { validateOllamaDiscoveryCapability } from '../core/generation/ollama-capability.js';
+import { validateOllamaDiscoveryCapability } from '../../core/generation/ollama-capability.js';
 
 /**
  * Impure: fetches /api/version and /api/tags, throws with actionable
@@ -21,7 +21,7 @@ import { validateOllamaDiscoveryCapability } from '../core/generation/ollama-cap
  * @param {string} ollamaUrl
  * @param {string} contextModel
  * @param {string} tagModel
- * @param {import('../core/generation/ollama-capability.js').OllamaDiscoveryCapability} capability
+ * @param {import('../../core/generation/ollama-capability.js').OllamaDiscoveryCapability} capability
  *   — required; no module-scope fallback exists.
  */
 export async function checkOllamaPreflight(ollamaUrl, contextModel, tagModel, capability) {
@@ -70,7 +70,7 @@ let _preflightPromise = null;
  * @param {string} ollamaUrl
  * @param {string} contextModel
  * @param {string} tagModel
- * @param {import('../core/generation/ollama-capability.js').OllamaDiscoveryCapability} capability — required, see checkOllamaPreflight().
+ * @param {import('../../core/generation/ollama-capability.js').OllamaDiscoveryCapability} capability — required, see checkOllamaPreflight().
  */
 export async function ensureOllamaPreflight(ollamaUrl, contextModel, tagModel, capability) {
   if (!_preflightPromise) {

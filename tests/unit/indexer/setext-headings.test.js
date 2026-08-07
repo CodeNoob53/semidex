@@ -2,7 +2,7 @@
 import '../../helpers/setup.js';
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { chunkFile } from '../../../src/indexer/phases/chunk.js';
+import { chunkFile } from '../../../src/shared/indexer/phases/chunk.js';
 
 describe('parseMarkdown — setext headings', () => {
   it('setext h1 (===) creates a named section with its content', () => {

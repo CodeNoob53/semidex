@@ -4,7 +4,7 @@ import { fileURLToPath } from 'url';
 export default async function ({ ok }) {
   console.log('\n[17] chunkFileFromPath PDF fixture (no Qdrant)');
 
-  const { chunkFileFromPath } = await import('../../indexer/phases/chunk.js');
+  const { chunkFileFromPath } = await import('../../shared/indexer/phases/chunk.js');
   const fixturePath = resolve(dirname(fileURLToPath(import.meta.url)), '../../test-fixtures/three-sections.pdf');
 
   const { chunks } = await chunkFileFromPath(fixturePath, 'three-sections.pdf');

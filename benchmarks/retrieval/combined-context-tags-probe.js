@@ -20,10 +20,10 @@ import { existsSync, mkdirSync, copyFileSync, readdirSync, rmSync, writeFileSync
 import { resolve, join, dirname, relative } from 'path';
 import { fileURLToPath } from 'url';
 
-import { chunkFileFromPath } from '../../src/indexer/phases/chunk.js';
+import { chunkFileFromPath } from '../../src/shared/indexer/phases/chunk.js';
 import { generate } from '../../src/local/core/ollama.js';
-import { addContext } from '../../src/indexer/phases/context.js';
-import { addTagsBatch, extractJsonArray } from '../../src/indexer/phases/tag.js';
+import { addContext } from '../../src/shared/indexer/phases/context.js';
+import { addTagsBatch, extractJsonArray } from '../../src/shared/indexer/phases/tag.js';
 import { extractContextTagsArray } from './combined-context-tags-helpers.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../');

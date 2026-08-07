@@ -57,7 +57,7 @@ import { randomUUID } from 'crypto';
 
 import { validateQueryTypes, formatTypeDistribution } from '../custom-50/query-types.js';
 
-import { chunkFile } from '../../../src/indexer/phases/chunk.js';
+import { chunkFile } from '../../../src/shared/indexer/phases/chunk.js';
 import {
   deleteBySourceFile,
   upsertPoints, hybridSearch, mmrSearch, scroll,

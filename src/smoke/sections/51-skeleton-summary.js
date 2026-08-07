@@ -5,10 +5,10 @@ export default async function ({ ok }) {
   console.log('\n[51] skeleton summary — adaptive window rule + stubbed LLM');
 
   const { estTokens, chooseSource, summaryWindowTokens, generateNavSummaries, buildCollectionSummary, sanitizeSummary } =
-    await import('../../indexer/phases/skeleton-summary.js');
-  const { parseSkeleton } = await import('../../indexer/phases/skeleton.js');
-  const { chunkFromSkeleton } = await import('../../indexer/phases/skeleton-chunk.js');
-  const { buildFileSkeleton } = await import('../../indexer/phases/skeleton-index.js');
+    await import('../../shared/indexer/phases/skeleton-summary.js');
+  const { parseSkeleton } = await import('../../shared/indexer/phases/skeleton.js');
+  const { chunkFromSkeleton } = await import('../../shared/indexer/phases/skeleton-chunk.js');
+  const { buildFileSkeleton } = await import('../../shared/indexer/phases/skeleton-index.js');
 
   // ── window budget env ────────────────────────────────────────────────────────
   ok('default window 8000', summaryWindowTokens({}) === 8000);
@@ -112,7 +112,7 @@ export default async function ({ ok }) {
        seen.every(p2 => !p2.includes('Write in English')));
 
     // SUMMARY_LANG override: explicit beats detection, free-form accepted.
-    const { resolveForcedLang } = await import('../../indexer/phases/skeleton-summary.js');
+    const { resolveForcedLang } = await import('../../shared/indexer/phases/skeleton-summary.js');
     ok('SUMMARY_LANG=en forces English', resolveForcedLang({ SUMMARY_LANG: 'en' }) === 'English');
     ok('SUMMARY_LANG=ukr ISO-3 accepted', resolveForcedLang({ SUMMARY_LANG: 'ukr' }) === 'Ukrainian');
     ok('SUMMARY_LANG free-form (excluded from auto whitelist) accepted',

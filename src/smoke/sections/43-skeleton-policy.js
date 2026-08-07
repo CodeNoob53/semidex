@@ -5,8 +5,8 @@ export default async function ({ ok }) {
   console.log('\n[43] skeleton — node policy mapping + isContentBearing gate');
 
   const { NODE_POLICY, applyNodePolicy, isContentBearing, isTinyCodeBlock, POINT_KINDS } =
-    await import('../../indexer/phases/node-policy.js');
-  const { parseSkeleton } = await import('../../indexer/phases/skeleton.js');
+    await import('../../shared/indexer/phases/node-policy.js');
+  const { parseSkeleton } = await import('../../shared/indexer/phases/skeleton.js');
 
   const node = (nodeType, text = '') => ({ nodeType, text });
   // Substantial code body: the tiny-code rule (vault-validated) routes small

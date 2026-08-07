@@ -33,7 +33,7 @@ import { randomUUID } from 'crypto';
 import { performance } from 'perf_hooks';
 
 import { stableSortResults } from './custom-50/sort-results.js';
-import { chunkFile } from '../../src/indexer/phases/chunk.js';
+import { chunkFile } from '../../src/shared/indexer/phases/chunk.js';
 import { mergeChunksWithDecisions, mergeChunksDeterministic, shouldMerge } from './legacy-merge.js';
 import {
   deleteBySourceFile,

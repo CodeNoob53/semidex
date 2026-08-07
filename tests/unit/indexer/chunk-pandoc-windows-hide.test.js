@@ -1,4 +1,4 @@
-// Source-level regression guard for src/indexer/phases/chunk.js's pandoc
+// Source-level regression guard for src/shared/indexer/phases/chunk.js's pandoc
 // execFile call (Phase 3J console-flash audit) — no execFile stub/DI exists
 // for this module today, so this pins the actual options object passed to
 // execFileAsync rather than exercising a real pandoc invocation.
@@ -8,7 +8,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const src = readFileSync(
-  fileURLToPath(new URL('../../../src/indexer/phases/chunk.js', import.meta.url)),
+  fileURLToPath(new URL('../../../src/shared/indexer/phases/chunk.js', import.meta.url)),
   'utf-8',
 );
 

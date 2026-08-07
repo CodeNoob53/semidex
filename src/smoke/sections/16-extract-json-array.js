@@ -1,7 +1,7 @@
 export default async function ({ ok }) {
   console.log('\n[16] extractJsonArray (tag batch parser)');
 
-  const { extractJsonArray } = await import('../../indexer/phases/tag.js');
+  const { extractJsonArray } = await import('../../shared/indexer/phases/tag.js');
 
   ok('flat array → returned as-is',
     JSON.stringify(extractJsonArray('[["a","b"],["c","d"]]', 2)) === '[["a","b"],["c","d"]]');

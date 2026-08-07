@@ -39,7 +39,7 @@
 // the resulting instance in as `tagOnnx` — never calls it per-request, and
 // never shares one instance across two separately-constructed
 // compositions.
-export { isOnnxTagProvider } from './tag-provider.js';
+export { isOnnxTagProvider } from '../../shared/indexer/phases/tag-provider.js';
 
 let _mod = null;
 

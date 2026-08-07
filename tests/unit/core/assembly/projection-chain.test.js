@@ -25,12 +25,12 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { CONTENT_NODE_FIELDS } from '../../../../src/core/qdrant/payload.js';
-import { skeletonPayloadFields } from '../../../../src/indexer/skeleton-payload.js';
+import { skeletonPayloadFields } from '../../../../src/shared/indexer/skeleton-payload.js';
 import { toChunk } from '../../../../src/core/storage/qdrant-adapter.js';
 import { assembleDocument } from '../../../../src/core/assembly/assemble.js';
 import { ASSEMBLY_MODES } from '../../../../src/core/assembly/contract.js';
-import { parseSkeleton } from '../../../../src/indexer/phases/skeleton.js';
-import { chunkFromSkeleton } from '../../../../src/indexer/phases/skeleton-chunk.js';
+import { parseSkeleton } from '../../../../src/shared/indexer/phases/skeleton.js';
+import { chunkFromSkeleton } from '../../../../src/shared/indexer/phases/skeleton-chunk.js';
 
 const storeSrc = readFileSync(
   fileURLToPath(new URL('../../../../src/core/qdrant/store.js', import.meta.url)),

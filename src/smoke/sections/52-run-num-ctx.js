@@ -7,7 +7,7 @@ export default async function ({ ok }) {
   console.log('\n[52] resolveRunNumCtx — logic + index.js wiring');
 
   const { resolveRunNumCtx, resolveNumCtx, generateNavSummaries, buildCollectionSummary, estTokens } =
-    await import('../../indexer/phases/skeleton-summary.js');
+    await import('../../shared/indexer/phases/skeleton-summary.js');
 
   // resolveRunNumCtx()'s own model-max fallback path (exercised below when
   // the env override is absent/too-small) calls getModelContextLengthFn(),
@@ -75,9 +75,9 @@ export default async function ({ ok }) {
 
   // ── 2. numCtx wiring: flows into generateNavSummaries + buildCollectionSummary ─
 
-  const { parseSkeleton } = await import('../../indexer/phases/skeleton.js');
-  const { chunkFromSkeleton } = await import('../../indexer/phases/skeleton-chunk.js');
-  const { buildFileSkeleton } = await import('../../indexer/phases/skeleton-index.js');
+  const { parseSkeleton } = await import('../../shared/indexer/phases/skeleton.js');
+  const { chunkFromSkeleton } = await import('../../shared/indexer/phases/skeleton-chunk.js');
+  const { buildFileSkeleton } = await import('../../shared/indexer/phases/skeleton-index.js');
 
   // Needs real prose so chunkFromSkeleton emits content chunks (empty fullText
   // → LLM is skipped, numCtx never forwarded — that would be a false pass).

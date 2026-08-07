@@ -95,7 +95,7 @@ export default async function ({ ok, throwsAsync }) {
         count1 === count2);
 
       // Verify that the chunker async path runs and produces chunks within token budget.
-      const { chunkFile, chunkFileAsync } = await import('../../indexer/phases/chunk.js');
+      const { chunkFile, chunkFileAsync } = await import('../../shared/indexer/phases/chunk.js');
       ok('chunkFileAsync is exported for production tokenizer path', typeof chunkFileAsync === 'function');
 
       // Use chunkFile (sync) output as reference, then compare with async on a small fixture.
@@ -108,7 +108,7 @@ export default async function ({ ok, throwsAsync }) {
       const prevTokenCount = process.env.TOKEN_COUNT;
       process.env.TOKEN_COUNT = 'bge-m3';
       try {
-        const { chunkFileFromPath, getChunkingConfig } = await import('../../indexer/phases/chunk.js');
+        const { chunkFileFromPath, getChunkingConfig } = await import('../../shared/indexer/phases/chunk.js');
         const fixtureFile = new URL('../../../benchmarks/retrieval/fixtures/ua-prose-synthetic.md', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
         const { existsSync: exists } = await import('fs');
         if (exists(fixtureFile)) {
@@ -140,7 +140,7 @@ export default async function ({ ok, throwsAsync }) {
     const prevTokenCount = process.env.TOKEN_COUNT;
     delete process.env.TOKEN_COUNT;
     try {
-      const { chunkFile } = await import('../../indexer/phases/chunk.js');
+      const { chunkFile } = await import('../../shared/indexer/phases/chunk.js');
       const md = `# Alpha\nFirst section content.\n\n# Beta\nSecond section content.`;
       const chunks = chunkFile('test.md', md, 'test.md');
       ok('default chunkFile: section Alpha present', chunks.some(c => c.section === 'Alpha'));

@@ -186,7 +186,7 @@ describe('mixed provider seams', () => {
     assert.equal(byPath.get('src/shared/core/embeddings.js')?.category, 'shared');
     assert.equal(byPath.get('src/core/retrieval/search.js')?.category, 'shared');
     assert.equal(byPath.get('src/shared/core/token-count.js')?.category, 'shared');
-    assert.equal(byPath.get('src/indexer/run.js')?.category, 'shared');
+    assert.equal(byPath.get('src/shared/indexer/run.js')?.category, 'shared');
     assert.equal(byPath.get('src/core/generation/registry.js')?.category, 'shared');
     assert.equal(byPath.get('src/admin/register-neutral-routes.js')?.category, 'composition');
   });

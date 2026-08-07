@@ -22,8 +22,8 @@ import { existsSync, mkdirSync, readdirSync, writeFileSync } from 'fs';
 import { resolve, join, dirname, relative } from 'path';
 import { fileURLToPath } from 'url';
 
-import { chunkFileFromPath } from '../../src/indexer/phases/chunk.js';
-import { extractJsonArray } from '../../src/indexer/phases/tag.js';
+import { chunkFileFromPath } from '../../src/shared/indexer/phases/chunk.js';
+import { extractJsonArray } from '../../src/shared/indexer/phases/tag.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../');
 
@@ -494,8 +494,8 @@ function writeReport(outPath, dateStr, results, config) {
   // ── Evidence ───────────────────────────────────────────────────────────────
   lines.push('## Evidence');
   lines.push('');
-  lines.push('- `src/indexer/phases/tag.js` — `addTagsBatch`, `extractJsonArray`, fallback path');
-  lines.push('- `src/indexer/phases/context.js` — `addContext`, per-chunk context generation');
+  lines.push('- `src/shared/indexer/phases/tag.js` — `addTagsBatch`, `extractJsonArray`, fallback path');
+  lines.push('- `src/shared/indexer/phases/context.js` — `addContext`, per-chunk context generation');
   lines.push('- [`benchmarks/retrieval/results/2026-05-20-tag-usefulness-audit.md`](2026-05-20-tag-usefulness-audit.md)');
   lines.push('- [ADR 0004: Combined LLM Context+Tags Mode Opt-In](../../../docs/adr/0004-combined-llm-opt-in.md)');
   lines.push('');

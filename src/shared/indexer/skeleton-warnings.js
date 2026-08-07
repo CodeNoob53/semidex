@@ -12,7 +12,7 @@ import { mkdirSync, appendFileSync } from 'fs';
 import { join, dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../');
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../../');
 const RAW_EXCERPT_MAX = 200;
 
 export function warningsPathFor(collection) {

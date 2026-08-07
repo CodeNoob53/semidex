@@ -1,8 +1,8 @@
 export default async function ({ ok, throwsAsync }) {
   console.log('\n[37] Pipeline primitives (Semaphore + SerialQueue)');
 
-  const { Semaphore } = await import('../../indexer/semaphore.js');
-  const { SerialQueue } = await import('../../indexer/serial-queue.js');
+  const { Semaphore } = await import('../../shared/indexer/semaphore.js');
+  const { SerialQueue } = await import('../../shared/indexer/serial-queue.js');
 
   // ── Semaphore ──────────────────────────────────────────────────────────────
 

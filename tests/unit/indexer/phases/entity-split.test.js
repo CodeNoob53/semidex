@@ -17,7 +17,7 @@
 // pin that fix (bounded iteration via a real, low timeout).
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { splitStructuralEntity } from '../../../../src/indexer/phases/entity-split.js';
+import { splitStructuralEntity } from '../../../../src/shared/indexer/phases/entity-split.js';
 
 // Deterministic, cheap stand-in for a real tokenizer — char/4 is not what
 // production uses (production uses a real per-model tokenizer), but for

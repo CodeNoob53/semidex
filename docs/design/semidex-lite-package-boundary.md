@@ -338,6 +338,27 @@ pointer instead. `core/embedding-profile/`, `core/generation/`,
 of this step's own scope. See that report for the full file-by-file
 classification table and verification results.
 
+**Phase 8B Step 7B update** (`docs/design/phase-8b-step7b-shared-indexer-relocation-2026-08-07.md`,
+implemented): the 24 shared indexer files the real import graph confirms
+are genuinely `shared` (Full- and Lite-reachable, capability-injected,
+never loading ONNX/Ollama/Transformers directly) physically relocated
+from `src/indexer/` to `src/shared/indexer/` — deferred from Step 6's own
+original "plus `src/indexer/`'s 24 remaining shared files" scope (see
+that step's own "As implemented" note in the Phase 8A migration plan for
+why it was narrowed to `src/core/*.js` only). Every `indexer/run.js`/
+`indexer/preflight.js`/`indexer/phases/{context,tag,combined,
+skeleton-summary}.js`/etc. path named above in this document (including
+in the Step 6 entry's own historical prose, kept unedited for the same
+reason the Step 7A note above gives) now reads `shared/indexer/run.js`/
+`shared/indexer/preflight.js`/`shared/indexer/phases/{context,tag,
+combined,skeleton-summary}.js` — read this note as the authoritative
+"where these files live now" pointer. `index.js` (the backward-compatible
+CLI launcher alias), `index-full.js`/`index-lite.js` (the two edition
+composition roots), and the one remaining `phases/tag-onnx-lazy.js`/
+`.lite.js` transitional shim pair stayed at `src/indexer/` — explicitly
+out of this step's own scope. See that report for the full file-by-file
+classification table and verification results.
+
 ## Refactor 2 — deterministic context for legacy (non-Markdown) chunks
 
 `chunk.js` routes PDF/Pandoc/plain-text through the legacy chunker, and

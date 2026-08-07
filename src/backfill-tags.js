@@ -16,7 +16,7 @@ const { osEnv, dotenvValues } = bootstrapEnv();
 const settingsService = createSettingsService({ osEnv, dotenvValues });
 
 const { scrollAllPoints, updatePayload } = await import('./shared/core/qdrant.js');
-const { addTagsBatch, applyTagSettings } = await import('./indexer/phases/tag.js');
+const { addTagsBatch, applyTagSettings } = await import('./shared/indexer/phases/tag.js');
 const { isOnnxTagProvider, createTagOnnxCapability } = await import('./local/indexer/phases/tag-onnx.js');
 // One independent capability instance for this script's own process
 // lifetime (code review, Phase 8B Step 4, second pass — tag-onnx.js no

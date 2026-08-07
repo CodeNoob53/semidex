@@ -23,34 +23,34 @@ import { isOnnxTagProvider } from './phases/tag-provider.js';
 import { validateTagOnnxCapability } from './phases/tag-onnx-capability.js';
 import { isEmptySectionChunk } from './phases/empty-section.js';
 import { addContextAndTags } from './phases/combined.js';
-import { resolveCombinedLlmConfig } from '../shared/core/doctor-checks.js';
+import { resolveCombinedLlmConfig } from '../core/doctor-checks.js';
 import { runBatched } from './batch.js';
 import { collectFiles, SUPPORTED_EXTENSIONS } from './files.js';
 import { Profiler } from './profiler.js';
-import { upsertPoints, upsertPointsWithoutVectors, listCollections, getCollectionInfo, getStoredMeta, deleteBySourceFile, deleteTrailingChunks, listSourceFiles, deleteByFilter } from '../shared/core/qdrant.js';
-import { makePointId } from '../shared/core/point-id.js';
-import { loadConfig, saveConfig, resolveEnvProviders } from '../shared/core/config.js';
-import { embedForIndex, embedForIndexBatch, shouldUseOnnxBatching, SCHEMA_VERSION } from '../shared/core/embeddings.js';
-import { createStorageAdapter } from '../core/storage/factory.js';
-import { resolveExistingCollectionProfile, resolveNewCollectionProfile } from '../core/embedding-profile/resolve.js';
-import { findDenseModel, isCatalogCompatibleWithChunking } from '../core/embedding-profile/qdrant-cloud-models.js';
-import { validateCloudEmbeddingCapability } from '../core/embedding-profile/cloud-embedding-capability.js';
-import { resolveCollectionConfigEntry } from '../core/embedding-profile/config-cache.js';
+import { upsertPoints, upsertPointsWithoutVectors, listCollections, getCollectionInfo, getStoredMeta, deleteBySourceFile, deleteTrailingChunks, listSourceFiles, deleteByFilter } from '../core/qdrant.js';
+import { makePointId } from '../core/point-id.js';
+import { loadConfig, saveConfig, resolveEnvProviders } from '../core/config.js';
+import { embedForIndex, embedForIndexBatch, shouldUseOnnxBatching, SCHEMA_VERSION } from '../core/embeddings.js';
+import { createStorageAdapter } from '../../core/storage/factory.js';
+import { resolveExistingCollectionProfile, resolveNewCollectionProfile } from '../../core/embedding-profile/resolve.js';
+import { findDenseModel, isCatalogCompatibleWithChunking } from '../../core/embedding-profile/qdrant-cloud-models.js';
+import { validateCloudEmbeddingCapability } from '../../core/embedding-profile/cloud-embedding-capability.js';
+import { resolveCollectionConfigEntry } from '../../core/embedding-profile/config-cache.js';
 import { ensureOllamaPreflight } from './preflight.js';
-import { CHUNKING_SCHEMA_VERSION, getTokenCounter, resolveTokenCountMode, QDRANT_CLOUD_TOKEN_MODE_PREFIX } from '../shared/core/token-count.js';
+import { CHUNKING_SCHEMA_VERSION, getTokenCounter, resolveTokenCountMode, QDRANT_CLOUD_TOKEN_MODE_PREFIX } from '../core/token-count.js';
 import { Semaphore } from './semaphore.js';
 import { SerialQueue } from './serial-queue.js';
-import { envInt } from '../shared/core/env.js';
+import { envInt } from '../core/env.js';
 import { expectedChunkingMeta, skeletonPayloadFields, indexingSchemaVersionField, isSkeletonChunk, makeSkeletonPointId, buildNavPointPayload, buildEntityRawPointPayload, INDEXING_SCHEMA_VERSION_BASE, INDEXING_SCHEMA_VERSION_PROFILE_BUDGET } from './skeleton-payload.js';
-import { buildIndexingState, EXECUTION } from '../core/embedding-profile/schema.js';
+import { buildIndexingState, EXECUTION } from '../../core/embedding-profile/schema.js';
 import { generateNavSummaries, generateDirectorySummaries, buildCollectionSummary, resolveRunNumCtx, estTokens } from './phases/skeleton-summary.js';
 import { buildDirectoryNavPoints } from './phases/skeleton-index.js';
-import { makeNodeId } from '../shared/core/node-id.js';
-import { scroll } from '../shared/core/qdrant.js';
+import { makeNodeId } from '../core/node-id.js';
+import { scroll } from '../core/qdrant.js';
 import { PROGRESS_EVENT_PREFIX, createFileProgressReporter } from './progress-event.js';
-import { applyEnvWriteBack } from '../core/settings/service.js';
-import { validateOllamaEmbedCapability, validateOllamaGenerateCapability, validateOllamaSummaryCapability, validateOllamaDiscoveryCapability } from '../core/generation/ollama-capability.js';
-import { validateOnnxEmbedCapability } from '../shared/core/onnx-embed-capability.js';
+import { applyEnvWriteBack } from '../../core/settings/service.js';
+import { validateOllamaEmbedCapability, validateOllamaGenerateCapability, validateOllamaSummaryCapability, validateOllamaDiscoveryCapability } from '../../core/generation/ollama-capability.js';
+import { validateOnnxEmbedCapability } from '../core/onnx-embed-capability.js';
 
 // Capability injection (Phase 8B Step 3, revised after code review — real
 // instance-scoped injection, no module-scope capability state anywhere in
@@ -99,13 +99,13 @@ import { validateOnnxEmbedCapability } from '../shared/core/onnx-embed-capabilit
  * resolveRunNumCtx call inside main()) receives this object as a real
  * parameter and reads directly off it.
  * @param {{
- *   ollamaGenerate: import('../core/generation/ollama-capability.js').OllamaGenerateCapability,
- *   ollamaSummary: import('../core/generation/ollama-capability.js').OllamaSummaryCapability,
- *   ollamaEmbed: import('../core/generation/ollama-capability.js').OllamaEmbedCapability,
- *   ollamaDiscovery: import('../core/generation/ollama-capability.js').OllamaDiscoveryCapability,
- *   onnxEmbed: import('../shared/core/onnx-embed-capability.js').OnnxEmbedCapability,
+ *   ollamaGenerate: import('../../core/generation/ollama-capability.js').OllamaGenerateCapability,
+ *   ollamaSummary: import('../../core/generation/ollama-capability.js').OllamaSummaryCapability,
+ *   ollamaEmbed: import('../../core/generation/ollama-capability.js').OllamaEmbedCapability,
+ *   ollamaDiscovery: import('../../core/generation/ollama-capability.js').OllamaDiscoveryCapability,
+ *   onnxEmbed: import('../core/onnx-embed-capability.js').OnnxEmbedCapability,
  *   tagOnnx: import('./phases/tag-onnx-capability.js').TagOnnxCapability,
- *   cloudEmbed: import('../core/embedding-profile/cloud-embedding-capability.js').CloudEmbeddingCapability,
+ *   cloudEmbed: import('../../core/embedding-profile/cloud-embedding-capability.js').CloudEmbeddingCapability,
  * }} capabilities — every slot required; run() is the one real caller
  *   (via index-runtime.js's runIndexerCli()), and every real entry point
  *   (index-full.js, index-lite.js) already supplies all seven.
@@ -1506,11 +1506,11 @@ export function applyAllSettings(settingsService) {
  * capability state to begin with) — the fix lives entirely in what a
  * `tagOnnx` capability object IS now guaranteed to be.
  * @param {{ capabilities: {
- *   ollamaGenerate: import('../core/generation/ollama-capability.js').OllamaGenerateCapability,
- *   ollamaSummary: import('../core/generation/ollama-capability.js').OllamaSummaryCapability,
- *   ollamaEmbed: import('../core/generation/ollama-capability.js').OllamaEmbedCapability,
- *   ollamaDiscovery: import('../core/generation/ollama-capability.js').OllamaDiscoveryCapability,
- *   onnxEmbed: import('../shared/core/onnx-embed-capability.js').OnnxEmbedCapability,
+ *   ollamaGenerate: import('../../core/generation/ollama-capability.js').OllamaGenerateCapability,
+ *   ollamaSummary: import('../../core/generation/ollama-capability.js').OllamaSummaryCapability,
+ *   ollamaEmbed: import('../../core/generation/ollama-capability.js').OllamaEmbedCapability,
+ *   ollamaDiscovery: import('../../core/generation/ollama-capability.js').OllamaDiscoveryCapability,
+ *   onnxEmbed: import('../core/onnx-embed-capability.js').OnnxEmbedCapability,
  *   tagOnnx: import('./phases/tag-onnx-capability.js').TagOnnxCapability,
  * } }} args
  */

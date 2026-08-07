@@ -40,9 +40,9 @@ console.log('started', result.pid);
 export default async function ({ ok }) {
   console.log('\n[45] skeleton chunking — unconditional for Markdown, tiny-code merge, entities');
 
-  const { chunkFile, chunkFileFromPath } = await import('../../indexer/phases/chunk.js');
-  const { parseSkeleton } = await import('../../indexer/phases/skeleton.js');
-  const { chunkFromSkeleton } = await import('../../indexer/phases/skeleton-chunk.js');
+  const { chunkFile, chunkFileFromPath } = await import('../../shared/indexer/phases/chunk.js');
+  const { parseSkeleton } = await import('../../shared/indexer/phases/skeleton.js');
+  const { chunkFromSkeleton } = await import('../../shared/indexer/phases/skeleton-chunk.js');
 
   // ── chunkFile() (the legacy primitive, called directly for non-Markdown
   // formats and by ~21 benchmark scripts) is a plain function with no env

@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import {
   PROGRESS_EVENT_PREFIX, parseProgressLine,
   FILE_PROGRESS_WEIGHTS, FILE_PROGRESS_STEP_LABELS, createFileProgressReporter,
-} from '../../../src/indexer/progress-event.js';
+} from '../../../src/shared/indexer/progress-event.js';
 
 describe('parseProgressLine', () => {
   it('parses a well-formed progress line', () => {

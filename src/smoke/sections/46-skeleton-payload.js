@@ -7,7 +7,7 @@ export default async function ({ ok }) {
   const {
     expectedChunkingMeta, skeletonPayloadFields, isSkeletonChunk, makeSkeletonPointId,
     SKELETON_CHUNKING_MODEL, INDEXING_SCHEMA_VERSION_BASE, INDEXING_SCHEMA_VERSION_PROFILE_BUDGET,
-  } = await import('../../indexer/skeleton-payload.js');
+  } = await import('../../shared/indexer/skeleton-payload.js');
   const { makePointId } = await import('../../shared/core/point-id.js');
 
   // ── expectedChunkingMeta (B1: skip-tuple input) ─────────────────────────────
@@ -112,8 +112,8 @@ export default async function ({ ok }) {
      makeSkeletonPointId(pidArgs) !== makePointId({ collection: 'col-a', sourceFile: 'node-uuid-1', chunkIndex: 0, embeddingSchemaVersion: 2 }));
 
   // ── end-to-end: chunkFromSkeleton output → payload fields round-trip ────────
-  const { parseSkeleton } = await import('../../indexer/phases/skeleton.js');
-  const { chunkFromSkeleton } = await import('../../indexer/phases/skeleton-chunk.js');
+  const { parseSkeleton } = await import('../../shared/indexer/phases/skeleton.js');
+  const { chunkFromSkeleton } = await import('../../shared/indexer/phases/skeleton-chunk.js');
   const md = '# S\n\nProse with enough meaningful words to pass the gate.\n\n| a | b |\n|---|---|\n| 1 | 2 |\n';
   const { chunks } = await chunkFromSkeleton(parseSkeleton(md, { sourceFile: 'a.md' }), { sourceFile: 'a.md' });
   ok('every skeleton chunk yields payload fields',

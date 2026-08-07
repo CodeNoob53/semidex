@@ -226,7 +226,7 @@ async function main() {
     const { getQdrantClient } = await import('../../src/core/qdrant/client.js');
     const rawClient = getQdrantClient();
     if (entityId) {
-      const { makeSkeletonPointId } = await import('../../src/indexer/skeleton-payload.js');
+      const { makeSkeletonPointId } = await import('../../src/shared/indexer/skeleton-payload.js');
       // embeddingSchemaVersion must match whatever this collection actually
       // resolved to — read it back from the collection's own profile rather
       // than assuming a literal, so this check stays correct regardless of

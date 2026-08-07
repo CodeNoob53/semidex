@@ -8,9 +8,9 @@ export default async function ({ ok }) {
   console.log('\n[44] skeleton — warnings JSONL writer');
 
   const { logSkeletonWarning, warningsPathFor, _resetWarningsForTest } =
-    await import('../../indexer/skeleton-warnings.js');
+    await import('../../shared/indexer/skeleton-warnings.js');
   const { parseSkeleton, collectSkeletonWarnings } =
-    await import('../../indexer/phases/skeleton.js');
+    await import('../../shared/indexer/phases/skeleton.js');
 
   const COLLECTION = 'smoke-skeleton-warnings';
   const path = warningsPathFor(COLLECTION);

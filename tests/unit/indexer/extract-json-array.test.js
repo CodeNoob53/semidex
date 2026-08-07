@@ -2,7 +2,7 @@
 import '../../helpers/setup.js';
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { extractJsonArray } from '../../../src/indexer/phases/tag.js';
+import { extractJsonArray } from '../../../src/shared/indexer/phases/tag.js';
 
 describe('extractJsonArray — accepted shapes', () => {
   it('flat array is returned as-is', () => {

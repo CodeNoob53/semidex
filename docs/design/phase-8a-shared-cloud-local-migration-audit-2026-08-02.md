@@ -799,7 +799,7 @@ stay cloud" are never mixed in one diff.
 drift test.
 **Separate PR**: yes.
 
-### Step 6 — Physically relocate stable shared modules — IMPLEMENTED, top-level src/core/*.js only (see `docs/design/phase-8b-step7a-shared-core-relocation-2026-08-07.md`; this repo's dated report calls it Step 7A)
+### Step 6 — Physically relocate stable shared modules — IMPLEMENTED in two parts (see `docs/design/phase-8b-step7a-shared-core-relocation-2026-08-07.md` for top-level src/core/*.js, `docs/design/phase-8b-step7b-shared-indexer-relocation-2026-08-07.md` for src/indexer/'s shared files; this repo's dated reports call these Step 7A and Step 7B)
 
 **Files**: the remaining `src/core/*.js` top-level files (14) into
 `src/shared/core/`, plus `src/indexer/`'s 24 remaining shared files,
@@ -839,6 +839,30 @@ unchanged from the pre-move baseline (144 shared/27 local/12
 composition/9 mixed/61 tooling/8 cloud), `npm test` (3187/3187), `npm run
 smoke`, both admin UI builds byte-identical, Lite closure clean (123
 staged files, unchanged), real `npm pack` clean-install acceptance green.
+
+**As implemented (Step 7B)**: the `src/indexer/`'s-24-shared-files portion
+deferred by Step 7A above. An actual import-graph inventory (not the
+inherited "24" figure) found 24 top-level `src/indexer/*.js` +
+`src/indexer/phases/*.js` files genuinely `shared` — moved to
+`src/shared/indexer/`, preserving the `phases/` subdirectory structure.
+Left at `src/indexer/`: `index.js` (backward-compatible CLI launcher
+alias), `index-full.js`/`index-lite.js` (the two edition composition
+roots — never shared, since neither is reachable from the other
+edition), and the one remaining `phases/tag-onnx-lazy.js`/`.lite.js`
+lazy-shim pair (explicitly out of scope, Phase 8B Step 8's own scope).
+`index-runtime.js`/`run.js` were checked by real dependency inspection,
+not name, per this plan's own Part A instruction — both capability-
+injected, zero direct local/cloud implementation edges, confirmed moved.
+Two files (`skeleton-warnings.js`, `phases/skeleton-index.js`) needed an
+`import.meta.url`-relative path-depth fix (one extra `'../'`) for their
+`.tmp/semidex-inspect/` inspect-artifact directory constant — mechanical,
+not a logic change, covered by a new behavioral regression test.
+Verified: 0 dependency-direction violations, 0 shared→local/cloud edges,
+0 unclassified modules, category counts unchanged from the pre-move
+baseline, `npm test` (3264/3264), `npm run smoke` (1316/1316), both admin
+UI builds byte-identical, Lite closure clean (123 staged files,
+unchanged, zero `local/` files, zero `tag-onnx.js`/`tag-onnx-worker.js`
+staged at any path), real `npm pack` clean-install acceptance green.
 
 ### Step 7 — Update every import path
 

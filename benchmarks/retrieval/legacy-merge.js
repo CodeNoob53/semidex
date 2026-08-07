@@ -2,7 +2,7 @@
 // Production chunking finalizes deterministic short-fragment merges in chunk.js.
 
 import { generate } from '../../src/local/core/ollama.js';
-import { OVERLAP_SENTENCES, splitSentences } from '../../src/indexer/phases/chunk.js';
+import { OVERLAP_SENTENCES, splitSentences } from '../../src/shared/indexer/phases/chunk.js';
 
 const MODEL = process.env.CONTEXT_MODEL || 'gemma3:4b';
 

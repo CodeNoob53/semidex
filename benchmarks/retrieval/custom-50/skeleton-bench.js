@@ -44,12 +44,12 @@ import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { randomUUID } from 'crypto';
 
-import { chunkFile } from '../../../src/indexer/phases/chunk.js';
-import { addContext } from '../../../src/indexer/phases/context.js';
-import { parseSkeleton } from '../../../src/indexer/phases/skeleton.js';
-import { chunkFromSkeleton } from '../../../src/indexer/phases/skeleton-chunk.js';
-import { generateNavSummaries } from '../../../src/indexer/phases/skeleton-summary.js';
-import { buildFileSkeleton } from '../../../src/indexer/phases/skeleton-index.js';
+import { chunkFile } from '../../../src/shared/indexer/phases/chunk.js';
+import { addContext } from '../../../src/shared/indexer/phases/context.js';
+import { parseSkeleton } from '../../../src/shared/indexer/phases/skeleton.js';
+import { chunkFromSkeleton } from '../../../src/shared/indexer/phases/skeleton-chunk.js';
+import { generateNavSummaries } from '../../../src/shared/indexer/phases/skeleton-summary.js';
+import { buildFileSkeleton } from '../../../src/shared/indexer/phases/skeleton-index.js';
 import {
   deleteCollection,
   upsertPoints, hybridSearch, scroll,

@@ -6,8 +6,8 @@
 // run.js) — this file only exercises the ordinary retrieval_content shape.
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildEmbedInputsForChunks } from '../../../src/indexer/run.js';
-import { POINT_KINDS } from '../../../src/indexer/phases/node-policy.js';
+import { buildEmbedInputsForChunks } from '../../../src/shared/indexer/run.js';
+import { POINT_KINDS } from '../../../src/shared/indexer/phases/node-policy.js';
 
 describe('buildEmbedInputsForChunks', () => {
   test('an ordinary chunk embeds context+text joined by a blank line, with context passed through', () => {

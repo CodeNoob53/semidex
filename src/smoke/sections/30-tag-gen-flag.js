@@ -1,7 +1,7 @@
 export default async function ({ ok }) {
   console.log('\n[30] TAG_GEN=1 opt-in flag (shouldGenerateTags helper)');
 
-  const { shouldGenerateTags, resolveTagModel } = await import('../../indexer/phases/tag.js');
+  const { shouldGenerateTags, resolveTagModel } = await import('../../shared/indexer/phases/tag.js');
 
   ok('30a: unset env → disabled', shouldGenerateTags({}) === false);
   ok('30b: TAG_GEN=1 → enabled', shouldGenerateTags({ TAG_GEN: '1' }) === true);

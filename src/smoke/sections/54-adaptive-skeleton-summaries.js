@@ -10,12 +10,12 @@ export default async function ({ ok }) {
     chooseTier, summaryTierThresholds, sanitizeStructured,
     generateAdaptiveSummary, generateNavSummaries, buildCollectionSummary,
     SUMMARY_VERSION,
-  } = await import('../../indexer/phases/skeleton-summary.js');
+  } = await import('../../shared/indexer/phases/skeleton-summary.js');
 
-  const { buildNavPointPayload } = await import('../../indexer/skeleton-payload.js');
-  const { parseSkeleton }       = await import('../../indexer/phases/skeleton.js');
-  const { chunkFromSkeleton }   = await import('../../indexer/phases/skeleton-chunk.js');
-  const { buildFileSkeleton }   = await import('../../indexer/phases/skeleton-index.js');
+  const { buildNavPointPayload } = await import('../../shared/indexer/skeleton-payload.js');
+  const { parseSkeleton }       = await import('../../shared/indexer/phases/skeleton.js');
+  const { chunkFromSkeleton }   = await import('../../shared/indexer/phases/skeleton-chunk.js');
+  const { buildFileSkeleton }   = await import('../../shared/indexer/phases/skeleton-index.js');
 
   // ── summaryTierThresholds ────────────────────────────────────────────────────
   const defaults = summaryTierThresholds({});

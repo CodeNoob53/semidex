@@ -1,7 +1,7 @@
 export default async function ({ ok }) {
   console.log('\n[14] Profiler (pure, no I/O)');
 
-  const { Profiler } = await import('../../indexer/profiler.js');
+  const { Profiler } = await import('../../shared/indexer/profiler.js');
   const savedProfile = process.env.INDEX_PROFILE;
 
   // 14a. Disabled when INDEX_PROFILE unset

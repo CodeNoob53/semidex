@@ -21,7 +21,7 @@
 // spawning one shared file anymore.
 //
 // Usage: COLLECTION=my-collection node src/indexer/index-full.js <file|folder>
-import { isIndexerMainModule, runIndexerCli } from './index-runtime.js';
+import { isIndexerMainModule, runIndexerCli } from '../shared/indexer/index-runtime.js';
 import { createCloudEmbeddingCapability } from '../cloud/embedding/cloud-embedding-provider.js';
 import { createSettingsService } from '../core/settings/service.js';
 import { bootstrapEnv } from '../shared/core/env-bootstrap.js';

@@ -18,7 +18,7 @@ import { env, AutoTokenizer } from '@huggingface/transformers';
 import { existsSync, readdirSync, writeFileSync, mkdirSync } from 'fs';
 import { dirname, join, extname, resolve } from 'path';
 import { fileURLToPath } from 'url';
-import { chunkFile } from '../../src/indexer/phases/chunk.js';
+import { chunkFile } from '../../src/shared/indexer/phases/chunk.js';
 import { readFileSync } from 'fs';
 import { ONNX_CACHE_DIR as CACHE_DIR } from '../../src/shared/core/onnx-paths.js';
 

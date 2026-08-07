@@ -22,10 +22,10 @@ import { mkdirSync, writeFileSync } from 'fs';
 import { join, dirname, resolve, sep } from 'path';
 import { fileURLToPath } from 'url';
 
-import { makeNodeId } from '../../shared/core/node-id.js';
+import { makeNodeId } from '../../core/node-id.js';
 import { POINT_KINDS } from './node-policy.js';
 
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../../');
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../../../');
 
 function inventoryLabel(counts) {
   const parts = [];

@@ -1,8 +1,8 @@
 export default async function ({ ok }) {
   console.log('\n[31] empty-section suppression');
 
-  const { chunkFile } = await import('../../indexer/phases/chunk.js');
-  const { isEmptySectionChunk } = await import('../../indexer/phases/empty-section.js');
+  const { chunkFile } = await import('../../shared/indexer/phases/chunk.js');
+  const { isEmptySectionChunk } = await import('../../shared/indexer/phases/empty-section.js');
 
   // --- isEmptySectionChunk (still used as defensive guard in index.js) ---
   ok('31a: exact placeholder → true',

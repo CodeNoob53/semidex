@@ -7,8 +7,8 @@ import { makeNodeId } from '../../shared/core/node-id.js';
 export default async function ({ ok }) {
   console.log('\n[49] skeleton edge cases — placeholder placement, boundaries, splitting, warnings');
 
-  const { parseSkeleton, collectSkeletonWarnings } = await import('../../indexer/phases/skeleton.js');
-  const { chunkFromSkeleton } = await import('../../indexer/phases/skeleton-chunk.js');
+  const { parseSkeleton, collectSkeletonWarnings } = await import('../../shared/indexer/phases/skeleton.js');
+  const { chunkFromSkeleton } = await import('../../shared/indexer/phases/skeleton-chunk.js');
 
   // ── 47a. Placeholder placement: entity at START of section (no preceding prose)
   // Entity comes first → placeholder must go into the FOLLOWING prose run.
@@ -144,7 +144,7 @@ export default async function ({ ok }) {
 
   // ── 47j. skeletonArtifactPathFor — path traversal guard
   {
-    const { skeletonArtifactPathFor } = await import('../../indexer/phases/skeleton-index.js');
+    const { skeletonArtifactPathFor } = await import('../../shared/indexer/phases/skeleton-index.js');
 
     // Normal path must not throw and must stay under .tmp/semidex-inspect.
     let normalPath;

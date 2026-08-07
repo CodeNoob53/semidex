@@ -15,7 +15,7 @@ import { EventEmitter } from 'node:events';
 import { resolveTokenCountMode } from '../../../src/shared/core/token-count.js';
 import { shouldUseOnnxBatching, resolveOnnxBatchSize } from '../../../src/shared/core/embeddings.js';
 import { isCudaStrict } from '../../../src/shared/core/doctor-checks.js';
-import { shouldGenerateTags } from '../../../src/indexer/phases/tag.js';
+import { shouldGenerateTags } from '../../../src/shared/indexer/phases/tag.js';
 import { isOnnxTagProvider } from '../../../src/local/indexer/phases/tag-onnx.js';
 import { resolveOnnxRuntimeModule } from '../../../src/local/core/onnx-runtime.js';
 

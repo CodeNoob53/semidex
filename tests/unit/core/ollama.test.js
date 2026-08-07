@@ -9,7 +9,7 @@ import {
   isOllamaReachable, listOllamaModels, validateOllamaModels, generateStream, getModelContextLength,
   embeddingDimensionFromShow, getOllamaEmbeddingDimension,
 } from '../../../src/local/core/ollama.js';
-import { checkOllamaPreflight } from '../../../src/indexer/preflight.js';
+import { checkOllamaPreflight } from '../../../src/shared/indexer/preflight.js';
 import { checkOllama } from '../../../src/admin/system/ollama.js';
 import * as ollamaLazy from '../../../src/core/ollama-lazy.js';
 
@@ -327,8 +327,8 @@ describe('generateStream', () => {
 // ── Both consumers reuse this module, instead of duplicating fetch calls ────
 
 describe('shared Ollama logic — no duplication between indexer and admin', () => {
-  it('src/indexer/preflight.js delegates to shared Ollama logic through its own capability function argument, never re-implementing the fetches', async () => {
-    const src = await readFile(new URL('../../../src/indexer/preflight.js', import.meta.url), 'utf-8');
+  it('src/shared/indexer/preflight.js delegates to shared Ollama logic through its own capability function argument, never re-implementing the fetches', async () => {
+    const src = await readFile(new URL('../../../src/shared/indexer/preflight.js', import.meta.url), 'utf-8');
     // preflight.js has no module-scope capability binding at all (Phase 8B
     // Step 3 — it depends only on the narrow OllamaDiscoveryCapability
     // contract, passed as a real function argument by its caller:

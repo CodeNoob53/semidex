@@ -95,12 +95,12 @@ describe('every former *-lazy.js consumer now requires explicit capability injec
     const { readFileSync } = await import('node:fs');
     const files = [
       '../../../src/shared/core/embeddings.js',
-      '../../../src/indexer/phases/context.js',
-      '../../../src/indexer/phases/tag.js',
-      '../../../src/indexer/phases/combined.js',
-      '../../../src/indexer/phases/skeleton-summary.js',
-      '../../../src/indexer/preflight.js',
-      '../../../src/indexer/run.js',
+      '../../../src/shared/indexer/phases/context.js',
+      '../../../src/shared/indexer/phases/tag.js',
+      '../../../src/shared/indexer/phases/combined.js',
+      '../../../src/shared/indexer/phases/skeleton-summary.js',
+      '../../../src/shared/indexer/preflight.js',
+      '../../../src/shared/indexer/run.js',
       '../../../src/core/generation/ollama-provider.js',
     ];
     for (const f of files) {

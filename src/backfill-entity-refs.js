@@ -13,7 +13,7 @@
 
 import { pathToFileURL } from 'url';
 import { isNavPoint } from './core/qdrant/nav-filter.js';
-import { isSkeletonChunk } from './indexer/skeleton-payload.js';
+import { isSkeletonChunk } from './shared/indexer/skeleton-payload.js';
 import { attachEntityRefs } from './shared/core/entity-reference.js';
 
 export const PAYLOAD_FIELDS = [

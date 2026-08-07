@@ -23,7 +23,7 @@
 // i.e. a bug elsewhere, not a normal Lite code path. Throws a typed error
 // instead of a bare module-resolution crash so such a bug is immediately
 // diagnosable.
-export { isOnnxTagProvider } from './tag-provider.js';
+export { isOnnxTagProvider } from '../../shared/indexer/phases/tag-provider.js';
 
 export class TagOnnxNotAvailableInLiteError extends Error {
   constructor(fnName) {

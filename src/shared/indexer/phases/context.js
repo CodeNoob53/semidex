@@ -1,4 +1,4 @@
-import { validateOllamaGenerateCapability } from '../../core/generation/ollama-capability.js';
+import { validateOllamaGenerateCapability } from '../../../core/generation/ollama-capability.js';
 import { runBatched } from '../batch.js';
 
 // let (not const): CONTEXT_MODEL/LLM_BATCH_SIZE are next_index_job settings
@@ -46,7 +46,7 @@ export function isDeterministicContextMode(env = process.env) {
 
 /**
  * @param {Object} chunk
- * @param {{ ollama: import('../../core/generation/ollama-capability.js').OllamaGenerateCapability }} opts
+ * @param {{ ollama: import('../../../core/generation/ollama-capability.js').OllamaGenerateCapability }} opts
  *   — required; no module-scope fallback exists. The caller (indexer/run.js)
  *   resolves its own capability once per run and passes it explicitly here.
  */
@@ -93,7 +93,7 @@ export async function addContextDeterministic(chunk) {
 
 /**
  * @param {Object[]} chunks
- * @param {{ ollama: import('../../core/generation/ollama-capability.js').OllamaGenerateCapability }} opts — required, see addContext().
+ * @param {{ ollama: import('../../../core/generation/ollama-capability.js').OllamaGenerateCapability }} opts — required, see addContext().
  */
 export async function processChunks(chunks, opts) {
   return runBatched(chunks, BATCH_SIZE, chunk => addContext(chunk, opts));

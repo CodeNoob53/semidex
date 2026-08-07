@@ -1,4 +1,4 @@
-// Source-level regression guards for src/indexer/run.js's embedding-profile
+// Source-level regression guards for src/shared/indexer/run.js's embedding-profile
 // wiring (Part E of the native-metadata task) — no live Qdrant/Ollama
 // needed, matching this file's existing test convention (run.js's main()/
 // stageA/stageC are not exported and require live infra to exercise
@@ -10,7 +10,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const src = readFileSync(
-  fileURLToPath(new URL('../../../src/indexer/run.js', import.meta.url)),
+  fileURLToPath(new URL('../../../src/shared/indexer/run.js', import.meta.url)),
   'utf-8',
 );
 
@@ -20,12 +20,12 @@ describe('run.js — EMBEDDING_PROFILE is resolved once, module-level, never per
   });
 
   it('imports resolveExistingCollectionProfile/resolveNewCollectionProfile from the shared resolver, not a re-implementation', () => {
-    assert.match(src, /import\s*\{\s*resolveExistingCollectionProfile,\s*resolveNewCollectionProfile\s*\}\s*from\s*['"]\.\.\/core\/embedding-profile\/resolve\.js['"]/);
+    assert.match(src, /import\s*\{\s*resolveExistingCollectionProfile,\s*resolveNewCollectionProfile\s*\}\s*from\s*['"]\.\.\/\.\.\/core\/embedding-profile\/resolve\.js['"]/);
   });
 
   it('no longer imports getEmbeddingConfig from embeddings.js (removed — profile-driven instead)', () => {
-    const idx = src.indexOf("from '../shared/core/embeddings.js'");
-    assert.notEqual(idx, -1, 'expected run.js to import from ../shared/core/embeddings.js');
+    const idx = src.indexOf("from '../core/embeddings.js'");
+    assert.notEqual(idx, -1, 'expected run.js to import from ../core/embeddings.js');
     const importLine = src.slice(idx - 200, idx);
     assert.ok(!/getEmbeddingConfig/.test(importLine), 'getEmbeddingConfig must be fully removed from run.js\'s embeddings.js import');
   });
@@ -186,7 +186,7 @@ describe('run.js — setIndexingState() is called after a successful run (P2 fix
   });
 
   it('imports buildIndexingState from the canonical schema.js and the topology-specific version constants from skeleton-payload.js, not a re-implementation', () => {
-    assert.match(src, /import\s*\{[^}]*\bbuildIndexingState\b[^}]*\}\s*from\s*['"]\.\.\/core\/embedding-profile\/schema\.js['"]/);
+    assert.match(src, /import\s*\{[^}]*\bbuildIndexingState\b[^}]*\}\s*from\s*['"]\.\.\/\.\.\/core\/embedding-profile\/schema\.js['"]/);
     assert.match(src, /INDEXING_SCHEMA_VERSION_BASE/);
     assert.match(src, /INDEXING_SCHEMA_VERSION_PROFILE_BUDGET/);
     const importLine = src.slice(0, src.indexOf('\n', src.indexOf('INDEXING_SCHEMA_VERSION_BASE')));

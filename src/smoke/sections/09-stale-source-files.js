@@ -4,7 +4,7 @@ export default async function ({ ok }) {
   // computeStaleSourceFiles is pure and lives in indexer/run.js (the
   // implementation module) — indexer/index.js is now a bootstrap-only
   // entry point with no exports of its own (Global Settings phase).
-  const { computeStaleSourceFiles } = await import('../../indexer/run.js');
+  const { computeStaleSourceFiles } = await import('../../shared/indexer/run.js');
 
   // 9a. Both sets empty → no stale
   ok('empty indexed + empty stored → []',

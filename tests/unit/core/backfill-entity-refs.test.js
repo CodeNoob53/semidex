@@ -7,8 +7,8 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { computeBackfillPlan, runBackfill, PAYLOAD_FIELDS } from '../../../src/backfill-entity-refs.js';
-import { parseSkeleton } from '../../../src/indexer/phases/skeleton.js';
-import { chunkFromSkeleton } from '../../../src/indexer/phases/skeleton-chunk.js';
+import { parseSkeleton } from '../../../src/shared/indexer/phases/skeleton.js';
+import { chunkFromSkeleton } from '../../../src/shared/indexer/phases/skeleton-chunk.js';
 
 // Converts chunkFromSkeleton() output (the real fresh-indexing chunk shape)
 // into the { id, payload } point shape scrollAllPoints() would return —

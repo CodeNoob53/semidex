@@ -18,8 +18,8 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { attachEntityRefs, placeholderForReference, PLACEHOLDER_LINE_RE } from '../../../src/shared/core/entity-reference.js';
-import { parseSkeleton } from '../../../src/indexer/phases/skeleton.js';
-import { chunkFromSkeleton } from '../../../src/indexer/phases/skeleton-chunk.js';
+import { parseSkeleton } from '../../../src/shared/indexer/phases/skeleton.js';
+import { chunkFromSkeleton } from '../../../src/shared/indexer/phases/skeleton-chunk.js';
 
 async function chunkSkeletonDoc(markdown, sourceFile = 'doc.md') {
   const nodes = parseSkeleton(markdown, { sourceFile });

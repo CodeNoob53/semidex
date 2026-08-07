@@ -1,7 +1,7 @@
 export default async function ({ ok }) {
   console.log('\n[6] Chunking edge cases');
 
-  const { chunkFile } = await import('../../indexer/phases/chunk.js');
+  const { chunkFile } = await import('../../shared/indexer/phases/chunk.js');
 
   // 6a. Short .txt (1-2 sentences) must not return 0 chunks.
   const short1 = 'Hello world.';

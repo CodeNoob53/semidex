@@ -12,8 +12,8 @@
 // unit test's own reasoning.
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { stageB } from '../../../src/indexer/run.js';
-import { Profiler } from '../../../src/indexer/profiler.js';
+import { stageB } from '../../../src/shared/indexer/run.js';
+import { Profiler } from '../../../src/shared/indexer/profiler.js';
 
 function legacyChunk({ sourceFile = 'report.pdf', section = 'Summary', text = 'Some real chunk body text.', chunkIndex = 0, totalChunks = 1 } = {}) {
   return {
@@ -82,7 +82,7 @@ describe('stageB() — CONTEXT_MODE=deterministic (legacy/non-skeleton chunks)',
       // branch (that would require a real Ollama server) — it only proves
       // the gate condition itself resolves to "not deterministic" when
       // unset, via the same isDeterministicContextMode() the branch uses.
-      const { isDeterministicContextMode } = await import('../../../src/indexer/phases/context.js');
+      const { isDeterministicContextMode } = await import('../../../src/shared/indexer/phases/context.js');
       assert.equal(isDeterministicContextMode(process.env), false);
     } finally {
       if (saved === undefined) delete process.env.CONTEXT_MODE; else process.env.CONTEXT_MODE = saved;

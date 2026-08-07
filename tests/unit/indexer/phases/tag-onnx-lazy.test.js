@@ -61,13 +61,13 @@ describe('tag-onnx-lazy.js — import isolation', () => {
 
 describe('tag-provider.js — pure predicate, no fork/child_process dependency', () => {
   it('has no import of node:child_process or tag-onnx.js', () => {
-    const src = readFileSync(new URL('../../../../src/indexer/phases/tag-provider.js', import.meta.url), 'utf-8');
+    const src = readFileSync(new URL('../../../../src/shared/indexer/phases/tag-provider.js', import.meta.url), 'utf-8');
     assert.ok(!src.includes('node:child_process'));
     assert.ok(!/from ['"][^'"]*tag-onnx\.js['"]/.test(src));
   });
 
   it('isOnnxTagProvider matches tag-onnx.js re-exported behavior exactly (no drift)', async () => {
-    const { isOnnxTagProvider: fromNeutral } = await import('../../../../src/indexer/phases/tag-provider.js');
+    const { isOnnxTagProvider: fromNeutral } = await import('../../../../src/shared/indexer/phases/tag-provider.js');
     const { isOnnxTagProvider: fromTagOnnx } = await import('../../../../src/local/indexer/phases/tag-onnx.js');
     assert.equal(fromNeutral, fromTagOnnx, 'tag-onnx.js must re-export the SAME function reference, not a duplicate');
   });

@@ -4,7 +4,7 @@
 // the WRITE side (chunk.entity_refs -> Qdrant payload field).
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { skeletonPayloadFields, INDEXING_SCHEMA_VERSION_BASE } from '../../../src/indexer/skeleton-payload.js';
+import { skeletonPayloadFields, INDEXING_SCHEMA_VERSION_BASE } from '../../../src/shared/indexer/skeleton-payload.js';
 
 const BASE_SKELETON_CHUNK = {
   chunking_model: 'skeleton-v1',

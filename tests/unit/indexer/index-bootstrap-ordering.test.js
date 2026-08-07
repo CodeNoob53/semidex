@@ -63,7 +63,7 @@ describe('index.js entry point — bootstrapEnv() ordering (code-review fix)', (
   });
 
   test('run.js exports applyAllSettings and run — the two hooks index.js calls after bootstrapping', async () => {
-    const mod = await import('../../../src/indexer/run.js');
+    const mod = await import('../../../src/shared/indexer/run.js');
     assert.equal(typeof mod.applyAllSettings, 'function');
     assert.equal(typeof mod.run, 'function');
   });

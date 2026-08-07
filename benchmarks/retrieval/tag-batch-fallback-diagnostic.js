@@ -30,9 +30,9 @@ import { resolve, join, dirname, basename } from 'path';
 import { fileURLToPath } from 'url';
 
 import { generate }         from '../../src/local/core/ollama.js';
-import { chunkFileFromPath } from '../../src/indexer/phases/chunk.js';
-import { partitionChunks }   from '../../src/indexer/phases/empty-section.js';
-import { extractJsonArray }  from '../../src/indexer/phases/tag.js';
+import { chunkFileFromPath } from '../../src/shared/indexer/phases/chunk.js';
+import { partitionChunks }   from '../../src/shared/indexer/phases/empty-section.js';
+import { extractJsonArray }  from '../../src/shared/indexer/phases/tag.js';
 
 const ROOT        = resolve(dirname(fileURLToPath(import.meta.url)), '../../');
 const RESULTS_DIR = join(ROOT, 'benchmarks', 'retrieval', 'results');

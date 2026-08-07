@@ -1,4 +1,4 @@
-import { validateOllamaGenerateCapability } from '../../core/generation/ollama-capability.js';
+import { validateOllamaGenerateCapability } from '../../../core/generation/ollama-capability.js';
 
 export function resolveTagModel(env = process.env) {
   return env.TAG_MODEL || env.CONTEXT_MODEL || 'gemma3:4b';
@@ -51,7 +51,7 @@ function existingTags(chunk) {
 /**
  * @param {Object} chunk
  * @param {string} model
- * @param {{ ollama: import('../../core/generation/ollama-capability.js').OllamaGenerateCapability }} opts
+ * @param {{ ollama: import('../../../core/generation/ollama-capability.js').OllamaGenerateCapability }} opts
  *   — required; no module-scope fallback exists.
  */
 export async function addTagsWithModel(chunk, model, opts) {
@@ -74,7 +74,7 @@ ${chunk.text.slice(0, 800)}`;
 
 /**
  * @param {Object} chunk
- * @param {{ ollama: import('../../core/generation/ollama-capability.js').OllamaGenerateCapability }} opts — required, see addTagsWithModel().
+ * @param {{ ollama: import('../../../core/generation/ollama-capability.js').OllamaGenerateCapability }} opts — required, see addTagsWithModel().
  */
 export async function addTags(chunk, opts) {
   return addTagsWithModel(chunk, MODEL, opts);
@@ -121,7 +121,7 @@ export function extractJsonArray(raw, expectedLength) {
 
 /**
  * @param {Object[]} chunks
- * @param {{ ollama: import('../../core/generation/ollama-capability.js').OllamaGenerateCapability }} opts — required, see addTagsWithModel().
+ * @param {{ ollama: import('../../../core/generation/ollama-capability.js').OllamaGenerateCapability }} opts — required, see addTagsWithModel().
  */
 export async function addTagsBatch(chunks, opts) {
   if (chunks.length === 1) return [await addTags(chunks[0], opts)];

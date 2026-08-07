@@ -340,7 +340,7 @@
     "entryPoints": [],
     "directDependencies": [
       "src/shared/core/doctor-checks.js",
-      "src/indexer/progress-event.js"
+      "src/shared/indexer/progress-event.js"
     ],
     "fullReachable": true,
     "liteReachable": true,
@@ -988,7 +988,7 @@
     ],
     "directDependencies": [
       "src/core/qdrant/nav-filter.js",
-      "src/indexer/skeleton-payload.js",
+      "src/shared/indexer/skeleton-payload.js",
       "src/shared/core/entity-reference.js",
       "src/shared/core/env-bootstrap.js",
       "src/core/settings/service.js",
@@ -1012,7 +1012,7 @@
       "src/shared/core/env-bootstrap.js",
       "src/core/settings/service.js",
       "src/shared/core/qdrant.js",
-      "src/indexer/phases/tag.js",
+      "src/shared/indexer/phases/tag.js",
       "src/local/indexer/phases/tag-onnx.js",
       "src/core/ollama-lazy.js"
     ],
@@ -2030,32 +2030,6 @@
     "recommendedAction": "keep"
   },
   {
-    "path": "src/indexer/batch.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/indexer/files.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
-  },
-  {
     "path": "src/indexer/index-full.js",
     "classification": "local",
     "runtimeCoupling": "local",
@@ -2063,7 +2037,7 @@
       "full"
     ],
     "directDependencies": [
-      "src/indexer/index-runtime.js",
+      "src/shared/indexer/index-runtime.js",
       "src/cloud/embedding/cloud-embedding-provider.js",
       "src/core/settings/service.js",
       "src/shared/core/env-bootstrap.js",
@@ -2085,27 +2059,10 @@
     "runtimeCoupling": "cloud",
     "entryPoints": [],
     "directDependencies": [
-      "src/indexer/index-runtime.js",
+      "src/shared/indexer/index-runtime.js",
       "src/cloud/embedding/cloud-embedding-provider.js"
     ],
     "fullReachable": false,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/indexer/index-runtime.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [
-      "src/shared/core/env-bootstrap.js",
-      "src/core/settings/service.js",
-      "src/indexer/run.js"
-    ],
-    "fullReachable": true,
     "liteReachable": true,
     "liteReachablePreShim": true,
     "liteTarballStaged": true,
@@ -2130,193 +2087,12 @@
     "recommendedAction": "move"
   },
   {
-    "path": "src/indexer/phases/chunk.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [
-      "pkg:@opendocsg/pdf2md",
-      "src/shared/core/token-count.js",
-      "src/shared/core/env.js",
-      "src/indexer/phases/token-budget-split.js",
-      "src/indexer/phases/skeleton.js",
-      "src/indexer/phases/skeleton-chunk.js",
-      "src/indexer/skeleton-warnings.js",
-      "src/indexer/phases/skeleton-index.js",
-      "pkg:pdf-parse"
-    ],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/indexer/phases/combined.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [
-      "src/core/generation/ollama-capability.js",
-      "src/indexer/phases/context.js",
-      "src/indexer/phases/tag.js"
-    ],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/indexer/phases/context.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [
-      "src/core/generation/ollama-capability.js",
-      "src/indexer/batch.js"
-    ],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/indexer/phases/empty-section.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/indexer/phases/entity-split.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [
-      "src/indexer/phases/token-budget-split.js"
-    ],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/indexer/phases/node-policy.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [
-      "src/shared/core/env.js",
-      "src/shared/core/entity-reference.js"
-    ],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/indexer/phases/skeleton-chunk.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [
-      "src/indexer/phases/chunk.js",
-      "src/indexer/phases/node-policy.js",
-      "src/shared/core/node-id.js",
-      "src/shared/core/entity-reference.js",
-      "src/indexer/phases/entity-split.js"
-    ],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/indexer/phases/skeleton-index.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [
-      "src/shared/core/node-id.js",
-      "src/indexer/phases/node-policy.js"
-    ],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/indexer/phases/skeleton-summary.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [
-      "pkg:franc-min"
-    ],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/indexer/phases/skeleton.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [
-      "pkg:unified",
-      "pkg:remark-parse",
-      "pkg:remark-gfm",
-      "pkg:remark-frontmatter"
-    ],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/indexer/phases/tag-onnx-capability.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
-  },
-  {
     "path": "src/indexer/phases/tag-onnx-lazy.js",
     "classification": "mixed",
     "runtimeCoupling": "local",
     "entryPoints": [],
     "directDependencies": [
-      "src/indexer/phases/tag-provider.js",
+      "src/shared/indexer/phases/tag-provider.js",
       "src/local/indexer/phases/tag-onnx.js"
     ],
     "fullReachable": true,
@@ -2332,7 +2108,7 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
-      "src/indexer/phases/tag-provider.js"
+      "src/shared/indexer/phases/tag-provider.js"
     ],
     "fullReachable": false,
     "liteReachable": false,
@@ -2340,190 +2116,6 @@
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "split"
-  },
-  {
-    "path": "src/indexer/phases/tag-provider.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/indexer/phases/tag.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [
-      "src/core/generation/ollama-capability.js"
-    ],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/indexer/phases/token-budget-split.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/indexer/preflight.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [
-      "src/core/generation/ollama-capability.js"
-    ],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/indexer/profiler.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/indexer/progress-event.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/indexer/run.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [
-      "src/indexer/phases/chunk.js",
-      "src/indexer/phases/context.js",
-      "src/indexer/phases/tag.js",
-      "src/indexer/phases/tag-provider.js",
-      "src/indexer/phases/tag-onnx-capability.js",
-      "src/indexer/phases/empty-section.js",
-      "src/indexer/phases/combined.js",
-      "src/shared/core/doctor-checks.js",
-      "src/indexer/batch.js",
-      "src/indexer/files.js",
-      "src/indexer/profiler.js",
-      "src/shared/core/qdrant.js",
-      "src/shared/core/point-id.js",
-      "src/shared/core/config.js",
-      "src/shared/core/embeddings.js",
-      "src/core/storage/factory.js",
-      "src/core/embedding-profile/resolve.js",
-      "src/core/embedding-profile/qdrant-cloud-models.js",
-      "src/core/embedding-profile/cloud-embedding-capability.js",
-      "src/core/embedding-profile/config-cache.js",
-      "src/indexer/preflight.js",
-      "src/shared/core/token-count.js",
-      "src/indexer/semaphore.js",
-      "src/indexer/serial-queue.js",
-      "src/shared/core/env.js",
-      "src/indexer/skeleton-payload.js",
-      "src/core/embedding-profile/schema.js",
-      "src/indexer/phases/skeleton-summary.js",
-      "src/indexer/phases/skeleton-index.js",
-      "src/shared/core/node-id.js",
-      "src/indexer/progress-event.js",
-      "src/core/settings/service.js",
-      "src/core/generation/ollama-capability.js",
-      "src/shared/core/onnx-embed-capability.js"
-    ],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/indexer/semaphore.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/indexer/serial-queue.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/indexer/skeleton-payload.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [
-      "src/shared/core/point-id.js"
-    ],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/indexer/skeleton-warnings.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
   },
   {
     "path": "src/local/core/cuda-diagnosis.js",
@@ -2792,7 +2384,7 @@
     "runtimeCoupling": "local",
     "entryPoints": [],
     "directDependencies": [
-      "src/indexer/phases/tag-provider.js",
+      "src/shared/indexer/phases/tag-provider.js",
       "src/local/indexer/workers/tag-onnx-worker.js"
     ],
     "fullReachable": true,
@@ -3329,6 +2921,414 @@
     "recommendedAction": "keep"
   },
   {
+    "path": "src/shared/indexer/batch.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/indexer/files.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/indexer/index-runtime.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/shared/core/env-bootstrap.js",
+      "src/core/settings/service.js",
+      "src/shared/indexer/run.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/indexer/phases/chunk.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [
+      "pkg:@opendocsg/pdf2md",
+      "src/shared/core/token-count.js",
+      "src/shared/core/env.js",
+      "src/shared/indexer/phases/token-budget-split.js",
+      "src/shared/indexer/phases/skeleton.js",
+      "src/shared/indexer/phases/skeleton-chunk.js",
+      "src/shared/indexer/skeleton-warnings.js",
+      "src/shared/indexer/phases/skeleton-index.js",
+      "pkg:pdf-parse"
+    ],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/indexer/phases/combined.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/core/generation/ollama-capability.js",
+      "src/shared/indexer/phases/context.js",
+      "src/shared/indexer/phases/tag.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/indexer/phases/context.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/core/generation/ollama-capability.js",
+      "src/shared/indexer/batch.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/indexer/phases/empty-section.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/indexer/phases/entity-split.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/shared/indexer/phases/token-budget-split.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/indexer/phases/node-policy.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/shared/core/env.js",
+      "src/shared/core/entity-reference.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/indexer/phases/skeleton-chunk.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/shared/indexer/phases/chunk.js",
+      "src/shared/indexer/phases/node-policy.js",
+      "src/shared/core/node-id.js",
+      "src/shared/core/entity-reference.js",
+      "src/shared/indexer/phases/entity-split.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/indexer/phases/skeleton-index.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/shared/core/node-id.js",
+      "src/shared/indexer/phases/node-policy.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/indexer/phases/skeleton-summary.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [
+      "pkg:franc-min"
+    ],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/indexer/phases/skeleton.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [
+      "pkg:unified",
+      "pkg:remark-parse",
+      "pkg:remark-gfm",
+      "pkg:remark-frontmatter"
+    ],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/indexer/phases/tag-onnx-capability.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/indexer/phases/tag-provider.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/indexer/phases/tag.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/core/generation/ollama-capability.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/indexer/phases/token-budget-split.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/indexer/preflight.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/core/generation/ollama-capability.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/indexer/profiler.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/indexer/progress-event.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/indexer/run.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/shared/indexer/phases/chunk.js",
+      "src/shared/indexer/phases/context.js",
+      "src/shared/indexer/phases/tag.js",
+      "src/shared/indexer/phases/tag-provider.js",
+      "src/shared/indexer/phases/tag-onnx-capability.js",
+      "src/shared/indexer/phases/empty-section.js",
+      "src/shared/indexer/phases/combined.js",
+      "src/shared/core/doctor-checks.js",
+      "src/shared/indexer/batch.js",
+      "src/shared/indexer/files.js",
+      "src/shared/indexer/profiler.js",
+      "src/shared/core/qdrant.js",
+      "src/shared/core/point-id.js",
+      "src/shared/core/config.js",
+      "src/shared/core/embeddings.js",
+      "src/core/storage/factory.js",
+      "src/core/embedding-profile/resolve.js",
+      "src/core/embedding-profile/qdrant-cloud-models.js",
+      "src/core/embedding-profile/cloud-embedding-capability.js",
+      "src/core/embedding-profile/config-cache.js",
+      "src/shared/indexer/preflight.js",
+      "src/shared/core/token-count.js",
+      "src/shared/indexer/semaphore.js",
+      "src/shared/indexer/serial-queue.js",
+      "src/shared/core/env.js",
+      "src/shared/indexer/skeleton-payload.js",
+      "src/core/embedding-profile/schema.js",
+      "src/shared/indexer/phases/skeleton-summary.js",
+      "src/shared/indexer/phases/skeleton-index.js",
+      "src/shared/core/node-id.js",
+      "src/shared/indexer/progress-event.js",
+      "src/core/settings/service.js",
+      "src/core/generation/ollama-capability.js",
+      "src/shared/core/onnx-embed-capability.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/indexer/semaphore.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/indexer/serial-queue.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/indexer/skeleton-payload.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/shared/core/point-id.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/indexer/skeleton-warnings.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
     "path": "src/smoke/helpers.js",
     "classification": "local",
     "runtimeCoupling": "none",
@@ -3489,7 +3489,7 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
-      "src/indexer/phases/chunk.js"
+      "src/shared/indexer/phases/chunk.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
@@ -3534,7 +3534,7 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
-      "src/indexer/run.js"
+      "src/shared/indexer/run.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
@@ -3549,7 +3549,7 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
-      "src/indexer/phases/chunk.js"
+      "src/shared/indexer/phases/chunk.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
@@ -3594,7 +3594,7 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
-      "src/indexer/profiler.js"
+      "src/shared/indexer/profiler.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
@@ -3625,7 +3625,7 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
-      "src/indexer/phases/tag.js"
+      "src/shared/indexer/phases/tag.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
@@ -3640,7 +3640,7 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
-      "src/indexer/phases/chunk.js"
+      "src/shared/indexer/phases/chunk.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
@@ -3745,7 +3745,7 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
-      "src/indexer/phases/combined.js"
+      "src/shared/indexer/phases/combined.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
@@ -3760,7 +3760,7 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
-      "src/indexer/phases/chunk.js"
+      "src/shared/indexer/phases/chunk.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
@@ -3775,7 +3775,7 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
-      "src/indexer/files.js"
+      "src/shared/indexer/files.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
@@ -3790,7 +3790,7 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
-      "src/indexer/phases/tag.js"
+      "src/shared/indexer/phases/tag.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
@@ -3805,8 +3805,8 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
-      "src/indexer/phases/chunk.js",
-      "src/indexer/phases/empty-section.js"
+      "src/shared/indexer/phases/chunk.js",
+      "src/shared/indexer/phases/empty-section.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
@@ -3886,7 +3886,7 @@
     "entryPoints": [],
     "directDependencies": [
       "src/shared/core/token-count.js",
-      "src/indexer/phases/chunk.js"
+      "src/shared/indexer/phases/chunk.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
@@ -3901,8 +3901,8 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
-      "src/indexer/semaphore.js",
-      "src/indexer/serial-queue.js"
+      "src/shared/indexer/semaphore.js",
+      "src/shared/indexer/serial-queue.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
@@ -3932,7 +3932,7 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
-      "src/indexer/phases/chunk.js",
+      "src/shared/indexer/phases/chunk.js",
       "src/shared/core/token-count.js"
     ],
     "fullReachable": true,
@@ -3978,7 +3978,7 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
-      "src/indexer/phases/skeleton.js",
+      "src/shared/indexer/phases/skeleton.js",
       "src/shared/core/node-id.js"
     ],
     "fullReachable": true,
@@ -3994,8 +3994,8 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
-      "src/indexer/phases/node-policy.js",
-      "src/indexer/phases/skeleton.js"
+      "src/shared/indexer/phases/node-policy.js",
+      "src/shared/indexer/phases/skeleton.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
@@ -4010,8 +4010,8 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
-      "src/indexer/skeleton-warnings.js",
-      "src/indexer/phases/skeleton.js"
+      "src/shared/indexer/skeleton-warnings.js",
+      "src/shared/indexer/phases/skeleton.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
@@ -4026,9 +4026,9 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
-      "src/indexer/phases/chunk.js",
-      "src/indexer/phases/skeleton.js",
-      "src/indexer/phases/skeleton-chunk.js"
+      "src/shared/indexer/phases/chunk.js",
+      "src/shared/indexer/phases/skeleton.js",
+      "src/shared/indexer/phases/skeleton-chunk.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
@@ -4043,10 +4043,10 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
-      "src/indexer/skeleton-payload.js",
+      "src/shared/indexer/skeleton-payload.js",
       "src/shared/core/point-id.js",
-      "src/indexer/phases/skeleton.js",
-      "src/indexer/phases/skeleton-chunk.js"
+      "src/shared/indexer/phases/skeleton.js",
+      "src/shared/indexer/phases/skeleton-chunk.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
@@ -4061,10 +4061,10 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
-      "src/indexer/phases/skeleton.js",
-      "src/indexer/phases/skeleton-chunk.js",
-      "src/indexer/phases/skeleton-index.js",
-      "src/indexer/phases/node-policy.js"
+      "src/shared/indexer/phases/skeleton.js",
+      "src/shared/indexer/phases/skeleton-chunk.js",
+      "src/shared/indexer/phases/skeleton-index.js",
+      "src/shared/indexer/phases/node-policy.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
@@ -4099,9 +4099,9 @@
     "entryPoints": [],
     "directDependencies": [
       "src/shared/core/node-id.js",
-      "src/indexer/phases/skeleton.js",
-      "src/indexer/phases/skeleton-chunk.js",
-      "src/indexer/phases/skeleton-index.js"
+      "src/shared/indexer/phases/skeleton.js",
+      "src/shared/indexer/phases/skeleton-chunk.js",
+      "src/shared/indexer/phases/skeleton-index.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
@@ -4116,11 +4116,11 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
-      "src/indexer/skeleton-payload.js",
+      "src/shared/indexer/skeleton-payload.js",
       "src/shared/core/qdrant.js",
       "src/mcp/tools/filters.js",
-      "src/indexer/phases/skeleton.js",
-      "src/indexer/phases/skeleton-index.js"
+      "src/shared/indexer/phases/skeleton.js",
+      "src/shared/indexer/phases/skeleton-index.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
@@ -4135,10 +4135,10 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
-      "src/indexer/phases/skeleton-summary.js",
-      "src/indexer/phases/skeleton.js",
-      "src/indexer/phases/skeleton-chunk.js",
-      "src/indexer/phases/skeleton-index.js"
+      "src/shared/indexer/phases/skeleton-summary.js",
+      "src/shared/indexer/phases/skeleton.js",
+      "src/shared/indexer/phases/skeleton-chunk.js",
+      "src/shared/indexer/phases/skeleton-index.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
@@ -4153,10 +4153,10 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
-      "src/indexer/phases/skeleton-summary.js",
-      "src/indexer/phases/skeleton.js",
-      "src/indexer/phases/skeleton-chunk.js",
-      "src/indexer/phases/skeleton-index.js"
+      "src/shared/indexer/phases/skeleton-summary.js",
+      "src/shared/indexer/phases/skeleton.js",
+      "src/shared/indexer/phases/skeleton-chunk.js",
+      "src/shared/indexer/phases/skeleton-index.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
@@ -4188,11 +4188,11 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
-      "src/indexer/phases/skeleton-summary.js",
-      "src/indexer/skeleton-payload.js",
-      "src/indexer/phases/skeleton.js",
-      "src/indexer/phases/skeleton-chunk.js",
-      "src/indexer/phases/skeleton-index.js"
+      "src/shared/indexer/phases/skeleton-summary.js",
+      "src/shared/indexer/skeleton-payload.js",
+      "src/shared/indexer/phases/skeleton.js",
+      "src/shared/indexer/phases/skeleton-chunk.js",
+      "src/shared/indexer/phases/skeleton-index.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
@@ -4207,11 +4207,11 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
-      "src/indexer/phases/skeleton-summary.js",
-      "src/indexer/phases/skeleton.js",
-      "src/indexer/phases/skeleton-chunk.js",
-      "src/indexer/phases/skeleton-index.js",
-      "src/indexer/skeleton-payload.js"
+      "src/shared/indexer/phases/skeleton-summary.js",
+      "src/shared/indexer/phases/skeleton.js",
+      "src/shared/indexer/phases/skeleton-chunk.js",
+      "src/shared/indexer/phases/skeleton-index.js",
+      "src/shared/indexer/skeleton-payload.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
@@ -4241,8 +4241,8 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
-      "src/indexer/phases/skeleton.js",
-      "src/indexer/phases/skeleton-chunk.js"
+      "src/shared/indexer/phases/skeleton.js",
+      "src/shared/indexer/phases/skeleton-chunk.js"
     ],
     "fullReachable": true,
     "liteReachable": false,

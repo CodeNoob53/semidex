@@ -142,34 +142,9 @@
     "src/core/storage/factory.js",
     "src/core/storage/qdrant-adapter.js",
     "src/doctor.js",
-    "src/indexer/batch.js",
-    "src/indexer/files.js",
     "src/indexer/index-full.js",
-    "src/indexer/index-runtime.js",
     "src/indexer/index.js",
-    "src/indexer/phases/chunk.js",
-    "src/indexer/phases/combined.js",
-    "src/indexer/phases/context.js",
-    "src/indexer/phases/empty-section.js",
-    "src/indexer/phases/entity-split.js",
-    "src/indexer/phases/node-policy.js",
-    "src/indexer/phases/skeleton-chunk.js",
-    "src/indexer/phases/skeleton-index.js",
-    "src/indexer/phases/skeleton-summary.js",
-    "src/indexer/phases/skeleton.js",
-    "src/indexer/phases/tag-onnx-capability.js",
     "src/indexer/phases/tag-onnx-lazy.js",
-    "src/indexer/phases/tag-provider.js",
-    "src/indexer/phases/tag.js",
-    "src/indexer/phases/token-budget-split.js",
-    "src/indexer/preflight.js",
-    "src/indexer/profiler.js",
-    "src/indexer/progress-event.js",
-    "src/indexer/run.js",
-    "src/indexer/semaphore.js",
-    "src/indexer/serial-queue.js",
-    "src/indexer/skeleton-payload.js",
-    "src/indexer/skeleton-warnings.js",
     "src/local/core/cuda-diagnosis.js",
     "src/local/core/length-bucket.js",
     "src/local/core/managed-onnx-runtime-manifest.js",
@@ -221,6 +196,31 @@
     "src/shared/core/rerank-capability.js",
     "src/shared/core/sparse.js",
     "src/shared/core/token-count.js",
+    "src/shared/indexer/batch.js",
+    "src/shared/indexer/files.js",
+    "src/shared/indexer/index-runtime.js",
+    "src/shared/indexer/phases/chunk.js",
+    "src/shared/indexer/phases/combined.js",
+    "src/shared/indexer/phases/context.js",
+    "src/shared/indexer/phases/empty-section.js",
+    "src/shared/indexer/phases/entity-split.js",
+    "src/shared/indexer/phases/node-policy.js",
+    "src/shared/indexer/phases/skeleton-chunk.js",
+    "src/shared/indexer/phases/skeleton-index.js",
+    "src/shared/indexer/phases/skeleton-summary.js",
+    "src/shared/indexer/phases/skeleton.js",
+    "src/shared/indexer/phases/tag-onnx-capability.js",
+    "src/shared/indexer/phases/tag-provider.js",
+    "src/shared/indexer/phases/tag.js",
+    "src/shared/indexer/phases/token-budget-split.js",
+    "src/shared/indexer/preflight.js",
+    "src/shared/indexer/profiler.js",
+    "src/shared/indexer/progress-event.js",
+    "src/shared/indexer/run.js",
+    "src/shared/indexer/semaphore.js",
+    "src/shared/indexer/serial-queue.js",
+    "src/shared/indexer/skeleton-payload.js",
+    "src/shared/indexer/skeleton-warnings.js",
     "src/smoke.js",
     "src/smoke/helpers.js",
     "src/smoke/index.js",
@@ -386,32 +386,7 @@
     "src/core/storage/embedding-profile-cache.js",
     "src/core/storage/factory.js",
     "src/core/storage/qdrant-adapter.js",
-    "src/indexer/batch.js",
-    "src/indexer/files.js",
     "src/indexer/index-lite.js",
-    "src/indexer/index-runtime.js",
-    "src/indexer/phases/chunk.js",
-    "src/indexer/phases/combined.js",
-    "src/indexer/phases/context.js",
-    "src/indexer/phases/empty-section.js",
-    "src/indexer/phases/entity-split.js",
-    "src/indexer/phases/node-policy.js",
-    "src/indexer/phases/skeleton-chunk.js",
-    "src/indexer/phases/skeleton-index.js",
-    "src/indexer/phases/skeleton-summary.js",
-    "src/indexer/phases/skeleton.js",
-    "src/indexer/phases/tag-onnx-capability.js",
-    "src/indexer/phases/tag-provider.js",
-    "src/indexer/phases/tag.js",
-    "src/indexer/phases/token-budget-split.js",
-    "src/indexer/preflight.js",
-    "src/indexer/profiler.js",
-    "src/indexer/progress-event.js",
-    "src/indexer/run.js",
-    "src/indexer/semaphore.js",
-    "src/indexer/serial-queue.js",
-    "src/indexer/skeleton-payload.js",
-    "src/indexer/skeleton-warnings.js",
     "src/shared/core/app-data-dir.js",
     "src/shared/core/bench-telemetry.js",
     "src/shared/core/bge-tokenizer.js",
@@ -427,7 +402,32 @@
     "src/shared/core/point-id.js",
     "src/shared/core/qdrant.js",
     "src/shared/core/sparse.js",
-    "src/shared/core/token-count.js"
+    "src/shared/core/token-count.js",
+    "src/shared/indexer/batch.js",
+    "src/shared/indexer/files.js",
+    "src/shared/indexer/index-runtime.js",
+    "src/shared/indexer/phases/chunk.js",
+    "src/shared/indexer/phases/combined.js",
+    "src/shared/indexer/phases/context.js",
+    "src/shared/indexer/phases/empty-section.js",
+    "src/shared/indexer/phases/entity-split.js",
+    "src/shared/indexer/phases/node-policy.js",
+    "src/shared/indexer/phases/skeleton-chunk.js",
+    "src/shared/indexer/phases/skeleton-index.js",
+    "src/shared/indexer/phases/skeleton-summary.js",
+    "src/shared/indexer/phases/skeleton.js",
+    "src/shared/indexer/phases/tag-onnx-capability.js",
+    "src/shared/indexer/phases/tag-provider.js",
+    "src/shared/indexer/phases/tag.js",
+    "src/shared/indexer/phases/token-budget-split.js",
+    "src/shared/indexer/preflight.js",
+    "src/shared/indexer/profiler.js",
+    "src/shared/indexer/progress-event.js",
+    "src/shared/indexer/run.js",
+    "src/shared/indexer/semaphore.js",
+    "src/shared/indexer/serial-queue.js",
+    "src/shared/indexer/skeleton-payload.js",
+    "src/shared/indexer/skeleton-warnings.js"
   ],
   "liteReachableFiles": [
     "packages/lite/lite-src/doctor-lite.js",
@@ -536,32 +536,7 @@
     "src/core/storage/embedding-profile-cache.js",
     "src/core/storage/factory.js",
     "src/core/storage/qdrant-adapter.js",
-    "src/indexer/batch.js",
-    "src/indexer/files.js",
     "src/indexer/index-lite.js",
-    "src/indexer/index-runtime.js",
-    "src/indexer/phases/chunk.js",
-    "src/indexer/phases/combined.js",
-    "src/indexer/phases/context.js",
-    "src/indexer/phases/empty-section.js",
-    "src/indexer/phases/entity-split.js",
-    "src/indexer/phases/node-policy.js",
-    "src/indexer/phases/skeleton-chunk.js",
-    "src/indexer/phases/skeleton-index.js",
-    "src/indexer/phases/skeleton-summary.js",
-    "src/indexer/phases/skeleton.js",
-    "src/indexer/phases/tag-onnx-capability.js",
-    "src/indexer/phases/tag-provider.js",
-    "src/indexer/phases/tag.js",
-    "src/indexer/phases/token-budget-split.js",
-    "src/indexer/preflight.js",
-    "src/indexer/profiler.js",
-    "src/indexer/progress-event.js",
-    "src/indexer/run.js",
-    "src/indexer/semaphore.js",
-    "src/indexer/serial-queue.js",
-    "src/indexer/skeleton-payload.js",
-    "src/indexer/skeleton-warnings.js",
     "src/shared/core/app-data-dir.js",
     "src/shared/core/bench-telemetry.js",
     "src/shared/core/bge-tokenizer.js",
@@ -577,7 +552,32 @@
     "src/shared/core/point-id.js",
     "src/shared/core/qdrant.js",
     "src/shared/core/sparse.js",
-    "src/shared/core/token-count.js"
+    "src/shared/core/token-count.js",
+    "src/shared/indexer/batch.js",
+    "src/shared/indexer/files.js",
+    "src/shared/indexer/index-runtime.js",
+    "src/shared/indexer/phases/chunk.js",
+    "src/shared/indexer/phases/combined.js",
+    "src/shared/indexer/phases/context.js",
+    "src/shared/indexer/phases/empty-section.js",
+    "src/shared/indexer/phases/entity-split.js",
+    "src/shared/indexer/phases/node-policy.js",
+    "src/shared/indexer/phases/skeleton-chunk.js",
+    "src/shared/indexer/phases/skeleton-index.js",
+    "src/shared/indexer/phases/skeleton-summary.js",
+    "src/shared/indexer/phases/skeleton.js",
+    "src/shared/indexer/phases/tag-onnx-capability.js",
+    "src/shared/indexer/phases/tag-provider.js",
+    "src/shared/indexer/phases/tag.js",
+    "src/shared/indexer/phases/token-budget-split.js",
+    "src/shared/indexer/preflight.js",
+    "src/shared/indexer/profiler.js",
+    "src/shared/indexer/progress-event.js",
+    "src/shared/indexer/run.js",
+    "src/shared/indexer/semaphore.js",
+    "src/shared/indexer/serial-queue.js",
+    "src/shared/indexer/skeleton-payload.js",
+    "src/shared/indexer/skeleton-warnings.js"
   ],
   "fullExternalDeps": {
     "edition": [
@@ -586,15 +586,15 @@
     ],
     "unified": [
       "src/admin/ui-src/structural-renderer.js",
-      "src/indexer/phases/skeleton.js"
+      "src/shared/indexer/phases/skeleton.js"
     ],
     "remark-parse": [
       "src/admin/ui-src/structural-renderer.js",
-      "src/indexer/phases/skeleton.js"
+      "src/shared/indexer/phases/skeleton.js"
     ],
     "remark-gfm": [
       "src/admin/ui-src/structural-renderer.js",
-      "src/indexer/phases/skeleton.js"
+      "src/shared/indexer/phases/skeleton.js"
     ],
     "highlight.js": [
       "src/admin/ui-src/structural-renderer.js"
@@ -611,13 +611,13 @@
       "src/core/qdrant/client.js"
     ],
     "@opendocsg/pdf2md": [
-      "src/indexer/phases/chunk.js"
+      "src/shared/indexer/phases/chunk.js"
     ],
     "pdf-parse": [
-      "src/indexer/phases/chunk.js"
+      "src/shared/indexer/phases/chunk.js"
     ],
     "remark-frontmatter": [
-      "src/indexer/phases/skeleton.js"
+      "src/shared/indexer/phases/skeleton.js"
     ],
     "@huggingface/tokenizers": [
       "src/cloud/embedding/qdrant-cloud-tokenizer.js",
@@ -625,7 +625,7 @@
       "src/shared/core/bge-tokenizer.js"
     ],
     "franc-min": [
-      "src/indexer/phases/skeleton-summary.js"
+      "src/shared/indexer/phases/skeleton-summary.js"
     ],
     "@huggingface/transformers": [
       "src/core/ce-rerank-worker.js",
@@ -642,15 +642,15 @@
   "liteExternalDepsPreShim": {
     "unified": [
       "src/admin/ui-src/structural-renderer.js",
-      "src/indexer/phases/skeleton.js"
+      "src/shared/indexer/phases/skeleton.js"
     ],
     "remark-parse": [
       "src/admin/ui-src/structural-renderer.js",
-      "src/indexer/phases/skeleton.js"
+      "src/shared/indexer/phases/skeleton.js"
     ],
     "remark-gfm": [
       "src/admin/ui-src/structural-renderer.js",
-      "src/indexer/phases/skeleton.js"
+      "src/shared/indexer/phases/skeleton.js"
     ],
     "highlight.js": [
       "src/admin/ui-src/structural-renderer.js"
@@ -676,30 +676,30 @@
       "src/core/qdrant/client.js"
     ],
     "franc-min": [
-      "src/indexer/phases/skeleton-summary.js"
+      "src/shared/indexer/phases/skeleton-summary.js"
     ],
     "@opendocsg/pdf2md": [
-      "src/indexer/phases/chunk.js"
+      "src/shared/indexer/phases/chunk.js"
     ],
     "pdf-parse": [
-      "src/indexer/phases/chunk.js"
+      "src/shared/indexer/phases/chunk.js"
     ],
     "remark-frontmatter": [
-      "src/indexer/phases/skeleton.js"
+      "src/shared/indexer/phases/skeleton.js"
     ]
   },
   "liteExternalDeps": {
     "unified": [
       "src/admin/ui-src/structural-renderer.js",
-      "src/indexer/phases/skeleton.js"
+      "src/shared/indexer/phases/skeleton.js"
     ],
     "remark-parse": [
       "src/admin/ui-src/structural-renderer.js",
-      "src/indexer/phases/skeleton.js"
+      "src/shared/indexer/phases/skeleton.js"
     ],
     "remark-gfm": [
       "src/admin/ui-src/structural-renderer.js",
-      "src/indexer/phases/skeleton.js"
+      "src/shared/indexer/phases/skeleton.js"
     ],
     "highlight.js": [
       "src/admin/ui-src/structural-renderer.js"
@@ -725,16 +725,16 @@
       "src/core/qdrant/client.js"
     ],
     "franc-min": [
-      "src/indexer/phases/skeleton-summary.js"
+      "src/shared/indexer/phases/skeleton-summary.js"
     ],
     "@opendocsg/pdf2md": [
-      "src/indexer/phases/chunk.js"
+      "src/shared/indexer/phases/chunk.js"
     ],
     "pdf-parse": [
-      "src/indexer/phases/chunk.js"
+      "src/shared/indexer/phases/chunk.js"
     ],
     "remark-frontmatter": [
-      "src/indexer/phases/skeleton.js"
+      "src/shared/indexer/phases/skeleton.js"
     ]
   },
   "liteHeavyDepsReachablePreShim": [],

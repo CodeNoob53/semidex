@@ -146,7 +146,7 @@ required by, both Full and Lite composition roots. No `*-lazy.js` shim
 exists for any of these seven files: every consumer (`shared/core/embeddings.js`,
 `core/retrieval/search.js`, `core/embedding-profile/{resolve,availability}.js`,
 `shared/core/token-count.js`, `shared/core/config.js`, `core/settings/definitions.js`,
-`core/generation/registry.js`, `indexer/run.js`,
+`core/generation/registry.js`, `shared/indexer/run.js`,
 `admin/register-neutral-routes.js`, `admin/api/generation-models.js`,
 `admin/ui-src/global-settings-view.js`) imports the real file directly,
 at its `src/cloud/` path, in both editions identically. `qdrant-cloud-models.js`
@@ -155,9 +155,19 @@ imports it directly, alongside every server-side consumer.
 
 ## Indexer Pipeline
 
+`src/shared/indexer/` holds the edition-neutral indexing pipeline —
+physically relocated there from `src/indexer/` in Phase 8B Step 7B (a
+pure `git mv` + import-path-update step, no behavior change): every file
+the real import graph confirms is Full- and Lite-reachable, capability-
+injected, and never loads ONNX/Ollama/Transformers directly. `src/indexer/`
+still holds the two edition-specific composition roots (Full builds real
+capabilities; Lite builds typed-unavailable stubs), the backward-
+compatible CLI launcher alias, and the one remaining lazy-shim pair for
+the local ONNX tag-generation worker.
+
 ```text
-src/indexer/
-  index.js             - pipeline orchestration
+src/shared/indexer/
+  index-runtime.js     - shared CLI runtime (bootstrap env, settings, run()) both index-full.js/index-lite.js call
   batch.js             - batching helpers
   files.js             - file discovery and format routing
   preflight.js         - fail-fast environment checks before indexing
@@ -165,6 +175,7 @@ src/indexer/
   semaphore.js / serial-queue.js - concurrency primitives
   skeleton-payload.js  - skeleton nav point payload assembly
   skeleton-warnings.js - skeleton parse warning collection
+  run.js               - pipeline orchestration (stageA-D, main())
   phases/
     chunk.js           - structure-aware parsing and chunking (legacy path)
     skeleton.js        - Markdown AST parsing into a skeleton tree
@@ -173,10 +184,21 @@ src/indexer/
     skeleton-summary.js - deterministic/LLM nav summaries (SKELETON_SUMMARY)
     node-policy.js     - structural node emission policy
     empty-section.js   - empty-section placeholder handling
+    entity-split.js    - token-aware splitting of oversized structural entities
     context.js         - LLM context summaries and boundary merging
     combined.js        - combined context+tags LLM path (COMBINED_LLM=1)
     tag.js             - optional batched semantic tag generation (Ollama)
-    tag-onnx-lazy.js   - lazy seam to the real ONNX tag implementation (local/)
+    tag-provider.js    - pure TAG_PROVIDER=onnx predicate, no fork()/worker dependency
+    tag-onnx-capability.js - TagOnnxCapability contract (zero backend imports)
+    token-budget-split.js - neutral, format-agnostic oversized-unit splitting
+
+src/indexer/
+  index.js             - backward-compatible CLI launcher alias (delegates to index-full.js)
+  index-full.js         - Full composition root: builds real *-lazy.js-backed capabilities
+  index-lite.js         - Lite composition root: builds typed-unavailable capability stubs
+  phases/
+    tag-onnx-lazy.js    - lazy seam to the real ONNX tag implementation (local/)
+    tag-onnx-lazy.lite.js - Lite package-build staging replacement (dead code today, never staged)
 ```
 
 The real ONNX tag-generation implementation

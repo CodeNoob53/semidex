@@ -1,7 +1,7 @@
 export default async function ({ ok }) {
   console.log('\n[11] recursiveChunkText (no Qdrant)');
 
-  const { recursiveChunkText, getChunkingConfig } = await import('../../indexer/phases/chunk.js');
+  const { recursiveChunkText, getChunkingConfig } = await import('../../shared/indexer/phases/chunk.js');
 
   const TOKEN_CHARS = 4;
   const { maxTokens: MAX } = getChunkingConfig();
@@ -86,7 +86,7 @@ export default async function ({ ok }) {
 
   // 11j. Markdown chunking.
   {
-    const { chunkFile } = await import('../../indexer/phases/chunk.js');
+    const { chunkFile } = await import('../../shared/indexer/phases/chunk.js');
     const md = `# Section A\nSentence one. Sentence two.\n\n# Section B\nSentence three.`;
     const result = chunkFile('doc.md', md, 'doc.md');
     ok('markdown: section A chunk exists', result.some(c => c.section === 'Section A'));
@@ -97,7 +97,7 @@ export default async function ({ ok }) {
 
   // 11k. .txt preserves page markers.
   {
-    const { chunkFile } = await import('../../indexer/phases/chunk.js');
+    const { chunkFile } = await import('../../shared/indexer/phases/chunk.js');
     const txtWithMarker = 'Some text.\n\n-- 7 of 100 --\n\nMore text.';
     const result = chunkFile('notes.txt', txtWithMarker, 'notes.txt');
     ok('.txt: PDF page marker preserved (not on recursive PDF path)',
@@ -106,7 +106,7 @@ export default async function ({ ok }) {
 
   // 11l. parseMarkdown handles H1–H6 headings (#{1,6}).
   {
-    const { chunkFile } = await import('../../indexer/phases/chunk.js');
+    const { chunkFile } = await import('../../shared/indexer/phases/chunk.js');
 
     const r4 = chunkFile('doc.md', `#### Deep Section\nContent under H4 heading.`, 'doc.md');
     ok('H4 (####) becomes section name', r4.some(c => c.section === 'Deep Section'));
@@ -126,7 +126,7 @@ export default async function ({ ok }) {
 
   // 11m. PDF routing: hasPdfStructure.
   {
-    const { hasPdfStructure, chunkFile } = await import('../../indexer/phases/chunk.js');
+    const { hasPdfStructure, chunkFile } = await import('../../shared/indexer/phases/chunk.js');
 
     const mdWith3Headings = `# Title\nbody\n\n## Section A\ncontent A\n\n## Section B\ncontent B`;
     const mdWith2Headings = `# Title\nbody\n\n## Section A\ncontent A`;

@@ -5,7 +5,7 @@
 // their neutral location, independent of either caller.
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { splitOversizedUnitIntoPieces, canonicalWhitespace } from '../../../../src/indexer/phases/token-budget-split.js';
+import { splitOversizedUnitIntoPieces, canonicalWhitespace } from '../../../../src/shared/indexer/phases/token-budget-split.js';
 
 function makeBudget(maxInputTokens) {
   return { maxInputTokens, countTokens: (text) => Math.ceil(text.length / 4) };

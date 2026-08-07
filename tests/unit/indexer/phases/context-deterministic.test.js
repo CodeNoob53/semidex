@@ -8,7 +8,7 @@
 // instead of a headingPath array.
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { addContextDeterministic, isDeterministicContextMode } from '../../../../src/indexer/phases/context.js';
+import { addContextDeterministic, isDeterministicContextMode } from '../../../../src/shared/indexer/phases/context.js';
 
 describe('isDeterministicContextMode', () => {
   it('true when CONTEXT_MODE=deterministic', () => {

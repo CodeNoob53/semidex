@@ -80,7 +80,7 @@ import { randomUUID } from 'crypto';
 
 import { env as hfEnv } from '@huggingface/transformers';
 
-import { chunkFile } from '../../../src/indexer/phases/chunk.js';
+import { chunkFile } from '../../../src/shared/indexer/phases/chunk.js';
 import {
   deleteBySourceFile,
   upsertPoints, hybridSearch, scroll,

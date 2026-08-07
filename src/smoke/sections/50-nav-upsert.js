@@ -5,11 +5,11 @@
 export default async function ({ ok }) {
   console.log('\n[50] nav upsert — payload contracts (semidex fields, ranges, ids)');
 
-  const { buildNavPointPayload, makeSkeletonPointId } = await import('../../indexer/skeleton-payload.js');
+  const { buildNavPointPayload, makeSkeletonPointId } = await import('../../shared/indexer/skeleton-payload.js');
   const { isSemidexPayload } = await import('../../shared/core/qdrant.js');
   const { isNavPoint } = await import('../../mcp/tools/filters.js');
-  const { parseSkeleton } = await import('../../indexer/phases/skeleton.js');
-  const { buildDirectoryNavPoints, buildFileSkeleton } = await import('../../indexer/phases/skeleton-index.js');
+  const { parseSkeleton } = await import('../../shared/indexer/phases/skeleton.js');
+  const { buildDirectoryNavPoints, buildFileSkeleton } = await import('../../shared/indexer/phases/skeleton-index.js');
 
   const md = '# Guide\n\nIntro prose with enough meaningful words here.\n\n## Setup\n\nSetup prose with enough meaningful words too.\n';
   const { navPoints } = buildFileSkeleton(parseSkeleton(md, { sourceFile: 'g.md' }), { sourceFile: 'g.md' });

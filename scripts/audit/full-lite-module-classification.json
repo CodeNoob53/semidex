@@ -282,8 +282,8 @@
       "fullReachable": true,
       "liteReachable": true,
       "directDependencies": [
-        "src/indexer/progress-event.js",
-        "src/shared/core/doctor-checks.js"
+        "src/shared/core/doctor-checks.js",
+        "src/shared/indexer/progress-event.js"
       ]
     },
     {
@@ -773,10 +773,10 @@
       "directDependencies": [
         "src/core/qdrant/nav-filter.js",
         "src/core/settings/service.js",
-        "src/indexer/skeleton-payload.js",
         "src/shared/core/entity-reference.js",
         "src/shared/core/env-bootstrap.js",
-        "src/shared/core/qdrant.js"
+        "src/shared/core/qdrant.js",
+        "src/shared/indexer/skeleton-payload.js"
       ]
     },
     {
@@ -789,10 +789,10 @@
       "directDependencies": [
         "src/core/ollama-lazy.js",
         "src/core/settings/service.js",
-        "src/indexer/phases/tag.js",
         "src/local/indexer/phases/tag-onnx.js",
         "src/shared/core/env-bootstrap.js",
-        "src/shared/core/qdrant.js"
+        "src/shared/core/qdrant.js",
+        "src/shared/indexer/phases/tag.js"
       ]
     },
     {
@@ -1529,24 +1529,6 @@
       ]
     },
     {
-      "path": "src/indexer/batch.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": []
-    },
-    {
-      "path": "src/indexer/files.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": []
-    },
-    {
       "path": "src/indexer/index-full.js",
       "declaredCategory": "composition",
       "category": "composition",
@@ -1558,10 +1540,10 @@
         "src/core/ollama-lazy.js",
         "src/core/onnx-embed-lazy.js",
         "src/core/settings/service.js",
-        "src/indexer/index-runtime.js",
         "src/indexer/phases/tag-onnx-lazy.js",
         "src/local/core/onnx-runtime-source-resolution.js",
-        "src/shared/core/env-bootstrap.js"
+        "src/shared/core/env-bootstrap.js",
+        "src/shared/indexer/index-runtime.js"
       ]
     },
     {
@@ -1573,20 +1555,7 @@
       "liteReachable": true,
       "directDependencies": [
         "src/cloud/embedding/cloud-embedding-provider.js",
-        "src/indexer/index-runtime.js"
-      ]
-    },
-    {
-      "path": "src/indexer/index-runtime.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": [
-        "src/core/settings/service.js",
-        "src/indexer/run.js",
-        "src/shared/core/env-bootstrap.js"
+        "src/shared/indexer/index-runtime.js"
       ]
     },
     {
@@ -1601,134 +1570,6 @@
       ]
     },
     {
-      "path": "src/indexer/phases/chunk.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": [
-        "src/indexer/phases/skeleton-chunk.js",
-        "src/indexer/phases/skeleton-index.js",
-        "src/indexer/phases/skeleton.js",
-        "src/indexer/phases/token-budget-split.js",
-        "src/indexer/skeleton-warnings.js",
-        "src/shared/core/env.js",
-        "src/shared/core/token-count.js"
-      ]
-    },
-    {
-      "path": "src/indexer/phases/combined.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": [
-        "src/core/generation/ollama-capability.js",
-        "src/indexer/phases/context.js",
-        "src/indexer/phases/tag.js"
-      ]
-    },
-    {
-      "path": "src/indexer/phases/context.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": [
-        "src/core/generation/ollama-capability.js",
-        "src/indexer/batch.js"
-      ]
-    },
-    {
-      "path": "src/indexer/phases/empty-section.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": []
-    },
-    {
-      "path": "src/indexer/phases/entity-split.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": [
-        "src/indexer/phases/token-budget-split.js"
-      ]
-    },
-    {
-      "path": "src/indexer/phases/node-policy.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": [
-        "src/shared/core/entity-reference.js",
-        "src/shared/core/env.js"
-      ]
-    },
-    {
-      "path": "src/indexer/phases/skeleton-chunk.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": [
-        "src/indexer/phases/chunk.js",
-        "src/indexer/phases/entity-split.js",
-        "src/indexer/phases/node-policy.js",
-        "src/shared/core/entity-reference.js",
-        "src/shared/core/node-id.js"
-      ]
-    },
-    {
-      "path": "src/indexer/phases/skeleton-index.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": [
-        "src/indexer/phases/node-policy.js",
-        "src/shared/core/node-id.js"
-      ]
-    },
-    {
-      "path": "src/indexer/phases/skeleton-summary.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": []
-    },
-    {
-      "path": "src/indexer/phases/skeleton.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": []
-    },
-    {
-      "path": "src/indexer/phases/tag-onnx-capability.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": []
-    },
-    {
       "path": "src/indexer/phases/tag-onnx-lazy.js",
       "declaredCategory": "mixed",
       "category": "mixed",
@@ -1736,8 +1577,8 @@
       "fullReachable": true,
       "liteReachable": false,
       "directDependencies": [
-        "src/indexer/phases/tag-provider.js",
-        "src/local/indexer/phases/tag-onnx.js"
+        "src/local/indexer/phases/tag-onnx.js",
+        "src/shared/indexer/phases/tag-provider.js"
       ]
     },
     {
@@ -1748,148 +1589,8 @@
       "fullReachable": false,
       "liteReachable": false,
       "directDependencies": [
-        "src/indexer/phases/tag-provider.js"
+        "src/shared/indexer/phases/tag-provider.js"
       ]
-    },
-    {
-      "path": "src/indexer/phases/tag-provider.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": []
-    },
-    {
-      "path": "src/indexer/phases/tag.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": [
-        "src/core/generation/ollama-capability.js"
-      ]
-    },
-    {
-      "path": "src/indexer/phases/token-budget-split.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": []
-    },
-    {
-      "path": "src/indexer/preflight.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": [
-        "src/core/generation/ollama-capability.js"
-      ]
-    },
-    {
-      "path": "src/indexer/profiler.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": []
-    },
-    {
-      "path": "src/indexer/progress-event.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": []
-    },
-    {
-      "path": "src/indexer/run.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": [
-        "src/core/embedding-profile/cloud-embedding-capability.js",
-        "src/core/embedding-profile/config-cache.js",
-        "src/core/embedding-profile/qdrant-cloud-models.js",
-        "src/core/embedding-profile/resolve.js",
-        "src/core/embedding-profile/schema.js",
-        "src/core/generation/ollama-capability.js",
-        "src/core/settings/service.js",
-        "src/core/storage/factory.js",
-        "src/indexer/batch.js",
-        "src/indexer/files.js",
-        "src/indexer/phases/chunk.js",
-        "src/indexer/phases/combined.js",
-        "src/indexer/phases/context.js",
-        "src/indexer/phases/empty-section.js",
-        "src/indexer/phases/skeleton-index.js",
-        "src/indexer/phases/skeleton-summary.js",
-        "src/indexer/phases/tag-onnx-capability.js",
-        "src/indexer/phases/tag-provider.js",
-        "src/indexer/phases/tag.js",
-        "src/indexer/preflight.js",
-        "src/indexer/profiler.js",
-        "src/indexer/progress-event.js",
-        "src/indexer/semaphore.js",
-        "src/indexer/serial-queue.js",
-        "src/indexer/skeleton-payload.js",
-        "src/shared/core/config.js",
-        "src/shared/core/doctor-checks.js",
-        "src/shared/core/embeddings.js",
-        "src/shared/core/env.js",
-        "src/shared/core/node-id.js",
-        "src/shared/core/onnx-embed-capability.js",
-        "src/shared/core/point-id.js",
-        "src/shared/core/qdrant.js",
-        "src/shared/core/token-count.js"
-      ]
-    },
-    {
-      "path": "src/indexer/semaphore.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": []
-    },
-    {
-      "path": "src/indexer/serial-queue.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": []
-    },
-    {
-      "path": "src/indexer/skeleton-payload.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": [
-        "src/shared/core/point-id.js"
-      ]
-    },
-    {
-      "path": "src/indexer/skeleton-warnings.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": []
     },
     {
       "path": "src/local/core/cuda-diagnosis.js",
@@ -2083,8 +1784,8 @@
       "fullReachable": true,
       "liteReachable": false,
       "directDependencies": [
-        "src/indexer/phases/tag-provider.js",
-        "src/local/indexer/workers/tag-onnx-worker.js"
+        "src/local/indexer/workers/tag-onnx-worker.js",
+        "src/shared/indexer/phases/tag-provider.js"
       ]
     },
     {
@@ -2473,6 +2174,305 @@
       ]
     },
     {
+      "path": "src/shared/indexer/batch.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/shared/indexer/files.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/shared/indexer/index-runtime.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/settings/service.js",
+        "src/shared/core/env-bootstrap.js",
+        "src/shared/indexer/run.js"
+      ]
+    },
+    {
+      "path": "src/shared/indexer/phases/chunk.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/shared/core/env.js",
+        "src/shared/core/token-count.js",
+        "src/shared/indexer/phases/skeleton-chunk.js",
+        "src/shared/indexer/phases/skeleton-index.js",
+        "src/shared/indexer/phases/skeleton.js",
+        "src/shared/indexer/phases/token-budget-split.js",
+        "src/shared/indexer/skeleton-warnings.js"
+      ]
+    },
+    {
+      "path": "src/shared/indexer/phases/combined.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/generation/ollama-capability.js",
+        "src/shared/indexer/phases/context.js",
+        "src/shared/indexer/phases/tag.js"
+      ]
+    },
+    {
+      "path": "src/shared/indexer/phases/context.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/generation/ollama-capability.js",
+        "src/shared/indexer/batch.js"
+      ]
+    },
+    {
+      "path": "src/shared/indexer/phases/empty-section.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/shared/indexer/phases/entity-split.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/shared/indexer/phases/token-budget-split.js"
+      ]
+    },
+    {
+      "path": "src/shared/indexer/phases/node-policy.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/shared/core/entity-reference.js",
+        "src/shared/core/env.js"
+      ]
+    },
+    {
+      "path": "src/shared/indexer/phases/skeleton-chunk.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/shared/core/entity-reference.js",
+        "src/shared/core/node-id.js",
+        "src/shared/indexer/phases/chunk.js",
+        "src/shared/indexer/phases/entity-split.js",
+        "src/shared/indexer/phases/node-policy.js"
+      ]
+    },
+    {
+      "path": "src/shared/indexer/phases/skeleton-index.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/shared/core/node-id.js",
+        "src/shared/indexer/phases/node-policy.js"
+      ]
+    },
+    {
+      "path": "src/shared/indexer/phases/skeleton-summary.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/shared/indexer/phases/skeleton.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/shared/indexer/phases/tag-onnx-capability.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/shared/indexer/phases/tag-provider.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/shared/indexer/phases/tag.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/generation/ollama-capability.js"
+      ]
+    },
+    {
+      "path": "src/shared/indexer/phases/token-budget-split.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/shared/indexer/preflight.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/generation/ollama-capability.js"
+      ]
+    },
+    {
+      "path": "src/shared/indexer/profiler.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/shared/indexer/progress-event.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/shared/indexer/run.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/embedding-profile/cloud-embedding-capability.js",
+        "src/core/embedding-profile/config-cache.js",
+        "src/core/embedding-profile/qdrant-cloud-models.js",
+        "src/core/embedding-profile/resolve.js",
+        "src/core/embedding-profile/schema.js",
+        "src/core/generation/ollama-capability.js",
+        "src/core/settings/service.js",
+        "src/core/storage/factory.js",
+        "src/shared/core/config.js",
+        "src/shared/core/doctor-checks.js",
+        "src/shared/core/embeddings.js",
+        "src/shared/core/env.js",
+        "src/shared/core/node-id.js",
+        "src/shared/core/onnx-embed-capability.js",
+        "src/shared/core/point-id.js",
+        "src/shared/core/qdrant.js",
+        "src/shared/core/token-count.js",
+        "src/shared/indexer/batch.js",
+        "src/shared/indexer/files.js",
+        "src/shared/indexer/phases/chunk.js",
+        "src/shared/indexer/phases/combined.js",
+        "src/shared/indexer/phases/context.js",
+        "src/shared/indexer/phases/empty-section.js",
+        "src/shared/indexer/phases/skeleton-index.js",
+        "src/shared/indexer/phases/skeleton-summary.js",
+        "src/shared/indexer/phases/tag-onnx-capability.js",
+        "src/shared/indexer/phases/tag-provider.js",
+        "src/shared/indexer/phases/tag.js",
+        "src/shared/indexer/preflight.js",
+        "src/shared/indexer/profiler.js",
+        "src/shared/indexer/progress-event.js",
+        "src/shared/indexer/semaphore.js",
+        "src/shared/indexer/serial-queue.js",
+        "src/shared/indexer/skeleton-payload.js"
+      ]
+    },
+    {
+      "path": "src/shared/indexer/semaphore.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/shared/indexer/serial-queue.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/shared/indexer/skeleton-payload.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/shared/core/point-id.js"
+      ]
+    },
+    {
+      "path": "src/shared/indexer/skeleton-warnings.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
       "path": "src/smoke.js",
       "declaredCategory": "tooling",
       "category": "tooling",
@@ -2617,7 +2617,7 @@
       "fullReachable": true,
       "liteReachable": false,
       "directDependencies": [
-        "src/indexer/phases/chunk.js"
+        "src/shared/indexer/phases/chunk.js"
       ]
     },
     {
@@ -2650,7 +2650,7 @@
       "fullReachable": true,
       "liteReachable": false,
       "directDependencies": [
-        "src/indexer/run.js"
+        "src/shared/indexer/run.js"
       ]
     },
     {
@@ -2661,7 +2661,7 @@
       "fullReachable": true,
       "liteReachable": false,
       "directDependencies": [
-        "src/indexer/phases/chunk.js"
+        "src/shared/indexer/phases/chunk.js"
       ]
     },
     {
@@ -2694,7 +2694,7 @@
       "fullReachable": true,
       "liteReachable": false,
       "directDependencies": [
-        "src/indexer/profiler.js"
+        "src/shared/indexer/profiler.js"
       ]
     },
     {
@@ -2717,7 +2717,7 @@
       "fullReachable": true,
       "liteReachable": false,
       "directDependencies": [
-        "src/indexer/phases/tag.js"
+        "src/shared/indexer/phases/tag.js"
       ]
     },
     {
@@ -2728,7 +2728,7 @@
       "fullReachable": true,
       "liteReachable": false,
       "directDependencies": [
-        "src/indexer/phases/chunk.js"
+        "src/shared/indexer/phases/chunk.js"
       ]
     },
     {
@@ -2805,7 +2805,7 @@
       "fullReachable": true,
       "liteReachable": false,
       "directDependencies": [
-        "src/indexer/phases/combined.js"
+        "src/shared/indexer/phases/combined.js"
       ]
     },
     {
@@ -2816,7 +2816,7 @@
       "fullReachable": true,
       "liteReachable": false,
       "directDependencies": [
-        "src/indexer/phases/chunk.js"
+        "src/shared/indexer/phases/chunk.js"
       ]
     },
     {
@@ -2827,7 +2827,7 @@
       "fullReachable": true,
       "liteReachable": false,
       "directDependencies": [
-        "src/indexer/files.js"
+        "src/shared/indexer/files.js"
       ]
     },
     {
@@ -2838,7 +2838,7 @@
       "fullReachable": true,
       "liteReachable": false,
       "directDependencies": [
-        "src/indexer/phases/tag.js"
+        "src/shared/indexer/phases/tag.js"
       ]
     },
     {
@@ -2849,8 +2849,8 @@
       "fullReachable": true,
       "liteReachable": false,
       "directDependencies": [
-        "src/indexer/phases/chunk.js",
-        "src/indexer/phases/empty-section.js"
+        "src/shared/indexer/phases/chunk.js",
+        "src/shared/indexer/phases/empty-section.js"
       ]
     },
     {
@@ -2909,8 +2909,8 @@
       "fullReachable": true,
       "liteReachable": false,
       "directDependencies": [
-        "src/indexer/phases/chunk.js",
-        "src/shared/core/token-count.js"
+        "src/shared/core/token-count.js",
+        "src/shared/indexer/phases/chunk.js"
       ]
     },
     {
@@ -2921,8 +2921,8 @@
       "fullReachable": true,
       "liteReachable": false,
       "directDependencies": [
-        "src/indexer/semaphore.js",
-        "src/indexer/serial-queue.js"
+        "src/shared/indexer/semaphore.js",
+        "src/shared/indexer/serial-queue.js"
       ]
     },
     {
@@ -2944,8 +2944,8 @@
       "fullReachable": true,
       "liteReachable": false,
       "directDependencies": [
-        "src/indexer/phases/chunk.js",
-        "src/shared/core/token-count.js"
+        "src/shared/core/token-count.js",
+        "src/shared/indexer/phases/chunk.js"
       ]
     },
     {
@@ -2978,8 +2978,8 @@
       "fullReachable": true,
       "liteReachable": false,
       "directDependencies": [
-        "src/indexer/phases/skeleton.js",
-        "src/shared/core/node-id.js"
+        "src/shared/core/node-id.js",
+        "src/shared/indexer/phases/skeleton.js"
       ]
     },
     {
@@ -2990,8 +2990,8 @@
       "fullReachable": true,
       "liteReachable": false,
       "directDependencies": [
-        "src/indexer/phases/node-policy.js",
-        "src/indexer/phases/skeleton.js"
+        "src/shared/indexer/phases/node-policy.js",
+        "src/shared/indexer/phases/skeleton.js"
       ]
     },
     {
@@ -3002,8 +3002,8 @@
       "fullReachable": true,
       "liteReachable": false,
       "directDependencies": [
-        "src/indexer/phases/skeleton.js",
-        "src/indexer/skeleton-warnings.js"
+        "src/shared/indexer/phases/skeleton.js",
+        "src/shared/indexer/skeleton-warnings.js"
       ]
     },
     {
@@ -3014,9 +3014,9 @@
       "fullReachable": true,
       "liteReachable": false,
       "directDependencies": [
-        "src/indexer/phases/chunk.js",
-        "src/indexer/phases/skeleton-chunk.js",
-        "src/indexer/phases/skeleton.js"
+        "src/shared/indexer/phases/chunk.js",
+        "src/shared/indexer/phases/skeleton-chunk.js",
+        "src/shared/indexer/phases/skeleton.js"
       ]
     },
     {
@@ -3027,10 +3027,10 @@
       "fullReachable": true,
       "liteReachable": false,
       "directDependencies": [
-        "src/indexer/phases/skeleton-chunk.js",
-        "src/indexer/phases/skeleton.js",
-        "src/indexer/skeleton-payload.js",
-        "src/shared/core/point-id.js"
+        "src/shared/core/point-id.js",
+        "src/shared/indexer/phases/skeleton-chunk.js",
+        "src/shared/indexer/phases/skeleton.js",
+        "src/shared/indexer/skeleton-payload.js"
       ]
     },
     {
@@ -3041,10 +3041,10 @@
       "fullReachable": true,
       "liteReachable": false,
       "directDependencies": [
-        "src/indexer/phases/node-policy.js",
-        "src/indexer/phases/skeleton-chunk.js",
-        "src/indexer/phases/skeleton-index.js",
-        "src/indexer/phases/skeleton.js"
+        "src/shared/indexer/phases/node-policy.js",
+        "src/shared/indexer/phases/skeleton-chunk.js",
+        "src/shared/indexer/phases/skeleton-index.js",
+        "src/shared/indexer/phases/skeleton.js"
       ]
     },
     {
@@ -3070,10 +3070,10 @@
       "fullReachable": true,
       "liteReachable": false,
       "directDependencies": [
-        "src/indexer/phases/skeleton-chunk.js",
-        "src/indexer/phases/skeleton-index.js",
-        "src/indexer/phases/skeleton.js",
-        "src/shared/core/node-id.js"
+        "src/shared/core/node-id.js",
+        "src/shared/indexer/phases/skeleton-chunk.js",
+        "src/shared/indexer/phases/skeleton-index.js",
+        "src/shared/indexer/phases/skeleton.js"
       ]
     },
     {
@@ -3084,11 +3084,11 @@
       "fullReachable": true,
       "liteReachable": false,
       "directDependencies": [
-        "src/indexer/phases/skeleton-index.js",
-        "src/indexer/phases/skeleton.js",
-        "src/indexer/skeleton-payload.js",
         "src/mcp/tools/filters.js",
-        "src/shared/core/qdrant.js"
+        "src/shared/core/qdrant.js",
+        "src/shared/indexer/phases/skeleton-index.js",
+        "src/shared/indexer/phases/skeleton.js",
+        "src/shared/indexer/skeleton-payload.js"
       ]
     },
     {
@@ -3099,10 +3099,10 @@
       "fullReachable": true,
       "liteReachable": false,
       "directDependencies": [
-        "src/indexer/phases/skeleton-chunk.js",
-        "src/indexer/phases/skeleton-index.js",
-        "src/indexer/phases/skeleton-summary.js",
-        "src/indexer/phases/skeleton.js"
+        "src/shared/indexer/phases/skeleton-chunk.js",
+        "src/shared/indexer/phases/skeleton-index.js",
+        "src/shared/indexer/phases/skeleton-summary.js",
+        "src/shared/indexer/phases/skeleton.js"
       ]
     },
     {
@@ -3113,10 +3113,10 @@
       "fullReachable": true,
       "liteReachable": false,
       "directDependencies": [
-        "src/indexer/phases/skeleton-chunk.js",
-        "src/indexer/phases/skeleton-index.js",
-        "src/indexer/phases/skeleton-summary.js",
-        "src/indexer/phases/skeleton.js"
+        "src/shared/indexer/phases/skeleton-chunk.js",
+        "src/shared/indexer/phases/skeleton-index.js",
+        "src/shared/indexer/phases/skeleton-summary.js",
+        "src/shared/indexer/phases/skeleton.js"
       ]
     },
     {
@@ -3140,11 +3140,11 @@
       "fullReachable": true,
       "liteReachable": false,
       "directDependencies": [
-        "src/indexer/phases/skeleton-chunk.js",
-        "src/indexer/phases/skeleton-index.js",
-        "src/indexer/phases/skeleton-summary.js",
-        "src/indexer/phases/skeleton.js",
-        "src/indexer/skeleton-payload.js"
+        "src/shared/indexer/phases/skeleton-chunk.js",
+        "src/shared/indexer/phases/skeleton-index.js",
+        "src/shared/indexer/phases/skeleton-summary.js",
+        "src/shared/indexer/phases/skeleton.js",
+        "src/shared/indexer/skeleton-payload.js"
       ]
     },
     {
@@ -3155,11 +3155,11 @@
       "fullReachable": true,
       "liteReachable": false,
       "directDependencies": [
-        "src/indexer/phases/skeleton-chunk.js",
-        "src/indexer/phases/skeleton-index.js",
-        "src/indexer/phases/skeleton-summary.js",
-        "src/indexer/phases/skeleton.js",
-        "src/indexer/skeleton-payload.js"
+        "src/shared/indexer/phases/skeleton-chunk.js",
+        "src/shared/indexer/phases/skeleton-index.js",
+        "src/shared/indexer/phases/skeleton-summary.js",
+        "src/shared/indexer/phases/skeleton.js",
+        "src/shared/indexer/skeleton-payload.js"
       ]
     },
     {
@@ -3181,8 +3181,8 @@
       "fullReachable": true,
       "liteReachable": false,
       "directDependencies": [
-        "src/indexer/phases/skeleton-chunk.js",
-        "src/indexer/phases/skeleton.js"
+        "src/shared/indexer/phases/skeleton-chunk.js",
+        "src/shared/indexer/phases/skeleton.js"
       ]
     },
     {

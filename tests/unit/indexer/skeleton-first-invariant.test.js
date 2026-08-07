@@ -26,8 +26,8 @@ import {
   SKELETON_CHUNKING_MODEL,
   INDEXING_SCHEMA_VERSION_BASE,
   INDEXING_SCHEMA_VERSION_PROFILE_BUDGET,
-} from '../../../src/indexer/skeleton-payload.js';
-import { chunkFileFromPath } from '../../../src/indexer/phases/chunk.js';
+} from '../../../src/shared/indexer/skeleton-payload.js';
+import { chunkFileFromPath } from '../../../src/shared/indexer/phases/chunk.js';
 
 // Mirrors the chunkingModel/indexingSchemaVersion half of stageA()'s
 // skip-tuple boolean (src/indexer/run.js) — stageA itself is a private,

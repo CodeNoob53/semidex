@@ -72,7 +72,7 @@ import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { randomUUID } from 'crypto';
 
-import { chunkFile, getChunkingConfig } from '../../../src/indexer/phases/chunk.js';
+import { chunkFile, getChunkingConfig } from '../../../src/shared/indexer/phases/chunk.js';
 import {
   deleteBySourceFile,
   upsertPoints, hybridSearch, scroll,

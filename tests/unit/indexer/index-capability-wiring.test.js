@@ -45,10 +45,10 @@ import { runFullIndexerComposition } from '../../../src/indexer/index-full.js';
 
 describe('indexer/index-full.js — Full composition explicitly builds and passes its capability bundle to run({ capabilities })', () => {
   const src = readFileSync(new URL('../../../src/indexer/index-full.js', import.meta.url), 'utf-8');
-  const runtimeSrc = readFileSync(new URL('../../../src/indexer/index-runtime.js', import.meta.url), 'utf-8');
+  const runtimeSrc = readFileSync(new URL('../../../src/shared/indexer/index-runtime.js', import.meta.url), 'utf-8');
 
   it('imports runIndexerCli from index-runtime.js and calls it with a capability bundle', () => {
-    assert.match(src, /import \{ isIndexerMainModule, runIndexerCli \} from '\.\/index-runtime\.js'/);
+    assert.match(src, /import \{ isIndexerMainModule, runIndexerCli \} from '\.\.\/shared\/indexer\/index-runtime\.js'/);
     assert.match(src, /await runIndexerCliFn\(\{/);
   });
 
@@ -231,7 +231,7 @@ describe('indexer/index-lite.js — Lite composition never imports a local-runti
   });
 
   it('supplies a typed-unavailable capability for every slot and calls runIndexerCli() inside its own isIndexerMainModule guard', () => {
-    assert.match(src, /import \{ isIndexerMainModule, runIndexerCli \} from '\.\/index-runtime\.js'/);
+    assert.match(src, /import \{ isIndexerMainModule, runIndexerCli \} from '\.\.\/shared\/indexer\/index-runtime\.js'/);
     const guardStart = src.indexOf('if (isIndexerMainModule(');
     const runIndexerCliCall = src.indexOf('await runIndexerCli({');
     assert.ok(guardStart >= 0 && runIndexerCliCall > guardStart);
@@ -258,7 +258,7 @@ describe('run.js — run({ capabilities }) accepts real *-lazy.js-backed capabil
     process.env.COLLECTION = 'index-capability-wiring-real-lazy-validation-test';
     process.argv[2] = '/definitely/does/not/exist/on/any/machine';
     try {
-      const { run } = await import(`../../../src/indexer/run.js?real-lazy-validation-${Date.now()}`);
+      const { run } = await import(`../../../src/shared/indexer/run.js?real-lazy-validation-${Date.now()}`);
       const ollamaLazy = await import('../../../src/core/ollama-lazy.js');
       const onnxEmbedLazy = await import('../../../src/core/onnx-embed-lazy.js');
       const tagOnnxLazy = await import('../../../src/indexer/phases/tag-onnx-lazy.js');

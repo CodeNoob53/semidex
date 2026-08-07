@@ -23,10 +23,10 @@ import {
   chunkExtractedTextForBudget,
   effectiveBudgetFor,
   getChunkingConfig,
-} from '../../../../src/indexer/phases/chunk.js';
-import { chunkFromSkeleton } from '../../../../src/indexer/phases/skeleton-chunk.js';
-import { parseSkeleton } from '../../../../src/indexer/phases/skeleton.js';
-import { canonicalWhitespace } from '../../../../src/indexer/phases/token-budget-split.js';
+} from '../../../../src/shared/indexer/phases/chunk.js';
+import { chunkFromSkeleton } from '../../../../src/shared/indexer/phases/skeleton-chunk.js';
+import { parseSkeleton } from '../../../../src/shared/indexer/phases/skeleton.js';
+import { canonicalWhitespace } from '../../../../src/shared/indexer/phases/token-budget-split.js';
 
 // ── Divergent-fixture technique (reused from
 // tests/unit/core/embedding-profile/qdrant-cloud-catalog.test.js's own

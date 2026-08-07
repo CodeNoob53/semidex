@@ -106,10 +106,10 @@ export async function runAndReportExitCode(runFn, errorLogFn = console.error) {
  *   index-full.js, typed-unavailable objects for index-lite.js).
  */
 export async function runIndexerCli(capabilities) {
-  const { bootstrapEnv } = await import('../shared/core/env-bootstrap.js');
+  const { bootstrapEnv } = await import('../core/env-bootstrap.js');
   const { osEnv, dotenvValues } = bootstrapEnv();
 
-  const { createSettingsService } = await import('../core/settings/service.js');
+  const { createSettingsService } = await import('../../core/settings/service.js');
   const settingsService = createSettingsService({ osEnv, dotenvValues });
 
   const { applyAllSettings, run } = await import('./run.js');

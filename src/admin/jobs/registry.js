@@ -8,7 +8,7 @@
 // silently queued.
 import { randomUUID } from 'node:crypto';
 import { sanitiseErrorMessage } from '../../shared/core/doctor-checks.js';
-import { parseProgressLine } from '../../indexer/progress-event.js';
+import { parseProgressLine } from '../../shared/indexer/progress-event.js';
 
 // This file itself is edition-neutral (code review, round 4) — it never
 // imports node:child_process, never names an indexer entry path, never

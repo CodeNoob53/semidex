@@ -229,7 +229,7 @@ describe('Phase 8B Step 6 code review fix (second pass) — declared-shared modu
       'src/core/generation/registry.js',
       'src/shared/core/token-count.js',
       'src/core/retrieval/search.js',
-      'src/indexer/run.js',
+      'src/shared/indexer/run.js',
       'src/admin/register-neutral-routes.js',
     ];
     for (const path of named) {

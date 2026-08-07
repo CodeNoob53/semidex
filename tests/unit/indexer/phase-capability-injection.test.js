@@ -32,13 +32,13 @@ import {
   REQUIRED_OLLAMA_EMBED_CAPABILITY_METHODS,
   REQUIRED_OLLAMA_DISCOVERY_CAPABILITY_METHODS,
 } from '../../../src/core/generation/ollama-capability.js';
-import { REQUIRED_TAG_ONNX_CAPABILITY_METHODS } from '../../../src/indexer/phases/tag-onnx-capability.js';
-import { addContext } from '../../../src/indexer/phases/context.js';
-import { addTags, addTagsWithModel } from '../../../src/indexer/phases/tag.js';
-import { addContextAndTags } from '../../../src/indexer/phases/combined.js';
-import { resolveRunNumCtx, generateNavSummaries } from '../../../src/indexer/phases/skeleton-summary.js';
-import { checkOllamaPreflight } from '../../../src/indexer/preflight.js';
-import { run, stageB } from '../../../src/indexer/run.js';
+import { REQUIRED_TAG_ONNX_CAPABILITY_METHODS } from '../../../src/shared/indexer/phases/tag-onnx-capability.js';
+import { addContext } from '../../../src/shared/indexer/phases/context.js';
+import { addTags, addTagsWithModel } from '../../../src/shared/indexer/phases/tag.js';
+import { addContextAndTags } from '../../../src/shared/indexer/phases/combined.js';
+import { resolveRunNumCtx, generateNavSummaries } from '../../../src/shared/indexer/phases/skeleton-summary.js';
+import { checkOllamaPreflight } from '../../../src/shared/indexer/preflight.js';
+import { run, stageB } from '../../../src/shared/indexer/run.js';
 import { createCloudEmbeddingCapability } from '../../../src/cloud/embedding/cloud-embedding-provider.js';
 
 function fakeGenerateCapability(overrides = {}) {
@@ -326,7 +326,7 @@ describe('indexer/run.js — TWO real concurrent run() calls each clean up only 
     process.env.COLLECTION = 'phase-capability-injection-concurrency-test';
     originalArgv2 = process.argv[2];
     process.argv[2] = '/definitely/does/not/exist/on/any/machine';
-    ({ run } = await import(`../../../src/indexer/run.js?concurrency-test-${Date.now()}`));
+    ({ run } = await import(`../../../src/shared/indexer/run.js?concurrency-test-${Date.now()}`));
   });
 
   after(() => {

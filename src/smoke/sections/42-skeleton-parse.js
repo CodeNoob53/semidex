@@ -40,7 +40,7 @@ Plain list:
 export default async function ({ ok }) {
   console.log('\n[42] skeleton — parseSkeleton structure (AST, positions, ordinals)');
 
-  const { parseSkeleton } = await import('../../indexer/phases/skeleton.js');
+  const { parseSkeleton } = await import('../../shared/indexer/phases/skeleton.js');
   const { makeNodeId } = await import('../../shared/core/node-id.js');
 
   const nodes = parseSkeleton(FIXTURE, { sourceFile: 'fixture.md' });

@@ -7,7 +7,7 @@
 // Markdown syntax.
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseSkeleton } from '../../../src/indexer/phases/skeleton.js';
+import { parseSkeleton } from '../../../src/shared/indexer/phases/skeleton.js';
 import {
   buildStructuralFixtureMarkdown, buildStructuralFixtureCorpus,
   buildStructuralFixtureQueriesMap, buildStructuralFixtureQrels,
