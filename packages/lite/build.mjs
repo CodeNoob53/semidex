@@ -50,11 +50,24 @@ const LITE_SRC = join(LITE_DIR, 'lite-src');
 // against the real import graph (see docs/design/semidex-lite-package-
 // boundary.md) — this is not a guess list, it is the audited result.
 const EXCLUDE_DIRS = [
-  'admin/ui-src', // raw UI source — the BUILT dist/admin-ui/ ships instead
+  // admin/ui-src/ (Phase 8B Step 7C: only the composition-owned remainder —
+  // entries/, index.html, lite-entry/, partials/lite/ — still lives here;
+  // the shared/local UI source trees below are excluded via their own
+  // physical location instead) — the BUILT dist/admin-ui-lite/ ships as
+  // static assets via stageDist() instead of any raw UI source.
+  'admin/ui-src',
+  // shared/admin/ui-src/ (Phase 8B Step 7C — physically relocated from
+  // admin/ui-src/) is genuinely Lite-reachable UI *source*, but Lite ships
+  // the BUILT dist/admin-ui-lite/ output instead (via stageDist()), same
+  // rule as admin/ui-src/ above — never the raw .js/.html/.css source.
+  'shared/admin/ui-src',
+  // local/admin/ui-src/ (Phase 8B Step 7C) is local-only UI source; already
+  // covered by the blanket 'local' entry below, listed here only for
+  // documentation symmetry with the two entries above.
   'mcp', // separate entry point, not part of the Lite cloud API/CLI surface
   'smoke', // dev-only test harness, never shipped
   'test-fixtures', // smoke-test-only fixtures (src/smoke/sections/17-pdf-fixture.js is the only consumer, and smoke/ itself is already excluded above)
-  'local', // Phase 8B Steps 2-4 — the physically relocated local-runtime tree (local/core/: onnx-embed.js, onnx-runtime.js, onnx-probe-runner.js, onnx-provider-probe.js, length-bucket.js, ollama.js, ollama-models.js; local/indexer/phases/tag-onnx.js; local/indexer/workers/tag-onnx-worker.js; and any future local-runtime file moved here) — excluded by directory rather than by individual EXCLUDE_FILES entry, since every file under this directory is local-only by construction of where it physically lives.
+  'local', // Phase 8B Steps 2-4 and 7C — the physically relocated local-runtime tree (local/core/: onnx-embed.js, onnx-runtime.js, onnx-probe-runner.js, onnx-provider-probe.js, length-bucket.js, ollama.js, ollama-models.js; local/indexer/phases/tag-onnx.js; local/indexer/workers/tag-onnx-worker.js; local/admin/: api/onnx.js, api/ollama-models.js, system/ollama.js, ui-src/local-features.js, ui-src/partials/full/*; and any future local-runtime file moved here) — excluded by directory rather than by individual EXCLUDE_FILES entry, since every file under this directory is local-only by construction of where it physically lives.
 ];
 
 const EXCLUDE_FILES = [
@@ -97,7 +110,12 @@ const EXCLUDE_FILES = [
   // methods are reachable from Lite only if registry.js's BACKENDS.ollama
   // were actually SELECTED, which Lite's CLI hard pin
   // (SEMIDEX_GENERATION_BACKEND=gemini) prevents regardless.
-  'admin/system/ollama.js',
+  //
+  // local/admin/system/ollama.js (previously listed here as
+  // admin/system/ollama.js) is no longer listed individually — Phase 8B
+  // Step 7C physically relocated it to local/admin/, so EXCLUDE_DIRS's own
+  // 'local' entry now excludes it by directory, the same as the ONNX/
+  // Ollama core runtime files before it (Phase 8B Steps 2-3).
   // core/ollama-lazy.js, core/onnx-embed-lazy.js, and
   // indexer/phases/tag-onnx-lazy.js (code review, round 4 — previously
   // STAGED and CONTENT-substituted with their *.lite.js shims via
@@ -119,24 +137,30 @@ const EXCLUDE_FILES = [
   'core/onnx-embed-lazy.lite.js',
   'indexer/phases/tag-onnx-lazy.js',
   'indexer/phases/tag-onnx-lazy.lite.js',
-  // Full-only admin composition pieces — Lite never registers these routes,
-  // and after Refactor 3 no kept file statically imports them.
-  'admin/api/onnx.js',
-  'admin/api/ollama-models.js',
+  // Full-only admin composition pieces — Lite never registers these routes.
+  // local/admin/api/onnx.js and local/admin/api/ollama-models.js
+  // (previously listed here as admin/api/onnx.js and
+  // admin/api/ollama-models.js) are no longer listed individually — Phase
+  // 8B Step 7C physically relocated both to local/admin/api/, so
+  // EXCLUDE_DIRS's own 'local' entry now excludes them by directory.
+  //
   // admin/server-full.js contains createApp() (the FULL composition root)
-  // and its four Ollama/ONNX-only static imports — split out of
-  // admin/server.js specifically so Lite can stage the files it actually
-  // needs (registerNeutralRoutes()/createHttpServer() in
-  // admin/register-neutral-routes.js; createLiteApp() in
+  // and its Ollama/ONNX-only static imports (now into local/admin/ and
+  // shared/admin/ — Phase 8B Step 7C) — split out of admin/server.js
+  // specifically so Lite can stage the files it actually needs
+  // (registerNeutralRoutes()/createHttpServer() in
+  // shared/admin/register-neutral-routes.js; createLiteApp() in
   // admin/composition/lite.js; resolveHostConfig()/resolvePortConfig() in
-  // admin/server.js — Phases 3/4) without also staging this file. See
+  // shared/admin/server.js — Phases 3/4, relocated under shared/admin/ in
+  // Phase 8B Step 7C) without also staging this file. See
   // server-full.js's own header comment.
   'admin/server-full.js',
   // Full-Semidex-only entry points/composition roots — Lite has its own
   // equivalents (packages/lite/lite-src/serve-lite.js uses
   // createLiteApp()/registerNeutralRoutes() from the STILL-staged
-  // admin/composition/lite.js and admin/register-neutral-routes.js, but
-  // never imports admin/bootstrap.js itself;
+  // admin/composition/lite.js and shared/admin/register-neutral-routes.js
+  // (relocated under shared/admin/ in Phase 8B Step 7C), but never imports
+  // admin/bootstrap.js itself;
   // packages/lite/lite-src/doctor-lite.js/index-lite.js replace doctor.js/
   // the CLI indexer wrapper; backfill-tags.js/backfill-entity-refs.js/
   // sync.js/smoke.js/bootstrap-docs.js are full-Semidex dev/maintenance

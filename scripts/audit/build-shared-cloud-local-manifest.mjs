@@ -59,7 +59,9 @@ const SHARED_CONTRACT_FILES = new Set([
 ]);
 
 const COMPOSITION_COMMON_FILES = new Set([
-  'src/admin/register-neutral-routes.js',
+  // Path updated (Phase 8B Step 7C — physical relocation of shared Admin
+  // runtime into src/shared/admin/).
+  'src/shared/admin/register-neutral-routes.js',
   'src/admin/composition/lite.js',
   'src/core/settings/lite-policy.js',
   'src/core/settings/service.lite.js',

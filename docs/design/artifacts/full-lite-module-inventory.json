@@ -1,282 +1,5 @@
 [
   {
-    "path": "src/admin/api/assembly.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [
-      "src/core/http/http.js",
-      "src/admin/api/query-params.js",
-      "src/core/assembly/assemble.js"
-    ],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/admin/api/chunks.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [
-      "src/core/http/http.js",
-      "src/admin/api/query-params.js"
-    ],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/admin/api/collections.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [
-      "src/core/http/http.js"
-    ],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/admin/api/documents.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [
-      "src/core/http/http.js",
-      "src/admin/api/query-params.js"
-    ],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/admin/api/generation-models.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [
-      "src/core/http/http.js",
-      "src/shared/core/doctor-checks.js"
-    ],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/admin/api/generation.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [
-      "src/core/http/http.js",
-      "src/shared/core/doctor-checks.js"
-    ],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/admin/api/health.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [
-      "src/core/http/http.js",
-      "src/shared/core/doctor-checks.js"
-    ],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/admin/api/jobs.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [
-      "src/core/http/http.js"
-    ],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/admin/api/node.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [
-      "src/core/http/http.js",
-      "src/admin/api/query-params.js"
-    ],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/admin/api/ollama-models.js",
-    "classification": "local",
-    "runtimeCoupling": "local",
-    "entryPoints": [],
-    "directDependencies": [
-      "src/core/http/http.js",
-      "src/shared/core/doctor-checks.js",
-      "src/local/core/ollama-models.js"
-    ],
-    "fullReachable": true,
-    "liteReachable": false,
-    "liteReachablePreShim": false,
-    "liteTarballStaged": false,
-    "liteBrowserBundle": false,
-    "recommendedAction": "exclude"
-  },
-  {
-    "path": "src/admin/api/onnx.js",
-    "classification": "local",
-    "runtimeCoupling": "local",
-    "entryPoints": [],
-    "directDependencies": [
-      "src/core/http/http.js",
-      "src/local/core/onnx-provider-probe.js",
-      "src/local/core/cuda-diagnosis.js",
-      "src/local/core/semidex-home.js",
-      "src/local/core/onnx-runtime-source-resolution.js",
-      "src/local/core/managed-onnx-runtime-manifest.js",
-      "src/local/core/managed-runtime-listing.js"
-    ],
-    "fullReachable": true,
-    "liteReachable": false,
-    "liteReachablePreShim": false,
-    "liteTarballStaged": false,
-    "liteBrowserBundle": false,
-    "recommendedAction": "exclude"
-  },
-  {
-    "path": "src/admin/api/operations.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [
-      "src/core/http/http.js",
-      "src/admin/api/jobs.js"
-    ],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/admin/api/query-params.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [
-      "src/core/http/http.js"
-    ],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/admin/api/search.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [
-      "src/core/http/http.js",
-      "src/shared/core/embeddings.js",
-      "src/core/retrieval/search.js"
-    ],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/admin/api/settings.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [
-      "src/core/http/http.js",
-      "src/core/settings/definitions.js"
-    ],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/admin/api/skeleton.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [
-      "src/core/http/http.js",
-      "src/admin/api/query-params.js"
-    ],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/admin/api/system.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [
-      "src/core/http/http.js",
-      "src/admin/system/folder-picker.js"
-    ],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
-  },
-  {
     "path": "src/admin/bootstrap.js",
     "classification": "composition-full",
     "runtimeCoupling": "local",
@@ -289,7 +12,7 @@
       "src/local/core/onnx-runtime-source-resolution.js",
       "src/local/core/onnx-runtime-unavailable-capability.js",
       "src/core/ce-rerank.js",
-      "src/admin/server.js",
+      "src/shared/admin/server.js",
       "src/admin/server-full.js",
       "src/core/generation/runtime.js",
       "src/core/generation/registry.js",
@@ -310,13 +33,13 @@
     "entryPoints": [],
     "directDependencies": [
       "src/core/storage/factory.js",
-      "src/admin/router.js",
-      "src/admin/api/jobs.js",
-      "src/admin/api/generation-models.js",
+      "src/shared/admin/router.js",
+      "src/shared/admin/api/jobs.js",
+      "src/shared/admin/api/generation-models.js",
       "src/core/settings/service.js",
-      "src/admin/register-neutral-routes.js",
+      "src/shared/admin/register-neutral-routes.js",
       "src/shared/core/embeddings.js",
-      "src/admin/jobs/registry.js",
+      "src/shared/admin/jobs/registry.js",
       "src/admin/jobs/spawn-indexer-lite.js",
       "src/core/generation/ollama-capability.js",
       "src/shared/core/onnx-embed-capability.js",
@@ -327,22 +50,6 @@
       "src/core/generation/registry.js"
     ],
     "fullReachable": false,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/admin/jobs/registry.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [
-      "src/shared/core/doctor-checks.js",
-      "src/shared/indexer/progress-event.js"
-    ],
-    "fullReachable": true,
     "liteReachable": true,
     "liteReachablePreShim": true,
     "liteTarballStaged": true,
@@ -380,87 +87,24 @@
     "recommendedAction": "keep"
   },
   {
-    "path": "src/admin/jobs/task-registry.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [
-      "src/shared/core/doctor-checks.js"
-    ],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/admin/register-neutral-routes.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [
-      "src/admin/api/health.js",
-      "src/admin/api/collections.js",
-      "src/admin/api/documents.js",
-      "src/admin/api/chunks.js",
-      "src/admin/api/assembly.js",
-      "src/admin/api/skeleton.js",
-      "src/admin/api/node.js",
-      "src/admin/api/search.js",
-      "src/core/ask-api/v1/route.js",
-      "src/admin/api/generation.js",
-      "src/admin/jobs/task-registry.js",
-      "src/admin/api/operations.js",
-      "src/admin/api/system.js",
-      "src/admin/api/settings.js",
-      "src/admin/static.js",
-      "src/core/generation/runtime.js",
-      "src/core/ask/coordinator.js",
-      "src/shared/core/token-count.js"
-    ],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/admin/router.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [
-      "src/core/http/http.js",
-      "src/shared/core/doctor-checks.js"
-    ],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
-  },
-  {
     "path": "src/admin/server-full.js",
     "classification": "composition-full",
     "runtimeCoupling": "local",
     "entryPoints": [],
     "directDependencies": [
       "src/core/storage/factory.js",
-      "src/admin/router.js",
-      "src/admin/api/jobs.js",
-      "src/admin/api/system.js",
-      "src/admin/api/onnx.js",
-      "src/admin/api/ollama-models.js",
-      "src/admin/api/generation-models.js",
+      "src/shared/admin/router.js",
+      "src/shared/admin/api/jobs.js",
+      "src/shared/admin/api/system.js",
+      "src/local/admin/api/onnx.js",
+      "src/local/admin/api/ollama-models.js",
+      "src/shared/admin/api/generation-models.js",
       "src/local/core/ollama-models.js",
-      "src/admin/system/ollama.js",
+      "src/local/admin/system/ollama.js",
       "src/core/settings/service.js",
-      "src/admin/register-neutral-routes.js",
+      "src/shared/admin/register-neutral-routes.js",
       "src/shared/core/embeddings.js",
-      "src/admin/jobs/registry.js",
+      "src/shared/admin/jobs/registry.js",
       "src/admin/jobs/spawn-indexer-full.js",
       "src/core/ollama-lazy.js",
       "src/core/onnx-embed-lazy.js",
@@ -478,145 +122,6 @@
     "recommendedAction": "keep"
   },
   {
-    "path": "src/admin/server.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/admin/static.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [
-      "src/core/http/http.js"
-    ],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/admin/system/folder-picker.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/admin/system/ollama.js",
-    "classification": "local",
-    "runtimeCoupling": "local",
-    "entryPoints": [],
-    "directDependencies": [
-      "src/local/core/ollama.js"
-    ],
-    "fullReachable": true,
-    "liteReachable": false,
-    "liteReachablePreShim": false,
-    "liteTarballStaged": false,
-    "liteBrowserBundle": false,
-    "recommendedAction": "exclude"
-  },
-  {
-    "path": "src/admin/ui-src/api.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": false,
-    "liteBrowserBundle": true,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/admin/ui-src/app.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [
-      "src/admin/ui-src/dom.js",
-      "src/admin/ui-src/sidebar-resize.js",
-      "src/admin/ui-src/sidebar.js",
-      "src/admin/ui-src/topbar.js",
-      "src/admin/ui-src/router.js",
-      "src/admin/ui-src/operation-modal.js",
-      "src/admin/ui-src/operation-store.js"
-    ],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": false,
-    "liteBrowserBundle": true,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/admin/ui-src/assembly-view.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [
-      "src/admin/ui-src/dom.js",
-      "src/admin/ui-src/structural-renderer.js"
-    ],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": false,
-    "liteBrowserBundle": true,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/admin/ui-src/collection-view.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [
-      "src/admin/ui-src/dom.js",
-      "src/admin/ui-src/api.js",
-      "src/admin/ui-src/state.js",
-      "src/admin/ui-src/sidebar.js",
-      "src/admin/ui-src/search.js",
-      "src/admin/ui-src/toasts.js"
-    ],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": false,
-    "liteBrowserBundle": true,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/admin/ui-src/dom.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": false,
-    "liteBrowserBundle": true,
-    "recommendedAction": "keep"
-  },
-  {
     "path": "src/admin/ui-src/entries/full.js",
     "classification": "composition-full",
     "runtimeCoupling": "none",
@@ -624,12 +129,12 @@
       "full"
     ],
     "directDependencies": [
-      "src/admin/ui-src/app.css",
-      "src/admin/ui-src/app.js",
-      "src/admin/ui-src/global-settings-view.js",
-      "src/admin/ui-src/jobs-view.js",
-      "src/admin/ui-src/settings-view.js",
-      "src/admin/ui-src/local-features.js"
+      "src/shared/admin/ui-src/app.css",
+      "src/shared/admin/ui-src/app.js",
+      "src/shared/admin/ui-src/global-settings-view.js",
+      "src/shared/admin/ui-src/jobs-view.js",
+      "src/shared/admin/ui-src/settings-view.js",
+      "src/local/admin/ui-src/local-features.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
@@ -644,335 +149,10 @@
     "runtimeCoupling": "none",
     "entryPoints": [],
     "directDependencies": [
-      "src/admin/ui-src/app.css",
-      "src/admin/ui-src/app.js"
+      "src/shared/admin/ui-src/app.css",
+      "src/shared/admin/ui-src/app.js"
     ],
     "fullReachable": false,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": false,
-    "liteBrowserBundle": true,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/admin/ui-src/file-view.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [
-      "src/admin/ui-src/dom.js",
-      "src/admin/ui-src/api.js",
-      "src/admin/ui-src/format.js",
-      "src/admin/ui-src/icons.js",
-      "src/admin/ui-src/structural-renderer.js",
-      "src/admin/ui-src/assembly-view.js",
-      "src/admin/ui-src/toasts.js"
-    ],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": false,
-    "liteBrowserBundle": true,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/admin/ui-src/format.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": false,
-    "liteBrowserBundle": true,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/admin/ui-src/global-settings-view.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [
-      "src/admin/ui-src/dom.js",
-      "src/admin/ui-src/api.js",
-      "src/admin/ui-src/toasts.js",
-      "src/admin/ui-src/sidebar.js",
-      "src/core/embedding-profile/qdrant-cloud-models.js"
-    ],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": false,
-    "liteBrowserBundle": true,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/admin/ui-src/icons.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": false,
-    "liteBrowserBundle": true,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/admin/ui-src/jobs-view.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [
-      "pkg:edition",
-      "src/admin/ui-src/dom.js",
-      "src/admin/ui-src/api.js",
-      "src/admin/ui-src/operation-modal.js",
-      "src/admin/ui-src/operation-store.js"
-    ],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": false,
-    "liteBrowserBundle": true,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/admin/ui-src/local-features.js",
-    "classification": "local",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [
-      "src/admin/ui-src/api.js"
-    ],
-    "fullReachable": true,
-    "liteReachable": false,
-    "liteReachablePreShim": false,
-    "liteTarballStaged": false,
-    "liteBrowserBundle": true,
-    "recommendedAction": "move"
-  },
-  {
-    "path": "src/admin/ui-src/operation-modal.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [
-      "src/admin/ui-src/dom.js",
-      "src/admin/ui-src/api.js",
-      "src/admin/ui-src/operation-store.js",
-      "src/admin/ui-src/operation-render.js",
-      "src/admin/ui-src/toasts.js"
-    ],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": false,
-    "liteBrowserBundle": true,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/admin/ui-src/operation-render.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [
-      "src/admin/ui-src/dom.js"
-    ],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": false,
-    "liteBrowserBundle": true,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/admin/ui-src/operation-store.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [
-      "src/admin/ui-src/api.js"
-    ],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": false,
-    "liteBrowserBundle": true,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/admin/ui-src/router.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [
-      "src/admin/ui-src/dom.js",
-      "src/admin/ui-src/api.js",
-      "src/admin/ui-src/file-view.js",
-      "src/admin/ui-src/sidebar.js",
-      "src/admin/ui-src/collection-view.js",
-      "src/admin/ui-src/settings-view.js",
-      "src/admin/ui-src/global-settings-view.js",
-      "src/admin/ui-src/jobs-view.js",
-      "src/admin/ui-src/search.js",
-      "src/admin/ui-src/routes.js"
-    ],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": false,
-    "liteBrowserBundle": true,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/admin/ui-src/routes.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": false,
-    "liteBrowserBundle": true,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/admin/ui-src/search.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [
-      "src/admin/ui-src/dom.js",
-      "src/admin/ui-src/api.js",
-      "src/admin/ui-src/file-view.js",
-      "src/admin/ui-src/routes.js",
-      "src/admin/ui-src/sidebar.js",
-      "src/admin/ui-src/structural-renderer.js"
-    ],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": false,
-    "liteBrowserBundle": true,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/admin/ui-src/settings-view.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [
-      "pkg:edition",
-      "src/admin/ui-src/dom.js",
-      "src/admin/ui-src/api.js",
-      "src/admin/ui-src/state.js",
-      "src/admin/ui-src/sidebar.js",
-      "src/admin/ui-src/operation-modal.js",
-      "src/admin/ui-src/operation-store.js"
-    ],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": false,
-    "liteBrowserBundle": true,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/admin/ui-src/sidebar-resize.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": false,
-    "liteBrowserBundle": true,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/admin/ui-src/sidebar.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [
-      "src/admin/ui-src/dom.js",
-      "src/admin/ui-src/api.js",
-      "src/admin/ui-src/format.js",
-      "src/admin/ui-src/routes.js",
-      "src/admin/ui-src/state.js",
-      "src/admin/ui-src/icons.js"
-    ],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": false,
-    "liteBrowserBundle": true,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/admin/ui-src/state.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": false,
-    "liteBrowserBundle": true,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/admin/ui-src/structural-renderer.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [
-      "pkg:unified",
-      "pkg:remark-parse",
-      "pkg:remark-gfm",
-      "pkg:highlight.js"
-    ],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": false,
-    "liteBrowserBundle": true,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/admin/ui-src/toasts.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [
-      "src/admin/ui-src/dom.js"
-    ],
-    "fullReachable": true,
-    "liteReachable": true,
-    "liteReachablePreShim": true,
-    "liteTarballStaged": false,
-    "liteBrowserBundle": true,
-    "recommendedAction": "keep"
-  },
-  {
-    "path": "src/admin/ui-src/topbar.js",
-    "classification": "shared",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [
-      "src/admin/ui-src/dom.js",
-      "src/admin/ui-src/api.js",
-      "src/admin/ui-src/operation-store.js",
-      "src/admin/ui-src/operation-modal.js",
-      "src/admin/ui-src/icons.js"
-    ],
-    "fullReachable": true,
     "liteReachable": true,
     "liteReachablePreShim": true,
     "liteTarballStaged": false,
@@ -2118,6 +1298,74 @@
     "recommendedAction": "split"
   },
   {
+    "path": "src/local/admin/api/ollama-models.js",
+    "classification": "local",
+    "runtimeCoupling": "local",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/core/http/http.js",
+      "src/shared/core/doctor-checks.js",
+      "src/local/core/ollama-models.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": false,
+    "liteReachablePreShim": false,
+    "liteTarballStaged": false,
+    "liteBrowserBundle": false,
+    "recommendedAction": "exclude"
+  },
+  {
+    "path": "src/local/admin/api/onnx.js",
+    "classification": "local",
+    "runtimeCoupling": "local",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/core/http/http.js",
+      "src/local/core/onnx-provider-probe.js",
+      "src/local/core/cuda-diagnosis.js",
+      "src/local/core/semidex-home.js",
+      "src/local/core/onnx-runtime-source-resolution.js",
+      "src/local/core/managed-onnx-runtime-manifest.js",
+      "src/local/core/managed-runtime-listing.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": false,
+    "liteReachablePreShim": false,
+    "liteTarballStaged": false,
+    "liteBrowserBundle": false,
+    "recommendedAction": "exclude"
+  },
+  {
+    "path": "src/local/admin/system/ollama.js",
+    "classification": "local",
+    "runtimeCoupling": "local",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/local/core/ollama.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": false,
+    "liteReachablePreShim": false,
+    "liteTarballStaged": false,
+    "liteBrowserBundle": false,
+    "recommendedAction": "exclude"
+  },
+  {
+    "path": "src/local/admin/ui-src/local-features.js",
+    "classification": "local",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/shared/admin/ui-src/api.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": false,
+    "liteReachablePreShim": false,
+    "liteTarballStaged": false,
+    "liteBrowserBundle": true,
+    "recommendedAction": "move"
+  },
+  {
     "path": "src/local/core/cuda-diagnosis.js",
     "classification": "local",
     "runtimeCoupling": "none",
@@ -2672,6 +1920,758 @@
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
+  },
+  {
+    "path": "src/shared/admin/api/assembly.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/core/http/http.js",
+      "src/shared/admin/api/query-params.js",
+      "src/core/assembly/assemble.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/admin/api/chunks.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/core/http/http.js",
+      "src/shared/admin/api/query-params.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/admin/api/collections.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/core/http/http.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/admin/api/documents.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/core/http/http.js",
+      "src/shared/admin/api/query-params.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/admin/api/generation-models.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/core/http/http.js",
+      "src/shared/core/doctor-checks.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/admin/api/generation.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/core/http/http.js",
+      "src/shared/core/doctor-checks.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/admin/api/health.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/core/http/http.js",
+      "src/shared/core/doctor-checks.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/admin/api/jobs.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/core/http/http.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/admin/api/node.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/core/http/http.js",
+      "src/shared/admin/api/query-params.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/admin/api/operations.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/core/http/http.js",
+      "src/shared/admin/api/jobs.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/admin/api/query-params.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/core/http/http.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/admin/api/search.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/core/http/http.js",
+      "src/shared/core/embeddings.js",
+      "src/core/retrieval/search.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/admin/api/settings.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/core/http/http.js",
+      "src/core/settings/definitions.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/admin/api/skeleton.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/core/http/http.js",
+      "src/shared/admin/api/query-params.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/admin/api/system.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/core/http/http.js",
+      "src/shared/admin/system/folder-picker.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/admin/jobs/registry.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/shared/core/doctor-checks.js",
+      "src/shared/indexer/progress-event.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/admin/jobs/task-registry.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/shared/core/doctor-checks.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/admin/register-neutral-routes.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/shared/admin/api/health.js",
+      "src/shared/admin/api/collections.js",
+      "src/shared/admin/api/documents.js",
+      "src/shared/admin/api/chunks.js",
+      "src/shared/admin/api/assembly.js",
+      "src/shared/admin/api/skeleton.js",
+      "src/shared/admin/api/node.js",
+      "src/shared/admin/api/search.js",
+      "src/core/ask-api/v1/route.js",
+      "src/shared/admin/api/generation.js",
+      "src/shared/admin/jobs/task-registry.js",
+      "src/shared/admin/api/operations.js",
+      "src/shared/admin/api/system.js",
+      "src/shared/admin/api/settings.js",
+      "src/shared/admin/static.js",
+      "src/core/generation/runtime.js",
+      "src/core/ask/coordinator.js",
+      "src/shared/core/token-count.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/admin/router.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/core/http/http.js",
+      "src/shared/core/doctor-checks.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/admin/server.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/admin/static.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/core/http/http.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/admin/system/folder-picker.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": true,
+    "liteBrowserBundle": false,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/admin/ui-src/api.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": false,
+    "liteBrowserBundle": true,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/admin/ui-src/app.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/shared/admin/ui-src/dom.js",
+      "src/shared/admin/ui-src/sidebar-resize.js",
+      "src/shared/admin/ui-src/sidebar.js",
+      "src/shared/admin/ui-src/topbar.js",
+      "src/shared/admin/ui-src/router.js",
+      "src/shared/admin/ui-src/operation-modal.js",
+      "src/shared/admin/ui-src/operation-store.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": false,
+    "liteBrowserBundle": true,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/admin/ui-src/assembly-view.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/shared/admin/ui-src/dom.js",
+      "src/shared/admin/ui-src/structural-renderer.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": false,
+    "liteBrowserBundle": true,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/admin/ui-src/collection-view.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/shared/admin/ui-src/dom.js",
+      "src/shared/admin/ui-src/api.js",
+      "src/shared/admin/ui-src/state.js",
+      "src/shared/admin/ui-src/sidebar.js",
+      "src/shared/admin/ui-src/search.js",
+      "src/shared/admin/ui-src/toasts.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": false,
+    "liteBrowserBundle": true,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/admin/ui-src/dom.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": false,
+    "liteBrowserBundle": true,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/admin/ui-src/file-view.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/shared/admin/ui-src/dom.js",
+      "src/shared/admin/ui-src/api.js",
+      "src/shared/admin/ui-src/format.js",
+      "src/shared/admin/ui-src/icons.js",
+      "src/shared/admin/ui-src/structural-renderer.js",
+      "src/shared/admin/ui-src/assembly-view.js",
+      "src/shared/admin/ui-src/toasts.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": false,
+    "liteBrowserBundle": true,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/admin/ui-src/format.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": false,
+    "liteBrowserBundle": true,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/admin/ui-src/global-settings-view.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/shared/admin/ui-src/dom.js",
+      "src/shared/admin/ui-src/api.js",
+      "src/shared/admin/ui-src/toasts.js",
+      "src/shared/admin/ui-src/sidebar.js",
+      "src/core/embedding-profile/qdrant-cloud-models.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": false,
+    "liteBrowserBundle": true,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/admin/ui-src/icons.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": false,
+    "liteBrowserBundle": true,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/admin/ui-src/jobs-view.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [
+      "pkg:edition",
+      "src/shared/admin/ui-src/dom.js",
+      "src/shared/admin/ui-src/api.js",
+      "src/shared/admin/ui-src/operation-modal.js",
+      "src/shared/admin/ui-src/operation-store.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": false,
+    "liteBrowserBundle": true,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/admin/ui-src/operation-modal.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/shared/admin/ui-src/dom.js",
+      "src/shared/admin/ui-src/api.js",
+      "src/shared/admin/ui-src/operation-store.js",
+      "src/shared/admin/ui-src/operation-render.js",
+      "src/shared/admin/ui-src/toasts.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": false,
+    "liteBrowserBundle": true,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/admin/ui-src/operation-render.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/shared/admin/ui-src/dom.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": false,
+    "liteBrowserBundle": true,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/admin/ui-src/operation-store.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/shared/admin/ui-src/api.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": false,
+    "liteBrowserBundle": true,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/admin/ui-src/router.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/shared/admin/ui-src/dom.js",
+      "src/shared/admin/ui-src/api.js",
+      "src/shared/admin/ui-src/file-view.js",
+      "src/shared/admin/ui-src/sidebar.js",
+      "src/shared/admin/ui-src/collection-view.js",
+      "src/shared/admin/ui-src/settings-view.js",
+      "src/shared/admin/ui-src/global-settings-view.js",
+      "src/shared/admin/ui-src/jobs-view.js",
+      "src/shared/admin/ui-src/search.js",
+      "src/shared/admin/ui-src/routes.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": false,
+    "liteBrowserBundle": true,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/admin/ui-src/routes.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": false,
+    "liteBrowserBundle": true,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/admin/ui-src/search.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/shared/admin/ui-src/dom.js",
+      "src/shared/admin/ui-src/api.js",
+      "src/shared/admin/ui-src/file-view.js",
+      "src/shared/admin/ui-src/routes.js",
+      "src/shared/admin/ui-src/sidebar.js",
+      "src/shared/admin/ui-src/structural-renderer.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": false,
+    "liteBrowserBundle": true,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/admin/ui-src/settings-view.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [
+      "pkg:edition",
+      "src/shared/admin/ui-src/dom.js",
+      "src/shared/admin/ui-src/api.js",
+      "src/shared/admin/ui-src/state.js",
+      "src/shared/admin/ui-src/sidebar.js",
+      "src/shared/admin/ui-src/operation-modal.js",
+      "src/shared/admin/ui-src/operation-store.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": false,
+    "liteBrowserBundle": true,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/admin/ui-src/sidebar-resize.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": false,
+    "liteBrowserBundle": true,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/admin/ui-src/sidebar.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/shared/admin/ui-src/dom.js",
+      "src/shared/admin/ui-src/api.js",
+      "src/shared/admin/ui-src/format.js",
+      "src/shared/admin/ui-src/routes.js",
+      "src/shared/admin/ui-src/state.js",
+      "src/shared/admin/ui-src/icons.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": false,
+    "liteBrowserBundle": true,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/admin/ui-src/state.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": false,
+    "liteBrowserBundle": true,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/admin/ui-src/structural-renderer.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [
+      "pkg:unified",
+      "pkg:remark-parse",
+      "pkg:remark-gfm",
+      "pkg:highlight.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": false,
+    "liteBrowserBundle": true,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/admin/ui-src/toasts.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/shared/admin/ui-src/dom.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": false,
+    "liteBrowserBundle": true,
+    "recommendedAction": "keep"
+  },
+  {
+    "path": "src/shared/admin/ui-src/topbar.js",
+    "classification": "shared",
+    "runtimeCoupling": "none",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/shared/admin/ui-src/dom.js",
+      "src/shared/admin/ui-src/api.js",
+      "src/shared/admin/ui-src/operation-store.js",
+      "src/shared/admin/ui-src/operation-modal.js",
+      "src/shared/admin/ui-src/icons.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": true,
+    "liteReachablePreShim": true,
+    "liteTarballStaged": false,
+    "liteBrowserBundle": true,
+    "recommendedAction": "keep"
   },
   {
     "path": "src/shared/core/app-data-dir.js",
@@ -4336,7 +4336,7 @@
     "directDependencies": [
       "src/shared/core/env-bootstrap.js",
       "src/core/settings/service.js",
-      "src/admin/jobs/registry.js",
+      "src/shared/admin/jobs/registry.js",
       "src/admin/jobs/spawn-indexer-lite.js"
     ],
     "fullReachable": false,
@@ -4374,9 +4374,9 @@
       "src/shared/core/env-bootstrap.js",
       "src/core/settings/service.js",
       "src/core/settings/service.lite.js",
-      "src/admin/jobs/registry.js",
+      "src/shared/admin/jobs/registry.js",
       "src/admin/jobs/spawn-indexer-lite.js",
-      "src/admin/server.js",
+      "src/shared/admin/server.js",
       "src/admin/composition/lite.js",
       "src/core/generation/runtime.js",
       "src/core/generation/registry.js",

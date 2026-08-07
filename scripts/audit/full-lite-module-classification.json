@@ -10,223 +10,14 @@
     "unclassified"
   ],
   "counts": {
-    "shared": 144,
-    "local": 27,
     "composition": 12,
     "mixed": 9,
     "tooling": 61,
-    "cloud": 8
+    "cloud": 8,
+    "shared": 144,
+    "local": 27
   },
   "modules": [
-    {
-      "path": "src/admin/api/assembly.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": [
-        "src/admin/api/query-params.js",
-        "src/core/assembly/assemble.js",
-        "src/core/http/http.js"
-      ]
-    },
-    {
-      "path": "src/admin/api/chunks.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": [
-        "src/admin/api/query-params.js",
-        "src/core/http/http.js"
-      ]
-    },
-    {
-      "path": "src/admin/api/collections.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": [
-        "src/core/http/http.js"
-      ]
-    },
-    {
-      "path": "src/admin/api/documents.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": [
-        "src/admin/api/query-params.js",
-        "src/core/http/http.js"
-      ]
-    },
-    {
-      "path": "src/admin/api/generation-models.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": [
-        "src/core/http/http.js",
-        "src/shared/core/doctor-checks.js"
-      ]
-    },
-    {
-      "path": "src/admin/api/generation.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": [
-        "src/core/http/http.js",
-        "src/shared/core/doctor-checks.js"
-      ]
-    },
-    {
-      "path": "src/admin/api/health.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": [
-        "src/core/http/http.js",
-        "src/shared/core/doctor-checks.js"
-      ]
-    },
-    {
-      "path": "src/admin/api/jobs.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": [
-        "src/core/http/http.js"
-      ]
-    },
-    {
-      "path": "src/admin/api/node.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": [
-        "src/admin/api/query-params.js",
-        "src/core/http/http.js"
-      ]
-    },
-    {
-      "path": "src/admin/api/ollama-models.js",
-      "declaredCategory": "local",
-      "category": "local",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": false,
-      "directDependencies": [
-        "src/core/http/http.js",
-        "src/local/core/ollama-models.js",
-        "src/shared/core/doctor-checks.js"
-      ]
-    },
-    {
-      "path": "src/admin/api/onnx.js",
-      "declaredCategory": "local",
-      "category": "local",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": false,
-      "directDependencies": [
-        "src/core/http/http.js",
-        "src/local/core/cuda-diagnosis.js",
-        "src/local/core/managed-onnx-runtime-manifest.js",
-        "src/local/core/managed-runtime-listing.js",
-        "src/local/core/onnx-provider-probe.js",
-        "src/local/core/onnx-runtime-source-resolution.js",
-        "src/local/core/semidex-home.js"
-      ]
-    },
-    {
-      "path": "src/admin/api/operations.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": [
-        "src/admin/api/jobs.js",
-        "src/core/http/http.js"
-      ]
-    },
-    {
-      "path": "src/admin/api/query-params.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": [
-        "src/core/http/http.js"
-      ]
-    },
-    {
-      "path": "src/admin/api/search.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": [
-        "src/core/http/http.js",
-        "src/core/retrieval/search.js",
-        "src/shared/core/embeddings.js"
-      ]
-    },
-    {
-      "path": "src/admin/api/settings.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": [
-        "src/core/http/http.js",
-        "src/core/settings/definitions.js"
-      ]
-    },
-    {
-      "path": "src/admin/api/skeleton.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": [
-        "src/admin/api/query-params.js",
-        "src/core/http/http.js"
-      ]
-    },
-    {
-      "path": "src/admin/api/system.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": [
-        "src/admin/system/folder-picker.js",
-        "src/core/http/http.js"
-      ]
-    },
     {
       "path": "src/admin/bootstrap.js",
       "declaredCategory": "composition",
@@ -236,7 +27,6 @@
       "liteReachable": false,
       "directDependencies": [
         "src/admin/server-full.js",
-        "src/admin/server.js",
         "src/cloud/generation/cloud-generation-provider.js",
         "src/core/ce-rerank.js",
         "src/core/generation/registry.js",
@@ -245,6 +35,7 @@
         "src/core/settings/service.js",
         "src/local/core/onnx-runtime-source-resolution.js",
         "src/local/core/onnx-runtime-unavailable-capability.js",
+        "src/shared/admin/server.js",
         "src/shared/core/env-bootstrap.js"
       ]
     },
@@ -256,12 +47,7 @@
       "fullReachable": false,
       "liteReachable": true,
       "directDependencies": [
-        "src/admin/api/generation-models.js",
-        "src/admin/api/jobs.js",
-        "src/admin/jobs/registry.js",
         "src/admin/jobs/spawn-indexer-lite.js",
-        "src/admin/register-neutral-routes.js",
-        "src/admin/router.js",
         "src/cloud/admin/qdrant-cloud-api.js",
         "src/cloud/embedding/cloud-embedding-provider.js",
         "src/cloud/generation/cloud-generation-provider.js",
@@ -270,20 +56,13 @@
         "src/core/generation/runtime.js",
         "src/core/settings/service.js",
         "src/core/storage/factory.js",
+        "src/shared/admin/api/generation-models.js",
+        "src/shared/admin/api/jobs.js",
+        "src/shared/admin/jobs/registry.js",
+        "src/shared/admin/register-neutral-routes.js",
+        "src/shared/admin/router.js",
         "src/shared/core/embeddings.js",
         "src/shared/core/onnx-embed-capability.js"
-      ]
-    },
-    {
-      "path": "src/admin/jobs/registry.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": [
-        "src/shared/core/doctor-checks.js",
-        "src/shared/indexer/progress-event.js"
       ]
     },
     {
@@ -309,57 +88,6 @@
       ]
     },
     {
-      "path": "src/admin/jobs/task-registry.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": [
-        "src/shared/core/doctor-checks.js"
-      ]
-    },
-    {
-      "path": "src/admin/register-neutral-routes.js",
-      "declaredCategory": "composition",
-      "category": "composition",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": [
-        "src/admin/api/assembly.js",
-        "src/admin/api/chunks.js",
-        "src/admin/api/collections.js",
-        "src/admin/api/documents.js",
-        "src/admin/api/generation.js",
-        "src/admin/api/health.js",
-        "src/admin/api/node.js",
-        "src/admin/api/operations.js",
-        "src/admin/api/search.js",
-        "src/admin/api/settings.js",
-        "src/admin/api/skeleton.js",
-        "src/admin/api/system.js",
-        "src/admin/jobs/task-registry.js",
-        "src/admin/static.js",
-        "src/core/ask-api/v1/route.js",
-        "src/core/ask/coordinator.js",
-        "src/core/generation/runtime.js",
-        "src/shared/core/token-count.js"
-      ]
-    },
-    {
-      "path": "src/admin/router.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": [
-        "src/core/http/http.js",
-        "src/shared/core/doctor-checks.js"
-      ]
-    },
-    {
       "path": "src/admin/server-full.js",
       "declaredCategory": "composition",
       "category": "composition",
@@ -367,16 +95,7 @@
       "fullReachable": true,
       "liteReachable": false,
       "directDependencies": [
-        "src/admin/api/generation-models.js",
-        "src/admin/api/jobs.js",
-        "src/admin/api/ollama-models.js",
-        "src/admin/api/onnx.js",
-        "src/admin/api/system.js",
-        "src/admin/jobs/registry.js",
         "src/admin/jobs/spawn-indexer-full.js",
-        "src/admin/register-neutral-routes.js",
-        "src/admin/router.js",
-        "src/admin/system/ollama.js",
         "src/cloud/admin/qdrant-cloud-api.js",
         "src/cloud/embedding/cloud-embedding-provider.js",
         "src/cloud/generation/cloud-generation-provider.js",
@@ -386,112 +105,18 @@
         "src/core/onnx-embed-lazy.js",
         "src/core/settings/service.js",
         "src/core/storage/factory.js",
+        "src/local/admin/api/ollama-models.js",
+        "src/local/admin/api/onnx.js",
+        "src/local/admin/system/ollama.js",
         "src/local/core/ollama-models.js",
+        "src/shared/admin/api/generation-models.js",
+        "src/shared/admin/api/jobs.js",
+        "src/shared/admin/api/system.js",
+        "src/shared/admin/jobs/registry.js",
+        "src/shared/admin/register-neutral-routes.js",
+        "src/shared/admin/router.js",
         "src/shared/core/embeddings.js"
       ]
-    },
-    {
-      "path": "src/admin/server.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": []
-    },
-    {
-      "path": "src/admin/static.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": [
-        "src/core/http/http.js"
-      ]
-    },
-    {
-      "path": "src/admin/system/folder-picker.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": []
-    },
-    {
-      "path": "src/admin/system/ollama.js",
-      "declaredCategory": "local",
-      "category": "local",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": false,
-      "directDependencies": [
-        "src/local/core/ollama.js"
-      ]
-    },
-    {
-      "path": "src/admin/ui-src/api.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": []
-    },
-    {
-      "path": "src/admin/ui-src/app.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": [
-        "src/admin/ui-src/dom.js",
-        "src/admin/ui-src/operation-modal.js",
-        "src/admin/ui-src/operation-store.js",
-        "src/admin/ui-src/router.js",
-        "src/admin/ui-src/sidebar-resize.js",
-        "src/admin/ui-src/sidebar.js",
-        "src/admin/ui-src/topbar.js"
-      ]
-    },
-    {
-      "path": "src/admin/ui-src/assembly-view.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": [
-        "src/admin/ui-src/dom.js",
-        "src/admin/ui-src/structural-renderer.js"
-      ]
-    },
-    {
-      "path": "src/admin/ui-src/collection-view.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": [
-        "src/admin/ui-src/api.js",
-        "src/admin/ui-src/dom.js",
-        "src/admin/ui-src/search.js",
-        "src/admin/ui-src/sidebar.js",
-        "src/admin/ui-src/state.js",
-        "src/admin/ui-src/toasts.js"
-      ]
-    },
-    {
-      "path": "src/admin/ui-src/dom.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": []
     },
     {
       "path": "src/admin/ui-src/entries/full.js",
@@ -501,12 +126,12 @@
       "fullReachable": true,
       "liteReachable": false,
       "directDependencies": [
-        "src/admin/ui-src/app.css",
-        "src/admin/ui-src/app.js",
-        "src/admin/ui-src/global-settings-view.js",
-        "src/admin/ui-src/jobs-view.js",
-        "src/admin/ui-src/local-features.js",
-        "src/admin/ui-src/settings-view.js"
+        "src/local/admin/ui-src/local-features.js",
+        "src/shared/admin/ui-src/app.css",
+        "src/shared/admin/ui-src/app.js",
+        "src/shared/admin/ui-src/global-settings-view.js",
+        "src/shared/admin/ui-src/jobs-view.js",
+        "src/shared/admin/ui-src/settings-view.js"
       ]
     },
     {
@@ -517,250 +142,8 @@
       "fullReachable": false,
       "liteReachable": true,
       "directDependencies": [
-        "src/admin/ui-src/app.css",
-        "src/admin/ui-src/app.js"
-      ]
-    },
-    {
-      "path": "src/admin/ui-src/file-view.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": [
-        "src/admin/ui-src/api.js",
-        "src/admin/ui-src/assembly-view.js",
-        "src/admin/ui-src/dom.js",
-        "src/admin/ui-src/format.js",
-        "src/admin/ui-src/icons.js",
-        "src/admin/ui-src/structural-renderer.js",
-        "src/admin/ui-src/toasts.js"
-      ]
-    },
-    {
-      "path": "src/admin/ui-src/format.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": []
-    },
-    {
-      "path": "src/admin/ui-src/global-settings-view.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": [
-        "src/admin/ui-src/api.js",
-        "src/admin/ui-src/dom.js",
-        "src/admin/ui-src/sidebar.js",
-        "src/admin/ui-src/toasts.js",
-        "src/core/embedding-profile/qdrant-cloud-models.js"
-      ]
-    },
-    {
-      "path": "src/admin/ui-src/icons.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": []
-    },
-    {
-      "path": "src/admin/ui-src/jobs-view.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": [
-        "src/admin/ui-src/api.js",
-        "src/admin/ui-src/dom.js",
-        "src/admin/ui-src/operation-modal.js",
-        "src/admin/ui-src/operation-store.js"
-      ]
-    },
-    {
-      "path": "src/admin/ui-src/local-features.js",
-      "declaredCategory": "local",
-      "category": "local",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": false,
-      "directDependencies": [
-        "src/admin/ui-src/api.js"
-      ]
-    },
-    {
-      "path": "src/admin/ui-src/operation-modal.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": [
-        "src/admin/ui-src/api.js",
-        "src/admin/ui-src/dom.js",
-        "src/admin/ui-src/operation-render.js",
-        "src/admin/ui-src/operation-store.js",
-        "src/admin/ui-src/toasts.js"
-      ]
-    },
-    {
-      "path": "src/admin/ui-src/operation-render.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": [
-        "src/admin/ui-src/dom.js"
-      ]
-    },
-    {
-      "path": "src/admin/ui-src/operation-store.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": [
-        "src/admin/ui-src/api.js"
-      ]
-    },
-    {
-      "path": "src/admin/ui-src/router.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": [
-        "src/admin/ui-src/api.js",
-        "src/admin/ui-src/collection-view.js",
-        "src/admin/ui-src/dom.js",
-        "src/admin/ui-src/file-view.js",
-        "src/admin/ui-src/global-settings-view.js",
-        "src/admin/ui-src/jobs-view.js",
-        "src/admin/ui-src/routes.js",
-        "src/admin/ui-src/search.js",
-        "src/admin/ui-src/settings-view.js",
-        "src/admin/ui-src/sidebar.js"
-      ]
-    },
-    {
-      "path": "src/admin/ui-src/routes.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": []
-    },
-    {
-      "path": "src/admin/ui-src/search.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": [
-        "src/admin/ui-src/api.js",
-        "src/admin/ui-src/dom.js",
-        "src/admin/ui-src/file-view.js",
-        "src/admin/ui-src/routes.js",
-        "src/admin/ui-src/sidebar.js",
-        "src/admin/ui-src/structural-renderer.js"
-      ]
-    },
-    {
-      "path": "src/admin/ui-src/settings-view.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": [
-        "src/admin/ui-src/api.js",
-        "src/admin/ui-src/dom.js",
-        "src/admin/ui-src/operation-modal.js",
-        "src/admin/ui-src/operation-store.js",
-        "src/admin/ui-src/sidebar.js",
-        "src/admin/ui-src/state.js"
-      ]
-    },
-    {
-      "path": "src/admin/ui-src/sidebar-resize.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": []
-    },
-    {
-      "path": "src/admin/ui-src/sidebar.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": [
-        "src/admin/ui-src/api.js",
-        "src/admin/ui-src/dom.js",
-        "src/admin/ui-src/format.js",
-        "src/admin/ui-src/icons.js",
-        "src/admin/ui-src/routes.js",
-        "src/admin/ui-src/state.js"
-      ]
-    },
-    {
-      "path": "src/admin/ui-src/state.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": []
-    },
-    {
-      "path": "src/admin/ui-src/structural-renderer.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": []
-    },
-    {
-      "path": "src/admin/ui-src/toasts.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": [
-        "src/admin/ui-src/dom.js"
-      ]
-    },
-    {
-      "path": "src/admin/ui-src/topbar.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": [
-        "src/admin/ui-src/api.js",
-        "src/admin/ui-src/dom.js",
-        "src/admin/ui-src/icons.js",
-        "src/admin/ui-src/operation-modal.js",
-        "src/admin/ui-src/operation-store.js"
+        "src/shared/admin/ui-src/app.css",
+        "src/shared/admin/ui-src/app.js"
       ]
     },
     {
@@ -1593,6 +976,58 @@
       ]
     },
     {
+      "path": "src/local/admin/api/ollama-models.js",
+      "declaredCategory": "local",
+      "category": "local",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/core/http/http.js",
+        "src/local/core/ollama-models.js",
+        "src/shared/core/doctor-checks.js"
+      ]
+    },
+    {
+      "path": "src/local/admin/api/onnx.js",
+      "declaredCategory": "local",
+      "category": "local",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/core/http/http.js",
+        "src/local/core/cuda-diagnosis.js",
+        "src/local/core/managed-onnx-runtime-manifest.js",
+        "src/local/core/managed-runtime-listing.js",
+        "src/local/core/onnx-provider-probe.js",
+        "src/local/core/onnx-runtime-source-resolution.js",
+        "src/local/core/semidex-home.js"
+      ]
+    },
+    {
+      "path": "src/local/admin/system/ollama.js",
+      "declaredCategory": "local",
+      "category": "local",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/local/core/ollama.js"
+      ]
+    },
+    {
+      "path": "src/local/admin/ui-src/local-features.js",
+      "declaredCategory": "local",
+      "category": "local",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/shared/admin/ui-src/api.js"
+      ]
+    },
+    {
       "path": "src/local/core/cuda-diagnosis.js",
       "declaredCategory": "local",
       "category": "local",
@@ -1996,6 +1431,571 @@
         "src/shared/core/env.js",
         "src/shared/core/qdrant.js",
         "src/shared/core/rerank-capability.js"
+      ]
+    },
+    {
+      "path": "src/shared/admin/api/assembly.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/assembly/assemble.js",
+        "src/core/http/http.js",
+        "src/shared/admin/api/query-params.js"
+      ]
+    },
+    {
+      "path": "src/shared/admin/api/chunks.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/http/http.js",
+        "src/shared/admin/api/query-params.js"
+      ]
+    },
+    {
+      "path": "src/shared/admin/api/collections.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/http/http.js"
+      ]
+    },
+    {
+      "path": "src/shared/admin/api/documents.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/http/http.js",
+        "src/shared/admin/api/query-params.js"
+      ]
+    },
+    {
+      "path": "src/shared/admin/api/generation-models.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/http/http.js",
+        "src/shared/core/doctor-checks.js"
+      ]
+    },
+    {
+      "path": "src/shared/admin/api/generation.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/http/http.js",
+        "src/shared/core/doctor-checks.js"
+      ]
+    },
+    {
+      "path": "src/shared/admin/api/health.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/http/http.js",
+        "src/shared/core/doctor-checks.js"
+      ]
+    },
+    {
+      "path": "src/shared/admin/api/jobs.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/http/http.js"
+      ]
+    },
+    {
+      "path": "src/shared/admin/api/node.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/http/http.js",
+        "src/shared/admin/api/query-params.js"
+      ]
+    },
+    {
+      "path": "src/shared/admin/api/operations.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/http/http.js",
+        "src/shared/admin/api/jobs.js"
+      ]
+    },
+    {
+      "path": "src/shared/admin/api/query-params.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/http/http.js"
+      ]
+    },
+    {
+      "path": "src/shared/admin/api/search.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/http/http.js",
+        "src/core/retrieval/search.js",
+        "src/shared/core/embeddings.js"
+      ]
+    },
+    {
+      "path": "src/shared/admin/api/settings.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/http/http.js",
+        "src/core/settings/definitions.js"
+      ]
+    },
+    {
+      "path": "src/shared/admin/api/skeleton.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/http/http.js",
+        "src/shared/admin/api/query-params.js"
+      ]
+    },
+    {
+      "path": "src/shared/admin/api/system.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/http/http.js",
+        "src/shared/admin/system/folder-picker.js"
+      ]
+    },
+    {
+      "path": "src/shared/admin/jobs/registry.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/shared/core/doctor-checks.js",
+        "src/shared/indexer/progress-event.js"
+      ]
+    },
+    {
+      "path": "src/shared/admin/jobs/task-registry.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/shared/core/doctor-checks.js"
+      ]
+    },
+    {
+      "path": "src/shared/admin/register-neutral-routes.js",
+      "declaredCategory": "composition",
+      "category": "composition",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/ask-api/v1/route.js",
+        "src/core/ask/coordinator.js",
+        "src/core/generation/runtime.js",
+        "src/shared/admin/api/assembly.js",
+        "src/shared/admin/api/chunks.js",
+        "src/shared/admin/api/collections.js",
+        "src/shared/admin/api/documents.js",
+        "src/shared/admin/api/generation.js",
+        "src/shared/admin/api/health.js",
+        "src/shared/admin/api/node.js",
+        "src/shared/admin/api/operations.js",
+        "src/shared/admin/api/search.js",
+        "src/shared/admin/api/settings.js",
+        "src/shared/admin/api/skeleton.js",
+        "src/shared/admin/api/system.js",
+        "src/shared/admin/jobs/task-registry.js",
+        "src/shared/admin/static.js",
+        "src/shared/core/token-count.js"
+      ]
+    },
+    {
+      "path": "src/shared/admin/router.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/http/http.js",
+        "src/shared/core/doctor-checks.js"
+      ]
+    },
+    {
+      "path": "src/shared/admin/server.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/shared/admin/static.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/http/http.js"
+      ]
+    },
+    {
+      "path": "src/shared/admin/system/folder-picker.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/shared/admin/ui-src/api.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/shared/admin/ui-src/app.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/shared/admin/ui-src/dom.js",
+        "src/shared/admin/ui-src/operation-modal.js",
+        "src/shared/admin/ui-src/operation-store.js",
+        "src/shared/admin/ui-src/router.js",
+        "src/shared/admin/ui-src/sidebar-resize.js",
+        "src/shared/admin/ui-src/sidebar.js",
+        "src/shared/admin/ui-src/topbar.js"
+      ]
+    },
+    {
+      "path": "src/shared/admin/ui-src/assembly-view.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/shared/admin/ui-src/dom.js",
+        "src/shared/admin/ui-src/structural-renderer.js"
+      ]
+    },
+    {
+      "path": "src/shared/admin/ui-src/collection-view.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/shared/admin/ui-src/api.js",
+        "src/shared/admin/ui-src/dom.js",
+        "src/shared/admin/ui-src/search.js",
+        "src/shared/admin/ui-src/sidebar.js",
+        "src/shared/admin/ui-src/state.js",
+        "src/shared/admin/ui-src/toasts.js"
+      ]
+    },
+    {
+      "path": "src/shared/admin/ui-src/dom.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/shared/admin/ui-src/file-view.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/shared/admin/ui-src/api.js",
+        "src/shared/admin/ui-src/assembly-view.js",
+        "src/shared/admin/ui-src/dom.js",
+        "src/shared/admin/ui-src/format.js",
+        "src/shared/admin/ui-src/icons.js",
+        "src/shared/admin/ui-src/structural-renderer.js",
+        "src/shared/admin/ui-src/toasts.js"
+      ]
+    },
+    {
+      "path": "src/shared/admin/ui-src/format.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/shared/admin/ui-src/global-settings-view.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/embedding-profile/qdrant-cloud-models.js",
+        "src/shared/admin/ui-src/api.js",
+        "src/shared/admin/ui-src/dom.js",
+        "src/shared/admin/ui-src/sidebar.js",
+        "src/shared/admin/ui-src/toasts.js"
+      ]
+    },
+    {
+      "path": "src/shared/admin/ui-src/icons.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/shared/admin/ui-src/jobs-view.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/shared/admin/ui-src/api.js",
+        "src/shared/admin/ui-src/dom.js",
+        "src/shared/admin/ui-src/operation-modal.js",
+        "src/shared/admin/ui-src/operation-store.js"
+      ]
+    },
+    {
+      "path": "src/shared/admin/ui-src/operation-modal.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/shared/admin/ui-src/api.js",
+        "src/shared/admin/ui-src/dom.js",
+        "src/shared/admin/ui-src/operation-render.js",
+        "src/shared/admin/ui-src/operation-store.js",
+        "src/shared/admin/ui-src/toasts.js"
+      ]
+    },
+    {
+      "path": "src/shared/admin/ui-src/operation-render.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/shared/admin/ui-src/dom.js"
+      ]
+    },
+    {
+      "path": "src/shared/admin/ui-src/operation-store.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/shared/admin/ui-src/api.js"
+      ]
+    },
+    {
+      "path": "src/shared/admin/ui-src/router.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/shared/admin/ui-src/api.js",
+        "src/shared/admin/ui-src/collection-view.js",
+        "src/shared/admin/ui-src/dom.js",
+        "src/shared/admin/ui-src/file-view.js",
+        "src/shared/admin/ui-src/global-settings-view.js",
+        "src/shared/admin/ui-src/jobs-view.js",
+        "src/shared/admin/ui-src/routes.js",
+        "src/shared/admin/ui-src/search.js",
+        "src/shared/admin/ui-src/settings-view.js",
+        "src/shared/admin/ui-src/sidebar.js"
+      ]
+    },
+    {
+      "path": "src/shared/admin/ui-src/routes.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/shared/admin/ui-src/search.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/shared/admin/ui-src/api.js",
+        "src/shared/admin/ui-src/dom.js",
+        "src/shared/admin/ui-src/file-view.js",
+        "src/shared/admin/ui-src/routes.js",
+        "src/shared/admin/ui-src/sidebar.js",
+        "src/shared/admin/ui-src/structural-renderer.js"
+      ]
+    },
+    {
+      "path": "src/shared/admin/ui-src/settings-view.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/shared/admin/ui-src/api.js",
+        "src/shared/admin/ui-src/dom.js",
+        "src/shared/admin/ui-src/operation-modal.js",
+        "src/shared/admin/ui-src/operation-store.js",
+        "src/shared/admin/ui-src/sidebar.js",
+        "src/shared/admin/ui-src/state.js"
+      ]
+    },
+    {
+      "path": "src/shared/admin/ui-src/sidebar-resize.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/shared/admin/ui-src/sidebar.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/shared/admin/ui-src/api.js",
+        "src/shared/admin/ui-src/dom.js",
+        "src/shared/admin/ui-src/format.js",
+        "src/shared/admin/ui-src/icons.js",
+        "src/shared/admin/ui-src/routes.js",
+        "src/shared/admin/ui-src/state.js"
+      ]
+    },
+    {
+      "path": "src/shared/admin/ui-src/state.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/shared/admin/ui-src/structural-renderer.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/shared/admin/ui-src/toasts.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/shared/admin/ui-src/dom.js"
+      ]
+    },
+    {
+      "path": "src/shared/admin/ui-src/topbar.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/shared/admin/ui-src/api.js",
+        "src/shared/admin/ui-src/dom.js",
+        "src/shared/admin/ui-src/icons.js",
+        "src/shared/admin/ui-src/operation-modal.js",
+        "src/shared/admin/ui-src/operation-store.js"
       ]
     },
     {

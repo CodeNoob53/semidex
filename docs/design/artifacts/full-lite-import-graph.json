@@ -4,62 +4,13 @@
     "packages/lite/lite-src"
   ],
   "files": [
-    "src/admin/api/assembly.js",
-    "src/admin/api/chunks.js",
-    "src/admin/api/collections.js",
-    "src/admin/api/documents.js",
-    "src/admin/api/generation-models.js",
-    "src/admin/api/generation.js",
-    "src/admin/api/health.js",
-    "src/admin/api/jobs.js",
-    "src/admin/api/node.js",
-    "src/admin/api/ollama-models.js",
-    "src/admin/api/onnx.js",
-    "src/admin/api/operations.js",
-    "src/admin/api/query-params.js",
-    "src/admin/api/search.js",
-    "src/admin/api/settings.js",
-    "src/admin/api/skeleton.js",
-    "src/admin/api/system.js",
     "src/admin/bootstrap.js",
     "src/admin/composition/lite.js",
-    "src/admin/jobs/registry.js",
     "src/admin/jobs/spawn-indexer-full.js",
     "src/admin/jobs/spawn-indexer-lite.js",
-    "src/admin/jobs/task-registry.js",
-    "src/admin/register-neutral-routes.js",
-    "src/admin/router.js",
     "src/admin/server-full.js",
-    "src/admin/server.js",
-    "src/admin/static.js",
-    "src/admin/system/folder-picker.js",
-    "src/admin/system/ollama.js",
-    "src/admin/ui-src/api.js",
-    "src/admin/ui-src/app.js",
-    "src/admin/ui-src/assembly-view.js",
-    "src/admin/ui-src/collection-view.js",
-    "src/admin/ui-src/dom.js",
     "src/admin/ui-src/entries/full.js",
     "src/admin/ui-src/entries/lite.js",
-    "src/admin/ui-src/file-view.js",
-    "src/admin/ui-src/format.js",
-    "src/admin/ui-src/global-settings-view.js",
-    "src/admin/ui-src/icons.js",
-    "src/admin/ui-src/jobs-view.js",
-    "src/admin/ui-src/local-features.js",
-    "src/admin/ui-src/operation-modal.js",
-    "src/admin/ui-src/operation-render.js",
-    "src/admin/ui-src/operation-store.js",
-    "src/admin/ui-src/router.js",
-    "src/admin/ui-src/routes.js",
-    "src/admin/ui-src/search.js",
-    "src/admin/ui-src/settings-view.js",
-    "src/admin/ui-src/sidebar-resize.js",
-    "src/admin/ui-src/sidebar.js",
-    "src/admin/ui-src/state.js",
-    "src/admin/ui-src/structural-renderer.js",
-    "src/admin/ui-src/toasts.js",
-    "src/admin/ui-src/topbar.js",
     "src/backfill-entity-refs.js",
     "src/backfill-tags.js",
     "src/bootstrap-docs.js",
@@ -132,6 +83,10 @@
     "src/indexer/index.js",
     "src/indexer/phases/tag-onnx-lazy.js",
     "src/indexer/phases/tag-onnx-lazy.lite.js",
+    "src/local/admin/api/ollama-models.js",
+    "src/local/admin/api/onnx.js",
+    "src/local/admin/system/ollama.js",
+    "src/local/admin/ui-src/local-features.js",
     "src/local/core/cuda-diagnosis.js",
     "src/local/core/length-bucket.js",
     "src/local/core/managed-onnx-runtime-manifest.js",
@@ -166,6 +121,51 @@
     "src/mcp/tools/listFiles.js",
     "src/mcp/tools/listTags.js",
     "src/mcp/tools/search.js",
+    "src/shared/admin/api/assembly.js",
+    "src/shared/admin/api/chunks.js",
+    "src/shared/admin/api/collections.js",
+    "src/shared/admin/api/documents.js",
+    "src/shared/admin/api/generation-models.js",
+    "src/shared/admin/api/generation.js",
+    "src/shared/admin/api/health.js",
+    "src/shared/admin/api/jobs.js",
+    "src/shared/admin/api/node.js",
+    "src/shared/admin/api/operations.js",
+    "src/shared/admin/api/query-params.js",
+    "src/shared/admin/api/search.js",
+    "src/shared/admin/api/settings.js",
+    "src/shared/admin/api/skeleton.js",
+    "src/shared/admin/api/system.js",
+    "src/shared/admin/jobs/registry.js",
+    "src/shared/admin/jobs/task-registry.js",
+    "src/shared/admin/register-neutral-routes.js",
+    "src/shared/admin/router.js",
+    "src/shared/admin/server.js",
+    "src/shared/admin/static.js",
+    "src/shared/admin/system/folder-picker.js",
+    "src/shared/admin/ui-src/api.js",
+    "src/shared/admin/ui-src/app.js",
+    "src/shared/admin/ui-src/assembly-view.js",
+    "src/shared/admin/ui-src/collection-view.js",
+    "src/shared/admin/ui-src/dom.js",
+    "src/shared/admin/ui-src/file-view.js",
+    "src/shared/admin/ui-src/format.js",
+    "src/shared/admin/ui-src/global-settings-view.js",
+    "src/shared/admin/ui-src/icons.js",
+    "src/shared/admin/ui-src/jobs-view.js",
+    "src/shared/admin/ui-src/operation-modal.js",
+    "src/shared/admin/ui-src/operation-render.js",
+    "src/shared/admin/ui-src/operation-store.js",
+    "src/shared/admin/ui-src/router.js",
+    "src/shared/admin/ui-src/routes.js",
+    "src/shared/admin/ui-src/search.js",
+    "src/shared/admin/ui-src/settings-view.js",
+    "src/shared/admin/ui-src/sidebar-resize.js",
+    "src/shared/admin/ui-src/sidebar.js",
+    "src/shared/admin/ui-src/state.js",
+    "src/shared/admin/ui-src/structural-renderer.js",
+    "src/shared/admin/ui-src/toasts.js",
+    "src/shared/admin/ui-src/topbar.js",
     "src/shared/core/app-data-dir.js",
     "src/shared/core/bench-telemetry.js",
     "src/shared/core/bge-tokenizer.js",
@@ -272,330 +272,6 @@
     "packages/lite/lite-src/serve-lite.js"
   ],
   "nodes": {
-    "src/admin/api/assembly.js": {
-      "staticImports": [
-        {
-          "specifier": "../../core/http/http.js",
-          "kind": "relative",
-          "resolved": "src/core/http/http.js"
-        },
-        {
-          "specifier": "./query-params.js",
-          "kind": "relative",
-          "resolved": "src/admin/api/query-params.js"
-        },
-        {
-          "specifier": "../../core/assembly/assemble.js",
-          "kind": "relative",
-          "resolved": "src/core/assembly/assemble.js"
-        }
-      ],
-      "dynamicImports": [],
-      "requireCalls": [],
-      "forkSpawnCalls": []
-    },
-    "src/admin/api/chunks.js": {
-      "staticImports": [
-        {
-          "specifier": "../../core/http/http.js",
-          "kind": "relative",
-          "resolved": "src/core/http/http.js"
-        },
-        {
-          "specifier": "./query-params.js",
-          "kind": "relative",
-          "resolved": "src/admin/api/query-params.js"
-        }
-      ],
-      "dynamicImports": [],
-      "requireCalls": [],
-      "forkSpawnCalls": []
-    },
-    "src/admin/api/collections.js": {
-      "staticImports": [
-        {
-          "specifier": "../../core/http/http.js",
-          "kind": "relative",
-          "resolved": "src/core/http/http.js"
-        }
-      ],
-      "dynamicImports": [],
-      "requireCalls": [],
-      "forkSpawnCalls": []
-    },
-    "src/admin/api/documents.js": {
-      "staticImports": [
-        {
-          "specifier": "../../core/http/http.js",
-          "kind": "relative",
-          "resolved": "src/core/http/http.js"
-        },
-        {
-          "specifier": "./query-params.js",
-          "kind": "relative",
-          "resolved": "src/admin/api/query-params.js"
-        }
-      ],
-      "dynamicImports": [],
-      "requireCalls": [],
-      "forkSpawnCalls": []
-    },
-    "src/admin/api/generation-models.js": {
-      "staticImports": [
-        {
-          "specifier": "../../core/http/http.js",
-          "kind": "relative",
-          "resolved": "src/core/http/http.js"
-        },
-        {
-          "specifier": "../../shared/core/doctor-checks.js",
-          "kind": "relative",
-          "resolved": "src/shared/core/doctor-checks.js"
-        }
-      ],
-      "dynamicImports": [],
-      "requireCalls": [],
-      "forkSpawnCalls": []
-    },
-    "src/admin/api/generation.js": {
-      "staticImports": [
-        {
-          "specifier": "../../core/http/http.js",
-          "kind": "relative",
-          "resolved": "src/core/http/http.js"
-        },
-        {
-          "specifier": "../../shared/core/doctor-checks.js",
-          "kind": "relative",
-          "resolved": "src/shared/core/doctor-checks.js"
-        }
-      ],
-      "dynamicImports": [],
-      "requireCalls": [],
-      "forkSpawnCalls": []
-    },
-    "src/admin/api/health.js": {
-      "staticImports": [
-        {
-          "specifier": "../../core/http/http.js",
-          "kind": "relative",
-          "resolved": "src/core/http/http.js"
-        },
-        {
-          "specifier": "../../shared/core/doctor-checks.js",
-          "kind": "relative",
-          "resolved": "src/shared/core/doctor-checks.js"
-        }
-      ],
-      "dynamicImports": [],
-      "requireCalls": [],
-      "forkSpawnCalls": []
-    },
-    "src/admin/api/jobs.js": {
-      "staticImports": [
-        {
-          "specifier": "../../core/http/http.js",
-          "kind": "relative",
-          "resolved": "src/core/http/http.js"
-        },
-        {
-          "specifier": "../../core/http/http.js",
-          "kind": "relative",
-          "resolved": "src/core/http/http.js"
-        }
-      ],
-      "dynamicImports": [],
-      "requireCalls": [],
-      "forkSpawnCalls": []
-    },
-    "src/admin/api/node.js": {
-      "staticImports": [
-        {
-          "specifier": "../../core/http/http.js",
-          "kind": "relative",
-          "resolved": "src/core/http/http.js"
-        },
-        {
-          "specifier": "./query-params.js",
-          "kind": "relative",
-          "resolved": "src/admin/api/query-params.js"
-        }
-      ],
-      "dynamicImports": [],
-      "requireCalls": [],
-      "forkSpawnCalls": []
-    },
-    "src/admin/api/ollama-models.js": {
-      "staticImports": [
-        {
-          "specifier": "../../core/http/http.js",
-          "kind": "relative",
-          "resolved": "src/core/http/http.js"
-        },
-        {
-          "specifier": "../../shared/core/doctor-checks.js",
-          "kind": "relative",
-          "resolved": "src/shared/core/doctor-checks.js"
-        },
-        {
-          "specifier": "../../local/core/ollama-models.js",
-          "kind": "relative",
-          "resolved": "src/local/core/ollama-models.js"
-        }
-      ],
-      "dynamicImports": [],
-      "requireCalls": [],
-      "forkSpawnCalls": []
-    },
-    "src/admin/api/onnx.js": {
-      "staticImports": [
-        {
-          "specifier": "../../core/http/http.js",
-          "kind": "relative",
-          "resolved": "src/core/http/http.js"
-        },
-        {
-          "specifier": "../../local/core/onnx-provider-probe.js",
-          "kind": "relative",
-          "resolved": "src/local/core/onnx-provider-probe.js"
-        },
-        {
-          "specifier": "../../local/core/cuda-diagnosis.js",
-          "kind": "relative",
-          "resolved": "src/local/core/cuda-diagnosis.js"
-        },
-        {
-          "specifier": "../../local/core/semidex-home.js",
-          "kind": "relative",
-          "resolved": "src/local/core/semidex-home.js"
-        },
-        {
-          "specifier": "../../local/core/onnx-runtime-source-resolution.js",
-          "kind": "relative",
-          "resolved": "src/local/core/onnx-runtime-source-resolution.js"
-        },
-        {
-          "specifier": "../../local/core/managed-onnx-runtime-manifest.js",
-          "kind": "relative",
-          "resolved": "src/local/core/managed-onnx-runtime-manifest.js"
-        },
-        {
-          "specifier": "../../local/core/managed-runtime-listing.js",
-          "kind": "relative",
-          "resolved": "src/local/core/managed-runtime-listing.js"
-        }
-      ],
-      "dynamicImports": [],
-      "requireCalls": [],
-      "forkSpawnCalls": []
-    },
-    "src/admin/api/operations.js": {
-      "staticImports": [
-        {
-          "specifier": "../../core/http/http.js",
-          "kind": "relative",
-          "resolved": "src/core/http/http.js"
-        },
-        {
-          "specifier": "./jobs.js",
-          "kind": "relative",
-          "resolved": "src/admin/api/jobs.js"
-        }
-      ],
-      "dynamicImports": [],
-      "requireCalls": [],
-      "forkSpawnCalls": []
-    },
-    "src/admin/api/query-params.js": {
-      "staticImports": [
-        {
-          "specifier": "../../core/http/http.js",
-          "kind": "relative",
-          "resolved": "src/core/http/http.js"
-        }
-      ],
-      "dynamicImports": [],
-      "requireCalls": [],
-      "forkSpawnCalls": []
-    },
-    "src/admin/api/search.js": {
-      "staticImports": [
-        {
-          "specifier": "../../core/http/http.js",
-          "kind": "relative",
-          "resolved": "src/core/http/http.js"
-        },
-        {
-          "specifier": "../../core/http/http.js",
-          "kind": "relative",
-          "resolved": "src/core/http/http.js"
-        },
-        {
-          "specifier": "../../shared/core/embeddings.js",
-          "kind": "relative",
-          "resolved": "src/shared/core/embeddings.js"
-        },
-        {
-          "specifier": "../../core/retrieval/search.js",
-          "kind": "relative",
-          "resolved": "src/core/retrieval/search.js"
-        }
-      ],
-      "dynamicImports": [],
-      "requireCalls": [],
-      "forkSpawnCalls": []
-    },
-    "src/admin/api/settings.js": {
-      "staticImports": [
-        {
-          "specifier": "../../core/http/http.js",
-          "kind": "relative",
-          "resolved": "src/core/http/http.js"
-        },
-        {
-          "specifier": "../../core/settings/definitions.js",
-          "kind": "relative",
-          "resolved": "src/core/settings/definitions.js"
-        }
-      ],
-      "dynamicImports": [],
-      "requireCalls": [],
-      "forkSpawnCalls": []
-    },
-    "src/admin/api/skeleton.js": {
-      "staticImports": [
-        {
-          "specifier": "../../core/http/http.js",
-          "kind": "relative",
-          "resolved": "src/core/http/http.js"
-        },
-        {
-          "specifier": "./query-params.js",
-          "kind": "relative",
-          "resolved": "src/admin/api/query-params.js"
-        }
-      ],
-      "dynamicImports": [],
-      "requireCalls": [],
-      "forkSpawnCalls": []
-    },
-    "src/admin/api/system.js": {
-      "staticImports": [
-        {
-          "specifier": "../../core/http/http.js",
-          "kind": "relative",
-          "resolved": "src/core/http/http.js"
-        },
-        {
-          "specifier": "../system/folder-picker.js",
-          "kind": "relative",
-          "resolved": "src/admin/system/folder-picker.js"
-        }
-      ],
-      "dynamicImports": [],
-      "requireCalls": [],
-      "forkSpawnCalls": []
-    },
     "src/admin/bootstrap.js": {
       "staticImports": [
         {
@@ -637,10 +313,10 @@
           "resolved": "src/core/ce-rerank.js"
         },
         {
-          "specifier": "./server.js",
+          "specifier": "../shared/admin/server.js",
           "literal": true,
           "kind": "relative",
-          "resolved": "src/admin/server.js"
+          "resolved": "src/shared/admin/server.js"
         },
         {
           "specifier": "./server-full.js",
@@ -684,19 +360,19 @@
           "resolved": "src/core/storage/factory.js"
         },
         {
-          "specifier": "../router.js",
+          "specifier": "../../shared/admin/router.js",
           "kind": "relative",
-          "resolved": "src/admin/router.js"
+          "resolved": "src/shared/admin/router.js"
         },
         {
-          "specifier": "../api/jobs.js",
+          "specifier": "../../shared/admin/api/jobs.js",
           "kind": "relative",
-          "resolved": "src/admin/api/jobs.js"
+          "resolved": "src/shared/admin/api/jobs.js"
         },
         {
-          "specifier": "../api/generation-models.js",
+          "specifier": "../../shared/admin/api/generation-models.js",
           "kind": "relative",
-          "resolved": "src/admin/api/generation-models.js"
+          "resolved": "src/shared/admin/api/generation-models.js"
         },
         {
           "specifier": "../../core/settings/service.js",
@@ -704,9 +380,9 @@
           "resolved": "src/core/settings/service.js"
         },
         {
-          "specifier": "../register-neutral-routes.js",
+          "specifier": "../../shared/admin/register-neutral-routes.js",
           "kind": "relative",
-          "resolved": "src/admin/register-neutral-routes.js"
+          "resolved": "src/shared/admin/register-neutral-routes.js"
         },
         {
           "specifier": "../../shared/core/embeddings.js",
@@ -714,9 +390,9 @@
           "resolved": "src/shared/core/embeddings.js"
         },
         {
-          "specifier": "../jobs/registry.js",
+          "specifier": "../../shared/admin/jobs/registry.js",
           "kind": "relative",
-          "resolved": "src/admin/jobs/registry.js"
+          "resolved": "src/shared/admin/jobs/registry.js"
         },
         {
           "specifier": "../jobs/spawn-indexer-lite.js",
@@ -757,28 +433,6 @@
           "specifier": "../../core/generation/registry.js",
           "kind": "relative",
           "resolved": "src/core/generation/registry.js"
-        }
-      ],
-      "dynamicImports": [],
-      "requireCalls": [],
-      "forkSpawnCalls": []
-    },
-    "src/admin/jobs/registry.js": {
-      "staticImports": [
-        {
-          "specifier": "node:crypto",
-          "kind": "builtin",
-          "resolved": null
-        },
-        {
-          "specifier": "../../shared/core/doctor-checks.js",
-          "kind": "relative",
-          "resolved": "src/shared/core/doctor-checks.js"
-        },
-        {
-          "specifier": "../../shared/indexer/progress-event.js",
-          "kind": "relative",
-          "resolved": "src/shared/indexer/progress-event.js"
         }
       ],
       "dynamicImports": [],
@@ -833,142 +487,6 @@
         }
       ]
     },
-    "src/admin/jobs/task-registry.js": {
-      "staticImports": [
-        {
-          "specifier": "node:crypto",
-          "kind": "builtin",
-          "resolved": null
-        },
-        {
-          "specifier": "../../shared/core/doctor-checks.js",
-          "kind": "relative",
-          "resolved": "src/shared/core/doctor-checks.js"
-        }
-      ],
-      "dynamicImports": [],
-      "requireCalls": [],
-      "forkSpawnCalls": []
-    },
-    "src/admin/register-neutral-routes.js": {
-      "staticImports": [
-        {
-          "specifier": "node:http",
-          "kind": "builtin",
-          "resolved": null
-        },
-        {
-          "specifier": "./api/health.js",
-          "kind": "relative",
-          "resolved": "src/admin/api/health.js"
-        },
-        {
-          "specifier": "./api/collections.js",
-          "kind": "relative",
-          "resolved": "src/admin/api/collections.js"
-        },
-        {
-          "specifier": "./api/documents.js",
-          "kind": "relative",
-          "resolved": "src/admin/api/documents.js"
-        },
-        {
-          "specifier": "./api/chunks.js",
-          "kind": "relative",
-          "resolved": "src/admin/api/chunks.js"
-        },
-        {
-          "specifier": "./api/assembly.js",
-          "kind": "relative",
-          "resolved": "src/admin/api/assembly.js"
-        },
-        {
-          "specifier": "./api/skeleton.js",
-          "kind": "relative",
-          "resolved": "src/admin/api/skeleton.js"
-        },
-        {
-          "specifier": "./api/node.js",
-          "kind": "relative",
-          "resolved": "src/admin/api/node.js"
-        },
-        {
-          "specifier": "./api/search.js",
-          "kind": "relative",
-          "resolved": "src/admin/api/search.js"
-        },
-        {
-          "specifier": "../core/ask-api/v1/route.js",
-          "kind": "relative",
-          "resolved": "src/core/ask-api/v1/route.js"
-        },
-        {
-          "specifier": "./api/generation.js",
-          "kind": "relative",
-          "resolved": "src/admin/api/generation.js"
-        },
-        {
-          "specifier": "./jobs/task-registry.js",
-          "kind": "relative",
-          "resolved": "src/admin/jobs/task-registry.js"
-        },
-        {
-          "specifier": "./api/operations.js",
-          "kind": "relative",
-          "resolved": "src/admin/api/operations.js"
-        },
-        {
-          "specifier": "./api/system.js",
-          "kind": "relative",
-          "resolved": "src/admin/api/system.js"
-        },
-        {
-          "specifier": "./api/settings.js",
-          "kind": "relative",
-          "resolved": "src/admin/api/settings.js"
-        },
-        {
-          "specifier": "./static.js",
-          "kind": "relative",
-          "resolved": "src/admin/static.js"
-        },
-        {
-          "specifier": "../core/generation/runtime.js",
-          "kind": "relative",
-          "resolved": "src/core/generation/runtime.js"
-        },
-        {
-          "specifier": "../core/ask/coordinator.js",
-          "kind": "relative",
-          "resolved": "src/core/ask/coordinator.js"
-        },
-        {
-          "specifier": "../shared/core/token-count.js",
-          "kind": "relative",
-          "resolved": "src/shared/core/token-count.js"
-        }
-      ],
-      "dynamicImports": [],
-      "requireCalls": [],
-      "forkSpawnCalls": []
-    },
-    "src/admin/router.js": {
-      "staticImports": [
-        {
-          "specifier": "../core/http/http.js",
-          "kind": "relative",
-          "resolved": "src/core/http/http.js"
-        },
-        {
-          "specifier": "../shared/core/doctor-checks.js",
-          "kind": "relative",
-          "resolved": "src/shared/core/doctor-checks.js"
-        }
-      ],
-      "dynamicImports": [],
-      "requireCalls": [],
-      "forkSpawnCalls": []
-    },
     "src/admin/server-full.js": {
       "staticImports": [
         {
@@ -977,34 +495,34 @@
           "resolved": "src/core/storage/factory.js"
         },
         {
-          "specifier": "./router.js",
+          "specifier": "../shared/admin/router.js",
           "kind": "relative",
-          "resolved": "src/admin/router.js"
+          "resolved": "src/shared/admin/router.js"
         },
         {
-          "specifier": "./api/jobs.js",
+          "specifier": "../shared/admin/api/jobs.js",
           "kind": "relative",
-          "resolved": "src/admin/api/jobs.js"
+          "resolved": "src/shared/admin/api/jobs.js"
         },
         {
-          "specifier": "./api/system.js",
+          "specifier": "../shared/admin/api/system.js",
           "kind": "relative",
-          "resolved": "src/admin/api/system.js"
+          "resolved": "src/shared/admin/api/system.js"
         },
         {
-          "specifier": "./api/onnx.js",
+          "specifier": "../local/admin/api/onnx.js",
           "kind": "relative",
-          "resolved": "src/admin/api/onnx.js"
+          "resolved": "src/local/admin/api/onnx.js"
         },
         {
-          "specifier": "./api/ollama-models.js",
+          "specifier": "../local/admin/api/ollama-models.js",
           "kind": "relative",
-          "resolved": "src/admin/api/ollama-models.js"
+          "resolved": "src/local/admin/api/ollama-models.js"
         },
         {
-          "specifier": "./api/generation-models.js",
+          "specifier": "../shared/admin/api/generation-models.js",
           "kind": "relative",
-          "resolved": "src/admin/api/generation-models.js"
+          "resolved": "src/shared/admin/api/generation-models.js"
         },
         {
           "specifier": "../local/core/ollama-models.js",
@@ -1012,9 +530,9 @@
           "resolved": "src/local/core/ollama-models.js"
         },
         {
-          "specifier": "./system/ollama.js",
+          "specifier": "../local/admin/system/ollama.js",
           "kind": "relative",
-          "resolved": "src/admin/system/ollama.js"
+          "resolved": "src/local/admin/system/ollama.js"
         },
         {
           "specifier": "../core/settings/service.js",
@@ -1022,9 +540,9 @@
           "resolved": "src/core/settings/service.js"
         },
         {
-          "specifier": "./register-neutral-routes.js",
+          "specifier": "../shared/admin/register-neutral-routes.js",
           "kind": "relative",
-          "resolved": "src/admin/register-neutral-routes.js"
+          "resolved": "src/shared/admin/register-neutral-routes.js"
         },
         {
           "specifier": "../shared/core/embeddings.js",
@@ -1032,9 +550,9 @@
           "resolved": "src/shared/core/embeddings.js"
         },
         {
-          "specifier": "./jobs/registry.js",
+          "specifier": "../shared/admin/jobs/registry.js",
           "kind": "relative",
-          "resolved": "src/admin/jobs/registry.js"
+          "resolved": "src/shared/admin/jobs/registry.js"
         },
         {
           "specifier": "./jobs/spawn-indexer-full.js",
@@ -1081,229 +599,37 @@
       "requireCalls": [],
       "forkSpawnCalls": []
     },
-    "src/admin/server.js": {
-      "staticImports": [],
-      "dynamicImports": [],
-      "requireCalls": [],
-      "forkSpawnCalls": []
-    },
-    "src/admin/static.js": {
-      "staticImports": [
-        {
-          "specifier": "node:fs",
-          "kind": "builtin",
-          "resolved": null
-        },
-        {
-          "specifier": "node:fs/promises",
-          "kind": "builtin",
-          "resolved": null
-        },
-        {
-          "specifier": "node:path",
-          "kind": "builtin",
-          "resolved": null
-        },
-        {
-          "specifier": "node:url",
-          "kind": "builtin",
-          "resolved": null
-        },
-        {
-          "specifier": "../core/http/http.js",
-          "kind": "relative",
-          "resolved": "src/core/http/http.js"
-        }
-      ],
-      "dynamicImports": [],
-      "requireCalls": [],
-      "forkSpawnCalls": []
-    },
-    "src/admin/system/folder-picker.js": {
-      "staticImports": [
-        {
-          "specifier": "node:child_process",
-          "kind": "builtin",
-          "resolved": null
-        },
-        {
-          "specifier": "node:os",
-          "kind": "builtin",
-          "resolved": null
-        }
-      ],
-      "dynamicImports": [],
-      "requireCalls": [],
-      "forkSpawnCalls": [
-        {
-          "callee": "spawn",
-          "arg": "powershell.exe",
-          "literal": true,
-          "resolved": null
-        }
-      ]
-    },
-    "src/admin/system/ollama.js": {
-      "staticImports": [
-        {
-          "specifier": "../../local/core/ollama.js",
-          "kind": "relative",
-          "resolved": "src/local/core/ollama.js"
-        }
-      ],
-      "dynamicImports": [],
-      "requireCalls": [],
-      "forkSpawnCalls": []
-    },
-    "src/admin/ui-src/api.js": {
-      "staticImports": [],
-      "dynamicImports": [],
-      "requireCalls": [],
-      "forkSpawnCalls": []
-    },
-    "src/admin/ui-src/app.js": {
-      "staticImports": [
-        {
-          "specifier": "./dom.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/dom.js"
-        },
-        {
-          "specifier": "./sidebar-resize.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/sidebar-resize.js"
-        },
-        {
-          "specifier": "./sidebar.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/sidebar.js"
-        },
-        {
-          "specifier": "./topbar.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/topbar.js"
-        },
-        {
-          "specifier": "./router.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/router.js"
-        },
-        {
-          "specifier": "./operation-modal.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/operation-modal.js"
-        },
-        {
-          "specifier": "./operation-store.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/operation-store.js"
-        }
-      ],
-      "dynamicImports": [],
-      "requireCalls": [],
-      "forkSpawnCalls": []
-    },
-    "src/admin/ui-src/assembly-view.js": {
-      "staticImports": [
-        {
-          "specifier": "./dom.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/dom.js"
-        },
-        {
-          "specifier": "./structural-renderer.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/structural-renderer.js"
-        }
-      ],
-      "dynamicImports": [],
-      "requireCalls": [],
-      "forkSpawnCalls": []
-    },
-    "src/admin/ui-src/collection-view.js": {
-      "staticImports": [
-        {
-          "specifier": "./partials/shared/overview-shell.html?raw",
-          "kind": "relative",
-          "resolved": null
-        },
-        {
-          "specifier": "./partials/shared/collection-shell.html?raw",
-          "kind": "relative",
-          "resolved": null
-        },
-        {
-          "specifier": "./dom.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/dom.js"
-        },
-        {
-          "specifier": "./api.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/api.js"
-        },
-        {
-          "specifier": "./state.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/state.js"
-        },
-        {
-          "specifier": "./sidebar.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/sidebar.js"
-        },
-        {
-          "specifier": "./search.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/search.js"
-        },
-        {
-          "specifier": "./toasts.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/toasts.js"
-        }
-      ],
-      "dynamicImports": [],
-      "requireCalls": [],
-      "forkSpawnCalls": []
-    },
-    "src/admin/ui-src/dom.js": {
-      "staticImports": [],
-      "dynamicImports": [],
-      "requireCalls": [],
-      "forkSpawnCalls": []
-    },
     "src/admin/ui-src/entries/full.js": {
       "staticImports": [
         {
-          "specifier": "../app.css",
+          "specifier": "../../../shared/admin/ui-src/app.css",
           "kind": "relative",
-          "resolved": "src/admin/ui-src/app.css"
+          "resolved": "src/shared/admin/ui-src/app.css"
         },
         {
-          "specifier": "../app.js",
+          "specifier": "../../../shared/admin/ui-src/app.js",
           "kind": "relative",
-          "resolved": "src/admin/ui-src/app.js"
+          "resolved": "src/shared/admin/ui-src/app.js"
         },
         {
-          "specifier": "../global-settings-view.js",
+          "specifier": "../../../shared/admin/ui-src/global-settings-view.js",
           "kind": "relative",
-          "resolved": "src/admin/ui-src/global-settings-view.js"
+          "resolved": "src/shared/admin/ui-src/global-settings-view.js"
         },
         {
-          "specifier": "../jobs-view.js",
+          "specifier": "../../../shared/admin/ui-src/jobs-view.js",
           "kind": "relative",
-          "resolved": "src/admin/ui-src/jobs-view.js"
+          "resolved": "src/shared/admin/ui-src/jobs-view.js"
         },
         {
-          "specifier": "../settings-view.js",
+          "specifier": "../../../shared/admin/ui-src/settings-view.js",
           "kind": "relative",
-          "resolved": "src/admin/ui-src/settings-view.js"
+          "resolved": "src/shared/admin/ui-src/settings-view.js"
         },
         {
-          "specifier": "../local-features.js",
+          "specifier": "../../../local/admin/ui-src/local-features.js",
           "kind": "relative",
-          "resolved": "src/admin/ui-src/local-features.js"
+          "resolved": "src/local/admin/ui-src/local-features.js"
         }
       ],
       "dynamicImports": [],
@@ -1313,537 +639,14 @@
     "src/admin/ui-src/entries/lite.js": {
       "staticImports": [
         {
-          "specifier": "../app.css",
+          "specifier": "../../../shared/admin/ui-src/app.css",
           "kind": "relative",
-          "resolved": "src/admin/ui-src/app.css"
+          "resolved": "src/shared/admin/ui-src/app.css"
         },
         {
-          "specifier": "../app.js",
+          "specifier": "../../../shared/admin/ui-src/app.js",
           "kind": "relative",
-          "resolved": "src/admin/ui-src/app.js"
-        }
-      ],
-      "dynamicImports": [],
-      "requireCalls": [],
-      "forkSpawnCalls": []
-    },
-    "src/admin/ui-src/file-view.js": {
-      "staticImports": [
-        {
-          "specifier": "./dom.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/dom.js"
-        },
-        {
-          "specifier": "./api.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/api.js"
-        },
-        {
-          "specifier": "./format.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/format.js"
-        },
-        {
-          "specifier": "./icons.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/icons.js"
-        },
-        {
-          "specifier": "./structural-renderer.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/structural-renderer.js"
-        },
-        {
-          "specifier": "./assembly-view.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/assembly-view.js"
-        },
-        {
-          "specifier": "./toasts.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/toasts.js"
-        }
-      ],
-      "dynamicImports": [],
-      "requireCalls": [],
-      "forkSpawnCalls": []
-    },
-    "src/admin/ui-src/format.js": {
-      "staticImports": [],
-      "dynamicImports": [],
-      "requireCalls": [],
-      "forkSpawnCalls": []
-    },
-    "src/admin/ui-src/global-settings-view.js": {
-      "staticImports": [
-        {
-          "specifier": "./dom.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/dom.js"
-        },
-        {
-          "specifier": "./api.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/api.js"
-        },
-        {
-          "specifier": "./toasts.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/toasts.js"
-        },
-        {
-          "specifier": "./sidebar.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/sidebar.js"
-        },
-        {
-          "specifier": "../../core/embedding-profile/qdrant-cloud-models.js",
-          "kind": "relative",
-          "resolved": "src/core/embedding-profile/qdrant-cloud-models.js"
-        }
-      ],
-      "dynamicImports": [],
-      "requireCalls": [],
-      "forkSpawnCalls": []
-    },
-    "src/admin/ui-src/icons.js": {
-      "staticImports": [],
-      "dynamicImports": [],
-      "requireCalls": [],
-      "forkSpawnCalls": []
-    },
-    "src/admin/ui-src/jobs-view.js": {
-      "staticImports": [
-        {
-          "specifier": "edition/index-view.html?raw",
-          "kind": "package",
-          "resolved": "edition"
-        },
-        {
-          "specifier": "./dom.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/dom.js"
-        },
-        {
-          "specifier": "./api.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/api.js"
-        },
-        {
-          "specifier": "./operation-modal.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/operation-modal.js"
-        },
-        {
-          "specifier": "./operation-store.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/operation-store.js"
-        }
-      ],
-      "dynamicImports": [],
-      "requireCalls": [],
-      "forkSpawnCalls": []
-    },
-    "src/admin/ui-src/local-features.js": {
-      "staticImports": [
-        {
-          "specifier": "./api.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/api.js"
-        }
-      ],
-      "dynamicImports": [],
-      "requireCalls": [],
-      "forkSpawnCalls": []
-    },
-    "src/admin/ui-src/operation-modal.js": {
-      "staticImports": [
-        {
-          "specifier": "./dom.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/dom.js"
-        },
-        {
-          "specifier": "./api.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/api.js"
-        },
-        {
-          "specifier": "./operation-store.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/operation-store.js"
-        },
-        {
-          "specifier": "./operation-render.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/operation-render.js"
-        },
-        {
-          "specifier": "./toasts.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/toasts.js"
-        }
-      ],
-      "dynamicImports": [],
-      "requireCalls": [],
-      "forkSpawnCalls": []
-    },
-    "src/admin/ui-src/operation-render.js": {
-      "staticImports": [
-        {
-          "specifier": "./dom.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/dom.js"
-        }
-      ],
-      "dynamicImports": [],
-      "requireCalls": [],
-      "forkSpawnCalls": []
-    },
-    "src/admin/ui-src/operation-store.js": {
-      "staticImports": [
-        {
-          "specifier": "./api.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/api.js"
-        }
-      ],
-      "dynamicImports": [],
-      "requireCalls": [],
-      "forkSpawnCalls": []
-    },
-    "src/admin/ui-src/router.js": {
-      "staticImports": [
-        {
-          "specifier": "./dom.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/dom.js"
-        },
-        {
-          "specifier": "./api.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/api.js"
-        },
-        {
-          "specifier": "./file-view.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/file-view.js"
-        },
-        {
-          "specifier": "./sidebar.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/sidebar.js"
-        },
-        {
-          "specifier": "./collection-view.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/collection-view.js"
-        },
-        {
-          "specifier": "./settings-view.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/settings-view.js"
-        },
-        {
-          "specifier": "./global-settings-view.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/global-settings-view.js"
-        },
-        {
-          "specifier": "./jobs-view.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/jobs-view.js"
-        },
-        {
-          "specifier": "./search.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/search.js"
-        },
-        {
-          "specifier": "./routes.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/routes.js"
-        }
-      ],
-      "dynamicImports": [],
-      "requireCalls": [],
-      "forkSpawnCalls": []
-    },
-    "src/admin/ui-src/routes.js": {
-      "staticImports": [],
-      "dynamicImports": [],
-      "requireCalls": [],
-      "forkSpawnCalls": []
-    },
-    "src/admin/ui-src/search.js": {
-      "staticImports": [
-        {
-          "specifier": "./dom.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/dom.js"
-        },
-        {
-          "specifier": "./api.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/api.js"
-        },
-        {
-          "specifier": "./file-view.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/file-view.js"
-        },
-        {
-          "specifier": "./routes.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/routes.js"
-        },
-        {
-          "specifier": "./sidebar.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/sidebar.js"
-        },
-        {
-          "specifier": "./structural-renderer.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/structural-renderer.js"
-        }
-      ],
-      "dynamicImports": [],
-      "requireCalls": [],
-      "forkSpawnCalls": []
-    },
-    "src/admin/ui-src/settings-view.js": {
-      "staticImports": [
-        {
-          "specifier": "edition/settings-shell.html?raw",
-          "kind": "package",
-          "resolved": "edition"
-        },
-        {
-          "specifier": "./dom.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/dom.js"
-        },
-        {
-          "specifier": "./api.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/api.js"
-        },
-        {
-          "specifier": "./state.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/state.js"
-        },
-        {
-          "specifier": "./sidebar.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/sidebar.js"
-        },
-        {
-          "specifier": "./operation-modal.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/operation-modal.js"
-        },
-        {
-          "specifier": "./operation-store.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/operation-store.js"
-        }
-      ],
-      "dynamicImports": [],
-      "requireCalls": [],
-      "forkSpawnCalls": []
-    },
-    "src/admin/ui-src/sidebar-resize.js": {
-      "staticImports": [],
-      "dynamicImports": [],
-      "requireCalls": [],
-      "forkSpawnCalls": []
-    },
-    "src/admin/ui-src/sidebar.js": {
-      "staticImports": [
-        {
-          "specifier": "./dom.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/dom.js"
-        },
-        {
-          "specifier": "./api.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/api.js"
-        },
-        {
-          "specifier": "./format.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/format.js"
-        },
-        {
-          "specifier": "./routes.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/routes.js"
-        },
-        {
-          "specifier": "./state.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/state.js"
-        },
-        {
-          "specifier": "./icons.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/icons.js"
-        }
-      ],
-      "dynamicImports": [],
-      "requireCalls": [],
-      "forkSpawnCalls": []
-    },
-    "src/admin/ui-src/state.js": {
-      "staticImports": [],
-      "dynamicImports": [],
-      "requireCalls": [],
-      "forkSpawnCalls": []
-    },
-    "src/admin/ui-src/structural-renderer.js": {
-      "staticImports": [
-        {
-          "specifier": "unified",
-          "kind": "package",
-          "resolved": "unified"
-        },
-        {
-          "specifier": "remark-parse",
-          "kind": "package",
-          "resolved": "remark-parse"
-        },
-        {
-          "specifier": "remark-gfm",
-          "kind": "package",
-          "resolved": "remark-gfm"
-        },
-        {
-          "specifier": "highlight.js/lib/core",
-          "kind": "package",
-          "resolved": "highlight.js"
-        },
-        {
-          "specifier": "highlight.js/lib/languages/javascript",
-          "kind": "package",
-          "resolved": "highlight.js"
-        },
-        {
-          "specifier": "highlight.js/lib/languages/typescript",
-          "kind": "package",
-          "resolved": "highlight.js"
-        },
-        {
-          "specifier": "highlight.js/lib/languages/python",
-          "kind": "package",
-          "resolved": "highlight.js"
-        },
-        {
-          "specifier": "highlight.js/lib/languages/bash",
-          "kind": "package",
-          "resolved": "highlight.js"
-        },
-        {
-          "specifier": "highlight.js/lib/languages/shell",
-          "kind": "package",
-          "resolved": "highlight.js"
-        },
-        {
-          "specifier": "highlight.js/lib/languages/json",
-          "kind": "package",
-          "resolved": "highlight.js"
-        },
-        {
-          "specifier": "highlight.js/lib/languages/yaml",
-          "kind": "package",
-          "resolved": "highlight.js"
-        },
-        {
-          "specifier": "highlight.js/lib/languages/sql",
-          "kind": "package",
-          "resolved": "highlight.js"
-        },
-        {
-          "specifier": "highlight.js/lib/languages/xml",
-          "kind": "package",
-          "resolved": "highlight.js"
-        },
-        {
-          "specifier": "highlight.js/lib/languages/css",
-          "kind": "package",
-          "resolved": "highlight.js"
-        },
-        {
-          "specifier": "highlight.js/lib/languages/markdown",
-          "kind": "package",
-          "resolved": "highlight.js"
-        },
-        {
-          "specifier": "highlight.js/lib/languages/java",
-          "kind": "package",
-          "resolved": "highlight.js"
-        },
-        {
-          "specifier": "highlight.js/lib/languages/csharp",
-          "kind": "package",
-          "resolved": "highlight.js"
-        },
-        {
-          "specifier": "highlight.js/lib/languages/cpp",
-          "kind": "package",
-          "resolved": "highlight.js"
-        },
-        {
-          "specifier": "highlight.js/lib/languages/c",
-          "kind": "package",
-          "resolved": "highlight.js"
-        }
-      ],
-      "dynamicImports": [],
-      "requireCalls": [],
-      "forkSpawnCalls": []
-    },
-    "src/admin/ui-src/toasts.js": {
-      "staticImports": [
-        {
-          "specifier": "./dom.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/dom.js"
-        }
-      ],
-      "dynamicImports": [],
-      "requireCalls": [],
-      "forkSpawnCalls": []
-    },
-    "src/admin/ui-src/topbar.js": {
-      "staticImports": [
-        {
-          "specifier": "./dom.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/dom.js"
-        },
-        {
-          "specifier": "./api.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/api.js"
-        },
-        {
-          "specifier": "./operation-store.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/operation-store.js"
-        },
-        {
-          "specifier": "./operation-modal.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/operation-modal.js"
-        },
-        {
-          "specifier": "./icons.js",
-          "kind": "relative",
-          "resolved": "src/admin/ui-src/icons.js"
+          "resolved": "src/shared/admin/ui-src/app.js"
         }
       ],
       "dynamicImports": [],
@@ -3210,6 +2013,94 @@
       "requireCalls": [],
       "forkSpawnCalls": []
     },
+    "src/local/admin/api/ollama-models.js": {
+      "staticImports": [
+        {
+          "specifier": "../../../core/http/http.js",
+          "kind": "relative",
+          "resolved": "src/core/http/http.js"
+        },
+        {
+          "specifier": "../../../shared/core/doctor-checks.js",
+          "kind": "relative",
+          "resolved": "src/shared/core/doctor-checks.js"
+        },
+        {
+          "specifier": "../../core/ollama-models.js",
+          "kind": "relative",
+          "resolved": "src/local/core/ollama-models.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/local/admin/api/onnx.js": {
+      "staticImports": [
+        {
+          "specifier": "../../../core/http/http.js",
+          "kind": "relative",
+          "resolved": "src/core/http/http.js"
+        },
+        {
+          "specifier": "../../core/onnx-provider-probe.js",
+          "kind": "relative",
+          "resolved": "src/local/core/onnx-provider-probe.js"
+        },
+        {
+          "specifier": "../../core/cuda-diagnosis.js",
+          "kind": "relative",
+          "resolved": "src/local/core/cuda-diagnosis.js"
+        },
+        {
+          "specifier": "../../core/semidex-home.js",
+          "kind": "relative",
+          "resolved": "src/local/core/semidex-home.js"
+        },
+        {
+          "specifier": "../../core/onnx-runtime-source-resolution.js",
+          "kind": "relative",
+          "resolved": "src/local/core/onnx-runtime-source-resolution.js"
+        },
+        {
+          "specifier": "../../core/managed-onnx-runtime-manifest.js",
+          "kind": "relative",
+          "resolved": "src/local/core/managed-onnx-runtime-manifest.js"
+        },
+        {
+          "specifier": "../../core/managed-runtime-listing.js",
+          "kind": "relative",
+          "resolved": "src/local/core/managed-runtime-listing.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/local/admin/system/ollama.js": {
+      "staticImports": [
+        {
+          "specifier": "../../core/ollama.js",
+          "kind": "relative",
+          "resolved": "src/local/core/ollama.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/local/admin/ui-src/local-features.js": {
+      "staticImports": [
+        {
+          "specifier": "../../../shared/admin/ui-src/api.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/api.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
     "src/local/core/cuda-diagnosis.js": {
       "staticImports": [
         {
@@ -4058,6 +2949,1115 @@
           "specifier": "../../shared/core/env.js",
           "kind": "relative",
           "resolved": "src/shared/core/env.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/shared/admin/api/assembly.js": {
+      "staticImports": [
+        {
+          "specifier": "../../../core/http/http.js",
+          "kind": "relative",
+          "resolved": "src/core/http/http.js"
+        },
+        {
+          "specifier": "./query-params.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/api/query-params.js"
+        },
+        {
+          "specifier": "../../../core/assembly/assemble.js",
+          "kind": "relative",
+          "resolved": "src/core/assembly/assemble.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/shared/admin/api/chunks.js": {
+      "staticImports": [
+        {
+          "specifier": "../../../core/http/http.js",
+          "kind": "relative",
+          "resolved": "src/core/http/http.js"
+        },
+        {
+          "specifier": "./query-params.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/api/query-params.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/shared/admin/api/collections.js": {
+      "staticImports": [
+        {
+          "specifier": "../../../core/http/http.js",
+          "kind": "relative",
+          "resolved": "src/core/http/http.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/shared/admin/api/documents.js": {
+      "staticImports": [
+        {
+          "specifier": "../../../core/http/http.js",
+          "kind": "relative",
+          "resolved": "src/core/http/http.js"
+        },
+        {
+          "specifier": "./query-params.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/api/query-params.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/shared/admin/api/generation-models.js": {
+      "staticImports": [
+        {
+          "specifier": "../../../core/http/http.js",
+          "kind": "relative",
+          "resolved": "src/core/http/http.js"
+        },
+        {
+          "specifier": "../../core/doctor-checks.js",
+          "kind": "relative",
+          "resolved": "src/shared/core/doctor-checks.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/shared/admin/api/generation.js": {
+      "staticImports": [
+        {
+          "specifier": "../../../core/http/http.js",
+          "kind": "relative",
+          "resolved": "src/core/http/http.js"
+        },
+        {
+          "specifier": "../../core/doctor-checks.js",
+          "kind": "relative",
+          "resolved": "src/shared/core/doctor-checks.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/shared/admin/api/health.js": {
+      "staticImports": [
+        {
+          "specifier": "../../../core/http/http.js",
+          "kind": "relative",
+          "resolved": "src/core/http/http.js"
+        },
+        {
+          "specifier": "../../core/doctor-checks.js",
+          "kind": "relative",
+          "resolved": "src/shared/core/doctor-checks.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/shared/admin/api/jobs.js": {
+      "staticImports": [
+        {
+          "specifier": "../../../core/http/http.js",
+          "kind": "relative",
+          "resolved": "src/core/http/http.js"
+        },
+        {
+          "specifier": "../../../core/http/http.js",
+          "kind": "relative",
+          "resolved": "src/core/http/http.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/shared/admin/api/node.js": {
+      "staticImports": [
+        {
+          "specifier": "../../../core/http/http.js",
+          "kind": "relative",
+          "resolved": "src/core/http/http.js"
+        },
+        {
+          "specifier": "./query-params.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/api/query-params.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/shared/admin/api/operations.js": {
+      "staticImports": [
+        {
+          "specifier": "../../../core/http/http.js",
+          "kind": "relative",
+          "resolved": "src/core/http/http.js"
+        },
+        {
+          "specifier": "./jobs.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/api/jobs.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/shared/admin/api/query-params.js": {
+      "staticImports": [
+        {
+          "specifier": "../../../core/http/http.js",
+          "kind": "relative",
+          "resolved": "src/core/http/http.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/shared/admin/api/search.js": {
+      "staticImports": [
+        {
+          "specifier": "../../../core/http/http.js",
+          "kind": "relative",
+          "resolved": "src/core/http/http.js"
+        },
+        {
+          "specifier": "../../../core/http/http.js",
+          "kind": "relative",
+          "resolved": "src/core/http/http.js"
+        },
+        {
+          "specifier": "../../core/embeddings.js",
+          "kind": "relative",
+          "resolved": "src/shared/core/embeddings.js"
+        },
+        {
+          "specifier": "../../../core/retrieval/search.js",
+          "kind": "relative",
+          "resolved": "src/core/retrieval/search.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/shared/admin/api/settings.js": {
+      "staticImports": [
+        {
+          "specifier": "../../../core/http/http.js",
+          "kind": "relative",
+          "resolved": "src/core/http/http.js"
+        },
+        {
+          "specifier": "../../../core/settings/definitions.js",
+          "kind": "relative",
+          "resolved": "src/core/settings/definitions.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/shared/admin/api/skeleton.js": {
+      "staticImports": [
+        {
+          "specifier": "../../../core/http/http.js",
+          "kind": "relative",
+          "resolved": "src/core/http/http.js"
+        },
+        {
+          "specifier": "./query-params.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/api/query-params.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/shared/admin/api/system.js": {
+      "staticImports": [
+        {
+          "specifier": "../../../core/http/http.js",
+          "kind": "relative",
+          "resolved": "src/core/http/http.js"
+        },
+        {
+          "specifier": "../system/folder-picker.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/system/folder-picker.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/shared/admin/jobs/registry.js": {
+      "staticImports": [
+        {
+          "specifier": "node:crypto",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "../../core/doctor-checks.js",
+          "kind": "relative",
+          "resolved": "src/shared/core/doctor-checks.js"
+        },
+        {
+          "specifier": "../../indexer/progress-event.js",
+          "kind": "relative",
+          "resolved": "src/shared/indexer/progress-event.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/shared/admin/jobs/task-registry.js": {
+      "staticImports": [
+        {
+          "specifier": "node:crypto",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "../../core/doctor-checks.js",
+          "kind": "relative",
+          "resolved": "src/shared/core/doctor-checks.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/shared/admin/register-neutral-routes.js": {
+      "staticImports": [
+        {
+          "specifier": "node:http",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "./api/health.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/api/health.js"
+        },
+        {
+          "specifier": "./api/collections.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/api/collections.js"
+        },
+        {
+          "specifier": "./api/documents.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/api/documents.js"
+        },
+        {
+          "specifier": "./api/chunks.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/api/chunks.js"
+        },
+        {
+          "specifier": "./api/assembly.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/api/assembly.js"
+        },
+        {
+          "specifier": "./api/skeleton.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/api/skeleton.js"
+        },
+        {
+          "specifier": "./api/node.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/api/node.js"
+        },
+        {
+          "specifier": "./api/search.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/api/search.js"
+        },
+        {
+          "specifier": "../../core/ask-api/v1/route.js",
+          "kind": "relative",
+          "resolved": "src/core/ask-api/v1/route.js"
+        },
+        {
+          "specifier": "./api/generation.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/api/generation.js"
+        },
+        {
+          "specifier": "./jobs/task-registry.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/jobs/task-registry.js"
+        },
+        {
+          "specifier": "./api/operations.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/api/operations.js"
+        },
+        {
+          "specifier": "./api/system.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/api/system.js"
+        },
+        {
+          "specifier": "./api/settings.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/api/settings.js"
+        },
+        {
+          "specifier": "./static.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/static.js"
+        },
+        {
+          "specifier": "../../core/generation/runtime.js",
+          "kind": "relative",
+          "resolved": "src/core/generation/runtime.js"
+        },
+        {
+          "specifier": "../../core/ask/coordinator.js",
+          "kind": "relative",
+          "resolved": "src/core/ask/coordinator.js"
+        },
+        {
+          "specifier": "../core/token-count.js",
+          "kind": "relative",
+          "resolved": "src/shared/core/token-count.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/shared/admin/router.js": {
+      "staticImports": [
+        {
+          "specifier": "../../core/http/http.js",
+          "kind": "relative",
+          "resolved": "src/core/http/http.js"
+        },
+        {
+          "specifier": "../core/doctor-checks.js",
+          "kind": "relative",
+          "resolved": "src/shared/core/doctor-checks.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/shared/admin/server.js": {
+      "staticImports": [],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/shared/admin/static.js": {
+      "staticImports": [
+        {
+          "specifier": "node:fs",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "node:fs/promises",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "node:path",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "node:url",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "../../core/http/http.js",
+          "kind": "relative",
+          "resolved": "src/core/http/http.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/shared/admin/system/folder-picker.js": {
+      "staticImports": [
+        {
+          "specifier": "node:child_process",
+          "kind": "builtin",
+          "resolved": null
+        },
+        {
+          "specifier": "node:os",
+          "kind": "builtin",
+          "resolved": null
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": [
+        {
+          "callee": "spawn",
+          "arg": "powershell.exe",
+          "literal": true,
+          "resolved": null
+        }
+      ]
+    },
+    "src/shared/admin/ui-src/api.js": {
+      "staticImports": [],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/shared/admin/ui-src/app.js": {
+      "staticImports": [
+        {
+          "specifier": "./dom.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/dom.js"
+        },
+        {
+          "specifier": "./sidebar-resize.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/sidebar-resize.js"
+        },
+        {
+          "specifier": "./sidebar.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/sidebar.js"
+        },
+        {
+          "specifier": "./topbar.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/topbar.js"
+        },
+        {
+          "specifier": "./router.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/router.js"
+        },
+        {
+          "specifier": "./operation-modal.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/operation-modal.js"
+        },
+        {
+          "specifier": "./operation-store.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/operation-store.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/shared/admin/ui-src/assembly-view.js": {
+      "staticImports": [
+        {
+          "specifier": "./dom.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/dom.js"
+        },
+        {
+          "specifier": "./structural-renderer.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/structural-renderer.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/shared/admin/ui-src/collection-view.js": {
+      "staticImports": [
+        {
+          "specifier": "./partials/shared/overview-shell.html?raw",
+          "kind": "relative",
+          "resolved": null
+        },
+        {
+          "specifier": "./partials/shared/collection-shell.html?raw",
+          "kind": "relative",
+          "resolved": null
+        },
+        {
+          "specifier": "./dom.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/dom.js"
+        },
+        {
+          "specifier": "./api.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/api.js"
+        },
+        {
+          "specifier": "./state.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/state.js"
+        },
+        {
+          "specifier": "./sidebar.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/sidebar.js"
+        },
+        {
+          "specifier": "./search.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/search.js"
+        },
+        {
+          "specifier": "./toasts.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/toasts.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/shared/admin/ui-src/dom.js": {
+      "staticImports": [],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/shared/admin/ui-src/file-view.js": {
+      "staticImports": [
+        {
+          "specifier": "./dom.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/dom.js"
+        },
+        {
+          "specifier": "./api.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/api.js"
+        },
+        {
+          "specifier": "./format.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/format.js"
+        },
+        {
+          "specifier": "./icons.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/icons.js"
+        },
+        {
+          "specifier": "./structural-renderer.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/structural-renderer.js"
+        },
+        {
+          "specifier": "./assembly-view.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/assembly-view.js"
+        },
+        {
+          "specifier": "./toasts.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/toasts.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/shared/admin/ui-src/format.js": {
+      "staticImports": [],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/shared/admin/ui-src/global-settings-view.js": {
+      "staticImports": [
+        {
+          "specifier": "./dom.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/dom.js"
+        },
+        {
+          "specifier": "./api.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/api.js"
+        },
+        {
+          "specifier": "./toasts.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/toasts.js"
+        },
+        {
+          "specifier": "./sidebar.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/sidebar.js"
+        },
+        {
+          "specifier": "../../../core/embedding-profile/qdrant-cloud-models.js",
+          "kind": "relative",
+          "resolved": "src/core/embedding-profile/qdrant-cloud-models.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/shared/admin/ui-src/icons.js": {
+      "staticImports": [],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/shared/admin/ui-src/jobs-view.js": {
+      "staticImports": [
+        {
+          "specifier": "edition/index-view.html?raw",
+          "kind": "package",
+          "resolved": "edition"
+        },
+        {
+          "specifier": "./dom.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/dom.js"
+        },
+        {
+          "specifier": "./api.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/api.js"
+        },
+        {
+          "specifier": "./operation-modal.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/operation-modal.js"
+        },
+        {
+          "specifier": "./operation-store.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/operation-store.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/shared/admin/ui-src/operation-modal.js": {
+      "staticImports": [
+        {
+          "specifier": "./dom.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/dom.js"
+        },
+        {
+          "specifier": "./api.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/api.js"
+        },
+        {
+          "specifier": "./operation-store.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/operation-store.js"
+        },
+        {
+          "specifier": "./operation-render.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/operation-render.js"
+        },
+        {
+          "specifier": "./toasts.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/toasts.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/shared/admin/ui-src/operation-render.js": {
+      "staticImports": [
+        {
+          "specifier": "./dom.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/dom.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/shared/admin/ui-src/operation-store.js": {
+      "staticImports": [
+        {
+          "specifier": "./api.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/api.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/shared/admin/ui-src/router.js": {
+      "staticImports": [
+        {
+          "specifier": "./dom.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/dom.js"
+        },
+        {
+          "specifier": "./api.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/api.js"
+        },
+        {
+          "specifier": "./file-view.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/file-view.js"
+        },
+        {
+          "specifier": "./sidebar.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/sidebar.js"
+        },
+        {
+          "specifier": "./collection-view.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/collection-view.js"
+        },
+        {
+          "specifier": "./settings-view.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/settings-view.js"
+        },
+        {
+          "specifier": "./global-settings-view.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/global-settings-view.js"
+        },
+        {
+          "specifier": "./jobs-view.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/jobs-view.js"
+        },
+        {
+          "specifier": "./search.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/search.js"
+        },
+        {
+          "specifier": "./routes.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/routes.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/shared/admin/ui-src/routes.js": {
+      "staticImports": [],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/shared/admin/ui-src/search.js": {
+      "staticImports": [
+        {
+          "specifier": "./dom.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/dom.js"
+        },
+        {
+          "specifier": "./api.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/api.js"
+        },
+        {
+          "specifier": "./file-view.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/file-view.js"
+        },
+        {
+          "specifier": "./routes.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/routes.js"
+        },
+        {
+          "specifier": "./sidebar.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/sidebar.js"
+        },
+        {
+          "specifier": "./structural-renderer.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/structural-renderer.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/shared/admin/ui-src/settings-view.js": {
+      "staticImports": [
+        {
+          "specifier": "edition/settings-shell.html?raw",
+          "kind": "package",
+          "resolved": "edition"
+        },
+        {
+          "specifier": "./dom.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/dom.js"
+        },
+        {
+          "specifier": "./api.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/api.js"
+        },
+        {
+          "specifier": "./state.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/state.js"
+        },
+        {
+          "specifier": "./sidebar.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/sidebar.js"
+        },
+        {
+          "specifier": "./operation-modal.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/operation-modal.js"
+        },
+        {
+          "specifier": "./operation-store.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/operation-store.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/shared/admin/ui-src/sidebar-resize.js": {
+      "staticImports": [],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/shared/admin/ui-src/sidebar.js": {
+      "staticImports": [
+        {
+          "specifier": "./dom.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/dom.js"
+        },
+        {
+          "specifier": "./api.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/api.js"
+        },
+        {
+          "specifier": "./format.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/format.js"
+        },
+        {
+          "specifier": "./routes.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/routes.js"
+        },
+        {
+          "specifier": "./state.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/state.js"
+        },
+        {
+          "specifier": "./icons.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/icons.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/shared/admin/ui-src/state.js": {
+      "staticImports": [],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/shared/admin/ui-src/structural-renderer.js": {
+      "staticImports": [
+        {
+          "specifier": "unified",
+          "kind": "package",
+          "resolved": "unified"
+        },
+        {
+          "specifier": "remark-parse",
+          "kind": "package",
+          "resolved": "remark-parse"
+        },
+        {
+          "specifier": "remark-gfm",
+          "kind": "package",
+          "resolved": "remark-gfm"
+        },
+        {
+          "specifier": "highlight.js/lib/core",
+          "kind": "package",
+          "resolved": "highlight.js"
+        },
+        {
+          "specifier": "highlight.js/lib/languages/javascript",
+          "kind": "package",
+          "resolved": "highlight.js"
+        },
+        {
+          "specifier": "highlight.js/lib/languages/typescript",
+          "kind": "package",
+          "resolved": "highlight.js"
+        },
+        {
+          "specifier": "highlight.js/lib/languages/python",
+          "kind": "package",
+          "resolved": "highlight.js"
+        },
+        {
+          "specifier": "highlight.js/lib/languages/bash",
+          "kind": "package",
+          "resolved": "highlight.js"
+        },
+        {
+          "specifier": "highlight.js/lib/languages/shell",
+          "kind": "package",
+          "resolved": "highlight.js"
+        },
+        {
+          "specifier": "highlight.js/lib/languages/json",
+          "kind": "package",
+          "resolved": "highlight.js"
+        },
+        {
+          "specifier": "highlight.js/lib/languages/yaml",
+          "kind": "package",
+          "resolved": "highlight.js"
+        },
+        {
+          "specifier": "highlight.js/lib/languages/sql",
+          "kind": "package",
+          "resolved": "highlight.js"
+        },
+        {
+          "specifier": "highlight.js/lib/languages/xml",
+          "kind": "package",
+          "resolved": "highlight.js"
+        },
+        {
+          "specifier": "highlight.js/lib/languages/css",
+          "kind": "package",
+          "resolved": "highlight.js"
+        },
+        {
+          "specifier": "highlight.js/lib/languages/markdown",
+          "kind": "package",
+          "resolved": "highlight.js"
+        },
+        {
+          "specifier": "highlight.js/lib/languages/java",
+          "kind": "package",
+          "resolved": "highlight.js"
+        },
+        {
+          "specifier": "highlight.js/lib/languages/csharp",
+          "kind": "package",
+          "resolved": "highlight.js"
+        },
+        {
+          "specifier": "highlight.js/lib/languages/cpp",
+          "kind": "package",
+          "resolved": "highlight.js"
+        },
+        {
+          "specifier": "highlight.js/lib/languages/c",
+          "kind": "package",
+          "resolved": "highlight.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/shared/admin/ui-src/toasts.js": {
+      "staticImports": [
+        {
+          "specifier": "./dom.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/dom.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/shared/admin/ui-src/topbar.js": {
+      "staticImports": [
+        {
+          "specifier": "./dom.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/dom.js"
+        },
+        {
+          "specifier": "./api.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/api.js"
+        },
+        {
+          "specifier": "./operation-store.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/operation-store.js"
+        },
+        {
+          "specifier": "./operation-modal.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/operation-modal.js"
+        },
+        {
+          "specifier": "./icons.js",
+          "kind": "relative",
+          "resolved": "src/shared/admin/ui-src/icons.js"
         }
       ],
       "dynamicImports": [],
@@ -6029,28 +6029,28 @@
       ],
       "dynamicImports": [
         {
-          "specifier": "../../indexer/phases/skeleton.js",
+          "specifier": "../../shared/indexer/phases/skeleton.js",
           "literal": true,
           "kind": "relative",
-          "resolved": null
+          "resolved": "src/shared/indexer/phases/skeleton.js"
         },
         {
-          "specifier": "../../indexer/phases/skeleton-chunk.js",
+          "specifier": "../../shared/indexer/phases/skeleton-chunk.js",
           "literal": true,
           "kind": "relative",
-          "resolved": null
+          "resolved": "src/shared/indexer/phases/skeleton-chunk.js"
         },
         {
-          "specifier": "../../indexer/phases/skeleton-index.js",
+          "specifier": "../../shared/indexer/phases/skeleton-index.js",
           "literal": true,
           "kind": "relative",
-          "resolved": null
+          "resolved": "src/shared/indexer/phases/skeleton-index.js"
         },
         {
-          "specifier": "../../indexer/phases/node-policy.js",
+          "specifier": "../../shared/indexer/phases/node-policy.js",
           "literal": true,
           "kind": "relative",
-          "resolved": null
+          "resolved": "src/shared/indexer/phases/node-policy.js"
         }
       ],
       "requireCalls": [],
@@ -6467,9 +6467,9 @@
           "resolved": "src/core/settings/service.js"
         },
         {
-          "specifier": "../src/admin/jobs/registry.js",
+          "specifier": "../src/shared/admin/jobs/registry.js",
           "kind": "relative",
-          "resolved": "src/admin/jobs/registry.js"
+          "resolved": "src/shared/admin/jobs/registry.js"
         },
         {
           "specifier": "../src/admin/jobs/spawn-indexer-lite.js",
@@ -6516,9 +6516,9 @@
           "resolved": "src/core/settings/service.lite.js"
         },
         {
-          "specifier": "../src/admin/jobs/registry.js",
+          "specifier": "../src/shared/admin/jobs/registry.js",
           "kind": "relative",
-          "resolved": "src/admin/jobs/registry.js"
+          "resolved": "src/shared/admin/jobs/registry.js"
         },
         {
           "specifier": "../src/admin/jobs/spawn-indexer-lite.js",
@@ -6528,10 +6528,10 @@
       ],
       "dynamicImports": [
         {
-          "specifier": "../src/admin/server.js",
+          "specifier": "../src/shared/admin/server.js",
           "literal": true,
           "kind": "relative",
-          "resolved": "src/admin/server.js"
+          "resolved": "src/shared/admin/server.js"
         },
         {
           "specifier": "../src/admin/composition/lite.js",

@@ -13,7 +13,7 @@
 import { bootstrapEnv } from '../src/shared/core/env-bootstrap.js';
 import { createSettingsService, applyEnvWriteBack } from '../src/core/settings/service.js';
 import { createLiteSettingsService } from '../src/core/settings/service.lite.js';
-import { createJobRegistry } from '../src/admin/jobs/registry.js';
+import { createJobRegistry } from '../src/shared/admin/jobs/registry.js';
 import { spawnIndexer as spawnLiteIndexer } from '../src/admin/jobs/spawn-indexer-lite.js';
 
 /**
@@ -39,7 +39,7 @@ export async function startLite({ settingsPath } = {}) {
 
   applyEnvWriteBack(realSettings);
 
-  const { resolveHostConfig, resolvePortConfig } = await import('../src/admin/server.js');
+  const { resolveHostConfig, resolvePortConfig } = await import('../src/shared/admin/server.js');
   const { createLiteApp } = await import('../src/admin/composition/lite.js');
 
   // spawnIndexer: spawnLiteIndexer (code review, round 4 — real gap found

@@ -308,7 +308,9 @@ export const LOCAL_ONLY_PATH_PATTERNS = [
   /^src\/local\/core\/onnx-provider-probe\.js$/, /^src\/local\/core\/length-bucket\.js$/, /^src\/core\/ce-rerank\.js$/,
   /^src\/core\/ce-rerank-worker\.js$/, /^src\/local\/core\/ollama\.js$/, /^src\/local\/core\/ollama-models\.js$/,
   /^src\/local\/indexer\/phases\/tag-onnx\.js$/, /^src\/local\/indexer\/workers\/tag-onnx-worker\.js$/,
-  /^src\/admin\/system\/ollama\.js$/, /^src\/admin\/api\/onnx\.js$/, /^src\/admin\/api\/ollama-models\.js$/,
+  // Phase 8B Step 7C: physically relocated from src/admin/system/ollama.js,
+  // src/admin/api/onnx.js, src/admin/api/ollama-models.js to src/local/admin/.
+  /^src\/local\/admin\/system\/ollama\.js$/, /^src\/local\/admin\/api\/onnx\.js$/, /^src\/local\/admin\/api\/ollama-models\.js$/,
   // Reproducible Windows CUDA onnxruntime-node managed installer — every
   // new src/local/core/ file this task added, mirroring build.mjs's own
   // wholesale 'local' EXCLUDE_DIRS entry (see this const's own header
@@ -377,8 +379,14 @@ const LAZY_SHIM_PATTERNS = [/-lazy\.js$/, /-lazy\.lite\.js$/];
 // EXCLUDE_DIRS addition, once the ONNX runtime files physically moved under
 // that directory — LOCAL_ONLY_PATH_PATTERNS above is kept in sync too
 // (independent re-derivation, not a shared import, by design — see this
-// comment's own opening line).
-const EXCLUDE_DIRS = ['src/admin/ui-src/', 'src/mcp/', 'src/smoke/', 'src/test-fixtures/', 'src/local/'];
+// comment's own opening line). Phase 8B Step 7C: admin/ui-src/ physically
+// split by ownership — 'src/admin/ui-src/' still excludes the remaining
+// composition-owned entries/index.html/lite-entry/partials-lite; the real
+// UI *source* that ships as BUILT dist/admin-ui-lite/ output instead
+// (never raw source) now also includes 'src/shared/admin/ui-src/' (the
+// relocated shared UI tree); 'src/local/admin/ui-src/' is already covered
+// by the blanket 'src/local/' entry below.
+const EXCLUDE_DIRS = ['src/admin/ui-src/', 'src/shared/admin/ui-src/', 'src/mcp/', 'src/smoke/', 'src/test-fixtures/', 'src/local/'];
 const ALL_EXCLUDED_FILE_PATTERNS = [...LOCAL_ONLY_PATH_PATTERNS, ...COMPOSITION_FULL_PATTERNS];
 
 // admin/ui-src/entries/{full,lite}.js are the real Vite JS entry points
@@ -602,7 +610,13 @@ function main() {
     const isLazyShimSourceFile = /-lazy\.lite\.js$/.test(file);
     const liteTarballStaged = (inTarballDir && inTarballFile) && !isLazyShimSourceFile;
 
-    const liteBrowserBundle = file.startsWith('src/admin/ui-src/');
+    // Phase 8B Step 7C: UI source now spans three physical roots by
+    // ownership — admin/ui-src/ (composition-owned remainder), shared/
+    // admin/ui-src/ (shared), local/admin/ui-src/ (local-only) — all three
+    // are still browser-bundle source, never server-side Node code.
+    const liteBrowserBundle = file.startsWith('src/admin/ui-src/')
+      || file.startsWith('src/shared/admin/ui-src/')
+      || file.startsWith('src/local/admin/ui-src/');
 
     inventory.push({
       path: file,

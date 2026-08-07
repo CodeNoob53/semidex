@@ -7,7 +7,7 @@
 // arrive and resolves with the child's exit code.
 import { bootstrapEnv } from '../src/shared/core/env-bootstrap.js';
 import { createSettingsService, applyEnvWriteBack } from '../src/core/settings/service.js';
-import { createJobRegistry } from '../src/admin/jobs/registry.js';
+import { createJobRegistry } from '../src/shared/admin/jobs/registry.js';
 import { spawnIndexer as defaultSpawnLiteIndexer } from '../src/admin/jobs/spawn-indexer-lite.js';
 
 /**
