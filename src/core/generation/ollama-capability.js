@@ -111,9 +111,10 @@ export function validateOllamaEmbedCapability(capability) {
  * @property {(baseUrl: string) => Promise<boolean>} isOllamaReachable
  * @property {(baseUrl: string) => Promise<string[]>} listOllamaModels
  * @property {(required: string[], available: string[]) => Promise<string[]|null>} validateOllamaModels
+ * @property {(model: string, baseUrl: string) => Promise<{size: number, size_vram: number}|null>} getRunningModel
  */
 
-export const REQUIRED_OLLAMA_DISCOVERY_CAPABILITY_METHODS = ['isOllamaReachable', 'listOllamaModels', 'validateOllamaModels'];
+export const REQUIRED_OLLAMA_DISCOVERY_CAPABILITY_METHODS = ['isOllamaReachable', 'listOllamaModels', 'validateOllamaModels', 'getRunningModel'];
 
 /**
  * @param {Object} capability

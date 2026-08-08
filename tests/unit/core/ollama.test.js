@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import {
   isOllamaReachable, listOllamaModels, validateOllamaModels, generateStream, getModelContextLength,
-  embeddingDimensionFromShow, getOllamaEmbeddingDimension,
+  embeddingDimensionFromShow, getOllamaEmbeddingDimension, getRunningModel,
 } from '../../../src/local/core/ollama.js';
 import { checkOllamaPreflight } from '../../../src/shared/indexer/preflight.js';
 import { checkOllama } from '../../../src/local/admin/system/ollama.js';
@@ -162,6 +162,90 @@ describe('Ollama embedding dimension', () => {
       'http://dimension-probe:11434/api/show',
       'http://dimension-probe:11434/api/embed',
     ]);
+  });
+});
+
+describe('getRunningModel', () => {
+  let originalFetch;
+  beforeEach(() => { originalFetch = globalThis.fetch; });
+  afterEach(() => { globalThis.fetch = originalFetch; });
+
+  it('returns {size, size_vram} for a model present in /api/ps (matched by "name")', async () => {
+    globalThis.fetch = async (url) => {
+      assert.match(url, /\/api\/ps$/);
+      return { ok: true, json: async () => ({ models: [{ name: 'gemma3:4b', size: 1000, size_vram: 1000 }] }) };
+    };
+    assert.deepEqual(await getRunningModel('gemma3:4b', 'http://localhost:11434'), { size: 1000, size_vram: 1000 });
+  });
+
+  it('matches by "model" field too (defensive, in case /api/ps ever uses that key instead of "name")', async () => {
+    globalThis.fetch = async () => ({ ok: true, json: async () => ({ models: [{ model: 'gemma3:4b', size: 500, size_vram: 0 }] }) });
+    assert.deepEqual(await getRunningModel('gemma3:4b'), { size: 500, size_vram: 0 });
+  });
+
+  it('returns null when the model is not present in the response (not currently loaded)', async () => {
+    globalThis.fetch = async () => ({ ok: true, json: async () => ({ models: [{ name: 'other-model', size: 1000, size_vram: 1000 }] }) });
+    assert.equal(await getRunningModel('gemma3:4b'), null);
+  });
+
+  it('returns null when models is an empty array', async () => {
+    globalThis.fetch = async () => ({ ok: true, json: async () => ({ models: [] }) });
+    assert.equal(await getRunningModel('gemma3:4b'), null);
+  });
+
+  it('returns null on a non-OK HTTP status', async () => {
+    globalThis.fetch = async () => ({ ok: false, status: 500 });
+    assert.equal(await getRunningModel('gemma3:4b'), null);
+  });
+
+  it('returns null on malformed JSON / missing models array, never throws', async () => {
+    globalThis.fetch = async () => ({ ok: true, json: async () => ({}) });
+    assert.equal(await getRunningModel('gemma3:4b'), null);
+  });
+
+  it('returns null on a network error (never throws)', async () => {
+    globalThis.fetch = async () => { throw new Error('ECONNREFUSED'); };
+    assert.equal(await getRunningModel('gemma3:4b'), null);
+  });
+
+  it('returns null on a timeout (never throws)', async () => {
+    globalThis.fetch = async () => { throw new Error('The operation was aborted'); };
+    assert.equal(await getRunningModel('gemma3:4b'), null);
+  });
+
+  it('returns null for a malformed entry: non-finite size', async () => {
+    globalThis.fetch = async () => ({ ok: true, json: async () => ({ models: [{ name: 'gemma3:4b', size: 'not-a-number', size_vram: 100 }] }) });
+    assert.equal(await getRunningModel('gemma3:4b'), null);
+  });
+
+  it('returns null for a malformed entry: negative size_vram', async () => {
+    globalThis.fetch = async () => ({ ok: true, json: async () => ({ models: [{ name: 'gemma3:4b', size: 1000, size_vram: -1 }] }) });
+    assert.equal(await getRunningModel('gemma3:4b'), null);
+  });
+
+  it('returns null for a malformed entry: size <= 0', async () => {
+    globalThis.fetch = async () => ({ ok: true, json: async () => ({ models: [{ name: 'gemma3:4b', size: 0, size_vram: 0 }] }) });
+    assert.equal(await getRunningModel('gemma3:4b'), null);
+  });
+
+  it('never caches — two consecutive calls always re-fetch (unlike showModel())', async () => {
+    let callCount = 0;
+    globalThis.fetch = async () => {
+      callCount += 1;
+      return { ok: true, json: async () => ({ models: [{ name: 'gemma3:4b', size: 1000, size_vram: callCount === 1 ? 0 : 1000 }] }) };
+    };
+    const first = await getRunningModel('gemma3:4b');
+    const second = await getRunningModel('gemma3:4b');
+    assert.equal(callCount, 2);
+    assert.equal(first.size_vram, 0);
+    assert.equal(second.size_vram, 1000);
+  });
+
+  it('strips a trailing slash from baseUrl before building the request URL', async () => {
+    let requestedUrl;
+    globalThis.fetch = async (url) => { requestedUrl = url; return { ok: true, json: async () => ({ models: [] }) }; };
+    await getRunningModel('gemma3:4b', 'http://custom-host:11500/');
+    assert.equal(requestedUrl, 'http://custom-host:11500/api/ps');
   });
 });
 

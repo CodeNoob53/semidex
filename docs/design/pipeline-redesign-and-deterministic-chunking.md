@@ -544,3 +544,103 @@ If implemented correctly:
 - indexing uses GPU and CPU lanes more continuously;
 - benchmarks can attribute speedups to pipeline changes instead of link noise;
 - the design remains compatible with skeleton-first chunking.
+
+---
+
+## Addendum (2026-08-08): device-aware bounded pipeline replaces `PIPELINE_MODE`
+
+This document's original scope (§1 above) was **intra-file** overlap only
+(context vs. tags within one file's stageB). A later change added
+`PIPELINE_MODE=1` as an opt-in that additionally overlapped generation and
+embedding **across different files**, but unconditionally — no check of
+whether the two stages were actually on independent compute resources.
+That made `PIPELINE_MODE=1` unsafe on a single-GPU box running both Ollama
+and ONNX embedding: cross-file overlap could put context generation and
+embedding on the same physical device at the same time, fighting for the
+same VRAM/compute lane instead of actually running in parallel.
+
+This addendum replaces `PIPELINE_MODE`'s cross-file behavior with a
+**device-aware bounded pipeline** that is the automatic default for every
+multi-file indexing run — not an opt-in env var:
+
+- New modules: `src/shared/indexer/device/resource-identity.js` (resolves
+  a verified-or-not `ResourceIdentity` per stage — generation via Ollama's
+  real `GET /api/ps` VRAM-placement signal, embedding via ONNX's
+  `getOnnxProviderState()` OR the collection's own resolved embedding
+  profile execution — `remote` (verified) for Qdrant Cloud/cluster
+  server-side inference, never misclassified as local ONNX CPU work —
+  tagging as a structural CPU fact), `src/shared/indexer/device/scheduling-policy.js`
+  (the pairwise overlap-decision matrix — `verified` is required on both
+  sides for any overlap, with ONE deliberate exception: an explicit
+  `GENERATION_DEVICE_OVERRIDE` assertion is treated as verified — real,
+  informed operator intent — but permanently tagged `source:'manual'` in
+  every diagnostic so it is never confused with a genuine runtime read,
+  and a real `/api/ps` signal always takes priority over it), and
+  `src/shared/indexer/pipeline/bounded-file-pipeline.js` (the actual
+  scheduler: three lane semaphores — generation, tagging, embedding, each
+  capacity 1 by default — acquired in a fixed generation→tagging→embedding
+  order to keep the design deadlock-free, plus a backpressure semaphore
+  capping how many files can be prepared-but-uncommitted in memory at
+  once). The scheduling policy is read exactly once per file, INSIDE the
+  generationSem hold itself, right before that file's stageB starts — not
+  as an outer snapshot taken before the file even queues for that permit.
+  This closes a real staleness gap: a cohort of files that all queue
+  while the signal is still unverified must each be able to escape into
+  the overlap-capable code shape once the signal upgrades while they
+  wait, not merely refine a decision inside a branch shape already
+  committed to from a stale read. The branch itself — whether stageC runs
+  inside or outside the generation-lane hold — is chosen from that same
+  fresh read, never from an earlier snapshot.
+- `buildResourceIdentityInputs()`'s Ollama `/api/ps` calls are routed
+  through an already-settled `Promise.resolve().then(...)` before
+  `.catch()` is attached, so a rejecting OR synchronously-throwing
+  `getRunningModel()` — a composition that does not honor its own
+  documented never-throw contract (Semidex Lite's Ollama-unavailable
+  stub throws for every method, by design) — is treated exactly like that
+  method's own documented `null` return (unresolved), never allowed to
+  reject the whole scheduling decision and take an indexing run down
+  before stageB even starts.
+- `stageB()` (`src/shared/indexer/run.js`) gained one new optional
+  parameter, `generationTaggingExecutionMode: 'parallel' | 'sequential'`
+  (default `'parallel'`, preserving prior behavior for every caller that
+  doesn't pass it), read only by the `TAG_PROVIDER=onnx` branch — the
+  bounded pipeline computes this per file from the same freshly
+  recomputed scheduling policy that gates the outer lane semaphores.
+- The old sequential `indexFile()` function and the old
+  `if (pipelineMode) { ... } else { ... }` branch in `main()` were both
+  removed — the bounded pipeline is now the only multi-file codepath, and
+  degrades to observably-sequential behavior on its own when the policy
+  says stages are not on independent resources (no separate "sequential
+  mode" implementation to keep in sync).
+- **Behavior change, intentional**: `PIPELINE_MODE=1` used to always force
+  cross-file overlap. It no longer does — `OLLAMA_STAGE_CONCURRENCY`/
+  `EMBED_STAGE_CONCURRENCY`/`STAGEA_CONCURRENCY`/`MAX_PREPARED_FILES_IN_FLIGHT`
+  remain as concurrency-tuning env knobs only. Overlap now always depends
+  on the device-aware policy, which self-heals across a run as real
+  signals become available (embedding is unverified until the first real
+  embed call in-process; generation is unverified until the target model
+  is actually loaded into Ollama) — in practice this means overlap
+  typically engages from roughly the second file onward, not file 1.
+- Progress reporting gained one new, additive, optional field —
+  `activeStages: Array<{ stage, file }> | null` — surfaced through
+  `emitProgress()` and coerced defensively in
+  `src/shared/admin/jobs/registry.js`'s `appendLine()`. It is stored on
+  the raw job record but deliberately NOT threaded through
+  `toProgressSummary()`/the public `GET /api/jobs`/`GET /api/operations`
+  shapes — no Admin UI rendering changes were required or made.
+- A new settings field, `GENERATION_DEVICE_OVERRIDE` (enum
+  `unknown|cpu|gpu`, default `unknown`), is a last-resort fallback for the
+  generation resource identity — consulted only when Ollama's real
+  `/api/ps` signal is unavailable for every active model this run. Unlike
+  every other unverified fallback in this design, an explicit override is
+  treated as `verified:true` (still permanently `source:'manual'` in
+  diagnostics, never conflated with a real runtime read) — a deliberate
+  exception: the operator is making an informed, real claim about their
+  own deployment topology and knowingly accepts the risk of an incorrect
+  overlap decision if that claim is wrong. A real `/api/ps` read always
+  takes priority over this setting the instant one becomes available.
+
+See the file-by-file change list and test suite under
+`src/shared/indexer/device/`, `src/shared/indexer/pipeline/`, and their
+`tests/unit/indexer/device/`, `tests/unit/indexer/pipeline/` counterparts
+for the full implementation.

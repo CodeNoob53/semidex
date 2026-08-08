@@ -294,7 +294,7 @@ describe('createJobRegistry — progress parsing', () => {
     const { id } = registry.startIndexJob({ collection: 'demo', path: './x' });
     await waitFor(() => registry.getJob(id).state !== 'running');
     assert.deepEqual(registry.getJob(id).progress, {
-      processedFiles: 3, totalFiles: 10, currentFile: 'a.md', currentStep: null, currentFileProgress: null,
+      processedFiles: 3, totalFiles: 10, currentFile: 'a.md', currentStep: null, currentFileProgress: null, activeStages: null,
     });
   });
 
@@ -306,7 +306,7 @@ describe('createJobRegistry — progress parsing', () => {
     const { id } = registry.startIndexJob({ collection: 'demo', path: './x' });
     await waitFor(() => registry.getJob(id).state !== 'running');
     assert.deepEqual(registry.getJob(id).progress, {
-      processedFiles: 1, totalFiles: 4, currentFile: 'b.md', currentStep: 'Generating summaries', currentFileProgress: 0.45,
+      processedFiles: 1, totalFiles: 4, currentFile: 'b.md', currentStep: 'Generating summaries', currentFileProgress: 0.45, activeStages: null,
     });
   });
 
@@ -321,6 +321,61 @@ describe('createJobRegistry — progress parsing', () => {
       assert.equal(registry.getJob(id).progress.currentFileProgress, expected);
     });
   }
+
+  it('coerces a well-formed activeStages array (device-aware bounded pipeline progress)', async () => {
+    const line = `[semidex:progress] ${JSON.stringify({
+      processedFiles: 1, totalFiles: 4, currentFile: 'b.md',
+      activeStages: [{ stage: 'summarizing', file: 'a.md' }, { stage: 'embedding', file: 'b.md' }],
+    })}\n`;
+    const registry = createJobRegistry({ spawnIndexer: makeScriptedSpawn({ delayMs: 5, stdout: line }) });
+    const { id } = registry.startIndexJob({ collection: 'demo', path: './x' });
+    await waitFor(() => registry.getJob(id).state !== 'running');
+    assert.deepEqual(registry.getJob(id).progress.activeStages, [
+      { stage: 'summarizing', file: 'a.md' },
+      { stage: 'embedding', file: 'b.md' },
+    ]);
+  });
+
+  for (const badValue of [
+    'not-an-array',
+    42,
+    { stage: 'summarizing', file: 'a.md' }, // an object, not an array
+  ]) {
+    it(`coerces a non-array activeStages (${JSON.stringify(badValue)}) to null`, async () => {
+      const line = `[semidex:progress] ${JSON.stringify({
+        processedFiles: 1, totalFiles: 4, currentFile: 'b.md', activeStages: badValue,
+      })}\n`;
+      const registry = createJobRegistry({ spawnIndexer: makeScriptedSpawn({ delayMs: 5, stdout: line }) });
+      const { id } = registry.startIndexJob({ collection: 'demo', path: './x' });
+      await waitFor(() => registry.getJob(id).state !== 'running');
+      assert.equal(registry.getJob(id).progress.activeStages, null);
+    });
+  }
+
+  it('filters out wrong-shaped entries from an activeStages array, keeping well-formed ones', async () => {
+    const line = `[semidex:progress] ${JSON.stringify({
+      processedFiles: 1, totalFiles: 4, currentFile: 'b.md',
+      activeStages: [
+        { stage: 'summarizing', file: 'a.md' },
+        { stage: 123, file: 'b.md' },          // stage not a string
+        { stage: 'embedding' },                 // missing file
+        null,                                   // not an object at all
+        'garbage',
+      ],
+    })}\n`;
+    const registry = createJobRegistry({ spawnIndexer: makeScriptedSpawn({ delayMs: 5, stdout: line }) });
+    const { id } = registry.startIndexJob({ collection: 'demo', path: './x' });
+    await waitFor(() => registry.getJob(id).state !== 'running');
+    assert.deepEqual(registry.getJob(id).progress.activeStages, [{ stage: 'summarizing', file: 'a.md' }]);
+  });
+
+  it('activeStages defaults to null when absent from the progress line (old-schema-shaped payload)', async () => {
+    const line = `[semidex:progress] ${JSON.stringify({ processedFiles: 1, totalFiles: 4, currentFile: 'b.md' })}\n`;
+    const registry = createJobRegistry({ spawnIndexer: makeScriptedSpawn({ delayMs: 5, stdout: line }) });
+    const { id } = registry.startIndexJob({ collection: 'demo', path: './x' });
+    await waitFor(() => registry.getJob(id).state !== 'running');
+    assert.equal(registry.getJob(id).progress.activeStages, null);
+  });
 
   it('progress lines are never duplicated into job.log', async () => {
     const line = `[semidex:progress] ${JSON.stringify({ processedFiles: 1, totalFiles: 2, currentFile: 'x.md' })}\n`;
@@ -372,7 +427,7 @@ describe('createJobRegistry — progress parsing', () => {
     const { id } = registry.startIndexJob({ collection: 'demo', path: './x' });
     await waitFor(() => registry.getJob(id).state !== 'running');
     assert.deepEqual(registry.getJob(id).progress, {
-      processedFiles: 5, totalFiles: 8, currentFile: 'split.md', currentStep: null, currentFileProgress: null,
+      processedFiles: 5, totalFiles: 8, currentFile: 'split.md', currentStep: null, currentFileProgress: null, activeStages: null,
     });
   });
 
@@ -411,7 +466,7 @@ describe('createJobRegistry — progress parsing', () => {
     await waitFor(() => registry.getJob(id).state !== 'running');
     const job = registry.getJob(id);
     assert.deepEqual(job.progress, {
-      processedFiles: 4, totalFiles: 9, currentFile: 'last.md', currentStep: null, currentFileProgress: null,
+      processedFiles: 4, totalFiles: 9, currentFile: 'last.md', currentStep: null, currentFileProgress: null, activeStages: null,
     });
     assert.equal(job.log.length, 0, 'the flushed progress line must still be recognized as progress, not logged');
   });
@@ -433,7 +488,7 @@ describe('createJobRegistry — progress parsing', () => {
     const { id } = registry.startIndexJob({ collection: 'demo', path: './x' });
     await waitFor(() => registry.getJob(id).state !== 'running');
     assert.deepEqual(registry.getJob(id).progress, {
-      processedFiles: 6, totalFiles: 9, currentFile: 'tail.md', currentStep: null, currentFileProgress: null,
+      processedFiles: 6, totalFiles: 9, currentFile: 'tail.md', currentStep: null, currentFileProgress: null, activeStages: null,
     });
   });
 });

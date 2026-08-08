@@ -132,8 +132,12 @@ export const LITE_SETTINGS_POLICY = Object.freeze({
 
   // ai (generation) — OLLAMA_URL/GENERATION_DEVICE/CONTEXT_MODEL are
   // Ollama-only concepts; COMBINED_LLM is advanced indexing tuning.
+  // GENERATION_DEVICE_OVERRIDE is a fallback for the device-aware bounded
+  // indexing pipeline's Ollama VRAM-placement scheduling signal — Lite
+  // has no local Ollama runtime for this to describe at all.
   OLLAMA_URL: excluded(LOCAL_RUNTIME),
   GENERATION_DEVICE: excluded(LOCAL_RUNTIME),
+  GENERATION_DEVICE_OVERRIDE: excluded(LOCAL_RUNTIME),
   CONTEXT_MODEL: excluded(LOCAL_MODEL),
   COMBINED_LLM: excluded(ADVANCED_TUNING),
 

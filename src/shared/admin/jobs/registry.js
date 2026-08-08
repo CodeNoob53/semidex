@@ -100,6 +100,11 @@ function appendLine(job, stream, line) {
       currentFile: typeof progress.currentFile === 'string' ? progress.currentFile : null,
       currentStep: typeof progress.currentStep === 'string' ? progress.currentStep : null,
       currentFileProgress: clampFileProgress(progress.currentFileProgress),
+      activeStages: Array.isArray(progress.activeStages)
+        ? progress.activeStages
+            .filter(s => s && typeof s.stage === 'string' && typeof s.file === 'string')
+            .map(s => ({ stage: s.stage, file: s.file }))
+        : null,
     };
     return;
   }

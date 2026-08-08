@@ -19,7 +19,7 @@
 // outside what it declared it needs.
 import {
   generate, embed, getModelContextLength, isThinkingModel, getOllamaEmbeddingDimension,
-  isOllamaReachable, listOllamaModels, validateOllamaModels, generateStream,
+  isOllamaReachable, listOllamaModels, validateOllamaModels, generateStream, getRunningModel,
 } from './ollama.js';
 
 /** @returns {import('../../core/generation/ollama-capability.js').OllamaGenerateCapability} */
@@ -39,7 +39,7 @@ export function createOllamaEmbedCapability() {
 
 /** @returns {import('../../core/generation/ollama-capability.js').OllamaDiscoveryCapability} */
 export function createOllamaDiscoveryCapability() {
-  return { isOllamaReachable, listOllamaModels, validateOllamaModels };
+  return { isOllamaReachable, listOllamaModels, validateOllamaModels, getRunningModel };
 }
 
 // generateStream has no capability contract of its own (see

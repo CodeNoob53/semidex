@@ -313,6 +313,31 @@ export const DEFINITIONS = {
     appliesAt: 'next_index_job', requiresReindex: true, requiresBackfill: false,
     ...boolField({ envVar: 'COMBINED_LLM', defaultVal: false }),
   },
+  // Last-resort fallback ONLY for the device-aware bounded indexing
+  // pipeline's generation resource identity (shared/indexer/device/
+  // resource-identity.js) — the primary signal is a real, verified read
+  // of Ollama's GET /api/ps (size/size_vram VRAM placement). This override
+  // is consulted ONLY when that real signal is unavailable for EVERY
+  // active model (model not yet loaded — typically the first file of a
+  // run — /api/ps unreachable, or the model was idle-unloaded); the
+  // instant even one active model resolves a real signal, this override
+  // is never consulted at all — a real read always wins over it, never
+  // the reverse. When it IS consulted, it is treated as an explicit,
+  // informed operator assertion — verified:true, but source:'manual'
+  // forever (never upgraded to look like a real 'ollama-api' read in any
+  // diagnostic/log) — so it genuinely CAN unlock generation/embedding
+  // overlap starting from file 1, at the operator's own risk of a wrong
+  // overlap decision if the claim about where Ollama actually runs turns
+  // out to be incorrect. Distinct from the pre-existing GENERATION_DEVICE
+  // field, which governs Ask/query-time generation backend policy, not
+  // indexing-time scheduling.
+  GENERATION_DEVICE_OVERRIDE: {
+    category: 'ai', label: 'Generation device override (indexing)', type: 'enum', envVar: 'GENERATION_DEVICE_OVERRIDE',
+    description: 'Manual, explicit assertion of where the Ollama generation model runs (CPU/GPU), used by the indexer\'s device-aware scheduler ONLY when Ollama\'s real VRAM placement cannot yet be verified (e.g. the first file of a run). A real verified signal always takes priority over this setting; setting this can unlock generation/embedding overlap before a real signal exists, at your own risk if the assertion is wrong.', advanced: true,
+    appliesAt: 'next_index_job', requiresReindex: false, requiresBackfill: false,
+    visibleWhen: { key: 'SEMIDEX_GENERATION_BACKEND', equals: 'ollama' },
+    ...enumField({ envVar: 'GENERATION_DEVICE_OVERRIDE', defaultVal: 'unknown', allowed: ['unknown', 'cpu', 'gpu'] }),
+  },
 
   // ── embeddings & hardware ───────────────────────────────────────────────
   // EMBEDDING_BACKEND is a synthetic, derived field — not env-backed (no

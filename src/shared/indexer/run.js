@@ -38,8 +38,6 @@ import { validateCloudEmbeddingCapability } from '../../core/embedding-profile/c
 import { resolveCollectionConfigEntry } from '../../core/embedding-profile/config-cache.js';
 import { ensureOllamaPreflight } from './preflight.js';
 import { CHUNKING_SCHEMA_VERSION, getTokenCounter, resolveTokenCountMode, QDRANT_CLOUD_TOKEN_MODE_PREFIX } from '../core/token-count.js';
-import { Semaphore } from './semaphore.js';
-import { SerialQueue } from './serial-queue.js';
 import { envInt } from '../core/env.js';
 import { expectedChunkingMeta, skeletonPayloadFields, indexingSchemaVersionField, isSkeletonChunk, makeSkeletonPointId, buildNavPointPayload, buildEntityRawPointPayload, INDEXING_SCHEMA_VERSION_BASE, INDEXING_SCHEMA_VERSION_PROFILE_BUDGET } from './skeleton-payload.js';
 import { buildIndexingState, EXECUTION } from '../../core/embedding-profile/schema.js';
@@ -47,10 +45,13 @@ import { generateNavSummaries, generateDirectorySummaries, buildCollectionSummar
 import { buildDirectoryNavPoints } from './phases/skeleton-index.js';
 import { makeNodeId } from '../core/node-id.js';
 import { scroll } from '../core/qdrant.js';
-import { PROGRESS_EVENT_PREFIX, createFileProgressReporter } from './progress-event.js';
+import { PROGRESS_EVENT_PREFIX } from './progress-event.js';
 import { applyEnvWriteBack } from '../../core/settings/service.js';
 import { validateOllamaEmbedCapability, validateOllamaGenerateCapability, validateOllamaSummaryCapability, validateOllamaDiscoveryCapability } from '../../core/generation/ollama-capability.js';
 import { validateOnnxEmbedCapability } from '../core/onnx-embed-capability.js';
+import { buildResourceIdentityInputs } from './device/resource-identity.js';
+import { resolveIndexSchedulingPolicy } from './device/scheduling-policy.js';
+import { runBoundedFilePipeline } from './pipeline/bounded-file-pipeline.js';
 
 // Capability injection (Phase 8B Step 3, revised after code review — real
 // instance-scoped injection, no module-scope capability state anywhere in
@@ -75,8 +76,8 @@ import { validateOnnxEmbedCapability } from '../core/onnx-embed-capability.js';
 // argument and builds ONE local `const` context object, never assigned to
 // anything outside its own call frame, and passes that object down through
 // every function call in the pipeline (main(ctx), stageA(..., ctx),
-// stageB(..., ctx), indexFile(..., ctx), and every direct
-// embedForIndex()/embedForIndexBatch()/getOllamaEmbeddingDimension()/
+// stageB(..., ctx), runBoundedFilePipeline's own stage closures, and every
+// direct embedForIndex()/embedForIndexBatch()/getOllamaEmbeddingDimension()/
 // resolveRunNumCtx() call inside main() itself). Two concurrent run() calls
 // each own an entirely separate context object with no shared mutable
 // state between them — genuine per-call isolation, not a narrower window
@@ -94,7 +95,8 @@ import { validateOnnxEmbedCapability } from '../core/onnx-embed-capability.js';
  * Validates a caller-supplied capability bundle and returns one immutable
  * per-run context object — never stored anywhere outside the caller's own
  * local scope. This is the ONLY place these six capabilities are validated;
- * every downstream function (main, stageA, stageB, indexFile, and every
+ * every downstream function (main, stageA, stageB, runBoundedFilePipeline's
+ * own stage closures, and every
  * embedForIndex/embedForIndexBatch/getOllamaEmbeddingDimension/
  * resolveRunNumCtx call inside main()) receives this object as a real
  * parameter and reads directly off it.
@@ -191,9 +193,13 @@ function applyIndexerSettings(settingsService) {
 // file) fully separate from free-form log lines. Never include env vars,
 // tokens, or file contents here — only counts, a relative file path, and a
 // user-facing phase label (see progress-event.js for the phase-weight model).
-function emitProgress({ processedFiles, totalFiles, currentFile, currentStep = null, currentFileProgress = null }) {
+// activeStages (added: device-aware bounded pipeline) is the ONLY field
+// here without a monotonicity guarantee — files legitimately enter/leave
+// it as they move through lanes. processedFiles (and currentFileProgress,
+// where known) stay monotonic exactly as before.
+function emitProgress({ processedFiles, totalFiles, currentFile, currentStep = null, currentFileProgress = null, activeStages = null }) {
   console.log(PROGRESS_EVENT_PREFIX + JSON.stringify({
-    processedFiles, totalFiles, currentFile, currentStep, currentFileProgress,
+    processedFiles, totalFiles, currentFile, currentStep, currentFileProgress, activeStages,
   }));
 }
 
@@ -383,7 +389,7 @@ async function stageA(filePath, rootPath, collection, profiler, ctx, reporter = 
 // pipeline or a real Qdrant/Ollama connection. Used by
 // tests/unit/indexer/run-context-mode.test.js to prove CONTEXT_MODE=
 // deterministic makes zero Ollama calls for legacy (non-skeleton) chunks.
-export async function stageB(prepared, ctx, ollamaSem = null, reporter = null) {
+export async function stageB(prepared, ctx, ollamaSem = null, reporter = null, generationTaggingExecutionMode = 'parallel') {
   const { rawChunks, combinedCfg, profiler } = prepared;
   const { ollamaGenerate, ollamaSummary, tagOnnx } = ctx;
 
@@ -551,11 +557,27 @@ export async function stageB(prepared, ctx, ollamaSem = null, reporter = null) {
 
     const runContext = () =>
       runBatched(merged, BATCH_SIZE, chunk => addContext(chunk, { ollama: ollamaGenerate })).then(r => { profiler.markAt('context', tContextStart); return r; });
+    const runTags = () =>
+      tagOnnx.addTagsOnnxBatch(merged).then(r => { profiler.markAt('tag', tTagStart); return r; });
 
-    const [contextChunks, onnxTagged] = await Promise.all([
-      ollamaSem ? ollamaSem.run(runContext) : runContext(),
-      tagOnnx.addTagsOnnxBatch(merged).then(r => { profiler.markAt('tag', tTagStart); return r; }),
-    ]);
+    // generationTaggingExecutionMode is computed by the bounded pipeline
+    // (pipeline/bounded-file-pipeline.js) from this file's own freshly
+    // recomputed device-aware SchedulingPolicy.canOverlapGenerationAndTagging
+    // — stageB never imports the scheduler, it only receives this plain
+    // string. Context and tags read the SAME input (`merged`) and are
+    // combined only at the end by array index — neither depends on the
+    // other's output, so 'sequential' vs 'parallel' changes only their
+    // wall-clock overlap, never the data dependency or final shape.
+    let contextChunks, onnxTagged;
+    if (generationTaggingExecutionMode === 'sequential') {
+      contextChunks = ollamaSem ? await ollamaSem.run(runContext) : await runContext();
+      onnxTagged = await runTags();
+    } else {
+      [contextChunks, onnxTagged] = await Promise.all([
+        ollamaSem ? ollamaSem.run(runContext) : runContext(),
+        runTags(),
+      ]);
+    }
 
     taggedChunks = contextChunks.map((chunk, i) => ({
       ...chunk,
@@ -852,24 +874,6 @@ async function stageD(withPoints, reporter = null) {
   console.log(`  ✓ done`);
 }
 
-// ── Sequential indexFile (default, PIPELINE_MODE unset) ───────────────────────
-// `reporter` (see progress-event.js's createFileProgressReporter) is optional
-// — callers that don't care about phase-aware progress (e.g. any future
-// direct caller) simply omit it, and every reporter?.step(...) below is a
-// no-op.
-async function indexFile(filePath, rootPath, collection, ctx, { runNumCtx = null, reporter = null } = {}) {
-  console.log(`\n→ ${filePath}`);
-  const profiler = new Profiler();
-
-  const preparedA = await stageA(filePath, rootPath, collection, profiler, ctx, reporter);
-  if (preparedA.status === 'skipped') return 'skipped';
-
-  if (runNumCtx != null) preparedA.runNumCtx = runNumCtx;
-  const preparedB = await stageB(preparedA, ctx, null, reporter);
-  const preparedC = await stageC(preparedB, ctx, reporter);
-  await stageD(preparedC, reporter);
-}
-
 export function computeStaleSourceFiles(indexedSourceFiles, storedSourceFiles) {
   const indexed = new Set(indexedSourceFiles);
   return storedSourceFiles.filter(sf => !indexed.has(sf));
@@ -1148,99 +1152,89 @@ async function main(ctx) {
     console.log(`[summary] run num_ctx=${runNumCtx} (largest file ~${maxTokens} tokens)`);
   }
 
-  const pipelineMode = process.env.PIPELINE_MODE === '1';
+  // Device-aware bounded pipeline (recursive-roaming-anchor.md) — the
+  // automatic default for every multi-file run, replacing both the old
+  // sequential indexFile() loop AND the PIPELINE_MODE=1 opt-in (which
+  // used to unconditionally overlap generation/embedding across files
+  // with no device check at all). PIPELINE_MODE/OLLAMA_STAGE_CONCURRENCY/
+  // EMBED_STAGE_CONCURRENCY/STAGEA_CONCURRENCY remain as concurrency-
+  // tuning knobs only — PIPELINE_MODE itself no longer switches between
+  // two different code paths; it is read here only as a legacy signal
+  // that the operator wants pipeline behavior confirmed (harmless no-op
+  // now that this IS the only path), so no warning is emitted for it.
+  //
+  // Behavior change from before: PIPELINE_MODE=1 used to ALWAYS overlap
+  // generation and embedding across files. Now, overlap only happens when
+  // resolveIndexSchedulingPolicy (device/scheduling-policy.js) — computed
+  // fresh per file from real signals (Ollama's GET /api/ps, ONNX's
+  // getOnnxProviderState()) — says the two stages are on genuinely
+  // independent, verified compute resources. This is an intentional,
+  // necessary consequence of making the scheduler always device-aware,
+  // not an oversight (see docs/design/pipeline-redesign-and-deterministic-chunking.md
+  // addendum).
+  const parsedOllama = parseInt(process.env.OLLAMA_STAGE_CONCURRENCY ?? '1', 10);
+  const parsedStageA = parseInt(process.env.STAGEA_CONCURRENCY       ?? '4', 10);
+  const stageAConcurrency = (Number.isInteger(parsedStageA) && parsedStageA >= 1) ? parsedStageA : 4;
+  if (parsedStageA !== stageAConcurrency) console.warn(`[pipeline] invalid STAGEA_CONCURRENCY, using 4`);
+  if (process.env.OLLAMA_STAGE_CONCURRENCY !== undefined && (!Number.isInteger(parsedOllama) || parsedOllama < 1)) {
+    console.warn(`[pipeline] invalid OLLAMA_STAGE_CONCURRENCY, ignored (the bounded pipeline's generation lane is always capacity 1)`);
+  }
+  const maxPreparedInFlight = envInt('MAX_PREPARED_FILES_IN_FLIGHT', stageAConcurrency + 1 + 1 + 2, 1, 1000, '[pipeline] ');
 
-  if (pipelineMode) {
-    const parsedOllama = parseInt(process.env.OLLAMA_STAGE_CONCURRENCY ?? '1', 10);
-    const parsedEmbed  = parseInt(process.env.EMBED_STAGE_CONCURRENCY  ?? '1', 10);
-    const parsedStageA = parseInt(process.env.STAGEA_CONCURRENCY       ?? '4', 10);
-    const ollamaConcurrency = (Number.isInteger(parsedOllama) && parsedOllama >= 1) ? parsedOllama : 1;
-    const embedConcurrency  = (Number.isInteger(parsedEmbed)  && parsedEmbed  >= 1) ? parsedEmbed  : 1;
-    const stageAConcurrency = (Number.isInteger(parsedStageA) && parsedStageA >= 1) ? parsedStageA : 4;
-    if (parsedOllama !== ollamaConcurrency) console.warn(`[pipeline] invalid OLLAMA_STAGE_CONCURRENCY, using 1`);
-    if (parsedEmbed  !== embedConcurrency)  console.warn(`[pipeline] invalid EMBED_STAGE_CONCURRENCY, using 1`);
-    if (parsedStageA !== stageAConcurrency) console.warn(`[pipeline] invalid STAGEA_CONCURRENCY, using 4`);
+  // onnxTaggingActive is stable for the whole run (depends only on
+  // env/settings, never per-file data) — the SAME condition the old
+  // pipeline-mode branch's own onnxLaneActive already used.
+  const onnxTaggingActive = isOnnxTagProvider(process.env)
+    && shouldGenerateTags(process.env)
+    && !resolveCombinedLlmConfig(process.env).enabled;
 
-    console.log(`[pipeline] enabled: stageA=${stageAConcurrency} ollama=${ollamaConcurrency} embed=${embedConcurrency} commit=serial`);
+  // Re-evaluated once per file, inside runBoundedFilePipeline itself —
+  // never called here. Self-heals across the run: embedding's
+  // getOnnxProviderState() and generation's getRunningModel() both only
+  // report a verified signal once real work has actually happened at
+  // least once in this process (see device/resource-identity.js).
+  const recomputePolicy = async () => {
+    const identities = await buildResourceIdentityInputs({
+      env: process.env,
+      onnxProviderState: ctx.onnxEmbed.getOnnxProviderState?.() ?? null,
+      taggingActive: onnxTaggingActive,
+      ollamaDiscovery: ctx.ollamaDiscovery,
+      // EMBEDDING_PROFILE is resolved once, earlier in main(), before any
+      // file is processed — real signal, not a guess. Qdrant Cloud/cluster
+      // execution does zero local compute for this process (a genuinely
+      // independent, always-overlap-safe resource) — see
+      // resolveEmbeddingResourceIdentity()'s own denseExecution handling,
+      // the fix for a real gap where cloud-embedding collections were
+      // silently misclassified as local ONNX CPU work.
+      denseExecution: EMBEDDING_PROFILE.embedding.dense.execution,
+      denseProvider: EMBEDDING_PROFILE.embedding.dense.provider,
+    });
+    return resolveIndexSchedulingPolicy(identities);
+  };
 
-    const stageASem   = new Semaphore(stageAConcurrency);
-    const ollamaSem   = new Semaphore(ollamaConcurrency);
-    const embedSem    = new Semaphore(embedConcurrency);
-    const commitQueue = new SerialQueue();
+  console.log(`[pipeline] stageA=${stageAConcurrency} maxPreparedInFlight=${maxPreparedInFlight} onnxTagging=${onnxTaggingActive} commit=serial (device-aware)`);
 
-    // Pipeline mode runs files concurrently (out of order), so unlike the
-    // sequential loop there's no single well-defined "current file". It still
-    // reports processedFiles/totalFiles/currentFile (currentFile is the most
-    // recently *started* file, not "the" file being worked on — useful
-    // context, just not exclusive).
-    //
-    // Deliberately no phase-aware (createFileProgressReporter) instrumentation
-    // here: stageB/stageC/stageD below are called without a `reporter`
-    // argument, so their reporter?.step(...) calls are no-ops and
-    // currentStep/currentFileProgress stay null for pipeline-mode jobs.
-    // Multiple files run concurrent phases at once in this mode, so a single
-    // "current phase" wouldn't describe what's actually happening; building a
-    // correct multi-file phase model is out of scope here (task non-goals).
-    //
-    // Trade-off, by design: the admin API's percent formula requires
-    // currentFileProgress to be a number (see src/admin/api/jobs.js), so
-    // pipeline-mode jobs now always show percent: null (indeterminate
-    // progress), even though totalFiles is known. An earlier iteration made
-    // pipeline mode show a coarse file-count percent instead — this task's
-    // stricter, explicitly-specified percent rule intentionally supersedes
-    // that. The admin UI never sets PIPELINE_MODE=1 itself, so this only
-    // affects an operator who exports it into the admin server's own
-    // environment before running `npm run admin`.
-    let pipelineProcessed = 0;
-    const settlements = await Promise.allSettled(files.map(async filePath => {
+  const { results } = await runBoundedFilePipeline({
+    files,
+    runStageA: async (filePath) => {
       console.log(`\n→ ${filePath}`);
-      const currentFile = relative(effectiveRoot, filePath).replace(/\\/g, '/');
-      emitProgress({ processedFiles: pipelineProcessed, totalFiles: files.length, currentFile });
       const profiler = new Profiler();
+      const preparedA = await stageA(filePath, rootPath, COLLECTION, profiler, ctx);
+      if (preparedA.status !== 'skipped' && runNumCtx != null) preparedA.runNumCtx = runNumCtx;
+      return preparedA;
+    },
+    runStageB: (preparedA, generationTaggingExecutionMode) => stageB(preparedA, ctx, null, null, generationTaggingExecutionMode),
+    runStageC: (preparedB) => stageC(preparedB, ctx),
+    runStageD: (preparedC) => stageD(preparedC),
+    onnxTaggingActive,
+    stageAConcurrency,
+    recomputePolicy,
+    maxPreparedInFlight,
+    onProgress: emitProgress,
+  });
 
-      const preparedA = await stageASem.run(() => stageA(filePath, rootPath, COLLECTION, profiler, ctx));
-      if (preparedA.status === 'skipped') { pipelineProcessed++; return 'skipped'; }
-
-      if (runNumCtx != null) preparedA.runNumCtx = runNumCtx;
-      // ONNX split-sem path: only active when tags actually go to the ONNX worker.
-      // COMBINED_LLM=1 and disabled tags both bypass the ONNX lane inside stageB, so
-      // they must keep the default ollamaSem.run() wrapper to gate Ollama correctly.
-      const onnxLaneActive = isOnnxTagProvider(process.env)
-        && shouldGenerateTags(process.env)
-        && !resolveCombinedLlmConfig(process.env).enabled;
-      const preparedB = onnxLaneActive
-        ? await stageB(preparedA, ctx, ollamaSem)
-        : await ollamaSem.run(() => stageB(preparedA, ctx));
-      const preparedC = await embedSem.run(() => stageC(preparedB, ctx));
-      await commitQueue.run(() => stageD(preparedC));
-      pipelineProcessed++;
-      emitProgress({ processedFiles: pipelineProcessed, totalFiles: files.length, currentFile: null });
-      return 'indexed';
-    }));
-
-    const failures = [];
-    for (const s of settlements) {
-      if (s.status === 'fulfilled') {
-        if (s.value === 'skipped') skipped++; else indexed++;
-      } else {
-        failures.push(s.reason);
-      }
-    }
-    if (failures.length > 0) {
-      for (const err of failures) console.error(`[pipeline] file failed: ${err?.message ?? err}`);
-      throw new Error(`[pipeline] ${failures.length} file(s) failed — see errors above`);
-    }
-  } else {
-    for (const [i, filePath] of files.entries()) {
-      const currentFile = relative(effectiveRoot, filePath).replace(/\\/g, '/');
-      const reporter = createFileProgressReporter({
-        emit: emitProgress, fileIndex: i, totalFiles: files.length, currentFile,
-      });
-      reporter.step('preparing');
-      const status = await indexFile(filePath, rootPath, COLLECTION, ctx, { runNumCtx, reporter });
-      if (status === 'skipped') skipped++; else indexed++;
-      reporter.done();
-    }
+  for (const status of results) {
+    if (status === 'skipped') skipped++; else indexed++;
   }
 
   if (pruneAllowed) {
@@ -1477,8 +1471,9 @@ export function applyAllSettings(settingsService) {
  * local `const ctx` — never assigned to any variable outside this
  * function's own call frame. That `const` is threaded down as a real
  * parameter through every function in the pipeline (main(ctx),
- * stageA(..., ctx), stageB(..., ctx), stageC(..., ctx), indexFile(...,
- * ctx), and every direct embedForIndex()/embedForIndexBatch()/
+ * stageA(..., ctx), stageB(..., ctx), stageC(..., ctx),
+ * runBoundedFilePipeline's own stage closures, and every direct
+ * embedForIndex()/embedForIndexBatch()/
  * getOllamaEmbeddingDimension()/resolveRunNumCtx() call inside main()
  * itself). Two concurrent run() calls each close over their OWN ctx —
  * nothing in run.js is shared, so nothing here can be overwritten by the

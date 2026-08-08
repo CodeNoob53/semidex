@@ -79,6 +79,7 @@ function unavailableOllamaCapability() {
     isOllamaReachable: unavailableOllama('isOllamaReachable'),
     listOllamaModels: unavailableOllama('listOllamaModels'),
     validateOllamaModels: unavailableOllama('validateOllamaModels'),
+    getRunningModel: unavailableOllama('getRunningModel'),
   };
 }
 

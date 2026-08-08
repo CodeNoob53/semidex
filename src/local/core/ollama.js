@@ -84,6 +84,38 @@ export async function showModel(model, baseUrl = OLLAMA_URL, { forceRefresh = fa
 }
 
 /**
+ * GET /api/ps and find the entry for `model` (loaded models only — a
+ * model not currently resident in Ollama has no VRAM placement to
+ * report). This is the same signal `ollama ps`'s own PROCESSOR column is
+ * built from: size_vram close to 0 means CPU, close to size means GPU,
+ * anything in between means a partial (mixed) offload. Never cached (a
+ * model's VRAM placement can change between calls — unlike /api/show's
+ * static model metadata) — callers that want a TTL cache own that
+ * decision themselves, one layer up.
+ * Returns null on any failure (network, non-OK, model not loaded,
+ * malformed shape) — never throws. Callers must treat null as "cannot
+ * verify," never as "verified CPU."
+ * @param {string} model
+ * @param {string} [baseUrl]
+ * @returns {Promise<{ size: number, size_vram: number } | null>}
+ */
+export async function getRunningModel(model, baseUrl = OLLAMA_URL) {
+  try {
+    const r = await fetch(`${baseUrl.replace(/\/$/, '')}/api/ps`, { signal: AbortSignal.timeout(5000) });
+    if (!r.ok) return null;
+    const data = await r.json();
+    const entry = (data.models ?? []).find((m) => m.name === model || m.model === model);
+    if (!entry) return null;
+    const size = Number(entry.size);
+    const sizeVram = Number(entry.size_vram);
+    if (!Number.isFinite(size) || size <= 0 || !Number.isFinite(sizeVram) || sizeVram < 0) return null;
+    return { size, size_vram: sizeVram };
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Read the text embedding dimension from Ollama's /api/show payload.
  * Only embedding-capable models are accepted: generation models also expose
  * an architecture embedding_length, but that hidden-state width is not a

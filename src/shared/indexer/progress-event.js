@@ -35,10 +35,20 @@ export function parseProgressLine(line) {
 //
 // Weights are 0..1, monotonically increasing, ending at 1.0 for "done".
 // currentFileProgress in the emitted event is one of these weights, taken
-// at the moment each phase *starts* (matches indexFile()'s reporter.step()
-// calls — see index.js). Skipped phases are simply never reported for that
-// file, so progress can visibly jump over them (e.g. no "tagging" step at
-// all when TAG_GEN is off) rather than showing a step that didn't happen.
+// at the moment each phase *starts* via reporter.step() calls. Skipped
+// phases are simply never reported for that file, so progress can visibly
+// jump over them (e.g. no "tagging" step at all when TAG_GEN is off)
+// rather than showing a step that didn't happen.
+//
+// The device-aware bounded pipeline (pipeline/bounded-file-pipeline.js,
+// the default multi-file codepath since the device-aware scheduler
+// replaced the old single-file-at-a-time loop) runs multiple files'
+// phases concurrently and does not use createFileProgressReporter at all
+// — currentStep/currentFileProgress stay null for its jobs (percent:
+// indeterminate), the same trade-off the earlier PIPELINE_MODE=1 opt-in
+// already made. It reports the newer activeStages array (see run.js's
+// emitProgress) instead, using this same preparing/chunking/summarizing/
+// tagging/embedding/writing vocabulary per active file.
 export const FILE_PROGRESS_WEIGHTS = {
   preparing:   0.05,
   chunking:    0.15,
