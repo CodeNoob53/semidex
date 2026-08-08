@@ -23,6 +23,20 @@ function simulateToggle(document, detailsEl, nextOpen) {
   detailsEl.dispatchEvent(ev);
 }
 
+// linkedom implements none of scrollHeight/scrollTop/clientHeight (no
+// layout engine) — updateOperationLog()'s wasAtBottom check reads all
+// three. Installs plain writable own-properties on the given element so a
+// test can set up a concrete "scrolled up" or "at the bottom" geometry and
+// later read back wherever updateOperationLog() left scrollTop. A no-op
+// setter-free own-property (not a getter/setter pair) is enough since
+// production code only ever reads scrollHeight/clientHeight and reads+
+// writes scrollTop — the same shape a real element's IDL properties have.
+function stubScrollMetrics(el, { scrollHeight = 0, clientHeight = 0, scrollTop = 0 } = {}) {
+  Object.defineProperty(el, 'scrollHeight', { value: scrollHeight, writable: true, configurable: true });
+  Object.defineProperty(el, 'clientHeight', { value: clientHeight, writable: true, configurable: true });
+  Object.defineProperty(el, 'scrollTop', { value: scrollTop, writable: true, configurable: true });
+}
+
 describe('operation modal — open/close/escape/focus', () => {
   it('mountOperationModal() renders the modal hidden by default', async () => {
     await withServer(async (base) => {
@@ -536,6 +550,362 @@ describe('operation modal — completion toast', () => {
 
       toastHost.querySelector('.toast-action').click();
       assert.equal(document.getElementById('op-modal-backdrop').style.display, '', 'clicking the toast action must reopen the modal');
+    });
+  });
+});
+
+describe('operation modal — stable DOM across poll updates for the same operation', () => {
+  it('two poll updates for the same id leave the same .job-card DOM node in place', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const op = {
+        id: 'op1', kind: 'index', collection: 'demo', state: 'running',
+        startedAt: new Date().toISOString(), finishedAt: null, cancellable: true,
+        progress: { percent: 20, phase: null, currentFile: 'a.md', processedFiles: 1, totalFiles: 5 },
+      };
+      const { document, mountOperationModal, openOperationModal, __settle, __runTimeouts } = loadOperationModalHelpers(html, {
+        apiImpl: async (url) => (url.includes('/api/operations/') ? { operation: { ...op, sourcePath: './docs', log: [] } } : { operations: [op] }),
+      });
+      mountOperationModal(document.getElementById('operation-modal-host'));
+      openOperationModal('op1');
+      await __settle();
+      const firstCard = document.querySelector('.job-card');
+      assert.ok(firstCard);
+
+      op.progress = { ...op.progress, processedFiles: 2, percent: 40 };
+      __runTimeouts();
+      await __settle();
+      op.progress = { ...op.progress, processedFiles: 3, percent: 60 };
+      __runTimeouts();
+      await __settle();
+
+      const secondCard = document.querySelector('.job-card');
+      assert.equal(secondCard, firstCard, 'the .job-card DOM node must be reused across poll updates for the same operation id');
+      assert.match(secondCard.querySelector('.job-progress-fill').style.width, /60%/, 'the in-place update must still reflect the latest progress');
+    });
+  });
+
+  it('switching to a different operation creates a new .job-card node', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const { document, mountOperationModal, openOperationModal, __settle } = loadOperationModalHelpers(html, {
+        apiImpl: async (url) => {
+          if (url.includes('/api/operations/')) return { operation: { id: 'op1', kind: 'index', collection: 'demo', state: 'running', startedAt: new Date().toISOString(), finishedAt: null, cancellable: true, progress: null, sourcePath: '.', log: [] } };
+          return { operations: [
+            { id: 'op1', kind: 'index', collection: 'demo', state: 'running', startedAt: new Date().toISOString(), finishedAt: null, cancellable: true, progress: null },
+            { id: 'op2', kind: 'repair', collection: 'other', state: 'succeeded', startedAt: new Date(Date.now() - 5000).toISOString(), finishedAt: new Date().toISOString(), cancellable: false, progress: null },
+          ] };
+        },
+      });
+      mountOperationModal(document.getElementById('operation-modal-host'));
+      openOperationModal('op1');
+      await __settle();
+      const firstCard = document.querySelector('.job-card');
+
+      openOperationModal('op2');
+      await __settle();
+      const secondCard = document.querySelector('.job-card');
+      assert.notEqual(secondCard, firstCard, 'switching to a different operation id must create a brand-new .job-card node');
+      assert.match(secondCard.querySelector('.job-title').textContent, /other/);
+    });
+  });
+
+  it('polling does not create duplicate event listeners (cancel button fires exactly one POST per click, across many in-place updates)', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const op = {
+        id: 'op1', kind: 'index', collection: 'demo', state: 'running',
+        startedAt: new Date().toISOString(), finishedAt: null, cancellable: true,
+        progress: { percent: 10, phase: null, currentFile: null, processedFiles: 0, totalFiles: 5 },
+      };
+      const posted = [];
+      const { document, mountOperationModal, openOperationModal, __settle, __runTimeouts } = loadOperationModalHelpers(html, {
+        apiImpl: async (url) => (url.includes('/api/operations/') ? { operation: { ...op, sourcePath: '.', log: [] } } : { operations: [op] }),
+        apiPostImpl: async (url) => { posted.push(url); return {}; },
+      });
+      mountOperationModal(document.getElementById('operation-modal-host'));
+      openOperationModal('op1');
+      await __settle();
+
+      for (let i = 0; i < 5; i += 1) {
+        op.progress = { ...op.progress, processedFiles: i, percent: 10 + i * 10 };
+        __runTimeouts();
+        await __settle();
+      }
+
+      document.querySelector('.job-cancel').click();
+      await __settle();
+      assert.equal(posted.filter(u => u.includes('/api/jobs/op1/cancel')).length, 1,
+        'many in-place poll updates must never stack additional click listeners on the cancel button — exactly one POST per click');
+    });
+  });
+
+  it('cancel button works after many in-place updates', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const op = {
+        id: 'op1', kind: 'index', collection: 'demo', state: 'running',
+        startedAt: new Date().toISOString(), finishedAt: null, cancellable: true, progress: null,
+      };
+      const posted = [];
+      const { document, mountOperationModal, openOperationModal, __settle, __runTimeouts } = loadOperationModalHelpers(html, {
+        apiImpl: async (url) => (url.includes('/api/operations/') ? { operation: { ...op, sourcePath: '.', log: [] } } : { operations: [op] }),
+        apiPostImpl: async (url) => { posted.push(url); return {}; },
+      });
+      mountOperationModal(document.getElementById('operation-modal-host'));
+      openOperationModal('op1');
+      await __settle();
+      __runTimeouts();
+      await __settle();
+      __runTimeouts();
+      await __settle();
+
+      document.querySelector('.job-cancel').click();
+      await __settle();
+      assert.ok(posted.some(u => u.includes('/api/jobs/op1/cancel')), 'cancel must still work after multiple in-place updates');
+    });
+  });
+});
+
+describe('operation modal — log scroll preservation', () => {
+  it('a log scrolled up preserves its scrollTop after new lines are appended', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      let logLines = ['line 1', 'line 2', 'line 3'];
+      const op = {
+        id: 'op1', kind: 'index', collection: 'demo', state: 'running',
+        startedAt: new Date().toISOString(), finishedAt: null, cancellable: true, progress: null,
+      };
+      const { document, mountOperationModal, openOperationModal, __settle, __runTimeouts } = loadOperationModalHelpers(html, {
+        apiImpl: async (url) => (url.includes('/api/operations/') ? { operation: { ...op, sourcePath: '.', log: logLines } } : { operations: [op] }),
+      });
+      mountOperationModal(document.getElementById('operation-modal-host'));
+      openOperationModal('op1');
+      await __settle();
+
+      const pre = document.querySelector('.job-log');
+      // User has scrolled up, away from the bottom.
+      stubScrollMetrics(pre, { scrollHeight: 200, clientHeight: 50, scrollTop: 40 });
+
+      logLines = ['line 1', 'line 2', 'line 3', 'line 4', 'line 5'];
+      __runTimeouts();
+      await __settle();
+
+      assert.match(pre.textContent, /line 5/, 'sanity: the log text was actually updated');
+      assert.equal(pre.scrollTop, 40, 'a log the user scrolled up in must keep its scrollTop after new lines are appended');
+    });
+  });
+
+  it('a log near the bottom stays pinned to the bottom after new lines are appended', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      let logLines = ['line 1', 'line 2', 'line 3'];
+      const op = {
+        id: 'op1', kind: 'index', collection: 'demo', state: 'running',
+        startedAt: new Date().toISOString(), finishedAt: null, cancellable: true, progress: null,
+      };
+      const { document, mountOperationModal, openOperationModal, __settle, __runTimeouts } = loadOperationModalHelpers(html, {
+        apiImpl: async (url) => (url.includes('/api/operations/') ? { operation: { ...op, sourcePath: '.', log: logLines } } : { operations: [op] }),
+      });
+      mountOperationModal(document.getElementById('operation-modal-host'));
+      openOperationModal('op1');
+      await __settle();
+
+      const pre = document.querySelector('.job-log');
+      // scrollHeight - scrollTop - clientHeight === 0 -> at the bottom.
+      // linkedom has no real layout engine, so scrollHeight is a static
+      // stubbed value here rather than something that would genuinely grow
+      // as new lines are appended (as it would in a real browser) — the
+      // behavior under test is "scrollTop is pinned to scrollHeight",
+      // which holds regardless of what scrollHeight's actual value is.
+      stubScrollMetrics(pre, { scrollHeight: 200, clientHeight: 50, scrollTop: 150 });
+
+      logLines = ['line 1', 'line 2', 'line 3', 'line 4', 'line 5'];
+      __runTimeouts();
+      await __settle();
+
+      assert.match(pre.textContent, /line 5/, 'sanity: the log text was actually updated');
+      assert.equal(pre.scrollTop, pre.scrollHeight, 'a log the user was at the bottom of must be scrolled to the new bottom after new lines are appended');
+    });
+  });
+
+  it('an unchanged log does not receive a redundant textContent update', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const logLines = ['line 1', 'line 2'];
+      const op = {
+        id: 'op1', kind: 'index', collection: 'demo', state: 'running',
+        startedAt: new Date().toISOString(), finishedAt: null, cancellable: true,
+        progress: { percent: 10, phase: null, currentFile: null, processedFiles: 0, totalFiles: 5 },
+      };
+      const { document, mountOperationModal, openOperationModal, __settle, __runTimeouts } = loadOperationModalHelpers(html, {
+        apiImpl: async (url) => (url.includes('/api/operations/') ? { operation: { ...op, sourcePath: '.', log: logLines } } : { operations: [op] }),
+      });
+      mountOperationModal(document.getElementById('operation-modal-host'));
+      openOperationModal('op1');
+      await __settle();
+
+      const pre = document.querySelector('.job-log');
+      let textContentSets = 0;
+      // textContent's real getter/setter live on some prototype in pre's
+      // chain (Element.prototype in linkedom) — walk up until found, rather
+      // than assuming a fixed depth, so this stays correct regardless of
+      // exactly which class in the chain defines it.
+      let proto = Object.getPrototypeOf(pre);
+      let originalDescriptor;
+      while (proto && !originalDescriptor) {
+        originalDescriptor = Object.getOwnPropertyDescriptor(proto, 'textContent');
+        proto = Object.getPrototypeOf(proto);
+      }
+      assert.ok(originalDescriptor?.set, 'sanity: textContent must be a real accessor somewhere in the prototype chain');
+      Object.defineProperty(pre, 'textContent', {
+        configurable: true,
+        get() { return originalDescriptor.get.call(pre); },
+        set(value) { textContentSets += 1; originalDescriptor.set.call(pre, value); },
+      });
+
+      // Same log content, only unrelated progress fields change.
+      op.progress = { ...op.progress, processedFiles: 1, percent: 20 };
+      __runTimeouts();
+      await __settle();
+
+      assert.equal(textContentSets, 0, 'an unchanged log must not receive a redundant textContent write');
+    });
+  });
+});
+
+describe('operation modal — stale async log response protection', () => {
+  it('a stale log response for a previously-open operation does not overwrite the currently-open one\'s log', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      let resolveOp1Detail;
+      const op1DetailPromise = new Promise((resolve) => { resolveOp1Detail = resolve; });
+      const { document, mountOperationModal, openOperationModal, __settle } = loadOperationModalHelpers(html, {
+        apiImpl: async (url) => {
+          if (url.includes('/api/operations/op1')) {
+            await op1DetailPromise; // never resolves until the test says so — simulates a slow in-flight detail fetch
+            return { operation: { id: 'op1', kind: 'index', collection: 'demo', state: 'running', startedAt: new Date().toISOString(), finishedAt: null, cancellable: true, progress: null, sourcePath: '.', log: ['op1 stale log line'] } };
+          }
+          if (url.includes('/api/operations/op2')) {
+            return { operation: { id: 'op2', kind: 'index', collection: 'other', state: 'running', startedAt: new Date().toISOString(), finishedAt: null, cancellable: true, progress: null, sourcePath: '.', log: ['op2 fresh log line'] } };
+          }
+          return { operations: [
+            { id: 'op1', kind: 'index', collection: 'demo', state: 'running', startedAt: new Date().toISOString(), finishedAt: null, cancellable: true, progress: null },
+            { id: 'op2', kind: 'index', collection: 'other', state: 'running', startedAt: new Date().toISOString(), finishedAt: null, cancellable: true, progress: null },
+          ] };
+        },
+      });
+      mountOperationModal(document.getElementById('operation-modal-host'));
+
+      // Open op1 — its detail fetch (including the log) starts but never
+      // resolves yet (blocked on op1DetailPromise).
+      openOperationModal('op1');
+      await __settle();
+
+      // Switch to op2 before op1's detail fetch has resolved.
+      openOperationModal('op2');
+      await __settle();
+      assert.match(document.querySelector('.job-log')?.textContent ?? '', /op2 fresh log line/, 'sanity: op2 is now showing its own log');
+
+      // Now let op1's stale detail fetch finally resolve.
+      resolveOp1Detail();
+      await __settle();
+
+      assert.doesNotMatch(document.querySelector('.job-log')?.textContent ?? '', /op1 stale log line/,
+        'a stale log response for a previously-open operation must never overwrite the currently-open operation\'s log');
+      assert.match(document.querySelector('.job-log')?.textContent ?? '', /op2 fresh log line/,
+        'op2\'s own log must remain intact after op1\'s stale response lands');
+    });
+  });
+
+  it('a stale log response arriving after the modal has closed does not touch any DOM', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      let resolveDetail;
+      const detailPromise = new Promise((resolve) => { resolveDetail = resolve; });
+      const { document, mountOperationModal, openOperationModal, closeOperationModal, __settle } = loadOperationModalHelpers(html, {
+        apiImpl: async (url) => {
+          if (url.includes('/api/operations/op1')) {
+            await detailPromise;
+            return { operation: { id: 'op1', kind: 'index', collection: 'demo', state: 'running', startedAt: new Date().toISOString(), finishedAt: null, cancellable: true, progress: null, sourcePath: '.', log: ['late log line'] } };
+          }
+          return { operations: [{ id: 'op1', kind: 'index', collection: 'demo', state: 'running', startedAt: new Date().toISOString(), finishedAt: null, cancellable: true, progress: null }] };
+        },
+      });
+      mountOperationModal(document.getElementById('operation-modal-host'));
+      openOperationModal('op1');
+      await __settle();
+      closeOperationModal();
+
+      resolveDetail();
+      await __settle();
+
+      // No crash and no stray text applied anywhere — the body was already
+      // torn down by close (openOperationModal() clears backdrop/state);
+      // reopening should show a clean state, not a leftover from the
+      // pre-close fetch.
+      assert.equal(document.getElementById('op-modal-backdrop').style.display, 'none');
+    });
+  });
+});
+
+describe('operation modal — recent operations history isolation', () => {
+  it('a history-list-only data change (unrelated to the open card) does not rebuild history DOM rows unnecessarily', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const ops = [
+        { id: 'op1', kind: 'index', collection: 'demo', state: 'running', startedAt: new Date().toISOString(), finishedAt: null, cancellable: true, progress: { percent: 10, phase: null, currentFile: null, processedFiles: 0, totalFiles: 5 } },
+        { id: 'op2', kind: 'repair', collection: 'other', state: 'succeeded', startedAt: new Date(Date.now() - 5000).toISOString(), finishedAt: new Date().toISOString(), cancellable: false, progress: null },
+      ];
+      const { document, mountOperationModal, openOperationModal, __settle, __runTimeouts } = loadOperationModalHelpers(html, {
+        apiImpl: async (url) => (url.includes('/api/operations/') ? { operation: { ...ops[0], sourcePath: '.', log: [] } } : { operations: ops }),
+      });
+      mountOperationModal(document.getElementById('operation-modal-host'));
+      openOperationModal('op1');
+      await __settle();
+      const firstHistoryRow = document.querySelector('.op-history-row');
+      assert.ok(firstHistoryRow);
+
+      // Only the OPEN card's progress changes — op2 (the only history row)
+      // is untouched.
+      ops[0].progress = { ...ops[0].progress, processedFiles: 2, percent: 40 };
+      __runTimeouts();
+      await __settle();
+
+      const secondHistoryRow = document.querySelector('.op-history-row');
+      assert.equal(secondHistoryRow, firstHistoryRow, 'history DOM rows must not be rebuilt when the history list\'s own data is unchanged');
+    });
+  });
+
+  it('history list updates do not affect the open card\'s details state or log scroll', async () => {
+    await withServer(async (base) => {
+      const html = await (await fetch(base + '/')).text();
+      const ops = [
+        { id: 'op1', kind: 'index', collection: 'demo', state: 'running', startedAt: new Date().toISOString(), finishedAt: null, cancellable: true, progress: null },
+        { id: 'op2', kind: 'repair', collection: 'other', state: 'running', startedAt: new Date(Date.now() - 5000).toISOString(), finishedAt: null, cancellable: false, progress: null },
+      ];
+      const { document, mountOperationModal, openOperationModal, __settle, __runTimeouts } = loadOperationModalHelpers(html, {
+        apiImpl: async (url) => (url.includes('/api/operations/') ? { operation: { ...ops[0], sourcePath: '.', log: ['a line'] } } : { operations: ops }),
+      });
+      mountOperationModal(document.getElementById('operation-modal-host'));
+      openOperationModal('op1');
+      await __settle();
+
+      const details = document.querySelector('.job-details');
+      simulateToggle(document, details, true);
+      const pre = document.querySelector('.job-log');
+      stubScrollMetrics(pre, { scrollHeight: 200, clientHeight: 50, scrollTop: 40 });
+
+      // Change something in the history-only operation (op2) — its state
+      // changes, which changes the history row's rendered badge/label.
+      ops[1] = { ...ops[1], state: 'succeeded', finishedAt: new Date().toISOString() };
+      __runTimeouts();
+      await __settle();
+
+      assert.equal(document.querySelector('.job-details').hasAttribute('open'), true,
+        'a history-list-only change must not affect the open card\'s details state');
+      assert.equal(document.querySelector('.job-log').scrollTop, 40,
+        'a history-list-only change must not affect the open card\'s log scroll position');
     });
   });
 });

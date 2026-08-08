@@ -7,7 +7,7 @@
 import { $, cloneTemplate } from './dom.js';
 import { api, apiPost } from './api.js';
 import { subscribe, getOperations, pollNow } from './operation-store.js';
-import { renderOperationCard, formatDuration, tickElapsedRows } from './operation-render.js';
+import { renderOperationCard, updateOperationCard, updateOperationLog, formatDuration, tickElapsedRows } from './operation-render.js';
 import { showToast } from './toasts.js';
 
 // Toast copy uses the noun form ("Repair"), distinct from operation-render.js's
@@ -64,6 +64,37 @@ let openOperationIsPinnedToLatest = false;
 let unsubscribeStore = null;
 let elapsedTimer = null;
 let lastFocusedBeforeOpen = null;
+
+// The id the currently-mounted .job-card in #op-modal-body actually
+// represents, and the card element itself — lets render() tell "same
+// operation, just a new snapshot" (in-place update) apart from "first open
+// or switched operation" (full rebuild). Reset to null whenever the modal
+// closes or the body is otherwise emptied, so the next open always does a
+// full render rather than mistaking a leftover card for a still-valid one.
+let renderedCardId = null;
+let renderedCard = null;
+
+// Bumped every time render() decides which operation id the log fetch
+// SHOULD be for — loadOperationLog()'s own async response is only applied
+// if this counter hasn't moved on since the fetch started (requirement 4:
+// stale async responses must never overwrite a newer state). A per-id
+// counter (not a single global one) also blocks a same-id-but-superseded
+// fetch (e.g. two poll ticks close together) from racing its own successor.
+let logRequestId = 0;
+// The operation id logRequestId's in-flight (or most recently started)
+// fetch was actually requested for — combined with logRequestId itself,
+// this is what loadOperationLog() compares its own captured snapshot
+// against, so a fetch for operation A can never win a race against a
+// fetch for operation B just because generation numbers are shared.
+let logRequestedForId = null;
+
+// Cached shape of the LAST rendered history list — [{id, state, kind,
+// collection, finishedAt, startedAt}] — so renderHistory() can skip
+// rebuilding the DOM entirely when nothing the list actually displays has
+// changed (requirement 5: "Do not rebuild history DOM if its data hasn't
+// changed"). Deliberately excludes progress/log/error — none of that is
+// shown in the compact history row (see renderHistory() below).
+let renderedHistorySignature = null;
 
 // Same "user's own explicit toggle always wins over any auto-open default"
 // pattern jobs-view.js's jobDetailsManualState used — kept here (not in
@@ -143,6 +174,8 @@ export function closeOperationModal() {
   if (!backdrop) return;
   backdrop.style.display = 'none';
   openOperationId = null;
+  renderedCardId = null;
+  renderedCard = null;
   stopElapsedTicker();
   // Focus return (task requirement: "focus return") — back to whatever
   // triggered the open (the topbar chip, a toast's View button, etc.), not
@@ -181,6 +214,9 @@ async function render() {
   if (!match && !openOperationIsPinnedToLatest) {
     body.innerHTML = '<div class="empty">Loading operation…</div>';
     historyList.innerHTML = '';
+    renderedCardId = null;
+    renderedCard = null;
+    renderedHistorySignature = null;
     return;
   }
 
@@ -193,24 +229,47 @@ async function render() {
   if (!current) {
     body.innerHTML = '<div class="empty">No operations yet.</div>';
     historyList.innerHTML = '';
+    renderedCardId = null;
+    renderedCard = null;
+    renderedHistorySignature = null;
     return;
   }
   openOperationId = current.id;
 
-  const card = renderOperationCard(current, {
-    detailsOpen: resolveDetailsOpen(current),
-    onToggleDetails: (open) => detailsManualState.set(current.id, open),
-  });
-  body.replaceChildren(card);
+  // Requirement 1: a full rebuild (new template clone, replaceChildren) is
+  // only ever allowed here — first open, or the operation id genuinely
+  // changed. The normal poll-tick case (same id, new snapshot) falls
+  // through to updateOperationCard(), which never touches .job-details or
+  // .job-log, so the user's own toggle/scroll state is untouched by DOM
+  // node identity as well as by value.
+  const isSameCardStillMounted = renderedCardId === current.id
+    && renderedCard != null
+    && body.contains(renderedCard);
 
-  const cancelBtn = card.querySelector('.job-cancel');
-  cancelBtn?.addEventListener('click', () => cancelOperation(current.id));
+  if (isSameCardStillMounted) {
+    updateOperationCard(renderedCard, current);
+  } else {
+    const card = renderOperationCard(current, {
+      detailsOpen: resolveDetailsOpen(current),
+      onToggleDetails: (open) => detailsManualState.set(current.id, open),
+    });
+    body.replaceChildren(card);
+    renderedCardId = current.id;
+    renderedCard = card;
+
+    const cancelBtn = card.querySelector('.job-cancel');
+    cancelBtn?.addEventListener('click', () => cancelOperation(current.id));
+  }
 
   // Log is only present on the detail endpoint, not the list — fetch it
   // once per render for whichever operation is currently open, same
   // "detail fetch per visible card" shape jobs-view.js's loadJobLog() used,
-  // just scoped to one card instead of every row in a list.
-  loadOperationLog(card, current.id);
+  // just scoped to one card instead of every row in a list. Guarded against
+  // firing a redundant parallel fetch for the SAME id while one is already
+  // in flight (requirement 4's "do not run parallel detail-fetches for one
+  // id without necessity") — loadOperationLog() itself owns that check via
+  // logRequestedForId/logRequestId.
+  loadOperationLog(renderedCard, current.id);
 
   renderHistory(historyList, operations, current.id);
 }
@@ -218,12 +277,35 @@ async function render() {
 async function loadOperationLog(card, id) {
   const pre = card.querySelector('.job-log');
   if (!pre) return;
+  // A fetch for this exact id is already in flight (the previous poll
+  // tick's own loadOperationLog() call hasn't resolved yet) — skip firing a
+  // second, redundant one; the in-flight fetch's own result already covers
+  // this render.
+  if (logRequestedForId === id) return;
+  logRequestId += 1;
+  const myRequestId = logRequestId;
+  logRequestedForId = id;
+  let nextText;
   try {
     const { operation } = await api(`/api/operations/${encodeURIComponent(id)}`);
-    pre.textContent = operation.log.slice(-30).join('\n') || '(no output yet)';
+    nextText = operation.log.slice(-30).join('\n') || '(no output yet)';
   } catch (err) {
-    pre.textContent = err.message;
+    nextText = err.message;
+  } finally {
+    if (logRequestedForId === id) logRequestedForId = null;
   }
+  // Requirement 4 — stale-response guard. By the time this async response
+  // lands, any of the following can have happened: the modal closed, the
+  // user switched to a different operation, a newer log fetch for this
+  // same id superseded this one (myRequestId no longer the latest), or the
+  // card this fetch was fired for is no longer the one mounted in the DOM
+  // (a fast id-switch replaced it). Any one of these means this response
+  // must be dropped, never applied.
+  if (myRequestId !== logRequestId) return;
+  if (openOperationId !== id) return;
+  if (renderedCardId !== id || renderedCard !== card) return;
+  if (!card.isConnected) return;
+  updateOperationLog(pre, nextText);
 }
 
 // Compact recent-operations list (requirement 6) — operation, collection,
@@ -232,6 +314,15 @@ async function loadOperationLog(card, id) {
 // switches the modal's main card to that operation.
 function renderHistory(historyList, operations, currentId) {
   const rest = operations.filter(op => op.id !== currentId).slice(0, 8);
+
+  // Requirement 5 — skip rebuilding the history DOM entirely when nothing
+  // it actually displays has changed. Only the fields renderHistory() below
+  // reads into the DOM are part of the signature; a progress/log/error
+  // change on a non-current operation must not thrash this list.
+  const signature = JSON.stringify(rest.map(op => [op.id, op.state, op.kind, op.collection, op.startedAt, op.finishedAt]));
+  if (signature === renderedHistorySignature) return;
+  renderedHistorySignature = signature;
+
   if (!rest.length) {
     historyList.innerHTML = '';
     return;
@@ -302,4 +393,9 @@ export function resetForTests() {
   stopElapsedTicker();
   detailsManualState.clear();
   lastFocusedBeforeOpen = null;
+  renderedCardId = null;
+  renderedCard = null;
+  logRequestId = 0;
+  logRequestedForId = null;
+  renderedHistorySignature = null;
 }
