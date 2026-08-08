@@ -1,6 +1,6 @@
 // Managed CUDA runtime manifest — reader/validator/writer for the
-// manifest.json that lives alongside every managed runtime's four
-// artifacts (onnxruntime.dll, onnxruntime_binding.node,
+// manifest.json that lives at the root of a package-shaped managed
+// runtime. Its four native artifacts (onnxruntime.dll, onnxruntime_binding.node,
 // onnxruntime_providers_cuda.dll, onnxruntime_providers_shared.dll).
 //
 // Two structurally distinct claims, never conflated:
@@ -21,6 +21,7 @@ import { readFileSync, existsSync, writeFileSync, renameSync } from 'node:fs';
 import { join } from 'node:path';
 
 export const MANIFEST_SCHEMA_VERSION = 2;
+export const MANAGED_NATIVE_RELATIVE_DIR = 'bin/napi-v6/win32/x64';
 const REQUIRED_ARTIFACT_NAMES = [
   'onnxruntime.dll',
   'onnxruntime_binding.node',
@@ -49,7 +50,10 @@ export function readManagedRuntimeManifest(dirPath, { readFileSyncFn = readFileS
   }
   let manifest;
   try {
-    manifest = JSON.parse(raw);
+    // Windows PowerShell 5.1 writes UTF-8 with a BOM by default. New
+    // installer manifests are written without one, but tolerate the marker
+    // so a valid legacy manifest is not mislabeled as corrupt.
+    manifest = JSON.parse(raw.replace(/^\uFEFF/, ''));
   } catch {
     return { ok: false, reason: 'corrupt' };
   }
@@ -117,7 +121,8 @@ function sha256File(path, readFileSyncFn) {
 }
 
 /**
- * Recomputes SHA-256 of all 4 artifacts and compares to
+ * Recomputes SHA-256 of all 4 native artifacts in the canonical
+ * onnxruntime-node package location and compares to
  * manifest.artifacts. This is the "integrity" gate a runtime must pass
  * before it's even offered as a dropdown option or actually loaded —
  * isManifestWellFormed() alone is NOT enough, since a file can
@@ -131,7 +136,7 @@ export function verifyManagedRuntimeOnDisk(dirPath, manifest, { readFileSyncFn =
   const mismatches = [];
   for (const name of REQUIRED_ARTIFACT_NAMES) {
     const expected = manifest?.artifacts?.[name];
-    const filePath = join(dirPath, name);
+    const filePath = join(dirPath, MANAGED_NATIVE_RELATIVE_DIR, name);
     if (!expected) {
       mismatches.push({ name, reason: 'missing_from_manifest' });
       continue;

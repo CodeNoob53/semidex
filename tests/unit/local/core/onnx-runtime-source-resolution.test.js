@@ -5,7 +5,7 @@
 // zero real filesystem access anywhere in this file.
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { MANIFEST_SCHEMA_VERSION } from '../../../../src/local/core/managed-onnx-runtime-manifest.js';
+import { MANAGED_NATIVE_RELATIVE_DIR, MANIFEST_SCHEMA_VERSION } from '../../../../src/local/core/managed-onnx-runtime-manifest.js';
 import {
   resolveEffectiveOnnxRuntimePath,
   prepareOnnxRuntimeProcessEnv,
@@ -64,7 +64,7 @@ function makeFakeFs({ manifest, artifactBytes = {}, cudnnDllPresent = true, cudn
   const files = new Map();
   if (manifest) files.set(manifestPath, JSON.stringify(manifest));
   for (const [name, buf] of Object.entries(artifactBytes)) {
-    files.set(`${RUNTIME_DIR}\\${name}`, buf);
+    files.set(`${RUNTIME_DIR}\\${MANAGED_NATIVE_RELATIVE_DIR.replaceAll('/', '\\')}\\${name}`, buf);
   }
 
   const existsSyncFn = (p) => {

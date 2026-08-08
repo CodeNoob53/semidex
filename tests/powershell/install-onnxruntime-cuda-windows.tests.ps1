@@ -168,6 +168,34 @@ try {
     $script:failures += "FAIL: missing node command test itself threw: $_"
 }
 
+# Windows PowerShell 5.1 writes a BOM for `Set-Content -Encoding utf8`.
+# The installer manifest is consumed by Node's JSON.parse(), which does not
+# strip that marker, so exercise the real cross-runtime file boundary here.
+Write-Host '--- Write-Utf8NoBom() ---'
+
+$jsonPath = [System.IO.Path]::ChangeExtension((New-TemporaryFile).FullName, '.json')
+try {
+    Write-Utf8NoBom -Path $jsonPath -Content '{"ok":true}'
+    $bytes = [System.IO.File]::ReadAllBytes($jsonPath)
+    $hasBom = $bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF
+    Assert-Equal 'UTF-8 JSON has no BOM' $false $hasBom
+
+    $nodeResult = node -e "JSON.parse(require('node:fs').readFileSync(process.argv[1], 'utf8')); console.log('ok')" $jsonPath
+    Assert-Equal 'Node JSON.parse accepts the written file' 0 $LASTEXITCODE
+    Assert-Equal 'Node parse sentinel' 'ok' $nodeResult
+} finally {
+    Remove-Item $jsonPath -Force -ErrorAction SilentlyContinue
+}
+
+# The installed directory is passed directly to Node's require(), so staging
+# must create the package shape expected by onnxruntime-node's dist/binding.js.
+Write-Host '--- managed runtime package staging contract ---'
+$installerSource = Get-Content -Raw -Path (Join-Path $RepoRoot 'scripts\install-onnxruntime-cuda-windows.ps1')
+Assert-Match 'stages onnxruntime-node dist' "Copy-Item.+NodeBindingDir 'dist'" $installerSource
+Assert-Match 'stages onnxruntime-common runtime API' "js\\common\\dist" $installerSource
+Assert-Match 'stages native binding under canonical package directory' "bin\\napi-v6\\win32\\x64" $installerSource
+Assert-Match 'writes managed package entry point' "main = 'dist/index.js'" $installerSource
+
 # ── Summary ──────────────────────────────────────────────────────────────
 
 Write-Host ''

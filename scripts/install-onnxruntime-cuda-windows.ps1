@@ -370,12 +370,7 @@ try {
             ortVersion = $OrtVersion
             sourceCommit = $Trust.sourceCommit
         }
-        $Utf8NoBom = New-Object System.Text.UTF8Encoding($false)
-        [System.IO.File]::WriteAllText(
-            $NodePackagePath,
-            (($PatchedNodePackage | ConvertTo-Json -Depth 20) + [Environment]::NewLine),
-            $Utf8NoBom
-        )
+        Write-Utf8NoBom -Path $NodePackagePath -Content (($PatchedNodePackage | ConvertTo-Json -Depth 20) + [Environment]::NewLine)
 
         Write-Step 'Resolving audited js/node dependency policy...'
         npm install --package-lock-only --ignore-scripts
@@ -423,6 +418,34 @@ try {
     $InstallStageDir = Join-Path $RuntimesRoot "install-stage-$([DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds())"
     New-Item -ItemType Directory -Force -Path $InstallStageDir | Out-Null
 
+    # ONNXRUNTIME_NODE_PATH is loaded with require(<runtime-dir>), so the
+    # managed runtime must be a real Node package, not only a flat group of
+    # native artifacts. Keep the upstream package layout expected by
+    # dist/binding.js and include its sole runtime API dependency.
+    $ManagedNativeDir = Join-Path $InstallStageDir 'bin\napi-v6\win32\x64'
+    $ManagedCommonDir = Join-Path $InstallStageDir 'node_modules\onnxruntime-common'
+    New-Item -ItemType Directory -Force -Path $ManagedNativeDir | Out-Null
+    New-Item -ItemType Directory -Force -Path $ManagedCommonDir | Out-Null
+
+    Copy-Item -Path (Join-Path $NodeBindingDir 'dist') -Destination $InstallStageDir -Recurse -Force
+    Copy-Item -Path (Join-Path $SourceDir 'js\common\dist') -Destination $ManagedCommonDir -Recurse -Force
+
+    $ManagedPackage = @{
+        name = 'onnxruntime-node'
+        version = $OrtVersion
+        private = $true
+        main = 'dist/index.js'
+    }
+    $ManagedCommonPackage = @{
+        name = 'onnxruntime-common'
+        version = $OrtVersion
+        private = $true
+        main = 'dist/cjs/index.js'
+        exports = @{ require = './dist/cjs/index.js'; import = './dist/esm/index.js' }
+    }
+    Write-Utf8NoBom -Path (Join-Path $InstallStageDir 'package.json') -Content (($ManagedPackage | ConvertTo-Json -Depth 5) + [Environment]::NewLine)
+    Write-Utf8NoBom -Path (Join-Path $ManagedCommonDir 'package.json') -Content (($ManagedCommonPackage | ConvertTo-Json -Depth 5) + [Environment]::NewLine)
+
     $installStageRoot = (Get-Item $InstallStageDir).PSDrive.Name
     $targetParent = Split-Path -Parent $TargetDir
     if (-not (Test-Path $targetParent)) { New-Item -ItemType Directory -Force -Path $targetParent | Out-Null }
@@ -442,7 +465,7 @@ try {
     foreach ($name in $ArtifactFiles.Keys) {
         $src = $ArtifactFiles[$name]
         if (-not (Test-Path $src)) { throw "Expected artifact not found: $src" }
-        $dest = Join-Path $InstallStageDir $name
+        $dest = Join-Path $ManagedNativeDir $name
         Copy-Item -Path $src -Destination $dest -Force
         $hash = Get-FileSha256 -Path $dest
         $bytes = (Get-Item $dest).Length
@@ -463,7 +486,7 @@ try {
         nodeVersion = (node --version)
     }
     $manifestDraft = Invoke-NodeDecision -RepoRoot $RepoRoot -Decision 'buildManifestDraft' -InputObject $draftInput
-    ($manifestDraft | ConvertTo-Json -Depth 10) | Set-Content -Path (Join-Path $InstallStageDir 'manifest.json') -Encoding utf8
+    Write-Utf8NoBom -Path (Join-Path $InstallStageDir 'manifest.json') -Content (($manifestDraft | ConvertTo-Json -Depth 10) + [Environment]::NewLine)
 
     # ── 11. Transactional swap ──────────────────────────────────────────
     $hadExistingTarget = Test-Path $TargetDir

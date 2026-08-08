@@ -6,6 +6,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import {
+  MANAGED_NATIVE_RELATIVE_DIR,
   MANIFEST_SCHEMA_VERSION,
   readManagedRuntimeManifest,
   isManifestWellFormed,
@@ -141,6 +142,16 @@ describe('readManagedRuntimeManifest()', () => {
     assert.equal(result.ok, true);
     assert.deepEqual(result.manifest, manifest);
   });
+
+  it('accepts a valid manifest prefixed with a UTF-8 BOM', () => {
+    const manifest = makeValidManifest();
+    const result = readManagedRuntimeManifest('/fake/dir', {
+      existsSyncFn: () => true,
+      readFileSyncFn: () => `\uFEFF${JSON.stringify(manifest)}`,
+    });
+    assert.equal(result.ok, true);
+    assert.deepEqual(result.manifest, manifest);
+  });
 });
 
 describe('verifyManagedRuntimeOnDisk()', () => {
@@ -168,6 +179,17 @@ describe('verifyManagedRuntimeOnDisk()', () => {
       readFileSyncFn: (p) => fakeFileBuffer(contents[p.split(/[\\/]/).pop()]),
     });
     assert.deepEqual(result, { ok: true });
+  });
+
+  it('verifies artifacts at the canonical onnxruntime-node native package path', () => {
+    const seen = [];
+    const manifest = makeValidManifest();
+    verifyManagedRuntimeOnDisk('/managed/runtime', manifest, {
+      existsSyncFn: (p) => { seen.push(p); return false; },
+      readFileSyncFn: () => { throw new Error('should not read missing files'); },
+    });
+    assert.equal(seen.length, 4);
+    assert.ok(seen.every((p) => p.replaceAll('\\', '/').includes(`/${MANAGED_NATIVE_RELATIVE_DIR}/`)));
   });
 
   it('explicit case: well-formed manifest + corrupted artifact bytes still fails integrity', () => {

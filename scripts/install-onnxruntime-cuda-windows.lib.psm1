@@ -157,4 +157,18 @@ function Get-FileSha256 {
     return (Get-FileHash -Path $Path -Algorithm SHA256).Hash.ToLowerInvariant()
 }
 
-Export-ModuleMember -Function Write-Step, Write-Warn2, Invoke-NodeDecision, Invoke-NodePrereqCheck, Invoke-VerifierSafely, Get-FileSha256
+function Write-Utf8NoBom {
+    <#
+        Windows PowerShell 5.1's `Set-Content -Encoding utf8` writes a BOM.
+        Node's JSON.parse() does not strip that marker, so JSON exchanged with
+        Node must be written explicitly as UTF-8 without BOM.
+    #>
+    param(
+        [Parameter(Mandatory)][string]$Path,
+        [Parameter(Mandatory)][string]$Content
+    )
+    $encoding = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText($Path, $Content, $encoding)
+}
+
+Export-ModuleMember -Function Write-Step, Write-Warn2, Invoke-NodeDecision, Invoke-NodePrereqCheck, Invoke-VerifierSafely, Get-FileSha256, Write-Utf8NoBom
