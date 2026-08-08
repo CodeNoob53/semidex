@@ -30,10 +30,10 @@ describe('validateOnnxEmbedCapability', () => {
     }
   });
 
-  test('createOnnxEmbeddingCapability() instances provide every REQUIRED_ONNX_EMBED_CAPABILITY_METHODS entry (instance-scoped capability — core/onnx-embed-lazy.js no longer exports loadOnnx/loadOnnxBatch/shutdown directly, only a factory)', async () => {
-    const real = await import('../../../src/core/onnx-embed-lazy.js');
+  test('createOnnxEmbeddingCapability() instances provide every REQUIRED_ONNX_EMBED_CAPABILITY_METHODS entry (instance-scoped capability — local/core/onnx-embed.js exports only a factory, never bare loadOnnx/loadOnnxBatch/shutdown directly)', async () => {
+    const real = await import('../../../src/local/core/onnx-embed.js');
     assert.equal(typeof real.createOnnxEmbeddingCapability, 'function', 'sanity: the factory itself is exported');
-    const instance = real.createOnnxEmbeddingCapability();
+    const instance = real.createOnnxEmbeddingCapability({ ortFactory: () => ({ InferenceSession: { create: async () => ({ outputNames: [], run: async () => ({}), release: async () => {} }) } }) });
     for (const method of REQUIRED_ONNX_EMBED_CAPABILITY_METHODS) {
       assert.equal(typeof instance[method], 'function', `instance is missing required method: ${method}`);
     }

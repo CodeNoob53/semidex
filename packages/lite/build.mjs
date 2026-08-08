@@ -6,18 +6,20 @@
 // validator against the STAGED tree — never the repo's live src/ — so the
 // validator's result reflects exactly what will ship in the tarball.
 //
-// No *-lazy.js content substitution step (code review, round 4 — removed;
-// see EXCLUDE_FILES's own comment on core/ollama-lazy.js/
-// core/onnx-embed-lazy.js/indexer/phases/tag-onnx-lazy.js for why: after
-// indexer/index.js was split into index-full.js/index-lite.js and every
-// other former consumer migrated to explicit capability injection with no
-// real-module default of its own, nothing left in the KEPT Lite closure
-// imports any of the three real *-lazy.js modules at all — they, and their
-// *.lite.js shim siblings, are simply excluded from staging outright, the
-// same as any other local-only file. The *.lite.js shim files themselves
-// are dead code now (no build step or runtime import reaches them) but are
-// left in src/ rather than deleted, since removing them outright is a
-// separate cleanup decision outside this fix's own scope.
+// No *-lazy.js content substitution step, and no *-lazy.js/*-lazy.lite.js
+// files at all (Phase 8B Step 8 — the six transitional shim files
+// core/ollama-lazy.js/.lite.js, core/onnx-embed-lazy.js/.lite.js,
+// indexer/phases/tag-onnx-lazy.js/.lite.js were deleted outright via
+// git rm, not merely excluded from staging). After indexer/index.js was
+// split into index-full.js/index-lite.js and every former consumer
+// migrated to explicit capability injection (constructed directly from
+// local/core/ollama-capability.js/onnx-embed.js/local/indexer/phases/
+// tag-onnx.js in the handful of Full-only composition roots that need
+// them), there was nothing left for a dynamic-loader wrapper to defer —
+// every one of those composition roots is already wholesale-excluded from
+// the Lite package (see EXCLUDE_FILES/EXCLUDE_DIRS below), so a plain
+// static import in each of them never reaches Lite's module graph either
+// way.
 //
 // Parser: acorn (root devDependency — NOT a Lite runtime dependency; see
 // package.json's own "dependencies" list, which excludes it entirely).
@@ -75,8 +77,10 @@ const EXCLUDE_FILES = [
   // onnx-probe-runner.js, onnx-provider-probe.js, length-bucket.js) is no
   // longer listed here individually — Phase 8B Step 2 physically relocated
   // all five to local/core/, so EXCLUDE_DIRS's own 'local' entry now
-  // excludes them by directory. Never statically imported by any kept file
-  // after the onnx-embed-lazy.js edge cut (core/embeddings.js).
+  // excludes them by directory. Never statically imported by any kept
+  // file — core/embeddings.js depends only on the narrow
+  // OnnxEmbedCapability contract, injected explicitly by whichever
+  // composition root constructs a real instance.
   'core/ce-rerank.js',
   'core/ce-rerank-worker.js',
   // core/rerank-provider.js (code review, Phase 8B Step 6 second pass, P1
@@ -102,10 +106,10 @@ const EXCLUDE_FILES = [
   // generation/registry.js's BACKENDS map references createOllamaProvider
   // unconditionally (only ever CALLED when backend === 'ollama'), so it
   // must be a real staged file, not excluded. It is safe to keep because
-  // (code review, round 4) it no longer imports core/ollama-lazy.js/
-  // local/core/ollama.js at all — its own five *Fn options default to
-  // typed-unavailable stubs; the REAL ollama-lazy.js-backed functions are
-  // supplied only by admin/bootstrap.js (Full-only, excluded below), via
+  // it no longer imports local/core/ollama.js at all — its own five *Fn
+  // options default to typed-unavailable stubs; the real
+  // local/core/ollama-capability.js-backed functions are supplied only by
+  // admin/bootstrap.js (Full-only, excluded below), via
   // createGenerationRuntime's own createGenerationProviderFn DI seam. Its
   // methods are reachable from Lite only if registry.js's BACKENDS.ollama
   // were actually SELECTED, which Lite's CLI hard pin
@@ -116,27 +120,22 @@ const EXCLUDE_FILES = [
   // Step 7C physically relocated it to local/admin/, so EXCLUDE_DIRS's own
   // 'local' entry now excludes it by directory, the same as the ONNX/
   // Ollama core runtime files before it (Phase 8B Steps 2-3).
-  // core/ollama-lazy.js, core/onnx-embed-lazy.js, and
-  // indexer/phases/tag-onnx-lazy.js (code review, round 4 — previously
-  // STAGED and CONTENT-substituted with their *.lite.js shims via
-  // substituteLazyShims(); that mechanism has been removed entirely). No
-  // kept file imports any of the three anymore: core/embeddings.js,
-  // indexer/run.js, the phase modules (context.js/tag.js/combined.js/
-  // skeleton-summary.js), indexer/preflight.js, and
-  // core/generation/ollama-provider.js were all migrated off their own
-  // module-scope real-module defaults to explicit capability injection
-  // (null until a composition root calls applyXCapability()) — the ONLY
-  // remaining importers are indexer/index-full.js, admin/server-full.js,
-  // admin/bootstrap.js, and mcp/server.js, all Full-only/excluded below.
-  // The three *-lazy.lite.js shim files themselves are also excluded —
-  // nothing imports them anymore either (see the LAZY_SHIM_SUBSTITUTIONS
-  // removal in lazy-shim-substitutions.mjs's own header comment).
-  'core/ollama-lazy.js',
-  'core/ollama-lazy.lite.js',
-  'core/onnx-embed-lazy.js',
-  'core/onnx-embed-lazy.lite.js',
-  'indexer/phases/tag-onnx-lazy.js',
-  'indexer/phases/tag-onnx-lazy.lite.js',
+  // core/ollama-lazy.js, core/onnx-embed-lazy.js, indexer/phases/
+  // tag-onnx-lazy.js, and their *.lite.js siblings (Phase 8B Step 8 —
+  // deleted outright via git rm; no longer listed here at all, since
+  // there is no file left at these paths to exclude). Every former
+  // consumer now imports local/core/ollama-capability.js's factories or
+  // local/core/onnx-embed.js/local/indexer/phases/tag-onnx.js directly:
+  // indexer/index-full.js, admin/server-full.js, admin/bootstrap.js,
+  // backfill-tags.js, and mcp/server.js/mcp/onnx-runtime-resolution.js —
+  // all Full-only/excluded below (or, for mcp/, by the blanket 'mcp'
+  // EXCLUDE_DIRS entry). core/embeddings.js, indexer/run.js, the phase
+  // modules (context.js/tag.js/combined.js/skeleton-summary.js),
+  // indexer/preflight.js, and core/generation/ollama-provider.js never
+  // imported any of the removed files — they depend only on the narrow
+  // capability CONTRACTS (core/generation/ollama-capability.js,
+  // shared/core/onnx-embed-capability.js), explicit injection, no
+  // real-module default of their own.
   // Full-only admin composition pieces — Lite never registers these routes.
   // local/admin/api/onnx.js and local/admin/api/ollama-models.js
   // (previously listed here as admin/api/onnx.js and

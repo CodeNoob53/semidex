@@ -107,9 +107,17 @@ describe('validateOllamaDiscoveryCapability', () => {
   });
 });
 
-describe('the four contracts partition core/ollama-lazy.js\'s real export surface (generate overlaps by design between Generate/Summary; generateStream belongs to no contract)', () => {
-  test('union of all four REQUIRED_*_METHODS lists, deduplicated, equals ollama-lazy.js\'s real export surface MINUS generateStream (no contract needs it — see ollama-provider.js\'s own separate per-method DI)', async () => {
-    const real = await import('../../../../src/core/ollama-lazy.js');
+describe('the four contracts partition local/core/ollama.js\'s real export surface (generate overlaps by design between Generate/Summary; generateStream/showModel/embeddingDimensionFromShow belong to no contract)', () => {
+  // local/core/ollama.js's own export surface is WIDER than the former
+  // core/ollama-lazy.js wrapper's was (that wrapper never re-exported
+  // showModel/embeddingDimensionFromShow at all) — showModel/
+  // embeddingDimensionFromShow are internal helpers getOllamaEmbeddingDimension()
+  // itself composes, not independently consumed through any of these four
+  // narrow contracts.
+  const UNCONTRACTED_EXPORTS = ['embeddingDimensionFromShow', 'generateStream', 'showModel'];
+
+  test('union of all four REQUIRED_*_METHODS lists, deduplicated, equals local/core/ollama.js\'s real export surface MINUS the uncontracted exports (no contract needs them — see ollama-provider.js\'s own separate per-method DI for generateStream)', async () => {
+    const real = await import('../../../../src/local/core/ollama.js');
     const realFnNames = Object.keys(real).filter((k) => typeof real[k] === 'function').sort();
     const all = new Set([
       ...REQUIRED_OLLAMA_GENERATE_CAPABILITY_METHODS,
@@ -117,8 +125,8 @@ describe('the four contracts partition core/ollama-lazy.js\'s real export surfac
       ...REQUIRED_OLLAMA_EMBED_CAPABILITY_METHODS,
       ...REQUIRED_OLLAMA_DISCOVERY_CAPABILITY_METHODS,
     ]);
-    assert.deepEqual(realFnNames.filter((f) => !all.has(f)), ['generateStream'], 'generateStream is the one real export no narrow contract requires — it has no consumer through any of these contract objects');
-    assert.deepEqual([...all].sort(), realFnNames.filter((f) => f !== 'generateStream'));
+    assert.deepEqual(realFnNames.filter((f) => !all.has(f)), UNCONTRACTED_EXPORTS, 'these are the only real exports no narrow contract requires — they have no consumer through any of these contract objects');
+    assert.deepEqual([...all].sort(), realFnNames.filter((f) => !UNCONTRACTED_EXPORTS.includes(f)));
   });
 
   test('"generate" is the only method allowed to appear in more than one contract (Generate and Summary both need it); every other method appears in exactly one', () => {

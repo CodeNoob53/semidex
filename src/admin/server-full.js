@@ -28,8 +28,8 @@ import { registerNeutralRoutes, createHttpServer } from '../shared/admin/registe
 import { embedForSearch } from '../shared/core/embeddings.js';
 import { createJobRegistry } from '../shared/admin/jobs/registry.js';
 import { spawnIndexer as spawnFullIndexer } from './jobs/spawn-indexer-full.js';
-import * as ollamaLazy from '../core/ollama-lazy.js';
-import { createOnnxEmbeddingCapability } from '../core/onnx-embed-lazy.js';
+import { createOllamaEmbedCapability } from '../local/core/ollama-capability.js';
+import { createOnnxEmbeddingCapability } from '../local/core/onnx-embed.js';
 import { createCloudEmbeddingCapability } from '../cloud/embedding/cloud-embedding-provider.js';
 import { createCloudGenerationCapability } from '../cloud/generation/cloud-generation-provider.js';
 import { registerQdrantCloudRoutes } from '../cloud/admin/qdrant-cloud-api.js';
@@ -55,10 +55,10 @@ export function createApp({
   // finding) risks stomping whatever OTHER composition root (e.g.
   // createLiteApp(), constructed in the same process by a test) happens to
   // share embeddings.js's module scope. The fallback itself still exists in
-  // embeddings.js, but now starts UNSET (null) rather than defaulting to
-  // the real ollama-lazy.js/onnx-embed-lazy.js modules (code review, round
-  // 4 — see embeddings.js's own header comment): a caller that hasn't been
-  // updated to pass capabilities explicitly (e.g. a smoke-test script)
+  // embeddings.js, but starts UNSET (null) rather than defaulting to a real
+  // local-runtime implementation (see embeddings.js's own header comment):
+  // a caller that hasn't been updated to pass capabilities explicitly
+  // (e.g. a smoke-test script)
   // gets a clear "no capability injected" error instead of a silent
   // real-network default — this composition root has no reason to touch
   // it in either direction.
@@ -73,16 +73,20 @@ export function createApp({
   // own search requests never consult that shared fallback at all,
   // regardless of what any other composition root does with it.
   //
-  // onnxEmbed: createOnnxEmbeddingCapability() constructs ONE fresh,
-  // independent capability instance for THIS createApp() call (code
-  // review — onnx-embed.js no longer exposes a shared module-scope
-  // singleton; every composition root must construct its own instance,
-  // exactly like index-full.js's own indexer-CLI composition does).
-  // Construction itself is cheap and synchronous (no real onnxruntime-node
-  // load happens until the first actual embed call) — safe to call once
-  // per createApp() invocation even for tests that construct many apps in
-  // one process; each gets its own independent, unused-until-needed
-  // capability.
+  // onnxEmbed: local/core/onnx-embed.js's createOnnxEmbeddingCapability()
+  // constructs ONE fresh, independent capability instance for THIS
+  // createApp() call (onnx-embed.js has no module-scope singleton; every
+  // composition root must construct its own instance, exactly like
+  // index-full.js's own indexer-CLI composition does). Construction itself
+  // is cheap and synchronous (no real onnxruntime-node load happens until
+  // the first actual embed call) — safe to call once per createApp()
+  // invocation even for tests that construct many apps in one process;
+  // each gets its own independent, unused-until-needed capability. Imported
+  // directly (Phase 8B Step 8 — the transitional core/onnx-embed-lazy.js
+  // dynamic-loader wrapper is gone): this file is Full-only, already
+  // wholesale-excluded from the Lite package (packages/lite/build.mjs's
+  // EXCLUDE_FILES), so a static import here never reaches Lite's module
+  // graph regardless.
   //
   // `onnxEmbedCapability` (review finding, P2): bootstrap.js's own
   // resolveOnnxRuntimeForProcess() call runs BEFORE createApp() and passes
@@ -106,7 +110,13 @@ export function createApp({
   // stateless construction — safe to call once per createApp() invocation.
   const cloudEmbed = createCloudEmbeddingCapability();
   const cloudGeneration = createCloudGenerationCapability();
-  const resolvedEmbedQuery = embedQuery ?? ((profile, query) => embedForSearch(profile, query, { capabilities: { ollama: ollamaLazy, onnxEmbed, cloudEmbed } }));
+  // ollamaEmbed: the narrow embed-only capability (embed/
+  // getOllamaEmbeddingDimension) — embeddings.js's own OllamaEmbedCapability
+  // contract, never the full ollama.js namespace. createOllamaEmbedCapability()
+  // is a stateless object literal (no session/worker lifecycle to isolate),
+  // so a fresh call per createApp() invocation costs nothing.
+  const ollamaEmbed = createOllamaEmbedCapability();
+  const resolvedEmbedQuery = embedQuery ?? ((profile, query) => embedForSearch(profile, query, { capabilities: { ollama: ollamaEmbed, onnxEmbed, cloudEmbed } }));
   // settings (code review, P2): resolved BEFORE resolvedGenerationRuntime
   // below, and that call site is given `settings`, never the raw
   // `settingsService` parameter. settingsService is optional DI — tests

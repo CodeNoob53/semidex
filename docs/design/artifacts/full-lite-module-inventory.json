@@ -11,17 +11,16 @@
       "src/core/settings/service.js",
       "src/local/core/onnx-runtime-source-resolution.js",
       "src/local/core/onnx-runtime-unavailable-capability.js",
+      "src/local/core/ollama-capability.js",
       "src/core/ce-rerank.js",
       "src/shared/admin/server.js",
       "src/admin/server-full.js",
       "src/core/generation/runtime.js",
       "src/core/generation/registry.js",
-      "src/core/ollama-lazy.js",
       "src/cloud/generation/cloud-generation-provider.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -51,7 +50,6 @@
     ],
     "fullReachable": false,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -66,7 +64,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -81,7 +78,6 @@
     ],
     "fullReachable": false,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -106,8 +102,8 @@
       "src/shared/core/embeddings.js",
       "src/shared/admin/jobs/registry.js",
       "src/admin/jobs/spawn-indexer-full.js",
-      "src/core/ollama-lazy.js",
-      "src/core/onnx-embed-lazy.js",
+      "src/local/core/ollama-capability.js",
+      "src/local/core/onnx-embed.js",
       "src/cloud/embedding/cloud-embedding-provider.js",
       "src/cloud/generation/cloud-generation-provider.js",
       "src/cloud/admin/qdrant-cloud-api.js",
@@ -116,7 +112,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -138,7 +133,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": true,
     "recommendedAction": "keep"
@@ -154,7 +148,6 @@
     ],
     "fullReachable": false,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": false,
     "liteBrowserBundle": true,
     "recommendedAction": "keep"
@@ -176,7 +169,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -194,11 +186,10 @@
       "src/shared/core/qdrant.js",
       "src/shared/indexer/phases/tag.js",
       "src/local/indexer/phases/tag-onnx.js",
-      "src/core/ollama-lazy.js"
+      "src/local/core/ollama-capability.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -219,7 +210,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -237,7 +227,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -253,7 +242,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -269,7 +257,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -286,7 +273,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -302,7 +288,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -319,7 +304,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -334,7 +318,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -350,7 +333,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -365,7 +347,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -382,7 +363,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -399,7 +379,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -412,7 +391,6 @@
     "directDependencies": [],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -425,7 +403,6 @@
     "directDependencies": [],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -440,7 +417,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -459,7 +435,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -475,7 +450,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -491,7 +465,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -504,7 +477,6 @@
     "directDependencies": [],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -517,7 +489,6 @@
     "directDependencies": [],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -532,7 +503,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -547,7 +517,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "exclude"
@@ -562,7 +531,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "exclude"
@@ -579,7 +547,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -592,7 +559,6 @@
     "directDependencies": [],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -605,7 +571,6 @@
     "directDependencies": [],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -621,7 +586,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -637,7 +601,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -650,7 +613,6 @@
     "directDependencies": [],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -668,7 +630,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -681,7 +642,6 @@
     "directDependencies": [],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -694,7 +654,6 @@
     "directDependencies": [],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -707,7 +666,6 @@
     "directDependencies": [],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -720,7 +678,6 @@
     "directDependencies": [],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -733,7 +690,6 @@
     "directDependencies": [],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -746,7 +702,6 @@
     "directDependencies": [],
     "fullReachable": false,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -761,7 +716,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -778,7 +732,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -791,7 +744,6 @@
     "directDependencies": [],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -804,67 +756,9 @@
     "directDependencies": [],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
-  },
-  {
-    "path": "src/core/ollama-lazy.js",
-    "classification": "mixed",
-    "runtimeCoupling": "local",
-    "entryPoints": [],
-    "directDependencies": [
-      "src/local/core/ollama.js"
-    ],
-    "fullReachable": true,
-    "liteReachable": false,
-    "liteReachablePreShim": false,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "split"
-  },
-  {
-    "path": "src/core/ollama-lazy.lite.js",
-    "classification": "mixed",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [],
-    "fullReachable": false,
-    "liteReachable": false,
-    "liteReachablePreShim": false,
-    "liteTarballStaged": false,
-    "liteBrowserBundle": false,
-    "recommendedAction": "split"
-  },
-  {
-    "path": "src/core/onnx-embed-lazy.js",
-    "classification": "mixed",
-    "runtimeCoupling": "local",
-    "entryPoints": [],
-    "directDependencies": [
-      "src/local/core/onnx-embed.js",
-      "src/local/core/length-bucket.js"
-    ],
-    "fullReachable": true,
-    "liteReachable": false,
-    "liteReachablePreShim": false,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "split"
-  },
-  {
-    "path": "src/core/onnx-embed-lazy.lite.js",
-    "classification": "mixed",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [],
-    "fullReachable": false,
-    "liteReachable": false,
-    "liteReachablePreShim": false,
-    "liteTarballStaged": false,
-    "liteBrowserBundle": false,
-    "recommendedAction": "split"
   },
   {
     "path": "src/core/qdrant/client.js",
@@ -878,7 +772,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -895,7 +788,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -914,7 +806,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -927,7 +818,6 @@
     "directDependencies": [],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -940,7 +830,6 @@
     "directDependencies": [],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -953,7 +842,6 @@
     "directDependencies": [],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -972,7 +860,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -988,7 +875,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "exclude"
@@ -1004,7 +890,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -1023,7 +908,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -1039,7 +923,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -1052,7 +935,6 @@
     "directDependencies": [],
     "fullReachable": false,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -1070,7 +952,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -1085,7 +966,6 @@
     ],
     "fullReachable": false,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -1098,7 +978,6 @@
     "directDependencies": [],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -1111,7 +990,6 @@
     "directDependencies": [],
     "fullReachable": false,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -1124,7 +1002,6 @@
     "directDependencies": [],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -1137,7 +1014,6 @@
     "directDependencies": [],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -1152,7 +1028,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -1178,7 +1053,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -1204,7 +1078,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -1222,13 +1095,12 @@
       "src/core/settings/service.js",
       "src/shared/core/env-bootstrap.js",
       "src/local/core/onnx-runtime-source-resolution.js",
-      "src/core/ollama-lazy.js",
-      "src/core/onnx-embed-lazy.js",
-      "src/indexer/phases/tag-onnx-lazy.js"
+      "src/local/core/ollama-capability.js",
+      "src/local/core/onnx-embed.js",
+      "src/local/indexer/phases/tag-onnx.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "exclude"
@@ -1244,7 +1116,6 @@
     ],
     "fullReachable": false,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -1261,41 +1132,9 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
-  },
-  {
-    "path": "src/indexer/phases/tag-onnx-lazy.js",
-    "classification": "mixed",
-    "runtimeCoupling": "local",
-    "entryPoints": [],
-    "directDependencies": [
-      "src/shared/indexer/phases/tag-provider.js",
-      "src/local/indexer/phases/tag-onnx.js"
-    ],
-    "fullReachable": true,
-    "liteReachable": false,
-    "liteReachablePreShim": false,
-    "liteTarballStaged": true,
-    "liteBrowserBundle": false,
-    "recommendedAction": "split"
-  },
-  {
-    "path": "src/indexer/phases/tag-onnx-lazy.lite.js",
-    "classification": "mixed",
-    "runtimeCoupling": "none",
-    "entryPoints": [],
-    "directDependencies": [
-      "src/shared/indexer/phases/tag-provider.js"
-    ],
-    "fullReachable": false,
-    "liteReachable": false,
-    "liteReachablePreShim": false,
-    "liteTarballStaged": false,
-    "liteBrowserBundle": false,
-    "recommendedAction": "split"
   },
   {
     "path": "src/local/admin/api/ollama-models.js",
@@ -1309,7 +1148,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "exclude"
@@ -1330,7 +1168,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "exclude"
@@ -1345,7 +1182,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "exclude"
@@ -1360,7 +1196,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": true,
     "recommendedAction": "move"
@@ -1373,7 +1208,6 @@
     "directDependencies": [],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -1386,7 +1220,6 @@
     "directDependencies": [],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "exclude"
@@ -1399,7 +1232,6 @@
     "directDependencies": [],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "exclude"
@@ -1412,7 +1244,6 @@
     "directDependencies": [],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "exclude"
@@ -1428,7 +1259,20 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
+    "liteTarballStaged": false,
+    "liteBrowserBundle": false,
+    "recommendedAction": "exclude"
+  },
+  {
+    "path": "src/local/core/ollama-capability.js",
+    "classification": "local",
+    "runtimeCoupling": "local",
+    "entryPoints": [],
+    "directDependencies": [
+      "src/local/core/ollama.js"
+    ],
+    "fullReachable": true,
+    "liteReachable": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "exclude"
@@ -1443,7 +1287,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "exclude"
@@ -1458,7 +1301,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "exclude"
@@ -1475,7 +1317,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "exclude"
@@ -1494,7 +1335,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "exclude"
@@ -1511,7 +1351,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "exclude"
@@ -1529,7 +1368,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "exclude"
@@ -1545,7 +1383,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "exclude"
@@ -1561,7 +1398,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "exclude"
@@ -1578,7 +1414,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "exclude"
@@ -1593,7 +1428,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -1606,7 +1440,6 @@
     "directDependencies": [],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "exclude"
@@ -1621,7 +1454,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "exclude"
@@ -1637,7 +1469,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "exclude"
@@ -1652,7 +1483,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "exclude"
@@ -1665,11 +1495,10 @@
     "directDependencies": [
       "src/local/core/onnx-runtime-source-resolution.js",
       "src/local/core/onnx-runtime-unavailable-capability.js",
-      "src/core/onnx-embed-lazy.js"
+      "src/local/core/onnx-embed.js"
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "exclude"
@@ -1687,7 +1516,7 @@
       "src/mcp/onnx-runtime-resolution.js",
       "pkg:@modelcontextprotocol/sdk",
       "src/shared/core/embeddings.js",
-      "src/core/ollama-lazy.js",
+      "src/local/core/ollama-capability.js",
       "src/cloud/embedding/cloud-embedding-provider.js",
       "src/shared/core/doctor-checks.js",
       "src/core/rerank-provider.js",
@@ -1707,7 +1536,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "exclude"
@@ -1726,7 +1554,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -1741,7 +1568,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -1757,7 +1583,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -1772,7 +1597,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -1789,7 +1613,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -1804,7 +1627,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -1819,7 +1641,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -1834,7 +1655,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -1849,7 +1669,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -1865,7 +1684,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -1881,7 +1699,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -1897,7 +1714,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -1916,7 +1732,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -1933,7 +1748,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -1949,7 +1763,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -1964,7 +1777,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -1980,7 +1792,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -1996,7 +1807,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -2012,7 +1822,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -2028,7 +1837,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -2043,7 +1851,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -2059,7 +1866,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -2075,7 +1881,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -2090,7 +1895,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -2107,7 +1911,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -2123,7 +1926,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -2139,7 +1941,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -2155,7 +1956,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -2171,7 +1971,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -2186,7 +1985,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -2218,7 +2016,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -2234,7 +2031,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -2247,7 +2043,6 @@
     "directDependencies": [],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -2262,7 +2057,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -2275,7 +2069,6 @@
     "directDependencies": [],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -2288,7 +2081,6 @@
     "directDependencies": [],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": false,
     "liteBrowserBundle": true,
     "recommendedAction": "keep"
@@ -2309,7 +2101,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": false,
     "liteBrowserBundle": true,
     "recommendedAction": "keep"
@@ -2325,7 +2116,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": false,
     "liteBrowserBundle": true,
     "recommendedAction": "keep"
@@ -2345,7 +2135,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": false,
     "liteBrowserBundle": true,
     "recommendedAction": "keep"
@@ -2358,7 +2147,6 @@
     "directDependencies": [],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": false,
     "liteBrowserBundle": true,
     "recommendedAction": "keep"
@@ -2379,7 +2167,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": false,
     "liteBrowserBundle": true,
     "recommendedAction": "keep"
@@ -2392,7 +2179,6 @@
     "directDependencies": [],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": false,
     "liteBrowserBundle": true,
     "recommendedAction": "keep"
@@ -2411,7 +2197,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": false,
     "liteBrowserBundle": true,
     "recommendedAction": "keep"
@@ -2424,7 +2209,6 @@
     "directDependencies": [],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": false,
     "liteBrowserBundle": true,
     "recommendedAction": "keep"
@@ -2443,7 +2227,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": false,
     "liteBrowserBundle": true,
     "recommendedAction": "keep"
@@ -2462,7 +2245,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": false,
     "liteBrowserBundle": true,
     "recommendedAction": "keep"
@@ -2477,7 +2259,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": false,
     "liteBrowserBundle": true,
     "recommendedAction": "keep"
@@ -2492,7 +2273,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": false,
     "liteBrowserBundle": true,
     "recommendedAction": "keep"
@@ -2516,7 +2296,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": false,
     "liteBrowserBundle": true,
     "recommendedAction": "keep"
@@ -2529,7 +2308,6 @@
     "directDependencies": [],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": false,
     "liteBrowserBundle": true,
     "recommendedAction": "keep"
@@ -2549,7 +2327,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": false,
     "liteBrowserBundle": true,
     "recommendedAction": "keep"
@@ -2570,7 +2347,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": false,
     "liteBrowserBundle": true,
     "recommendedAction": "keep"
@@ -2583,7 +2359,6 @@
     "directDependencies": [],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": false,
     "liteBrowserBundle": true,
     "recommendedAction": "keep"
@@ -2603,7 +2378,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": false,
     "liteBrowserBundle": true,
     "recommendedAction": "keep"
@@ -2616,7 +2390,6 @@
     "directDependencies": [],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": false,
     "liteBrowserBundle": true,
     "recommendedAction": "keep"
@@ -2634,7 +2407,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": false,
     "liteBrowserBundle": true,
     "recommendedAction": "keep"
@@ -2649,7 +2421,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": false,
     "liteBrowserBundle": true,
     "recommendedAction": "keep"
@@ -2668,7 +2439,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": false,
     "liteBrowserBundle": true,
     "recommendedAction": "keep"
@@ -2681,7 +2451,6 @@
     "directDependencies": [],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -2694,7 +2463,6 @@
     "directDependencies": [],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -2710,7 +2478,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -2728,7 +2495,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -2741,7 +2507,6 @@
     "directDependencies": [],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -2763,7 +2528,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -2776,7 +2540,6 @@
     "directDependencies": [],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -2791,7 +2554,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -2804,7 +2566,6 @@
     "directDependencies": [],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -2819,7 +2580,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -2832,7 +2592,6 @@
     "directDependencies": [],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -2845,7 +2604,6 @@
     "directDependencies": [],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -2858,7 +2616,6 @@
     "directDependencies": [],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -2873,7 +2630,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -2886,7 +2642,6 @@
     "directDependencies": [],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -2899,7 +2654,6 @@
     "directDependencies": [],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -2915,7 +2669,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -2928,7 +2681,6 @@
     "directDependencies": [],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -2941,7 +2693,6 @@
     "directDependencies": [],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -2958,7 +2709,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -2981,7 +2731,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -2998,7 +2747,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -3014,7 +2762,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -3027,7 +2774,6 @@
     "directDependencies": [],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -3042,7 +2788,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -3058,7 +2803,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -3077,7 +2821,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -3093,7 +2836,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -3108,7 +2850,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -3126,7 +2867,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -3139,7 +2879,6 @@
     "directDependencies": [],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -3152,7 +2891,6 @@
     "directDependencies": [],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -3167,7 +2905,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -3180,7 +2917,6 @@
     "directDependencies": [],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -3195,7 +2931,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -3208,7 +2943,6 @@
     "directDependencies": [],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -3221,7 +2955,6 @@
     "directDependencies": [],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -3269,7 +3002,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -3282,7 +3014,6 @@
     "directDependencies": [],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -3295,7 +3026,6 @@
     "directDependencies": [],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -3310,7 +3040,6 @@
     ],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -3323,7 +3052,6 @@
     "directDependencies": [],
     "fullReachable": true,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -3336,7 +3064,6 @@
     "directDependencies": [],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -3405,7 +3132,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -3420,7 +3146,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -3435,7 +3160,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -3450,7 +3174,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -3465,7 +3188,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -3478,7 +3200,6 @@
     "directDependencies": [],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -3493,7 +3214,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -3508,7 +3228,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -3523,7 +3242,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -3538,7 +3256,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -3553,7 +3270,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -3568,7 +3284,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "exclude"
@@ -3583,7 +3298,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -3598,7 +3312,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -3614,7 +3327,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -3629,7 +3341,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -3644,7 +3355,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -3659,7 +3369,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "exclude"
@@ -3674,7 +3383,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -3689,7 +3397,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -3704,7 +3411,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "exclude"
@@ -3719,7 +3425,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -3734,7 +3439,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -3749,7 +3453,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -3764,7 +3467,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -3779,7 +3481,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -3794,7 +3495,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -3810,7 +3510,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -3825,7 +3524,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -3841,7 +3539,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -3857,7 +3554,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -3874,7 +3570,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -3890,7 +3585,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -3906,7 +3600,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -3921,7 +3614,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "exclude"
@@ -3937,7 +3629,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -3952,7 +3643,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -3967,7 +3657,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "exclude"
@@ -3983,7 +3672,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -3999,7 +3687,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -4015,7 +3702,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -4032,7 +3718,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -4050,7 +3735,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -4068,7 +3752,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -4087,7 +3770,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -4105,7 +3787,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -4124,7 +3805,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -4142,7 +3822,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -4160,7 +3839,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -4177,7 +3855,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -4196,7 +3873,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -4215,7 +3891,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -4230,7 +3905,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -4246,7 +3920,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "move"
@@ -4263,7 +3936,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -4286,7 +3958,6 @@
     ],
     "fullReachable": true,
     "liteReachable": false,
-    "liteReachablePreShim": false,
     "liteTarballStaged": false,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -4306,7 +3977,6 @@
     ],
     "fullReachable": false,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -4321,7 +3991,6 @@
     "directDependencies": [],
     "fullReachable": false,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -4341,7 +4010,6 @@
     ],
     "fullReachable": false,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -4358,7 +4026,6 @@
     ],
     "fullReachable": false,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"
@@ -4384,7 +4051,6 @@
     ],
     "fullReachable": false,
     "liteReachable": true,
-    "liteReachablePreShim": true,
     "liteTarballStaged": true,
     "liteBrowserBundle": false,
     "recommendedAction": "keep"

@@ -1123,6 +1123,23 @@ implementation every seam still resolves to (by explicit
 composition-time choice, not merely a fallback default), the physical
 import graph is unchanged, and no file was physically moved.
 
+**Phase 8B Step 8 update** (`docs/design/phase-8b-step8-lazy-shim-removal-2026-08-08.md`,
+implemented): this §9's own closing condition — "removal (Step 8)
+requires every consumer's `apply*Capability()` to be called with a real
+object by SOME real composition root — now true for all three real Full
+entry points" — became true (each of the six real Full/MCP-only entry
+points already constructed and explicitly passed a real capability
+object, never relying on the shim's own implicit default), so Step 8
+removed all three shims (plus their `.lite.js` siblings) outright via
+`git rm`. `tests/unit/architecture/lite-lazy-shim-necessity.test.js`,
+cited above as the test that "correctly continues to report all three as
+KEEP," was itself deleted — its entire premise (that the shims exist and
+remain necessary) no longer applies. Every composition root named in the
+three bullets above now imports `local/core/ollama-capability.js`/
+`local/core/onnx-embed.js`/`local/indexer/phases/tag-onnx.js` directly, in
+place of the corresponding `*-lazy.js` module. See that report for the
+full consumer-by-consumer migration and verification results.
+
 ## 10. Risks and open items carried into Step 2+
 
 - **The manifest's `mixed` count (43) will only shrink once the

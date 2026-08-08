@@ -20,7 +20,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildGraph } from '../../../scripts/audit/build-import-graph.mjs';
 import {
-  FULL_ROOTS, LITE_SRC_DIR, LAZY_SHIM_SUBSTITUTIONS, HEAVY_LOCAL_PACKAGES,
+  FULL_ROOTS, LITE_SRC_DIR, HEAVY_LOCAL_PACKAGES,
   LOCAL_ONLY_PATH_PATTERNS, CLOUD_ONLY_PATH_PATTERNS,
   computeReachable, collectExternalDeps,
 } from '../../../scripts/audit/classify-modules.mjs';
@@ -54,19 +54,19 @@ describe('full-lite architecture boundary (Phase 1 lock-in)', () => {
     assert.ok(liteSrcFiles.length >= 5, `expected at least 5 files under ${LITE_SRC_DIR}, found ${liteSrcFiles.length}: ${JSON.stringify(liteSrcFiles)}`);
   });
 
-  it('Lite composition (post-lazy-shim, matching the real shipped tarball) never reaches onnxruntime-node or @huggingface/transformers — item #3', () => {
+  it('Lite composition never reaches onnxruntime-node or @huggingface/transformers — item #3', () => {
     const liteSyntheticRoots = graph.files.filter((f) => f.startsWith(LITE_SRC_DIR));
-    const liteReachable = computeReachable(graph, liteSyntheticRoots, { applyLiteShims: true });
+    const liteReachable = computeReachable(graph, liteSyntheticRoots);
     const liteDeps = collectExternalDeps(graph, liteReachable);
     const heavyFound = HEAVY_LOCAL_PACKAGES.filter((p) => liteDeps.has(p));
-    assert.deepEqual(heavyFound, [], `heavy local package(s) reachable from Lite POST-shim: ${JSON.stringify(heavyFound)} — this would mean the *-lazy.js shim substitution no longer fully isolates Lite`);
+    assert.deepEqual(heavyFound, [], `heavy local package(s) reachable from Lite: ${JSON.stringify(heavyFound)}`);
   });
 
-  it('Lite composition never reaches any LOCAL_ONLY_PATH_PATTERNS file, post-shim', () => {
+  it('Lite composition never reaches any LOCAL_ONLY_PATH_PATTERNS file', () => {
     const liteSyntheticRoots = graph.files.filter((f) => f.startsWith(LITE_SRC_DIR));
-    const liteReachable = computeReachable(graph, liteSyntheticRoots, { applyLiteShims: true });
+    const liteReachable = computeReachable(graph, liteSyntheticRoots);
     const leaked = [...liteReachable].filter((f) => LOCAL_ONLY_PATH_PATTERNS.some((p) => p.test(f)));
-    assert.deepEqual(leaked, [], `local-only file(s) reachable from Lite POST-shim: ${JSON.stringify(leaked)}`);
+    assert.deepEqual(leaked, [], `local-only file(s) reachable from Lite: ${JSON.stringify(leaked)}`);
   });
 
   it('cloud never imports local — no CLOUD_ONLY_PATH_PATTERNS file has a direct resolved edge into a LOCAL_ONLY_PATH_PATTERNS file', () => {
@@ -109,10 +109,14 @@ describe('full-lite architecture boundary (Phase 1 lock-in)', () => {
     assert.deepEqual(missing, [], `cloud-only file(s) NOT reachable from Full (should all be reachable): ${JSON.stringify(missing)}`);
   });
 
-  it('every LAZY_SHIM_SUBSTITUTIONS real/shim pair exists as a real graph node', () => {
-    for (const [real, shim] of Object.entries(LAZY_SHIM_SUBSTITUTIONS)) {
-      assert.ok(graph.nodes[real], `expected ${real} to exist in the graph`);
-      assert.ok(graph.nodes[shim], `expected ${shim} to exist in the graph`);
+  it('the six transitional *-lazy.js/*-lazy.lite.js shim files are absent from the graph entirely (Phase 8B Step 8 deleted them outright — git rm, not merely excluded from staging)', () => {
+    const formerShimPaths = [
+      'src/core/ollama-lazy.js', 'src/core/ollama-lazy.lite.js',
+      'src/core/onnx-embed-lazy.js', 'src/core/onnx-embed-lazy.lite.js',
+      'src/indexer/phases/tag-onnx-lazy.js', 'src/indexer/phases/tag-onnx-lazy.lite.js',
+    ];
+    for (const path of formerShimPaths) {
+      assert.equal(graph.nodes[path], undefined, `expected ${path} to be absent from the graph`);
     }
   });
 

@@ -22,11 +22,8 @@
     "packages/lite/lite-src/semidex-home.js",
     "packages/lite/lite-src/serve-lite.js"
   ],
-  "lazyShimSubstitutions": {},
-  "fullReachableCount": 250,
-  "liteReachablePreShimCount": 148,
+  "fullReachableCount": 248,
   "liteReachableCount": 148,
-  "shimCutFiles": [],
   "fullReachableFiles": [
     "src/admin/bootstrap.js",
     "src/admin/jobs/spawn-indexer-full.js",
@@ -73,8 +70,6 @@
     "src/core/generation/runtime.js",
     "src/core/http/http.js",
     "src/core/http/sse.js",
-    "src/core/ollama-lazy.js",
-    "src/core/onnx-embed-lazy.js",
     "src/core/qdrant/client.js",
     "src/core/qdrant/ensure-schema.js",
     "src/core/qdrant/index.js",
@@ -95,7 +90,6 @@
     "src/doctor.js",
     "src/indexer/index-full.js",
     "src/indexer/index.js",
-    "src/indexer/phases/tag-onnx-lazy.js",
     "src/local/admin/api/ollama-models.js",
     "src/local/admin/api/onnx.js",
     "src/local/admin/system/ollama.js",
@@ -105,6 +99,7 @@
     "src/local/core/managed-onnx-runtime-manifest.js",
     "src/local/core/managed-runtime-id.js",
     "src/local/core/managed-runtime-listing.js",
+    "src/local/core/ollama-capability.js",
     "src/local/core/ollama-models.js",
     "src/local/core/ollama.js",
     "src/local/core/onnx-cuda-installer-logic.js",
@@ -278,156 +273,6 @@
     "src/smoke/sections/56-get-node-tool.js",
     "src/smoke/sections/57-skeleton-carryover.js",
     "src/sync.js"
-  ],
-  "liteReachablePreShimFiles": [
-    "packages/lite/lite-src/doctor-lite.js",
-    "packages/lite/lite-src/hard-pins.js",
-    "packages/lite/lite-src/index-lite.js",
-    "packages/lite/lite-src/semidex-home.js",
-    "packages/lite/lite-src/serve-lite.js",
-    "src/admin/composition/lite.js",
-    "src/admin/jobs/spawn-indexer-lite.js",
-    "src/admin/ui-src/entries/lite.js",
-    "src/cloud/admin/qdrant-cloud-api.js",
-    "src/cloud/admin/qdrant-cloud-system.js",
-    "src/cloud/embedding/cloud-embedding-provider.js",
-    "src/cloud/embedding/qdrant-cloud-catalog.js",
-    "src/cloud/embedding/qdrant-cloud-tokenizer.js",
-    "src/cloud/generation/cloud-generation-provider.js",
-    "src/cloud/generation/gemini-models.js",
-    "src/cloud/generation/gemini-provider.js",
-    "src/core/ask-api/v1/contract.js",
-    "src/core/ask-api/v1/request.js",
-    "src/core/ask-api/v1/route.js",
-    "src/core/ask/citations.js",
-    "src/core/ask/coordinator.js",
-    "src/core/ask/evidence.js",
-    "src/core/ask/prompt.js",
-    "src/core/assembly/anchored-content.js",
-    "src/core/assembly/assemble.js",
-    "src/core/assembly/contract.js",
-    "src/core/assembly/cursor.js",
-    "src/core/assembly/window.js",
-    "src/core/embedding-profile/availability.js",
-    "src/core/embedding-profile/cloud-embedding-capability.js",
-    "src/core/embedding-profile/config-cache.js",
-    "src/core/embedding-profile/migrate.js",
-    "src/core/embedding-profile/onnx-lane.js",
-    "src/core/embedding-profile/qdrant-cloud-models.js",
-    "src/core/embedding-profile/resolve.js",
-    "src/core/embedding-profile/schema.js",
-    "src/core/generation/cloud-generation-capability.js",
-    "src/core/generation/config.js",
-    "src/core/generation/ollama-capability.js",
-    "src/core/generation/ollama-provider.js",
-    "src/core/generation/registry.js",
-    "src/core/generation/runtime.js",
-    "src/core/http/http.js",
-    "src/core/http/sse.js",
-    "src/core/qdrant/client.js",
-    "src/core/qdrant/ensure-schema.js",
-    "src/core/qdrant/index.js",
-    "src/core/qdrant/nav-filter.js",
-    "src/core/qdrant/payload.js",
-    "src/core/qdrant/schema.js",
-    "src/core/qdrant/store.js",
-    "src/core/retrieval/search.js",
-    "src/core/settings/definitions.js",
-    "src/core/settings/lite-policy.js",
-    "src/core/settings/service.js",
-    "src/core/settings/service.lite.js",
-    "src/core/settings/settings-store.js",
-    "src/core/storage/capabilities.js",
-    "src/core/storage/embedding-profile-cache.js",
-    "src/core/storage/factory.js",
-    "src/core/storage/qdrant-adapter.js",
-    "src/indexer/index-lite.js",
-    "src/shared/admin/api/assembly.js",
-    "src/shared/admin/api/chunks.js",
-    "src/shared/admin/api/collections.js",
-    "src/shared/admin/api/documents.js",
-    "src/shared/admin/api/generation-models.js",
-    "src/shared/admin/api/generation.js",
-    "src/shared/admin/api/health.js",
-    "src/shared/admin/api/jobs.js",
-    "src/shared/admin/api/node.js",
-    "src/shared/admin/api/operations.js",
-    "src/shared/admin/api/query-params.js",
-    "src/shared/admin/api/search.js",
-    "src/shared/admin/api/settings.js",
-    "src/shared/admin/api/skeleton.js",
-    "src/shared/admin/api/system.js",
-    "src/shared/admin/jobs/registry.js",
-    "src/shared/admin/jobs/task-registry.js",
-    "src/shared/admin/register-neutral-routes.js",
-    "src/shared/admin/router.js",
-    "src/shared/admin/server.js",
-    "src/shared/admin/static.js",
-    "src/shared/admin/system/folder-picker.js",
-    "src/shared/admin/ui-src/api.js",
-    "src/shared/admin/ui-src/app.js",
-    "src/shared/admin/ui-src/assembly-view.js",
-    "src/shared/admin/ui-src/collection-view.js",
-    "src/shared/admin/ui-src/dom.js",
-    "src/shared/admin/ui-src/file-view.js",
-    "src/shared/admin/ui-src/format.js",
-    "src/shared/admin/ui-src/global-settings-view.js",
-    "src/shared/admin/ui-src/icons.js",
-    "src/shared/admin/ui-src/jobs-view.js",
-    "src/shared/admin/ui-src/operation-modal.js",
-    "src/shared/admin/ui-src/operation-render.js",
-    "src/shared/admin/ui-src/operation-store.js",
-    "src/shared/admin/ui-src/router.js",
-    "src/shared/admin/ui-src/routes.js",
-    "src/shared/admin/ui-src/search.js",
-    "src/shared/admin/ui-src/settings-view.js",
-    "src/shared/admin/ui-src/sidebar-resize.js",
-    "src/shared/admin/ui-src/sidebar.js",
-    "src/shared/admin/ui-src/state.js",
-    "src/shared/admin/ui-src/structural-renderer.js",
-    "src/shared/admin/ui-src/toasts.js",
-    "src/shared/admin/ui-src/topbar.js",
-    "src/shared/core/app-data-dir.js",
-    "src/shared/core/bench-telemetry.js",
-    "src/shared/core/bge-tokenizer.js",
-    "src/shared/core/config.js",
-    "src/shared/core/doctor-checks.js",
-    "src/shared/core/embeddings.js",
-    "src/shared/core/entity-reference.js",
-    "src/shared/core/env-bootstrap.js",
-    "src/shared/core/env.js",
-    "src/shared/core/node-id.js",
-    "src/shared/core/onnx-embed-capability.js",
-    "src/shared/core/onnx-paths.js",
-    "src/shared/core/point-id.js",
-    "src/shared/core/qdrant.js",
-    "src/shared/core/sparse.js",
-    "src/shared/core/token-count.js",
-    "src/shared/indexer/batch.js",
-    "src/shared/indexer/files.js",
-    "src/shared/indexer/index-runtime.js",
-    "src/shared/indexer/phases/chunk.js",
-    "src/shared/indexer/phases/combined.js",
-    "src/shared/indexer/phases/context.js",
-    "src/shared/indexer/phases/empty-section.js",
-    "src/shared/indexer/phases/entity-split.js",
-    "src/shared/indexer/phases/node-policy.js",
-    "src/shared/indexer/phases/skeleton-chunk.js",
-    "src/shared/indexer/phases/skeleton-index.js",
-    "src/shared/indexer/phases/skeleton-summary.js",
-    "src/shared/indexer/phases/skeleton.js",
-    "src/shared/indexer/phases/tag-onnx-capability.js",
-    "src/shared/indexer/phases/tag-provider.js",
-    "src/shared/indexer/phases/tag.js",
-    "src/shared/indexer/phases/token-budget-split.js",
-    "src/shared/indexer/preflight.js",
-    "src/shared/indexer/profiler.js",
-    "src/shared/indexer/progress-event.js",
-    "src/shared/indexer/run.js",
-    "src/shared/indexer/semaphore.js",
-    "src/shared/indexer/serial-queue.js",
-    "src/shared/indexer/skeleton-payload.js",
-    "src/shared/indexer/skeleton-warnings.js"
   ],
   "liteReachableFiles": [
     "packages/lite/lite-src/doctor-lite.js",
@@ -639,55 +484,6 @@
       "src/cloud/generation/gemini-provider.js"
     ]
   },
-  "liteExternalDepsPreShim": {
-    "unified": [
-      "src/shared/admin/ui-src/structural-renderer.js",
-      "src/shared/indexer/phases/skeleton.js"
-    ],
-    "remark-parse": [
-      "src/shared/admin/ui-src/structural-renderer.js",
-      "src/shared/indexer/phases/skeleton.js"
-    ],
-    "remark-gfm": [
-      "src/shared/admin/ui-src/structural-renderer.js",
-      "src/shared/indexer/phases/skeleton.js"
-    ],
-    "highlight.js": [
-      "src/shared/admin/ui-src/structural-renderer.js"
-    ],
-    "edition": [
-      "src/shared/admin/ui-src/jobs-view.js",
-      "src/shared/admin/ui-src/settings-view.js"
-    ],
-    "@google/genai": [
-      "src/cloud/generation/gemini-models.js",
-      "src/cloud/generation/gemini-provider.js"
-    ],
-    "@huggingface/tokenizers": [
-      "src/cloud/embedding/qdrant-cloud-tokenizer.js",
-      "src/shared/core/bge-tokenizer.js"
-    ],
-    "dotenv": [
-      "src/core/qdrant/client.js",
-      "src/shared/core/config.js",
-      "src/shared/core/env-bootstrap.js"
-    ],
-    "@qdrant/js-client-rest": [
-      "src/core/qdrant/client.js"
-    ],
-    "franc-min": [
-      "src/shared/indexer/phases/skeleton-summary.js"
-    ],
-    "@opendocsg/pdf2md": [
-      "src/shared/indexer/phases/chunk.js"
-    ],
-    "pdf-parse": [
-      "src/shared/indexer/phases/chunk.js"
-    ],
-    "remark-frontmatter": [
-      "src/shared/indexer/phases/skeleton.js"
-    ]
-  },
   "liteExternalDeps": {
     "unified": [
       "src/shared/admin/ui-src/structural-renderer.js",
@@ -737,7 +533,6 @@
       "src/shared/indexer/phases/skeleton.js"
     ]
   },
-  "liteHeavyDepsReachablePreShim": [],
   "liteHeavyDepsReachable": [],
   "fullHeavyDepsReachable": [
     "@huggingface/transformers"
@@ -746,17 +541,16 @@
   "classificationCounts": {
     "composition-full": 9,
     "cloud": 13,
-    "local": 101,
+    "local": 102,
     "composition-lite": 6,
     "shared": 129,
-    "unclear": 2,
-    "mixed": 6
+    "unclear": 2
   },
   "runtimeCouplingCounts": {
-    "local": 38,
+    "local": 36,
     "cloud": 10,
-    "none": 218
+    "none": 215
   },
-  "localGenuinelyCoupled": 31,
+  "localGenuinelyCoupled": 32,
   "localFullOnlyNoCoupling": 70
 }

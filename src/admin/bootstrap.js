@@ -86,6 +86,26 @@ if (isMainModule) {
   // THIS process's process.env — jobBaseEnv above was already captured,
   // so this mutation never reaches a spawned job's inherited env.
   applyEnvWriteBack(settingsService);
+  // local/core/ollama-capability.js is dynamically imported HERE, after
+  // bootstrapEnv()/applyEnvWriteBack() above, never as a static top-level
+  // import (code review finding, P1): local/core/ollama.js — which
+  // ollama-capability.js statically imports — has its own top-level
+  // `import 'dotenv/config'` AND captures `OLLAMA_URL` from
+  // `process.env.OLLAMA_URL` into a module-scope constant at import time
+  // (see that file's own line 3). A static import chain here would have
+  // let dotenv's own env gap-fill run, and OLLAMA_URL get captured, BEFORE
+  // this file's own bootstrapEnv() call ever ran — silently letting a .env
+  // value get misclassified as a genuine OS-env value, and letting a
+  // settings.json-saved OLLAMA_URL (applied above, via applyEnvWriteBack())
+  // never actually reach the real Ollama runtime, since OLLAMA_URL would
+  // already be frozen into ollama.js's own constant by the time the
+  // write-back ran. Importing dynamically, after the real bootstrap
+  // sequence has already run, is what keeps this file's own "bootstrap env
+  // FIRST" contract (see the header comment above) genuinely true for this
+  // dependency too, not just for server.js's own module graph.
+  const {
+    isOllamaReachable, listOllamaModels, validateOllamaModels, generateStream, getModelContextLength,
+  } = await import('../local/core/ollama-capability.js');
   // RERANK_CE_MODEL/RERANK_CE_DEVICE/RERANK_CE_CACHE_DIR are next_restart —
   // must be applied before this process's first (lazy) loadCEModel() call,
   // which can happen from an Ask or admin-search request that enables CE
@@ -97,21 +117,20 @@ if (isMainModule) {
   const { createGenerationRuntime } = await import('../core/generation/runtime.js');
   const { createGenerationProvider } = await import('../core/generation/registry.js');
 
-  // core/generation/ollama-provider.js no longer statically (or
-  // dynamically) imports core/ollama-lazy.js itself (code review, round 4
-  // — that import gave generation/registry.js's BACKENDS map a real static
-  // edge onto local/core/ollama.js, reachable from Lite's own module graph
-  // regardless of Lite's SEMIDEX_GENERATION_BACKEND=gemini hard pin, since
-  // the map references createOllamaProvider unconditionally). This file is
-  // Full-only (excluded from the Lite package entirely — see
-  // packages/lite/build.mjs's EXCLUDE_FILES), so it is the one safe place
-  // to supply createOllamaProvider's real *Fn overrides. Resolved here,
-  // BEFORE createGenerationRuntime() runs (that function calls
-  // createGenerationProviderFn SYNCHRONOUSLY — it returns a constructed
-  // GenerationProvider object, not a Promise — so the dynamic import must
-  // already be settled by the time this closure runs, not awaited inside
-  // it), so the wrapper below stays a plain sync function.
-  const ollamaLazy = await import('../core/ollama-lazy.js');
+  // core/generation/ollama-provider.js does not statically (or
+  // dynamically) import local/core/ollama.js itself — that would give
+  // generation/registry.js's BACKENDS map a real static edge onto it,
+  // reachable from Lite's own module graph regardless of Lite's
+  // SEMIDEX_GENERATION_BACKEND=gemini hard pin, since the map references
+  // createOllamaProvider unconditionally. This file is Full-only (excluded
+  // from the Lite package entirely — see packages/lite/build.mjs's
+  // EXCLUDE_FILES), so it is the one safe place to supply
+  // createOllamaProvider's real *Fn overrides, resolved via
+  // local/core/ollama-capability.js's bare re-exports (imported dynamically
+  // above, after bootstrapEnv()/applyEnvWriteBack() — see that import's own
+  // comment for why; the Lite-exclusion of this whole file makes the import
+  // safe regardless of edition, but the dynamic timing is what keeps this
+  // file's own env-ordering contract correct).
   // createCloudGenerationCapability() (code review, Phase 8B Step 6): the
   // real Gemini GenerationProvider factory — registry.js's own BACKENDS
   // default no longer includes 'gemini', so `providers: { gemini: ... }`
@@ -127,11 +146,11 @@ if (isMainModule) {
       ...withGeminiProvider,
       options: {
         ...opts.options,
-        isOllamaReachableFn: ollamaLazy.isOllamaReachable,
-        listOllamaModelsFn: ollamaLazy.listOllamaModels,
-        validateOllamaModelsFn: ollamaLazy.validateOllamaModels,
-        generateStreamFn: ollamaLazy.generateStream,
-        getModelContextLengthFn: ollamaLazy.getModelContextLength,
+        isOllamaReachableFn: isOllamaReachable,
+        listOllamaModelsFn: listOllamaModels,
+        validateOllamaModelsFn: validateOllamaModels,
+        generateStreamFn: generateStream,
+        getModelContextLengthFn: getModelContextLength,
       },
     });
   };

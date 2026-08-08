@@ -157,20 +157,9 @@ describe('find-dependency-violations.mjs CLI — exit code (code review fix, thi
 });
 
 describe('mixed provider seams', () => {
-  it('keeps known lazy shims mixed', () => {
-    // Code review fix (Phase 8B Step 6, second pass): embeddings.js,
-    // search.js, token-count.js, and run.js used to be listed here as
-    // "provider-coupled orchestration" that stays mixed — but that state
-    // was exactly the bug the review flagged: each imported a concrete
-    // src/cloud/ implementation directly. All four are now genuinely
-    // 'shared' (capability/DI-only, zero direct cloud imports — a
-    // composition root injects the real cloudEmbed/cloudGeneration
-    // capability). Only the real *-lazy.js shims (the actual local/cloud
-    // boundary seam, by design) remain mixed.
-    const mixed = new Set(loadManifest().modules
-      .filter((module) => module.category === 'mixed')
-      .map((module) => module.path));
-    const required = [
+  it('the six transitional *-lazy.js/*-lazy.lite.js shim files no longer exist in the manifest at all (Phase 8B Step 8 deleted them outright — git rm, not merely a reclassification)', () => {
+    const byPath = new Map(loadManifest().modules.map((module) => [module.path, module]));
+    const formerShimPaths = [
       'src/core/ollama-lazy.js',
       'src/core/ollama-lazy.lite.js',
       'src/core/onnx-embed-lazy.js',
@@ -178,7 +167,9 @@ describe('mixed provider seams', () => {
       'src/indexer/phases/tag-onnx-lazy.js',
       'src/indexer/phases/tag-onnx-lazy.lite.js',
     ];
-    assert.deepEqual(required.filter((path) => !mixed.has(path)), []);
+    for (const path of formerShimPaths) {
+      assert.equal(byPath.get(path), undefined, `expected ${path} to be absent from the manifest`);
+    }
   });
 
   it('code review fix (Phase 8B Step 6): embeddings.js, search.js, token-count.js, run.js, registry.js, register-neutral-routes.js are now genuinely shared/composition — no direct cloud implementation import remains', () => {
@@ -191,16 +182,10 @@ describe('mixed provider seams', () => {
     assert.equal(byPath.get('src/shared/admin/register-neutral-routes.js')?.category, 'composition');
   });
 
-  it('keeps real lazy shims connected to local implementations', () => {
+  it('Phase 8B Step 8: local/core/ollama-capability.js, local/core/onnx-embed.js, and local/indexer/phases/tag-onnx.js are the real, directly-imported local implementations, all classified "local"', () => {
     const byPath = new Map(loadManifest().modules.map((module) => [module.path, module]));
-    const pairs = {
-      'src/core/ollama-lazy.js': 'src/local/core/ollama.js',
-      'src/core/onnx-embed-lazy.js': 'src/local/core/onnx-embed.js',
-      'src/indexer/phases/tag-onnx-lazy.js': 'src/local/indexer/phases/tag-onnx.js',
-    };
-    for (const [shim, target] of Object.entries(pairs)) {
-      assert.ok(byPath.get(shim).directDependencies.includes(target));
-      assert.equal(byPath.get(target).category, 'local');
+    for (const path of ['src/local/core/ollama-capability.js', 'src/local/core/onnx-embed.js', 'src/local/indexer/phases/tag-onnx.js']) {
+      assert.equal(byPath.get(path)?.category, 'local', `expected ${path} to be classified "local"`);
     }
   });
 });
@@ -231,7 +216,7 @@ describe('runtime closure guards', () => {
     const { computeReachable, collectExternalDeps, HEAVY_LOCAL_PACKAGES, LITE_SRC_DIR, LITE_UI_ENTRY } = await import('../../../scripts/audit/classify-modules.mjs');
     const graph = buildGraph();
     const roots = [...graph.files.filter((file) => file.startsWith(LITE_SRC_DIR)), LITE_UI_ENTRY];
-    const dependencies = collectExternalDeps(graph, computeReachable(graph, roots, { applyLiteShims: true }));
+    const dependencies = collectExternalDeps(graph, computeReachable(graph, roots));
     assert.deepEqual(HEAVY_LOCAL_PACKAGES.filter((name) => dependencies.has(name)), []);
   });
 

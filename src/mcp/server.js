@@ -32,7 +32,14 @@ const { StdioServerTransport } = await import('@modelcontextprotocol/sdk/server/
 const { CallToolRequestSchema, ListToolsRequestSchema } = await import('@modelcontextprotocol/sdk/types.js');
 
 const { embedForSearch } = await import('../shared/core/embeddings.js');
-const ollamaLazy = await import('../core/ollama-lazy.js');
+// MCP is a Full-only entry point (never staged in the Lite package — see
+// packages/lite/build.mjs's EXCLUDE_DIRS 'mcp' entry), so importing
+// local/core/ollama-capability.js's factories directly here never reaches
+// Lite's module graph (Phase 8B Step 8 — the transitional
+// core/ollama-lazy.js dynamic-loader wrapper is gone).
+const { createOllamaEmbedCapability, createOllamaDiscoveryCapability } = await import('../local/core/ollama-capability.js');
+const ollamaEmbed = createOllamaEmbedCapability();
+const ollamaDiscovery = createOllamaDiscoveryCapability();
 // createCloudEmbeddingCapability() (code review, Phase 8B Step 6): the real
 // Qdrant Cloud Inference embedding-budget/tokenizer capability — this
 // process imports src/cloud/ directly (a real `composition root -> cloud`
@@ -74,9 +81,9 @@ const onnxEmbed = await resolveOnnxEmbedCapabilityForMcp({ settingsService });
 // with no real consumer, and risks stomping whatever OTHER composition
 // root (e.g. createLiteApp(), constructed in the same process by a test)
 // happens to share embeddings.js's module scope. The fallback itself still
-// exists in embeddings.js, but now starts UNSET (null) rather than
-// defaulting to the real ollama-lazy.js/onnx-embed-lazy.js modules (code
-// review, round 4 — see embeddings.js's own header comment): a caller that
+// exists in embeddings.js, but starts UNSET (null) rather than defaulting
+// to a real local-runtime implementation (see embeddings.js's own header
+// comment): a caller that
 // hasn't been updated to pass capabilities explicitly (e.g. a smoke-test
 // script) gets a clear "no capability injected" error instead of a silent
 // real-network default — this file has no reason to touch it in either
@@ -105,7 +112,7 @@ search.setSettingsService(settingsService);
 // server's own search requests never consult embeddings.js's shared
 // module-scope fallback at all, regardless of what any other composition
 // root does with it in the same process.
-search.setEmbedQuery((profile, query) => embedForSearch(profile, query, { capabilities: { ollama: ollamaLazy, onnxEmbed, cloudEmbed } }));
+search.setEmbedQuery((profile, query) => embedForSearch(profile, query, { capabilities: { ollama: ollamaEmbed, onnxEmbed, cloudEmbed } }));
 search.setCloudEmbed(cloudEmbed);
 // setRerank()/setOllamaDiscovery() (code review, Phase 8B Step 6 second
 // pass, P1 fix): binds tools/search.js's/tools/collections.js's own
@@ -114,7 +121,7 @@ search.setCloudEmbed(cloudEmbed);
 // own pattern. Neither tool module imports core/ce-rerank.js,
 // core/rerank.js, or local/core/ollama.js directly anymore.
 search.setRerank(createRerankCapability());
-collections.setOllamaDiscovery(ollamaLazy);
+collections.setOllamaDiscovery(ollamaDiscovery);
 
 const tools = [search, collections, getChunk, findByTag, listFiles, listTags, listDirectories, getSkeleton, getSkeletonNode, getSkeletonChildren, getNode, getContent];
 const toolMap = Object.fromEntries(tools.map(t => [t.schema.name, t.handle]));

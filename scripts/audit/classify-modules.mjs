@@ -221,44 +221,28 @@ function loadOrBuildGraph() {
   return buildGraph();
 }
 
-// LAZY_SHIM_SUBSTITUTIONS is now permanently EMPTY (code review, round 4 —
-// the *-lazy.js content-substitution mechanism was removed from
-// packages/lite/build.mjs entirely). Before this, core/ollama-lazy.js/
-// core/onnx-embed-lazy.js/indexer/phases/tag-onnx-lazy.js were each staged
-// with their *.lite.js shim's CONTENT substituted at build time, because
-// several files (core/embeddings.js, indexer/run.js, the phase modules,
-// core/generation/ollama-provider.js) statically imported the REAL module
-// at their own module scope as a default value. All of those were migrated
-// to explicit capability injection with no real-module default of their
-// own (null until a composition root calls applyXCapability()), and
-// indexer/index.js was split into index-full.js (Full-only, excluded from
-// the Lite package) and index-lite.js (imports none of the three) — so
-// nothing in the Lite-staged closure imports any of the three real
-// *-lazy.js modules anymore, and the shim-substitution mechanism that used
-// to paper over that has nothing left to do. Kept as an empty object (not
-// deleted outright) so applyLiteShims below stays a well-defined, always-
-// safe no-op rather than requiring every call site across this codebase
-// (and its own test suite) to drop the option in lockstep.
-export const LAZY_SHIM_SUBSTITUTIONS = {};
-
 // Real, resolved-edge-only reachability (relative imports/dynamic imports/
 // requires/fork-spawn targets that resolved to an actual staged file) —
 // bare package specifiers and unresolved specifiers are NOT graph nodes,
 // they're recorded separately per-file as "external deps"/"unresolved".
 //
-// applyLiteShims: now always a no-op (LAZY_SHIM_SUBSTITUTIONS is empty —
-// see that constant's own comment) — accepted for backward compatibility
-// with existing call sites, but pre-shim and post-shim reachability are
-// now IDENTICAL by construction, since there is nothing left to
-// substitute.
-export function computeReachable(graph, roots, { applyLiteShims = false } = {}) {
+// Phase 8B Step 8 removed the transitional *-lazy.js/*-lazy.lite.js shim
+// files entirely (git rm, not merely excluded from staging) — every
+// former consumer now imports local/core/ollama-capability.js's factories
+// or local/core/onnx-embed.js/local/indexer/phases/tag-onnx.js directly,
+// from a Full-only composition root already wholesale-excluded from the
+// Lite package. There is no longer a build-time content-substitution step
+// for this function to model, so the `applyLiteShims` option (and the
+// LAZY_SHIM_SUBSTITUTIONS map it used to consult) was removed outright —
+// reachability is now the plain, single graph traversal below, with no
+// shim-aware branch at all.
+export function computeReachable(graph, roots) {
   const reachable = new Set();
   const queue = [...roots];
   while (queue.length) {
     const file = queue.pop();
     if (reachable.has(file)) continue;
-    const shimTarget = applyLiteShims ? LAZY_SHIM_SUBSTITUTIONS[file] : null;
-    const node = shimTarget ? graph.nodes[shimTarget] : graph.nodes[file];
+    const node = graph.nodes[file];
     if (!node) continue; // root not in graph (shouldn't happen for real roots) or unresolved edge
     reachable.add(file);
     for (const group of [node.staticImports, node.dynamicImports, node.requireCalls]) {
@@ -361,8 +345,6 @@ export const CLOUD_ONLY_PATH_PATTERNS = [
   /^src\/cloud\/generation\/gemini-provider\.js$/, /^src\/cloud\/embedding\/cloud-embedding-provider\.js$/,
   /^src\/cloud\/generation\/cloud-generation-provider\.js$/,
 ];
-const LAZY_SHIM_PATTERNS = [/-lazy\.js$/, /-lazy\.lite\.js$/];
-
 // packages/lite/build.mjs's REAL, COMPLETE EXCLUDE_DIRS and EXCLUDE_FILES —
 // extracted verbatim from that file's own source, not a partial
 // re-derivation. Code review correctly flagged that an earlier version of
@@ -407,7 +389,6 @@ function firstPassBucket(file) {
   if (COMPOSITION_FULL_PATTERNS.some((p) => p.test(file)) || UI_COMPOSITION_FULL_PATTERNS.some((p) => p.test(file))) return 'composition-full';
   if (UI_COMPOSITION_LITE_PATTERNS.some((p) => p.test(file))) return 'composition-lite';
   if (CLOUD_ONLY_PATH_PATTERNS.some((p) => p.test(file))) return 'cloud';
-  if (LAZY_SHIM_PATTERNS.some((p) => p.test(file))) return 'mixed'; // lazy wrappers are a real boundary seam, always reviewed by hand
   // Phase 4 (docs/design/full-lite-shared-architecture-audit-2026-08-01.md):
   // createLiteApp() moved out of server.js into composition/lite.js.
   // server.js now hosts only resolveHostConfig/resolvePortConfig (shared
@@ -493,7 +474,7 @@ function computeRecommendedAction(file, { classification, runtimeCoupling, liteR
     // change needed in the file itself); a file with REAL local-runtime
     // coupling (onnxruntime-node/Ollama edges) is correctly 'exclude'.
     if (runtimeCoupling === 'none') return 'move';
-    return liteReachable ? 'split' : 'exclude'; // liteReachable+local should never co-occur post-shim; 'split' flags it for review if it ever does
+    return liteReachable ? 'split' : 'exclude'; // liteReachable+local should never co-occur; 'split' flags it for review if it ever does
   }
   if (classification === 'cloud' || classification === 'shared') return 'keep';
   if (classification === 'unclear') return 'keep'; // e.g. the two test-only contract validators — see design doc §6.9
@@ -504,25 +485,20 @@ function main() {
   const graph = loadOrBuildGraph();
 
   const fullReachable = computeReachable(graph, FULL_ROOTS);
-  // Union of every real file under packages/lite/lite-src/ (now genuine
-  // graph nodes, not a hand-transcribed import list — see this file's own
-  // header comment). Computed TWICE: liteReachablePreShim reflects real
-  // src/ as it exists in the repo (what a naive "just stage everything
-  // reachable" tool would see); liteReachable (post-shim) additionally
-  // applies build.mjs's own *-lazy.js -> *-lazy.lite.js content
-  // substitution, matching what ACTUALLY ships in the tarball. The gap
-  // between the two sets is exactly the set of files the lazy-shim
-  // mechanism is responsible for cutting — reported explicitly below, not
-  // silently discarded.
+  // Union of every real file under packages/lite/lite-src/ (genuine graph
+  // nodes, not a hand-transcribed import list — see this file's own header
+  // comment) plus the real Lite UI entry point. Phase 8B Step 8 deleted the
+  // transitional *-lazy.js/*-lazy.lite.js shim files outright — there is no
+  // longer a build-time content-substitution step to model separately, so
+  // this is now a single reachability computation over the real src/ tree
+  // as it exists in the repo (what previously would have been called
+  // "pre-shim").
   const liteSyntheticRoots = graph.files.filter((f) => f.startsWith(LITE_SRC_DIR));
   const liteReachabilityRoots = [...liteSyntheticRoots, LITE_UI_ENTRY];
-  const liteReachablePreShim = computeReachable(graph, liteReachabilityRoots, { applyLiteShims: false });
-  const liteReachable = computeReachable(graph, liteReachabilityRoots, { applyLiteShims: true });
-  const shimCutFiles = [...liteReachablePreShim].filter((f) => !liteReachable.has(f)).sort();
+  const liteReachable = computeReachable(graph, liteReachabilityRoots);
 
   const fullExternalDeps = collectExternalDeps(graph, fullReachable);
   const liteExternalDeps = collectExternalDeps(graph, liteReachable);
-  const liteExternalDepsPreShim = collectExternalDeps(graph, liteReachablePreShim);
 
   const liteHeavyDepsReachable = HEAVY_LOCAL_PACKAGES.filter((p) => liteExternalDeps.has(p));
   const fullHeavyDepsReachable = HEAVY_LOCAL_PACKAGES.filter((p) => fullExternalDeps.has(p));
@@ -586,9 +562,8 @@ function main() {
     // required distinction): "does build.mjs's STAGING step copy this
     // specific file's bytes into packages/lite/src/" (liteTarballStaged —
     // a pure exclude-list membership question, re-derived from
-    // build.mjs's real, COMPLETE EXCLUDE_DIRS/EXCLUDE_FILES — 4 dirs, 18
-    // files, verbatim, not a partial subset) vs. "is this file genuinely
-    // REACHABLE from a real Lite entry point, post-lazy-shim-substitution"
+    // build.mjs's real, COMPLETE EXCLUDE_DIRS/EXCLUDE_FILES) vs. "is this
+    // file genuinely REACHABLE from a real Lite entry point"
     // (liteReachable, computed above — the thing that actually matters
     // for "can this code ever execute in Lite"). A file can be staged but
     // unreachable (dead weight in the tarball, not a safety problem) or —
@@ -599,16 +574,7 @@ function main() {
     // invariant itself stays checkable rather than assumed).
     const inTarballDir = !EXCLUDE_DIRS.some((d) => file.startsWith(d));
     const inTarballFile = !ALL_EXCLUDED_FILE_PATTERNS.some((p) => p.test(file));
-    // The three *.lite.js shim SOURCE files (core/ollama-lazy.lite.js,
-    // core/onnx-embed-lazy.lite.js, indexer/phases/tag-onnx-lazy.lite.js)
-    // are a real, cross-checked-against-the-actual-staged-tree exception:
-    // build.mjs's substituteLazyShims() copies each one's CONTENT onto the
-    // real module's path (e.g. core/ollama-lazy.js), then deletes the
-    // separately-staged shim file under its own name — so the shim file
-    // itself never survives staging under its own path, even though the
-    // *.js file it targets (without .lite in the name) genuinely does.
-    const isLazyShimSourceFile = /-lazy\.lite\.js$/.test(file);
-    const liteTarballStaged = (inTarballDir && inTarballFile) && !isLazyShimSourceFile;
+    const liteTarballStaged = inTarballDir && inTarballFile;
 
     // Phase 8B Step 7C: UI source now spans three physical roots by
     // ownership — admin/ui-src/ (composition-owned remainder), shared/
@@ -626,7 +592,6 @@ function main() {
       directDependencies: [...new Set(directDeps)],
       fullReachable: inFull,
       liteReachable: inLite,
-      liteReachablePreShim: liteReachablePreShim.has(file),
       liteTarballStaged,
       liteBrowserBundle,
       recommendedAction: computeRecommendedAction(file, { classification, runtimeCoupling, liteReachable: inLite, liteTarballStaged }),
@@ -654,7 +619,6 @@ function main() {
       directDependencies: [...new Set(directDeps)],
       fullReachable: false,
       liteReachable: true,
-      liteReachablePreShim: true,
       liteTarballStaged: true, // packages/lite/package.json's "files" includes lite-src/ unconditionally
       liteBrowserBundle: false,
       recommendedAction: 'keep',
@@ -674,48 +638,32 @@ function main() {
   const localGenuinelyCoupled = localClassified.filter((m) => m.runtimeCoupling === 'local').length;
   const localFullOnlyNoCoupling = localClassified.filter((m) => m.runtimeCoupling === 'none').length;
 
-  const liteHeavyDepsReachablePreShim = HEAVY_LOCAL_PACKAGES.filter((p) => liteExternalDepsPreShim.has(p));
-
   console.log(`[audit] classified ${inventory.length} modules`);
   console.log('[audit] classification counts:', JSON.stringify(counts, null, 2));
   console.log('[audit] runtimeCoupling counts:', JSON.stringify(runtimeCouplingCounts, null, 2));
   console.log(`[audit] of ${localClassified.length} 'local'-classified modules: ${localGenuinelyCoupled} genuinely local-runtime-coupled, ${localFullOnlyNoCoupling} Full-only with NO local-runtime coupling of their own (mostly mcp/ — see design doc §6.6)`);
   console.log(`[audit] Full-reachable: ${fullReachable.size}`);
-  console.log(`[audit] Lite-reachable PRE-shim (real src/, no build.mjs substitution): ${liteReachablePreShim.size}`);
-  console.log(`[audit] Lite-reachable POST-shim (matches actual shipped tarball): ${liteReachable.size}`);
-  console.log(`[audit] files the lazy-shim substitution removes from Lite's reachable set: ${shimCutFiles.length} -> ${JSON.stringify(shimCutFiles)}`);
-  console.log(`[audit] heavy local packages reachable from LITE PRE-shim: ${JSON.stringify(liteHeavyDepsReachablePreShim)}`);
-  console.log(`[audit] heavy local packages reachable from LITE POST-shim (actual tarball reality): ${JSON.stringify(liteHeavyDepsReachable)}`);
+  console.log(`[audit] Lite-reachable: ${liteReachable.size}`);
+  console.log(`[audit] heavy local packages reachable from LITE (matches the shipped tarball's actual dependency list): ${JSON.stringify(liteHeavyDepsReachable)}`);
   console.log(`[audit] heavy local packages reachable from FULL roots: ${JSON.stringify(fullHeavyDepsReachable)}`);
-  if (liteHeavyDepsReachablePreShim.length) {
-    for (const dep of liteHeavyDepsReachablePreShim) {
-      console.log(`  [pre-shim only] ${dep} reachable via: ${[...liteExternalDepsPreShim.get(dep)].join(', ')}`);
-    }
-  }
   if (liteHeavyDepsReachable.length) {
     for (const dep of liteHeavyDepsReachable) {
-      console.log(`  [!! POST-SHIM — real problem] ${dep} reachable via: ${[...liteExternalDeps.get(dep)].join(', ')}`);
+      console.log(`  [!! real problem] ${dep} reachable via: ${[...liteExternalDeps.get(dep)].join(', ')}`);
     }
   } else {
-    console.log('  [ok] zero heavy local packages reachable POST-shim — matches the shipped tarball\'s actual dependency list.');
+    console.log('  [ok] zero heavy local packages reachable from Lite.');
   }
   console.log(`[audit] cloud-imports-local violations: ${cloudImportsLocalViolations.length}${cloudImportsLocalViolations.length ? ' -> ' + JSON.stringify(cloudImportsLocalViolations) : ' (none — cloud correctly never imports local)'}`);
 
   writeFileSync(join(ARTIFACTS_DIR, 'full-lite-reachability-summary.json'), JSON.stringify({
     fullRoots: FULL_ROOTS,
     liteSyntheticRoots,
-    lazyShimSubstitutions: LAZY_SHIM_SUBSTITUTIONS,
     fullReachableCount: fullReachable.size,
-    liteReachablePreShimCount: liteReachablePreShim.size,
     liteReachableCount: liteReachable.size,
-    shimCutFiles,
     fullReachableFiles: [...fullReachable].sort(),
-    liteReachablePreShimFiles: [...liteReachablePreShim].sort(),
     liteReachableFiles: [...liteReachable].sort(),
     fullExternalDeps: Object.fromEntries([...fullExternalDeps.entries()].map(([k, v]) => [k, [...v].sort()])),
-    liteExternalDepsPreShim: Object.fromEntries([...liteExternalDepsPreShim.entries()].map(([k, v]) => [k, [...v].sort()])),
     liteExternalDeps: Object.fromEntries([...liteExternalDeps.entries()].map(([k, v]) => [k, [...v].sort()])),
-    liteHeavyDepsReachablePreShim,
     liteHeavyDepsReachable,
     fullHeavyDepsReachable,
     cloudImportsLocalViolations,

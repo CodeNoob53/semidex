@@ -95,9 +95,9 @@ describe('Phase 8B Step 7B — 24 shared indexer files physically moved from src
   }
 
   for (const rel of STAYED_LAZY_SHIM_FILES) {
-    it(`src/indexer/${rel} (transitional lazy shim, explicitly out of scope) stayed at src/indexer/`, () => {
-      assert.equal(existsSync(join(REPO_SRC, 'indexer', rel)), true, `expected src/indexer/${rel} to still exist — lazy shims are Phase 8B Step 8's own scope, not this step's`);
-      assert.equal(existsSync(join(REPO_SRC, 'shared', 'indexer', rel)), false, `expected src/shared/indexer/${rel} to NOT exist`);
+    it(`src/indexer/${rel} (transitional lazy shim, explicitly out of THIS step's scope at the time) no longer exists anywhere — Phase 8B Step 8 deleted it outright`, () => {
+      assert.equal(existsSync(join(REPO_SRC, 'indexer', rel)), false, `expected src/indexer/${rel} to be gone — Phase 8B Step 8 removed the transitional lazy-shim layer via git rm`);
+      assert.equal(existsSync(join(REPO_SRC, 'shared', 'indexer', rel)), false, `expected src/shared/indexer/${rel} to NOT exist — it was never moved, only deleted`);
     });
   }
 
@@ -391,11 +391,11 @@ describe('Phase 8B Step 7B — Lite tarball stages all 24 moved shared files at 
 });
 
 describe('Phase 8B Step 7B — Full entry point still resolves and can use real local capabilities (the move did not sever Full\'s access to src/local/)', () => {
-  it('src/indexer/index-full.js still statically/dynamically references the real local-runtime lazy shims (ollama-lazy.js, onnx-embed-lazy.js, phases/tag-onnx-lazy.js) unchanged', () => {
+  it('src/indexer/index-full.js still (dynamically) references the real local-runtime capability factories (local/core/ollama-capability.js, local/core/onnx-embed.js, local/indexer/phases/tag-onnx.js) — Phase 8B Step 8 replaced the *-lazy.js dynamic-loader wrappers with direct dynamic imports (dynamic, not static — see index-full.js\'s own header comment for why: preserves index.js\'s "import has zero env side effects" guarantee), unrelated to this step\'s own physical relocation', () => {
     const src = readFileSync(join(REPO_SRC, 'indexer', 'index-full.js'), 'utf-8');
-    assert.match(src, /await import\(['"]\.\.\/core\/ollama-lazy\.js['"]\)/, 'expected index-full.js to still dynamically import ollama-lazy.js');
-    assert.match(src, /await import\(['"]\.\.\/core\/onnx-embed-lazy\.js['"]\)/, 'expected index-full.js to still dynamically import onnx-embed-lazy.js');
-    assert.match(src, /await import\(['"]\.\/phases\/tag-onnx-lazy\.js['"]\)/, 'expected index-full.js to still dynamically import phases/tag-onnx-lazy.js');
+    assert.match(src, /await import\(['"]\.\.\/local\/core\/ollama-capability\.js['"]\)/, 'expected index-full.js to import local/core/ollama-capability.js');
+    assert.match(src, /await import\(['"]\.\.\/local\/core\/onnx-embed\.js['"]\)/, 'expected index-full.js to import local/core/onnx-embed.js');
+    assert.match(src, /await import\(['"]\.\.\/local\/indexer\/phases\/tag-onnx\.js['"]\)/, 'expected index-full.js to import local/indexer/phases/tag-onnx.js');
   });
 
   it('importing index-full.js does not throw and still exports runFullIndexerComposition — the real Full capability-building composition root remains constructible after the move', async () => {

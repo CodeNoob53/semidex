@@ -8,14 +8,12 @@
 // Round 4: indexer/index.js used to be the ONE shared spawn target for
 // both Full and Lite, branching on a SEMIDEX_INDEXER_EDITION env var
 // internally — the AST-based Lite package closure validator is
-// branch-insensitive, so a literal `await import('../core/ollama-lazy.js')`
-// anywhere in a Lite-shipped file's source was a real static edge
+// branch-insensitive, so a literal `import '../local/core/ollama.js'`
+// anywhere in a Lite-shipped file's source would be a real static edge
 // regardless of which `if` branch it sat in. index.js was split into
 // index-full.js (Full's own real capability-injecting entry point,
 // excluded from the Lite package) and index-lite.js (Lite's own entry
-// point, imports no local-runtime module at all — see
-// tests/unit/architecture/lite-lazy-shim-necessity.test.js for the
-// absence-of-Lite-to-local-runtime-edges proof). indexer/index.js is now
+// point, imports no local-runtime module at all). indexer/index.js is now
 // only a thin backward-compatible launcher (`import './index-full.js'`)
 // with no capability-building imports of its own.
 //
@@ -77,10 +75,10 @@ describe('indexer/index-full.js — Full composition explicitly builds and passe
     assert.doesNotMatch(codeOnly, /run\(\)\.catch\(/);
   });
 
-  it('the capability objects passed are dynamically imported *-lazy.js modules (real, working implementations — not stubs)', () => {
-    assert.match(src, /await import\(['"]\.\.\/core\/ollama-lazy\.js['"]\)/);
-    assert.match(src, /await import\(['"]\.\.\/core\/onnx-embed-lazy\.js['"]\)/);
-    assert.match(src, /await import\(['"]\.\/phases\/tag-onnx-lazy\.js['"]\)/);
+  it('the capability objects passed are constructed from dynamically-imported local/ modules (real, working implementations — not stubs; dynamic rather than static so merely importing index.js, without running it as the main module, never triggers local/core/ollama.js\'s own top-level dotenv side effect — see index-full.js\'s own header comment)', () => {
+    assert.match(src, /await import\(['"]\.\.\/local\/core\/ollama-capability\.js['"]\)/);
+    assert.match(src, /await import\(['"]\.\.\/local\/core\/onnx-embed\.js['"]\)/);
+    assert.match(src, /await import\(['"]\.\.\/local\/indexer\/phases\/tag-onnx\.js['"]\)/);
   });
 
   it('runFullIndexerComposition() is exported and called from inside the isIndexerMainModule guard, never as an import-time side effect', () => {
@@ -208,26 +206,26 @@ describe('indexer/index.js — backward-compatible launcher, no capability impor
     assert.match(src.trim(), /^import '\.\/index-full\.js';?$/m);
   });
 
-  it('never imports core/ollama-lazy.js, core/onnx-embed-lazy.js, or phases/tag-onnx-lazy.js directly', () => {
-    assert.doesNotMatch(src, /import\(['"][^'"]*ollama-lazy\.js['"]\)/);
-    assert.doesNotMatch(src, /import\(['"][^'"]*onnx-embed-lazy\.js['"]\)/);
-    assert.doesNotMatch(src, /import\(['"][^'"]*tag-onnx-lazy\.js['"]\)/);
-    assert.doesNotMatch(src, /^import .*ollama-lazy\.js/m);
-    assert.doesNotMatch(src, /^import .*onnx-embed-lazy\.js/m);
-    assert.doesNotMatch(src, /^import .*tag-onnx-lazy\.js/m);
+  it('never imports local/core/ollama-capability.js, local/core/onnx-embed.js, or local/indexer/phases/tag-onnx.js directly', () => {
+    assert.doesNotMatch(src, /import\(['"][^'"]*local\/core\/ollama-capability\.js['"]\)/);
+    assert.doesNotMatch(src, /import\(['"][^'"]*local\/core\/onnx-embed\.js['"]\)/);
+    assert.doesNotMatch(src, /import\(['"][^'"]*local\/indexer\/phases\/tag-onnx\.js['"]\)/);
+    assert.doesNotMatch(src, /^import .*local\/core\/ollama-capability\.js/m);
+    assert.doesNotMatch(src, /^import .*local\/core\/onnx-embed\.js/m);
+    assert.doesNotMatch(src, /^import .*local\/indexer\/phases\/tag-onnx\.js/m);
   });
 });
 
 describe('indexer/index-lite.js — Lite composition never imports a local-runtime module', () => {
   const src = readFileSync(new URL('../../../src/indexer/index-lite.js', import.meta.url), 'utf-8');
 
-  it('never imports core/ollama-lazy.js, core/onnx-embed-lazy.js, or phases/tag-onnx-lazy.js — real OR .lite shim paths', () => {
-    assert.doesNotMatch(src, /import\(['"][^'"]*ollama-lazy\.js['"]\)/);
-    assert.doesNotMatch(src, /import\(['"][^'"]*onnx-embed-lazy\.js['"]\)/);
-    assert.doesNotMatch(src, /import\(['"][^'"]*tag-onnx-lazy\.js['"]\)/);
-    assert.doesNotMatch(src, /^import .*ollama-lazy\.js/m);
-    assert.doesNotMatch(src, /^import .*onnx-embed-lazy\.js/m);
-    assert.doesNotMatch(src, /^import .*tag-onnx-lazy\.js/m);
+  it('never imports local/core/ollama-capability.js, local/core/onnx-embed.js, or local/indexer/phases/tag-onnx.js', () => {
+    assert.doesNotMatch(src, /import\(['"][^'"]*local\/core\/ollama-capability\.js['"]\)/);
+    assert.doesNotMatch(src, /import\(['"][^'"]*local\/core\/onnx-embed\.js['"]\)/);
+    assert.doesNotMatch(src, /import\(['"][^'"]*local\/indexer\/phases\/tag-onnx\.js['"]\)/);
+    assert.doesNotMatch(src, /^import .*local\/core\/ollama-capability\.js/m);
+    assert.doesNotMatch(src, /^import .*local\/core\/onnx-embed\.js/m);
+    assert.doesNotMatch(src, /^import .*local\/indexer\/phases\/tag-onnx\.js/m);
   });
 
   it('supplies a typed-unavailable capability for every slot and calls runIndexerCli() inside its own isIndexerMainModule guard', () => {
@@ -243,8 +241,8 @@ describe('indexer/index-lite.js — Lite composition never imports a local-runti
   });
 });
 
-describe('run.js — run({ capabilities }) accepts real *-lazy.js-backed capabilities for every slot without validation failure', () => {
-  it('a real ollama-lazy.js namespace import, plus real onnx-embed-lazy.js/tag-onnx-lazy.js capability instances, satisfies every narrow capability contract run({ capabilities })\'s own buildRunContext() validates against', async () => {
+describe('run.js — run({ capabilities }) accepts real local/-backed capabilities for every slot without validation failure', () => {
+  it('real local/core/ollama-capability.js factories, plus real local/core/onnx-embed.js/local/indexer/phases/tag-onnx.js capability instances, satisfy every narrow capability contract run({ capabilities })\'s own buildRunContext() validates against', async () => {
     // COLLECTION is read once at run.js's own module-evaluation time (a
     // module-scope const) and main()'s very first check hard process.exit(1)s
     // if it's unset — so COLLECTION must be set, and run.js dynamically
@@ -259,16 +257,23 @@ describe('run.js — run({ capabilities }) accepts real *-lazy.js-backed capabil
     process.argv[2] = '/definitely/does/not/exist/on/any/machine';
     try {
       const { run } = await import(`../../../src/shared/indexer/run.js?real-lazy-validation-${Date.now()}`);
-      const ollamaLazy = await import('../../../src/core/ollama-lazy.js');
-      const onnxEmbedLazy = await import('../../../src/core/onnx-embed-lazy.js');
-      const tagOnnxLazy = await import('../../../src/indexer/phases/tag-onnx-lazy.js');
-      // tag-onnx-lazy.js/onnx-embed-lazy.js each expose a
-      // createXCapability() factory (Phase 8B Step 4 / its onnx-embed
-      // parity fix), not bare singleton-backed exports — every consumer,
-      // including this test, constructs its own instance, exactly like
-      // index-full.js does.
-      const tagOnnx = await tagOnnxLazy.createTagOnnxCapability();
-      const onnxEmbed = onnxEmbedLazy.createOnnxEmbeddingCapability();
+      const {
+        createOllamaGenerateCapability, createOllamaSummaryCapability,
+        createOllamaEmbedCapability, createOllamaDiscoveryCapability,
+      } = await import('../../../src/local/core/ollama-capability.js');
+      const { createOnnxEmbeddingCapability } = await import('../../../src/local/core/onnx-embed.js');
+      const { createTagOnnxCapability } = await import('../../../src/local/indexer/phases/tag-onnx.js');
+      // local/indexer/phases/tag-onnx.js/local/core/onnx-embed.js each
+      // expose a createXCapability() factory (Phase 8B Step 4 / its
+      // onnx-embed parity fix), not bare singleton-backed exports — every
+      // consumer, including this test, constructs its own instance,
+      // exactly like index-full.js does.
+      const tagOnnx = createTagOnnxCapability();
+      const onnxEmbed = createOnnxEmbeddingCapability({ ortFactory: () => ({ InferenceSession: { create: async () => ({ outputNames: [], run: async () => ({}), release: async () => {} }) } }) });
+      const ollamaGenerate = createOllamaGenerateCapability();
+      const ollamaSummary = createOllamaSummaryCapability();
+      const ollamaEmbed = createOllamaEmbedCapability();
+      const ollamaDiscovery = createOllamaDiscoveryCapability();
       // cloudEmbed (code review, Phase 8B Step 6): buildRunContext() now
       // also validates a cloudEmbed capability slot — the real factory is a
       // pure constructor (no network I/O until a method is actually
@@ -284,7 +289,7 @@ describe('run.js — run({ capabilities }) accepts real *-lazy.js-backed capabil
         await assert.rejects(
           () => run({
             capabilities: {
-              ollamaGenerate: ollamaLazy, ollamaSummary: ollamaLazy, ollamaEmbed: ollamaLazy, ollamaDiscovery: ollamaLazy,
+              ollamaGenerate, ollamaSummary, ollamaEmbed, ollamaDiscovery,
               onnxEmbed, tagOnnx, cloudEmbed,
             },
           }),

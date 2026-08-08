@@ -11,11 +11,11 @@
   ],
   "counts": {
     "composition": 12,
-    "mixed": 9,
+    "mixed": 3,
     "tooling": 61,
     "cloud": 8,
     "shared": 144,
-    "local": 27
+    "local": 28
   },
   "modules": [
     {
@@ -31,8 +31,8 @@
         "src/core/ce-rerank.js",
         "src/core/generation/registry.js",
         "src/core/generation/runtime.js",
-        "src/core/ollama-lazy.js",
         "src/core/settings/service.js",
+        "src/local/core/ollama-capability.js",
         "src/local/core/onnx-runtime-source-resolution.js",
         "src/local/core/onnx-runtime-unavailable-capability.js",
         "src/shared/admin/server.js",
@@ -101,14 +101,14 @@
         "src/cloud/generation/cloud-generation-provider.js",
         "src/core/generation/registry.js",
         "src/core/generation/runtime.js",
-        "src/core/ollama-lazy.js",
-        "src/core/onnx-embed-lazy.js",
         "src/core/settings/service.js",
         "src/core/storage/factory.js",
         "src/local/admin/api/ollama-models.js",
         "src/local/admin/api/onnx.js",
         "src/local/admin/system/ollama.js",
+        "src/local/core/ollama-capability.js",
         "src/local/core/ollama-models.js",
+        "src/local/core/onnx-embed.js",
         "src/shared/admin/api/generation-models.js",
         "src/shared/admin/api/jobs.js",
         "src/shared/admin/api/system.js",
@@ -170,8 +170,8 @@
       "fullReachable": true,
       "liteReachable": false,
       "directDependencies": [
-        "src/core/ollama-lazy.js",
         "src/core/settings/service.js",
+        "src/local/core/ollama-capability.js",
         "src/local/indexer/phases/tag-onnx.js",
         "src/shared/core/env-bootstrap.js",
         "src/shared/core/qdrant.js",
@@ -617,47 +617,6 @@
       "directDependencies": []
     },
     {
-      "path": "src/core/ollama-lazy.js",
-      "declaredCategory": "mixed",
-      "category": "mixed",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": false,
-      "directDependencies": [
-        "src/local/core/ollama.js"
-      ]
-    },
-    {
-      "path": "src/core/ollama-lazy.lite.js",
-      "declaredCategory": "mixed",
-      "category": "mixed",
-      "compositionEdition": null,
-      "fullReachable": false,
-      "liteReachable": false,
-      "directDependencies": []
-    },
-    {
-      "path": "src/core/onnx-embed-lazy.js",
-      "declaredCategory": "mixed",
-      "category": "mixed",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": false,
-      "directDependencies": [
-        "src/local/core/length-bucket.js",
-        "src/local/core/onnx-embed.js"
-      ]
-    },
-    {
-      "path": "src/core/onnx-embed-lazy.lite.js",
-      "declaredCategory": "mixed",
-      "category": "mixed",
-      "compositionEdition": null,
-      "fullReachable": false,
-      "liteReachable": false,
-      "directDependencies": []
-    },
-    {
       "path": "src/core/qdrant/client.js",
       "declaredCategory": "shared",
       "category": "shared",
@@ -920,11 +879,11 @@
       "liteReachable": false,
       "directDependencies": [
         "src/cloud/embedding/cloud-embedding-provider.js",
-        "src/core/ollama-lazy.js",
-        "src/core/onnx-embed-lazy.js",
         "src/core/settings/service.js",
-        "src/indexer/phases/tag-onnx-lazy.js",
+        "src/local/core/ollama-capability.js",
+        "src/local/core/onnx-embed.js",
         "src/local/core/onnx-runtime-source-resolution.js",
+        "src/local/indexer/phases/tag-onnx.js",
         "src/shared/core/env-bootstrap.js",
         "src/shared/indexer/index-runtime.js"
       ]
@@ -950,29 +909,6 @@
       "liteReachable": false,
       "directDependencies": [
         "src/indexer/index-full.js"
-      ]
-    },
-    {
-      "path": "src/indexer/phases/tag-onnx-lazy.js",
-      "declaredCategory": "mixed",
-      "category": "mixed",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": false,
-      "directDependencies": [
-        "src/local/indexer/phases/tag-onnx.js",
-        "src/shared/indexer/phases/tag-provider.js"
-      ]
-    },
-    {
-      "path": "src/indexer/phases/tag-onnx-lazy.lite.js",
-      "declaredCategory": "mixed",
-      "category": "mixed",
-      "compositionEdition": null,
-      "fullReachable": false,
-      "liteReachable": false,
-      "directDependencies": [
-        "src/shared/indexer/phases/tag-provider.js"
       ]
     },
     {
@@ -1073,6 +1009,17 @@
       "directDependencies": [
         "src/local/core/managed-onnx-runtime-manifest.js",
         "src/local/core/managed-runtime-id.js"
+      ]
+    },
+    {
+      "path": "src/local/core/ollama-capability.js",
+      "declaredCategory": "local",
+      "category": "local",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/local/core/ollama.js"
       ]
     },
     {
@@ -1240,7 +1187,7 @@
       "fullReachable": true,
       "liteReachable": false,
       "directDependencies": [
-        "src/core/onnx-embed-lazy.js",
+        "src/local/core/onnx-embed.js",
         "src/local/core/onnx-runtime-source-resolution.js",
         "src/local/core/onnx-runtime-unavailable-capability.js"
       ]
@@ -1255,9 +1202,9 @@
       "directDependencies": [
         "src/cloud/embedding/cloud-embedding-provider.js",
         "src/core/ce-rerank.js",
-        "src/core/ollama-lazy.js",
         "src/core/rerank-provider.js",
         "src/core/settings/service.js",
+        "src/local/core/ollama-capability.js",
         "src/mcp/onnx-runtime-resolution.js",
         "src/mcp/tools/collections.js",
         "src/mcp/tools/findByTag.js",

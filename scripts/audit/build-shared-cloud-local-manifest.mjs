@@ -113,7 +113,7 @@ export function buildManifest() {
   const fullReachable = computeReachable(graph, FULL_ROOTS);
   const liteSyntheticRoots = graph.files.filter((f) => f.startsWith(LITE_SRC_DIR));
   const liteReachabilityRoots = [...liteSyntheticRoots, LITE_UI_ENTRY];
-  const liteReachable = computeReachable(graph, liteReachabilityRoots, { applyLiteShims: true });
+  const liteReachable = computeReachable(graph, liteReachabilityRoots);
 
   // Build a task-specific baseline from explicit boundaries and real
   // reachability. A dependency-aware pass below then exposes incompatible
@@ -141,8 +141,8 @@ export function buildManifest() {
     // the real onnxEmbed capability and a typed-unavailable one — so it
     // is classified alongside mcp/server.js as composition-full, not
     // 'local' by bare reachability. Without this, its own real
-    // (and correct) local/core-> onnx-embed-lazy.js import edge would be
-    // flagged as a local_to_mixed direction violation purely because it
+    // (and correct) local/core -> onnx-embed.js import edge would be
+    // flagged as a local_to_local direction violation purely because it
     // lives in its own file instead of inline in mcp/server.js.
     let richClassification;
     if (LOCAL_ONLY_PATH_PATTERNS.some((p) => p.test(file))) richClassification = 'local';
@@ -155,17 +155,16 @@ export function buildManifest() {
     // implementation" file. Without this, index-full.js's fullReachable-
     // only/liteReachable:false baseline previously mapped it to 'local'
     // purely from reachability, which then masked its genuine (and
-    // correct) composition-root imports of ollama-lazy.js/onnx-embed-lazy.js/
-    // tag-onnx-lazy.js/cloud-embedding-provider.js as 'local_to_mixed'/
-    // 'local_to_cloud' violations — they are not violations; a composition
-    // root importing every capability implementation it composes is exactly
-    // its job.
+    // correct) composition-root imports of local/core/ollama-capability.js/
+    // onnx-embed.js/local/indexer/phases/tag-onnx.js/cloud-embedding-provider.js
+    // as 'local_to_local'/'local_to_cloud' violations — they are not
+    // violations; a composition root importing every capability
+    // implementation it composes is exactly its job.
     else if (file === 'src/indexer/index-full.js') richClassification = 'composition-full';
     else if (file === 'src/indexer/index-lite.js') richClassification = 'composition-lite';
     else if (COMPOSITION_FULL_PATTERNS.some((p) => p.test(file)) || file === 'src/admin/ui-src/entries/full.js') richClassification = 'composition-full';
     else if (file === 'src/admin/ui-src/entries/lite.js') richClassification = 'composition-lite';
     else if (CLOUD_ONLY_PATH_PATTERNS.some((p) => p.test(file))) richClassification = 'cloud';
-    else if (/-lazy\.js$/.test(file) || /-lazy\.lite\.js$/.test(file)) richClassification = 'mixed';
     else if (SHARED_CONTRACT_FILES.has(file)) richClassification = 'shared';
     else if (file.startsWith('src/mcp/tools/')) richClassification = 'shared';
     else if (inFull && inLite) richClassification = 'shared';
@@ -193,7 +192,7 @@ export function buildManifest() {
       // category: the EFFECTIVE, propagation-refined classification —
       // 'mixed' once a module (transitively) depends on something outside
       // its own declared category's allowed targets. This is the field
-      // most consumers (tests asserting "is this lazy shim/provider-coupled
+      // most consumers (tests asserting "is this provider-coupled
       // orchestration classified mixed") should keep reading; it describes
       // real packaging/coupling, not ownership. find-dependency-violations.mjs
       // reads declaredCategory instead, specifically so a shared->cloud edge

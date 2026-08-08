@@ -11,18 +11,19 @@ import {
 } from '../../../src/local/core/ollama.js';
 import { checkOllamaPreflight } from '../../../src/shared/indexer/preflight.js';
 import { checkOllama } from '../../../src/local/admin/system/ollama.js';
-import * as ollamaLazy from '../../../src/core/ollama-lazy.js';
+import { createOllamaDiscoveryCapability } from '../../../src/local/core/ollama-capability.js';
 
 // preflight.js has no module-scope capability of its own at all (Phase 8B
 // Step 3 — checkOllamaPreflight()/ensureOllamaPreflight() take their
 // capability as a real function argument, no apply*Capability() setter
 // exists to call here anymore). This test file's whole point is proving
-// checkOllamaPreflight() delegates to the REAL shared core/ollama.js logic
-// (via the real ollama-lazy.js module, exercised end to end with a stubbed
-// globalThis.fetch) — so every checkOllamaPreflight() call below passes
-// ollamaLazy explicitly, mirroring what indexer/run.js's own per-call
-// ctx.ollamaDiscovery supplies in production (buildRunContext() — no
-// module-scope snapshot, see run.js's own header comment).
+// checkOllamaPreflight() delegates to the REAL shared local/core/ollama.js
+// logic (via local/core/ollama-capability.js's real factory, exercised end
+// to end with a stubbed globalThis.fetch) — so every checkOllamaPreflight()
+// call below passes a real OllamaDiscoveryCapability explicitly, mirroring
+// what indexer/run.js's own per-call ctx.ollamaDiscovery supplies in
+// production (buildRunContext() — no module-scope snapshot, see run.js's
+// own header comment).
 
 describe('validateOllamaModels', () => {
   it('returns null when every required model is available', () => {
@@ -343,16 +344,16 @@ describe('shared Ollama logic — no duplication between indexer and admin', () 
     assert.ok(!/fetch\(.*\/api\/tags/.test(src), 'preflight.js must not re-implement its own /api/tags fetch');
   });
 
-  it('core/ollama-lazy.js re-exports the shared Ollama logic from local/core/ollama.js (so preflight\'s delegation is transitive, not a fork)', async () => {
-    const src = await readFile(new URL('../../../src/core/ollama-lazy.js', import.meta.url), 'utf-8');
-    // The lazy wrapper must load the real local/core/ollama.js dynamically
-    // and forward to it — never re-implement the fetches. This is what
-    // makes preflight importing from ollama-lazy.js equivalent, for the
-    // no-duplication invariant, to importing from local/core/ollama.js
-    // directly.
-    assert.match(src, /await import\(['"]\.\.\/local\/core\/ollama\.js['"]\)/);
-    assert.ok(!/fetch\(.*\/api\/version/.test(src), 'ollama-lazy.js must not re-implement its own /api/version fetch');
-    assert.ok(!/fetch\(.*\/api\/tags/.test(src), 'ollama-lazy.js must not re-implement its own /api/tags fetch');
+  it('local/core/ollama-capability.js re-exports the shared Ollama logic from local/core/ollama.js (so preflight\'s delegation is transitive, not a fork)', async () => {
+    const src = await readFile(new URL('../../../src/local/core/ollama-capability.js', import.meta.url), 'utf-8');
+    // The capability factory must import the real local/core/ollama.js
+    // functions and forward to them — never re-implement the fetches. This
+    // is what makes preflight's injected OllamaDiscoveryCapability
+    // equivalent, for the no-duplication invariant, to calling
+    // local/core/ollama.js directly.
+    assert.match(src, /from ['"]\.\/ollama\.js['"]/);
+    assert.ok(!/fetch\(.*\/api\/version/.test(src), 'ollama-capability.js must not re-implement its own /api/version fetch');
+    assert.ok(!/fetch\(.*\/api\/tags/.test(src), 'ollama-capability.js must not re-implement its own /api/tags fetch');
   });
 
   it('src/local/admin/system/ollama.js imports isOllamaReachable/listOllamaModels from local/core/ollama.js', async () => {
@@ -377,7 +378,7 @@ describe('shared Ollama logic — no duplication between indexer and admin', () 
       assert.equal(adminResult.status, 'model_missing');
 
       await assert.rejects(
-        () => checkOllamaPreflight('http://localhost:11434', 'gemma3:4b', 'gemma3:4b', ollamaLazy),
+        () => checkOllamaPreflight('http://localhost:11434', 'gemma3:4b', 'gemma3:4b', createOllamaDiscoveryCapability()),
         /Required Ollama model\(s\) not pulled/,
       );
     } finally {
@@ -394,7 +395,7 @@ describe('shared Ollama logic — no duplication between indexer and admin', () 
       assert.equal(adminResult.status, 'missing');
 
       await assert.rejects(
-        () => checkOllamaPreflight('http://localhost:11434', 'gemma3:4b', 'gemma3:4b', ollamaLazy),
+        () => checkOllamaPreflight('http://localhost:11434', 'gemma3:4b', 'gemma3:4b', createOllamaDiscoveryCapability()),
         /Ollama unreachable/,
       );
     } finally {

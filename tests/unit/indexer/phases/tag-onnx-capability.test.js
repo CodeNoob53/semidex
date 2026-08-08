@@ -33,10 +33,10 @@ describe('validateTagOnnxCapability', () => {
     }
   });
 
-  test('REQUIRED_TAG_ONNX_CAPABILITY_METHODS matches the shape createTagOnnxCapability() actually returns (Phase 8B Step 4, second pass — tag-onnx-lazy.js no longer exports the two worker-touching methods directly, only a factory)', async () => {
-    const real = await import('../../../../src/indexer/phases/tag-onnx-lazy.js');
+  test('REQUIRED_TAG_ONNX_CAPABILITY_METHODS matches the shape createTagOnnxCapability() actually returns (Phase 8B Step 4, second pass — local/indexer/phases/tag-onnx.js exports only a factory, never the two worker-touching methods directly)', async () => {
+    const real = await import('../../../../src/local/indexer/phases/tag-onnx.js');
     assert.equal(typeof real.createTagOnnxCapability, 'function', 'sanity: the factory itself is exported');
-    const instance = await real.createTagOnnxCapability();
+    const instance = real.createTagOnnxCapability();
     const instanceFnNames = Object.keys(instance).filter((k) => typeof instance[k] === 'function').sort();
     assert.deepEqual([...REQUIRED_TAG_ONNX_CAPABILITY_METHODS].sort(), instanceFnNames);
     await instance.shutdownOnnxTagWorker(); // no worker was ever spawned; safe cleanup
@@ -72,11 +72,22 @@ describe('shutdownOnnxTagWorker always-safe-no-op contract — a disabled/no-op 
     assert.equal(started, false, 'sanity: no worker lifecycle was ever entered');
   });
 
-  test('the real tag-onnx-lazy.lite.js shim\'s own createTagOnnxCapability() already satisfies this exact contract (cross-check against the existing, already-shipped implementation)', async () => {
-    const shim = await import('../../../../src/indexer/phases/tag-onnx-lazy.lite.js');
-    const instance = await shim.createTagOnnxCapability();
-    validateTagOnnxCapability(instance);
-    await assert.doesNotReject(() => instance.shutdownOnnxTagWorker());
-    await assert.rejects(() => instance.addTagsOnnxBatch([]), /not available in Semidex Lite/);
+  test('indexer/index-lite.js declares a shape-conforming, always-safe-no-op typed-unavailable capability (structural check — see tests/unit/architecture/onnx-embed-instance-scoping.test.js and index-capability-wiring.test.js for the real behavioral proof that index-lite.js actually constructs and passes it)', () => {
+    // Phase 8B Step 8: Lite no longer reaches this shape through a
+    // *-lazy.lite.js shim file — index-lite.js builds its own small,
+    // local, throwaway typed-unavailable capability object directly (see
+    // that file's own header comment for why: the *-lazy.js/*-lazy.lite.js
+    // dynamic-loader wrappers were deleted outright, not merely excluded
+    // from the Lite package). Source-level structural check only — the
+    // real construction is exercised behaviorally by index-capability-wiring.test.js's
+    // own 'supplies a typed-unavailable capability for every slot' assertion.
+    const src = readFileSync(new URL('../../../../src/indexer/index-lite.js', import.meta.url), 'utf-8');
+    assert.match(src, /function unavailableTagOnnxCapability\(\)/);
+    const fnStart = src.indexOf('function unavailableTagOnnxCapability');
+    const fnEnd = src.indexOf('\n}', fnStart);
+    const fnBody = src.slice(fnStart, fnEnd);
+    assert.match(fnBody, /addTagsOnnxBatch:/);
+    assert.match(fnBody, /async shutdownOnnxTagWorker\(\)/, 'shutdownOnnxTagWorker must be declared async (always resolves, matching the always-safe-no-op contract)');
+    assert.doesNotMatch(fnBody, /shutdownOnnxTagWorker.*throw/s, 'shutdownOnnxTagWorker must never throw — a disabled capability\'s cleanup must always be safe');
   });
 });

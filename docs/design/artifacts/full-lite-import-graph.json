@@ -53,10 +53,6 @@
     "src/core/generation/runtime.js",
     "src/core/http/http.js",
     "src/core/http/sse.js",
-    "src/core/ollama-lazy.js",
-    "src/core/ollama-lazy.lite.js",
-    "src/core/onnx-embed-lazy.js",
-    "src/core/onnx-embed-lazy.lite.js",
     "src/core/qdrant/client.js",
     "src/core/qdrant/ensure-schema.js",
     "src/core/qdrant/index.js",
@@ -81,8 +77,6 @@
     "src/indexer/index-full.js",
     "src/indexer/index-lite.js",
     "src/indexer/index.js",
-    "src/indexer/phases/tag-onnx-lazy.js",
-    "src/indexer/phases/tag-onnx-lazy.lite.js",
     "src/local/admin/api/ollama-models.js",
     "src/local/admin/api/onnx.js",
     "src/local/admin/system/ollama.js",
@@ -92,6 +86,7 @@
     "src/local/core/managed-onnx-runtime-manifest.js",
     "src/local/core/managed-runtime-id.js",
     "src/local/core/managed-runtime-listing.js",
+    "src/local/core/ollama-capability.js",
     "src/local/core/ollama-models.js",
     "src/local/core/ollama.js",
     "src/local/core/onnx-cuda-installer-logic.js",
@@ -300,6 +295,11 @@
           "resolved": "src/local/core/onnx-runtime-unavailable-capability.js"
         },
         {
+          "specifier": "../local/core/ollama-capability.js",
+          "kind": "relative",
+          "resolved": "src/local/core/ollama-capability.js"
+        },
+        {
           "specifier": "../shared/core/env-bootstrap.js",
           "kind": "relative",
           "resolved": "src/shared/core/env-bootstrap.js"
@@ -335,12 +335,6 @@
           "literal": true,
           "kind": "relative",
           "resolved": "src/core/generation/registry.js"
-        },
-        {
-          "specifier": "../core/ollama-lazy.js",
-          "literal": true,
-          "kind": "relative",
-          "resolved": "src/core/ollama-lazy.js"
         },
         {
           "specifier": "../cloud/generation/cloud-generation-provider.js",
@@ -560,14 +554,14 @@
           "resolved": "src/admin/jobs/spawn-indexer-full.js"
         },
         {
-          "specifier": "../core/ollama-lazy.js",
+          "specifier": "../local/core/ollama-capability.js",
           "kind": "relative",
-          "resolved": "src/core/ollama-lazy.js"
+          "resolved": "src/local/core/ollama-capability.js"
         },
         {
-          "specifier": "../core/onnx-embed-lazy.js",
+          "specifier": "../local/core/onnx-embed.js",
           "kind": "relative",
-          "resolved": "src/core/onnx-embed-lazy.js"
+          "resolved": "src/local/core/onnx-embed.js"
         },
         {
           "specifier": "../cloud/embedding/cloud-embedding-provider.js",
@@ -733,10 +727,10 @@
           "resolved": "src/local/indexer/phases/tag-onnx.js"
         },
         {
-          "specifier": "./core/ollama-lazy.js",
+          "specifier": "./local/core/ollama-capability.js",
           "literal": true,
           "kind": "relative",
-          "resolved": "src/core/ollama-lazy.js"
+          "resolved": "src/local/core/ollama-capability.js"
         }
       ],
       "requireCalls": [],
@@ -1392,50 +1386,6 @@
       "requireCalls": [],
       "forkSpawnCalls": []
     },
-    "src/core/ollama-lazy.js": {
-      "staticImports": [],
-      "dynamicImports": [
-        {
-          "specifier": "../local/core/ollama.js",
-          "literal": true,
-          "kind": "relative",
-          "resolved": "src/local/core/ollama.js"
-        }
-      ],
-      "requireCalls": [],
-      "forkSpawnCalls": []
-    },
-    "src/core/ollama-lazy.lite.js": {
-      "staticImports": [],
-      "dynamicImports": [],
-      "requireCalls": [],
-      "forkSpawnCalls": []
-    },
-    "src/core/onnx-embed-lazy.js": {
-      "staticImports": [],
-      "dynamicImports": [
-        {
-          "specifier": "../local/core/onnx-embed.js",
-          "literal": true,
-          "kind": "relative",
-          "resolved": "src/local/core/onnx-embed.js"
-        },
-        {
-          "specifier": "../local/core/length-bucket.js",
-          "literal": true,
-          "kind": "relative",
-          "resolved": "src/local/core/length-bucket.js"
-        }
-      ],
-      "requireCalls": [],
-      "forkSpawnCalls": []
-    },
-    "src/core/onnx-embed-lazy.lite.js": {
-      "staticImports": [],
-      "dynamicImports": [],
-      "requireCalls": [],
-      "forkSpawnCalls": []
-    },
     "src/core/qdrant/client.js": {
       "staticImports": [
         {
@@ -1932,22 +1882,22 @@
           "resolved": "src/local/core/onnx-runtime-source-resolution.js"
         },
         {
-          "specifier": "../core/ollama-lazy.js",
+          "specifier": "../local/core/ollama-capability.js",
           "literal": true,
           "kind": "relative",
-          "resolved": "src/core/ollama-lazy.js"
+          "resolved": "src/local/core/ollama-capability.js"
         },
         {
-          "specifier": "../core/onnx-embed-lazy.js",
+          "specifier": "../local/core/onnx-embed.js",
           "literal": true,
           "kind": "relative",
-          "resolved": "src/core/onnx-embed-lazy.js"
+          "resolved": "src/local/core/onnx-embed.js"
         },
         {
-          "specifier": "./phases/tag-onnx-lazy.js",
+          "specifier": "../local/indexer/phases/tag-onnx.js",
           "literal": true,
           "kind": "relative",
-          "resolved": "src/indexer/phases/tag-onnx-lazy.js"
+          "resolved": "src/local/indexer/phases/tag-onnx.js"
         }
       ],
       "requireCalls": [],
@@ -1976,37 +1926,6 @@
           "specifier": "./index-full.js",
           "kind": "relative",
           "resolved": "src/indexer/index-full.js"
-        }
-      ],
-      "dynamicImports": [],
-      "requireCalls": [],
-      "forkSpawnCalls": []
-    },
-    "src/indexer/phases/tag-onnx-lazy.js": {
-      "staticImports": [
-        {
-          "specifier": "../../shared/indexer/phases/tag-provider.js",
-          "kind": "relative",
-          "resolved": "src/shared/indexer/phases/tag-provider.js"
-        }
-      ],
-      "dynamicImports": [
-        {
-          "specifier": "../../local/indexer/phases/tag-onnx.js",
-          "literal": true,
-          "kind": "relative",
-          "resolved": "src/local/indexer/phases/tag-onnx.js"
-        }
-      ],
-      "requireCalls": [],
-      "forkSpawnCalls": []
-    },
-    "src/indexer/phases/tag-onnx-lazy.lite.js": {
-      "staticImports": [
-        {
-          "specifier": "../../shared/indexer/phases/tag-provider.js",
-          "kind": "relative",
-          "resolved": "src/shared/indexer/phases/tag-provider.js"
         }
       ],
       "dynamicImports": [],
@@ -2201,6 +2120,18 @@
           "specifier": "./managed-onnx-runtime-manifest.js",
           "kind": "relative",
           "resolved": "src/local/core/managed-onnx-runtime-manifest.js"
+        }
+      ],
+      "dynamicImports": [],
+      "requireCalls": [],
+      "forkSpawnCalls": []
+    },
+    "src/local/core/ollama-capability.js": {
+      "staticImports": [
+        {
+          "specifier": "./ollama.js",
+          "kind": "relative",
+          "resolved": "src/local/core/ollama.js"
         }
       ],
       "dynamicImports": [],
@@ -2561,9 +2492,9 @@
           "resolved": "src/local/core/onnx-runtime-unavailable-capability.js"
         },
         {
-          "specifier": "../core/onnx-embed-lazy.js",
+          "specifier": "../local/core/onnx-embed.js",
           "kind": "relative",
-          "resolved": "src/core/onnx-embed-lazy.js"
+          "resolved": "src/local/core/onnx-embed.js"
         }
       ],
       "dynamicImports": [],
@@ -2624,10 +2555,10 @@
           "resolved": "src/shared/core/embeddings.js"
         },
         {
-          "specifier": "../core/ollama-lazy.js",
+          "specifier": "../local/core/ollama-capability.js",
           "literal": true,
           "kind": "relative",
-          "resolved": "src/core/ollama-lazy.js"
+          "resolved": "src/local/core/ollama-capability.js"
         },
         {
           "specifier": "../cloud/embedding/cloud-embedding-provider.js",

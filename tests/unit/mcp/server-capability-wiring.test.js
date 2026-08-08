@@ -36,18 +36,19 @@ describe('mcp/server.js — never calls applyEmbeddingCapabilities() (code revie
     assert.doesNotMatch(src, /(?<!\/\/[^\n]*)\bapplyEmbeddingCapabilities\s*\(/);
   });
 
-  it('still dynamically imports the real ollama-lazy.js module for search.setEmbedQuery()\'s own bound closure', () => {
-    assert.match(src, /await import\(['"]\.\.\/core\/ollama-lazy\.js['"]\)/);
+  it('constructs a real OllamaEmbedCapability directly from local/core/ollama-capability.js for search.setEmbedQuery()\'s own bound closure (Phase 8B Step 8 — the transitional core/ollama-lazy.js dynamic-loader wrapper is gone; MCP is a Full-only entry point, never staged in the Lite package, so a static import here never reaches Lite\'s module graph)', () => {
+    assert.match(src, /const \{ createOllamaEmbedCapability, createOllamaDiscoveryCapability \} = await import\(['"]\.\.\/local\/core\/ollama-capability\.js['"]\)/);
+    assert.match(src, /const ollamaEmbed = createOllamaEmbedCapability\(\);/);
   });
 
   it('resolves onnxEmbed via mcp/onnx-runtime-resolution.js\'s resolveOnnxEmbedCapabilityForMcp() — review finding (P1): this is what makes a managed CUDA selection (ONNX_MANAGED_RUNTIME) actually reach the MCP process; real behavioral coverage lives in tests/unit/mcp/onnx-runtime-resolution.test.js, this is structural wiring proof only', () => {
     assert.match(src, /import \{ resolveOnnxEmbedCapabilityForMcp \} from '\.\/onnx-runtime-resolution\.js'/);
     assert.match(src, /const onnxEmbed = await resolveOnnxEmbedCapabilityForMcp\(\{ settingsService \}\);/);
-    // onnx-embed-lazy.js's createOnnxEmbeddingCapability() itself is no
-    // longer imported/called directly in THIS file — it moved into
+    // local/core/onnx-embed.js's createOnnxEmbeddingCapability() itself is
+    // not imported/called directly in THIS file — it happens inside
     // onnx-runtime-resolution.js, which is the one place that decides
     // between the real capability and the typed-unavailable one.
-    assert.doesNotMatch(src, /await import\(['"]\.\.\/core\/onnx-embed-lazy\.js['"]\)/);
+    assert.doesNotMatch(src, /await import\(['"]\.\.\/local\/core\/onnx-embed\.js['"]\)/);
   });
 });
 
@@ -58,7 +59,7 @@ describe('mcp/server.js — the real per-call isolation fix: search.setEmbedQuer
     const lineMatch = src.split('\n').find((line) => !line.trim().startsWith('//') && line.includes('search.setEmbedQuery('));
     assert.ok(lineMatch, 'expected a real (non-comment) search.setEmbedQuery(...) call');
     assert.match(lineMatch, /embedForSearch\(profile,\s*query,\s*\{\s*capabilities:/);
-    assert.match(lineMatch, /ollama:\s*ollamaLazy/);
+    assert.match(lineMatch, /ollama:\s*ollamaEmbed/);
     assert.match(lineMatch, /onnxEmbed\b/);
   });
 

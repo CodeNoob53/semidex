@@ -379,6 +379,48 @@ entry points, explicitly out of this step's own scope. `cloud/admin/` was
 unaffected (already relocated by Step 6). See that report for the full
 file-by-file classification table and verification results.
 
+**Phase 8B Step 8 update** (`docs/design/phase-8b-step8-lazy-shim-removal-2026-08-08.md`,
+implemented): the transitional `*-lazy.js`/`*-lazy.lite.js` dynamic-loader
+layer this document describes throughout (Refactor 1's own
+`core/ollama-lazy.js` introduction, the `core/onnx-embed-lazy.js`/
+`indexer/phases/tag-onnx-lazy.js` extensions, and every later step's own
+"stayed put, out of scope" notes for them) was deleted outright —
+`core/ollama-lazy.js`, `core/ollama-lazy.lite.js`, `core/onnx-embed-lazy.js`,
+`core/onnx-embed-lazy.lite.js`, `indexer/phases/tag-onnx-lazy.js`, and
+`indexer/phases/tag-onnx-lazy.lite.js` no longer exist anywhere in the
+repository (`git rm`, not merely excluded from Lite staging). This
+document's own historical prose describing the six files, the
+`substituteLazyShims()`/`LAZY_SHIM_SUBSTITUTIONS` build-time mechanism
+(already removed earlier, per its own "no `*-lazy.js` content
+substitution step" note in `packages/lite/build.mjs`), and
+`tests/unit/architecture/lite-lazy-shim-necessity.test.js` (itself
+deleted) is kept unedited below, for the same reason the Step 7A/7B/7C
+notes above give — read this note as the authoritative "what replaced
+them" pointer instead.
+
+Every former consumer of the six deleted files now imports the real
+local-runtime implementation directly: `local/core/ollama-capability.js`
+(new — four narrow factory functions, `createOllamaGenerateCapability()`/
+`createOllamaSummaryCapability()`/`createOllamaEmbedCapability()`/
+`createOllamaDiscoveryCapability()`, each returning only the method subset
+its own contract in `core/generation/ollama-capability.js` declares, plus
+bare re-exports of `generateStream`/`isOllamaReachable`/
+`listOllamaModels`/`validateOllamaModels`/`getModelContextLength` for
+`admin/bootstrap.js`'s own five-`*Fn` Ollama generation override),
+`local/core/onnx-embed.js`'s own `createOnnxEmbeddingCapability()` (already
+instance-scoped; no wrapper needed), and `local/indexer/phases/tag-onnx.js`'s
+own `createTagOnnxCapability()` (same). Every one of the six real
+production consumers (`admin/bootstrap.js`, `admin/server-full.js`,
+`indexer/index-full.js`, `backfill-tags.js`, `mcp/server.js`,
+`mcp/onnx-runtime-resolution.js`) that imports these is already Full-only
+or MCP-only and wholesale-excluded from the Lite package (`EXCLUDE_FILES`/
+`EXCLUDE_DIRS`), so a plain static import in each of them never reaches
+Lite's module graph — the lazy dynamic-`import()` deferral the six deleted
+files existed for was never actually necessary once every real caller
+already lived behind that exclusion boundary. See that report for the
+full migration table, the six-consumer-by-consumer breakdown, and
+verification results.
+
 ## Refactor 2 — deterministic context for legacy (non-Markdown) chunks
 
 `chunk.js` routes PDF/Pandoc/plain-text through the legacy chunker, and

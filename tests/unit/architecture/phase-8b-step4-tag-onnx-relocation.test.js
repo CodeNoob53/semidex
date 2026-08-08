@@ -89,13 +89,9 @@ describe('Phase 8B Step 4 — tag-onnx.js/tag-onnx-worker.js physically moved fr
     assert.equal(existsSync(join(REPO_SRC, 'local', 'indexer', 'workers', 'tag-onnx-worker.js')), true);
   });
 
-  it('indexer/phases/tag-onnx-lazy.js and its .lite.js shim stay at their ORIGINAL location — only the ONE dynamic-import specifier inside the real lazy module changed', () => {
-    // Mirrors Step 2/3's precedent exactly: the lazy seam itself is not
-    // local-only (it has zero backend imports of its own), so it does not
-    // move — only the one dynamic-import specifier it uses to reach the
-    // real implementation changes.
-    assert.equal(existsSync(join(REPO_SRC, 'indexer', 'phases', 'tag-onnx-lazy.js')), true);
-    assert.equal(existsSync(join(REPO_SRC, 'indexer', 'phases', 'tag-onnx-lazy.lite.js')), true);
+  it('indexer/phases/tag-onnx-lazy.js and its .lite.js shim no longer exist — Phase 8B Step 8 deleted the transitional dynamic-loader seam outright (git rm)', () => {
+    assert.equal(existsSync(join(REPO_SRC, 'indexer', 'phases', 'tag-onnx-lazy.js')), false);
+    assert.equal(existsSync(join(REPO_SRC, 'indexer', 'phases', 'tag-onnx-lazy.lite.js')), false);
   });
 });
 
@@ -153,21 +149,19 @@ describe('Phase 8B Step 4 — no production source file references the old src/i
     assert.deepEqual(offenders, [], `found live import(s)/require(s) still targeting the old indexer/phases/tag-onnx.js or indexer/workers/tag-onnx-worker.js path: ${JSON.stringify(offenders)}`);
   });
 
-  it('this check genuinely catches a regression, not just passes trivially (verified by deliberate temporary reversion)', () => {
-    // Proves the check above is load-bearing: temporarily point
-    // tag-onnx-lazy.js's own specifier back at the OLD (deleted) location
-    // in memory (not on disk — this test never writes a file) and confirm
-    // isOldMovedFilePath() would flag it, using the exact same resolution
-    // logic the real scan above uses.
-    const lazyFile = join(REPO_SRC, 'indexer', 'phases', 'tag-onnx-lazy.js');
-    const regressedSpecifier = './tag-onnx.js';
-    assert.equal(isOldMovedFilePath(regressedSpecifier, lazyFile), true, 'sanity: the detection logic itself must flag a reverted same-directory specifier');
-    // And the CURRENT real specifier must NOT be flagged (it correctly
-    // resolves to the new location).
-    const currentSrc = readFileSync(lazyFile, 'utf-8');
-    const currentMatch = currentSrc.match(/await import\(['"]([^'"]+)['"]\)/);
-    assert.ok(currentMatch, 'expected to find the real dynamic import in tag-onnx-lazy.js');
-    assert.equal(isOldMovedFilePath(currentMatch[1], lazyFile), false, 'the CURRENT specifier must resolve to the NEW location, not the old one');
+  it('this check genuinely catches a regression, not just passes trivially (verified by a synthetic reverted specifier)', () => {
+    // Proves the check above is load-bearing: constructs a synthetic
+    // specifier that WOULD point at the OLD (deleted) location if it
+    // appeared in a file at index-full.js's own directory, and confirms
+    // isOldMovedFilePath() flags it, using the exact same resolution logic
+    // the real scan above uses. (Phase 8B Step 8 deleted the
+    // tag-onnx-lazy.js file this proof previously exercised directly — the
+    // detector itself is what's under test here, not any specific file's
+    // current content.)
+    const importingFile = join(REPO_SRC, 'indexer', 'index-full.js');
+    const regressedSpecifier = './phases/tag-onnx.js';
+    assert.equal(isOldMovedFilePath(regressedSpecifier, importingFile), true, 'sanity: the detection logic itself must flag a reverted same-directory specifier');
+    assert.equal(isOldMovedFilePath('../local/indexer/phases/tag-onnx.js', importingFile), false, 'the CURRENT real specifier shape must resolve to the NEW location, not the old one');
   });
 });
 
@@ -190,9 +184,9 @@ describe('Phase 8B Step 4 — Lite tarball physically excludes src/local/ (not m
     }
   });
 
-  it('the real tag-onnx-lazy.js is EXCLUDED from Lite staging too (not merely its own local target) — nothing kept in Lite imports it, so there is no path through it to the real implementation in the shipped tarball', () => {
+  it('indexer/phases/tag-onnx-lazy.js is absent from the Lite staged tree — it no longer exists in the repo at all (Phase 8B Step 8)', () => {
     const staged = listAllFiles(STAGED_SRC).map((f) => f.replace(/\\/g, '/'));
-    assert.ok(!staged.includes('indexer/phases/tag-onnx-lazy.js'), 'tag-onnx-lazy.js itself is excluded from Lite staging (build.mjs EXCLUDE_FILES) — nothing kept in Lite imports it');
+    assert.ok(!staged.includes('indexer/phases/tag-onnx-lazy.js'), 'expected zero staged copies of the deleted tag-onnx-lazy.js file');
   });
 });
 
@@ -200,23 +194,14 @@ describe('Phase 8B Step 4 — Lite import graph never reaches the ONNX tag-gener
   const graph = buildGraph();
   const liteSyntheticRoots = graph.files.filter((f) => f.startsWith(LITE_SRC_DIR));
 
-  it('neither local/indexer/phases/tag-onnx.js nor local/indexer/workers/tag-onnx-worker.js is reachable from Lite roots, PRE-shim (no build-time substitution needed)', () => {
-    const reachable = computeReachable(graph, liteSyntheticRoots, { applyLiteShims: false });
+  it('neither local/indexer/phases/tag-onnx.js nor local/indexer/workers/tag-onnx-worker.js is reachable from Lite roots', () => {
+    const reachable = computeReachable(graph, liteSyntheticRoots);
     const leaked = NEW_PATHS.filter((p) => reachable.has(p));
     assert.deepEqual(leaked, [], `expected zero tag-onnx runtime files reachable from Lite, found: ${JSON.stringify(leaked)}`);
   });
 
-  it('POST-shim reachability is identical to PRE-shim — nothing left for a shim substitution to do', () => {
-    const preShim = computeReachable(graph, liteSyntheticRoots, { applyLiteShims: false });
-    const postShim = computeReachable(graph, liteSyntheticRoots, { applyLiteShims: true });
-    for (const p of NEW_PATHS) {
-      assert.equal(preShim.has(p), postShim.has(p));
-      assert.equal(preShim.has(p), false);
-    }
-  });
-
   it('@huggingface/transformers (the heavy native dependency tag-onnx-worker.js pulls in) is not reachable from Lite roots', () => {
-    const reachable = computeReachable(graph, liteSyntheticRoots, { applyLiteShims: true });
+    const reachable = computeReachable(graph, liteSyntheticRoots);
     const heavyImporters = [...reachable].filter((f) => {
       const node = graph.nodes[f];
       if (!node) return false;
@@ -245,7 +230,7 @@ describe('Phase 8B Step 4 — only Full/local composition modules have a real ed
 
   it('src/local/indexer/phases/tag-onnx.js is imported only by files reachable from Full roots (never by any Lite-reachable file)', () => {
     const liteSyntheticRoots = graph.files.filter((f) => f.startsWith(LITE_SRC_DIR));
-    const liteReachable = computeReachable(graph, liteSyntheticRoots, { applyLiteShims: true });
+    const liteReachable = computeReachable(graph, liteSyntheticRoots);
     const fullReachable = computeReachable(graph, FULL_ROOTS);
     const realImporters = importers('src/local/indexer/phases/tag-onnx.js');
     assert.ok(realImporters.length > 0, 'sanity: expected at least one real importer of local/indexer/phases/tag-onnx.js');
@@ -280,12 +265,10 @@ describe('Phase 8B Step 4 — shared/cloud-classified manifest modules never imp
     assert.deepEqual(violations, [], `found shared/cloud module(s) with a direct src/local/ dependency: ${JSON.stringify(violations)}`);
   });
 
-  it('indexer/phases/tag-onnx-lazy.js (category "mixed" — the deliberate seam) is the one documented exception, not silently exempted', () => {
+  it('src/indexer/phases/tag-onnx-lazy.js no longer exists — Phase 8B Step 8 deleted the transitional dynamic-loader seam outright (git rm), not merely excluded it from the Lite package', () => {
     const manifest = loadManifest();
     const lazySeam = manifest.modules.find((m) => m.path === 'src/indexer/phases/tag-onnx-lazy.js');
-    assert.ok(lazySeam, 'expected src/indexer/phases/tag-onnx-lazy.js to exist in the manifest');
-    assert.equal(lazySeam.category, 'mixed', 'the lazy seam must be classified "mixed", not "shared" — it is the boundary itself, not a shared-side violation');
-    assert.ok(lazySeam.directDependencies.includes('src/local/indexer/phases/tag-onnx.js'), 'sanity: the seam really does depend on the moved file');
+    assert.equal(lazySeam, undefined, 'expected src/indexer/phases/tag-onnx-lazy.js to be absent from the manifest — it was deleted, not merely reclassified');
   });
 });
 

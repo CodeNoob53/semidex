@@ -27,7 +27,7 @@
 // admin/bootstrap.js's own onnxEmbedCapability override for createApp().
 import { resolveOnnxRuntimeForProcess } from '../local/core/onnx-runtime-source-resolution.js';
 import { createOnnxRuntimeUnavailableCapability } from '../local/core/onnx-runtime-unavailable-capability.js';
-import { createOnnxEmbeddingCapability } from '../core/onnx-embed-lazy.js';
+import { createOnnxEmbeddingCapability } from '../local/core/onnx-embed.js';
 
 /**
  * @param {{

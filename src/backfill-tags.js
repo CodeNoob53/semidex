@@ -26,18 +26,22 @@ const { isOnnxTagProvider, createTagOnnxCapability } = await import('./local/ind
 // composition).
 const tagOnnx = createTagOnnxCapability();
 // Full-only tooling script (like sync.js/doctor.js) — imports the real
-// Ollama capability directly via the lazy seam, mirroring
-// indexer/index-full.js's own composition. Never reached unless
-// TAG_PROVIDER=onnx is unset (generateTags() below only calls addTagsBatch()
-// in that case); resolved unconditionally here regardless, matching every
-// other real Full entry point's own "composition root selects the
-// capability once, up front" discipline (code review, Phase 8B Step 3 —
-// this script previously called addTagsBatch() with NO capability injected
-// at all, which would have thrown "no ollama capability injected" the
-// moment a non-ONNX backfill actually ran; there is no prior test coverage
-// for this script, so this was a real, previously-undetected gap that this
-// fix closes as part of removing tag.js's own module-scope fallback).
-const ollamaLazy = await import('./core/ollama-lazy.js');
+// Ollama capability directly (Phase 8B Step 8 — the transitional
+// core/ollama-lazy.js dynamic-loader wrapper is gone; this script is
+// excluded from the Lite package entirely, so a static import here never
+// reaches Lite's module graph), mirroring indexer/index-full.js's own
+// composition. Never reached unless TAG_PROVIDER=onnx is unset
+// (generateTags() below only calls addTagsBatch() in that case); resolved
+// unconditionally here regardless, matching every other real Full entry
+// point's own "composition root selects the capability once, up front"
+// discipline (code review, Phase 8B Step 3 — this script previously
+// called addTagsBatch() with NO capability injected at all, which would
+// have thrown "no ollama capability injected" the moment a non-ONNX
+// backfill actually ran; there is no prior test coverage for this script,
+// so this was a real, previously-undetected gap that this fix closes as
+// part of removing tag.js's own module-scope fallback).
+const { createOllamaGenerateCapability } = await import('./local/core/ollama-capability.js');
+const ollamaGenerate = createOllamaGenerateCapability();
 
 applyTagSettings(settingsService);
 // Writes every writable setting's active value into process.env — TAG_*/
@@ -79,7 +83,7 @@ function toChunk(point) {
 
 async function generateTags(chunks) {
   if (isOnnxTagProvider(process.env)) return tagOnnx.addTagsOnnxBatch(chunks);
-  return addTagsBatch(chunks, { ollama: ollamaLazy });
+  return addTagsBatch(chunks, { ollama: ollamaGenerate });
 }
 
 console.log(`[tags] scanning collection "${COLLECTION}"...`);

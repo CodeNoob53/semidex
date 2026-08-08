@@ -4,9 +4,9 @@
 // its session/tokenizer/in-flight-load-promise/provider-fallback state as
 // module-scope bindings, and every real composition root
 // (indexer/index-full.js, admin/server-full.js, mcp/server.js) passed the
-// SAME cached core/onnx-embed-lazy.js module namespace object as its own
-// "capability" — so two independently-composed callers in one process
-// actually shared one ONNX InferenceSession.
+// SAME cached module namespace object as its own "capability" — so two
+// independently-composed callers in one process actually shared one ONNX
+// InferenceSession.
 //
 // Fixed by createOnnxEmbeddingCapability(): a factory returning a fresh,
 // independent instance per call, with the tokenizer/session/load-promise/
@@ -16,17 +16,23 @@
 // hermetic (fake session/tokenizer) behavioral proof that two instances
 // never share mutable state.
 //
+// Phase 8B Step 8: the transitional core/onnx-embed-lazy.js dynamic-loader
+// wrapper is gone — every composition root now imports
+// local/core/onnx-embed.js's createOnnxEmbeddingCapability() directly
+// (each of these composition roots is Full-only/mcp-only, already
+// wholesale-excluded from the Lite package, so a static import never
+// reaches Lite's module graph).
+//
 // This file proves the COMPOSITION-level guarantees:
 //   - index-full.js/admin/server-full.js/mcp/server.js each construct
-//     their OWN capability instance, not the bare *-lazy.js namespace;
+//     their OWN capability instance, not a shared namespace object;
 //   - Lite composition roots continue to supply only a typed-unavailable
 //     capability, never touching the real implementation;
 //   - Full and Lite composition roots can be constructed in either order,
 //     repeatedly, in one process, without any cross-contamination of
 //     core/embeddings.js's own shared module-scope fallback;
 //   - the Lite import graph and staged tarball still never reach the real
-//     ONNX embedding implementation (unaffected by this round's
-//     export-shape change — no file moved).
+//     ONNX embedding implementation.
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -60,24 +66,24 @@ describe('local/core/onnx-embed.js — createOnnxEmbeddingCapability() export sh
   });
 });
 
-describe('indexer/index-full.js — constructs its own ONNX embedding capability instance, not the bare *-lazy.js namespace', () => {
-  it('imports createOnnxEmbeddingCapability from onnx-embed-lazy.js and calls it to build a real instance, passed in as onnxEmbed', () => {
+describe('indexer/index-full.js — constructs its own ONNX embedding capability instance directly from local/core/onnx-embed.js', () => {
+  it('dynamically imports createOnnxEmbeddingCapability from local/core/onnx-embed.js (dynamic, not static — see index-full.js\'s own header comment: local/core/ollama.js has a top-level dotenv side effect, and index.js statically imports this file, so a static import chain here would leak that side effect into merely importing index.js) and calls it to build a real instance, passed in as onnxEmbed', () => {
     const src = readFileSync(new URL('../../../src/indexer/index-full.js', import.meta.url), 'utf-8');
-    assert.match(src, /const onnxEmbedLazy = await import\(['"]\.\.\/core\/onnx-embed-lazy\.js['"]\)/);
-    assert.match(src, /const onnxEmbed = onnxEmbedLazy\.createOnnxEmbeddingCapability\(\);/);
-    // Must NOT pass the bare namespace object itself as the capability —
-    // that was the exact bug (onnxEmbed: onnxEmbedLazy).
+    assert.match(src, /const \{ createOnnxEmbeddingCapability \} = await import\(['"]\.\.\/local\/core\/onnx-embed\.js['"]\);/);
+    assert.match(src, /const onnxEmbed = createOnnxEmbeddingCapability\(\);/);
+    // Must never pass a bare module namespace object as the capability —
+    // the exact bug this test line historically caught.
     const codeOnly = src.split('\n').filter((line) => !line.trim().startsWith('//'));
     const runIndexerCliCall = codeOnly.find((line) => line.includes('onnxEmbed') && line.includes('tagOnnx'));
     assert.ok(runIndexerCliCall, 'expected to find the runIndexerCli({ ..., onnxEmbed, tagOnnx }) call line');
-    assert.doesNotMatch(runIndexerCliCall, /onnxEmbed:\s*onnxEmbedLazy\b/, 'must pass a constructed instance, never the bare *-lazy.js module namespace');
+    assert.doesNotMatch(runIndexerCliCall, /onnxEmbed:\s*\w*Lazy\b/, 'must pass a constructed instance, never a bare module namespace');
   });
 });
 
-describe('admin/server-full.js — constructs its own ONNX embedding capability instance, not the bare *-lazy.js namespace', () => {
+describe('admin/server-full.js — constructs its own ONNX embedding capability instance directly from local/core/onnx-embed.js', () => {
   it('imports createOnnxEmbeddingCapability and calls it once by default, at createApp() composition time — or uses the injected onnxEmbedCapability override when bootstrap.js supplies a typed-unavailable one (review finding, P2)', () => {
     const src = readFileSync(new URL('../../../src/admin/server-full.js', import.meta.url), 'utf-8');
-    assert.match(src, /import\s*\{\s*createOnnxEmbeddingCapability\s*\}\s*from\s*['"]\.\.\/core\/onnx-embed-lazy\.js['"]/);
+    assert.match(src, /import\s*\{\s*createOnnxEmbeddingCapability\s*\}\s*from\s*['"]\.\.\/local\/core\/onnx-embed\.js['"]/);
     assert.match(src, /const onnxEmbed = onnxEmbedCapability \?\? createOnnxEmbeddingCapability\(\);/);
     // The old bare-namespace pattern must be gone entirely.
     assert.doesNotMatch(src, /import\s*\*\s*as\s+onnxEmbedLazy/);
@@ -100,7 +106,7 @@ describe('admin/server-full.js — constructs its own ONNX embedding capability 
   });
 });
 
-describe('mcp/server.js — constructs its own ONNX embedding capability instance, not the bare *-lazy.js namespace', () => {
+describe('mcp/server.js — constructs its own ONNX embedding capability instance, not a bare module namespace', () => {
   it('resolves onnxEmbed via mcp/onnx-runtime-resolution.js\'s resolveOnnxEmbedCapabilityForMcp() (review finding, P1/P2) — that function itself constructs a fresh createOnnxEmbeddingCapability() instance (or a typed-unavailable one) exactly once, at module composition time; real behavioral coverage lives in tests/unit/mcp/onnx-runtime-resolution.test.js', () => {
     const src = readFileSync(new URL('../../../src/mcp/server.js', import.meta.url), 'utf-8');
     assert.match(src, /import \{ resolveOnnxEmbedCapabilityForMcp \} from '\.\/onnx-runtime-resolution\.js'/);
@@ -111,18 +117,18 @@ describe('mcp/server.js — constructs its own ONNX embedding capability instanc
     assert.doesNotMatch(setEmbedQueryLine, /onnxEmbed:\s*onnxEmbedLazy\b/);
   });
 
-  it('mcp/onnx-runtime-resolution.js itself constructs a fresh createOnnxEmbeddingCapability() instance, not the bare *-lazy.js namespace, when the resolved runtime is healthy', () => {
+  it('mcp/onnx-runtime-resolution.js itself constructs a fresh createOnnxEmbeddingCapability() instance directly from local/core/onnx-embed.js, not a bare module namespace, when the resolved runtime is healthy', () => {
     const src = readFileSync(new URL('../../../src/mcp/onnx-runtime-resolution.js', import.meta.url), 'utf-8');
-    assert.match(src, /import \{ createOnnxEmbeddingCapability \} from '\.\.\/core\/onnx-embed-lazy\.js'/);
+    assert.match(src, /import\s*\{\s*createOnnxEmbeddingCapability\s*\}\s*from\s*['"]\.\.\/local\/core\/onnx-embed\.js['"]/);
     assert.match(src, /return createOnnxEmbeddingCapabilityFn\(\);/);
   });
 });
 
 describe('Lite composition roots continue to supply only a typed-unavailable ONNX embedding capability', () => {
-  it('admin/composition/lite.js never imports onnx-embed-lazy.js (real or .lite.js) and its unavailableOnnxEmbedCapability() includes a safe shutdown() no-op', async () => {
+  it('admin/composition/lite.js never imports local/core/onnx-embed.js and its unavailableOnnxEmbedCapability() includes a safe shutdown() no-op', async () => {
     const src = readFileSync(new URL('../../../src/admin/composition/lite.js', import.meta.url), 'utf-8');
-    assert.doesNotMatch(src, /import\(['"][^'"]*onnx-embed-lazy\.js['"]\)/);
-    assert.doesNotMatch(src, /^import .*onnx-embed-lazy\.js/m);
+    assert.doesNotMatch(src, /import\(['"][^'"]*local\/core\/onnx-embed\.js['"]\)/);
+    assert.doesNotMatch(src, /^import .*local\/core\/onnx-embed\.js/m);
 
     const { createLiteApp } = await import('../../../src/admin/composition/lite.js?onnx-embed-instance-scoping-check');
     const settingsService = createSettingsService({ osEnv: {}, dotenvValues: {} });
@@ -136,10 +142,10 @@ describe('Lite composition roots continue to supply only a typed-unavailable ONN
     assert.ok(app);
   });
 
-  it('indexer/index-lite.js never imports onnx-embed-lazy.js and its unavailableOnnxEmbedCapability() includes shutdown()', () => {
+  it('indexer/index-lite.js never imports local/core/onnx-embed.js and its unavailableOnnxEmbedCapability() includes shutdown()', () => {
     const src = readFileSync(new URL('../../../src/indexer/index-lite.js', import.meta.url), 'utf-8');
-    assert.doesNotMatch(src, /import\(['"][^'"]*onnx-embed-lazy\.js['"]\)/);
-    assert.doesNotMatch(src, /^import .*onnx-embed-lazy\.js/m);
+    assert.doesNotMatch(src, /import\(['"][^'"]*local\/core\/onnx-embed\.js['"]\)/);
+    assert.doesNotMatch(src, /^import .*local\/core\/onnx-embed\.js/m);
     assert.match(src, /function unavailableOnnxEmbedCapability\(\)/);
     const fnStart = src.indexOf('function unavailableOnnxEmbedCapability');
     const fnEnd = src.indexOf('\n}', fnStart);

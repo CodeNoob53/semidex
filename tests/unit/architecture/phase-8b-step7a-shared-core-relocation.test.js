@@ -83,9 +83,9 @@ describe('Phase 8B Step 7A — 17 shared core files physically moved from src/co
   }
 
   for (const name of STAYED_LAZY_SHIM_FILES) {
-    it(`src/core/${name} (transitional lazy shim, explicitly out of scope) stayed at src/core/`, () => {
-      assert.equal(existsSync(join(REPO_SRC, 'core', name)), true, `expected src/core/${name} to still exist — lazy shims are Phase 8B Step 8's own scope, not this step's`);
-      assert.equal(existsSync(join(REPO_SRC, 'shared', 'core', name)), false, `expected src/shared/core/${name} to NOT exist`);
+    it(`src/core/${name} (transitional lazy shim, explicitly out of THIS step's scope at the time) no longer exists anywhere — Phase 8B Step 8 deleted it outright`, () => {
+      assert.equal(existsSync(join(REPO_SRC, 'core', name)), false, `expected src/core/${name} to be gone — Phase 8B Step 8 removed the transitional lazy-shim layer via git rm`);
+      assert.equal(existsSync(join(REPO_SRC, 'shared', 'core', name)), false, `expected src/shared/core/${name} to NOT exist — it was never moved, only deleted`);
     });
   }
 });
