@@ -186,6 +186,61 @@ describe('POST /api/system/onnx-probe', () => {
     assert.equal(receivedEnv?.ONNXRUNTIME_NODE_PATH, '/custom/ort/path');
   });
 
+  // Provider-aware resolution (bug fix): ONNX_MANAGED_RUNTIME names a
+  // CUDA-only build. A DML probe used to still resolve/apply it (the
+  // resolution layer was entirely provider-blind), producing
+  // "no available backend found. ERR: [dml] backend not found" against a
+  // runtime that was never broken — it just wasn't built for DML. This
+  // exercises the REAL resolveEffectiveOnnxRuntimePath() (not injected),
+  // the same one production startup goes through, to prove the fix at the
+  // actual HTTP route boundary, not just the lower-level unit.
+  test('a DML probe never receives the managed CUDA runtime path, even when ONNX_MANAGED_RUNTIME is saved — the managed build is CUDA-only', async () => {
+    const settingsPath = tempSettingsPath(dir);
+    writeFileSync(settingsPath, JSON.stringify({
+      ONNX_EXECUTION_PROVIDER: 'dml', ONNX_MANAGED_RUNTIME: '1.26.0-cuda13',
+    }), 'utf-8');
+    const settingsService = createSettingsService({ osEnv: {}, dotenvValues: {}, settingsPath });
+    let receivedEnv;
+    const runOnnxProbeFn = async (provider, opts) => { receivedEnv = opts?.env; return { ...STABLE_SUCCESS_RESULT, requestedProvider: provider, effectiveProvider: provider }; };
+    let json;
+    await withServer(async (base) => {
+      ({ json } = await httpPostJson(base, '/api/system/onnx-probe', { provider: 'dml' }));
+    }, { settingsService, runOnnxProbeFn });
+    assert.equal('ONNXRUNTIME_NODE_PATH' in receivedEnv, false, 'a DML probe must never apply the managed CUDA-only runtime path');
+    assert.equal('ONNX_MANAGED_RUNTIME_ACTIVE' in receivedEnv, false, 'a DML probe must never mark the managed CUDA runtime active');
+    assert.equal(json.managedRuntimeManifest, null, 'a DML probe response must never surface a managed runtime manifest');
+  });
+
+  test('a CUDA probe against a saved ONNX_MANAGED_RUNTIME id that is not actually installed on disk resolves to npm (not managed), surfaced via diagnosis, never a silent fallback — distinct from the DML-is-inapplicable case above', async () => {
+    const settingsPath = tempSettingsPath(dir);
+    // A well-formed managed-runtime id (passes isValidManagedRuntimeId())
+    // but deliberately a version/CUDA-major combination this test never
+    // installs anywhere — the real, un-injected resolveSemidexHomePaths()
+    // runtimesDir is used here (this route has no DI seam for it), so this
+    // must be an id that is virtually certain not to exist on ANY real
+    // machine's managed-runtimes directory, unlike '1.26.0-cuda13' (the
+    // actual pinned default from scripts/onnxruntime-cuda-lock.json, which
+    // a developer machine that ran the real installer may genuinely have
+    // installed — using that id here would make this test's outcome
+    // depend on host machine state).
+    writeFileSync(settingsPath, JSON.stringify({
+      ONNX_EXECUTION_PROVIDER: 'cuda', ONNX_MANAGED_RUNTIME: '0.0.1-cuda999',
+    }), 'utf-8');
+    const settingsService = createSettingsService({ osEnv: {}, dotenvValues: {}, settingsPath });
+    let receivedEnv;
+    const runOnnxProbeFn = async (provider, opts) => { receivedEnv = opts?.env; return { ...STABLE_SUCCESS_RESULT, requestedProvider: provider }; };
+    let json;
+    await withServer(async (base) => {
+      ({ json } = await httpPostJson(base, '/api/system/onnx-probe', { provider: 'cuda' }));
+    }, { settingsService, runOnnxProbeFn });
+    // No real managed-runtime directory exists for this id, so resolution
+    // fails integrity/manifest lookup — this is the EXISTING
+    // "invalid/corrupt" path, surfaced via the diagnosis field, never a
+    // silent npm fallback with no explanation.
+    assert.equal('ONNXRUNTIME_NODE_PATH' in receivedEnv, false);
+    assert.ok(json.diagnosis, 'an unresolvable managed selection for the requested cuda provider must be surfaced via diagnosis, not silently dropped');
+  });
+
   test('an explicit body.provider is tested against the CONFIGURED (not stale-active) ONNXRUNTIME_NODE_PATH — never a mix of new provider + old runtime path', async () => {
     // Regression test: the route used to read ONNXRUNTIME_NODE_PATH via
     // getActiveValue() (the frozen, pre-restart value) while the requested

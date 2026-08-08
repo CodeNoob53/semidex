@@ -1,17 +1,19 @@
 // Resolves which ONNX Runtime module path Semidex should actually load —
 // explicit ONNXRUNTIME_NODE_PATH setting > managed CUDA runtime selection
-// (ONNX_MANAGED_RUNTIME) > default npm package — and prepares this
-// PROCESS's own environment (PATH, ONNXRUNTIME_NODE_PATH,
-// ONNX_MANAGED_RUNTIME_ACTIVE) so local/core/onnx-runtime.js's existing
-// loadOnnxRuntime()/resolveOnnxRuntimeModule() (untouched, still reads
-// only env.ONNXRUNTIME_NODE_PATH) picks it up correctly.
+// (ONNX_MANAGED_RUNTIME, CUDA provider only — see resolveEffectiveOnnxRuntimePath()'s
+// own header comment) > default npm package — and prepares this PROCESS's
+// own environment (PATH, ONNXRUNTIME_NODE_PATH, ONNX_MANAGED_RUNTIME_ACTIVE)
+// so local/core/onnx-runtime.js's existing loadOnnxRuntime()/
+// resolveOnnxRuntimeModule() (untouched, still reads only
+// env.ONNXRUNTIME_NODE_PATH) picks it up correctly.
 //
 // This is the ONE place every real caller (the indexer CLI via
-// src/indexer/index-runtime.js, the Admin server via src/admin/
-// bootstrap.js, the Admin probe route via src/admin/api/onnx.js, and any
-// future entry point) goes through — never duplicated, so the
-// explicit>managed>npm precedence and the cuDNN PATH preparation it
-// requires can never drift apart between processes.
+// src/indexer/index-full.js, the Admin server via src/admin/bootstrap.js,
+// MCP via src/mcp/onnx-runtime-resolution.js, the Admin probe route via
+// src/local/admin/api/onnx.js, and any future entry point) goes through —
+// never duplicated, so the explicit>managed>npm precedence, its
+// provider-gating, and the cuDNN PATH preparation it requires can never
+// drift apart between processes.
 //
 // Real OS-level explicit values are never at risk of being cleared
 // incorrectly: resolveEffectiveOnnxRuntimePath() always reads the CURRENT
@@ -37,13 +39,37 @@ import { resolveSemidexHomePaths } from './semidex-home.js';
  * tests even asserted this fallback as the CORRECT behavior). `resolutionFailed`
  * is the explicit, typed signal that fixes this: true if and ONLY if the
  * caller actually selected a managed runtime (`managedSelection` was
- * non-empty) and that selection could not be resolved — never true for a
- * genuine "no selection made" npm default. resolveOnnxRuntimeForProcess()
- * below treats this the same as a prepareOnnxRuntimeProcessEnv() failure
- * (prepared.ok: false), so every real caller's own fail-fast/typed-
- * unavailable handling applies here too, not just to a cuDNN-PATH failure
- * on an otherwise-valid selection.
+ * non-empty), that selection is meaningful for the REQUESTED provider (see
+ * `provider` below), and it could not be resolved — never true for a
+ * genuine "no selection made" npm default, and never true for a managed
+ * selection that's simply inapplicable to a non-CUDA provider.
+ * resolveOnnxRuntimeForProcess() below treats this the same as a
+ * prepareOnnxRuntimeProcessEnv() failure (prepared.ok: false), so every
+ * real caller's own fail-fast/typed-unavailable handling applies here too,
+ * not just to a cuDNN-PATH failure on an otherwise-valid selection.
+ *
+ * Provider-awareness (bug fix): `ONNX_MANAGED_RUNTIME` names a CUDA-only
+ * build (see managed-runtime-id.js's `<ortVersion>-cuda<cudaMajor>` id
+ * format — there is no other flavor) with no DirectML execution provider
+ * compiled in. Applying it regardless of the REQUESTED provider used to
+ * make a dml/cpu selection silently load the CUDA build anyway, which then
+ * failed DML probes with "no available backend found. ERR: [dml] backend
+ * not found" — the managed runtime was never the problem, using it for a
+ * provider it was never built for was. `provider` is REQUIRED (no
+ * default) precisely so a caller can never forget to pass it and
+ * accidentally get the old CUDA-only behavior back.
+ *
+ * The managed selection value itself is deliberately never cleared or
+ * validated away for a non-cuda provider — it stays in settings exactly as
+ * the user left it (see applyOnnxRuntimeEnvPatch()'s own provider-aware
+ * clearing of the ACTIVE env markers below), so switching back to cuda
+ * later re-applies the same managed runtime without the user reselecting
+ * it. Only the EXPLICIT `ONNXRUNTIME_NODE_PATH` is treated as
+ * provider-universal — a user-provided custom onnxruntime-node build can
+ * legitimately support any provider (npm's own default package does, for
+ * instance), so it is never gated by `provider` here.
  * @param {{
+ *   provider: 'cpu'|'dml'|'cuda',
  *   explicitPath?: string,
  *   managedSelection?: string,
  *   runtimesDir: string,
@@ -56,14 +82,14 @@ import { resolveSemidexHomePaths } from './semidex-home.js';
  * }}
  */
 export function resolveEffectiveOnnxRuntimePath({
-  explicitPath, managedSelection, runtimesDir, readFileSyncFn, existsSyncFn,
+  provider, explicitPath, managedSelection, runtimesDir, readFileSyncFn, existsSyncFn,
 }) {
   const trimmedExplicit = String(explicitPath ?? '').trim();
   if (trimmedExplicit) {
     return { path: trimmedExplicit, source: 'explicit', managedId: null, cudnnBinPath: null };
   }
 
-  const trimmedManaged = String(managedSelection ?? '').trim();
+  const trimmedManaged = provider === 'cuda' ? String(managedSelection ?? '').trim() : '';
   if (trimmedManaged) {
     if (!isValidManagedRuntimeId(trimmedManaged)) {
       return {
@@ -236,6 +262,14 @@ export function applyOnnxRuntimeEnvPatch(resolved, { env = process.env } = {}) {
  * same actionable `reason`, and neither is ever silently absorbed into a
  * plain npm/CPU fallback.
  *
+ * Reads `ONNX_EXECUTION_PROVIDER` from the same settingsService as
+ * `ONNXRUNTIME_NODE_PATH`/`ONNX_MANAGED_RUNTIME` (never a raw env read —
+ * this must reflect the SAME active-value resolution, saved config +
+ * next_restart semantics, as every other setting this function reads) and
+ * threads it into resolveEffectiveOnnxRuntimePathFn() as `provider`, so a
+ * dml/cpu process never applies a CUDA-only managed runtime (see
+ * resolveEffectiveOnnxRuntimePath()'s own header comment for the bug this
+ * closes).
  * @param {{
  *   settingsService: { getActiveValue(key: string): string },
  *   env?: NodeJS.ProcessEnv,
@@ -258,10 +292,11 @@ export function resolveOnnxRuntimeForProcess({
   applyOnnxRuntimeEnvPatchFn = applyOnnxRuntimeEnvPatch,
   prepareOnnxRuntimeProcessEnvFn = prepareOnnxRuntimeProcessEnv,
 }) {
+  const provider = settingsService.getActiveValue('ONNX_EXECUTION_PROVIDER');
   const explicitPath = settingsService.getActiveValue('ONNXRUNTIME_NODE_PATH');
   const managedSelection = settingsService.getActiveValue('ONNX_MANAGED_RUNTIME');
   const { runtimesDir } = resolveSemidexHomePathsFn({ env });
-  const resolved = resolveEffectiveOnnxRuntimePathFn({ explicitPath, managedSelection, runtimesDir });
+  const resolved = resolveEffectiveOnnxRuntimePathFn({ provider, explicitPath, managedSelection, runtimesDir });
   applyOnnxRuntimeEnvPatchFn(resolved, { env });
   const prepared = resolved.resolutionFailed
     ? { ok: false, reason: resolved.warning }

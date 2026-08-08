@@ -100,21 +100,25 @@ function artifactsMatchingManifest(manifest) {
 }
 
 describe('resolveEffectiveOnnxRuntimePath()', () => {
-  it('explicit path wins over everything, even a valid managed selection', () => {
-    const resolved = resolveEffectiveOnnxRuntimePath({
-      explicitPath: 'D:\\custom\\onnxruntime-node',
-      managedSelection: RUNTIME_ID,
-      runtimesDir: RUNTIMES_DIR,
-    });
-    assert.deepEqual(resolved, {
-      path: 'D:\\custom\\onnxruntime-node', source: 'explicit', managedId: null, cudnnBinPath: null,
-    });
+  it('explicit path wins over everything, even a valid managed selection, regardless of provider', () => {
+    for (const provider of ['cpu', 'dml', 'cuda']) {
+      const resolved = resolveEffectiveOnnxRuntimePath({
+        provider,
+        explicitPath: 'D:\\custom\\onnxruntime-node',
+        managedSelection: RUNTIME_ID,
+        runtimesDir: RUNTIMES_DIR,
+      });
+      assert.deepEqual(resolved, {
+        path: 'D:\\custom\\onnxruntime-node', source: 'explicit', managedId: null, cudnnBinPath: null,
+      }, `explicit path must win for provider=${provider}`);
+    }
   });
 
   it('trims whitespace-only explicit path and treats it as unset', () => {
     const { manifest, buffers } = artifactsMatchingManifest(makeValidManifest());
     const fs = makeFakeFs({ manifest, artifactBytes: buffers });
     const resolved = resolveEffectiveOnnxRuntimePath({
+      provider: 'cuda',
       explicitPath: '   ',
       managedSelection: RUNTIME_ID,
       runtimesDir: RUNTIMES_DIR,
@@ -125,26 +129,53 @@ describe('resolveEffectiveOnnxRuntimePath()', () => {
 
   it('falls through to npm when neither explicit nor managed is set — resolutionFailed must be absent, not just falsy, to distinguish this from a broken explicit selection', () => {
     const resolved = resolveEffectiveOnnxRuntimePath({
-      explicitPath: '', managedSelection: '', runtimesDir: RUNTIMES_DIR,
+      provider: 'cuda', explicitPath: '', managedSelection: '', runtimesDir: RUNTIMES_DIR,
     });
     assert.deepEqual(resolved, { path: '', source: 'npm', managedId: null, cudnnBinPath: null });
     assert.equal('resolutionFailed' in resolved, false);
   });
 
-  it('a valid, intact managed selection resolves to the runtime dir with its cudnnBinPath', () => {
+  it('a valid, intact managed selection resolves to the runtime dir with its cudnnBinPath when provider=cuda', () => {
     const { manifest, buffers } = artifactsMatchingManifest(makeValidManifest());
     const fs = makeFakeFs({ manifest, artifactBytes: buffers });
     const resolved = resolveEffectiveOnnxRuntimePath({
-      explicitPath: '', managedSelection: RUNTIME_ID, runtimesDir: RUNTIMES_DIR, ...fs,
+      provider: 'cuda', explicitPath: '', managedSelection: RUNTIME_ID, runtimesDir: RUNTIMES_DIR, ...fs,
     });
     assert.deepEqual(resolved, {
       path: RUNTIME_DIR, source: 'managed', managedId: RUNTIME_ID, cudnnBinPath: CUDNN_BIN,
     });
   });
 
-  it('an invalid managed-runtime id format falls back to npm with a loud warning AND resolutionFailed:true — never silently (review finding, P1)', () => {
+  // Provider-awareness (bug fix): ONNX_MANAGED_RUNTIME names a CUDA-only
+  // build — applying it for dml/cpu used to load a runtime with no
+  // DirectML EP compiled in, producing "no available backend found. ERR:
+  // [dml] backend not found" even though the managed runtime itself was
+  // perfectly healthy. These prove the fix at the lowest-level function.
+  for (const provider of ['dml', 'cpu']) {
+    it(`a valid, intact managed selection is ignored (resolves to plain npm) when provider=${provider} — the managed build is CUDA-only`, () => {
+      const { manifest, buffers } = artifactsMatchingManifest(makeValidManifest());
+      const fs = makeFakeFs({ manifest, artifactBytes: buffers });
+      const resolved = resolveEffectiveOnnxRuntimePath({
+        provider, explicitPath: '', managedSelection: RUNTIME_ID, runtimesDir: RUNTIMES_DIR, ...fs,
+      });
+      assert.deepEqual(resolved, { path: '', source: 'npm', managedId: null, cudnnBinPath: null },
+        `provider=${provider} must resolve to plain npm even though a valid managed CUDA runtime is selected`);
+      assert.equal('resolutionFailed' in resolved, false,
+        'a managed selection that is simply inapplicable to this provider is NOT a resolution failure — it is a correct, silent no-op, never a warning');
+    });
+
+    it(`an INVALID managed-runtime id is also silently ignored when provider=${provider} — never surfaced as resolutionFailed, since the selection was never going to apply to this provider anyway`, () => {
+      const resolved = resolveEffectiveOnnxRuntimePath({
+        provider, explicitPath: '', managedSelection: 'not-a-valid-id', runtimesDir: RUNTIMES_DIR,
+      });
+      assert.deepEqual(resolved, { path: '', source: 'npm', managedId: null, cudnnBinPath: null });
+      assert.equal('resolutionFailed' in resolved, false);
+    });
+  }
+
+  it('an invalid managed-runtime id format falls back to npm with a loud warning AND resolutionFailed:true when provider=cuda — never silently (review finding, P1)', () => {
     const resolved = resolveEffectiveOnnxRuntimePath({
-      explicitPath: '', managedSelection: 'not-a-valid-id', runtimesDir: RUNTIMES_DIR,
+      provider: 'cuda', explicitPath: '', managedSelection: 'not-a-valid-id', runtimesDir: RUNTIMES_DIR,
     });
     assert.equal(resolved.source, 'npm');
     assert.equal(resolved.path, '');
@@ -153,17 +184,17 @@ describe('resolveEffectiveOnnxRuntimePath()', () => {
     assert.equal(resolved.resolutionFailed, true);
   });
 
-  it('a missing manifest falls back to npm with a warning AND resolutionFailed:true', () => {
+  it('a missing manifest falls back to npm with a warning AND resolutionFailed:true when provider=cuda', () => {
     const fs = makeFakeFs({ manifest: null });
     const resolved = resolveEffectiveOnnxRuntimePath({
-      explicitPath: '', managedSelection: RUNTIME_ID, runtimesDir: RUNTIMES_DIR, ...fs,
+      provider: 'cuda', explicitPath: '', managedSelection: RUNTIME_ID, runtimesDir: RUNTIMES_DIR, ...fs,
     });
     assert.equal(resolved.source, 'npm');
     assert.match(resolved.warning, /invalid\/corrupt/);
     assert.equal(resolved.resolutionFailed, true);
   });
 
-  it('a well-formed manifest with corrupted artifact bytes fails the integrity check, falls back to npm, and sets resolutionFailed:true', () => {
+  it('a well-formed manifest with corrupted artifact bytes fails the integrity check, falls back to npm, and sets resolutionFailed:true when provider=cuda', () => {
     const { manifest, buffers } = artifactsMatchingManifest(makeValidManifest());
     // Corrupt one artifact's on-disk bytes after the manifest was written
     // to record the ORIGINAL (correct) hash — simulates post-install disk
@@ -171,7 +202,7 @@ describe('resolveEffectiveOnnxRuntimePath()', () => {
     const corrupted = { ...buffers, 'onnxruntime.dll': Buffer.from('corrupted-bytes') };
     const fs = makeFakeFs({ manifest, artifactBytes: corrupted });
     const resolved = resolveEffectiveOnnxRuntimePath({
-      explicitPath: '', managedSelection: RUNTIME_ID, runtimesDir: RUNTIMES_DIR, ...fs,
+      provider: 'cuda', explicitPath: '', managedSelection: RUNTIME_ID, runtimesDir: RUNTIMES_DIR, ...fs,
     });
     assert.equal(resolved.source, 'npm');
     assert.match(resolved.warning, /integrity check failed/);
@@ -179,12 +210,12 @@ describe('resolveEffectiveOnnxRuntimePath()', () => {
     assert.equal(resolved.resolutionFailed, true);
   });
 
-  it('a schema-mismatched manifest (missing dependencies.cudnnBinPath) falls back to npm with resolutionFailed:true', () => {
+  it('a schema-mismatched manifest (missing dependencies.cudnnBinPath) falls back to npm with resolutionFailed:true when provider=cuda', () => {
     const badManifest = makeValidManifest();
     delete badManifest.dependencies;
     const fs = makeFakeFs({ manifest: badManifest });
     const resolved = resolveEffectiveOnnxRuntimePath({
-      explicitPath: '', managedSelection: RUNTIME_ID, runtimesDir: RUNTIMES_DIR, ...fs,
+      provider: 'cuda', explicitPath: '', managedSelection: RUNTIME_ID, runtimesDir: RUNTIMES_DIR, ...fs,
     });
     assert.equal(resolved.source, 'npm');
     assert.match(resolved.warning, /schema_mismatch/);
@@ -314,7 +345,7 @@ describe('resolveOnnxRuntimeForProcess()', () => {
     return { getActiveValue: (key) => values[key] ?? '' };
   }
 
-  it('reads ONNXRUNTIME_NODE_PATH and ONNX_MANAGED_RUNTIME from settingsService.getActiveValue(), never a raw env read', () => {
+  it('reads ONNXRUNTIME_NODE_PATH, ONNX_MANAGED_RUNTIME, and ONNX_EXECUTION_PROVIDER from settingsService.getActiveValue(), never a raw env read', () => {
     const calls = [];
     const settingsService = {
       getActiveValue: (key) => { calls.push(key); return ''; },
@@ -325,10 +356,13 @@ describe('resolveOnnxRuntimeForProcess()', () => {
     });
     assert.ok(calls.includes('ONNXRUNTIME_NODE_PATH'));
     assert.ok(calls.includes('ONNX_MANAGED_RUNTIME'));
+    assert.ok(calls.includes('ONNX_EXECUTION_PROVIDER'));
   });
 
-  it('threads explicitPath/managedSelection/runtimesDir into resolveEffectiveOnnxRuntimePathFn exactly as read', () => {
-    const settingsService = fakeSettingsService({ ONNXRUNTIME_NODE_PATH: 'D:\\explicit-path', ONNX_MANAGED_RUNTIME: '1.26.0-cuda13' });
+  it('threads explicitPath/managedSelection/runtimesDir/provider into resolveEffectiveOnnxRuntimePathFn exactly as read', () => {
+    const settingsService = fakeSettingsService({
+      ONNXRUNTIME_NODE_PATH: 'D:\\explicit-path', ONNX_MANAGED_RUNTIME: '1.26.0-cuda13', ONNX_EXECUTION_PROVIDER: 'cuda',
+    });
     let receivedArgs = null;
     resolveOnnxRuntimeForProcess({
       settingsService, env: {},
@@ -338,6 +372,89 @@ describe('resolveOnnxRuntimeForProcess()', () => {
     assert.equal(receivedArgs.explicitPath, 'D:\\explicit-path');
     assert.equal(receivedArgs.managedSelection, '1.26.0-cuda13');
     assert.equal(receivedArgs.runtimesDir, 'C:\\fake\\runtimes');
+    assert.equal(receivedArgs.provider, 'cuda');
+  });
+
+  it('a saved managed selection survives a provider switch to dml and back to cuda unchanged — resolveOnnxRuntimeForProcess() never clears ONNX_MANAGED_RUNTIME itself, only whether it is APPLIED', () => {
+    const { manifest, buffers } = artifactsMatchingManifest(makeValidManifest());
+    const fs = makeFakeFs({ manifest, artifactBytes: buffers });
+    const settingsService = fakeSettingsService({ ONNX_MANAGED_RUNTIME: RUNTIME_ID, ONNX_EXECUTION_PROVIDER: 'dml' });
+
+    const dmlResult = resolveOnnxRuntimeForProcess({
+      settingsService, env: {},
+      resolveSemidexHomePathsFn: () => ({ runtimesDir: RUNTIMES_DIR }),
+      resolveEffectiveOnnxRuntimePathFn: (args) => resolveEffectiveOnnxRuntimePath({ ...args, ...fs }),
+    });
+    assert.equal(dmlResult.resolved.source, 'npm', 'dml must never apply the managed CUDA runtime');
+
+    // Same settingsService, same saved ONNX_MANAGED_RUNTIME value — only
+    // the provider changes (as if the user switched the dropdown back to
+    // cuda, without ever having to reselect a managed runtime).
+    settingsService.getActiveValue = (key) => ({ ONNX_MANAGED_RUNTIME: RUNTIME_ID, ONNX_EXECUTION_PROVIDER: 'cuda' }[key] ?? '');
+    const cudaResult = resolveOnnxRuntimeForProcess({
+      settingsService, env: {},
+      resolveSemidexHomePathsFn: () => ({ runtimesDir: RUNTIMES_DIR }),
+      resolveEffectiveOnnxRuntimePathFn: (args) => resolveEffectiveOnnxRuntimePath({ ...args, ...fs }),
+    });
+    assert.equal(cudaResult.resolved.source, 'managed');
+    assert.equal(cudaResult.resolved.managedId, RUNTIME_ID, 'switching back to cuda must reapply the SAME saved managed selection without the user reselecting it');
+  });
+
+  it('switching from cuda to dml clears the stale ONNXRUNTIME_NODE_PATH/ONNX_MANAGED_RUNTIME_ACTIVE env markers via the real applyOnnxRuntimeEnvPatch()', () => {
+    const { manifest, buffers } = artifactsMatchingManifest(makeValidManifest());
+    const fs = makeFakeFs({ manifest, artifactBytes: buffers });
+    const settingsService = fakeSettingsService({ ONNX_MANAGED_RUNTIME: RUNTIME_ID, ONNX_EXECUTION_PROVIDER: 'cuda' });
+    const env = {};
+
+    resolveOnnxRuntimeForProcess({
+      settingsService, env,
+      resolveSemidexHomePathsFn: () => ({ runtimesDir: RUNTIMES_DIR }),
+      resolveEffectiveOnnxRuntimePathFn: (args) => resolveEffectiveOnnxRuntimePath({ ...args, ...fs }),
+    });
+    assert.equal(env.ONNXRUNTIME_NODE_PATH, RUNTIME_DIR, 'sanity: cuda applied the managed runtime path');
+    assert.equal(env.ONNX_MANAGED_RUNTIME_ACTIVE, RUNTIME_ID, 'sanity: cuda marked the managed runtime active');
+
+    settingsService.getActiveValue = (key) => ({ ONNX_MANAGED_RUNTIME: RUNTIME_ID, ONNX_EXECUTION_PROVIDER: 'dml' }[key] ?? '');
+    resolveOnnxRuntimeForProcess({
+      settingsService, env,
+      resolveSemidexHomePathsFn: () => ({ runtimesDir: RUNTIMES_DIR }),
+      resolveEffectiveOnnxRuntimePathFn: (args) => resolveEffectiveOnnxRuntimePath({ ...args, ...fs }),
+    });
+    assert.equal('ONNXRUNTIME_NODE_PATH' in env, false, 'switching to dml must clear the stale managed runtime path from a prior cuda resolution');
+    assert.equal('ONNX_MANAGED_RUNTIME_ACTIVE' in env, false, 'switching to dml must clear the stale ONNX_MANAGED_RUNTIME_ACTIVE marker');
+  });
+
+  it('switching from cuda to cpu clears the stale cuDNN PATH entry and runtime env markers', () => {
+    const { manifest, buffers } = artifactsMatchingManifest(makeValidManifest());
+    const fs = makeFakeFs({ manifest, artifactBytes: buffers, cudnnDirExists: true, cudnnDllPresent: true });
+    const settingsService = fakeSettingsService({ ONNX_MANAGED_RUNTIME: RUNTIME_ID, ONNX_EXECUTION_PROVIDER: 'cuda' });
+    const env = { PATH: 'C:\\Windows\\System32' };
+
+    resolveOnnxRuntimeForProcess({
+      settingsService, env,
+      resolveSemidexHomePathsFn: () => ({ runtimesDir: RUNTIMES_DIR }),
+      resolveEffectiveOnnxRuntimePathFn: (args) => resolveEffectiveOnnxRuntimePath({ ...args, ...fs }),
+      prepareOnnxRuntimeProcessEnvFn: (resolved, opts) => prepareOnnxRuntimeProcessEnv(resolved, { ...opts, existsSyncFn: fs.existsSyncFn, readdirSyncFn: fs.readdirSyncFn }),
+    });
+    assert.equal(env.PATH, `${CUDNN_BIN};C:\\Windows\\System32`, 'sanity: cuda prepended the cuDNN bin dir to PATH');
+    assert.equal(env.ONNX_MANAGED_RUNTIME_ACTIVE, RUNTIME_ID);
+
+    settingsService.getActiveValue = (key) => ({ ONNX_MANAGED_RUNTIME: RUNTIME_ID, ONNX_EXECUTION_PROVIDER: 'cpu' }[key] ?? '');
+    resolveOnnxRuntimeForProcess({
+      settingsService, env,
+      resolveSemidexHomePathsFn: () => ({ runtimesDir: RUNTIMES_DIR }),
+      resolveEffectiveOnnxRuntimePathFn: (args) => resolveEffectiveOnnxRuntimePath({ ...args, ...fs }),
+      prepareOnnxRuntimeProcessEnvFn: (resolved, opts) => prepareOnnxRuntimeProcessEnv(resolved, { ...opts, existsSyncFn: fs.existsSyncFn, readdirSyncFn: fs.readdirSyncFn }),
+    });
+    // cpu resolves cudnnBinPath: null, so prepareOnnxRuntimeProcessEnv()
+    // no-ops (never REMOVES an existing PATH entry — it only ever adds).
+    // The absence of ONNXRUNTIME_NODE_PATH/ONNX_MANAGED_RUNTIME_ACTIVE (via
+    // applyOnnxRuntimeEnvPatch()'s symmetric contract) is the actual
+    // "no stale managed runtime is active" signal downstream code relies
+    // on — onnx-runtime.js only ever reads ONNXRUNTIME_NODE_PATH, never
+    // PATH, to decide which module to load.
+    assert.equal('ONNXRUNTIME_NODE_PATH' in env, false, 'switching to cpu must clear the stale managed runtime path');
+    assert.equal('ONNX_MANAGED_RUNTIME_ACTIVE' in env, false, 'switching to cpu must clear the stale ONNX_MANAGED_RUNTIME_ACTIVE marker');
   });
 
   it('always calls applyOnnxRuntimeEnvPatchFn with the resolved result and the SAME env object it was given', () => {
@@ -392,7 +509,7 @@ describe('resolveOnnxRuntimeForProcess()', () => {
   });
 
   it('end-to-end with the REAL sub-functions (no fakes for resolve/apply/prepare): an explicitly selected managed runtime that fails integrity verification (corrupt artifacts) produces prepared.ok=false — review finding (P1): never silently falls back to npm/CPU as if the failure were healthy', () => {
-    const settingsService = fakeSettingsService({ ONNX_MANAGED_RUNTIME: RUNTIME_ID });
+    const settingsService = fakeSettingsService({ ONNX_MANAGED_RUNTIME: RUNTIME_ID, ONNX_EXECUTION_PROVIDER: 'cuda' });
     const manifest = {
       schemaVersion: MANIFEST_SCHEMA_VERSION, ortVersion: '1.26.0', cudaMajor: '13', platform: 'win32', arch: 'x64',
       provenance: { sourceRepository: 'x', sourceTag: 'v1.26.0', sourceCommit: COMMIT, runtimeAssetUrl: 'x', runtimeAssetSha256: SHA256_A, checksumTrust: 'locked' },
@@ -458,5 +575,66 @@ describe('resolveOnnxRuntimeForProcess()', () => {
     });
     assert.equal(result.prepared.ok, true);
     assert.equal(result.resolutionWarning, null);
+  });
+});
+
+// Cross-process consistency (task requirement): Admin, the indexer CLI, and
+// MCP each construct their OWN settingsService/env, but must arrive at the
+// IDENTICAL resolution — this proves resolveOnnxRuntimeForProcess() itself
+// gives the same answer for the same inputs regardless of which of these
+// three real call sites is asking, closing the exact gap that used to let a
+// managed CUDA selection silently have no effect in one process (originally
+// MCP) while working in another. Each real composition root's own file
+// (admin/bootstrap.js, indexer/index-full.js,
+// mcp/onnx-runtime-resolution.js) is proven elsewhere (bootstrap.test.js,
+// index-capability-wiring.test.js, mcp/onnx-runtime-resolution.test.js) to
+// call resolveOnnxRuntimeForProcess() with nothing but its own
+// settingsService/env — no extra, diverging arguments — so exercising the
+// shared function directly with the SAME settingsService here is a faithful
+// proxy for "all three real processes agree."
+describe('cross-process consistency — Admin, indexer, and MCP all resolve identically for the same settings', () => {
+  function fakeSettingsService(values) {
+    return { getActiveValue: (key) => values[key] ?? '' };
+  }
+
+  it('a dml-configured process (any of the three) never applies a saved managed CUDA selection', () => {
+    const { manifest, buffers } = artifactsMatchingManifest(makeValidManifest());
+    const fs = makeFakeFs({ manifest, artifactBytes: buffers });
+    const settingsService = fakeSettingsService({ ONNX_MANAGED_RUNTIME: RUNTIME_ID, ONNX_EXECUTION_PROVIDER: 'dml' });
+    const sharedArgs = {
+      settingsService,
+      resolveSemidexHomePathsFn: () => ({ runtimesDir: RUNTIMES_DIR }),
+      resolveEffectiveOnnxRuntimePathFn: (args) => resolveEffectiveOnnxRuntimePath({ ...args, ...fs }),
+    };
+    // Three independent env objects — one per "process" — since
+    // applyOnnxRuntimeEnvPatchFn mutates its own env argument and a shared
+    // object would let one call's patch leak into the next, masking a real
+    // per-process divergence.
+    const adminResult = resolveOnnxRuntimeForProcess({ ...sharedArgs, env: {} });
+    const indexerResult = resolveOnnxRuntimeForProcess({ ...sharedArgs, env: {} });
+    const mcpResult = resolveOnnxRuntimeForProcess({ ...sharedArgs, env: {} });
+    for (const [name, result] of [['admin', adminResult], ['indexer', indexerResult], ['mcp', mcpResult]]) {
+      assert.equal(result.resolved.source, 'npm', `${name} must resolve to npm for provider=dml`);
+      assert.equal(result.resolved.managedId, null, `${name} must never carry a managed id for provider=dml`);
+    }
+  });
+
+  it('a cuda-configured process (any of the three) applies the same saved managed CUDA selection identically', () => {
+    const { manifest, buffers } = artifactsMatchingManifest(makeValidManifest());
+    const fs = makeFakeFs({ manifest, artifactBytes: buffers });
+    const settingsService = fakeSettingsService({ ONNX_MANAGED_RUNTIME: RUNTIME_ID, ONNX_EXECUTION_PROVIDER: 'cuda' });
+    const sharedArgs = {
+      settingsService,
+      resolveSemidexHomePathsFn: () => ({ runtimesDir: RUNTIMES_DIR }),
+      resolveEffectiveOnnxRuntimePathFn: (args) => resolveEffectiveOnnxRuntimePath({ ...args, ...fs }),
+    };
+    const adminResult = resolveOnnxRuntimeForProcess({ ...sharedArgs, env: {} });
+    const indexerResult = resolveOnnxRuntimeForProcess({ ...sharedArgs, env: {} });
+    const mcpResult = resolveOnnxRuntimeForProcess({ ...sharedArgs, env: {} });
+    for (const [name, result] of [['admin', adminResult], ['indexer', indexerResult], ['mcp', mcpResult]]) {
+      assert.equal(result.resolved.source, 'managed', `${name} must resolve to the managed runtime for provider=cuda`);
+      assert.equal(result.resolved.managedId, RUNTIME_ID, `${name} must resolve to the SAME managed id`);
+      assert.equal(result.resolved.path, RUNTIME_DIR, `${name} must resolve to the SAME path`);
+    }
   });
 });

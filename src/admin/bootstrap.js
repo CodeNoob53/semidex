@@ -51,15 +51,20 @@ if (isMainModule) {
 
   // Resolve which onnxruntime-node build THIS process should load —
   // explicit ONNXRUNTIME_NODE_PATH > managed CUDA runtime selection
-  // (ONNX_MANAGED_RUNTIME) > default npm package — via the one shared
-  // resolution module every real caller (this file, indexer/index-full.js,
-  // mcp/server.js, the Admin probe route) goes through, so the precedence
-  // and the cuDNN PATH preparation it requires never drift apart between
+  // (ONNX_MANAGED_RUNTIME, only when ONNX_EXECUTION_PROVIDER=cuda — a
+  // managed runtime is a CUDA-only build with no DirectML EP, so this
+  // reads the settings-active provider internally and never applies the
+  // managed selection for dml/cpu) > default npm package — via the one
+  // shared resolution module every real caller (this file,
+  // indexer/index-full.js, mcp/onnx-runtime-resolution.js, the Admin probe
+  // route) goes through, so the precedence, its provider-gating, and the
+  // cuDNN PATH preparation it requires never drift apart between
   // processes. Written once, at startup, for the Admin process's own
   // background embed calls (e.g. Ask/search embedding a live ONNX-backed
-  // collection) — the probe route (admin/api/onnx.js) separately resolves
-  // into its own per-request env object to test a staged/unsaved
-  // selection without mutating this real process.env.
+  // collection) — the probe route (local/admin/api/onnx.js) separately
+  // resolves into its own per-request env object to test a staged/unsaved
+  // selection (including a staged provider change) without mutating this
+  // real process.env.
   //
   // Review finding (P2): a broken resolved runtime (prepared.ok === false)
   // must never be silently attempted later, deep inside a real embed

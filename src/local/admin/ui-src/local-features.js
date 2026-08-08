@@ -42,6 +42,13 @@ export function onnxProbePanel(category, entries, { templateRoot, currentPending
   } else {
     pendingNote.hidden = true;
   }
+  // DML never uses the managed CUDA runtime (see
+  // onnx-runtime-source-resolution.js's provider-gating) — the managed
+  // runtime dropdown is already hidden for DML via ONNX_MANAGED_RUNTIME's
+  // own visibleWhen (provider=cuda), but this note explains WHY, in the one
+  // other place a DML user would otherwise wonder where their managed
+  // runtime went.
+  panel.querySelector('.gs-onnx-dml-runtime-note').hidden = provider !== 'dml';
   const testButton = panel.querySelector('.gs-onnx-test-button');
   testButton.dataset.provider = provider;
   // "Test CUDA configuration"/"Test DML configuration" — never the generic

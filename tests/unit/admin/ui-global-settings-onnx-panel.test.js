@@ -352,6 +352,62 @@ describe('ONNX hardware status panel', () => {
     assert.deepEqual(JSON.parse(JSON.stringify(probeCalls[0].body)), { provider: 'dml' });
   });
 
+  // Provider-aware resolution (bug fix): the managed CUDA runtime installer
+  // does not apply to DirectML — these prove the UI explains that instead
+  // of leaving a DML user wondering where the managed-runtime dropdown
+  // went, and never mislabels a DML probe result as having used a managed
+  // runtime.
+  it('shows the DML runtime note only for dml, never for cuda or cpu', async () => {
+    const { document: dmlDoc } = await renderCategory(baseEntries({ provider: { configuredValue: 'dml', activeValue: 'dml' } }));
+    const dmlNote = dmlDoc.querySelector('.gs-onnx-dml-runtime-note');
+    assert.equal(dmlNote.hidden, false, 'dml must show the "uses standard npm onnxruntime-node" note');
+    assert.match(dmlNote.textContent, /npm onnxruntime-node/);
+
+    const { document: cudaDoc } = await renderCategory(baseEntries({ provider: { configuredValue: 'cuda', activeValue: 'cuda' } }));
+    assert.equal(cudaDoc.querySelector('.gs-onnx-dml-runtime-note').hidden, true, 'cuda must not show the DML-specific note');
+
+    const { document: cpuDoc } = await renderCategory(baseEntries({ provider: { configuredValue: 'cpu', activeValue: 'cpu' } }));
+    assert.equal(cpuDoc.querySelector('.gs-onnx-probe-panel'), null, 'cpu never renders the probe panel at all, so there is no note to show either');
+  });
+
+  it('a successful DML probe shows effectiveProvider: dml and never surfaces a managed runtime manifest', async () => {
+    const { document } = await renderCategory(
+      baseEntries({ provider: { configuredValue: 'dml', activeValue: 'dml' } }),
+      { apiPostImpl: async () => ({
+        ok: true, requestedProvider: 'dml', effectiveProvider: 'dml', fellBackToCpu: false,
+        runtimeSource: 'npm', runtimeVersion: '1.24.3', modelCached: true,
+        restartRequired: false, message: 'DML session created successfully',
+        managedRuntimeManifest: null,
+      }) },
+    );
+    const panel = document.querySelector('.gs-onnx-probe-panel');
+    panel.querySelector('.gs-onnx-test-button').dispatchEvent(new Event('click'));
+    await new Promise((resolve) => setImmediate(resolve));
+    await new Promise((resolve) => setImmediate(resolve));
+
+    assert.match(panel.querySelector('.gs-onnx-verified').textContent, /^dml /);
+    assert.equal(panel.querySelector('.gs-onnx-runtime-source').textContent, 'npm');
+    assert.notEqual(panel.querySelector('.gs-onnx-runtime-source').textContent, 'managed', 'a DML probe result must never present "managed" as its runtime source');
+    assert.equal(panel.querySelector('.gs-onnx-managed-runtime').textContent, '—');
+  });
+
+  it('the ONNX_MANAGED_RUNTIME field itself never renders for dml — visibleWhen gates it to cuda only, so the managed-runtime dropdown never appears as if it were active for DML', async () => {
+    const ctx = loadGlobalSettingsHelpers({
+      apiResponses: {
+        '/api/settings': settingsPayload(baseEntriesWithManaged({ provider: { configuredValue: 'dml', activeValue: 'dml' } })),
+        '/api/system/onnx-managed-runtimes': { runtimes: [
+          { id: '1.26.0-cuda13', ortVersion: '1.26.0', cudaMajor: '13', verification: { status: 'verified', verifiedAt: null, effectiveProvider: 'cuda' } },
+        ] },
+      },
+    });
+    await ctx.renderGlobalSettingsView(ctx.document.getElementById('main'), 'embeddings');
+    ctx.document.querySelector('.gs-advanced')?.setAttribute('open', '');
+    await new Promise((resolve) => setImmediate(resolve));
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(ctx.document.querySelector('select[data-key="ONNX_MANAGED_RUNTIME"]'), null,
+      'the managed-runtime select must not render at all for dml, even though installed managed runtimes exist');
+  });
+
   it('shows the server-confirmed "unsaved runtime path" notice only when testedStagedRuntimePath is true — never inferred client-side alone', async () => {
     const { document } = await renderCategory(
       baseEntries({ provider: { configuredValue: 'cuda', activeValue: 'cuda' } }),

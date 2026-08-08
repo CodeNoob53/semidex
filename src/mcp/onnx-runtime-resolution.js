@@ -14,7 +14,11 @@
 // package (no CUDA) even when Admin/the indexer correctly picked up the
 // managed runtime. This function is the ONE place MCP now resolves that,
 // via the exact same shared sequence (resolveOnnxRuntimeForProcess())
-// indexer/index-full.js and admin/bootstrap.js already go through.
+// indexer/index-full.js and admin/bootstrap.js already go through —
+// including its provider-gating (resolveOnnxRuntimeForProcess() reads
+// ONNX_EXECUTION_PROVIDER internally and only applies the managed CUDA-only
+// build when it's actually 'cuda'), so MCP can never end up loading a
+// CUDA-only managed build while configured for dml/cpu either.
 //
 // Review finding (P2): a broken resolved runtime (prepared.ok === false —
 // e.g. the managed selection's own recorded cuDNN directory has vanished

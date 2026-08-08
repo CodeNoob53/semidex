@@ -90,8 +90,18 @@ export function registerOnnxRoutes(router, {
     const managedRuntimeId = 'managedRuntimeId' in body ? body.managedRuntimeId : managedRuntimeEntry?.configuredValue;
 
     const { runtimesDir } = resolveSemidexHomePaths();
+    // provider here is the RESOLVED provider for this probe (staged
+    // body.provider, falling back to configured/default — see above), not
+    // a raw settings read — this is what makes a staged CUDA->DML switch
+    // testable before a restart: the managed CUDA-only runtime is
+    // correctly excluded from resolution the moment `provider` is 'dml',
+    // even if ONNX_MANAGED_RUNTIME/ONNX_EXECUTION_PROVIDER haven't been
+    // saved/restarted into yet. Same resolveEffectiveOnnxRuntimePathFn()
+    // production startup (admin/bootstrap.js, indexer, MCP) goes through —
+    // this route just supplies its own staged/per-request provider instead
+    // of settingsService.getActiveValue('ONNX_EXECUTION_PROVIDER').
     const resolved = resolveEffectiveOnnxRuntimePathFn({
-      explicitPath: runtimePath, managedSelection: managedRuntimeId, runtimesDir,
+      provider, explicitPath: runtimePath, managedSelection: managedRuntimeId, runtimesDir,
     });
 
     // This route builds its OWN per-request probeEnv object — it never

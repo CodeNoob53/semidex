@@ -94,11 +94,13 @@ export async function runFullIndexerComposition({
 } = {}) {
   // Resolve which onnxruntime-node build this PROCESS should load —
   // explicit ONNXRUNTIME_NODE_PATH > managed CUDA runtime selection
-  // (ONNX_MANAGED_RUNTIME) > default npm package — via the one shared
-  // resolution module every real caller (this file, admin/bootstrap.js,
-  // mcp/server.js, the Admin probe route) goes through, so the precedence
-  // and the cuDNN PATH preparation it requires never drift apart between
-  // processes. Runs BEFORE createOnnxEmbeddingCapability() below, since
+  // (ONNX_MANAGED_RUNTIME, only when ONNX_EXECUTION_PROVIDER=cuda — a
+  // managed runtime is a CUDA-only build with no DirectML EP) > default
+  // npm package — via the one shared resolution module every real caller
+  // (this file, admin/bootstrap.js, mcp/onnx-runtime-resolution.js, the
+  // Admin probe route) goes through, so the precedence, its
+  // provider-gating, and the cuDNN PATH preparation it requires can never
+  // drift apart between processes. Runs BEFORE createOnnxEmbeddingCapability() below, since
   // that capability's default ortFactory reads
   // process.env.ONNXRUNTIME_NODE_PATH lazily at first-embed-call time —
   // this only has to run once, up front, well before that.
