@@ -178,13 +178,15 @@ function dirHasCudnnDll(dir, existsSyncFn, readdirSyncFn, platform) {
  *      "not found" even though cuDNN genuinely IS installed.
  * Exported (additive, no behavior change) — see checkNvidiaSmi()'s own
  * header comment for why.
- * @returns {{found: true} | {found: false} | {found: 'unknown'}}
+ * @returns {{found: true, path: string, cudaVersion: string|null} | {found: false} | {found: 'unknown'}}
  */
 export function checkCudnn({ cudaToolkitPath, existsSyncFn = existsSync, readdirSyncFn = readdirSync, platform = osPlatform() } = {}) {
   if (!cudaToolkitPath) return { found: 'unknown' };
 
   const toolkitBinDir = platform === 'win32' ? join(cudaToolkitPath, 'bin') : join(cudaToolkitPath, 'lib64');
-  if (dirHasCudnnDll(toolkitBinDir, existsSyncFn, readdirSyncFn, platform)) return { found: true };
+  if (dirHasCudnnDll(toolkitBinDir, existsSyncFn, readdirSyncFn, platform)) {
+    return { found: true, path: toolkitBinDir, cudaVersion: null };
+  }
 
   if (platform !== 'win32') return { found: false };
 
@@ -193,13 +195,30 @@ export function checkCudnn({ cudaToolkitPath, existsSyncFn = existsSync, readdir
   // subfolder, neither of which this function can predict in advance.
   try {
     if (!existsSyncFn(WINDOWS_CUDNN_ROOT)) return { found: false };
+    const toolkitVersion = /(?:^|[\\/])v?(\d+)(?:\.(\d+))?(?:$|[\\/])/i.exec(cudaToolkitPath);
+    const toolkitMajor = toolkitVersion?.[1] ?? null;
+    const toolkitMinor = toolkitVersion?.[2] ?? null;
+    const candidates = [];
     for (const versionDir of readdirSyncFn(WINDOWS_CUDNN_ROOT)) {
       const versionBin = join(WINDOWS_CUDNN_ROOT, versionDir, 'bin');
       if (!existsSyncFn(versionBin)) continue;
       for (const cudaCompatDir of readdirSyncFn(versionBin)) {
+        const compatVersion = /^(\d+)(?:\.(\d+))?$/.exec(cudaCompatDir);
+        if (!compatVersion || (toolkitMajor && compatVersion[1] !== toolkitMajor)) continue;
         const x64Dir = join(versionBin, cudaCompatDir, 'x64');
-        if (dirHasCudnnDll(x64Dir, existsSyncFn, readdirSyncFn, platform)) return { found: true };
+        if (dirHasCudnnDll(x64Dir, existsSyncFn, readdirSyncFn, platform)) {
+          candidates.push({
+            path: x64Dir,
+            cudaVersion: cudaCompatDir,
+            exactMinor: toolkitMinor !== null && compatVersion[2] === toolkitMinor,
+            numericVersion: Number(compatVersion[1]) * 1000 + Number(compatVersion[2] ?? 0),
+          });
+        }
       }
+    }
+    candidates.sort((a, b) => Number(b.exactMinor) - Number(a.exactMinor) || b.numericVersion - a.numericVersion);
+    if (candidates[0]) {
+      return { found: true, path: candidates[0].path, cudaVersion: candidates[0].cudaVersion };
     }
     return { found: false };
   } catch {

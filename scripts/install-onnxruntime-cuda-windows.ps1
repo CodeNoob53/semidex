@@ -188,7 +188,7 @@ try {
         Write-Step "CUDA Toolkit: $($prereqs.cudaToolkit.path)"
     }
     if ($prereqs.cudnn.found -ne $true) {
-        Write-Warn2 'cuDNN was not found under the detected CUDA Toolkit directory — download and install it from NVIDIA before continuing, or the build/probe will fail.'
+        Write-Warn2 'cuDNN was not found in the CUDA Toolkit or NVIDIA cuDNN installer directories — download and install it from NVIDIA before continuing, or the build/probe will fail.'
     }
 
     # ── 4. Trust gate ────────────────────────────────────────────────────
@@ -413,14 +413,10 @@ try {
     }
 
     # ── 9. Locate cuDNN bin directory (recorded into the manifest) ──────
-    if ($prereqs.cudnn.found -ne $true -or -not $prereqs.cudaToolkit.path) {
-        throw 'cuDNN was not found — cannot record dependencies.cudnnBinPath. Install cuDNN under the CUDA Toolkit directory and re-run.'
+    if ($prereqs.cudnn.found -ne $true -or -not $prereqs.cudnn.path) {
+        throw 'cuDNN was not found — cannot record dependencies.cudnnBinPath. Install a compatible cuDNN package and re-run.'
     }
-    $CudnnBinPath = Get-ChildItem -Path $prereqs.cudaToolkit.path -Recurse -Filter 'cudnn64_*.dll' -ErrorAction SilentlyContinue |
-        Select-Object -First 1 -ExpandProperty DirectoryName
-    if (-not $CudnnBinPath) {
-        throw "Could not locate a cudnn64_*.dll under $($prereqs.cudaToolkit.path)."
-    }
+    $CudnnBinPath = $prereqs.cudnn.path
     Write-Step "cuDNN bin directory: $CudnnBinPath"
 
     # ── 10. Stage artifacts + manifest into installStage (same volume as target) ──

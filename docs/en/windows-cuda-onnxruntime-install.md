@@ -98,11 +98,12 @@ each item genuinely working before running it, not just installed:
   of the installer.
 - **CUDA Toolkit**, matching the CUDA major version you're building for
   (13 for the default locked combination).
-- **cuDNN**, installed under the CUDA Toolkit directory (NVIDIA's own
-  installer places it at `C:\Program Files\NVIDIA\CUDNN\v<version>\bin\<cuda-major.minor>\x64\`
-  by default) — the installer locates the `cudnn64_*.dll` itself and records
-  the exact directory it found into the runtime's own manifest; it does not
-  guess or hardcode this path anywhere else.
+- **cuDNN** for the same CUDA major series. NVIDIA's Windows installer
+  normally keeps it separate from the Toolkit at
+  `C:\Program Files\NVIDIA\CUDNN\v<version>\bin\<cuda-major.minor>\x64\`;
+  a manual installation may instead place it in the Toolkit's `bin`
+  directory. Semidex supports both layouts, selects only the matching CUDA
+  major series, and records the exact directory in the runtime manifest.
 
 Run `npm run doctor` first — its GPU-stack prerequisites line reports real
 driver/toolkit/cuDNN presence before you invest time in a build that can't

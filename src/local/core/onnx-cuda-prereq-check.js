@@ -26,7 +26,7 @@ import { checkNvidiaSmi, checkCudaToolkit, checkCudnn } from './cuda-diagnosis.j
  * @returns {Promise<{
  *   nvidiaDriver: Awaited<ReturnType<typeof checkNvidiaSmi>>,
  *   cudaToolkit: ReturnType<typeof checkCudaToolkit>,
- *   cudnn: {found: true} | {found: false} | {found: 'unknown'},
+ *   cudnn: {found: true, path: string, cudaVersion: string|null} | {found: false} | {found: 'unknown'},
  * }>}
  */
 export async function checkPrerequisites({

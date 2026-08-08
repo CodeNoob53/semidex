@@ -46,6 +46,27 @@ describe('checkPrerequisites()', () => {
     assert.equal(result.nvidiaDriver.available, true);
     assert.equal(result.cudaToolkit.found, true);
     assert.equal(result.cudnn.found, true);
+    assert.equal(result.cudnn.path, 'C:\\cuda-12.4\\bin');
+  });
+
+  it('returns the separate NVIDIA cuDNN installer path for the matching CUDA major', async () => {
+    const root = 'C:\\Program Files\\NVIDIA\\CUDNN';
+    const matching = `${root}\\v9.25\\bin\\13.4\\x64`;
+    const wrongMajor = `${root}\\v9.25\\bin\\12.9\\x64`;
+    const dirs = new Set(['C:\\cuda-13.3', root, `${root}\\v9.25\\bin`, matching, wrongMajor]);
+    const entries = new Map([
+      [root, ['v9.25']],
+      [`${root}\\v9.25\\bin`, ['12.9', '13.4']],
+      [matching, ['cudnn64_9.dll']],
+      [wrongMajor, ['cudnn64_9.dll']],
+    ]);
+    const result = await checkPrerequisites({
+      platform: 'win32', env: { CUDA_PATH: 'C:\\cuda-13.3' },
+      spawnFn: nvidiaSmiSuccess(),
+      existsSyncFn: (p) => dirs.has(p),
+      readdirSyncFn: (p) => entries.get(p) ?? [],
+    });
+    assert.deepEqual(result.cudnn, { found: true, path: matching, cudaVersion: '13.4' });
   });
 
   it('reports each check\'s own real failure independently — no GPU, no toolkit lookup attempted needlessly, cuDNN correctly reports unknown', async () => {
