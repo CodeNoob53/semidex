@@ -18,6 +18,40 @@ import { computeManifestIdentityFingerprint, MANIFEST_SCHEMA_VERSION } from './m
 const COMMIT_RE = /^[0-9a-f]{40}$/;
 const SHA256_RE = /^[0-9a-f]{64}$/;
 
+export const ORT_NODE_SECURITY_POLICY = Object.freeze({
+  ortVersion: '1.26.0',
+  sourceCommit: '8c546c37b43caaca1fa25db430dab94b901cf277',
+  admZip: '0.6.0',
+  protobufjs: '8.7.1',
+  tar: '7.5.22',
+});
+
+/**
+ * Applies the reviewed dependency remediation to ORT's temporary js/node
+ * checkout. These versions are tested against the locked ORT source commit;
+ * the upstream source tree and Semidex's own package manifest stay untouched.
+ */
+export function applyOrtNodeSecurityPolicy(
+  manifest,
+  { ortVersion, sourceCommit } = {},
+  policy = ORT_NODE_SECURITY_POLICY,
+) {
+  if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest)) {
+    throw new TypeError('ORT js/node package manifest must be an object');
+  }
+  if (ortVersion !== policy.ortVersion || sourceCommit !== policy.sourceCommit) {
+    throw new Error(
+      `no reviewed ORT js/node dependency policy for version ${JSON.stringify(ortVersion)} ` +
+      `at commit ${JSON.stringify(sourceCommit)}`,
+    );
+  }
+  const next = structuredClone(manifest);
+  next.dependencies = { ...(next.dependencies ?? {}), 'adm-zip': policy.admZip };
+  next.devDependencies = { ...(next.devDependencies ?? {}), protobufjs: policy.protobufjs };
+  next.overrides = { ...(next.overrides ?? {}), tar: policy.tar };
+  return next;
+}
+
 /**
  * Resolves the trust anchors (source commit + release-asset checksum) an
  * install for `{ortVersion, cudaMajor}` must verify against, and whether
@@ -355,6 +389,11 @@ export async function dispatch(decision, input, deps = {}) {
       return assertSameVolume(input.installStageVolumeRoot, input.targetVolumeRoot);
     case 'buildManifestDraft':
       return buildManifestDraft(input);
+    case 'applyOrtNodeSecurityPolicy':
+      return applyOrtNodeSecurityPolicy(input.manifest, {
+        ortVersion: input.ortVersion,
+        sourceCommit: input.sourceCommit,
+      });
     default:
       throw new Error(`unknown installer decision: ${JSON.stringify(decision)}`);
   }

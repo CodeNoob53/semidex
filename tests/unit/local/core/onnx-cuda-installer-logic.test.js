@@ -12,6 +12,8 @@ import {
   planTransactionalSwapStep,
   assertSameVolume,
   buildManifestDraft,
+  applyOrtNodeSecurityPolicy,
+  ORT_NODE_SECURITY_POLICY,
   dispatch,
 } from '../../../../src/local/core/onnx-cuda-installer-logic.js';
 
@@ -25,6 +27,44 @@ const LOCK_ENTRIES = [{
 }];
 const CUSTOM_COMMIT = 'a'.repeat(40);
 const CUSTOM_SHA256 = 'b'.repeat(64);
+
+describe('applyOrtNodeSecurityPolicy()', () => {
+  it('pins the audited direct and transitive dependencies without mutating input', () => {
+    const manifest = {
+      name: 'onnxruntime-node',
+      dependencies: { 'adm-zip': '^0.5.16', long: '^5.2.3' },
+      devDependencies: { protobufjs: '^7.2.4', typescript: '^5.0.0' },
+      overrides: { existing: '1.0.0' },
+    };
+    const result = applyOrtNodeSecurityPolicy(manifest, {
+      ortVersion: ORT_NODE_SECURITY_POLICY.ortVersion,
+      sourceCommit: ORT_NODE_SECURITY_POLICY.sourceCommit,
+    });
+    assert.equal(result.dependencies['adm-zip'], ORT_NODE_SECURITY_POLICY.admZip);
+    assert.equal(result.devDependencies.protobufjs, ORT_NODE_SECURITY_POLICY.protobufjs);
+    assert.equal(result.overrides.tar, ORT_NODE_SECURITY_POLICY.tar);
+    assert.equal(result.dependencies.long, '^5.2.3');
+    assert.equal(result.overrides.existing, '1.0.0');
+    assert.equal(manifest.dependencies['adm-zip'], '^0.5.16');
+    assert.equal(manifest.overrides.tar, undefined);
+  });
+
+  it('rejects a malformed manifest', () => {
+    assert.throws(() => applyOrtNodeSecurityPolicy(null), /must be an object/);
+    assert.throws(() => applyOrtNodeSecurityPolicy([]), /must be an object/);
+  });
+
+  it('rejects unreviewed ORT versions and source commits', () => {
+    const manifest = { dependencies: {}, devDependencies: {} };
+    assert.throws(
+      () => applyOrtNodeSecurityPolicy(manifest, {
+        ortVersion: '1.27.0',
+        sourceCommit: ORT_NODE_SECURITY_POLICY.sourceCommit,
+      }),
+      /no reviewed ORT js\/node dependency policy/,
+    );
+  });
+});
 
 describe('resolveTrustGate() — locked combination', () => {
   it('uses the lock entry\'s own commit/checksum, marks checksumTrust "locked"', () => {
@@ -333,6 +373,17 @@ describe('dispatch() — the CLI entry\'s own decode/routing layer, with injecte
   it('assertSameVolume: routes straight through', async () => {
     const result = await dispatch('assertSameVolume', { installStageVolumeRoot: 'C:', targetVolumeRoot: 'C:' });
     assert.deepEqual(result, { ok: true });
+  });
+
+  it('applyOrtNodeSecurityPolicy: returns the audited manifest through the JSON boundary', async () => {
+    const result = await dispatch('applyOrtNodeSecurityPolicy', {
+      manifest: { dependencies: { 'adm-zip': '^0.5.16' }, devDependencies: { protobufjs: '^7.2.4' } },
+      ortVersion: ORT_NODE_SECURITY_POLICY.ortVersion,
+      sourceCommit: ORT_NODE_SECURITY_POLICY.sourceCommit,
+    });
+    assert.equal(result.dependencies['adm-zip'], ORT_NODE_SECURITY_POLICY.admZip);
+    assert.equal(result.devDependencies.protobufjs, ORT_NODE_SECURITY_POLICY.protobufjs);
+    assert.equal(result.overrides.tar, ORT_NODE_SECURITY_POLICY.tar);
   });
 
   it('an unknown decision name throws, rather than silently returning an empty/undefined result', async () => {

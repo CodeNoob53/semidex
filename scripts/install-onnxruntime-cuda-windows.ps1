@@ -334,14 +334,66 @@ try {
     }
 
     # ── 8. Build the js/node binding ────────────────────────────────────
+    # ORT keeps the shared TypeScript toolchain (including `tsc`) in
+    # js/package.json, not js/node/package.json. Install that toolchain
+    # first without lifecycle scripts: otherwise js/node's file dependency
+    # on ../common runs common's prepare script before `tsc` exists.
+    $JsRootDir = Join-Path $SourceDir 'js'
+    Push-Location $JsRootDir
+    try {
+        Write-Step 'npm ci (shared JS build toolchain, lifecycle scripts disabled)...'
+        npm ci --ignore-scripts
+        if ($LASTEXITCODE -ne 0) { throw 'Shared JS toolchain npm ci failed.' }
+
+        Write-Step 'Auditing shared JS production dependencies...'
+        npm audit --omit=dev --audit-level=moderate
+        if ($LASTEXITCODE -ne 0) { throw 'Shared JS production dependency audit failed.' }
+
+        $TypeScriptCommand = Join-Path $JsRootDir 'node_modules\.bin\tsc.cmd'
+        if (-not (Test-Path $TypeScriptCommand)) {
+            throw "ORT shared JS toolchain did not install TypeScript at $TypeScriptCommand."
+        }
+    } finally {
+        Pop-Location
+    }
+
     $NodeBindingDir = Join-Path $SourceDir 'js\node'
     Push-Location $NodeBindingDir
     try {
+        # The locked ORT source currently declares vulnerable dependency
+        # ranges. Apply the reviewed, tested pins only inside this temporary
+        # checkout, regenerate its lockfile, then require a clean full audit.
+        $NodePackagePath = Join-Path $NodeBindingDir 'package.json'
+        $NodePackage = Get-Content -Raw -Path $NodePackagePath | ConvertFrom-Json
+        $PatchedNodePackage = Invoke-NodeDecision -RepoRoot $RepoRoot -Decision 'applyOrtNodeSecurityPolicy' -InputObject @{
+            manifest = $NodePackage
+            ortVersion = $OrtVersion
+            sourceCommit = $Trust.sourceCommit
+        }
+        $Utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+        [System.IO.File]::WriteAllText(
+            $NodePackagePath,
+            (($PatchedNodePackage | ConvertTo-Json -Depth 20) + [Environment]::NewLine),
+            $Utf8NoBom
+        )
+
+        Write-Step 'Resolving audited js/node dependency policy...'
+        npm install --package-lock-only --ignore-scripts
+        if ($LASTEXITCODE -ne 0) { throw 'js/node audited lockfile resolution failed.' }
+
         Write-Step 'npm ci (js/node devDependencies)...'
         npm ci
         if ($LASTEXITCODE -ne 0) { throw 'npm ci failed.' }
 
+        Write-Step 'Auditing js/node dependencies...'
+        npm audit --audit-level=moderate
+        if ($LASTEXITCODE -ne 0) { throw 'js/node dependency audit failed.' }
+
         $NativeBuildDir = Join-Path $WorkDir 'native-build'
+        $NativeReleaseDir = Join-Path $NativeBuildDir 'Release'
+        New-Item -ItemType Directory -Force -Path $NativeReleaseDir | Out-Null
+        Copy-Item -Path (Join-Path $ReleaseLibDir 'onnxruntime.dll') -Destination $NativeReleaseDir -Force
+        Copy-Item -Path (Join-Path $ReleaseLibDir 'onnxruntime.lib') -Destination $NativeReleaseDir -Force
         $SharedDll = Join-Path $ReleaseLibDir 'onnxruntime_providers_shared.dll'
         $CudaDll = Join-Path $ReleaseLibDir 'onnxruntime_providers_cuda.dll'
         Write-Step 'npm run build (Release, --use_cuda)...'

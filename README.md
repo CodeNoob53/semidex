@@ -440,6 +440,16 @@ Verify the effective provider with the Admin UI's "Test CUDA configuration"
 probe or `npm run doctor`, never from the setting alone. Ollama independently
 selects its available local hardware backend.
 
+The managed Windows build also requires CMake and Visual Studio Build Tools
+with the **Desktop development with C++** workload. Install CMake with
+`winget install --id Kitware.CMake --source winget`, reopen PowerShell, verify
+`cmake --version`, and follow the linked Windows guide before running the
+installer. This native build is necessary because the standard Windows
+`onnxruntime-node` npm distribution does not provide a ready CUDA runtime;
+the guide links the relevant upstream ONNX Runtime issues and explains which
+manual compatibility, build, installation, and verification steps Semidex
+automates for the user.
+
 Linux and macOS are **experimental and unverified**. The Node.js and CPU paths
 are intended to be portable, but semidex does not claim end-to-end support on
 hardware that has not been tested. See the detailed matrix in
