@@ -610,7 +610,10 @@ the default).
 
 ## 9. Explicitly deferred (v2+)
 
-- Follow-up condensation (multi-turn memory via standalone-question rewrite).
+- Follow-up condensation and provider-neutral conversation memory. Durable
+  history, compaction, episodic retrieval, and scoped long-term memory follow
+  [agent-memory-and-conversation-context.md](agent-memory-and-conversation-context.md);
+  standalone-question rewrite is one retrieval aid, not the memory store.
 - Markdown rendering of model output.
 - Multi-collection ask; chat history persistence/export beyond
   copy-as-markdown; regenerate-with-different-provider.

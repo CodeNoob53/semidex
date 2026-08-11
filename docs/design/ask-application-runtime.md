@@ -205,7 +205,12 @@ provider, a polished embeddable widget, or every messaging-channel adapter.
 
 ### Stage D - Production application features
 
-- durable sessions and optional follow-up-question condensation;
+- durable sessions, provider-neutral context compaction, and retrieval of
+  relevant prior conversation episodes without replaying the complete chat;
+- scoped long-term memory with provenance, review, correction, and deletion
+  controls, following
+  [agent-memory-and-conversation-context.md](agent-memory-and-conversation-context.md);
+- optional follow-up-question condensation;
 - per-user and per-tenant collection authorization;
 - quotas, audit events, observability, and provider usage accounting;
 - additional generation providers (OpenAI-compatible/OpenRouter, Anthropic,

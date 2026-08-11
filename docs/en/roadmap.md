@@ -440,13 +440,26 @@ operational story around Qdrant, not only a search demo. Detailed plan:
 
 #### Track F — Agent Memory Overlay
 
-**Goal:** allow agents to record useful working knowledge without
-contaminating the authoritative document index.
+**Goal:** add provider-neutral conversation context and scoped long-term
+memory without contaminating the authoritative document index.
+
+This track separates the immutable conversation archive, context-window
+compaction, episodic retrieval, conversation state, agent/project memory, and
+global user memory. Compaction may replace old turns in the active prompt with
+a derived summary, but it never deletes or overwrites the original events.
+Relevant original events can be retrieved again without replaying the full
+chat to the model.
 
 Constraints: opt-in and disabled by default; separate from source-derived
-knowledge; global, user-scoped, and collection-scoped notes; candidate
-knowledge inbox with provenance, review state, and change log; explicit
-promotion workflow before any fact joins an authoritative source.
+knowledge; conversation-, agent/project-, user-, and collection-scoped
+records; provenance back to original messages/tool events; candidate-memory
+inbox with review state and change log; conflict/supersession handling;
+review, correction, export, retention, and deletion controls. No inferred or
+sensitive personal fact is promoted silently, and no memory fact joins an
+authoritative source without an explicit promotion workflow.
+
+Detailed architecture and staged delivery plan:
+[Agent memory and conversation context](../design/agent-memory-and-conversation-context.md).
 
 ### Conditional retrieval research (future, trigger-gated)
 
