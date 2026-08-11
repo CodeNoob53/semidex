@@ -8,7 +8,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
-import { diagnoseCudaFailure } from '../../../src/local/core/cuda-diagnosis.js';
+import { diagnoseCudaFailure, checkCudaToolkit, checkCudnn } from '../../../src/local/core/cuda-diagnosis.js';
 
 function makeFakeChild() {
   const child = new EventEmitter();
@@ -247,5 +247,86 @@ describe('diagnoseCudaFailure', () => {
     const neverEmits = () => makeFakeChild();
     await diagnoseCudaFailure({ spawnFn: neverEmits, platform: 'win32', env: {}, timeoutMs: 30, ...NO_TOOLKIT_FS });
     assert.ok(Date.now() - start < 1000, 'must resolve quickly once the bounded timeout elapses, not hang');
+  });
+});
+
+// Code review finding: checkCudaToolkit()/checkCudnn() take `platform` as
+// an explicit PARAMETER (defaulted to os.platform(), but always
+// overridable — every test above passes platform: 'win32' regardless of
+// the actual host OS, since CI runs ubuntu-latest — see
+// .github/workflows/*.yml). The module used to call the OS-native
+// node:path join() unconditionally; on a Linux CI runner, joining
+// 'C:\Program Files\NVIDIA\CUDNN' (a literal, backslash-containing string
+// — WINDOWS_CUDNN_ROOT/WINDOWS_TOOLKIT_ROOT) with posix.join() produces a
+// mixed-separator path like '...CUDNN/v9.25/bin' that never matches a
+// real Windows path shape — so existsSyncFn()/readdirSyncFn() checks
+// (and the fake ones these tests inject) silently fail to find files that
+// genuinely "exist" in the fake filesystem, exactly the same bug class
+// already fixed in managed-runtime-id.js/managed-onnx-runtime-manifest.js/
+// onnx-runtime-source-resolution.js earlier in this codebase's history.
+// These tests call the lower-level functions DIRECTLY (not through
+// diagnoseCudaFailure()) and assert on the exact returned `path` string,
+// which is the one place a wrong join() separator would be directly
+// observable regardless of which OS actually runs the test.
+describe('checkCudaToolkit() / checkCudnn() — platform-parameter-driven path joining, independent of the actual host OS', () => {
+  it('checkCudaToolkit(platform: "win32") returns a backslash-joined Windows path, never a mixed-separator one', () => {
+    const existsSyncFn = (p) => p === 'C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA';
+    const readdirSyncFn = (p) => (p === 'C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA' ? ['v12.4'] : []);
+    const result = checkCudaToolkit({ env: {}, existsSyncFn, readdirSyncFn, platform: 'win32' });
+    assert.equal(result.found, true);
+    assert.equal(result.path, 'C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.4');
+    assert.doesNotMatch(result.path, /\//, 'a win32-platform result must never contain a forward slash from an accidental posix join()');
+  });
+
+  it('checkCudaToolkit(platform: "linux") returns a forward-slash-joined Linux path', () => {
+    const existsSyncFn = (p) => p === '/usr/local/cuda-12.4';
+    const readdirSyncFn = (p) => (p === '/usr/local' ? ['cuda-12.4'] : []);
+    const result = checkCudaToolkit({ env: {}, existsSyncFn, readdirSyncFn, platform: 'linux' });
+    assert.equal(result.found, true);
+    assert.equal(result.path, '/usr/local/cuda-12.4');
+    assert.doesNotMatch(result.path, /\\/, 'a linux-platform result must never contain a backslash');
+  });
+
+  it('checkCudnn(platform: "win32") — toolkit-directory-relative path is a real backslash-joined Windows path', () => {
+    const existsSyncFn = (p) => p === 'C:\\cuda-12.4\\bin';
+    const readdirSyncFn = (p) => (p === 'C:\\cuda-12.4\\bin' ? ['cudnn64_9.dll'] : []);
+    const result = checkCudnn({ cudaToolkitPath: 'C:\\cuda-12.4', existsSyncFn, readdirSyncFn, platform: 'win32' });
+    assert.equal(result.found, true);
+    assert.equal(result.path, 'C:\\cuda-12.4\\bin');
+  });
+
+  it('checkCudnn(platform: "win32") — the separate NVIDIA cuDNN installer layout resolves through THREE nested win32 joins, each one correctly backslash-separated', () => {
+    // The exact scenario the reason-classification test above (line ~100)
+    // exercises indirectly through diagnoseCudaFailure() — this test
+    // isolates checkCudnn() itself and asserts on the literal path string,
+    // which a broken join() would have silently produced with forward
+    // slashes on any non-Windows host, causing every existsSyncFn/
+    // readdirSyncFn lookup below the first join() to miss.
+    const cudnnRoot = 'C:\\Program Files\\NVIDIA\\CUDNN';
+    const existsSyncFn = (p) => (
+      p === 'C:\\cuda-13.3\\bin'
+      || p === cudnnRoot
+      || p === `${cudnnRoot}\\v9.25\\bin`
+      || p === `${cudnnRoot}\\v9.25\\bin\\13.4\\x64`
+    );
+    const readdirSyncFn = (p) => {
+      if (p === 'C:\\cuda-13.3\\bin') return [];
+      if (p === cudnnRoot) return ['v9.25'];
+      if (p === `${cudnnRoot}\\v9.25\\bin`) return ['13.4'];
+      if (p === `${cudnnRoot}\\v9.25\\bin\\13.4\\x64`) return ['cudnn64_9.dll'];
+      return [];
+    };
+    const result = checkCudnn({ cudaToolkitPath: 'C:\\cuda-13.3', existsSyncFn, readdirSyncFn, platform: 'win32' });
+    assert.equal(result.found, true);
+    assert.equal(result.path, `${cudnnRoot}\\v9.25\\bin\\13.4\\x64`);
+    assert.doesNotMatch(result.path, /\//, 'every join() in this three-level nested lookup must stay win32-separated, regardless of host OS');
+  });
+
+  it('checkCudnn(platform: "linux") — toolkit-directory-relative lib64 path is forward-slash-joined', () => {
+    const existsSyncFn = (p) => p === '/usr/local/cuda-12.4/lib64';
+    const readdirSyncFn = (p) => (p === '/usr/local/cuda-12.4/lib64' ? ['libcudnn.so.9'] : []);
+    const result = checkCudnn({ cudaToolkitPath: '/usr/local/cuda-12.4', existsSyncFn, readdirSyncFn, platform: 'linux' });
+    assert.equal(result.found, true);
+    assert.equal(result.path, '/usr/local/cuda-12.4/lib64');
   });
 });

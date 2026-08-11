@@ -26,8 +26,28 @@
 // already-failed probe result, never a new failure mode of their own.
 import { spawn } from 'node:child_process';
 import { existsSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
+// This module's `platform` is always an explicit PARAMETER (defaulted to
+// osPlatform() but overridable by callers/tests — see checkCudaToolkit()/
+// checkCudnn()'s own signatures), never process.platform directly, since
+// tests exercise the Windows-shaped branches (WINDOWS_TOOLKIT_ROOT/
+// WINDOWS_CUDNN_ROOT, both literal 'C:\...' paths) regardless of which OS
+// actually runs the test suite (CI runs ubuntu-latest — see
+// .github/workflows/*.yml). The OS-native node:path join() therefore must
+// never be used here: on a non-Windows host it would silently treat a
+// 'C:\...' path as one opaque relative segment (posix.join has no concept
+// of '\' as a separator), producing a mixed-separator path that never
+// matches anything real. joinFor(platform) picks win32.join for the
+// Windows-shaped branches and posix.join for the Linux-shaped ones
+// (LINUX_TOOLKIT_ROOTS, real /usr/local/cuda-style paths) — chosen by the
+// SAME `platform` parameter the surrounding branch logic already reads,
+// so the join semantics can never disagree with which OS's path shape is
+// actually being constructed.
+import { win32 as pathWin32, posix as pathPosix } from 'node:path';
 import { platform as osPlatform } from 'node:os';
+
+function joinFor(platform) {
+  return platform === 'win32' ? pathWin32.join : pathPosix.join;
+}
 
 const NVIDIA_SMI_TIMEOUT_MS = 5_000;
 
@@ -131,7 +151,7 @@ export function checkCudaToolkit({ env = process.env, existsSyncFn = existsSync,
       // actually on disk.
       const versionDir = entries.find((e) => /^v\d/.test(e));
       if (!versionDir) return { found: false };
-      return { found: true, path: join(WINDOWS_TOOLKIT_ROOT, versionDir), version: versionDir.replace(/^v/, '') };
+      return { found: true, path: joinFor('win32')(WINDOWS_TOOLKIT_ROOT, versionDir), version: versionDir.replace(/^v/, '') };
     } catch {
       return { found: false };
     }
@@ -143,7 +163,7 @@ export function checkCudaToolkit({ env = process.env, existsSyncFn = existsSync,
       const versionDir = entries.find((e) => /^cuda(-\d)?/.test(e));
       if (versionDir) {
         const versionMatch = versionDir.match(/^cuda-(\d[\d.]*)/);
-        return { found: true, path: join(root, versionDir), version: versionMatch ? versionMatch[1] : null };
+        return { found: true, path: joinFor('linux')(root, versionDir), version: versionMatch ? versionMatch[1] : null };
       }
     } catch { /* try the next root */ }
   }
@@ -183,6 +203,7 @@ function dirHasCudnnDll(dir, existsSyncFn, readdirSyncFn, platform) {
 export function checkCudnn({ cudaToolkitPath, existsSyncFn = existsSync, readdirSyncFn = readdirSync, platform = osPlatform() } = {}) {
   if (!cudaToolkitPath) return { found: 'unknown' };
 
+  const join = joinFor(platform);
   const toolkitBinDir = platform === 'win32' ? join(cudaToolkitPath, 'bin') : join(cudaToolkitPath, 'lib64');
   if (dirHasCudnnDll(toolkitBinDir, existsSyncFn, readdirSyncFn, platform)) {
     return { found: true, path: toolkitBinDir, cudaVersion: null };
