@@ -18,20 +18,26 @@
 import { createHash } from 'node:crypto';
 import { randomBytes } from 'node:crypto';
 import { readFileSync, existsSync, writeFileSync, renameSync } from 'node:fs';
-// Managed CUDA runtimes are exclusively Windows artifacts (platform:
-// 'win32' in every manifest, MANAGED_NATIVE_RELATIVE_DIR itself pinned to
-// .../win32/x64) — dirPath here is always a Windows-shaped path
-// (typically a `C:\...` absolute path) regardless of which OS the
-// CURRENT process happens to run on. The Admin API's settings-listing
-// layer (this module's other real caller, per its own header comment)
-// can itself run on a non-Windows host even though the managed runtime
-// it's describing is Windows-only, so the OS-native `node:path` (which
-// silently becomes posix.join on Linux/macOS and treats a `C:\...`
-// string as one opaque relative segment instead of an absolute Windows
-// path) must never be used here — path.win32 always parses/joins
-// Windows path semantics, independent of process.platform.
-import { win32 as pathWin32 } from 'node:path';
-const { join } = pathWin32;
+// dirPath here is always resolved by the CURRENT process's own
+// semidex-home.js's resolveSemidexHomePaths({ platform: process.platform })
+// (or, in tests, a real os.tmpdir()-backed directory) — i.e. it is always
+// a REAL, already-OS-native path for whichever OS the process actually
+// runs on, never a hardcoded Windows shape. Code review correction: an
+// earlier version of this file forced path.win32.join here on the
+// (wrong) assumption that dirPath is always Windows-shaped because the
+// managed runtime's own ARTIFACTS are Windows-only (win32/x64 DLLs) — but
+// the DIRECTORY that happens to contain those artifacts is a plain
+// filesystem path like any other, in whatever format the host OS
+// actually uses. Forcing win32.join broke this module for every REAL
+// on-disk manifest test (tests/unit/admin/api/onnx.test.js's
+// mkdtempSync()-backed tests) on Linux CI: win32.join('/tmp/semidex-...',
+// 'manifest.json') produces '\tmp\semidex-...\manifest.json' — backslash
+// throughout, a path that does not exist on a POSIX filesystem — so
+// existsSync()/readFileSync() silently missed the real file. OS-native
+// node:path is correct here; MANAGED_NATIVE_RELATIVE_DIR below is a
+// forward-slash-separated RELATIVE suffix, which node:path's join()
+// correctly appends on either OS regardless of which join is used.
+import { join } from 'node:path';
 
 export const MANIFEST_SCHEMA_VERSION = 2;
 export const MANAGED_NATIVE_RELATIVE_DIR = 'bin/napi-v6/win32/x64';

@@ -10,15 +10,17 @@
 // createOnnxEmbeddingCapability()'s own closure).
 //
 // Every test here injects a FAKE ONNX Runtime module (via the `ortFactory`
-// option) and, where real tokenization behavior is not the point of the
-// test, a fake tokenizer too (via `loadTokenizerAndModel`) — never the
-// real 2.3GB model. This keeps the whole suite fast (milliseconds) and
-// network/disk-cache-independent, per this task's own explicit
-// instruction to avoid loading the real model in unit tests. A SEPARATE,
-// smaller set of tests deliberately uses the REAL tokenizer (already
-// cached locally) with only the ONNX session faked, to prove the real
-// tokenizer integration path still produces correctly-shaped output after
-// the refactor — see the "real tokenizer, fake session" describe block.
+// option) AND a fake tokenizer (via `loadTokenizerAndModel`) — never any
+// real network request, never the real 2.3GB model, never dependent on a
+// locally cached tokenizer/model file being present on disk. This keeps
+// the whole suite fast (milliseconds), fully hermetic, and safe to run on
+// a fresh CI checkout with no ./models/ directory at all.
+//
+// A real-tokenizer integration proof (real BGE-M3 tokenizer.json download
+// + encode, fake ONNX session) lives in a SEPARATE, explicitly opt-in
+// file — tests/integration/onnx-embed-real-tokenizer.integration.test.js
+// — never part of `npm test`'s own glob, since it makes a real network
+// request whenever the tokenizer isn't already cached locally.
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { createOnnxEmbeddingCapability } from '../../../src/local/core/onnx-embed.js';
@@ -61,7 +63,8 @@ function makeFakeOrt({ createSession, createCalls } = {}) {
 // vocabulary. Real tokenizer correctness is covered by
 // tests/unit/core/onnx-tokenizer.test.js (buildTokenizerBatch/
 // truncateTokenizerEncoding, already pure functions independent of any
-// instance) and by this file's own "real tokenizer, fake session" block.
+// instance) and by the opt-in real-tokenizer integration test — see this
+// file's own header comment.
 function fakeTokenizer() {
   return {
     encode: () => ({ ids: [0, 5, 6, 7, 2], attention_mask: [1, 1, 1, 1, 1], token_type_ids: [0, 0, 0, 0, 0] }),
@@ -391,13 +394,31 @@ describe('createOnnxEmbeddingCapability() — TWO independently-constructed inst
   });
 });
 
-describe('createOnnxEmbeddingCapability() — real tokenizer, fake session (proves the real BGE-M3 tokenizer integration still works after the refactor, without loading the real 2.3GB model)', () => {
-  test('a real tokenizer encode + a fake session produces correctly dense/sparse-shaped output', async () => {
-    const cap = createOnnxEmbeddingCapability({ ortFactory: () => makeFakeOrt() }); // real (cached, offline) tokenizer, fake session
-    const embed = await cap.loadOnnx();
-    const result = await embed('hello world, this is a real tokenizer integration check');
-    assert.equal(result.dense.length, 1024);
-    assert.ok(result.sparse.indices.length > 0, 'the real tokenizer must produce real, non-empty token ids for the fake session to weight');
-    await cap.shutdown();
+// Regression guard (code review): an earlier version of this suite's own
+// "real tokenizer, fake session" test omitted `loadTokenizerAndModel`
+// entirely, silently falling through to onnx-embed.js's OWN default —
+// which makes real network requests to HuggingFace and downloads the
+// real ~2.3GB model. That defeated this whole file's stated hermetic
+// intent without any test failing to signal it. This test proves the
+// hermetic path (hermeticCapabilityOptions(), the SAME options every
+// other test in this file uses) never calls fetch() at all — the
+// strongest available proof that no network path is reachable, whether
+// or not this specific machine happens to have the tokenizer cached
+// locally (a cache hit could otherwise mask a real, unwanted network
+// call for a stale/mismatched file).
+describe('createOnnxEmbeddingCapability() — hermetic path never touches the network (regression guard)', () => {
+  test('a full loadOnnx() + embed() + shutdown() cycle using hermeticCapabilityOptions() calls fetch() zero times', async () => {
+    const originalFetch = globalThis.fetch;
+    let fetchCallCount = 0;
+    globalThis.fetch = async (...args) => { fetchCallCount += 1; throw new Error(`unexpected real fetch() call: ${args[0]}`); };
+    try {
+      const cap = createOnnxEmbeddingCapability(hermeticCapabilityOptions());
+      const embed = await cap.loadOnnx();
+      await embed('hello world');
+      await cap.shutdown();
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+    assert.equal(fetchCallCount, 0, 'the hermetic loadTokenizerAndModel/ortFactory overrides must make this whole cycle fully network-free');
   });
 });

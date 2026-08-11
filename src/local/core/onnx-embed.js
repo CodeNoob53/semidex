@@ -223,24 +223,44 @@ export function resolveOnnxExecutionProviders(envValue) {
   return ['cpu'];
 }
 
-// The real tokenizer-file-download-and-construct step — touches the
-// cached (multi-gigabyte, once downloaded) model directory on disk.
-// Stateless itself (constructs and returns a fresh Tokenizer each call),
-// so safe to share as the default for every capability instance;
-// createOnnxEmbeddingCapability()'s own `loadTokenizerAndModel` option
-// lets tests substitute a fake here to stay hermetic.
-async function defaultLoadTokenizerAndModel() {
+// The real tokenizer-file-download-and-construct step alone — small
+// (tokenizer.json/tokenizer_config.json, kilobytes), never touches the
+// multi-gigabyte model weights. Split out from the combined tokenizer+
+// model step below (code review: an earlier version only exposed the
+// combined step, so a test that wanted "real tokenizer, fake ONNX
+// session" — genuinely useful, since it proves the real BGE-M3 tokenizer
+// integration still works — had no way to get a real tokenizer without
+// ALSO downloading the real ~2.3GB model.onnx/model.onnx.data, making
+// that one test alone slow, network-dependent, and disk-cache-dependent
+// in a suite whose entire other point is to stay hermetic). Exported so
+// tests can call it directly as their own `loadTokenizerAndModel`
+// override, deliberately skipping downloadModelFiles() below.
+export async function loadRealTokenizer() {
   mkdirSync(CACHE_DIR, { recursive: true });
   for (const file of ['tokenizer.json', 'tokenizer_config.json']) {
     await downloadFile(file, TOKENIZER_DIR);
   }
-  const tokenizer = new Tokenizer(
+  return new Tokenizer(
     JSON.parse(readFileSync(join(TOKENIZER_DIR, 'tokenizer.json'), 'utf-8')),
     JSON.parse(readFileSync(join(TOKENIZER_DIR, 'tokenizer_config.json'), 'utf-8')),
   );
+}
 
+// The real model-weights download step alone (~2.3GB, cached after the
+// first run) — never called by any test; production-only.
+async function downloadModelFiles() {
   for (const file of ['model.onnx', 'model.onnx.data']) await downloadFile(file);
+}
 
+// Production default: real tokenizer AND real model weights. Stateless
+// itself (constructs and returns a fresh Tokenizer each call), so safe to
+// share as the default for every capability instance;
+// createOnnxEmbeddingCapability()'s own `loadTokenizerAndModel` option
+// lets tests substitute a fake — or loadRealTokenizer() alone — here to
+// stay hermetic.
+async function defaultLoadTokenizerAndModel() {
+  const tokenizer = await loadRealTokenizer();
+  await downloadModelFiles();
   return { tokenizer };
 }
 
