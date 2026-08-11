@@ -253,6 +253,48 @@ export const DEFINITIONS = {
     appliesAt: 'next_restart', requiresReindex: false, requiresBackfill: false,
     ...intField({ envVar: 'ASK_NUM_CTX', defaultVal: 8192, min: 256, max: 1_000_000 }),
   },
+  ASK_HISTORY_MAX_MESSAGES: {
+    category: 'ai', label: 'Ask v2: max history messages', type: 'number', envVar: 'ASK_HISTORY_MAX_MESSAGES',
+    description: 'Maximum number of recentMessages entries from the caller-supplied conversation accepted into a single /api/v2/ask prompt. Oldest messages are trimmed first; the newest complete messages are always retained.',
+    advanced: true, appliesAt: 'next_search', requiresReindex: false, requiresBackfill: false,
+    ...intField({ envVar: 'ASK_HISTORY_MAX_MESSAGES', defaultVal: 20, min: 0, max: 200 }),
+  },
+  ASK_HISTORY_MAX_CHARS: {
+    category: 'ai', label: 'Ask v2: max history characters', type: 'number', envVar: 'ASK_HISTORY_MAX_CHARS',
+    // Governs ONLY the aggregate trimmed-history character budget consumed
+    // during budgetConversationContext()'s trimming walk
+    // (conversation-context.js) -- it is NOT the individual-message
+    // ceiling. The individual-message ceiling is request.js's own fixed
+    // PROTOCOL_MAX_MESSAGE_CHARS constant, a non-configurable structural
+    // sanity bound checked at parse time, never this setting.
+    description: 'Hard character-count ceiling applied to the AGGREGATE trimmed conversation history assembled for a single /api/v2/ask prompt (across all retained recentMessages entries combined). Does not bound any single message individually -- see the separate, fixed, non-configurable per-message structural limit enforced at request-parse time.',
+    advanced: true, appliesAt: 'next_search', requiresReindex: false, requiresBackfill: false,
+    ...intField({ envVar: 'ASK_HISTORY_MAX_CHARS', defaultVal: 12000, min: 200, max: 500000 }),
+  },
+  ASK_HISTORY_MAX_TOKENS: {
+    category: 'ai', label: 'Ask v2: max history tokens', type: 'number', envVar: 'ASK_HISTORY_MAX_TOKENS',
+    description: 'Hard token-count ceiling (measured with the same counter used for retrieval chunk sizing) applied to the trimmed conversation history assembled for /api/v2/ask, independent of the char/message caps and of the model context window itself.',
+    advanced: true, appliesAt: 'next_search', requiresReindex: false, requiresBackfill: false,
+    ...intField({ envVar: 'ASK_HISTORY_MAX_TOKENS', defaultVal: 2000, min: 50, max: 200000 }),
+  },
+  ASK_SUMMARY_COMPACTION_THRESHOLD: {
+    category: 'ai', label: 'Ask v2: summary compaction threshold (messages)', type: 'number', envVar: 'ASK_SUMMARY_COMPACTION_THRESHOLD',
+    description: 'Number of conversation messages (recentMessages plus the current turn) at or above which /api/v2/ask attempts a bounded summary refresh and returns updatedSummary. Compaction is best-effort; failures never fail the request.',
+    advanced: true, appliesAt: 'next_search', requiresReindex: false, requiresBackfill: false,
+    ...intField({ envVar: 'ASK_SUMMARY_COMPACTION_THRESHOLD', defaultVal: 8, min: 2, max: 500 }),
+  },
+  ASK_QUERY_REWRITE_TIMEOUT_MS: {
+    category: 'ai', label: 'Ask v2: query rewrite timeout (ms)', type: 'number', envVar: 'ASK_QUERY_REWRITE_TIMEOUT_MS',
+    description: 'Timeout for the optional follow-up query-rewrite generation call in /api/v2/ask. On timeout, retrieval falls back to the original question; the answer is never blocked or failed by this.',
+    advanced: true, appliesAt: 'next_search', requiresReindex: false, requiresBackfill: false,
+    ...intField({ envVar: 'ASK_QUERY_REWRITE_TIMEOUT_MS', defaultVal: 4000, min: 500, max: 60000 }),
+  },
+  ASK_SUMMARY_COMPACTION_TIMEOUT_MS: {
+    category: 'ai', label: 'Ask v2: summary compaction timeout (ms)', type: 'number', envVar: 'ASK_SUMMARY_COMPACTION_TIMEOUT_MS',
+    description: 'Timeout for the optional bounded summary-compaction generation call in /api/v2/ask. On timeout, the response completes normally without an updated summary; the answer is never blocked or failed by this.',
+    advanced: true, appliesAt: 'next_search', requiresReindex: false, requiresBackfill: false,
+    ...intField({ envVar: 'ASK_SUMMARY_COMPACTION_TIMEOUT_MS', defaultVal: 6000, min: 500, max: 120000 }),
+  },
   OLLAMA_URL: {
     category: 'ai', label: 'Ollama URL', type: 'string', envVar: 'OLLAMA_URL',
     description: 'Base URL of the Ollama server used for generation and tagging.', advanced: false,

@@ -1,6 +1,7 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildEvidence, DEFAULT_TOP } from '../../../../src/core/ask/evidence.js';
+import { buildEvidence, fitEvidenceToContextBudget, DEFAULT_TOP } from '../../../../src/core/ask/evidence.js';
+import { RESERVED_HEADROOM_TOKENS } from '../../../../src/core/ask/prompt.js';
 
 // countTokens: deterministic word-count proxy — tests never load the real
 // BGE-M3 tokenizer.
@@ -153,5 +154,67 @@ describe('buildEvidence', () => {
     await buildEvidence({ adapter, embedQuery, countTokens, collection: 'c', question: 'q', sourceFile: 'docs/x.md' });
     assert.equal(capturedFilter.sourceFile, 'docs/x.md');
     assert.equal(capturedFilter.excludeNav, true);
+  });
+});
+
+describe('fitEvidenceToContextBudget', () => {
+  function source(n, wordCount) {
+    return {
+      n, sourceFile: `doc${n}.md`, chunkIndex: n, section: `S${n}`,
+      snippet: Array.from({ length: wordCount }, (_, i) => `w${n}_${i}`).join(' '),
+      nodeId: null, nodePath: null, nodeType: null, truncated: false,
+    };
+  }
+
+  test('does not double-count conversation history — a numCtx that fits the REAL rendered prompt (evidence+history+question) keeps all sources, never over-trims because of a separately-subtracted history reservation', async () => {
+    // Code review finding (P1): a prior version of this function computed
+    // `budget = numCtx - RESERVED_HEADROOM_TOKENS - historyReservationTokens`
+    // even though the SAME history text was already fully rendered (via
+    // conversationContext) into the prompt string being measured on every
+    // loop iteration — subtracting the reservation on top of the real
+    // rendered count double-charged history, silently over-constraining
+    // evidence. This test picks a numCtx that is JUST large enough for the
+    // real combined prompt (system + conversation block + all sources +
+    // question) but would have failed under the old double-subtraction —
+    // asserting the fix keeps every source rather than spuriously dropping
+    // one or refusing outright.
+    const sources = [source(1, 20), source(2, 20)];
+    const conversationContext = {
+      summary: Array.from({ length: 30 }, (_, i) => `hist${i}`).join(' '),
+      recentMessages: [{ role: 'user', content: Array.from({ length: 30 }, (_, i) => `msg${i}`).join(' ') }],
+    };
+
+    // Measure the REAL rendered prompt's token count directly (system +
+    // conversation block + both sources + question), then pick a numCtx
+    // that gives just a little headroom above RESERVED_HEADROOM_TOKENS plus
+    // that real count — under the old (buggy) implementation, subtracting
+    // ANOTHER copy of the history reservation on top would push this
+    // numCtx below the loop's own budget and force a source to be dropped
+    // even though the real prompt genuinely fits.
+    const { buildPromptParts, estimatePromptText } = await import('../../../../src/core/ask/prompt.js');
+    const realPromptTokens = countTokens(estimatePromptText(buildPromptParts(sources, 'q', conversationContext)));
+    const numCtx = RESERVED_HEADROOM_TOKENS + realPromptTokens + 5; // tight but sufficient
+
+    const result = await fitEvidenceToContextBudget(sources, 'q', numCtx, countTokens, conversationContext);
+    assert.equal(result.sources.length, 2, 'both sources must survive — the real rendered prompt already fits, no double-charged history reservation should force a drop');
+    assert.equal(result.dropped, 0);
+  });
+
+  test('still trims sources when the real combined prompt genuinely does not fit', async () => {
+    const sources = [source(1, 20), source(2, 20), source(3, 20)];
+    const conversationContext = {
+      recentMessages: [{ role: 'user', content: Array.from({ length: 100 }, (_, i) => `msg${i}`).join(' ') }],
+    };
+    const numCtx = RESERVED_HEADROOM_TOKENS + 60; // genuinely too small for everything
+    const result = await fitEvidenceToContextBudget(sources, 'q', numCtx, countTokens, conversationContext);
+    assert.ok(result.sources.length < 3, 'expected some sources to be dropped when the real prompt does not fit');
+  });
+
+  test('byte-identical v1 behavior when conversationContext is omitted', async () => {
+    const sources = [source(1, 20)];
+    const numCtx = RESERVED_HEADROOM_TOKENS + 500; // comfortable headroom above the real single-source prompt cost
+    const result = await fitEvidenceToContextBudget(sources, 'q', numCtx, countTokens);
+    assert.equal(result.sources.length, 1);
+    assert.equal(result.dropped, 0);
   });
 });

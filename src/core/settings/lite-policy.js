@@ -96,6 +96,18 @@ export const LITE_SETTINGS_POLICY = Object.freeze({
   SEMIDEX_GENERATION_BACKEND: exposed(),
   ASK_MODEL: exposed(),
   ASK_NUM_CTX: exposed(),
+  // Ask v2 (bounded conversational context, /api/v2/ask) settings — fully
+  // backend-agnostic (no local ONNX/Ollama runtime or model coupling; they
+  // govern history budgeting/timeouts/thresholds only), and Lite fully
+  // supports /api/v2/ask through the same register-neutral-routes.js
+  // wiring Full uses — exposed here matching ASK_MODEL/ASK_NUM_CTX's own
+  // precedent of exposing Ask-behavior-relevant settings to Lite.
+  ASK_HISTORY_MAX_MESSAGES: exposed(),
+  ASK_HISTORY_MAX_CHARS: exposed(),
+  ASK_HISTORY_MAX_TOKENS: exposed(),
+  ASK_SUMMARY_COMPACTION_THRESHOLD: exposed(),
+  ASK_QUERY_REWRITE_TIMEOUT_MS: exposed(),
+  ASK_SUMMARY_COMPACTION_TIMEOUT_MS: exposed(),
   GEMINI_API_KEY: exposed(),
   CONTEXT_MODE: exposed(),
   SEMIDEX_STORAGE_BACKEND: exposed(),

@@ -12,10 +12,25 @@
 // running rejects immediately with a typed busy error — the caller (the
 // route) turns that into 429 before any streaming starts. The lock is
 // always released in `finally`, on every exit path (success, provider
-// error, zero-evidence refusal, client abort).
+// error, zero-evidence refusal, client abort). The lock itself is a shared,
+// injectable SingleFlightGate (single-flight-gate.js), not a bare boolean —
+// this is what lets Ask v2's coordinator (coordinator-v2.js) contend on the
+// SAME lock as v1, including during v2's own rewrite/compaction steps that
+// run outside this file's own critical section.
+//
+// createAskCore() (below) is the real, ungated logic — an EXPORTED
+// INTERNAL factory (@internal), importable by register-neutral-routes.js/
+// coordinator-v2.js/tests that need to share one instance across v1 and v2,
+// but NEVER attached as a method on the object createAskCoordinator()
+// returns. A caller holding only `{ ask, isBusy }` (any v1 route handler,
+// any ordinary test) has no path to the ungated logic at all short of
+// explicitly importing createAskCore() by name — a deliberate, auditable
+// action, never an accidental extra method call on an object already in
+// hand.
 import { buildEvidence, fitEvidenceToContextBudget, DEFAULT_TOP } from './evidence.js';
 import { buildPromptParts, RESERVED_HEADROOM_TOKENS, REFUSAL_SENTINEL } from './prompt.js';
 import { validateCitations } from './citations.js';
+import { createSingleFlightGate } from './single-flight-gate.js';
 
 // Holds back streamed tokens until the accumulated text can no longer be a
 // prefix of REFUSAL_SENTINEL — the model is instructed to emit that exact
@@ -83,6 +98,18 @@ function createSentinelGuard(onToken) {
 }
 
 /**
+ * @internal Exported so register-neutral-routes.js / createAskCoordinatorBundle()
+ * (coordinator-v2.js) / coordinator-v2.js's own construction, and tests
+ * exercising the shared-core wiring directly, can build ONE instance and
+ * hand it to both createAskCoordinator() and createAskCoordinatorV2(). NOT
+ * part of the GenerationProvider-adjacent application contract v1's route
+ * uses — a route handler, and anything holding only a `{ask, isBusy}`
+ * coordinator object, has no path to this function at all unless it
+ * explicitly imports it by name, which is a deliberate, auditable action,
+ * never an accidental method call on an object already in hand. Has no
+ * `busy`/gate concept of its own — gating is entirely the caller's
+ * responsibility (createAskCoordinator below, or coordinator-v2.js).
+ *
  * @param {{
  *   adapter: import('../storage/adapter.js').StorageAdapter,
  *   embedQuery?: Function,
@@ -98,20 +125,40 @@ function createSentinelGuard(onToken) {
  *   optional DI (code review, Phase 8B Step 6), forwarded to
  *   buildEvidence()/runHybridSearch() — only dereferenced when the
  *   resolved collection turns out to be qdrant-cloud.
+ * @returns {(req: Object) => Promise<Object>} askCore — see the returned
+ *   function's own JSDoc below for the full request/result shape.
  */
-export function createAskCoordinator({ adapter, embedQuery, countTokens, generationProvider, settingsService, cloudEmbed }) {
-  let busy = false;
-
+export function createAskCore({ adapter, embedQuery, countTokens, generationProvider, settingsService, cloudEmbed }) {
   /**
    * @param {{
    *   collection: string,
    *   question: string,
    *   sourceFile?: string,
    *   top?: number,
+   *   retrievalQuery?: string,
+   *   conversationContext?: { summary?: string, recentMessages?: Array<{role,content}> },
+   *   readiness?: { ok: boolean, reason?: string, model?: string, numCtx?: number },
    *   signal?: AbortSignal,
    *   onSources: (payload: { searchMode: string|null, sources: Array<Object> }) => void,
    *   onToken: (text: string) => void,
-   * }} req
+   * }} req retrievalQuery/conversationContext/readiness are Ask v2
+   *   additions, all optional and defaulted so v1's existing call shape
+   *   (which never passes any of them) is completely unaffected:
+   *   retrievalQuery is used ONLY for retrieval (buildEvidence), never for
+   *   the rendered "Question:" text; conversationContext is threaded into
+   *   both the budget check and the final prompt render, as its own
+   *   separately-delimited section — `question` itself is NEVER augmented
+   *   with history text anywhere in this function. `readiness` lets a
+   *   caller that ALREADY resolved generationProvider.ready() (v2's
+   *   coordinator, which needs numCtx before this function is even called,
+   *   to budget conversation history) pass that SAME readiness through,
+   *   instead of this function resolving a second, independent one —
+   *   code review finding (P1): calling ready() twice per request risked
+   *   history being trimmed against one numCtx/model while evidence and
+   *   generation ran against a different one, if readiness changed
+   *   between the two calls (e.g. a settings change or provider restart
+   *   mid-request). Omitted (v1's own call shape), this function resolves
+   *   its own readiness exactly as before.
    * @returns {Promise<
    *   | { status: 'refused', reason: 'no_evidence', evidenceCount: 0, sources: [] }
    *   | { status: 'done', text: string, citations: number[], invalidCitations: number[],
@@ -119,106 +166,155 @@ export function createAskCoordinator({ adapter, embedQuery, countTokens, generat
    *       provider: string, model: string, tokensIn?: number, tokensOut?: number,
    *       evidenceCount: number, elapsedMs: number }
    *   | { status: 'aborted', elapsedMs: number }
-   *   | { status: 'busy' }
    *   | { status: 'provider_unavailable', reason: string }
    *   | { status: 'error', code?: string, message: string }
    * >}
+   *   Never returns { status: 'busy' } — this function has no gate of its
+   *   own; that status is produced only by createAskCoordinator()'s own
+   *   ask() wrapper below.
    */
-  async function ask({ collection, question, sourceFile, top = DEFAULT_TOP, signal, onSources, onToken }) {
-    if (busy) return { status: 'busy' };
-    busy = true;
+  return async function askCore({ collection, question, sourceFile, top = DEFAULT_TOP, retrievalQuery, conversationContext, readiness: suppliedReadiness, signal, onSources, onToken }) {
     const startedAt = Date.now();
 
-    try {
-      const readiness = await generationProvider.ready();
-      if (!readiness.ok) {
-        return { status: 'provider_unavailable', reason: readiness.reason ?? 'Generation provider is not ready.' };
-      }
-
-      // Cross-process propagation: a settings.json change saved via the
-      // admin UI while this process has been running must be picked up
-      // without a restart — same reasoning as MCP's search tool handler
-      // and admin /api/search's route handler.
-      settingsService?.refreshIfChanged();
-      const evidence = await buildEvidence({ adapter, embedQuery, countTokens, collection, question, sourceFile, top, settingsService, cloudEmbed });
-      if (evidence.error) {
-        return { status: 'error', code: evidence.error, message: evidence.message };
-      }
-
-      const { searchMode } = evidence;
-
-      // Bound the WHOLE prompt against the model's real context window
-      // (readiness.numCtx) — per-source budgets alone don't guarantee the
-      // reconstructed prompt (rules + all evidence + question) fits. May
-      // drop trailing (lowest-ranked) sources and renumber; onSources
-      // reports exactly what survives, so the client only ever sees sources
-      // that actually made it into the prompt sent to the model.
-      const fitted = await fitEvidenceToContextBudget(evidence.sources, question, readiness.numCtx, countTokens);
-      const sources = fitted.sources;
-      // Awaited for the same reason onToken's return value is awaited below
-      // — onSources may return a backpressure-drain promise (the sources
-      // payload can be large), and not awaiting it would let this coroutine
-      // race ahead into generation before the write actually drained.
-      await onSources({ searchMode, sources });
-
-      if (sources.length === 0) {
-        return { status: 'refused', reason: 'no_evidence', evidenceCount: 0, sources: [] };
-      }
-
-      const { systemPrompt, userPrompt } = buildPromptParts(sources, question);
-      const sentinelGuard = createSentinelGuard(onToken);
-
-      let genResult;
-      try {
-        genResult = await generationProvider.generate({
-          systemPrompt,
-          prompt: userPrompt,
-          model: readiness.model,
-          // Pass the SAME numCtx readiness reported and that
-          // fitEvidenceToContextBudget() bounded the prompt against — the
-          // coordinator's context-budget math is meaningless if the
-          // generation request doesn't ask the provider to actually honor
-          // that context size (code review finding: readiness.numCtx and
-          // the live request were previously decoupled, so Ollama could run
-          // at its own smaller default regardless of what was budgeted for).
-          options: Number.isFinite(readiness.numCtx) ? { num_ctx: readiness.numCtx } : undefined,
-          signal,
-          onToken: (token) => sentinelGuard.push(token),
-        });
-      } catch (err) {
-        if (signal?.aborted) return { status: 'aborted', elapsedMs: Date.now() - startedAt };
-        return { status: 'error', message: `Generation failed: ${err.message}` };
-      }
-
-      if (genResult.aborted) {
-        return { status: 'aborted', elapsedMs: Date.now() - startedAt };
-      }
-
-      await sentinelGuard.finalize(genResult.text ?? '');
-
-      const validated = validateCitations(genResult.text, sources);
-
-      return {
-        status: 'done',
-        text: validated.text,
-        citations: validated.citations,
-        invalidCitations: validated.invalidCitations,
-        nodeReferences: validated.nodeReferences,
-        strippedMarkers: validated.strippedMarkers,
-        refused: validated.refused,
-        provider: generationProvider.name(),
-        model: readiness.model,
-        tokensIn: genResult.tokensIn,
-        tokensOut: genResult.tokensOut,
-        evidenceCount: sources.length,
-        elapsedMs: Date.now() - startedAt,
-      };
-    } finally {
-      busy = false;
+    const readiness = suppliedReadiness ?? await generationProvider.ready();
+    if (!readiness.ok) {
+      return { status: 'provider_unavailable', reason: readiness.reason ?? 'Generation provider is not ready.' };
     }
+
+    // Cross-process propagation: a settings.json change saved via the
+    // admin UI while this process has been running must be picked up
+    // without a restart — same reasoning as MCP's search tool handler
+    // and admin /api/search's route handler.
+    settingsService?.refreshIfChanged();
+    const evidence = await buildEvidence({ adapter, embedQuery, countTokens, collection, question, sourceFile, top, settingsService, cloudEmbed, retrievalQuery });
+    if (evidence.error) {
+      return { status: 'error', code: evidence.error, message: evidence.message };
+    }
+
+    const { searchMode } = evidence;
+
+    // Bound the WHOLE prompt (rules + history + all evidence + question)
+    // against the model's real context window (readiness.numCtx) —
+    // per-source budgets alone don't guarantee it fits. May drop trailing
+    // (lowest-ranked) sources and renumber; onSources reports exactly what
+    // survives, so the client only ever sees sources that actually made it
+    // into the prompt sent to the model. conversationContext defaults to
+    // undefined, so v1's call shape (which omits it) computes an identical
+    // budget to before this parameter existed. No separate history-token
+    // reservation is subtracted here — conversationContext's own rendered
+    // text is already part of what gets counted on every iteration below,
+    // so subtracting a reservation on top of that would double-count
+    // history (code review finding, P1 — see fitEvidenceToContextBudget()'s
+    // own header comment for the full explanation).
+    const fitted = await fitEvidenceToContextBudget(evidence.sources, question, readiness.numCtx, countTokens, conversationContext);
+    const sources = fitted.sources;
+    // Awaited for the same reason onToken's return value is awaited below
+    // — onSources may return a backpressure-drain promise (the sources
+    // payload can be large), and not awaiting it would let this coroutine
+    // race ahead into generation before the write actually drained.
+    await onSources({ searchMode, sources });
+
+    if (sources.length === 0) {
+      return { status: 'refused', reason: 'no_evidence', evidenceCount: 0, sources: [] };
+    }
+
+    // The SAME conversationContext object used for budgeting above — one
+    // object, one render, one count, matching what actually gets sent to
+    // the provider. `question` is the literal original user question in
+    // every case (v1 and v2 alike) — never augmented, never history-bearing.
+    const { systemPrompt, userPrompt } = buildPromptParts(sources, question, conversationContext);
+    const sentinelGuard = createSentinelGuard(onToken);
+
+    let genResult;
+    try {
+      genResult = await generationProvider.generate({
+        systemPrompt,
+        prompt: userPrompt,
+        model: readiness.model,
+        // Pass the SAME numCtx readiness reported and that
+        // fitEvidenceToContextBudget() bounded the prompt against — the
+        // coordinator's context-budget math is meaningless if the
+        // generation request doesn't ask the provider to actually honor
+        // that context size (code review finding: readiness.numCtx and
+        // the live request were previously decoupled, so Ollama could run
+        // at its own smaller default regardless of what was budgeted for).
+        options: Number.isFinite(readiness.numCtx) ? { num_ctx: readiness.numCtx } : undefined,
+        signal,
+        onToken: (token) => sentinelGuard.push(token),
+      });
+    } catch (err) {
+      if (signal?.aborted) return { status: 'aborted', elapsedMs: Date.now() - startedAt };
+      return { status: 'error', message: `Generation failed: ${err.message}` };
+    }
+
+    if (genResult.aborted) {
+      return { status: 'aborted', elapsedMs: Date.now() - startedAt };
+    }
+
+    await sentinelGuard.finalize(genResult.text ?? '');
+
+    const validated = validateCitations(genResult.text, sources);
+
+    return {
+      status: 'done',
+      text: validated.text,
+      citations: validated.citations,
+      invalidCitations: validated.invalidCitations,
+      nodeReferences: validated.nodeReferences,
+      strippedMarkers: validated.strippedMarkers,
+      refused: validated.refused,
+      provider: generationProvider.name(),
+      model: readiness.model,
+      tokensIn: genResult.tokensIn,
+      tokensOut: genResult.tokensOut,
+      evidenceCount: sources.length,
+      elapsedMs: Date.now() - startedAt,
+    };
+  };
+}
+
+/**
+ * The application-facing coordinator factory — public contract unchanged in
+ * shape from before this file's Ask v2 revision (`{ ask, isBusy }`), except
+ * for two new optional constructor params (`gate`/`core`), both defaulted
+ * so every existing call site (v1's route, every existing test) is
+ * unaffected. `gate` defaults to a private SingleFlightGate this function
+ * creates for itself when omitted — the exact same single-flight semantics
+ * this file always had, just expressed via the shared primitive instead of
+ * a bare local `let busy`. `core` defaults to a freshly-constructed
+ * createAskCore() built from the same adapter/embedQuery/... params this
+ * function already takes.
+ *
+ * register-neutral-routes.js (via createAskCoordinatorBundle(), see
+ * coordinator-v2.js) is the ONE production call site that passes an
+ * explicit `core`/`gate` pair, so the SAME instances can also be handed to
+ * createAskCoordinatorV2() — this is what makes v1 and v2 traffic
+ * genuinely share one single-flight lock.
+ *
+ * @param {{
+ *   adapter?: import('../storage/adapter.js').StorageAdapter,
+ *   embedQuery?: Function,
+ *   countTokens?: (text: string) => number|Promise<number>,
+ *   generationProvider?: import('../generation/provider.js').GenerationProvider,
+ *   settingsService?: ReturnType<typeof import('../settings/service.js').createSettingsService>,
+ *   cloudEmbed?: import('../embedding-profile/cloud-embedding-capability.js').CloudEmbeddingCapability,
+ *   gate?: ReturnType<typeof createSingleFlightGate>,
+ *   core?: ReturnType<typeof createAskCore>,
+ * }} deps adapter/embedQuery/countTokens/generationProvider/settingsService/
+ *   cloudEmbed are only consulted when `core` is omitted (they construct
+ *   the default createAskCore() instance) — a caller supplying its own
+ *   `core` does not need to repeat them.
+ * @returns {{ ask: Function, isBusy: () => boolean }}
+ */
+export function createAskCoordinator({ adapter, embedQuery, countTokens, generationProvider, settingsService, cloudEmbed, gate = createSingleFlightGate(), core } = {}) {
+  const askCore = core ?? createAskCore({ adapter, embedQuery, countTokens, generationProvider, settingsService, cloudEmbed });
+
+  async function ask(args) {
+    const outcome = await gate.run(() => askCore(args));
+    return outcome.ok ? outcome.value : { status: 'busy' };
   }
 
-  return { ask, isBusy: () => busy };
+  return { ask, isBusy: gate.isBusy };
 }
 
 // Re-exported for callers that want the same headroom constant without a

@@ -614,6 +614,14 @@ the default).
   history, compaction, episodic retrieval, and scoped long-term memory follow
   [agent-memory-and-conversation-context.md](agent-memory-and-conversation-context.md);
   standalone-question rewrite is one retrieval aid, not the memory store.
+  **Status (2026-08-12): a bounded, non-durable precursor slice shipped as
+  `POST /api/v2/ask`** — caller-supplied conversation summary/recent
+  messages, token-budgeted history, follow-up query rewriting, and optional
+  summary compaction, with zero server-side persistence. This dashboard
+  reference client still answers each question independently (v1 semantics
+  unchanged); v2 is an application-facing API addition, not a dashboard UI
+  change. See [ask-v2-conversational-context.md](ask-v2-conversational-context.md)
+  for the full design.
 - Markdown rendering of model output.
 - Multi-collection ask; chat history persistence/export beyond
   copy-as-markdown; regenerate-with-different-provider.

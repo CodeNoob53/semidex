@@ -212,15 +212,6 @@ by Gemini from passages found in that collection. The model does not receive
 the whole collection: semidex-lite first retrieves a bounded set of relevant
 sources and only then sends them to Gemini with the question.
 
-### Use Ask in the dashboard
-
-1. Configure `QDRANT_URL`, `QDRANT_KEY`, and `GEMINI_API_KEY`.
-2. Index a file or folder through `semidex-lite index`.
-3. Start the server with `npx semidex-lite serve`.
-4. Open `http://127.0.0.1:8642`, select the collection, and switch to Ask.
-5. Ask a question. The interface displays the generated answer and the sources
-   supplied to the model.
-
 ### How an answer is produced
 
 ```text
@@ -254,10 +245,36 @@ runtime. It cannot be changed through the dashboard, `.env`, or an Ask API
 request. Safe custom instructions may be added later together with validation
 and constraints, but are not currently part of the public contract.
 
-### Call Ask through the HTTP API
+### Integrate Ask through your backend
 
-Ask is available at the versioned `POST /api/v1/ask` endpoint. After starting
-`serve` locally:
+The primary way to use Ask is from your own assistant backend. This lets a
+website, bot, or application choose the appropriate knowledge collection,
+authenticate users, manage chat history, and apply its own access rules before
+calling Semidex. Ask is available at the versioned `POST /api/v1/ask` endpoint.
+
+After starting `serve` locally, a backend can call it with `fetch`:
+
+```js
+const collectionByAssistant = {
+  support: 'company-support',
+  education: 'course-materials',
+};
+
+const collection = collectionByAssistant[assistantId];
+if (!collection) throw new Error('Unknown assistant');
+
+const response = await fetch('http://127.0.0.1:8642/api/v1/ask', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ collection, question: userMessage }),
+});
+```
+
+Resolve or allow-list the collection on your backend. Do not let an
+unauthenticated browser choose an arbitrary collection name, because that may
+give it access to another assistant's knowledge base.
+
+For a manual API check, use `curl`:
 
 ```powershell
 curl.exe -N -X POST "http://127.0.0.1:8642/api/v1/ask" `
@@ -295,6 +312,99 @@ public authentication or abuse protection. Do not expose the admin server port
 directly to the Internet. For an external integration, place your own
 authenticated backend or reverse proxy with appropriate controls in front of
 it.
+
+### Backend integration: multi-turn Ask (`/api/v2/ask`)
+
+**Semidex Lite does not store chats in this version.** Your backend owns
+conversation storage — Postgres, SQLite, Redis, MongoDB, or any store you
+already use. `POST /api/v2/ask` accepts a bounded, caller-supplied
+conversation summary and recent messages on every request, uses them to
+rewrite follow-up questions for retrieval and to give the model
+conversational context, and optionally returns an updated summary for you to
+persist — but never remembers anything between requests itself.
+
+```js
+// Your own persistence — not part of Semidex. loadConversation() is
+// illustrative: read the conversation's stored summary/recentMessages/
+// version from whatever store your backend already uses.
+const conversation = await chatStore.loadConversation(conversationId, userId);
+
+// Resolve the assistant's allow-listed collection server-side — never pass
+// a browser-supplied collection name directly.
+const collection = assistantRegistry.resolveAllowedCollection(assistantId);
+
+const response = await fetch('http://127.0.0.1:8642/api/v2/ask', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    collection,
+    question: userMessage,
+    conversation: {
+      id: conversationId,
+      summary: conversation.summary,
+      recentMessages: conversation.recentMessages,
+    },
+  }),
+});
+
+// Consume the SSE stream: sources / answer_delta / done / error — same
+// event names and shapes as v1, plus an optional `conversation` block on
+// `done`.
+let finalAnswerText = '';
+let done;
+for await (const event of parseSseStream(response.body)) {
+  if (event.type === 'answer_delta') finalAnswerText += event.data.text;
+  if (event.type === 'done') done = event.data;
+  if (event.type === 'error') throw new Error(event.data.message);
+}
+
+// Persist the completed turn — and the updated summary, when one was
+// returned — in ONE atomic call. Never split this into two separate
+// version-checked writes (e.g. an "append messages" call followed by a
+// separate "update summary" call using the SAME expectedVersion): if the
+// first call increments the stored version, the second call's version
+// argument is already stale, and you can end up with messages persisted
+// without their matching summary. Optimistic versioning matters here
+// because concurrent writers to the same conversation are a real
+// possibility (the same user double-submitting, or two backend replicas) —
+// even though Semidex itself never sees or checks a version number.
+await chatStore.commitTurn({
+  conversationId,
+  ownerId: userId,
+  expectedVersion: conversation.version,
+  messages: [
+    { role: 'user', content: userMessage },
+    { role: 'assistant', content: finalAnswerText },
+  ],
+  ...(done.conversation?.summaryChanged ? { updatedSummary: done.conversation.updatedSummary } : {}),
+});
+```
+
+`/api/v1/ask` remains available, unchanged, for stateless single-turn
+requests — use it when your application has no conversation state to pass.
+
+See
+[Ask API v2 — Bounded Conversational Context](https://github.com/CodeNoob53/semidex/blob/main/docs/design/ask-v2-conversational-context.md)
+for the full design rationale, the `ConversationStore` contract Semidex is
+designed to support in a future release, and the token-budgeting/rewriting/
+compaction rules. Design docs are English-only in this repo — this is the
+same document regardless of which README (EN or UK) links to it.
+
+### Alternative: use Ask in the dashboard
+
+The browser-based Ask panel in the Semidex Lite dashboard remains available
+as a manual, single-turn debugging workflow — it is not the multi-turn
+integration path described above.
+
+The bundled dashboard is useful for manually checking a collection without
+building an integration first:
+
+1. Configure `QDRANT_URL`, `QDRANT_KEY`, and `GEMINI_API_KEY`.
+2. Index a file or folder through `semidex-lite index`.
+3. Start the server with `npx semidex-lite serve`.
+4. Open `http://127.0.0.1:8642`, select the collection, and switch to Ask.
+5. Ask a question. The interface displays the generated answer and the sources
+   supplied to the model.
 
 ## `SEMIDEX_HOME`
 

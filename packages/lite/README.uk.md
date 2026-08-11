@@ -214,16 +214,6 @@ Ask дає змогу поставити запитання до однієї п
 отримує всю колекцію: semidex-lite спочатку знаходить обмежений набір
 релевантних джерел і лише потім передає їх разом із запитанням у Gemini.
 
-### Як скористатися Ask в адмін-панелі
-
-1. Налаштуйте `QDRANT_URL`, `QDRANT_KEY` і `GEMINI_API_KEY`.
-2. Проіндексуйте файл або папку в колекцію через `semidex-lite index`.
-3. Запустіть сервер командою `npx semidex-lite serve`.
-4. Відкрийте `http://127.0.0.1:8642`, виберіть колекцію та перейдіть у режим
-   Ask.
-5. Поставте запитання. Інтерфейс покаже згенеровану відповідь і джерела, які
-   були передані моделі.
-
 ### Як формується відповідь
 
 ```text
@@ -258,10 +248,37 @@ injection, але не дає абсолютної гарантії: резул�
 задавати власні інструкції може бути додана пізніше разом із валідацією та
 обмеженнями, але зараз це не частина публічного контракту.
 
-### Виклик Ask через HTTP API
+### Інтеграція Ask через власний backend
 
-Ask доступний через версійований endpoint `POST /api/v1/ask`. Наприклад, після
-локального запуску `serve`:
+Основний спосіб використання Ask - виклик із backend вашого асистента. Так сайт,
+бот або застосунок може вибрати потрібну базу знань, автентифікувати
+користувача, вести історію діалогу та застосувати власні правила доступу перед
+зверненням до Semidex. Ask доступний через версійований endpoint
+`POST /api/v1/ask`.
+
+Після локального запуску `serve` backend може викликати його через `fetch`:
+
+```js
+const collectionByAssistant = {
+  support: 'company-support',
+  education: 'course-materials',
+};
+
+const collection = collectionByAssistant[assistantId];
+if (!collection) throw new Error('Unknown assistant');
+
+const response = await fetch('http://127.0.0.1:8642/api/v1/ask', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ collection, question: userMessage }),
+});
+```
+
+Визначайте або перевіряйте дозволену колекцію на своєму backend. Не дозволяйте
+неавтентифікованому браузеру передавати довільну назву колекції, інакше він
+може отримати доступ до бази знань іншого асистента.
+
+Для ручної перевірки API можна використати `curl`:
 
 ```powershell
 curl.exe -N -X POST "http://127.0.0.1:8642/api/v1/ask" `
@@ -298,6 +315,100 @@ Ask API v1 є stateless: кожен запит незалежний, `sessionId`
 автентифікації та захисту від зловживань. Не відкривайте порт адмін-сервера
 безпосередньо в інтернет; для зовнішньої інтеграції розміщуйте перед ним власний
 автентифікований backend або reverse proxy з відповідними обмеженнями.
+
+### Інтеграція backend: багатоходовий Ask (`/api/v2/ask`)
+
+**Semidex Lite не зберігає діалоги в цій версії.** Зберігання розмов належить
+вашому backend — Postgres, SQLite, Redis, MongoDB чи будь-яке інше сховище, яке
+ви вже використовуєте. `POST /api/v2/ask` приймає обмежений, наданий викликом
+підсумок розмови й останні повідомлення в кожному запиті, використовує їх для
+переформулювання уточнювальних питань під час retrieval і для надання моделі
+контексту розмови, а опційно повертає оновлений підсумок для збереження — але
+сам нічого не пам'ятає між запитами.
+
+```js
+// Власна персистентність — не частина Semidex. loadConversation()
+// ілюстративна: зчитайте збережені summary/recentMessages/version розмови з
+// того сховища, яке вже використовує ваш backend.
+const conversation = await chatStore.loadConversation(conversationId, userId);
+
+// Визначайте дозволену колекцію асистента на боці backend — ніколи не
+// передавайте назву колекції, надану браузером, напряму.
+const collection = assistantRegistry.resolveAllowedCollection(assistantId);
+
+const response = await fetch('http://127.0.0.1:8642/api/v2/ask', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    collection,
+    question: userMessage,
+    conversation: {
+      id: conversationId,
+      summary: conversation.summary,
+      recentMessages: conversation.recentMessages,
+    },
+  }),
+});
+
+// Обробка SSE-потоку: sources / answer_delta / done / error — ті самі назви
+// подій і форми, що й у v1, плюс опційний блок `conversation` у `done`.
+let finalAnswerText = '';
+let done;
+for await (const event of parseSseStream(response.body)) {
+  if (event.type === 'answer_delta') finalAnswerText += event.data.text;
+  if (event.type === 'done') done = event.data;
+  if (event.type === 'error') throw new Error(event.data.message);
+}
+
+// Збережіть завершений хід — і оновлений підсумок, якщо він був повернутий —
+// ОДНИМ атомарним викликом. Ніколи не розділяйте це на два окремі виклики з
+// перевіркою версії (наприклад, окремий виклик "додати повідомлення", а потім
+// окремий "оновити підсумок" з ТІЄЮ САМОЮ expectedVersion): якщо перший
+// виклик інкрементує збережену версію, аргумент версії другого виклику вже
+// застарілий, і повідомлення можуть зберегтися без відповідного підсумку.
+// Оптимістичне версіонування тут важливе, оскільки конкурентні записувачі в
+// одну розмову — реальна можливість (той самий користувач надсилає двічі, або
+// два репліки backend) — навіть попри те, що сам Semidex ніколи не бачить і
+// не перевіряє номер версії.
+await chatStore.commitTurn({
+  conversationId,
+  ownerId: userId,
+  expectedVersion: conversation.version,
+  messages: [
+    { role: 'user', content: userMessage },
+    { role: 'assistant', content: finalAnswerText },
+  ],
+  ...(done.conversation?.summaryChanged ? { updatedSummary: done.conversation.updatedSummary } : {}),
+});
+```
+
+`/api/v1/ask` залишається доступним без змін для stateless одноходових
+запитів — використовуйте його, коли ваш застосунок не має стану розмови для
+передачі.
+
+Див.
+[Ask API v2 — Bounded Conversational Context](https://github.com/CodeNoob53/semidex/blob/main/docs/design/ask-v2-conversational-context.md)
+для повного обґрунтування дизайну, контракту `ConversationStore`, який Semidex
+розроблений підтримувати в майбутньому релізі, і правил
+token-budgeting/rewriting/compaction. Design-документи в цьому репозиторії —
+лише англійською.
+
+### Альтернатива: Ask в адмін-панелі
+
+Вбудована в дашборд панель Ask у браузері залишається доступною як ручний,
+одноходовий workflow для налагодження — це не багатоходовий шлях інтеграції,
+описаний вище.
+
+Вбудована адмін-панель зручна для ручної перевірки колекції до створення власної
+інтеграції:
+
+1. Налаштуйте `QDRANT_URL`, `QDRANT_KEY` і `GEMINI_API_KEY`.
+2. Проіндексуйте файл або папку в колекцію через `semidex-lite index`.
+3. Запустіть сервер командою `npx semidex-lite serve`.
+4. Відкрийте `http://127.0.0.1:8642`, виберіть колекцію та перейдіть у режим
+   Ask.
+5. Поставте запитання. Інтерфейс покаже згенеровану відповідь і джерела, які
+   були передані моделі.
 
 ## `SEMIDEX_HOME`
 

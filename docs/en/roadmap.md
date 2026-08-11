@@ -461,6 +461,14 @@ authoritative source without an explicit promotion workflow.
 Detailed architecture and staged delivery plan:
 [Agent memory and conversation context](../design/agent-memory-and-conversation-context.md).
 
+> **Note (2026-08-12):** a bounded, non-durable, in-request-only
+> conversational-context slice shipped separately as `POST /api/v2/ask` — see
+> [Ask API v2 — Bounded Conversational Context](../design/ask-v2-conversational-context.md).
+> It does not satisfy this track's durable, provenance-tracked memory goals
+> (no immutable archive, no episodic retrieval, no promotion workflow, no
+> memory that outlives a single HTTP request) — it is a narrower precursor,
+> not an implementation of Track F.
+
 ### Conditional retrieval research (future, trigger-gated)
 
 These experiments are intentionally outside the delivery sequence. They start

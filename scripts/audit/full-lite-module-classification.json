@@ -14,7 +14,7 @@
     "mixed": 3,
     "tooling": 61,
     "cloud": 8,
-    "shared": 148,
+    "shared": 156,
     "local": 28
   },
   "modules": [
@@ -324,6 +324,42 @@
       ]
     },
     {
+      "path": "src/core/ask-api/v2/contract.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/core/ask-api/v2/request.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/ask-api/v2/contract.js",
+        "src/core/http/http.js"
+      ]
+    },
+    {
+      "path": "src/core/ask-api/v2/route.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/ask-api/v2/contract.js",
+        "src/core/ask-api/v2/request.js",
+        "src/core/http/http.js",
+        "src/core/http/sse.js",
+        "src/shared/core/doctor-checks.js"
+      ]
+    },
+    {
       "path": "src/core/ask/citations.js",
       "declaredCategory": "shared",
       "category": "shared",
@@ -332,6 +368,33 @@
       "liteReachable": true,
       "directDependencies": [
         "src/core/ask/prompt.js"
+      ]
+    },
+    {
+      "path": "src/core/ask/conversation-context.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/ask/evidence.js",
+        "src/core/ask/prompt.js"
+      ]
+    },
+    {
+      "path": "src/core/ask/coordinator-v2.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/ask/conversation-context.js",
+        "src/core/ask/coordinator.js",
+        "src/core/ask/query-rewrite.js",
+        "src/core/ask/single-flight-gate.js",
+        "src/core/ask/summary-compaction.js"
       ]
     },
     {
@@ -344,7 +407,8 @@
       "directDependencies": [
         "src/core/ask/citations.js",
         "src/core/ask/evidence.js",
-        "src/core/ask/prompt.js"
+        "src/core/ask/prompt.js",
+        "src/core/ask/single-flight-gate.js"
       ]
     },
     {
@@ -368,6 +432,39 @@
       "fullReachable": true,
       "liteReachable": true,
       "directDependencies": []
+    },
+    {
+      "path": "src/core/ask/query-rewrite.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/shared/core/doctor-checks.js"
+      ]
+    },
+    {
+      "path": "src/core/ask/single-flight-gate.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/core/ask/summary-compaction.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/ask/conversation-context.js",
+        "src/core/ask/prompt.js",
+        "src/shared/core/doctor-checks.js"
+      ]
     },
     {
       "path": "src/core/assembly/anchored-content.js",
@@ -1592,7 +1689,8 @@
       "liteReachable": true,
       "directDependencies": [
         "src/core/ask-api/v1/route.js",
-        "src/core/ask/coordinator.js",
+        "src/core/ask-api/v2/route.js",
+        "src/core/ask/coordinator-v2.js",
         "src/core/generation/runtime.js",
         "src/shared/admin/api/assembly.js",
         "src/shared/admin/api/chunks.js",

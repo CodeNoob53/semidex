@@ -26,6 +26,16 @@ export const DEFAULT_TOP = 5;
 export const DEFAULT_PER_SOURCE_TOKEN_BUDGET = 700;
 const EVIDENCE_SEPARATOR = '\n\n';
 
+// Minimum token headroom always reserved for evidence before conversation
+// history (Ask v2) is allowed to claim the rest of a request's budget —
+// sibling constant to prompt.js's RESERVED_HEADROOM_TOKENS. Concrete value:
+// roughly 2x a single perSourceTokenBudget (700), i.e. enough room for at
+// least ~2 evidence sources to always remain possible. The actual number of
+// sources evidence.js keeps is separately bounded by fitEvidenceToContextBudget's
+// own per-source-drop loop below — this constant only guarantees SOME
+// minimum room is reserved for evidence before history claims the rest.
+export const MIN_EVIDENCE_RESERVATION_TOKENS = 1500;
+
 function sectionKey(hit) {
   // Dedup key for "which section would this hit expand to": prefer the
   // resolved section identity (parentId, the section's own nodeId is not on
@@ -80,6 +90,7 @@ async function truncateToBudget(text, maxTokens, countTokens) {
  *   perSourceTokenBudget?: number,
  *   settingsService?: ReturnType<typeof import('../settings/service.js').createSettingsService>,
  *   cloudEmbed?: import('../embedding-profile/cloud-embedding-capability.js').CloudEmbeddingCapability,
+ *   retrievalQuery?: string,
  * }} opts
  * @returns {Promise<{ error: string, message: string } | { sources: Array<Object>, searchMode: string }>}
  *   Each source: { n, sourceFile, chunkIndex, section, snippet, nodeId,
@@ -92,14 +103,20 @@ async function truncateToBudget(text, maxTokens, countTokens) {
  *   retrieval too (code review finding). cloudEmbed is optional DI (code
  *   review, Phase 8B Step 6) — only dereferenced when the resolved
  *   collection turns out to be qdrant-cloud; the composition root supplies
- *   the real one.
+ *   the real one. `retrievalQuery` (Ask v2) is an optional history-aware
+ *   rewritten query used ONLY for retrieval — defaults to `question` when
+ *   omitted, so v1's existing behavior (retrieve using the literal
+ *   question) is unchanged. `question` itself continues to flow unchanged
+ *   into every other use in this function — this is the only place a
+ *   distinct retrieval query is ever consulted.
  */
 export async function buildEvidence({
   adapter, embedQuery, countTokens, collection, question, sourceFile, top = DEFAULT_TOP,
-  perSourceTokenBudget = DEFAULT_PER_SOURCE_TOKEN_BUDGET, settingsService, cloudEmbed,
+  perSourceTokenBudget = DEFAULT_PER_SOURCE_TOKEN_BUDGET, settingsService, cloudEmbed, retrievalQuery,
 }) {
+  const effectiveQuery = retrievalQuery ?? question;
   const result = await runHybridSearch({
-    adapter, embedQuery, cloudEmbed, collection, query: question, top, filters: { sourceFile }, settingsService,
+    adapter, embedQuery, cloudEmbed, collection, query: effectiveQuery, top, filters: { sourceFile }, settingsService,
   });
   if (result.error) return result;
 
@@ -199,6 +216,30 @@ export async function buildEvidence({
  * can never silently drift from what's actually sent (system instructions
  * included, not just the evidence/question half).
  *
+ * `conversationContext` (Ask v2) lets a caller thread conversation history
+ * into the SAME reconstructed-prompt text this function already counts —
+ * defaults to undefined so v1's existing call sites compute an IDENTICAL
+ * budget AND an IDENTICAL reconstructed-prompt token count to before this
+ * parameter existed (buildPromptParts(kept, question, undefined) renders
+ * byte-identically to the plain two-argument v1 call).
+ *
+ * Code review finding (P1), fixed: `budget` must NEVER separately subtract
+ * a caller-supplied history-token reservation on top of this. The prompt
+ * text counted on every loop iteration (`estimatePromptText(buildPromptParts(kept,
+ * question, conversationContext))`) ALREADY includes the fully-rendered
+ * conversation block whenever `conversationContext` is supplied — history is
+ * real content inside the very string being measured, not a separate
+ * bucket alongside it. Subtracting an additional reservation from `budget`
+ * on top of that would count history's cost TWICE (once via the real
+ * rendered text, once via the subtracted reservation), silently
+ * over-constraining evidence and could produce a spurious `no_evidence`
+ * refusal or drop sources that would actually have fit in the real prompt.
+ * The caller's own history budgeting (conversation-context.js) is what
+ * bounds how much history CAN be rendered here in the first place — this
+ * function's only job is to fit EVERYTHING it is actually given (evidence +
+ * whatever history text ends up in conversationContext) against the same
+ * `numCtx - RESERVED_HEADROOM_TOKENS` ceiling the answer path has always used.
+ *
  * @param {Array<Object>} sources — as returned by buildEvidence(), rank order
  * @param {string} question
  * @param {number|undefined} numCtx — the model's context length; when
@@ -207,15 +248,16 @@ export async function buildEvidence({
  *   nothing safe to bound against, so the per-source budgets are the only
  *   guarantee in that case)
  * @param {(text: string) => number|Promise<number>} countTokens
+ * @param {{ summary?: string, recentMessages?: Array<{role,content}> }} [conversationContext]
  * @returns {Promise<{ sources: Array<Object>, dropped: number }>}
  */
-export async function fitEvidenceToContextBudget(sources, question, numCtx, countTokens) {
+export async function fitEvidenceToContextBudget(sources, question, numCtx, countTokens, conversationContext = undefined) {
   if (!Number.isFinite(numCtx) || numCtx <= 0) return { sources, dropped: 0 };
   const budget = numCtx - RESERVED_HEADROOM_TOKENS;
 
   let kept = sources;
   while (kept.length > 0) {
-    const promptTokens = await countTokens(estimatePromptText(buildPromptParts(kept, question)));
+    const promptTokens = await countTokens(estimatePromptText(buildPromptParts(kept, question, conversationContext)));
     if (promptTokens <= budget) break;
     kept = kept.slice(0, -1);
   }

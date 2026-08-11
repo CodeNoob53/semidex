@@ -29,6 +29,8 @@ import { registerSkeletonRoutes } from './api/skeleton.js';
 import { registerNodeRoutes } from './api/node.js';
 import { registerSearchRoutes } from './api/search.js';
 import { registerAskRoutesV1 } from '../../core/ask-api/v1/route.js';
+import { registerAskRoutesV2 } from '../../core/ask-api/v2/route.js';
+import { createAskCoordinatorBundle } from '../../core/ask/coordinator-v2.js';
 import { registerGenerationRoutes } from './api/generation.js';
 import { createTaskRegistry } from './jobs/task-registry.js';
 import { registerOperationsRoutes } from './api/operations.js';
@@ -36,7 +38,6 @@ import { registerFolderPickRoutes } from './api/system.js';
 import { registerSettingsRoutes } from './api/settings.js';
 import { handleStatic } from './static.js';
 import { createGenerationRuntime } from '../../core/generation/runtime.js';
-import { createAskCoordinator } from '../../core/ask/coordinator.js';
 import { getTokenCounter } from '../core/token-count.js';
 
 // Lazily resolves the real BGE-M3 tokenizer on first Ask request, never at
@@ -62,7 +63,7 @@ async function defaultCountTokens(text) {
 // by registerOperationsRoutes below rather than constructed twice.
 export function registerNeutralRoutes(router, {
   adapter, embedQuery, cloudEmbed, jobRegistry, taskRegistry, assemblyLogFn, pickFolderFn,
-  generationRuntime, askCoordinator, countTokens, settingsService,
+  generationRuntime, askCoordinator, askCoordinators, countTokens, settingsService,
   runQdrantCloudProbeFn, resolveNewCollectionProfileFn, generationModelsFn, jobsFn, registerQdrantCloudRoutesFn,
 }) {
   registerSettingsRoutes(router, { settingsService });
@@ -105,15 +106,56 @@ export function registerNeutralRoutes(router, {
   // dotenv vs default) meaningful in practice.
   const generation = generationRuntime ?? createGenerationRuntime({ osEnv: process.env, dotenvValues: {}, settingsService });
   registerGenerationRoutes(router, { generationRuntime: generation });
-  const ask = askCoordinator ?? createAskCoordinator({
-    adapter, embedQuery, countTokens: countTokens ?? defaultCountTokens, generationProvider: generation,
-    settingsService, cloudEmbed,
-  });
+
+  // askCoordinator (singular, existing contract, unchanged) and
+  // askCoordinators (plural, new — a { v1, v2, gate } bundle) are mutually
+  // exclusive: passing both is ambiguous ("which one wins?") and is
+  // rejected outright rather than silently picking one.
+  if (askCoordinator && askCoordinators) {
+    throw new TypeError(
+      'registerNeutralRoutes: pass either `askCoordinator` (v1 only, existing contract, unchanged) ' +
+      'or `askCoordinators` ({ v1, v2, gate } bundle, for full v1+v2 shared-gate wiring), never both.'
+    );
+  }
+
+  const resolvedCountTokens = countTokens ?? defaultCountTokens;
+  let ask;
+  let askV2;
+
+  if (askCoordinators) {
+    // Caller supplies its own pre-wired { v1, v2, gate } — trusted as-is,
+    // zero additional construction. The explicit, structural way a caller
+    // guarantees v1/v2 share one gate when supplying its own coordinators.
+    ({ v1: ask, v2: askV2 } = askCoordinators);
+  } else if (askCoordinator) {
+    // EXISTING contract, UNCHANGED: caller supplies only a v1-shaped
+    // coordinator. v2 is NOT constructed in this branch — /api/v2/ask
+    // genuinely 404s for a caller using this legacy single-coordinator
+    // override, exactly like it did before this feature existed. A caller
+    // that wants v2 together with a custom v1 override uses the
+    // `askCoordinators` bundle instead.
+    ask = askCoordinator;
+  } else {
+    // DEFAULT path — no override of any kind: delegate to
+    // createAskCoordinatorBundle(), the one factory that constructs
+    // gate/core/v1/v2 together so there is no seam where they could end up
+    // mismatched.
+    ({ v1: ask, v2: askV2 } = createAskCoordinatorBundle({
+      adapter, embedQuery, countTokens: resolvedCountTokens, generationProvider: generation, settingsService, cloudEmbed,
+    }));
+  }
+
   // POST /api/v1/ask — the ONE canonical, versioned Ask endpoint (see
   // src/core/ask-api/v1/route.js). The unversioned POST /api/ask seed route
   // has been removed entirely — this project has not released a public Ask
   // API yet, so there is no compatibility alias to preserve.
   registerAskRoutesV1(router, adapter, { askCoordinator: ask });
+  // POST /api/v2/ask — only registered when a v2 coordinator actually
+  // exists (the default path, or an explicit askCoordinators bundle that
+  // included one).
+  if (askV2) {
+    registerAskRoutesV2(router, adapter, { askCoordinatorV2: askV2 });
+  }
   // jobRegistry is a REQUIRED dependency (code review, round 4 — no
   // fallback default here anymore): createJobRegistry() itself now
   // requires a spawnIndexer callback with no safe generic default (Full

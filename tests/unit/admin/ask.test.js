@@ -643,12 +643,14 @@ describe('POST /api/v1/ask is the only Ask route', () => {
     });
   });
 
-  it('a plausible near-miss path (/api/v2/ask) is not a registered route', async () => {
-    await withServer({}, async (base) => {
-      const res = await post(base, { collection: 'demo', question: 'q' }, { path: '/api/v2/ask' });
-      assert.equal(res.status, 404);
-    });
-  });
+  // The former "/api/v2/ask is not a registered route" near-miss test was
+  // removed here: /api/v2/ask now genuinely exists (src/core/ask-api/v2/*)
+  // — this file's own withServer() harness happens to never register it
+  // (it always passes a v1-only `askCoordinator` override, which per
+  // register-neutral-routes.js's DI contract intentionally skips v2
+  // registration), so asserting a 404 here would test an incidental
+  // consequence of THIS test file's own harness shape, not "v2 doesn't
+  // exist." Real v2 route coverage lives in tests/unit/admin/ask-v2.test.js.
 
   it('only ASK_PATH ("/api/v1/ask") actually succeeds', async () => {
     await withServer({}, async (base) => {
