@@ -128,20 +128,24 @@ export async function runFullIndexerComposition({
   const {
     createOllamaGenerateCapability, createOllamaSummaryCapability,
     createOllamaEmbedCapability, createOllamaDiscoveryCapability,
+    createOllamaResourceIdentityCapability,
   } = await import('../local/core/ollama-capability.js');
   const { createOnnxEmbeddingCapability } = await import('../local/core/onnx-embed.js');
   const { createTagOnnxCapability } = await import('../local/indexer/phases/tag-onnx.js');
   const tagOnnx = createTagOnnxCapability();
   const onnxEmbed = createOnnxEmbeddingCapability();
-  // The four narrow Ollama capability slots — each satisfies exactly the
+  // The five narrow Ollama capability slots — each satisfies exactly the
   // contract runIndexerCli()/run.js declares for it
   // (core/generation/ollama-capability.js), never the full ollama.js
-  // namespace. Stateless object literals — a fresh call per slot costs
-  // nothing.
+  // namespace. Stateless object literals for four of them — a fresh call
+  // per slot costs nothing; createOllamaResourceIdentityCapability() is the
+  // one exception (real per-instance dedup state — see its own doc
+  // comment in local/core/ollama-capability.js), one fresh instance here.
   const ollamaGenerate = createOllamaGenerateCapability();
   const ollamaSummary = createOllamaSummaryCapability();
   const ollamaEmbed = createOllamaEmbedCapability();
   const ollamaDiscovery = createOllamaDiscoveryCapability();
+  const generationResourceIdentity = createOllamaResourceIdentityCapability();
   // createCloudEmbeddingCapability() (code review, Phase 8B Step 6): the
   // real Qdrant Cloud Inference embedding-budget/tokenizer capability —
   // this composition root imports src/cloud/ directly (a real
@@ -152,6 +156,7 @@ export async function runFullIndexerComposition({
 
   await runIndexerCliFn({
     ollamaGenerate, ollamaSummary, ollamaEmbed, ollamaDiscovery,
+    generationResourceIdentity,
     onnxEmbed, tagOnnx, cloudEmbed,
   });
   return { started: true };

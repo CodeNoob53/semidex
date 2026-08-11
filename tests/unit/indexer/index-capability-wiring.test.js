@@ -235,7 +235,7 @@ describe('indexer/index-lite.js — Lite composition never imports a local-runti
     assert.ok(guardStart >= 0 && runIndexerCliCall > guardStart);
     const callMatch = src.match(/await runIndexerCli\(\{([\s\S]*?)\}\);/);
     assert.ok(callMatch, 'expected a real runIndexerCli({...}) call in index-lite.js');
-    for (const key of ['ollamaGenerate', 'ollamaSummary', 'ollamaEmbed', 'ollamaDiscovery', 'onnxEmbed', 'tagOnnx', 'cloudEmbed']) {
+    for (const key of ['ollamaGenerate', 'ollamaSummary', 'ollamaEmbed', 'ollamaDiscovery', 'generationResourceIdentity', 'onnxEmbed', 'tagOnnx', 'cloudEmbed']) {
       assert.match(callMatch[1], new RegExp(key));
     }
   });
@@ -260,6 +260,7 @@ describe('run.js — run({ capabilities }) accepts real local/-backed capabiliti
       const {
         createOllamaGenerateCapability, createOllamaSummaryCapability,
         createOllamaEmbedCapability, createOllamaDiscoveryCapability,
+        createOllamaResourceIdentityCapability,
       } = await import('../../../src/local/core/ollama-capability.js');
       const { createOnnxEmbeddingCapability } = await import('../../../src/local/core/onnx-embed.js');
       const { createTagOnnxCapability } = await import('../../../src/local/indexer/phases/tag-onnx.js');
@@ -274,6 +275,12 @@ describe('run.js — run({ capabilities }) accepts real local/-backed capabiliti
       const ollamaSummary = createOllamaSummaryCapability();
       const ollamaEmbed = createOllamaEmbedCapability();
       const ollamaDiscovery = createOllamaDiscoveryCapability();
+      // generationResourceIdentity (provider-agnostic resource-identity
+      // refactor): buildRunContext() now also validates this eighth slot —
+      // the real closure factory is a pure constructor (no network I/O
+      // until getResourceIdentity()/getEmbeddingResourceIdentity() is
+      // actually called), supplied here the same way index-full.js does.
+      const generationResourceIdentity = createOllamaResourceIdentityCapability();
       // cloudEmbed (code review, Phase 8B Step 6): buildRunContext() now
       // also validates a cloudEmbed capability slot — the real factory is a
       // pure constructor (no network I/O until a method is actually
@@ -281,7 +288,7 @@ describe('run.js — run({ capabilities }) accepts real local/-backed capabiliti
       const { createCloudEmbeddingCapability } = await import('../../../src/cloud/embedding/cloud-embedding-provider.js');
       const cloudEmbed = createCloudEmbeddingCapability();
       try {
-        // run({ capabilities }) validates all seven slots synchronously,
+        // run({ capabilities }) validates all eight slots synchronously,
         // before main() does any real work (fail-fast at construction —
         // see run.js's own buildRunContext()) — so if validation itself
         // passed, the rejection below must be the real path error, never a
@@ -290,6 +297,7 @@ describe('run.js — run({ capabilities }) accepts real local/-backed capabiliti
           () => run({
             capabilities: {
               ollamaGenerate, ollamaSummary, ollamaEmbed, ollamaDiscovery,
+              generationResourceIdentity,
               onnxEmbed, tagOnnx, cloudEmbed,
             },
           }),

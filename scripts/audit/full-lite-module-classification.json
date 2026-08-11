@@ -14,7 +14,7 @@
     "mixed": 3,
     "tooling": 61,
     "cloud": 8,
-    "shared": 147,
+    "shared": 148,
     "local": 28
   },
   "modules": [
@@ -1019,7 +1019,8 @@
       "fullReachable": true,
       "liteReachable": false,
       "directDependencies": [
-        "src/local/core/ollama.js"
+        "src/local/core/ollama.js",
+        "src/shared/indexer/phases/context.js"
       ]
     },
     {
@@ -2130,6 +2131,15 @@
       "directDependencies": []
     },
     {
+      "path": "src/shared/indexer/device/embedding-resource-identity-capability.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
       "path": "src/shared/indexer/device/resource-identity.js",
       "declaredCategory": "shared",
       "category": "shared",
@@ -2393,6 +2403,7 @@
         "src/shared/core/qdrant.js",
         "src/shared/core/token-count.js",
         "src/shared/indexer/batch.js",
+        "src/shared/indexer/device/embedding-resource-identity-capability.js",
         "src/shared/indexer/device/resource-identity.js",
         "src/shared/indexer/device/scheduling-policy.js",
         "src/shared/indexer/files.js",

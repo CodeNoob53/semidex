@@ -268,9 +268,53 @@ async function defaultLoadTokenizerAndModel() {
  *   loadOnnx: () => Promise<(text: string) => Promise<{dense: number[], sparse: Object}>>,
  *   loadOnnxBatch: () => Promise<{ embedOnnxBatch: Function }>,
  *   getOnnxProviderState: () => ({ requested: string, effective: string, fellBackToCpu: boolean } | null),
+ *   getResourceIdentity: (context?: {env?: NodeJS.ProcessEnv}) => import('../../shared/indexer/device/resource-identity.js').ResourceIdentity,
  *   shutdown: () => Promise<void>,
  * }}
  */
+// ── Resource identity (device-aware bounded pipeline) ──────────────────────
+// Relocated here in full from the formerly-shared device/resource-identity.js
+// (which is now fully provider-agnostic and must never import anything
+// ONNX-specific) — this is the ONE place ONNX's own embedding device
+// signal is classified. Pure, takes only what THIS instance's own closure
+// state (_providerState) and process.env already have — no cross-module
+// dependency beyond the shared ResourceIdentity shape.
+/**
+ * @param {{
+ *   onnxExecutionProvider?: string,
+ *   onnxProviderState?: {requested:string, effective:string, fellBackToCpu:boolean}|null,
+ * }} input
+ * @returns {import('../../shared/indexer/device/resource-identity.js').ResourceIdentity}
+ */
+function resolveEmbeddingResourceIdentity({ onnxExecutionProvider, onnxProviderState } = {}) {
+  if (onnxProviderState) {
+    const { effective } = onnxProviderState;
+    if (effective === 'cpu') {
+      return { kind: 'cpu', backend: 'onnx-cpu', deviceId: null, verified: true, source: 'onnx-runtime' };
+    }
+    if (effective === 'dml') {
+      // DirectML has no stable enumerable device id via this API —
+      // deviceId:null is honest, not a fabricated '0'.
+      return { kind: 'gpu', backend: 'onnx-dml', deviceId: null, verified: true, source: 'onnx-runtime' };
+    }
+    if (effective === 'cuda') {
+      // The current CUDA integration is always single-device — no
+      // multi-GPU device-index selection exists anywhere in the codebase
+      // today. 'cuda:0' asserts only "the one CUDA device this process
+      // can see," not a real multi-device enumeration — a future
+      // multi-GPU feature must not read this as a real index.
+      return { kind: 'gpu', backend: 'onnx-cuda', deviceId: 'cuda:0', verified: true, source: 'onnx-runtime' };
+    }
+    // Unrecognized effective value — fall through to the settings-intent path below.
+  }
+
+  const val = (onnxExecutionProvider ?? '').trim().toLowerCase();
+  if (val === 'dml') return { kind: 'gpu', backend: 'onnx-dml', deviceId: null, verified: false, source: 'manual' };
+  if (val === 'cuda') return { kind: 'gpu', backend: 'onnx-cuda', deviceId: null, verified: false, source: 'manual' };
+  // '', 'cpu', or anything unrecognized — resolveOnnxExecutionProviders()'s own default is 'cpu'.
+  return { kind: 'cpu', backend: 'onnx-cpu', deviceId: null, verified: false, source: 'manual' };
+}
+
 export function createOnnxEmbeddingCapability({ ortFactory = loadOnnxRuntime, loadTokenizerAndModel = defaultLoadTokenizerAndModel } = {}) {
   // ── Instance-scoped session + tokenizer state ───────────────────────────
   // Every binding below is a closure variable, private to THIS call's own
@@ -497,6 +541,12 @@ export function createOnnxEmbeddingCapability({ ortFactory = loadOnnxRuntime, lo
      */
     getOnnxProviderState() {
       return _providerState;
+    },
+    getResourceIdentity({ env } = {}) {
+      return resolveEmbeddingResourceIdentity({
+        onnxExecutionProvider: (env ?? process.env).ONNX_EXECUTION_PROVIDER,
+        onnxProviderState: _providerState,
+      });
     },
     shutdown,
     // Test-only introspection, scoped to THIS instance — never a

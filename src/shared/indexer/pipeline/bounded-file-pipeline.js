@@ -69,7 +69,7 @@ import { SerialQueue } from '../serial-queue.js';
  * Semaphore is not reentrant, so this must never be called except from
  * inside an already-open generationSem.run() callback).
  *
- * Two cases (the "!onnxTaggingActive" case is handled by the caller
+ * Two cases (the "!taggingLaneActive" case is handled by the caller
  * before this function is ever invoked):
  *   A. canOverlapTaggingAndEmbedding === true — acquire taggingSem for
  *      stageB's own duration only; embeddingSem is left untouched here,
@@ -104,7 +104,7 @@ async function acquireTaggingAndEmbeddingForStageB({ taggingSem, embeddingSem, r
  *   runStageB: (prepared, generationTaggingExecutionMode: 'parallel'|'sequential') => Promise<Object>,
  *   runStageC: (prepared) => Promise<Object>,
  *   runStageD: (prepared) => Promise<void>,
- *   onnxTaggingActive: boolean,
+ *   taggingLaneActive: boolean,
  *   stageAConcurrency?: number,
  *   recomputePolicy: () => Promise<import('../device/scheduling-policy.js').SchedulingPolicy>,
  *   maxPreparedInFlight?: number,
@@ -118,7 +118,7 @@ export async function runBoundedFilePipeline({
   runStageB,
   runStageC,
   runStageD,
-  onnxTaggingActive,
+  taggingLaneActive,
   stageAConcurrency = 4,
   recomputePolicy,
   maxPreparedInFlight,
@@ -165,7 +165,7 @@ export async function runBoundedFilePipeline({
   async function runStageBWithLanes(filePath, preparedA, policy) {
     markActive(filePath, 'summarizing');
     let out;
-    if (onnxTaggingActive) {
+    if (taggingLaneActive) {
       out = await acquireTaggingAndEmbeddingForStageB({ taggingSem, embeddingSem, runStageB, preparedA, policy });
     } else {
       out = { result: await runStageB(preparedA) };
@@ -215,7 +215,7 @@ export async function runBoundedFilePipeline({
           // (chosen fresh, right now) — no other file's stageB can start
           // until this file's stageC has also finished.
           markActive(filePath, 'summarizing');
-          const { result } = onnxTaggingActive
+          const { result } = taggingLaneActive
             ? await acquireTaggingAndEmbeddingForStageB({ taggingSem, embeddingSem, runStageB, preparedA, policy })
             : { result: await runStageB(preparedA) };
           preparedB = result;

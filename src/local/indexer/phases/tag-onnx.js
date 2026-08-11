@@ -86,7 +86,7 @@
 //
 // Exports:
 //   isOnnxTagProvider(env?)      — true when TAG_PROVIDER=onnx (module-level, stateless)
-//   createTagOnnxCapability()    — returns a fresh { addTagsOnnxBatch, shutdownOnnxTagWorker } instance, own independent worker lifecycle
+//   createTagOnnxCapability()    — returns a fresh { addTagsOnnxBatch, shutdownOnnxTagWorker, getResourceIdentity } instance, own independent worker lifecycle
 //   __test                       — test-only helpers (see bottom of file)
 
 import { fork } from 'node:child_process';
@@ -172,7 +172,7 @@ function defaultWorkerFactory(cfg) {
  *
  * @param {{ workerFactory?: (cfg: Object) => Object }} [opts] — test-only
  *   override; production callers never pass this.
- * @returns {{ addTagsOnnxBatch: (chunks: Object[]) => Promise<Object[]>, shutdownOnnxTagWorker: () => Promise<void> }}
+ * @returns {{ addTagsOnnxBatch: (chunks: Object[]) => Promise<Object[]>, shutdownOnnxTagWorker: () => Promise<void>, getResourceIdentity: (context?: {env?: NodeJS.ProcessEnv}) => import('../../../shared/indexer/device/resource-identity.js').ResourceIdentity }}
  */
 export function createTagOnnxCapability({ workerFactory = defaultWorkerFactory } = {}) {
   // ── Instance-scoped worker + request queue ──────────────────────────────
@@ -504,6 +504,13 @@ export function createTagOnnxCapability({ workerFactory = defaultWorkerFactory }
   return {
     addTagsOnnxBatch,
     shutdownOnnxTagWorker,
+    getResourceIdentity() {
+      // Structural CPU fact — this worker has no execution-provider
+      // concept at all, no code path in this module can ever run on GPU.
+      // verified:true is honest here because it's a static fact of this
+      // implementation, not a probed runtime value.
+      return { kind: 'cpu', backend: 'onnx-tag-worker', deviceId: null, verified: true, source: 'structural' };
+    },
     // Test-only introspection/override, scoped to THIS instance — never a
     // module-scope seam. tests/unit/indexer/phases/tag-onnx.test.js and the
     // Step 4 architecture test both construct their own

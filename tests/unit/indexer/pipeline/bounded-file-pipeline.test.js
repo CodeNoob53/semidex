@@ -45,7 +45,7 @@ describe('runBoundedFilePipeline', () => {
     const run = runBoundedFilePipeline({
       files: ['A', 'B'],
       runStageA, runStageB, runStageC, runStageD,
-      onnxTaggingActive: false,
+      taggingLaneActive: false,
       recomputePolicy: constantPolicy({ canOverlapGenerationAndEmbedding: true }),
     });
 
@@ -98,7 +98,7 @@ describe('runBoundedFilePipeline', () => {
     await runBoundedFilePipeline({
       files: ['1', '2', '3'],
       runStageA, runStageB, runStageC, runStageD,
-      onnxTaggingActive: false,
+      taggingLaneActive: false,
       recomputePolicy,
       stageAConcurrency: 1,
     });
@@ -134,7 +134,7 @@ describe('runBoundedFilePipeline', () => {
 
     const runStageA = async (f) => ({ status: 'ok', file: f });
     // generationTaggingExecutionMode ('mode') is only ever passed to
-    // runStageB when onnxTaggingActive:true (it drives
+    // runStageB when taggingLaneActive:true (it drives
     // acquireTaggingAndEmbeddingForStageB's own
     // canOverlapGenerationAndTagging read) -- this test enables it
     // specifically to observe the re-checked policy's effect.
@@ -157,7 +157,7 @@ describe('runBoundedFilePipeline', () => {
     const run = runBoundedFilePipeline({
       files: ['A', 'B'],
       runStageA, runStageB, runStageC, runStageD,
-      onnxTaggingActive: true,
+      taggingLaneActive: true,
       recomputePolicy,
       stageAConcurrency: 2,
     });
@@ -234,7 +234,7 @@ describe('runBoundedFilePipeline', () => {
     const run = runBoundedFilePipeline({
       files: ['A', 'B', 'C'],
       runStageA, runStageB, runStageC, runStageD,
-      onnxTaggingActive: false,
+      taggingLaneActive: false,
       recomputePolicy,
       stageAConcurrency: 3,
     });
@@ -289,7 +289,7 @@ describe('runBoundedFilePipeline', () => {
     await runBoundedFilePipeline({
       files: ['A', 'B'],
       runStageA, runStageB, runStageC, runStageD,
-      onnxTaggingActive: false,
+      taggingLaneActive: false,
       recomputePolicy: constantPolicy({ canOverlapGenerationAndEmbedding: false }),
     });
 
@@ -320,7 +320,7 @@ describe('runBoundedFilePipeline', () => {
     await runBoundedFilePipeline({
       files: ['A', 'B'],
       runStageA, runStageB, runStageC, runStageD,
-      onnxTaggingActive: false,
+      taggingLaneActive: false,
       recomputePolicy,
     });
 
@@ -369,7 +369,7 @@ describe('runBoundedFilePipeline', () => {
     const run = runBoundedFilePipeline({
       files: ['A'],
       runStageA, runStageB, runStageC, runStageD,
-      onnxTaggingActive: false,
+      taggingLaneActive: false,
       recomputePolicy: constantPolicy({ canOverlapGenerationAndEmbedding: true }),
     });
 
@@ -401,7 +401,7 @@ describe('runBoundedFilePipeline', () => {
     await runBoundedFilePipeline({
       files: ['A', 'B', 'C', 'D'],
       runStageA, runStageB, runStageC, runStageD,
-      onnxTaggingActive: false,
+      taggingLaneActive: false,
       recomputePolicy: constantPolicy({ canOverlapGenerationAndEmbedding: true }),
     });
   });
@@ -429,7 +429,7 @@ describe('runBoundedFilePipeline', () => {
     const run = runBoundedFilePipeline({
       files,
       runStageA, runStageB, runStageC, runStageD,
-      onnxTaggingActive: false,
+      taggingLaneActive: false,
       recomputePolicy: constantPolicy({ canOverlapGenerationAndEmbedding: false }),
       maxPreparedInFlight,
     });
@@ -468,7 +468,7 @@ describe('runBoundedFilePipeline', () => {
       await runBoundedFilePipeline({
         files: ['A', 'B'],
         runStageA, runStageB, runStageC, runStageD,
-        onnxTaggingActive: false,
+        taggingLaneActive: false,
         recomputePolicy: constantPolicy({ canOverlapGenerationAndEmbedding: true }),
       });
       return commits;
@@ -490,7 +490,7 @@ describe('runBoundedFilePipeline', () => {
     await runBoundedFilePipeline({
       files: ['A', 'B', 'C'],
       runStageA, runStageB, runStageC, runStageD,
-      onnxTaggingActive: false,
+      taggingLaneActive: false,
       recomputePolicy: constantPolicy({ canOverlapGenerationAndEmbedding: true }),
       onProgress: (evt) => processedValues.push(evt.processedFiles),
     });
@@ -530,7 +530,7 @@ describe('runBoundedFilePipeline', () => {
     const run = runBoundedFilePipeline({
       files: ['1', '2', '3', '4', '5'],
       runStageA, runStageB, runStageC, runStageD,
-      onnxTaggingActive: false,
+      taggingLaneActive: false,
       recomputePolicy: constantPolicy({ canOverlapGenerationAndEmbedding: false }),
       maxPreparedInFlight: 1,
       stageAConcurrency: 1,
@@ -565,7 +565,7 @@ describe('runBoundedFilePipeline', () => {
     const { results } = await runBoundedFilePipeline({
       files: ['only'],
       runStageA, runStageB, runStageC, runStageD,
-      onnxTaggingActive: false,
+      taggingLaneActive: false,
       recomputePolicy: constantPolicy({ canOverlapGenerationAndEmbedding: false }),
     });
 
@@ -583,7 +583,7 @@ describe('runBoundedFilePipeline', () => {
     await runBoundedFilePipeline({
       files: ['A', 'B'],
       runStageA, runStageB, runStageC, runStageD,
-      onnxTaggingActive: false,
+      taggingLaneActive: false,
       recomputePolicy: constantPolicy({ canOverlapGenerationAndEmbedding: false }),
     });
     const elapsed = Date.now() - start;
@@ -626,7 +626,7 @@ describe('runBoundedFilePipeline', () => {
     await runBoundedFilePipeline({
       files: ['A', 'B'],
       runStageA, runStageB, runStageC, runStageD,
-      onnxTaggingActive: true,
+      taggingLaneActive: true,
       recomputePolicy,
     });
   });
@@ -661,7 +661,7 @@ describe('runBoundedFilePipeline', () => {
     const run = runBoundedFilePipeline({
       files: ['other', 'C'],
       runStageA, runStageB, runStageC, runStageD,
-      onnxTaggingActive: true,
+      taggingLaneActive: true,
       recomputePolicy,
     });
 
@@ -713,7 +713,7 @@ describe('runBoundedFilePipeline', () => {
     const { results } = await runBoundedFilePipeline({
       files,
       runStageA, runStageB, runStageC, runStageD,
-      onnxTaggingActive: true,
+      taggingLaneActive: true,
       recomputePolicy,
     });
     const elapsed = Date.now() - start;

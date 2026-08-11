@@ -37,6 +37,15 @@ Documents (md, pdf, docx, epub, txt, ...)
                               +--> future website, bot, and application clients
 ```
 
+Multi-file indexing runs generation, tagging, and embedding through a
+device-aware bounded scheduler that overlaps stages across files only when
+each stage's compute resource is independently verified — the scheduler
+itself is provider-agnostic by construction, since every provider exposes
+its resource placement through a uniform capability contract rather than
+the scheduler branching on provider identity; see the
+[pipeline redesign doc](../design/pipeline-redesign-and-deterministic-chunking.md)
+for the full design and invariant.
+
 The MCP path is the shipped agent-tooling surface. The Ask path has a
 versioned, stateless, provider-neutral local implementation
 (`POST /api/v1/ask`, SSE streaming, native provider system instructions,

@@ -60,12 +60,23 @@ describe('tag-onnx-capability.js — zero backend imports (contract, not impleme
   });
 });
 
+describe('getResourceIdentity() — structural CPU fact, real createTagOnnxCapability() instance', () => {
+  test('the real ONNX tag worker capability reports verified cpu, source structural', async () => {
+    const { createTagOnnxCapability } = await import('../../../../src/local/indexer/phases/tag-onnx.js');
+    const instance = createTagOnnxCapability();
+    const result = instance.getResourceIdentity();
+    assert.deepEqual(result, { kind: 'cpu', backend: 'onnx-tag-worker', deviceId: null, verified: true, source: 'structural' });
+    await instance.shutdownOnnxTagWorker();
+  });
+});
+
 describe('shutdownOnnxTagWorker always-safe-no-op contract — a disabled/no-op capability must resolve, never reject', () => {
   test('a hand-built disabled capability whose shutdownOnnxTagWorker never started anything still resolves without throwing', async () => {
     let started = false;
     const disabled = {
       addTagsOnnxBatch: async () => { throw new Error('addTagsOnnxBatch is disabled'); },
       shutdownOnnxTagWorker: async () => { /* no worker was ever started; always safe */ },
+      getResourceIdentity: async () => ({ kind: 'unknown', backend: 'unknown', deviceId: null, verified: false, source: null }),
     };
     validateTagOnnxCapability(disabled);
     await assert.doesNotReject(() => disabled.shutdownOnnxTagWorker());
@@ -88,6 +99,14 @@ describe('shutdownOnnxTagWorker always-safe-no-op contract — a disabled/no-op 
     const fnBody = src.slice(fnStart, fnEnd);
     assert.match(fnBody, /addTagsOnnxBatch:/);
     assert.match(fnBody, /async shutdownOnnxTagWorker\(\)/, 'shutdownOnnxTagWorker must be declared async (always resolves, matching the always-safe-no-op contract)');
-    assert.doesNotMatch(fnBody, /shutdownOnnxTagWorker.*throw/s, 'shutdownOnnxTagWorker must never throw — a disabled capability\'s cleanup must always be safe');
+    // Scoped to JUST the shutdownOnnxTagWorker line itself (not the whole
+    // rest of the function body, which legitimately contains the word
+    // "throw" elsewhere — e.g. getResourceIdentity's own never-throw
+    // doc comment below it) — a single-line match, no /s flag.
+    const shutdownLine = fnBody.split('\n').find((l) => l.includes('shutdownOnnxTagWorker()'));
+    assert.doesNotMatch(shutdownLine, /throw/, 'shutdownOnnxTagWorker must never throw — a disabled capability\'s cleanup must always be safe');
+    assert.match(fnBody, /async getResourceIdentity\(\)/, 'getResourceIdentity must be declared async (always resolves, never throws, matching the identity never-throw contract)');
+    const identityLine = fnBody.split('\n').find((l) => l.includes('getResourceIdentity()'));
+    assert.doesNotMatch(identityLine, /throw/, 'getResourceIdentity must never throw — a disabled capability must report unknown, never an error');
   });
 });

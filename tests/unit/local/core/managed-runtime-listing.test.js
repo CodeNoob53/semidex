@@ -10,12 +10,18 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { MANIFEST_SCHEMA_VERSION } from '../../../../src/local/core/managed-onnx-runtime-manifest.js';
+import { MANIFEST_SCHEMA_VERSION, MANAGED_NATIVE_RELATIVE_DIR } from '../../../../src/local/core/managed-onnx-runtime-manifest.js';
 import { createManagedRuntimeListingCache } from '../../../../src/local/core/managed-runtime-listing.js';
 
 const RUNTIMES_DIR = 'C:\\fake\\semidex\\runtimes';
 const RUNTIME_ID = '1.26.0-cuda13';
 const RUNTIME_DIR = `${RUNTIMES_DIR}\\onnxruntime-node-cuda\\${RUNTIME_ID}`;
+// MANAGED_NATIVE_RELATIVE_DIR is 'bin/napi-v6/win32/x64' (forward slashes,
+// see managed-onnx-runtime-manifest.js) — real production code joins it
+// with node:path's win32 join, which accepts either separator, so the
+// backslash-normalized form is used here to keep every fake path in this
+// file consistently backslash-styled.
+const NATIVE_DIR = `${RUNTIME_DIR}\\${MANAGED_NATIVE_RELATIVE_DIR.split('/').join('\\')}`;
 const COMMIT = '8c546c37b43caaca1fa25db430dab94b901cf277';
 
 function makeManifest(overrides = {}) {
@@ -58,8 +64,16 @@ function makeFakeFs({ runtimeDirs }) {
     const manifestJson = JSON.stringify(data.manifest);
     files.set(manifestPath, manifestJson);
     stats.set(manifestPath, { size: manifestJson.length, mtimeMs: time });
+    // Native artifacts live under MANAGED_NATIVE_RELATIVE_DIR
+    // (bin/napi-v6/win32/x64/), NOT directly under the runtime's own
+    // directory — matches verifyManagedRuntimeOnDisk()'s real lookup path
+    // (managed-onnx-runtime-manifest.js). An earlier version of this fixture
+    // placed artifacts directly under `dir`, so verifyManagedRuntimeOnDisk()
+    // always reported every artifact "file_missing" and every listing test
+    // silently returned an empty result.
+    const nativeDir = `${dir}\\${MANAGED_NATIVE_RELATIVE_DIR.split('/').join('\\')}`;
     for (const [name, buf] of Object.entries(data.buffers)) {
-      const p = `${dir}\\${name}`;
+      const p = `${nativeDir}\\${name}`;
       files.set(p, buf);
       stats.set(p, { size: buf.length, mtimeMs: time });
     }
@@ -184,8 +198,8 @@ describe('createManagedRuntimeListingCache() — caching behavior (display-only,
     const { listManagedRuntimes } = createManagedRuntimeListingCache({ ttlMs: 60_000, nowFn: () => 1000 });
     assert.equal(listManagedRuntimes(RUNTIMES_DIR, fs).length, 1);
 
-    fs.files.set(`${RUNTIME_DIR}\\onnxruntime.dll`, Buffer.from('corrupted'));
-    fs.touch(`${RUNTIME_DIR}\\onnxruntime.dll`, 999_999); // fingerprint must change to trigger re-check
+    fs.files.set(`${NATIVE_DIR}\\onnxruntime.dll`, Buffer.from('corrupted'));
+    fs.touch(`${NATIVE_DIR}\\onnxruntime.dll`, 999_999); // fingerprint must change to trigger re-check
     assert.deepEqual(listManagedRuntimes(RUNTIMES_DIR, fs), []);
   });
 });

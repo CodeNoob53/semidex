@@ -9,7 +9,7 @@
 // both cases must agree with.
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { shouldSkipOllamaPreflight } from '../../../src/shared/indexer/run.js';
+import { shouldSkipOllamaPreflight, resolveRequiredOllamaModels } from '../../../src/shared/indexer/run.js';
 
 function skeletonChunkMeta() {
   return { chunkingModel: 'skeleton-v1' };
@@ -67,5 +67,125 @@ describe('shouldSkipOllamaPreflight() — Semidex Lite\'s exact hard-pinned conf
     const liteEnv = { CONTEXT_MODE: 'deterministic', SKELETON_SUMMARY: 'deterministic', TAG_GEN: '0' };
     assert.equal(shouldSkipOllamaPreflight(skeletonChunkMeta(), liteEnv, { genTagsPreflight: false, tagViaOnnx: false }), true);
     assert.equal(shouldSkipOllamaPreflight(legacyChunkMeta(), liteEnv, { genTagsPreflight: false, tagViaOnnx: false }), true);
+  });
+});
+
+// Code review finding (P1): checkOllamaPreflight() must validate the
+// EXACT, minimal set of models this run's stageB call will use — not a
+// flat contextModel+tagModel pair checked unconditionally. Supersedes
+// the earlier resolvePreflightTagModel() fix, which corrected WHICH
+// single tag-model name to check but still always paired it with
+// contextModel regardless of whether context is ever actually called
+// this run — for CONTEXT_MODE=deterministic + TAG_GEN=1 +
+// TAG_PROVIDER=ollama + TAG_MODEL set (CONTEXT_MODEL never pulled),
+// preflight incorrectly failed requiring CONTEXT_MODEL even though no
+// stageB branch for this file ever calls it.
+describe('resolveRequiredOllamaModels()', () => {
+  function skeletonChunkMeta() { return { chunkingModel: 'skeleton-v1' }; }
+  function legacyChunkMeta() { return { chunkingModel: undefined }; }
+
+  it('THE reported combination: CONTEXT_MODE=deterministic + TAG_GEN=1 + TAG_PROVIDER=ollama + TAG_MODEL set, CONTEXT_MODEL never pulled -> requires ONLY tag-model', () => {
+    const env = { CONTEXT_MODE: 'deterministic', TAG_MODEL: 'tag-model' };
+    const models = resolveRequiredOllamaModels(legacyChunkMeta(), env, {
+      contextModel: 'context-model', genTagsPreflight: true, tagViaOnnx: false, combinedEnabled: false,
+    });
+    assert.deepEqual(models, ['tag-model']);
+  });
+
+  it('the earlier variant with COMBINED_LLM=1 also set -> still requires ONLY tag-model (deterministic context ignores combined mode, matching stageB)', () => {
+    const env = { CONTEXT_MODE: 'deterministic', TAG_MODEL: 'tag-model' };
+    const models = resolveRequiredOllamaModels(legacyChunkMeta(), env, {
+      contextModel: 'context-model', genTagsPreflight: true, tagViaOnnx: false, combinedEnabled: true,
+    });
+    assert.deepEqual(models, ['tag-model']);
+  });
+
+  it('CONTEXT_MODE=deterministic + tags off -> requires nothing at all (empty array)', () => {
+    const models = resolveRequiredOllamaModels(legacyChunkMeta(), { CONTEXT_MODE: 'deterministic' }, {
+      contextModel: 'context-model', genTagsPreflight: false, tagViaOnnx: false, combinedEnabled: true,
+    });
+    assert.deepEqual(models, []);
+  });
+
+  it('CONTEXT_MODE=deterministic + tags routed to ONNX -> requires nothing (tags never reach Ollama, context is deterministic)', () => {
+    const models = resolveRequiredOllamaModels(legacyChunkMeta(), { CONTEXT_MODE: 'deterministic', TAG_MODEL: 'tag-model' }, {
+      contextModel: 'context-model', genTagsPreflight: true, tagViaOnnx: true, combinedEnabled: true,
+    });
+    assert.deepEqual(models, []);
+  });
+
+  it('CONTEXT_MODE=deterministic, TAG_MODEL unset -> falls back to contextModel\'s own name for the tag slot', () => {
+    // resolveTagModel(env) re-derives from env.TAG_MODEL||env.CONTEXT_MODEL
+    // directly (tag.js's own fallback order) — env.CONTEXT_MODEL must be
+    // set consistently with the contextModel opt for this fallback to
+    // land on the SAME name a real caller (run.js, where contextModel IS
+    // literally process.env.CONTEXT_MODEL||'gemma3:4b') would see.
+    const models = resolveRequiredOllamaModels(legacyChunkMeta(), { CONTEXT_MODE: 'deterministic', CONTEXT_MODEL: 'context-model' }, {
+      contextModel: 'context-model', genTagsPreflight: true, tagViaOnnx: false, combinedEnabled: false,
+    });
+    assert.deepEqual(models, ['context-model']);
+  });
+
+  it('skeleton file (Markdown), tags on Ollama -> requires ONLY the tag model (skeleton context is always deterministic, matching stageB)', () => {
+    const models = resolveRequiredOllamaModels(skeletonChunkMeta(), { TAG_MODEL: 'tag-model' }, {
+      contextModel: 'context-model', genTagsPreflight: true, tagViaOnnx: false, combinedEnabled: false,
+    });
+    assert.deepEqual(models, ['tag-model']);
+  });
+
+  it('skeleton file, tags off, SKELETON_SUMMARY unset -> requires nothing at all', () => {
+    const models = resolveRequiredOllamaModels(skeletonChunkMeta(), {}, {
+      contextModel: 'context-model', genTagsPreflight: false, tagViaOnnx: false, combinedEnabled: false,
+    });
+    assert.deepEqual(models, []);
+  });
+
+  it('skeleton file, SKELETON_SUMMARY=llm -> requires contextModel even with tags off (nav summaries use it)', () => {
+    const models = resolveRequiredOllamaModels(skeletonChunkMeta(), { SKELETON_SUMMARY: 'llm' }, {
+      contextModel: 'context-model', genTagsPreflight: false, tagViaOnnx: false, combinedEnabled: false,
+    });
+    assert.deepEqual(models, ['context-model']);
+  });
+
+  it('default (non-deterministic legacy file) COMBINED_LLM=1 -> requires only contextModel (TAG_MODEL ignored in combined mode)', () => {
+    const models = resolveRequiredOllamaModels(legacyChunkMeta(), {}, {
+      contextModel: 'context-model', genTagsPreflight: true, tagViaOnnx: false, combinedEnabled: true,
+    });
+    assert.deepEqual(models, ['context-model']);
+  });
+
+  it('default (non-deterministic legacy file), not combined, tags on Ollama -> requires BOTH context and tag models', () => {
+    const models = resolveRequiredOllamaModels(legacyChunkMeta(), { TAG_MODEL: 'tag-model' }, {
+      contextModel: 'context-model', genTagsPreflight: true, tagViaOnnx: false, combinedEnabled: false,
+    });
+    assert.deepEqual(models, ['context-model', 'tag-model']);
+  });
+
+  it('default, TAG_MODEL unset (falls back to contextModel) -> de-duplicated to a single entry', () => {
+    const models = resolveRequiredOllamaModels(legacyChunkMeta(), { CONTEXT_MODEL: 'context-model' }, {
+      contextModel: 'context-model', genTagsPreflight: true, tagViaOnnx: false, combinedEnabled: false,
+    });
+    assert.deepEqual(models, ['context-model']);
+  });
+
+  it('default, tags off -> requires only contextModel', () => {
+    const models = resolveRequiredOllamaModels(legacyChunkMeta(), {}, {
+      contextModel: 'context-model', genTagsPreflight: false, tagViaOnnx: false, combinedEnabled: false,
+    });
+    assert.deepEqual(models, ['context-model']);
+  });
+
+  it('default (ONNX-parallel branch), tags routed to ONNX -> requires only contextModel', () => {
+    const models = resolveRequiredOllamaModels(legacyChunkMeta(), { TAG_MODEL: 'tag-model' }, {
+      contextModel: 'context-model', genTagsPreflight: true, tagViaOnnx: true, combinedEnabled: false,
+    });
+    assert.deepEqual(models, ['context-model']);
+  });
+
+  it('legacy file, SKELETON_SUMMARY=llm -> also requires contextModel on top of whatever the branch already needs (de-duplicated)', () => {
+    const models = resolveRequiredOllamaModels(legacyChunkMeta(), { SKELETON_SUMMARY: 'llm', TAG_MODEL: 'tag-model' }, {
+      contextModel: 'context-model', genTagsPreflight: true, tagViaOnnx: false, combinedEnabled: false,
+    });
+    assert.deepEqual(models, ['context-model', 'tag-model']);
   });
 });

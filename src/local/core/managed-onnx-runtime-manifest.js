@@ -18,7 +18,20 @@
 import { createHash } from 'node:crypto';
 import { randomBytes } from 'node:crypto';
 import { readFileSync, existsSync, writeFileSync, renameSync } from 'node:fs';
-import { join } from 'node:path';
+// Managed CUDA runtimes are exclusively Windows artifacts (platform:
+// 'win32' in every manifest, MANAGED_NATIVE_RELATIVE_DIR itself pinned to
+// .../win32/x64) — dirPath here is always a Windows-shaped path
+// (typically a `C:\...` absolute path) regardless of which OS the
+// CURRENT process happens to run on. The Admin API's settings-listing
+// layer (this module's other real caller, per its own header comment)
+// can itself run on a non-Windows host even though the managed runtime
+// it's describing is Windows-only, so the OS-native `node:path` (which
+// silently becomes posix.join on Linux/macOS and treats a `C:\...`
+// string as one opaque relative segment instead of an absolute Windows
+// path) must never be used here — path.win32 always parses/joins
+// Windows path semantics, independent of process.platform.
+import { win32 as pathWin32 } from 'node:path';
+const { join } = pathWin32;
 
 export const MANIFEST_SCHEMA_VERSION = 2;
 export const MANAGED_NATIVE_RELATIVE_DIR = 'bin/napi-v6/win32/x64';

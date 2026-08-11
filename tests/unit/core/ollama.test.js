@@ -462,7 +462,7 @@ describe('shared Ollama logic — no duplication between indexer and admin', () 
       assert.equal(adminResult.status, 'model_missing');
 
       await assert.rejects(
-        () => checkOllamaPreflight('http://localhost:11434', 'gemma3:4b', 'gemma3:4b', createOllamaDiscoveryCapability()),
+        () => checkOllamaPreflight('http://localhost:11434', ['gemma3:4b'], createOllamaDiscoveryCapability()),
         /Required Ollama model\(s\) not pulled/,
       );
     } finally {
@@ -479,7 +479,7 @@ describe('shared Ollama logic — no duplication between indexer and admin', () 
       assert.equal(adminResult.status, 'missing');
 
       await assert.rejects(
-        () => checkOllamaPreflight('http://localhost:11434', 'gemma3:4b', 'gemma3:4b', createOllamaDiscoveryCapability()),
+        () => checkOllamaPreflight('http://localhost:11434', ['gemma3:4b'], createOllamaDiscoveryCapability()),
         /Ollama unreachable/,
       );
     } finally {

@@ -22,7 +22,16 @@
 // `resolved.path` equals that same value, so applying the patch re-writes
 // the identical value it just read, never deletes it.
 import { existsSync, readdirSync } from 'node:fs';
-import { isAbsolute } from 'node:path';
+// resolved.cudnnBinPath (checked below) is always recorded by the
+// Windows-only CUDA installer (scripts/install-onnxruntime-cuda-windows.ps1)
+// into the managed runtime's own manifest — a real Windows path by
+// construction, regardless of which OS the CURRENT process consuming it
+// happens to run on (e.g. the Admin server's settings-listing layer can
+// itself run on a non-Windows host). The OS-native node:path.isAbsolute
+// would silently return false for a "C:\..." string on any non-Windows
+// host, so path.win32.isAbsolute is used explicitly here.
+import { win32 as pathWin32 } from 'node:path';
+const { isAbsolute } = pathWin32;
 import { readManagedRuntimeManifest, isManifestWellFormed, verifyManagedRuntimeOnDisk } from './managed-onnx-runtime-manifest.js';
 import { isValidManagedRuntimeId, resolveManagedRuntimePathSafe } from './managed-runtime-id.js';
 import { resolveSemidexHomePaths } from './semidex-home.js';

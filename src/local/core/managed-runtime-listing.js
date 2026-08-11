@@ -23,7 +23,7 @@
 import { readdirSync, statSync, readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { isValidManagedRuntimeId } from './managed-runtime-id.js';
-import { readManagedRuntimeManifest, isManifestWellFormed, verifyManagedRuntimeOnDisk } from './managed-onnx-runtime-manifest.js';
+import { readManagedRuntimeManifest, isManifestWellFormed, verifyManagedRuntimeOnDisk, MANAGED_NATIVE_RELATIVE_DIR } from './managed-onnx-runtime-manifest.js';
 
 const REQUIRED_ARTIFACT_NAMES = [
   'onnxruntime.dll',
@@ -46,8 +46,17 @@ export function createManagedRuntimeListingCache({ ttlMs = DEFAULT_TTL_MS, nowFn
     if (!existsSyncFn(manifestPath)) return null;
     const manifestStat = statSyncFn(manifestPath);
     parts.push(`manifest.json:${manifestStat.size}:${manifestStat.mtimeMs}`);
+    // Native artifacts live under MANAGED_NATIVE_RELATIVE_DIR
+    // (bin/napi-v6/win32/x64/), never directly under the runtime's own
+    // directory — must match verifyManagedRuntimeOnDisk()'s real lookup
+    // path (managed-onnx-runtime-manifest.js) exactly, or this fingerprint
+    // silently never reflects real artifact changes: every artifact would
+    // report "missing" against the wrong path regardless of the real
+    // files' actual state, and getEntry()'s own verifyManagedRuntimeOnDisk()
+    // call underneath would then be the ONLY thing catching corruption —
+    // defeating the fingerprint's entire purpose as a cheap pre-check.
     for (const name of REQUIRED_ARTIFACT_NAMES) {
-      const p = join(dirPath, name);
+      const p = join(dirPath, MANAGED_NATIVE_RELATIVE_DIR, name);
       if (!existsSyncFn(p)) { parts.push(`${name}:missing`); continue; }
       const st = statSyncFn(p);
       parts.push(`${name}:${st.size}:${st.mtimeMs}`);

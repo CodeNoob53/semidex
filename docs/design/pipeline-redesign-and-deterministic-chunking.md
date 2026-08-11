@@ -644,3 +644,117 @@ See the file-by-file change list and test suite under
 `src/shared/indexer/device/`, `src/shared/indexer/pipeline/`, and their
 `tests/unit/indexer/device/`, `tests/unit/indexer/pipeline/` counterparts
 for the full implementation.
+
+## Addendum continued (2026-08-11): provider-agnostic capability-driven resource identity
+
+> **Invariant**: No provider-specific branching is allowed in the shared
+> scheduling policy. Provider implementations expose normalized resource
+> identities through capability contracts.
+
+The addendum above already made cross-file overlap device-aware, but its
+own identity layer, `buildResourceIdentityInputs()`, was itself hardcoded
+to Ollama's `/api/ps` and ONNX's `onnxProviderState` — the shared device
+layer directly imported and called Ollama/ONNX-shaped signals. That was
+fine for the two providers semidex had at the time, but it meant every
+future provider combination (ONNX generation, cloud generation, cloud
+embedding, Qdrant Cloud/cluster server-side embedding, tagging via a
+non-ONNX backend) would have required editing the scheduler itself to add
+another provider-shaped branch. This addendum closes that gap: the
+scheduler and the aggregate resolver are now fully provider-agnostic, and
+adding a new provider means adding a capability, never touching the
+scheduler.
+
+**`src/shared/indexer/device/resource-identity.js` now contains zero
+provider-specific code.** It exports only the `ResourceIdentity` typedef
+and one generic aggregate resolver:
+
+```
+resolvePipelineResourceIdentities({ generationCapability, embeddingCapability, taggingCapability, env })
+  => Promise<{ generation, embedding, tagging }>
+```
+
+Every provider's own identity logic — Ollama's VRAM-ratio classification
+and active-model selection, ONNX's execution-provider mapping, the ONNX
+tag worker's structural CPU fact — now lives inside that provider's own
+capability module (`src/local/core/ollama-capability.js`,
+`src/local/core/onnx-embed.js`, `src/local/indexer/phases/tag-onnx.js`
+respectively), never in `shared/`.
+
+**The uniform contract**, every capability slot the resolver touches,
+every provider, no exceptions:
+
+```
+getResourceIdentity({ env }) => Promise<ResourceIdentity>
+```
+
+`ResourceIdentity`'s shape is unchanged (`{kind, backend, deviceId,
+verified, source}`); only `source`'s type widened from a closed enum to
+`string | null`, so a new capability can introduce its own source token
+without another typedef edit. `resolvePipelineResourceIdentities()` never
+imports, names, or special-cases a provider — it calls each injected
+capability's own `getResourceIdentity({env})`, and normalizes a missing
+capability, a malformed result, a synchronous throw, or a rejected
+promise to the same conservative `unknown` identity. A resource-identity
+capability must never be able to crash a run merely because discovery is
+unavailable.
+
+The one deliberate, narrowly-scoped exception: `OllamaResourceIdentityCapability`
+exposes a *second* method, `getEmbeddingResourceIdentity({env, model})`,
+used only internally by `EmbeddingResourceIdentityCapability`'s own
+implementation (`src/shared/indexer/device/embedding-resource-identity-capability.js`)
+when the resolved embedding profile routes through Ollama — because only
+the composition layer knows the resolved embedding model name, and only
+Ollama's capability can answer both "how is generation placed" and "how
+is this named model placed." This non-uniformity is fully contained
+inside that one wrapper's own implementation; every capability
+`resolvePipelineResourceIdentities` itself ever sees still exposes only
+the plain `getResourceIdentity({env})` shape.
+
+**`/api/ps` in-flight deduplication** is an internal optimization private
+to `createOllamaResourceIdentityCapability()`'s own closure — an
+in-flight-only `Map` keyed by `` `${model}::${baseUrl}` ``, not a
+resolved-value cache with any staleness window. Two concurrent calls on
+the same instance that need the same model+baseUrl share one in-flight
+request; the moment that request settles, its entry is removed
+(`.finally()`), so the very next call — even a microtask later — always
+issues a fresh real request. There is no TTL and nothing to invalidate.
+`resolvePipelineResourceIdentities()` and `run.js`'s own `recomputePolicy`
+are completely unaware this exists.
+
+**Remote-provider concurrency is NOT unbounded.** A capability reporting
+`kind: 'remote'` unlocks overlap in the scheduler for exactly one reason:
+that resource does not contend with a local CPU/GPU device lane. It says
+nothing about how many concurrent requests the remote API can actually
+sustain. Any future remote generation/embedding/tagging provider must
+enforce its own request-rate bound — a dedicated rate limiter or
+semaphore inside that provider's own capability implementation, sized to
+that provider's real limits — entirely independent of, and invisible to,
+the bounded pipeline's device-lane semaphores
+(`generationSem`/`taggingSem`/`embeddingSem`), which only ever arbitrate
+local device contention. The lane semaphores are not a substitute for a
+remote provider's own concurrency control, and vice versa: a
+`remote`-classified capability that overlaps freely at the device-lane
+level must still gate its own outbound call volume elsewhere. No real
+remote provider exists yet in this codebase — this is a documented
+boundary so the first one doesn't have to rediscover it.
+
+**Note on an earlier, reversed design**: an intermediate draft of this
+work considered a separate `tagging-resource-identity-capability.js` file
+with forward-looking constructor parameters (`active`, `provider`,
+`onnxRuntime`, `generationResourceIdentity`) for symmetry with the
+embedding wrapper. That file was never built — `getResourceIdentity()`
+lives directly on `TagOnnxCapability`
+(`src/local/indexer/phases/tag-onnx.js`) instead, since the "ONNX tag
+worker is structurally CPU-only" fact is real, provider-owned knowledge
+with no composition-time parameters to inject. A future second tagging
+backend would add its own `getResourceIdentity()` to whatever capability
+implements it, following the same pattern — no scheduler change, no new
+shared contract.
+
+See `tests/unit/indexer/device/pipeline-resource-identities-provider-agnostic.test.js`
+for the direct proof that Ollama+ONNX, ONNX-only, cloud generation +
+local embedding, local generation + Qdrant Cloud embedding, fully-cloud,
+and two entirely novel/never-before-seen provider name+source
+combinations all produce correct overlap decisions through the exact
+same resolver and scheduler code, with zero provider-specific branches
+anywhere in either.

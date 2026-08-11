@@ -58,7 +58,11 @@ describe('resolveIndexSchedulingPolicy', () => {
     const p = resolveIndexSchedulingPolicy({ generation: cpuManualV(), embedding: gpuV(), tagging: taggingInactive() });
     assert.equal(p.canOverlapGenerationAndEmbedding, true);
     assert.match(p.pairReasons.generationEmbedding, /manually confirmed/i);
-    assert.match(p.pairReasons.generationEmbedding, /GENERATION_DEVICE_OVERRIDE/);
+    // Generic wording now — this file has zero provider-specific
+    // vocabulary; the reason names "an explicit operator override," never
+    // a specific env var name (that specificity now lives entirely inside
+    // whichever capability actually offers such an override).
+    assert.match(p.pairReasons.generationEmbedding, /explicit operator override/);
   });
 
   it('4c. manually-confirmed generation gpu + verified cpu embedding -> true, reason notes manual confirmation', () => {

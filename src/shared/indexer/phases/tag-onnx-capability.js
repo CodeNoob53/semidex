@@ -29,9 +29,10 @@
  * @typedef {Object} TagOnnxCapability
  * @property {(chunks: Object[]) => Promise<Object[]>} addTagsOnnxBatch
  * @property {() => Promise<void>} shutdownOnnxTagWorker — MUST always resolve, never reject, even when no worker was ever spawned (see header comment).
+ * @property {(context?: {env?: NodeJS.ProcessEnv}) => Promise<import('../device/resource-identity.js').ResourceIdentity>} getResourceIdentity — the device-aware bounded pipeline's tagging identity source; a structural fact of this worker's implementation (always CPU, no execution-provider concept exists), never a probed runtime value. MUST never throw — a disabled/unavailable implementation returns `{kind:'unknown',...}`, same never-throw exception already established for the Ollama generation identity capability.
  */
 
-export const REQUIRED_TAG_ONNX_CAPABILITY_METHODS = ['addTagsOnnxBatch', 'shutdownOnnxTagWorker'];
+export const REQUIRED_TAG_ONNX_CAPABILITY_METHODS = ['addTagsOnnxBatch', 'shutdownOnnxTagWorker', 'getResourceIdentity'];
 
 /**
  * Verify an object satisfies the TagOnnxCapability shape. Shallow, like the

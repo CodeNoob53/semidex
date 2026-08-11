@@ -7,16 +7,17 @@
 // `verified` is REQUIRED on both sides for ANY overlap decision — an
 // unverified identity never unlocks overlap, regardless of its claimed
 // `kind`. There is no principled reason to trust one unverified claim
-// (e.g. an un-embedded-yet ONNX settings-intent fallback) more than
-// another. The ONE deliberate exception: GENERATION_DEVICE_OVERRIDE
-// (resource-identity.js's resolveGenerationResourceIdentity, consulted
-// only when a real /api/ps read is unavailable for every active model)
-// is treated as verified:true, source:'manual' — an explicit, informed
-// operator assertion about their own deployment topology, not a passive
-// settings-intent guess. It still carries source:'manual' forever (never
-// upgraded to 'ollama-api'), so any overlap decision it drove is always
-// traceable in reason/pairReasons back to a manual claim, never mistaken
-// for a verified runtime read.
+// (e.g. an un-embedded-yet settings-intent fallback) more than another.
+// The ONE deliberate exception: a capability MAY treat an explicit manual
+// operator override as verified:true, source:'manual' — an informed
+// assertion about the operator's own deployment topology, not a passive
+// settings-intent guess (see e.g. local/core/ollama-capability.js's own
+// GENERATION_DEVICE_OVERRIDE handling). It still carries source:'manual'
+// forever (never upgraded to look like a real runtime read), so any
+// overlap decision it drove is always traceable in reason/pairReasons back
+// to a manual claim, never mistaken for a verified runtime read. This file
+// itself never names any provider or override — it only ever reads the
+// generic kind/verified/deviceId/source fields every capability produces.
 
 /**
  * @typedef {Object} SchedulingPolicy
@@ -38,7 +39,7 @@
 function manualNote(a, b) {
   const manualSides = [a, b].filter((x) => x.source === 'manual');
   if (manualSides.length === 0) return '';
-  return ` (manually confirmed via GENERATION_DEVICE_OVERRIDE, not a verified runtime read, for: ${manualSides.map((x) => x.kind).join(', ')})`;
+  return ` (manually confirmed via an explicit operator override, not a verified runtime read, for: ${manualSides.map((x) => x.kind).join(', ')})`;
 }
 
 function decidePair(a, b) {

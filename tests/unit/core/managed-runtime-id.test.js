@@ -3,7 +3,25 @@
 // anywhere here; every case operates purely on strings/paths.
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { join, sep } from 'node:path';
+// managed-runtime-id.js deliberately uses the OS-native node:path
+// (join/resolve/relative/isAbsolute) — its real callers resolve
+// runtimesDir via semidex-home.js's resolveSemidexHomePaths(), which is
+// itself platform-aware (accepts an explicit `platform`, derives the app
+// data dir accordingly for whichever OS Node actually runs on), so this
+// module must correctly join/resolve whatever absolute-path SHAPE the
+// current OS produces — never assume Windows specifically. These tests
+// therefore use `join`/`resolve`/`sep` from the OS-native node:path too
+// (never path.win32), and build runtimesDir with `resolve()` rather than
+// a literal 'C:' drive prefix: 'C:' is only an absolute-path root under
+// win32 semantics — under posix semantics (e.g. a Linux CI runner) it is
+// just a relative directory NAMED "C:", so a literal 'C:' fixture used to
+// silently produce a DIFFERENT relative, cwd-anchored path with each
+// OS-native join() consistently, on both sides of every assertion (the
+// module and the test call the identical join()/resolve() from the same
+// node:path import) — the bug this fixture change closes was purely that
+// 'C:' doesn't mean the same thing on both platforms, not any
+// join/resolve mismatch between the module and the test.
+import { join, resolve as resolvePath, sep } from 'node:path';
 import {
   isValidManagedRuntimeId,
   resolveManagedRuntimePathSafe,
@@ -42,7 +60,7 @@ describe('isValidManagedRuntimeId()', () => {
 });
 
 describe('resolveManagedRuntimePathSafe()', () => {
-  const runtimesDir = join('C:', 'semidex-home', 'runtimes');
+  const runtimesDir = resolvePath(join('semidex-home', 'runtimes'));
 
   it('resolves a valid id to the expected path', () => {
     const result = resolveManagedRuntimePathSafe(runtimesDir, '1.26.0-cuda13');
@@ -64,7 +82,7 @@ describe('resolveManagedRuntimePathSafe()', () => {
 });
 
 describe('resolveManagedRuntimeChildPathSafe()', () => {
-  const runtimesDir = join('C:', 'semidex-home', 'runtimes');
+  const runtimesDir = resolvePath(join('semidex-home', 'runtimes'));
 
   it('accepts a valid installStage name', () => {
     const result = resolveManagedRuntimeChildPathSafe(runtimesDir, 'install-stage-1234567890', 'installStage');

@@ -18,7 +18,7 @@ import { createHash } from 'crypto';
 
 import { chunkFileFromPath, applyChunkingSettings } from './phases/chunk.js';
 import { addContext, addContextDeterministic, applyContextSettings, isDeterministicContextMode } from './phases/context.js';
-import { addTagsBatch, shouldGenerateTags, applyTagSettings } from './phases/tag.js';
+import { addTagsBatch, shouldGenerateTags, applyTagSettings, resolveTagModel } from './phases/tag.js';
 import { isOnnxTagProvider } from './phases/tag-provider.js';
 import { validateTagOnnxCapability } from './phases/tag-onnx-capability.js';
 import { isEmptySectionChunk } from './phases/empty-section.js';
@@ -47,11 +47,12 @@ import { makeNodeId } from '../core/node-id.js';
 import { scroll } from '../core/qdrant.js';
 import { PROGRESS_EVENT_PREFIX } from './progress-event.js';
 import { applyEnvWriteBack } from '../../core/settings/service.js';
-import { validateOllamaEmbedCapability, validateOllamaGenerateCapability, validateOllamaSummaryCapability, validateOllamaDiscoveryCapability } from '../../core/generation/ollama-capability.js';
+import { validateOllamaEmbedCapability, validateOllamaGenerateCapability, validateOllamaSummaryCapability, validateOllamaDiscoveryCapability, validateOllamaResourceIdentityCapability } from '../../core/generation/ollama-capability.js';
 import { validateOnnxEmbedCapability } from '../core/onnx-embed-capability.js';
-import { buildResourceIdentityInputs } from './device/resource-identity.js';
+import { resolvePipelineResourceIdentities } from './device/resource-identity.js';
 import { resolveIndexSchedulingPolicy } from './device/scheduling-policy.js';
 import { runBoundedFilePipeline } from './pipeline/bounded-file-pipeline.js';
+import { createEmbeddingResourceIdentityCapability } from './device/embedding-resource-identity-capability.js';
 
 // Capability injection (Phase 8B Step 3, revised after code review — real
 // instance-scoped injection, no module-scope capability state anywhere in
@@ -60,11 +61,11 @@ import { runBoundedFilePipeline } from './pipeline/bounded-file-pipeline.js';
 // even indirectly through a *-lazy.js re-export used as a default value.
 // It depends only on the narrow OllamaGenerateCapability/
 // OllamaSummaryCapability/OllamaDiscoveryCapability/OllamaEmbedCapability/
-// OnnxEmbedCapability/TagOnnxCapability contracts
-// (core/generation/ollama-capability.js, core/onnx-embed-capability.js,
+// OllamaResourceIdentityCapability/OnnxEmbedCapability/TagOnnxCapability
+// contracts (core/generation/ollama-capability.js, core/onnx-embed-capability.js,
 // phases/tag-onnx-capability.js).
 //
-// There is NO module-scope binding of any kind for these six capabilities
+// There is NO module-scope binding of any kind for these seven capabilities
 // — not a `let`, not a "run-scoped snapshot" `let` either (an earlier
 // version of this fix used exactly that shape and code review correctly
 // rejected it: a snapshot stored in a module-scope variable is STILL
@@ -83,7 +84,15 @@ import { runBoundedFilePipeline } from './pipeline/bounded-file-pipeline.js';
 // state between them — genuine per-call isolation, not a narrower window
 // for the same class of race.
 //
-// None of the six is EVER handed to phases/context.js, phases/tag.js,
+// EmbeddingResourceIdentityCapability (device/embedding-resource-identity-capability.js)
+// is DIFFERENT from the seven ctx capabilities above: it is not injected by
+// the composition root at all — main() constructs it itself, locally,
+// immediately after EMBEDDING_PROFILE resolves (the profile does not exist
+// yet at composition-root time), from ctx.onnxEmbed and ctx.generationResourceIdentity.
+// It is a derived, main()-local value, never assigned to ctx, never
+// module-scope — same isolation guarantee as everything else in this file.
+//
+// None of the seven is EVER handed to phases/context.js, phases/tag.js,
 // phases/combined.js, phases/skeleton-summary.js, or preflight.js via a
 // module-scope setter of THEIRS either — those five files have no
 // apply*Capability() of their own, and no module-scope capability binding
@@ -94,9 +103,9 @@ import { runBoundedFilePipeline } from './pipeline/bounded-file-pipeline.js';
 /**
  * Validates a caller-supplied capability bundle and returns one immutable
  * per-run context object — never stored anywhere outside the caller's own
- * local scope. This is the ONLY place these six capabilities are validated;
- * every downstream function (main, stageA, stageB, runBoundedFilePipeline's
- * own stage closures, and every
+ * local scope. This is the ONLY place these seven capabilities are
+ * validated; every downstream function (main, stageA, stageB,
+ * runBoundedFilePipeline's own stage closures, and every
  * embedForIndex/embedForIndexBatch/getOllamaEmbeddingDimension/
  * resolveRunNumCtx call inside main()) receives this object as a real
  * parameter and reads directly off it.
@@ -105,23 +114,25 @@ import { runBoundedFilePipeline } from './pipeline/bounded-file-pipeline.js';
  *   ollamaSummary: import('../../core/generation/ollama-capability.js').OllamaSummaryCapability,
  *   ollamaEmbed: import('../../core/generation/ollama-capability.js').OllamaEmbedCapability,
  *   ollamaDiscovery: import('../../core/generation/ollama-capability.js').OllamaDiscoveryCapability,
+ *   generationResourceIdentity: import('../../core/generation/ollama-capability.js').OllamaResourceIdentityCapability,
  *   onnxEmbed: import('../core/onnx-embed-capability.js').OnnxEmbedCapability,
  *   tagOnnx: import('./phases/tag-onnx-capability.js').TagOnnxCapability,
  *   cloudEmbed: import('../../core/embedding-profile/cloud-embedding-capability.js').CloudEmbeddingCapability,
  * }} capabilities — every slot required; run() is the one real caller
  *   (via index-runtime.js's runIndexerCli()), and every real entry point
- *   (index-full.js, index-lite.js) already supplies all seven.
- * @returns {{ ollamaGenerate: Object, ollamaSummary: Object, ollamaEmbed: Object, ollamaDiscovery: Object, onnxEmbed: Object, tagOnnx: Object, cloudEmbed: Object }}
+ *   (index-full.js, index-lite.js) already supplies all eight.
+ * @returns {{ ollamaGenerate: Object, ollamaSummary: Object, ollamaEmbed: Object, ollamaDiscovery: Object, generationResourceIdentity: Object, onnxEmbed: Object, tagOnnx: Object, cloudEmbed: Object }}
  */
-function buildRunContext({ ollamaGenerate, ollamaSummary, ollamaEmbed, ollamaDiscovery, onnxEmbed, tagOnnx, cloudEmbed } = {}) {
+function buildRunContext({ ollamaGenerate, ollamaSummary, ollamaEmbed, ollamaDiscovery, generationResourceIdentity, onnxEmbed, tagOnnx, cloudEmbed } = {}) {
   validateOllamaGenerateCapability(ollamaGenerate);
   validateOllamaSummaryCapability(ollamaSummary);
   validateOllamaEmbedCapability(ollamaEmbed);
   validateOllamaDiscoveryCapability(ollamaDiscovery);
+  validateOllamaResourceIdentityCapability(generationResourceIdentity);
   validateOnnxEmbedCapability(onnxEmbed);
   validateTagOnnxCapability(tagOnnx);
   validateCloudEmbeddingCapability(cloudEmbed);
-  return { ollamaGenerate, ollamaSummary, ollamaEmbed, ollamaDiscovery, onnxEmbed, tagOnnx, cloudEmbed };
+  return { ollamaGenerate, ollamaSummary, ollamaEmbed, ollamaDiscovery, generationResourceIdentity, onnxEmbed, tagOnnx, cloudEmbed };
 }
 
 // The exact { ollama, onnxEmbed, cloudEmbed } shape
@@ -228,6 +239,80 @@ function hashFile(filePath) {
 //      file — a real gap a live Qdrant Cloud indexing run caught: only the
 //      CONTEXT-GENERATION call site was gated by CONTEXT_MODE, not the
 //      preflight check guarding it.
+// The exact, minimal set of Ollama model names THIS file's stageB call
+// will actually need — exported for direct unit testing, mirroring
+// shouldSkipOllamaPreflight()'s own export just below (same underlying
+// per-file chunkMeta.chunkingModel signal: skeleton files always take
+// stageB's deterministic-structural-context branch, legacy files take
+// whichever of the deterministic/combined/onnx-parallel/default branches
+// CONTEXT_MODE/COMBINED_LLM/TAG_PROVIDER select — this function mirrors
+// that exact branch selection, not the flat env-only approximation the
+// scheduler's own resolveActiveGenerationModels() uses for a DIFFERENT
+// purpose (device-placement scheduling, where a slightly conservative
+// over-report is an accepted, harmless one-sided cost — see that
+// function's own header comment in local/core/ollama-capability.js).
+// Preflight's job is different: reporting an EXTRA model here is not
+// harmless, it's a hard failure — code review finding, P1, superseding
+// the earlier resolvePreflightTagModel() fix, which corrected WHICH
+// single tag-model name to check but still always paired it with
+// contextModel unconditionally, so CONTEXT_MODE=deterministic +
+// TAG_GEN=1 + TAG_PROVIDER=ollama + TAG_MODEL set (CONTEXT_MODEL unset)
+// would still require CONTEXT_MODEL to be pulled even though no stageB
+// branch for this file ever calls it.
+//
+// @param {Object} chunkMeta — same per-file value shouldSkipOllamaPreflight()
+//   already receives; chunkingModel is truthy for skeleton (Markdown)
+//   files, falsy for legacy (PDF/Pandoc/plain-text).
+// @param {NodeJS.ProcessEnv} env
+// @param {{ contextModel: string, genTagsPreflight: boolean, tagViaOnnx: boolean, combinedEnabled: boolean }} opts
+// @returns {string[]} distinct required model names, [] if this file's
+//   stageB call makes zero Ollama calls.
+export function resolveRequiredOllamaModels(chunkMeta, env, { contextModel, genTagsPreflight, tagViaOnnx, combinedEnabled }) {
+  const models = [];
+  const isSkeleton = Boolean(chunkMeta.chunkingModel);
+  const tagModel = () => resolveTagModel(env);
+
+  if (isSkeleton) {
+    // Mirrors stageB's skeletonDeterministic branch: context is always
+    // deterministic (zero Ollama calls), COMBINED_LLM is ignored, tags
+    // run normally unless ONNX-routed.
+    if (genTagsPreflight && !tagViaOnnx) models.push(tagModel());
+  } else if (isDeterministicContextMode(env)) {
+    // Mirrors stageB's CONTEXT_MODE=deterministic branch: context is
+    // deterministic (zero Ollama calls) and takes priority over
+    // COMBINED_LLM regardless of TAG_PROVIDER; tags run normally unless
+    // ONNX-routed.
+    if (genTagsPreflight && !tagViaOnnx) models.push(tagModel());
+  } else if (combinedEnabled) {
+    // Mirrors stageB's combined branch: one model for both context+tags,
+    // TAG_MODEL explicitly ignored.
+    models.push(contextModel);
+  } else if (tagViaOnnx && genTagsPreflight) {
+    // Mirrors stageB's ONNX-parallel branch: only context calls Ollama.
+    models.push(contextModel);
+  } else {
+    // Mirrors stageB's plain default branch: context always calls
+    // Ollama; tags call Ollama too unless ONNX-routed.
+    models.push(contextModel);
+    if (genTagsPreflight && !tagViaOnnx) models.push(tagModel());
+  }
+
+  // SKELETON_SUMMARY=llm: stageB only calls Ollama for nav summaries when
+  // THIS file actually produced nav points (navPoints.length > 0) — a
+  // fact only known after chunking, which runs AFTER preflight (preflight
+  // must fail fast before any chunking/Qdrant work starts, so it cannot
+  // wait for that result). Conservatively includes contextModel whenever
+  // SKELETON_SUMMARY=llm is set at all, regardless of whether this
+  // specific file turns out to have nav points — the safe direction for
+  // preflight, unlike the scheduler's own resolveActiveGenerationModels()
+  // over-report (P2, local/core/ollama-capability.js): a missed
+  // requirement here would surface as a real mid-run failure instead of a
+  // fast preflight failure, so over-checking is intentional here.
+  if (env.SKELETON_SUMMARY === 'llm') models.push(contextModel);
+
+  return [...new Set(models)];
+}
+
 export function shouldSkipOllamaPreflight(chunkMeta, env, { genTagsPreflight, tagViaOnnx }) {
   const skeletonNoLlm = Boolean(chunkMeta.chunkingModel)
     && env.SKELETON_SUMMARY !== 'llm'
@@ -309,11 +394,11 @@ async function stageA(filePath, rootPath, collection, profiler, ctx, reporter = 
   const genTagsPreflight = shouldGenerateTags(process.env);
   // TAG_PROVIDER=onnx: tag generation goes to ONNX worker, not Ollama — skip tagModel check.
   const tagViaOnnx = isOnnxTagProvider(process.env);
-  const tagModel = (combinedCfg.enabled || !genTagsPreflight || tagViaOnnx)
-    ? contextModel
-    : (process.env.TAG_MODEL || contextModel);
   if (!shouldSkipOllamaPreflight(chunkMeta, process.env, { genTagsPreflight, tagViaOnnx })) {
-    await ensureOllamaPreflight(ollamaUrl, contextModel, tagModel, ollamaDiscovery);
+    const requiredModels = resolveRequiredOllamaModels(chunkMeta, process.env, {
+      contextModel, genTagsPreflight, tagViaOnnx, combinedEnabled: combinedCfg.enabled,
+    });
+    await ensureOllamaPreflight(ollamaUrl, requiredModels, ollamaDiscovery);
   }
   // Load/download tokenizer before any destructive work — a failure here
   // leaves old points intact. Applies to BOTH families: BGE-M3 (local
@@ -1181,38 +1266,56 @@ async function main(ctx) {
   }
   const maxPreparedInFlight = envInt('MAX_PREPARED_FILES_IN_FLIGHT', stageAConcurrency + 1 + 1 + 2, 1, 1000, '[pipeline] ');
 
-  // onnxTaggingActive is stable for the whole run (depends only on
+  // taggingLaneActive is stable for the whole run (depends only on
   // env/settings, never per-file data) — the SAME condition the old
   // pipeline-mode branch's own onnxLaneActive already used.
-  const onnxTaggingActive = isOnnxTagProvider(process.env)
+  const taggingLaneActive = isOnnxTagProvider(process.env)
     && shouldGenerateTags(process.env)
     && !resolveCombinedLlmConfig(process.env).enabled;
+
+  // Instance-scoped, main()-local — never assigned to ctx, never
+  // module-scope. Constructed here (not in buildRunContext/the composition
+  // root) specifically because it needs the freshly-resolved
+  // EMBEDDING_PROFILE, which does not exist yet at composition-root time.
+  // Delegates to ctx.onnxEmbed (local ONNX) or ctx.generationResourceIdentity's
+  // second method (Ollama-backed embedding) depending on the resolved
+  // profile's own dense provider/execution — see
+  // device/embedding-resource-identity-capability.js's own header comment.
+  const embeddingResourceIdentity = createEmbeddingResourceIdentityCapability({
+    profile: EMBEDDING_PROFILE,
+    onnxEmbed: ctx.onnxEmbed,
+    ollamaResourceIdentity: ctx.generationResourceIdentity,
+  });
+
+  // Tagging identity: pass ctx.tagOnnx directly when tagging is active this
+  // run (it already exposes getResourceIdentity() — see
+  // local/indexer/phases/tag-onnx.js), else a trivial always-unknown
+  // stand-in. run.js decides WHICH object to pass — the same
+  // composition-level decision it already makes for embedding above — no
+  // new capability contract needed for this.
+  const taggingResourceIdentityCapability = taggingLaneActive
+    ? ctx.tagOnnx
+    : { async getResourceIdentity() { return { kind: 'unknown', backend: 'unknown', deviceId: null, verified: false, source: null }; } };
 
   // Re-evaluated once per file, inside runBoundedFilePipeline itself —
   // never called here. Self-heals across the run: embedding's
   // getOnnxProviderState() and generation's getRunningModel() both only
   // report a verified signal once real work has actually happened at
-  // least once in this process (see device/resource-identity.js).
+  // least once in this process. resolvePipelineResourceIdentities() is
+  // fully provider-agnostic — it only ever calls getResourceIdentity({env})
+  // on each of the three capabilities below, never anything Ollama/ONNX/
+  // Qdrant-specific.
   const recomputePolicy = async () => {
-    const identities = await buildResourceIdentityInputs({
+    const identities = await resolvePipelineResourceIdentities({
+      generationCapability: ctx.generationResourceIdentity,
+      embeddingCapability: embeddingResourceIdentity,
+      taggingCapability: taggingResourceIdentityCapability,
       env: process.env,
-      onnxProviderState: ctx.onnxEmbed.getOnnxProviderState?.() ?? null,
-      taggingActive: onnxTaggingActive,
-      ollamaDiscovery: ctx.ollamaDiscovery,
-      // EMBEDDING_PROFILE is resolved once, earlier in main(), before any
-      // file is processed — real signal, not a guess. Qdrant Cloud/cluster
-      // execution does zero local compute for this process (a genuinely
-      // independent, always-overlap-safe resource) — see
-      // resolveEmbeddingResourceIdentity()'s own denseExecution handling,
-      // the fix for a real gap where cloud-embedding collections were
-      // silently misclassified as local ONNX CPU work.
-      denseExecution: EMBEDDING_PROFILE.embedding.dense.execution,
-      denseProvider: EMBEDDING_PROFILE.embedding.dense.provider,
     });
     return resolveIndexSchedulingPolicy(identities);
   };
 
-  console.log(`[pipeline] stageA=${stageAConcurrency} maxPreparedInFlight=${maxPreparedInFlight} onnxTagging=${onnxTaggingActive} commit=serial (device-aware)`);
+  console.log(`[pipeline] stageA=${stageAConcurrency} maxPreparedInFlight=${maxPreparedInFlight} tagging=${taggingLaneActive} commit=serial (device-aware)`);
 
   const { results } = await runBoundedFilePipeline({
     files,
@@ -1226,7 +1329,7 @@ async function main(ctx) {
     runStageB: (preparedA, generationTaggingExecutionMode) => stageB(preparedA, ctx, null, null, generationTaggingExecutionMode),
     runStageC: (preparedB) => stageC(preparedB, ctx),
     runStageD: (preparedC) => stageD(preparedC),
-    onnxTaggingActive,
+    taggingLaneActive,
     stageAConcurrency,
     recomputePolicy,
     maxPreparedInFlight,

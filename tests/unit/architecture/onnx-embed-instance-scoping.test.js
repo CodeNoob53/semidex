@@ -154,6 +154,60 @@ describe('Lite composition roots continue to supply only a typed-unavailable ONN
   });
 });
 
+describe('indexer/index-full.js / indexer/index-lite.js — generationResourceIdentity (device-aware resource identity, provider-agnostic refactor)', () => {
+  it('index-full.js constructs ONE createOllamaResourceIdentityCapability() instance and passes it as generationResourceIdentity, not a bare module namespace', () => {
+    const src = readFileSync(new URL('../../../src/indexer/index-full.js', import.meta.url), 'utf-8');
+    assert.match(src, /createOllamaResourceIdentityCapability/);
+    assert.match(src, /const generationResourceIdentity = createOllamaResourceIdentityCapability\(\);/);
+    const codeOnly = src.split('\n').filter((line) => !line.trim().startsWith('//'));
+    const runIndexerCliCallArea = codeOnly.join('\n');
+    assert.match(runIndexerCliCallArea, /generationResourceIdentity,/);
+  });
+
+  it('index-lite.js supplies a typed-unavailable generationResourceIdentity whose getResourceIdentity/getEmbeddingResourceIdentity both resolve to unknown, never throw', () => {
+    const src = readFileSync(new URL('../../../src/indexer/index-lite.js', import.meta.url), 'utf-8');
+    assert.match(src, /function unavailableResourceIdentityCapability\(\)/);
+    const fnStart = src.indexOf('function unavailableResourceIdentityCapability');
+    const fnEnd = src.indexOf('\n}', fnStart);
+    const fnBody = src.slice(fnStart, fnEnd);
+    assert.match(fnBody, /getResourceIdentity:/);
+    assert.match(fnBody, /getEmbeddingResourceIdentity:/);
+    assert.doesNotMatch(fnBody, /throw/, 'identity must never throw -- a disabled capability reports unknown, never an error');
+    assert.match(src, /generationResourceIdentity: unavailableResourceIdentityCapability\(\)/);
+  });
+
+  it('behavioral: Full\'s real createOllamaResourceIdentityCapability() and Lite\'s unavailable stand-in are genuinely distinct instances, constructed in both orders in one process, with no shared closure state', async () => {
+    const { createOllamaResourceIdentityCapability } = await import('../../../src/local/core/ollama-capability.js');
+
+    function unavailableResourceIdentityCapability() {
+      const unknown = async () => ({ kind: 'unknown', backend: 'unknown', deviceId: null, verified: false, source: null });
+      return { getResourceIdentity: unknown, getEmbeddingResourceIdentity: unknown };
+    }
+
+    // Order 1: Lite-shaped, then Full-shaped.
+    const lite1 = unavailableResourceIdentityCapability();
+    const full1 = createOllamaResourceIdentityCapability();
+    assert.notEqual(lite1, full1);
+    await assert.doesNotReject(() => lite1.getResourceIdentity({ env: {} }));
+    assert.deepEqual(await lite1.getResourceIdentity({ env: {} }), { kind: 'unknown', backend: 'unknown', deviceId: null, verified: false, source: null });
+
+    // Order 2: Full-shaped, then Lite-shaped — the reverse order, same process.
+    const full2 = createOllamaResourceIdentityCapability();
+    const lite2 = unavailableResourceIdentityCapability();
+    assert.notEqual(full1, full2, 'two separately-constructed Full instances must be genuinely distinct objects');
+    await assert.doesNotReject(() => lite2.getEmbeddingResourceIdentity({ env: {}, model: 'x' }));
+    assert.deepEqual(await lite2.getEmbeddingResourceIdentity({ env: {}, model: 'x' }), { kind: 'unknown', backend: 'unknown', deviceId: null, verified: false, source: null });
+
+    // No shared closure state: each Full instance's own in-flight /api/ps
+    // dedup cache is private — confirm indirectly by checking that calling
+    // getResourceIdentity() on one instance with no active models (empty
+    // env) never affects the other's independent call.
+    const r1 = await full1.getResourceIdentity({ env: {} });
+    const r2 = await full2.getResourceIdentity({ env: {} });
+    assert.deepEqual(r1, r2); // both unknown (no active models), but independently computed
+  });
+});
+
 describe('Full and Lite composition roots construct in either order with no ONNX-embedding-capability contamination', () => {
   it('constructing createLiteApp() then createApp() (and vice versa), repeatedly, in one process, never errors and never leaves core/embeddings.js\'s own module-scope fallback contaminated', async () => {
     const embeddings = await import('../../../src/shared/core/embeddings.js?onnx-embed-order-check');

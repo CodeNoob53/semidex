@@ -83,6 +83,18 @@ function unavailableOllamaCapability() {
   };
 }
 
+// Identity, unlike every other Ollama method above, MUST never throw — a
+// disabled/unavailable capability answers "unknown", not an error, so a
+// scheduling signal never crashes an indexing run. Kept as its OWN,
+// separate function (not folded into unavailableOllamaCapability() above)
+// precisely because every method on THAT object throws by design — adding
+// a never-throw method to it would make that object's own name a lie for
+// one of its keys.
+function unavailableResourceIdentityCapability() {
+  const unknown = async () => ({ kind: 'unknown', backend: 'unknown', deviceId: null, verified: false, source: null });
+  return { getResourceIdentity: unknown, getEmbeddingResourceIdentity: unknown };
+}
+
 function unavailableOnnxEmbedCapability() {
   return {
     loadOnnx: async () => { throw new OnnxEmbedNotAvailableInLiteIndexerError('loadOnnx'); },
@@ -107,6 +119,11 @@ function unavailableTagOnnxCapability() {
   return {
     addTagsOnnxBatch: async () => { throw new TagOnnxNotAvailableInLiteIndexerError('addTagsOnnxBatch'); },
     async shutdownOnnxTagWorker() { /* no-op: no worker is ever started in Semidex Lite */ },
+    // Identity, like shutdown, MUST never throw — same never-throw
+    // exception already established for the Ollama generation identity
+    // capability. Lite genuinely has no tagging resource to report on;
+    // unknown is the honest answer, not an error.
+    async getResourceIdentity() { return { kind: 'unknown', backend: 'unknown', deviceId: null, verified: false, source: null }; },
   };
 }
 
@@ -117,6 +134,7 @@ if (isIndexerMainModule(import.meta.url)) {
     ollamaSummary: unavailableOllamaCapability(),
     ollamaEmbed: unavailableOllamaCapability(),
     ollamaDiscovery: unavailableOllamaCapability(),
+    generationResourceIdentity: unavailableResourceIdentityCapability(),
     onnxEmbed: unavailableOnnxEmbedCapability(),
     tagOnnx: unavailableTagOnnxCapability(),
     cloudEmbed: createCloudEmbeddingCapability(),

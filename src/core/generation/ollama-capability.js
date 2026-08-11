@@ -19,7 +19,7 @@
 // has nothing to do with these contracts. So generateStream() does not
 // belong in any contract here at all.
 //
-// Four contracts, matching real per-consumer usage exactly:
+// Five contracts, matching real per-consumer usage exactly:
 //   - OllamaGenerateCapability: generate — used by indexer/phases/{combined,context,tag}.js.
 //   - OllamaSummaryCapability: generate/getModelContextLength/isThinkingModel
 //     — used by indexer/phases/skeleton-summary.js (its own module-scope
@@ -30,6 +30,12 @@
 //     detection).
 //   - OllamaDiscoveryCapability: isOllamaReachable/listOllamaModels/
 //     validateOllamaModels — used by indexer/preflight.js.
+//   - OllamaResourceIdentityCapability: getResourceIdentity/
+//     getEmbeddingResourceIdentity — used by run.js's device-aware
+//     scheduler (via device/embedding-resource-identity-capability.js for
+//     the second method); the ONE Ollama-specific identity source the
+//     otherwise fully provider-agnostic device/resource-identity.js
+//     composes generically, never imports.
 // core/generation/ollama-provider.js needs generate-shaped methods AND
 // discovery-shaped methods, but already has its own working per-method DI
 // since Phase 4A.5a (isOllamaReachableFn, listOllamaModelsFn,
@@ -127,6 +133,42 @@ export function validateOllamaDiscoveryCapability(capability) {
   const missing = REQUIRED_OLLAMA_DISCOVERY_CAPABILITY_METHODS.filter(m => typeof capability[m] !== 'function');
   if (missing.length > 0) {
     throw new Error(`validateOllamaDiscoveryCapability: capability is missing required method(s): ${missing.join(', ')}`);
+  }
+  return true;
+}
+
+/**
+ * The device-aware bounded pipeline's one Ollama-specific identity source
+ * (device/resource-identity.js's provider-agnostic resolvePipelineResourceIdentities()
+ * never imports this contract directly — only local/core/ollama-capability.js's
+ * factory implements it, and only run.js's buildRunContext() validates it).
+ * Two methods because this ONE capability genuinely answers two different,
+ * differently-parameterized questions: its own self-known set of active
+ * generation models (getResourceIdentity) vs. a caller-named single
+ * embedding model (getEmbeddingResourceIdentity, called only by
+ * device/embedding-resource-identity-capability.js, which alone knows the
+ * resolved embedding profile's model name). Every OTHER capability slot in
+ * the pipeline (embeddingCapability/taggingCapability passed into
+ * resolvePipelineResourceIdentities) exposes ONLY getResourceIdentity —
+ * this second method never crosses that generic boundary.
+ * @typedef {Object} OllamaResourceIdentityCapability
+ * @property {(context: {env?: NodeJS.ProcessEnv}) => Promise<import('../../shared/indexer/device/resource-identity.js').ResourceIdentity>} getResourceIdentity — generation identity; capability resolves its own active-model list internally
+ * @property {(context: {env?: NodeJS.ProcessEnv, model: string}) => Promise<import('../../shared/indexer/device/resource-identity.js').ResourceIdentity>} getEmbeddingResourceIdentity — embedding identity for ONE named model, supplied by the caller
+ */
+
+export const REQUIRED_OLLAMA_RESOURCE_IDENTITY_CAPABILITY_METHODS = ['getResourceIdentity', 'getEmbeddingResourceIdentity'];
+
+/**
+ * @param {Object} capability
+ * @throws {Error} with an actionable message naming the missing piece
+ */
+export function validateOllamaResourceIdentityCapability(capability) {
+  if (typeof capability !== 'object' || capability === null) {
+    throw new Error('validateOllamaResourceIdentityCapability: capability must be a non-null object');
+  }
+  const missing = REQUIRED_OLLAMA_RESOURCE_IDENTITY_CAPABILITY_METHODS.filter(m => typeof capability[m] !== 'function');
+  if (missing.length > 0) {
+    throw new Error(`validateOllamaResourceIdentityCapability: capability is missing required method(s): ${missing.join(', ')}`);
   }
   return true;
 }
