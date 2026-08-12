@@ -95,6 +95,7 @@ export function projectAnswerDeltaEvent(text) {
  *   model?: string, tokensIn?: number, tokensOut?: number,
  *   evidenceCount: number, elapsedMs: number,
  *   conversationId?: string, summaryChanged?: boolean, updatedSummary?: string,
+ *   compactedMessageCount?: number,
  * }} result
  */
 export function projectDoneEvent(result) {
@@ -121,6 +122,7 @@ export function projectDoneEvent(result) {
             id: result.conversationId,
             summaryChanged: Boolean(result.summaryChanged),
             ...(result.summaryChanged && result.updatedSummary !== undefined ? { updatedSummary: result.updatedSummary } : {}),
+            ...(result.summaryChanged && result.compactedMessageCount !== undefined ? { compactedMessageCount: result.compactedMessageCount } : {}),
           },
         }
       : {}),

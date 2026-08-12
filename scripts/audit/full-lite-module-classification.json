@@ -461,7 +461,6 @@
       "fullReachable": true,
       "liteReachable": true,
       "directDependencies": [
-        "src/core/ask/conversation-context.js",
         "src/core/ask/prompt.js",
         "src/shared/core/doctor-checks.js"
       ]

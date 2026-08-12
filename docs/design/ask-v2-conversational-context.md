@@ -6,6 +6,18 @@
 > client's own deferred-features list, and
 > [ask-application-runtime.md](ask-application-runtime.md) for the broader
 > product/runtime boundary this endpoint sits inside.
+>
+> **Live acceptance status (2026-08-12):** a real client
+> (`packages/lite/examples/ask-v2-sse-client.mjs`), a stateless demo
+> conversation manager (`packages/lite/examples/conversation-manager.mjs`),
+> a fully-offline integration test suite
+> (`tests/integration/ask-v2-conversation-flow.integration.test.js`), and a
+> disposable-collection live acceptance script
+> (`scripts/ask-v2-live-acceptance.mjs`, real Qdrant Cloud + Gemini, never
+> run as part of `npm test`) all exist and are described in this document's
+> own sections. See `packages/lite/README.md`'s "Backend integration:
+> multi-turn Ask" section for the integrator-facing narrative this document
+> underpins.
 
 ## 1. Problem and ownership model
 
@@ -78,12 +90,14 @@ unchanged from v1 (`src/core/ask-api/v2/contract.js` mirrors
 additive, optional block:
 
 ```json
-{ "conversation": { "id": "conv_123", "summaryChanged": true, "updatedSummary": "..." } }
+{ "conversation": { "id": "conv_123", "summaryChanged": true, "updatedSummary": "...", "compactedMessageCount": 5 } }
 ```
 
 `conversation` is omitted entirely from `done` when the request had no
 `conversation` field at all (a first-turn request) — never present as `null`
-or `{}`. `updatedSummary` is present only when `summaryChanged` is `true`.
+or `{}`. `updatedSummary`/`compactedMessageCount` are present only when
+`summaryChanged` is `true` — see §9 for exactly what `compactedMessageCount`
+means and how a caller uses it.
 Summary compaction is never attempted on every request — only when the
 caller-supplied history exceeds a configurable threshold
 (`ASK_SUMMARY_COMPACTION_THRESHOLD`).
@@ -120,7 +134,7 @@ No per-conversation locking exists or is needed, because Semidex holds no
 per-conversation mutable state to protect. Optimistic concurrency (version
 numbers) is the integrating app's own concern for its message-history writes
 — Semidex's only involvement is returning `updatedSummary` for the app to
-persist under its own optimistic-lock scheme (see §10's `commitTurn()`);
+persist under its own optimistic-lock scheme (see §11's `commitTurn()`);
 Semidex never reads or validates any version/expectedVersion field itself —
 no such field exists in the v2 wire contract on purpose.
 
@@ -159,6 +173,18 @@ trimmed-history budget consumed later, inside `budgetConversationContext()`.
 Conflating the two (one setting doing double duty as both an individual cap
 and an aggregate cap) was an earlier design defect, corrected before
 implementation.
+
+Alongside it, `PROTOCOL_MAX_RECENT_MESSAGES` (200 entries, same file) is a
+second fixed, non-configurable ceiling — on the ARRAY LENGTH of
+`conversation.recentMessages` itself, checked at the same parse time,
+independent of `ASK_HISTORY_MAX_MESSAGES` (which governs only how many of
+those entries the answer path actually USES, not how many the wire
+protocol accepts at all). A request whose `recentMessages` array exceeds
+this ceiling is rejected outright with `400 invalid_conversation` before
+any retrieval/generation is attempted — see §9's discussion of
+`conversation-manager.mjs`'s own `client_bounded_context_exceeded` guard,
+which exists specifically to detect this case locally and refuse to send
+rather than let the server reject it.
 
 Token counts are never trusted from the client — there is no client-supplied
 token-count field anywhere in the v2 wire contract; every count is computed
@@ -215,6 +241,33 @@ The response distinguishes "no supporting evidence found" (`status: 'refused'`,
 `'provider_unavailable'`) exactly as v1 already does — v2 adds no new
 ambiguity here.
 
+### 8.1 Security boundary for message roles
+
+`recentMessages[].role` accepts **only** the literal strings `"user"` and
+`"assistant"` — `"system"`, `"developer"`, `"tool"`, and any other value are
+rejected outright at parse time (`400` + `invalid_message_role`), before the
+request ever reaches retrieval or generation. This is a deliberate security
+boundary, not an arbitrary validation choice:
+
+- Semidex's own system instructions are the ONLY content ever delivered
+  through a provider's native system-instruction channel
+  (`GenerationProvider.generate({ systemPrompt, ... })` — see
+  `src/core/generation/provider.js`). If a caller-supplied "system"-role
+  message were accepted into `recentMessages`, a provider implementation
+  that concatenates conversation roles into one combined prompt (some do)
+  could end up rendering caller-supplied text in a position visually or
+  structurally indistinguishable from Semidex's own real system
+  instructions — a direct instruction-injection vector.
+- `"tool"`/`"developer"` roles imply a function-calling or agentic
+  transcript shape Semidex v2 does not support at all (see §12) — accepting
+  them would silently promise capabilities (tool-call replay, developer-role
+  precedence) that do not exist, rather than failing loudly and immediately.
+- Every accepted message, regardless of role, is STILL rendered only inside
+  the untrusted "Conversation so far" block (§8) — even a maximally
+  well-behaved `"user"`/`"assistant"` message never gains any special
+  authority. The role restriction is a defense-in-depth boundary on top of
+  that, not a substitute for it.
+
 ## 9. Summary compaction design
 
 `src/core/ask/summary-compaction.js`'s `compactSummaryIfNeeded()` is
@@ -222,39 +275,202 @@ best-effort and attempted only when `(recentMessages.length + 2) >=
 ASK_SUMMARY_COMPACTION_THRESHOLD` (the raw, caller-visible pre-trim count —
 the integrating app's own source of truth for "does my history look long").
 
-**Whole-prompt budgeting, not independent per-field budgets.** The model
-input is built in a fixed order: (1) fixed system-prompt overhead, counted
-once; (2) the just-completed current turn (`question`+`answer`), the
-highest-priority content, budgeted BEFORE history — with deterministic,
-char-safe truncation of `answer` if the turn alone doesn't fit; (3) only THEN
-is the remainder handed to `budgetConversationContext({...,
-purpose:'compaction'})` — the SAME shared trimming algorithm the answer path
-uses, fed a synthetic `numCtx` derived from the real remainder, never a
-second, independently-implemented trimming path; (4) a final verification
-pass renders the REAL, literal prompt via `buildCompactionPrompt()` (never a
-hand-summed estimate) and measures it with one real `countTokens()` call,
-deterministically shrinking history (oldest first), then summary, then
-degrading to a skip if formatting overhead alone pushes the combined
-`systemPrompt + prompt` over `numCtx - RESERVED_HEADROOM_TOKENS`. This is the
-one true invariant the whole design guarantees: the literal provider input,
-not an estimate reconstructed from its parts, always fits.
+**Standard rolling-summary boundary — compact the oldest, retain the
+newest, never re-summarize the current turn.** `conversation.recentMessages`
+is split into two disjoint parts: the newest `ASK_SUMMARY_RETAINED_MESSAGES`
+messages are the **retained raw tail** — this function never touches them,
+never sends them to the summarizer, and the caller must keep them as-is —
+and everything older is the **to-compact oldest prefix**, the ONLY material
+actually sent to the summarizer. If the whole history fits inside the
+retained tail (a short conversation, even one that crosses the trigger
+threshold), there is nothing old enough to compact and compaction is
+skipped (`{ changed: false }`) rather than pointlessly regenerating a
+summary that would just restate what's already there.
+
+`ASK_SUMMARY_RETAINED_MESSAGES` is its **own dedicated setting** (default
+4), deliberately independent of `ASK_HISTORY_MAX_MESSAGES`/
+`ASK_HISTORY_MAX_CHARS`/`ASK_HISTORY_MAX_TOKENS` — those bound how much raw
+history a single *request* may include (an unrelated request-size safety
+cap, applied whether or not compaction ever runs). An earlier version of
+this design derived the retained-tail boundary from those request-size caps
+via `budgetConversationContext({purpose:'compaction'})` — a real defect
+(caught in code review): with the default 20-message request-size cap, any
+conversation shorter than 20 messages had NOTHING old enough to compact,
+regardless of how low `ASK_SUMMARY_COMPACTION_THRESHOLD` was set — the
+threshold decided *whether* to attempt compaction, but the unrelated
+request-size cap silently decided there was never any material *to*
+compact. The two concerns are now fully independent knobs.
+
+The current turn's `question`/`answer` are **never** included in the
+summarization input — they already exist, in full, as the caller's own next
+raw message pair once appended, so summarizing them too would mean they
+appear twice with no way for a caller to know that and deduplicate. This,
+together with the retained/compacted boundary being inverted, was a real
+defect in an earlier version of this design: the boundary arithmetic
+reported the RETAINED tail as "compacted" and the DROPPED prefix as "safe
+to keep," and the current turn was folded into the summarization input
+while ALSO being appended raw by every caller — together these caused a
+caller applying the returned boundary to lose real history, duplicate other
+history, and always duplicate the current turn. The design below is what
+actually ships.
+
+**Whole-prompt budgeting for what IS sent.** The model input is built in a
+fixed order: (1) fixed system-prompt overhead, counted once; (2) the
+to-compact oldest prefix (never the retained tail, never the current turn)
+is rendered via `buildCompactionPrompt({priorSummary, recentMessages})`; (3)
+the REAL, literal prompt (never a hand-summed estimate) is measured with one
+real `countTokens()` call, deterministically shrinking the to-compact
+prefix from its **NEWEST** end on overflow (the message closest to the
+retained-tail boundary is dropped first, working backward toward index 0),
+then degrading to a skip — never dropping `priorSummary` — if formatting
+overhead alone pushes the combined `systemPrompt + prompt` over
+`numCtx - RESERVED_HEADROOM_TOKENS`. This is the one true invariant the
+whole design guarantees: the literal provider input, not an estimate
+reconstructed from its parts, always fits — and it is built ENTIRELY from
+material the caller has already agreed is safe to compact (the oldest
+prefix), never from the retained tail or the current turn.
+
+Shrinking from the to-compact prefix's *newest* end, not its oldest end, is
+itself load-bearing and was a second real defect caught in code review: the
+prefix starts as `rawMessages.slice(0, N)` — a contiguous run from index 0
+— and `compactedMessageCount` (below) is reported as its final length.
+Dropping the OLDEST element first (`.slice(1)`) would leave the shrunk
+array no longer starting at index 0, while `compactedMessageCount` would
+still tell the caller "drop `rawMessages.slice(0, compactedMessageCount)`"
+— a range that includes messages the summarizer never actually saw once
+they were shrunk away, permanently losing them even though the caller was
+told they were safely folded into `summary`. Shrinking from the newest end
+instead keeps the to-compact array a true index-0 prefix at every step, so
+`compactedMessageCount` always exactly matches what was rendered into the
+prompt.
+
+**`priorSummary` is never silently dropped.** If, after the to-compact
+prefix has been fully shrunk to empty, the summarization input still
+doesn't fit (an oversized `priorSummary` alone exceeding the budget),
+compaction degrades to a skip — it never discards `priorSummary` and
+regenerates a fresh one covering only a fragment of history. Doing so would
+silently erase the conversation's entire prior long-term context while
+returning a `summary` that looks perfectly valid, with no way for a caller
+to detect the loss. The prior summary is left completely untouched (Ask v2
+never returns `updatedSummary` on `changed: false`), so nothing is lost —
+only deferred to a later turn once there's genuinely room.
+
+**`compactedMessageCount`** is the coverage boundary returned to the caller
+on `{changed: true}`: the exact count of messages, from the OLDEST end of
+the `conversation.recentMessages` array the caller sent THIS turn, that
+were actually rendered into the summarization prompt (after any
+newest-end shrinking of the to-compact prefix — see above) and are
+therefore now covered by `summary`.
+
+A caller does NOT need to physically delete anything to use this
+correctly — see `packages/lite/examples/conversation-manager.mjs` for the
+recommended shape: keep a full, append-only, NEVER-pruned **archive** of
+every message as the source of truth, plus a separate
+**`summarizedThroughArchiveIndex`** boundary that only ever *advances* by
+`compactedMessageCount` when `summaryChanged: true`. The bounded array
+actually SENT to Semidex each turn is a derived view,
+`archive.slice(summarizedThroughArchiveIndex)`, never the archive itself.
+This is deliberately NOT "slice `recentMessages` and overwrite local
+state" — that approach (an earlier, simpler version of this example)
+conflated "no longer sent" with "no longer retained," which meant any
+compaction failure (provider down, repeated generation errors) could
+leave a caller with no correct way to shrink its own stored array without
+risking permanent, silent history loss. Keeping the full archive and only
+narrowing the derived view sidesteps that entirely: nothing is ever
+deleted locally, and the outbound request only ever grows or shrinks
+based on what Semidex itself has confirmed.
+
+If the derived view itself grows past the wire protocol's hard ceiling on
+`recentMessages` (`PROTOCOL_MAX_RECENT_MESSAGES`, 200 entries — see §6
+above) — which can only
+happen if compaction keeps failing to confirm any coverage turn after
+turn — a well-behaved caller must refuse to send that turn rather than
+either truncating its own history or letting the server reject it with a
+generic `invalid_conversation`. `conversation-manager.mjs` implements this
+as an explicit `client_bounded_context_exceeded` error, checked and
+returned BEFORE any network call is made for that turn.
 
 **A failed or oversized compaction never turns a successful answer into an
-error.** Every degenerate case — threshold not met, current turn alone
-doesn't fit, timeout, generation failure, formatting overhead still
-overflowing after every shrink step — resolves to `{ changed: false }`
-inside `compactSummaryIfNeeded()`'s own try/catch boundary; no exception ever
+error.** Every degenerate case — threshold not met, nothing old enough to
+compact, timeout, generation failure, formatting overhead still overflowing
+after every shrink step — resolves to `{ changed: false }` inside
+`compactSummaryIfNeeded()`'s own try/catch boundary; no exception ever
 crosses that function's own boundary. `coordinator-v2.js` calls it strictly
 AFTER the main answer has already returned `status: 'done'`, so a compaction
-problem can only ever affect the trailing `updatedSummary`/`summaryChanged`
-fields merged onto an already-successful result — the `done` SSE event still
-completes normally with `summaryChanged: false` and no `updatedSummary` key.
+problem can only ever affect the trailing `updatedSummary`/`summaryChanged`/
+`compactedMessageCount` fields merged onto an already-successful result —
+the `done` SSE event still completes normally with `summaryChanged: false`
+and no `updatedSummary`/`compactedMessageCount` keys.
 
 The compaction system prompt explicitly instructs the model never to present
 prior assistant answers as verified collection facts — mirroring §8's
 evidence/citation safety framing.
 
-## 10. The future ConversationStore port (NOT implemented in this task)
+## 10. Failure semantics — one summary table
+
+Every failure mode a v2 caller can observe, and exactly how it degrades —
+collected in one place since the individual sections above (§6-9) each
+describe their own failure path inline, in context, but a caller integrating
+against this API needs the full picture at a glance.
+
+| Failure | HTTP / SSE surface | Does it fail the whole request? |
+|---|---|---|
+| Malformed root body / missing `collection`/`question` | `400 bad_request`, pre-stream | Yes — request never starts |
+| Malformed `conversation`/message shape | `400 invalid_conversation`, pre-stream | Yes — request never starts |
+| `role` not `"user"`/`"assistant"` | `400 invalid_message_role`, pre-stream | Yes — request never starts |
+| A single message over `PROTOCOL_MAX_MESSAGE_CHARS` | `400 message_too_large`, pre-stream | Yes — request never starts |
+| Unknown `collection` | `404 not_found`, pre-stream | Yes — request never starts |
+| Model context window too small to answer at all (even with zero history) | `422 context_budget_exceeded`, pre-stream | Yes — a genuinely degenerate `numCtx`, not a normal operating case |
+| Another Ask request already in flight (v1 or v2) | `429 busy`, pre-stream | Yes — caller retries later; nothing was attempted |
+| Generation provider not ready (e.g. Gemini unreachable) | `503 dependency_unavailable`, pre-stream | Yes |
+| Zero retrieval evidence found | `done` event, `refused: true`, `refusalReason: 'no_evidence'` | No — a normal, successful (if unhelpful) response, not an error |
+| Query rewrite fails/times out/returns empty or oversized output | *(invisible to the caller)* — silently falls back to the original `question` for retrieval | No — `console.warn()` only, answer proceeds normally |
+| Summary compaction fails/times out/nothing old enough to compact/still-oversized after every shrink step | `done.conversation.summaryChanged: false`, no `updatedSummary`/`compactedMessageCount` keys | No — `console.warn()` only; the already-successful answer is never touched |
+| Generation itself fails mid-stream | terminal `error` SSE event, `generation_failed` (or the retrieval-stage code that produced it) | Yes, but only after `sources` may have already streamed — never a second pre-stream response |
+| Client disconnects / aborts | terminal `error` SSE event, `stream_aborted`; the shared single-flight gate is released via `finally`, regardless of where in the pipeline the abort happened | Yes for that request; never leaves the gate stuck for the next one |
+
+The two "no" rows (query rewrite, summary compaction) are the load-bearing
+design decision this whole document keeps returning to: **a best-effort
+convenience feature failing must never downgrade a successful, evidence-
+grounded answer into an error.** Every other row is a real, request-ending
+failure — but even there, the failure is reported through the SAME
+`{code, message, retryable}` shape v1 already uses (`src/core/ask-api/v2/contract.js`'s
+`projectErrorPayload()`), never a bespoke v2-only error envelope.
+
+This table covers only failures the SERVER can produce. A well-behaved
+caller can also refuse to send a request locally, before any network call,
+when it can already tell the request would be invalid — the one example of
+this in this codebase is `conversation-manager.mjs`'s
+`client_bounded_context_exceeded` (§9): if `ASK_SUMMARY_COMPACTION_THRESHOLD`
+never manages to confirm any coverage over many turns, the caller's own
+unsummarized view can grow past `PROTOCOL_MAX_RECENT_MESSAGES` — the
+example detects that locally and returns this same `{code, message,
+retryable}` shape rather than either truncating history itself or letting
+the request reach the server only to bounce off `invalid_conversation`.
+This is client-side error synthesis (matching the `client_*`-prefixed codes
+`ask-v2-sse-client.mjs` already produces for its own local failures, e.g.
+`client_timeout_or_abort`), never a code the server itself returns.
+
+The guard's boundary is deliberately `> PROTOCOL_MAX_RECENT_MESSAGES`, not
+`>=`: a view of EXACTLY the ceiling is still legal under the server's own
+wire contract (`request.js` itself only rejects `> PROTOCOL_MAX_RECENT_MESSAGES`),
+and is also the conversation's LAST legal opportunity for a turn that
+could let compaction confirm coverage and shrink the view back down before
+it becomes unrecoverable. Refusing a legal, exactly-at-the-ceiling request
+locally would be stricter than the protocol itself for no benefit, and
+would throw away that final chance. Once the guard DOES trip (the view is
+already over the ceiling), the error message deliberately does not tell
+the caller to simply retry — an ordinary retry sends the exact same
+oversized view and is rejected locally again every time, so no request
+ever reaches Semidex again for that conversation, and a recovering
+generation provider has no way to help. `retryable: true` on this error
+describes only that it isn't a permanent client bug, not that retrying the
+same call achieves anything; the message instead points at the two real
+ways out — start a new conversation, or a manual/future compaction-recovery
+mechanism (not implemented by this demo) that trims or re-derives the
+archive out of band.
+
+## 11. The future ConversationStore port (NOT implemented in this task)
 
 ```ts
 // FUTURE — architectural contract only. Not implemented, not instantiated,
@@ -304,7 +520,7 @@ this document specifies leads with `commitTurn` as the one correct way to
 persist a completed turn — precisely so no integrator is tempted to call two
 separate version-checked writes for what is really one atomic event.
 
-## 11. Explicit scope boundary vs. Stage D and Track F
+## 12. Explicit scope boundary vs. Stage D and Track F
 
 This is a bounded, non-durable precursor slice. It does NOT implement Stage
 D's ([ask-application-runtime.md](ask-application-runtime.md) §6) full
@@ -318,18 +534,31 @@ outlives a single HTTP request. A future `ConversationStore`-backed
 implementation remains a distinct, larger undertaking this document
 deliberately does not attempt.
 
-## 12. Non-goals (restated for auditability)
+## 13. Non-goals (restated for auditability)
 
 - No persistent chat storage of any kind — `ConversationStore` is documented
   only, never instantiated, never even given a stub in-memory implementation
   "for now."
 - No user accounts, authentication, or session management —
   `conversation.id` is never used to look up or authorize anything.
-- No dashboard chat history UI — the existing browser Ask panel remains a
-  manual/debugging workflow, not extended into a multi-turn chat UI.
+- No dashboard chat history UI. The admin dashboard has no Ask panel at
+  all — only retrieval search. Manual/debugging exercise of Ask (v1 or v2)
+  happens via `curl` or the runnable `packages/lite/examples/` client, not
+  through any dashboard UI; this design does not add one.
 - No semantic/episodic long-term memory, no cross-conversation retrieval, no
   promotion workflow.
-- No editable/client-supplied system prompts.
+- **No editable/client-supplied system prompts.** A configurable system
+  prompt (letting an integrating application supply its own behavioral
+  instructions rather than accepting Semidex's fixed one) is explicitly a
+  CANDIDATE FOR A SEPARATE FUTURE TASK, not something this design leaves a
+  half-finished extension point for — `parseAskRequestV2()`'s
+  `KNOWN_ROOT_KEYS`/`KNOWN_CONVERSATION_KEYS` sets contain nothing
+  system-prompt-shaped, and §8.1's message-role security boundary is
+  independent of and would need its own explicit reconsideration alongside
+  any future work in that direction (a configurable system prompt and the
+  "reject system/developer/tool roles" rule are two different concerns that
+  happen to both touch "what counts as an instruction" — solving one does
+  not automatically solve or weaken the other).
 - No automatic collection selection — `collection` remains a required,
   explicit, caller-supplied field.
 - No real ONNX LLM generation work.

@@ -283,6 +283,27 @@ export const DEFINITIONS = {
     advanced: true, appliesAt: 'next_search', requiresReindex: false, requiresBackfill: false,
     ...intField({ envVar: 'ASK_SUMMARY_COMPACTION_THRESHOLD', defaultVal: 8, min: 2, max: 500 }),
   },
+  ASK_SUMMARY_RETAINED_MESSAGES: {
+    category: 'ai', label: 'Ask v2: messages retained raw after compaction', type: 'number', envVar: 'ASK_SUMMARY_RETAINED_MESSAGES',
+    // Deliberately INDEPENDENT of ASK_HISTORY_MAX_MESSAGES -- that setting
+    // caps how much raw history a single /api/v2/ask REQUEST may include
+    // (a request-size safety bound, applied identically whether or not
+    // compaction ever runs). This setting instead decides HOW MANY of the
+    // newest messages summary compaction leaves uncompacted when it runs --
+    // a compaction-boundary decision, not a request-size one. Keeping them
+    // separate means lowering the request-size cap (e.g. to keep prompts
+    // small) can never accidentally starve compaction of anything to
+    // summarize, and vice versa.
+    description: 'Number of the NEWEST conversation messages that summary compaction leaves untouched (raw) when it runs -- everything older is what gets folded into the refreshed summary. Independent of ASK_HISTORY_MAX_MESSAGES, which only bounds a single request\'s total size.',
+    advanced: true, appliesAt: 'next_search', requiresReindex: false, requiresBackfill: false,
+    // Default (4) is deliberately smaller than
+    // ASK_SUMMARY_COMPACTION_THRESHOLD's own default (8) minus the +2
+    // current-turn allowance (i.e. < 6) -- so the very FIRST request that
+    // crosses the default threshold already has real material older than
+    // the retained tail to compact, rather than needing one extra turn
+    // before compaction has anything to do.
+    ...intField({ envVar: 'ASK_SUMMARY_RETAINED_MESSAGES', defaultVal: 4, min: 0, max: 200 }),
+  },
   ASK_QUERY_REWRITE_TIMEOUT_MS: {
     category: 'ai', label: 'Ask v2: query rewrite timeout (ms)', type: 'number', envVar: 'ASK_QUERY_REWRITE_TIMEOUT_MS',
     description: 'Timeout for the optional follow-up query-rewrite generation call in /api/v2/ask. On timeout, retrieval falls back to the original question; the answer is never blocked or failed by this.',

@@ -1,9 +1,15 @@
 // Conversation history trimming / token budgeting (Ask v2) — pure,
 // injectable, no I/O beyond the countTokens/settingsService callbacks it is
-// given. This is the ONE module that owns the "how much history fits"
-// algorithm; both the answer path (coordinator-v2.js) and the compaction
-// path (summary-compaction.js) call it with different `purpose` values
-// rather than each re-implementing their own trimming logic.
+// given. This is the ONE module that owns "how much raw history fits a
+// single request," used by the answer path (coordinator-v2.js).
+// summary-compaction.js does NOT call this — its own retained-tail
+// boundary (ASK_SUMMARY_RETAINED_MESSAGES) is a deliberately separate,
+// independently-configured concern (see that module's own header comment
+// for why conflating the two was a real bug). `purpose: 'compaction'`
+// remains supported here as a generic capability of this pure function —
+// no production caller currently passes it — since a future caller with
+// the same "budget history against a synthetic remaining-token figure"
+// need could reuse it without a new trimming algorithm.
 //
 // `question` is passed in ONLY so the degenerate-context-window error case
 // (step 8 below) can be detected — it is NEVER rendered into the returned

@@ -1,5 +1,7 @@
 # semidex-lite
 
+[Українська версія](./README.uk.md)
+
 > [!IMPORTANT]
 > **Package status: early MVP.** The previous README was a generated
 > placeholder and did not describe the complete purpose, functionality, or
@@ -29,12 +31,16 @@ their own documents and answer questions from them. Example uses include:
 - an educational or research assistant working with private materials;
 - a retrieval component in a larger agent system or specialized product.
 
-`semidex-lite` handles indexing, relevant-evidence retrieval, and the basic Ask
-cycle. An application built around it can provide its own interface,
-authentication, chat history, memory, context compression, additional tools,
-and business rules. Integrate through the HTTP Ask API behind your own backend;
-the current admin server is not intended to be exposed directly to the public
-Internet.
+`semidex-lite` handles indexing, relevant-evidence retrieval, and the Ask
+cycle — including, for multi-turn conversations, computing a bounded rolling
+summary (`/api/v2/ask`, see [below](#backend-integration-multi-turn-ask-apiv2ask))
+when asked to. An application built around it owns everything about the
+conversation itself: its own interface, authentication, the full message
+history, persisting the summary Semidex returns and applying the compaction
+boundary it confirms, memory beyond a single conversation, additional tools,
+and business rules. Integrate through the HTTP Ask API behind your own
+backend; the current admin server is not intended to be exposed directly to
+the public Internet.
 
 The Ask system prompt in this MVP is internal and cannot be changed through the
 public API or settings. An outer application can manage context before and
@@ -108,7 +114,7 @@ and tokenizer cache, is stored in a per-OS application data directory. See
 
 ## Configuration
 
-Copy `.env.example` to `.env` in the directory from which you will run
+Create a `.env` file in the directory from which you will run
 `semidex-lite`, then configure:
 
 - `QDRANT_URL`, `QDRANT_KEY` for your Qdrant Cloud cluster;
@@ -116,9 +122,20 @@ Copy `.env.example` to `.env` in the directory from which you will run
   `serve`, `doctor`, and `index` work without it, but Ask requests fail until
   the key is configured.
 
-See `.env.example` for all optional settings, including
-`QDRANT_CLOUD_DENSE_MODEL`, `ASK_MODEL`, `ADMIN_HOST`/`ADMIN_PORT`, and
-`SEMIDEX_HOME`.
+```bash
+QDRANT_URL=https://your-cluster-id.your-region.cloud.qdrant.io
+QDRANT_KEY=your-qdrant-cloud-api-key
+GEMINI_API_KEY=your-gemini-api-key
+```
+
+The package ships a fully-commented `.env.example` covering all optional
+settings too, including `QDRANT_CLOUD_DENSE_MODEL`, `ASK_MODEL`,
+`ADMIN_HOST`/`ADMIN_PORT`, the Ask v2 compaction settings, and
+`SEMIDEX_HOME`. If you installed `semidex-lite` as a project dependency
+(`npm install semidex-lite`), that file is at
+`node_modules/semidex-lite/.env.example` — there is no copy of it at your
+own project root — so either open it there to see every option, or start
+from the minimal block above and add options from this README as needed.
 
 Credentials are currently configured outside the dashboard. Add them to a
 local `.env` file or operating-system environment variables before starting
@@ -315,73 +332,227 @@ it.
 
 ### Backend integration: multi-turn Ask (`/api/v2/ask`)
 
-**Semidex Lite does not store chats in this version.** Your backend owns
-conversation storage — Postgres, SQLite, Redis, MongoDB, or any store you
-already use. `POST /api/v2/ask` accepts a bounded, caller-supplied
-conversation summary and recent messages on every request, uses them to
-rewrite follow-up questions for retrieval and to give the model
-conversational context, and optionally returns an updated summary for you to
-persist — but never remembers anything between requests itself.
+`/api/v2/ask` is the **primary way to integrate a multi-turn conversational
+assistant** against Semidex Lite — use it whenever a user can ask follow-up
+questions. `/api/v1/ask` remains available and is the right choice for
+stateless single-turn requests with no conversation history at all (see
+[above](#ask-answers-grounded-in-your-knowledge-base)); v2 is additive, not
+a replacement. v2 is stateless in exactly the same sense as v1 — the
+difference is that on every request, YOUR backend sends a bounded summary and
+recent-message window as a `conversation` object, and Semidex uses it for
+that one request only: to rewrite ambiguous follow-up questions before
+retrieval, to give the model conversational context, and — only when the
+history has grown long enough — to return a freshly-recomputed summary for
+you to store. **Semidex Lite does not store chats server-side in this
+version, for either endpoint.** The dashboard does not currently have an
+Ask UI (see below) — it may be added later — so for now `/api/v1/ask` and
+`/api/v2/ask`, called directly or through your own backend, are the ways
+to use Ask.
+
+```json
+{
+  "collection": "company-support",
+  "question": "What about exceptions to that?",
+  "conversation": {
+    "id": "conv_123",
+    "summary": "Discussed the 14-day return window.",
+    "recentMessages": [
+      { "role": "user", "content": "How many days do I have to return an item?" },
+      { "role": "assistant", "content": "You have 14 days from delivery." }
+    ]
+  }
+}
+```
+
+#### Who owns the chat and who manages the context window
+
+Your backend is the source of truth for the conversation. At minimum it should
+store an append-only message archive, the current rolling `summary`, and the
+index of the first archive message not yet covered by that summary. Before each
+request it derives `recentMessages` from that boundary and sends the summary
+and bounded view to Semidex. Semidex does not load earlier turns by
+`conversation.id` and cannot reconstruct a chat that the caller did not send.
+
+Token-budget management inside one request is handled by Semidex. The caller
+does not need to tokenize messages or know the configured Gemini model's exact
+context-window size. Semidex:
+
+1. obtains the active generation model's context limit;
+2. counts the question, summary, recent messages, prompt overhead, and
+   retrieved evidence against one budget;
+3. preserves room for evidence and the generated answer;
+4. drops the oldest raw messages from the **current prompt only** when all
+   supplied history does not fit (the caller's stored archive is untouched);
+5. optionally rewrites a contextual follow-up into a standalone retrieval
+   query while keeping the original question for the final answer;
+6. after a successful answer, attempts summary compaction when the configured
+   threshold is reached.
+
+The caller still controls what enters this process: which conversation and
+collection are authorized, which saved summary and recent messages are sent,
+and whether the returned state is committed. The compaction settings exposed
+by Semidex (`ASK_SUMMARY_COMPACTION_THRESHOLD`,
+`ASK_SUMMARY_RETAINED_MESSAGES`, and
+`ASK_SUMMARY_COMPACTION_TIMEOUT_MS`) tune when and how compaction is attempted;
+they do not turn Semidex into a chat database.
+
+- `ASK_SUMMARY_COMPACTION_THRESHOLD` defaults to `8` messages and controls
+  when Semidex starts attempting compaction.
+- `ASK_SUMMARY_RETAINED_MESSAGES` defaults to `4` and controls how many of the
+  newest raw messages remain outside the refreshed summary.
+- `ASK_SUMMARY_COMPACTION_TIMEOUT_MS` defaults to `6000`; a timeout leaves the
+  current summary and boundary unchanged and does not fail an answer that was
+  already generated successfully.
+
+These operational settings are different from the fixed wire-protocol limits
+listed below. Raising the compaction threshold does not raise the 200-message
+request ceiling.
+
+The lifecycle of a successful turn is therefore:
+
+```text
+load archive + summary + boundary in your backend
+  -> derive unsummarized recentMessages
+  -> POST /api/v2/ask
+  -> Semidex budgets context, retrieves evidence, and streams the answer
+  -> Semidex may return updatedSummary + compactedMessageCount
+  -> atomically append the user/assistant turn and update summary + boundary
+```
+
+- **`conversation.id`** — an opaque string YOUR backend generates (e.g. a
+  UUID) and controls entirely. Semidex only ever echoes it back in the `done`
+  event's `conversation.id` field — it is never used to look up, authorize,
+  or persist anything server-side.
+- **`conversation.recentMessages`** — the newest `{role, content}` turns from
+  your OWN stored history, `role` restricted to `"user"`/`"assistant"`.
+  Semidex trims this further against the model's real context window if
+  needed, and never persists it or forwards it to any third party beyond
+  what serving this one request requires — but "this one request" can
+  include up to three separate Gemini calls that each see some or all of
+  this content: an optional query-rewrite call (to disambiguate a
+  follow-up question before retrieval), the main answer call, and an
+  optional summary-compaction call (only once the conversation has grown
+  past `ASK_SUMMARY_COMPACTION_THRESHOLD`). None of it is written to disk
+  or any datastore by Semidex itself, and none of it survives past this
+  one HTTP request in Semidex's own process — but it does leave Semidex's
+  process boundary to reach Gemini's API, subject to Google's own
+  data-handling terms for that API. If that is not acceptable for your
+  data, do not send it as `recentMessages`/`summary` at all.
+- **`conversation.summary`** — your previously-saved rolling summary (omit on
+  the very first turn of a new conversation). Semidex treats it, like
+  `recentMessages`, as untrusted conversational context — never as retrieval
+  evidence, never as verified fact, never able to override Semidex's own
+  system instructions.
+- **`done.conversation.summaryChanged` / `updatedSummary` /
+  `compactedMessageCount`** — Semidex only recomputes the summary once the
+  conversation has grown past a configurable length
+  (`ASK_SUMMARY_COMPACTION_THRESHOLD`), not on every request. When
+  `summaryChanged` is `true`: save `updatedSummary` as the new value to send
+  next turn, **and** advance your own request-view boundary by exactly
+  `compactedMessageCount` — the count of the OLDEST messages, from the
+  `recentMessages` you just sent, that are now covered by `updatedSummary`.
+  Skipping this step means you keep re-sending messages Semidex has already
+  folded into the summary, so compaction never actually shrinks what you
+  send and the conversation keeps growing without bound. Do it as one
+  atomic update together with saving the summary — e.g.
+  `summarizedThroughArchiveIndex += compactedMessageCount` in
+  [`examples/conversation-manager.mjs`](examples/conversation-manager.mjs),
+  which keeps a full append-only archive and derives the bounded
+  `recentMessages` view from that boundary, rather than mutating a single
+  array in place. When `summaryChanged` is `false`, keep using the summary
+  and boundary you already have — `compactedMessageCount` is absent in that
+  case.
+
+**Protocol limits.** These are fixed, non-configurable ceilings enforced by
+`/api/v2/ask` at request-parse time — a request that exceeds any of them is
+rejected with `400` before any retrieval or generation is attempted:
+
+- `conversation.recentMessages` — at most **200 entries**.
+- Each message's `content` — at most **50,000 characters**.
+- `conversation.summary` — at most **8,000 characters**.
+- `conversation.id` — at most **256 characters**.
+
+**When compaction cannot keep up.** Compaction is best-effort: if the
+generation provider is unavailable or repeatedly fails specifically on the
+compaction call, `summaryChanged` stays `false` turn after turn, so the
+`recentMessages` window your backend keeps sending never shrinks — while
+your archive still grows by one turn's worth of messages every time the
+*answer itself* succeeds. Eventually that window would exceed the 200-entry
+protocol limit above.
+[`examples/conversation-manager.mjs`](examples/conversation-manager.mjs)
+detects this locally, before sending, and returns a
+`client_bounded_context_exceeded` error instead of either silently
+truncating history or letting `/api/v2/ask` reject the oversized request.
+**An ordinary retry does not recover from this state** — the same
+oversized window gets rejected locally again every time, so no request
+ever reaches Semidex, and a recovering provider has no request left to
+compact. The only ways out are starting a new conversation, or applying
+your own manual/out-of-band compaction recovery (summarizing and trimming
+the stored archive yourself) — neither is implemented by this demo.
+
+A runnable, dependency-free client and demo are shipped in this package —
+see [`examples/ask-v2-sse-client.mjs`](examples/ask-v2-sse-client.mjs) (a
+small SSE-streaming client: opens the request, parses `sources`/
+`answer_delta`/`done`/`error` correctly even when a frame is split across
+network chunks, and returns a plain result object) and
+[`examples/conversation-manager.mjs`](examples/conversation-manager.mjs) (a
+minimal example of OWNING conversation state around that client). Run the
+CLI demo directly against your own running server.
+
+If you cloned this repository or are working inside `packages/lite/`
+itself:
+
+```bash
+QDRANT_URL=... QDRANT_KEY=... GEMINI_API_KEY=... npx semidex-lite serve &
+node examples/run-conversation-demo.mjs my-docs "How many days do I have to return an item?" "What about exceptions to that?"
+```
+
+If you installed `semidex-lite` as a dependency of your own project
+(`npm install semidex-lite`), the example lives inside `node_modules/`, so
+the path is different:
+
+```bash
+QDRANT_URL=... QDRANT_KEY=... GEMINI_API_KEY=... npx semidex-lite serve &
+node node_modules/semidex-lite/examples/run-conversation-demo.mjs my-docs "How many days do I have to return an item?" "What about exceptions to that?"
+```
+
+There is no dedicated `semidex-lite` CLI subcommand for this demo — it is
+example source you run directly with `node`, not a package binary.
+
+The compact shape of what your backend does around that client:
 
 ```js
-// Your own persistence — not part of Semidex. loadConversation() is
-// illustrative: read the conversation's stored summary/recentMessages/
-// version from whatever store your backend already uses.
+// Your own persistence — NOT part of Semidex. See examples/conversation-manager.mjs
+// for a full (in-memory, demo-only) implementation of this shape.
 const conversation = await chatStore.loadConversation(conversationId, userId);
-
-// Resolve the assistant's allow-listed collection server-side — never pass
-// a browser-supplied collection name directly.
-const collection = assistantRegistry.resolveAllowedCollection(assistantId);
-
-const response = await fetch('http://127.0.0.1:8642/api/v2/ask', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    collection,
-    question: userMessage,
-    conversation: {
-      id: conversationId,
-      summary: conversation.summary,
-      recentMessages: conversation.recentMessages,
-    },
-  }),
-});
-
-// Consume the SSE stream: sources / answer_delta / done / error — same
-// event names and shapes as v1, plus an optional `conversation` block on
-// `done`.
-let finalAnswerText = '';
-let done;
-for await (const event of parseSseStream(response.body)) {
-  if (event.type === 'answer_delta') finalAnswerText += event.data.text;
-  if (event.type === 'done') done = event.data;
-  if (event.type === 'error') throw new Error(event.data.message);
-}
-
-// Persist the completed turn — and the updated summary, when one was
-// returned — in ONE atomic call. Never split this into two separate
-// version-checked writes (e.g. an "append messages" call followed by a
-// separate "update summary" call using the SAME expectedVersion): if the
-// first call increments the stored version, the second call's version
-// argument is already stale, and you can end up with messages persisted
-// without their matching summary. Optimistic versioning matters here
-// because concurrent writers to the same conversation are a real
-// possibility (the same user double-submitting, or two backend replicas) —
-// even though Semidex itself never sees or checks a version number.
+const collection = assistantRegistry.resolveAllowedCollection(assistantId); // never trust a browser-supplied collection name
+const result = await askV2({ baseUrl, collection, question: userMessage, conversation });
 await chatStore.commitTurn({
-  conversationId,
-  ownerId: userId,
-  expectedVersion: conversation.version,
-  messages: [
-    { role: 'user', content: userMessage },
-    { role: 'assistant', content: finalAnswerText },
-  ],
-  ...(done.conversation?.summaryChanged ? { updatedSummary: done.conversation.updatedSummary } : {}),
+  conversationId, ownerId: userId, expectedVersion: conversation.version,
+  messages: [{ role: 'user', content: userMessage }, { role: 'assistant', content: result.answer }],
+  // Advancing the boundary is NOT optional — omitting it means every future
+  // request keeps re-sending messages Semidex already folded into the
+  // summary, and compaction never actually shrinks what you send.
+  ...(result.summaryChanged ? {
+    updatedSummary: result.updatedSummary,
+    summarizedThroughArchiveIndex: conversation.summarizedThroughArchiveIndex + result.compactedMessageCount,
+  } : {}),
 });
 ```
 
+**`examples/conversation-manager.mjs` stores state in an in-memory `Map` —
+this is a demo, not production persistence.** It is lost on every restart
+and never shared across multiple server replicas. A real backend should
+replace it with PostgreSQL, Redis, MongoDB, SQLite, or whatever store it
+already operates, ideally through one atomic `commitTurn`-shaped write (never
+two separate version-checked writes for "append messages" and "update
+summary" — if the first call increments the stored version, the second
+call's version argument is already stale, and you can end up with messages
+persisted without their matching summary).
+
 `/api/v1/ask` remains available, unchanged, for stateless single-turn
-requests — use it when your application has no conversation state to pass.
+requests with no conversation state at all — v2 is additive, not a
+replacement.
 
 See
 [Ask API v2 — Bounded Conversational Context](https://github.com/CodeNoob53/semidex/blob/main/docs/design/ask-v2-conversational-context.md)
@@ -390,21 +561,21 @@ designed to support in a future release, and the token-budgeting/rewriting/
 compaction rules. Design docs are English-only in this repo — this is the
 same document regardless of which README (EN or UK) links to it.
 
-### Alternative: use Ask in the dashboard
+### Manual checking without building an integration
 
-The browser-based Ask panel in the Semidex Lite dashboard remains available
-as a manual, single-turn debugging workflow — it is not the multi-turn
-integration path described above.
-
-The bundled dashboard is useful for manually checking a collection without
-building an integration first:
+The bundled dashboard does not currently have an Ask panel — it may be
+added later, but for now it only exposes manual **search** over an indexed
+collection (no generation, no citations, no SSE). There is currently no
+browser-based way to exercise Ask v1/v2; the `curl` example above and the
+runnable client in `examples/` are the ways to check Ask manually before
+building a full integration:
 
 1. Configure `QDRANT_URL`, `QDRANT_KEY`, and `GEMINI_API_KEY`.
 2. Index a file or folder through `semidex-lite index`.
 3. Start the server with `npx semidex-lite serve`.
-4. Open `http://127.0.0.1:8642`, select the collection, and switch to Ask.
-5. Ask a question. The interface displays the generated answer and the sources
-   supplied to the model.
+4. Open `http://127.0.0.1:8642` to browse the collection and try manual
+   search, or call `/api/v1/ask` / `/api/v2/ask` directly (`curl`, or
+   `examples/run-conversation-demo.mjs`) to check Ask itself.
 
 ## `SEMIDEX_HOME`
 

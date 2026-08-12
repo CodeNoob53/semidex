@@ -186,7 +186,11 @@ describe('POST /api/v2/ask — summary threshold behavior', () => {
   });
 
   it('at/above threshold: summaryChanged true with a distinct updatedSummary', async () => {
-    const manyMessages = Array.from({ length: 10 }, (_, i) => ({ role: i % 2 === 0 ? 'user' : 'assistant', content: `m${i}` }));
+    // Must exceed the default retained-raw-tail cap (ASK_SUMMARY_RETAINED_MESSAGES, 4)
+    // too — compaction only has material to fold into a summary once some
+    // messages fall OUTSIDE that tail; a shorter history crosses the
+    // trigger threshold but still has nothing old enough to compact.
+    const manyMessages = Array.from({ length: 25 }, (_, i) => ({ role: i % 2 === 0 ? 'user' : 'assistant', content: `m${i}` }));
     await withServer({}, async (base) => {
       const res = await post(base, {
         collection: 'demo', question: 'q',
@@ -203,7 +207,7 @@ describe('POST /api/v2/ask — summary threshold behavior', () => {
 
 describe('POST /api/v2/ask — summary failure fallback', () => {
   it('done event still completes successfully with summaryChanged:false, no error event, when compaction throws', async () => {
-    const manyMessages = Array.from({ length: 10 }, (_, i) => ({ role: i % 2 === 0 ? 'user' : 'assistant', content: `m${i}` }));
+    const manyMessages = Array.from({ length: 25 }, (_, i) => ({ role: i % 2 === 0 ? 'user' : 'assistant', content: `m${i}` }));
     const provider = makeStubProvider({
       generate: async ({ onToken, systemPrompt }) => {
         if (systemPrompt?.includes('rolling summary')) throw new Error('compaction provider down');
@@ -416,12 +420,16 @@ describe('POST /api/v2/ask — SSE final event with/without updatedSummary', () 
   });
 
   it('with updatedSummary: exact shape', async () => {
-    const manyMessages = Array.from({ length: 10 }, (_, i) => ({ role: i % 2 === 0 ? 'user' : 'assistant', content: `m${i}` }));
+    // 25 messages: the newest ASK_SUMMARY_RETAINED_MESSAGES default (4) are
+    // retained raw, so the oldest 21 (m0..m20) are what gets folded into
+    // the summary -- compactedMessageCount must equal exactly 21, never 0
+    // and never 25.
+    const manyMessages = Array.from({ length: 25 }, (_, i) => ({ role: i % 2 === 0 ? 'user' : 'assistant', content: `m${i}` }));
     await withServer({}, async (base) => {
       const res = await post(base, { collection: 'demo', question: 'q', conversation: { id: 'c', recentMessages: manyMessages } });
       const events = parseSse(await res.text());
       const done = events.find(e => e.event === 'done');
-      assert.deepEqual(done.data.conversation, { id: 'c', summaryChanged: true, updatedSummary: 'a fresh bounded summary' });
+      assert.deepEqual(done.data.conversation, { id: 'c', summaryChanged: true, updatedSummary: 'a fresh bounded summary', compactedMessageCount: 21 });
     });
   });
 });

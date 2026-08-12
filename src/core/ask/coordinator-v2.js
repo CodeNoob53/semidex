@@ -101,7 +101,7 @@ export function createAskCoordinatorV2({ core, gate, generationProvider, countTo
 
       return {
         ...result,
-        ...(compaction.changed ? { updatedSummary: compaction.summary } : {}),
+        ...(compaction.changed ? { updatedSummary: compaction.summary, compactedMessageCount: compaction.compactedMessageCount } : {}),
         summaryChanged: compaction.changed,
       };
     });

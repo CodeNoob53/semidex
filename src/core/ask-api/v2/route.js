@@ -147,6 +147,7 @@ export function registerAskRoutesV2(router, adapter, { askCoordinatorV2 }) {
         conversationId,
         summaryChanged: result.summaryChanged,
         updatedSummary: result.updatedSummary,
+        compactedMessageCount: result.compactedMessageCount,
       }));
       res.end();
     } catch (err) {
