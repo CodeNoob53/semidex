@@ -6,6 +6,7 @@ Other languages: [Українська](../ua/README.md)
 
 | Document | Purpose |
 |----------|---------|
+| [installation.md](installation.md) | Lite and Full installation, provider setup, indexing, and verification |
 | [architecture.md](architecture.md) | How the indexer pipeline works and what is stored |
 | [retrieval.md](retrieval.md) | Hybrid search, providers, RRF, and reranking |
 | [mcp-tools.md](mcp-tools.md) | MCP tool reference and agent workflows |

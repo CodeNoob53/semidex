@@ -20,6 +20,29 @@ with source references. semidex-lite uses Qdrant Cloud for storage and
 embedding inference, Gemini for answer generation, and provides an HTTP Ask
 API, an indexing CLI, and a compact admin dashboard.
 
+### The document-to-answer pipeline included in the package
+
+`semidex-lite` is more than an Ask endpoint or a thin Qdrant client. It runs the
+complete cloud RAG path from source documents to grounded answers:
+
+```text
+documents
+  -> parsing and structure-aware chunking
+  -> deterministic context and structural inventory
+  -> Qdrant Cloud embedding inference
+  -> Qdrant dense + sparse indexing
+  -> hybrid retrieval
+  -> Gemini answer with source references
+```
+
+Markdown is processed with skeleton-first chunking: heading hierarchy and
+structural entities such as tables, code blocks, and checklists remain
+inspectable instead of being treated as one flat text stream. Navigation nodes
+receive a deterministic inventory even when optional LLM summaries are not
+used. PDF, plain-text, and supported Pandoc-convertible inputs use the package's
+non-Markdown ingestion path and do not yet provide the same structural fidelity
+as Markdown.
+
 ## What to use semidex-lite for
 
 The package can serve as a cloud RAG core for applications that need to search
@@ -163,6 +186,108 @@ including `DENSE_PROVIDER`, `SPARSE_PROVIDER`,
 stray local-provider variable left in a full-semidex `.env` cannot re-enable
 local code. The Settings API and indexing-job API also reject attempts to
 change these values at runtime.
+
+### Qdrant Cloud embedding models
+
+semidex-lite retrieves through two separate vector channels, both computed by
+Qdrant Cloud Inference:
+
+- a **dense** model, used for semantic (meaning-based) search;
+- a **sparse** model, which adds lexical/keyword retrieval — exact terms,
+  identifiers, and other matches that a purely semantic embedding can miss.
+
+`qdrant_search`-style retrieval in semidex-lite is always hybrid: it queries
+both channels and combines the results, rather than choosing one or the
+other.
+
+The table below lists every model in the current catalog. Only `supported`
+models can actually be selected in this version — `dedicated`/`planned`
+entries are real, live-verified Qdrant Cloud model IDs, but semidex-lite has
+no per-cluster tier detection yet, so they are never selectable and never
+used, regardless of what your Qdrant Cloud plan supports.
+
+| Model | Type | Dimensions | Context window | Availability | Notes |
+|---|---|---|---|---|---|
+| `intfloat/multilingual-e5-small` | dense | 384 | 512 tokens | supported (free tier) | Multilingual (100+ languages, including Ukrainian) |
+| `sentence-transformers/all-minilm-l6-v2` | dense | 384 | 256 tokens | supported (free tier) | English-tuned; usable but not optimized for other languages |
+| `qdrant/bm25` | sparse | n/a | n/a | supported (free tier) | The only sparse model this build can currently select |
+| `mixedbread-ai/mxbai-embed-large-v1` | dense | 1024 | unknown | **planned** (dedicated cluster tier) | Not selectable in this version |
+| `prithivida/Splade_PP_en_v1` | sparse | n/a | 128 tokens | **planned** (dedicated cluster tier) | English only; not selectable in this version |
+
+#### Configuring the dense model
+
+Set the dense model for **new** collections with:
+
+```bash
+QDRANT_CLOUD_DENSE_MODEL=intfloat/multilingual-e5-small
+```
+
+See [Configuration](#configuration) above for how `.env` and OS environment
+variables are loaded and prioritized.
+
+#### The sparse model
+
+There is currently only one `supported` sparse model, `qdrant/bm25`, and no
+user-facing choice between multiple sparse models. An advanced,
+`QDRANT_SPARSE_MODEL` environment variable exists in the codebase for
+forward compatibility. When it is unset, Semidex Lite defaults to
+`qdrant/bm25`. Setting it to any model that is not marked as `supported`
+causes new-collection profile resolution to fail instead of silently falling
+back to BM25. The Settings UI shows the active sparse model as read-only
+because no second `supported` sparse model exists yet.
+
+#### Choosing the dense model from the dashboard
+
+Open the dashboard (`npx semidex-lite serve`, then
+`http://127.0.0.1:8642`) and go to Settings → Embeddings. The "Dense model
+(Qdrant Cloud)" field lists every `supported` dense model from the table
+above, labeled with its dimensions and context window. It applies to newly
+created collections — changing it does not affect collections that already
+exist (see [Collection lifecycle](#collection-lifecycle-and-changing-models)
+below). Qdrant/Gemini credentials (`QDRANT_URL`, `QDRANT_KEY`,
+`GEMINI_API_KEY`) cannot currently be added, revealed, or replaced from the
+dashboard — see [Configuration](#configuration) above. No dashboard setting
+in this section requires a `semidex-lite serve` restart to take effect.
+
+#### Collection lifecycle and changing models
+
+- The dense/sparse model active at the time a collection is first created is
+  recorded in that collection's own embedding-profile metadata in Qdrant.
+- Search against a collection automatically uses that collection's own
+  recorded profile — never the current global default, and never a model or
+  vector dimension other than the one the collection was created with.
+- Changing `QDRANT_CLOUD_DENSE_MODEL` (or the dashboard equivalent) only
+  affects collections created **after** the change. It never rewrites an
+  existing collection's profile or its stored vectors.
+- To move an existing collection to a different model, create a new
+  collection under the new model and reindex your source documents into it
+  (a controlled, full reindex) — there is no in-place model migration.
+- Do not edit a collection's vector size or embedding-profile metadata by
+  hand. It is derived entirely from the model that created the collection,
+  and search depends on it matching the real underlying vector schema.
+
+#### Verifying Cloud Inference works
+
+```bash
+npx semidex-lite doctor --probe-inference
+```
+
+This performs a real, minimal embedding round-trip against Qdrant Cloud
+Inference: it creates a disposable collection, embeds with it, and deletes
+the collection immediately afterward. See [`doctor`](#doctor) below for the
+full command description.
+
+#### Picking a model
+
+- Ukrainian or other multilingual documents: `intfloat/multilingual-e5-small`
+  (E5 Small).
+- Primarily English documents, especially with shorter chunks: either model
+  works; `sentence-transformers/all-minilm-l6-v2` (MiniLM) is tuned for
+  English but has a smaller context window (256 tokens).
+
+Neither model is established as generally "better" — no benchmark comparing
+them for this use case exists yet. Pick based on your document language and
+verify results against your own data.
 
 ## CLI
 

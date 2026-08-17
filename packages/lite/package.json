@@ -1,16 +1,25 @@
 {
   "name": "semidex-lite",
   "version": "0.1.4",
-  "description": "Cloud-only Semidex distribution using Qdrant Cloud Inference and Gemini.",
+  "description": "Cloud RAG pipeline for Node.js with structural document chunking, Qdrant Cloud embeddings and hybrid search, and Gemini-grounded Ask APIs.",
   "license": "MIT",
   "type": "module",
   "keywords": [
     "rag",
+    "retrieval-augmented-generation",
     "retrieval",
+    "document-processing",
+    "document-chunking",
+    "embeddings",
+    "vector-search",
+    "semantic-search",
+    "knowledge-base",
     "qdrant",
+    "qdrant-cloud",
     "gemini",
     "hybrid-search",
-    "ai-agents"
+    "ai-agents",
+    "nodejs"
   ],
   "homepage": "https://github.com/CodeNoob53/semidex#readme",
   "bugs": {
