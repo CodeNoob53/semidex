@@ -6,21 +6,52 @@
 // Deliberately not wired into the browser dashboard: key material must never
 // reach static JS, localStorage, or the Settings API.
 import { createKeyStore, SUPPORTED_OPERATIONS, KeyStoreError } from './key-store.js';
+import {
+  DEFAULT_REQUESTS_PER_MINUTE, DEFAULT_BURST,
+  MIN_REQUESTS_PER_MINUTE, MAX_REQUESTS_PER_MINUTE, MIN_BURST, MAX_BURST,
+  isValidLimitValue,
+} from './rate-limiter.js';
 
 const USAGE = `Usage:
   <cli> key add --name <name> --collection <name> [--collection <name>...]
                 [--operation generate] [--expires <ISO-8601 date | duration>]
+                [--requests-per-minute <n>] [--burst <n>]
   <cli> key list
   <cli> key revoke <id>
 
 Options:
-  --name         Human-readable label for the key (required).
-  --collection   Collection this key may access. Repeatable. Required.
-                 Use --collection "*" to grant ALL collections explicitly.
-  --operation    Operation scope. Repeatable. Defaults to "generate".
-                 Supported: ${SUPPORTED_OPERATIONS.join(', ')}.
-  --expires      Expiry as an ISO-8601 date (2027-01-01), an ISO instant, or a
-                 duration such as 30d, 12h, 90m. Omit for no expiry.`;
+  --name                Human-readable label for the key (required).
+  --collection          Collection this key may access. Repeatable. Required.
+                         Use --collection "*" to grant ALL collections explicitly.
+  --operation            Operation scope. Repeatable. Defaults to "generate".
+                         Supported: ${SUPPORTED_OPERATIONS.join(', ')}.
+  --expires              Expiry as an ISO-8601 date (2027-01-01), an ISO instant, or a
+                         duration such as 30d, 12h, 90m. Omit for no expiry.
+  --requests-per-minute  Sustained rate limit for this key, an integer in
+                         [${MIN_REQUESTS_PER_MINUTE}, ${MAX_REQUESTS_PER_MINUTE}]. Omit for the default
+                         (${DEFAULT_REQUESTS_PER_MINUTE}/min).
+  --burst                Burst allowance (token bucket capacity) for this key,
+                         an integer in [${MIN_BURST}, ${MAX_BURST}]. Omit for the default (${DEFAULT_BURST}).`;
+
+/**
+ * Parses a `--requests-per-minute`/`--burst` flag value into an integer
+ * within [min, max], or null when the flag was not supplied. Throws
+ * KeyStoreError for anything present but invalid — same error type
+ * createKey() itself throws, so the CLI's catch-all handles both uniformly.
+ * @param {string|undefined} raw
+ * @param {string} flagName
+ * @param {number} min
+ * @param {number} max
+ */
+export function parseLimitFlag(raw, flagName, min, max) {
+  if (raw === undefined) return null;
+  const n = Number(raw);
+  if (!isValidLimitValue(n, min, max)) {
+    throw new KeyStoreError('invalid_argument',
+      `--${flagName} "${raw}" must be an integer in [${min}, ${max}].`);
+  }
+  return n;
+}
 
 /**
  * Parses a duration like "30d" / "12h" / "90m" / "45s" into milliseconds, or
@@ -84,7 +115,11 @@ function formatRow(key) {
     status.padEnd(8),
     key.name.padEnd(24),
     key.collections.join(',').padEnd(28),
-    key.operations.join(','),
+    key.operations.join(',').padEnd(12),
+    // Effective limits (toPublicKey() already resolves a legacy/unset key
+    // to the default) — never the raw stored null, so "what does this key
+    // actually do" never requires cross-referencing the default separately.
+    `${key.requestsPerMinute}/min burst ${key.burst}`,
   ].join(' ');
 }
 
@@ -112,11 +147,15 @@ export function runKeyCommand(argv, {
         const { flags } = parseArgs(rest);
         const expiresAt = resolveExpiry(flags.expires, now());
         const operations = flags.operation.length > 0 ? flags.operation : ['generate'];
+        const requestsPerMinute = parseLimitFlag(flags['requests-per-minute'], 'requests-per-minute', MIN_REQUESTS_PER_MINUTE, MAX_REQUESTS_PER_MINUTE);
+        const burst = parseLimitFlag(flags.burst, 'burst', MIN_BURST, MAX_BURST);
         const { key, token } = store.createKey({
           name: flags.name,
           collections: flags.collection,
           operations,
           expiresAt,
+          requestsPerMinute,
+          burst,
         });
 
         out('');
@@ -124,6 +163,7 @@ export function runKeyCommand(argv, {
         out(`  Collections: ${key.collections.join(', ')}`);
         out(`  Operations:  ${key.operations.join(', ')}`);
         out(`  Expires:     ${key.expiresAt ?? 'never'}`);
+        out(`  Rate limit:  ${key.requestsPerMinute}/min, burst ${key.burst}`);
         out('');
         out('  ┌─────────────────────────────────────────────────────────────┐');
         out('  │  COPY THIS TOKEN NOW — IT IS NOT STORED AND CANNOT BE       │');
@@ -147,7 +187,7 @@ export function runKeyCommand(argv, {
           return 0;
         }
         // Never prints a digest or a token — only public metadata.
-        out(['ID'.padEnd(18), 'STATUS'.padEnd(8), 'NAME'.padEnd(24), 'COLLECTIONS'.padEnd(28), 'OPERATIONS'].join(' '));
+        out(['ID'.padEnd(18), 'STATUS'.padEnd(8), 'NAME'.padEnd(24), 'COLLECTIONS'.padEnd(28), 'OPERATIONS'.padEnd(12), 'RATE LIMIT'].join(' '));
         for (const key of keys) out(formatRow(key));
         return 0;
       }

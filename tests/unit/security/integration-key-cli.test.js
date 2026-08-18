@@ -99,6 +99,50 @@ describe('key add', () => {
   });
 });
 
+describe('key add — rate limit flags', () => {
+  it('defaults to 30/min burst 5 when no flags are given', () => {
+    run(['add', '--name', 'a', '--collection', 'docs-a']);
+    assert.match(out(), /Rate limit:\s+30\/min, burst 5/);
+    const stored = JSON.parse(readFileSync(keyStorePath, 'utf-8'));
+    assert.equal(stored.keys[0].requestsPerMinute, null, 'the raw record stores null, not the resolved default');
+    assert.equal(stored.keys[0].burst, null);
+  });
+
+  it('accepts explicit --requests-per-minute and --burst and persists them as plain JSON numbers', () => {
+    run(['add', '--name', 'vip', '--collection', 'docs-a', '--requests-per-minute', '600', '--burst', '20']);
+    assert.match(out(), /Rate limit:\s+600\/min, burst 20/);
+    const stored = JSON.parse(readFileSync(keyStorePath, 'utf-8'));
+    assert.equal(stored.keys[0].requestsPerMinute, 600);
+    assert.equal(stored.keys[0].burst, 20);
+  });
+
+  it('rejects a value above the conservative maxima', () => {
+    const code = run(['add', '--name', 'x', '--collection', 'a', '--requests-per-minute', '999999']);
+    assert.equal(code, 1);
+    assert.match(err(), /requests-per-minute.*must be an integer in/);
+    assert.equal(existsSync(keyStorePath), false);
+  });
+
+  it('rejects zero, negative, and non-integer values', () => {
+    for (const bad of ['0', '-5', '3.5', 'abc']) {
+      stderr = [];
+      const code = run(['add', '--name', 'x', '--collection', 'a', '--burst', bad]);
+      assert.equal(code, 1, `"${bad}" must be rejected`);
+      assert.match(err(), /burst.*must be an integer in/);
+    }
+  });
+
+  it('list shows the effective rate limit for both explicit and default keys, never a secret', () => {
+    run(['add', '--name', 'custom', '--collection', 'a', '--requests-per-minute', '600', '--burst', '20']);
+    stdout = [];
+    run(['add', '--name', 'plain', '--collection', 'a']);
+    stdout = [];
+    run(['list']);
+    assert.match(out(), /custom[\s\S]*600\/min burst 20/);
+    assert.match(out(), /plain[\s\S]*30\/min burst 5/);
+  });
+});
+
 describe('key list', () => {
   it('shows public metadata and NEVER a digest or token', () => {
     run(['add', '--name', 'assistant', '--collection', 'docs-a']);

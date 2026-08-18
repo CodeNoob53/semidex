@@ -11,6 +11,7 @@
 // credential-free, which is why a missing key store takes down Ask and leaves
 // the dashboard fully usable.
 import { AUTH_RESULT, collectionAllowed } from './key-store.js';
+import { rateLimitedDecision } from './rate-limiter.js';
 
 /**
  * The single external response for "authentication is not usable". Returned
@@ -86,14 +87,25 @@ export function extractBearerToken(req) {
 }
 
 /**
- * Builds the atomic { authorizeRequest, authorizeCollection } pair.
+ * Builds the atomic { authorizeRequest, authorizeCollection } pair, plus an
+ * optional third `checkRateLimit` stage when `rateLimiter` is supplied.
+ *
+ * checkRateLimit is deliberately NOT part of the atomic authorizeRequest/
+ * authorizeCollection pairing validateIntegrationPolicy() enforces — a
+ * caller may authenticate and scope collections without rate limiting (many
+ * existing tests do exactly this, and omitting it preserves their current,
+ * unrelated behavior unchanged), but rate limiting itself is meaningless
+ * without an authenticated principal to key a bucket on, which is why it is
+ * only ever invoked by the router AFTER authorizeRequest has already
+ * produced one (see router.js's stage ordering).
  *
  * @param {{
  *   keyStore: ReturnType<typeof import('./key-store.js').createKeyStore>,
+ *   rateLimiter?: ReturnType<typeof import('./rate-limiter.js').createRateLimiter>,
  *   logger?: { warn: Function, error: Function },
  * }} deps
  */
-export function createIntegrationPolicy({ keyStore, logger = console } = {}) {
+export function createIntegrationPolicy({ keyStore, rateLimiter, logger = console } = {}) {
   if (!keyStore) throw new TypeError('createIntegrationPolicy requires a keyStore.');
 
   // Operator-facing diagnostics for an unusable store. The CLIENT always sees
@@ -179,5 +191,35 @@ export function createIntegrationPolicy({ keyStore, logger = console } = {}) {
       if (!collectionAllowed(principal.collections, collection)) return FORBIDDEN;
       return { ok: true };
     },
+
+    // Only present when a rateLimiter was injected — see this function's
+    // own header comment for why this is independent of the atomic
+    // authorizeRequest/authorizeCollection pair.
+    ...(rateLimiter ? {
+      /**
+       * Stage 1.5 — immediately after a successful authorizeRequest, still
+       * pre-body. Consumes exactly one token from the bucket identified by
+       * `principal.keyId`. Every route metadata is intentionally unused
+       * here (rate limiting is per-key, not per-route/per-costClass in this
+       * phase — see the design note's row 9 recommendation for a possible
+       * future refinement) but accepted for a uniform stage signature with
+       * authorizeRequest/authorizeCollection.
+       */
+      checkRateLimit({ principal }) {
+        // Defensive only: the router never calls this stage without a
+        // principal already produced by a successful authorizeRequest, so
+        // this branch should be unreachable in practice. Fail closed
+        // rather than throw, matching every other stage's contract.
+        if (!principal || typeof principal.keyId !== 'string' || principal.keyId.length === 0) {
+          return { ok: false, status: 403, code: 'forbidden', message: 'Rate limiting requires an authenticated principal.' };
+        }
+        const result = rateLimiter.consume(principal.keyId, {
+          requestsPerMinute: principal.requestsPerMinute,
+          burst: principal.burst,
+        });
+        if (result.allowed) return { ok: true };
+        return rateLimitedDecision(result.retryAfterMs);
+      },
+    } : {}),
   };
 }

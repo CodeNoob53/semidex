@@ -351,6 +351,85 @@ describe('collectionAllowed — wildcard must be explicit', () => {
   });
 });
 
+describe('Per-key rate limits', () => {
+  it('createKey persists null (not the resolved default) when no limit is given', () => {
+    addKey();
+    const raw = JSON.parse(readFileSync(path, 'utf-8'));
+    assert.equal(raw.keys[0].requestsPerMinute, null);
+    assert.equal(raw.keys[0].burst, null);
+  });
+
+  it('an explicit requestsPerMinute/burst is persisted as a plain JSON number', () => {
+    addKey({ requestsPerMinute: 600, burst: 20 });
+    const raw = JSON.parse(readFileSync(path, 'utf-8'));
+    assert.equal(raw.keys[0].requestsPerMinute, 600);
+    assert.equal(raw.keys[0].burst, 20);
+  });
+
+  it('toPublicKey resolves a null/legacy limit to the documented default', () => {
+    const legacy = { id: 'a'.repeat(16), name: 'x', digest: 'f'.repeat(64), operations: ['generate'], collections: ['c'], createdAt: new Date().toISOString() };
+    const pub = toPublicKey(legacy);
+    assert.equal(pub.requestsPerMinute, 30);
+    assert.equal(pub.burst, 5);
+  });
+
+  it('toPublicKey passes through an explicit stored limit unchanged', () => {
+    const record = { id: 'a'.repeat(16), name: 'x', digest: 'f'.repeat(64), operations: ['generate'], collections: ['c'], createdAt: new Date().toISOString(), requestsPerMinute: 100, burst: 10 };
+    const pub = toPublicKey(record);
+    assert.equal(pub.requestsPerMinute, 100);
+    assert.equal(pub.burst, 10);
+  });
+
+  it('the authenticated principal carries the EFFECTIVE limits (resolved, never raw null)', () => {
+    const { token } = addKey();
+    const outcome = store().authenticateToken(token);
+    assert.equal(outcome.principal.requestsPerMinute, 30);
+    assert.equal(outcome.principal.burst, 5);
+  });
+
+  it('the authenticated principal carries an explicit per-key override', () => {
+    const { token } = addKey({ requestsPerMinute: 600, burst: 20 });
+    const outcome = store().authenticateToken(token);
+    assert.equal(outcome.principal.requestsPerMinute, 600);
+    assert.equal(outcome.principal.burst, 20);
+  });
+
+  it('a legacy key record (no requestsPerMinute/burst field at all) authenticates fine and gets defaults', () => {
+    // Simulates a key created BEFORE this field existed — the JSON object
+    // genuinely lacks the keys, not merely nulls them.
+    const { token, key } = addKey();
+    const raw = JSON.parse(readFileSync(path, 'utf-8'));
+    delete raw.keys[0].requestsPerMinute;
+    delete raw.keys[0].burst;
+    writeFileSync(path, JSON.stringify(raw), 'utf-8');
+
+    const outcome = store().authenticateToken(token);
+    assert.equal(outcome.result, AUTH_RESULT.OK);
+    assert.equal(outcome.principal.requestsPerMinute, 30);
+    assert.equal(outcome.principal.burst, 5);
+    assert.equal(store().listKeys().find((k) => k.id === key.id).requestsPerMinute, 30);
+  });
+
+  it('createKey rejects an out-of-range or non-integer limit', () => {
+    assert.throws(() => store().createKey({ name: 'n', collections: ['c'], requestsPerMinute: 0 }), /requestsPerMinute/);
+    assert.throws(() => store().createKey({ name: 'n', collections: ['c'], requestsPerMinute: 6001 }), /requestsPerMinute/);
+    assert.throws(() => store().createKey({ name: 'n', collections: ['c'], requestsPerMinute: 30.5 }), /requestsPerMinute/);
+    assert.throws(() => store().createKey({ name: 'n', collections: ['c'], burst: 0 }), /burst/);
+    assert.throws(() => store().createKey({ name: 'n', collections: ['c'], burst: 1001 }), /burst/);
+  });
+
+  it('a corrupt/out-of-range persisted limit fails the whole store closed, not just that field', () => {
+    writeFileSync(path, JSON.stringify({
+      schemaVersion: SCHEMA_VERSION,
+      keys: [{
+        id: 'a'.repeat(16), name: 'x', digest: 'f'.repeat(64), operations: ['generate'], collections: ['c'],
+        createdAt: new Date().toISOString(), requestsPerMinute: -5,
+      }],
+    }), 'utf-8');
+    assert.equal(store().authenticateToken('anything').result, AUTH_RESULT.STORE_UNAVAILABLE);
+  });
+});
+
 describe('Instance scoping', () => {
   it('two stores on different paths are fully independent', () => {
     const otherPath = join(dir, 'other-keys.json');

@@ -199,12 +199,22 @@ export function deepFreeze(value, seen = new WeakSet()) {
  * rule for the Integration API is a separate, deliberate decision (see the
  * design note's row 6), not an accident of wiring.
  *
- * @param {undefined|null|{ authorizeRequest?: Function, authorizeCollection?: Function }} integrationPolicy
- * @returns {{ authorizeRequest: Function|null, authorizeCollection: Function|null }}
+ * checkRateLimit (rate limiting, added alongside authentication/authorization)
+ * is deliberately NOT part of the atomic authorizeRequest/authorizeCollection
+ * pairing above: rate limiting is a narrow, independent add-on stage that
+ * only makes sense once a principal exists, so it may accompany
+ * authorizeRequest but is never required by it — a policy may authenticate
+ * and scope collections with no rate limiting at all (existing callers that
+ * predate this stage keep working unchanged). Supplying checkRateLimit
+ * WITHOUT authorizeRequest is rejected, since there would be no principal to
+ * key a bucket on and no stage that could ever invoke it.
+ *
+ * @param {undefined|null|{ authorizeRequest?: Function, authorizeCollection?: Function, checkRateLimit?: Function }} integrationPolicy
+ * @returns {{ authorizeRequest: Function|null, authorizeCollection: Function|null, checkRateLimit: Function|null }}
  */
 export function validateIntegrationPolicy(integrationPolicy) {
   if (integrationPolicy === undefined || integrationPolicy === null) {
-    return { authorizeRequest: null, authorizeCollection: null };
+    return { authorizeRequest: null, authorizeCollection: null, checkRateLimit: null };
   }
   if (typeof integrationPolicy !== 'object') {
     throw new TypeError(
@@ -212,15 +222,19 @@ export function validateIntegrationPolicy(integrationPolicy) {
     );
   }
 
-  const { authorizeRequest, authorizeCollection } = integrationPolicy;
+  const { authorizeRequest, authorizeCollection, checkRateLimit } = integrationPolicy;
   const hasRequest = authorizeRequest !== undefined && authorizeRequest !== null;
   const hasCollection = authorizeCollection !== undefined && authorizeCollection !== null;
+  const hasRateLimit = checkRateLimit !== undefined && checkRateLimit !== null;
 
   if (hasRequest && typeof authorizeRequest !== 'function') {
     throw new TypeError('integrationPolicy.authorizeRequest must be a function.');
   }
   if (hasCollection && typeof authorizeCollection !== 'function') {
     throw new TypeError('integrationPolicy.authorizeCollection must be a function.');
+  }
+  if (hasRateLimit && typeof checkRateLimit !== 'function') {
+    throw new TypeError('integrationPolicy.checkRateLimit must be a function.');
   }
 
   if (hasRequest !== hasCollection) {
@@ -235,9 +249,19 @@ export function validateIntegrationPolicy(integrationPolicy) {
     );
   }
 
+  if (hasRateLimit && !hasRequest) {
+    throw new TypeError(
+      'integrationPolicy.checkRateLimit was supplied without authorizeRequest.\n' +
+      'Rate limiting keys a bucket on the authenticated principal, so it is meaningless without ' +
+      'authentication. Supply authorizeRequest (and authorizeCollection) alongside it, or omit ' +
+      'checkRateLimit entirely.'
+    );
+  }
+
   return {
     authorizeRequest: hasRequest ? authorizeRequest : null,
     authorizeCollection: hasCollection ? authorizeCollection : null,
+    checkRateLimit: hasRateLimit ? checkRateLimit : null,
   };
 }
 

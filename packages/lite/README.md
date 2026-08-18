@@ -292,8 +292,9 @@ verify results against your own data.
 ## Security status
 
 > [!IMPORTANT]
-> **The HTTP API has no authentication.** Read this section before exposing
-> `semidex-lite serve` to anything but your own machine.
+> **The Integration Ask API is authenticated, but the Admin API is not.**
+> Read this section before making any part of `semidex-lite serve` reachable
+> beyond your own machine.
 
 What is protected as of this version:
 
@@ -310,26 +311,36 @@ What is protected as of this version:
   with a body is rejected with `415` before parsing.
 - **Host header is validated** against the loopback host/port (or your
   `ADMIN_ALLOWED_HOSTS` list), which blocks DNS-rebinding attacks.
+- **Ask v1/v2 require a bearer key.** Integration keys carry explicit
+  operation and collection scopes; a missing, expired, revoked, or
+  out-of-scope key is rejected before Qdrant or Gemini work begins. With no
+  keys configured, the Integration API fails closed with `503`.
+- **Ask is rate limited per key.** Both Ask versions share the same token
+  bucket for a key. See [Rate limiting](#rate-limiting) below.
 - Request-ingestion timeouts and header-count ceilings are set.
 
 What is **not** protected yet — the important part:
 
-- **No authentication or authorization of any kind.** Any process on the
-  machine, any `curl`, and any server-to-server client can call every route,
-  including destructive ones. The cross-site protection above stops
-  *browsers*; it does not identify or authorize callers.
-- **No collection scoping.** Any caller can name any collection that exists
-  and read it via Ask/search or modify it via the admin routes.
-- **No rate limiting.** Nothing bounds how often Ask/search can be called, so
-  nothing bounds the Gemini and Qdrant Cloud spend they trigger.
+- **The Admin API has no authentication or authorization.** Any process on
+  the machine can call dashboard, settings, indexing, collection-management,
+  and unversioned `/api/search` routes, including destructive ones. Bearer
+  keys protect only `POST /api/v1/ask` and `POST /api/v2/ask`; they do not
+  turn the Admin API into a remotely safe management surface.
+- **Admin routes have no per-caller collection scoping.** Integration keys
+  restrict Ask to their exact collection scopes, but Admin routes retain the
+  local operator's full access to every configured collection.
+- **No rate limiting on the Admin API.** `/api/search` and every other admin
+  route are unbounded. Ask rate limiting protects only the Integration
+  surface, not the admin/dashboard one.
 - **Indexing is not restricted to allowed roots.** A caller who can reach
   `POST /api/jobs/index` can index any path this process can read.
 
-Practical guidance: treat `semidex-lite serve` as a **local, single-trusted-user
-service**. For anything else — a website, a bot, multiple users, multiple
-assistants — put your own authenticated backend in front of it, terminate
-user auth there, and decide there which collection each request may touch.
-Never expose the admin port directly to the internet or an untrusted LAN.
+Practical guidance: treat the Admin surface of `semidex-lite serve` as a
+**local, single-trusted-user service**. For a website, bot, or assistant, call
+the authenticated Ask API from your own backend and keep end-user identity
+and authorization there. If a reverse proxy is used, expose only the required
+versioned Ask endpoints; never forward the whole Admin port to the internet
+or an untrusted LAN.
 
 For the full analysis, route-by-route inventory, and the planned hardening
 sequence, see
@@ -482,6 +493,11 @@ Options:
 - `--operation` — defaults to `generate` (what Ask needs).
 - `--expires` — an ISO date (`2027-01-01`) or a duration (`90d`, `12h`).
   Omit for no expiry.
+- `--requests-per-minute` — sustained rate limit for this key, an integer
+  from 1 to 6000. Omit for the default (30/min). See
+  [Rate limiting](#rate-limiting) below.
+- `--burst` — token-bucket burst capacity for this key, an integer from 1 to
+  1000. Omit for the default (5).
 
 The token is printed once. Store it in your backend's secret manager — never
 in browser JavaScript, `localStorage`, a URL, or version control.
@@ -527,11 +543,72 @@ assistants: give each backend its own key, scoped to its own collections.
 |---|---|---|
 | `503` | `integration_auth_not_configured` | No keys configured (or the key store is unreadable). Create a key. |
 | `401` | `unauthorized` | Missing, malformed, unknown, wrong, revoked or expired token. Deliberately indistinguishable — no key enumeration. |
+| `429` | `rate_limited` | Authenticated, but this key has exceeded its rate limit. See [Rate limiting](#rate-limiting) below. |
 | `403` | `forbidden` | Authenticated, but this key is not scoped to that collection or operation. |
 | `200` | — | Authorized; the SSE stream begins. |
 
-A `401` or `403` is decided before any Qdrant query, any embedding, and any
-Gemini call — a rejected request costs you nothing.
+A `401`, `429`, or `403` is decided before any Qdrant query, any embedding,
+and any Gemini call — a rejected request costs you nothing. `429` is
+decided before `403` too (and before your request body is even parsed): an
+authenticated request always consumes one unit of rate limit, even one that
+turns out malformed or targets a collection outside the key's scope.
+
+### Rate limiting
+
+Every authenticated Ask request (`/api/v1/ask`, `/api/v2/ask`) is rate
+limited per key with a token bucket: **30 requests/minute, burst 5, by
+default.** The two endpoints share one bucket per key — calling v1 and v2
+alternately does not double your effective rate.
+
+Set a different limit per key at creation:
+
+```bash
+npx semidex-lite key add --name high-volume-backend \
+  --collection my-docs \
+  --requests-per-minute 300 \
+  --burst 20
+```
+
+`--requests-per-minute` accepts 1–6000; `--burst` accepts 1–1000. A key's
+limit is fixed at creation — there is no `key edit` command; revoke and
+recreate the key to change it. `key list` always shows each key's
+*effective* limit (30/min burst 5 for a key created without these flags),
+never a raw unset value.
+
+**On a limit exceeded**, a request returns `429` with
+`{ "error": { "code": "rate_limited", "message": "..." } }` and a
+`Retry-After` header (an integer number of seconds — wait at least that
+long before retrying). No response detail reveals the key's identity or its
+configured limit.
+
+**Reset and rotation semantics:**
+
+- Rate-limit state lives only in server memory. **Restarting
+  `semidex-lite serve` resets every key's bucket to full** — there is no
+  persisted "used this minute" count to carry across a restart.
+- **Revoking a key** does not need to clear anything explicitly: a revoked
+  token fails authentication (`401`) before the rate-limit stage ever runs,
+  so it never touches that key's bucket again. The bucket itself is later
+  garbage-collected automatically once idle.
+- **Creating a new key** always starts with a full bucket (`burst` tokens
+  available immediately) — there is no shared or inherited state between
+  keys, even for the same named integration recreated after a revoke.
+
+**Limitations — read before relying on this for capacity planning:**
+
+- **No cross-process/multi-replica sharing.** The limiter is in-process
+  memory. If you run multiple `semidex-lite serve` processes behind a load
+  balancer, each process enforces the configured limit independently — the
+  real aggregate rate for a key becomes `requestsPerMinute × process count`,
+  not the number you configured.
+- **Not a DDoS defense.** This bounds a legitimate, already-authenticated
+  key's request rate. It does not defend against connection floods or
+  unauthenticated traffic (rejected earlier, at `401`/`503`, before this
+  stage runs) and does not stop someone with operator access from minting
+  more keys.
+- **No spend guarantee.** A request-count limit is not a cost cap — Ask
+  requests vary in Gemini/Qdrant Cloud cost per call. Use your provider's own
+  billing alerts for an actual spend ceiling.
 
 ### What semidex-lite still does not own
 
@@ -542,8 +619,8 @@ for either endpoint — see
 A key identifies a *calling backend*, not an end user; mapping end users to
 permissions remains your backend's job.
 
-Not yet implemented: rate limiting, remote Admin authentication, and key
-management from the dashboard.
+Not yet implemented: remote Admin authentication, and key management from
+the dashboard.
 
 ## Ask: answers grounded in your knowledge base
 
@@ -654,8 +731,9 @@ The response is streamed as Server-Sent Events (SSE):
 
 Ask API v1 is stateless: every request is independent, and `sessionId`, chat
 history, and long-term memory are not yet supported. It requires a bearer
-token (see [Integration API authentication](#integration-api-authentication)
-above) but has no rate limiting yet. Do not expose the admin server port
+token and is rate limited per key (see
+[Integration API authentication](#integration-api-authentication) and
+[Rate limiting](#rate-limiting) above). Do not expose the admin server port
 directly to the Internet. For an external integration, place your own
 authenticated backend or reverse proxy with appropriate controls in front of
 it.

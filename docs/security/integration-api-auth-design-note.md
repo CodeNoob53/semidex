@@ -1,17 +1,18 @@
 # Integration API authentication — design note
 
-**Status: IMPLEMENTED (2026-08-18), except rate limiting.** Bearer keys,
-per-key collection/operation scopes, the key store, and the CLI all ship. Rate
-limiting remains a separate follow-up phase.
+**Status: IMPLEMENTED (2026-08-19), including rate limiting.** Bearer keys,
+per-key collection/operation scopes, the key store, the CLI, and instance-
+scoped per-key rate limiting all ship.
 
 Implementation:
 
 | Piece | Where |
 |---|---|
-| Key store, token format, digests | `src/core/auth/key-store.js` |
-| The two policy halves | `src/core/auth/integration-policy.js` |
+| Key store, token format, digests, per-key rate limits | `src/core/auth/key-store.js` |
+| Token-bucket rate limiter (pure, injectable clock) | `src/core/auth/rate-limiter.js` |
+| The three policy stages (auth, rate limit, collection) | `src/core/auth/integration-policy.js` |
 | Default wiring for both editions | `src/core/auth/resolve-policy.js` |
-| Shared `key add/list/revoke` | `src/core/auth/key-cli.js` |
+| Shared `key add/list/revoke` (incl. `--requests-per-minute`/`--burst`) | `src/core/auth/key-cli.js` |
 | Full entry point | `src/key.js` (`npm run key -- …`) |
 | Lite entry point | `packages/lite/bin/semidex-lite.js` (`semidex-lite key …`) |
 
@@ -66,7 +67,7 @@ are the author's, not settled policy.
 | 6 | **Loopback behavior / no keys configured** | require keys everywhere / open when unconfigured / **fail-closed when unconfigured** | **Fail-closed: no keys ⇒ Integration returns `503 integration_auth_not_configured`. Admin stays loopback-bound and credential-free.** | See the expanded rationale below — an earlier draft of this row recommended "zero keys means open", which was rejected in review as a silent security downgrade. |
 | 7 | **Reverse proxy on the same host** | trust `X-Forwarded-*` / ignore / explicit opt-in | **Ignore; keep the existing explicit `ADMIN_ALLOWED_ORIGINS`/`ADMIN_ALLOWED_HOSTS` model** | `X-Forwarded-*` is attacker-controlled on a directly reachable listener. This was already settled for Host/Origin in Phase 1 and must not be relaxed for auth. |
 | 8 | **Rotation and revocation** | none / manual file edit / CLI | **CLI (`semidex-lite key add|list|revoke`) + expiry field** | Mirrors the model Qdrant Cloud itself uses for granular keys. Revocation must take effect without a restart, which means the store is re-read (or invalidated) per request or on change. |
-| 9 | **Rate-limit identity** | per IP / per key / per key+route | **Per key, bucketed by `costClass`** | IP is wrong behind a wrapper backend (every request shares one IP). The route registry already classifies `llm` vs `qdrant` vs `low`, so limits can be tighter where OWASP API4:2023 cost exposure is real. |
+| 9 | **Rate-limit identity (implemented)** | per IP / per key / per key+route | **Per key** (`principal.keyId`), one bucket shared across every route the key can reach | IP is wrong behind a wrapper backend (every request shares one IP). `costClass` bucketing was the original recommendation, but was not adopted: the Integration audience currently has exactly one route pair (Ask v1/v2), both `costClass: llm`, so a second dimension would add complexity with no route pair to distinguish yet. Revisit if a second Integration route with a different `costClass` ships. |
 | 10 | **Admin UI without an integration credential** | embed a key / session cookie / none | **None — the dashboard never holds an integration credential** | This is why the Admin/Integration split had to come first. The dashboard calls only Admin routes; those stay loopback-bound and credential-free. No token in HTML, static JS, URL, or `localStorage` — the constraint that made a single shared secret unworkable. |
 
 ## Row 6 in full — the unconfigured-key-store contract
@@ -130,6 +131,78 @@ disappears silently when its configuration goes missing is not a protection.
    the upgrade note is considered sufficient, omitting it is the safer
    choice.
 
+## Rate limiting (implemented)
+
+**Algorithm.** An O(1) token bucket per key (`src/core/auth/rate-limiter.js`).
+Each key gets a bucket holding up to `burst` tokens, refilling continuously
+at `requestsPerMinute / 60000` tokens/ms. `consume()` refills for the elapsed
+time since the bucket's last touch, then takes one token if available —
+simple arithmetic, no per-millisecond ticking, no `setInterval`/`setTimeout`
+anywhere in the module (a real constraint: it must be safe to construct in a
+test without leaking a timer handle that keeps the process alive). The clock
+is injectable (`now: () => number`), which is what makes the refill/rounding
+tests exact and instant rather than sleep-based.
+
+**Identity.** Bucketed by `principal.keyId` — one bucket per key, shared
+across every route the key can reach (today, Ask v1 and v2 share one
+bucket; see decision row 9 above for why `costClass` bucketing was not
+adopted). Never per-IP: every caller behind a wrapper backend shares one IP,
+which would make IP-based limiting useless for this deployment shape.
+
+**Defaults and per-key overrides.** 30 requests/minute, burst 5, unless a key
+was created with `--requests-per-minute`/`--burst` (`key add`, both
+optional, both validated against a conservative explicit maximum — 6000/min,
+burst 1000 — so an operator typo cannot silently hand a key an effectively
+unbounded rate). A key's limits are fixed at creation; there is no `key
+edit`. `key list` and `key add` always show the **effective** limit (the
+override, or the resolved default) — never the raw `null` a default-limit
+key stores on disk, and never a secret.
+
+**Ordering and consumption.** See the stage table above. Because rate
+limiting is stage 1.5 — after authentication, before the body is read — an
+invalid, unknown, revoked, or expired credential never reaches this stage at
+all and therefore never creates a bucket; a *successfully authenticated*
+attempt always consumes exactly one token, even when the request later turns
+out malformed or targets an out-of-scope collection.
+
+**Response.** A denial is `429`, body `{ "error": { "code": "rate_limited",
+"message": "..." } }`, plus an integer `Retry-After` in seconds (rounded up,
+so a client that waits exactly that long is guaranteed a token, never
+almost-enough). No `WWW-Authenticate` (the credential itself was fine — RFC
+6750 §3 does not apply to a rate-limit denial) and no header or body field
+reveals the key's identity or its configured limit.
+
+**Instance scoping.** `resolveIntegrationPolicy()` constructs one
+`createRateLimiter()` per call, exactly like it does for the key store — two
+composition roots, or two servers built in one process (a real shape in
+tests), never share bucket state.
+
+**Stale cleanup.** Lazy, piggybacked on real `consume()` calls: no
+background timer. A bucket for a key that has been idle long enough to be
+guaranteed fully refilled is dropped and recreated fresh on the next
+request — behaviorally identical to leaving it in place, so no accuracy is
+lost, only memory.
+
+**What this does NOT provide.**
+
+- **No cross-process or multi-replica sharing.** The limiter is in-process
+  memory. Running several `semidex`/`semidex-lite` processes behind a load
+  balancer (multiple replicas, a process manager's cluster mode) gives each
+  process its own independent bucket per key — the effective rate for a key
+  is then `requestsPerMinute × replica count`, not the configured value. A
+  shared limiter (Redis or equivalent) would be needed to enforce one true
+  limit across replicas; this phase does not implement that.
+- **Not a DDoS defense.** This bounds a *legitimate, authenticated* key's
+  request rate. It does nothing about connection floods, unauthenticated
+  traffic (that is what returns 401/503, decided before this stage even
+  runs), or an attacker who mints many keys (key creation is an operator
+  action, not a public endpoint) — this is scope control for a trusted
+  integration's mistakes, not perimeter protection.
+- **No spend guarantee.** A request rate limit is not a cost cap. Different
+  questions cost different amounts of Gemini/Qdrant usage; bounding request
+  *count* bounds worst-case spend only loosely, not precisely. Use your
+  provider's own billing alerts/quotas for an actual spend ceiling.
+
 ## Open questions for the reviewer
 2. Should `/api/search` gain a versioned `POST /api/v1/search` on the
    Integration surface? It is currently Admin-only and unversioned. This is a
@@ -151,8 +224,16 @@ disappears silently when its configuration goes missing is not a protection.
 
   | Stage | Where | Runs | Attach here |
   |---|---|---|---|
-  | 1 | `integrationPolicy.authorizeRequest({ req, route, params })` — `src/shared/admin/router.js` | after route match, before the handler, **before any body read** | bearer authentication, coarse rate limiting, audit start |
+  | 1 | `integrationPolicy.authorizeRequest({ req, route, params })` — `src/shared/admin/router.js` | after route match, before the handler, **before any body read** | bearer authentication |
+  | 1.5 | `integrationPolicy.checkRateLimit({ principal, route })` — `src/shared/admin/router.js` | immediately after a **successful** stage 1, still **before any body read** | per-key rate limiting (implemented — see "Rate limiting" below) |
   | 2 | `authorizeCollectionAccess(auth, { req, collection })` — `src/core/http/authorize.js` | after the route's own body parse, **before `adapter.getCollection()`** | object-level authorization (OWASP API1:2023) |
+
+  Full order: **route match → bearer auth (1) → rate limit (1.5) → body parse
+  → collection authorization (2) → handler.** Because 1.5 runs before the
+  body is read, every authenticated attempt consumes exactly one token —
+  including one whose body later turns out malformed, or whose collection
+  later turns out out-of-scope — since those failures are only discovered
+  further down this same pipeline.
 
 - **The two halves are one atomic policy.** `createRouter` /
   `createApp` / `createLiteApp` take a single `integrationPolicy` object;

@@ -247,6 +247,147 @@ describe('Part D — policy seam ordering', () => {
   });
 });
 
+describe('Part D — rate-limit stage (checkRateLimit) contract', () => {
+  function routerWithStages({ authorizeRequest, checkRateLimit }) {
+    return createRouter({
+      integrationPolicy: {
+        authorizeRequest: authorizeRequest ?? (() => ({ ok: true, principal: { keyId: 'k1' } })),
+        authorizeCollection: () => ({ ok: true }),
+        ...(checkRateLimit ? { checkRateLimit } : {}),
+      },
+    });
+  }
+
+  it('runs AFTER authorizeRequest succeeds and BEFORE the handler', async () => {
+    const order = [];
+    const router = routerWithStages({
+      authorizeRequest: () => { order.push('auth'); return { ok: true, principal: { keyId: 'k1' } }; },
+      checkRateLimit: () => { order.push('rate-limit'); return { ok: true }; },
+    });
+    router.get('/api/health', () => { order.push('handler'); }, META);
+    await router.handleRequest(fakeReq('GET', '/api/health'), fakeRes());
+    assert.deepEqual(order, ['auth', 'rate-limit', 'handler']);
+  });
+
+  it('is never invoked when authorizeRequest denies (no bucket for an unauthenticated attempt)', async () => {
+    let rateLimitCalled = false;
+    const router = routerWithStages({
+      authorizeRequest: () => ({ ok: false, status: 401, code: 'unauthorized', message: 'no' }),
+      checkRateLimit: () => { rateLimitCalled = true; return { ok: true }; },
+    });
+    router.get('/api/health', () => {}, META);
+    await router.handleRequest(fakeReq('GET', '/api/health'), fakeRes());
+    assert.equal(rateLimitCalled, false);
+  });
+
+  it('receives the authenticated principal and the matched route metadata', async () => {
+    let seen = null;
+    const router = routerWithStages({
+      checkRateLimit: (ctx) => { seen = ctx; return { ok: true }; },
+    });
+    router.get('/api/health', () => {}, META);
+    await router.handleRequest(fakeReq('GET', '/api/health'), fakeRes());
+    assert.deepEqual(seen.principal, { keyId: 'k1' });
+    assert.equal(seen.route.path, '/api/health');
+  });
+
+  it('a denial blocks the handler and responds 429/rate_limited with an integer Retry-After, no WWW-Authenticate', async () => {
+    let handlerRan = false;
+    const router = routerWithStages({
+      checkRateLimit: () => ({ ok: false, status: 429, code: 'rate_limited', message: 'slow down', retryAfterSeconds: 7 }),
+    });
+    router.get('/api/health', () => { handlerRan = true; }, META);
+    const res = fakeRes();
+    await router.handleRequest(fakeReq('GET', '/api/health'), res);
+    assert.equal(handlerRan, false);
+    assert.equal(res.statusCode, 429);
+    assert.equal(JSON.parse(res.body).error.code, 'rate_limited');
+    assert.equal(res.headers['Retry-After'], '7');
+    assert.equal(res.headers['www-authenticate'], undefined);
+  });
+
+  it('rounds a fractional/missing retryAfterSeconds up to a whole number, minimum 1', async () => {
+    const router = routerWithStages({ checkRateLimit: () => ({ ok: false, retryAfterSeconds: 0.2 }) });
+    router.get('/api/health', () => {}, META);
+    const res = fakeRes();
+    await router.handleRequest(fakeReq('GET', '/api/health'), res);
+    assert.equal(res.headers['Retry-After'], '1');
+  });
+
+  it('defaults a rejection with no status/code to 429/rate_limited', async () => {
+    const router = routerWithStages({ checkRateLimit: () => ({ ok: false }) });
+    router.get('/api/health', () => {}, META);
+    const res = fakeRes();
+    await router.handleRequest(fakeReq('GET', '/api/health'), res);
+    assert.equal(res.statusCode, 429);
+    assert.equal(JSON.parse(res.body).error.code, 'rate_limited');
+    assert.equal(res.headers['retry-after'], undefined, 'no Retry-After header when the policy did not supply one');
+  });
+
+  it('every non-{ok:true} return value BLOCKS the request (fail-closed, same as the other stages)', async () => {
+    for (const decision of [undefined, null, false, {}, true, 'ok']) {
+      let ran = false;
+      const router = routerWithStages({ checkRateLimit: () => decision });
+      router.get('/api/health', () => { ran = true; }, META);
+      const res = fakeRes();
+      await router.handleRequest(fakeReq('GET', '/api/health'), res);
+      assert.equal(ran, false, `checkRateLimit returning ${JSON.stringify(decision)} must block`);
+      assert.equal(res.statusCode, 429);
+    }
+  });
+
+  it('a throwing checkRateLimit blocks with 403 and does not leak the error', async () => {
+    const router = routerWithStages({ checkRateLimit: () => { throw new Error('limiter internals: /home/user/.semidex'); } });
+    router.get('/api/health', () => {}, META);
+    const res = fakeRes();
+    await router.handleRequest(fakeReq('GET', '/api/health'), res);
+    assert.equal(res.statusCode, 403);
+    assert.doesNotMatch(JSON.parse(res.body).error.message, /home\/user|limiter internals/);
+  });
+
+  it('a rejection happens BEFORE the request body is read', async () => {
+    const router = routerWithStages({ checkRateLimit: () => ({ ok: false }) });
+    router.post('/api/v1/ask', async ({ req }) => {
+      const { readJsonBody } = await import('../../../src/core/http/http.js');
+      await readJsonBody(req);
+    }, META);
+    const req = fakeReq('POST', '/api/v1/ask', { body: JSON.stringify({ collection: 'x', question: 'y' }) });
+    await router.handleRequest(req, fakeRes());
+    assert.equal(req.bodyWasRead(), false, 'rate-limit rejection must precede body parsing');
+  });
+
+  it('is not invoked for an admin-audience route', async () => {
+    let called = false;
+    const router = createRouter({
+      integrationPolicy: {
+        authorizeRequest: () => ({ ok: true, principal: { keyId: 'k1' } }),
+        authorizeCollection: () => ({ ok: true }),
+        checkRateLimit: () => { called = true; return { ok: true }; },
+      },
+    });
+    router.get('/api/health', () => {}, ADMIN_META);
+    await router.handleRequest(fakeReq('GET', '/api/health'), fakeRes());
+    assert.equal(called, false);
+  });
+
+  it('omitting checkRateLimit preserves current behavior — no rate limiting occurs', async () => {
+    let ran = false;
+    const router = routerWithStages({ checkRateLimit: undefined });
+    router.get('/api/health', () => { ran = true; }, META);
+    await router.handleRequest(fakeReq('GET', '/api/health'), fakeRes());
+    assert.equal(ran, true);
+  });
+
+  it('checkRateLimit supplied WITHOUT authorizeRequest is rejected at construction', () => {
+    assert.throws(
+      () => createRouter({
+        integrationPolicy: { checkRateLimit: () => ({ ok: true }) },
+      }),
+      /checkRateLimit.*without authorizeRequest/s
+    );
+  });
+});
+
 describe('Part D — policy rejection reaches no external system', () => {
   it('an admin indexing route is NOT gated by the integration policy (it is admin-audience)', async () => {
     let spawned = false;

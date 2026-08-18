@@ -34,6 +34,11 @@
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { readFileSync, writeFileSync, renameSync, existsSync, chmodSync, unlinkSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
+import {
+  DEFAULT_REQUESTS_PER_MINUTE, DEFAULT_BURST,
+  MIN_REQUESTS_PER_MINUTE, MAX_REQUESTS_PER_MINUTE, MIN_BURST, MAX_BURST,
+  isValidLimitValue,
+} from './rate-limiter.js';
 
 export const TOKEN_PREFIX = 'sdx_v1_';
 export const SCHEMA_VERSION = 1;
@@ -151,6 +156,23 @@ function validateRecord(record, index) {
     if (typeof v !== 'string' || Number.isNaN(Date.parse(v))) fail(`has a malformed "${field}" (expected an ISO-8601 string or null)`);
   }
   if (typeof record.createdAt !== 'string') fail('has a missing "createdAt"');
+
+  // Per-key rate limits. Both are OPTIONAL and, when absent, null — a key
+  // created before this field existed (or one deliberately left at the
+  // default) has neither in its JSON, and that must mean "use the
+  // limiter's configured default", never "unrestricted". A present value
+  // must be a valid, in-range integer (see rate-limiter.js's own maxima) —
+  // a malformed persisted limit is a corrupt store, not silently ignored.
+  for (const [field, min, max] of [
+    ['requestsPerMinute', MIN_REQUESTS_PER_MINUTE, MAX_REQUESTS_PER_MINUTE],
+    ['burst', MIN_BURST, MAX_BURST],
+  ]) {
+    const v = record[field];
+    if (v === null || v === undefined) continue;
+    if (!isValidLimitValue(v, min, max)) {
+      fail(`has an invalid "${field}" (expected an integer in [${min}, ${max}], or null/absent for the default)`);
+    }
+  }
 }
 
 /**
@@ -189,7 +211,13 @@ export function parseKeyStore(raw) {
   return { schemaVersion: data.schemaVersion, keys: data.keys };
 }
 
-/** Public view of a key record — never includes the digest or any secret. */
+/**
+ * Public view of a key record — never includes the digest or any secret.
+ * requestsPerMinute/burst are always resolved to their EFFECTIVE values (the
+ * stored override, or the limiter's default) — never the raw null a legacy
+ * or default-created key stores, so `key list`/`key add` show what the key
+ * actually does, not what happens to be persisted.
+ */
 export function toPublicKey(record) {
   return {
     id: record.id,
@@ -199,6 +227,8 @@ export function toPublicKey(record) {
     createdAt: record.createdAt,
     expiresAt: record.expiresAt ?? null,
     revokedAt: record.revokedAt ?? null,
+    requestsPerMinute: record.requestsPerMinute ?? DEFAULT_REQUESTS_PER_MINUTE,
+    burst: record.burst ?? DEFAULT_BURST,
   };
 }
 
@@ -290,7 +320,7 @@ export function createKeyStore({
      * Creates a key and returns { key, token }. The raw token is returned
      * exactly once and never persisted — only its digest is stored.
      */
-    createKey({ name, collections, operations = ['generate'], expiresAt = null }) {
+    createKey({ name, collections, operations = ['generate'], expiresAt = null, requestsPerMinute = null, burst = null }) {
       if (typeof name !== 'string' || name.trim().length === 0) {
         throw new KeyStoreError('invalid_argument', 'A key name is required.');
       }
@@ -314,6 +344,14 @@ export function createKeyStore({
       if (expiresAt !== null && (typeof expiresAt !== 'string' || Number.isNaN(Date.parse(expiresAt)))) {
         throw new KeyStoreError('invalid_argument', 'expiresAt must be an ISO-8601 date string or null.');
       }
+      if (requestsPerMinute !== null && !isValidLimitValue(requestsPerMinute, MIN_REQUESTS_PER_MINUTE, MAX_REQUESTS_PER_MINUTE)) {
+        throw new KeyStoreError('invalid_argument',
+          `requestsPerMinute must be an integer in [${MIN_REQUESTS_PER_MINUTE}, ${MAX_REQUESTS_PER_MINUTE}], or null for the default (${DEFAULT_REQUESTS_PER_MINUTE}).`);
+      }
+      if (burst !== null && !isValidLimitValue(burst, MIN_BURST, MAX_BURST)) {
+        throw new KeyStoreError('invalid_argument',
+          `burst must be an integer in [${MIN_BURST}, ${MAX_BURST}], or null for the default (${DEFAULT_BURST}).`);
+      }
 
       const { keyId, token, digest } = generateToken();
       const record = {
@@ -325,6 +363,8 @@ export function createKeyStore({
         createdAt: new Date(now()).toISOString(),
         expiresAt,
         revokedAt: null,
+        requestsPerMinute,
+        burst,
       };
 
       return mutate((store) => ({
@@ -407,7 +447,10 @@ export function createKeyStore({
 /**
  * Builds the plain, JSON-like principal the router deep-freezes. Deliberately
  * contains no digest and no token — a principal flows into policy code and
- * (in a future phase) audit logs.
+ * (in a future phase) audit logs. requestsPerMinute/burst are the key's
+ * EFFECTIVE limits (stored override, or the default) — this is what the
+ * rate-limit stage (integration-policy.js's checkRateLimit) reads to size
+ * this key's token bucket; it never re-consults the key store.
  */
 function buildPrincipal(record) {
   return {
@@ -416,6 +459,8 @@ function buildPrincipal(record) {
     operations: [...record.operations],
     collections: [...record.collections],
     expiresAt: record.expiresAt ?? null,
+    requestsPerMinute: record.requestsPerMinute ?? DEFAULT_REQUESTS_PER_MINUTE,
+    burst: record.burst ?? DEFAULT_BURST,
   };
 }
 

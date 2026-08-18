@@ -12,6 +12,7 @@
 import { join } from 'node:path';
 import { createKeyStore } from './key-store.js';
 import { createIntegrationPolicy } from './integration-policy.js';
+import { createRateLimiter } from './rate-limiter.js';
 
 /**
  * Resolves the key-store file path for this process.
@@ -37,10 +38,16 @@ export function resolveKeyStorePath(env = process.env) {
 
 /**
  * @param {{ env?: NodeJS.ProcessEnv, keyStorePath?: string, logger?: Object }} [opts]
- * @returns {{ authorizeRequest: Function, authorizeCollection: Function }}
+ * @returns {{ authorizeRequest: Function, authorizeCollection: Function, checkRateLimit: Function }}
  */
 export function resolveIntegrationPolicy({ env = process.env, keyStorePath, logger } = {}) {
   const path = keyStorePath ?? resolveKeyStorePath(env);
   const keyStore = createKeyStore({ path });
-  return createIntegrationPolicy({ keyStore, ...(logger ? { logger } : {}) });
+  // A fresh rate limiter per call, exactly like keyStore above — two
+  // composition roots (or two servers built in one process, e.g. by a
+  // test) must never share bucket state. Per-key requests-per-minute/burst
+  // overrides live on the principal (see key-store.js's buildPrincipal),
+  // so this limiter only needs the global defaults.
+  const rateLimiter = createRateLimiter();
+  return createIntegrationPolicy({ keyStore, rateLimiter, ...(logger ? { logger } : {}) });
 }

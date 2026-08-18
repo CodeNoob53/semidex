@@ -30,7 +30,7 @@ export function createRouter({ securityPolicy, integrationPolicy } = {}) {
   // then let any authenticated caller reach ANY collection — a BOLA bypass
   // (OWASP API1:2023) that looks fully configured from the outside. This is
   // rejected at construction rather than discovered in production.
-  const { authorizeRequest, authorizeCollection } = validateIntegrationPolicy(integrationPolicy);
+  const { authorizeRequest, authorizeCollection, checkRateLimit } = validateIntegrationPolicy(integrationPolicy);
   // Default policy covers loopback on the DEFAULT admin port as well as the
   // bare hostnames, so a router constructed without explicit config (tests,
   // scripts, embedders) still accepts the ordinary "127.0.0.1:8642" Host a
@@ -108,9 +108,12 @@ export function createRouter({ securityPolicy, integrationPolicy } = {}) {
 
       // Policy seam (stage 1 — pre-body) — runs AFTER route match (so it sees
       // the route's declared audience/operation/costClass) but BEFORE the
-      // handler and before any body is read. This is where the next phase
-      // attaches bearer AUTHENTICATION and coarse rate limiting; it is
-      // deliberately empty of authorization logic today.
+      // handler and before any body is read. Bearer AUTHENTICATION runs
+      // here (authorizeRequest); immediately after a successful
+      // authentication, stage 1.5 (checkRateLimit, below) consumes one
+      // token from the authenticated principal's bucket — still pre-body,
+      // so "route match -> bearer auth -> rate limit -> body parse ->
+      // collection authorization -> handler" holds by construction.
       //
       // Object-level authorization (does this principal may touch THIS
       // collection?) deliberately does NOT happen here: for Ask v1/v2 the
@@ -210,6 +213,45 @@ export function createRouter({ securityPolicy, integrationPolicy } = {}) {
           return sendError(res, 403, 'forbidden', 'Request rejected by policy.');
         }
         principal = deepFreeze(decision.principal ?? null);
+
+        // Stage 1.5 — rate limit. Runs immediately after a successful
+        // authentication, still before any body byte is read and before
+        // stage 2 (collection authorization) — this is precisely what
+        // makes "every authenticated attempt consumes one token, including
+        // one that later turns out to have a malformed body or an
+        // out-of-scope collection" true by construction: those failures are
+        // decided further down the pipeline than this stage runs, so a
+        // token is already spent by the time they are discovered. An
+        // invalid/revoked/expired/missing credential never reaches this
+        // block at all — it returned above — so it creates no bucket.
+        // Instance-scoped (checkRateLimit closes over one rate limiter
+        // built per createIntegrationPolicy() call, itself built once per
+        // composition root), same isolation guarantee as authorizeRequest.
+        if (checkRateLimit) {
+          let rlDecision;
+          try {
+            rlDecision = await checkRateLimit({ principal, route: found.meta });
+          } catch (err) {
+            return sendError(res, 403, 'forbidden', 'Request rejected by policy.');
+          }
+          if (!rlDecision || rlDecision.ok !== true) {
+            const status = (rlDecision && typeof rlDecision.status === 'number') ? rlDecision.status : 429;
+            const code = (rlDecision && typeof rlDecision.code === 'string') ? rlDecision.code : 'rate_limited';
+            const message = (rlDecision && typeof rlDecision.message === 'string')
+              ? rlDecision.message
+              : 'Too many requests.';
+            // No WWW-Authenticate: the credential itself was fine, this is
+            // not a bearer-token failure (RFC 6750 §3 does not apply).
+            // Retry-After is the one extra header, an integer number of
+            // seconds until the earliest token, and nothing else — no
+            // identity, no configured limit, no bucket state leaks to the
+            // client.
+            const headers = Number.isFinite(rlDecision?.retryAfterSeconds)
+              ? { 'Retry-After': String(Math.max(1, Math.ceil(rlDecision.retryAfterSeconds))) }
+              : {};
+            return sendError(res, status, code, message, headers);
+          }
+        }
       }
 
       // `auth` is frozen so a handler cannot rewrite who the caller is before

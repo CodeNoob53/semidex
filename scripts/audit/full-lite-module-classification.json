@@ -14,7 +14,7 @@
     "mixed": 3,
     "tooling": 62,
     "cloud": 8,
-    "shared": 163,
+    "shared": 164,
     "local": 28
   },
   "modules": [
@@ -536,7 +536,8 @@
       "fullReachable": true,
       "liteReachable": true,
       "directDependencies": [
-        "src/core/auth/key-store.js"
+        "src/core/auth/key-store.js",
+        "src/core/auth/rate-limiter.js"
       ]
     },
     {
@@ -547,11 +548,23 @@
       "fullReachable": false,
       "liteReachable": false,
       "directDependencies": [
-        "src/core/auth/key-store.js"
+        "src/core/auth/key-store.js",
+        "src/core/auth/rate-limiter.js"
       ]
     },
     {
       "path": "src/core/auth/key-store.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/auth/rate-limiter.js"
+      ]
+    },
+    {
+      "path": "src/core/auth/rate-limiter.js",
       "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
@@ -568,7 +581,8 @@
       "liteReachable": true,
       "directDependencies": [
         "src/core/auth/integration-policy.js",
-        "src/core/auth/key-store.js"
+        "src/core/auth/key-store.js",
+        "src/core/auth/rate-limiter.js"
       ]
     },
     {
