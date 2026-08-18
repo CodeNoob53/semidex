@@ -3,8 +3,13 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRouter } from '../../../src/shared/admin/router.js';
 
-function fakeReq(method, url) {
-  return { method, url };
+// A realistic same-origin request. The router now enforces Host/cross-site
+// policy before dispatch (src/core/http/request-security.js), so a fake req
+// must carry the headers a real node:http request always would — a missing
+// Host is malformed under HTTP/1.1 and is deliberately rejected. Host
+// validation itself is covered in tests/unit/security/.
+function fakeReq(method, url, headers = {}) {
+  return { method, url, headers: { host: '127.0.0.1:8642', ...headers } };
 }
 
 function fakeRes() {

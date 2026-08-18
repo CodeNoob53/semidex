@@ -2,6 +2,7 @@
 // versioned application-facing Ask API alike). No framework, no
 // dependencies — node:http primitives only. Provider/transport-neutral:
 // nothing here knows about Qdrant, Ollama, Gemini, or the Admin UI.
+import { checkJsonContentType } from './request-security.js';
 
 /**
  * Write a JSON body with the given status code. Always sets
@@ -54,12 +55,37 @@ export function tooManyRequests(message) {
   return new HttpError(429, 'busy', message);
 }
 
+export function unsupportedMediaType(message) {
+  return new HttpError(415, 'unsupported_media_type', message);
+}
+
 /**
  * Read and JSON-parse a request body, capped to avoid unbounded memory use
- * from a misbehaving client. Returns {} for an empty body (POST endpoints in
- * this API take no body yet, but this keeps handlers uniform if that changes).
+ * from a misbehaving client. Returns {} for an empty body (several POST
+ * endpoints here are genuinely body-less; this keeps handlers uniform).
+ *
+ * SECURITY (audit finding P1-1): this function used to parse the body as JSON
+ * regardless of the declared Content-Type. That made every JSON route
+ * reachable by a CORS-"simple" cross-origin request (`Content-Type:
+ * text/plain` with a valid-JSON body sends no preflight), which was confirmed
+ * live against POST /api/jobs/index — 202, and a real indexer spawned against
+ * an arbitrary local path. Content-Type is now enforced BEFORE any bytes are
+ * read, so a non-JSON declaration is a 415 and the request never becomes a
+ * simple request that carries a working JSON payload.
+ *
+ * This is defense in depth, not the primary control: the router already
+ * rejects cross-site requests before dispatch (core/http/request-security.js).
+ * Both layers are kept because they fail differently — the Origin check
+ * depends on browser-supplied headers, this one does not.
+ *
+ * Pass `{ enforceContentType: false }` ONLY for a caller that has its own
+ * equivalent gate; no production call site does today.
  */
-export function readJsonBody(req, { maxBytes = 1_000_000 } = {}) {
+export function readJsonBody(req, { maxBytes = 1_000_000, enforceContentType = true } = {}) {
+  if (enforceContentType) {
+    const verdict = checkJsonContentType(req);
+    if (!verdict.ok) return Promise.reject(unsupportedMediaType(verdict.message));
+  }
   return new Promise((resolve, reject) => {
     let size = 0;
     const chunks = [];

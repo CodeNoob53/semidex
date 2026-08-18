@@ -23,6 +23,7 @@ import { registerJobsRoutes } from '../../shared/admin/api/jobs.js';
 import { registerGenerationModelsRoutesGeminiOnly } from '../../shared/admin/api/generation-models.js';
 import { createSettingsService } from '../../core/settings/service.js';
 import { registerNeutralRoutes, createHttpServer } from '../../shared/admin/register-neutral-routes.js';
+import { resolveRequestSecurityPolicy } from '../../shared/admin/server.js';
 import { embedForSearch } from '../../shared/core/embeddings.js';
 import { createJobRegistry } from '../../shared/admin/jobs/registry.js';
 import { spawnIndexer as spawnLiteIndexer } from '../jobs/spawn-indexer-lite.js';
@@ -134,6 +135,7 @@ export function createLiteApp({
   adapter = createStorageAdapter(), embedQuery, jobRegistry, taskRegistry,
   assemblyLogFn, generationRuntime, askCoordinator, askCoordinators, countTokens, settingsService, jobBaseEnv,
   discoverGeminiModelsFn, runQdrantCloudProbeFn, resolveNewCollectionProfileFn, jobPolicy = LITE_JOB_POLICY,
+  securityPolicy,
 } = {}) {
   const ollamaCapability = unavailableOllamaEmbedCapability();
   const onnxEmbedCapability = unavailableOnnxEmbedCapability();
@@ -182,7 +184,13 @@ export function createLiteApp({
   // throws a TypeError without one — see that function's own header
   // comment), so this call site must always supply one explicitly.
   const resolvedJobRegistry = jobRegistry ?? createJobRegistry({ baseEnv: jobBaseEnv, spawnIndexer: spawnLiteIndexer });
-  const router = createRouter();
+  // Same shared policy resolution Full uses (shared/admin/server.js) — Host
+  // allow-list + cross-site rejection, applied before route dispatch. Passing
+  // the caller's settingsService keeps ADMIN_PORT/ADMIN_ALLOW_REMOTE
+  // resolution identical to the listener's own.
+  const resolvedSecurityPolicy = securityPolicy
+    ?? resolveRequestSecurityPolicy(process.env, { settingsService: settings });
+  const router = createRouter({ securityPolicy: resolvedSecurityPolicy });
   registerNeutralRoutes(router, {
     adapter, embedQuery: resolvedEmbedQuery, cloudEmbed, jobRegistry: resolvedJobRegistry, taskRegistry, assemblyLogFn,
     generationRuntime: resolvedGenerationRuntime, askCoordinator, askCoordinators, countTokens, settingsService: settings,
@@ -194,7 +202,7 @@ export function createLiteApp({
     }),
     jobsFn: (r, jobs) => registerJobsRoutes(r, jobs, { jobPolicy }),
   });
-  return createHttpServer(router);
+  return createHttpServer(router, { securityPolicy: resolvedSecurityPolicy });
 }
 
 // Cloud-safe default policy for createLiteApp() — no local-model options,

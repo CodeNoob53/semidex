@@ -20,6 +20,7 @@
 // depends on the StorageAdapter contract only — no direct Qdrant SDK or
 // src/core/qdrant/store.js import anywhere under src/admin/.
 import { createServer } from 'node:http';
+import { evaluateRequestSecurity } from '../../core/http/request-security.js';
 import { registerHealthRoutes } from './api/health.js';
 import { registerCollectionsRoutes } from './api/collections.js';
 import { registerDocumentsRoutes } from './api/documents.js';
@@ -212,8 +213,8 @@ export function registerNeutralRoutes(router, {
 // composition roots. Exported so both server-full.js's createApp() and
 // composition/lite.js's createLiteApp() reuse it without a second,
 // independently-resolved implementation.
-export function createHttpServer(router) {
-  return createServer((req, res) => {
+export function createHttpServer(router, { securityPolicy } = {}) {
+  const server = createServer((req, res) => {
     // /api/* belongs to the router; everything else is the static UI shell.
     // Malformed URLs fall through to the router, whose handleRequest already
     // converts them into a clean 400/404 JSON response.
@@ -223,9 +224,46 @@ export function createHttpServer(router) {
     } catch { /* router handles it */ }
 
     if (pathname !== null && !pathname.startsWith('/api')) {
+      // Host validation applies to the STATIC UI too, not only /api/*.
+      // handleStatic() used to be reached before any security check ran,
+      // which left the DNS-rebinding boundary incomplete: an attacker page
+      // could still load the dashboard shell from a rebound hostname. No
+      // secret leaks that way (the API itself was always checked), but the
+      // boundary must be uniform for the Host guarantee to mean anything.
+      //
+      // Only the Host half applies here: static assets are safe GETs, so the
+      // cross-site checks in evaluateRequestSecurity() would be skipped for
+      // them anyway.
+      if (securityPolicy) {
+        const verdict = evaluateRequestSecurity(req, securityPolicy);
+        if (!verdict.ok) {
+          res.writeHead(verdict.status, { 'Content-Type': 'text/plain; charset=utf-8' });
+          res.end(verdict.message);
+          return;
+        }
+      }
       handleStatic(req, res, pathname);
       return;
     }
     router.handleRequest(req, res);
   });
+
+  // Request-INGESTION ceilings (audit P2/Part G). These bound how long a
+  // client may take to SEND a request and how large its headers may be —
+  // deliberately NOT a cap on how long a response may take to produce.
+  //
+  // That distinction is the whole reason these values are safe here: Ask
+  // streams SSE for as long as generation runs, and an indexing job's HTTP
+  // request returns 202 immediately while the work continues in a spawned
+  // subprocess. node's `requestTimeout` measures from connection to the end
+  // of the REQUEST (headers + body), not the response, so a long SSE stream
+  // is unaffected by it. `timeout` (the whole-socket inactivity timeout) is
+  // left at node's default of 0/disabled precisely because setting it WOULD
+  // kill idle-but-alive SSE streams between tokens.
+  server.requestTimeout = 60_000;   // 60s to finish sending a request
+  server.headersTimeout = 30_000;   // 30s to finish sending headers
+  server.keepAliveTimeout = 5_000;  // node default; stated explicitly
+  server.maxHeadersCount = 100;     // bounded header count (node default is 2000)
+
+  return server;
 }

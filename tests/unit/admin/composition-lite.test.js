@@ -41,8 +41,18 @@ describe('Phase 4 — canonical ownership of createLiteApp/LITE_JOB_POLICY', () 
     assert.equal('LITE_JOB_POLICY' in serverModule, false, 'server.js must not export LITE_JOB_POLICY after Phase 4 — composition/lite.js is the sole owner');
   });
 
-  it('src/admin/server.js exports exactly resolveHostConfig and resolvePortConfig — no compatibility re-export snuck back in', () => {
-    assert.deepEqual(Object.keys(serverModule).sort(), ['resolveHostConfig', 'resolvePortConfig']);
+  it('src/admin/server.js exports exactly the bind/request-security config resolvers — no composition re-export snuck back in', () => {
+    // resolveRequestSecurityPolicy joined this file in the 2026-08 security
+    // hardening pass: it derives the router's Host/cross-site policy from
+    // the SAME resolved bind configuration the listener uses, so it belongs
+    // with the other bind-config resolvers rather than in either composition
+    // root (where Full and Lite could drift into different Host policies).
+    // The guard itself is unchanged in spirit — this list must stay limited
+    // to config resolution, never composition.
+    assert.deepEqual(
+      Object.keys(serverModule).sort(),
+      ['resolveHostConfig', 'resolvePortConfig', 'resolveRequestSecurityPolicy']
+    );
   });
 });
 
@@ -60,10 +70,19 @@ describe('Phase 4 — src/admin/server.js import boundary (real AST, not regex)'
     assert.ok(!relDeps.includes('src/shared/admin/api/jobs.js'), `server.js must no longer import registerJobsRoutes' module, got deps: ${JSON.stringify(relDeps)}`);
   });
 
-  it('src/admin/server.js has zero relative-import dependencies at all — pure bind-config logic, no composition imports of any kind', () => {
+  it('src/admin/server.js imports nothing but leaf config/security utilities — no composition imports of any kind', () => {
+    // Phase 4's original assertion was "zero relative imports". The 2026-08
+    // security pass added exactly one: core/http/request-security.js, a
+    // dependency-free leaf module (no composition, no adapter, no routes —
+    // it takes a request and returns a verdict). The invariant this test
+    // actually protects is "server.js never pulls in composition/route
+    // wiring", which the explicit allow-list below states directly instead
+    // of approximating it with an empty set.
+    const ALLOWED = ['src/core/http/request-security.js'];
     const node = graph.nodes[SERVER_FILE];
-    const relDeps = node.staticImports.filter((r) => r.kind === 'relative');
-    assert.deepEqual(relDeps, [], `expected server.js to have zero relative imports after Phase 4, found: ${JSON.stringify(relDeps.map((r) => r.resolved))}`);
+    const relDeps = node.staticImports.filter((r) => r.kind === 'relative').map((r) => r.resolved);
+    const unexpected = relDeps.filter((f) => !ALLOWED.includes(f));
+    assert.deepEqual(unexpected, [], `server.js may only import leaf config/security utilities, found: ${JSON.stringify(unexpected)}`);
   });
 });
 

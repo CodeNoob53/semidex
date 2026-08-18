@@ -203,7 +203,14 @@ describe('POST /api/search — adapter contract', () => {
       searchHybridVectors: async (_c, opts) => { captured = opts; return []; },
     });
     const fakeSettingsService = {
-      getActiveValue: () => 1,
+      // Returns 1 for the numeric retrieval settings this test cares about,
+      // but must NOT claim ADMIN_ALLOW_REMOTE=1: the router's request-security
+      // policy (src/core/http/request-security.js) is resolved from this same
+      // service at app-construction time and deliberately fails closed when
+      // remote binding is enabled without an explicit ADMIN_ALLOWED_HOSTS.
+      // A blanket `() => 1` stub would silently assert "this server is bound
+      // to the network", which is not what this test is about.
+      getActiveValue: (key) => (key === 'ADMIN_ALLOW_REMOTE' ? false : 1),
       get: () => null, // createGenerationRuntime() also consults the shared settingsService — no config_json tier for this stub
       refreshIfChanged: () => { fakeSettingsService.refreshCalled = true; },
       refreshCalled: false,

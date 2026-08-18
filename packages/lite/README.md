@@ -289,6 +289,81 @@ Neither model is established as generally "better" — no benchmark comparing
 them for this use case exists yet. Pick based on your document language and
 verify results against your own data.
 
+## Security status
+
+> [!IMPORTANT]
+> **The HTTP API has no authentication.** Read this section before exposing
+> `semidex-lite serve` to anything but your own machine.
+
+What is protected as of this version:
+
+- **Loopback-only by default.** The server binds `127.0.0.1` and refuses a
+  non-loopback `ADMIN_HOST` unless you set `ADMIN_ALLOW_REMOTE=1`.
+- **Cross-site browser requests are rejected.** Requests a browser marks as
+  cross-site (`Sec-Fetch-Site`), or that carry a foreign/opaque `Origin`, are
+  refused before any route logic runs. This closes a real issue in earlier
+  versions where a page on another site could silently make your running
+  instance start an indexing job, run billed Ask/search requests, or change
+  collection state — the browser blocked the attacker from *reading* the
+  response, but the work still happened.
+- **JSON endpoints require `Content-Type: application/json`.** Anything else
+  with a body is rejected with `415` before parsing.
+- **Host header is validated** against the loopback host/port (or your
+  `ADMIN_ALLOWED_HOSTS` list), which blocks DNS-rebinding attacks.
+- Request-ingestion timeouts and header-count ceilings are set.
+
+What is **not** protected yet — the important part:
+
+- **No authentication or authorization of any kind.** Any process on the
+  machine, any `curl`, and any server-to-server client can call every route,
+  including destructive ones. The cross-site protection above stops
+  *browsers*; it does not identify or authorize callers.
+- **No collection scoping.** Any caller can name any collection that exists
+  and read it via Ask/search or modify it via the admin routes.
+- **No rate limiting.** Nothing bounds how often Ask/search can be called, so
+  nothing bounds the Gemini and Qdrant Cloud spend they trigger.
+- **Indexing is not restricted to allowed roots.** A caller who can reach
+  `POST /api/jobs/index` can index any path this process can read.
+
+Practical guidance: treat `semidex-lite serve` as a **local, single-trusted-user
+service**. For anything else — a website, a bot, multiple users, multiple
+assistants — put your own authenticated backend in front of it, terminate
+user auth there, and decide there which collection each request may touch.
+Never expose the admin port directly to the internet or an untrusted LAN.
+
+For the full analysis, route-by-route inventory, and the planned hardening
+sequence, see
+[`docs/security/semidex-lite-public-api-audit-2026-08.md`](https://github.com/CodeNoob53/semidex/blob/main/docs/security/semidex-lite-public-api-audit-2026-08.md)
+in the repository.
+
+### Exposing the server beyond loopback
+
+If you deliberately set `ADMIN_ALLOW_REMOTE=1`, you must also set
+`ADMIN_ALLOWED_HOSTS` to the exact host(s) clients will use. The server
+refuses to start otherwise:
+
+```bash
+ADMIN_ALLOW_REMOTE=1
+ADMIN_ALLOWED_HOSTS=semidex.example.com,192.168.1.10:8642
+```
+
+Include the port when clients connect on a non-default one. This is a Host
+allow-list, not access control — it prevents DNS-rebinding and Host-header
+attacks, and does not make the API safe to expose without your own
+authenticated layer in front.
+
+Behind a **TLS-terminating reverse proxy**, the browser's origin
+(`https://your-domain`) differs from what this process sees on a plaintext
+socket, so also set the exact allowed origin(s):
+
+```bash
+ADMIN_ALLOWED_ORIGINS=https://semidex.example.com
+```
+
+`X-Forwarded-Proto` and `X-Forwarded-Host` are deliberately not trusted —
+they are attacker-controlled on a directly reachable listener — so this must
+be configured explicitly rather than inferred.
+
 ## CLI
 
 The examples below use the recommended project-local dependency through `npx`.

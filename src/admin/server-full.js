@@ -25,6 +25,7 @@ import { discoverOllamaModels } from '../local/core/ollama-models.js';
 import { checkOllama } from '../local/admin/system/ollama.js';
 import { createSettingsService } from '../core/settings/service.js';
 import { registerNeutralRoutes, createHttpServer } from '../shared/admin/register-neutral-routes.js';
+import { resolveRequestSecurityPolicy } from '../shared/admin/server.js';
 import { embedForSearch } from '../shared/core/embeddings.js';
 import { createJobRegistry } from '../shared/admin/jobs/registry.js';
 import { spawnIndexer as spawnFullIndexer } from './jobs/spawn-indexer-full.js';
@@ -42,7 +43,7 @@ export function createApp({
   discoverOllamaModelsFn, discoverGeminiModelsFn, runOnnxProbeFn, runQdrantCloudProbeFn,
   resolveNewCollectionProfileFn, diagnoseCudaFailureFn,
   resolveEffectiveOnnxRuntimePathFn, writeVerificationResultFn, onnxManagedRuntimeListingCache,
-  onnxEmbedCapability,
+  onnxEmbedCapability, securityPolicy,
 } = {}) {
   // core/embeddings.js's applyEmbeddingCapabilities() (the process-wide
   // module-scope fallback) is deliberately NEVER called from this function
@@ -150,7 +151,13 @@ export function createApp({
   // default spawnIndexer and never knows which edition constructed it —
   // see that function's own header comment.
   const resolvedJobRegistry = jobRegistry ?? createJobRegistry({ baseEnv: jobBaseEnv, spawnIndexer: spawnFullIndexer });
-  const router = createRouter();
+  // Same shared policy resolution Lite uses (shared/admin/server.js) — Host
+  // allow-list + cross-site rejection, applied before route dispatch. Full
+  // and Lite must never drift apart here, which is why both derive it from
+  // the one helper rather than constructing their own.
+  const resolvedSecurityPolicy = securityPolicy
+    ?? resolveRequestSecurityPolicy(process.env, { settingsService: settings });
+  const router = createRouter({ securityPolicy: resolvedSecurityPolicy });
   // discoverOllamaModelsFn is optional DI (tests inject a stub so unit
   // tests never probe a real Ollama instance) — same convention as
   // checkOllamaFn below. Full-only: this module is the one place that
@@ -189,5 +196,5 @@ export function createApp({
     ...(writeVerificationResultFn ? { writeVerificationResultFn } : {}),
     ...(onnxManagedRuntimeListingCache ? { listingCache: onnxManagedRuntimeListingCache } : {}),
   });
-  return createHttpServer(router);
+  return createHttpServer(router, { securityPolicy: resolvedSecurityPolicy });
 }

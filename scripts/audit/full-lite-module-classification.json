@@ -14,7 +14,7 @@
     "mixed": 3,
     "tooling": 61,
     "cloud": 8,
-    "shared": 156,
+    "shared": 157,
     "local": 28
   },
   "modules": [
@@ -61,6 +61,7 @@
         "src/shared/admin/jobs/registry.js",
         "src/shared/admin/register-neutral-routes.js",
         "src/shared/admin/router.js",
+        "src/shared/admin/server.js",
         "src/shared/core/embeddings.js",
         "src/shared/core/onnx-embed-capability.js"
       ]
@@ -115,6 +116,7 @@
         "src/shared/admin/jobs/registry.js",
         "src/shared/admin/register-neutral-routes.js",
         "src/shared/admin/router.js",
+        "src/shared/admin/server.js",
         "src/shared/core/embeddings.js"
       ]
     },
@@ -696,6 +698,17 @@
     },
     {
       "path": "src/core/http/http.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/http/request-security.js"
+      ]
+    },
+    {
+      "path": "src/core/http/request-security.js",
       "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
@@ -1691,6 +1704,7 @@
         "src/core/ask-api/v2/route.js",
         "src/core/ask/coordinator-v2.js",
         "src/core/generation/runtime.js",
+        "src/core/http/request-security.js",
         "src/shared/admin/api/assembly.js",
         "src/shared/admin/api/chunks.js",
         "src/shared/admin/api/collections.js",
@@ -1717,6 +1731,7 @@
       "liteReachable": true,
       "directDependencies": [
         "src/core/http/http.js",
+        "src/core/http/request-security.js",
         "src/shared/core/doctor-checks.js"
       ]
     },
@@ -1727,7 +1742,9 @@
       "compositionEdition": null,
       "fullReachable": true,
       "liteReachable": true,
-      "directDependencies": []
+      "directDependencies": [
+        "src/core/http/request-security.js"
+      ]
     },
     {
       "path": "src/shared/admin/static.js",

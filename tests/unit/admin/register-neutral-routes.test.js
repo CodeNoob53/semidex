@@ -128,8 +128,16 @@ describe('register-neutral-routes.js — import-graph isolation (real AST, not r
     assert.ok(compositionLiteDeps.includes(NEUTRAL_ROUTES_FILE), `expected composition/lite.js to import ${NEUTRAL_ROUTES_FILE}, got: ${JSON.stringify(compositionLiteDeps)}`);
     assert.ok(!serverFullDeps.includes('src/admin/composition/lite.js'), 'server-full.js must never import composition/lite.js (would give Full a real edge to the Lite-only composition root)');
     assert.ok(!compositionLiteDeps.includes('src/admin/server-full.js'), 'composition/lite.js must never import server-full.js (would give Lite a real edge to the full-only composition root)');
-    assert.ok(!serverFullDeps.includes('src/shared/admin/server.js'), 'server-full.js must import the shared route wiring from register-neutral-routes.js directly, not re-import it via server.js');
-    assert.ok(!compositionLiteDeps.includes('src/shared/admin/server.js'), 'composition/lite.js must import the shared route wiring from register-neutral-routes.js directly, not re-import it via server.js');
+    // Both roots DO import shared/admin/server.js since the 2026-08 security
+    // pass — for resolveRequestSecurityPolicy(), a bind-config resolver, so
+    // that Full and Lite cannot drift into different Host/cross-site
+    // policies. What the original assertion protected was narrower and still
+    // holds: neither root may obtain the ROUTE WIRING
+    // (registerNeutralRoutes/createHttpServer) indirectly via server.js —
+    // they must import it from register-neutral-routes.js directly, which
+    // the two assertions above already verify. server.js re-exporting route
+    // wiring is separately forbidden by composition-lite.js's exact-export
+    // assertion.
   });
 });
 

@@ -4,12 +4,32 @@
 // handlers, so a handler never has to think about percent-encoding.
 import { sendError, HttpError } from '../../core/http/http.js';
 import { sanitiseErrorMessage } from '../core/doctor-checks.js';
+import {
+  createRequestSecurityPolicy,
+  evaluateRequestSecurity,
+  applySecurityVaryHeaders,
+} from '../../core/http/request-security.js';
 
 /**
  * @typedef {(ctx: { req, res, params: Object, query: URLSearchParams }) => Promise<void>|void} RouteHandler
  */
 
-export function createRouter() {
+/**
+ * @param {{ securityPolicy?: ReturnType<typeof createRequestSecurityPolicy> }} [opts]
+ *   securityPolicy is optional DI so a test can construct a router with a
+ *   specific host/remote configuration. Omitting it yields the safe default:
+ *   loopback-only hosts, no remote mode. It is never absent in production —
+ *   both composition roots build one from resolved server config.
+ */
+export function createRouter({ securityPolicy } = {}) {
+  // Default policy covers loopback on the DEFAULT admin port as well as the
+  // bare hostnames, so a router constructed without explicit config (tests,
+  // scripts, embedders) still accepts the ordinary "127.0.0.1:8642" Host a
+  // real client sends. Production always passes an explicit policy resolved
+  // from real bind config (shared/admin/server.js's
+  // resolveRequestSecurityPolicy), and a server on an ephemeral port is
+  // additionally covered by checkHost()'s real-listening-port allowance.
+  const policy = securityPolicy ?? createRequestSecurityPolicy({ port: 8642 });
   const routes = []; // { method, segments: string[], handler }
 
   function add(method, path, handler) {
@@ -55,6 +75,17 @@ export function createRouter() {
     // synchronously outside any handler's control. Left uncaught, either one
     // rejects handleRequest() itself with no response ever sent to the client.
     try {
+      // Request security runs FIRST — before route matching, before any
+      // handler, and (critically) before any body is read. A rejected
+      // cross-site or bad-Host request must never reach Qdrant, Gemini, the
+      // filesystem, a subprocess spawn, or the folder-picker dialog. See
+      // core/http/request-security.js for the policy and its rationale.
+      applySecurityVaryHeaders(res);
+      const verdict = evaluateRequestSecurity(req, policy);
+      if (!verdict.ok) {
+        return sendError(res, verdict.status, verdict.code, verdict.message);
+      }
+
       const url = new URL(req.url, 'http://localhost');
       const found = match(req.method, url.pathname);
 
