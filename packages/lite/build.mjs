@@ -166,6 +166,12 @@ const EXCLUDE_FILES = [
   // tooling with no Lite equivalent).
   'admin/bootstrap.js',
   'doctor.js',
+  // key.js is FULL Semidex's `npm run key --` entry point. It imports
+  // local/core/semidex-home.js (an EXCLUDE_DIRS 'local' file), so staging it
+  // would break Lite's closure. Lite has its own equivalent entry —
+  // packages/lite/bin/semidex-lite.js's `key` command — and both delegate to
+  // the SAME shared implementation in core/auth/key-cli.js, which IS staged.
+  'key.js',
   'backfill-tags.js',
   'backfill-entity-refs.js',
   'sync.js',

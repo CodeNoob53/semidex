@@ -15,6 +15,7 @@ import { createAskCoordinator } from '../../../src/core/ask/coordinator.js';
 import { createGeminiProvider } from '../../../src/cloud/generation/gemini-provider.js';
 import { createOllamaProvider } from '../../../src/core/generation/ollama-provider.js';
 import { ASK_PATH } from '../../../src/core/ask-api/v1/contract.js';
+import { OPEN_INTEGRATION_POLICY } from '../security/test-integration-policy.js';
 
 const HIT = {
   sourceFile: 'docs/en/configuration.md',
@@ -85,7 +86,7 @@ async function withServer({ adapter = makeStubAdapter(), embedQuery = embedQuery
     apiKey, model: 'gemini-2.5-flash', createClientFn: stubGenAiClient({ streamFn }),
   });
   const askCoordinator = createAskCoordinator({ adapter, embedQuery, countTokens: countTokensStub, generationProvider: provider });
-  const app = createApp({ adapter, embedQuery, askCoordinator });
+  const app = createApp({ adapter, embedQuery, askCoordinator, integrationPolicy: OPEN_INTEGRATION_POLICY });
   await new Promise((resolve) => app.listen(0, '127.0.0.1', resolve));
   const base = `http://127.0.0.1:${app.address().port}`;
   try {

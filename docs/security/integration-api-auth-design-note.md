@@ -1,18 +1,50 @@
-# Integration API authentication — design note for the next phase
+# Integration API authentication — design note
 
-**Status: design only. Nothing here is implemented.** The Admin/Integration
-boundary that this note depends on *is* implemented (see
-[the audit](./semidex-lite-public-api-audit-2026-08.md) §12d); bearer keys,
-scopes, collection authorization and rate limiting are not.
+**Status: IMPLEMENTED (2026-08-18), except rate limiting.** Bearer keys,
+per-key collection/operation scopes, the key store, and the CLI all ship. Rate
+limiting remains a separate follow-up phase.
+
+Implementation:
+
+| Piece | Where |
+|---|---|
+| Key store, token format, digests | `src/core/auth/key-store.js` |
+| The two policy halves | `src/core/auth/integration-policy.js` |
+| Default wiring for both editions | `src/core/auth/resolve-policy.js` |
+| Shared `key add/list/revoke` | `src/core/auth/key-cli.js` |
+| Full entry point | `src/key.js` (`npm run key -- …`) |
+| Lite entry point | `packages/lite/bin/semidex-lite.js` (`semidex-lite key …`) |
+
+Decisions marked **(implemented)** below reflect what actually shipped.
 
 Scope of the next task: authenticate and authorize the **Integration API**
 (`POST /api/v1/ask`, `POST /api/v2/ask`). The Admin API is explicitly out of
 scope — see decision 6.
 
-## Wire format (settled)
+## Wire format (implemented)
 
 `Authorization: Bearer <token>`, per
 [RFC 6750 §2.1](https://datatracker.ietf.org/doc/html/rfc6750#section-2.1).
+
+**Token format:** `sdx_v1_<keyId>_<secret>`
+
+| Segment | Value |
+|---|---|
+| `sdx_v1` | Literal prefix + format version, so a future format is introduced unambiguously and an old one rejected explicitly. |
+| `<keyId>` | 16 base64url chars (96 bits). A **public** identifier, not a secret — it makes authentication an O(1) lookup plus one constant-time comparison, and gives revocation and future rate-limit identity something stable to key on. |
+| `<secret>` | 43 base64url chars = **256 bits** from `crypto.randomBytes`. |
+
+Parsing is strict and **positional**: both segments are fixed-width, so the
+boundary is computed by offset, never by splitting on the first `_`. This
+matters because base64url's alphabet *includes* `_` — roughly one keyId in
+five contains one, and a delimiter split would corrupt those tokens. (This was
+a real bug, caught by a flaky test at ~20% failure rate and now pinned by a
+1000-iteration round-trip test.)
+
+Exposing the keyId costs nothing — an attacker holding the token already has
+the secret — but to prevent enumeration an unknown keyId still performs a
+**dummy `timingSafeEqual`** and returns byte-identical output to a wrong
+secret.
 
 Tokens must **never** be accepted in a query string. RFC 6750 §5.3 warns
 that URI-borne credentials leak into logs, `Referer` headers and browser

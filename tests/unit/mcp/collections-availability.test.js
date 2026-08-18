@@ -16,10 +16,11 @@ afterEach(() => {
   resetLaneAvailabilityCache();
 });
 
-function fakeAdapter({ listCollectionsResult, getEmbeddingProfileResult }) {
+function fakeAdapter({ listCollectionsResult, getEmbeddingProfileResult, checkCloudInferenceReachable }) {
   return {
     listCollections: async () => listCollectionsResult,
     getEmbeddingProfile: async () => getEmbeddingProfileResult,
+    ...(checkCloudInferenceReachable ? { checkCloudInferenceReachable } : {}),
   };
 }
 
@@ -97,5 +98,57 @@ describe('mcp/tools/collections.js — qdrant_collection_info availability suffi
 
   it('setStorageAdapter(null) resets to the lazy real-adapter default (does not throw when reset)', () => {
     assert.doesNotThrow(() => setStorageAdapter(null));
+  });
+});
+
+describe('mcp/tools/collections.js — qdrant-cloud lane availability (regression: checkQdrantReachable DI)', () => {
+  // Regression test: resolveLaneAvailability() throws
+  // "checkQdrantReachable is required for a qdrant-cloud lane" for any
+  // qdrant-cloud profile unless a checkQdrantReachable DI is supplied.
+  // handle() previously built availabilityChecks with only
+  // { checkOllamaLane, checkOnnxModelCached } — omitting it entirely — so a
+  // real qdrant-cloud-backed collection made qdrant_collection_info throw
+  // uncaught, while qdrant_search (which never resolves availability) kept
+  // working fine for the exact same collection.
+  const qdrantCloudProfile = validProfile({
+    dense: { provider: 'qdrant-cloud', model: 'intfloat/multilingual-e5-small', vectorName: 'dense', dimensions: 384, distance: 'Cosine', execution: 'qdrant-cloud' },
+    sparse: { provider: 'qdrant-cloud', model: 'qdrant/bm25', vectorName: 'sparse', execution: 'qdrant-cloud', modifier: 'idf' },
+  });
+
+  it('never throws for a qdrant-cloud lane, and reports availability using the adapter-derived checkQdrantReachable', async () => {
+    setStorageAdapter(fakeAdapter({
+      listCollectionsResult: [{ name: 'c1', pointCount: 5, provider: { denseProvider: 'qdrant-cloud', denseModel: 'intfloat/multilingual-e5-small', sparseProvider: 'qdrant-cloud' }, description: null }],
+      getEmbeddingProfileResult: { state: 'valid', profile: qdrantCloudProfile },
+      checkCloudInferenceReachable: async () => ({ status: 'ok' }),
+    }));
+    const result = await handle();
+    assert.match(result, /\*\*c1\*\*/);
+    // Tier 1 (checkQdrantReachable) can only ever prove reachability, never
+    // inference itself — its ceiling is LANE_STATUS.INFERENCE_UNVERIFIED,
+    // never AVAILABLE (see availability.js's own comment on that value),
+    // which resolveAvailability maps to the collection-level
+    // RUNTIME_UNVERIFIED status — never a false "search: available".
+    assert.match(result, /, search: model cached, runtime not verified/);
+    assert.doesNotMatch(result, /search: available/);
+  });
+
+  it('reports Qdrant unreachable via the SAME adapter method, distinguishing it from an auth failure', async () => {
+    setStorageAdapter(fakeAdapter({
+      listCollectionsResult: [{ name: 'c1', pointCount: 5, provider: { denseProvider: 'qdrant-cloud', denseModel: 'intfloat/multilingual-e5-small', sparseProvider: 'qdrant-cloud' }, description: null }],
+      getEmbeddingProfileResult: { state: 'valid', profile: qdrantCloudProfile },
+      checkCloudInferenceReachable: async () => ({ status: 'unreachable', message: 'ECONNREFUSED' }),
+    }));
+    const result = await handle();
+    assert.match(result, /search: unavailable \(ECONNREFUSED\)/);
+  });
+
+  it('reports an auth failure distinctly from unreachable', async () => {
+    setStorageAdapter(fakeAdapter({
+      listCollectionsResult: [{ name: 'c1', pointCount: 5, provider: { denseProvider: 'qdrant-cloud', denseModel: 'intfloat/multilingual-e5-small', sparseProvider: 'qdrant-cloud' }, description: null }],
+      getEmbeddingProfileResult: { state: 'valid', profile: qdrantCloudProfile },
+      checkCloudInferenceReachable: async () => ({ status: 'auth_failed', message: 'invalid api key' }),
+    }));
+    const result = await handle();
+    assert.match(result, /search: unavailable \(invalid api key\)/);
   });
 });

@@ -9,6 +9,7 @@ import { createApp } from '../../../src/admin/server-full.js';
 import { createAskCoordinatorBundle } from '../../../src/core/ask/coordinator-v2.js';
 import { API_VERSION, ASK_PATH } from '../../../src/core/ask-api/v2/contract.js';
 import { PROTOCOL_MAX_MESSAGE_CHARS } from '../../../src/core/ask-api/v2/request.js';
+import { OPEN_INTEGRATION_POLICY } from '../security/test-integration-policy.js';
 
 const HIT = {
   sourceFile: 'docs/en/configuration.md',
@@ -85,7 +86,7 @@ async function withServer({ adapter = makeStubAdapter(), embedQuery = embedQuery
   const { v1, v2, gate } = createAskCoordinatorBundle({
     adapter, embedQuery, countTokens: countTokensStub, generationProvider, settingsService: undefined, cloudEmbed: undefined,
   });
-  const app = createApp({ adapter, embedQuery, askCoordinators: { v1, v2, gate } });
+  const app = createApp({ adapter, embedQuery, askCoordinators: { v1, v2, gate }, integrationPolicy: OPEN_INTEGRATION_POLICY });
   await new Promise((resolve) => app.listen(0, '127.0.0.1', resolve));
   const base = `http://127.0.0.1:${app.address().port}`;
   try {

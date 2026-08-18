@@ -33,7 +33,41 @@ export function resolveSemidexHomePaths({ env = process.env, platform = process.
   return {
     semidexHome,
     runtimesDir: join(semidexHome, 'runtimes'),
+    // Integration API bearer keys. A DEDICATED file, never settings.json:
+    // settings.json is served to the browser through GET /api/settings, so
+    // key material must not live there. Same filename Lite uses, under
+    // Full's own separate application home.
+    keyStorePath: join(semidexHome, 'integration-keys.json'),
   };
+}
+
+/**
+ * Sets process.env.SEMIDEX_HOME to the resolved Full application-data home,
+ * IN PLACE, but only when it is not already set — an explicit SEMIDEX_HOME
+ * (real OS env or .env) always wins. Must run before anything else in the
+ * process resolves a SEMIDEX_HOME-derived path — concretely,
+ * src/admin/bootstrap.js calls this before createApp(), whose default
+ * resolveIntegrationPolicy() (src/core/auth/resolve-policy.js) only ever
+ * consults process.env.SEMIDEX_HOME and otherwise falls back to
+ * process.cwd(). Without this call, a real `npm run admin` process never
+ * had SEMIDEX_HOME set, so the running server looked for
+ * integration-keys.json in cwd while `npm run key --` (src/key.js) always
+ * resolves the real per-OS app-data path via resolveSemidexHomePaths() —
+ * every key the CLI created silently failed to authenticate against the
+ * server it was meant for.
+ *
+ * Mirrors Lite's own applySemidexHomeEnv() (packages/lite/lite-src/
+ * semidex-home.js) — Full derives far less from its home today (no
+ * config.json/settings.json path; see this file's own header comment), so
+ * this only ever sets the one variable, not three.
+ * @param {{ env?: NodeJS.ProcessEnv, platform?: string }} [opts]
+ * @returns {string} the resolved (or already-set) SEMIDEX_HOME
+ */
+export function applySemidexHomeEnv({ env = process.env, platform = process.platform } = {}) {
+  if (!env.SEMIDEX_HOME) {
+    env.SEMIDEX_HOME = resolveSemidexHomePaths({ env, platform }).semidexHome;
+  }
+  return env.SEMIDEX_HOME;
 }
 
 /**

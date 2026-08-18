@@ -431,6 +431,134 @@ npx semidex-lite index ./docs
 Параметрів `--onnx-embed`, `--llm-summaries` і `--tag-gen` немає: це локальні
 можливості, які не входять до цього пакета.
 
+### `key`
+
+Керує ключами **Integration API** — bearer-токенами, якими ваш backend
+викликає Ask. Повна модель — у розділі
+[Автентифікація Integration API](#автентифікація-integration-api) нижче.
+
+```bash
+npx semidex-lite key add --name assistant-backend --collection my-docs
+npx semidex-lite key list
+npx semidex-lite key revoke <id>
+```
+
+`key add` показує сирий токен **один раз** — він ніколи не зберігається
+(зберігається лише SHA-256 digest) і повторно показаний бути не може.
+`key list` показує лише публічні метадані, ніколи токен чи digest.
+`key revoke` діє негайно, без перезапуску.
+
+## Автентифікація Integration API
+
+> [!IMPORTANT]
+> **Примітка про міграцію для наявних користувачів Ask API.** Ask тепер
+> потребує bearer-токена. Доки ви не створите перший ключ,
+> `POST /api/v1/ask` і `POST /api/v2/ask` повертають
+> **`503 integration_auth_not_configured`**. Створіть ключ командою
+> `semidex-lite key add …` і надсилайте його як
+> `Authorization: Bearer <token>`. Більше нічого не змінюється: адмін-панель,
+> налаштування, індексація та перегляд колекцій працюють як раніше, без
+> жодних облікових даних.
+
+### Admin API проти Integration API
+
+semidex-lite обслуговує дві різні поверхні з навмисно різними правилами:
+
+| | Admin API | Integration API |
+|---|---|---|
+| Маршрути | Панель, налаштування, завдання індексації, колекції, проби, `/api/search` | `POST /api/v1/ask`, `POST /api/v2/ask` |
+| Хто викликає | Ви, з браузера на цій машині | Ваш backend, server-to-server |
+| Обліковий запис | **Немає** — захист через loopback-прив'язку | **Bearer-ключ, обов'язково** |
+| Відкритість | Ніколи не відкривати поза loopback | Доступний через ваш backend |
+
+Admin-маршрути *ніколи* не блокуються integration-ключем: відсутній або
+пошкоджений key store вимикає Ask, а не вашу панель.
+
+### Створення ключа
+
+```bash
+npx semidex-lite key add --name assistant-backend \
+  --collection my-docs \
+  --collection support-docs \
+  --expires 90d
+```
+
+Параметри:
+
+- `--name` — мітка, обов'язково.
+- `--collection` — можна повторювати, **обов'язково**. Ключ без жодної
+  колекції відхиляється: порожня область дії ніколи не повинна тихо означати
+  необмежений доступ. Щоб явно надати всі колекції, вкажіть
+  `--collection "*"`.
+- `--operation` — за замовчуванням `generate` (те, що потрібно Ask).
+- `--expires` — ISO-дата (`2027-01-01`) або тривалість (`90d`, `12h`).
+  Пропустіть, щоб ключ не мав терміну дії.
+
+Токен друкується один раз. Зберігайте його в секрет-менеджері вашого backend —
+ніколи у браузерному JavaScript, `localStorage`, URL чи системі контролю
+версій.
+
+### Надсилання токена
+
+```bash
+curl -N -X POST "http://127.0.0.1:8642/api/v1/ask" \
+  -H "Authorization: Bearer $SEMIDEX_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"collection":"my-docs","question":"Які умови повернення товару?"}'
+```
+
+```js
+const response = await fetch('http://127.0.0.1:8642/api/v1/ask', {
+  method: 'POST',
+  headers: {
+    // Читайте з власного сховища секретів — ніколи не вписуйте токен у код.
+    Authorization: `Bearer ${process.env.SEMIDEX_TOKEN}`,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({ collection, question: userMessage }),
+});
+```
+
+Токен приймається **лише** у заголовку `Authorization`. Він ігнорується в
+query-рядку, cookie та тілі запиту, бо ці місця логуються, кешуються й
+поширюються так, як для облікових даних неприпустимо.
+
+### Обмеження ключа колекціями
+
+Ключ має доступ лише до тих колекцій, з якими його створено. Збіг точний:
+`--collection docs` дає доступ до `docs`, але не до `docs-a`. Колекція поза
+областю дії та колекція, якої не існує, повертають *однаковий* `403`, тож
+викликач не може дізнатися, які колекції у вас є.
+
+Саме цей механізм слід використовувати, коли один інстанс semidex-lite
+обслуговує кількох асистентів: дайте кожному backend власний ключ із власними
+колекціями.
+
+### Коди відповідей
+
+| Статус | Код | Значення |
+|---|---|---|
+| `503` | `integration_auth_not_configured` | Ключів не налаштовано (або key store нечитабельний). Створіть ключ. |
+| `401` | `unauthorized` | Відсутній, некоректний, невідомий, хибний, відкликаний або прострочений токен. Навмисно нерозрізнювані — щоб не можна було перебирати ключі. |
+| `403` | `forbidden` | Автентифіковано, але цей ключ не має доступу до цієї колекції чи операції. |
+| `200` | — | Авторизовано; починається SSE-потік. |
+
+`401` або `403` визначаються до будь-якого запиту в Qdrant, будь-якого
+обчислення ембедингів і будь-якого виклику Gemini — відхилений запит нічого
+вам не коштує.
+
+### Чим semidex-lite і далі не володіє
+
+Автентифікація не змінює власності над розмовою: **ваш застосунок і далі
+володіє історією чату та зберігає її**. semidex-lite не зберігає розмови для
+жодного з endpoint'ів — див.
+[Інтеграція backend: багатоходовий Ask](#інтеграція-backend-багатоходовий-ask-apiv2ask).
+Ключ ідентифікує *backend, що викликає*, а не кінцевого користувача;
+зіставлення користувачів із правами лишається завданням вашого backend.
+
+Ще не реалізовано: rate limiting, віддалена автентифікація Admin API та
+керування ключами з панелі.
+
 ## Ask: відповіді на основі вашої бази знань
 
 Ask дає змогу поставити запитання до однієї проіндексованої колекції та отримати
@@ -493,7 +621,12 @@ if (!collection) throw new Error('Unknown assistant');
 
 const response = await fetch('http://127.0.0.1:8642/api/v1/ask', {
   method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
+  headers: {
+    // Зчитуйте зі свого сховища секретів — ніколи не вписуйте токен у код.
+    // Див. розділ "Автентифікація Integration API" вище.
+    Authorization: `Bearer ${process.env.SEMIDEX_TOKEN}`,
+    'Content-Type': 'application/json',
+  },
   body: JSON.stringify({ collection, question: userMessage }),
 });
 ```
@@ -506,6 +639,7 @@ const response = await fetch('http://127.0.0.1:8642/api/v1/ask', {
 
 ```powershell
 curl.exe -N -X POST "http://127.0.0.1:8642/api/v1/ask" `
+  -H "Authorization: Bearer $env:SEMIDEX_TOKEN" `
   -H "Content-Type: application/json" `
   -d '{"collection":"my-docs","question":"Які основні вимоги описані в документації?"}'
 ```
@@ -535,8 +669,9 @@ curl.exe -N -X POST "http://127.0.0.1:8642/api/v1/ask" `
 - `error` — структурована помилка.
 
 Ask API v1 є stateless: кожен запит незалежний, `sessionId`, історія діалогу й
-довгострокова пам'ять поки не підтримуються. Endpoint також не має публічної
-автентифікації та захисту від зловживань. Не відкривайте порт адмін-сервера
+довгострокова пам'ять поки не підтримуються. Він вимагає bearer-токен (див.
+[Автентифікація Integration API](#автентифікація-integration-api) вище), але
+поки що не має обмеження частоти запитів. Не відкривайте порт адмін-сервера
 безпосередньо в інтернет; для зовнішньої інтеграції розміщуйте перед ним власний
 автентифікований backend або reverse proxy з відповідними обмеженнями.
 
@@ -717,7 +852,8 @@ chunk'ами, і повертає простий об'єкт результат�
 
 ```bash
 QDRANT_URL=... QDRANT_KEY=... GEMINI_API_KEY=... npx semidex-lite serve &
-node examples/run-conversation-demo.mjs my-docs "Скільки часу є на повернення товару?" "А які винятки?"
+npx semidex-lite key add --name demo --collection my-docs   # скопіюйте виведений токен
+SEMIDEX_TOKEN=<token> node examples/run-conversation-demo.mjs my-docs "Скільки часу є на повернення товару?" "А які винятки?"
 ```
 
 Якщо ви встановили `semidex-lite` як залежність власного проєкту
@@ -726,7 +862,8 @@ node examples/run-conversation-demo.mjs my-docs "Скільки часу є на
 
 ```bash
 QDRANT_URL=... QDRANT_KEY=... GEMINI_API_KEY=... npx semidex-lite serve &
-node node_modules/semidex-lite/examples/run-conversation-demo.mjs my-docs "Скільки часу є на повернення товару?" "А які винятки?"
+npx semidex-lite key add --name demo --collection my-docs   # скопіюйте виведений токен
+SEMIDEX_TOKEN=<token> node node_modules/semidex-lite/examples/run-conversation-demo.mjs my-docs "Скільки часу є на повернення товару?" "А які винятки?"
 ```
 
 Окремої підкоманди `semidex-lite` CLI для цього демо немає — це вихідний
@@ -741,7 +878,8 @@ node node_modules/semidex-lite/examples/run-conversation-demo.mjs my-docs "Ск�
 // реалізації цієї форми.
 const conversation = await chatStore.loadConversation(conversationId, userId);
 const collection = assistantRegistry.resolveAllowedCollection(assistantId); // ніколи не довіряйте назві колекції з браузера
-const result = await askV2({ baseUrl, collection, question: userMessage, conversation });
+const token = await secrets.getIntegrationApiToken(); // власне сховище секретів — ніколи не вписуйте в код і не логуйте
+const result = await askV2({ baseUrl, collection, question: userMessage, conversation, token });
 await chatStore.commitTurn({
   conversationId, ownerId: userId, expectedVersion: conversation.version,
   messages: [{ role: 'user', content: userMessage }, { role: 'assistant', content: result.answer }],

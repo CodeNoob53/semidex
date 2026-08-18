@@ -40,6 +40,7 @@ import { registerNeutralRoutes } from '../../../src/shared/admin/register-neutra
 import { createApp } from '../../../src/admin/server-full.js';
 import { createLiteApp } from '../../../src/admin/composition/lite.js';
 import { makeStubAdapter } from './ui-test-helpers.js';
+import { OPEN_INTEGRATION_POLICY } from '../security/test-integration-policy.js';
 
 const NEUTRAL_ROUTES_FILE = 'src/shared/admin/register-neutral-routes.js';
 
@@ -256,7 +257,7 @@ describe('registerNeutralRoutes() — call-shape determinism (NOT a composition-
   });
 
   it('createApp() actually starts and responds on GET /api/health — end-to-end proof the real composition still works after the extraction', async () => {
-    const app = createApp({ adapter: makeStubAdapter(), embedQuery: async () => ({ dense: [], sparse: {} }) });
+    const app = createApp({ adapter: makeStubAdapter(), embedQuery: async () => ({ dense: [], sparse: {} }), integrationPolicy: OPEN_INTEGRATION_POLICY });
     await new Promise((resolve) => app.listen(0, '127.0.0.1', resolve));
     try {
       const base = `http://127.0.0.1:${app.address().port}`;
@@ -268,7 +269,7 @@ describe('registerNeutralRoutes() — call-shape determinism (NOT a composition-
   });
 
   it('createLiteApp() actually starts and responds on GET /api/health — end-to-end proof the real composition still works after the extraction', async () => {
-    const app = createLiteApp({ adapter: makeStubAdapter(), embedQuery: async () => ({ dense: [], sparse: {} }) });
+    const app = createLiteApp({ adapter: makeStubAdapter(), embedQuery: async () => ({ dense: [], sparse: {} }), integrationPolicy: OPEN_INTEGRATION_POLICY });
     await new Promise((resolve) => app.listen(0, '127.0.0.1', resolve));
     try {
       const base = `http://127.0.0.1:${app.address().port}`;
@@ -280,7 +281,7 @@ describe('registerNeutralRoutes() — call-shape determinism (NOT a composition-
   });
 
   it('createLiteApp() never registers the local-only routes createApp() does (onnx-probe, ollama-status) — both return 404', async () => {
-    const app = createLiteApp({ adapter: makeStubAdapter(), embedQuery: async () => ({ dense: [], sparse: {} }) });
+    const app = createLiteApp({ adapter: makeStubAdapter(), embedQuery: async () => ({ dense: [], sparse: {} }), integrationPolicy: OPEN_INTEGRATION_POLICY });
     await new Promise((resolve) => app.listen(0, '127.0.0.1', resolve));
     try {
       const base = `http://127.0.0.1:${app.address().port}`;
@@ -304,8 +305,8 @@ describe('registerNeutralRoutes() — call-shape determinism (NOT a composition-
     // lite-app.test.js; re-deriving fixtures for all of them here would
     // duplicate that coverage rather than add a new guarantee).
     const NEUTRAL_GET_ROUTES = ['/api/health', '/api/settings', '/api/generation/status', '/api/operations'];
-    const fullApp = createApp({ adapter: makeStubAdapter(), embedQuery: async () => ({ dense: [], sparse: {} }) });
-    const liteApp = createLiteApp({ adapter: makeStubAdapter(), embedQuery: async () => ({ dense: [], sparse: {} }) });
+    const fullApp = createApp({ adapter: makeStubAdapter(), embedQuery: async () => ({ dense: [], sparse: {} }), integrationPolicy: OPEN_INTEGRATION_POLICY });
+    const liteApp = createLiteApp({ adapter: makeStubAdapter(), embedQuery: async () => ({ dense: [], sparse: {} }), integrationPolicy: OPEN_INTEGRATION_POLICY });
     await Promise.all([
       new Promise((resolve) => fullApp.listen(0, '127.0.0.1', resolve)),
       new Promise((resolve) => liteApp.listen(0, '127.0.0.1', resolve)),

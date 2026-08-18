@@ -6,6 +6,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { createApp } from '../../../src/admin/server-full.js';
 import { createGenerationRuntime } from '../../../src/core/generation/runtime.js';
+import { OPEN_INTEGRATION_POLICY } from '../security/test-integration-policy.js';
 
 const VALID_PROFILE = {
   schemaVersion: 1, managedBy: 'semidex',
@@ -54,7 +55,7 @@ const countTokensStub = (text) => (text ?? '').split(/\s+/).filter(Boolean).leng
 async function embedQueryStub() { return { dense: [0.1, 0.2], sparse: { indices: [1], values: [0.5] } }; }
 
 async function withServer({ adapter = makeStubAdapter(), generationRuntime, countTokens = countTokensStub, embedQuery = embedQueryStub } = {}, fn) {
-  const app = createApp({ adapter, generationRuntime, countTokens, embedQuery });
+  const app = createApp({ adapter, generationRuntime, countTokens, embedQuery, integrationPolicy: OPEN_INTEGRATION_POLICY });
   await new Promise((resolve) => app.listen(0, '127.0.0.1', resolve));
   const base = `http://127.0.0.1:${app.address().port}`;
   try {

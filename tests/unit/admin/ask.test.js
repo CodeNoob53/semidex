@@ -12,6 +12,7 @@ import { createApp } from '../../../src/admin/server-full.js';
 import { createAskCoordinator } from '../../../src/core/ask/coordinator.js';
 import { REFUSAL_SENTINEL } from '../../../src/core/ask/prompt.js';
 import { API_VERSION, ASK_PATH } from '../../../src/core/ask-api/v1/contract.js';
+import { OPEN_INTEGRATION_POLICY } from '../security/test-integration-policy.js';
 
 const HIT = {
   sourceFile: 'docs/en/configuration.md',
@@ -78,7 +79,7 @@ function makeStubProvider(overrides = {}) {
 
 async function withServer({ adapter = makeStubAdapter(), embedQuery = embedQueryStub, generationProvider = makeStubProvider(), askCoordinator: askCoordinatorOverride } = {}, fn) {
   const askCoordinator = askCoordinatorOverride ?? createAskCoordinator({ adapter, embedQuery, countTokens: countTokensStub, generationProvider });
-  const app = createApp({ adapter, embedQuery, askCoordinator });
+  const app = createApp({ adapter, embedQuery, askCoordinator, integrationPolicy: OPEN_INTEGRATION_POLICY });
   await new Promise((resolve) => app.listen(0, '127.0.0.1', resolve));
   const base = `http://127.0.0.1:${app.address().port}`;
   try {

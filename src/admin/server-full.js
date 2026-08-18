@@ -26,6 +26,7 @@ import { checkOllama } from '../local/admin/system/ollama.js';
 import { createSettingsService } from '../core/settings/service.js';
 import { registerNeutralRoutes, createHttpServer } from '../shared/admin/register-neutral-routes.js';
 import { resolveRequestSecurityPolicy } from '../shared/admin/server.js';
+import { resolveIntegrationPolicy } from '../core/auth/resolve-policy.js';
 import { embedForSearch } from '../shared/core/embeddings.js';
 import { createJobRegistry } from '../shared/admin/jobs/registry.js';
 import { spawnIndexer as spawnFullIndexer } from './jobs/spawn-indexer-full.js';
@@ -157,7 +158,14 @@ export function createApp({
   // the one helper rather than constructing their own.
   const resolvedSecurityPolicy = securityPolicy
     ?? resolveRequestSecurityPolicy(process.env, { settingsService: settings });
-  const router = createRouter({ securityPolicy: resolvedSecurityPolicy, integrationPolicy });
+  // integrationPolicy defaults to the real key-store-backed policy so a
+  // production server authenticates the Integration API without extra
+  // wiring. Tests inject their own. With no key store on disk the policy
+  // still constructs fine and reports 503 for Ask — the fail-closed default.
+  const router = createRouter({
+    securityPolicy: resolvedSecurityPolicy,
+    integrationPolicy: integrationPolicy ?? resolveIntegrationPolicy(),
+  });
   // discoverOllamaModelsFn is optional DI (tests inject a stub so unit
   // tests never probe a real Ollama instance) — same convention as
   // checkOllamaFn below. Full-only: this module is the one place that

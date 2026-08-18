@@ -105,7 +105,19 @@ function availabilitySuffix(availability) {
 
 export async function handle() {
   const adapter = getStorageAdapter();
-  const availabilityChecks = availabilityChecksOverride ?? { checkOllamaLane, checkOnnxModelCached };
+  // checkQdrantReachable: adapter.checkCloudInferenceReachable() is a
+  // required, provider-neutral StorageAdapter method (src/core/storage/
+  // adapter.js) — unlike checkOllamaLane/checkOnnxModelCached, it needs no
+  // admin-specific DI, since the adapter this file already constructs above
+  // is exactly what resolveLaneAvailability()'s qdrant-cloud branch needs.
+  // Without this, resolveLaneAvailability() throws
+  // "checkQdrantReachable is required for a qdrant-cloud lane" for any
+  // qdrant-cloud-backed collection — uncaught here (unlike
+  // qdrant-adapter.js's own getCollection(), which wraps the equivalent
+  // call in a try/catch) — which took down qdrant_collection_info entirely
+  // for a lane that qdrant_search itself never needed this check for.
+  const availabilityChecks = availabilityChecksOverride
+    ?? { checkOllamaLane, checkOnnxModelCached, checkQdrantReachable: () => adapter.checkCloudInferenceReachable() };
   const collections = await adapter.listCollections();
   const lines = await Promise.all(collections.map(async (col) => {
     const resolution = await resolveExistingCollectionProfile(adapter, col.name);

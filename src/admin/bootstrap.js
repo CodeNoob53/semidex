@@ -13,6 +13,7 @@ import { bootstrapEnv } from '../shared/core/env-bootstrap.js';
 import { createSettingsService, applyEnvWriteBack } from '../core/settings/service.js';
 import { resolveOnnxRuntimeForProcess } from '../local/core/onnx-runtime-source-resolution.js';
 import { createOnnxRuntimeUnavailableCapability } from '../local/core/onnx-runtime-unavailable-capability.js';
+import { applySemidexHomeEnv } from '../local/core/semidex-home.js';
 
 export { snapshotOsEnv, loadDotenvValues, applyDotenvValues, bootstrapEnv } from '../shared/core/env-bootstrap.js';
 
@@ -24,6 +25,16 @@ const isMainModule = process.argv[1] && import.meta.url === pathToFileURL(proces
 // after this bootstrap already owns the OS-env/dotenv snapshots.
 if (isMainModule) {
   const { osEnv, dotenvValues } = bootstrapEnv();
+
+  // Establish ONE canonical Full application-data home before anything else
+  // in this process resolves a SEMIDEX_HOME-derived path — in particular
+  // createApp()'s default resolveIntegrationPolicy(), which reads
+  // process.env.SEMIDEX_HOME. See applySemidexHomeEnv()'s own header
+  // comment (src/local/core/semidex-home.js) for the CLI/server divergence
+  // this closes. Mirrors Lite's own serve-lite.js -> applySemidexHomeEnv()
+  // ordering contract.
+  applySemidexHomeEnv({ env: process.env });
+
   const settingsService = createSettingsService({ osEnv, dotenvValues });
 
   // jobBaseEnv is the REAL OS-env snapshot only — osEnv, captured by

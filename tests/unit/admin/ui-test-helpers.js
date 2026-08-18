@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 import { parseHTML, HTMLElement, HTMLInputElement, Event } from 'linkedom';
 import { createApp } from '../../../src/admin/server-full.js';
+import { OPEN_INTEGRATION_POLICY } from '../security/test-integration-policy.js';
 import { createJobRegistry } from '../../../src/shared/admin/jobs/registry.js';
 
 // Keep the shared helper free of the heavy unified/remark/highlight graph.
@@ -656,7 +657,16 @@ export function makeStubAdapter() {
 }
 
 export async function withServer(fn, extraOptions = {}) {
-  const app = createApp({ adapter: makeStubAdapter(), embedQuery: async () => ({ dense: [], sparse: {} }), ...extraOptions });
+  // Integration API auth is ON by default in the composition roots, so a test
+  // server that is not ABOUT authentication opts out with the shared open
+  // policy. A test that passes its own integrationPolicy still wins via the
+  // spread below.
+  const app = createApp({
+    adapter: makeStubAdapter(),
+    embedQuery: async () => ({ dense: [], sparse: {} }),
+    integrationPolicy: OPEN_INTEGRATION_POLICY,
+    ...extraOptions,
+  });
   await new Promise((resolve) => app.listen(0, '127.0.0.1', resolve));
   const base = `http://127.0.0.1:${app.address().port}`;
   try {

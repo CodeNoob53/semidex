@@ -22,7 +22,10 @@
 //   this call forever.
 // - Never logs API keys, headers, or the full process environment — the
 //   only thing this module ever reads from the environment is nothing at
-//   all; the caller supplies `baseUrl` explicitly.
+//   all; the caller supplies `baseUrl` (and, since Integration API auth
+//   became mandatory, `token`) explicitly. `token` is used exactly once, to
+//   build the `Authorization` header on the outgoing request, and is never
+//   written to a log, an error message, or the returned result object.
 
 /**
  * @typedef {{ event: string, data: any }} SseEvent
@@ -126,6 +129,7 @@ function parseFrame(rawFrame) {
  *   collection: string,
  *   question: string,
  *   conversation?: { id: string, summary?: string, recentMessages?: Array<{role:'user'|'assistant', content:string}> },
+ *   token?: string,                 // Integration API bearer token (`sdx_v1_...`, from `semidex-lite key add`) -- REQUIRED since Ask now returns 503/401 without one; sent as `Authorization: Bearer <token>`, never logged, never put in the returned result
  *   timeoutMs?: number,             // overall wall-clock bound, default 60_000
  *   signal?: AbortSignal,           // caller's own abort signal, composed with the internal timeout
  * }} args
@@ -148,7 +152,7 @@ function parseFrame(rawFrame) {
  *   own `ok`/`error` fields, so a caller never needs a try/catch around
  *   this call to handle an ordinary failure.
  */
-export async function askV2({ baseUrl, collection, question, conversation, timeoutMs = 60_000, signal: callerSignal }) {
+export async function askV2({ baseUrl, collection, question, conversation, token, timeoutMs = 60_000, signal: callerSignal }) {
   const internalController = new AbortController();
   const timer = setTimeout(() => internalController.abort(), timeoutMs);
   const onCallerAbort = () => internalController.abort();
@@ -162,7 +166,14 @@ export async function askV2({ baseUrl, collection, question, conversation, timeo
   try {
     const response = await fetch(`${baseUrl}/api/v2/ask`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        // Integration API auth is mandatory (see this file's own header
+        // comment) -- omitted only when the caller genuinely has no token,
+        // in which case the server's own 503/401 explains why, rather than
+        // this client guessing or fabricating one.
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
       body: JSON.stringify({
         collection, question,
         ...(conversation ? { conversation } : {}),

@@ -10,10 +10,16 @@
 // (context_budget_exceeded).
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { createApp } from '../../src/admin/server-full.js';
 import { createAskCoordinatorBundle } from '../../src/core/ask/coordinator-v2.js';
 import { askV2 } from '../../packages/lite/examples/ask-v2-sse-client.mjs';
 import { createConversationManager } from '../../packages/lite/examples/conversation-manager.mjs';
+import { OPEN_INTEGRATION_POLICY } from '../unit/security/test-integration-policy.js';
+import { createKeyStore } from '../../src/core/auth/key-store.js';
+import { createIntegrationPolicy } from '../../src/core/auth/integration-policy.js';
 
 const HIT = {
   sourceFile: 'docs/en/configuration.md', chunkIndex: 4, section: 'Qdrant',
@@ -65,11 +71,14 @@ function makeStubProvider(overrides = {}) {
   };
 }
 
-async function withServer({ adapter = makeStubAdapter(), embedQuery = embedQueryStub, generationProvider = makeStubProvider() } = {}, fn) {
+async function withServer({
+  adapter = makeStubAdapter(), embedQuery = embedQueryStub, generationProvider = makeStubProvider(),
+  integrationPolicy = OPEN_INTEGRATION_POLICY,
+} = {}, fn) {
   const { v1, v2, gate } = createAskCoordinatorBundle({
     adapter, embedQuery, countTokens: countTokensStub, generationProvider, settingsService: undefined, cloudEmbed: undefined,
   });
-  const app = createApp({ adapter, embedQuery, askCoordinators: { v1, v2, gate } });
+  const app = createApp({ adapter, embedQuery, askCoordinators: { v1, v2, gate }, integrationPolicy });
   await new Promise((resolve) => app.listen(0, '127.0.0.1', resolve));
   const base = `http://127.0.0.1:${app.address().port}`;
   try {
@@ -321,5 +330,74 @@ describe('Ask v2 integration — real askV2 client against a real server', () =>
       }
       assert.equal(followUp.ok, true, `expected the gate to be released and the follow-up to succeed, got error: ${JSON.stringify(followUp.error)}`);
     });
+  });
+});
+
+describe('Ask v2 integration — the shipped client against a REAL, mandatory-auth-enforcing server', () => {
+  // Every test above opts OUT of authentication (OPEN_INTEGRATION_POLICY) to
+  // isolate conversation-flow behavior from auth. This block proves the
+  // OTHER half: the shipped ask-v2-sse-client.mjs/conversation-manager.mjs
+  // pair (and, by construction, run-conversation-demo.mjs, which is a thin
+  // wrapper over the same two files) actually works end to end against a
+  // real key-store-backed policy — the exact configuration `npm run admin`
+  // uses in production, where Ask now requires a bearer token.
+  let dir;
+  let keyPath;
+
+  const setup = () => { dir = mkdtempSync(join(tmpdir(), 'semidex-ask-v2-auth-')); keyPath = join(dir, 'integration-keys.json'); };
+  const teardown = () => rmSync(dir, { recursive: true, force: true });
+
+  it('a real token minted via createKeyStore authenticates the shipped client end to end', async () => {
+    setup();
+    try {
+      const keyStore = createKeyStore({ path: keyPath });
+      const { token } = keyStore.createKey({ name: 'demo', collections: ['demo'] });
+      const integrationPolicy = createIntegrationPolicy({ keyStore, logger: { warn: () => {}, error: () => {} } });
+      await withServer({ integrationPolicy }, async (base) => {
+        const result = await askV2({ baseUrl: base, collection: 'demo', question: 'What is the value?', token });
+        assert.equal(result.ok, true);
+        assert.equal(result.answer, 'The value is 42 [1].');
+      });
+    } finally {
+      teardown();
+    }
+  });
+
+  it('the shipped conversation manager (what run-conversation-demo.mjs drives) works multi-turn with a real token', async () => {
+    setup();
+    try {
+      const keyStore = createKeyStore({ path: keyPath });
+      const { token } = keyStore.createKey({ name: 'demo', collections: ['demo'] });
+      const integrationPolicy = createIntegrationPolicy({ keyStore, logger: { warn: () => {}, error: () => {} } });
+      await withServer({ integrationPolicy }, async (base) => {
+        const manager = createConversationManager();
+        const turn1 = await manager.ask({ baseUrl: base, collection: 'demo', question: 'Question one', token });
+        assert.equal(turn1.ok, true);
+        const turn2 = await manager.ask({ baseUrl: base, collection: 'demo', conversationId: turn1.conversationId, question: 'Question two', token });
+        assert.equal(turn2.ok, true);
+        assert.equal(turn2.conversationId, turn1.conversationId);
+      });
+    } finally {
+      teardown();
+    }
+  });
+
+  it('without a token, the shipped client observes the real 503/401 the server actually returns — never a silent/incorrect success', async () => {
+    setup();
+    try {
+      const keyStore = createKeyStore({ path: keyPath });
+      const integrationPolicy = createIntegrationPolicy({ keyStore, logger: { warn: () => {}, error: () => {} } });
+      await withServer({ integrationPolicy }, async (base) => {
+        const noKeysYet = await askV2({ baseUrl: base, collection: 'demo', question: 'q' });
+        assert.equal(noKeysYet.httpStatus, 503);
+        assert.equal(noKeysYet.error.code, 'integration_auth_not_configured');
+
+        keyStore.createKey({ name: 'demo', collections: ['demo'] });
+        const missingToken = await askV2({ baseUrl: base, collection: 'demo', question: 'q' });
+        assert.equal(missingToken.httpStatus, 401);
+      });
+    } finally {
+      teardown();
+    }
   });
 });

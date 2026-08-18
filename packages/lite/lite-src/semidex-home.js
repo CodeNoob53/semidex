@@ -38,6 +38,10 @@ export function resolveSemidexHomePaths({ env = process.env, platform = process.
     semidexHome,
     configPath: join(semidexHome, 'config.json'),
     settingsPath: join(semidexHome, 'settings.json'),
+    // Integration API bearer keys. A DEDICATED file, never settings.json:
+    // settings.json is served to the browser through GET /api/settings, so
+    // key material must not live there.
+    keyStorePath: join(semidexHome, 'integration-keys.json'),
     tokenizerCacheDir: join(semidexHome, 'cache', 'tokenizers'),
   };
 }

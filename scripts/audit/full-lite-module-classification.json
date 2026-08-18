@@ -12,9 +12,9 @@
   "counts": {
     "composition": 12,
     "mixed": 3,
-    "tooling": 61,
+    "tooling": 62,
     "cloud": 8,
-    "shared": 159,
+    "shared": 163,
     "local": 28
   },
   "modules": [
@@ -35,6 +35,7 @@
         "src/local/core/ollama-capability.js",
         "src/local/core/onnx-runtime-source-resolution.js",
         "src/local/core/onnx-runtime-unavailable-capability.js",
+        "src/local/core/semidex-home.js",
         "src/shared/admin/server.js",
         "src/shared/core/env-bootstrap.js"
       ]
@@ -51,6 +52,7 @@
         "src/cloud/admin/qdrant-cloud-api.js",
         "src/cloud/embedding/cloud-embedding-provider.js",
         "src/cloud/generation/cloud-generation-provider.js",
+        "src/core/auth/resolve-policy.js",
         "src/core/generation/ollama-capability.js",
         "src/core/generation/registry.js",
         "src/core/generation/runtime.js",
@@ -100,6 +102,7 @@
         "src/cloud/admin/qdrant-cloud-api.js",
         "src/cloud/embedding/cloud-embedding-provider.js",
         "src/cloud/generation/cloud-generation-provider.js",
+        "src/core/auth/resolve-policy.js",
         "src/core/generation/registry.js",
         "src/core/generation/runtime.js",
         "src/core/settings/service.js",
@@ -523,6 +526,49 @@
       "liteReachable": true,
       "directDependencies": [
         "src/core/assembly/cursor.js"
+      ]
+    },
+    {
+      "path": "src/core/auth/integration-policy.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/auth/key-store.js"
+      ]
+    },
+    {
+      "path": "src/core/auth/key-cli.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": false,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/core/auth/key-store.js"
+      ]
+    },
+    {
+      "path": "src/core/auth/key-store.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/core/auth/resolve-policy.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/auth/integration-policy.js",
+        "src/core/auth/key-store.js"
       ]
     },
     {
@@ -1043,6 +1089,18 @@
       "liteReachable": false,
       "directDependencies": [
         "src/indexer/index-full.js"
+      ]
+    },
+    {
+      "path": "src/key.js",
+      "declaredCategory": "tooling",
+      "category": "tooling",
+      "compositionEdition": null,
+      "fullReachable": false,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/core/auth/key-cli.js",
+        "src/local/core/semidex-home.js"
       ]
     },
     {

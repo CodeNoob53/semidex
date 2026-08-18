@@ -1017,6 +1017,41 @@ must fully mediate access to every route, not just the ones that look
 dangerous. This should land before any change described in §10 ships, not
 after — operators deploying today deserve the accurate picture now.
 
+## 12e. Integration API authentication — IMPLEMENTED (2026-08-18)
+
+Closes **P1-2** (no collection scoping) for the Integration surface, and
+closes the "no authentication anywhere" half of **P1-1** for Ask.
+
+- **Bearer keys.** `Authorization: Bearer sdx_v1_<keyId>_<secret>` (RFC 6750).
+  256-bit secret; only a SHA-256 digest is persisted; the raw token is shown
+  once at creation. Never accepted from a query string, cookie, or body.
+- **Key store.** A dedicated versioned file under `SEMIDEX_HOME`
+  (`integration-keys.json`), never `settings.json` — which is served to the
+  browser through `GET /api/settings`. Atomic temp-file+rename writes, 0600
+  attempted. A corrupt, unreadable or unknown-schema store **fails closed**
+  and is never read as "empty".
+- **Fail-closed default.** With no keys configured, Ask returns
+  `503 integration_auth_not_configured`. Every credential failure — missing,
+  malformed, unknown keyId, wrong secret, revoked, expired — returns a
+  byte-identical `401`, and an unknown keyId still performs a dummy
+  constant-time comparison, so key ids cannot be enumerated.
+- **Scopes.** Per-key `collections` and `operations`. Exact matching; `"*"`
+  must be explicit; an empty scope is rejected at creation rather than
+  silently meaning "everything". An out-of-scope collection and a nonexistent
+  one are indistinguishable from outside.
+- **Admin is untouched.** Admin routes never invoke the policy, so a missing
+  or broken key store costs Ask, never the dashboard. Verified by test.
+- **No Qdrant/Gemini work on denial.** Stage 1 rejects before the body is
+  read; stage 2 rejects before `adapter.getCollection()`. Both assert
+  `qdrant: 0, gemini: 0, embed: 0`.
+- **CLI.** `semidex-lite key add|list|revoke` and `npm run key -- …` share one
+  implementation. Revocation and creation take effect without a restart (the
+  store is re-read per request).
+
+**Deliberate breaking change:** existing unauthenticated Ask callers get 503
+until they create a key. Migration note is in both READMEs. Rate limiting
+remains unimplemented.
+
 ## 12d. Admin/Integration boundary — IMPLEMENTED (2026-08-18)
 
 §10 step 3's prerequisite is done. **This adds no authentication, no scopes

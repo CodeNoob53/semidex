@@ -152,11 +152,17 @@ describe('Stage 2 — collection authorization on Ask v1 (OWASP API1:2023)', () 
     assert.deepEqual(seen, [{ collection: 'some-collection', operation: 'generate' }]);
   });
 
-  it('with NO hook configured, behavior is unchanged (this phase adds no authorization)', async () => {
+  it('with NO policy injected, the composition root resolves the REAL key-store policy — so Ask is 503 until a key exists', async () => {
+    // Integration API authentication is now on by default. Omitting a policy
+    // no longer means "open"; it means the real key-store-backed policy is
+    // resolved, and with no key store on disk that is 503
+    // integration_auth_not_configured (design note, row 6). Tests that need
+    // an open Ask endpoint inject OPEN_INTEGRATION_POLICY explicitly.
     await withAskServer({ authorizeCollection: undefined }, async ({ base, calls }) => {
       const res = await askV1(base, 'anything-at-all');
-      assert.equal(res.status, 200);
-      assert.equal(calls.ask, 1);
+      assert.equal(res.status, 503);
+      assert.equal((await res.json()).error.code, 'integration_auth_not_configured');
+      assert.equal(calls.ask, 0, 'an unconfigured Integration API must not reach generation');
     });
   });
 });

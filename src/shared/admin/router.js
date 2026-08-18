@@ -177,7 +177,17 @@ export function createRouter({ securityPolicy, integrationPolicy } = {}) {
           const message = (decision && typeof decision.message === 'string')
             ? decision.message
             : 'Request rejected by policy.';
-          return sendError(res, status, code, message);
+          // RFC 6750 §3: a protected resource returning 401 for a bearer
+          // token failure SHOULD include WWW-Authenticate. No `error`/
+          // `error_description` attribute is added: integration-policy.js
+          // deliberately collapses every credential failure (missing,
+          // malformed, unknown, wrong, revoked, expired) into the same 401
+          // body specifically to prevent a caller from distinguishing them
+          // (see that file's own UNAUTHENTICATED comment) — an `error`
+          // attribute here would reopen exactly that distinction via a
+          // second channel.
+          const headers = status === 401 ? { 'WWW-Authenticate': 'Bearer realm="Integration API"' } : {};
+          return sendError(res, status, code, message, headers);
         }
         // Validated, then deep-frozen. A shallow Object.freeze on the
         // context left the principal itself — and nested

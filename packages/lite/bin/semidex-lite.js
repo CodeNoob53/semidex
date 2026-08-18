@@ -24,6 +24,10 @@ Usage:
   semidex-lite doctor [--probe-inference]   Read-only environment health check
   semidex-lite serve                        Start the Lite admin API + dashboard
   semidex-lite index <path>                 Index a file or folder into Qdrant Cloud
+  semidex-lite key add --name <n> --collection <c>
+                                            Create an Integration API key (Ask v1/v2)
+  semidex-lite key list                     List Integration API keys
+  semidex-lite key revoke <id>              Revoke an Integration API key
   semidex-lite --help                       Show this help
 
 Environment:
@@ -74,6 +78,14 @@ switch (command) {
     }
     const { runIndex } = await import('../lite-src/index-lite.js');
     process.exitCode = await runIndex(target, { semidexHome: paths.semidexHome, settingsPath: paths.settingsPath });
+    break;
+  }
+  case 'key': {
+    const { runKeyCommand } = await import('../src/core/auth/key-cli.js');
+    process.exitCode = runKeyCommand(rest, {
+      keyStorePath: paths.keyStorePath,
+      cliName: 'semidex-lite',
+    });
     break;
   }
   default: {

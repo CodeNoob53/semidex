@@ -6,7 +6,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
-import { resolveSemidexHomePaths, resolveManagedRuntimeDir } from '../../../src/local/core/semidex-home.js';
+import { resolveSemidexHomePaths, resolveManagedRuntimeDir, applySemidexHomeEnv } from '../../../src/local/core/semidex-home.js';
 
 describe('resolveSemidexHomePaths() (Full)', () => {
   it('SEMIDEX_HOME override wins over the platform default', () => {
@@ -22,13 +22,46 @@ describe('resolveSemidexHomePaths() (Full)', () => {
 
   it('never derives configPath/settingsPath/tokenizerCacheDir — those stay package-relative, untouched by this task', () => {
     const result = resolveSemidexHomePaths({ platform: 'win32', env: { SEMIDEX_HOME: 'C:\\x' } });
-    assert.deepEqual(Object.keys(result).sort(), ['runtimesDir', 'semidexHome']);
+    // keyStorePath IS derived here (Integration API bearer keys): it must sit
+    // beside the other per-edition application state and specifically NOT in
+    // settings.json, which is served to the browser via GET /api/settings.
+    assert.deepEqual(Object.keys(result).sort(), ['keyStorePath', 'runtimesDir', 'semidexHome']);
+    assert.equal(result.keyStorePath.includes('settings.json'), false);
   });
 
   it('never collides with Lite\'s own semidex-lite-named home under the same LOCALAPPDATA', () => {
     const result = resolveSemidexHomePaths({ platform: 'win32', env: { LOCALAPPDATA: 'C:\\AppData' } });
     assert.equal(result.semidexHome, join('C:\\AppData', 'semidex'));
     assert.equal(/semidex-lite/.test(result.semidexHome), false);
+  });
+});
+
+describe('applySemidexHomeEnv() (Full) — closes the bootstrap.js/src/key.js key-store path divergence', () => {
+  it('sets SEMIDEX_HOME to the SAME path resolveSemidexHomePaths() (used by src/key.js) resolves, when unset', () => {
+    const env = { LOCALAPPDATA: 'C:\\Users\\demo\\AppData\\Local' };
+    const expected = resolveSemidexHomePaths({ platform: 'win32', env }).semidexHome;
+    const returned = applySemidexHomeEnv({ platform: 'win32', env });
+    assert.equal(env.SEMIDEX_HOME, expected);
+    assert.equal(returned, expected);
+  });
+
+  it('never overrides an explicit SEMIDEX_HOME', () => {
+    const env = { SEMIDEX_HOME: 'C:\\custom\\semidex-home', LOCALAPPDATA: 'C:\\Users\\demo\\AppData\\Local' };
+    const returned = applySemidexHomeEnv({ platform: 'win32', env });
+    assert.equal(env.SEMIDEX_HOME, 'C:\\custom\\semidex-home');
+    assert.equal(returned, 'C:\\custom\\semidex-home');
+  });
+
+  it('once applied, resolveIntegrationPolicy\'s own default key-store path resolution (SEMIDEX_HOME branch) agrees with resolveSemidexHomePaths().keyStorePath', async () => {
+    const { resolveKeyStorePath } = await import('../../../src/core/auth/resolve-policy.js');
+    const env = { LOCALAPPDATA: 'C:\\Users\\demo\\AppData\\Local' };
+    applySemidexHomeEnv({ platform: 'win32', env });
+    const cliPath = resolveSemidexHomePaths({ platform: 'win32', env }).keyStorePath;
+    // resolveKeyStorePath has no platform param (it only reads env), so this
+    // only proves the SEMIDEX_HOME branch — the one bootstrap.js's fix makes
+    // reachable in production — agrees with the CLI's own path once
+    // SEMIDEX_HOME is set the way applySemidexHomeEnv() now sets it.
+    assert.equal(resolveKeyStorePath(env), cliPath);
   });
 });
 

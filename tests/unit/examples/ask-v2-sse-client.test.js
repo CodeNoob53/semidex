@@ -222,12 +222,28 @@ describe('askV2 SSE client — request shape', () => {
     assert.deepEqual(body.conversation, conversation);
   });
 
-  test('never includes API keys/headers in any log-worthy field (the client accepts no secret parameter at all)', async () => {
-    // Structural proof: askV2's own signature has no apiKey/secret/header
-    // parameter, so there is no code path through which a caller COULD
-    // pass a secret in that this module would then need to redact.
-    const source = askV2.toString();
-    assert.ok(!/apiKey|API_KEY|Authorization/i.test(source));
+  test('sends no Authorization header when no token is supplied', async () => {
+    globalThis.fetch = async (url, opts) => { capturedFetchArgs = { url, opts }; return sseResponse([frame('done', { answer: 'ok', citations: [] })]); };
+    await askV2({ baseUrl: 'http://x', collection: 'c', question: 'q' });
+    assert.equal('Authorization' in capturedFetchArgs.opts.headers, false, 'must not send a fabricated/empty Authorization header');
+  });
+
+  test('sends Authorization: Bearer <token> exactly when a token is supplied', async () => {
+    globalThis.fetch = async (url, opts) => { capturedFetchArgs = { url, opts }; return sseResponse([frame('done', { answer: 'ok', citations: [] })]); };
+    await askV2({ baseUrl: 'http://x', collection: 'c', question: 'q', token: 'sdx_v1_test_token' });
+    assert.equal(capturedFetchArgs.opts.headers.Authorization, 'Bearer sdx_v1_test_token');
+  });
+
+  test('the token never reaches the returned result object', async () => {
+    globalThis.fetch = async () => sseResponse([frame('done', { answer: 'ok', citations: [] })]);
+    const result = await askV2({ baseUrl: 'http://x', collection: 'c', question: 'q', token: 'sdx_v1_super_secret' });
+    assert.equal(JSON.stringify(result).includes('sdx_v1_super_secret'), false, 'the token must never leak into the returned result');
+  });
+
+  test('the token never reaches the request body — Authorization header only', async () => {
+    globalThis.fetch = async (url, opts) => { capturedFetchArgs = { url, opts }; return sseResponse([frame('done', { answer: 'ok', citations: [] })]); };
+    await askV2({ baseUrl: 'http://x', collection: 'c', question: 'q', token: 'sdx_v1_body_check' });
+    assert.equal(capturedFetchArgs.opts.body.includes('sdx_v1_body_check'), false, 'the token must be sent only via the Authorization header, never in the JSON body');
   });
 });
 

@@ -35,6 +35,9 @@ const TOOLING_DIR_PREFIXES = ['src/smoke/'];
 const TOOLING_ENTRY_FILES = new Set([
   'src/sync.js', 'src/doctor.js', 'src/backfill-tags.js', 'src/backfill-entity-refs.js',
   'src/smoke.js', 'src/bootstrap-docs.js',
+  // Full's `npm run key --` entry point for Integration API key management.
+  // Same class as doctor.js/sync.js: a CLI entry, not a runtime module.
+  'src/key.js',
 ]);
 
 function isToolingFile(file, { fullReachable, liteReachable }) {
@@ -56,6 +59,14 @@ const SHARED_CONTRACT_FILES = new Set([
   // Path updated (Phase 8B Step 7A — physical relocation of stable shared
   // core modules into src/shared/core/).
   'src/shared/core/rerank-capability.js',
+  // key-cli.js is the SHARED `key add|list|revoke` implementation both
+  // editions' CLI entry points delegate to (src/key.js for Full,
+  // packages/lite/bin/semidex-lite.js for Lite). Neither entry point is a
+  // src/ runtime module reachable from a composition root, so reachability
+  // alone leaves it unclassified — but it is genuinely dual-edition shared
+  // code, and Lite's build stages it. Explicit override for the same reason
+  // provider.js/adapter.js are here.
+  'src/core/auth/key-cli.js',
 ]);
 
 const COMPOSITION_COMMON_FILES = new Set([

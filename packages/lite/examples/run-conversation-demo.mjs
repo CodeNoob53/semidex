@@ -11,8 +11,16 @@
 // explanation this script makes concrete.
 //
 // Usage:
-//   node packages/lite/examples/run-conversation-demo.mjs <collection> "question 1" "question 2" ...
-//   SEMIDEX_BASE_URL=http://127.0.0.1:8642 node run-conversation-demo.mjs my-docs "What is X?" "And how does that relate to Y?"
+//   SEMIDEX_TOKEN=sdx_v1_... node packages/lite/examples/run-conversation-demo.mjs <collection> "question 1" "question 2" ...
+//   SEMIDEX_BASE_URL=http://127.0.0.1:8642 SEMIDEX_TOKEN=sdx_v1_... node run-conversation-demo.mjs my-docs "What is X?" "And how does that relate to Y?"
+//
+// SEMIDEX_TOKEN is an Integration API bearer token minted with
+// `semidex-lite key add --name ... --collection <collection>` (see the
+// README's "Integration API authentication" section) — required, since
+// /api/v2/ask now returns 503/401 without one. Read from the environment
+// ONCE, at startup, and never logged, printed, or included in any error
+// message this script emits — only forwarded to conversation-manager.mjs's
+// ask(), which forwards it to ask-v2-sse-client.mjs's askV2().
 //
 // *** DEMO ONLY *** — conversation-manager.mjs stores state in an in-memory
 // Map that is lost the moment this process exits. See that file's own
@@ -23,7 +31,14 @@ import { createConversationManager } from './conversation-manager.mjs';
 async function main() {
   const [collection, ...questions] = process.argv.slice(2);
   if (!collection || questions.length === 0) {
-    console.error('Usage: node run-conversation-demo.mjs <collection> "question 1" ["question 2" ...]');
+    console.error('Usage: SEMIDEX_TOKEN=sdx_v1_... node run-conversation-demo.mjs <collection> "question 1" ["question 2" ...]');
+    process.exitCode = 1;
+    return;
+  }
+
+  const token = process.env.SEMIDEX_TOKEN;
+  if (!token) {
+    console.error('Error: SEMIDEX_TOKEN is not set. Create a key with `semidex-lite key add --name demo --collection ' + collection + '` and pass the printed token as SEMIDEX_TOKEN.');
     process.exitCode = 1;
     return;
   }
@@ -35,7 +50,7 @@ async function main() {
   for (const [index, question] of questions.entries()) {
     console.log(`\n--- Turn ${index + 1} ---`);
     console.log(`Q: ${question}`);
-    const turn = await manager.ask({ baseUrl, collection, conversationId, question });
+    const turn = await manager.ask({ baseUrl, collection, conversationId, question, token });
     conversationId = turn.conversationId;
 
     if (!turn.ok) {

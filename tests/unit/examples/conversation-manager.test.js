@@ -348,6 +348,53 @@ describe('createConversationManager — failure handling', () => {
   });
 });
 
+describe('createConversationManager — token forwarding (Integration API auth)', () => {
+  test('forwards token to askV2 as the Authorization header, unchanged across turns', async () => {
+    const capturedAuth = [];
+    globalThis.fetch = async (url, opts) => {
+      capturedAuth.push(opts.headers.Authorization);
+      return {
+        status: 200,
+        headers: { get: () => 'text/event-stream; charset=utf-8' },
+        body: new ReadableStream({
+          start(c) { c.enqueue(new TextEncoder().encode(sseFrame('done', { answer: 'ok', citations: [] }))); c.close(); },
+        }),
+        json: async () => ({}),
+      };
+    };
+    const manager = createConversationManager();
+    const turn1 = await manager.ask({ baseUrl: 'http://x', collection: 'c', question: 'q1', token: 'sdx_v1_demo_token' });
+    await manager.ask({ baseUrl: 'http://x', collection: 'c', conversationId: turn1.conversationId, question: 'q2', token: 'sdx_v1_demo_token' });
+    assert.deepEqual(capturedAuth, ['Bearer sdx_v1_demo_token', 'Bearer sdx_v1_demo_token']);
+  });
+
+  test('omitting token sends no Authorization header', async () => {
+    let capturedHeaders;
+    globalThis.fetch = async (url, opts) => {
+      capturedHeaders = opts.headers;
+      return {
+        status: 200,
+        headers: { get: () => 'text/event-stream; charset=utf-8' },
+        body: new ReadableStream({
+          start(c) { c.enqueue(new TextEncoder().encode(sseFrame('done', { answer: 'ok', citations: [] }))); c.close(); },
+        }),
+        json: async () => ({}),
+      };
+    };
+    const manager = createConversationManager();
+    await manager.ask({ baseUrl: 'http://x', collection: 'c', question: 'q1' });
+    assert.equal('Authorization' in capturedHeaders, false);
+  });
+
+  test('the token never reaches _debugGetState or the archive', async () => {
+    globalThis.fetch = fakeSseFetch(() => sseFrame('done', { answer: 'ok', citations: [] }));
+    const manager = createConversationManager();
+    const turn = await manager.ask({ baseUrl: 'http://x', collection: 'c', question: 'q1', token: 'sdx_v1_no_leak' });
+    const state = manager._debugGetState(turn.conversationId);
+    assert.equal(JSON.stringify(state).includes('sdx_v1_no_leak'), false);
+  });
+});
+
 describe('createConversationManager — ownership boundary documentation', () => {
   test('the module never claims to be production persistence (header comment check)', async () => {
     const fs = await import('node:fs/promises');

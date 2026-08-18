@@ -8,12 +8,15 @@ import { checkJsonContentType } from './request-security.js';
  * Write a JSON body with the given status code. Always sets
  * Content-Type: application/json; charset=utf-8. No CORS headers (§10 of
  * the design doc: same-origin only, UI is served by this same process).
+ * `headers`, when given, are additional response headers (e.g.
+ * WWW-Authenticate) merged in alongside the two set unconditionally above.
  */
-export function sendJson(res, statusCode, body) {
+export function sendJson(res, statusCode, body, headers = {}) {
   const payload = JSON.stringify(body);
   res.writeHead(statusCode, {
     'Content-Type': 'application/json; charset=utf-8',
     'Content-Length': Buffer.byteLength(payload),
+    ...headers,
   });
   res.end(payload);
 }
@@ -23,8 +26,8 @@ export function sendJson(res, statusCode, body) {
  * `code` is a short machine-readable string (e.g. "not_found"), not an HTTP
  * status — the status is set separately via `statusCode`.
  */
-export function sendError(res, statusCode, code, message) {
-  sendJson(res, statusCode, { error: { message, code } });
+export function sendError(res, statusCode, code, message, headers = {}) {
+  sendJson(res, statusCode, { error: { message, code } }, headers);
 }
 
 export class HttpError extends Error {

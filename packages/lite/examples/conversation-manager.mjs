@@ -90,6 +90,7 @@ export function createConversationManager() {
    *   collection: string,
    *   conversationId?: string,       // omit to start a new conversation
    *   question: string,
+   *   token?: string,                 // forwarded verbatim to askV2() -- see that function's own header comment; never logged or stored by this module
    *   timeoutMs?: number,
    *   signal?: AbortSignal,
    * }} args
@@ -104,7 +105,7 @@ export function createConversationManager() {
    *   summaryChanged: boolean,
    * }>}
    */
-  async function ask({ baseUrl, collection, conversationId, question, timeoutMs, signal }) {
+  async function ask({ baseUrl, collection, conversationId, question, token, timeoutMs, signal }) {
     const { id, state } = getOrCreate(conversationId);
     const view = requestView(state);
 
@@ -160,7 +161,7 @@ export function createConversationManager() {
     // rather than sending an empty-but-present object.
     const hasContext = Boolean(state.summary) || view.length > 0;
     const result = await askV2({
-      baseUrl, collection, question, timeoutMs, signal,
+      baseUrl, collection, question, token, timeoutMs, signal,
       ...(hasContext ? { conversation: { id, summary: state.summary, recentMessages: view } } : {}),
     });
 

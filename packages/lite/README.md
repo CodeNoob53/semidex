@@ -422,6 +422,129 @@ subset.
 There are no `--onnx-embed`, `--llm-summaries`, or `--tag-gen` options. These
 are local features and are not part of this package.
 
+### `key`
+
+Manages **Integration API** keys — the bearer tokens a wrapper backend uses to
+call Ask. See [Integration API authentication](#integration-api-authentication)
+below for the full model.
+
+```bash
+npx semidex-lite key add --name assistant-backend --collection my-docs
+npx semidex-lite key list
+npx semidex-lite key revoke <id>
+```
+
+`key add` prints the raw token **once** — it is never stored (only a SHA-256
+digest is) and cannot be shown again. `key list` shows public metadata only,
+never a token or digest. `key revoke` takes effect immediately, with no
+restart.
+
+## Integration API authentication
+
+> [!IMPORTANT]
+> **Migration note for existing Ask API users.** Ask now requires a bearer
+> token. Until you create your first key, `POST /api/v1/ask` and
+> `POST /api/v2/ask` return **`503 integration_auth_not_configured`**. Create a
+> key with `semidex-lite key add …` and send it as
+> `Authorization: Bearer <token>`. Nothing else changes: the dashboard,
+> settings, indexing and collection browsing keep working exactly as before,
+> with no credential.
+
+### Admin API vs Integration API
+
+semidex-lite serves two distinct surfaces, with deliberately different rules:
+
+| | Admin API | Integration API |
+|---|---|---|
+| Routes | Dashboard, settings, indexing jobs, collections, probes, `/api/search` | `POST /api/v1/ask`, `POST /api/v2/ask` |
+| Caller | You, in a browser on this machine | Your own backend, server-to-server |
+| Credential | **None** — protected by the loopback bind | **Bearer key, required** |
+| Exposure | Never expose beyond loopback | Reachable through your backend |
+
+Admin routes are *never* gated by an integration key: a missing or broken key
+store takes down Ask, not your dashboard.
+
+### Creating a key
+
+```bash
+npx semidex-lite key add --name assistant-backend \
+  --collection my-docs \
+  --collection support-docs \
+  --expires 90d
+```
+
+Options:
+
+- `--name` — a label, required.
+- `--collection` — repeatable, **required**. A key with no collection is
+  refused: an empty scope must never silently mean unrestricted access. Pass
+  `--collection "*"` to grant every collection explicitly.
+- `--operation` — defaults to `generate` (what Ask needs).
+- `--expires` — an ISO date (`2027-01-01`) or a duration (`90d`, `12h`).
+  Omit for no expiry.
+
+The token is printed once. Store it in your backend's secret manager — never
+in browser JavaScript, `localStorage`, a URL, or version control.
+
+### Sending the token
+
+```bash
+curl -N -X POST "http://127.0.0.1:8642/api/v1/ask" \
+  -H "Authorization: Bearer $SEMIDEX_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"collection":"my-docs","question":"What are the return conditions?"}'
+```
+
+```js
+const response = await fetch('http://127.0.0.1:8642/api/v1/ask', {
+  method: 'POST',
+  headers: {
+    // Read from your own secret store — never hard-code a token.
+    Authorization: `Bearer ${process.env.SEMIDEX_TOKEN}`,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({ collection, question: userMessage }),
+});
+```
+
+The token is accepted **only** in the `Authorization` header. It is ignored in
+query strings, cookies and request bodies, because those are logged, cached and
+shared in ways a credential must not be.
+
+### Scoping a key to collections
+
+A key may only reach the collections it was created with. Matching is exact —
+`--collection docs` grants `docs` and not `docs-a`. An out-of-scope collection
+and a collection that does not exist return the *same* `403`, so a caller
+cannot probe which collections you have.
+
+This is the mechanism to use when one semidex-lite instance serves several
+assistants: give each backend its own key, scoped to its own collections.
+
+### Response codes
+
+| Status | Code | Meaning |
+|---|---|---|
+| `503` | `integration_auth_not_configured` | No keys configured (or the key store is unreadable). Create a key. |
+| `401` | `unauthorized` | Missing, malformed, unknown, wrong, revoked or expired token. Deliberately indistinguishable — no key enumeration. |
+| `403` | `forbidden` | Authenticated, but this key is not scoped to that collection or operation. |
+| `200` | — | Authorized; the SSE stream begins. |
+
+A `401` or `403` is decided before any Qdrant query, any embedding, and any
+Gemini call — a rejected request costs you nothing.
+
+### What semidex-lite still does not own
+
+Authentication does not change conversation ownership: **your application
+still owns and stores chat history**. semidex-lite persists no conversations
+for either endpoint — see
+[Backend integration: multi-turn Ask](#backend-integration-multi-turn-ask-apiv2ask).
+A key identifies a *calling backend*, not an end user; mapping end users to
+permissions remains your backend's job.
+
+Not yet implemented: rate limiting, remote Admin authentication, and key
+management from the dashboard.
+
 ## Ask: answers grounded in your knowledge base
 
 Ask lets you question one indexed collection and receive an answer generated
@@ -482,7 +605,12 @@ if (!collection) throw new Error('Unknown assistant');
 
 const response = await fetch('http://127.0.0.1:8642/api/v1/ask', {
   method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
+  headers: {
+    // Read from your own secret store — never hard-code a token. See
+    // "Integration API authentication" above.
+    Authorization: `Bearer ${process.env.SEMIDEX_TOKEN}`,
+    'Content-Type': 'application/json',
+  },
   body: JSON.stringify({ collection, question: userMessage }),
 });
 ```
@@ -495,6 +623,7 @@ For a manual API check, use `curl`:
 
 ```powershell
 curl.exe -N -X POST "http://127.0.0.1:8642/api/v1/ask" `
+  -H "Authorization: Bearer $env:SEMIDEX_TOKEN" `
   -H "Content-Type: application/json" `
   -d '{"collection":"my-docs","question":"What are the main requirements described in the documentation?"}'
 ```
@@ -524,8 +653,9 @@ The response is streamed as Server-Sent Events (SSE):
 - `error`: a structured error.
 
 Ask API v1 is stateless: every request is independent, and `sessionId`, chat
-history, and long-term memory are not yet supported. The endpoint also has no
-public authentication or abuse protection. Do not expose the admin server port
+history, and long-term memory are not yet supported. It requires a bearer
+token (see [Integration API authentication](#integration-api-authentication)
+above) but has no rate limiting yet. Do not expose the admin server port
 directly to the Internet. For an external integration, place your own
 authenticated backend or reverse proxy with appropriate controls in front of
 it.
@@ -704,7 +834,8 @@ itself:
 
 ```bash
 QDRANT_URL=... QDRANT_KEY=... GEMINI_API_KEY=... npx semidex-lite serve &
-node examples/run-conversation-demo.mjs my-docs "How many days do I have to return an item?" "What about exceptions to that?"
+npx semidex-lite key add --name demo --collection my-docs   # copy the printed token
+SEMIDEX_TOKEN=<token> node examples/run-conversation-demo.mjs my-docs "How many days do I have to return an item?" "What about exceptions to that?"
 ```
 
 If you installed `semidex-lite` as a dependency of your own project
@@ -713,7 +844,8 @@ the path is different:
 
 ```bash
 QDRANT_URL=... QDRANT_KEY=... GEMINI_API_KEY=... npx semidex-lite serve &
-node node_modules/semidex-lite/examples/run-conversation-demo.mjs my-docs "How many days do I have to return an item?" "What about exceptions to that?"
+npx semidex-lite key add --name demo --collection my-docs   # copy the printed token
+SEMIDEX_TOKEN=<token> node node_modules/semidex-lite/examples/run-conversation-demo.mjs my-docs "How many days do I have to return an item?" "What about exceptions to that?"
 ```
 
 There is no dedicated `semidex-lite` CLI subcommand for this demo — it is
@@ -726,7 +858,8 @@ The compact shape of what your backend does around that client:
 // for a full (in-memory, demo-only) implementation of this shape.
 const conversation = await chatStore.loadConversation(conversationId, userId);
 const collection = assistantRegistry.resolveAllowedCollection(assistantId); // never trust a browser-supplied collection name
-const result = await askV2({ baseUrl, collection, question: userMessage, conversation });
+const token = await secrets.getIntegrationApiToken(); // your own secret store — never hard-code or log this
+const result = await askV2({ baseUrl, collection, question: userMessage, conversation, token });
 await chatStore.commitTurn({
   conversationId, ownerId: userId, expectedVersion: conversation.version,
   messages: [{ role: 'user', content: userMessage }, { role: 'assistant', content: result.answer }],
