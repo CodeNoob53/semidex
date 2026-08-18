@@ -43,7 +43,7 @@ export function createApp({
   discoverOllamaModelsFn, discoverGeminiModelsFn, runOnnxProbeFn, runQdrantCloudProbeFn,
   resolveNewCollectionProfileFn, diagnoseCudaFailureFn,
   resolveEffectiveOnnxRuntimePathFn, writeVerificationResultFn, onnxManagedRuntimeListingCache,
-  onnxEmbedCapability, securityPolicy,
+  onnxEmbedCapability, securityPolicy, integrationPolicy,
 } = {}) {
   // core/embeddings.js's applyEmbeddingCapabilities() (the process-wide
   // module-scope fallback) is deliberately NEVER called from this function
@@ -157,7 +157,7 @@ export function createApp({
   // the one helper rather than constructing their own.
   const resolvedSecurityPolicy = securityPolicy
     ?? resolveRequestSecurityPolicy(process.env, { settingsService: settings });
-  const router = createRouter({ securityPolicy: resolvedSecurityPolicy });
+  const router = createRouter({ securityPolicy: resolvedSecurityPolicy, integrationPolicy });
   // discoverOllamaModelsFn is optional DI (tests inject a stub so unit
   // tests never probe a real Ollama instance) — same convention as
   // checkOllamaFn below. Full-only: this module is the one place that

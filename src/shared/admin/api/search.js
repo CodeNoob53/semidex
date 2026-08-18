@@ -16,6 +16,7 @@ import { sendJson, badRequest, notFound, HttpError } from '../../../core/http/ht
 import { readJsonBody } from '../../../core/http/http.js';
 import { embedForSearch } from '../../core/embeddings.js';
 import { runHybridSearch, resolveSearchMode } from '../../../core/retrieval/search.js';
+import { AUDIENCE, OPERATION, COST_CLASS, COLLECTION_SOURCE } from '../../../core/http/route-audience.js';
 
 export { resolveSearchMode };
 
@@ -186,5 +187,5 @@ export function registerSearchRoutes(router, adapter, { embedQuery = embedForSea
       : hits.map(h => ({ ...h, isMatch: true }));
 
     sendJson(res, 200, { collection, query, searchMode, top, window, windowFormat, results });
-  });
+  }, { audience: AUDIENCE.ADMIN, operation: OPERATION.SEARCH, resourceType: 'collection', collectionSource: COLLECTION_SOURCE.BODY, costClass: COST_CLASS.QDRANT });
 }

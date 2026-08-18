@@ -13,6 +13,7 @@ import { sendJson, readJsonBody, badRequest } from '../../core/http/http.js';
 import { probeQdrantCloudInference, classifyInferenceProbeError } from './qdrant-cloud-system.js';
 import { findDenseModel, findSparseModel } from '../embedding/qdrant-cloud-catalog.js';
 import { resolveNewCollectionProfile } from '../../core/embedding-profile/resolve.js';
+import { AUDIENCE, OPERATION, COST_CLASS } from '../../core/http/route-audience.js';
 
 /**
  * @param {Object} router
@@ -107,5 +108,5 @@ export function registerQdrantCloudRoutes(router, {
       return;
     }
     sendJson(res, 200, { ...result, availability });
-  });
+  }, { audience: AUDIENCE.ADMIN, operation: OPERATION.PROBE, resourceType: 'system', costClass: COST_CLASS.QDRANT });
 }

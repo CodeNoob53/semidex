@@ -8,6 +8,7 @@
 import { sendJson, notFound, badRequest } from '../../../core/http/http.js';
 import { requireStringParam } from './query-params.js';
 import { assembleDocument } from '../../../core/assembly/assemble.js';
+import { AUDIENCE, OPERATION, COST_CLASS, COLLECTION_SOURCE } from '../../../core/http/route-audience.js';
 
 export function registerAssemblyRoutes(router, adapter, { logFn } = {}) {
   // Real logger by default (the assembly service logs its placeholder
@@ -70,5 +71,5 @@ export function registerAssemblyRoutes(router, adapter, { logFn } = {}) {
       collection: params.name, scope: 'section', sourceFile: node.sourceFile ?? null,
       nodePath, chunks: chunks ?? [], skeleton: true, logFn: log,
     }));
-  });
+  }, { audience: AUDIENCE.ADMIN, operation: OPERATION.READ, resourceType: 'document', collectionSource: COLLECTION_SOURCE.PATH, costClass: COST_CLASS.QDRANT });
 }

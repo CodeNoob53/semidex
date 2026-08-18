@@ -2,6 +2,7 @@
 // Qdrant/store access.
 import { sendJson } from '../../../core/http/http.js';
 import { sanitiseErrorMessage } from '../../core/doctor-checks.js';
+import { AUDIENCE, OPERATION, COST_CLASS } from '../../../core/http/route-audience.js';
 
 // adapter.ping()'s `detail` on failure is a raw err.message from the
 // underlying store client (e.g. qdrant-adapter.js's ping() catch block) —
@@ -28,12 +29,12 @@ export function registerHealthRoutes(router, adapter) {
         detail: safeMessage(storagePing.detail),
       },
     });
-  });
+  }, { audience: AUDIENCE.ADMIN, operation: OPERATION.PROBE, resourceType: 'system', costClass: COST_CLASS.QDRANT });
 
   router.get('/api/capabilities', ({ res }) => {
     sendJson(res, 200, {
       backend: adapter.name(),
       capabilities: adapter.capabilities(),
     });
-  });
+  }, { audience: AUDIENCE.ADMIN, operation: OPERATION.READ, resourceType: 'system', costClass: COST_CLASS.LOW });
 }

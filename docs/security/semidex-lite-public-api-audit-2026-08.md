@@ -1017,6 +1017,71 @@ must fully mediate access to every route, not just the ones that look
 dangerous. This should land before any change described in §10 ships, not
 after — operators deploying today deserve the accurate picture now.
 
+## 12d. Admin/Integration boundary — IMPLEMENTED (2026-08-18)
+
+§10 step 3's prerequisite is done. **This adds no authentication, no scopes
+and no rate limiting** — it makes the boundary those things require explicit,
+machine-readable and fail-closed. Public route behavior is unchanged.
+
+**What shipped:**
+
+- `src/core/http/route-audience.js` — the metadata vocabulary
+  (`audience`, `operation`, `resourceType`, `collectionSource`, `costClass`,
+  `edition`) and a validator that throws on anything missing or unknown.
+- **Fail-closed registration** — `router.get/post/patch/delete` now require
+  metadata. A route with no `audience` throws at registration, surfacing at
+  server construction and in tests. There is deliberately **no default**:
+  defaulting to `admin` would hide a genuinely public endpoint behind the
+  wrong policy, defaulting to `integration` would expose a management
+  endpoint. A startup error is safer than either.
+- **`router.listRoutes()`** — machine-readable inventory, also exposed on the
+  server object, so the classification is asserted against what real
+  composition roots actually register rather than a hand-kept list.
+- **Two-stage policy seam**, instance-scoped via
+  `createRouter`/`createApp`/`createLiteApp` (`integrationPolicy`), with no
+  process-global state and no authorization logic of its own today:
+  - **Stage 1** `authorizeRequest({ req, route, params })` — after route
+    match, before the handler, before any body read. For authentication and
+    coarse rate limiting. Returns `{ ok: true, principal }`.
+  - **Stage 2** `authorizeCollectionAccess(auth, { req, collection })` —
+    after the route parses its body, before `adapter.getCollection()`. For
+    object-level authorization (OWASP API1:2023). Stage 1 cannot do this:
+    the collection identifier is in the body, and a body is a single-use
+    stream.
+  - Both stages are **fail-closed** (only an explicit `{ ok: true }` allows;
+    `undefined`/`null`/`false`/`{}`/an unknown shape/a thrown error all
+    deny), the two halves are **atomic** (supplying one without the other
+    throws at construction, since authentication without collection scoping
+    is a BOLA bypass), the principal is passed through a **deeply frozen
+    `auth` context** rather than a mutated `IncomingMessage`, and stage 2
+    reads `operation` from **route metadata** rather than a duplicated
+    literal.
+  - **The policy applies to `audience: integration` routes only.** Admin
+    routes never invoke either stage and receive an auth context with no
+    principal and no stage-2 hook. This is what keeps the Admin API
+    loopback-bound and credential-free: without it, the planned "zero keys ⇒
+    `503 integration_auth_not_configured`" rule would take down the whole
+    dashboard rather than just Ask.
+
+**The boundary as implemented** (verified against live registries — 29 routes
+in Lite, 33 in Full, zero unclassified):
+
+| Audience | Count (Lite) | Routes |
+|---|---|---|
+| `integration` | 2 | `POST /api/v1/ask`, `POST /api/v2/ask` |
+| `admin` | 27 | settings, collection CRUD + schema sync, indexing jobs, operations, health/capabilities, generation status/models, folder picker, Qdrant Cloud probe, skeleton/chunk/document/assembly/node reads, **and `POST /api/search`** |
+
+**`/api/search` is Admin, deliberately.** It is unversioned and consumed only
+by the dashboard's own `ui-src/search.js`; it appears in no README or public
+API documentation, unlike the versioned `/api/v1/ask`. Publishing a stable
+application-facing search API is a product decision that should introduce a
+versioned path (`/api/v1/search`), not silently reclassify an internal one.
+Recorded as an open question in the design note.
+
+**Handoff:** [`integration-api-auth-design-note.md`](./integration-api-auth-design-note.md)
+carries the decision matrix for the next phase (bearer keys, scopes,
+collection authorization, rate limiting).
+
 ## 12c. Next-phase design (NOT implemented — follow-up work only)
 
 Everything below is **planned**, not shipped. Nothing here is a current

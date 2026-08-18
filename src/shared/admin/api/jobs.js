@@ -15,6 +15,7 @@
 // llmSummaries branch unreachable anyway (see registerJobsRoutes below).
 import { sendJson, badRequest, notFound, conflict, dependencyUnavailable, HttpError } from '../../../core/http/http.js';
 import { readJsonBody } from '../../../core/http/http.js';
+import { AUDIENCE, OPERATION, COST_CLASS, COLLECTION_SOURCE } from '../../../core/http/route-audience.js';
 
 const DEFAULT_CONTEXT_MODEL = process.env.CONTEXT_MODEL || 'gemma3:4b';
 
@@ -267,22 +268,22 @@ export function registerJobsRoutes(router, registry, { checkOllamaFn, jobPolicy 
 
     const job = registry.getJob(started.id);
     sendJson(res, 202, { job: toJobSummary(job) });
-  });
+  }, { audience: AUDIENCE.ADMIN, operation: OPERATION.INDEX, resourceType: 'job', collectionSource: COLLECTION_SOURCE.BODY, costClass: COST_CLASS.INDEXING });
 
   router.get('/api/jobs', ({ res }) => {
     sendJson(res, 200, { jobs: registry.listJobs().map(toJobSummary) });
-  });
+  }, { audience: AUDIENCE.ADMIN, operation: OPERATION.READ, resourceType: 'job', costClass: COST_CLASS.LOW });
 
   router.get('/api/jobs/:id', ({ res, params }) => {
     const job = registry.getJob(params.id);
     if (!job) throw notFound(`Job "${params.id}" not found`);
     sendJson(res, 200, { job: toJobDetail(job) });
-  });
+  }, { audience: AUDIENCE.ADMIN, operation: OPERATION.READ, resourceType: 'job', costClass: COST_CLASS.LOW });
 
   router.post('/api/jobs/:id/cancel', ({ res, params }) => {
     const job = registry.getJob(params.id);
     if (!job) throw notFound(`Job "${params.id}" not found`);
     const updated = registry.cancelJob(params.id);
     sendJson(res, 200, { job: toJobSummary(updated) });
-  });
+  }, { audience: AUDIENCE.ADMIN, operation: OPERATION.MUTATE, resourceType: 'job', costClass: COST_CLASS.LOW });
 }

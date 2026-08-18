@@ -14,7 +14,7 @@
     "mixed": 3,
     "tooling": 61,
     "cloud": 8,
-    "shared": 157,
+    "shared": 159,
     "local": 28
   },
   "modules": [
@@ -206,7 +206,8 @@
         "src/cloud/admin/qdrant-cloud-system.js",
         "src/cloud/embedding/qdrant-cloud-catalog.js",
         "src/core/embedding-profile/resolve.js",
-        "src/core/http/http.js"
+        "src/core/http/http.js",
+        "src/core/http/route-audience.js"
       ]
     },
     {
@@ -320,7 +321,9 @@
       "directDependencies": [
         "src/core/ask-api/v1/contract.js",
         "src/core/ask-api/v1/request.js",
+        "src/core/http/authorize.js",
         "src/core/http/http.js",
+        "src/core/http/route-audience.js",
         "src/core/http/sse.js",
         "src/shared/core/doctor-checks.js"
       ]
@@ -356,7 +359,9 @@
       "directDependencies": [
         "src/core/ask-api/v2/contract.js",
         "src/core/ask-api/v2/request.js",
+        "src/core/http/authorize.js",
         "src/core/http/http.js",
+        "src/core/http/route-audience.js",
         "src/core/http/sse.js",
         "src/shared/core/doctor-checks.js"
       ]
@@ -697,6 +702,17 @@
       ]
     },
     {
+      "path": "src/core/http/authorize.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/http/http.js"
+      ]
+    },
+    {
       "path": "src/core/http/http.js",
       "declaredCategory": "shared",
       "category": "shared",
@@ -709,6 +725,15 @@
     },
     {
       "path": "src/core/http/request-security.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/core/http/route-audience.js",
       "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
@@ -1029,6 +1054,7 @@
       "liteReachable": false,
       "directDependencies": [
         "src/core/http/http.js",
+        "src/core/http/route-audience.js",
         "src/local/core/ollama-models.js",
         "src/shared/core/doctor-checks.js"
       ]
@@ -1042,6 +1068,7 @@
       "liteReachable": false,
       "directDependencies": [
         "src/core/http/http.js",
+        "src/core/http/route-audience.js",
         "src/local/core/cuda-diagnosis.js",
         "src/local/core/managed-onnx-runtime-manifest.js",
         "src/local/core/managed-runtime-listing.js",
@@ -1500,6 +1527,7 @@
       "directDependencies": [
         "src/core/assembly/assemble.js",
         "src/core/http/http.js",
+        "src/core/http/route-audience.js",
         "src/shared/admin/api/query-params.js"
       ]
     },
@@ -1512,6 +1540,7 @@
       "liteReachable": true,
       "directDependencies": [
         "src/core/http/http.js",
+        "src/core/http/route-audience.js",
         "src/shared/admin/api/query-params.js"
       ]
     },
@@ -1523,7 +1552,8 @@
       "fullReachable": true,
       "liteReachable": true,
       "directDependencies": [
-        "src/core/http/http.js"
+        "src/core/http/http.js",
+        "src/core/http/route-audience.js"
       ]
     },
     {
@@ -1535,6 +1565,7 @@
       "liteReachable": true,
       "directDependencies": [
         "src/core/http/http.js",
+        "src/core/http/route-audience.js",
         "src/shared/admin/api/query-params.js"
       ]
     },
@@ -1547,6 +1578,7 @@
       "liteReachable": true,
       "directDependencies": [
         "src/core/http/http.js",
+        "src/core/http/route-audience.js",
         "src/shared/core/doctor-checks.js"
       ]
     },
@@ -1559,6 +1591,7 @@
       "liteReachable": true,
       "directDependencies": [
         "src/core/http/http.js",
+        "src/core/http/route-audience.js",
         "src/shared/core/doctor-checks.js"
       ]
     },
@@ -1571,6 +1604,7 @@
       "liteReachable": true,
       "directDependencies": [
         "src/core/http/http.js",
+        "src/core/http/route-audience.js",
         "src/shared/core/doctor-checks.js"
       ]
     },
@@ -1582,7 +1616,8 @@
       "fullReachable": true,
       "liteReachable": true,
       "directDependencies": [
-        "src/core/http/http.js"
+        "src/core/http/http.js",
+        "src/core/http/route-audience.js"
       ]
     },
     {
@@ -1594,6 +1629,7 @@
       "liteReachable": true,
       "directDependencies": [
         "src/core/http/http.js",
+        "src/core/http/route-audience.js",
         "src/shared/admin/api/query-params.js"
       ]
     },
@@ -1606,6 +1642,7 @@
       "liteReachable": true,
       "directDependencies": [
         "src/core/http/http.js",
+        "src/core/http/route-audience.js",
         "src/shared/admin/api/jobs.js"
       ]
     },
@@ -1629,6 +1666,7 @@
       "liteReachable": true,
       "directDependencies": [
         "src/core/http/http.js",
+        "src/core/http/route-audience.js",
         "src/core/retrieval/search.js",
         "src/shared/core/embeddings.js"
       ]
@@ -1642,6 +1680,7 @@
       "liteReachable": true,
       "directDependencies": [
         "src/core/http/http.js",
+        "src/core/http/route-audience.js",
         "src/core/settings/definitions.js"
       ]
     },
@@ -1654,6 +1693,7 @@
       "liteReachable": true,
       "directDependencies": [
         "src/core/http/http.js",
+        "src/core/http/route-audience.js",
         "src/shared/admin/api/query-params.js"
       ]
     },
@@ -1666,6 +1706,7 @@
       "liteReachable": true,
       "directDependencies": [
         "src/core/http/http.js",
+        "src/core/http/route-audience.js",
         "src/shared/admin/system/folder-picker.js"
       ]
     },
@@ -1730,8 +1771,10 @@
       "fullReachable": true,
       "liteReachable": true,
       "directDependencies": [
+        "src/core/http/authorize.js",
         "src/core/http/http.js",
         "src/core/http/request-security.js",
+        "src/core/http/route-audience.js",
         "src/shared/core/doctor-checks.js"
       ]
     },

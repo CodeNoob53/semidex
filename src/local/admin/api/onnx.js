@@ -16,6 +16,7 @@ import { resolveSemidexHomePaths } from '../../core/semidex-home.js';
 import { resolveEffectiveOnnxRuntimePath, prepareOnnxRuntimeProcessEnv } from '../../core/onnx-runtime-source-resolution.js';
 import { readManagedRuntimeManifest, computeManifestIdentityFingerprint, writeVerificationResult } from '../../core/managed-onnx-runtime-manifest.js';
 import { createManagedRuntimeListingCache } from '../../core/managed-runtime-listing.js';
+import { AUDIENCE, OPERATION, COST_CLASS, EDITION } from '../../../core/http/route-audience.js';
 
 const VALID_PROVIDERS = new Set(['cpu', 'dml', 'cuda']);
 
@@ -215,7 +216,7 @@ export function registerOnnxRoutes(router, {
       // kept current by this same request's own write-back above.
       managedRuntimeManifest,
     });
-  });
+  }, { audience: AUDIENCE.ADMIN, operation: OPERATION.PROBE, resourceType: 'system', costClass: COST_CLASS.SYSTEM, edition: EDITION.FULL });
 
   // GET /api/system/onnx-managed-runtimes — lists installed managed CUDA
   // runtimes for the Settings UI's dropdown. DISPLAY-ONLY (see
@@ -228,5 +229,5 @@ export function registerOnnxRoutes(router, {
     const { runtimesDir } = resolveSemidexHomePaths();
     const runtimes = listingCache.listManagedRuntimes(runtimesDir);
     sendJson(res, 200, { runtimes });
-  });
+  }, { audience: AUDIENCE.ADMIN, operation: OPERATION.READ, resourceType: 'system', costClass: COST_CLASS.SYSTEM, edition: EDITION.FULL });
 }

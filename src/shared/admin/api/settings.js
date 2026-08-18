@@ -6,6 +6,7 @@
 // behavior itself; SettingsService is the single source of truth.
 import { sendJson, readJsonBody, HttpError } from '../../../core/http/http.js';
 import { CATEGORIES } from '../../../core/settings/definitions.js';
+import { AUDIENCE, OPERATION, COST_CLASS } from '../../../core/http/route-audience.js';
 
 const ERROR_CODE_STATUS = {
   unknown_key: 400,
@@ -25,7 +26,7 @@ const ERROR_CODE_STATUS = {
 export function registerSettingsRoutes(router, { settingsService }) {
   router.get('/api/settings', async ({ res }) => {
     sendJson(res, 200, { categories: CATEGORIES, settings: settingsService.getAll() });
-  });
+  }, { audience: AUDIENCE.ADMIN, operation: OPERATION.READ, resourceType: 'settings', costClass: COST_CLASS.LOW });
 
   router.patch('/api/settings', async ({ req, res }) => {
     const body = await readJsonBody(req);
@@ -49,5 +50,5 @@ export function registerSettingsRoutes(router, { settingsService }) {
       // helpers for this route.
       throw new HttpError(status, err.code, err.message);
     }
-  });
+  }, { audience: AUDIENCE.ADMIN, operation: OPERATION.MUTATE, resourceType: 'settings', costClass: COST_CLASS.LOW });
 }

@@ -5,6 +5,7 @@
 // StorageAdapter-only.
 import { sendJson, notFound } from '../../../core/http/http.js';
 import { requireExactlyOne, parseIntParam } from './query-params.js';
+import { AUDIENCE, OPERATION, COST_CLASS, COLLECTION_SOURCE } from '../../../core/http/route-audience.js';
 
 export function registerSkeletonRoutes(router, adapter) {
   router.get('/api/collections/:name/skeleton', async ({ res, params }) => {
@@ -16,7 +17,7 @@ export function registerSkeletonRoutes(router, adapter) {
     // don't have one. Report null.
     const skeleton = await adapter.getSkeletonRoot(params.name);
     sendJson(res, 200, { collection: params.name, skeleton });
-  });
+  }, { audience: AUDIENCE.ADMIN, operation: OPERATION.READ, resourceType: 'skeleton', collectionSource: COLLECTION_SOURCE.PATH, costClass: COST_CLASS.QDRANT });
 
   router.get('/api/collections/:name/skeleton/node', async ({ res, params, query }) => {
     const existing = await adapter.getCollection(params.name);
@@ -28,7 +29,7 @@ export function registerSkeletonRoutes(router, adapter) {
     const node = await adapter.getSkeletonNode(params.name, opts);
     if (!node) throw notFound(`Skeleton node not found for ${key}="${value}"`);
     sendJson(res, 200, { collection: params.name, node });
-  });
+  }, { audience: AUDIENCE.ADMIN, operation: OPERATION.READ, resourceType: 'skeleton', collectionSource: COLLECTION_SOURCE.PATH, costClass: COST_CLASS.QDRANT });
 
   router.get('/api/collections/:name/skeleton/children', async ({ res, params, query }) => {
     const existing = await adapter.getCollection(params.name);
@@ -45,7 +46,7 @@ export function registerSkeletonRoutes(router, adapter) {
 
     const children = await adapter.getSkeletonChildren(params.name, { ...opts, limit });
     sendJson(res, 200, { collection: params.name, children });
-  });
+  }, { audience: AUDIENCE.ADMIN, operation: OPERATION.READ, resourceType: 'skeleton', collectionSource: COLLECTION_SOURCE.PATH, costClass: COST_CLASS.QDRANT });
 
   // Resolves a section (or any nav node) to the earliest real content chunk
   // anchored under it — used by the Admin UI sidebar to open the actual
@@ -60,5 +61,5 @@ export function registerSkeletonRoutes(router, adapter) {
     const chunk = await adapter.getSectionAnchor(params.name, opts);
     if (!chunk) throw notFound(`No content chunk anchored under ${key}="${value}"`);
     sendJson(res, 200, { collection: params.name, chunk });
-  });
+  }, { audience: AUDIENCE.ADMIN, operation: OPERATION.READ, resourceType: 'skeleton', collectionSource: COLLECTION_SOURCE.PATH, costClass: COST_CLASS.QDRANT });
 }

@@ -7,6 +7,7 @@
 import { sendJson } from '../../../core/http/http.js';
 import { sanitiseErrorMessage } from '../../../shared/core/doctor-checks.js';
 import { discoverOllamaModels } from '../../core/ollama-models.js';
+import { AUDIENCE, OPERATION, COST_CLASS, EDITION } from '../../../core/http/route-audience.js';
 
 // Same redaction pattern as api/generation.js's safeMessage() — the
 // reason string can embed a raw configured OLLAMA_URL, and this route
@@ -24,5 +25,5 @@ export function registerOllamaModelsRoutes(router, { settingsService, discoverOl
     const baseUrl = settingsService.getActiveValue('OLLAMA_URL');
     const result = await discoverOllamaModelsFn(baseUrl, { forceRefresh: query.get('refresh') === '1' });
     sendJson(res, 200, { ...result, reason: safeMessage(result.reason) });
-  });
+  }, { audience: AUDIENCE.ADMIN, operation: OPERATION.PROBE, resourceType: 'system', costClass: COST_CLASS.SYSTEM, edition: EDITION.FULL });
 }

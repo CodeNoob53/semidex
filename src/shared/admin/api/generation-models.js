@@ -28,6 +28,7 @@
 // how discoverOllamaModelsFn already worked.
 import { sendJson, badRequest } from '../../../core/http/http.js';
 import { sanitiseErrorMessage } from '../../core/doctor-checks.js';
+import { AUDIENCE, OPERATION, COST_CLASS } from '../../../core/http/route-audience.js';
 
 function safeMessage(message, apiKey) {
   if (message == null) return null;
@@ -82,7 +83,7 @@ export function registerGenerationModelsRoutes(router, {
     }
 
     throw badRequest('Unknown or missing "backend" query parameter. Expected "ollama" or "gemini".');
-  });
+  }, { audience: AUDIENCE.ADMIN, operation: OPERATION.PROBE, resourceType: 'system', costClass: COST_CLASS.SYSTEM });
 }
 
 /**
@@ -117,5 +118,5 @@ export function registerGenerationModelsRoutesGeminiOnly(router, {
     }
 
     throw badRequest('Unknown or missing "backend" query parameter. Expected "gemini".');
-  });
+  }, { audience: AUDIENCE.ADMIN, operation: OPERATION.PROBE, resourceType: 'system', costClass: COST_CLASS.SYSTEM });
 }

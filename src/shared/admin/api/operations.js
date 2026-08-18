@@ -10,6 +10,7 @@
 // api/collections.js) — this module only reads and normalizes.
 import { sendJson, notFound } from '../../../core/http/http.js';
 import { toJobSummary, toJobDetail } from './jobs.js';
+import { AUDIENCE, OPERATION, COST_CLASS } from '../../../core/http/route-audience.js';
 
 // The concise, already-sanitised (job.log lines are redacted at capture
 // time — see jobs/registry.js's appendLine()) failure reason for a failed
@@ -104,7 +105,7 @@ export function registerOperationsRoutes(router, { jobRegistry, taskRegistry }) 
     const jobs = jobRegistry.listJobs().map(jobToOperation);
     const tasks = taskRegistry.listTasks().map(taskToOperation);
     sendJson(res, 200, { operations: sortByStartedAtDesc([...jobs, ...tasks]) });
-  });
+  }, { audience: AUDIENCE.ADMIN, operation: OPERATION.READ, resourceType: 'operation', costClass: COST_CLASS.LOW });
 
   router.get('/api/operations/:id', ({ res, params }) => {
     const job = jobRegistry.getJob(params.id);
@@ -127,5 +128,5 @@ export function registerOperationsRoutes(router, { jobRegistry, taskRegistry }) 
       return;
     }
     throw notFound(`Operation "${params.id}" not found`);
-  });
+  }, { audience: AUDIENCE.ADMIN, operation: OPERATION.READ, resourceType: 'operation', costClass: COST_CLASS.LOW });
 }

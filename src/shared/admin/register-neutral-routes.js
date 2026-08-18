@@ -265,5 +265,13 @@ export function createHttpServer(router, { securityPolicy } = {}) {
   server.keepAliveTimeout = 5_000;  // node default; stated explicitly
   server.maxHeadersCount = 100;     // bounded header count (node default is 2000)
 
+  // Expose the router's route inventory on the server so the Admin/
+  // Integration classification can be asserted against what a REAL
+  // composition root actually registers, rather than against a hand-kept
+  // list that could drift. Read-only passthrough; adds no request behavior.
+  if (typeof router.listRoutes === 'function') {
+    server.listRoutes = () => router.listRoutes();
+  }
+
   return server;
 }

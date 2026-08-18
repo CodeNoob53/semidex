@@ -1,6 +1,7 @@
 // GET /api/collections/:name/documents — StorageAdapter-only.
 import { sendJson, notFound } from '../../../core/http/http.js';
 import { parseIntParam } from './query-params.js';
+import { AUDIENCE, OPERATION, COST_CLASS, COLLECTION_SOURCE } from '../../../core/http/route-audience.js';
 
 export function registerDocumentsRoutes(router, adapter) {
   router.get('/api/collections/:name/documents', async ({ res, params, query }) => {
@@ -16,5 +17,5 @@ export function registerDocumentsRoutes(router, adapter) {
 
     const documents = await adapter.listSourceDocuments(params.name, { prefix, limit });
     sendJson(res, 200, { collection: params.name, documents });
-  });
+  }, { audience: AUDIENCE.ADMIN, operation: OPERATION.READ, resourceType: 'document', collectionSource: COLLECTION_SOURCE.PATH, costClass: COST_CLASS.QDRANT });
 }

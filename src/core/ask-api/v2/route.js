@@ -11,6 +11,8 @@ import { sendJson, notFound, readJsonBody, HttpError } from '../../http/http.js'
 import { startSse, writeSseEvent, waitForDrain } from '../../http/sse.js';
 import { sanitiseErrorMessage } from '../../../shared/core/doctor-checks.js';
 import { parseAskRequestV2 } from './request.js';
+import { AUDIENCE, OPERATION, COST_CLASS, COLLECTION_SOURCE } from '../../http/route-audience.js';
+import { authorizeCollectionAccess } from '../../http/authorize.js';
 import {
   ASK_PATH, SSE_EVENTS, ERROR_CODES,
   projectSourcesEvent, projectAnswerDeltaEvent, projectDoneEvent, projectErrorPayload, projectErrorResponseBody,
@@ -43,7 +45,7 @@ const RETRIEVAL_ERROR_STATUS = {
  * }} deps
  */
 export function registerAskRoutesV2(router, adapter, { askCoordinatorV2 }) {
-  router.post(ASK_PATH, async ({ req, res }) => {
+  router.post(ASK_PATH, async ({ req, res, auth }) => {
     let streamed = false;
     try {
       let collection;
@@ -52,6 +54,21 @@ export function registerAskRoutesV2(router, adapter, { askCoordinatorV2 }) {
       try {
         const body = await readJsonBody(req);
         ({ collection, question, conversation } = parseAskRequestV2(body));
+
+        // Stage 2 — object-level authorization (OWASP API1:2023). The
+        // collection identifier is client-supplied and only known now that
+        // the body is parsed, which is exactly why the router's pre-body
+        // seam cannot perform this check. Runs BEFORE adapter.getCollection()
+        // so a denied request costs no Qdrant round-trip, and before any
+        // Gemini call. Fail-closed when a hook is configured; a no-op when
+        // one is not. Throws HttpError, which the enclosing catch maps to
+        // this endpoint's versioned error body.
+        // `auth` carries the stage-1 principal, the matched route metadata
+        // and the configured hook — all explicitly, never via a mutated
+        // request object. The operation comes from route metadata
+        // (OPERATION.GENERATE, declared at registration), so it cannot drift
+        // from the registry the way a re-declared literal could.
+        await authorizeCollectionAccess(auth, { req, collection });
 
         const existing = await adapter.getCollection(collection);
         if (!existing) throw notFound(`Collection "${collection}" not found`);
@@ -160,5 +177,5 @@ export function registerAskRoutesV2(router, adapter, { askCoordinatorV2 }) {
       writeSseEvent(res, SSE_EVENTS.ERROR, projectErrorPayload(ERROR_CODES.INTERNAL_ERROR, message));
       res.end();
     }
-  });
+  }, { audience: AUDIENCE.INTEGRATION, operation: OPERATION.GENERATE, resourceType: 'collection', collectionSource: COLLECTION_SOURCE.BODY, costClass: COST_CLASS.LLM });
 }

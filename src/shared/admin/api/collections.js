@@ -2,6 +2,7 @@
 // POST /api/collections/:name/sync-schema, DELETE /api/collections/:name
 // — StorageAdapter-only.
 import { sendJson, notFound } from '../../../core/http/http.js';
+import { AUDIENCE, OPERATION, COST_CLASS, COLLECTION_SOURCE } from '../../../core/http/route-audience.js';
 
 // taskRegistry is optional DI, same convention as jobRegistry in
 // api/jobs.js — tests that don't care about operation tracking can omit it
@@ -10,13 +11,13 @@ export function registerCollectionsRoutes(router, adapter, { taskRegistry } = {}
   router.get('/api/collections', async ({ res }) => {
     const collections = await adapter.listCollections();
     sendJson(res, 200, { collections });
-  });
+  }, { audience: AUDIENCE.ADMIN, operation: OPERATION.READ, resourceType: 'collection', costClass: COST_CLASS.QDRANT });
 
   router.get('/api/collections/:name', async ({ res, params }) => {
     const collection = await adapter.getCollection(params.name);
     if (!collection) throw notFound(`Collection "${params.name}" not found`);
     sendJson(res, 200, { collection });
-  });
+  }, { audience: AUDIENCE.ADMIN, operation: OPERATION.READ, resourceType: 'collection', collectionSource: COLLECTION_SOURCE.PATH, costClass: COST_CLASS.QDRANT });
 
   router.post('/api/collections/:name/sync-schema', async ({ res, params }) => {
     // getCollection() is the cheapest existence check the adapter exposes —
@@ -57,7 +58,7 @@ export function registerCollectionsRoutes(router, adapter, { taskRegistry } = {}
     // settings-view.js's runSettingsRepair().
     const { repaired, warnings } = await done;
     sendJson(res, 200, { id, collection: params.name, repaired, warnings });
-  });
+  }, { audience: AUDIENCE.ADMIN, operation: OPERATION.MUTATE, resourceType: 'collection', collectionSource: COLLECTION_SOURCE.PATH, costClass: COST_CLASS.QDRANT });
 
   // Destructive. Confirmation is a UI-level concern (a modal the user must
   // click through) — the Local API is loopback-only and single-user, so a
@@ -70,5 +71,5 @@ export function registerCollectionsRoutes(router, adapter, { taskRegistry } = {}
 
     await adapter.deleteCollection(params.name);
     sendJson(res, 200, { collection: params.name, deleted: true });
-  });
+  }, { audience: AUDIENCE.ADMIN, operation: OPERATION.DELETE, resourceType: 'collection', collectionSource: COLLECTION_SOURCE.PATH, costClass: COST_CLASS.QDRANT });
 }

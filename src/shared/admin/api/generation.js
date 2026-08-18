@@ -11,6 +11,7 @@
 // generation status).
 import { sendJson } from '../../../core/http/http.js';
 import { sanitiseErrorMessage } from '../../core/doctor-checks.js';
+import { AUDIENCE, OPERATION, COST_CLASS } from '../../../core/http/route-audience.js';
 
 // Same redaction helper used by core/ask-api/v1/route.js — a readiness "reason" string
 // can embed a raw configured baseUrl (e.g. "Ollama is not reachable at
@@ -40,5 +41,5 @@ export function registerGenerationRoutes(router, { generationRuntime }) {
     // the same underlying condition — this status endpoint's job is only
     // to report state, not to gate an action.)
     sendJson(res, 200, { ...status, reason: safeMessage(status.reason) });
-  });
+  }, { audience: AUDIENCE.ADMIN, operation: OPERATION.READ, resourceType: 'system', costClass: COST_CLASS.LOW });
 }

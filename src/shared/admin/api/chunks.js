@@ -1,6 +1,7 @@
 // GET /api/collections/:name/chunks — StorageAdapter-only.
 import { sendJson, notFound } from '../../../core/http/http.js';
 import { parseIntParam, requireStringParam } from './query-params.js';
+import { AUDIENCE, OPERATION, COST_CLASS, COLLECTION_SOURCE } from '../../../core/http/route-audience.js';
 
 export function registerChunksRoutes(router, adapter) {
   router.get('/api/collections/:name/chunks', async ({ res, params, query }) => {
@@ -31,5 +32,5 @@ export function registerChunksRoutes(router, adapter) {
 
     const chunks = await adapter.getChunk(params.name, sourceFile, chunkIndex, { window });
     sendJson(res, 200, { collection: params.name, sourceFile, chunkIndex, window, chunks });
-  });
+  }, { audience: AUDIENCE.ADMIN, operation: OPERATION.READ, resourceType: 'chunk', collectionSource: COLLECTION_SOURCE.PATH, costClass: COST_CLASS.QDRANT });
 }

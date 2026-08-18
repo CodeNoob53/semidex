@@ -12,6 +12,7 @@
 // imports the real checkOllama and passes it in.
 import { sendJson, badRequest } from '../../../core/http/http.js';
 import { pickFolder } from '../system/folder-picker.js';
+import { AUDIENCE, OPERATION, COST_CLASS, EDITION } from '../../../core/http/route-audience.js';
 
 const PICKER_ERROR_STATUS = {
   UNSUPPORTED_PLATFORM: 501,
@@ -35,7 +36,7 @@ export function registerFolderPickRoutes(router, { pickFolderFn = pickFolder } =
       }
       throw badRequest(err.message);
     }
-  });
+  }, { audience: AUDIENCE.ADMIN, operation: OPERATION.PROBE, resourceType: 'system', costClass: COST_CLASS.SYSTEM });
 }
 
 // checkOllamaFn has no default — see this file's header comment. The full
@@ -48,5 +49,5 @@ export function registerOllamaStatusRoutes(router, { checkOllamaFn }) {
   router.get('/api/system/ollama-status', async ({ res }) => {
     const result = await checkOllamaFn({ requiredModel: DEFAULT_CONTEXT_MODEL });
     sendJson(res, 200, result);
-  });
+  }, { audience: AUDIENCE.ADMIN, operation: OPERATION.PROBE, resourceType: 'system', costClass: COST_CLASS.SYSTEM, edition: EDITION.FULL });
 }

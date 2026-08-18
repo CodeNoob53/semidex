@@ -135,7 +135,7 @@ export function createLiteApp({
   adapter = createStorageAdapter(), embedQuery, jobRegistry, taskRegistry,
   assemblyLogFn, generationRuntime, askCoordinator, askCoordinators, countTokens, settingsService, jobBaseEnv,
   discoverGeminiModelsFn, runQdrantCloudProbeFn, resolveNewCollectionProfileFn, jobPolicy = LITE_JOB_POLICY,
-  securityPolicy,
+  securityPolicy, integrationPolicy,
 } = {}) {
   const ollamaCapability = unavailableOllamaEmbedCapability();
   const onnxEmbedCapability = unavailableOnnxEmbedCapability();
@@ -190,7 +190,7 @@ export function createLiteApp({
   // resolution identical to the listener's own.
   const resolvedSecurityPolicy = securityPolicy
     ?? resolveRequestSecurityPolicy(process.env, { settingsService: settings });
-  const router = createRouter({ securityPolicy: resolvedSecurityPolicy });
+  const router = createRouter({ securityPolicy: resolvedSecurityPolicy, integrationPolicy });
   registerNeutralRoutes(router, {
     adapter, embedQuery: resolvedEmbedQuery, cloudEmbed, jobRegistry: resolvedJobRegistry, taskRegistry, assemblyLogFn,
     generationRuntime: resolvedGenerationRuntime, askCoordinator, askCoordinators, countTokens, settingsService: settings,
