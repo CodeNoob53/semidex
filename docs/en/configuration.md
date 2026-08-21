@@ -238,6 +238,20 @@ do not require it. If `QDRANT_URL` has no explicit port, the protocol default
 (443 for https, 80 for http) is used — include `:6333` explicitly for a
 standard local Qdrant.
 
+**Security — write boundary and egress policy:** `PATCH /api/settings`
+accepts a change to `QDRANT_URL` only from
+a direct loopback connection to this process, independent of
+`ADMIN_ALLOW_REMOTE` — CLI/`.env`/`settings.json` edits are unaffected, this
+only gates the HTTP write path. Separately, `getQdrantClient()` rejects a
+non-`http(s)` scheme, embedded userinfo, or a well-known cloud-metadata
+address (`169.254.169.254` and its documented IPv6 forms,
+`metadata.google.internal`) before constructing a client or making any
+network call — loopback, LAN, RFC1918, and Docker-internal (`host.docker
+.internal`) addresses are never affected by this check. `QDRANT_ALLOW_
+METADATA_EGRESS=1` is an explicit, off-by-default escape hatch for a
+controlled test against a metadata-shaped mock; never set it in a real
+deployment.
+
 ## Models
 
 | Variable | Default | Description |
@@ -253,6 +267,15 @@ standard local Qdrant.
 | `TAG_ONNX_THREADS` | `1` | ONNX tag worker thread count (only when `TAG_PROVIDER=onnx`) |
 | `TAG_ONNX_ALLOW_DOWNLOAD` | `0` | Set to `1` to allow downloading the ONNX tag model on first use |
 | `VECTOR_SIZE` | `1024` | Must match dense embedding size |
+
+**Security — `OLLAMA_URL` write boundary and egress policy:** same rules as
+`QDRANT_URL` above — `PATCH /api/settings` accepts an `OLLAMA_URL` change
+only from a direct loopback connection, and every `local/core/ollama.js`
+network call rejects a non-`http(s)` scheme, embedded userinfo, or a
+well-known cloud-metadata address before it fires, with the same
+loopback/LAN/RFC1918/Docker-internal addresses always allowed.
+`OLLAMA_ALLOW_METADATA_EGRESS=1` is the equivalent off-by-default escape
+hatch, scoped independently from `QDRANT_ALLOW_METADATA_EGRESS`.
 
 ## Ask Generation Backend
 

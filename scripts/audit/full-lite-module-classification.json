@@ -14,8 +14,8 @@
     "mixed": 3,
     "tooling": 62,
     "cloud": 8,
-    "shared": 168,
-    "local": 28
+    "shared": 171,
+    "local": 29
   },
   "modules": [
     {
@@ -829,6 +829,7 @@
       "fullReachable": true,
       "liteReachable": true,
       "directDependencies": [
+        "src/core/security/qdrant-egress-policy.js",
         "src/shared/core/bench-telemetry.js"
       ]
     },
@@ -952,6 +953,35 @@
       ]
     },
     {
+      "path": "src/core/security/direct-loopback-request.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/core/security/network-egress-policy.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/core/security/ollama-egress-policy.js",
+      "declaredCategory": "local",
+      "category": "local",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": false,
+      "directDependencies": [
+        "src/core/security/network-egress-policy.js"
+      ]
+    },
+    {
       "path": "src/core/security/path-containment.js",
       "declaredCategory": "shared",
       "category": "shared",
@@ -959,6 +989,17 @@
       "fullReachable": true,
       "liteReachable": true,
       "directDependencies": []
+    },
+    {
+      "path": "src/core/security/qdrant-egress-policy.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/security/network-egress-policy.js"
+      ]
     },
     {
       "path": "src/core/settings/definitions.js",
@@ -1189,6 +1230,7 @@
       "fullReachable": true,
       "liteReachable": false,
       "directDependencies": [
+        "src/core/security/ollama-egress-policy.js",
         "src/local/core/ollama.js"
       ]
     },
@@ -1271,6 +1313,7 @@
       "fullReachable": true,
       "liteReachable": false,
       "directDependencies": [
+        "src/core/security/ollama-egress-policy.js",
         "src/local/core/ollama.js"
       ]
     },
@@ -1281,7 +1324,9 @@
       "compositionEdition": null,
       "fullReachable": true,
       "liteReachable": false,
-      "directDependencies": []
+      "directDependencies": [
+        "src/core/security/ollama-egress-policy.js"
+      ]
     },
     {
       "path": "src/local/core/onnx-cuda-installer-logic.js",
@@ -1785,6 +1830,7 @@
       "directDependencies": [
         "src/core/http/http.js",
         "src/core/http/route-audience.js",
+        "src/core/security/direct-loopback-request.js",
         "src/core/settings/definitions.js"
       ]
     },

@@ -2,6 +2,7 @@
 // /api/tags supplies the installed model list; /api/show supplies the
 // authoritative capabilities and model metadata for each entry.
 import { embeddingDimensionFromShow, isOllamaReachable, showModel } from './ollama.js';
+import { createOllamaEgressPolicy } from '../../core/security/ollama-egress-policy.js';
 
 const OLLAMA_URL = process.env.OLLAMA_URL || 'http://localhost:11434';
 const SHOW_CONCURRENCY = 4;
@@ -47,6 +48,21 @@ async function mapWithConcurrency(items, limit, fn) {
  * }>}>}
  */
 export async function discoverOllamaModels(baseUrl = OLLAMA_URL, { forceRefresh = false } = {}) {
+  // Checked explicitly (in addition to isOllamaReachable()'s own internal
+  // guard below, which already prevents the fetch this function performs
+  // for a blocked baseUrl) so a blocked destination is reported with its
+  // real reason instead of a generic "not reachable" message.
+  const egressVerdict = createOllamaEgressPolicy({
+    allowMetadataAddresses: process.env.OLLAMA_ALLOW_METADATA_EGRESS === '1',
+  }).checkUrl(baseUrl);
+  if (!egressVerdict.ok) {
+    return {
+      available: false,
+      reason: `Ollama request blocked by egress policy (${egressVerdict.reason}).`,
+      models: [],
+    };
+  }
+
   if (!(await isOllamaReachable(baseUrl))) {
     return {
       available: false,

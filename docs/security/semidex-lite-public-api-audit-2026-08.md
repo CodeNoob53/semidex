@@ -8,6 +8,7 @@ recent. **Read a finding's own `STATUS` line, not just its original prose,
 for what is actually true today** — §1 below separates the original,
 as-audited claim from the current state explicitly, and the same applies
 throughout §7.
+
 Scope: the HTTP API surface shipped by Semidex Lite (`packages/lite/`), and
 the shared router/route code it composes from `src/shared/`, `src/core/`,
 `src/cloud/`, and `src/admin/`. Every claim below is traced to a specific

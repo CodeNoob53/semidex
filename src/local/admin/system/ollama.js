@@ -10,6 +10,7 @@
 // (src/indexer/preflight.js) via src/local/core/ollama.js — one
 // implementation, not two drifting copies.
 import { isOllamaReachable, listOllamaModels, validateOllamaModels } from '../../core/ollama.js';
+import { createOllamaEgressPolicy } from '../../../core/security/ollama-egress-policy.js';
 
 const DEFAULT_URL = process.env.OLLAMA_URL || 'http://localhost:11434';
 
@@ -25,6 +26,20 @@ const DEFAULT_URL = process.env.OLLAMA_URL || 'http://localhost:11434';
  * @returns {Promise<{ status: OllamaStatus, message: string, missingModel?: string }>}
  */
 export async function checkOllama({ baseUrl = DEFAULT_URL, requiredModel } = {}) {
+  // Checked explicitly (in addition to isOllamaReachable()'s own internal
+  // guard, which already prevents any network call for a blocked baseUrl)
+  // so a blocked destination is reported with its real reason instead of a
+  // generic "Ollama is not running" message.
+  const egressVerdict = createOllamaEgressPolicy({
+    allowMetadataAddresses: process.env.OLLAMA_ALLOW_METADATA_EGRESS === '1',
+  }).checkUrl(baseUrl);
+  if (!egressVerdict.ok) {
+    return {
+      status: 'missing',
+      message: `Ollama request blocked by egress policy (${egressVerdict.reason}).`,
+    };
+  }
+
   if (!(await isOllamaReachable(baseUrl))) {
     return {
       status: 'missing',

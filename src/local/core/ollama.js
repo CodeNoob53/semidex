@@ -1,6 +1,34 @@
 import 'dotenv/config';
+import { createOllamaEgressPolicy } from '../../core/security/ollama-egress-policy.js';
 
 const OLLAMA_URL = process.env.OLLAMA_URL || 'http://localhost:11434';
+
+// Egress policy check, called before every outbound request below. A fresh policy
+// instance per call (this function itself holds no state) mirrors
+// core/qdrant/client.js's own "re-check every call, cheap and pure" choice.
+// OLLAMA_ALLOW_METADATA_EGRESS is the explicit, off-by-default escape hatch
+// for a controlled test that deliberately targets a metadata-shaped mock —
+// never set in a real deployment.
+function checkOllamaUrl(baseUrl) {
+  return createOllamaEgressPolicy({
+    allowMetadataAddresses: process.env.OLLAMA_ALLOW_METADATA_EGRESS === '1',
+  }).checkUrl(baseUrl);
+}
+
+// Same policy instance/config as checkOllamaUrl() above, but for the
+// functions below whose existing contract is "throw on a bad destination"
+// (listOllamaModels/embed/generate/generateStream): assertAllowed() throws
+// the typed, sanitized EgressPolicyError directly, so callers get a
+// consistent err.name/code/reason to branch on instead of a hand-rolled
+// generic Error string. Functions with a deliberate boolean/null contract
+// (isOllamaReachable, showModel, getRunningModel,
+// getOllamaEmbeddingDimension) keep using checkOllamaUrl() above — they must
+// never throw.
+function assertOllamaUrl(baseUrl) {
+  return createOllamaEgressPolicy({
+    allowMetadataAddresses: process.env.OLLAMA_ALLOW_METADATA_EGRESS === '1',
+  }).assertAllowed(baseUrl);
+}
 
 // ── Reachability / model-list checks ────────────────────────────────────────
 // Shared by the indexer's preflight (src/indexer/preflight.js) and the admin
@@ -12,6 +40,7 @@ const OLLAMA_URL = process.env.OLLAMA_URL || 'http://localhost:11434';
  * True if Ollama responds to GET /api/version within timeoutMs.
  */
 export async function isOllamaReachable(baseUrl = OLLAMA_URL, timeoutMs = 5000) {
+  if (!checkOllamaUrl(baseUrl).ok) return false;
   try {
     const r = await fetch(`${baseUrl.replace(/\/$/, '')}/api/version`, { signal: AbortSignal.timeout(timeoutMs) });
     return r.ok;
@@ -26,6 +55,7 @@ export async function isOllamaReachable(baseUrl = OLLAMA_URL, timeoutMs = 5000) 
  * isOllamaReachable() first.
  */
 export async function listOllamaModels(baseUrl = OLLAMA_URL, timeoutMs = 5000) {
+  assertOllamaUrl(baseUrl);
   const r = await fetch(`${baseUrl.replace(/\/$/, '')}/api/tags`, { signal: AbortSignal.timeout(timeoutMs) });
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
   const data = await r.json();
@@ -67,6 +97,7 @@ export async function showModel(model, baseUrl = OLLAMA_URL, { forceRefresh = fa
   const normalizedBaseUrl = baseUrl.replace(/\/$/, '');
   const cacheKey = `${normalizedBaseUrl}|${model}`;
   if (!forceRefresh && _showCache.has(cacheKey)) return _showCache.get(cacheKey);
+  if (!checkOllamaUrl(normalizedBaseUrl).ok) return null;
   try {
     const r = await fetch(`${normalizedBaseUrl}/api/show`, {
       method: 'POST',
@@ -100,6 +131,7 @@ export async function showModel(model, baseUrl = OLLAMA_URL, { forceRefresh = fa
  * @returns {Promise<{ size: number, size_vram: number } | null>}
  */
 export async function getRunningModel(model, baseUrl = OLLAMA_URL) {
+  if (!checkOllamaUrl(baseUrl).ok) return null;
   try {
     const r = await fetch(`${baseUrl.replace(/\/$/, '')}/api/ps`, { signal: AbortSignal.timeout(5000) });
     if (!r.ok) return null;
@@ -154,6 +186,7 @@ export async function getOllamaEmbeddingDimension(
   if (!forceRefresh && _embeddingDimensionCache.has(cacheKey)) {
     return _embeddingDimensionCache.get(cacheKey);
   }
+  if (!checkOllamaUrl(normalizedBaseUrl).ok) return null;
 
   const shown = await showModel(model, normalizedBaseUrl, { forceRefresh });
   const metadataDimension = embeddingDimensionFromShow(shown);
@@ -220,6 +253,7 @@ export async function isThinkingModel(model, baseUrl = OLLAMA_URL) {
 }
 
 export async function embed(text, model) {
+  assertOllamaUrl(OLLAMA_URL);
   const r = await fetch(`${OLLAMA_URL}/api/embed`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -231,6 +265,7 @@ export async function embed(text, model) {
 }
 
 export async function generate(model, prompt, { format, options } = {}) {
+  assertOllamaUrl(OLLAMA_URL);
   const body = { model, prompt, stream: false };
   if (format) body.format = format;
   if (options) body.options = options;
@@ -266,6 +301,7 @@ export async function generate(model, prompt, { format, options } = {}) {
  * @returns {Promise<{ text: string, tokensIn?: number, tokensOut?: number, aborted?: boolean }>}
  */
 export async function generateStream(model, prompt, { system, baseUrl = OLLAMA_URL, format, options, signal, onToken } = {}) {
+  assertOllamaUrl(baseUrl);
   const body = { model, prompt, stream: true };
   if (system) body.system = system;
   if (format) body.format = format;

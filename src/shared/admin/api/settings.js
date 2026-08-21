@@ -7,6 +7,12 @@
 import { sendJson, readJsonBody, HttpError } from '../../../core/http/http.js';
 import { CATEGORIES } from '../../../core/settings/definitions.js';
 import { AUDIENCE, OPERATION, COST_CLASS } from '../../../core/http/route-audience.js';
+import { evaluateDirectLoopbackConnection } from '../../../core/security/direct-loopback-request.js';
+
+// Destination-changing settings require a direct loopback request. Every
+// other setting keeps today's behavior unchanged; this is a narrow,
+// field-specific boundary, not a general Admin authentication mechanism.
+const SENSITIVE_DESTINATION_KEYS = new Set(['QDRANT_URL', 'OLLAMA_URL']);
 
 const ERROR_CODE_STATUS = {
   unknown_key: 400,
@@ -33,6 +39,24 @@ export function registerSettingsRoutes(router, { settingsService }) {
     const changes = body?.changes;
     if (!changes || typeof changes !== 'object' || Array.isArray(changes) || Object.keys(changes).length === 0) {
       throw new HttpError(400, 'bad_request', 'Request body must be { changes: { key: value|null, ... } } with at least one key.');
+    }
+
+    // Checked BEFORE settingsService.setMany() and regardless of whether
+    // the change is a real value or a null deletion — both change what the
+    // NEXT restart's Qdrant/Ollama traffic targets. Deliberately keyed only
+    // by presence in `changes`, never by whether the new value differs from
+    // the current one, so this cannot be bypassed by round-tripping through
+    // an intermediate no-op value.
+    const touchesSensitiveDestination = Object.keys(changes).some((key) => SENSITIVE_DESTINATION_KEYS.has(key));
+    if (touchesSensitiveDestination) {
+      const verdict = evaluateDirectLoopbackConnection(req);
+      if (!verdict.ok) {
+        throw new HttpError(
+          403,
+          'loopback_required',
+          'QDRANT_URL and OLLAMA_URL can only be changed over a direct loopback connection to this process with no proxy-forwarding signals present — not from a remote caller, regardless of ADMIN_ALLOW_REMOTE. A headerless L4/stream-mode proxy relaying a remote caller cannot be distinguished from this and is not protected against; do not front this endpoint with one.'
+        );
+      }
     }
 
     try {

@@ -7,6 +7,7 @@
 import 'dotenv/config';
 import { QdrantClient } from '@qdrant/js-client-rest';
 import { emitTelemetry } from '../../shared/core/bench-telemetry.js';
+import { createQdrantEgressPolicy } from '../security/qdrant-egress-policy.js';
 
 // Timeouts preserve the pre-SDK wrapper's behavior: 30 s reads, 60 s writes.
 // The SDK supports one timeout per client instance, hence two cached clients.
@@ -20,6 +21,19 @@ let cached = null;
 export function getQdrantClient({ write = false } = {}) {
   const url = process.env.QDRANT_URL;
   if (!url) throw new Error('QDRANT_URL is not set. Add it to your .env file.');
+
+  // Check the configured destination before client construction or network
+  // access. Re-check on every call, not just when the cache
+  // would rebuild: cheap, pure, and means a corrupted/hand-edited
+  // settings.json can never leave a stale-but-already-validated client
+  // cached past a value that would now be rejected.
+  // QDRANT_ALLOW_METADATA_EGRESS is the explicit, off-by-default escape
+  // hatch for a controlled test that deliberately targets a
+  // metadata-shaped mock — never set in a real deployment.
+  createQdrantEgressPolicy({
+    allowMetadataAddresses: process.env.QDRANT_ALLOW_METADATA_EGRESS === '1',
+  }).assertAllowed(url);
+
   const apiKey = process.env.QDRANT_KEY || undefined;
 
   const cacheKey = `${url} ${apiKey ?? ''}`;
