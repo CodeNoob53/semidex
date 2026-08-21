@@ -7,7 +7,7 @@ import { sanitiseErrorMessage } from '../core/doctor-checks.js';
 import {
   createRequestSecurityPolicy,
   evaluateRequestSecurity,
-  applySecurityVaryHeaders,
+  applySecurityResponseHeaders,
 } from '../../core/http/request-security.js';
 import { validateRouteMeta, AUDIENCE } from '../../core/http/route-audience.js';
 import { validateIntegrationPolicy, deepFreeze, assertPlainPrincipal } from '../../core/http/authorize.js';
@@ -93,7 +93,7 @@ export function createRouter({ securityPolicy, integrationPolicy } = {}) {
       // cross-site or bad-Host request must never reach Qdrant, Gemini, the
       // filesystem, a subprocess spawn, or the folder-picker dialog. See
       // core/http/request-security.js for the policy and its rationale.
-      applySecurityVaryHeaders(res);
+      applySecurityResponseHeaders(res);
       const verdict = evaluateRequestSecurity(req, policy);
       if (!verdict.ok) {
         return sendError(res, verdict.status, verdict.code, verdict.message);

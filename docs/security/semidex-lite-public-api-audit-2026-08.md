@@ -1,6 +1,13 @@
 # Semidex Lite — Public API Security Audit (2026-08)
 
-Status: **audit only — no mitigations implemented in this pass.**
+Status: **living document.** Originally an audit-only pass (2026-08-17/18,
+no mitigations implemented). Multiple mitigation phases have shipped since
+and are layered in as dated `STATUS:` annotations under the finding they
+correct (§7) and as dated `## 12x` sections; §12h (2026-08-21) is the most
+recent. **Read a finding's own `STATUS` line, not just its original prose,
+for what is actually true today** — §1 below separates the original,
+as-audited claim from the current state explicitly, and the same applies
+throughout §7.
 Scope: the HTTP API surface shipped by Semidex Lite (`packages/lite/`), and
 the shared router/route code it composes from `src/shared/`, `src/core/`,
 `src/cloud/`, and `src/admin/`. Every claim below is traced to a specific
@@ -9,36 +16,58 @@ under `tests/unit/security/`.
 
 ## 1. Executive summary
 
-Semidex Lite's HTTP API has **no authentication, no authorization, no rate
-limiting, and no Origin/CSRF enforcement** of any kind. (It also sets no
-CORS headers — but note that this *absence* currently blocks cross-origin
-attackers from reading responses, so it is not itself a weakness; the gap is
-the missing server-side Origin check on state-changing routes. See P1-1,
-which is deliberately scoped to that distinction.) This is a documented,
-deliberate
-MVP decision (`src/shared/admin/register-neutral-routes.js:18-19`: *"JSON-only,
+**As originally audited (2026-08-17/18):** Semidex Lite's HTTP API had **no
+authentication, no authorization, no rate limiting, and no Origin/CSRF
+enforcement** of any kind. (It also set no CORS headers — but that *absence*
+blocked cross-origin attackers from reading responses, so it was not itself
+a weakness; the gap was the missing server-side Origin check on
+state-changing routes. See P1-1, which is deliberately scoped to that
+distinction.) This was a documented, deliberate MVP decision
+(`src/shared/admin/register-neutral-routes.js:18-19`: *"JSON-only,
 localhost-only by default, no CORS, no auth (the loopback bind IS the auth
-boundary for MVP)"*), not an oversight — but the loopback bind is a weaker
-boundary than the comment implies, for three reasons this audit confirms in
-code: (1) the bind address is a single env var (`ADMIN_ALLOW_REMOTE=1`) away
+boundary for MVP)"*), not an oversight — but the loopback bind was a weaker
+boundary than the comment implied, for three reasons this audit confirmed in
+code: (1) the bind address was a single env var (`ADMIN_ALLOW_REMOTE=1`) away
 from being exposed to a LAN or the internet with zero other change; (2) even
-while bound to loopback, the server has no Host-header or Origin check, so it
-cannot distinguish a legitimate same-machine client from a malicious
+while bound to loopback, the server had no Host-header or Origin check, so it
+could not distinguish a legitimate same-machine client from a malicious
 same-machine *browser tab* running attacker JavaScript against
-`127.0.0.1:8642`, or from a DNS-rebinding attack; (3) once *anything* sits in
+`127.0.0.1:8642`, or from a DNS-rebinding attack; (3) once *anything* sat in
 front of it as a reverse proxy — the exact "Lite behind your own backend"
-deployment the product is designed for — the loopback boundary disappears
-entirely and nothing inside Semidex Lite itself re-establishes a trust
+deployment the product is designed for — the loopback boundary disappeared
+entirely and nothing inside Semidex Lite itself re-established a trust
 boundary.
 
-Within that no-auth model, the API is otherwise carefully engineered:
+**Current state (updated 2026-08-21 — every line below has a corresponding
+dated `STATUS` note in §7 or a `## 12x` section; read those for exact scope
+and proof):**
+
+| Original gap | Current status |
+|---|---|
+| No Host-header / DNS-rebinding defense | 🟢 FIXED, every route — P3-1, §12b |
+| No Origin/CSRF enforcement | 🟢 FIXED, every route — P1-1, §12b |
+| No authentication anywhere | 🟡 FIXED for `POST /api/v1/ask`/`v2/ask` only (bearer keys); the Admin surface (settings, jobs, collections incl. `DELETE`, `POST /api/search`, schema sync, Qdrant Cloud probe, static UI) remains exactly as originally audited — no authentication at all, by design — P1-1 residual, §12d, §12e |
+| No collection scoping | 🟡 FIXED for Ask v1/v2 only (per-key `collections` scope); every Admin read/write route still performs zero collection-level scoping — P1-2 STATUS |
+| No rate limiting anywhere | 🟡 FIXED for Ask v1/v2 only (per-key token bucket); the Admin surface, including `POST /api/search`, still has none; no route anywhere has a spend/token-budget ceiling — P2-1 STATUS |
+| Unscoped local filesystem indexing | 🟢 FIXED, `INDEX_ALLOWED_ROOTS` fail-closed — P1-3 |
+| `settings.json` default OS permissions | 🟢 FIXED on POSIX (0o600, fail-closed pre-rename); Windows unaddressed by design — P2-2 STATUS |
+| No security response headers | 🟢 FIXED, every response, Full and Lite — §12h |
+
+The takeaway has not changed in kind, only in scope: the risk is still
+concentrated in **the absence of any caller-identity concept on the Admin
+surface** — that surface is unauthenticated, unscoped, and unrate-limited
+today exactly as it was at the original audit, protected only by the
+loopback bind plus the Host/Origin checks. The Integration surface (Ask v1/
+v2) is the one part of the original blanket claim that is now substantially
+closed.
+
+Within both models, the API is otherwise carefully engineered:
 request bodies are strictly validated (unknown-field rejection throughout),
 secrets are never echoed back by the Settings API, error messages are
 redacted before crossing the process boundary, Ask generation is
 single-flight-gated, and the Full/Lite composition split is real and
 verified — Full-only local-runtime routes (ONNX, Ollama) do not leak into
-the Lite build. The risk is concentrated almost entirely in **the absence of
-any caller-identity concept at all**, not in scattered implementation bugs.
+the Lite build.
 
 ## 2. Scope and non-goals
 
@@ -485,6 +514,43 @@ scenario 5; a real per-caller scoping model (API keys with collection
 scopes, mirroring Qdrant Cloud's own granular-access-key model — see §11
 sources) is the complete fix.
 
+### STATUS: PARTIALLY FIXED (2026-08-18) — Integration surface only
+
+§12e's bearer-key implementation closes this for `POST /api/v1/ask` and
+`POST /api/v2/ask` — the only two routes classified `audience: integration`
+(§12d). Every key carries an explicit `collections` scope (`"*"` must be
+written out, never implied by an empty list — see §12e), enforced by
+`authorizeCollection` at router stage 2, after the body is parsed and before
+`adapter.getCollection()` is called. An out-of-scope collection and a
+nonexistent one are indistinguishable from outside, so this closes the
+enumeration/disclosure risk this finding describes, for Ask specifically.
+
+**Not closed by this:** `POST /api/search` and every
+`GET /api/collections/:name/*` read route remain classified
+`audience: admin` (§12d's own inventory — `/api/search` is deliberately
+Admin, being the dashboard's own unversioned internal endpoint). Admin
+routes never invoke the integration policy at all, so these routes perform
+exactly zero collection-level scoping today — the same absence this finding
+originally described, just narrowed to a smaller route set. Under the
+single-trusted-operator contract (§6 scenario 1) this is correct, not a
+regression; it becomes a real gap the moment any of §6 scenarios 2-5 apply
+to a caller reaching these specific routes. The optional global
+allow-list mentioned in the original recommended fix direction (defense in
+depth beyond per-key scopes) has not been added.
+
+**Proof:** `tests/unit/security/integration-audience-scoping.test.js` and
+`tests/unit/security/collection-authorization.test.js` (per-key scope
+enforcement); `tests/unit/security/ask-api-collection-allowlist.test.js`
+still passes unmodified and still proves what it always proved — that
+`parseAskRequestV1`/`V2` themselves place no scope constraint on
+`collection` — but that parse-level absence is no longer the whole story:
+its second describe block constructs a router via `createRouter()` with
+**no** `integrationPolicy` supplied, which is what actually produces the
+unscoped pass-through it demonstrates. `createApp()`/`createLiteApp()`
+resolve a real, scope-enforcing policy by default in production
+(`core/auth/resolve-policy.js`) — a caller that wants scoping bypassed has to
+deliberately omit it, as this one test does, not merely reach the route.
+
 ### P1-3 — Unscoped local filesystem indexing
 
 ### STATUS: FIXED (2026-08-19)
@@ -613,6 +679,40 @@ structural; confirmed by exhaustive reading of `src/core/http/`,
 the HTTP layer, tunable per-route (Ask needs a much tighter cap than
 `GET /api/health`), direction only.
 
+### STATUS: PARTIALLY FIXED (2026-08-18/19) — Integration surface only
+
+`src/core/auth/rate-limiter.js` (instance-scoped token bucket, no
+timers — refill computed on each `consume()` call, lazy idle-bucket sweep
+piggybacked on real traffic) is wired into the router as **stage 1.5**:
+immediately after a successful bearer-key authentication, still before the
+body is read and before stage 2 (collection authorization) — so a token is
+spent even by a request that later turns out malformed or out-of-scope.
+Defaults: 30 requests/minute, burst 5, both overridable per key
+(`semidex-lite key add --requests-per-minute/--burst`, clamped to
+`[1, 6000]`/`[1, 1000]` so a typo cannot hand a key an effectively unbounded
+rate). A denied request gets `429 rate_limited` with an integer
+`Retry-After` in seconds. This closes the cost-exposure half of this
+finding (unbounded billed Gemini/Qdrant-Cloud-Inference calls) for
+`POST /api/v1/ask` and `POST /api/v2/ask` — the only `audience: integration`
+routes (§12d).
+
+**Not closed by this:** every `audience: admin` route — settings, jobs,
+collections (including `DELETE`), `POST /api/search`, schema sync, the
+Qdrant Cloud probe — never invokes the integration policy at all (§12d's own
+design: the admin surface stays credential-free by construction), so none of
+it carries any rate limit. The single-flight Ask lock (still real, still
+distinct from rate limiting per the framing above) is unaffected by this
+fix and remains a concurrency guarantee, not a rate one. A coarse per-caller
+cap for the admin surface, as this finding's "What rate/body-size/
+concurrency limits does the MVP need?" answer in §12 already called for,
+remains unbuilt.
+
+**Proof:** `tests/unit/security/rate-limiter.test.js` (token-bucket
+arithmetic, per-key override validation, lazy sweep) and
+`tests/unit/security/integration-rate-limit-http.test.js` (429 + Retry-After
+over a real HTTP round-trip, per-key bucket isolation, stage ordering
+relative to authentication and collection authorization).
+
 ### P2-2 — `settings.json` written with default OS file permissions; no
 `mode` hardening.
 
@@ -645,6 +745,53 @@ opts into stricter permissions.
 **Recommended fix direction:** pass an explicit restrictive `mode`
 (`0o600` on POSIX) to `writeFileSync`/equivalent on Windows ACL handling;
 direction only.
+
+### STATUS: FIXED on POSIX; deliberately unaddressed on Windows (2026-08-21)
+
+`writeSettingsFileAtomic()` (`src/core/settings/settings-store.js`) now
+mirrors `core/auth/key-store.js`'s own `persist()` exactly — the same fix
+already shipped for `integration-keys.json`, applied here to the other file
+holding the same secret class (`QDRANT_KEY`/`GEMINI_API_KEY`): the tmp file
+is created with `{ mode: 0o600 }` and then explicitly `chmodSync`'d to
+`0o600` (the `writeFileSync` `mode` option alone is subject to the process
+umask; the follow-up `chmodSync` is what actually guarantees the bits
+regardless of umask), then renamed over the target, then the target itself
+is `chmodSync`'d to `0o600` again as a second belt-and-suspenders pass.
+
+**Replaces existing permissive files, not just new ones.** `rename()`
+replaces the directory entry — and therefore the inode and its mode —
+atomically. There is no window where an old, wider-permission
+`settings.json` and new content coexist under the same path; a file that
+was `0o644` before this fix is `0o600` after the very next write, verified
+directly (`tests/unit/security/settings-store-file-permissions.test.js`
+pre-creates a `0o644` file, writes through it, and asserts the result is
+`0o600`).
+
+**Windows: honestly unaddressed, not silently assumed safe.** `chmodSync`
+on Windows only toggles the read-only attribute — it neither expresses
+POSIX group/other bits nor enforces an ACL, and this fix adds no ACL
+hardening. Confidentiality of `settings.json` on a shared Windows machine
+still depends entirely on the default NTFS permissions of the user's
+profile directory, exactly as before. Every chmod call is wrapped so a
+failure (expected on Windows, and possible on some POSIX network
+filesystems) never aborts the write — the caller still gets the write they
+asked for via `writeFileSync`'s own `mode` option, just without the
+umask-independent guarantee.
+
+**Fail-safe on error.** If `writeFileSync`, `chmodSync`, or `renameSync`
+throws, the tmp file is removed (best-effort) before the error is
+re-thrown, so a failed write never leaves a stale `.tmp` file or a
+partially-written `settings.json` — verified by forcing each failure mode
+independently with injected fs functions.
+
+**Proof:** `tests/unit/security/settings-store-file-permissions.test.js` —
+12 tests: 8 with injected fs operations (write/chmod/rename order, chmod
+failure does not abort the write, cleanup on write/rename failure, no
+cleanup attempted when the tmp file was never created), 2 against a real
+temp file (round-trip content, no stale `.tmp` after a second write), and 2
+POSIX-only assertions of the actual `0o600` mode (`{ skip:
+process.platform === 'win32' }` — not run, not silently assumed passing, on
+this Windows development machine).
 
 ### P3-1 — No Host-header / DNS-rebinding defense at the application
 layer.
@@ -782,13 +929,17 @@ else with 421) is a small, high-value addition; direction only.
   and cannot be confirmed in the abstract — this would need to be verified
   per actual deployment topology once such a check exists.
 
-- **File-permission behavior of `settings.json` on Windows** (P2-2) was
-  read from source only (`writeFileSync` default mode) — Windows ACL
-  inheritance behavior for a file written by a normal user process was not
-  independently tested on this machine; POSIX-mode assumptions in the
-  finding may not translate directly to Windows ACL semantics and would
-  need separate verification if Windows multi-user isolation is a real
-  target scenario.
+- **File-permission behavior of `settings.json` on Windows** (P2-2) —
+  updated 2026-08-21: the POSIX half of this finding is now fixed and
+  verified by test (`chmodSync(..., 0o600)`, confirmed on-disk). The Windows
+  half remains exactly as originally noted: `chmodSync` there only toggles
+  the read-only attribute, expresses no POSIX group/other bits, and enforces
+  no ACL — no Windows-specific hardening was added, and none was
+  independently tested beyond confirming the chmod call does not throw or
+  abort the write on this Windows development machine. POSIX-mode
+  assumptions still do not translate to Windows ACL semantics, and that gap
+  would need separate, dedicated work if Windows multi-user isolation
+  becomes a real target scenario.
 
 - **Real-world Qdrant Cloud / Gemini rate-limit behavior under a
   Semidex-Lite-side flood** (i.e. whether Qdrant/Gemini's own upstream
@@ -834,7 +985,9 @@ else with 421) is a small, high-value addition; direction only.
    authentication, not a later nicety.** These two surfaces have genuinely
    different callers, threat models, and credential needs, and conflating
    them is what makes the single-shared-secret design collapse:
-   - *Integration API* (`/api/v1/ask`, `/api/v2/ask`, `/api/search`):
+   - *Integration API* (`/api/v1/ask`, `/api/v2/ask`, `/api/search` as
+     planned here — **as actually shipped, §12d kept `/api/search` Admin**,
+     deliberately; see that section):
      called server-to-server by someone else's backend. A bearer
      API key is the natural fit — no browser holds it, so there is no
      distribution problem and no ambient-authority/CSRF exposure. This is
@@ -1024,6 +1177,87 @@ must fully mediate access to every route, not just the ones that look
 dangerous. This should land before any change described in §10 ships, not
 after — operators deploying today deserve the accurate picture now.
 
+## 12h. Response security headers — IMPLEMENTED (2026-08-21)
+
+Closes §10 step 10 and the `Content-Security-Policy`/`X-Frame-Options`/
+`Referrer-Policy` half of the OWASP REST Security Cheat Sheet source cited
+in §13. `X-Content-Type-Options: nosniff` already shipped before this phase
+(§8) and is unchanged here — this phase adds the remaining headers and,
+critically, closes the gap where they applied.
+
+**One function, one dispatch point per composition, no per-route
+opt-in.** `applySecurityResponseHeaders()` (`src/core/http/
+request-security.js`) sets `Vary: Origin, Sec-Fetch-Site` (pre-existing),
+`X-Content-Type-Options: nosniff` (pre-existing), `X-Frame-Options: DENY`,
+`Referrer-Policy: no-referrer`, and `Content-Security-Policy` (below). It is
+called from exactly three places, chosen so nothing can respond without it:
+`router.js`'s `handleRequest()` (every API response — success, error, 404,
+and a request rejected pre-dispatch by the Origin/Host policy, since the
+call happens before that check runs), `static.js`'s `handleStatic()` (every
+static-UI response — 200, 404, 405, 503), and the one raw pre-router
+Host-rejection branch in `register-neutral-routes.js` that serves a plain-
+text 400/403 for a static-path request and never reaches `handleStatic()`
+at all. Both Full and Lite funnel through the same `createHttpServer()`/
+`createRouter()` in `src/shared/admin/`, so the two compositions cannot
+carry different header policies.
+
+**The policy:**
+
+```
+Content-Security-Policy: default-src 'self'; script-src 'self';
+  style-src 'self' 'unsafe-inline'; img-src 'self'; font-src 'self';
+  connect-src 'self'; object-src 'none'; base-uri 'none';
+  form-action 'self'; frame-ancestors 'none'
+```
+
+Derived from the actual built output (`dist/admin-ui/`), not written
+speculatively:
+
+- **`script-src 'self'`, no `unsafe-inline`/`unsafe-eval`.** The built
+  bundle (`dist/admin-ui/assets/*.js`, `index.html`) was grepped directly —
+  zero inline `<script>` tags, zero `javascript:` URIs. The one `<script>`
+  element is `type="module" src="/assets/<hash>.js"`, same-origin.
+- **`style-src 'self' 'unsafe-inline'` — a genuine, checked UI dependency,
+  not a default-to-permissive shortcut.** The shared modal templates
+  (`src/shared/admin/ui-src/partials/shared/templates/{delete,operation}-
+  modal.html`) and two Lite-only partials
+  (`src/shared/admin/ui-src/partials/lite/{settings-shell,index-view}.html`)
+  ship static `style="display:none"`/`style="margin-top:…"` attributes. CSP's
+  `style-src` governs the `style` attribute itself, not only `<style>`/
+  `<link>` elements, so a strict `style-src 'self'` would silently break the
+  modals' default-hidden state and a few spacing rules — confirmed by
+  reading the shipped markup, not assumed. `script-src` needed no equivalent
+  exception (previous bullet), so the relaxation is scoped to styles only.
+- **`default-src 'self'` covers img/font/connect with no broader
+  allow-list.** The built CSS/JS were grepped for `url(`, `@font-face`, and
+  absolute `http(s)://` references; the only hit is a plain `<a href=
+  "https://github.com/...">` navigation link in the JS (an "About" credit),
+  which CSP does not govern (top-level navigation isn't a `default-src`
+  concern). No CDN, no external font, no external `fetch()`/`XMLHttpRequest`
+  target.
+- **No `Strict-Transport-Security`.** This server is plain HTTP by default
+  (loopback, or fronted by a reverse proxy that terminates TLS itself).
+  HSTS on a listener that is not itself serving HTTPS is a no-op at best,
+  and actively wrong if the same hostname is ever also reachable over plain
+  HTTP. A TLS-terminating deployment should set HSTS at the proxy — the
+  layer that actually holds the certificate. This is a deliberate,
+  documented limitation, not an oversight (§13's OWASP REST Cheat Sheet
+  citation is updated to say so explicitly).
+- **No `Cache-Control: no-store` added in this pass.** Left for a future
+  pass; not claimed as done here.
+
+**Applies uniformly, including to rejected/error responses.** A request
+rejected by the Origin/Host policy, a 404, a 415, a 500 — all carry the same
+header set as a 200, because the call happens once per response at the
+shared dispatch point rather than being threaded through every individual
+handler.
+
+**Proof:** `tests/unit/security/response-security-headers.test.js` — 14
+tests (7 assertions × Full and Lite), covering API success
+(`GET /api/health`), API 404, an API error (malformed percent-encoding),
+a request rejected pre-dispatch by the cross-site policy, and the static UI
+shell's 200/404/405 paths, for both compositions.
+
 ## 12e. Integration API authentication — IMPLEMENTED (2026-08-18)
 
 Closes **P1-2** (no collection scoping) for the Integration surface, and
@@ -1056,14 +1290,27 @@ closes the "no authentication anywhere" half of **P1-1** for Ask.
   store is re-read per request).
 
 **Deliberate breaking change:** existing unauthenticated Ask callers get 503
-until they create a key. Migration note is in both READMEs. Rate limiting
-remains unimplemented.
+until they create a key. Migration note is in both READMEs.
+
+**Correction (2026-08-21):** this section originally closed with "Rate
+limiting remains unimplemented." That went stale within the same
+implementation phase — per-key rate limiting shipped alongside this work
+(token-bucket, stage 1.5 of the router, see P2-1's STATUS update). The
+admin surface still has no rate limiting at all; only Ask v1/v2 do.
 
 ## 12d. Admin/Integration boundary — IMPLEMENTED (2026-08-18)
 
-§10 step 3's prerequisite is done. **This adds no authentication, no scopes
-and no rate limiting** — it makes the boundary those things require explicit,
-machine-readable and fail-closed. Public route behavior is unchanged.
+§10 step 3's prerequisite is done. **At the time this section shipped, it
+added no authentication, no scopes and no rate limiting** — it made the
+boundary those things require explicit, machine-readable and fail-closed.
+Public route behavior was unchanged by this step alone.
+
+> **Status update:** authentication, per-key collection scopes, and per-key
+> rate limiting shipped on top of this boundary shortly after — see §12e and
+> the STATUS updates on P1-2/P2-1 below. They apply to the `integration`
+> audience (`POST /api/v1/ask`, `POST /api/v2/ask`) ONLY, exactly as this
+> boundary's own design intended. Every `admin` route below still has none
+> of the three, by design — that has not changed since this section shipped.
 
 **What shipped:**
 
@@ -1120,58 +1367,86 @@ application-facing search API is a product decision that should introduce a
 versioned path (`/api/v1/search`), not silently reclassify an internal one.
 Recorded as an open question in the design note.
 
-**Handoff:** [`integration-api-auth-design-note.md`](./integration-api-auth-design-note.md)
-carries the decision matrix for the next phase (bearer keys, scopes,
-collection authorization, rate limiting).
+**Handoff (at the time of this section):** [`integration-api-auth-design-note.md`](./integration-api-auth-design-note.md)
+carried the decision matrix for the next phase (bearer keys, scopes,
+collection authorization, rate limiting) — that phase has since shipped; see
+§12e.
 
-## 12c. Next-phase design (NOT implemented — follow-up work only)
+## 12c. Next-phase design — status matrix (originally written as "NOT
+implemented"; corrected 2026-08-21)
 
-Everything below is **planned**, not shipped. Nothing here is a current
-protection, and the README's "Security status" section must not describe any
-of it as existing until it does.
+This section was written as a forward-looking design doc before any of
+§12d-§12h shipped, under the heading "NOT implemented — follow-up work
+only." That heading is no longer accurate for several of the items below —
+some have since shipped, in whole or in part. Each item is now tagged with
+its real status; nothing here should be read as "planned" without checking
+its tag first.
 
-**1. Split Admin API from Integration API.** The prerequisite for every
-credential decision (see §10's sequencing constraint). Integration =
-`/api/v1/ask`, `/api/v2/ask`, `/api/search`. Admin = settings, jobs,
-collections, system probes, static UI. Admin stays loopback-bound and gets
-no bearer credential; Integration becomes the only surface that may be
-reachable by a non-operator caller.
+**Status legend:** 🟢 SHIPPED — 🟡 PARTIALLY SHIPPED — 🔵 OPERATOR-CONTROLLED
+(available today, outside Semidex's own code) — ⚪ OPEN (still exactly as
+originally planned, nothing built).
 
-**2. Scoped bearer keys on the Integration API.** Scopes by operation
-(`ask`, `search`) and by collection. Keys stored **hashed** (never
-reversible), with expiry, rotation and revocation. No key in HTML, static
-JS, URL parameters, or `localStorage`.
+**1. 🟢 SHIPPED (§12d, 2026-08-18) — Split Admin API from Integration API.**
+Shipped almost exactly as planned, with one correction: `/api/search` was
+kept **Admin**, not moved to Integration (§12d's own "`/api/search` is
+Admin, deliberately" note) — it is unversioned, dashboard-internal, and
+publishing it as a stable Integration endpoint was treated as a separate
+product decision, not bundled into this split. Admin = settings, jobs,
+collections, system probes, static UI, **and `/api/search`**. Integration =
+`/api/v1/ask`, `/api/v2/ask` only.
 
-**3. Qdrant granular keys underneath.** Independently of Semidex's own keys,
-the Qdrant credential Semidex holds should itself be a granular JWT key
-scoped read or read-write to specific collections, so a Semidex compromise
-cannot exceed the storage-layer grant. Available today (see §13) — operators
-can apply this before Semidex ships anything.
+**2. 🟡 PARTIALLY SHIPPED (§12e, 2026-08-18) — Scoped bearer keys on the
+Integration API.** Per-key `collections` scopes shipped as planned. Per-key
+`operations` scopes shipped, but narrower than originally planned: the only
+supported operation value is `generate` (`src/core/auth/key-store.js`'s
+`SUPPORTED_OPERATIONS`) — there is no `search` operation, consistent with
+item 1's correction that `/api/search` stayed Admin and never became a
+scopable Integration operation. Keys are stored hashed (SHA-256 digest
+only), with expiry and revocation; no key is ever placed in HTML, static JS,
+URL parameters, or `localStorage`. **Rotation** (issuing a replacement for
+an existing key without a gap in service) is not a distinct CLI operation —
+an operator revokes and creates a new key.
 
-**4. Indexing allowed roots — shipped 2026-08-19.** `INDEX_ALLOWED_ROOTS`
-is checked before `startIndexJob()` and resolved with `realpath`, so ordinary
-symlink/junction escapes are rejected. Component-aware win32/UNC semantics
-are covered by platform-independent tests; residual TOCTOU is documented in
-P1-3 rather than hidden behind a sandbox claim.
+**3. 🔵 OPERATOR-CONTROLLED, unchanged — Qdrant granular keys underneath.**
+Independently of Semidex's own keys, the Qdrant credential Semidex holds
+should itself be a granular JWT key scoped read or read-write to specific
+collections, so a Semidex compromise cannot exceed the storage-layer grant.
+Available today directly from Qdrant Cloud (see §13) — this was never
+something Semidex's own code needed to ship, and still isn't; it is an
+operator configuration choice.
 
-**5. Per-key and per-route limits.** Concurrency, request rate, token
-budget, and cost ceilings — the API4 answer (§13). Ask's existing
-single-flight lock bounds concurrency only, never rate or spend.
+**4. 🟢 SHIPPED (2026-08-19) — Indexing allowed roots.**
+`INDEX_ALLOWED_ROOTS` is checked before `startIndexJob()` and resolved with
+`realpath`, so ordinary symlink/junction escapes are rejected.
+Component-aware win32/UNC semantics are covered by platform-independent
+tests; residual TOCTOU is documented in P1-3 rather than hidden behind a
+sandbox claim.
 
-**6. SSRF/egress restrictions.** `QDRANT_URL` and any future
-provider-URL setting are operator-supplied and currently unvalidated; a
-compromised or careless settings write can redirect Semidex at an
+**5. 🟡 PARTIALLY SHIPPED — Per-key and per-route limits.** Per-key
+**request-rate** limiting (token bucket, `429` + `Retry-After`, defaults 30
+req/min burst 5, overridable per key) shipped for the Integration surface
+only (P2-1's STATUS update, §12e's correction). Still ⚪ OPEN: any **token
+budget or spend ceiling** (what OWASP API4's own worked example is actually
+about — see §13), and any rate limiting at all for the **Admin surface**
+(`/api/search` included — it has none). Ask's single-flight lock remains a
+concurrency guarantee only, never a rate or spend one.
+
+**6. ⚪ OPEN, unchanged — SSRF/egress restrictions.** `QDRANT_URL` and any
+future provider-URL setting are operator-supplied and currently unvalidated;
+a compromised or careless settings write can redirect Semidex at an
 attacker-controlled endpoint. Needs an egress allow-list and scheme/host
-validation.
+validation. Nothing in §12d-§12h touches this.
 
-**7. RAG-specific threats.** Indirect prompt injection and retrieval
-poisoning via indexed documents, provenance tracking, and safe rendering of
-model output. The existing Ask system prompt mitigates but does not
-eliminate this, and it is not currently tested as a security property.
+**7. ⚪ OPEN, unchanged — RAG-specific threats.** Indirect prompt injection
+and retrieval poisoning via indexed documents, provenance tracking, and safe
+rendering of model output. The existing Ask system prompt mitigates but does
+not eliminate this, and it is not currently tested as a security property.
 
-**8. Structured security audit logs.** Auth decisions, rejections, and
-administrative changes — with document contents and secrets excluded by
-construction, not by redaction after the fact.
+**8. ⚪ OPEN, unchanged — Structured security audit logs.** Auth decisions,
+rejections, and administrative changes — with document contents and secrets
+excluded by construction, not by redaction after the fact. Nothing in
+§12d-§12h adds structured logging of this kind (the integration policy's
+`logger` hook, where present, is diagnostic, not a security audit trail).
 
 ## 12b. Phase 1 — what actually shipped (2026-08-18)
 
@@ -1236,12 +1511,24 @@ port is additionally matched against its real listening port.
 
 ### What Phase 1 does NOT do
 
+Scoped to Phase 1 (2026-08-18) as shipped, at that date. Later phases closed
+some of this for the Integration surface only — see §1's status table and
+each item's own `STATUS` note in §7 for what is actually true today; this
+list is not re-verified against current state.
+
 - It is **not authentication.** Any local process, any curl, any
-  server-to-server client still reaches every route unauthenticated.
+  server-to-server client still reached every route unauthenticated at this
+  point. (Now: Ask v1/v2 require a bearer key — §12e. Every other route is
+  still exactly as this bullet describes.)
 - It does **not** close P1-2 (collection scoping) or P1-3 (unscoped local
-  filesystem indexing) for non-browser callers.
-- It does **not** add rate limiting, so API4 cost exposure (P2-1) is open.
+  filesystem indexing) for non-browser callers, as of this phase. (Now: P1-3
+  is fully closed; P1-2 is closed for Ask v1/v2 only — see each finding's
+  `STATUS` note.)
+- It does **not** add rate limiting, so API4 cost exposure (P2-1) was open
+  as of this phase. (Now: per-key rate limiting exists for Ask v1/v2 only —
+  P2-1's `STATUS` note.)
 - `trustProxy` is hard-off; reverse-proxy header forwarding is unhandled.
+  (Unchanged — still true today.)
 
 ### Manual browser acceptance scenario (not automated)
 
@@ -1305,9 +1592,12 @@ To confirm manually before relying on this:
   missing content type headers with HTTP response status `406 Unacceptable`
   or `415 Unsupported Media Type`" (Semidex returns 415), and for the
   `X-Content-Type-Options: nosniff` response header now set on every
-  response. Its `Cache-Control: no-store`, `Strict-Transport-Security` and
-  `Content-Security-Policy: frame-ancestors 'none'` recommendations are
-  NOT yet implemented — tracked as §10 step 10. Checked 2026-08-18.
+  response. Its `Content-Security-Policy: frame-ancestors 'none'`
+  recommendation shipped 2026-08-21 (§12h), alongside `X-Frame-Options:
+  DENY` and `Referrer-Policy: no-referrer`. `Cache-Control: no-store` and
+  `Strict-Transport-Security` remain NOT implemented — the latter
+  deliberately (see §12h: this server is plain HTTP by default, and HSTS on
+  a non-HTTPS listener is a no-op at best). Checked 2026-08-18.
   https://cheatsheetseries.owasp.org/cheatsheets/REST_Security_Cheat_Sheet.html
 - OWASP API Security Top 10 — API4:2023 Unrestricted Resource Consumption —
   the framing for treating cross-origin-triggered Ask/search/cloud-probe as
@@ -1316,8 +1606,12 @@ To confirm manually before relying on this:
   limits/billing alerts; its worked example is an attacker driving a
   third-party SMS provider to "thousands of dollars in a matter of
   minutes." Semidex's equivalent exposure is billed Gemini generation and
-  Qdrant Cloud inference. Still open: see P2-1 (no rate limiting).
-  Checked 2026-08-18.
+  Qdrant Cloud inference. Per-key request-RATE limiting shipped for
+  `POST /api/v1/ask`/`POST /api/v2/ask` (P2-1's STATUS update) — what OWASP's
+  worked example is really warning about, a per-key/per-caller SPEND or
+  token-budget ceiling, is not implemented for any route, and neither is any
+  rate limiting at all for the Admin surface (`POST /api/search` included).
+  Both remain open. Checked 2026-08-18.
   https://owasp.org/API-Security/editions/2023/en/0xa4-unrestricted-resource-consumption/
 - Qdrant — Authentication / database API keys with granular access control —
   the model the §I follow-up phase should mirror for Semidex's own

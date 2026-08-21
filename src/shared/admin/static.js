@@ -7,6 +7,7 @@ import { readFile } from 'node:fs/promises';
 import { extname, join, normalize, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { sendError } from '../../core/http/http.js';
+import { applySecurityResponseHeaders } from '../../core/http/request-security.js';
 
 // Exported so tests can assert the server points at dist/admin-ui (not the
 // old src/admin/ui build target) and so callers can override it (dependency
@@ -47,6 +48,11 @@ export function resolveStaticPath(pathname, uiDir = UI_DIR) {
  * standard JSON error envelope (consistent with the API).
  */
 export async function handleStatic(req, res, pathname, uiDir = UI_DIR) {
+  // Same shared policy as the API router (core/http/request-security.js) —
+  // applied first, before any branch below, so every response this function
+  // sends (405, 503, 404, or a real asset) carries it uniformly.
+  applySecurityResponseHeaders(res);
+
   if (req.method !== 'GET' && req.method !== 'HEAD') {
     return sendError(res, 405, 'method_not_allowed', `${req.method} is not allowed for static content`);
   }

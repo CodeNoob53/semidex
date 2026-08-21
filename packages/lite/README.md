@@ -323,6 +323,13 @@ What is protected as of this version:
   configured, HTTP/dashboard indexing is disabled. Direct trusted CLI
   indexing is intentionally unaffected.
 - Request-ingestion timeouts and header-count ceilings are set.
+- **Every response carries security headers**, including a
+  `Content-Security-Policy`, `X-Frame-Options: DENY`, `Referrer-Policy:
+  no-referrer`, and `X-Content-Type-Options: nosniff` — API, static
+  dashboard, and error responses alike.
+- **`settings.json` is written with restrictive permissions (`0600`) on
+  POSIX**, including when replacing an older, more permissive file. Windows
+  has no equivalent — see the linked audit for the exact limitation.
 
 What is **not** protected yet — the important part:
 

@@ -1904,7 +1904,8 @@
       "fullReachable": true,
       "liteReachable": true,
       "directDependencies": [
-        "src/core/http/http.js"
+        "src/core/http/http.js",
+        "src/core/http/request-security.js"
       ]
     },
     {

@@ -502,13 +502,66 @@ export function checkJsonContentType(req) {
 }
 
 /**
- * Response headers that must accompany any response whose handling varied on
- * a request header, so caches never serve a decision made for a different
- * origin/site back to someone else.
+ * The ONE response-header security policy for every response this process
+ * sends — API JSON (success, error, 404), and the static Admin UI shell
+ * (HTML/JS/CSS/SVG/ICO, success and error). Applied uniformly across Full and
+ * Lite so the two compositions cannot drift (docs/security/
+ * semidex-lite-public-api-audit-2026-08.md §10 step 10).
+ *
+ * `style-src 'self' 'unsafe-inline'`: the built dashboard genuinely ships
+ * static `style="..."` attributes (delete/operation modal backdrops'
+ * `display:none` default state, a handful of spacing tweaks in the Lite
+ * settings/index partials — see src/shared/admin/ui-src/partials/shared/
+ * templates/{delete,operation}-modal.html and src/shared/admin/ui-src/
+ * partials/lite/{settings-shell,index-view}.html). CSP's style-src covers
+ * the `style` attribute, not only `<style>`/`<link>`, so a strict
+ * `style-src 'self'` would silently break those elements' default-hidden
+ * state and layout. `script-src` carries NO `unsafe-inline`/`unsafe-eval`:
+ * the built bundle (`dist/admin-ui/assets/*.js`) is confirmed to ship zero
+ * inline `<script>` tags or `javascript:` URIs — every script is the one
+ * `type="module"` tag loading the hashed bundle — so script-src stays
+ * strict. No CDN/external origin is loaded by the shipped HTML/CSS/JS (no
+ * external `<link>`, `@font-face`, `url()`, or `fetch()` target other than
+ * this same origin), so `default-src 'self'` covers connect/img/font
+ * without a wildcard.
+ *
+ * No `Strict-Transport-Security`: this server is plain HTTP by default
+ * (loopback or an operator-fronted reverse proxy that terminates TLS
+ * itself) — HSTS on a listener that is not itself serving HTTPS is either a
+ * no-op or, if ever bound to a name a browser also reaches over HTTP,
+ * actively wrong. A TLS-terminating deployment should set HSTS at the
+ * proxy, which is the layer that actually holds the certificate.
  */
-export function applySecurityVaryHeaders(res) {
+const CONTENT_SECURITY_POLICY = [
+  "default-src 'self'",
+  "script-src 'self'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self'",
+  "font-src 'self'",
+  "connect-src 'self'",
+  "object-src 'none'",
+  "base-uri 'none'",
+  "form-action 'self'",
+  "frame-ancestors 'none'",
+].join('; ');
+
+/**
+ * Response headers that must accompany every response this process sends —
+ * API and static UI alike, success and error alike. Applying this once, as
+ * early as possible (before route matching / before the static-vs-API
+ * branch), means a rejected or 500'd request carries the same protections as
+ * a successful one; nothing here depends on which branch produced the
+ * response.
+ */
+export function applySecurityResponseHeaders(res) {
   if (typeof res?.setHeader !== 'function' || res.headersSent) return;
+  // Vary: this process's handling of BOTH the API and the static UI can
+  // differ by Origin/Sec-Fetch-Site (cross-site rejection) and by Host
+  // (rebinding rejection), so a cache must never conflate two requests that
+  // differ only in those headers.
   res.setHeader('Vary', 'Origin, Sec-Fetch-Site');
-  // Static, non-negotiable hardening that costs nothing here.
   res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  res.setHeader('Content-Security-Policy', CONTENT_SECURITY_POLICY);
 }

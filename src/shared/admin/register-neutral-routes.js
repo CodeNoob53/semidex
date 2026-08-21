@@ -20,7 +20,7 @@
 // depends on the StorageAdapter contract only — no direct Qdrant SDK or
 // src/core/qdrant/store.js import anywhere under src/admin/.
 import { createServer } from 'node:http';
-import { evaluateRequestSecurity } from '../../core/http/request-security.js';
+import { evaluateRequestSecurity, applySecurityResponseHeaders } from '../../core/http/request-security.js';
 import { registerHealthRoutes } from './api/health.js';
 import { registerCollectionsRoutes } from './api/collections.js';
 import { registerDocumentsRoutes } from './api/documents.js';
@@ -237,6 +237,7 @@ export function createHttpServer(router, { securityPolicy } = {}) {
       if (securityPolicy) {
         const verdict = evaluateRequestSecurity(req, securityPolicy);
         if (!verdict.ok) {
+          applySecurityResponseHeaders(res);
           res.writeHead(verdict.status, { 'Content-Type': 'text/plain; charset=utf-8' });
           res.end(verdict.message);
           return;
