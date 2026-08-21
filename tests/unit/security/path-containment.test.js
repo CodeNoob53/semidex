@@ -100,7 +100,17 @@ describe('allowed-roots guard against a real temporary filesystem', () => {
       assert.equal(missing.status, 403);
       assert.equal(escaped.code, missing.code);
       assert.equal(escaped.message, missing.message);
-      assert.doesNotMatch(escaped.message, /secret|outside|allowed[\\/]/i);
+      assert.equal(
+        escaped.message,
+        'This path cannot be indexed: it does not exist, is not a file or directory, or is outside the configured allowed indexing roots.',
+      );
+      assert.doesNotMatch(
+        escaped.message,
+        /secret\.md|link\.md|broken\.md|missing\.md|semidex-roots-/i,
+      );
+      for (const sensitivePath of [base, root, outside, outsideFile, link, broken]) {
+        assert.equal(escaped.message.includes(sensitivePath), false);
+      }
     } finally {
       fs.rmSync(base, { recursive: true, force: true });
     }

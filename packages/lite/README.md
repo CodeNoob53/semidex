@@ -1051,6 +1051,38 @@ building a full integration:
    search, or call `/api/v1/ask` / `/api/v2/ask` directly (`curl`, or
    `examples/run-conversation-demo.mjs`) to check Ask itself.
 
+## Maintainer-only live release acceptance
+
+Repository maintainers can validate the **packed and clean-installed npm
+artifact**, rather than the source checkout, with:
+
+```bash
+SEMIDEX_LITE_RELEASE_LIVE=1 npm run accept:lite-release-live
+```
+
+On Windows PowerShell:
+
+```powershell
+$env:SEMIDEX_LITE_RELEASE_LIVE = "1"
+npm run accept:lite-release-live
+```
+
+This is deliberately not part of `npm test`, CI, or the installed package.
+It requires live `QDRANT_URL`, `QDRANT_KEY`, and `GEMINI_API_KEY` credentials,
+downloads npm dependencies, performs real Qdrant Cloud inference and Gemini
+generation, creates two Integration API keys in an isolated temporary
+`SEMIDEX_HOME`, and creates then deletes one uniquely named harness collection
+(the doctor probe also manages its own short-lived probe collection). It
+refuses a collection-name collision, deletes only the exact
+collection owned by that run, never prints bearer tokens or provider keys,
+and reports `ACCEPT` only when cleanup succeeds. Its JSON report is written
+to `.tmp/semidex-lite-release-live-report.json` by default.
+
+This complements `scripts/ask-v2-live-acceptance.mjs`: that older script
+tests richer multi-turn/compaction behavior directly from repository source,
+while the release harness tests packaging, clean installation, CLI,
+authentication/scoping/rate limiting, and Ask v1/v2 as one shipped product.
+
 ## `SEMIDEX_HOME`
 
 Application data, including `config.json`, `settings.json`, and the tokenizer

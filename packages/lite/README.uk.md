@@ -1054,6 +1054,38 @@ runnable-клієнт у `examples/` — це способи перевірит�
    ручний пошук, або викличте `/api/v1/ask` / `/api/v2/ask` напряму (`curl`,
    або `examples/run-conversation-demo.mjs`), щоб перевірити сам Ask.
 
+## Live acceptance релізу лише для супровідників
+
+Супровідники репозиторію можуть перевірити саме **запакований і чисто
+встановлений npm-артефакт**, а не вихідний код checkout:
+
+```bash
+SEMIDEX_LITE_RELEASE_LIVE=1 npm run accept:lite-release-live
+```
+
+У Windows PowerShell:
+
+```powershell
+$env:SEMIDEX_LITE_RELEASE_LIVE = "1"
+npm run accept:lite-release-live
+```
+
+Ця перевірка навмисно не входить до `npm test`, CI чи опублікованого пакета.
+Вона потребує справжніх `QDRANT_URL`, `QDRANT_KEY` і `GEMINI_API_KEY`,
+завантажує npm-залежності, виконує реальні Qdrant Cloud inference та Gemini
+generation, створює два ключі Integration API в ізольованому тимчасовому
+`SEMIDEX_HOME`, а також створює й видаляє одну унікальну колекцію harness
+(doctor probe окремо керує власною короткочасною probe-колекцією). Harness
+відмовляється працювати при збігу назви, видаляє лише точну колекцію
+власного запуску, не друкує bearer-токени чи ключі провайдерів і повертає
+`ACCEPT` лише після успішного cleanup. JSON-звіт за замовчуванням записується
+в `.tmp/semidex-lite-release-live-report.json`.
+
+Це доповнення до `scripts/ask-v2-live-acceptance.mjs`: старий скрипт тестує
+розширену багатокрокову розмову й compaction безпосередньо з вихідного коду,
+а release harness перевіряє пакування, чисту інсталяцію, CLI,
+автентифікацію/scoping/rate limiting та Ask v1/v2 як один готовий продукт.
+
 ## `SEMIDEX_HOME`
 
 Дані застосунку (`config.json`, `settings.json`, кеш токенайзера) зберігаються

@@ -39,19 +39,40 @@ pass, consistent with the constraint this checklist was written under.
 ## Manual / live gates — not run here, needed before an actual release
 
 These require real credentials, a real registry interaction, or a human in
-the loop, and were deliberately **not** attempted:
+the loop, so they are excluded from CI. Their current manual verification
+status is recorded below:
 
-- [ ] `npx semidex-lite doctor --probe-inference` against a real Qdrant
+- [x] `npx semidex-lite doctor --probe-inference` against a real Qdrant
       Cloud cluster (live embedding round-trip through a disposable
-      collection).
-- [ ] A live end-to-end pass: `serve`, index a real document, `key add`, call
-      `POST /api/v1/ask` and `POST /api/v2/ask` against real Gemini and
-      Qdrant Cloud credentials.
-- [ ] The manual browser acceptance scenario documented in the audit's §12b
+      collection). Passed as part of the packed-artifact acceptance run on
+      2026-08-22.
+- [x] Run the packed-artifact live end-to-end harness with real Gemini and
+      Qdrant Cloud credentials:
+      `SEMIDEX_LITE_RELEASE_LIVE=1 npm run accept:lite-release-live`.
+      It packs and clean-installs Lite, runs `doctor --probe-inference`,
+      indexes a multilingual fixture, creates scoped keys, starts the
+      installed server, checks 401/403/429 plus grounded Ask v1/v2, and
+      deletes only its exact-owned disposable collection. This makes real
+      provider calls and may incur cost; it is intentionally never run by
+      CI. `ACCEPT` requires successful cleanup. The separate
+      `scripts/ask-v2-live-acceptance.mjs` remains the source-level,
+      multi-turn/compaction acceptance and does not replace this release
+      artifact gate. Passed on 2026-08-22 with
+      `SEMIDEX_LITE_RELEASE_LIVE_ACCEPT`: clean pack/install, doctor probe,
+      indexing, scoped-key 401/403/429 checks, grounded Ask v1/v2 with one
+      source/evidence/citation each, and exact-owned collection cleanup all
+      succeeded.
+- [x] The manual browser acceptance scenario documented in the audit's §12b
       ("Manual browser acceptance scenario (not automated)") — a real
       cross-origin `fetch()` from a second-origin page, confirmed blocked in
       DevTools. The HTTP-level tests prove server behavior; they do not
-      prove real-browser behavior.
+      prove real-browser behavior. Passed on 2026-08-22 from
+      `http://localhost:9000` against `http://127.0.0.1:8642`: both the
+      browser-simple `text/plain` request and the JSON/preflight request
+      failed in the browser with `TypeError`; the server returned 403 with
+      no `Access-Control-Allow-Origin` (and no preflight approval headers),
+      while the same direct request without a foreign Origin reached the
+      handler and returned 404. No probe job was created.
 - [ ] `npm publish --dry-run` from a machine authenticated to the real npm
       registry, or an actual publish, once a version bump and GitHub release
       are decided separately from this task.

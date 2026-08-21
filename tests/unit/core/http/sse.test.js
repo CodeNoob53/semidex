@@ -1,7 +1,7 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
-import { waitForDrain } from '../../../../src/core/http/sse.js';
+import { startSseHeartbeat, waitForDrain } from '../../../../src/core/http/sse.js';
 
 function fakeRes({ destroyed = false, writableEnded = false } = {}) {
   const res = new EventEmitter();
@@ -77,5 +77,54 @@ describe('waitForDrain', () => {
     res.emit('drain');
     await p2;
     assert.equal(res.listenerCount('drain'), 0);
+  });
+});
+
+describe('startSseHeartbeat', () => {
+  function heartbeatHarness(overrides = {}) {
+    const res = fakeRes();
+    const writes = [];
+    let tick;
+    let cleared = 0;
+    res.write = (value) => { writes.push(value); return true; };
+    Object.assign(res, overrides);
+    const stop = startSseHeartbeat(res, {
+      intervalMs: 15_000,
+      setIntervalFn: (fn) => { tick = fn; return { unref() {} }; },
+      clearIntervalFn: () => { cleared += 1; },
+    });
+    return { res, writes, tick: () => tick(), stop, cleared: () => cleared };
+  }
+
+  test('writes only an SSE comment and no application event or data', () => {
+    const harness = heartbeatHarness();
+    harness.tick();
+    assert.deepEqual(harness.writes, [': keep-alive\n\n']);
+    assert.doesNotMatch(harness.writes[0], /event:|data:/);
+    harness.stop();
+  });
+
+  test('skips a heartbeat while the response is under backpressure', () => {
+    const harness = heartbeatHarness({ writableNeedDrain: true });
+    harness.tick();
+    assert.deepEqual(harness.writes, []);
+    harness.stop();
+  });
+
+  test('stops and removes listeners on normal response finish', () => {
+    const harness = heartbeatHarness();
+    harness.res.emit('finish');
+    assert.equal(harness.cleared(), 1);
+    assert.equal(harness.res.listenerCount('finish'), 0);
+    assert.equal(harness.res.listenerCount('close'), 0);
+    harness.stop();
+    assert.equal(harness.cleared(), 1, 'manual cleanup after finish stays idempotent');
+  });
+
+  test('stops without writing when the response is already closed', () => {
+    const harness = heartbeatHarness({ destroyed: true });
+    harness.tick();
+    assert.deepEqual(harness.writes, []);
+    assert.equal(harness.cleared(), 1);
   });
 });

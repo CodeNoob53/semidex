@@ -4,6 +4,49 @@
 // error event sequence. Provider/transport-neutral: nothing here knows
 // about Qdrant, Ollama, Gemini, or the Admin UI.
 
+export const SSE_HEARTBEAT_INTERVAL_MS = 15_000;
+
+/**
+ * Keeps a valid SSE response active while an upstream provider is waiting
+ * for its first token. SSE comments carry no application data and are
+ * ignored by conforming clients, but they prevent HTTP clients/proxies from
+ * treating a quiet, still-live stream as an idle response body.
+ *
+ * The timer never writes while Node is already applying backpressure and is
+ * removed on both the normal `finish` path and the disconnected `close`
+ * path. The returned function is idempotent for tests/manual cleanup.
+ */
+export function startSseHeartbeat(res, {
+  intervalMs = SSE_HEARTBEAT_INTERVAL_MS,
+  setIntervalFn = setInterval,
+  clearIntervalFn = clearInterval,
+} = {}) {
+  let stopped = false;
+  const stop = () => {
+    if (stopped) return;
+    stopped = true;
+    clearIntervalFn(timer);
+    res.removeListener?.('finish', stop);
+    res.removeListener?.('close', stop);
+  };
+  const timer = setIntervalFn(() => {
+    if (res.destroyed || res.writableEnded) {
+      stop();
+      return;
+    }
+    if (res.writableNeedDrain) return;
+    try {
+      res.write(': keep-alive\n\n');
+    } catch {
+      stop();
+    }
+  }, intervalMs);
+  timer?.unref?.();
+  res.once?.('finish', stop);
+  res.once?.('close', stop);
+  return stop;
+}
+
 /**
  * Writes SSE response headers. Must be called before any writeSseEvent()
  * call and before any JSON error response on the same res — once this
@@ -31,6 +74,7 @@ export function startSse(res) {
   // line + headers out immediately so a client sees the stream open
   // without waiting for the first event.
   res.flushHeaders?.();
+  startSseHeartbeat(res);
 }
 
 /**
