@@ -45,7 +45,7 @@ export function createApp({
   discoverOllamaModelsFn, discoverGeminiModelsFn, runOnnxProbeFn, runQdrantCloudProbeFn,
   resolveNewCollectionProfileFn, diagnoseCudaFailureFn,
   resolveEffectiveOnnxRuntimePathFn, writeVerificationResultFn, onnxManagedRuntimeListingCache,
-  onnxEmbedCapability, securityPolicy, integrationPolicy, allowedRootsGuard,
+  onnxEmbedCapability, securityPolicy, integrationPolicy, allowedRootsGuard, uiDir,
 } = {}) {
   // core/embeddings.js's applyEmbeddingCapabilities() (the process-wide
   // module-scope fallback) is deliberately NEVER called from this function
@@ -214,5 +214,8 @@ export function createApp({
     ...(writeVerificationResultFn ? { writeVerificationResultFn } : {}),
     ...(onnxManagedRuntimeListingCache ? { listingCache: onnxManagedRuntimeListingCache } : {}),
   });
-  return createHttpServer(router, { securityPolicy: resolvedSecurityPolicy });
+  // uiDir is optional DI (default undefined -> dist/admin-ui/, see
+  // createHttpServer's own comment) — a test that needs deterministic
+  // fingerprinted-asset fixtures passes its own temp directory here.
+  return createHttpServer(router, { securityPolicy: resolvedSecurityPolicy, uiDir });
 }

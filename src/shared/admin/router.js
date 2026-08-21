@@ -9,6 +9,7 @@ import {
   evaluateRequestSecurity,
   applySecurityResponseHeaders,
 } from '../../core/http/request-security.js';
+import { applyApiCacheHeaders } from '../../core/http/cache-policy.js';
 import { validateRouteMeta, AUDIENCE } from '../../core/http/route-audience.js';
 import { validateIntegrationPolicy, deepFreeze, assertPlainPrincipal } from '../../core/http/authorize.js';
 
@@ -94,6 +95,14 @@ export function createRouter({ securityPolicy, integrationPolicy } = {}) {
       // filesystem, a subprocess spawn, or the folder-picker dialog. See
       // core/http/request-security.js for the policy and its rationale.
       applySecurityResponseHeaders(res);
+      // Every route this router serves is /api/** (see createHttpServer in
+      // register-neutral-routes.js, which is what actually decides API vs
+      // static by pathname — this router is never reached for anything
+      // else). Applied here, before the verdict check, so a pre-dispatch
+      // rejection, a 404, a handler error, and a genuine success all carry
+      // the same `Cache-Control: no-store` (docs/security/
+      // semidex-lite-public-api-audit-2026-08.md).
+      applyApiCacheHeaders(res);
       const verdict = evaluateRequestSecurity(req, policy);
       if (!verdict.ok) {
         return sendError(res, verdict.status, verdict.code, verdict.message);

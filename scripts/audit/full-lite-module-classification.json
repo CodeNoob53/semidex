@@ -14,7 +14,7 @@
     "mixed": 3,
     "tooling": 62,
     "cloud": 8,
-    "shared": 167,
+    "shared": 168,
     "local": 28
   },
   "modules": [
@@ -773,6 +773,15 @@
       "directDependencies": [
         "src/core/http/http.js"
       ]
+    },
+    {
+      "path": "src/core/http/cache-policy.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
     },
     {
       "path": "src/core/http/http.js",
@@ -1852,6 +1861,7 @@
         "src/core/ask-api/v2/route.js",
         "src/core/ask/coordinator-v2.js",
         "src/core/generation/runtime.js",
+        "src/core/http/cache-policy.js",
         "src/core/http/request-security.js",
         "src/shared/admin/api/assembly.js",
         "src/shared/admin/api/chunks.js",
@@ -1879,6 +1889,7 @@
       "liteReachable": true,
       "directDependencies": [
         "src/core/http/authorize.js",
+        "src/core/http/cache-policy.js",
         "src/core/http/http.js",
         "src/core/http/request-security.js",
         "src/core/http/route-audience.js",
@@ -1904,6 +1915,7 @@
       "fullReachable": true,
       "liteReachable": true,
       "directDependencies": [
+        "src/core/http/cache-policy.js",
         "src/core/http/http.js",
         "src/core/http/request-security.js"
       ]

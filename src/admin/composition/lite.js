@@ -137,7 +137,7 @@ export function createLiteApp({
   adapter = createStorageAdapter(), embedQuery, jobRegistry, taskRegistry,
   assemblyLogFn, generationRuntime, askCoordinator, askCoordinators, countTokens, settingsService, jobBaseEnv,
   discoverGeminiModelsFn, runQdrantCloudProbeFn, resolveNewCollectionProfileFn, jobPolicy = LITE_JOB_POLICY,
-  securityPolicy, integrationPolicy, allowedRootsGuard,
+  securityPolicy, integrationPolicy, allowedRootsGuard, uiDir,
 } = {}) {
   const ollamaCapability = unavailableOllamaEmbedCapability();
   const onnxEmbedCapability = unavailableOnnxEmbedCapability();
@@ -218,7 +218,10 @@ export function createLiteApp({
     }),
     jobsFn: (r, jobs) => registerJobsRoutes(r, jobs, { jobPolicy, allowedRootsGuard: resolvedAllowedRootsGuard }),
   });
-  return createHttpServer(router, { securityPolicy: resolvedSecurityPolicy });
+  // uiDir is optional DI (default undefined -> dist/admin-ui/, see
+  // createHttpServer's own comment) — a test that needs deterministic
+  // fingerprinted-asset fixtures passes its own temp directory here.
+  return createHttpServer(router, { securityPolicy: resolvedSecurityPolicy, uiDir });
 }
 
 // Cloud-safe default policy for createLiteApp() — no local-model options,

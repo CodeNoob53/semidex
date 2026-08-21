@@ -327,6 +327,19 @@ What is protected as of this version:
   `Content-Security-Policy`, `X-Frame-Options: DENY`, `Referrer-Policy:
   no-referrer`, and `X-Content-Type-Options: nosniff` — API, static
   dashboard, and error responses alike.
+- **Cache-Control is route-aware and fail-safe.** Every `/api/**` response
+  (success, error, and the streamed Ask endpoints) is `no-store`. The
+  dashboard's HTML shell is also `no-store` — it can reflect security- and
+  config-sensitive state, and this server issues no `ETag`/`Last-Modified`
+  for a browser to revalidate against, so "never store a copy" is simpler
+  and safer than a weaker directive. Only a fingerprinted, content-hashed
+  build asset (`/assets/<name>-<hash>.js`/`.css`) gets long-lived
+  `immutable` caching, and only once it has actually been served from disk
+  — a request for a nonexistent path that merely *looks* fingerprinted
+  still gets `no-store`. `Strict-Transport-Security` is intentionally not
+  set: this server is plain HTTP by default, and HSTS on a non-HTTPS
+  listener is a no-op at best (a TLS-terminating reverse proxy should set
+  it itself).
 - **`settings.json` is written with restrictive permissions (`0600`) on
   POSIX**, including when replacing an older, more permissive file. Windows
   has no equivalent — see the linked audit for the exact limitation.

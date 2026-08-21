@@ -8,11 +8,22 @@
  * Writes SSE response headers. Must be called before any writeSseEvent()
  * call and before any JSON error response on the same res — once this
  * fires, the response is committed to the event-stream format.
+ *
+ * Cache-Control carries `no-store` alongside the usual SSE directives:
+ * this is an /api/** response (POST /api/v1|v2/ask), and the router already
+ * sets `no-store` before dispatch (core/http/cache-policy.js) — but
+ * `res.writeHead()`'s headers argument REPLACES, not merges with, any
+ * individual header of the same name set earlier via `res.setHeader()`, so
+ * omitting it here would have silently dropped the router's `no-store` for
+ * every streamed Ask response. `no-cache, no-transform` stay for their own
+ * reasons: `no-cache` is the conventional EventSource-compatible directive,
+ * `no-transform` stops an intermediary proxy from buffering/rewriting the
+ * chunked stream.
  */
 export function startSse(res) {
   res.writeHead(200, {
     'Content-Type': 'text/event-stream; charset=utf-8',
-    'Cache-Control': 'no-cache, no-transform',
+    'Cache-Control': 'no-store, no-cache, no-transform',
     Connection: 'keep-alive',
     'X-Accel-Buffering': 'no',
   });

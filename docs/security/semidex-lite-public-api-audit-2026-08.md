@@ -1243,8 +1243,12 @@ speculatively:
   layer that actually holds the certificate. This is a deliberate,
   documented limitation, not an oversight (§13's OWASP REST Cheat Sheet
   citation is updated to say so explicitly).
-- **No `Cache-Control: no-store` added in this pass.** Left for a future
-  pass; not claimed as done here.
+- **`Cache-Control` is a SEPARATE policy, shipped in §12i below.** Not
+  covered by `applySecurityResponseHeaders()` — that function is deliberately
+  the SAME header set for every response regardless of route, and
+  `Cache-Control` is the one header that genuinely needs to differ (API vs.
+  static HTML vs. a fingerprinted asset), so it lives in its own module
+  (`core/http/cache-policy.js`) rather than being force-fit into this one.
 
 **Applies uniformly, including to rejected/error responses.** A request
 rejected by the Origin/Host policy, a 404, a 415, a 500 — all carry the same
@@ -1257,6 +1261,115 @@ tests (7 assertions × Full and Lite), covering API success
 (`GET /api/health`), API 404, an API error (malformed percent-encoding),
 a request rejected pre-dispatch by the cross-site policy, and the static UI
 shell's 200/404/405 paths, for both compositions.
+
+## 12i. Cache-Control policy — IMPLEMENTED (2026-08-21)
+
+Closes the `Cache-Control: no-store` gap §12h explicitly left open, and the
+matching OWASP REST Security Cheat Sheet citation in §13.
+
+**One module, two call sites, route-aware.**
+`src/core/http/cache-policy.js` is the single place that decides
+`Cache-Control` for every response this process sends — never a per-handler
+header, never a pathname check scattered through a route file. It exports
+three functions:
+
+- `applyApiCacheHeaders(res)` — unconditional `Cache-Control: no-store`.
+  Called from `router.js`'s `handleRequest()` at the same point
+  `applySecurityResponseHeaders()` is called (before route matching, before
+  the pre-dispatch Origin/Host verdict), so a rejected request, a 404, a
+  handler error, and a genuine 200 all carry it. Every route this router
+  serves is `/api/**` (`createHttpServer()` in `register-neutral-routes.js`
+  is what actually branches API vs. static by pathname; the router is never
+  reached for anything else), so this one call covers the entire API
+  surface.
+- `applyStaticCacheHeaders(res, { immutable })` — defaults to `no-store`;
+  `{ immutable: true }` sets `public, max-age=31536000, immutable`. Called
+  from `static.js`'s `handleStatic()` at the same early point as its own
+  `applySecurityResponseHeaders()` call, so 405/503/404/200 all start from
+  the conservative default. The immutable directive is only ever applied
+  a second time, later in the SAME request, inside the 200 branch — and
+  only once `readFile()` has already succeeded against a real file on disk.
+  A request for a plausible-looking but nonexistent hashed path (e.g.
+  `/assets/index-NOTAREAL.js`) 404s with the conservative default; the
+  regex match alone is never sufficient (see `isFingerprintedAssetPath()`'s
+  own comment for the two-gate rationale). The one raw pre-router
+  Host-rejection branch in `register-neutral-routes.js` (same branch §12h
+  covers for the security-header set) applies the conservative default too,
+  for the same reason `static.js`'s 405/503/404 do.
+- `isFingerprintedAssetPath(pathname)` — matches `/assets/<name>-<hash>.js`
+  or `.css` only. This is Vite's actual default `assetFileNames`/
+  `chunkFileNames`/`entryFileNames` output shape (neither `vite.config.js`
+  nor `vite.config.lite.js` overrides those options, or `hashCharacters`,
+  or `assetsDir`) — a description of what the build already does, not a
+  guessed hash format. Deliberately narrower than the full set of servable
+  extensions (`static.js`'s `CONTENT_TYPES` also allows `.svg`/`.ico`):
+  those, if ever shipped, would be copied from a `public/`-style source
+  directory unhashed, so the pattern does not extend immutable caching to
+  them.
+
+**The policy matrix:**
+
+| Response | Cache-Control |
+| --- | --- |
+| Every `/api/**` response (success, error, 404, pre-dispatch rejection) | `no-store` |
+| `POST /api/v1\|v2/ask` streamed (SSE) response | `no-store, no-cache, no-transform` |
+| Static HTML shell (`GET /`, `/index.html`) | `no-store` |
+| Fingerprinted asset (`/assets/<name>-<hash>.js`/`.css`) that resolves to a real file | `public, max-age=31536000, immutable` |
+| Any other static asset (non-fingerprinted, e.g. a future unhashed `.svg`/`.ico`) | `no-store` |
+| Static 404 / 405 / 503 (including a path shaped like a fingerprinted asset that names no real file) | `no-store` |
+| Static pre-dispatch Host rejection | `no-store` |
+
+**Why the HTML shell is `no-store`, not `no-cache`/`must-revalidate`.** This
+server emits no `ETag`/`Last-Modified` on any static response, so there is
+nothing for a cache to revalidate against. `no-cache` with no validator
+either degrades to "effectively uncacheable" (the honest outcome, but then
+`no-store` says the same thing more plainly) or, on a less careful cache
+implementation, invites reuse on a heuristic — a real risk for a shell that
+reflects `ADMIN_ALLOWED_HOSTS`/security-relevant UI state and must never be
+served stale after a config or rebuild changes it. `no-store` is simplest
+and says exactly what is true.
+
+**Why the fingerprinted-asset immutable directive is safe.** The filename
+itself changes whenever the content does (Vite's content hash), so caching
+one exact URL forever is correct by construction — and, as above, it is
+only ever granted after a real file has actually been read from disk at
+that exact path, never from the URL shape alone.
+
+**Why the SSE Ask stream needed its own fix, not just the router's
+`no-store`.** `sse.js`'s `startSse()` calls `res.writeHead(200, { ... })`
+with its own `Cache-Control` entry (`no-cache, no-transform`, the
+conventional EventSource-compatible directives). Node's
+`res.writeHead(status, headers)` **replaces**, not merges with, any
+individual header already set via `res.setHeader()` — so before this phase,
+a streamed `/api/v1|v2/ask` 200 silently dropped the router's `no-store`
+and carried only `no-cache, no-transform`. `startSse()` now sets
+`Cache-Control: no-store, no-cache, no-transform` itself, combining both:
+`no-store` for the same reason every other `/api/**` response needs it,
+`no-cache`/`no-transform` for their pre-existing streaming reasons.
+
+**Why no HSTS change here.** Unchanged from §12h — this server is plain
+HTTP by default, and `Strict-Transport-Security` on a listener that is not
+itself serving HTTPS is a no-op at best and actively wrong at worst. This
+phase only ever touches `Cache-Control`; HSTS remains a proxy-layer
+decision, not something either edition's own code should set.
+
+**Full and Lite are identical.** Both compositions share `router.js`,
+`static.js`, and `register-neutral-routes.js` via `createHttpServer()`; the
+new `uiDir` parameter threaded through `createApp()`/`createLiteApp()` (for
+deterministic test fixtures, see Proof below) is optional DI that defaults
+to each edition's own real build output and changes no runtime behavior.
+
+**Proof:** `tests/unit/security/response-cache-headers.test.js` — 29 tests
+(a shared assertion suite × Full and Lite, plus one Full-only SSE
+regression) covering: API 200/404/malformed-request/pre-dispatch-rejection
+all `no-store`; the HTML shell `no-store`; a real fingerprinted JS and CSS
+asset immutable; a non-fingerprinted asset, a static 404, a static 405, and
+a static 503 all conservative; the fail-safe "looks fingerprinted but names
+no real file" 404 case explicitly; HEAD/GET parity for both the shell and a
+fingerprinted asset; and the streamed Ask response's `no-store`. Static
+fixtures are deterministic temp directories built per test (via the new
+`uiDir` DI parameter), not the real `dist/admin-ui/` — verified separately,
+by hand, against a real `npm run admin:build` output for both editions.
 
 ## 12e. Integration API authentication — IMPLEMENTED (2026-08-18)
 
@@ -1594,10 +1707,12 @@ To confirm manually before relying on this:
   `X-Content-Type-Options: nosniff` response header now set on every
   response. Its `Content-Security-Policy: frame-ancestors 'none'`
   recommendation shipped 2026-08-21 (§12h), alongside `X-Frame-Options:
-  DENY` and `Referrer-Policy: no-referrer`. `Cache-Control: no-store` and
-  `Strict-Transport-Security` remain NOT implemented — the latter
-  deliberately (see §12h: this server is plain HTTP by default, and HSTS on
-  a non-HTTPS listener is a no-op at best). Checked 2026-08-18.
+  DENY` and `Referrer-Policy: no-referrer`. `Cache-Control: no-store`
+  shipped 2026-08-21 (§12i), route-aware (API `no-store`, fingerprinted
+  static assets `immutable`, everything else conservative `no-store`).
+  `Strict-Transport-Security` remains deliberately NOT implemented (see
+  §12h/§12i: this server is plain HTTP by default, and HSTS on a
+  non-HTTPS listener is a no-op at best). Checked 2026-08-18.
   https://cheatsheetseries.owasp.org/cheatsheets/REST_Security_Cheat_Sheet.html
 - OWASP API Security Top 10 — API4:2023 Unrestricted Resource Consumption —
   the framing for treating cross-origin-triggered Ask/search/cloud-probe as

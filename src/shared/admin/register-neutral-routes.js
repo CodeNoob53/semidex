@@ -21,6 +21,7 @@
 // src/core/qdrant/store.js import anywhere under src/admin/.
 import { createServer } from 'node:http';
 import { evaluateRequestSecurity, applySecurityResponseHeaders } from '../../core/http/request-security.js';
+import { applyStaticCacheHeaders } from '../../core/http/cache-policy.js';
 import { registerHealthRoutes } from './api/health.js';
 import { registerCollectionsRoutes } from './api/collections.js';
 import { registerDocumentsRoutes } from './api/documents.js';
@@ -213,7 +214,13 @@ export function registerNeutralRoutes(router, {
 // composition roots. Exported so both server-full.js's createApp() and
 // composition/lite.js's createLiteApp() reuse it without a second,
 // independently-resolved implementation.
-export function createHttpServer(router, { securityPolicy } = {}) {
+// uiDir is optional DI (default undefined -> handleStatic()/resolveStaticPath()
+// fall back to static.js's own UI_DIR, i.e. dist/admin-ui/) — a test that
+// wants deterministic fingerprinted-vs-not static fixtures, instead of
+// depending on whatever happens to be in dist/admin-ui at test time, passes
+// its own temp directory here via createApp()/createLiteApp() rather than
+// this file reaching into the filesystem to fabricate one itself.
+export function createHttpServer(router, { securityPolicy, uiDir } = {}) {
   const server = createServer((req, res) => {
     // /api/* belongs to the router; everything else is the static UI shell.
     // Malformed URLs fall through to the router, whose handleRequest already
@@ -238,12 +245,16 @@ export function createHttpServer(router, { securityPolicy } = {}) {
         const verdict = evaluateRequestSecurity(req, securityPolicy);
         if (!verdict.ok) {
           applySecurityResponseHeaders(res);
+          // Static realm, conservative default — this rejection is not a
+          // fingerprinted-asset success, so it must never inherit immutable
+          // caching (core/http/cache-policy.js).
+          applyStaticCacheHeaders(res);
           res.writeHead(verdict.status, { 'Content-Type': 'text/plain; charset=utf-8' });
           res.end(verdict.message);
           return;
         }
       }
-      handleStatic(req, res, pathname);
+      handleStatic(req, res, pathname, uiDir);
       return;
     }
     router.handleRequest(req, res);

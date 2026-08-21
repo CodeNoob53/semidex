@@ -8,6 +8,7 @@ import { extname, join, normalize, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { sendError } from '../../core/http/http.js';
 import { applySecurityResponseHeaders } from '../../core/http/request-security.js';
+import { applyStaticCacheHeaders, isFingerprintedAssetPath } from '../../core/http/cache-policy.js';
 
 // Exported so tests can assert the server points at dist/admin-ui (not the
 // old src/admin/ui build target) and so callers can override it (dependency
@@ -52,6 +53,12 @@ export async function handleStatic(req, res, pathname, uiDir = UI_DIR) {
   // applied first, before any branch below, so every response this function
   // sends (405, 503, 404, or a real asset) carries it uniformly.
   applySecurityResponseHeaders(res);
+  // Conservative Cache-Control default (core/http/cache-policy.js): 405,
+  // 503, 404, the HTML shell, and any non-fingerprinted asset all fall
+  // through with `no-store` unless the success branch below proves
+  // otherwise. HEAD is handled by the exact same code path as GET (only the
+  // final res.end() argument differs), so this never diverges between them.
+  applyStaticCacheHeaders(res);
 
   if (req.method !== 'GET' && req.method !== 'HEAD') {
     return sendError(res, 405, 'method_not_allowed', `${req.method} is not allowed for static content`);
@@ -73,6 +80,14 @@ export async function handleStatic(req, res, pathname, uiDir = UI_DIR) {
     return sendError(res, 404, 'not_found', `No static file for ${pathname}`);
   }
 
+  // Only NOW, having actually read a real file from disk at this exact
+  // pathname, is it safe to ask whether it qualifies for immutable caching
+  // — matching the fingerprint SHAPE alone would let a 404 for a
+  // fingerprinted-looking path that names no real file get cached for a
+  // year (see cache-policy.js's own two-gate rationale).
+  if (isFingerprintedAssetPath(pathname)) {
+    applyStaticCacheHeaders(res, { immutable: true });
+  }
   res.writeHead(200, {
     'Content-Type': CONTENT_TYPES[extname(filePath)],
     'Content-Length': content.length,
