@@ -317,6 +317,11 @@ What is protected as of this version:
   keys configured, the Integration API fails closed with `503`.
 - **Ask is rate limited per key.** Both Ask versions share the same token
   bucket for a key. See [Rate limiting](#rate-limiting) below.
+- **Dashboard/API indexing is scoped to operator-approved directories.**
+  `POST /api/jobs/index` resolves the requested path through the real
+  filesystem and accepts it only inside `INDEX_ALLOWED_ROOTS`. With no roots
+  configured, HTTP/dashboard indexing is disabled. Direct trusted CLI
+  indexing is intentionally unaffected.
 - Request-ingestion timeouts and header-count ceilings are set.
 
 What is **not** protected yet — the important part:
@@ -332,8 +337,6 @@ What is **not** protected yet — the important part:
 - **No rate limiting on the Admin API.** `/api/search` and every other admin
   route are unbounded. Ask rate limiting protects only the Integration
   surface, not the admin/dashboard one.
-- **Indexing is not restricted to allowed roots.** A caller who can reach
-  `POST /api/jobs/index` can index any path this process can read.
 
 Practical guidance: treat the Admin surface of `semidex-lite serve` as a
 **local, single-trusted-user service**. For a website, bot, or assistant, call
@@ -346,6 +349,33 @@ For the full analysis, route-by-route inventory, and the planned hardening
 sequence, see
 [`docs/security/semidex-lite-public-api-audit-2026-08.md`](https://github.com/CodeNoob53/semidex/blob/main/docs/security/semidex-lite-public-api-audit-2026-08.md)
 in the repository.
+
+### Allowed indexing roots
+
+Before starting an indexing job from the dashboard or `POST /api/jobs/index`,
+configure the directories that the Admin API may read. In an environment
+file, use a JSON array (Windows backslashes must be escaped):
+
+```bash
+INDEX_ALLOWED_ROOTS=["C:\\Users\\me\\Documents\\knowledge","D:\\shared-docs"]
+```
+
+In **Settings → System**, enter one absolute directory per line. The setting
+applies immediately to Full and Lite; an empty list fails closed and disables
+HTTP/dashboard indexing. The folder picker only fills the target field and
+never adds a directory to the allow-list.
+
+Both configured roots and requested targets must exist. Semidex resolves them
+with the real filesystem before comparing path components, so a symlink or
+Windows junction that resolves outside an allowed root is rejected. This is a
+check-time boundary, not a race-proof filesystem sandbox: another local
+process able to replace files or directories while the child indexer walks
+them can create a time-of-check/time-of-use race. Keep allowed roots writable
+only by trusted users.
+
+This restriction applies only to the Admin HTTP route. A local operator who
+runs `npx semidex-lite index <path>` directly remains responsible for the path
+they choose.
 
 ### Exposing the server beyond loopback
 

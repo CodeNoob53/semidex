@@ -640,9 +640,19 @@ function makeAvailableOllamaStub() {
   return async () => ({ status: 'available', message: 'Ollama is running.' });
 }
 
+// This file is about job-registry/request-validation behavior, not path
+// scoping (that has its own dedicated tests — see
+// tests/unit/security/path-containment.test.js and
+// tests/unit/security/spawn-indexer-path-validation.test.js) — every path
+// used below ('./x', './docs', 'C:\\path\\to\\docs', etc.) is a fake,
+// nonexistent string the real allowed-roots guard would reject outright
+// (it requires the target to actually exist). A permissive fake guard lets
+// these tests keep asserting on what they actually care about.
+const ALLOW_ALL_ROOTS_GUARD = { checkTarget: (rawPath) => ({ ok: true, canonicalPath: rawPath }) };
+
 async function withJobApp(spawnFn, fn, { checkOllamaFn = makeAvailableOllamaStub() } = {}) {
   const jobRegistry = createJobRegistry({ spawnIndexer: spawnFn });
-  const app = createApp({ jobRegistry, adapter: makeStubAdapter(), checkOllamaFn });
+  const app = createApp({ jobRegistry, adapter: makeStubAdapter(), checkOllamaFn, allowedRootsGuard: ALLOW_ALL_ROOTS_GUARD });
   await new Promise((resolve) => app.listen(0, '127.0.0.1', resolve));
   const base = `http://127.0.0.1:${app.address().port}`;
   try {
@@ -868,7 +878,7 @@ describe('POST /api/jobs/index — validation', () => {
     const indexerCalls = [];
     try {
       const jobRegistry = createJobRegistry({ spawnIndexer: makeNeverExitingSpawn(indexerCalls) });
-      const app = createApp({ jobRegistry, adapter: makeStubAdapter() }); // no checkOllamaFn override — real checkOllama
+      const app = createApp({ jobRegistry, adapter: makeStubAdapter(), allowedRootsGuard: ALLOW_ALL_ROOTS_GUARD }); // no checkOllamaFn override — real checkOllama
       await new Promise((resolve) => app.listen(0, '127.0.0.1', resolve));
       const base = `http://127.0.0.1:${app.address().port}`;
       try {

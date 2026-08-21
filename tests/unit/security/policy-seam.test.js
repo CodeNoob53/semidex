@@ -398,6 +398,10 @@ describe('Part D — policy rejection reaches no external system', () => {
       },
       embedQuery: async () => ({ dense: [], sparse: {} }),
       jobRegistry: createJobRegistry({ spawnIndexer: () => { spawned = true; return fakeChild(); }, baseEnv: {} }),
+      // This test is about the integration/admin policy split, not path
+      // scoping (see tests/unit/security/spawn-indexer-path-validation.test.js) — './docs'
+      // below is a fake, nonexistent path the real guard would reject.
+      allowedRootsGuard: { checkTarget: (rawPath) => ({ ok: true, canonicalPath: rawPath }) },
       integrationPolicy: {
         authorizeRequest: ({ route }) => (route.operation === OPERATION.INDEX
           ? { ok: false, status: 403, code: 'forbidden', message: 'indexing disabled by policy' }

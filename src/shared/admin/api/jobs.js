@@ -233,10 +233,37 @@ export function toJobDetail(job) {
 // allowLlmSummaries:false (making options.llmSummaries unreachable via
 // parseIndexJobRequest's own validation, below) and can therefore safely
 // omit checkOllamaFn entirely — it is never called in that configuration.
-export function registerJobsRoutes(router, registry, { checkOllamaFn, jobPolicy = FULL_JOB_POLICY } = {}) {
+// allowedRootsGuard has NO default — same "required DI, fail loud at
+// construction, never a silent fallback" convention as jobRegistry
+// (registry.js) and registerQdrantCloudRoutesFn (register-neutral-routes.js):
+// a composition root that forgot to pass one would otherwise leave
+// POST /api/jobs/index with no path-scope check at all, exactly the P1-3
+// gap this feature exists to close, and a missing dependency should fail
+// at server construction, not be silently permissive at request time.
+// src/admin/server-full.js's createApp() and src/admin/composition/lite.js's
+// createLiteApp() each construct their own guard (createAllowedRootsGuard()
+// from allowed-roots-guard.js) from their own settingsService instance —
+// tests inject their own fake (e.g. an always-allow stub) directly.
+export function registerJobsRoutes(router, registry, { checkOllamaFn, jobPolicy = FULL_JOB_POLICY, allowedRootsGuard } = {}) {
+  if (!allowedRootsGuard || typeof allowedRootsGuard.checkTarget !== 'function') {
+    throw new TypeError('registerJobsRoutes: allowedRootsGuard is required — construct it via createAllowedRootsGuard({ settingsService }) (src/shared/admin/jobs/allowed-roots-guard.js), or pass a test fake shaped { checkTarget(path) }.');
+  }
   router.post('/api/jobs/index', async ({ req, res }) => {
     const body = await readJsonBody(req);
     const { collection, path, options, kind } = parseIndexJobRequest(body, jobPolicy);
+
+    // Path-scope check runs BEFORE the Ollama availability check and before
+    // any subprocess/external work (task requirement) — it is fully local
+    // and cheap, so a request that's going to be denied anyway should never
+    // first trigger a network call to Ollama. canonicalPath (realpath-
+    // resolved, following symlinks/junctions) replaces the caller-supplied
+    // spelling from here on — registry.startIndexJob()/spawnIndexer() must
+    // never see the original, potentially-symlinked spelling.
+    const scopeCheck = allowedRootsGuard.checkTarget(path);
+    if (!scopeCheck.ok) {
+      throw new HttpError(scopeCheck.status, scopeCheck.code, scopeCheck.message);
+    }
+    const canonicalPath = scopeCheck.canonicalPath;
 
     // LLM summaries need Ollama running with the context model pulled — the
     // indexer's own preflight only discovers this *after* the job has
@@ -260,7 +287,7 @@ export function registerJobsRoutes(router, registry, { checkOllamaFn, jobPolicy 
 
     let started;
     try {
-      started = registry.startIndexJob({ collection, path, options, kind });
+      started = registry.startIndexJob({ collection, path: canonicalPath, options, kind });
     } catch (err) {
       if (err.code === 'JOB_ALREADY_RUNNING') throw conflict(err.message);
       throw err;

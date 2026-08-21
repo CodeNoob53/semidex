@@ -16,6 +16,7 @@
 // serialize(value): value -> JSON-safe value for settings.json (identity
 //   for every current type; exists as one place to extend later).
 
+import path from 'node:path';
 import { ONNX_DENSE_MODEL_ID } from '../../shared/core/onnx-paths.js';
 import { QDRANT_CLOUD_DENSE_MODELS, QDRANT_CLOUD_SPARSE_MODELS, findDenseModel } from '../embedding-profile/qdrant-cloud-models.js';
 
@@ -120,6 +121,75 @@ function enumField({ envVar, defaultVal, allowed, warnPrefix = '' }) {
       }
       return { ok: true };
     },
+    serialize: (value) => value,
+  };
+}
+
+// A JSON array of absolute, filesystem-path strings — used only by
+// INDEX_ALLOWED_ROOTS today. JSON (not a delimiter-separated string) is the
+// persisted/env representation deliberately: both ";" and ":" collide with
+// real Windows paths (drive-letter colons, and ";" is a plausible directory
+// name on POSIX), so any delimiter choice would be ambiguous in a way a
+// real JSON array is not.
+//
+// Deliberately SYNTAX-ONLY (this module is documented pure/no-I/O — see the
+// file header): non-empty strings, absolute (per this HOST's own
+// path.isAbsolute — a pure, synchronous check, not a filesystem read),
+// NUL-free, and de-duplicated by normalized spelling. It does NOT resolve
+// symlinks or confirm the path exists/is a directory — that requires real
+// fs I/O and happens in exactly two places instead: src/core/settings/
+// service.js's setMany() (write-time, strict — rejects the PATCH outright)
+// and src/shared/admin/jobs/allowed-roots-guard.js (request-time, lenient
+// — drops an invalid root with a log line rather than failing every other
+// still-valid root). Both share src/core/security/allowed-roots.js's
+// resolveAllowedRoots() so the real filesystem check itself is written
+// exactly once.
+function stringArrayPathField({ envVar, warnPrefix = '' }) {
+  function checkShape(value) {
+    if (!Array.isArray(value)) {
+      return { ok: false, error: `${envVar} must be a JSON array of absolute path strings.` };
+    }
+    const seen = new Set();
+    for (const entry of value) {
+      if (typeof entry !== 'string' || entry.trim() === '') {
+        return { ok: false, error: `${envVar} entries must be non-empty strings.` };
+      }
+      if (entry.includes(String.fromCharCode(0))) {
+        return { ok: false, error: `${envVar} entries must not contain NUL characters.` };
+      }
+      if (!path.isAbsolute(entry)) {
+        return { ok: false, error: `${envVar} entries must be absolute paths: "${entry}"` };
+      }
+      const normalized = path.normalize(entry);
+      // APFS may be case-sensitive, so platform alone is insufficient to
+      // fold macOS paths safely. Canonical duplicate detection runs again
+      // against the real filesystem in SettingsService.
+      const dedupeKey = process.platform === 'win32' ? normalized.toLowerCase() : normalized;
+      if (seen.has(dedupeKey)) {
+        return { ok: false, error: `${envVar} contains a duplicate entry: "${entry}"` };
+      }
+      seen.add(dedupeKey);
+    }
+    return { ok: true };
+  }
+  return {
+    default: [],
+    parseExternal(raw) {
+      if (raw === undefined || raw === '') return [];
+      let parsed;
+      try {
+        parsed = JSON.parse(raw);
+      } catch {
+        warnInvalid(warnPrefix, envVar, raw, '[]');
+        return [];
+      }
+      if (!checkShape(parsed).ok) {
+        warnInvalid(warnPrefix, envVar, raw, '[]');
+        return [];
+      }
+      return parsed;
+    },
+    validate: checkShape,
     serialize: (value) => value,
   };
 }
@@ -819,6 +889,24 @@ export const DEFINITIONS = {
     description: 'Allow the admin server to bind to a non-localhost address, exposing it beyond this machine.', advanced: true,
     appliesAt: 'next_restart', requiresReindex: false, requiresBackfill: false,
     ...boolField({ envVar: 'ADMIN_ALLOW_REMOTE', defaultVal: false }),
+  },
+  // Governs POST /api/jobs/index (dashboard "Index a folder" and any other
+  // HTTP caller) only — see docs/security/semidex-lite-public-api-audit-2026-08.md,
+  // Finding P1-3. Direct CLI indexing (`semidex-lite index <path>` / Full's
+  // equivalent) has no HTTP boundary and is intentionally NOT gated by this
+  // setting; a trusted local operator running the CLI already has whatever
+  // filesystem access the CLI grants by other means. An empty list (the
+  // default) means HTTP/dashboard indexing is disabled entirely — fail
+  // closed, never "no roots configured" silently meaning "any path
+  // allowed". Each entry must be an absolute directory path; a request
+  // path is accepted only when it resolves (after following symlinks/
+  // junctions) to one of these directories or something inside them.
+  INDEX_ALLOWED_ROOTS: {
+    category: 'system', label: 'Allowed indexing roots (API)', type: 'string-array', envVar: 'INDEX_ALLOWED_ROOTS',
+    description: 'Directories POST /api/jobs/index (dashboard and any other HTTP caller) may index from. JSON array of absolute paths, e.g. ["C:\\\\Users\\\\me\\\\Documents\\\\kb"]. Empty (default) disables HTTP/dashboard indexing entirely. Does not affect direct CLI indexing.',
+    advanced: false,
+    appliesAt: 'immediate', requiresReindex: false, requiresBackfill: false,
+    ...stringArrayPathField({ envVar: 'INDEX_ALLOWED_ROOTS', warnPrefix: '[settings] ' }),
   },
   TOKEN_COUNT: {
     category: 'system', label: 'Token counting mode', type: 'enum', envVar: 'TOKEN_COUNT',

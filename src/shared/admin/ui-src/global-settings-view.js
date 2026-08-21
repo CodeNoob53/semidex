@@ -336,11 +336,24 @@ function visibleKeySet(category) {
 
 // displayValue: unset fields (configuredValue undefined — no default, no
 // override, e.g. QDRANT_URL) must never render the literal text
-// "undefined". Booleans fall back to false, everything else to ''. This is
-// purely a display default, not a staged edit.
+// "undefined". Booleans fall back to false, string-array falls back to an
+// empty array, everything else to ''. This is purely a display default,
+// not a staged edit.
 function displayValue(entry) {
   if (entry.type === 'boolean') return entry.configuredValue ?? false;
+  if (entry.type === 'string-array') return entry.configuredValue ?? [];
   return entry.configuredValue ?? '';
+}
+
+// Generic "did this edit actually change anything" check — a plain === is
+// correct for every primitive-typed field (string/number/boolean/enum), but
+// a string-array field's staged value is a genuinely new Array each time
+// its textarea fires input/change, so === would always report "changed"
+// even after typing the original list back out verbatim. JSON.stringify
+// comparison is exact for both cases (primitives compare identically to
+// ===; arrays compare by content) without a bespoke deep-equal utility.
+function valuesEqual(a, b) {
+  return JSON.stringify(a) === JSON.stringify(b);
 }
 
 function currentPendingValue(category, entry) {
@@ -357,6 +370,7 @@ function currentPendingValue(category, entry) {
       return displayValue(entry);
     }
     if (entry.type === 'boolean') return entry.default ?? false;
+    if (entry.type === 'string-array') return entry.default ?? [];
     return entry.default ?? '';
   }
   return displayValue(entry);
@@ -375,7 +389,8 @@ function stagePending(category, key, value, entry) {
   // Deletes the key (rather than storing a no-op change) if the new value
   // matches the last-fetched configuredValue exactly — keeps "unchanged
   // fields never sent" true even after an edit-then-revert round trip.
-  if (value === (entry.configuredValue ?? (entry.type === 'boolean' ? false : ''))) {
+  const unchangedDefault = entry.type === 'boolean' ? false : (entry.type === 'string-array' ? [] : '');
+  if (valuesEqual(value, entry.configuredValue ?? unchangedDefault)) {
     pending.delete(key);
   } else {
     pending.set(key, value);
@@ -577,6 +592,19 @@ function fieldControl(category, entry) {
     const explicitPathEntry = lastFetchedPayload?.settings.find((s) => s.pathPicker);
     const explicitRuntimePathValue = explicitPathEntry ? currentPendingValue(category, explicitPathEntry) : '';
     return managedRuntimeSelectControl(entry, value, disabled, { listing: lastManagedRuntimes, explicitRuntimePathValue });
+  } else if (entry.type === 'string-array') {
+    // Smallest control that safely edits a JSON array of path strings
+    // without asking an operator to hand-write JSON/escape backslashes for
+    // Windows paths: one path per line in a plain textarea; blank lines are
+    // dropped. See wireCategoryEvents()'s own string-array branch for the
+    // text<->array conversion — this control never holds JSON syntax
+    // itself, only the human-facing one-per-line format.
+    const wrapper = templateRoot('tpl-gs-control-textarea');
+    const textarea = wrapper.querySelector('.gs-field-control');
+    textarea.value = (value ?? []).join('\n');
+    textarea.dataset.key = entry.key;
+    textarea.disabled = disabled;
+    return { control: wrapper, extras: [] };
   } else if (entry.pathPicker) {
     // A filesystem-path field with a Browse button wired to the existing
     // POST /api/system/pick-folder endpoint (see wireCategoryEvents()'s
@@ -980,6 +1008,16 @@ function wireCategoryEvents(container, category) {
           markInvalid(category, key, false);
           stagePending(category, key, value, entry);
         }
+      } else if (entry.type === 'string-array') {
+        // One path per line -> array; blank lines dropped. No client-side
+        // absolute-path/existence check — the field's real validation
+        // (definitions.js's shape check, and service.js's real-filesystem
+        // check) runs server-side on Save, and its error surfaces through
+        // the normal PATCH-failure toast (onSave()'s catch below), the same
+        // path every other field's server-rejected value already takes.
+        const lines = el.value.split('\n').map((line) => line.trim()).filter((line) => line !== '');
+        markInvalid(category, key, false);
+        stagePending(category, key, lines, entry);
       } else {
         // string
         const raw = el.value;
@@ -1061,7 +1099,7 @@ function wireCategoryEvents(container, category) {
       }
     };
     el.addEventListener('change', handler);
-    if (entry.type === 'string' && !isDynamicSelect || entry.type === 'number') {
+    if (entry.type === 'string' && !isDynamicSelect || entry.type === 'number' || entry.type === 'string-array') {
       el.addEventListener('input', handler);
     }
   }

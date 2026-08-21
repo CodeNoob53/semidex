@@ -11,6 +11,7 @@ import { DEFINITIONS } from './definitions.js';
 import { readSettingsFile, writeSettingsFileAtomic, statMtime, DEFAULT_SETTINGS_PATH } from './settings-store.js';
 import { resolveEffectiveEmbeddingBackend, assertProviderCombo } from '../../shared/core/env.js';
 import { DEFAULT_MODEL_BY_BACKEND } from '../generation/config.js';
+import { resolveAllowedRoots } from '../security/allowed-roots.js';
 
 const SOURCES = Object.freeze({
   OS_ENV: 'os_env',
@@ -472,6 +473,33 @@ export function createSettingsService({
           const err = new Error(comboErr.message);
           err.code = 'invalid_value';
           err.invalidKey = keysToChange.includes('DENSE_PROVIDER') ? 'DENSE_PROVIDER' : 'SPARSE_PROVIDER';
+          throw err;
+        }
+      }
+
+      // INDEX_ALLOWED_ROOTS real-filesystem guard (P1-3 fix — see
+      // definitions.js's own header comment on why the field's def.validate()
+      // above only checked SHAPE, not the filesystem): a `null` change
+      // (deletion, reverting to the always-valid default `[]`) skips this
+      // entirely. A real array change is resolved against the real
+      // filesystem here — the ONE write-time check that can reject an
+      // operator-typo'd or nonexistent/non-directory root outright, rather
+      // than letting it silently vanish only much later, the first time
+      // shared/admin/jobs/allowed-roots-guard.js resolves the setting and
+      // logs (but does not surface to this caller) that it dropped an
+      // invalid entry. Never leaks which specific root failed or why to the
+      // PATCH response — that detail is operator-log-only (console.warn
+      // below); the HTTP response stays generic, matching this feature's own
+      // "no filesystem details to the client" contract.
+      if (keysToChange.includes('INDEX_ALLOWED_ROOTS') && changes.INDEX_ALLOWED_ROOTS !== null) {
+        const { dropped } = resolveAllowedRoots(changes.INDEX_ALLOWED_ROOTS);
+        if (dropped.length > 0) {
+          for (const { raw, reason } of dropped) {
+            console.warn(`[settings] INDEX_ALLOWED_ROOTS entry "${raw}" rejected: ${reason}`);
+          }
+          const err = new Error('One or more entries in "Allowed indexing roots" do not exist, are not directories, or resolve to a duplicate of another entry. Check the server log for which entry and why.');
+          err.code = 'invalid_value';
+          err.invalidKey = 'INDEX_ALLOWED_ROOTS';
           throw err;
         }
       }

@@ -23,6 +23,12 @@ function contrast(hex1, hex2) {
   return (l1 + 0.05) / (l2 + 0.05);
 }
 
+describe('HTML hidden contract', () => {
+  it('wins over component display rules such as .badge and .btn-ghost', () => {
+    assert.match(css(), /\[hidden\]\s*\{\s*display:\s*none\s*!important;\s*\}/);
+  });
+});
+
 describe('text contrast (WCAG AA, 4.5:1 for normal text)', () => {
   it('--ink-faint clears 4.5:1 against both --bg and --bg-raise', () => {
     const src = css();

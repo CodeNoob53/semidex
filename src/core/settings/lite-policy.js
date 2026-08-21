@@ -117,6 +117,11 @@ export const LITE_SETTINGS_POLICY = Object.freeze({
   ADMIN_ALLOW_REMOTE: exposed(),
   HYBRID_PREFETCH_LIMIT: exposed(),
   RRF_K: exposed(),
+  // Governs POST /api/jobs/index in Lite exactly the same way it does in
+  // Full (docs/security/semidex-lite-public-api-audit-2026-08.md, Finding
+  // P1-3) — backend-agnostic, no local-runtime/local-model coupling, so
+  // there is no reason to exclude it from Lite's Settings API surface.
+  INDEX_ALLOWED_ROOTS: exposed(),
 
   // ── excluded — grouped by category for readability; order here has no
   // exported meaning (only the 'exposed' block above's order is pinned).

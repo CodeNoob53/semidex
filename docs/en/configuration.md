@@ -536,6 +536,35 @@ Ask pipeline has not yet been exercised end-to-end against it on real
 Linux+CUDA hardware, so treat a real Linux CUDA run as unverified until
 your own probe/indexing/search cycle confirms it.
 
+## Admin API indexing roots
+
+`POST /api/jobs/index` is fail-closed behind `INDEX_ALLOWED_ROOTS` in both
+Full Semidex and Semidex Lite. The value is a JSON array of absolute,
+existing directory paths:
+
+```bash
+INDEX_ALLOWED_ROOTS=["C:\\Users\\me\\Documents\\knowledge","D:\\shared"]
+```
+
+The Global Settings UI exposes the same setting under **System** as a
+one-absolute-path-per-line textarea. Changes apply immediately. An empty,
+malformed, or wholly invalid value leaves HTTP/dashboard indexing disabled;
+the API never interprets an empty list as unrestricted access. Settings
+writes reject nonexistent paths, non-directories, and entries that resolve to
+the same real directory.
+
+Before a job starts, Semidex resolves both roots and the requested target via
+the real filesystem and performs component-aware containment comparison.
+Files and directories are accepted; unsupported filesystem objects, broken
+links, and symlink/Windows-junction escapes are rejected with a generic error
+that does not disclose the configured roots. The canonical target is the only
+path passed to the job registry.
+
+This setting governs only the Admin HTTP route. Direct trusted-operator CLI
+indexing remains unrestricted by it. It is also a check-time control rather
+than a complete filesystem sandbox: a local actor who can mutate an allowed
+tree while the child process recursively reads it may create a TOCTOU race.
+
 ## Indexing (per-run)
 
 These are passed on the command line, not in `.env`:

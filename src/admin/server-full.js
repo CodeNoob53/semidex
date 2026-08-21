@@ -29,6 +29,7 @@ import { resolveRequestSecurityPolicy } from '../shared/admin/server.js';
 import { resolveIntegrationPolicy } from '../core/auth/resolve-policy.js';
 import { embedForSearch } from '../shared/core/embeddings.js';
 import { createJobRegistry } from '../shared/admin/jobs/registry.js';
+import { createAllowedRootsGuard } from '../shared/admin/jobs/allowed-roots-guard.js';
 import { spawnIndexer as spawnFullIndexer } from './jobs/spawn-indexer-full.js';
 import { createOllamaEmbedCapability } from '../local/core/ollama-capability.js';
 import { createOnnxEmbeddingCapability } from '../local/core/onnx-embed.js';
@@ -44,7 +45,7 @@ export function createApp({
   discoverOllamaModelsFn, discoverGeminiModelsFn, runOnnxProbeFn, runQdrantCloudProbeFn,
   resolveNewCollectionProfileFn, diagnoseCudaFailureFn,
   resolveEffectiveOnnxRuntimePathFn, writeVerificationResultFn, onnxManagedRuntimeListingCache,
-  onnxEmbedCapability, securityPolicy, integrationPolicy,
+  onnxEmbedCapability, securityPolicy, integrationPolicy, allowedRootsGuard,
 } = {}) {
   // core/embeddings.js's applyEmbeddingCapabilities() (the process-wide
   // module-scope fallback) is deliberately NEVER called from this function
@@ -152,6 +153,14 @@ export function createApp({
   // default spawnIndexer and never knows which edition constructed it —
   // see that function's own header comment.
   const resolvedJobRegistry = jobRegistry ?? createJobRegistry({ baseEnv: jobBaseEnv, spawnIndexer: spawnFullIndexer });
+  // resolvedAllowedRootsGuard, if the caller doesn't override it, is built
+  // HERE from THIS composition root's own `settings` instance (P1-3 fix —
+  // see allowed-roots-guard.js's own header comment) — instance-scoped by
+  // construction: a second createApp() call in the same process (e.g. two
+  // tests) gets its own guard bound to its own settingsService, never a
+  // shared/module-global one. Tests inject their own fake directly (shaped
+  // `{ checkTarget(path) }`) when path-scoping isn't what they're testing.
+  const resolvedAllowedRootsGuard = allowedRootsGuard ?? createAllowedRootsGuard({ settingsService: settings });
   // Same shared policy resolution Lite uses (shared/admin/server.js) — Host
   // allow-list + cross-site rejection, applied before route dispatch. Full
   // and Lite must never drift apart here, which is why both derive it from
@@ -184,6 +193,7 @@ export function createApp({
     jobsFn: (r, jobs) => registerJobsRoutes(r, jobs, {
       jobPolicy: FULL_JOB_POLICY,
       checkOllamaFn: checkOllamaFn ?? checkOllama,
+      allowedRootsGuard: resolvedAllowedRootsGuard,
     }),
   });
   // checkOllamaFn is optional DI (tests inject a stub so unit tests never

@@ -39,6 +39,12 @@ function fakeChild() {
   return c;
 }
 
+// This file is about Origin/Content-Type/Host enforcement, not path scoping
+// (see tests/unit/security/spawn-indexer-path-validation.test.js for that) — the fixed
+// VALID_JOB_BODY path below is a fake, nonexistent string the real guard
+// would reject regardless of these tests' own concerns.
+const ALLOW_ALL_ROOTS_GUARD = { checkTarget: (rawPath) => ({ ok: true, canonicalPath: rawPath }) };
+
 // Boots a real Lite server on an ephemeral port and records whether the
 // indexer was ever spawned — the concrete side effect the original
 // vulnerability produced.
@@ -52,6 +58,7 @@ async function withLiteServer(fn) {
     adapter: makeStubAdapter(),
     embedQuery: async () => ({ dense: [], sparse: {} }),
     jobRegistry,
+    allowedRootsGuard: ALLOW_ALL_ROOTS_GUARD,
   });
   await new Promise((resolve) => app.listen(0, '127.0.0.1', resolve));
   const port = app.address().port;

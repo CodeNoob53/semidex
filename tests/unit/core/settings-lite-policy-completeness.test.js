@@ -98,6 +98,7 @@ describe('LITE_SETTINGS_POLICY — exhaustiveness against the real DEFINITIONS r
       'ADMIN_ALLOW_REMOTE',
       'HYBRID_PREFETCH_LIMIT',
       'RRF_K',
+      'INDEX_ALLOWED_ROOTS',
     ]);
   });
 

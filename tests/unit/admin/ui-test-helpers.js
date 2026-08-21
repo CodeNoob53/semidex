@@ -6,9 +6,23 @@ import { EventEmitter } from 'node:events';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 import { parseHTML, HTMLElement, HTMLInputElement, Event } from 'linkedom';
-import { createApp } from '../../../src/admin/server-full.js';
+import { createApp as createRealApp } from '../../../src/admin/server-full.js';
 import { OPEN_INTEGRATION_POLICY } from '../security/test-integration-policy.js';
 import { createJobRegistry } from '../../../src/shared/admin/jobs/registry.js';
+
+// Every file importing `createApp` from this shared helper is testing
+// something OTHER than allowed-roots path scoping (that has its own
+// dedicated tests — tests/unit/security/path-containment.test.js and
+// tests/unit/security/spawn-indexer-path-validation.test.js) — so
+// this wrapper defaults to a permissive fake guard that accepts any path
+// unchanged, the same way this file already gives every caller a stub
+// adapter/job registry by default. A test that DOES care about real
+// containment behavior passes its own `allowedRootsGuard` override, which
+// wins via the spread below (matches every other DI default in this file).
+const ALLOW_ALL_ROOTS_GUARD = { checkTarget: (rawPath) => ({ ok: true, canonicalPath: rawPath }) };
+function createApp(opts = {}) {
+  return createRealApp({ allowedRootsGuard: ALLOW_ALL_ROOTS_GUARD, ...opts });
+}
 
 // Keep the shared helper free of the heavy unified/remark/highlight graph.
 // Structural-renderer tests inject the real implementation explicitly.

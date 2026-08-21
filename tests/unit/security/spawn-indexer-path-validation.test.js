@@ -1,39 +1,39 @@
 // Supports: docs/security/semidex-lite-public-api-audit-2026-08.md
-// Finding P1-3 "POST /api/jobs/index accepts an arbitrary local filesystem
-// path with no traversal/scope restriction — the indexer will read
-// whatever path is supplied, subject only to OS file permissions of the
-// process."
+// Finding P1-3 — STATUS: FIXED (see the audit doc's "Indexing allowed
+// roots" section). This file used to characterize the documented ABSENCE
+// of a path-scope guard: parseIndexJobRequest() (src/shared/admin/api/
+// jobs.js) and createJobRegistry().startIndexJob() (src/shared/admin/jobs/
+// registry.js) both forwarded any caller-supplied `path` unchanged, with no
+// traversal/scope restriction at either layer. That absence is now closed
+// — but at the HTTP ROUTE layer specifically
+// (src/shared/admin/api/jobs.js's registerJobsRoutes(), via
+// src/shared/admin/jobs/allowed-roots-guard.js's createAllowedRootsGuard()),
+// not inside parseIndexJobRequest()/registry.js themselves. This file now
+// proves the fix, not the gap it used to document.
 //
-// src/shared/admin/api/jobs.js's requireLocalPathField() (the only
-// validation `path` goes through before reaching
-// registry.js's startIndexJob()) rejects a URL-scheme string
-// (scheme://...) but performs NO other check: no traversal guard, no
-// "must be inside an allowed root" restriction, no absolute-vs-relative
-// distinction. registry.js's startIndexJob() (src/shared/admin/jobs/
-// registry.js) passes `path` straight into
-// `spawnIndexer({ args: [path], env })` with no validation of its own
-// either (confirmed by reading the file — buildJobEnv() only ever touches
-// `collection` and the boolean options, never `path`). spawn-indexer-lite.js/
-// spawn-indexer-full.js both spawn `node <indexer-entry> <path>` verbatim —
-// there is no shell involved (node:child_process spawn() with an argv
-// array, not a shell string), so this is NOT a shell-injection vector, but
-// it IS an arbitrary-local-path-read vector: any path the OS-level process
-// can read (e.g. "C:\\Users\\<other-user>\\Documents", "../../../etc",
-// an absolute path to a completely unrelated directory) is accepted and
-// indexed into Qdrant Cloud, from where it becomes retrievable via
-// Ask/search to anyone who can reach this same collection.
-//
-// This test proves requireLocalPathField()/parseIndexJobRequest() accept
-// traversal and arbitrary-absolute paths unchanged, and that
-// createJobRegistry()'s startIndexJob() forwards whatever path it was
-// given to spawnIndexer with no additional check — i.e. the ABSENCE of a
-// scope/allow-list guard at both layers this request actually passes
-// through.
+// Architecture note (why parseIndexJobRequest()/registry.js are still
+// path-scope-agnostic, and must stay that way): both are shared with the
+// direct CLI indexing entry point (`semidex-lite index <path>` / Full's
+// equivalent — see packages/lite/lite-src/index-lite.js), which has no HTTP
+// boundary at all and runs as the trusted local operator who already has
+// whatever filesystem access the CLI grants by other means (task
+// requirement — CLI indexing must remain usable without the Admin
+// allowed-roots setting). Baking the guard into registry.js would
+// accidentally impose an HTTP-only concern on that CLI path. The first
+// describe block below pins this as an intentional, unchanged architecture
+// decision; the second is the real proof of the fix.
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseIndexJobRequest, FULL_JOB_POLICY } from '../../../src/shared/admin/api/jobs.js';
-import { createJobRegistry } from '../../../src/shared/admin/jobs/registry.js';
 import { EventEmitter } from 'node:events';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { parseIndexJobRequest, FULL_JOB_POLICY, registerJobsRoutes } from '../../../src/shared/admin/api/jobs.js';
+import { createJobRegistry } from '../../../src/shared/admin/jobs/registry.js';
+import { createAllowedRootsGuard } from '../../../src/shared/admin/jobs/allowed-roots-guard.js';
+import { createSettingsService } from '../../../src/core/settings/service.js';
+import { createRouter } from '../../../src/shared/admin/router.js';
+import { createHttpServer } from '../../../src/shared/admin/register-neutral-routes.js';
 
 function makeFakeChild() {
   const child = new EventEmitter();
@@ -42,67 +42,163 @@ function makeFakeChild() {
   return child;
 }
 
-describe('parseIndexJobRequest — path field has no traversal/scope guard (confirmed-absence characterization)', () => {
-  it('accepts a "../../../" traversal-shaped relative path unchanged', () => {
-    const { path } = parseIndexJobRequest({ collection: 'c', path: '../../../etc' }, FULL_JOB_POLICY);
-    assert.equal(path, '../../../etc');
+describe('Architecture note — parseIndexJobRequest()/registry.js remain path-scope-agnostic BY DESIGN (shared with the CLI, which has no HTTP boundary)', () => {
+  it('parseIndexJobRequest() itself performs no traversal/scope check — the guard lives one layer up, in registerJobsRoutes()', () => {
+    const { path: parsedPath } = parseIndexJobRequest({ collection: 'c', path: '../../../etc' }, FULL_JOB_POLICY);
+    assert.equal(parsedPath, '../../../etc');
   });
 
-  it('accepts an arbitrary absolute Windows path outside any project directory unchanged', () => {
-    const { path } = parseIndexJobRequest({ collection: 'c', path: 'C:\\Users\\someone-else\\Documents\\Private' }, FULL_JOB_POLICY);
-    assert.equal(path, 'C:\\Users\\someone-else\\Documents\\Private');
+  it('createJobRegistry().startIndexJob() forwards whatever path it is given to spawnIndexer unchanged — the CLI (semidex-lite index) calls this directly with no HTTP layer at all, and must keep working exactly as before', () => {
+    let seenArgs = null;
+    const registry = createJobRegistry({ spawnIndexer: ({ args }) => { seenArgs = args; return makeFakeChild(); }, baseEnv: {} });
+    registry.startIndexJob({ collection: 'c', path: '/any/path/at/all', options: {} });
+    assert.deepEqual(seenArgs, ['/any/path/at/all']);
   });
 
-  it('accepts an arbitrary absolute POSIX path (e.g. /etc, a system directory) unchanged', () => {
-    const { path } = parseIndexJobRequest({ collection: 'c', path: '/etc' }, FULL_JOB_POLICY);
-    assert.equal(path, '/etc');
-  });
-
-  it('rejects only a URL-scheme-shaped string — that is the ONE real validation this field has', () => {
-    assert.throws(
-      () => parseIndexJobRequest({ collection: 'c', path: 'https://example.com/payload' }, FULL_JOB_POLICY),
-      /must be a local filesystem path, not a URL/,
-    );
+  it('spawnIndexer still receives an argv array (not a shell string) — this fix does not change the pre-existing not-a-shell-injection-vector shape', () => {
+    let seenArgs = null;
+    const registry = createJobRegistry({ spawnIndexer: ({ args }) => { seenArgs = args; return makeFakeChild(); }, baseEnv: {} });
+    const shellLikePath = '/tmp/foo; rm -rf ~';
+    registry.startIndexJob({ collection: 'c', path: shellLikePath, options: {} });
+    assert.ok(Array.isArray(seenArgs));
+    assert.equal(seenArgs.length, 1);
+    assert.equal(seenArgs[0], shellLikePath);
   });
 });
 
-describe('createJobRegistry().startIndexJob() — forwards path to spawnIndexer with no additional validation', () => {
-  it('an arbitrary traversal-shaped path reaches spawnIndexer verbatim as args[0]', () => {
-    let seenArgs = null;
-    const spawnIndexer = ({ args, env }) => { seenArgs = args; return makeFakeChild(); };
-    const registry = createJobRegistry({ spawnIndexer, baseEnv: {} });
+// Builds a real router + real createAllowedRootsGuard (backed by a real,
+// isolated settings.json in a temp dir) + a fake registry that records
+// whether startIndexJob()/spawnIndexer was ever reached — proves the HTTP
+// route itself denies an out-of-scope request BEFORE any of that runs.
+function withGuardedJobsRoute({ allowedRoots }, fn) {
+  const tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), 'sdx-spawn-guard-'));
+  const settingsPath = path.join(tmpHome, 'settings.json');
+  if (allowedRoots) fs.writeFileSync(settingsPath, JSON.stringify({ INDEX_ALLOWED_ROOTS: allowedRoots }));
+  const settingsService = createSettingsService({ osEnv: {}, dotenvValues: {}, settingsPath });
+  const allowedRootsGuard = createAllowedRootsGuard({ settingsService, log: () => {} });
 
-    registry.startIndexJob({ collection: 'c', path: '../../../etc/shadow-equivalent', options: {} });
+  const startCalls = [];
+  const spawnCalls = [];
+  const registry = createJobRegistry({
+    spawnIndexer: ({ args }) => { spawnCalls.push(args); return makeFakeChild(); },
+  });
+  const realStartIndexJob = registry.startIndexJob;
+  registry.startIndexJob = (params) => { startCalls.push(params); return realStartIndexJob(params); };
 
-    assert.deepEqual(seenArgs, ['../../../etc/shadow-equivalent']);
+  const router = createRouter();
+  registerJobsRoutes(router, registry, { jobPolicy: FULL_JOB_POLICY, allowedRootsGuard });
+  const server = createHttpServer(router);
+
+  return new Promise((resolve, reject) => {
+    server.listen(0, '127.0.0.1', async () => {
+      const base = `http://127.0.0.1:${server.address().port}`;
+      try {
+        await fn({ base, startCalls, spawnCalls, tmpHome });
+        resolve();
+      } catch (err) {
+        reject(err);
+      } finally {
+        server.close();
+        fs.rmSync(tmpHome, { recursive: true, force: true });
+      }
+    });
+  });
+}
+
+describe('POST /api/jobs/index — a path outside the configured allowed roots is rejected before startIndexJob()/spawnIndexer is ever called (the fix)', () => {
+  it('with no allowed roots configured at all, a request for a real, existing directory is denied 403 before startIndexJob() — fail closed, not "unrestricted"', async () => {
+    const realDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sdx-spawn-guard-target-'));
+    try {
+      await withGuardedJobsRoute({ allowedRoots: null }, async ({ base, startCalls, spawnCalls }) => {
+        const res = await fetch(base + '/api/jobs/index', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ collection: 'c', path: realDir }),
+        });
+        assert.equal(res.status, 403);
+        assert.equal((await res.json()).error.code, 'allowed_roots_not_configured');
+        assert.equal(startCalls.length, 0, 'registry.startIndexJob() must never be reached');
+        assert.equal(spawnCalls.length, 0, 'spawnIndexer must never be reached');
+      });
+    } finally {
+      fs.rmSync(realDir, { recursive: true, force: true });
+    }
   });
 
-  it('an arbitrary absolute path outside any conventional "documents root" reaches spawnIndexer verbatim', () => {
-    let seenArgs = null;
-    const spawnIndexer = ({ args }) => { seenArgs = args; return makeFakeChild(); };
-    const registry = createJobRegistry({ spawnIndexer, baseEnv: {} });
-
-    registry.startIndexJob({ collection: 'c', path: 'C:\\Windows\\System32\\config', options: {} });
-
-    assert.deepEqual(seenArgs, ['C:\\Windows\\System32\\config']);
+  it('a "../../../"-shaped traversal path is denied — it resolves outside the configured root', async () => {
+    const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'sdx-spawn-guard-root-'));
+    try {
+      const inside = path.join(tmpRoot, 'inside');
+      fs.mkdirSync(inside);
+      await withGuardedJobsRoute({ allowedRoots: [inside] }, async ({ base, startCalls, spawnCalls }) => {
+        const traversal = path.join(inside, '..', '..');
+        const res = await fetch(base + '/api/jobs/index', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ collection: 'c', path: traversal }),
+        });
+        assert.equal(res.status, 403);
+        assert.equal((await res.json()).error.code, 'path_not_allowed');
+        assert.equal(startCalls.length, 0);
+        assert.equal(spawnCalls.length, 0);
+      });
+    } finally {
+      fs.rmSync(tmpRoot, { recursive: true, force: true });
+    }
   });
 
-  it('spawnIndexer receives an argv array (not a shell string) — confirms this is a path-scope gap, not a shell-injection vector', () => {
-    // Documents the boundary precisely: spawn-indexer-lite.js/-full.js call
-    // node:child_process's spawn(execPath, [entry, ...args], opts) — an
-    // argv array, never a concatenated shell command string — so a path
-    // containing shell metacharacters (e.g. "; rm -rf ~") is passed as one
-    // literal argv element, not interpreted by a shell. This test asserts
-    // that same argv-array shape holds through the registry layer.
-    let seenArgs = null;
-    const spawnIndexer = ({ args }) => { seenArgs = args; return makeFakeChild(); };
-    const registry = createJobRegistry({ spawnIndexer, baseEnv: {} });
+  it('an arbitrary absolute path outside every configured root is denied, never reaching startIndexJob()/spawnIndexer', async () => {
+    const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'sdx-spawn-guard-root-'));
+    const elsewhere = fs.mkdtempSync(path.join(os.tmpdir(), 'sdx-spawn-guard-elsewhere-'));
+    try {
+      await withGuardedJobsRoute({ allowedRoots: [tmpRoot] }, async ({ base, startCalls, spawnCalls }) => {
+        const res = await fetch(base + '/api/jobs/index', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ collection: 'c', path: elsewhere }),
+        });
+        assert.equal(res.status, 403);
+        assert.equal((await res.json()).error.code, 'path_not_allowed');
+        assert.equal(startCalls.length, 0);
+        assert.equal(spawnCalls.length, 0);
+      });
+    } finally {
+      fs.rmSync(tmpRoot, { recursive: true, force: true });
+      fs.rmSync(elsewhere, { recursive: true, force: true });
+    }
+  });
 
-    const shellLikePath = '/tmp/foo; rm -rf ~';
-    registry.startIndexJob({ collection: 'c', path: shellLikePath, options: {} });
+  it('a request for a path genuinely inside the configured root is accepted (202), and startIndexJob()/spawnIndexer receive the canonical resolved path', async () => {
+    const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'sdx-spawn-guard-root-'));
+    try {
+      const target = path.join(tmpRoot, 'docs');
+      fs.mkdirSync(target);
+      await withGuardedJobsRoute({ allowedRoots: [tmpRoot] }, async ({ base, startCalls, spawnCalls }) => {
+        const res = await fetch(base + '/api/jobs/index', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ collection: 'c', path: target }),
+        });
+        assert.equal(res.status, 202);
+        assert.equal(startCalls.length, 1);
+        assert.equal(startCalls[0].path, fs.realpathSync(target));
+        assert.deepEqual(spawnCalls[0], [fs.realpathSync(target)]);
+      });
+    } finally {
+      fs.rmSync(tmpRoot, { recursive: true, force: true });
+    }
+  });
 
-    assert.equal(Array.isArray(seenArgs), true);
-    assert.equal(seenArgs.length, 1);
-    assert.equal(seenArgs[0], shellLikePath); // one literal element, unsplit/uninterpreted
+  it('a nonexistent path under an otherwise-allowed root is denied with the SAME generic code as an out-of-scope path (no existence oracle)', async () => {
+    const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'sdx-spawn-guard-root-'));
+    try {
+      await withGuardedJobsRoute({ allowedRoots: [tmpRoot] }, async ({ base, startCalls }) => {
+        const res = await fetch(base + '/api/jobs/index', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ collection: 'c', path: path.join(tmpRoot, 'does-not-exist') }),
+        });
+        assert.equal(res.status, 403);
+        assert.equal((await res.json()).error.code, 'path_not_allowed');
+        assert.equal(startCalls.length, 0);
+      });
+    } finally {
+      fs.rmSync(tmpRoot, { recursive: true, force: true });
+    }
   });
 });

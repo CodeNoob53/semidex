@@ -111,7 +111,7 @@ unbounded response size.
 | `GET /api/generation/models` | Shared (Gemini-only in Lite) | Model discovery | R | query (`backend`) | Gemini (or Ollama in Full) | Yes (external API call) | redacts API key from `reason`; never echoes key on success | loopback default |
 | `GET /api/jobs` | Shared | List indexing jobs | R | none | none (in-memory) | No | none needed | loopback default |
 | `GET /api/jobs/:id` | Shared | Job detail incl. log | R | path param | none | No | log capped at 200 lines in response, 2000 in memory; **redacted at capture time** (`registry.js:73-77,111`) | loopback default |
-| `POST /api/jobs/index` | Shared | **Start indexing job → spawns subprocess** | W | body (`collection`,`path`,`options`,`kind`) | filesystem (via spawned indexer), then Qdrant | **Yes** — spawns `node index-{lite,full}.js`, indexes arbitrary local path | single global job slot (409 if busy); `path` validated only against URL-scheme strings — **no traversal/scope guard** (see Finding P1-3) | loopback default |
+| `POST /api/jobs/index` | Shared | **Start indexing job → spawns subprocess** | W | body (`collection`,`path`,`options`,`kind`) | filesystem (via spawned indexer), then Qdrant | **Yes** — spawns `node index-{lite,full}.js` | single global job slot (409 if busy); fail-closed `INDEX_ALLOWED_ROOTS` realpath/containment guard runs before job creation (see Finding P1-3) | loopback default |
 | `POST /api/jobs/:id/cancel` | Shared | Cancel job | W | path param | signals child process | No | 404 on missing job | loopback default |
 | `GET /api/operations` | Shared | Merged job+task view | R | none | none | No | none needed | loopback default |
 | `GET /api/operations/:id` | Shared | Merged detail | R | path param | none | No | 404 on missing | loopback default |
@@ -485,8 +485,14 @@ scenario 5; a real per-caller scoping model (API keys with collection
 scopes, mirroring Qdrant Cloud's own granular-access-key model — see §11
 sources) is the complete fix.
 
-### P1-3 — Unscoped local filesystem indexing: `POST /api/jobs/index`
-accepts any path the OS process can read, with no allowed-root restriction.
+### P1-3 — Unscoped local filesystem indexing
+
+### STATUS: FIXED (2026-08-19)
+
+`POST /api/jobs/index` is now fail-closed behind `INDEX_ALLOWED_ROOTS` in
+both Full and Lite. No configured valid roots means HTTP/dashboard indexing
+returns 403 before registry, subprocess, Ollama, Qdrant, or other external
+work. Direct trusted CLI indexing remains outside this HTTP boundary.
 
 **Framing note.** This is deliberately *not* labelled "path traversal."
 There is no sandbox or intended root to escape from — the API's designed
@@ -508,38 +514,35 @@ the route*, not by anything wrong in the route itself.
 > locally-readable files into a collection. That is local data exposure via
 > the browser, not merely a deployment-shape risk.
 
-Post-Phase-1 the browser vector is closed (P1-1's Origin + Content-Type
-layers), but the underlying gap is **unchanged and still open**: any
-non-browser caller who can reach the API — and every caller in §6 scenarios
-2-5 — can still index any path the process can read. It stays P1 because
-the fix (an allowed-roots allow-list, with realpath/symlink handling) must
-be designed before the API is opened to any non-operator caller.
+Post-Phase-1 the browser vector was closed by P1-1's Origin and Content-Type
+layers. The remaining non-browser gap is now closed by the allowed-roots
+guard described below.
 
-**Reachable path:** `POST /api/jobs/index` → `parseIndexJobRequest()`
-(`src/shared/admin/api/jobs.js:56-62,164-174`) → `registry.startIndexJob()`
-(`src/shared/admin/jobs/registry.js:213-253`) →
+**Current path:** `POST /api/jobs/index` → `parseIndexJobRequest()` →
+instance-scoped `createAllowedRootsGuard().checkTarget()` →
+`registry.startIndexJob()` →
 `spawnIndexer({ args: [path], env })` (both `spawn-indexer-lite.js:14-16`
-and `spawn-indexer-full.js`) → `node index-{lite,full}.js <path>`. The
-**only** validation `path` receives at any layer is a URL-scheme rejection
-(`URL_SCHEME_RE` in `jobs.js:54-62`) — no traversal check, no
-absolute-path restriction, no "must be under an allowed root" check
-anywhere in this chain.
+and `spawn-indexer-full.js`) → `node index-{lite,full}.js <canonical-path>`.
+The guard resolves configured roots and the target through `realpath`,
+requires a regular file or directory, and performs component-aware
+containment before the registry receives the canonical target.
 
-**File:line:** `src/shared/admin/api/jobs.js:56-62` (the only guard);
-`src/shared/admin/jobs/registry.js:247,253` (path forwarded unchanged into
-`env`/`spawnIndexer` args).
+**Implementation:** `src/shared/admin/jobs/allowed-roots-guard.js`,
+`src/core/security/allowed-roots.js`,
+`src/core/security/path-containment.js`, and the route wiring in
+`src/shared/admin/api/jobs.js`.
 
-**Exploitation conditions:** the caller can reach `POST /api/jobs/index`
+**Pre-fix exploitation conditions:** the caller could reach `POST /api/jobs/index`
 at all (any deployment scenario where the API is reachable and unauthenticated
 — i.e. every scenario in §6 except a genuinely single-user loopback machine
 where this is a non-issue since the user already has that FS access
 anyway).
 
-**Impact:** in a scenario where the API caller has *less* filesystem access
+**Pre-fix impact:** in a scenario where the API caller had *less* filesystem access
 than the Semidex Lite process itself (e.g. a wrapper backend running as a
 different, more-privileged OS user, or a multi-tenant setup where "index
 this path" is meant to be scoped to a per-tenant upload directory), this
-lets a caller index — and thereby exfiltrate into Qdrant, then read back
+let a caller index — and thereby exfiltrate into Qdrant, then read back
 via Ask/search — any file or directory the Semidex Lite process can read,
 regardless of what directory the caller was "supposed" to be limited to.
 Confirmed **not** a shell-injection vector: `spawn()` is called with an
@@ -551,21 +554,25 @@ spawning a `.bat`/`.cmd` file; `spawnIndexer` always spawns
 `process.execPath`, the Node binary itself, so that CVE class does not
 apply here).
 
-**Existing mitigations:** the URL-scheme check (prevents remote-URL
-confusion, not a security boundary for local paths); the collection-name
-separator check (`PATH_SEPARATOR_RE`, `jobs.js:37-46`) applies to
-`collection`, not `path`, and does not help here.
+**Current guarantees:** an empty/malformed root configuration never means
+unrestricted access; nonexistent, inaccessible, unsupported, broken-link,
+and out-of-scope targets share a generic denial; symlink and Windows
+junction escapes are rejected after canonical resolution; the folder picker
+cannot widen the allow-list; changes apply immediately and guards are
+instance-scoped.
 
-**Proof:** `tests/unit/security/spawn-indexer-path-validation.test.js` (7
-tests, all passing) proves `parseIndexJobRequest` accepts
-`../../../etc`-shaped and arbitrary-absolute paths unchanged, and that
-`createJobRegistry().startIndexJob()` forwards them to `spawnIndexer`
-verbatim with no additional check; also proves the argv-array (not
-shell-string) shape that rules out shell injection specifically.
+**Proof:** `tests/unit/security/spawn-indexer-path-validation.test.js` and
+`tests/unit/security/path-containment.test.js` cover route ordering,
+canonical forwarding, POSIX/win32/UNC component semantics, malformed
+configuration, real files/directories, symlink/junction escape, and
+instance isolation. The registry's argv-array shape remains unchanged, so
+this fix neither introduces nor relies on shell interpretation.
 
-**Recommended fix direction:** an explicit, configurable "allowed indexing
-roots" setting, validated server-side before `startIndexJob()` is ever
-called — direction only, matching this document's own scope.
+**Residual limitation:** this is canonical containment at check time, not a
+race-proof filesystem sandbox. A co-resident actor with write access to an
+allowed tree could replace an entry after validation but before the child
+indexer opens it (TOCTOU). Operators must not grant untrusted writers access
+to allowed roots when that threat model matters.
 
 ### P2-1 — No rate limiting anywhere; Ask's single-flight lock throttles
 concurrency, not request rate.
@@ -1141,10 +1148,11 @@ scoped read or read-write to specific collections, so a Semidex compromise
 cannot exceed the storage-layer grant. Available today (see §13) — operators
 can apply this before Semidex ships anything.
 
-**4. Indexing allowed roots.** An explicit allowed-root list checked before
-`startIndexJob()`, resolved with `realpath` and re-checked after resolution
-so symlinks/junctions cannot escape. Windows needs explicit handling for
-ADS (`file.txt:stream`) and UNC/`\\?\` paths.
+**4. Indexing allowed roots — shipped 2026-08-19.** `INDEX_ALLOWED_ROOTS`
+is checked before `startIndexJob()` and resolved with `realpath`, so ordinary
+symlink/junction escapes are rejected. Component-aware win32/UNC semantics
+are covered by platform-independent tests; residual TOCTOU is documented in
+P1-3 rather than hidden behind a sandbox claim.
 
 **5. Per-key and per-route limits.** Concurrency, request rate, token
 budget, and cost ceilings — the API4 answer (§13). Ask's existing

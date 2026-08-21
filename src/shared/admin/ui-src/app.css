@@ -26,6 +26,11 @@
 
 * { box-sizing: border-box; }
 
+/* Author-level display rules (for example .badge or .btn-ghost) otherwise
+   override the user-agent stylesheet's [hidden] rule. Treat hidden as a
+   hard rendering contract for every component. */
+[hidden] { display: none !important; }
+
 html, body {
   margin: 0; height: 100%;
   background:

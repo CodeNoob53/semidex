@@ -14,7 +14,7 @@
     "mixed": 3,
     "tooling": 62,
     "cloud": 8,
-    "shared": 164,
+    "shared": 167,
     "local": 28
   },
   "modules": [
@@ -60,6 +60,7 @@
         "src/core/storage/factory.js",
         "src/shared/admin/api/generation-models.js",
         "src/shared/admin/api/jobs.js",
+        "src/shared/admin/jobs/allowed-roots-guard.js",
         "src/shared/admin/jobs/registry.js",
         "src/shared/admin/register-neutral-routes.js",
         "src/shared/admin/router.js",
@@ -116,6 +117,7 @@
         "src/shared/admin/api/generation-models.js",
         "src/shared/admin/api/jobs.js",
         "src/shared/admin/api/system.js",
+        "src/shared/admin/jobs/allowed-roots-guard.js",
         "src/shared/admin/jobs/registry.js",
         "src/shared/admin/register-neutral-routes.js",
         "src/shared/admin/router.js",
@@ -930,6 +932,26 @@
       ]
     },
     {
+      "path": "src/core/security/allowed-roots.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/security/path-containment.js"
+      ]
+    },
+    {
+      "path": "src/core/security/path-containment.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
       "path": "src/core/settings/definitions.js",
       "declaredCategory": "shared",
       "category": "shared",
@@ -959,6 +981,7 @@
       "liteReachable": true,
       "directDependencies": [
         "src/core/generation/config.js",
+        "src/core/security/allowed-roots.js",
         "src/core/settings/definitions.js",
         "src/core/settings/settings-store.js",
         "src/shared/core/env.js"
@@ -1780,6 +1803,18 @@
         "src/core/http/http.js",
         "src/core/http/route-audience.js",
         "src/shared/admin/system/folder-picker.js"
+      ]
+    },
+    {
+      "path": "src/shared/admin/jobs/allowed-roots-guard.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/security/allowed-roots.js",
+        "src/core/security/path-containment.js"
       ]
     },
     {

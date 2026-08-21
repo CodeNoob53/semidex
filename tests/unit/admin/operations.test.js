@@ -45,12 +45,18 @@ function makeStubAdapter(overrides = {}) {
   };
 }
 
+// This file is about the merged jobs+tasks read view, not path scoping (see
+// tests/unit/security/spawn-indexer-path-validation.test.js for that) — every path
+// used below is a fake, nonexistent string the real guard would reject.
+const ALLOW_ALL_ROOTS_GUARD = { checkTarget: (rawPath) => ({ ok: true, canonicalPath: rawPath }) };
+
 async function withOpsApp({ spawnFn = makeNeverExitingSpawn(), adapterOverrides = {} } = {}, fn) {
   const jobRegistry = createJobRegistry({ spawnIndexer: spawnFn });
   const taskRegistry = createTaskRegistry();
   const app = createApp({
     jobRegistry, taskRegistry, adapter: makeStubAdapter(adapterOverrides),
     checkOllamaFn: async () => ({ status: 'available', message: 'ok' }),
+    allowedRootsGuard: ALLOW_ALL_ROOTS_GUARD,
   });
   await new Promise((resolve) => app.listen(0, '127.0.0.1', resolve));
   const base = `http://127.0.0.1:${app.address().port}`;

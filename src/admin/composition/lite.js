@@ -27,6 +27,7 @@ import { resolveRequestSecurityPolicy } from '../../shared/admin/server.js';
 import { resolveIntegrationPolicy } from '../../core/auth/resolve-policy.js';
 import { embedForSearch } from '../../shared/core/embeddings.js';
 import { createJobRegistry } from '../../shared/admin/jobs/registry.js';
+import { createAllowedRootsGuard } from '../../shared/admin/jobs/allowed-roots-guard.js';
 import { spawnIndexer as spawnLiteIndexer } from '../jobs/spawn-indexer-lite.js';
 import { REQUIRED_OLLAMA_EMBED_CAPABILITY_METHODS } from '../../core/generation/ollama-capability.js';
 import { REQUIRED_ONNX_EMBED_CAPABILITY_METHODS } from '../../shared/core/onnx-embed-capability.js';
@@ -136,7 +137,7 @@ export function createLiteApp({
   adapter = createStorageAdapter(), embedQuery, jobRegistry, taskRegistry,
   assemblyLogFn, generationRuntime, askCoordinator, askCoordinators, countTokens, settingsService, jobBaseEnv,
   discoverGeminiModelsFn, runQdrantCloudProbeFn, resolveNewCollectionProfileFn, jobPolicy = LITE_JOB_POLICY,
-  securityPolicy, integrationPolicy,
+  securityPolicy, integrationPolicy, allowedRootsGuard,
 } = {}) {
   const ollamaCapability = unavailableOllamaEmbedCapability();
   const onnxEmbedCapability = unavailableOnnxEmbedCapability();
@@ -185,6 +186,13 @@ export function createLiteApp({
   // throws a TypeError without one — see that function's own header
   // comment), so this call site must always supply one explicitly.
   const resolvedJobRegistry = jobRegistry ?? createJobRegistry({ baseEnv: jobBaseEnv, spawnIndexer: spawnLiteIndexer });
+  // resolvedAllowedRootsGuard, if the caller doesn't override it, is built
+  // HERE from THIS composition root's own `settings` instance — mirrors
+  // server-full.js's own equivalent (P1-3 fix). Instance-scoped: a Lite
+  // guard constructed here can never see or be affected by a Full guard
+  // constructed elsewhere in the same process, since each closes over its
+  // own settingsService, never a shared/module-global one.
+  const resolvedAllowedRootsGuard = allowedRootsGuard ?? createAllowedRootsGuard({ settingsService: settings });
   // Same shared policy resolution Full uses (shared/admin/server.js) — Host
   // allow-list + cross-site rejection, applied before route dispatch. Passing
   // the caller's settingsService keeps ADMIN_PORT/ADMIN_ALLOW_REMOTE
@@ -208,7 +216,7 @@ export function createLiteApp({
       ...deps,
       discoverGeminiModelsFn: discoverGeminiModelsFn ?? cloudGeneration.discoverModels,
     }),
-    jobsFn: (r, jobs) => registerJobsRoutes(r, jobs, { jobPolicy }),
+    jobsFn: (r, jobs) => registerJobsRoutes(r, jobs, { jobPolicy, allowedRootsGuard: resolvedAllowedRootsGuard }),
   });
   return createHttpServer(router, { securityPolicy: resolvedSecurityPolicy });
 }

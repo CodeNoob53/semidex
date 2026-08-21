@@ -6,7 +6,7 @@ describe('settings definitions — structural validity', () => {
   test('every definition has a valid category, type, and required functions', () => {
     for (const [key, def] of Object.entries(DEFINITIONS)) {
       assert.ok(CATEGORY_IDS.has(def.category), `${key}: category "${def.category}" is not a known category`);
-      assert.ok(['string', 'number', 'boolean', 'enum', 'secret'].includes(def.type), `${key}: unexpected type "${def.type}"`);
+      assert.ok(['string', 'number', 'boolean', 'enum', 'secret', 'string-array'].includes(def.type), `${key}: unexpected type "${def.type}"`);
       assert.equal(typeof def.parseExternal, 'function', `${key}: missing parseExternal`);
       assert.equal(typeof def.validate, 'function', `${key}: missing validate`);
       assert.equal(typeof def.serialize, 'function', `${key}: missing serialize`);
