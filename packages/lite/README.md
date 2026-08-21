@@ -317,6 +317,19 @@ What is protected as of this version:
   keys configured, the Integration API fails closed with `503`.
 - **Ask is rate limited per key.** Both Ask versions share the same token
   bucket for a key. See [Rate limiting](#rate-limiting) below.
+- **`QDRANT_URL` cannot be pointed at a cloud-metadata address, and changing
+  it over HTTP requires a direct loopback connection.** Every Qdrant client
+  construction rejects a non-`http(s)` scheme, embedded userinfo, or a
+  well-known cloud-metadata literal (`169.254.169.254` and its documented
+  IPv6 forms, `metadata.google.internal`) before any network call. Separately,
+  `PATCH /api/settings` accepts a `QDRANT_URL` change only from a direct
+  loopback connection to this process — independent of `ADMIN_ALLOW_REMOTE`
+  — so a remote caller of an exposed Admin API cannot silently redirect
+  Semidex at an attacker-controlled Qdrant endpoint. This does not block
+  loopback, LAN, RFC1918, or Docker-internal addresses; self-hosted Qdrant on
+  those addresses is a normal, supported target, not a risk this check
+  guards against. See the linked audit's §12j for the full scope and its
+  limitations.
 - **Dashboard/API indexing is scoped to operator-approved directories.**
   `POST /api/jobs/index` resolves the requested path through the real
   filesystem and accepts it only inside `INDEX_ALLOWED_ROOTS`. With no roots

@@ -3,7 +3,7 @@
 Status: **living document.** Originally an audit-only pass (2026-08-17/18,
 no mitigations implemented). Multiple mitigation phases have shipped since
 and are layered in as dated `STATUS:` annotations under the finding they
-correct (§7) and as dated `## 12x` sections; §12h (2026-08-21) is the most
+correct (§7) and as dated `## 12x` sections; §12j (2026-08-21) is the most
 recent. **Read a finding's own `STATUS` line, not just its original prose,
 for what is actually true today** — §1 below separates the original,
 as-audited claim from the current state explicitly, and the same applies
@@ -1545,11 +1545,20 @@ about — see §13), and any rate limiting at all for the **Admin surface**
 (`/api/search` included — it has none). Ask's single-flight lock remains a
 concurrency guarantee only, never a rate or spend one.
 
-**6. ⚪ OPEN, unchanged — SSRF/egress restrictions.** `QDRANT_URL` and any
-future provider-URL setting are operator-supplied and currently unvalidated;
-a compromised or careless settings write can redirect Semidex at an
-attacker-controlled endpoint. Needs an egress allow-list and scheme/host
-validation. Nothing in §12d-§12h touches this.
+**6. 🟡 PARTIALLY SHIPPED (§12j, 2026-08-21) — SSRF/egress restrictions.**
+Originally written as "OPEN, unchanged"; that went stale the same day this
+correction was made. `evaluateEgressUrl()` now rejects a non-`http(s)`
+scheme, embedded userinfo, and a well-known cloud-metadata literal
+(`169.254.169.254` and its documented IPv6 forms,
+`metadata.google.internal`) for both Qdrant and Ollama URLs before a client
+is constructed or a network call fires, and `PATCH /api/settings` accepts a
+`QDRANT_URL`/`OLLAMA_URL` change only from a direct loopback connection,
+independent of `ADMIN_ALLOW_REMOTE`. See §12j for the full shape and what it
+deliberately does not cover — it is not a generic private-network/DNS-based
+SSRF defense, and a compromised or careless settings write can still target
+any loopback, RFC1918, LAN, or Docker-internal address, which remains
+intentional (self-hosted Qdrant/Ollama on those addresses is the supported
+deployment shape), not an oversight.
 
 **7. ⚪ OPEN, unchanged — RAG-specific threats.** Indirect prompt injection
 and retrieval poisoning via indexed documents, provenance tracking, and safe
@@ -1672,6 +1681,105 @@ To confirm manually before relying on this:
 4. Repeat with `'Content-Type': 'application/json'` — the browser should
    now send a preflight `OPTIONS`, which is unanswered, so the POST is
    never sent at all.
+
+## 12j. Egress/SSRF policy for Qdrant and Ollama URLs — PARTIALLY IMPLEMENTED (2026-08-21)
+
+Closes part of §12c item 6 ("SSRF/egress restrictions"), which this same
+correction pass found still marked "OPEN, unchanged" after the mitigation
+below had already shipped. Read the scope carefully: this is a narrow,
+value-shape check on operator-supplied destination URLs, not a general
+SSRF/private-network defense.
+
+**What shipped.** `src/core/security/network-egress-policy.js` exports one
+pure function, `evaluateEgressUrl(rawUrl, opts)`, wrapped by two
+instance-scoped factories with no shared module state —
+`createQdrantEgressPolicy()` (`qdrant-egress-policy.js`) and
+`createOllamaEgressPolicy()` (`ollama-egress-policy.js`). Both reject a URL
+that:
+
+- uses a scheme other than `http:`/`https:` (OWASP's SSRF guidance notes
+  `file:`/`ftp:`/`gopher:` and similar are in scope, not just HTTP);
+- carries embedded userinfo (`user:pass@host`) — never a legitimate
+  `QDRANT_URL`/`OLLAMA_URL` shape in this codebase, and a known
+  parser-confusion vector across HTTP clients/proxies;
+- resolves, after WHATWG URL parsing plus explicit `domainToASCII()`
+  Punycode canonicalization, to an exact-match well-known cloud-metadata
+  literal: `169.254.169.254`, its IPv4-mapped-IPv6 and native-IPv6 AWS/GCP
+  forms, or `metadata.google.internal`. Matching is exact-string, never a
+  suffix/substring test, so an attacker-chosen name like
+  `metadata.google.internal.attacker.example` cannot slip through.
+
+`getQdrantClient()` (`src/core/qdrant/client.js`) calls
+`createQdrantEgressPolicy().assertAllowed(url)` before constructing a
+client or making any network call; every exported function in
+`src/local/core/ollama.js` that performs a `fetch()` does the same through
+`createOllamaEgressPolicy()`. A blocked URL throws a typed
+`EgressPolicyError` that never echoes the rejected URL itself, so a
+credential or secret-bearing query string embedded in a misconfigured value
+cannot leak into an error message or log line.
+
+**Write-side boundary, not just a read-side check.** `PATCH /api/settings`
+(`src/shared/admin/api/settings.js`) additionally requires a **direct
+loopback connection** — checked via
+`evaluateDirectLoopbackConnection()` (`src/core/security/
+direct-loopback-request.js`) — before accepting any change to `QDRANT_URL`
+or `OLLAMA_URL`, regardless of `ADMIN_ALLOW_REMOTE`. This is deliberately
+keyed on the key's presence in the request body, not on whether the new
+value differs from the current one, so it cannot be bypassed by
+round-tripping through a no-op value. `evaluateDirectLoopbackConnection()`
+treats the mere *presence* of any of eleven common proxy-forwarding headers
+(`x-forwarded-for`, `forwarded`, `x-real-ip`, `via`, `cf-connecting-ip`,
+etc.) as disqualifying — never their value, which is attacker-controlled —
+alongside a real loopback-range check on `req.socket.remoteAddress`
+(`127.0.0.0/8`, `::1`, and the IPv4-mapped-IPv6 dual-stack form).
+
+**What this does NOT provide — read before relying on it:**
+
+- **No generic private-network/SSRF blocking.** Loopback, RFC1918 LAN
+  ranges, and Docker-internal hostnames (`host.docker.internal`) are
+  deliberately never rejected — self-hosted Qdrant/Ollama on those
+  addresses is the documented, supported deployment shape (audit §5), not
+  an attack to defend against. A careless or compromised settings write can
+  still redirect Semidex at any address in those ranges; only the specific
+  cloud-metadata literals above are blocked.
+- **No DNS resolution or TOCTOU protection.** The check inspects the URL's
+  literal hostname string; it does not resolve DNS and cannot detect a
+  hostname that resolves to a blocked address only at request time (classic
+  DNS-rebinding-shaped SSRF). This mirrors P3-1's own scope limitation for
+  the Host-header check.
+- **The loopback write boundary has the same residual gap
+  `direct-loopback-request.js` documents for itself:** a bare TCP-level/L4
+  passthrough proxy that relays bytes without adding any request header is
+  indistinguishable from a genuine local caller by this or any means
+  available to a plain `node:http` server. Full Admin authentication, or
+  not fronting this endpoint with such a proxy, is required to close that
+  residual case.
+- **`QDRANT_ALLOW_METADATA_EGRESS=1`/`OLLAMA_ALLOW_METADATA_EGRESS=1`** are
+  explicit, off-by-default escape hatches for a controlled test against a
+  metadata-shaped mock. Documented as test-only; never set in a real
+  deployment.
+- **Composition note:** `qdrant-egress-policy.js` and
+  `network-egress-policy.js` are shared (reachable in both Full and Lite);
+  `ollama-egress-policy.js` is Full-only (Lite has no `OLLAMA_URL` setting
+  and no Ollama code path at all), verified in
+  `scripts/audit/full-lite-module-classification.json`.
+
+**Proof:** `tests/unit/security/network-egress-policy.test.js` (39 tests —
+scheme/userinfo rejection, the metadata block list including Punycode/IDN
+canonicalization, every documented-legitimate deployment shape confirmed
+still allowed, error-message sanitization, instance isolation between the
+two factories), `tests/unit/security/qdrant-client-egress-integration.test.js`
+(8 tests — a blocked URL throws before `QdrantClient` construction and
+before any network call), `tests/unit/security/
+ollama-egress-network-integration.test.js` (14 tests — a blocked
+`OLLAMA_URL` prevents every guarded function's `fetch()` from firing,
+allowed destinations still make a real call, module-level default-URL
+call sites are guarded too), and `tests/unit/security/
+settings-sensitive-destination-loopback-boundary.test.js` (24 tests — pure
+`evaluateDirectLoopbackConnection()` cases plus real HTTP-server tests
+proving a same-host, forwarding-header-bearing request cannot write
+`QDRANT_URL`/`OLLAMA_URL`, that unrelated settings are unaffected, and that
+two app instances do not share policy state).
 
 ## 13. Sources used
 

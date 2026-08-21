@@ -1,6 +1,6 @@
 # Semidex Roadmap
 
-Status: canonical product roadmap. Updated 2026-08-13.
+Status: canonical product roadmap. Updated 2026-08-21.
 
 This document describes the current product state and the next engineering
 priorities. Dated phase reports, implementation plans, and review notes under
@@ -52,6 +52,7 @@ edition-specific composition belongs in separate Full and Lite roots.
 | Generation | Ollama in Full; Gemini in Lite; provider seam exists for additional backends |
 | Operations | Typed settings, collection embedding profiles, health probes, device-aware indexing, managed Windows CUDA installer |
 | Distribution | `semidex-lite` is published on npm; Full does not yet have a supported public package |
+| Public API security | Host/Origin/CSRF hardening, bearer-key auth with per-key collection scopes and rate limiting on Ask, fail-closed indexing-root allow-list, security response headers, route-aware `Cache-Control`, and an egress/SSRF policy for Qdrant and Ollama URLs all ship. The Admin surface (settings, jobs, collections, `/api/search`) is still intentionally unauthenticated and loopback-only by design, not yet by omission. |
 
 ## Shipped foundation
 
@@ -122,6 +123,40 @@ they do not by themselves prove superiority over other RAG products.
 - Device-aware indexing overlap: independent resources may run concurrently;
   workloads sharing a constrained resource remain bounded.
 
+### 6. Public API security hardening
+
+- Host-header/DNS-rebinding rejection and Origin/`Sec-Fetch-Site` enforcement
+  on every route, in both editions, ahead of route dispatch and body reads.
+- Bearer-key authentication for `POST /api/v1/ask` and `POST /api/v2/ask`
+  with per-key collection and operation scopes, fail-closed when no keys are
+  configured, and per-key token-bucket rate limiting.
+- Fail-closed `INDEX_ALLOWED_ROOTS` containment guard in front of
+  `POST /api/jobs/index`, resolved through the real filesystem before a job
+  is created.
+- Security response headers (CSP, `X-Frame-Options`, `Referrer-Policy`,
+  `X-Content-Type-Options`) and a route-aware `Cache-Control` policy applied
+  uniformly to API, static UI, and SSE responses in both editions.
+- Restrictive `settings.json` file permissions on POSIX (Windows ACL
+  hardening is not implemented).
+- An egress/SSRF policy for outbound Qdrant and Ollama URLs (scheme
+  allow-list, no embedded userinfo, cloud-metadata-address block list) plus
+  a direct-loopback-only write boundary on `PATCH /api/settings` for
+  `QDRANT_URL`/`OLLAMA_URL`, independent of `ADMIN_ALLOW_REMOTE`. This does
+  not implement generic private-network blocking; loopback, RFC1918, LAN,
+  and Docker-internal destinations remain intentionally reachable, since
+  self-hosted Qdrant/Ollama on those addresses is the supported deployment
+  shape.
+
+Known limitation, by design rather than oversight: the Admin surface
+(settings, jobs, collections including `DELETE`, unversioned
+`POST /api/search`, schema sync, Qdrant Cloud probe, static UI) still has no
+authentication, no collection scoping, and no rate limiting. It is protected
+only by the loopback bind plus the Host/Origin checks above. Remote Admin
+access requires a real session model, not an extension of the bearer-key
+scheme built for Ask. See
+`docs/security/semidex-lite-public-api-audit-2026-08.md` for the full,
+route-by-route inventory and status of every finding.
+
 ## Active priorities
 
 ### P0. Public demo and one complete use case
@@ -144,12 +179,26 @@ Required outcome:
 
 ### P0. Public-facing hardening
 
-Before presenting Semidex Lite as a reusable assistant backend:
+Host/Origin/CSRF defenses, Ask authentication with collection scopes and
+rate limiting, the indexing allow-list, response security/cache headers, and
+the Qdrant/Ollama egress policy have shipped (see "Public API security
+hardening" above). What remains before presenting Semidex Lite as a fully
+reusable assistant backend:
 
-- define authentication and remote-exposure guidance;
-- add rate-limit, timeout, cancellation, and retry behavior at public API
-  boundaries;
-- document secret handling and safe deployment defaults;
+- structured security audit logs for auth decisions, rejections, and
+  administrative changes, with document contents and secrets excluded by
+  construction rather than redacted after the fact;
+- an evaluation of RAG-specific threats — indirect prompt injection and
+  retrieval poisoning via indexed documents — as a tested security property,
+  not only a mitigated-by-system-prompt best effort;
+- spend/token cost ceilings for billed Ask calls, distinct from the request
+  *rate* limit that already ships;
+- a real session/authentication model for remote Admin access, if remote
+  Admin is ever made a supported deployment shape (it is loopback-only
+  today, by design);
+- a decision on whether `/api/search` becomes a versioned, scoped
+  Integration-surface API (`POST /api/v1/search`) instead of the unversioned,
+  Admin-only route it is today;
 - keep clean-install and release acceptance tests representative of the
   published tarball;
 - provide concise JavaScript/TypeScript examples for indexing, search, Ask v1,
