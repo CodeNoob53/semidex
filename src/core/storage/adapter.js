@@ -63,6 +63,17 @@
  * @property {(name: string, opts: { nodeId?: string, nodePath?: string, limit?: number }) => Promise<Object[]>} getSkeletonChildren
  * @property {(name: string, opts: { nodeId?: string, nodePath?: string }) => Promise<Object|null>} getContentNode
  * @property {(name: string, opts: { nodeId?: string, nodePath?: string }) => Promise<Object|null>} getSectionAnchor
+ *
+ * @property {(name: string, opts: { nodeId?: string, parentId?: string|null, sourceFile?: string, chunkIndex?: number, limit?: number }) => Promise<Array<{ chunk: Object, relation: string }>>} [getStructuralNeighbors]
+ *   OPTIONAL — graph-expanded retrieval (docs/design/graph-expanded-retrieval.md).
+ *   Not in REQUIRED_ADAPTER_METHODS; gated by capabilities().structuralExpansion.
+ *   Resolves bounded depth-1 structural neighbors (section siblings via
+ *   parent_id, previous/next content chunk via chunk_index) for one
+ *   skeleton-aware seed chunk, via indexed lookups only — never an
+ *   exhaustive collection scan. Returns real retrieval-content points only,
+ *   never a skeleton_nav point. A backend without this capability simply
+ *   omits the method; callers must check capabilities().structuralExpansion
+ *   (or typeof adapter.getStructuralNeighbors === 'function') before calling.
  */
 
 // Every method a conforming StorageAdapter must expose. Kept as a flat list

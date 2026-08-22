@@ -781,6 +781,29 @@ export async function getAnyNodeByPath(collection, nodePath) {
 }
 
 /**
+ * Bounded, single-page sibling lookup for graph-expanded retrieval
+ * (docs/design/graph-expanded-retrieval.md): every non-nav content point
+ * whose parent_id matches the given section nav node id, via ONE indexed
+ * scroll() call capped at `limit + 1` (the +1 headroom accounts for the
+ * seed chunk itself, which the caller filters out afterward — never an
+ * exhaustive scrollAllFiltered() pagination like getSectionChunks()/
+ * getFirstContentChunkByParent() above use for their own, different,
+ * "give me the WHOLE section" contract). A large section is intentionally
+ * NOT fully paginated here — this is a bounded expansion primitive, not a
+ * section-assembly one.
+ */
+export async function getSectionSiblings(collection, parentId, limit = 5) {
+  const points = await scroll(
+    collection,
+    withNavExcluded({ must: [{ key: 'parent_id', match: { value: parentId } }] }),
+    Math.max(1, limit) + 1,
+  );
+  return points
+    .filter(p => !isNavPoint(p) && Number.isInteger(p.payload?.chunk_index))
+    .sort((a, b) => a.payload.chunk_index - b.payload.chunk_index);
+}
+
+/**
  * Find the earliest (lowest chunk_index) content chunk whose parent_id
  * matches the given skeleton nav node id. A section nav node and its
  * content chunks are separate points linked only via parent_id (nav node_id

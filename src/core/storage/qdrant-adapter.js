@@ -23,13 +23,14 @@ import { resolveAvailability, COLLECTION_STATUS } from '../embedding-profile/ava
 import { checkOnnxModelCached as defaultCheckOnnxModelCached } from '../embedding-profile/onnx-lane.js';
 
 const QDRANT_CAPABILITIES = mergeCapabilities({
-  namedVectors:     true,
-  sparseVectors:    true,
-  hybridSearch:     true,
-  payloadIndexes:   true,
-  aliases:          false,
-  snapshots:        false,
-  collectionExists: true,
+  namedVectors:         true,
+  sparseVectors:        true,
+  hybridSearch:         true,
+  payloadIndexes:       true,
+  aliases:              false,
+  snapshots:            false,
+  collectionExists:     true,
+  structuralExpansion:  true,
 });
 
 // Qdrant's own Distance enum (confirmed against the installed SDK's
@@ -429,6 +430,12 @@ export function createQdrantStorageAdapter({ storeOverrides = {} } = {}) {
     listCollections: storeOverrides.listCollections ?? store.listCollections,
     checkQdrantReachable: storeOverrides.checkQdrantReachable ?? store.checkQdrantReachable,
     probeInference: storeOverrides.probeInference ?? store.probeInference,
+    // DI seam for getStructuralNeighbors() only (below) — lets its
+    // behavioral tests supply realistic point shapes via storeOverrides
+    // instead of only source-regex checks. getChunk() above intentionally
+    // keeps calling store.fetchWindowChunks directly; unrelated to this seam.
+    getSectionSiblings: storeOverrides.getSectionSiblings ?? store.getSectionSiblings,
+    fetchWindowChunks: storeOverrides.fetchWindowChunks ?? store.fetchWindowChunks,
   };
   const profileCache = createProfileCache();
 
@@ -1004,6 +1011,69 @@ export function createQdrantStorageAdapter({ storeOverrides = {} } = {}) {
       if (!navNode?.node_id) return null;
       const chunk = await store.getFirstContentChunkByParent(name, navNode.node_id);
       return chunk ? toChunk({ payload: chunk }) : null;
+    },
+
+    // Optional capability (graph-expanded retrieval, docs/design/
+    // graph-expanded-retrieval.md) — gated by capabilities().structuralExpansion,
+    // never in REQUIRED_ADAPTER_METHODS; a backend that doesn't implement
+    // this is simply never asked (see src/core/retrieval/graph-expand.js).
+    // Resolves ONLY the two structural relations already authoritative in
+    // semidex payloads for a skeleton-aware chunk:
+    //   - retrieval-content siblings under the SAME containing section
+    //     (parent_id === parentId), via ONE bounded scroll() call
+    //     (store.getSectionSiblings — never scrollAllFiltered's full
+    //     pagination);
+    //   - the immediately previous/next content chunk in the SAME source
+    //     file by chunk_index, via the existing bounded fetchWindowChunks()
+    //     primitive (already used by getChunk()/search-route window
+    //     expansion — no new query shape introduced for this half).
+    // Both lookups are indexed-field scroll()/query calls, never an
+    // exhaustive collection scan. withNavExcluded() (applied inside both
+    // store primitives) guarantees a skeleton_nav or entity_raw point can
+    // never be returned here. Caller-supplied filters (sourceFile/tags) are
+    // re-applied by the coordinator, not here — this method only resolves
+    // candidates, it does not know the caller's original search filter.
+    //
+    // @param {{ nodeId?: string, parentId?: string|null, sourceFile?: string, chunkIndex?: number, limit?: number }} opts
+    // @returns {Promise<Array<{ chunk: Object, relation: 'section-sibling'|'prev'|'next' }>>}
+    //   `chunk` is a normal adapter Chunk (via toChunk()) — a real
+    //   retrieval-content point, never a nav summary. Capped to `limit`
+    //   total entries (siblings first, then prev/next, in that order) —
+    //   never more, regardless of how many real neighbors exist.
+    async getStructuralNeighbors(name, { nodeId, parentId, sourceFile, chunkIndex, limit = 3 } = {}) {
+      const cap = Math.max(1, limit);
+      const results = [];
+      const seen = new Set(nodeId ? [`node:${nodeId}`] : []);
+
+      function tryPush(point, relation) {
+        if (results.length >= cap) return;
+        const chunk = toChunk(point);
+        const key = chunk.nodeId ? `node:${chunk.nodeId}` : `pos:${chunk.sourceFile}::${chunk.chunkIndex}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+        results.push({ chunk, relation });
+      }
+
+      if (parentId) {
+        const siblings = await s.getSectionSiblings(name, parentId, cap);
+        for (const point of siblings) {
+          if (results.length >= cap) break;
+          tryPush(point, 'section-sibling');
+        }
+      }
+
+      if (results.length < cap && sourceFile && Number.isInteger(chunkIndex)) {
+        const window = await s.fetchWindowChunks(name, sourceFile, chunkIndex, 1);
+        for (const point of window) {
+          if (results.length >= cap) break;
+          const idx = point.payload?.chunk_index;
+          const relation = idx === chunkIndex - 1 ? 'prev' : idx === chunkIndex + 1 ? 'next' : null;
+          if (!relation) continue; // skips the seed's own chunk_index (idx === chunkIndex)
+          tryPush(point, relation);
+        }
+      }
+
+      return results;
     },
   };
 }

@@ -14,7 +14,7 @@
     "mixed": 3,
     "tooling": 62,
     "cloud": 8,
-    "shared": 171,
+    "shared": 172,
     "local": 29
   },
   "modules": [
@@ -927,6 +927,15 @@
       ]
     },
     {
+      "path": "src/core/retrieval/graph-expand.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
       "path": "src/core/retrieval/search.js",
       "declaredCategory": "shared",
       "category": "shared",
@@ -937,8 +946,10 @@
         "src/core/embedding-profile/qdrant-cloud-models.js",
         "src/core/embedding-profile/resolve.js",
         "src/core/embedding-profile/schema.js",
+        "src/core/retrieval/graph-expand.js",
         "src/shared/core/bench-telemetry.js",
-        "src/shared/core/embeddings.js"
+        "src/shared/core/embeddings.js",
+        "src/shared/core/env.js"
       ]
     },
     {

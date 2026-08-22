@@ -4,13 +4,23 @@
 // adapter.name() === 'qdrant' (design doc §14 review checklist).
 
 export const DEFAULT_CAPABILITIES = Object.freeze({
-  namedVectors:     false,
-  sparseVectors:    false,
-  hybridSearch:     false,
-  payloadIndexes:   false,
-  aliases:          false,
-  snapshots:        false,
-  collectionExists: false,
+  namedVectors:         false,
+  sparseVectors:        false,
+  hybridSearch:         false,
+  payloadIndexes:       false,
+  aliases:              false,
+  snapshots:            false,
+  collectionExists:     false,
+  // Optional: adapter.getStructuralNeighbors() exists and resolves bounded
+  // depth-1 structural neighbors (section siblings, previous/next content
+  // node) for a skeleton-aware chunk via indexed lookups — never an
+  // exhaustive scan. Consulted only by src/core/retrieval/graph-expand.js
+  // when GRAPH_EXPANSION_ENABLED is true; an adapter reporting false here
+  // (the default) is simply never asked, and ordinary hybrid retrieval is
+  // unaffected either way (graph-expanded-retrieval.md's "adapter that does
+  // not support structural expansion ... must not break ordinary hybrid
+  // retrieval").
+  structuralExpansion: false,
 });
 
 const KNOWN_KEYS = new Set(Object.keys(DEFAULT_CAPABILITIES));

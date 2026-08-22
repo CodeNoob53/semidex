@@ -23,6 +23,7 @@
     "smoke": "node src/smoke.js",
     "backfill:tags": "node src/backfill-tags.js",
     "backfill:entity-refs": "node src/backfill-entity-refs.js",
+    "bench:graph-expand": "node benchmarks/graph-expand-retrieval/run-live.mjs",
     "bench:retrieval": "node benchmarks/retrieval/run.js",
     "bench:retrieval:compare": "node benchmarks/retrieval/compare.js",
     "bench:retrieval:rerank": "node benchmarks/retrieval/rerank-matrix.js",

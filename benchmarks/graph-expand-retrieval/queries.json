@@ -1,0 +1,33 @@
+[
+  {
+    "id": "q1",
+    "query": "у якому порядку відбувається прогрів кешу перед обробкою запитів",
+    "case": ["section-sibling-relevant", "section-sibling-irrelevant", "seed-displacement"],
+    "note": "Seed = cache-tuning.md#0 (Warm-Up Sequencing prose). #1 (timing table, same section) is a relevant sibling with deliberately weak lexical overlap with the query wording — recoverable through the section-sibling relation, not guaranteed by hybrid search alone. #2 (coffee-machine notice, same section) is a structurally adjacent but irrelevant sibling. index-lifecycle.md#1 (Cold Start Warm-Up Interplay) is a plausible near-miss distractor that also broadens the real candidate pool, so this query is the one most likely to show whether a graph neighbor of a higher-ranked seed can occupy a top-k slot a lower-ranked real seed would otherwise have held (design doc's documented ranking-order tradeoff) — the harness detects this generically for every query, this is simply the query where it is most plausible by fixture construction."
+  },
+  {
+    "id": "q2",
+    "query": "яке порогове значення TTL визначає видалення запису з кешу",
+    "case": ["prev-next-relevant"],
+    "note": "Seed = cache-tuning.md#3 (Eviction Policy), which names TTL_EVICT_SECONDS but not its value. The actual default (900s) and override variable (CACHE_EVICT_TTL) are in cache-tuning.md#4 (Purge Timing Details), the immediately following chunk in a DIFFERENT section — reachable only via the previous/next content relation, not section-sibling."
+  },
+  {
+    "id": "q3",
+    "query": "чек-лист перевірки контрольної суми знімка колекції перед резервним копіюванням",
+    "case": ["already-correct-unaffected-by-expansion"],
+    "note": "Seed = index-lifecycle.md#2 (Backup Verification Checklist), a single-chunk section (no section siblings) whose only prev neighbor (#1, Cold Start Warm-Up Interplay) is irrelevant and whose distinctive technical wording should already rank it #1 in seed-only search. Expansion has nothing useful to add here and must not reduce top-k relevance."
+  },
+  {
+    "id": "q4",
+    "query": "як налаштовується прогрів кешу",
+    "filters": { "sourceFile": "cache-tuning.md" },
+    "case": ["source-file-filter-respected"],
+    "note": "The phrase 'прогрів кешу' also matches index-lifecycle.md#1 (Cold Start Warm-Up Interplay) when unscoped. With an explicit sourceFile filter, every top-k hit in BOTH modes must stay within cache-tuning.md — proving expansion does not bypass the caller's filter."
+  },
+  {
+    "id": "q5",
+    "query": "налаштування проксі сервера для мережевих запитів",
+    "case": ["negative-query"],
+    "note": "No fixture content covers proxy/network configuration anywhere in the corpus. Both modes must report zero confident relevant hits (negative-query correctness)."
+  }
+]

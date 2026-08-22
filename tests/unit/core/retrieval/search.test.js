@@ -379,6 +379,106 @@ describe('runHybridSearch — query-side opt-in benchmark telemetry (SEMIDEX_BEN
   });
 });
 
+describe('runHybridSearch — graph-expanded retrieval wiring (docs/design/graph-expanded-retrieval.md)', () => {
+  function graphSettingsService({ enabled, seedLimit = 5, maxPerSeed = 3 }) {
+    return {
+      getActiveValue(key) {
+        if (key === 'GRAPH_EXPANSION_ENABLED') return enabled;
+        if (key === 'GRAPH_EXPANSION_SEED_LIMIT') return seedLimit;
+        if (key === 'GRAPH_EXPANSION_MAX_PER_SEED') return maxPerSeed;
+        if (key === 'HYBRID_PREFETCH_LIMIT') return 2;
+        if (key === 'RRF_K') return 60;
+        return undefined;
+      },
+      refreshIfChanged() {},
+    };
+  }
+
+  function graphChunk(overrides) {
+    return { sourceFile: 'docs/guide.md', chunkIndex: 0, section: 'Intro', text: 'seed text', tags: [], nodeId: null, nodePath: null, nodeType: null, parentId: null, score: 0.9, isMatch: null, ...overrides };
+  }
+
+  function graphFakeAdapter({ hits, neighborsByNodeId = {} } = {}) {
+    return {
+      capabilities: () => ({ hybridSearch: true, sparseVectors: true, structuralExpansion: true }),
+      getCollection: async (name) => ({ name }),
+      getEmbeddingProfile: async () => ({ state: 'valid', profile: validProfile }),
+      searchHybridVectors: async (name, opts) => {
+        graphFakeAdapter.lastCall = { name, opts };
+        return hits ?? [];
+      },
+      getStructuralNeighbors: async (name, opts) => {
+        graphFakeAdapter.calls = graphFakeAdapter.calls ?? [];
+        graphFakeAdapter.calls.push(opts);
+        return neighborsByNodeId[opts.nodeId] ?? [];
+      },
+    };
+  }
+
+  test('GRAPH_EXPANSION_ENABLED=false (default): hits are returned byte-for-byte unchanged, no getStructuralNeighbors call, no provenance fields', async () => {
+    const seedHit = graphChunk({ nodeId: 'seed-1', parentId: 'section-A' });
+    const adapter = graphFakeAdapter({ hits: [seedHit] });
+    const embedQuery = async () => ({ dense: [1], sparse: {} });
+    const settingsService = graphSettingsService({ enabled: false });
+    graphFakeAdapter.calls = [];
+    const result = await runHybridSearch({ adapter, embedQuery, collection: 'c', query: 'q', top: 5, settingsService });
+    assert.deepEqual(result.hits, [seedHit]);
+    assert.equal('retrievalOrigin' in result.hits[0], false);
+    assert.deepEqual(graphFakeAdapter.calls, []);
+    assert.equal(graphFakeAdapter.lastCall.opts.limit, 5, 'feature-off must request exactly `top`, never a widened seed pool');
+  });
+
+  test('GRAPH_EXPANSION_ENABLED=false with no settingsService at all also skips expansion entirely (safe default)', async () => {
+    const seedHit = graphChunk({ nodeId: 'seed-1', parentId: 'section-A' });
+    const adapter = graphFakeAdapter({ hits: [seedHit] });
+    const embedQuery = async () => ({ dense: [1], sparse: {} });
+    graphFakeAdapter.calls = [];
+    const result = await runHybridSearch({ adapter, embedQuery, collection: 'c', query: 'q', top: 5 });
+    assert.deepEqual(result.hits, [seedHit]);
+    assert.deepEqual(graphFakeAdapter.calls, []);
+  });
+
+  test('deterministic fixture: GRAPH_EXPANSION_ENABLED=true recovers, end-to-end through the shared retrieval path, a content node the seed search missed', async () => {
+    const seedHit = graphChunk({ nodeId: 'seed-1', parentId: 'section-A', chunkIndex: 0 });
+    const missedEvidence = graphChunk({ nodeId: 'sibling-1', parentId: 'section-A', chunkIndex: 4, text: 'the missed evidence', score: null });
+    const adapter = graphFakeAdapter({
+      hits: [seedHit],
+      neighborsByNodeId: { 'seed-1': [{ chunk: missedEvidence, relation: 'section-sibling' }] },
+    });
+    const embedQuery = async () => ({ dense: [1], sparse: {} });
+    const settingsService = graphSettingsService({ enabled: true });
+    const result = await runHybridSearch({ adapter, embedQuery, collection: 'c', query: 'q', top: 5, settingsService });
+    assert.equal(result.hits.length, 2);
+    assert.equal(result.hits[0].nodeId, 'seed-1');
+    assert.equal(result.hits[0].retrievalOrigin, 'seed');
+    assert.equal(result.hits[1].nodeId, 'sibling-1');
+    assert.equal(result.hits[1].text, 'the missed evidence');
+    assert.equal(result.hits[1].retrievalOrigin, 'graph');
+    assert.deepEqual(result.hits[1].graphRelationPath, ['section-sibling']);
+    assert.equal(result.hits[1].graphDepth, 1);
+    assert.equal(result.hits[1].graphSeedId, result.hits[0].graphSeedId, 'the recovered hit is attributed to the seed\'s own normalized identity');
+    assert.equal(result.hits[0].graphSeedId, 'node:seed-1');
+  });
+
+  test('the final result is always sliced back to the caller\'s own `top`, even when the widened seed pool + expansion produced more candidates', async () => {
+    const seeds = [0, 1].map((i) => graphChunk({ nodeId: `seed-${i}`, parentId: `section-${i}`, chunkIndex: i }));
+    const neighbor0 = graphChunk({ nodeId: 'n0', parentId: 'section-0', chunkIndex: 9 });
+    const neighbor1 = graphChunk({ nodeId: 'n1', parentId: 'section-1', chunkIndex: 9 });
+    const adapter = graphFakeAdapter({
+      hits: seeds,
+      neighborsByNodeId: {
+        'seed-0': [{ chunk: neighbor0, relation: 'section-sibling' }],
+        'seed-1': [{ chunk: neighbor1, relation: 'section-sibling' }],
+      },
+    });
+    const embedQuery = async () => ({ dense: [1], sparse: {} });
+    const settingsService = graphSettingsService({ enabled: true, seedLimit: 5, maxPerSeed: 3 });
+    const result = await runHybridSearch({ adapter, embedQuery, collection: 'c', query: 'q', top: 2, settingsService });
+    assert.equal(result.hits.length, 2, 'must never exceed the caller\'s requested top, regardless of how many candidates expansion produced');
+    assert.equal(graphFakeAdapter.lastCall.opts.limit, 5, 'requests the widened (seedLimit) pool internally, not just top, when expansion is enabled');
+  });
+});
+
 describe('storage layering — qdrant-adapter.js never imports embedding-runtime code', () => {
   test('src/core/storage/qdrant-adapter.js never imports embeddings.js/onnx-embed.js/ollama.js — a real source-level layering check, distinct from the banned "proves ONNX wasn\'t called" regex use', () => {
     const src = readFileSync(

@@ -1,0 +1,46 @@
+{
+  "_comment": "Explicit, human-authored relevance judgments — written before any retrieval was run against this fixture, from reading benchmarks/graph-expand-retrieval/fixtures/docs/*.md directly. Keyed by (sourceFile, chunkIndex), which the offline dry-run of the real skeleton chunker (parseSkeleton + chunkFromSkeleton, no Qdrant) confirmed maps deterministically onto this fixture text. The 'irrelevant' lists were additionally cross-checked by hand-tracing src/core/storage/qdrant-adapter.js's getStructuralNeighbors() (section-sibling via parent_id, then prev/next via chunk_index window) against that same dry-run output, so every structural neighbor a real seed can surface is accounted for — not just the ones the fixture was originally designed around (e.g. cache-tuning.md#2 also surfaces as an irrelevant chunk_index-adjacent 'prev' neighbor of the q2/q4 seed section, not only as a section-sibling of the q1/q4 seed). Never derived from a search result.",
+  "q1": {
+    "relevant": [
+      { "sourceFile": "cache-tuning.md", "chunkIndex": 0, "role": "seed" },
+      { "sourceFile": "cache-tuning.md", "chunkIndex": 1, "role": "graph-sibling-recoverable" }
+    ],
+    "irrelevant": [
+      { "sourceFile": "cache-tuning.md", "chunkIndex": 2, "role": "graph-sibling-irrelevant" },
+      { "sourceFile": "index-lifecycle.md", "chunkIndex": 1, "role": "distractor-near-miss" }
+    ]
+  },
+  "q2": {
+    "relevant": [
+      { "sourceFile": "cache-tuning.md", "chunkIndex": 3, "role": "seed" },
+      { "sourceFile": "cache-tuning.md", "chunkIndex": 4, "role": "graph-next-recoverable" }
+    ],
+    "irrelevant": [
+      { "sourceFile": "cache-tuning.md", "chunkIndex": 2, "role": "irrelevant-prev-neighbor" }
+    ]
+  },
+  "q3": {
+    "relevant": [
+      { "sourceFile": "index-lifecycle.md", "chunkIndex": 2, "role": "seed" }
+    ],
+    "irrelevant": [
+      { "sourceFile": "index-lifecycle.md", "chunkIndex": 1, "role": "irrelevant-prev-neighbor" }
+    ]
+  },
+  "q4": {
+    "relevant": [
+      { "sourceFile": "cache-tuning.md", "chunkIndex": 0, "role": "seed" },
+      { "sourceFile": "cache-tuning.md", "chunkIndex": 1, "role": "graph-sibling-recoverable" }
+    ],
+    "irrelevant": [
+      { "sourceFile": "cache-tuning.md", "chunkIndex": 2, "role": "graph-sibling-irrelevant" },
+      { "sourceFile": "index-lifecycle.md", "chunkIndex": 1, "role": "excluded-by-filter" }
+    ],
+    "filters": { "sourceFile": "cache-tuning.md" }
+  },
+  "q5": {
+    "relevant": [],
+    "irrelevant": [],
+    "negative": true
+  }
+}

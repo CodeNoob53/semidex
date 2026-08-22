@@ -1,0 +1,634 @@
+{
+  "collection": "graph-expand-live-13e16661",
+  "runId": "13e16661",
+  "startedAt": "2026-08-22T09:34:38.961Z",
+  "queries": [
+    {
+      "id": "q1",
+      "query": "у якому порядку відбувається прогрів кешу перед обробкою запитів",
+      "filters": {},
+      "case": [
+        "section-sibling-relevant",
+        "section-sibling-irrelevant",
+        "seed-displacement"
+      ],
+      "modeA": {
+        "hits": [
+          {
+            "sourceFile": "cache-tuning.md",
+            "chunkIndex": 0,
+            "nodeId": "9b5e9c95-5e7f-5765-b51e-a8eb8662910a",
+            "section": "Warm-Up Sequencing"
+          },
+          {
+            "sourceFile": "cache-tuning.md",
+            "chunkIndex": 1,
+            "nodeId": "a558a451-b4ad-522d-b840-dfcbd46bb583",
+            "section": "Warm-Up Sequencing"
+          },
+          {
+            "sourceFile": "cache-tuning.md",
+            "chunkIndex": 3,
+            "nodeId": "ad4d7b46-73c4-563e-8802-c9371a8ccee0",
+            "section": "Eviction Policy"
+          }
+        ],
+        "latency": {
+          "medianMs": 497.28290000000015,
+          "p95Ms": 505.53060000000005,
+          "minMs": 486.35009999999966,
+          "maxMs": 505.53060000000005,
+          "n": 5
+        },
+        "deterministic": true
+      },
+      "modeB": {
+        "hits": [
+          {
+            "sourceFile": "cache-tuning.md",
+            "chunkIndex": 0,
+            "nodeId": "9b5e9c95-5e7f-5765-b51e-a8eb8662910a",
+            "section": "Warm-Up Sequencing",
+            "retrievalOrigin": "seed",
+            "graphSeedRank": 0,
+            "graphRelationPath": [],
+            "graphDepth": 0
+          },
+          {
+            "sourceFile": "cache-tuning.md",
+            "chunkIndex": 2,
+            "nodeId": "66faabfe-8103-51db-82e8-5d35729e4f03",
+            "section": "Warm-Up Sequencing",
+            "retrievalOrigin": "graph",
+            "graphSeedRank": 0,
+            "graphRelationPath": [
+              "section-sibling"
+            ],
+            "graphDepth": 1
+          },
+          {
+            "sourceFile": "cache-tuning.md",
+            "chunkIndex": 1,
+            "nodeId": "a558a451-b4ad-522d-b840-dfcbd46bb583",
+            "section": "Warm-Up Sequencing",
+            "retrievalOrigin": "seed",
+            "graphSeedRank": 1,
+            "graphRelationPath": [],
+            "graphDepth": 0
+          }
+        ],
+        "latency": {
+          "medianMs": 1127.115499999998,
+          "p95Ms": 1153.866900000001,
+          "minMs": 1110.087599999999,
+          "maxMs": 1153.866900000001,
+          "n": 5
+        },
+        "deterministic": true,
+        "storageCalls": {
+          "calls": 30,
+          "rawCandidates": 54,
+          "errors": 0
+        }
+      },
+      "analysis": {
+        "queryId": "q1",
+        "isNegative": false,
+        "k": 3,
+        "modeA": {
+          "recallAtK": 1,
+          "mrr": 1,
+          "ndcgAtK": 1,
+          "rankedKeys": [
+            "cache-tuning.md::0",
+            "cache-tuning.md::1",
+            "cache-tuning.md::3"
+          ],
+          "filterViolations": [],
+          "irrelevantSurfaced": [],
+          "noProvenanceFields": true
+        },
+        "modeB": {
+          "recallAtK": 1,
+          "mrr": 1,
+          "ndcgAtK": 0.9197207891481876,
+          "rankedKeys": [
+            "cache-tuning.md::0",
+            "cache-tuning.md::2",
+            "cache-tuning.md::1"
+          ],
+          "filterViolations": [],
+          "irrelevantSurfaced": [
+            "cache-tuning.md::2"
+          ],
+          "graphOriginCount": 1
+        },
+        "recoveredByGraph": [],
+        "displacedSeeds": [
+          "cache-tuning.md::3"
+        ]
+      },
+      "featureOffParityOk": true,
+      "graphOverheadMs": 629.8325999999979
+    },
+    {
+      "id": "q2",
+      "query": "яке порогове значення TTL визначає видалення запису з кешу",
+      "filters": {},
+      "case": [
+        "prev-next-relevant"
+      ],
+      "modeA": {
+        "hits": [
+          {
+            "sourceFile": "cache-tuning.md",
+            "chunkIndex": 3,
+            "nodeId": "ad4d7b46-73c4-563e-8802-c9371a8ccee0",
+            "section": "Eviction Policy"
+          },
+          {
+            "sourceFile": "cache-tuning.md",
+            "chunkIndex": 4,
+            "nodeId": "e91cf1c7-0ea1-5f8a-ae65-271f625858d9",
+            "section": "Purge Timing Details"
+          },
+          {
+            "sourceFile": "cache-tuning.md",
+            "chunkIndex": 0,
+            "nodeId": "9b5e9c95-5e7f-5765-b51e-a8eb8662910a",
+            "section": "Warm-Up Sequencing"
+          }
+        ],
+        "latency": {
+          "medianMs": 483.8716999999997,
+          "p95Ms": 557.8796000000002,
+          "minMs": 482.09000000000015,
+          "maxMs": 557.8796000000002,
+          "n": 5
+        },
+        "deterministic": true
+      },
+      "modeB": {
+        "hits": [
+          {
+            "sourceFile": "cache-tuning.md",
+            "chunkIndex": 3,
+            "nodeId": "ad4d7b46-73c4-563e-8802-c9371a8ccee0",
+            "section": "Eviction Policy",
+            "retrievalOrigin": "seed",
+            "graphSeedRank": 0,
+            "graphRelationPath": [],
+            "graphDepth": 0
+          },
+          {
+            "sourceFile": "cache-tuning.md",
+            "chunkIndex": 2,
+            "nodeId": "66faabfe-8103-51db-82e8-5d35729e4f03",
+            "section": "Warm-Up Sequencing",
+            "retrievalOrigin": "graph",
+            "graphSeedRank": 0,
+            "graphRelationPath": [
+              "prev"
+            ],
+            "graphDepth": 1
+          },
+          {
+            "sourceFile": "cache-tuning.md",
+            "chunkIndex": 4,
+            "nodeId": "e91cf1c7-0ea1-5f8a-ae65-271f625858d9",
+            "section": "Purge Timing Details",
+            "retrievalOrigin": "seed",
+            "graphSeedRank": 1,
+            "graphRelationPath": [],
+            "graphDepth": 0
+          }
+        ],
+        "latency": {
+          "medianMs": 1098.2589000000007,
+          "p95Ms": 1341.4854000000014,
+          "minMs": 1066.9209999999985,
+          "maxMs": 1341.4854000000014,
+          "n": 5
+        },
+        "deterministic": true,
+        "storageCalls": {
+          "calls": 30,
+          "rawCandidates": 50,
+          "errors": 0
+        }
+      },
+      "analysis": {
+        "queryId": "q2",
+        "isNegative": false,
+        "k": 3,
+        "modeA": {
+          "recallAtK": 1,
+          "mrr": 1,
+          "ndcgAtK": 1,
+          "rankedKeys": [
+            "cache-tuning.md::3",
+            "cache-tuning.md::4",
+            "cache-tuning.md::0"
+          ],
+          "filterViolations": [],
+          "irrelevantSurfaced": [],
+          "noProvenanceFields": true
+        },
+        "modeB": {
+          "recallAtK": 1,
+          "mrr": 1,
+          "ndcgAtK": 0.9197207891481876,
+          "rankedKeys": [
+            "cache-tuning.md::3",
+            "cache-tuning.md::2",
+            "cache-tuning.md::4"
+          ],
+          "filterViolations": [],
+          "irrelevantSurfaced": [
+            "cache-tuning.md::2"
+          ],
+          "graphOriginCount": 1
+        },
+        "recoveredByGraph": [],
+        "displacedSeeds": [
+          "cache-tuning.md::0"
+        ]
+      },
+      "featureOffParityOk": true,
+      "graphOverheadMs": 614.387200000001
+    },
+    {
+      "id": "q3",
+      "query": "чек-лист перевірки контрольної суми знімка колекції перед резервним копіюванням",
+      "filters": {},
+      "case": [
+        "already-correct-unaffected-by-expansion"
+      ],
+      "modeA": {
+        "hits": [
+          {
+            "sourceFile": "index-lifecycle.md",
+            "chunkIndex": 2,
+            "nodeId": "bba16207-58c0-5fef-9f93-35e68314e662",
+            "section": "Backup Verification Checklist"
+          },
+          {
+            "sourceFile": "index-lifecycle.md",
+            "chunkIndex": 0,
+            "nodeId": "df1004e6-b844-55f8-8e4c-80e887292ad5",
+            "section": "Snapshot Rotation Policy"
+          },
+          {
+            "sourceFile": "cache-tuning.md",
+            "chunkIndex": 1,
+            "nodeId": "a558a451-b4ad-522d-b840-dfcbd46bb583",
+            "section": "Warm-Up Sequencing"
+          }
+        ],
+        "latency": {
+          "medianMs": 505.82999999999447,
+          "p95Ms": 528.7235000000001,
+          "minMs": 489.7397000000019,
+          "maxMs": 528.7235000000001,
+          "n": 5
+        },
+        "deterministic": true
+      },
+      "modeB": {
+        "hits": [
+          {
+            "sourceFile": "index-lifecycle.md",
+            "chunkIndex": 2,
+            "nodeId": "bba16207-58c0-5fef-9f93-35e68314e662",
+            "section": "Backup Verification Checklist",
+            "retrievalOrigin": "seed",
+            "graphSeedRank": 0,
+            "graphRelationPath": [],
+            "graphDepth": 0
+          },
+          {
+            "sourceFile": "index-lifecycle.md",
+            "chunkIndex": 1,
+            "nodeId": "d708cc37-219d-5e52-9b72-7513b80e80c3",
+            "section": "Cold Start Warm-Up Interplay",
+            "retrievalOrigin": "graph",
+            "graphSeedRank": 0,
+            "graphRelationPath": [
+              "prev"
+            ],
+            "graphDepth": 1
+          },
+          {
+            "sourceFile": "index-lifecycle.md",
+            "chunkIndex": 0,
+            "nodeId": "df1004e6-b844-55f8-8e4c-80e887292ad5",
+            "section": "Snapshot Rotation Policy",
+            "retrievalOrigin": "seed",
+            "graphSeedRank": 1,
+            "graphRelationPath": [],
+            "graphDepth": 0
+          }
+        ],
+        "latency": {
+          "medianMs": 1106.0963000000047,
+          "p95Ms": 1123.0198000000019,
+          "minMs": 1078.0138000000006,
+          "maxMs": 1123.0198000000019,
+          "n": 5
+        },
+        "deterministic": true,
+        "storageCalls": {
+          "calls": 30,
+          "rawCandidates": 48,
+          "errors": 0
+        }
+      },
+      "analysis": {
+        "queryId": "q3",
+        "isNegative": false,
+        "k": 3,
+        "modeA": {
+          "recallAtK": 1,
+          "mrr": 1,
+          "ndcgAtK": 1,
+          "rankedKeys": [
+            "index-lifecycle.md::2",
+            "index-lifecycle.md::0",
+            "cache-tuning.md::1"
+          ],
+          "filterViolations": [],
+          "irrelevantSurfaced": [],
+          "noProvenanceFields": true
+        },
+        "modeB": {
+          "recallAtK": 1,
+          "mrr": 1,
+          "ndcgAtK": 1,
+          "rankedKeys": [
+            "index-lifecycle.md::2",
+            "index-lifecycle.md::1",
+            "index-lifecycle.md::0"
+          ],
+          "filterViolations": [],
+          "irrelevantSurfaced": [
+            "index-lifecycle.md::1"
+          ],
+          "graphOriginCount": 1
+        },
+        "recoveredByGraph": [],
+        "displacedSeeds": [
+          "cache-tuning.md::1"
+        ]
+      },
+      "featureOffParityOk": true,
+      "graphOverheadMs": 600.2663000000102
+    },
+    {
+      "id": "q4",
+      "query": "як налаштовується прогрів кешу",
+      "filters": {
+        "sourceFile": "cache-tuning.md"
+      },
+      "case": [
+        "source-file-filter-respected"
+      ],
+      "modeA": {
+        "hits": [
+          {
+            "sourceFile": "cache-tuning.md",
+            "chunkIndex": 0,
+            "nodeId": "9b5e9c95-5e7f-5765-b51e-a8eb8662910a",
+            "section": "Warm-Up Sequencing"
+          },
+          {
+            "sourceFile": "cache-tuning.md",
+            "chunkIndex": 1,
+            "nodeId": "a558a451-b4ad-522d-b840-dfcbd46bb583",
+            "section": "Warm-Up Sequencing"
+          },
+          {
+            "sourceFile": "cache-tuning.md",
+            "chunkIndex": 3,
+            "nodeId": "ad4d7b46-73c4-563e-8802-c9371a8ccee0",
+            "section": "Eviction Policy"
+          }
+        ],
+        "latency": {
+          "medianMs": 500.6097000000009,
+          "p95Ms": 556.568499999994,
+          "minMs": 489.5616000000009,
+          "maxMs": 556.568499999994,
+          "n": 5
+        },
+        "deterministic": true
+      },
+      "modeB": {
+        "hits": [
+          {
+            "sourceFile": "cache-tuning.md",
+            "chunkIndex": 0,
+            "nodeId": "9b5e9c95-5e7f-5765-b51e-a8eb8662910a",
+            "section": "Warm-Up Sequencing",
+            "retrievalOrigin": "seed",
+            "graphSeedRank": 0,
+            "graphRelationPath": [],
+            "graphDepth": 0
+          },
+          {
+            "sourceFile": "cache-tuning.md",
+            "chunkIndex": 1,
+            "nodeId": "a558a451-b4ad-522d-b840-dfcbd46bb583",
+            "section": "Warm-Up Sequencing",
+            "retrievalOrigin": "seed",
+            "graphSeedRank": 1,
+            "graphRelationPath": [],
+            "graphDepth": 0
+          },
+          {
+            "sourceFile": "cache-tuning.md",
+            "chunkIndex": 3,
+            "nodeId": "ad4d7b46-73c4-563e-8802-c9371a8ccee0",
+            "section": "Eviction Policy",
+            "retrievalOrigin": "seed",
+            "graphSeedRank": 2,
+            "graphRelationPath": [],
+            "graphDepth": 0
+          }
+        ],
+        "latency": {
+          "medianMs": 1109.8278000000064,
+          "p95Ms": 1125.171699999999,
+          "minMs": 1086.5030000000042,
+          "maxMs": 1125.171699999999,
+          "n": 5
+        },
+        "deterministic": true,
+        "storageCalls": {
+          "calls": 30,
+          "rawCandidates": 60,
+          "errors": 0
+        }
+      },
+      "analysis": {
+        "queryId": "q4",
+        "isNegative": false,
+        "k": 3,
+        "modeA": {
+          "recallAtK": 1,
+          "mrr": 1,
+          "ndcgAtK": 1,
+          "rankedKeys": [
+            "cache-tuning.md::0",
+            "cache-tuning.md::1",
+            "cache-tuning.md::3"
+          ],
+          "filterViolations": [],
+          "irrelevantSurfaced": [],
+          "noProvenanceFields": true
+        },
+        "modeB": {
+          "recallAtK": 1,
+          "mrr": 1,
+          "ndcgAtK": 1,
+          "rankedKeys": [
+            "cache-tuning.md::0",
+            "cache-tuning.md::1",
+            "cache-tuning.md::3"
+          ],
+          "filterViolations": [],
+          "irrelevantSurfaced": [],
+          "graphOriginCount": 0
+        },
+        "recoveredByGraph": [],
+        "displacedSeeds": []
+      },
+      "featureOffParityOk": true,
+      "graphOverheadMs": 609.2181000000055
+    },
+    {
+      "id": "q5",
+      "query": "налаштування проксі сервера для мережевих запитів",
+      "filters": {},
+      "case": [
+        "negative-query"
+      ],
+      "modeA": {
+        "hits": [
+          {
+            "sourceFile": "cache-tuning.md",
+            "chunkIndex": 0,
+            "nodeId": "9b5e9c95-5e7f-5765-b51e-a8eb8662910a",
+            "section": "Warm-Up Sequencing"
+          },
+          {
+            "sourceFile": "cache-tuning.md",
+            "chunkIndex": 1,
+            "nodeId": "a558a451-b4ad-522d-b840-dfcbd46bb583",
+            "section": "Warm-Up Sequencing"
+          },
+          {
+            "sourceFile": "index-lifecycle.md",
+            "chunkIndex": 0,
+            "nodeId": "df1004e6-b844-55f8-8e4c-80e887292ad5",
+            "section": "Snapshot Rotation Policy"
+          }
+        ],
+        "latency": {
+          "medianMs": 495.8466999999946,
+          "p95Ms": 562.0720000000001,
+          "minMs": 484.0923000000039,
+          "maxMs": 562.0720000000001,
+          "n": 5
+        },
+        "deterministic": true
+      },
+      "modeB": {
+        "hits": [
+          {
+            "sourceFile": "cache-tuning.md",
+            "chunkIndex": 0,
+            "nodeId": "9b5e9c95-5e7f-5765-b51e-a8eb8662910a",
+            "section": "Warm-Up Sequencing",
+            "retrievalOrigin": "seed",
+            "graphSeedRank": 0,
+            "graphRelationPath": [],
+            "graphDepth": 0
+          },
+          {
+            "sourceFile": "cache-tuning.md",
+            "chunkIndex": 2,
+            "nodeId": "66faabfe-8103-51db-82e8-5d35729e4f03",
+            "section": "Warm-Up Sequencing",
+            "retrievalOrigin": "graph",
+            "graphSeedRank": 0,
+            "graphRelationPath": [
+              "section-sibling"
+            ],
+            "graphDepth": 1
+          },
+          {
+            "sourceFile": "cache-tuning.md",
+            "chunkIndex": 1,
+            "nodeId": "a558a451-b4ad-522d-b840-dfcbd46bb583",
+            "section": "Warm-Up Sequencing",
+            "retrievalOrigin": "seed",
+            "graphSeedRank": 1,
+            "graphRelationPath": [],
+            "graphDepth": 0
+          }
+        ],
+        "latency": {
+          "medianMs": 1139.2390999999989,
+          "p95Ms": 1179.2428,
+          "minMs": 1100.9792000000016,
+          "maxMs": 1179.2428,
+          "n": 5
+        },
+        "deterministic": true,
+        "storageCalls": {
+          "calls": 30,
+          "rawCandidates": 48,
+          "errors": 0
+        }
+      },
+      "analysis": {
+        "queryId": "q5",
+        "isNegative": true,
+        "k": 3,
+        "modeA": {
+          "recallAtK": null,
+          "mrr": null,
+          "ndcgAtK": null,
+          "rankedKeys": [
+            "cache-tuning.md::0",
+            "cache-tuning.md::1",
+            "index-lifecycle.md::0"
+          ],
+          "filterViolations": [],
+          "irrelevantSurfaced": [],
+          "noProvenanceFields": true
+        },
+        "modeB": {
+          "recallAtK": null,
+          "mrr": null,
+          "ndcgAtK": null,
+          "rankedKeys": [
+            "cache-tuning.md::0",
+            "cache-tuning.md::2",
+            "cache-tuning.md::1"
+          ],
+          "filterViolations": [],
+          "irrelevantSurfaced": [],
+          "graphOriginCount": 1
+        },
+        "recoveredByGraph": [],
+        "displacedSeeds": [
+          "index-lifecycle.md::0"
+        ]
+      },
+      "featureOffParityOk": true,
+      "graphOverheadMs": 643.3924000000043
+    }
+  ],
+  "finishedAt": "2026-08-22T09:35:38.397Z"
+}

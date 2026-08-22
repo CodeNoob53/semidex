@@ -830,6 +830,36 @@ export const DEFINITIONS = {
     appliesAt: 'next_search', requiresReindex: false, requiresBackfill: false,
     ...intField({ envVar: 'RERANK_CE_BATCH_SIZE', defaultVal: 16, min: 1, max: 256 }),
   },
+  // Graph-expanded retrieval (docs/design/graph-expanded-retrieval.md,
+  // docs/tasks/graph-expanded-retrieval-step1.md): opt-in, depth-1 bounded
+  // structural expansion of the hybrid-search seed pool, resolved via
+  // src/core/retrieval/graph-expand.js and the optional
+  // adapter.getStructuralNeighbors() storage capability. Disabled by
+  // default — feature-off behavior (this field unset/false) is byte-for-
+  // byte identical to before this feature existed; runHybridSearch() only
+  // ever consults these three keys when GRAPH_EXPANSION_ENABLED resolves
+  // true. Depth is deliberately NOT configurable here (fixed at 1 in this
+  // first implementation, per the design doc's own non-goals) — only
+  // whether expansion runs at all, how many top seeds are eligible for it,
+  // and how many expanded candidates each eligible seed may contribute.
+  GRAPH_EXPANSION_ENABLED: {
+    category: 'retrieval', label: 'Graph-expanded retrieval', type: 'boolean', envVar: 'GRAPH_EXPANSION_ENABLED',
+    description: 'After hybrid search, resolve bounded depth-1 structural neighbors (containing section siblings, previous/next content node) for skeleton-aware seed hits and merge them into results. Disabled by default; has no effect on legacy collections with no skeleton node identity.', advanced: true,
+    appliesAt: 'next_search', requiresReindex: false, requiresBackfill: false,
+    ...boolField({ envVar: 'GRAPH_EXPANSION_ENABLED', defaultVal: false }),
+  },
+  GRAPH_EXPANSION_SEED_LIMIT: {
+    category: 'retrieval', label: 'Graph expansion seed limit', type: 'number', envVar: 'GRAPH_EXPANSION_SEED_LIMIT',
+    description: 'Maximum number of top-ranked seed hits eligible for structural expansion. Bounds storage calls before any expansion I/O runs; has no effect while graph-expanded retrieval is disabled.', advanced: true,
+    appliesAt: 'next_search', requiresReindex: false, requiresBackfill: false,
+    ...intField({ envVar: 'GRAPH_EXPANSION_SEED_LIMIT', defaultVal: 5, min: 1, max: 50, warnPrefix: '[retrieval] ' }),
+  },
+  GRAPH_EXPANSION_MAX_PER_SEED: {
+    category: 'retrieval', label: 'Graph expansion max candidates per seed', type: 'number', envVar: 'GRAPH_EXPANSION_MAX_PER_SEED',
+    description: 'Maximum number of expanded structural-neighbor candidates resolved per eligible seed. Bounds storage calls and final candidate count; has no effect while graph-expanded retrieval is disabled.', advanced: true,
+    appliesAt: 'next_search', requiresReindex: false, requiresBackfill: false,
+    ...intField({ envVar: 'GRAPH_EXPANSION_MAX_PER_SEED', defaultVal: 3, min: 1, max: 20, warnPrefix: '[retrieval] ' }),
+  },
 
   // ── storage & databases ─────────────────────────────────────────────────
   // No defaultVal: core/qdrant/client.js has no fallback of its own — it

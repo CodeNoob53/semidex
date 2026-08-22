@@ -117,6 +117,20 @@ export const LITE_SETTINGS_POLICY = Object.freeze({
   ADMIN_ALLOW_REMOTE: exposed(),
   HYBRID_PREFETCH_LIMIT: exposed(),
   RRF_K: exposed(),
+  // Graph-expanded retrieval settings — exposed (not advanced_tuning-excluded
+  // like most other retrieval knobs) because the shared retrieval path
+  // (src/core/retrieval/search.js's runHybridSearch(), used identically by
+  // Full and Lite via register-neutral-routes.js) calls
+  // settingsService.getActiveValue('GRAPH_EXPANSION_ENABLED') on every
+  // search regardless of edition. createLiteSettingsService.getActiveValue()
+  // THROWS for a key outside LITE_SETTINGS_KEY_SET (see service.lite.js) —
+  // excluding these here would break every Lite search request, not merely
+  // hide a UI control. Disabled by default in both editions either way (see
+  // definitions.js) — this is what "Lite and Full must expose identical
+  // semantics" (design doc, Initial public configuration) requires.
+  GRAPH_EXPANSION_ENABLED: exposed(),
+  GRAPH_EXPANSION_SEED_LIMIT: exposed(),
+  GRAPH_EXPANSION_MAX_PER_SEED: exposed(),
   // Governs POST /api/jobs/index in Lite exactly the same way it does in
   // Full (docs/security/semidex-lite-public-api-audit-2026-08.md, Finding
   // P1-3) — backend-agnostic, no local-runtime/local-model coupling, so

@@ -75,7 +75,7 @@ describe('createLiteApp() + Lite settings wrapper — GET /api/settings', () => 
       assert.ok(keys.includes('HYBRID_PREFETCH_LIMIT'));
       assert.ok(!keys.includes('OLLAMA_URL'));
       assert.ok(!keys.includes('ONNX_EXECUTION_PROVIDER'));
-      assert.ok(keys.length < 30);
+      assert.ok(keys.length < 35, 'small subset sanity bound — bumped from 30 to admit the 3 new graph-expansion keys (still far short of the full ~65-key registry)');
     });
   });
 

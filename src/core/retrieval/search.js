@@ -19,6 +19,57 @@ import { resolveExistingCollectionProfile } from '../embedding-profile/resolve.j
 import { EXECUTION } from '../embedding-profile/schema.js';
 import { findDenseModel } from '../embedding-profile/qdrant-cloud-models.js';
 import { emitTelemetry } from '../../shared/core/bench-telemetry.js';
+import { expandSeedsWithGraph } from './graph-expand.js';
+import { envInt } from '../../shared/core/env.js';
+
+// Graph-expanded retrieval (docs/design/graph-expanded-retrieval.md) —
+// GRAPH_EXPANSION_ENABLED/GRAPH_EXPANSION_SEED_LIMIT/GRAPH_EXPANSION_MAX_PER_SEED
+// resolution, mirroring resolvePrefetchLimit()/resolveRrfK()'s own
+// settingsService-optional-DI pattern in src/core/qdrant/store.js: when a
+// settingsService is supplied (every real caller — Admin search, Ask, MCP —
+// already passes one), it is the single source of truth; when omitted
+// (mainly direct unit tests), these fall back to a raw env read with the
+// SAME default the registry itself declares (definitions.js), so a caller
+// with no settingsService sees the feature disabled by default, exactly
+// like every other caller.
+function resolveGraphExpansionEnabled(settingsService) {
+  if (settingsService) return settingsService.getActiveValue('GRAPH_EXPANSION_ENABLED');
+  const raw = process.env.GRAPH_EXPANSION_ENABLED;
+  return raw === '1' || raw === 'true';
+}
+
+function resolveGraphExpansionSeedLimit(settingsService) {
+  return settingsService
+    ? settingsService.getActiveValue('GRAPH_EXPANSION_SEED_LIMIT')
+    : envInt('GRAPH_EXPANSION_SEED_LIMIT', 5, 1, 50, '[retrieval] ');
+}
+
+function resolveGraphExpansionMaxPerSeed(settingsService) {
+  return settingsService
+    ? settingsService.getActiveValue('GRAPH_EXPANSION_MAX_PER_SEED')
+    : envInt('GRAPH_EXPANSION_MAX_PER_SEED', 3, 1, 20, '[retrieval] ');
+}
+
+// Attaches diagnostic-only provenance fields (design doc, "Provenance") onto
+// the chunk object a caller already sees — additive fields, never a change
+// to any existing field toChunk() produces. Only ever applied to hits that
+// went through expandSeedsWithGraph(); a feature-off/no-expansion path
+// leaves hits completely untouched (no provenance fields at all), which is
+// exactly what "feature-off behavior is unchanged" (byte-for-byte) requires.
+// graphSeedId/graphRelationPath are normalized plain data (a string identity
+// key, an array of relation-hop strings) — never the originating seed's full
+// chunk object — so this stays cheap additive metadata, not a duplicated
+// copy of retrieval content.
+function withProvenance(entry) {
+  return {
+    ...entry.chunk,
+    retrievalOrigin: entry.retrievalOrigin,
+    graphSeedRank: entry.seedRank,
+    graphSeedId: entry.seedId,
+    graphRelationPath: entry.relationPath,
+    graphDepth: entry.depth,
+  };
+}
 
 // Code review fix (Phase 8B Step 6): this module used to statically import
 // buildCloudQueryInputs()/checkEmbedInputFits() from
@@ -102,6 +153,22 @@ export async function runHybridSearch({ adapter, embedQuery = embedForSearch, cl
   const filter = { ...(sourceFile && { sourceFile }), ...(tags && { tags }), excludeNav: true };
   const execution = resolution.profile.embedding.dense.execution;
 
+  // Graph-expanded retrieval (docs/design/graph-expanded-retrieval.md):
+  // resolved ONCE, before either execution branch, so CLIENT and
+  // QDRANT_CLOUD collections see identical expansion behavior. When
+  // disabled (the default), graphSearchLimit === top exactly — the search
+  // call below requests precisely what every caller has always requested,
+  // byte-for-byte preserving feature-off behavior. When enabled, a bounded,
+  // possibly-larger seed pool (up to GRAPH_EXPANSION_SEED_LIMIT) is
+  // requested so there is real seed material to expand from beyond the
+  // caller's own `top`; the final result is always sliced back to `top`
+  // below regardless — "final result limit remains the caller's existing
+  // top" (design doc, Initial public configuration).
+  const graphExpansionEnabled = resolveGraphExpansionEnabled(settingsService);
+  const graphSeedLimit = graphExpansionEnabled ? resolveGraphExpansionSeedLimit(settingsService) : null;
+  const graphMaxPerSeed = graphExpansionEnabled ? resolveGraphExpansionMaxPerSeed(settingsService) : null;
+  const graphSearchLimit = graphExpansionEnabled ? Math.max(top, graphSeedLimit) : top;
+
   let hits;
   if (execution === EXECUTION.CLIENT) {
     let vectors;
@@ -110,7 +177,7 @@ export async function runHybridSearch({ adapter, embedQuery = embedForSearch, cl
     } catch (err) {
       return { error: 'embedding_failed', message: `Failed to embed query: ${err.message}` };
     }
-    hits = await adapter.searchHybridVectors(collection, { dense: vectors.dense, sparse: vectors.sparse, limit: top, filter, settingsService });
+    hits = await adapter.searchHybridVectors(collection, { dense: vectors.dense, sparse: vectors.sparse, limit: graphSearchLimit, filter, settingsService });
   } else if (execution === EXECUTION.QDRANT_CLOUD) {
     // Same real, tokenizer-backed gate indexing already applies
     // (checkEmbedInputFits, embedForIndexCloud) — a query has no separate
@@ -145,9 +212,22 @@ export async function runHybridSearch({ adapter, embedQuery = embedForSearch, cl
     if (sparseQuery) {
       emitTelemetry({ kind: 'inference', phase: 'query', lane: 'sparse', textLength: sparseQuery.text.length, model: sparseQuery.model });
     }
-    hits = await adapter.searchHybridInference(collection, { denseQuery, sparseQuery, limit: top, filter, settingsService });
+    hits = await adapter.searchHybridInference(collection, { denseQuery, sparseQuery, limit: graphSearchLimit, filter, settingsService });
   } else {
     return { error: 'embedding_unsupported', message: `Collection "${collection}"'s embedding profile uses execution "${execution}", which is not yet implemented.` };
+  }
+
+  // Step 2 of the design doc's retrieval flow: "If graph expansion is
+  // disabled, return the byte-for-byte compatible result." graphExpansionEnabled
+  // is false here on every existing call site that hasn't opted in
+  // (default setting, or no settingsService at all) — `hits` is returned
+  // completely unchanged in that case, with zero provenance fields added,
+  // exactly matching pre-feature behavior.
+  if (graphExpansionEnabled && hits.length > 0) {
+    const expanded = await expandSeedsWithGraph({
+      adapter, collection, seeds: hits, seedLimit: graphSeedLimit, maxExpandedPerSeed: graphMaxPerSeed, filters,
+    });
+    hits = expanded.slice(0, top).map(withProvenance);
   }
 
   return { searchMode, hits };

@@ -53,19 +53,26 @@ describe('createQdrantStorageAdapter — shape', () => {
   it('name() returns "qdrant"', () => {
     assert.equal(createQdrantStorageAdapter().name(), 'qdrant');
   });
+
+  it('exposes getStructuralNeighbors as a callable function (optional capability — not in REQUIRED_ADAPTER_METHODS)', () => {
+    const adapter = createQdrantStorageAdapter();
+    assert.equal(typeof adapter.getStructuralNeighbors, 'function');
+    assert.equal(REQUIRED_ADAPTER_METHODS.includes('getStructuralNeighbors'), false, 'getStructuralNeighbors must stay optional, gated by capabilities().structuralExpansion — never a required-shape method every future adapter must implement');
+  });
 });
 
 describe('createQdrantStorageAdapter — capabilities', () => {
   it('matches current Qdrant reality', () => {
     const caps = createQdrantStorageAdapter().capabilities();
     assert.deepEqual(caps, {
-      namedVectors:     true,
-      sparseVectors:    true,
-      hybridSearch:     true,
-      payloadIndexes:   true,
-      aliases:          false,
-      snapshots:        false,
-      collectionExists: true,
+      namedVectors:         true,
+      sparseVectors:        true,
+      hybridSearch:         true,
+      payloadIndexes:       true,
+      aliases:              false,
+      snapshots:            false,
+      collectionExists:     true,
+      structuralExpansion:  true,
     });
   });
 
@@ -81,6 +88,140 @@ describe('createQdrantStorageAdapter — capabilities', () => {
     const b = adapter.capabilities();
     a.aliases = true;
     assert.equal(b.aliases, false);
+  });
+});
+
+// Realistic raw Qdrant point shapes (snake_case payload), as store.getSectionSiblings()/
+// store.fetchWindowChunks() would actually return them — used to prove
+// getStructuralNeighbors()'s own dedup/cap/mapping logic behaviorally via the
+// storeOverrides DI seam, rather than only the source-regex checks the rest
+// of this file uses for methods that call `store.` directly (see
+// getSectionSiblings/fetchWindowChunks in the `s` DI object, qdrant-adapter.js).
+function structuralPoint(overrides = {}) {
+  return {
+    id: overrides.id ?? `pt-${overrides.chunk_index ?? 0}`,
+    payload: {
+      point_kind: 'retrieval_content',
+      source_file: 'docs/guide.md',
+      chunk_index: 0,
+      total_chunks: 10,
+      section: 'Intro',
+      text: 'body text',
+      tags: [],
+      node_type: 'content',
+      node_id: null,
+      parent_id: 'section-A',
+      ...overrides,
+    },
+  };
+}
+
+describe('createQdrantStorageAdapter().getStructuralNeighbors — behavioral, via storeOverrides', () => {
+  it('maps section siblings from store.getSectionSiblings into normalized chunks with relation "section-sibling"', async () => {
+    const sib1 = structuralPoint({ node_id: 'sib-1', chunk_index: 4 });
+    const sib2 = structuralPoint({ node_id: 'sib-2', chunk_index: 5 });
+    let received;
+    const adapter = createQdrantStorageAdapter({
+      storeOverrides: {
+        getSectionSiblings: async (name, parentId, cap) => { received = { name, parentId, cap }; return [sib1, sib2]; },
+        fetchWindowChunks: async () => [],
+      },
+    });
+    const result = await adapter.getStructuralNeighbors('c1', { nodeId: 'seed-1', parentId: 'section-A', sourceFile: 'docs/guide.md', chunkIndex: 0, limit: 5 });
+    assert.deepEqual(received, { name: 'c1', parentId: 'section-A', cap: 5 });
+    assert.equal(result.length, 2);
+    assert.deepEqual(result.map((r) => r.relation), ['section-sibling', 'section-sibling']);
+    assert.deepEqual(result.map((r) => r.chunk.nodeId), ['sib-1', 'sib-2']);
+    // Fully normalized (toChunk()) shape — camelCase only, no raw snake_case
+    // payload field ever leaks through this method.
+    for (const { chunk } of result) {
+      assert.equal(typeof chunk.sourceFile, 'string');
+      assert.equal('node_id' in chunk, false);
+      assert.equal('parent_id' in chunk, false);
+      assert.equal('point_kind' in chunk, false);
+    }
+  });
+
+  it('maps the previous/next window from store.fetchWindowChunks, skipping the seed\'s own chunk_index', async () => {
+    const prev = structuralPoint({ node_id: 'prev-1', chunk_index: 3 });
+    const seedItself = structuralPoint({ node_id: 'seed-1', chunk_index: 4 });
+    const next = structuralPoint({ node_id: 'next-1', chunk_index: 5 });
+    let received;
+    const adapter = createQdrantStorageAdapter({
+      storeOverrides: {
+        getSectionSiblings: async () => [],
+        fetchWindowChunks: async (name, sourceFile, chunkIndex, window) => { received = { name, sourceFile, chunkIndex, window }; return [prev, seedItself, next]; },
+      },
+    });
+    const result = await adapter.getStructuralNeighbors('c1', { nodeId: 'seed-1', parentId: null, sourceFile: 'docs/guide.md', chunkIndex: 4, limit: 5 });
+    assert.deepEqual(received, { name: 'c1', sourceFile: 'docs/guide.md', chunkIndex: 4, window: 1 });
+    assert.equal(result.length, 2, 'the seed\'s own point (chunk_index === chunkIndex) must never be returned as its own neighbor');
+    assert.deepEqual(result.map((r) => r.relation), ['prev', 'next']);
+    assert.deepEqual(result.map((r) => r.chunk.nodeId), ['prev-1', 'next-1']);
+  });
+
+  it('deduplicates a point reachable from both siblings and the prev/next window, keeping only the first (sibling) occurrence', async () => {
+    const overlap = structuralPoint({ node_id: 'shared-1', chunk_index: 1 });
+    const next = structuralPoint({ node_id: 'next-1', chunk_index: 3 });
+    const adapter = createQdrantStorageAdapter({
+      storeOverrides: {
+        getSectionSiblings: async () => [overlap],
+        fetchWindowChunks: async () => [structuralPoint({ node_id: 'shared-1', chunk_index: 1 }), next],
+      },
+    });
+    const result = await adapter.getStructuralNeighbors('c1', { nodeId: 'seed-1', parentId: 'section-A', sourceFile: 'docs/guide.md', chunkIndex: 2, limit: 5 });
+    const sharedHits = result.filter((r) => r.chunk.nodeId === 'shared-1');
+    assert.equal(sharedHits.length, 1, 'shared-1 must appear exactly once across both relation sources');
+    assert.equal(sharedHits[0].relation, 'section-sibling', 'the FIRST (sibling) occurrence wins, never overwritten by the later prev/next pass');
+  });
+
+  it('never re-adds the seed\'s own nodeId even if a non-conforming sibling query returns it', async () => {
+    const selfAsSibling = structuralPoint({ node_id: 'seed-1', chunk_index: 0 });
+    const realSibling = structuralPoint({ node_id: 'sib-1', chunk_index: 1 });
+    const adapter = createQdrantStorageAdapter({
+      storeOverrides: { getSectionSiblings: async () => [selfAsSibling, realSibling], fetchWindowChunks: async () => [] },
+    });
+    const result = await adapter.getStructuralNeighbors('c1', { nodeId: 'seed-1', parentId: 'section-A', limit: 5 });
+    assert.deepEqual(result.map((r) => r.chunk.nodeId), ['sib-1']);
+  });
+
+  it('enforces a hard cap on total returned entries (siblings first, then prev/next), never exceeding `limit` regardless of how many real neighbors exist', async () => {
+    const siblings = [1, 2, 3].map((i) => structuralPoint({ node_id: `sib-${i}`, chunk_index: i }));
+    const window = [structuralPoint({ node_id: 'prev-1', chunk_index: 10 }), structuralPoint({ node_id: 'next-1', chunk_index: 12 })];
+    const adapter = createQdrantStorageAdapter({
+      storeOverrides: { getSectionSiblings: async () => siblings, fetchWindowChunks: async () => window },
+    });
+    const result = await adapter.getStructuralNeighbors('c1', { nodeId: 'seed-1', parentId: 'section-A', sourceFile: 'docs/guide.md', chunkIndex: 11, limit: 2 });
+    assert.equal(result.length, 2, 'must never exceed the requested limit even though 3 siblings + 2 window points exist');
+    assert.deepEqual(result.map((r) => r.chunk.nodeId), ['sib-1', 'sib-2'], 'siblings are exhausted before the prev/next window is even consulted once the cap is already reached');
+  });
+
+  it('skips the prev/next window lookup entirely once siblings alone already reach the cap', async () => {
+    const siblings = [1, 2].map((i) => structuralPoint({ node_id: `sib-${i}`, chunk_index: i }));
+    let windowCalled = false;
+    const adapter = createQdrantStorageAdapter({
+      storeOverrides: {
+        getSectionSiblings: async () => siblings,
+        fetchWindowChunks: async () => { windowCalled = true; return []; },
+      },
+    });
+    await adapter.getStructuralNeighbors('c1', { nodeId: 'seed-1', parentId: 'section-A', sourceFile: 'docs/guide.md', chunkIndex: 5, limit: 2 });
+    assert.equal(windowCalled, false, 'no I/O should be spent on the window lookup once the cap is already satisfied');
+  });
+
+  it('never calls getSectionSiblings when parentId is absent, and never calls fetchWindowChunks when sourceFile/chunkIndex are absent', async () => {
+    let siblingsCalled = false;
+    let windowCalled = false;
+    const adapter = createQdrantStorageAdapter({
+      storeOverrides: {
+        getSectionSiblings: async () => { siblingsCalled = true; return []; },
+        fetchWindowChunks: async () => { windowCalled = true; return []; },
+      },
+    });
+    const result = await adapter.getStructuralNeighbors('c1', { nodeId: 'seed-1', parentId: null, sourceFile: null, chunkIndex: null, limit: 5 });
+    assert.deepEqual(result, []);
+    assert.equal(siblingsCalled, false);
+    assert.equal(windowCalled, false);
   });
 });
 
