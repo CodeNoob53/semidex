@@ -11,6 +11,8 @@ import {
   MIN_REQUESTS_PER_MINUTE, MAX_REQUESTS_PER_MINUTE, MIN_BURST, MAX_BURST,
   isValidLimitValue,
 } from './rate-limiter.js';
+import { createNoopAuditSink, recordAuditEvent } from '../audit/sink.js';
+import { AUDIT_EVENT_TYPE } from '../audit/event.js';
 
 const USAGE = `Usage:
   <cli> key add --name <name> --collection <name> [--collection <name>...]
@@ -127,7 +129,15 @@ function formatRow(key) {
  * Runs a `key ...` subcommand.
  *
  * @param {string[]} argv arguments AFTER the "key" token
- * @param {{ keyStorePath: string, cliName?: string, out?: Function, err?: Function, now?: () => number, keyStore?: Object }} ctx
+ * @param {{ keyStorePath: string, cliName?: string, out?: Function, err?: Function, now?: () => number, keyStore?: Object, auditSink?: import('../audit/sink.js').AuditSink }} ctx
+ *   auditSink defaults to a no-op — this module never constructs a REAL
+ *   sink itself (that would mean every test calling runKeyCommand() without
+ *   overriding it starts writing real files under SEMIDEX_HOME/cwd as a
+ *   side effect). The two real CLI entry points (src/key.js,
+ *   packages/lite/bin/semidex-lite.js) each construct a real one via
+ *   resolveAuditSink({ sync: true }) and pass it in explicitly, matching
+ *   how they already resolve `keyStorePath` themselves rather than letting
+ *   this module guess it.
  * @returns {number} process exit code
  */
 export function runKeyCommand(argv, {
@@ -137,6 +147,7 @@ export function runKeyCommand(argv, {
   err = console.error,
   now = () => Date.now(),
   keyStore,
+  auditSink = createNoopAuditSink(),
 } = {}) {
   const store = keyStore ?? createKeyStore({ path: keyStorePath, now });
   const [subcommand, ...rest] = argv;
@@ -156,6 +167,11 @@ export function runKeyCommand(argv, {
           expiresAt,
           requestsPerMinute,
           burst,
+        });
+        // keyId + the operator-assigned name only — never the token or its
+        // digest (docs/security/audit-logging-design-2026-08.md §3).
+        recordAuditEvent(auditSink, AUDIT_EVENT_TYPE.ADMIN_KEY_CREATED, {
+          outcome: 'created', keyId: key.id, keyName: key.name,
         });
 
         out('');
@@ -203,6 +219,13 @@ export function runKeyCommand(argv, {
           err(`No key with id "${id}".`);
           return 1;
         }
+        // Both 'revoked' and 'already_revoked' are genuine outcomes worth an
+        // audit trail (an operator re-running `key revoke` on an already-
+        // revoked key is still a real event to record); 'not_found' above
+        // revoked nothing and is intentionally not logged.
+        recordAuditEvent(auditSink, AUDIT_EVENT_TYPE.ADMIN_KEY_REVOKED, {
+          outcome: 'revoked', keyId: result.key.id, keyName: result.key.name, status: result.status,
+        });
         if (result.status === 'already_revoked') {
           out(`Key ${id} was already revoked at ${result.key.revokedAt}.`);
           return 0;

@@ -14,7 +14,7 @@
     "mixed": 3,
     "tooling": 62,
     "cloud": 8,
-    "shared": 171,
+    "shared": 175,
     "local": 29
   },
   "modules": [
@@ -28,6 +28,7 @@
       "directDependencies": [
         "src/admin/server-full.js",
         "src/cloud/generation/cloud-generation-provider.js",
+        "src/core/audit/resolve-sink.js",
         "src/core/ce-rerank.js",
         "src/core/generation/registry.js",
         "src/core/generation/runtime.js",
@@ -52,6 +53,8 @@
         "src/cloud/admin/qdrant-cloud-api.js",
         "src/cloud/embedding/cloud-embedding-provider.js",
         "src/cloud/generation/cloud-generation-provider.js",
+        "src/core/audit/resolve-sink.js",
+        "src/core/audit/sink.js",
         "src/core/auth/resolve-policy.js",
         "src/core/generation/ollama-capability.js",
         "src/core/generation/registry.js",
@@ -103,6 +106,8 @@
         "src/cloud/admin/qdrant-cloud-api.js",
         "src/cloud/embedding/cloud-embedding-provider.js",
         "src/cloud/generation/cloud-generation-provider.js",
+        "src/core/audit/resolve-sink.js",
+        "src/core/audit/sink.js",
         "src/core/auth/resolve-policy.js",
         "src/core/generation/registry.js",
         "src/core/generation/runtime.js",
@@ -531,6 +536,49 @@
       ]
     },
     {
+      "path": "src/core/audit/event.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/core/audit/jsonl-sink.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/audit/event.js"
+      ]
+    },
+    {
+      "path": "src/core/audit/resolve-sink.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/audit/jsonl-sink.js",
+        "src/core/audit/sink.js"
+      ]
+    },
+    {
+      "path": "src/core/audit/sink.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/audit/event.js"
+      ]
+    },
+    {
       "path": "src/core/auth/integration-policy.js",
       "declaredCategory": "shared",
       "category": "shared",
@@ -550,6 +598,8 @@
       "fullReachable": false,
       "liteReachable": false,
       "directDependencies": [
+        "src/core/audit/event.js",
+        "src/core/audit/sink.js",
         "src/core/auth/key-store.js",
         "src/core/auth/rate-limiter.js"
       ]
@@ -771,6 +821,8 @@
       "fullReachable": true,
       "liteReachable": true,
       "directDependencies": [
+        "src/core/audit/event.js",
+        "src/core/audit/sink.js",
         "src/core/http/http.js"
       ]
     },
@@ -1186,6 +1238,7 @@
       "fullReachable": false,
       "liteReachable": false,
       "directDependencies": [
+        "src/core/audit/resolve-sink.js",
         "src/core/auth/key-cli.js",
         "src/local/core/semidex-home.js"
       ]
@@ -1701,6 +1754,8 @@
       "fullReachable": true,
       "liteReachable": true,
       "directDependencies": [
+        "src/core/audit/event.js",
+        "src/core/audit/sink.js",
         "src/core/http/http.js",
         "src/core/http/route-audience.js"
       ]
@@ -1765,6 +1820,8 @@
       "fullReachable": true,
       "liteReachable": true,
       "directDependencies": [
+        "src/core/audit/event.js",
+        "src/core/audit/sink.js",
         "src/core/http/http.js",
         "src/core/http/route-audience.js"
       ]
@@ -1828,6 +1885,8 @@
       "fullReachable": true,
       "liteReachable": true,
       "directDependencies": [
+        "src/core/audit/event.js",
+        "src/core/audit/sink.js",
         "src/core/http/http.js",
         "src/core/http/route-audience.js",
         "src/core/security/direct-loopback-request.js",
@@ -1880,6 +1939,8 @@
       "fullReachable": true,
       "liteReachable": true,
       "directDependencies": [
+        "src/core/audit/event.js",
+        "src/core/audit/sink.js",
         "src/shared/core/doctor-checks.js",
         "src/shared/indexer/progress-event.js"
       ]
@@ -1934,6 +1995,8 @@
       "fullReachable": true,
       "liteReachable": true,
       "directDependencies": [
+        "src/core/audit/event.js",
+        "src/core/audit/sink.js",
         "src/core/http/authorize.js",
         "src/core/http/cache-policy.js",
         "src/core/http/http.js",

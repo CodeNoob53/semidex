@@ -14,6 +14,7 @@ import { createSettingsService, applyEnvWriteBack } from '../core/settings/servi
 import { resolveOnnxRuntimeForProcess } from '../local/core/onnx-runtime-source-resolution.js';
 import { createOnnxRuntimeUnavailableCapability } from '../local/core/onnx-runtime-unavailable-capability.js';
 import { applySemidexHomeEnv } from '../local/core/semidex-home.js';
+import { resolveAuditSink } from '../core/audit/resolve-sink.js';
 
 export { snapshotOsEnv, loadDotenvValues, applyDotenvValues, bootstrapEnv } from '../shared/core/env-bootstrap.js';
 
@@ -174,7 +175,15 @@ if (isMainModule) {
   const generationRuntime = createGenerationRuntime({ osEnv, dotenvValues, settingsService, createGenerationProviderFn });
   const { host } = resolveHostConfig(process.env, { settingsService });
   const port = resolvePortConfig(process.env, { settingsService });
-  const server = createApp({ generationRuntime, settingsService, jobBaseEnv, onnxEmbedCapability });
+  // resolvedAuditSink is constructed HERE, once, and passed into createApp()
+  // explicitly — this file is the single audit-sink composition owner for
+  // the real `npm run admin` process, so createApp()'s own internal
+  // `auditSink ?? resolveAuditSink(...)` fallback never runs and never
+  // constructs a second, independent instance. Keeping the reference here is
+  // what lets gracefulShutdown() below flush/close it before the process
+  // exits (docs/security/audit-logging-design-2026-08.md §4/§7).
+  const resolvedAuditSink = resolveAuditSink({ edition: 'full' });
+  const server = createApp({ generationRuntime, settingsService, jobBaseEnv, onnxEmbedCapability, auditSink: resolvedAuditSink });
   server.listen(port, host, () => {
     console.log(`[admin] Semidex Local API listening on http://${host}:${port}`);
   });
@@ -190,7 +199,13 @@ if (isMainModule) {
     if (shuttingDown) return;
     shuttingDown = true;
     try { await shutdownCEWorker(); } catch { /* best effort on the way out */ }
-    server.close(() => process.exit(0));
+    server.close(() => {
+      // Waits for every queued audit event (a request denial, a job-lifecycle
+      // event) to become durable before the process exits — previously
+      // nothing invoked flush()/close() here, so a final queued event could
+      // be silently lost on a normal SIGTERM/SIGINT shutdown.
+      resolvedAuditSink.close().finally(() => process.exit(0));
+    });
   };
   process.on('SIGTERM', gracefulShutdown);
   process.on('SIGINT', gracefulShutdown);

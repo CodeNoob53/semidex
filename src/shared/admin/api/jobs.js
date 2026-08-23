@@ -16,6 +16,8 @@
 import { sendJson, badRequest, notFound, conflict, dependencyUnavailable, HttpError } from '../../../core/http/http.js';
 import { readJsonBody } from '../../../core/http/http.js';
 import { AUDIENCE, OPERATION, COST_CLASS, COLLECTION_SOURCE } from '../../../core/http/route-audience.js';
+import { recordAuditEvent } from '../../../core/audit/sink.js';
+import { AUDIT_EVENT_TYPE, hashIdentifier } from '../../../core/audit/event.js';
 
 const DEFAULT_CONTEXT_MODEL = process.env.CONTEXT_MODEL || 'gemma3:4b';
 
@@ -248,7 +250,7 @@ export function registerJobsRoutes(router, registry, { checkOllamaFn, jobPolicy 
   if (!allowedRootsGuard || typeof allowedRootsGuard.checkTarget !== 'function') {
     throw new TypeError('registerJobsRoutes: allowedRootsGuard is required — construct it via createAllowedRootsGuard({ settingsService }) (src/shared/admin/jobs/allowed-roots-guard.js), or pass a test fake shaped { checkTarget(path) }.');
   }
-  router.post('/api/jobs/index', async ({ req, res }) => {
+  router.post('/api/jobs/index', async ({ req, res, auth }) => {
     const body = await readJsonBody(req);
     const { collection, path, options, kind } = parseIndexJobRequest(body, jobPolicy);
 
@@ -261,6 +263,14 @@ export function registerJobsRoutes(router, registry, { checkOllamaFn, jobPolicy 
     // never see the original, potentially-symlinked spelling.
     const scopeCheck = allowedRootsGuard.checkTarget(path);
     if (!scopeCheck.ok) {
+      // pathHash, never the raw path — a denied indexing target is exactly
+      // the kind of local filesystem path the audit contract forbids
+      // logging in full (docs/security/audit-logging-design-2026-08.md §3).
+      recordAuditEvent(auth?.auditSink, AUDIT_EVENT_TYPE.INDEX_ROOT_DENIED, {
+        outcome: 'denied', requestId: auth?.requestId ?? null,
+        route: { method: 'POST', path: '/api/jobs/index' }, audience: AUDIENCE.ADMIN, operation: OPERATION.INDEX,
+        reason: scopeCheck.code, pathHash: hashIdentifier(path),
+      });
       throw new HttpError(scopeCheck.status, scopeCheck.code, scopeCheck.message);
     }
     const canonicalPath = scopeCheck.canonicalPath;
@@ -287,7 +297,7 @@ export function registerJobsRoutes(router, registry, { checkOllamaFn, jobPolicy 
 
     let started;
     try {
-      started = registry.startIndexJob({ collection, path: canonicalPath, options, kind });
+      started = registry.startIndexJob({ collection, path: canonicalPath, options, kind, requestId: auth?.requestId ?? null });
     } catch (err) {
       if (err.code === 'JOB_ALREADY_RUNNING') throw conflict(err.message);
       throw err;
@@ -307,9 +317,14 @@ export function registerJobsRoutes(router, registry, { checkOllamaFn, jobPolicy 
     sendJson(res, 200, { job: toJobDetail(job) });
   }, { audience: AUDIENCE.ADMIN, operation: OPERATION.READ, resourceType: 'job', costClass: COST_CLASS.LOW });
 
-  router.post('/api/jobs/:id/cancel', ({ res, params }) => {
+  router.post('/api/jobs/:id/cancel', ({ res, params, auth }) => {
     const job = registry.getJob(params.id);
     if (!job) throw notFound(`Job "${params.id}" not found`);
+    recordAuditEvent(auth?.auditSink, AUDIT_EVENT_TYPE.INDEX_JOB_CANCEL_REQUESTED, {
+      outcome: 'requested', requestId: auth?.requestId ?? null,
+      route: { method: 'POST', path: '/api/jobs/:id/cancel' }, audience: AUDIENCE.ADMIN, operation: OPERATION.MUTATE,
+      jobId: params.id,
+    });
     const updated = registry.cancelJob(params.id);
     sendJson(res, 200, { job: toJobSummary(updated) });
   }, { audience: AUDIENCE.ADMIN, operation: OPERATION.MUTATE, resourceType: 'job', costClass: COST_CLASS.LOW });

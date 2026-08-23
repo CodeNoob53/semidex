@@ -30,6 +30,8 @@
 // and the fail-closed wrapper around a caller-supplied hook.
 
 import { HttpError } from './http.js';
+import { recordAuditEvent } from '../audit/sink.js';
+import { AUDIT_EVENT_TYPE } from '../audit/event.js';
 
 /**
  * Validates that a principal is a plain JSON-like value before it is frozen.
@@ -320,6 +322,7 @@ export async function authorizeCollectionAccess(auth, ctx) {
       principal: auth.principal ?? null,
     });
   } catch {
+    recordCollectionDenied(auth, ctx, 'policy_error');
     throw forbiddenCollection();
   }
 
@@ -329,6 +332,38 @@ export async function authorizeCollectionAccess(auth, ctx) {
       : 'Access to this collection is not permitted.';
     const code = (decision && typeof decision.code === 'string') ? decision.code : 'forbidden';
     const status = (decision && typeof decision.status === 'number') ? decision.status : 403;
+    recordCollectionDenied(auth, ctx, code);
     throw new HttpError(status, code, message);
   }
+}
+
+/**
+ * Emits authz.collection_denied through the per-request sink the router
+ * attached to `auth` (see router.js's own comment on why requestId/
+ * auditSink live there rather than being threaded through a new
+ * constructor parameter). Only the DENIAL path is audited here — the task's
+ * own coverage requirement for this area is "operation/collection-scope
+ * denial," and a successful stage 1 already recorded
+ * auth.integration_accepted (router.js), so a second "allowed" event at
+ * stage 2 would be redundant noise for every accepted Ask call.
+ *
+ * `collection` is logged as the plain value stage 2 evaluated (not a raw
+ * body) — see the design doc §3 for why collection names are logged in
+ * full. Never a no-op sink call is skipped defensively: `auth` may be
+ * absent entirely for a caller that invoked this function directly (a
+ * test, or a future non-router entry point) with no context at all.
+ */
+function recordCollectionDenied(auth, ctx, reason) {
+  const collection = typeof ctx?.collection === 'string' && ctx.collection.length > 0 ? ctx.collection : null;
+  if (!collection) return; // collection is a required field on this event type — nothing safe to log without it
+  recordAuditEvent(auth?.auditSink, AUDIT_EVENT_TYPE.AUTHZ_COLLECTION_DENIED, {
+    outcome: 'denied',
+    requestId: auth?.requestId ?? null,
+    route: auth?.route ? { method: auth.route.method, path: auth.route.path } : null,
+    audience: auth?.route?.audience ?? null,
+    operation: ctx?.operation ?? auth?.route?.operation ?? null,
+    reason,
+    collection,
+    keyId: (auth?.principal && typeof auth.principal === 'object' && typeof auth.principal.keyId === 'string') ? auth.principal.keyId : null,
+  });
 }

@@ -8,6 +8,8 @@ import { sendJson, readJsonBody, HttpError } from '../../../core/http/http.js';
 import { CATEGORIES } from '../../../core/settings/definitions.js';
 import { AUDIENCE, OPERATION, COST_CLASS } from '../../../core/http/route-audience.js';
 import { evaluateDirectLoopbackConnection } from '../../../core/security/direct-loopback-request.js';
+import { recordAuditEvent } from '../../../core/audit/sink.js';
+import { AUDIT_EVENT_TYPE } from '../../../core/audit/event.js';
 
 // Destination-changing settings require a direct loopback request. Every
 // other setting keeps today's behavior unchanged; this is a narrow,
@@ -34,7 +36,7 @@ export function registerSettingsRoutes(router, { settingsService }) {
     sendJson(res, 200, { categories: CATEGORIES, settings: settingsService.getAll() });
   }, { audience: AUDIENCE.ADMIN, operation: OPERATION.READ, resourceType: 'settings', costClass: COST_CLASS.LOW });
 
-  router.patch('/api/settings', async ({ req, res }) => {
+  router.patch('/api/settings', async ({ req, res, auth }) => {
     const body = await readJsonBody(req);
     const changes = body?.changes;
     if (!changes || typeof changes !== 'object' || Array.isArray(changes) || Object.keys(changes).length === 0) {
@@ -61,6 +63,17 @@ export function registerSettingsRoutes(router, { settingsService }) {
 
     try {
       const updated = await settingsService.setMany(changes);
+      // Field NAME + action only — never the old or new value (task
+      // contract, docs/security/audit-logging-design-2026-08.md §6).
+      // Emitted only after setMany() succeeds: setMany() is all-or-nothing
+      // (see the module header), so every key in `changes` was genuinely
+      // applied by the time this line runs — a rejected batch changed
+      // nothing and falls through to the catch below without an event.
+      recordAuditEvent(auth?.auditSink, AUDIT_EVENT_TYPE.ADMIN_SETTINGS_CHANGED, {
+        outcome: 'changed', requestId: auth?.requestId ?? null,
+        route: { method: 'PATCH', path: '/api/settings' }, audience: AUDIENCE.ADMIN, operation: OPERATION.MUTATE,
+        fields: Object.keys(changes).map((key) => ({ key, action: changes[key] === null ? 'delete' : 'set' })),
+      });
       sendJson(res, 200, { settings: updated });
     } catch (err) {
       const status = ERROR_CODE_STATUS[err.code];

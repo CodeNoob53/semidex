@@ -2,6 +2,7 @@
 // — segment-by-segment matching is enough for the handful of routes this API
 // needs. Route params (":name") are URL-decoded before being handed to
 // handlers, so a handler never has to think about percent-encoding.
+import { randomUUID } from 'node:crypto';
 import { sendError, HttpError } from '../../core/http/http.js';
 import { sanitiseErrorMessage } from '../core/doctor-checks.js';
 import {
@@ -12,6 +13,23 @@ import {
 import { applyApiCacheHeaders } from '../../core/http/cache-policy.js';
 import { validateRouteMeta, AUDIENCE } from '../../core/http/route-audience.js';
 import { validateIntegrationPolicy, deepFreeze, assertPlainPrincipal } from '../../core/http/authorize.js';
+import { createNoopAuditSink, recordAuditEvent } from '../../core/audit/sink.js';
+import { AUDIT_EVENT_TYPE } from '../../core/audit/event.js';
+
+// Codes checkHost()/checkCrossSite() (request-security.js) can return —
+// used only to classify a pre-dispatch denial into the right audit event
+// type (Host/DNS-rebinding vs Origin/CSRF); never used for the response
+// itself, which already carries the real status/code/message from the
+// verdict object unchanged.
+const HOST_REJECTION_CODES = new Set(['bad_request', 'forbidden_host']);
+
+/** Best-effort keyId/keyName extraction for an audit event — a policy under test may return a principal shaped nothing like key-store.js's buildPrincipal(), so this never assumes the shape. */
+function principalKeyId(principal) {
+  return (principal && typeof principal === 'object' && typeof principal.keyId === 'string') ? principal.keyId : null;
+}
+function principalKeyName(principal) {
+  return (principal && typeof principal === 'object' && typeof principal.name === 'string') ? principal.name : null;
+}
 
 /**
  * @typedef {(ctx: { req, res, params: Object, query: URLSearchParams }) => Promise<void>|void} RouteHandler
@@ -24,7 +42,7 @@ import { validateIntegrationPolicy, deepFreeze, assertPlainPrincipal } from '../
  *   loopback-only hosts, no remote mode. It is never absent in production —
  *   both composition roots build one from resolved server config.
  */
-export function createRouter({ securityPolicy, integrationPolicy } = {}) {
+export function createRouter({ securityPolicy, integrationPolicy, auditSink = createNoopAuditSink() } = {}) {
   // An integration policy is ATOMIC: request authentication and collection
   // authorization are two halves of one decision and must be configured
   // together. Wiring only `authorizeRequest` would authenticate callers and
@@ -88,6 +106,11 @@ export function createRouter({ securityPolicy, integrationPolicy } = {}) {
     // on a route param (malformed percent-encoding, e.g. "%E0%A4%A") throw
     // synchronously outside any handler's control. Left uncaught, either one
     // rejects handleRequest() itself with no response ever sent to the client.
+    // Generated once, before any check, so a request rejected at the very
+    // first gate (Host) still gets a correlation id in its own audit event
+    // — the id exists to let an operator find every event this ONE request
+    // produced, not only the ones that reached a handler.
+    const requestId = randomUUID();
     try {
       // Request security runs FIRST — before route matching, before any
       // handler, and (critically) before any body is read. A rejected
@@ -105,6 +128,11 @@ export function createRouter({ securityPolicy, integrationPolicy } = {}) {
       applyApiCacheHeaders(res);
       const verdict = evaluateRequestSecurity(req, policy);
       if (!verdict.ok) {
+        recordAuditEvent(
+          auditSink,
+          HOST_REJECTION_CODES.has(verdict.code) ? AUDIT_EVENT_TYPE.REQUEST_HOST_REJECTED : AUDIT_EVENT_TYPE.REQUEST_ORIGIN_REJECTED,
+          { outcome: 'denied', requestId, reason: verdict.code },
+        );
         return sendError(res, verdict.status, verdict.code, verdict.message);
       }
 
@@ -181,6 +209,10 @@ export function createRouter({ securityPolicy, integrationPolicy } = {}) {
           // A policy that throws must never fall through to the handler, and
           // must not leak its internals: this is deliberately not re-thrown
           // into the generic 500 branch below.
+          recordAuditEvent(auditSink, AUDIT_EVENT_TYPE.AUTH_INTEGRATION_DENIED, {
+            outcome: 'denied', requestId, route: { method: found.meta.method, path: found.meta.path },
+            audience: found.meta.audience, operation: found.meta.operation, reason: 'policy_error',
+          });
           return sendError(res, 403, 'forbidden', 'Request rejected by policy.');
         }
         if (!decision || decision.ok !== true) {
@@ -189,6 +221,21 @@ export function createRouter({ securityPolicy, integrationPolicy } = {}) {
           const message = (decision && typeof decision.message === 'string')
             ? decision.message
             : 'Request rejected by policy.';
+          // Audit reason mirrors `code` directly — integration-policy.js's
+          // own codes (integration_auth_not_configured / unauthorized /
+          // forbidden) are already short, stable, non-secret strings; this
+          // is server-side-only (never echoed to the caller beyond the
+          // response `code` itself, which is already that same value), so
+          // it does not reopen the enumeration channel the collapsed 401
+          // body exists to close (see integration-policy.js's own
+          // UNAUTHENTICATED comment: missing/malformed/unknown/wrong/
+          // revoked/expired all collapse to ONE `code` — "unauthorized" —
+          // before they ever reach this line, so this event is exactly as
+          // coarse as the policy decision it records, not finer).
+          recordAuditEvent(auditSink, AUDIT_EVENT_TYPE.AUTH_INTEGRATION_DENIED, {
+            outcome: 'denied', requestId, route: { method: found.meta.method, path: found.meta.path },
+            audience: found.meta.audience, operation: found.meta.operation, reason: code,
+          });
           // RFC 6750 §3: a protected resource returning 401 for a bearer
           // token failure SHOULD include WWW-Authenticate. No `error`/
           // `error_description` attribute is added: integration-policy.js
@@ -222,6 +269,11 @@ export function createRouter({ securityPolicy, integrationPolicy } = {}) {
           return sendError(res, 403, 'forbidden', 'Request rejected by policy.');
         }
         principal = deepFreeze(decision.principal ?? null);
+        recordAuditEvent(auditSink, AUDIT_EVENT_TYPE.AUTH_INTEGRATION_ACCEPTED, {
+          outcome: 'accepted', requestId, route: { method: found.meta.method, path: found.meta.path },
+          audience: found.meta.audience, operation: found.meta.operation,
+          keyId: principalKeyId(principal), keyName: principalKeyName(principal),
+        });
 
         // Stage 1.5 — rate limit. Runs immediately after a successful
         // authentication, still before any body byte is read and before
@@ -249,15 +301,20 @@ export function createRouter({ securityPolicy, integrationPolicy } = {}) {
             const message = (rlDecision && typeof rlDecision.message === 'string')
               ? rlDecision.message
               : 'Too many requests.';
+            const hasRetryAfter = Number.isFinite(rlDecision?.retryAfterSeconds);
+            const retryAfterSeconds = hasRetryAfter ? Math.max(1, Math.ceil(rlDecision.retryAfterSeconds)) : 1;
+            recordAuditEvent(auditSink, AUDIT_EVENT_TYPE.AUTH_RATE_LIMITED, {
+              outcome: 'denied', requestId, route: { method: found.meta.method, path: found.meta.path },
+              audience: found.meta.audience, operation: found.meta.operation,
+              keyId: principalKeyId(principal), retryAfterSeconds,
+            });
             // No WWW-Authenticate: the credential itself was fine, this is
             // not a bearer-token failure (RFC 6750 §3 does not apply).
             // Retry-After is the one extra header, an integer number of
             // seconds until the earliest token, and nothing else — no
             // identity, no configured limit, no bucket state leaks to the
             // client.
-            const headers = Number.isFinite(rlDecision?.retryAfterSeconds)
-              ? { 'Retry-After': String(Math.max(1, Math.ceil(rlDecision.retryAfterSeconds))) }
-              : {};
+            const headers = hasRetryAfter ? { 'Retry-After': String(retryAfterSeconds) } : {};
             return sendError(res, status, code, message, headers);
           }
         }
@@ -272,6 +329,17 @@ export function createRouter({ securityPolicy, integrationPolicy } = {}) {
         route: found.meta,
         // Admin routes get no stage-2 hook at all — see the comment above.
         authorizeCollection: (isIntegration && authorizeCollection) ? authorizeCollection : null,
+        // requestId/auditSink are available to EVERY handler (admin and
+        // integration alike — found.handler is called unconditionally
+        // below), not only integration ones. This is deliberate: it lets
+        // admin mutation routes (settings.js, collections.js, jobs.js) and
+        // stage 2's authorizeCollectionAccess() (core/http/authorize.js)
+        // emit their own audit events through the SAME per-request sink
+        // and correlation id, without registerJobsRoutes/
+        // registerSettingsRoutes/etc. each growing a new constructor
+        // parameter — see docs/security/audit-logging-design-2026-08.md §5.
+        requestId,
+        auditSink,
       });
 
       await found.handler({ req, res, params: found.params, query: url.searchParams, auth });

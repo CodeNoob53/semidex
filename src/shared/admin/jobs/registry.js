@@ -9,6 +9,8 @@
 import { randomUUID } from 'node:crypto';
 import { sanitiseErrorMessage } from '../../core/doctor-checks.js';
 import { parseProgressLine } from '../../indexer/progress-event.js';
+import { createNoopAuditSink, recordAuditEvent } from '../../../core/audit/sink.js';
+import { AUDIT_EVENT_TYPE, hashIdentifier } from '../../../core/audit/event.js';
 
 // This file itself is edition-neutral (code review, round 4) — it never
 // imports node:child_process, never names an indexer entry path, never
@@ -188,7 +190,7 @@ function makeLineSplitter(job, stream) {
  *   createLiteApp() passes spawn-indexer-lite.js's own spawnIndexer.
  * @throws {TypeError} if spawnIndexer is missing or not a function
  */
-export function createJobRegistry({ spawnIndexer, baseEnv = process.env } = {}) {
+export function createJobRegistry({ spawnIndexer, baseEnv = process.env, auditSink = createNoopAuditSink() } = {}) {
   if (typeof spawnIndexer !== 'function') {
     throw new TypeError('createJobRegistry: spawnIndexer is required and must be a function — see this file\'s own header comment for why no default is provided.');
   }
@@ -210,7 +212,7 @@ export function createJobRegistry({ spawnIndexer, baseEnv = process.env } = {}) 
    * @returns {{ id: string }}
    * @throws if a job is already queued/running
    */
-  function startIndexJob({ collection, path, options = {}, kind = 'index' }) {
+  function startIndexJob({ collection, path, options = {}, kind = 'index', requestId = null }) {
     const active = getActiveJob();
     if (active) {
       const err = new Error(`An indexing job is already ${active.state} (id: ${active.id}). Only one job may run at a time.`);
@@ -240,6 +242,11 @@ export function createJobRegistry({ spawnIndexer, baseEnv = process.env } = {}) 
       // data yet" must stay distinguishable from "progress at 0/0".
       progress: null,
       child: null,
+      // The HTTP request that started this job, if any (never exposed via
+      // toJobSummary()/toJobDetail() — it exists only so the terminal audit
+      // event, fired from a background child-process callback long after
+      // that request returned, still correlates back to it).
+      requestId,
     };
     jobs.set(id, job);
     activeJobId = id;
@@ -253,6 +260,10 @@ export function createJobRegistry({ spawnIndexer, baseEnv = process.env } = {}) 
     const child = spawnIndexer({ args: [path], env });
     job.child = child;
     job.state = STATES.RUNNING;
+    recordAuditEvent(auditSink, AUDIT_EVENT_TYPE.INDEX_JOB_STARTED, {
+      outcome: 'started', requestId: job.requestId,
+      jobId: job.id, collection: job.collection, pathHash: hashIdentifier(job.path), kind: job.kind,
+    });
 
     const stdoutSplitter = makeLineSplitter(job, 'stdout');
     const stderrSplitter = makeLineSplitter(job, 'stderr');
@@ -269,6 +280,9 @@ export function createJobRegistry({ spawnIndexer, baseEnv = process.env } = {}) 
       job.finishedAt = new Date().toISOString();
       job.exitCode = null;
       appendLine(job, 'stderr', `[job] failed to start: ${err.message}`);
+      recordAuditEvent(auditSink, AUDIT_EVENT_TYPE.INDEX_JOB_FAILED, {
+        outcome: 'failed', requestId: job.requestId, jobId: job.id, exitCode: null,
+      });
       if (activeJobId === id) activeJobId = null;
     });
 
@@ -292,6 +306,22 @@ export function createJobRegistry({ spawnIndexer, baseEnv = process.env } = {}) 
       } else {
         job.state = code === 0 ? STATES.SUCCEEDED : STATES.FAILED;
       }
+      // Exactly one terminal audit event, matching the state transition
+      // just computed above — this callback fires long after the HTTP
+      // request that started the job returned 202, which is why job.id
+      // (not a per-request requestId) is the correlation a reader follows
+      // across the whole lifecycle; job.requestId links back to the
+      // request that started it, when one exists.
+      const terminalType = {
+        [STATES.CANCELLED]: AUDIT_EVENT_TYPE.INDEX_JOB_CANCELLED,
+        [STATES.SUCCEEDED]: AUDIT_EVENT_TYPE.INDEX_JOB_SUCCEEDED,
+        [STATES.FAILED]: AUDIT_EVENT_TYPE.INDEX_JOB_FAILED,
+      }[job.state];
+      const terminalOutcome = { [STATES.CANCELLED]: 'cancelled', [STATES.SUCCEEDED]: 'succeeded', [STATES.FAILED]: 'failed' }[job.state];
+      recordAuditEvent(auditSink, terminalType, {
+        outcome: terminalOutcome, requestId: job.requestId, jobId: job.id,
+        exitCode: typeof code === 'number' ? code : null,
+      });
       if (activeJobId === id) activeJobId = null;
     });
 

@@ -27,6 +27,8 @@ import { createSettingsService } from '../core/settings/service.js';
 import { registerNeutralRoutes, createHttpServer } from '../shared/admin/register-neutral-routes.js';
 import { resolveRequestSecurityPolicy } from '../shared/admin/server.js';
 import { resolveIntegrationPolicy } from '../core/auth/resolve-policy.js';
+import { resolveAuditSink } from '../core/audit/resolve-sink.js';
+import { ensureEditionTag } from '../core/audit/sink.js';
 import { embedForSearch } from '../shared/core/embeddings.js';
 import { createJobRegistry } from '../shared/admin/jobs/registry.js';
 import { createAllowedRootsGuard } from '../shared/admin/jobs/allowed-roots-guard.js';
@@ -45,7 +47,7 @@ export function createApp({
   discoverOllamaModelsFn, discoverGeminiModelsFn, runOnnxProbeFn, runQdrantCloudProbeFn,
   resolveNewCollectionProfileFn, diagnoseCudaFailureFn,
   resolveEffectiveOnnxRuntimePathFn, writeVerificationResultFn, onnxManagedRuntimeListingCache,
-  onnxEmbedCapability, securityPolicy, integrationPolicy, allowedRootsGuard, uiDir,
+  onnxEmbedCapability, securityPolicy, integrationPolicy, allowedRootsGuard, uiDir, auditSink,
 } = {}) {
   // core/embeddings.js's applyEmbeddingCapabilities() (the process-wide
   // module-scope fallback) is deliberately NEVER called from this function
@@ -152,7 +154,25 @@ export function createApp({
   // Full's real, unchanged behavior. createJobRegistry() itself has no
   // default spawnIndexer and never knows which edition constructed it —
   // see that function's own header comment.
-  const resolvedJobRegistry = jobRegistry ?? createJobRegistry({ baseEnv: jobBaseEnv, spawnIndexer: spawnFullIndexer });
+  // resolvedAuditSink, if the caller doesn't override it, is built HERE
+  // (same "construct once per composition root, instance-scoped, never a
+  // module-level global" convention as resolvedJobRegistry/
+  // resolvedAllowedRootsGuard) so a second createApp() call in the same
+  // process (e.g. two tests, or a Full+Lite pair) gets its own sink rather
+  // than sharing queue/rotation state — see
+  // docs/security/audit-logging-design-2026-08.md §9 for what is and is
+  // not guaranteed when two independent sinks share one SEMIDEX_HOME/audit
+  // directory. When the caller DOES supply `auditSink` (a plain/custom
+  // sink, or a sink some other composition root already tagged), this
+  // composition root still owns edition:'full' for every event it emits —
+  // ensureEditionTag() (sink.js) applies the tag itself rather than
+  // trusting the caller to have called resolveAuditSink({ edition: 'full' })
+  // first, and corrects a wrong tag rather than silently deferring to it
+  // (review finding: a caller-supplied sink used to bypass edition tagging
+  // entirely, since the old `auditSink ?? resolveAuditSink(...)` fallback
+  // only ever tagged the sink IT constructed, never one it was handed).
+  const resolvedAuditSink = auditSink ? ensureEditionTag(auditSink, 'full') : resolveAuditSink({ edition: 'full' });
+  const resolvedJobRegistry = jobRegistry ?? createJobRegistry({ baseEnv: jobBaseEnv, spawnIndexer: spawnFullIndexer, auditSink: resolvedAuditSink });
   // resolvedAllowedRootsGuard, if the caller doesn't override it, is built
   // HERE from THIS composition root's own `settings` instance (P1-3 fix —
   // see allowed-roots-guard.js's own header comment) — instance-scoped by
@@ -174,6 +194,7 @@ export function createApp({
   const router = createRouter({
     securityPolicy: resolvedSecurityPolicy,
     integrationPolicy: integrationPolicy ?? resolveIntegrationPolicy(),
+    auditSink: resolvedAuditSink,
   });
   // discoverOllamaModelsFn is optional DI (tests inject a stub so unit
   // tests never probe a real Ollama instance) — same convention as

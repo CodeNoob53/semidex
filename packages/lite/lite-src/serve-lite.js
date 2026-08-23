@@ -15,13 +15,28 @@ import { createSettingsService, applyEnvWriteBack } from '../src/core/settings/s
 import { createLiteSettingsService } from '../src/core/settings/service.lite.js';
 import { createJobRegistry } from '../src/shared/admin/jobs/registry.js';
 import { spawnIndexer as spawnLiteIndexer } from '../src/admin/jobs/spawn-indexer-lite.js';
+import { resolveAuditSink } from '../src/core/audit/resolve-sink.js';
+import { ensureEditionTag } from '../src/core/audit/sink.js';
 
 /**
- * @param {{ semidexHome: string, settingsPath: string }} paths — from
+ * @param {{ semidexHome: string, settingsPath: string, auditSink?: import('../src/core/audit/sink.js').AuditSink }} paths — from
  *   resolveSemidexHomePaths()/applySemidexHomeEnv().
- * @returns {Promise<{ server: import('node:http').Server, host: string, port: number }>}
+ *   `auditSink` is optional DI (tests inject a fake to assert the job
+ *   registry and router share one instance without touching real disk) —
+ *   defaults to the real, edition-tagged sink resolved here. A supplied
+ *   fake is edition-tagged HERE too (`ensureEditionTag`, sink.js), so the
+ *   returned `auditSink` may not be reference-equal to what the caller
+ *   passed in — it is always the correctly 'lite'-tagged wrapper around it,
+ *   and closing it closes the caller's underlying sink. THIS function is
+ *   the single audit-sink composition owner for the real `semidex-lite serve`
+ *   process: it is passed to createJobRegistry() AND createLiteApp() below,
+ *   so createLiteApp()'s own internal `auditSink ?? resolveAuditSink(...)`
+ *   fallback never runs and never constructs a second, independent sink
+ *   instance. bin/semidex-lite.js reads the returned `auditSink` back to
+ *   flush/close it on graceful shutdown (see that file's own comment).
+ * @returns {Promise<{ server: import('node:http').Server, host: string, port: number, auditSink: import('../src/core/audit/sink.js').AuditSink }>}
  */
-export async function startLite({ settingsPath } = {}) {
+export async function startLite({ settingsPath, auditSink } = {}) {
   // bootstrapEnv() FIRST — captures the clean OS-env snapshot before any
   // .env gap-fill mutates process.env, exactly like bootstrap.js.
   const { osEnv, dotenvValues } = bootstrapEnv();
@@ -52,7 +67,24 @@ export async function startLite({ settingsPath } = {}) {
   // that function's own header comment), so this call site must always
   // supply one explicitly; omitting it here would be a hard construction-
   // time failure, not a silent fall-through to Full's behavior.
-  const jobRegistry = createJobRegistry({ baseEnv: jobBaseEnv, spawnIndexer: spawnLiteIndexer });
+  // resolvedAuditSink: constructed HERE, once, and threaded into BOTH
+  // createJobRegistry() (below) and createLiteApp() (its own `auditSink`
+  // param, passed further down) — this is the fix for a real production gap
+  // where this file used to build its own jobRegistry with no auditSink at
+  // all, silently dropping every job-lifecycle audit event even though
+  // createLiteApp()'s router still audited request-path events through its
+  // own, DIFFERENT internal fallback sink. One instance, shared by both, is
+  // what "router and job registry share the audit sink" actually requires.
+  // When the caller supplies `auditSink` (tests only — the real CLI never
+  // does), ensureEditionTag() (sink.js) still guarantees it carries
+  // edition:'lite' before it is shared: a raw/plain sink is wrapped once
+  // here, and createLiteApp()'s OWN ensureEditionTag() call on that same,
+  // already-'lite'-tagged instance below is then a no-op (returns it
+  // unchanged) rather than stacking a second wrapper on top — see
+  // ensureEditionTag()'s own header comment for why stacking would be
+  // pointless (and, for a genuine edition mismatch, actively wrong).
+  const resolvedAuditSink = auditSink ? ensureEditionTag(auditSink, 'lite') : resolveAuditSink({ edition: 'lite' });
+  const jobRegistry = createJobRegistry({ baseEnv: jobBaseEnv, spawnIndexer: spawnLiteIndexer, auditSink: resolvedAuditSink });
   // Host/port resolution and the generation runtime use the REAL
   // (unwrapped) settings service — ADMIN_HOST/ADMIN_PORT are Lite-allowed
   // keys anyway, and the generation runtime needs the full resolution
@@ -78,6 +110,6 @@ export async function startLite({ settingsPath } = {}) {
     createGenerationProviderFn: (opts) => createGenerationProvider({ ...opts, providers: { gemini: cloudGeneration.createProvider } }),
   });
 
-  const server = createLiteApp({ generationRuntime, settingsService, jobRegistry, jobBaseEnv });
-  return { server, host, port, settingsService };
+  const server = createLiteApp({ generationRuntime, settingsService, jobRegistry, jobBaseEnv, auditSink: resolvedAuditSink });
+  return { server, host, port, settingsService, auditSink: resolvedAuditSink };
 }

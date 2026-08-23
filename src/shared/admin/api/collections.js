@@ -3,6 +3,8 @@
 // — StorageAdapter-only.
 import { sendJson, notFound } from '../../../core/http/http.js';
 import { AUDIENCE, OPERATION, COST_CLASS, COLLECTION_SOURCE } from '../../../core/http/route-audience.js';
+import { recordAuditEvent } from '../../../core/audit/sink.js';
+import { AUDIT_EVENT_TYPE } from '../../../core/audit/event.js';
 
 // taskRegistry is optional DI, same convention as jobRegistry in
 // api/jobs.js — tests that don't care about operation tracking can omit it
@@ -19,12 +21,18 @@ export function registerCollectionsRoutes(router, adapter, { taskRegistry } = {}
     sendJson(res, 200, { collection });
   }, { audience: AUDIENCE.ADMIN, operation: OPERATION.READ, resourceType: 'collection', collectionSource: COLLECTION_SOURCE.PATH, costClass: COST_CLASS.QDRANT });
 
-  router.post('/api/collections/:name/sync-schema', async ({ res, params }) => {
+  router.post('/api/collections/:name/sync-schema', async ({ res, params, auth }) => {
     // getCollection() is the cheapest existence check the adapter exposes —
     // ensureCollectionSchema() itself would otherwise surface a Qdrant-level
     // error for a missing collection instead of a clean 404.
     const existing = await adapter.getCollection(params.name);
     if (!existing) throw notFound(`Collection "${params.name}" not found`);
+
+    const recordSynced = () => recordAuditEvent(auth?.auditSink, AUDIT_EVENT_TYPE.ADMIN_COLLECTION_SCHEMA_SYNCED, {
+      outcome: 'synced', requestId: auth?.requestId ?? null,
+      route: { method: 'POST', path: '/api/collections/:name/sync-schema' }, audience: AUDIENCE.ADMIN, operation: OPERATION.MUTATE,
+      collection: params.name,
+    });
 
     // Repair (a handful of Qdrant round-trips, typically well under a
     // second) keeps its original synchronous 200-with-result contract —
@@ -38,6 +46,7 @@ export function registerCollectionsRoutes(router, adapter, { taskRegistry } = {}
     // states," not a synthetic progress bar.
     if (!taskRegistry) {
       const { repaired, warnings } = await adapter.ensureCollectionSchema(params.name);
+      recordSynced();
       sendJson(res, 200, { collection: params.name, repaired, warnings });
       return;
     }
@@ -57,6 +66,7 @@ export function registerCollectionsRoutes(router, adapter, { taskRegistry } = {}
     // the store's own collection+kind+recency instead; see
     // settings-view.js's runSettingsRepair().
     const { repaired, warnings } = await done;
+    recordSynced();
     sendJson(res, 200, { id, collection: params.name, repaired, warnings });
   }, { audience: AUDIENCE.ADMIN, operation: OPERATION.MUTATE, resourceType: 'collection', collectionSource: COLLECTION_SOURCE.PATH, costClass: COST_CLASS.QDRANT });
 
@@ -65,11 +75,16 @@ export function registerCollectionsRoutes(router, adapter, { taskRegistry } = {}
   // typed-confirmation body is not part of this contract. The existence
   // check still runs first so a delete on a name that never existed is a
   // clean 404, not a silent no-op.
-  router.delete('/api/collections/:name', async ({ res, params }) => {
+  router.delete('/api/collections/:name', async ({ res, params, auth }) => {
     const existing = await adapter.getCollection(params.name);
     if (!existing) throw notFound(`Collection "${params.name}" not found`);
 
     await adapter.deleteCollection(params.name);
+    recordAuditEvent(auth?.auditSink, AUDIT_EVENT_TYPE.ADMIN_COLLECTION_DELETED, {
+      outcome: 'deleted', requestId: auth?.requestId ?? null,
+      route: { method: 'DELETE', path: '/api/collections/:name' }, audience: AUDIENCE.ADMIN, operation: OPERATION.DELETE,
+      collection: params.name,
+    });
     sendJson(res, 200, { collection: params.name, deleted: true });
   }, { audience: AUDIENCE.ADMIN, operation: OPERATION.DELETE, resourceType: 'collection', collectionSource: COLLECTION_SOURCE.PATH, costClass: COST_CLASS.QDRANT });
 }

@@ -59,12 +59,25 @@ switch (command) {
   }
   case 'serve': {
     const { startLite } = await import('../lite-src/serve-lite.js');
-    const { server, host, port } = await startLite({ settingsPath: paths.settingsPath });
+    const { server, host, port, auditSink } = await startLite({ settingsPath: paths.settingsPath });
     server.listen(port, host, () => {
       console.log(`[semidex-lite] listening on http://${host}:${port}`);
       console.log(`[semidex-lite] SEMIDEX_HOME: ${paths.semidexHome}`);
     });
-    const shutdown = () => server.close(() => process.exit(0));
+    // Idempotent: SIGTERM and SIGINT (or a supervisor/docker stop sending
+    // both) must not race a double server.close()/double process.exit().
+    // auditSink.close() waits for every queued event (a request denial, a
+    // job-lifecycle event) to become durable BEFORE the process exits — the
+    // fix for a real gap where shutdown never waited for the async queue to
+    // drain at all, so a final event could still be lost on exit.
+    let shuttingDown = false;
+    const shutdown = () => {
+      if (shuttingDown) return;
+      shuttingDown = true;
+      server.close(() => {
+        auditSink.close().finally(() => process.exit(0));
+      });
+    };
     process.on('SIGTERM', shutdown);
     process.on('SIGINT', shutdown);
     break;
@@ -82,9 +95,17 @@ switch (command) {
   }
   case 'key': {
     const { runKeyCommand } = await import('../src/core/auth/key-cli.js');
+    const { resolveAuditSink } = await import('../src/core/audit/resolve-sink.js');
+    // sync: a one-shot CLI process — see resolve-sink.js/jsonl-sink.js for
+    // why the CLI uses the synchronous sink variant. No `dir` override
+    // needed here (unlike src/key.js): applySemidexHomeEnv() above already
+    // set process.env.SEMIDEX_HOME to paths.semidexHome before this switch
+    // ran, so resolveAuditSink()'s own default resolution already agrees
+    // with paths.keyStorePath's directory.
     process.exitCode = runKeyCommand(rest, {
       keyStorePath: paths.keyStorePath,
       cliName: 'semidex-lite',
+      auditSink: resolveAuditSink({ sync: true, edition: 'lite' }),
     });
     break;
   }

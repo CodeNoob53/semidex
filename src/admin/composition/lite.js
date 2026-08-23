@@ -25,6 +25,8 @@ import { createSettingsService } from '../../core/settings/service.js';
 import { registerNeutralRoutes, createHttpServer } from '../../shared/admin/register-neutral-routes.js';
 import { resolveRequestSecurityPolicy } from '../../shared/admin/server.js';
 import { resolveIntegrationPolicy } from '../../core/auth/resolve-policy.js';
+import { resolveAuditSink } from '../../core/audit/resolve-sink.js';
+import { ensureEditionTag } from '../../core/audit/sink.js';
 import { embedForSearch } from '../../shared/core/embeddings.js';
 import { createJobRegistry } from '../../shared/admin/jobs/registry.js';
 import { createAllowedRootsGuard } from '../../shared/admin/jobs/allowed-roots-guard.js';
@@ -137,7 +139,7 @@ export function createLiteApp({
   adapter = createStorageAdapter(), embedQuery, jobRegistry, taskRegistry,
   assemblyLogFn, generationRuntime, askCoordinator, askCoordinators, countTokens, settingsService, jobBaseEnv,
   discoverGeminiModelsFn, runQdrantCloudProbeFn, resolveNewCollectionProfileFn, jobPolicy = LITE_JOB_POLICY,
-  securityPolicy, integrationPolicy, allowedRootsGuard, uiDir,
+  securityPolicy, integrationPolicy, allowedRootsGuard, uiDir, auditSink,
 } = {}) {
   const ollamaCapability = unavailableOllamaEmbedCapability();
   const onnxEmbedCapability = unavailableOnnxEmbedCapability();
@@ -185,7 +187,21 @@ export function createLiteApp({
   // createJobRegistry() itself has NO default spawnIndexer at all (it
   // throws a TypeError without one — see that function's own header
   // comment), so this call site must always supply one explicitly.
-  const resolvedJobRegistry = jobRegistry ?? createJobRegistry({ baseEnv: jobBaseEnv, spawnIndexer: spawnLiteIndexer });
+  // resolvedAuditSink mirrors server-full.js's createApp() own equivalent —
+  // instance-scoped, constructed once per createLiteApp() call, never a
+  // shared/module-global sink (see docs/security/
+  // audit-logging-design-2026-08.md §7/§9). When the caller supplies
+  // `auditSink` (e.g. startLite()'s own resolved sink, a test's raw capture
+  // sink, or — in principle — a sink another composition root already
+  // tagged 'full'), ensureEditionTag() (sink.js) still guarantees every
+  // event THIS composition root emits carries edition:'lite': it applies
+  // the tag itself rather than trusting the caller to have called
+  // resolveAuditSink({ edition: 'lite' }) first, and it corrects a wrong
+  // tag rather than deferring to it (review finding: the previous
+  // `auditSink ?? resolveAuditSink(...)` fallback never tagged a
+  // caller-supplied sink at all).
+  const resolvedAuditSink = auditSink ? ensureEditionTag(auditSink, 'lite') : resolveAuditSink({ edition: 'lite' });
+  const resolvedJobRegistry = jobRegistry ?? createJobRegistry({ baseEnv: jobBaseEnv, spawnIndexer: spawnLiteIndexer, auditSink: resolvedAuditSink });
   // resolvedAllowedRootsGuard, if the caller doesn't override it, is built
   // HERE from THIS composition root's own `settings` instance — mirrors
   // server-full.js's own equivalent (P1-3 fix). Instance-scoped: a Lite
@@ -206,6 +222,7 @@ export function createLiteApp({
   const router = createRouter({
     securityPolicy: resolvedSecurityPolicy,
     integrationPolicy: integrationPolicy ?? resolveIntegrationPolicy(),
+    auditSink: resolvedAuditSink,
   });
   registerNeutralRoutes(router, {
     adapter, embedQuery: resolvedEmbedQuery, cloudEmbed, jobRegistry: resolvedJobRegistry, taskRegistry, assemblyLogFn,

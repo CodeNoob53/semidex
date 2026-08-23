@@ -47,7 +47,7 @@ describe('bootstrap.js — resolves the effective ONNX CUDA runtime before apply
     const settingsServiceLine = src.indexOf('createSettingsService({ osEnv, dotenvValues })');
     const resolveCall = src.indexOf('resolveOnnxRuntimeForProcess({ settingsService, env: process.env })');
     const writeBackCall = src.indexOf('applyEnvWriteBack(settingsService)');
-    const createAppCall = src.indexOf('createApp({ generationRuntime, settingsService, jobBaseEnv, onnxEmbedCapability })');
+    const createAppCall = src.indexOf('createApp({ generationRuntime, settingsService, jobBaseEnv, onnxEmbedCapability, auditSink: resolvedAuditSink })');
     assert.ok(guardStart >= 0);
     assert.ok(settingsServiceLine > guardStart);
     assert.ok(resolveCall > settingsServiceLine, 'resolution must run after settingsService is constructed');
@@ -159,6 +159,36 @@ describe('admin/bootstrap.js entry point — bootstrapEnv() ordering (code-revie
     } finally {
       if (originalOllamaUrl === undefined) delete process.env.OLLAMA_URL; else process.env.OLLAMA_URL = originalOllamaUrl;
     }
+  });
+});
+
+describe('bootstrap.js — audit sink composition ownership and graceful shutdown (structural — see this file\'s own header comment for why bootstrap.js cannot be invoked directly with injected fakes)', () => {
+  const src = readFileSync(new URL('../../../src/admin/bootstrap.js', import.meta.url), 'utf-8');
+
+  test('constructs ONE resolvedAuditSink (edition: \'full\') and passes it explicitly into createApp() — so createApp()\'s own internal `auditSink ?? resolveAuditSink(...)` fallback never runs and never builds a second, independent instance', () => {
+    assert.match(src, /const resolvedAuditSink = resolveAuditSink\(\{\s*edition:\s*'full'\s*\}\);/);
+    const createAppCall = src.match(/createApp\(\{[^}]*\}\)/);
+    assert.ok(createAppCall, 'expected a createApp({ ... }) call');
+    assert.match(createAppCall[0], /auditSink:\s*resolvedAuditSink/);
+  });
+
+  test('gracefulShutdown() awaits resolvedAuditSink.close() inside server.close()\'s own callback, before process.exit()', () => {
+    const shutdownFn = src.match(/const gracefulShutdown = async \(\) => \{([\s\S]*?)\n\s*\};/);
+    assert.ok(shutdownFn, 'expected a `const gracefulShutdown = async () => { ... }` handler');
+    const body = shutdownFn[1];
+    assert.match(body, /if\s*\(shuttingDown\)\s*return;/, 'must guard against re-entry (idempotent shutdown)');
+    assert.match(body, /shuttingDown\s*=\s*true;/);
+    const serverCloseIdx = body.indexOf('server.close(');
+    const auditCloseIdx = body.indexOf('resolvedAuditSink.close()');
+    const exitIdx = body.indexOf('process.exit(0)');
+    assert.ok(serverCloseIdx >= 0, 'expected a server.close(...) call');
+    assert.ok(auditCloseIdx > serverCloseIdx, 'resolvedAuditSink.close() must run inside/after server.close()\'s own callback');
+    assert.ok(exitIdx > auditCloseIdx, 'process.exit(0) must come after resolvedAuditSink.close(), not race it');
+  });
+
+  test('registers gracefulShutdown for both SIGTERM and SIGINT', () => {
+    assert.match(src, /process\.on\('SIGTERM',\s*gracefulShutdown\);/);
+    assert.match(src, /process\.on\('SIGINT',\s*gracefulShutdown\);/);
   });
 });
 
