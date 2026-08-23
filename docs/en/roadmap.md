@@ -52,7 +52,7 @@ edition-specific composition belongs in separate Full and Lite roots.
 | Generation | Ollama in Full; Gemini in Lite; provider seam exists for additional backends |
 | Operations | Typed settings, collection embedding profiles, health probes, device-aware indexing, managed Windows CUDA installer |
 | Distribution | `semidex-lite` is published on npm; Full does not yet have a supported public package |
-| Public API security | Host/Origin/CSRF hardening, bearer-key auth with per-key collection scopes and rate limiting on Ask, fail-closed indexing-root allow-list, security response headers, route-aware `Cache-Control`, and an egress/SSRF policy for Qdrant and Ollama URLs all ship. The Admin surface (settings, jobs, collections, `/api/search`) is still intentionally unauthenticated and loopback-only by design, not yet by omission. |
+| Public API security | Host/Origin/CSRF hardening, bearer-key auth with per-key collection scopes and rate limiting on Ask, fail-closed indexing-root allow-list, security response headers, route-aware `Cache-Control`, an egress/SSRF policy for Qdrant and Ollama URLs, and structured local audit logging of security decisions and admin mutations all ship. The Admin surface (settings, jobs, collections, `/api/search`) is still intentionally unauthenticated and loopback-only by design, not yet by omission. |
 
 ## Shipped foundation
 
@@ -146,6 +146,16 @@ they do not by themselves prove superiority over other RAG products.
   and Docker-internal destinations remain intentionally reachable, since
   self-hosted Qdrant/Ollama on those addresses is the supported deployment
   shape.
+- Structured, local, allow-listed-field audit logging (JSONL under
+  `SEMIDEX_HOME/audit/`) for Host/Origin/CSRF denials, Ask authentication
+  accept/deny and rate-limit denial, collection-scope denial, the indexing
+  allow-list boundary and job lifecycle, and administrative mutations
+  (settings field changes, collection create/delete/schema-sync, key
+  lifecycle) — document contents, Ask question/answer text, secrets, and
+  raw filesystem paths are excluded by construction (allow-listed event
+  fields only), not redacted after the fact. See
+  `docs/security/audit-logging-design-2026-08.md` for the event taxonomy,
+  privacy model, and operator reference (location, rotation, disabling).
 
 Known limitation, by design rather than oversight: the Admin surface
 (settings, jobs, collections including `DELETE`, unversioned
@@ -180,17 +190,33 @@ Required outcome:
 ### P0. Public-facing hardening
 
 Host/Origin/CSRF defenses, Ask authentication with collection scopes and
-rate limiting, the indexing allow-list, response security/cache headers, and
-the Qdrant/Ollama egress policy have shipped (see "Public API security
-hardening" above). What remains before presenting Semidex Lite as a fully
-reusable assistant backend:
+rate limiting, the indexing allow-list, response security/cache headers,
+the Qdrant/Ollama egress policy, and structured local audit logging of
+security decisions and admin mutations have shipped (see "Public API
+security hardening" above). What remains before presenting Semidex Lite as
+a fully reusable assistant backend:
 
-- structured security audit logs for auth decisions, rejections, and
-  administrative changes, with document contents and secrets excluded by
-  construction rather than redacted after the fact;
-- an evaluation of RAG-specific threats — indirect prompt injection and
+- 🟡 an evaluation of RAG-specific threats — indirect prompt injection and
   retrieval poisoning via indexed documents — as a tested security property,
-  not only a mitigated-by-system-prompt best effort;
+  not only a mitigated-by-system-prompt best effort (see the security audit
+  §12l, 2026-08-23, and the dedicated
+  `docs/security/rag-prompt-injection-threat-model-2026-08.md` for the full
+  trust-boundary/attack-path/control inventory: a named attack corpus now
+  runs end to end against the real Ask pipeline, covering all three Ask LLM
+  calls — final answer, v2 query rewrite, v2 summary compaction — and it
+  found and closed four real gaps — evidence-header forgery via document
+  metadata (both `sourceFile`/`section` and, found separately while
+  regression-testing that fix, `nodePath`), missing untrusted-history
+  framing on the v2 query-rewrite call, and missing untrusted-data framing
+  on the v2 summary-compaction call.
+  **Not solved:** citation validation proves a citation was retrieved for
+  this request, never that it semantically supports the claim it's attached
+  to — a model that cites `[1]` next to a false statement still produces
+  ungrounded output no current control catches; document-body content (not
+  just metadata) can still visually forge a fake evidence header line, with
+  no code-level backstop. Still open: provenance tracking, a groundedness/
+  entailment check between a claim and its citation, and a systematic
+  red-team evaluation across real generation models/providers);
 - spend/token cost ceilings for billed Ask calls, distinct from the request
   *rate* limit that already ships;
 - a real session/authentication model for remote Admin access, if remote

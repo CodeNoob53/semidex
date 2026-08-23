@@ -1560,10 +1560,21 @@ any loopback, RFC1918, LAN, or Docker-internal address, which remains
 intentional (self-hosted Qdrant/Ollama on those addresses is the supported
 deployment shape), not an oversight.
 
-**7. ⚪ OPEN, unchanged — RAG-specific threats.** Indirect prompt injection
-and retrieval poisoning via indexed documents, provenance tracking, and safe
-rendering of model output. The existing Ask system prompt mitigates but does
-not eliminate this, and it is not currently tested as a security property.
+**7. 🟡 PARTIALLY IMPLEMENTED (§12l, 2026-08-23) — RAG-specific threats.**
+Originally written as "OPEN, unchanged." Indirect prompt injection and
+retrieval poisoning via indexed documents is now exercised as a tested
+security property against a named attack corpus (see §12l, and the
+dedicated `docs/security/rag-prompt-injection-threat-model-2026-08.md`,
+for the full scope, the four real gaps it found and fixed, and exactly
+what "tested" does and does not mean here) — it is not, and cannot be,
+eliminated by any text-based instruction. Two residual risks are named
+explicitly, not left implicit: citation validation proves a citation was
+retrieved for this request, never that it semantically supports the claim
+it's attached to; and document-body content (not just metadata) can still
+visually forge a fake evidence header line. Provenance tracking, a
+groundedness/entailment check, and a systematic multi-model red-team
+evaluation remain ⚪ OPEN. "Safe rendering of model output" turned out to
+already be out of scope for the server itself — see §12l for why.
 
 **8. ⚪ OPEN, unchanged — Structured security audit logs.** Auth decisions,
 rejections, and administrative changes — with document contents and secrets
@@ -1780,6 +1791,287 @@ settings-sensitive-destination-loopback-boundary.test.js` (24 tests — pure
 proving a same-host, forwarding-header-bearing request cannot write
 `QDRANT_URL`/`OLLAMA_URL`, that unrelated settings are unaffected, and that
 two app instances do not share policy state).
+
+## 12k. Structured security audit logging — IMPLEMENTED (2026-08-23)
+
+Closes the "structured security audit logs for auth decisions,
+rejections, and administrative changes" item from the roadmap's "P0.
+Public-facing hardening" track. Full design record, event taxonomy,
+privacy model, and operator reference:
+`docs/security/audit-logging-design-2026-08.md`.
+
+**What shipped.** An instance-scoped `AuditSink` contract
+(`src/core/audit/sink.js`) with a no-op default and a local JSONL
+implementation (`src/core/audit/jsonl-sink.js`, non-blocking/queued for
+the server process, a synchronous variant for the one-shot `key`
+CLI), plus an allow-listed event schema
+(`src/core/audit/event.js`) that constructs every event from named,
+typed fields only — never from a request object, exception, or settings
+snapshot that would then need after-the-fact redaction. Wired into the
+existing request pipeline (`src/shared/admin/router.js`,
+`src/core/http/authorize.js`) and administrative routes
+(`src/shared/admin/api/{jobs,settings,collections}.js`,
+`src/shared/admin/jobs/registry.js`, `src/core/auth/key-cli.js`) with no
+change to response status codes, error bodies, or the existing stage
+ordering (Host → Origin/CSRF → auth → rate limit → collection scope →
+handler) documented elsewhere in this file. Both composition roots
+(`src/admin/server-full.js`'s `createApp()`,
+`src/admin/composition/lite.js`'s `createLiteApp()`) resolve their own
+instance-scoped sink via `resolveAuditSink()`
+(`src/core/audit/resolve-sink.js`), mirroring how `resolveIntegrationPolicy()`
+is already resolved in both files — same "instance-scoped, fresh per
+composition root, no module-level mutable state" contract this document's
+own P1-1/§10 sequencing work already established for the key store and
+rate limiter.
+
+**Coverage:** Host/Origin/CSRF denial (`request.host_rejected`,
+`request.origin_rejected`), Ask bearer-key accept/deny and rate-limit
+denial (`auth.integration_accepted`, `auth.integration_denied`,
+`auth.rate_limited`), collection-scope denial
+(`authz.collection_denied` — this document's own P1-2/§12e finding),
+the `INDEX_ALLOWED_ROOTS` boundary and job lifecycle
+(`index.root_denied`, `index.job_started`, `index.job_cancel_requested`,
+`index.job_cancelled`, `index.job_succeeded`, `index.job_failed` — this
+document's own P1-3 finding), and administrative mutations
+(`admin.settings_changed` — field name + action only, never the value;
+`admin.collection_schema_synced`; `admin.collection_deleted`;
+`admin.key_created`; `admin.key_revoked`).
+
+**Privacy contract (see the design doc §3 for the full reasoning):**
+collection names are logged in full (operator-chosen resource
+identifiers, already visible throughout the existing Admin UI and job
+records — not secret content); local filesystem paths are never logged in
+full, only as a 16-hex-char one-way hash (`pathHash`); settings changes
+record the field name and set/delete action only, never the old or new
+value; bearer tokens, key digests, `QDRANT_KEY`/`GEMINI_API_KEY`, Ask
+question/answer text, and raw provider errors are never accepted as event
+fields in the first place (the schema has no field for them) — this is
+allow-listing at construction, not redaction after the fact, per the
+task's own explicit requirement. Auth-denial granularity matches
+`key-store.js`'s own deliberate anti-enumeration collapse
+(`AUTH_RESULT.INVALID` covers unknown/wrong/revoked/expired alike,
+unchanged by this work) — the audit event is exactly as coarse as the
+policy decision it records, not finer.
+
+**Explicitly not implemented, matching the task's own scope boundary:**
+no PostgreSQL or other database adapter (the `AuditSink` contract is
+designed to admit one later without changing any call site); no
+telemetry or network export; no tamper-evidence/signing; no cross-process
+log aggregation for multiple replicas. See the design doc §9 for the
+complete, undiluted limitations list.
+
+**Proof:** `tests/unit/core/audit/{event,jsonl-sink,resolve-sink}.test.js`
+(schema validation and allow-list enforcement, deterministic JSONL
+encoding, newline safety, rotation/retention, flush/shutdown, injected
+I/O-failure handling, two-instance isolation) and
+`tests/unit/security/audit-logging-behavioral.test.js` (an event is
+emitted at each of the coverage points above, through the real router/
+route-registration code paths — not a reimplementation of them — plus
+negative-sentinel tests placing a unique bearer token, a secret-looking
+settings value, and an identifying path fragment directly in the request
+inputs and proving none of them appear in any emitted record).
+
+## 12l. RAG-specific threats (indirect prompt injection / retrieval poisoning) — PARTIALLY IMPLEMENTED (2026-08-23)
+
+Addresses item 7 above and the roadmap's "P0. Public-facing hardening"
+bullet asking for "an evaluation of RAG-specific threats ... as a tested
+security property, not only a mitigated-by-system-prompt best effort."
+**Full trust-boundary/attack-path/control inventory, including exactly
+which controls are deterministic vs model-dependent, and the complete
+residual-risk list:**
+`docs/security/rag-prompt-injection-threat-model-2026-08.md`. This
+summary does not repeat that document in full — read it before treating
+this section as the complete picture, especially §5 ("residual risk"),
+which explicitly covers two things this summary only mentions in brief:
+citation validation proves retrieval membership, never semantic support
+(a compromised or merely wrong model can attach a syntactically valid
+`[1]` to a false claim and no control here catches it), and document BODY
+content (as opposed to metadata) can still visually forge a fake evidence
+header line with no code-level backstop.
+
+This does not claim prompt injection is eliminated — no purely text-based
+instruction can eliminate it, since the same channel that carries evidence
+to the model also carries any attacker text embedded in it (`prompt.js`'s
+own header comment says this explicitly, and still applies). What changed
+is that the specific defenses already in place — system/user channel
+separation, the citation and `[node: path]` allow-lists, the deterministic
+zero-evidence refusal, and the refusal-sentinel streaming guard — are now
+exercised end to end against a named attack corpus covering all three Ask
+LLM calls (final answer, v2 query rewrite, v2 summary compaction), and
+four real gaps found while building that corpus were closed.
+
+**What was already true before this pass (unchanged, just now corpus-tested
+instead of only unit-tested in isolation):** `buildSystemPrompt()`
+(`src/core/ask/prompt.js`) frames evidence as untrusted data and instructs
+the model never to follow directives found inside it; `validateCitations()`
+(`src/core/ask/citations.js`) only ever treats a citation number or
+`[node: path]` marker as valid if it matches a source that was actually
+retrieved for *this* request, so a model that is fooled by injected text
+into citing a fabricated source or referencing an out-of-scope node still
+produces output the code marks invalid/strips, never something a caller
+receives as if it were grounded; zero retrieved evidence refuses
+deterministically before the generation provider is ever called, so no
+injected instruction can reach the model at all in that case;
+`createSentinelGuard()` (`src/core/ask/coordinator.js`) prevents the
+refusal sentinel from ever reaching the client even one character at a
+time.
+
+**Four real gaps found and fixed while building the corpus:**
+
+1. **Evidence-header forgery via document metadata.** `formatSourceHeader()`
+   interpolated `source.sourceFile`/`source.section` — text that comes
+   directly from the indexed document itself (a heading's text, or, on
+   some ingestion paths, a filename) — without stripping line breaks. A
+   heading or filename containing an embedded line break could forge what
+   looked like a second `[n] (...)` header line inside a real source's own
+   header, making a fabricated evidence block visually indistinguishable
+   from a genuine one. Fixed by collapsing CR/LF and the Unicode
+   LINE SEPARATOR/PARAGRAPH SEPARATOR code points to a single space before
+   interpolation (`src/core/ask/prompt.js`, `sanitizeHeaderField()`) — a
+   structural fix, not a model instruction, so it holds regardless of what
+   any model does with the result.
+2. **No untrusted-history framing on the Ask v2 query-rewrite call.**
+   `buildSystemPrompt()`'s `hasHistory` rule already tells the main answer
+   model to treat conversation history as untrusted context — but
+   `QUERY_REWRITE_SYSTEM_PROMPT` (`src/core/ask/query-rewrite.js`), which
+   consumes the exact same summary/recentMessages input for its own
+   separate generation call, had no equivalent rule. A calling application
+   that stores and replays Semidex's own prior answers as conversation
+   history could unknowingly re-feed content an earlier turn's poisoned
+   evidence had injected into that answer back into the rewrite call — a
+   second-order/replay path for indirect prompt injection, distinct from
+   evidence poisoning the current turn's own answer, and capable of
+   silently hijacking what gets retrieved (the rewritten query has no
+   content validation beyond an emptiness/length check). Closed by adding
+   the same untrusted-context rule to `QUERY_REWRITE_SYSTEM_PROMPT`.
+3. **No untrusted-data framing on the Ask v2 summary-compaction call.**
+   `compactSummaryIfNeeded()` (`src/core/ask/summary-compaction.js`) is a
+   SEPARATE LLM call from the main answer, consuming `conversation.summary`
+   (the prior summary this same function returned on an earlier turn — and
+   which may itself already have absorbed attacker text, since an earlier
+   turn's summarization input can include an earlier turn's poisoned
+   retrieved evidence once that evidence shaped a stored assistant answer)
+   and `conversation.recentMessages` (the same caller-replayed raw history
+   §2 above already flags as untrusted). `SUMMARY_COMPACTION_SYSTEM_PROMPT`
+   had no untrusted-data framing at all before this pass — closed by adding
+   the same pattern used for the rewrite call: an explicit instruction
+   never to follow directives embedded in the prior summary or conversation
+   messages, and to output only the bounded summary text itself. Regression
+   tests use malicious prior-summary and malicious-message fixtures and
+   confirm (a) the malicious text reaches the model only as literal prompt
+   DATA, never altering the actual system prompt sent, and (b) a
+   summarizer that fully "complies" with an embedded directive is still
+   only bounded by the same output-length cap as any other output — the
+   system-prompt instruction is documented as a defense-in-depth request,
+   not a code-enforced content guarantee (see the threat model doc §3.2,
+   §5.4).
+4. **Evidence-header forgery via `nodePath` (found while regression-testing
+   fix #1, not by the corpus itself).** `formatSourceHeader()`
+   (`src/core/ask/prompt.js`) interpolated `source.nodePath` into
+   `[node: <path>]` for any structural-typed (table/code_block/checklist)
+   source unconditionally — the identical class of gap as fix #1, but for
+   `nodePath` metadata rather than `sourceFile`/`section`. A `nodePath`
+   containing an embedded line break could forge a second `[n] (...)`
+   header line the same way; a non-string `nodePath` (malformed retrieval
+   metadata) would interpolate whatever raw shape it arrived in. Unlike
+   `sourceFile`/`section`, this could NOT be fixed the same way —
+   `validateCitations()` matches a model's `[node: path]` marker against
+   `source.nodePath` by EXACT string equality, so collapsing/rewriting the
+   path would silently make a legitimately retrieved structural node
+   un-citable. Fixed instead with a renderability GATE, not a rewrite:
+   `isRenderableStructuralNode()` (`src/core/ask/prompt.js`) — one shared
+   predicate, exported from `prompt.js` and imported by `citations.js`
+   rather than each module keeping its own copy of the structural-type
+   check — decides whether a source's `nodePath` is a non-empty string free
+   of CR/LF/U+2028/U+2029. A source that fails this check never gets its
+   marker rendered in the header and never enables the node-marker
+   system-prompt instruction unless another source in the request has a
+   safe path; the same predicate also excludes it from `citations.js`'s
+   allow-list, so a marker reproducing the unsafe path verbatim (e.g.
+   forged in document BODY text by an attacker who already knows it) still
+   never validates. A safe `nodePath` continues to render byte-for-byte,
+   unchanged from before.
+
+Separately, but discovered and fixed in the same pass:
+`sanitizeHeaderField()` (`src/core/ask/prompt.js`) previously assumed
+`sourceFile`/`section` were always strings; a malformed or hand-crafted
+Qdrant payload carrying a non-string value (object, array, `null`, number,
+boolean) would throw on `.replace()`, failing the whole evidence set for
+one bad point. Hardened to coerce number/boolean safely and treat any
+other non-string shape identically to a missing field — an availability/
+robustness fix with a minor injection-surface benefit (never reflecting a
+raw object/array shape into rendered evidence text), not itself a new
+prompt-injection defense.
+
+**Proof:** `tests/unit/security/rag-retrieval-poisoning.test.js` — a named
+attack corpus (role override/jailbreak, system-prompt exfiltration attempt,
+forged fake evidence block, forged `[node:]` marker to an out-of-scope
+path, refusal-sentinel bypass instruction, sentinel spoofing, citation-
+omission request, zero-width-character obfuscation, fake embedded role
+turn) run through the real `buildEvidence()` → `buildPromptParts()`
+pipeline, plus a "compromised model" section that runs `createAskCore()`
+with a fake generation provider that behaves exactly as an attacker would
+want a successfully jailbroken model to behave, and asserts the structural
+defenses hold regardless: a forged citation number is flagged invalid, not
+trusted; a forged node marker to an out-of-scope path is stripped, never
+rendered; zero evidence never invokes the model at all; a real sentinel
+never reaches the client even when evidence tried to talk the model out of
+emitting it. The same file adds a dedicated "retrieval poisoning via
+document METADATA (nodePath)" section (fix #4) end to end through
+`buildEvidence()`: a newline-embedded `nodePath` never reaches the rendered
+prompt as a marker and never forges a second header line; a non-string
+`nodePath` never throws; and a compromised model that emits a marker
+reproducing the unsafe path verbatim through `createAskCore()` still has it
+stripped, proving the shared predicate closes the loophole in
+`validateCitations()` too, not just in `prompt.js`'s own rendering. The
+same file also adds: a "v1/v2 parity" section proving both versions share
+the one `createAskCore()` instance (via `createAskCoordinatorBundle()`)
+and therefore enforce identical final-answer citation validation, with v2
+additionally threading its `hasHistory` system-prompt rule whenever real
+conversation context is supplied; and a "residual risk, documented not
+fixed" section that proves — as a deliberately negative-outcome test, not
+a passing defense — that a forged header line embedded in document BODY
+text (as opposed to metadata) still reaches the rendered prompt
+line-initial, exactly as §5.1 of the threat model doc describes.
+Regression coverage for the four fixes lives alongside the modules they
+fixed: `tests/unit/core/ask/prompt.test.js` (header-forgery collapsing
+including the Unicode separator case, the malformed/non-string metadata
+coercion tests, and a dedicated section proving a newline, CR, U+2028/
+U+2029, or non-string `nodePath` omits the `[node: ...]` marker entirely,
+byte-for-byte preservation of a safe `nodePath`, and that the node-marker
+system instruction only turns on when at least one source in the set has a
+safe path), `tests/unit/core/ask/citations.test.js` (a source with an
+unsafe `nodePath` is never a valid citation target, for both the
+newline-embedded and non-string cases),
+`tests/unit/core/ask/query-rewrite.test.js` (the untrusted-history rule
+text, and a poisoned-history rewrite call that still produces a plain
+query string), and `tests/unit/core/ask/summary-compaction.test.js` (the
+untrusted-data rule text, a malicious prior-summary/malicious-message
+call that never alters the real system prompt, and the bounded-output
+test for a fully compliant compromised summarizer).
+
+**Explicitly still open, matching the roadmap item's remaining scope (full
+detail: threat model doc §5, §7):** citation validation proving retrieval
+membership rather than semantic support, with no groundedness/entailment
+check between a claim and its citation; document-body delimiter/header
+spoofing (§5.1 above), left unfixed on purpose because a snippet-text
+rewrite would invalidate `evidence.js`'s exact token-budget accounting;
+provenance tracking (there is no mechanism today for an operator or caller
+to distinguish "this indexed content came from a verified/trusted source"
+from "this indexed content came from an arbitrary uploaded document"); and
+a systematic evaluation across multiple real generation models/providers
+(this corpus tests the code-level defenses deterministically via a fake
+provider standing in for a worst-case compromised model; it is not a
+red-team/eval harness measuring how often a *real* model actually falls
+for a given attack). "Safe rendering of model output" was audited and
+found to already be structurally out of scope for the server itself:
+neither Ask API surface renders HTML or Markdown server-side — v1/v2 both
+return plain JSON/SSE text fields (`src/core/ask-api/v1/route.js`,
+`src/core/ask-api/v2/route.js`), and the admin UI never renders an Ask
+answer at all (Ask has no admin UI view) — so unsafe rendering of a
+model's answer, if it happens, happens in the calling application, not in
+Semidex; that responsibility is the integrating application's, the same
+way it is for any other text an LLM API returns.
 
 ## 13. Sources used
 
