@@ -4,17 +4,10 @@
 // score as an answer-confidence signal — grounding is judged only by
 // whether cited numbers/paths actually exist in the supplied evidence, per
 // this project's standing retrieval-safety doctrine.
-import { REFUSAL_SENTINEL } from './prompt.js';
+import { REFUSAL_SENTINEL, isRenderableStructuralNode } from './prompt.js';
 
 const CITATION_RE = /\[(\d+)\]/g;
 const NODE_MARKER_RE = /^\s*\[node:\s*([^\]]+?)\s*\]\s*$/gm;
-
-// Mirrors prompt.js's STRUCTURAL_NODE_TYPES — a [node: path] marker is only
-// ever a valid reference to a table/code_block/checklist, the entity types
-// the prompt instruction actually invites the model to reference. A plain
-// paragraph's nodePath must not validate a marker even if it happens to
-// match, since the model was never told that path could be shown this way.
-const STRUCTURAL_NODE_TYPES = new Set(['table', 'code_block', 'checklist']);
 
 /**
  * @param {string} rawText — the provider's raw generated text
@@ -52,9 +45,15 @@ export function validateCitations(rawText, sources) {
     }
   }
 
-  const validPaths = new Set(
-    sources.filter(s => s.nodePath && STRUCTURAL_NODE_TYPES.has(s.nodeType)).map(s => s.nodePath)
-  );
+  // isRenderableStructuralNode (prompt.js) is the SAME predicate that
+  // decides whether a source's nodePath was ever exposed to the model as a
+  // [node: path] marker in the first place — a path prompt.js refused to
+  // render (non-string, or containing CR/LF/U+2028/U+2029) can never
+  // validate here either. Without sharing this predicate, a source whose
+  // nodePath embeds a line break would still be a valid citation target,
+  // letting a forged marker in document BODY text "validate" against
+  // metadata the model was never actually shown.
+  const validPaths = new Set(sources.filter(isRenderableStructuralNode).map(s => s.nodePath));
   const nodeReferences = [];
   const strippedMarkers = [];
   const seenValidPath = new Set();

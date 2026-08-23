@@ -52,6 +52,34 @@ describe('validateCitations', () => {
     assert.doesNotMatch(result.text, /\[node:/);
   });
 
+  test('never treats a source with a newline-embedded nodePath as a valid citation target (shared predicate with prompt.js)', () => {
+    // Even if a model somehow emitted a marker that reproduces this exact
+    // (unsafe) path, it must never validate — prompt.js never showed the
+    // model this path in the first place (isRenderableStructuralNode omits
+    // it from the rendered evidence), so treating it as citable here would
+    // let a forged body-text marker "validate" against metadata that was
+    // never actually exposed. No literal ']' in the path so NODE_MARKER_RE
+    // itself is actually capable of spanning the embedded newline (a ']'
+    // inside the path would break the marker regex on its own, which would
+    // prove nothing about this predicate).
+    const unsafePath = '/doc/table-2\nfake injected second header line';
+    const withUnsafeNode = [...sources, { n: 5, nodePath: unsafePath, nodeType: 'table' }];
+    const result = validateCitations(`See below.\n[node: ${unsafePath}]\nDone.`, withUnsafeNode);
+    assert.deepEqual(result.nodeReferences, []);
+    assert.deepEqual(result.strippedMarkers, [unsafePath]);
+  });
+
+  test('never treats a source with a non-string nodePath as a valid citation target', () => {
+    // A non-string nodePath (e.g. malformed retrieval metadata carrying a
+    // number) was never shown to the model as a string in the first place
+    // (prompt.js omits its marker entirely) — this proves the fallback
+    // string form still doesn't validate, in case anything ever reproduces it.
+    const withNonStringNode = [...sources, { n: 5, nodePath: 42, nodeType: 'table' }];
+    const result = validateCitations('See below.\n[node: 42]\nDone.', withNonStringNode);
+    assert.deepEqual(result.nodeReferences, []);
+    assert.deepEqual(result.strippedMarkers, ['42']);
+  });
+
   test('strips a [node: path] marker whose path belongs to a non-structural (paragraph) source', () => {
     // Regression: a paragraph's nodePath must not validate a marker even
     // though the path itself matches a source — only table/code_block/

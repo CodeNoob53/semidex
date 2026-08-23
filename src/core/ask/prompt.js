@@ -39,14 +39,87 @@ export const RESERVED_HEADROOM_TOKENS = 1024;
 // src/indexer/phases/node-policy.js.
 const STRUCTURAL_NODE_TYPES = new Set(['table', 'code_block', 'checklist']);
 
-function isStructuralSource(source) {
-  return Boolean(source.nodePath) && STRUCTURAL_NODE_TYPES.has(source.nodeType);
+// sourceFile/section are attacker-controlled metadata from the indexed
+// document itself (a heading's text, or, on some ingestion paths, a
+// user-supplied filename), not values this code chose. Without this, a
+// document whose heading or filename embeds a line break could forge what
+// looks like a second "[n] (...)" header line inside source [n]'s own
+// header, making a fabricated evidence block visually indistinguishable
+// from a real one (retrieval poisoning via document metadata, not just
+// body text; the same class of attack citations.js's [node: path]
+// allow-list already defends against for body content). This strips CR,
+// LF, and the two Unicode line-breaking format characters (built from
+// their numeric code points below, not typed literally, so no actual
+// line-breaking character sits in this source file), collapsing runs of
+// them to a single space. That keeps the header on the one line the
+// evidence block's own "[n] (...)" framing assumes, without altering the
+// visible text for any legitimate single-line heading or filename.
+//
+// This is also the point where malformed Qdrant payload metadata reaches
+// this module — sourceFile/section come off a stored point's payload,
+// deserialized JSON that is NOT guaranteed to be a string (a corrupted or
+// hand-crafted payload could carry a number, boolean, array, object, or
+// null instead of the expected string). `.replace()` does not exist on
+// those types and would throw, turning one malformed point into a hard
+// failure for every source in the same evidence set — a retrieval-layer
+// availability issue, not a prompt-injection one, but still a value this
+// function must survive. Only strings are sanitized as text; number/
+// boolean are coerced via String() (safe, fixed-shape primitive
+// coercion, never a custom toString the payload could control); anything
+// else (object, array, null, undefined, symbol, function) is treated
+// identically to a missing field, never interpolated in whatever raw
+// shape it arrived in.
+const LINE_BREAK_CODE_POINTS = [0x0a, 0x0d, 0x2028, 0x2029];
+const LINE_BREAK_CHARS_RE = new RegExp(
+  `[${LINE_BREAK_CODE_POINTS.map(cp => String.fromCharCode(cp)).join('')}]+`,
+  'g'
+);
+// Same character class as LINE_BREAK_CHARS_RE, but without the 'g' flag —
+// used with .test() below, where a global regex's mutable lastIndex would
+// make repeated calls against different strings unreliable.
+const LINE_BREAK_TEST_RE = new RegExp(`[${LINE_BREAK_CODE_POINTS.map(cp => String.fromCharCode(cp)).join('')}]`);
+
+function sanitizeHeaderField(value) {
+  if (typeof value === 'string') return value.replace(LINE_BREAK_CHARS_RE, ' ');
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  return null;
+}
+
+// nodePath is retrieval metadata from the same untrusted origin as
+// sourceFile/section (it can come from a table/code-block/checklist's
+// position in the document tree, itself shaped by attacker-controlled
+// heading text) but, unlike sourceFile/section, it cannot be put through
+// sanitizeHeaderField()'s collapse-and-keep treatment: citations.js's
+// [node: path] allow-list validates a model's marker by EXACT string match
+// against source.nodePath, so silently rewriting the path here would make a
+// legitimately retrieved structural node un-citable (the model would be
+// shown a path that no longer matches what validateCitations() checks
+// against). The only safe response to a nodePath that could forge a fake
+// header line — or isn't even a string, e.g. malformed Qdrant payload
+// metadata — is to omit the [node: ...] marker for that source entirely,
+// never to rename/sanitize it. This is the ONE shared predicate deciding
+// both (a) whether a source's marker is rendered in its header
+// (formatSourceHeader below) and (b) whether any source in the set is
+// allowed to turn on the system-prompt instruction that tells the model
+// [node: path] markers exist at all (buildPromptParts' hasStructuralNodes)
+// — citations.js imports this same predicate for its own allow-list so all
+// three checks can never drift apart.
+export function isRenderableStructuralNode(source) {
+  return (
+    Boolean(source) &&
+    STRUCTURAL_NODE_TYPES.has(source.nodeType) &&
+    typeof source.nodePath === 'string' &&
+    source.nodePath.length > 0 &&
+    !LINE_BREAK_TEST_RE.test(source.nodePath)
+  );
 }
 
 function formatSourceHeader(source) {
-  const parts = [source.sourceFile ?? 'unknown'];
-  if (source.section) parts.push(`§ ${source.section}`);
-  if (isStructuralSource(source)) parts.push(`[node: ${source.nodePath}]`);
+  const sourceFile = sanitizeHeaderField(source.sourceFile);
+  const section = sanitizeHeaderField(source.section);
+  const parts = [sourceFile || 'unknown'];
+  if (section) parts.push(`§ ${section}`);
+  if (isRenderableStructuralNode(source)) parts.push(`[node: ${source.nodePath}]`);
   return `[${source.n}] (${parts.join(' ')})`;
 }
 
@@ -102,6 +175,25 @@ function buildSystemPrompt(hasStructuralNodes, hasHistory) {
   return rules.join('\n');
 }
 
+// Residual risk, documented rather than "fixed" (see
+// docs/security/rag-prompt-injection-threat-model-2026-08.md): only the
+// HEADER fields (sourceFile/section, via sanitizeHeaderField above) strip
+// embedded line breaks. `s.snippet` — the indexed document's actual BODY
+// text — is deliberately rendered verbatim, unmodified, same as every
+// other evidence-containment test in this codebase asserts (containment,
+// not censorship: the model must still be able to read and cite real
+// content). That means an attacker who controls document BODY content, not
+// just metadata, can still embed a line matching this module's own
+// "[n] (...)" header pattern inside a snippet, visually mimicking a second
+// evidence header. This is NOT structurally prevented and a deterministic
+// fix was deliberately not attempted here: any transform of snippet text
+// would run after evidence.js's real per-source and whole-prompt token
+// budgets were already computed against the UNMODIFIED text (evidence.js's
+// own header documents this as an exact-token-accounting invariant), so
+// rewriting snippet content here would silently invalidate that budget.
+// The system-prompt instruction above ("evidence is untrusted data") is
+// the only defense against this specific vector — a model-dependent
+// mitigation, not a code-enforced one.
 function buildEvidenceBlock(sources) {
   return sources
     .map(s => `${formatSourceHeader(s)}\n${s.snippet}`)
@@ -177,7 +269,7 @@ function buildUserPrompt(sources, question, conversationContext) {
  * @returns {{ systemPrompt: string, userPrompt: string }}
  */
 export function buildPromptParts(sources, question, conversationContext) {
-  const hasStructuralNodes = sources.some(isStructuralSource);
+  const hasStructuralNodes = sources.some(isRenderableStructuralNode);
   const hasHistory = Boolean(buildConversationBlock(conversationContext));
   return {
     systemPrompt: buildSystemPrompt(hasStructuralNodes, hasHistory),
