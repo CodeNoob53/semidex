@@ -296,6 +296,43 @@ Add code-aware ingestion and retrieval without creating a separate product:
 - code-specific retrieval evaluation;
 - repository change tracking and incremental reindexing.
 
+### Agentic research and MCP facade
+
+Extend Semidex from a fixed Ask pipeline into a bounded retrieval/research
+capability without turning ordinary Ask requests into an implicit agent loop:
+
+- expose a narrow MCP wrapper for Ask and a separate high-level research tool,
+  while retaining the existing low-level retrieval tools for callers that want
+  to orchestrate retrieval themselves;
+- introduce a versioned research API distinct from Ask v2 and from any future
+  stateful conversation API;
+- model research as an explicit, typed task graph with planning, dependency
+  tracking, bounded decomposition, execution, evidence evaluation, optional
+  replanning, and final synthesis;
+- derive each task's context envelope from the active model's verified context
+  window and reserve space for system instructions, selected tool schemas,
+  output, and a safety margin;
+- execute subtasks in isolated contexts and return compact findings, citations,
+  unresolved questions, and usage counters to parent tasks instead of copying
+  full transcripts upward;
+- allow read-only navigation through collection summaries, inventory, skeleton
+  nodes, search, coherent section context, and canonical entities. Skeleton and
+  generated summaries remain navigation aids, never final answer evidence;
+- share one request/spend ledger across planning, tool use, replanning, and
+  synthesis, with explicit ceilings for task count, graph depth, tool calls,
+  retrieved tokens, generation calls, reserved tokens, and wall-clock time;
+- add checkpoint/resume interfaces from the start. The first implementation may
+  keep job state process-local, but durable storage must remain an adapter owned
+  and configured by the deployer;
+- keep the research surface read-only and prevent recursive calls back into Ask
+  or research itself. Plans and progress may be exposed as structured state,
+  but hidden chain-of-thought must not become an API response or audit record.
+
+Evaluate a small native deterministic coordinator against an established graph
+runtime before selecting a dependency. Prefer explicit routing for predictable
+steps; use model-selected branching only where evaluation demonstrates that the
+additional latency and token cost improve research quality.
+
 ### Durable conversation and agent memory
 
 Ask v2 deliberately leaves persistence to the caller. A future stateful layer
