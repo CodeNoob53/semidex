@@ -690,7 +690,7 @@ describe('SettingsService — ASK_MODEL default agrees with the generation runti
         providerConfig = config;
         return {
           name: () => config.backend,
-          capabilities: () => ({ streaming: true, clientAbort: true, upstreamCancellation: false }),
+          capabilities: () => ({ streaming: true, clientAbort: true, upstreamCancellation: false, hardOutputCap: true }),
           ready: async () => ({ ok: true, model: config.options.model, numCtx: config.options.askNumCtx }),
           generate: async () => ({ text: '' }),
         };

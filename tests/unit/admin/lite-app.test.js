@@ -75,7 +75,7 @@ describe('createLiteApp() + Lite settings wrapper — GET /api/settings', () => 
       assert.ok(keys.includes('HYBRID_PREFETCH_LIMIT'));
       assert.ok(!keys.includes('OLLAMA_URL'));
       assert.ok(!keys.includes('ONNX_EXECUTION_PROVIDER'));
-      assert.ok(keys.length < 30);
+      assert.ok(keys.length < 40);
     });
   });
 

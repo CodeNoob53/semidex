@@ -52,6 +52,14 @@ export const ERROR_CODES = Object.freeze({
   GENERATION_FAILED: 'generation_failed',
   STREAM_ABORTED: 'stream_aborted',
   INTERNAL_ERROR: 'internal_error',
+  // Spend/token budget ceiling (see
+  // docs/security/ask-spend-token-budget-design-2026-08.md).
+  // BUDGET_EXCEEDED is transient aggregate exhaustion;
+  // BUDGET_LIMIT_EXCEEDED is a structural request/key ceiling;
+  // BUDGET_UNENFORCEABLE is the fail-closed provider-capability case.
+  BUDGET_EXCEEDED: 'budget_exceeded',
+  BUDGET_LIMIT_EXCEEDED: 'budget_limit_exceeded',
+  BUDGET_UNENFORCEABLE: 'budget_unenforceable',
 });
 
 // Whether a client should consider retrying the SAME request useful.
@@ -67,7 +75,14 @@ const RETRYABLE_CODES = new Set([
   ERROR_CODES.RETRIEVAL_FAILED,
   ERROR_CODES.GENERATION_FAILED,
   ERROR_CODES.INTERNAL_ERROR,
+  // Transient per-key aggregate exhaustion carries Retry-After. Structural
+  // per-request/key ceilings use BUDGET_LIMIT_EXCEEDED and are deliberately
+  // absent from this retryable set.
+  ERROR_CODES.BUDGET_EXCEEDED,
 ]);
+// BUDGET_UNENFORCEABLE is deliberately NOT retryable: it reflects the
+// configured provider's own capability, which an identical retry cannot
+// change — only an operator reconfiguring the provider can.
 // EMBEDDING_UNRESOLVED/EMBEDDING_UNSUPPORTED are deliberately NOT retryable
 // (absent from this set) — the same collection identity/execution-mode
 // problem will still be there on an immediate retry; the collection needs

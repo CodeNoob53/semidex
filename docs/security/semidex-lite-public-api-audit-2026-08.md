@@ -49,7 +49,7 @@ and proof):**
 | No Origin/CSRF enforcement | 🟢 FIXED, every route — P1-1, §12b |
 | No authentication anywhere | 🟡 FIXED for `POST /api/v1/ask`/`v2/ask` only (bearer keys); the Admin surface (settings, jobs, collections incl. `DELETE`, `POST /api/search`, schema sync, Qdrant Cloud probe, static UI) remains exactly as originally audited — no authentication at all, by design — P1-1 residual, §12d, §12e |
 | No collection scoping | 🟡 FIXED for Ask v1/v2 only (per-key `collections` scope); every Admin read/write route still performs zero collection-level scoping — P1-2 STATUS |
-| No rate limiting anywhere | 🟡 FIXED for Ask v1/v2 only (per-key token bucket); the Admin surface, including `POST /api/search`, still has none; no route anywhere has a spend/token-budget ceiling — P2-1 STATUS |
+| No rate limiting anywhere | 🟡 FIXED for Ask v1/v2 only (per-key token bucket **and** a per-request/per-key spend-token-budget ceiling, §12m); the Admin surface, including `POST /api/search`, still has no rate limit of any kind — P2-1 STATUS |
 | Unscoped local filesystem indexing | 🟢 FIXED, `INDEX_ALLOWED_ROOTS` fail-closed — P1-3 |
 | `settings.json` default OS permissions | 🟢 FIXED on POSIX (0o600, fail-closed pre-rename); Windows unaddressed by design — P2-2 STATUS |
 | No security response headers | 🟢 FIXED, every response, Full and Lite — §12h |
@@ -713,6 +713,34 @@ arithmetic, per-key override validation, lazy sweep) and
 `tests/unit/security/integration-rate-limit-http.test.js` (429 + Retry-After
 over a real HTTP round-trip, per-key bucket isolation, stage ordering
 relative to authentication and collection authorization).
+
+### UPDATE (§12m, 2026-08-24) — the spend/token-cost half of this finding is now also closed for the Integration surface
+
+The original finding's title names two distinct concerns: request **rate**
+(closed above, 2026-08-18/19) and **cost** — "one Ask v2 request may invoke
+the generation provider for query rewriting, the final answer, and summary
+compaction," so bounding request count alone does not bound billable work.
+That second half is now closed too: a request-scoped ledger
+(`src/core/ask/budget-ledger.js`) shared across every generation call one
+Ask v1/v2 request can make, a provider-neutral hard output-token cap
+mapped to each backend's official request option (Gemini
+`generationConfig.maxOutputTokens`, Ollama `options.num_predict`), and a
+per-key aggregate rolling token budget (`src/core/auth/token-budget.js`,
+structurally mirroring this same rate limiter) layered on top of the
+existing per-key identity, independent of and unaffected by it. Full
+design record, enforcement order, and named MVP limitations (process-local
+only — resets on restart, not shared across replicas):
+`docs/security/ask-spend-token-budget-design-2026-08.md`.
+
+**Not closed by this either:** same admin-surface gap as above —
+`/api/search` and the rest of the Admin surface never invoke a generation
+provider, so a spend ceiling has no meaning for them, but they still carry
+no request-rate limit of any kind.
+
+**Proof:** `tests/unit/security/token-budget.test.js`,
+`tests/unit/security/ask-budget-ledger.test.js`,
+`tests/unit/security/ask-spend-token-budget-http.test.js`,
+`tests/unit/core/ask/budget-wiring.test.js`.
 
 ### P2-2 — `settings.json` written with default OS file permissions; no
 `mode` hardening.
@@ -1536,14 +1564,28 @@ Component-aware win32/UNC semantics are covered by platform-independent
 tests; residual TOCTOU is documented in P1-3 rather than hidden behind a
 sandbox claim.
 
-**5. 🟡 PARTIALLY SHIPPED — Per-key and per-route limits.** Per-key
-**request-rate** limiting (token bucket, `429` + `Retry-After`, defaults 30
-req/min burst 5, overridable per key) shipped for the Integration surface
-only (P2-1's STATUS update, §12e's correction). Still ⚪ OPEN: any **token
-budget or spend ceiling** (what OWASP API4's own worked example is actually
-about — see §13), and any rate limiting at all for the **Admin surface**
-(`/api/search` included — it has none). Ask's single-flight lock remains a
-concurrency guarantee only, never a rate or spend one.
+**5. 🟡 PARTIALLY SHIPPED (§12m, 2026-08-24) — Per-key and per-route
+limits.** Per-key **request-rate** limiting (token bucket, `429` +
+`Retry-After`, defaults 30 req/min burst 5, overridable per key) shipped
+for the Integration surface only (P2-1's STATUS update, §12e's
+correction). A **token budget/spend ceiling** — what OWASP API4's own
+worked example is actually about — has now also shipped for the
+Integration surface: a per-request ledger shared across every generation
+call one Ask request can make, a provider-neutral hard output-token cap
+mapped to each backend's official option, and a per-key aggregate rolling
+token budget (`key add --token-budget-per-hour/--token-budget-burst`),
+process-local, layered on top of the existing rate limiter without
+changing it. See §12m and
+`docs/security/ask-spend-token-budget-design-2026-08.md` for the full
+design and named MVP limitations (process-local, not durable/distributed).
+Still ⚪ OPEN: any rate limiting or spend ceiling at all for the **Admin
+surface** (`/api/search` included — it has none; it never invokes a
+generation provider, so a spend ceiling has no meaning there, but a
+request-rate limit still would). Ask's single-flight lock remains a concurrency guarantee only, never a
+rate or spend one — unchanged by this update. The spend ceiling's own
+reservation check runs *inside* the lock's critical section (same as
+every other askCore step), so it still costs one generation "slot" to be
+denied; it is layered on top of the lock, not a replacement for it.
 
 **6. 🟡 PARTIALLY SHIPPED (§12j, 2026-08-21) — SSRF/egress restrictions.**
 Originally written as "OPEN, unchanged"; that went stale the same day this
@@ -2072,6 +2114,101 @@ answer at all (Ask has no admin UI view) — so unsafe rendering of a
 model's answer, if it happens, happens in the calling application, not in
 Semidex; that responsibility is the integrating application's, the same
 way it is for any other text an LLM API returns.
+
+## 12m. Ask spend/token budget ceiling — IMPLEMENTED (2026-08-24)
+
+Closes the cost half of P2-1 (§7) and item 5 of the recommendations status
+matrix (§12c) for the Integration surface: request **rate** was already
+bounded (§12e/P2-1 STATUS, 2026-08-18/19), but the billable generation
+**work** a single accepted request can cause was not — one
+`POST /api/v2/ask` request can invoke the generation provider up to three
+times (query rewrite, final answer, summary compaction), and nothing
+previously bounded how much output any one of those calls could produce or
+how much a bearer key could spend in aggregate over time.
+
+**What shipped:**
+
+- **One request-scoped ledger** (`src/core/ask/budget-ledger.js`),
+  constructed per HTTP request and threaded through every generation call
+  that request can make — v1/v2's shared final-answer call
+  (`src/core/ask/coordinator.js`), v2's query rewrite
+  (`src/core/ask/query-rewrite.js`), v2's summary compaction
+  (`src/core/ask/summary-compaction.js`). Reservation happens **before**
+  each provider call with a conservative worst-case estimate (measured
+  input tokens + that call's hard output cap); reconciliation happens
+  **after**, and only ever refunds — never charges more than reserved,
+  never un-denies a prior rejection, and never refunds at all when
+  provider-reported usage is absent or ambiguous.
+- **A provider-neutral hard output-token cap**
+  (`options.maxOutputTokens` on the `GenerationProvider` contract), mapped
+  to each backend's own official request-time option: Gemini
+  `generationConfig.maxOutputTokens`, Ollama `options.num_predict`. A
+  configured provider that cannot enforce this
+  (`capabilities().hardOutputCap !== true`) causes the call to be denied
+  closed, never run uncapped — no shipped provider is in that state today,
+  but the check exists for any future one. A local stream cutoff was
+  deliberately never treated as a substitute spend control, since the
+  provider may already have generated (and, for Gemini specifically,
+  already billed) more output than this process chooses to keep reading.
+- **A per-key aggregate rolling token budget**
+  (`src/core/auth/token-budget.js`), structurally mirroring
+  `rate-limiter.js` (same clock-injection/atomicity/lazy-sweep contract,
+  generalized from a fixed 1-unit cost to a caller-supplied variable
+  cost), layered onto the existing bearer-key identity independent of the
+  request-rate limiter. Configurable per key
+  (`key add --token-budget-per-hour/--token-budget-burst`, same
+  optional/null-default/fail-closed-on-malformed contract as
+  `--requests-per-minute/--burst`); a legacy key predating this feature
+  gets the real, finite tracker default, never "unlimited."
+- **One typed error-code family** (`budget_exceeded` 429 retryable,
+  `budget_limit_exceeded` 429 not retryable, `budget_unenforceable` 503 not
+  retryable), identical in `v1/contract.js`
+  and `v2/contract.js`. A budget denial for the shared final-answer call
+  always surfaces as a clean pre-stream JSON error — never a partial SSE
+  stream that starts and then fails — because the `sources` SSE event is
+  now only emitted after the reservation succeeds. v2's rewrite/compaction
+  denials degrade silently, exactly like an existing timeout already did;
+  only the final-answer call's denial fails the request.
+- **One new allow-listed audit event type**,
+  `budget.reservation_denied` (`src/core/audit/event.js`), following the
+  exact same allow-list/fail-closed/no-success-event pattern as
+  `auth.rate_limited`.
+
+**Process-local, not durable — named explicitly.** The per-key aggregate
+tracker's state is an in-memory `Map`, exactly like the request-rate
+limiter's own buckets: it resets on process restart and is never shared
+across replicas. This is a local-process guard against runaway per-key
+spend within one running instance, not a durable account quota or
+distributed billing system — a multi-replica deployment gets, in effect,
+`replicaCount × tokenBudgetBurst` of real aggregate headroom per key, not
+one globally enforced ceiling. A PostgreSQL/Redis-backed distributed quota
+service was an explicit non-goal.
+
+**Not closed by this:** the Admin surface (`/api/search` included) never
+invokes a generation provider, so a spend ceiling has no meaning there —
+but it still has no request-rate limit of any kind either (unchanged gap,
+same as P2-1's own residual). Ask's single-flight lock is unaffected and
+remains a concurrency guarantee only; the spend ceiling's reservation
+check runs inside that lock's own critical section, layered on top of it,
+not a replacement for it.
+
+**Full design record:**
+`docs/security/ask-spend-token-budget-design-2026-08.md` (enforcement
+order, the exact reservation/reconciliation contract, provider capability
+differences, legacy-key policy, the full error-contract rationale,
+configuration surface, audit fields, and every named MVP limitation).
+
+**Proof:** `tests/unit/security/token-budget.test.js` (tracker atomicity,
+per-key/per-instance isolation, legacy defaults),
+`tests/unit/security/ask-budget-ledger.test.js` (reserve/reconcile
+contract, per-request ceilings, conservative refund rule),
+`tests/unit/core/ask/budget-wiring.test.js` (rewrite/compaction budget
+wiring in isolation), `tests/unit/security/ask-spend-token-budget-http.test.js`
+(full HTTP path: v1 answer consumption, v2 shared-ledger denial ordering,
+retry non-bypass, the stable typed failure shape, audit negative
+sentinels, Full/Lite and v1/v2 parity), and
+`tests/unit/security/integration-key-store.test.js`'s new "Per-key token
+budget" describe block (legacy/malformed persisted-field policy).
 
 ## 13. Sources used
 

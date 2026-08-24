@@ -28,7 +28,7 @@ describe('createGeminiProvider', () => {
     // config.abortSignal is SDK-documented as client-only (see
     // gemini-provider.js's own capabilities() comment); only Ollama's
     // fetch-based abort genuinely tears down the upstream connection.
-    assert.deepEqual(provider.capabilities(), { streaming: true, clientAbort: true, upstreamCancellation: false });
+    assert.deepEqual(provider.capabilities(), { streaming: true, clientAbort: true, upstreamCancellation: false, hardOutputCap: true });
   });
 
   test('never reads process.env directly', async () => {

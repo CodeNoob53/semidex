@@ -292,6 +292,9 @@ generation supports a second backend.
 | `GENERATION_DEVICE` | `auto` | Ollama-only hardware device policy. Ignored for `gemini` — a cloud API has no local device to select. |
 | `OLLAMA_URL` | `http://localhost:11434` | Ollama base URL, used only when `SEMIDEX_GENERATION_BACKEND=ollama`. Still used for `EMBED_MODEL`/`CONTEXT_MODEL`/`TAG_MODEL` discovery regardless of the Ask backend. |
 | `GEMINI_API_KEY` | unset | API key for the Gemini backend. Environment-only — resolved with the same OS env > `.env` > default precedence as every other setting, but **never** written to `settings.json` and never displayed by the Settings UI beyond a configured/missing indicator. Get one at [aistudio.google.com/apikey](https://aistudio.google.com/apikey). |
+| `ASK_MAX_OUTPUT_TOKENS` | `1024` | Hard ceiling on output tokens for the final Ask answer, enforced by the provider itself (Gemini `maxOutputTokens` / Ollama `num_predict`) — an **estimated/reserved** budget, not exact billing. See [Ask spend/token budget ceiling](#ask-spendtoken-budget-ceiling) below. |
+| `ASK_MAX_CALLS_PER_REQUEST` | `5` | Maximum billable generation-provider calls one Ask v1/v2 request may reserve (v2's own worst case is 3: query rewrite, answer, summary compaction). |
+| `ASK_MAX_RESERVED_TOKENS_PER_REQUEST` | `60000` | Maximum total estimated/reserved tokens (input + allowed output, summed across every call) one Ask v1/v2 request may reserve, independent of the per-key aggregate budget below. |
 
 Resolved values and their provenance (which layer supplied each one) are
 available at `GET /api/generation/status`. Installed/available models for the
@@ -304,6 +307,37 @@ A missing `GEMINI_API_KEY`, an invalid/unavailable model, or an unreachable
 Ollama instance all report `ready: false` with a reason — Ask returns a
 pre-stream `503` in that state; semidex itself never crashes or fails to
 start over a generation-backend misconfiguration.
+
+### Ask spend/token budget ceiling
+
+`POST /api/v1/ask` and `POST /api/v2/ask` are protected by a request-scoped
+spend/token ledger, distinct from the per-key request-**rate** limit
+(`docs/security/integration-api-auth-design-note.md`): request rate bounds
+how often a key may call Ask; this ledger bounds how much billable
+generation *work* each accepted request — and each key over time — may
+cause. It is **estimated and reserved**, never exact billing; see
+`docs/security/ask-spend-token-budget-design-2026-08.md` for the full
+design record.
+
+The three settings in the table above are the operator-tunable
+**request-shaped** defaults every key shares. The **per-key aggregate**
+rolling token budget is not a global setting — it lives on the bearer key
+itself, set at creation time:
+
+```bash
+semidex-lite key add --name my-integration --collection docs \
+  --token-budget-per-hour 200000 --token-budget-burst 40000
+```
+
+(`npm run key -- add ...` for Full.) Both flags are optional; an omitted
+value uses the documented default (200,000 tokens/hour, burst 40,000) —
+never "unlimited." `key list` shows each key's effective token budget
+alongside its rate limit.
+
+This is a **process-local MVP guard**: the aggregate tracker's state is
+in-memory and resets on restart, and is not shared across replicas — it is
+not a durable account quota or a billing system. See the design doc's own
+"MVP limitations" section for the full list.
 
 ### TAG_GEN
 

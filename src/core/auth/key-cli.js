@@ -11,6 +11,11 @@ import {
   MIN_REQUESTS_PER_MINUTE, MAX_REQUESTS_PER_MINUTE, MIN_BURST, MAX_BURST,
   isValidLimitValue,
 } from './rate-limiter.js';
+import {
+  DEFAULT_TOKEN_BUDGET_PER_HOUR, DEFAULT_TOKEN_BUDGET_BURST_TOKENS,
+  MIN_TOKEN_BUDGET_PER_HOUR, MAX_TOKEN_BUDGET_PER_HOUR, MIN_TOKEN_BUDGET_BURST_TOKENS, MAX_TOKEN_BUDGET_BURST_TOKENS,
+  isValidTokenBudgetValue,
+} from './token-budget.js';
 import { createNoopAuditSink, recordAuditEvent } from '../audit/sink.js';
 import { AUDIT_EVENT_TYPE } from '../audit/event.js';
 
@@ -18,22 +23,33 @@ const USAGE = `Usage:
   <cli> key add --name <name> --collection <name> [--collection <name>...]
                 [--operation generate] [--expires <ISO-8601 date | duration>]
                 [--requests-per-minute <n>] [--burst <n>]
+                [--token-budget-per-hour <n>] [--token-budget-burst <n>]
   <cli> key list
   <cli> key revoke <id>
 
 Options:
-  --name                Human-readable label for the key (required).
-  --collection          Collection this key may access. Repeatable. Required.
-                         Use --collection "*" to grant ALL collections explicitly.
-  --operation            Operation scope. Repeatable. Defaults to "generate".
-                         Supported: ${SUPPORTED_OPERATIONS.join(', ')}.
-  --expires              Expiry as an ISO-8601 date (2027-01-01), an ISO instant, or a
-                         duration such as 30d, 12h, 90m. Omit for no expiry.
-  --requests-per-minute  Sustained rate limit for this key, an integer in
-                         [${MIN_REQUESTS_PER_MINUTE}, ${MAX_REQUESTS_PER_MINUTE}]. Omit for the default
-                         (${DEFAULT_REQUESTS_PER_MINUTE}/min).
-  --burst                Burst allowance (token bucket capacity) for this key,
-                         an integer in [${MIN_BURST}, ${MAX_BURST}]. Omit for the default (${DEFAULT_BURST}).`;
+  --name                 Human-readable label for the key (required).
+  --collection           Collection this key may access. Repeatable. Required.
+                          Use --collection "*" to grant ALL collections explicitly.
+  --operation             Operation scope. Repeatable. Defaults to "generate".
+                          Supported: ${SUPPORTED_OPERATIONS.join(', ')}.
+  --expires               Expiry as an ISO-8601 date (2027-01-01), an ISO instant, or a
+                          duration such as 30d, 12h, 90m. Omit for no expiry.
+  --requests-per-minute   Sustained rate limit for this key, an integer in
+                          [${MIN_REQUESTS_PER_MINUTE}, ${MAX_REQUESTS_PER_MINUTE}]. Omit for the default
+                          (${DEFAULT_REQUESTS_PER_MINUTE}/min).
+  --burst                 Burst allowance (token bucket capacity) for this key,
+                          an integer in [${MIN_BURST}, ${MAX_BURST}]. Omit for the default (${DEFAULT_BURST}).
+  --token-budget-per-hour Sustained Ask spend/token ceiling for this key
+                          (estimated+reserved tokens across all Ask v1/v2
+                          generation calls), an integer in
+                          [${MIN_TOKEN_BUDGET_PER_HOUR}, ${MAX_TOKEN_BUDGET_PER_HOUR}]. Omit for the
+                          default (${DEFAULT_TOKEN_BUDGET_PER_HOUR}/hour). Process-local, resets on
+                          restart — see the token budget design doc.
+  --token-budget-burst    Burst allowance (token bucket capacity) for the
+                          spend/token ceiling above, an integer in
+                          [${MIN_TOKEN_BUDGET_BURST_TOKENS}, ${MAX_TOKEN_BUDGET_BURST_TOKENS}]. Omit for the default
+                          (${DEFAULT_TOKEN_BUDGET_BURST_TOKENS}).`;
 
 /**
  * Parses a `--requests-per-minute`/`--burst` flag value into an integer
@@ -121,7 +137,8 @@ function formatRow(key) {
     // Effective limits (toPublicKey() already resolves a legacy/unset key
     // to the default) — never the raw stored null, so "what does this key
     // actually do" never requires cross-referencing the default separately.
-    `${key.requestsPerMinute}/min burst ${key.burst}`,
+    `${key.requestsPerMinute}/min burst ${key.burst}`.padEnd(22),
+    `${key.tokenBudgetPerHour} tok/hr burst ${key.tokenBudgetBurst}`,
   ].join(' ');
 }
 
@@ -160,6 +177,8 @@ export function runKeyCommand(argv, {
         const operations = flags.operation.length > 0 ? flags.operation : ['generate'];
         const requestsPerMinute = parseLimitFlag(flags['requests-per-minute'], 'requests-per-minute', MIN_REQUESTS_PER_MINUTE, MAX_REQUESTS_PER_MINUTE);
         const burst = parseLimitFlag(flags.burst, 'burst', MIN_BURST, MAX_BURST);
+        const tokenBudgetPerHour = parseLimitFlag(flags['token-budget-per-hour'], 'token-budget-per-hour', MIN_TOKEN_BUDGET_PER_HOUR, MAX_TOKEN_BUDGET_PER_HOUR);
+        const tokenBudgetBurst = parseLimitFlag(flags['token-budget-burst'], 'token-budget-burst', MIN_TOKEN_BUDGET_BURST_TOKENS, MAX_TOKEN_BUDGET_BURST_TOKENS);
         const { key, token } = store.createKey({
           name: flags.name,
           collections: flags.collection,
@@ -167,6 +186,8 @@ export function runKeyCommand(argv, {
           expiresAt,
           requestsPerMinute,
           burst,
+          tokenBudgetPerHour,
+          tokenBudgetBurst,
         });
         // keyId + the operator-assigned name only — never the token or its
         // digest (docs/security/audit-logging-design-2026-08.md §3).
@@ -180,6 +201,7 @@ export function runKeyCommand(argv, {
         out(`  Operations:  ${key.operations.join(', ')}`);
         out(`  Expires:     ${key.expiresAt ?? 'never'}`);
         out(`  Rate limit:  ${key.requestsPerMinute}/min, burst ${key.burst}`);
+        out(`  Token budget: ${key.tokenBudgetPerHour}/hour, burst ${key.tokenBudgetBurst} (estimated Ask spend/token ceiling; process-local, resets on restart)`);
         out('');
         out('  ┌─────────────────────────────────────────────────────────────┐');
         out('  │  COPY THIS TOKEN NOW — IT IS NOT STORED AND CANNOT BE       │');
@@ -203,7 +225,7 @@ export function runKeyCommand(argv, {
           return 0;
         }
         // Never prints a digest or a token — only public metadata.
-        out(['ID'.padEnd(18), 'STATUS'.padEnd(8), 'NAME'.padEnd(24), 'COLLECTIONS'.padEnd(28), 'OPERATIONS'.padEnd(12), 'RATE LIMIT'].join(' '));
+        out(['ID'.padEnd(18), 'STATUS'.padEnd(8), 'NAME'.padEnd(24), 'COLLECTIONS'.padEnd(28), 'OPERATIONS'.padEnd(12), 'RATE LIMIT'.padEnd(22), 'TOKEN BUDGET'].join(' '));
         for (const key of keys) out(formatRow(key));
         return 0;
       }

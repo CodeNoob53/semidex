@@ -13,6 +13,7 @@ import { sanitiseErrorMessage } from '../../../shared/core/doctor-checks.js';
 import { parseAskRequestV2 } from './request.js';
 import { AUDIENCE, OPERATION, COST_CLASS, COLLECTION_SOURCE } from '../../http/route-audience.js';
 import { authorizeCollectionAccess } from '../../http/authorize.js';
+import { createAskRequestBudget } from '../../ask/budget-ledger.js';
 import {
   ASK_PATH, SSE_EVENTS, ERROR_CODES,
   projectSourcesEvent, projectAnswerDeltaEvent, projectDoneEvent, projectErrorPayload, projectErrorResponseBody,
@@ -35,6 +36,12 @@ const RETRIEVAL_ERROR_STATUS = {
   embedding_unresolved: 503,
   embedding_unsupported: 501,
   context_budget_exceeded: 422,
+  // Spend/token budget ceiling — see v1/route.js's identical entries for
+  // the full reasoning (this call path shares the exact same askCore, so
+  // the same denial shapes apply).
+  budget_exceeded: 429,
+  budget_limit_exceeded: 429,
+  budget_unenforceable: 503,
 };
 
 /**
@@ -42,9 +49,13 @@ const RETRIEVAL_ERROR_STATUS = {
  * @param {import('../../storage/adapter.js').StorageAdapter} adapter
  * @param {{
  *   askCoordinatorV2: ReturnType<typeof import('../../ask/coordinator-v2.js').createAskCoordinatorV2>,
- * }} deps
+ *   budgetTracker?: ReturnType<typeof import('../../auth/token-budget.js').createTokenBudgetTracker>,
+ *   settingsService?: Object,
+ * }} deps budgetTracker/settingsService are optional (spend/token ceiling
+ *   feature) — see v1/route.js's identical note and
+ *   core/ask/budget-ledger.js's createAskRequestBudget().
  */
-export function registerAskRoutesV2(router, adapter, { askCoordinatorV2 }) {
+export function registerAskRoutesV2(router, adapter, { askCoordinatorV2, budgetTracker, settingsService }) {
   router.post(ASK_PATH, async ({ req, res, auth }) => {
     let streamed = false;
     try {
@@ -96,8 +107,14 @@ export function registerAskRoutesV2(router, adapter, { askCoordinatorV2 }) {
         return undefined;
       };
 
+      // Spend/token budget ledger — ONE per request, shared across every
+      // generation call this v2 request may make (rewrite, answer,
+      // compaction). See v1/route.js's identical note and
+      // createAskRequestBudget()'s own header comment.
+      const budget = createAskRequestBudget({ auth, tracker: budgetTracker, settingsService });
+
       const result = await askCoordinatorV2.ask({
-        collection, question, conversation, signal: controller.signal, onSources, onToken,
+        collection, question, conversation, signal: controller.signal, budget, onSources, onToken,
       });
 
       if (result.status === 'busy') {
@@ -110,7 +127,10 @@ export function registerAskRoutesV2(router, adapter, { askCoordinatorV2 }) {
       }
       if (result.status === 'error' && !streamed) {
         const statusCode = RETRIEVAL_ERROR_STATUS[result.code] ?? 500;
-        sendJson(res, statusCode, projectErrorResponseBody(result.code ?? ERROR_CODES.INTERNAL_ERROR, safeMessage(result.message)));
+        // Retry-After — see v1/route.js's identical note (spend/token
+        // budget ceiling, transient per-key-aggregate denials only).
+        const headers = Number.isFinite(result.retryAfterSeconds) ? { 'Retry-After': String(Math.max(1, Math.ceil(result.retryAfterSeconds))) } : {};
+        sendJson(res, statusCode, projectErrorResponseBody(result.code ?? ERROR_CODES.INTERNAL_ERROR, safeMessage(result.message)), headers);
         return;
       }
 

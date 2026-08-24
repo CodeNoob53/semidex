@@ -7,9 +7,15 @@
 // the raw rewrite output is used only as the retrieval query string, never
 // included in any SSE event, done payload, or log above console.warn().
 import { sanitiseErrorMessage } from '../../shared/core/doctor-checks.js';
+import { outputTokenCapFromCharLimit } from './budget-ledger.js';
 
 const DEFAULT_TIMEOUT_MS = 4000;
-const MAX_OUTPUT_CHARS = 500;
+export const MAX_OUTPUT_CHARS = 500;
+// This call's provider-side maxOutputTokens reservation (spend/token
+// ceiling feature), derived from MAX_OUTPUT_CHARS above — one source of
+// truth for "how much output a rewrite call is ever allowed to produce,"
+// never two independently chosen numbers that could drift apart.
+export const REWRITE_MAX_OUTPUT_TOKENS = outputTokenCapFromCharLimit(MAX_OUTPUT_CHARS);
 const SHORT_QUESTION_TOKEN_THRESHOLD = 12;
 
 // Small, explicit, multilingual (not exhaustive) stoplist of sentence-initial
@@ -93,15 +99,25 @@ function buildRewritePrompt({ question, summary, recentMessages }) {
  *   summary?: string,
  *   recentMessages: Array<{role:'user'|'assistant', content:string}>, // already trimmed/budgeted
  *   generationProvider: import('../generation/provider.js').GenerationProvider,
+ *   countTokens?: (text: string) => number|Promise<number>,
+ *   budget?: ReturnType<typeof import('./budget-ledger.js').createRequestBudgetLedger>,
  *   signal?: AbortSignal,
  *   timeoutMs?: number,
- * }} args
+ * }} args countTokens/budget are optional — omitted (v1's own call shape has
+ *   no rewrite step at all) or when a caller has no budget concept, no
+ *   reservation is attempted and this function's prior unbudgeted behavior
+ *   is unchanged. When `budget` IS supplied, a denied reservation degrades
+ *   this call EXACTLY like a timeout or provider failure already does —
+ *   fall back to the original question — since rewrite has always been
+ *   best-effort and a budget denial must never fail the whole Ask request
+ *   by itself; only the shared final-answer call's own denial does that
+ *   (see coordinator.js).
  * @returns {Promise<{ query: string, rewritten: boolean }>}
- *   Never throws. On any failure/timeout/empty/invalid output, returns
- *   { query: question, rewritten: false } and calls console.warn() with a
- *   redacted reason.
+ *   Never throws. On any failure/timeout/empty/invalid output/budget
+ *   denial, returns { query: question, rewritten: false } and calls
+ *   console.warn() with a redacted reason.
  */
-export async function rewriteFollowUpQuery({ question, summary, recentMessages, generationProvider, signal, timeoutMs = DEFAULT_TIMEOUT_MS }) {
+export async function rewriteFollowUpQuery({ question, summary, recentMessages, generationProvider, countTokens, budget, signal, timeoutMs = DEFAULT_TIMEOUT_MS }) {
   if (!looksLikeFollowUp({ question, summary, recentMessages })) {
     return { query: question, rewritten: false };
   }
@@ -113,21 +129,48 @@ export async function rewriteFollowUpQuery({ question, summary, recentMessages, 
     return { query: question, rewritten: false };
   }
 
-  // Own internal AbortController for the timeout — separate from the
-  // caller's signal, so a rewrite timeout never aborts the caller's already-
-  // separate main generation. Still observes the caller's signal too (a
-  // real client disconnect should stop the rewrite call promptly as well).
-  const internalController = new AbortController();
-  const timer = setTimeout(() => internalController.abort(), timeoutMs);
+  let reservation = null;
+  let internalController = null;
+  let timer = null;
   const onCallerAbort = () => internalController.abort();
-  signal?.addEventListener('abort', onCallerAbort);
 
   try {
+    const prompt = buildRewritePrompt({ question, summary, recentMessages });
+
+    // Budget preparation is inside the same best-effort boundary as the
+    // provider call. A tokenizer, capability, or ledger failure must not
+    // turn an optional rewrite into a failed Ask request.
+    if (budget) {
+      const caps = generationProvider.capabilities();
+      if (caps.hardOutputCap !== true) {
+        console.warn('[ask-v2] query rewrite skipped: generation provider cannot enforce an output-token cap');
+        return { query: question, rewritten: false };
+      }
+      const estimatedInputTokens = await countTokens(`${QUERY_REWRITE_SYSTEM_PROMPT}\n${prompt}`);
+      reservation = budget.reserve({ label: 'rewrite', estimatedInputTokens, maxOutputTokens: REWRITE_MAX_OUTPUT_TOKENS });
+      if (!reservation.ok) {
+        console.warn(`[ask-v2] query rewrite skipped: ${reservation.message}`);
+        return { query: question, rewritten: false };
+      }
+    }
+
+    // Own internal AbortController for the timeout — separate from the
+    // caller's signal, so a rewrite timeout never aborts the caller's main
+    // generation. Still observe a real client disconnect.
+    internalController = new AbortController();
+    timer = setTimeout(() => internalController.abort(), timeoutMs);
+    signal?.addEventListener('abort', onCallerAbort);
+
     const result = await generationProvider.generate({
       systemPrompt: QUERY_REWRITE_SYSTEM_PROMPT,
-      prompt: buildRewritePrompt({ question, summary, recentMessages }),
+      prompt,
+      options: reservation ? { maxOutputTokens: reservation.maxOutputTokens } : undefined,
       signal: internalController.signal,
     });
+
+    if (reservation) {
+      budget.reconcile(reservation.reservationId, { tokensIn: result?.tokensIn, tokensOut: result?.tokensOut });
+    }
 
     const raw = (result?.text ?? '').trim();
     if (raw === '' || raw.length > MAX_OUTPUT_CHARS) {
@@ -135,11 +178,15 @@ export async function rewriteFollowUpQuery({ question, summary, recentMessages, 
     }
     return { query: raw, rewritten: true };
   } catch (err) {
+    // No reconcile() here: an exception gives no trustworthy usage figure
+    // and may already reflect real, billed upstream work — the reservation
+    // (if any) stays fully charged, matching coordinator.js's own catch-path
+    // reasoning.
     const reason = sanitiseErrorMessage(err?.message ?? String(err), [process.env.QDRANT_KEY, process.env.GEMINI_API_KEY]);
     console.warn(`[ask-v2] query rewrite failed, falling back to the original question: ${reason}`);
     return { query: question, rewritten: false };
   } finally {
-    clearTimeout(timer);
-    signal?.removeEventListener('abort', onCallerAbort);
+    if (timer !== null) clearTimeout(timer);
+    if (internalController !== null) signal?.removeEventListener('abort', onCallerAbort);
   }
 }

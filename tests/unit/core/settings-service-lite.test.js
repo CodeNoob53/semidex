@@ -44,7 +44,7 @@ describe('createLiteSettingsService() — getAll()/get()', () => {
     const lite = makeLiteService();
     const keys = lite.getAll().map((e) => e.key);
     assert.ok(keys.length > 0);
-    assert.ok(keys.length < 30, 'Lite getAll() must be a small subset, not the full ~65-key registry');
+    assert.ok(keys.length < 40, 'Lite getAll() must be a small subset, not the full ~65-key registry');
     for (const key of keys) assert.ok(isLiteSettingsKey(key), `${key} leaked through getAll() but is not Lite-allowed`);
     assert.ok(!keys.includes('ONNX_EXECUTION_PROVIDER'));
     assert.ok(!keys.includes('OLLAMA_URL'));

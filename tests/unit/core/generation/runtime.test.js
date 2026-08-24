@@ -6,7 +6,7 @@ import { validateGenerationProvider } from '../../../../src/core/generation/prov
 function fakeProvider({ name = 'ollama', ready, generate } = {}) {
   return {
     name: () => name,
-    capabilities: () => ({ streaming: true, clientAbort: true, upstreamCancellation: true }),
+    capabilities: () => ({ streaming: true, clientAbort: true, upstreamCancellation: true, hardOutputCap: true }),
     ready: ready ?? (async () => ({ ok: true, model: 'gemma3:4b', numCtx: 8192 })),
     generate: generate ?? (async () => ({ text: 'ok', aborted: false })),
   };
@@ -28,7 +28,7 @@ describe('createGenerationRuntime — happy path, conforms to GenerationProvider
       createGenerationProviderFn: (opts) => { capturedOptions = opts; return fakeProvider(); },
     });
     assert.equal(runtime.name(), 'ollama');
-    assert.deepEqual(runtime.capabilities(), { streaming: true, clientAbort: true, upstreamCancellation: true });
+    assert.deepEqual(runtime.capabilities(), { streaming: true, clientAbort: true, upstreamCancellation: true, hardOutputCap: true });
     const readiness = await runtime.ready();
     assert.deepEqual(readiness, { ok: true, model: 'gemma3:4b', numCtx: 8192 });
     const genResult = await runtime.generate({ prompt: 'hi' });
@@ -140,7 +140,7 @@ describe('createGenerationRuntime — getStatus()', () => {
     assert.equal(status.ready, true);
     assert.equal(status.reason, null);
     assert.equal(status.numCtx, 8192);
-    assert.deepEqual(status.capabilities, { streaming: true, clientAbort: true, upstreamCancellation: true });
+    assert.deepEqual(status.capabilities, { streaming: true, clientAbort: true, upstreamCancellation: true, hardOutputCap: true });
     assert.deepEqual(status.devicePolicy, { value: 'auto', supported: ['auto'] });
     assert.equal(status.configuration.backend.source, 'default');
     assert.equal(status.configuration.model.source, 'os_env');

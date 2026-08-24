@@ -109,7 +109,12 @@ export function createGeminiProvider({
     // (this provider does genuinely stop reading/returning tokens on
     // abort) — the two must not be collapsed into one boolean, or a
     // caller has no way to know "cancel" here is weaker than Ollama's.
-    capabilities: () => ({ streaming: true, clientAbort: true, upstreamCancellation: false }),
+    // hardOutputCap: true — options.maxOutputTokens below is forwarded
+    // verbatim to generationConfig.maxOutputTokens, Gemini's own documented
+    // hard ceiling on generated output tokens (ai.google.dev/api/
+    // generate-content), enforced server-side before/during generation, not
+    // a client-side truncation after the fact.
+    capabilities: () => ({ streaming: true, clientAbort: true, upstreamCancellation: false, hardOutputCap: true }),
 
     async ready() {
       if (!apiKey) {

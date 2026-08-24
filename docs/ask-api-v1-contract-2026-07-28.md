@@ -228,10 +228,11 @@ merely unread. Confirmed by a dedicated test asserting
 }
 ```
 `retryable` is derived from the code: `false` for `bad_request`/
-`not_found`/`stream_aborted` (retrying the identical request or a
-client-cancelled request won't help), `true` for `busy`/
+`not_found`/`stream_aborted`/`budget_limit_exceeded`/`budget_unenforceable` (retrying the identical
+request or a client-cancelled request won't help; a provider capability
+gap needs an operator to fix, not a retry), `true` for `busy`/
 `dependency_unavailable`/`retrieval_failed`/`generation_failed`/
-`internal_error` (transient conditions).
+`internal_error`/`budget_exceeded` (transient conditions).
 
 **Pre-stream HTTP errors** carry the exact same v1-shaped envelope as a
 mid-stream `error` event — `{ error: projectErrorPayload(code, message) }`,
@@ -251,6 +252,16 @@ reach the router's generic serializer:
 | Other pre-stream retrieval failure | 500 | `internal_error` | true |
 | Second concurrent request | 429 | `busy` | true |
 | Generation provider not ready | 503 | `dependency_unavailable` | true |
+| Per-key aggregate token budget is temporarily exhausted | 429 | `budget_exceeded` | true |
+| Request/key structural token ceiling would be exceeded | 429 | `budget_limit_exceeded` | false |
+| Configured provider cannot enforce an output-token cap | 503 | `budget_unenforceable` | false |
+
+`budget_exceeded`/`budget_limit_exceeded`/`budget_unenforceable` (added 2026-08-24, see
+`docs/security/ask-spend-token-budget-design-2026-08.md`) are always
+pre-stream — the reservation check runs before the `sources` event is
+ever emitted, so this endpoint never starts an SSE stream only to fail it
+for a budget reason. A transient `budget_exceeded` response carries a
+`Retry-After` header; structural `budget_limit_exceeded` does not.
 
 `not_implemented` is not retryable — a storage backend that structurally
 lacks hybrid search will not gain it on a retry. `embedding_failed` is

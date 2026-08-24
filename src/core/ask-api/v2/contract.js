@@ -36,6 +36,12 @@ export const ERROR_CODES = Object.freeze({
   INVALID_CONVERSATION: 'invalid_conversation',
   INVALID_MESSAGE_ROLE: 'invalid_message_role',
   MESSAGE_TOO_LARGE: 'message_too_large',
+  // Spend/token budget ceiling — see v1/contract.js's identical pair for
+  // the full reasoning (shared verbatim; v1 and v2 must never diverge on
+  // this contract).
+  BUDGET_EXCEEDED: 'budget_exceeded',
+  BUDGET_LIMIT_EXCEEDED: 'budget_limit_exceeded',
+  BUDGET_UNENFORCEABLE: 'budget_unenforceable',
 });
 
 const RETRYABLE_CODES = new Set([
@@ -45,7 +51,10 @@ const RETRYABLE_CODES = new Set([
   ERROR_CODES.RETRIEVAL_FAILED,
   ERROR_CODES.GENERATION_FAILED,
   ERROR_CODES.INTERNAL_ERROR,
+  ERROR_CODES.BUDGET_EXCEEDED,
 ]);
+// BUDGET_UNENFORCEABLE is deliberately NOT retryable — see v1/contract.js's
+// identical note.
 
 export function isRetryableCode(code) {
   return RETRYABLE_CODES.has(code);

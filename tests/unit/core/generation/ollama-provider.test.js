@@ -23,7 +23,7 @@ describe('createOllamaProvider', () => {
     const provider = createOllamaProvider({ isOllamaReachableFn: async () => true, listOllamaModelsFn: async () => [] });
     assert.equal(validateGenerationProvider(provider), true);
     assert.equal(provider.name(), 'ollama');
-    assert.deepEqual(provider.capabilities(), { streaming: true, clientAbort: true, upstreamCancellation: true });
+    assert.deepEqual(provider.capabilities(), { streaming: true, clientAbort: true, upstreamCancellation: true, hardOutputCap: true });
   });
 
   test('ready() reports not ok when Ollama is unreachable', async () => {

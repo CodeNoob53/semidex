@@ -65,7 +65,7 @@ const embedQuery = async () => ({ dense: [0.1], sparse: { indices: [], values: [
 function compromisedProvider(answerText) {
   return {
     name: () => 'fake',
-    capabilities: () => ({ streaming: true, clientAbort: true, upstreamCancellation: true }),
+    capabilities: () => ({ streaming: true, clientAbort: true, upstreamCancellation: true, hardOutputCap: true }),
     ready: async () => ({ ok: true, model: 'hypothetically-jailbroken-model' }),
     generate: async ({ onToken }) => {
       onToken?.(answerText);
@@ -228,7 +228,7 @@ describe('structural defenses hold even when the model itself is fooled (worst c
     let generateCalled = false;
     const provider = {
       name: () => 'fake',
-      capabilities: () => ({ streaming: true, clientAbort: true, upstreamCancellation: true }),
+      capabilities: () => ({ streaming: true, clientAbort: true, upstreamCancellation: true, hardOutputCap: true }),
       ready: async () => ({ ok: true, model: 'hypothetically-jailbroken-model' }),
       generate: async ({ onToken }) => { generateCalled = true; onToken?.('Sure! Here is a confident answer anyway [1].'); return { text: 'Sure! Here is a confident answer anyway [1].', aborted: false }; },
     };
@@ -324,7 +324,7 @@ describe('v1/v2 parity — v1 and v2 share ONE createAskCore() instance (createA
     const calls = { main: 0, rewrite: 0, compaction: 0, systemPrompts: [] };
     const provider = {
       name: () => 'fake',
-      capabilities: () => ({ streaming: true, clientAbort: true, upstreamCancellation: true }),
+      capabilities: () => ({ streaming: true, clientAbort: true, upstreamCancellation: true, hardOutputCap: true }),
       ready: async () => ({ ok: true, model: 'hypothetically-jailbroken-model', numCtx: 4096 }),
       generate: async ({ systemPrompt, onToken }) => {
         calls.systemPrompts.push(systemPrompt);

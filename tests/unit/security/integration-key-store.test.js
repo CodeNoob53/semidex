@@ -430,6 +430,98 @@ describe('Per-key rate limits', () => {
   });
 });
 
+// Spend/token budget ceiling (Ask v1/v2) — tokenBudgetPerHour/tokenBudgetBurst
+// follow the IDENTICAL optional/null-default/fail-closed contract as
+// requestsPerMinute/burst above (task requirement #6). Mirrors every test in
+// the "Per-key rate limits" describe block above, one field pair at a time.
+describe('Per-key token budget (spend ceiling)', () => {
+  it('createKey persists null (not the resolved default) when no limit is given', () => {
+    addKey();
+    const raw = JSON.parse(readFileSync(path, 'utf-8'));
+    assert.equal(raw.keys[0].tokenBudgetPerHour, null);
+    assert.equal(raw.keys[0].tokenBudgetBurst, null);
+  });
+
+  it('an explicit tokenBudgetPerHour/tokenBudgetBurst is persisted as a plain JSON number', () => {
+    addKey({ tokenBudgetPerHour: 500_000, tokenBudgetBurst: 60_000 });
+    const raw = JSON.parse(readFileSync(path, 'utf-8'));
+    assert.equal(raw.keys[0].tokenBudgetPerHour, 500_000);
+    assert.equal(raw.keys[0].tokenBudgetBurst, 60_000);
+  });
+
+  it('toPublicKey resolves a null/legacy limit to the documented default (a real, finite, protective ceiling — never "unlimited")', () => {
+    const legacy = { id: 'a'.repeat(16), name: 'x', digest: 'f'.repeat(64), operations: ['generate'], collections: ['c'], createdAt: new Date().toISOString() };
+    const pub = toPublicKey(legacy);
+    assert.equal(pub.tokenBudgetPerHour, 200_000);
+    assert.equal(pub.tokenBudgetBurst, 40_000);
+  });
+
+  it('toPublicKey passes through an explicit stored limit unchanged', () => {
+    const record = { id: 'a'.repeat(16), name: 'x', digest: 'f'.repeat(64), operations: ['generate'], collections: ['c'], createdAt: new Date().toISOString(), tokenBudgetPerHour: 10_000, tokenBudgetBurst: 5_000 };
+    const pub = toPublicKey(record);
+    assert.equal(pub.tokenBudgetPerHour, 10_000);
+    assert.equal(pub.tokenBudgetBurst, 5_000);
+  });
+
+  it('the authenticated principal carries the EFFECTIVE token budget (resolved, never raw null)', () => {
+    const { token } = addKey();
+    const outcome = store().authenticateToken(token);
+    assert.equal(outcome.principal.tokenBudgetPerHour, 200_000);
+    assert.equal(outcome.principal.tokenBudgetBurst, 40_000);
+  });
+
+  it('the authenticated principal carries an explicit per-key token budget override', () => {
+    const { token } = addKey({ tokenBudgetPerHour: 10_000, tokenBudgetBurst: 5_000 });
+    const outcome = store().authenticateToken(token);
+    assert.equal(outcome.principal.tokenBudgetPerHour, 10_000);
+    assert.equal(outcome.principal.tokenBudgetBurst, 5_000);
+  });
+
+  it('a legacy key record (no tokenBudgetPerHour/tokenBudgetBurst field at all) authenticates fine and gets defaults', () => {
+    // Simulates a key created BEFORE this feature existed — the JSON object
+    // genuinely lacks the keys, not merely nulls them.
+    const { token, key } = addKey();
+    const raw = JSON.parse(readFileSync(path, 'utf-8'));
+    delete raw.keys[0].tokenBudgetPerHour;
+    delete raw.keys[0].tokenBudgetBurst;
+    writeFileSync(path, JSON.stringify(raw), 'utf-8');
+
+    const outcome = store().authenticateToken(token);
+    assert.equal(outcome.result, AUTH_RESULT.OK);
+    assert.equal(outcome.principal.tokenBudgetPerHour, 200_000);
+    assert.equal(outcome.principal.tokenBudgetBurst, 40_000);
+    assert.equal(store().listKeys().find((k) => k.id === key.id).tokenBudgetPerHour, 200_000);
+  });
+
+  it('createKey rejects an out-of-range or non-integer token budget', () => {
+    assert.throws(() => store().createKey({ name: 'n', collections: ['c'], tokenBudgetPerHour: 0 }), /tokenBudgetPerHour/);
+    assert.throws(() => store().createKey({ name: 'n', collections: ['c'], tokenBudgetPerHour: 50_000_001 }), /tokenBudgetPerHour/);
+    assert.throws(() => store().createKey({ name: 'n', collections: ['c'], tokenBudgetPerHour: 30.5 }), /tokenBudgetPerHour/);
+    assert.throws(() => store().createKey({ name: 'n', collections: ['c'], tokenBudgetBurst: 0 }), /tokenBudgetBurst/);
+    assert.throws(() => store().createKey({ name: 'n', collections: ['c'], tokenBudgetBurst: 5_000_001 }), /tokenBudgetBurst/);
+  });
+
+  it('a corrupt/out-of-range persisted token budget fails the whole store closed, not just that field', () => {
+    writeFileSync(path, JSON.stringify({
+      schemaVersion: SCHEMA_VERSION,
+      keys: [{
+        id: 'a'.repeat(16), name: 'x', digest: 'f'.repeat(64), operations: ['generate'], collections: ['c'],
+        createdAt: new Date().toISOString(), tokenBudgetPerHour: -5,
+      }],
+    }), 'utf-8');
+    assert.equal(store().authenticateToken('anything').result, AUTH_RESULT.STORE_UNAVAILABLE);
+  });
+
+  it('token budget and request-rate limits are independent fields — setting one never implies or resets the other', () => {
+    const { token } = addKey({ requestsPerMinute: 600, burst: 20, tokenBudgetPerHour: 10_000, tokenBudgetBurst: 5_000 });
+    const outcome = store().authenticateToken(token);
+    assert.equal(outcome.principal.requestsPerMinute, 600);
+    assert.equal(outcome.principal.burst, 20);
+    assert.equal(outcome.principal.tokenBudgetPerHour, 10_000);
+    assert.equal(outcome.principal.tokenBudgetBurst, 5_000);
+  });
+});
+
 describe('Instance scoping', () => {
   it('two stores on different paths are fully independent', () => {
     const otherPath = join(dir, 'other-keys.json');

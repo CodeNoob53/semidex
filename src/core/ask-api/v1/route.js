@@ -21,6 +21,7 @@ import { sanitiseErrorMessage } from '../../../shared/core/doctor-checks.js';
 import { parseAskRequestV1 } from './request.js';
 import { AUDIENCE, OPERATION, COST_CLASS, COLLECTION_SOURCE } from '../../http/route-audience.js';
 import { authorizeCollectionAccess } from '../../http/authorize.js';
+import { createAskRequestBudget } from '../../ask/budget-ledger.js';
 import {
   ASK_PATH, SSE_EVENTS, ERROR_CODES,
   projectSourcesEvent, projectAnswerDeltaEvent, projectDoneEvent, projectErrorPayload, projectErrorResponseBody,
@@ -57,6 +58,18 @@ const RETRIEVAL_ERROR_STATUS = {
   // does not implement yet.
   embedding_unresolved: 503,
   embedding_unsupported: 501,
+  // Spend/token budget ceiling (coordinator.js's askCore) — 429, matching
+  // the existing BUSY/rate_limited precedent for cost/capacity-shaped
+  // denials (see docs/security/ask-spend-token-budget-design-2026-08.md's
+  // "error contract" section for the full trade-off this single-code choice
+  // makes). budget_unenforceable is the fail-closed case (the configured
+  // provider cannot enforce an output cap at all) — 503, matching how an
+  // unready/misconfigured provider is already reported
+  // (DEPENDENCY_UNAVAILABLE below), since retrying the identical request
+  // cannot help until the operator changes the provider/configuration.
+  budget_exceeded: 429,
+  budget_limit_exceeded: 429,
+  budget_unenforceable: 503,
 };
 
 /**
@@ -66,10 +79,16 @@ const RETRIEVAL_ERROR_STATUS = {
  * @param {import('../../storage/adapter.js').StorageAdapter} adapter
  * @param {{
  *   askCoordinator: ReturnType<typeof import('../../ask/coordinator.js').createAskCoordinator>,
+ *   budgetTracker?: ReturnType<typeof import('../../auth/token-budget.js').createTokenBudgetTracker>,
+ *   settingsService?: Object,
  * }} deps askCoordinator is required DI — the caller supplies the real one;
- *   tests supply a stub that never touches Qdrant/Ollama/ONNX.
+ *   tests supply a stub that never touches Qdrant/Ollama/ONNX. budgetTracker/
+ *   settingsService are optional (spend/token ceiling feature) — see
+ *   createAskRequestBudget() in ../../ask/budget-ledger.js for exactly what
+ *   omitting budgetTracker means (no enforcement, matching this route's
+ *   prior behavior before this feature existed).
  */
-export function registerAskRoutesV1(router, adapter, { askCoordinator }) {
+export function registerAskRoutesV1(router, adapter, { askCoordinator, budgetTracker, settingsService }) {
   router.post(ASK_PATH, async ({ req, res, auth }) => {
     // `streamed` is shared between the try block and the catch below: it is
     // the one signal that tells the catch whether `sources` has already
@@ -150,8 +169,17 @@ export function registerAskRoutesV1(router, adapter, { askCoordinator }) {
         return undefined;
       };
 
+      // Spend/token budget ledger — one per request, built from the
+      // authenticated principal's own keyId/limits (see
+      // createAskRequestBudget()'s own header comment for exactly what
+      // happens when no principal/tracker exists). v1 has only one
+      // possible generation call (the final answer), but still routes it
+      // through the SAME ledger machinery v2 uses, so both versions share
+      // one budget contract with no version-specific enforcement logic.
+      const budget = createAskRequestBudget({ auth, tracker: budgetTracker, settingsService });
+
       const result = await askCoordinator.ask({
-        collection, question, sourceFile, signal: controller.signal, onSources, onToken,
+        collection, question, sourceFile, signal: controller.signal, budget, onSources, onToken,
       });
 
       if (result.status === 'busy') {
@@ -164,7 +192,13 @@ export function registerAskRoutesV1(router, adapter, { askCoordinator }) {
       }
       if (result.status === 'error' && !streamed) {
         const statusCode = RETRIEVAL_ERROR_STATUS[result.code] ?? 500;
-        sendJson(res, statusCode, projectErrorResponseBody(result.code ?? ERROR_CODES.INTERNAL_ERROR, safeMessage(result.message)));
+        // Retry-After (spend/token budget ceiling only — see the
+        // key_budget_exceeded case in budget-ledger.js): present only when
+        // the denial is the transient, per-key-aggregate kind; absent for
+        // the structural per-request-ceiling/unenforceable cases, which
+        // will not succeed on an unchanged retry regardless of delay.
+        const headers = Number.isFinite(result.retryAfterSeconds) ? { 'Retry-After': String(Math.max(1, Math.ceil(result.retryAfterSeconds))) } : {};
+        sendJson(res, statusCode, projectErrorResponseBody(result.code ?? ERROR_CODES.INTERNAL_ERROR, safeMessage(result.message)), headers);
         return;
       }
 

@@ -37,13 +37,20 @@ export function createAskCoordinatorV2({ core, gate, generationProvider, countTo
    *   question: string,
    *   conversation?: { id?: string, summary?: string, recentMessages?: Array<{role,content}> },
    *   signal?: AbortSignal,
+   *   budget?: ReturnType<typeof import('./budget-ledger.js').createRequestBudgetLedger>,
    *   onSources: Function,
    *   onToken: Function,
-   * }} req
+   * }} req budget (spend/token ceiling feature) is the SAME ledger instance
+   *   threaded into all three of this request's possible generation calls
+   *   — rewrite (step 2), the shared core's own answer call (step 3), and
+   *   compaction (step 4) — never a fresh one per step, which is exactly
+   *   what makes them share one ceiling. Optional: route.js (v1/v2) always
+   *   supplies one in production; omitted only by callers with no budget
+   *   concept (tests exercising unrelated behavior).
    * @returns {Promise<Object>} same shape as coordinator.js's askCore result,
    *   plus (only on status:'done') `updatedSummary`/`summaryChanged`.
    */
-  async function ask({ collection, question, conversation, signal, onSources, onToken }) {
+  async function ask({ collection, question, conversation, signal, budget, onSources, onToken }) {
     const outcome = await gate.run(async () => {
       // 1. Resolve provider readiness once here — numCtx needed for
       //    budgeting, reused (not re-fetched) by compaction below.
@@ -65,7 +72,7 @@ export function createAskCoordinatorV2({ core, gate, generationProvider, countTo
       //    failure/timeout/empty/invalid output; console.warn only.
       const { query: retrievalQuery } = await rewriteFollowUpQuery({
         question, summary: budgeted.summary, recentMessages: budgeted.recentMessages,
-        generationProvider, signal,
+        generationProvider, countTokens, budget, signal,
       });
 
       // 3. `question` stays the ORIGINAL question. conversationContext (the
@@ -84,7 +91,7 @@ export function createAskCoordinatorV2({ core, gate, generationProvider, countTo
       const result = await core({
         collection, question, retrievalQuery,
         conversationContext: { summary: budgeted.summary, recentMessages: budgeted.recentMessages },
-        readiness, signal, onSources, onToken,
+        readiness, signal, budget, onSources, onToken,
       });
 
       if (result.status !== 'done') return result; // provider_unavailable/refused/aborted/error pass through unchanged. ('busy' cannot occur — `core` has no gate of its own.)
@@ -96,7 +103,7 @@ export function createAskCoordinatorV2({ core, gate, generationProvider, countTo
       //    an error — it only affects the trailing updatedSummary/
       //    summaryChanged fields merged onto the already-successful result.
       const compaction = await compactSummaryIfNeeded({
-        conversation, question, answer: result.text, countTokens, numCtx: readiness.numCtx, generationProvider, settingsService,
+        conversation, question, answer: result.text, countTokens, numCtx: readiness.numCtx, generationProvider, settingsService, budget,
       });
 
       return {
