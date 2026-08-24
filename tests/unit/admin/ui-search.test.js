@@ -2,6 +2,7 @@
 // covered in search.test.js.
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import { parse } from 'acorn';
 import { readUiSource, loadSearchRenderHelpers, withServer } from './ui-test-helpers.js';
 import { renderChunkContent } from '../../../src/shared/admin/ui-src/structural-renderer.js';
 
@@ -910,14 +911,23 @@ describe('search URL permalink (pushState for new queries, replaceState otherwis
     // firing a spurious /api/search + URL/history/recent-searches update
     // before router.js ever got to open the file view.
     const js = readUiSource('search.js');
-    const start = js.indexOf('export function initSearchPanel');
-    // Stop at initSearchPanel's own closing brace (the line that is just
-    // "}", at the start of a line) — not at the next "export function",
-    // since the doc-comment above applySearchStateFromUrl's declaration
-    // legitimately mentions "applySearchStateFromUrl(name):" in prose and
-    // would otherwise produce a false positive here.
-    const closingBraceIndex = js.indexOf('\n}\n', start);
-    const fn = js.slice(start, closingBraceIndex);
+    // Real parse (not a line-based indexOf('\n}\n', ...) scan) so extraction
+    // is brace-aware and immune to line-ending style — acorn's start/end are
+    // character offsets into the source, not line-based, so they land on the
+    // true end of initSearchPanel whether search.js is CRLF or LF. A
+    // line-based indexOf('\n}\n', start) version silently over-captured on a
+    // CRLF file (no literal "\n}\n" run at a real closing brace there),
+    // bleeding into later code — including the doc-comment above
+    // applySearchStateFromUrl's declaration, which legitimately mentions
+    // "applySearchStateFromUrl(name):" in prose and would then false-positive
+    // this guard.
+    const fileAst = parse(js, { sourceType: 'module', ecmaVersion: 'latest' });
+    const initSearchPanelNode = fileAst.body.find((node) => {
+      const decl = node.type === 'ExportNamedDeclaration' ? node.declaration : node;
+      return decl?.type === 'FunctionDeclaration' && decl.id?.name === 'initSearchPanel';
+    });
+    assert.ok(initSearchPanelNode, 'initSearchPanel must be defined as a top-level exported function declaration');
+    const fn = js.slice(initSearchPanelNode.start, initSearchPanelNode.end);
     // Strip line comments before checking — the function's own explanatory
     // comment mentions both names in prose ("router.js calls
     // applySearchStateFromUrl/syncSearchStateFromUrl itself"), which must
