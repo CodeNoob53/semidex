@@ -298,8 +298,10 @@ workloads may overlap when their verified resource identities do not conflict.
 
 ### P1. Integration surface
 
-- Publish a stable JS/TS client for search and Ask contracts.
-- Provide a minimal website/backend integration example.
+- ✅ a stable, zero-dependency JS/TS client for the Search and Ask contracts
+  (`semidex-lite/client`) and a minimal backend integration example
+  (`examples/backend-integration-server.mjs`) — see "Public API security
+  hardening" above for the shipped detail (2026-08-24).
 - Define a small embeddable chat/reference client after the API contract is
   stable.
 - Add Telegram or similar channel adapters as examples, not as core retrieval

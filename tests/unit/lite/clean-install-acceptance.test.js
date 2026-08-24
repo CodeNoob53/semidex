@@ -16,7 +16,7 @@ import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, execSync } from 'node:child_process';
 import {
-  mkdtempSync, rmSync, existsSync, readdirSync, statSync, readFileSync, chmodSync,
+  mkdtempSync, rmSync, existsSync, readdirSync, statSync, readFileSync, chmodSync, writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
@@ -216,6 +216,237 @@ describe('clean-install acceptance — no relative import escapes the package ro
     assert.deepEqual(violations, [], `relative imports escaping the package root:\n${violations.join('\n')}`);
   });
 });
+
+// ── SDK export surface (Part A/B of the 0.1.6 release-readiness task) ──────
+//
+// Everything above proves the CLI works read-only from a real clean install.
+// The tests below prove the packed artifact's PUBLIC LIBRARY SURFACE —
+// `semidex-lite/client` — does too: that it resolves via Node's own package
+// "exports" resolution (not a repo-relative import, which every
+// tests/unit/lite/client/*.test.js file already uses and which would still
+// pass even if packaging broke), that it is not accompanied by unintended
+// deep-import access to the package's internals, and that its wire contract
+// (bearer header, typed errors, redirect rejection, SSE async-iterator
+// shape) survives being loaded from the ACTUAL installed location.
+//
+// No TypeScript compiler is invoked here to type-check lite-src/client/
+// index.d.ts against a consumer fixture: this repository has no `typescript`
+// dependency anywhere (root or Lite), and adding one solely for this one
+// gate would be exactly the "heavyweight compiler dependency added only for
+// this gate" the release-readiness task explicitly says not to add. The
+// runtime/export-shape checks below (declared `exports` map, real
+// ERR_PACKAGE_PATH_NOT_EXPORTED enforcement, and the full read-only
+// http.test.js-equivalent wire-contract run against the installed file) are
+// the strongest verification available without that new dependency — they
+// prove every field docs/types describe is actually present and behaves as
+// specified at runtime, which a type-only check could not do on its own.
+
+const EXCLUDED_BUILD_PATHS = [
+  // Mirrors packages/lite/build.mjs's own EXCLUDE_DIRS/EXCLUDE_FILES lists —
+  // if any of these ever leaked into the tarball, this test must fail even
+  // though it does not re-derive build.mjs's full closure logic itself.
+  'src/mcp', 'src/smoke', 'src/test-fixtures', 'src/local',
+  'src/admin/ui-src', 'src/shared/admin/ui-src',
+  'src/admin/server-full.js', 'src/admin/bootstrap.js', 'src/doctor.js', 'src/key.js',
+  'src/backfill-tags.js', 'src/backfill-entity-refs.js', 'src/sync.js', 'src/smoke.js',
+  'src/bootstrap-docs.js', 'src/indexer/index.js', 'src/indexer/index-full.js',
+  'src/admin/jobs/spawn-indexer-full.js', 'src/core/ce-rerank.js', 'src/core/ce-rerank-worker.js',
+  'src/core/rerank-provider.js',
+];
+
+describe('installed package — no local/full-only runtime, fixtures, or secrets shipped', () => {
+  it('none of the build.mjs-excluded paths exist in the installed package', () => {
+    for (const rel of EXCLUDED_BUILD_PATHS) {
+      assert.ok(!existsSync(join(packageDir, rel)), `"${rel}" must never be present in the installed package (it is one of build.mjs's own excluded local/full-only paths)`);
+    }
+  });
+
+  it('no real .env, maintainer scripts/, or docs/ tree is present — only .env.example', () => {
+    assert.ok(!existsSync(join(packageDir, '.env')), 'a real .env must never ship — only .env.example (a template, not a secret)');
+    assert.ok(existsSync(join(packageDir, '.env.example')), '.env.example (the documented template) must ship');
+    assert.ok(!existsSync(join(packageDir, 'scripts')), 'maintainer scripts/ (e.g. the release-live-acceptance harness) must never ship inside the package itself');
+    assert.ok(!existsSync(join(packageDir, 'docs')), 'the repo docs/ tree (design notes, audits, reports) must never ship inside the package');
+  });
+});
+
+describe('installed package — semidex-lite/client export surface', () => {
+  it('runtime client files and the .d.ts declaration are all present at their documented locations', () => {
+    for (const rel of ['lite-src/client/index.js', 'lite-src/client/errors.js', 'lite-src/client/sse.js', 'lite-src/client/index.d.ts']) {
+      assert.ok(existsSync(join(packageDir, rel)), `installed package must ship "${rel}"`);
+    }
+  });
+
+  it('examples/backend-integration-server.mjs is shipped and imports the client from a path inside the package', () => {
+    const examplePath = join(packageDir, 'examples', 'backend-integration-server.mjs');
+    assert.ok(existsSync(examplePath), 'installed package must ship examples/backend-integration-server.mjs');
+    const source = readFileSync(examplePath, 'utf-8');
+    assert.match(source, /from ['"]\.\.\/lite-src\/client\/index\.js['"]/, 'the shipped example must import createSemidexClient from the shipped client, not a repo-relative path');
+  });
+
+  it('package.json declares exactly one export subpath, "./client" — no unintended internal module is exposed', () => {
+    const pkg = JSON.parse(readFileSync(join(packageDir, 'package.json'), 'utf-8'));
+    assert.deepEqual(Object.keys(pkg.exports ?? {}), ['./client'], 'the installed package.json must declare exactly one export subpath');
+    assert.deepEqual(pkg.exports['./client'], { types: './lite-src/client/index.d.ts', default: './lite-src/client/index.js' });
+  });
+
+  it('`import "semidex-lite/client"` resolves from a separate consumer directory and exposes createSemidexClient + SemidexApiError', () => {
+    const consumerScript = join(installDir, 'consumer-import-check.mjs');
+    writeFileSync(consumerScript, `
+      import { createSemidexClient, SemidexApiError } from 'semidex-lite/client';
+      import assert from 'node:assert/strict';
+      assert.equal(typeof createSemidexClient, 'function');
+      assert.equal(typeof SemidexApiError, 'function');
+      assert.equal(SemidexApiError.prototype instanceof Error, true);
+      console.log('OK');
+    `, 'utf-8');
+    const out = execFileSync(process.execPath, [consumerScript], { encoding: 'utf-8' });
+    assert.match(out, /OK/);
+  });
+
+  it('an unexported deep subpath is rejected by Node\'s own "exports" resolution, not merely undocumented', () => {
+    const consumerScript = join(installDir, 'consumer-exports-boundary-check.mjs');
+    writeFileSync(consumerScript, `
+      try {
+        await import('semidex-lite/lite-src/serve-lite.js');
+        console.log('IMPORT_SUCCEEDED_UNEXPECTEDLY');
+      } catch (err) {
+        console.log(err.code ?? err.message);
+      }
+    `, 'utf-8');
+    const out = execFileSync(process.execPath, [consumerScript], { encoding: 'utf-8' });
+    assert.match(out, /ERR_PACKAGE_PATH_NOT_EXPORTED/);
+  });
+
+  it('the installed client\'s wire contract (bearer header, typed errors, redirect rejection, SSE async-iterator shape) survives packaging', async () => {
+    const consumerScript = join(installDir, 'consumer-wire-contract-check.mjs');
+    writeFileSync(consumerScript, buildWireContractConsumerScript(), 'utf-8');
+    const out = execFileSync(process.execPath, [consumerScript], { encoding: 'utf-8', timeout: 30_000 });
+    assert.match(out, /ALL_WIRE_CONTRACT_CHECKS_PASSED/, out);
+  });
+});
+
+// Generates a self-contained consumer script (zero imports beyond Node
+// builtins + the package-specifier `semidex-lite/client` import itself) that
+// re-runs the highest-value subset of tests/unit/lite/client/http.test.js's
+// assertions — request shape/bearer header, typed-error projection with no
+// key leakage, fail-closed redirect handling, and the askV1() async
+// generator's multi-event/terminal-error shape — against the client loaded
+// from its REAL installed location, over a real local socket. This is not a
+// duplication of the full unit suite (per the release-readiness task's own
+// "select the smallest high-value checks" instruction) — it is the minimum
+// needed to prove packaging did not silently change any of those contracts.
+function buildWireContractConsumerScript() {
+  return `
+    import { createSemidexClient, SemidexApiError } from 'semidex-lite/client';
+    import assert from 'node:assert/strict';
+    import { createServer } from 'node:http';
+
+    const API_KEY = 'sdx_v1_' + 'k'.repeat(16) + '_' + 'a'.repeat(43);
+
+    async function withFakeServer(handler, fn) {
+      const server = createServer((req, res) => {
+        const chunks = [];
+        req.on('data', (c) => chunks.push(c));
+        req.on('end', async () => {
+          let body = {};
+          if (chunks.length > 0) {
+            try { body = JSON.parse(Buffer.concat(chunks).toString('utf-8')); } catch { body = null; }
+          }
+          try { await handler(req, res, body); }
+          catch (err) { if (!res.headersSent) res.writeHead(500); res.end(String(err?.stack ?? err)); }
+        });
+      });
+      await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+      const base = 'http://127.0.0.1:' + server.address().port;
+      try { await fn(base); } finally { await new Promise((resolve) => server.close(resolve)); }
+    }
+    function jsonRes(res, status, body) {
+      res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify(body));
+    }
+
+    // 1) search() sends the bearer header and hits POST /api/v1/search.
+    await withFakeServer((req, res, body) => {
+      assert.equal(req.method, 'POST');
+      assert.equal(req.url, '/api/v1/search');
+      assert.equal(req.headers.authorization, 'Bearer ' + API_KEY);
+      jsonRes(res, 200, { apiVersion: 'v1', collection: body.collection, query: body.query, searchMode: 'hybrid', top: 3, window: 0, windowFormat: null, results: [] });
+    }, async (base) => {
+      const client = createSemidexClient({ baseUrl: base, apiKey: API_KEY });
+      const result = await client.search({ collection: 'docs', query: 'q' });
+      assert.equal(result.apiVersion, 'v1');
+    });
+
+    // 2) a non-2xx response becomes a typed SemidexApiError that never leaks the apiKey.
+    await withFakeServer((req, res) => {
+      jsonRes(res, 401, { error: { code: 'unauthorized', message: 'A valid Integration API bearer token is required.' } });
+    }, async (base) => {
+      const client = createSemidexClient({ baseUrl: base, apiKey: API_KEY });
+      await assert.rejects(
+        () => client.search({ collection: 'docs', query: 'q' }),
+        (err) => {
+          assert.ok(err instanceof SemidexApiError);
+          assert.equal(err.status, 401);
+          assert.equal(err.code, 'unauthorized');
+          const serialized = JSON.stringify(err, Object.getOwnPropertyNames(err));
+          assert.ok(!serialized.includes(API_KEY));
+          return true;
+        },
+      );
+    });
+
+    // 3) a redirect is rejected outright — the second origin never receives the request.
+    let secondaryHit = false;
+    await withFakeServer((req, res) => { secondaryHit = true; jsonRes(res, 200, {}); }, async (secondaryBase) => {
+      await withFakeServer((req, res) => {
+        res.writeHead(302, { Location: secondaryBase + '/api/v1/search' });
+        res.end();
+      }, async (base) => {
+        const client = createSemidexClient({ baseUrl: base, apiKey: API_KEY });
+        await assert.rejects(
+          () => client.search({ collection: 'docs', query: 'q' }),
+          (err) => { assert.ok(err instanceof SemidexApiError); assert.equal(err.retryable, true); return true; },
+        );
+      });
+    });
+    assert.equal(secondaryHit, false, 'a redirected-to endpoint must never receive a request');
+
+    // 4) askV1()/askV2() are importable and preserve the sources -> answer_delta* -> done
+    //    async-iterator contract, including the terminal-SSE-error-throws-not-yields rule.
+    for (const [name, call] of [['askV1', createSemidexClient({ baseUrl: 'http://127.0.0.1:1', apiKey: API_KEY }).askV1], ['askV2', createSemidexClient({ baseUrl: 'http://127.0.0.1:1', apiKey: API_KEY }).askV2]]) {
+      assert.equal(typeof call, 'function', name + ' must be exported as a function');
+    }
+    await withFakeServer((req, res, body) => {
+      assert.equal(req.url, '/api/v1/ask');
+      assert.equal(req.headers.accept, 'text/event-stream');
+      res.writeHead(200, { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-cache', Connection: 'keep-alive' });
+      res.write('event: sources\\ndata: {"apiVersion":"v1","searchMode":"hybrid","sources":[]}\\n\\n');
+      res.write('event: answer_delta\\ndata: {"text":"hi"}\\n\\n');
+      res.write('event: done\\ndata: {"answer":"hi","citations":[],"entityRefs":[],"refused":false,"evidenceCount":0}\\n\\n');
+      res.end();
+    }, async (base) => {
+      const client = createSemidexClient({ baseUrl: base, apiKey: API_KEY });
+      const events = [];
+      for await (const event of client.askV1({ collection: 'docs', question: 'q' })) events.push(event);
+      assert.deepEqual(events.map((e) => e.type), ['sources', 'answer_delta', 'done']);
+    });
+    await withFakeServer((req, res) => {
+      res.writeHead(200, { 'Content-Type': 'text/event-stream; charset=utf-8' });
+      res.write('event: error\\ndata: {"code":"generation_failed","message":"boom","retryable":true}\\n\\n');
+      res.end();
+    }, async (base) => {
+      const client = createSemidexClient({ baseUrl: base, apiKey: API_KEY });
+      const events = [];
+      await assert.rejects(
+        (async () => { for await (const event of client.askV2({ collection: 'docs', question: 'q' })) events.push(event); })(),
+        (err) => { assert.ok(err instanceof SemidexApiError); assert.equal(err.code, 'generation_failed'); return true; },
+      );
+      assert.deepEqual(events, [], 'a terminal SSE error must throw, never yield a final event');
+    });
+
+    console.log('ALL_WIRE_CONTRACT_CHECKS_PASSED');
+  `;
+}
 
 function walkJsFiles(dir, visit, base = dir) {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {

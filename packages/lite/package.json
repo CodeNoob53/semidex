@@ -1,6 +1,6 @@
 {
   "name": "semidex-lite",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "Cloud RAG pipeline for Node.js with structural document chunking, Qdrant Cloud embeddings and hybrid search, and Gemini-grounded Ask APIs.",
   "license": "MIT",
   "type": "module",

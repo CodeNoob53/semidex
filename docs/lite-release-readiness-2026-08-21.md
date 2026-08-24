@@ -8,6 +8,40 @@ security posture. Nothing in this file changes the package version, creates
 a tag, or publishes anything; it only records what was verified and what
 still needs a human/live step before either happens.
 
+## Semidex Lite 0.1.6 addendum (2026-08-24)
+
+This addendum records the release gate for the Integration Search API and the
+public `semidex-lite/client` SDK added after the original checklist below was
+written. The historical 2026-08-21 results remain unchanged.
+
+- Packed clean-install acceptance passed **14/14** tests. It verifies the
+  package export boundary, installed SDK imports, shipped `.d.ts` and backend
+  example, bearer request shape, typed errors without token disclosure,
+  redirect rejection, Ask v1/v2 streaming, and the absence of excluded
+  Full/local runtime paths, maintainer scripts, reports, and secrets.
+- Focused Search/SDK/auth regression passed **68/68** tests. Smoke passed
+  **1316/1316** assertions; Full and Lite builds and Lite pack/prepack closure
+  completed successfully.
+- The full local suite reported one pre-existing Windows working-tree line
+  ending mismatch in
+  `tests/unit/architecture/shared-cloud-local-manifest.test.js`; no production
+  or manifest source changed in this release work. This is recorded rather
+  than hidden and must still be green in GitHub Actions before publishing.
+- The opt-in packed-artifact live harness was run with real Qdrant Cloud and
+  Gemini credentials and returned
+  **`SEMIDEX_LITE_RELEASE_LIVE_ACCEPT`**. It clean-installed the tarball,
+  passed the Qdrant Cloud inference probe, indexed its owned fixture, created
+  separate generate- and search-scoped keys, verified 401/403/429 boundaries,
+  exercised Integration Search through the installed SDK, and obtained
+  grounded Ask v1/v2 answers with evidence and citations. Ask v1 succeeded on
+  attempt 1; Ask v2 succeeded on attempt 2 through the bounded transient retry.
+- Cleanup succeeded with HTTP 200 for the exact-owned disposable collection.
+  The generated schema-v2 JSON report is stored under ignored `.tmp/` state
+  and is not part of the package or Git diff.
+
+The Lite package version is now `0.1.6`; the repository root version remains
+`2.0.0`. Nothing was tagged, pushed, published, or released during this gate.
+
 ## How Lite is actually released
 
 From `.github/workflows/publish-lite.yml` (triggered on a published GitHub
