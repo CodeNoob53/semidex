@@ -25,7 +25,7 @@ Usage:
   semidex-lite serve                        Start the Lite admin API + dashboard
   semidex-lite index <path>                 Index a file or folder into Qdrant Cloud
   semidex-lite key add --name <n> --collection <c>
-                                            Create an Integration API key (Ask v1/v2)
+                                            Create an Integration API key (search, generate, or both)
   semidex-lite key list                     List Integration API keys
   semidex-lite key revoke <id>              Revoke an Integration API key
   semidex-lite --help                       Show this help

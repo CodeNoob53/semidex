@@ -100,7 +100,13 @@ describe('Digest storage — the raw token is never persisted', () => {
   it('stores only a SHA-256 digest', () => {
     const { token } = addKey();
     const raw = readFileSync(path, 'utf-8');
-    const secret = token.split('_').pop();
+    // Extract positionally (the last 43 chars), never via split('_').pop() —
+    // the secret's own base64url alphabet includes '_', so a delimiter split
+    // can silently truncate it to a short tail that then coincidentally
+    // matches unrelated bytes elsewhere in the file (id, digest, timestamp),
+    // producing a flaky false failure. Same positional reasoning parseToken()
+    // itself documents above.
+    const secret = token.slice(-43);
     assert.equal(raw.includes(token), false, 'the full token must never appear on disk');
     assert.equal(raw.includes(secret), false, 'the secret must never appear on disk');
     const parsed = JSON.parse(raw);

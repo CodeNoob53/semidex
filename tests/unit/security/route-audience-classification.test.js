@@ -8,7 +8,7 @@
 //
 // The boundary itself:
 //   integration = stable, versioned, application-facing routes a third-party
-//                 backend calls. Ask v1/v2 ONLY, today.
+//                 backend calls. Search v1 and Ask v1/v2, today.
 //   admin       = dashboard/management. Everything else, including the
 //                 dashboard's own internal /api/search (unversioned, consumed
 //                 only by ui-src/search.js — see the classification note in
@@ -58,6 +58,7 @@ function fullRoutes() {
 }
 
 const INTEGRATION_ROUTES = [
+  'POST /api/v1/search',
   'POST /api/v1/ask',
   'POST /api/v2/ask',
 ];
@@ -89,20 +90,29 @@ describe('Part A — every route carries explicit, valid metadata (exhaustive, n
 });
 
 describe('Part C — the Admin/Integration classification is exactly as designed', () => {
-  it('Ask v1 and Ask v2 are the ONLY integration routes', () => {
+  it('Search v1 and Ask v1/v2 are the ONLY integration routes', () => {
     const integration = liteRoutes().filter((r) => r.audience === AUDIENCE.INTEGRATION).map(key).sort();
     assert.deepEqual(integration, INTEGRATION_ROUTES.slice().sort(),
       'the integration surface must not grow without an explicit decision — see the audit\'s classification note');
   });
 
   it('Ask routes are classified as billed generation against a body-supplied collection', () => {
-    for (const r of liteRoutes().filter((r) => r.audience === AUDIENCE.INTEGRATION)) {
+    for (const r of liteRoutes().filter((r) => r.audience === AUDIENCE.INTEGRATION && r.path !== '/api/v1/search')) {
       assert.equal(r.operation, OPERATION.GENERATE, `${key(r)} should be a generate operation`);
       assert.equal(r.costClass, COST_CLASS.LLM, `${key(r)} is billed generation`);
       // This is what the next phase's object-level authorization (OWASP
       // API1:2023) keys off: the collection identifier arrives in the body.
       assert.equal(r.collectionSource, COLLECTION_SOURCE.BODY, `${key(r)} takes its collection from the request body`);
     }
+  });
+
+  it('Search v1 is classified as a Qdrant-only operation against a body-supplied collection — never billed generation', () => {
+    const search = liteRoutes().find((r) => key(r) === 'POST /api/v1/search');
+    assert.ok(search, 'expected POST /api/v1/search to be registered');
+    assert.equal(search.audience, AUDIENCE.INTEGRATION);
+    assert.equal(search.operation, OPERATION.SEARCH);
+    assert.equal(search.costClass, COST_CLASS.QDRANT, 'Search never calls a generation provider');
+    assert.equal(search.collectionSource, COLLECTION_SOURCE.BODY);
   });
 
   it('settings read/write are admin', () => {

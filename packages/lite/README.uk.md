@@ -2,23 +2,39 @@
 
 [English version](./README.md)
 
-> [!IMPORTANT]
-> **Статус пакета: ранній MVP.** Попередній README був згенерованою
-> заглушкою і не описував повний функціонал, призначення та обмеження
-> `semidex-lite`. Пакет спочатку було опубліковано для особистого використання,
-> тестування npm-дистрибуції та перевірки роботи хмарного профілю Semidex.
-> Поточний функціонал залишається обмеженим, API й поведінка можуть змінюватися,
-> а production-ready стабільність поки не гарантується. Використовуйте пакет
-> обережно, не покладайтеся на нього в критичних системах і самостійно
-> перевіряйте його придатність для своїх даних та сценаріїв.
+**Semidex Lite — це хмарне RAG-ядро та JS/TS-клієнт для Node.js-застосунків,**
+яким потрібно перетворити власні документи на базу знань із пошуком і
+відповідями на основі джерел. Воно є хмарною версією
+[Semidex](https://github.com/CodeNoob53/semidex) і закриває шлях від
+індексації документа до інтеграції пошуку або асистента у ваш backend.
 
-**semidex-lite — це хмарна версія
-[semidex](https://github.com/CodeNoob53/semidex), гнучкої RAG-системи для
-створення баз знань на основі власних документів.** Вона індексує документи,
-знаходить релевантні фрагменти за допомогою гібридного пошуку та формує
-обґрунтовані відповіді з посиланнями на джерела. semidex-lite використовує
-Qdrant Cloud для зберігання даних і обчислення ембедингів, Gemini для генерації
-відповідей та надає HTTP Ask API, CLI для індексації й компактну адмін-панель.
+Пакет уже надає:
+
+- ingestion для Markdown, PDF, plain text і підтримуваних Pandoc-форматів;
+- структурний skeleton-first чанкінг Markdown, детермінований контекст та
+  інвентар документа;
+- dense і sparse ембединги через Qdrant Cloud Inference;
+- гібридний пошук і версійний `POST /api/v1/search`;
+- Ask API для одноходових і багатоходових відповідей із джерелами;
+- `semidex-lite/client` для Search, Ask v1 та Ask v2 у JavaScript/TypeScript;
+- CLI для індексації та операторську адмін-панель.
+
+> [!IMPORTANT]
+> **Статус: ранній pre-1.0 продукт.** Semidex Lite активно розвивається, тому
+> API, конфігурація та поведінка ще можуть змінюватися між релізами. Проєкт не
+> пройшов незалежного security audit і постачається без гарантій; не
+> використовуйте його як єдину межу безпеки або в критичних системах без
+> власного аналізу ризиків, тестування й належного захисту deployment.
+> Вихідний код доступний за ліцензією
+> [MIT](https://github.com/CodeNoob53/semidex/blob/main/LICENSE): його можна
+> безкоштовно використовувати, змінювати й поширювати, зокрема в комерційних
+> продуктах, за умови дотримання тексту ліцензії. Ліцензія не надає гарантій.
+
+Semidex Lite не є готовим SaaS, сховищем чатів або повною платформою керування
+користувачами. Ваш застосунок володіє інтерфейсом, користувачами, історією
+розмов і бізнес-правилами; Semidex Lite надає ingestion, retrieval та grounded
+answering як окреме backend-ядро. Qdrant Cloud використовується для зберігання
+й обчислення ембедингів, а Gemini — для генерації відповідей.
 
 ### Повний цикл від документа до відповіді
 
@@ -54,6 +70,11 @@ plain-text і підтримувані Pandoc-формати використо�
 - навчальний чи дослідницький помічник для роботи з власними матеріалами;
 - retrieval-компонент більшої агентної системи або спеціалізованого продукту.
 
+Для інтеграції з backend використовуйте версійні Search/Ask endpoints напряму
+або клієнт `semidex-lite/client`. Адмін-панель залишається операторським
+інструментом для локального налаштування, індексації та діагностики, а не
+публічним API вашого продукту.
+
 `semidex-lite` відповідає за індексацію, пошук релевантного evidence і цикл
 Ask — включно з обчисленням обмеженого rolling summary для багатоходових
 розмов (`/api/v2/ask`, див.
@@ -71,6 +92,18 @@ compaction, пам'яттю поза межами однієї розмови, �
 та після виклику Ask, але для зміни внутрішніх правил Gemini зараз потрібно
 змінити або форкнути вихідний код пакета. Конфігурований системний prompt може
 з'явитися в майбутньому, однак поки не є частиною публічного контракту.
+
+## Напрям розвитку
+
+Найближчий фокус — стабільний публічний integration surface, відтворюваний
+end-to-end приклад, оцінювання retrieval/groundedness і подальше посилення
+безпеки. Наступні напрями включають якісніший ingestion для PDF, OCR та
+зображень, додаткових generation-провайдерів, agentic research/MCP facade,
+Codebase Memory і підключні механізми довготривалої пам'яті. Це напрями
+розвитку, а не обіцянка конкретних дат або складу наступного релізу.
+
+Актуальний стан, пріоритети, non-goals і дослідницький backlog описані в
+[canonical roadmap](https://github.com/CodeNoob53/semidex/blob/main/docs/en/roadmap.md).
 
 ## Чим semidex-lite відрізняється від повної версії semidex
 
@@ -504,7 +537,7 @@ npx semidex-lite key revoke <id>
 > [!IMPORTANT]
 > **Примітка про міграцію для наявних користувачів Ask API.** Ask тепер
 > потребує bearer-токена. Доки ви не створите перший ключ,
-> `POST /api/v1/ask` і `POST /api/v2/ask` повертають
+> `POST /api/v1/search`, `POST /api/v1/ask` і `POST /api/v2/ask` повертають
 > **`503 integration_auth_not_configured`**. Створіть ключ командою
 > `semidex-lite key add …` і надсилайте його як
 > `Authorization: Bearer <token>`. Більше нічого не змінюється: адмін-панель,
@@ -513,17 +546,32 @@ npx semidex-lite key revoke <id>
 
 ### Admin API проти Integration API
 
-semidex-lite обслуговує дві різні поверхні з навмисно різними правилами:
+semidex-lite обслуговує дві різні поверхні з навмисно різними правилами.
+Сам Integration API складається з двох незалежних груп ендпоінтів — Search
+(`/api/v1/search`, лише Qdrant, без виклику генерації) і Ask
+(`/api/v1/ask`/`/api/v2/ask`, платна генерація через Gemini) — і ключ треба
+явно налаштувати на кожну з них окремо (див.
+[Створення ключа](#створення-ключа) нижче):
 
 | | Admin API | Integration API |
 |---|---|---|
-| Маршрути | Панель, налаштування, завдання індексації, колекції, проби, `/api/search` | `POST /api/v1/ask`, `POST /api/v2/ask` |
+| Маршрути | Панель, налаштування, завдання індексації, колекції, проби, `/api/search` (неверсійний, лише для панелі) | `POST /api/v1/search`, `POST /api/v1/ask`, `POST /api/v2/ask` |
 | Хто викликає | Ви, з браузера на цій машині | Ваш backend, server-to-server |
 | Обліковий запис | **Немає** — захист через loopback-прив'язку | **Bearer-ключ, обов'язково** |
 | Відкритість | Ніколи не відкривати поза loopback | Доступний через ваш backend |
 
 Admin-маршрути *ніколи* не блокуються integration-ключем: відсутній або
-пошкоджений key store вимикає Ask, а не вашу панель.
+пошкоджений key store вимикає Search/Ask, а не вашу панель.
+
+`/api/search` і `/api/v1/search` виглядають схожими, але це РІЗНІ контракти:
+
+- **`/api/search`** — неверсійний, використовується лише вбудованою
+  панеллю цього пакета (`ui-src/search.js`). Без bearer-ключа, лише
+  loopback, без публічної гарантії сумісності — форма відповіді може
+  змінитися в будь-якому релізі без попередження.
+- **`/api/v1/search`** — версійний, автентифікований і стабільний. Саме
+  цей ендпоінт має викликати ваш backend. Див.
+  [Search: `POST /api/v1/search`](#search-post-apiv1search) нижче.
 
 ### Створення ключа
 
@@ -541,7 +589,25 @@ npx semidex-lite key add --name assistant-backend \
   колекції відхиляється: порожня область дії ніколи не повинна тихо означати
   необмежений доступ. Щоб явно надати всі колекції, вкажіть
   `--collection "*"`.
-- `--operation` — за замовчуванням `generate` (те, що потрібно Ask).
+- `--operation` — можна повторювати. За замовчуванням `generate` (Ask
+  v1/v2), якщо прапорець не вказано — **наявний ключ, створений до появи
+  Search, ніколи автоматично не отримує доступ до неї**: доступ до Search
+  з'являється лише в ключа, явно створеного (або перествореного) з
+  `--operation search`. Вкажіть `--operation search` лише для Search,
+  `--operation generate` лише для Ask, або обидва прапорці разом для
+  ключа, який може викликати обидва:
+
+  ```bash
+  # Лише Search — цей backend ніколи не викликає Ask/Gemini.
+  npx semidex-lite key add --name search-widget --collection my-docs --operation search
+
+  # Лише Ask/generate (попередня поведінка за замовчуванням, без змін).
+  npx semidex-lite key add --name chat-backend --collection my-docs --operation generate
+
+  # Обидва — один ключ для backend, який робить і Search, і Ask.
+  npx semidex-lite key add --name full-backend --collection my-docs \
+    --operation search --operation generate
+  ```
 - `--expires` — ISO-дата (`2027-01-01`) або тривалість (`90d`, `12h`).
   Пропустіть, щоб ключ не мав терміну дії.
 - `--requests-per-minute` — стійкий ліміт частоти для цього ключа, ціле число
@@ -609,10 +675,11 @@ query-рядку, cookie та тілі запиту, бо ці місця лог
 
 ### Обмеження частоти запитів
 
-Кожен автентифікований Ask-запит (`/api/v1/ask`, `/api/v2/ask`)
-обмежується за ключем через token bucket: **30 запитів/хв, burst 5, за
-замовчуванням.** Обидва endpoint'и використовують один спільний bucket на
-ключ — виклики v1 і v2 по черзі не подвоюють ефективну частоту.
+Кожен автентифікований запит Integration API (`/api/v1/search`,
+`/api/v1/ask`, `/api/v2/ask`) обмежується за ключем через token bucket:
+**30 запитів/хв, burst 5, за замовчуванням.** Усі три ендпоінти
+використовують ОДИН спільний bucket на ключ — виклики Search і Ask по
+черзі не подвоюють ефективну частоту.
 
 Задайте інший ліміт для ключа при його створенні:
 
@@ -680,6 +747,167 @@ npx semidex-lite key add --name high-volume-backend \
 
 Ще не реалізовано: віддалена автентифікація Admin API та керування ключами
 з панелі.
+
+## JS-клієнт (semidex-lite/client)
+
+**Це рекомендований спосіб інтеграції з semidex-lite** — причини нижче.
+`semidex-lite` постачає невеликий, **без жодних залежностей** ESM-клієнт,
+що покриває всі три ендпоінти Integration API (Search, Ask v1, Ask v2). Це
+рекомендований спосіб викликати semidex-lite з backend на Node.js — приклади
+з прямим `fetch`/`curl` теж наведені в цьому README, для інших мов або коли
+потрібен повний контроль, але клієнт уже коректно обробляє тонкі місця:
+розбір SSE через довільні межі мережевих фрагментів, тайм-аути запитів без
+витоку таймерів, підтримку `AbortSignal` і один типізований клас помилки на
+всі випадки збою замість перевірки кодів статусу вручну.
+
+```js
+import { createSemidexClient } from 'semidex-lite/client';
+
+const semidex = createSemidexClient({
+  baseUrl: 'http://127.0.0.1:8642',   // без query-рядка, фрагмента чи userinfo
+  apiKey: process.env.SEMIDEX_TOKEN,  // ніколи не передавайте це в браузерний JavaScript
+});
+
+// Search — звичайний Promise.
+const result = await semidex.search({ collection: 'my-docs', query: 'умови повернення', top: 5 });
+console.log(result.results.map((r) => r.sourceFile));
+
+// Ask v1 — асинхронний генератор: sources, нуль або більше answer_delta, потім done.
+for await (const event of semidex.askV1({ collection: 'my-docs', question: 'Який термін повернення?' })) {
+  if (event.type === 'answer_delta') process.stdout.write(event.text);
+  if (event.type === 'done') console.log('\nцитати:', event.citations);
+}
+
+// Ask v2 — той самий контракт подій, плюс блок `conversation`, яким володіє викликач.
+// conversationId/summary/recentMessages — ваша відповідальність зберігати —
+// див. "Чим semidex-lite і далі не володіє" вище та
+// examples/backend-integration-server.mjs, де реальний застосунок зберігав би це.
+for await (const event of semidex.askV2({
+  collection: 'my-docs',
+  question: 'А які є винятки з цього правила?',
+  conversation: { conversationId, summary, recentMessages },
+})) {
+  // ... такі самі форми подій, як у askV1(), плюс event.conversation у `done`
+}
+```
+
+**Обробка помилок.** Будь-яка помилка — відповідь не 2xx, термінальна
+SSE-подія `error`, тайм-аут, скасований запит, мережева помилка — постає як
+ОДИН і той самий типізований `SemidexApiError`, а не окрема перевірка коду
+статусу чи різна форма залежно від того, який саме ендпоінт відмовив:
+
+```js
+import { createSemidexClient, SemidexApiError } from 'semidex-lite/client';
+
+try {
+  await semidex.search({ collection: 'my-docs', query: 'x' });
+} catch (err) {
+  if (err instanceof SemidexApiError) {
+    console.error(err.status, err.code, err.retryable, err.message);
+    // err ніколи не містить apiKey чи будь-який інший секрет.
+  }
+}
+```
+
+**Редіректи ніколи не виконуються.** Якщо налаштований `baseUrl` (або
+що-небудь перед ним) відповідає 3xx, клієнт відхиляє запит з
+`SemidexApiError` (`retryable: true`) замість того, щоб перейти за
+редіректом — ваш `apiKey`/заголовок `Authorization` та тіло запиту ніколи не
+повторюються за адресою з `Location`, на будь-якому origin, включно з тим
+самим.
+
+**Повний робочий приклад** — мінімальний backend, який викликає браузер,
+який сам володіє ключем Semidex та явним зіставленням теми на колекцію,
+викликає `semidex-lite/client` і транслює в браузер одну розмову Ask v2 як
+власний потік Server-Sent Events — постачається у файлі
+[`examples/backend-integration-server.mjs`](examples/backend-integration-server.mjs).
+Він конкретно демонструє архітектуру, яку передбачає кожна інтеграція в
+цьому README:
+
+```text
+браузер (без секретів)  -->  ВАШ backend (тримає SEMIDEX_TOKEN, володіє зіставленням колекцій)  -->  Semidex Lite
+```
+
+Запустіть його проти власного `semidex-lite serve`:
+
+```bash
+npx semidex-lite key add --name demo-backend --collection my-docs --operation search --operation generate
+SEMIDEX_TOKEN=<token> SEMIDEX_BASE_URL=http://127.0.0.1:8642 SEMIDEX_DOCS_COLLECTION=my-docs \
+  node examples/backend-integration-server.mjs
+```
+
+Оголошення типів (`.d.ts`) постачаються разом із клієнтом для редакторів/
+`tsc` — без кроку збірки, без компіляції TypeScript у цьому репозиторії.
+
+## Search: `POST /api/v1/search`
+
+Версійний, автентифікований аналог внутрішнього пошуку панелі. Використовує
+ту саму реалізацію retrieval, що й `/api/search` (див.
+[Admin API проти Integration API](#admin-api-проти-integration-api) вище
+щодо відмінності) — той самий гібридний dense+sparse ранжування, ті самі
+обмежені семантики `top`/`window`, та сама фільтрація за тегами/файлом —
+але за bearer-ключем замість довіри лише до loopback.
+
+```bash
+curl -N -X POST "http://127.0.0.1:8642/api/v1/search" \
+  -H "Authorization: Bearer $SEMIDEX_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"collection":"my-docs","query":"умови повернення","top":5}'
+```
+
+```js
+const response = await fetch('http://127.0.0.1:8642/api/v1/search', {
+  method: 'POST',
+  headers: {
+    Authorization: `Bearer ${process.env.SEMIDEX_TOKEN}`,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({ collection: 'my-docs', query: 'умови повернення', top: 5 }),
+});
+const { results } = await response.json();
+```
+
+Для backend на Node.js надавайте перевагу
+[JS-клієнту](#js-клієнт-semidex-liteclient) (`semidex.search({ collection, query, top })`)
+замість прямого `fetch` — він перевіряє вхідні дані та безкоштовно дає
+типізовані помилки.
+
+Поля запиту:
+
+| Поле | Тип | За замовчуванням | Примітка |
+|---|---|---|---|
+| `collection` | рядок | — | обов'язково |
+| `query` | рядок | — | обов'язково |
+| `top` | ціле 1–20 | 3 | |
+| `window` | ціле 0–5 | 0 | додаткові фрагменти до/після кожного збігу |
+| `windowFormat` | `"compact"` \| `"full"` | `"compact"`, коли `window > 0`, інакше ігнорується | |
+| `sourceFile` | рядок | — | фільтр за одним відомим файлом |
+| `tags` | рядок[] | — | фільтр за тегом (будь-який збіг) |
+
+На відміну від `/api/search`, `/api/v1/search` відхиляє будь-яке поле тіла
+поза цим списком з `400 bad_request` — свідомо жорсткіший публічний
+контракт із самого початку, тож помилка в назві поля ніколи мовчки нічого
+не робить.
+
+Відповідь містить `apiVersion: "v1"` і явну, задокументовану форму
+результату (`sourceFile`, `chunkIndex`, `totalChunks`, `section`, `text`,
+`context`, `tags`, `score`, `nodeId`, `nodePath`, `nodeType`, `isMatch`, а
+також `windowChunks`, коли `window > 0`) — ніколи сирий внутрішній об'єкт.
+Помилки використовують той самий конверт
+`{ error: { apiVersion, code, message, retryable } }`, що й Ask v1/v2 (див.
+[Коди відповідей](#коди-відповідей) вище щодо кодів автентифікації/області
+дії/обмеження частоти, спільних для всіх трьох ендпоінтів Integration API);
+специфічні для Search коди — це `bad_request`, `not_found`, `forbidden`,
+`not_implemented`, `embedding_failed`, `embedding_unresolved` і
+`embedding_unsupported` — Search ніколи не повертає код, пов'язаний із
+генерацією (`busy`, `dependency_unavailable`, жоден код `budget_*`), бо
+ніколи не викликає провайдера генерації.
+
+Ключ має бути налаштований на операцію `search`, щоб викликати цей
+ендпоінт — див. [Створення ключа](#створення-ключа) вище. Наявний ключ,
+створений до появи Search, без прапорця `--operation`, доступний лише для
+`generate` і отримає тут `403 forbidden`, доки його не перествориять із
+`--operation search`.
 
 ## Ask: відповіді на основі вашої бази знань
 
@@ -752,6 +980,13 @@ const response = await fetch('http://127.0.0.1:8642/api/v1/ask', {
   body: JSON.stringify({ collection, question: userMessage }),
 });
 ```
+
+Для backend на Node.js надавайте перевагу
+[JS-клієнту](#js-клієнт-semidex-liteclient)
+(`for await (const event of semidex.askV1({ collection, question }))`)
+замість прямого `fetch` — він коректно розбирає SSE-потік через межі
+фрагментів і дає один типізований клас помилки на всі випадки збою замість
+самописної перевірки `Content-Type`.
 
 Визначайте або перевіряйте дозволену колекцію на своєму backend. Не дозволяйте
 неавтентифікованому браузеру передавати довільну назву колекції, інакше він
@@ -1041,18 +1276,21 @@ token-budgeting/rewriting/compaction. Design-документи в цьому р
 ### Ручна перевірка без побудови інтеграції
 
 Вбудований дашборд наразі не має панелі Ask — можливо, її буде реалізовано
-пізніше, але поки що він надає лише ручний **пошук** по проіндексованій
-колекції (без генерації, без citations, без SSE). Наразі немає
-браузерного способу викликати Ask v1/v2; приклад `curl` вище та
-runnable-клієнт у `examples/` — це способи перевірити Ask вручну до побудови
-повної інтеграції:
+пізніше, але поки що він надає лише ручний пошук по проіндексованій
+колекції через власний внутрішній, неверсійний `/api/search` (без
+генерації, без citations, без SSE, без bearer-ключа — див.
+[Admin API проти Integration API](#admin-api-проти-integration-api) вище).
+Наразі немає браузерного способу викликати версійні `/api/v1/search`,
+`/api/v1/ask` чи `/api/v2/ask`; приклади `curl` вище та runnable-приклади в
+`examples/` — це способи перевірити їх вручну до побудови повної інтеграції:
 
 1. Налаштуйте `QDRANT_URL`, `QDRANT_KEY` і `GEMINI_API_KEY`.
 2. Проіндексуйте файл або папку в колекцію через `semidex-lite index`.
 3. Запустіть сервер командою `npx semidex-lite serve`.
-4. Відкрийте `http://127.0.0.1:8642`, щоб переглянути колекцію та спробувати
-   ручний пошук, або викличте `/api/v1/ask` / `/api/v2/ask` напряму (`curl`,
-   або `examples/run-conversation-demo.mjs`), щоб перевірити сам Ask.
+4. Створіть ключ (`semidex-lite key add ...`) і викличте `/api/v1/search`,
+   `/api/v1/ask` чи `/api/v2/ask` напряму через `curl`, або запустіть
+   `examples/backend-integration-server.mjs` /
+   `examples/run-conversation-demo.mjs`, щоб перевірити їх через JS-клієнт.
 
 ## Live acceptance релізу лише для супровідників
 
@@ -1119,4 +1357,9 @@ semidex.
 
 ## Ліцензія
 
-MIT
+Semidex Lite поширюється за ліцензією
+[MIT](https://github.com/CodeNoob53/semidex/blob/main/LICENSE). Ви можете
+використовувати, копіювати, змінювати, публікувати й поширювати код, зокрема у
+комерційних продуктах, за умовами ліцензії та зі збереженням необхідного
+повідомлення про авторські права. Програмне забезпечення надається «як є», без
+гарантій.

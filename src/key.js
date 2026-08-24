@@ -4,9 +4,10 @@
 // command uses too, so the two editions cannot drift into different
 // validation, different output, or different security properties.
 //
-// Manages credentials for the INTEGRATION API only (POST /api/v1/ask,
-// POST /api/v2/ask). The Admin API/dashboard stays loopback-bound and
-// credential-free — see docs/security/integration-api-auth-design-note.md.
+// Manages credentials for the INTEGRATION API only (POST /api/v1/search,
+// POST /api/v1/ask, POST /api/v2/ask). The Admin API/dashboard stays
+// loopback-bound and credential-free — see
+// docs/security/integration-api-auth-design-note.md.
 import { join } from 'node:path';
 import { resolveSemidexHomePaths } from './local/core/semidex-home.js';
 import { runKeyCommand } from './core/auth/key-cli.js';

@@ -30,6 +30,7 @@ import { registerAssemblyRoutes } from './api/assembly.js';
 import { registerSkeletonRoutes } from './api/skeleton.js';
 import { registerNodeRoutes } from './api/node.js';
 import { registerSearchRoutes } from './api/search.js';
+import { registerSearchRoutesV1 } from '../../core/search-api/v1/route.js';
 import { registerAskRoutesV1 } from '../../core/ask-api/v1/route.js';
 import { registerAskRoutesV2 } from '../../core/ask-api/v2/route.js';
 import { createAskCoordinatorBundle } from '../../core/ask/coordinator-v2.js';
@@ -91,6 +92,13 @@ export function registerNeutralRoutes(router, {
   // so HYBRID_PREFETCH_LIMIT/RRF_K settings apply to admin search too, not
   // just MCP (code review finding).
   registerSearchRoutes(router, adapter, { ...(embedQuery ? { embedQuery } : {}), cloudEmbed, settingsService });
+  // POST /api/v1/search — the versioned, bearer-authenticated Integration
+  // counterpart to the Admin dashboard's own /api/search above. Same DI
+  // contract (embedQuery/cloudEmbed/settingsService), same underlying
+  // core/retrieval/search.js implementation — see
+  // src/core/search-api/v1/route.js's own header comment for why this
+  // never duplicates ranking/embedding/filter/window logic.
+  registerSearchRoutesV1(router, adapter, { ...(embedQuery ? { embedQuery } : {}), cloudEmbed, settingsService });
   // generationRuntime/askCoordinator/countTokens are optional DI — tests
   // inject stubs so unit tests never initialize Ollama or the real BGE-M3
   // tokenizer. Defaulted here (not inside the ask-api route module) so the

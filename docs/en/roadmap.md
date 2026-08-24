@@ -52,7 +52,7 @@ edition-specific composition belongs in separate Full and Lite roots.
 | Generation | Ollama in Full; Gemini in Lite; provider seam exists for additional backends |
 | Operations | Typed settings, collection embedding profiles, health probes, device-aware indexing, managed Windows CUDA installer |
 | Distribution | `semidex-lite` is published on npm; Full does not yet have a supported public package |
-| Public API security | Host/Origin/CSRF hardening, bearer-key auth with per-key collection scopes and rate limiting on Ask, a spend/token cost ceiling on Ask (per-request ledger + per-key aggregate budget, provider-neutral output cap), fail-closed indexing-root allow-list, security response headers, route-aware `Cache-Control`, an egress/SSRF policy for Qdrant and Ollama URLs, and structured local audit logging of security decisions and admin mutations all ship. The Admin surface (settings, jobs, collections, `/api/search`) is still intentionally unauthenticated and loopback-only by design, not yet by omission. |
+| Public API security | Host/Origin/CSRF hardening, bearer-key auth with per-key collection and operation scopes and rate limiting on the Integration API (Search v1 and Ask v1/v2, sharing one per-key rate-limit bucket), a spend/token cost ceiling on Ask specifically (per-request ledger + per-key aggregate budget, provider-neutral output cap — Search has no generation spend to bound), fail-closed indexing-root allow-list, security response headers, route-aware `Cache-Control`, an egress/SSRF policy for Qdrant and Ollama URLs, and structured local audit logging of security decisions and admin mutations all ship. The Admin surface (settings, jobs, collections, the unversioned `/api/search`) is still intentionally unauthenticated and loopback-only by design, not yet by omission. |
 
 ## Shipped foundation
 
@@ -234,13 +234,22 @@ a fully reusable assistant backend:
 - a real session/authentication model for remote Admin access, if remote
   Admin is ever made a supported deployment shape (it is loopback-only
   today, by design);
-- a decision on whether `/api/search` becomes a versioned, scoped
-  Integration-surface API (`POST /api/v1/search`) instead of the unversioned,
-  Admin-only route it is today;
+- ✅ `/api/search` gained a versioned, scoped Integration-surface
+  counterpart — `POST /api/v1/search`, bearer-authenticated, per-key
+  collection- and operation-scoped, rate limited alongside Ask v1/v2 on the
+  same per-key bucket, reusing the exact same retrieval implementation as
+  `/api/search` so the two surfaces cannot drift (security audit §12n,
+  2026-08-24). `/api/search` itself remains the unversioned, Admin-only,
+  no-compatibility-promise route it always was;
+- ✅ a zero-dependency JavaScript client (`semidex-lite/client`) covering
+  Search, Ask v1, and Ask v2 — SSE parsing across arbitrary chunk
+  boundaries, `AbortSignal`/timeout support, one typed error class, and
+  `.d.ts` declarations — plus a runnable backend-integration example
+  (`examples/backend-integration-server.mjs`) shipped alongside it
+  (2026-08-24);
 - keep clean-install and release acceptance tests representative of the
   published tarball;
-- provide concise JavaScript/TypeScript examples for indexing, search, Ask v1,
-  and Ask v2;
+- provide concise JavaScript/TypeScript examples for indexing;
 - make errors actionable without exposing provider secrets or internal paths.
 
 ### P1. Ingestion, OCR, and vision

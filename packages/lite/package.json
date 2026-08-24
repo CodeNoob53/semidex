@@ -40,6 +40,12 @@
   "bin": {
     "semidex-lite": "bin/semidex-lite.js"
   },
+  "exports": {
+    "./client": {
+      "types": "./lite-src/client/index.d.ts",
+      "default": "./lite-src/client/index.js"
+    }
+  },
   "scripts": {
     "prepack": "npm --prefix ../.. run admin:build:lite && node build.mjs"
   },

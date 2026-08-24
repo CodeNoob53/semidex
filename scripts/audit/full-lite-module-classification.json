@@ -14,7 +14,7 @@
     "mixed": 3,
     "tooling": 62,
     "cloud": 8,
-    "shared": 177,
+    "shared": 181,
     "local": 29
   },
   "modules": [
@@ -1007,6 +1007,17 @@
       ]
     },
     {
+      "path": "src/core/retrieval/search-request.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/http/http.js"
+      ]
+    },
+    {
       "path": "src/core/retrieval/search.js",
       "declaredCategory": "shared",
       "category": "shared",
@@ -1018,6 +1029,46 @@
         "src/core/embedding-profile/resolve.js",
         "src/core/embedding-profile/schema.js",
         "src/shared/core/bench-telemetry.js",
+        "src/shared/core/embeddings.js"
+      ]
+    },
+    {
+      "path": "src/core/search-api/v1/contract.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/core/search-api/v1/request.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/http/http.js",
+        "src/core/retrieval/search-request.js"
+      ]
+    },
+    {
+      "path": "src/core/search-api/v1/route.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/http/authorize.js",
+        "src/core/http/http.js",
+        "src/core/http/route-audience.js",
+        "src/core/retrieval/search-request.js",
+        "src/core/retrieval/search.js",
+        "src/core/search-api/v1/contract.js",
+        "src/core/search-api/v1/request.js",
+        "src/shared/core/doctor-checks.js",
         "src/shared/core/embeddings.js"
       ]
     },
@@ -1901,6 +1952,7 @@
       "directDependencies": [
         "src/core/http/http.js",
         "src/core/http/route-audience.js",
+        "src/core/retrieval/search-request.js",
         "src/core/retrieval/search.js",
         "src/shared/core/embeddings.js"
       ]
@@ -1999,6 +2051,7 @@
         "src/core/generation/runtime.js",
         "src/core/http/cache-policy.js",
         "src/core/http/request-security.js",
+        "src/core/search-api/v1/route.js",
         "src/shared/admin/api/assembly.js",
         "src/shared/admin/api/chunks.js",
         "src/shared/admin/api/collections.js",

@@ -57,8 +57,16 @@ const KEY_ID_RE = /^[A-Za-z0-9_-]{16}$/;
 const SECRET_RE = /^[A-Za-z0-9_-]{43}$/;
 const WILDCARD = '*';
 
-/** Operations an integration key may be scoped to. Mirrors OPERATION in route-audience.js. */
-export const SUPPORTED_OPERATIONS = Object.freeze(['generate']);
+/**
+ * Operations an integration key may be scoped to. Mirrors OPERATION in
+ * route-audience.js. 'generate' is Ask v1/v2 (billed LLM generation);
+ * 'search' is /api/v1/search (Qdrant-only, no generation call). A key may
+ * be scoped to either, or both — createKey()'s own default (['generate'])
+ * is unchanged, so an EXISTING key predating 'search' is never silently
+ * widened to cover it: only a key explicitly created (or re-created) with
+ * `--operation search` gets Search access.
+ */
+export const SUPPORTED_OPERATIONS = Object.freeze(['generate', 'search']);
 
 /**
  * Typed outcomes. `authenticateToken()` never throws for an auth failure —

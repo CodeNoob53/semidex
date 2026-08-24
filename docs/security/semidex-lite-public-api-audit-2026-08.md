@@ -47,9 +47,9 @@ and proof):**
 |---|---|
 | No Host-header / DNS-rebinding defense | 🟢 FIXED, every route — P3-1, §12b |
 | No Origin/CSRF enforcement | 🟢 FIXED, every route — P1-1, §12b |
-| No authentication anywhere | 🟡 FIXED for `POST /api/v1/ask`/`v2/ask` only (bearer keys); the Admin surface (settings, jobs, collections incl. `DELETE`, `POST /api/search`, schema sync, Qdrant Cloud probe, static UI) remains exactly as originally audited — no authentication at all, by design — P1-1 residual, §12d, §12e |
-| No collection scoping | 🟡 FIXED for Ask v1/v2 only (per-key `collections` scope); every Admin read/write route still performs zero collection-level scoping — P1-2 STATUS |
-| No rate limiting anywhere | 🟡 FIXED for Ask v1/v2 only (per-key token bucket **and** a per-request/per-key spend-token-budget ceiling, §12m); the Admin surface, including `POST /api/search`, still has no rate limit of any kind — P2-1 STATUS |
+| No authentication anywhere | 🟡 FIXED for `POST /api/v1/search`, `POST /api/v1/ask`, `POST /api/v2/ask` only (bearer keys, §12n); the Admin surface (settings, jobs, collections incl. `DELETE`, `POST /api/search`, schema sync, Qdrant Cloud probe, static UI) remains exactly as originally audited — no authentication at all, by design — P1-1 residual, §12d, §12e, §12n |
+| No collection scoping | 🟡 FIXED for Search v1/Ask v1/v2 only (per-key `collections` scope, §12n); every Admin read/write route still performs zero collection-level scoping — P1-2 STATUS |
+| No rate limiting anywhere | 🟡 FIXED for Search v1/Ask v1/v2 only (per-key token bucket, shared across all three — §12n — **and**, for Ask specifically, a per-request/per-key spend-token-budget ceiling, §12m); the Admin surface, including `POST /api/search`, still has no rate limit of any kind — P2-1 STATUS |
 | Unscoped local filesystem indexing | 🟢 FIXED, `INDEX_ALLOWED_ROOTS` fail-closed — P1-3 |
 | `settings.json` default OS permissions | 🟢 FIXED on POSIX (0o600, fail-closed pre-rename); Windows unaddressed by design — P2-2 STATUS |
 | No security response headers | 🟢 FIXED, every response, Full and Lite — §12h |
@@ -2209,6 +2209,77 @@ retry non-bypass, the stable typed failure shape, audit negative
 sentinels, Full/Lite and v1/v2 parity), and
 `tests/unit/security/integration-key-store.test.js`'s new "Per-key token
 budget" describe block (legacy/malformed persisted-field policy).
+
+## 12n. Search v1 joins the Integration API surface (2026-08-24)
+
+Extends the Integration API from "Ask v1/v2 only" to "Search v1 and Ask
+v1/v2" — the classification note in §12d/§10 step 3 and the §12e/§12m
+findings above described Ask as the entire Integration surface; that is no
+longer accurate, corrected here rather than by editing that dated prose.
+
+**What shipped:** `POST /api/v1/search` — a versioned, authenticated
+counterpart to the Admin dashboard's own unversioned `POST /api/search`,
+reusing the exact same retrieval implementation
+(`src/core/retrieval/search.js`, `src/core/retrieval/search-request.js`) so
+the two surfaces cannot drift in ranking/filter/window semantics. `/api/search`
+itself is unchanged — still unauthenticated, loopback-only, no public
+compatibility promise (see §12d's own classification note, which still
+holds for it specifically).
+
+- **Same stage 1/1.5/2 policy as Ask, not a parallel implementation.**
+  `POST /api/v1/search` is declared `audience: integration` (route-audience.js),
+  so it is authenticated, rate-limited, and collection-scoped by the exact
+  same router seam (`src/shared/admin/router.js`) and policy
+  (`src/core/auth/integration-policy.js`) Ask v1/v2 already use — no new
+  auth code path exists for Search specifically.
+- **Operation vocabulary extended, existing keys NOT silently widened.**
+  `SUPPORTED_OPERATIONS` (`src/core/auth/key-store.js`) grew from
+  `['generate']` to `['generate', 'search']`. `createKey()`'s own default
+  operations list (used when `key add` is called with no `--operation`
+  flag) is unchanged (`['generate']`), so a key created before this phase —
+  or a new key created without `--operation search` — receives
+  `403 forbidden` from `/api/v1/search` until it is (re-)created with that
+  scope explicitly. Verified by test
+  (`tests/unit/security/integration-search-http.test.js`, "an EXISTING
+  generate-default key … is never silently widened to cover search").
+- **One shared rate-limit bucket per key across all three endpoints.**
+  Search and Ask consume from the SAME per-key token bucket
+  (`principal.keyId`-keyed, `src/core/auth/rate-limiter.js`) — calling
+  Search does not grant extra effective throughput beyond what Ask already
+  consumed this window, and vice versa. Verified by test ("Search and Ask
+  requests from the SAME key share one bucket").
+- **No spend/token budget ledger for Search** — deliberate, not an
+  oversight: Search never calls a generation provider (Gemini/Ollama), so
+  there is no billable generation work for §12m's ledger to bound. Its
+  `costClass` is `qdrant`, not `llm` (`route-audience.js`).
+- **No collection allow-list, same documented limitation as Ask.** Search
+  inherits the same per-key `collections` scope Ask already has (§12e) —
+  it does not add a NEW, separate collection-authorization mechanism, so
+  the "single trusted user" caveat already on Ask v1/v2's collection
+  scoping (see the collection-allowlist characterization test) applies
+  identically here.
+- **Public contract narrower than the internal Chunk shape.**
+  `src/core/search-api/v1/contract.js`'s `projectResult()` is an explicit
+  field allow-list (`sourceFile`, `chunkIndex`, `totalChunks`, `section`,
+  `text`, `context`, `tags`, `score`, `nodeId`, `nodePath`, `nodeType`,
+  `isMatch`, `windowChunks`) — a spread/passthrough was deliberately
+  avoided so a future internal-only field added to the adapter's Chunk
+  shape does not silently reach this public response just because it
+  exists on the object, mirroring how Ask v1's own `projectSource()`
+  (§12e) already does this for evidence sources.
+
+**Proof:** `tests/unit/security/integration-search-http.test.js` (Full/Lite
+parity, stage 1 auth, stage 1 operation scope including the legacy-key
+non-widening case, stage 2 collection scope, stage 1.5 shared rate limit,
+validation, retrieval/capability error-code mapping, window expansion),
+`tests/unit/security/route-audience-classification.test.js` (updated —
+`POST /api/v1/search` is now part of the exhaustive integration-route
+list, classified `operation: search`/`costClass: qdrant`, never `generate`/
+`llm`), `tests/unit/core/search-api/v1/contract.test.js` and
+`request.test.js` (pure contract/parsing unit tests), and
+`tests/unit/admin/search.test.js` (unchanged — proves the Admin
+`/api/search` route and its tests were not weakened by the shared-module
+extraction).
 
 ## 13. Sources used
 

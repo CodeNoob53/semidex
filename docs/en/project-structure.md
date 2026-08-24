@@ -24,11 +24,15 @@ src/
 
 The indexer is the writer side. The MCP server exposes retrieval primitives to
 external agents. The admin/application server operates collections and hosts
-the versioned `POST /api/v1/ask` runtime for application clients (contract
-owned by `src/core/ask-api/v1/`, outside `src/admin/` — see Core Modules
-below). All three use shared modules under `src/shared/core/` and
-`src/core/`; external integrations should target `src/core/ask-api/v1/`
-directly rather than importing admin UI modules.
+the versioned Integration API — `POST /api/v1/search` (contract owned by
+`src/core/search-api/v1/`) and `POST /api/v1/ask`/`POST /api/v2/ask`
+(contract owned by `src/core/ask-api/v1/`/`v2/`) — for application clients,
+outside `src/admin/` — see Core Modules below. All three runtime entry
+points use shared modules under `src/shared/core/` and `src/core/`; external
+integrations should target `src/core/search-api/v1/`/`src/core/ask-api/v1/`
+directly rather than importing admin UI modules, or use the zero-dependency
+JS client shipped for Semidex Lite (`packages/lite/lite-src/client/`,
+published as the `semidex-lite/client` subpath export).
 
 ## Tests
 
@@ -92,11 +96,24 @@ src/core/
                          contract (constants, request validation, event
                          projection, route registration); the only module
                          that knows the public wire shape
+  ask-api/v2/          - the v2 Ask contract (additive `conversation` support
+                         on top of v1's own shape), same structure as v1
+  search-api/v1/       - the versioned, application-facing public Search
+                         contract (POST /api/v1/search) — request parsing
+                         builds on retrieval/search-request.js, the SAME
+                         shared parser the Admin dashboard's /api/search
+                         route uses, so the two surfaces cannot drift
+  retrieval/           - search.js (the one shared hybrid-retrieval
+                         implementation every search caller uses) and
+                         search-request.js (shared request validation +
+                         window expansion for /api/search and
+                         /api/v1/search alike)
   generation/          - provider-neutral generation contract, the Ollama
                          implementation, and the runtime seam (the Gemini
                          implementation itself lives under src/cloud/, see below)
   http/                - generic node:http JSON/SSE primitives shared by
-                         every HTTP route (admin API and ask-api/v1 alike)
+                         every HTTP route (admin API, ask-api/v1/v2, and
+                         search-api/v1 alike)
 ```
 
 These modules are shared by indexing, MCP tools, sync, and benchmarks. Provider

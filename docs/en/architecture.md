@@ -46,16 +46,22 @@ the scheduler branching on provider identity; see the
 [pipeline redesign doc](../design/pipeline-redesign-and-deterministic-chunking.md)
 for the full design and invariant.
 
-The MCP path is the shipped agent-tooling surface. The Ask path has a
-versioned, stateless, provider-neutral local implementation
-(`POST /api/v1/ask`, SSE streaming, native provider system instructions,
+The MCP path is the shipped agent-tooling surface. The Integration API —
+`POST /api/v1/search` (Qdrant-only retrieval) and `POST /api/v1/ask`/
+`POST /api/v2/ask` (SSE streaming, native provider system instructions,
 grounded prompt assembly, citations, and refusal behavior across both the
-Ollama and Gemini `GenerationProvider` implementations), but it is **not
-yet** authenticated or safe for direct public Internet exposure. Public
-authentication, abuse controls, SDKs, and packaged website/Telegram
-integrations remain planned — see
-[Ask application runtime](../design/ask-application-runtime.md) and
-[docs/ask-api-v1-contract-2026-07-28.md](../ask-api-v1-contract-2026-07-28.md).
+Ollama and Gemini `GenerationProvider` implementations) — is versioned,
+stateless, provider-neutral, and bearer-key authenticated (per-key
+collection and operation scopes, per-key rate limiting shared across all
+three endpoints, and, for Ask specifically, a spend/token budget ceiling —
+see `docs/security/integration-api-auth-design-note.md` and the security
+audit's §12e/§12m/§12n). It is still **not** intended for direct exposure to
+the public Internet without your own reverse proxy/backend in front of it —
+see [Ask application runtime](../design/ask-application-runtime.md),
+[docs/ask-api-v1-contract-2026-07-28.md](../ask-api-v1-contract-2026-07-28.md),
+and `packages/lite/README.md`'s "JS client" section for the recommended
+integration path (a zero-dependency client, `semidex-lite/client`, covering
+all three endpoints).
 
 Markdown files always parse through an AST instead (unconditional, not
 configurable): tables, code blocks, and checklists become typed structural
