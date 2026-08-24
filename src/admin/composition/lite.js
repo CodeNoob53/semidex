@@ -139,7 +139,7 @@ export function createLiteApp({
   adapter = createStorageAdapter(), embedQuery, jobRegistry, taskRegistry,
   assemblyLogFn, generationRuntime, askCoordinator, askCoordinators, countTokens, settingsService, jobBaseEnv,
   discoverGeminiModelsFn, runQdrantCloudProbeFn, resolveNewCollectionProfileFn, jobPolicy = LITE_JOB_POLICY,
-  securityPolicy, integrationPolicy, allowedRootsGuard, uiDir, auditSink,
+  securityPolicy, integrationPolicy, allowedRootsGuard, uiDir, auditSink, budgetTracker,
 } = {}) {
   const ollamaCapability = unavailableOllamaEmbedCapability();
   const onnxEmbedCapability = unavailableOnnxEmbedCapability();
@@ -226,7 +226,7 @@ export function createLiteApp({
   });
   registerNeutralRoutes(router, {
     adapter, embedQuery: resolvedEmbedQuery, cloudEmbed, jobRegistry: resolvedJobRegistry, taskRegistry, assemblyLogFn,
-    generationRuntime: resolvedGenerationRuntime, askCoordinator, askCoordinators, countTokens, settingsService: settings,
+    generationRuntime: resolvedGenerationRuntime, askCoordinator, askCoordinators, countTokens, settingsService: settings, budgetTracker,
     runQdrantCloudProbeFn, resolveNewCollectionProfileFn,
     registerQdrantCloudRoutesFn: registerQdrantCloudRoutes,
     generationModelsFn: (r, deps) => registerGenerationModelsRoutesGeminiOnly(r, {

@@ -45,7 +45,7 @@ describe('createAskCoordinatorV2 — generationProvider.ready() call count', () 
     let readyCallCount = 0;
     const generationProvider = {
       name: () => 'ollama',
-      capabilities: () => ({ streaming: true, clientAbort: true, upstreamCancellation: true }),
+      capabilities: () => ({ streaming: true, clientAbort: true, upstreamCancellation: true, hardOutputCap: true }),
       ready: async () => { readyCallCount += 1; return { ok: true, model: 'gemma3:4b', numCtx: 8192 }; },
       generate: async ({ onToken, systemPrompt }) => {
         if (systemPrompt?.includes('standalone search query') || systemPrompt?.includes('rolling summary')) {
@@ -79,7 +79,7 @@ describe('createAskCoordinatorV2 — generationProvider.ready() call count', () 
     let capturedGenerateNumCtx;
     const generationProvider = {
       name: () => 'ollama',
-      capabilities: () => ({ streaming: true, clientAbort: true, upstreamCancellation: true }),
+      capabilities: () => ({ streaming: true, clientAbort: true, upstreamCancellation: true, hardOutputCap: true }),
       ready: async () => {
         readyCallCount += 1;
         // If called twice, the second call would return a DIFFERENT numCtx

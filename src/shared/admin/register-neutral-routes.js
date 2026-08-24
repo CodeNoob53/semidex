@@ -33,6 +33,7 @@ import { registerSearchRoutes } from './api/search.js';
 import { registerAskRoutesV1 } from '../../core/ask-api/v1/route.js';
 import { registerAskRoutesV2 } from '../../core/ask-api/v2/route.js';
 import { createAskCoordinatorBundle } from '../../core/ask/coordinator-v2.js';
+import { createTokenBudgetTracker } from '../../core/auth/token-budget.js';
 import { registerGenerationRoutes } from './api/generation.js';
 import { createTaskRegistry } from './jobs/task-registry.js';
 import { registerOperationsRoutes } from './api/operations.js';
@@ -65,7 +66,7 @@ async function defaultCountTokens(text) {
 // by registerOperationsRoutes below rather than constructed twice.
 export function registerNeutralRoutes(router, {
   adapter, embedQuery, cloudEmbed, jobRegistry, taskRegistry, assemblyLogFn, pickFolderFn,
-  generationRuntime, askCoordinator, askCoordinators, countTokens, settingsService,
+  generationRuntime, askCoordinator, askCoordinators, countTokens, settingsService, budgetTracker,
   runQdrantCloudProbeFn, resolveNewCollectionProfileFn, generationModelsFn, jobsFn, registerQdrantCloudRoutesFn,
 }) {
   registerSettingsRoutes(router, { settingsService });
@@ -147,16 +148,27 @@ export function registerNeutralRoutes(router, {
     }));
   }
 
+  // budgetTracker (spend/token ceiling feature) — the per-key AGGREGATE
+  // rolling budget, instance-scoped exactly like askCoordinators/gate
+  // above: constructed HERE, once per registerNeutralRoutes() call, when
+  // the caller doesn't override it, so real Ask traffic always has budget
+  // enforcement active regardless of composition-root wiring details — a
+  // caller cannot accidentally end up with NO tracker the way it could if
+  // this fell back to "omitted means unenforced." Tests inject their own
+  // deterministic tracker (fake clock, tiny limits) via DI, same
+  // convention as askCoordinators/generationRuntime above.
+  const resolvedBudgetTracker = budgetTracker ?? createTokenBudgetTracker();
+
   // POST /api/v1/ask — the ONE canonical, versioned Ask endpoint (see
   // src/core/ask-api/v1/route.js). The unversioned POST /api/ask seed route
   // has been removed entirely — this project has not released a public Ask
   // API yet, so there is no compatibility alias to preserve.
-  registerAskRoutesV1(router, adapter, { askCoordinator: ask });
+  registerAskRoutesV1(router, adapter, { askCoordinator: ask, budgetTracker: resolvedBudgetTracker, settingsService });
   // POST /api/v2/ask — only registered when a v2 coordinator actually
   // exists (the default path, or an explicit askCoordinators bundle that
   // included one).
   if (askV2) {
-    registerAskRoutesV2(router, adapter, { askCoordinatorV2: askV2 });
+    registerAskRoutesV2(router, adapter, { askCoordinatorV2: askV2, budgetTracker: resolvedBudgetTracker, settingsService });
   }
   // jobRegistry is a REQUIRED dependency (code review, round 4 — no
   // fallback default here anymore): createJobRegistry() itself now

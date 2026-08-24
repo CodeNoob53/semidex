@@ -109,6 +109,11 @@ export const LITE_SETTINGS_POLICY = Object.freeze({
   ASK_SUMMARY_RETAINED_MESSAGES: exposed(),
   ASK_QUERY_REWRITE_TIMEOUT_MS: exposed(),
   ASK_SUMMARY_COMPACTION_TIMEOUT_MS: exposed(),
+  // Spend/token budget ceiling (Ask v1/v2) — backend-agnostic request-shaped
+  // defaults, same exposure precedent as the Ask v2 settings just above.
+  ASK_MAX_OUTPUT_TOKENS: exposed(),
+  ASK_MAX_CALLS_PER_REQUEST: exposed(),
+  ASK_MAX_RESERVED_TOKENS_PER_REQUEST: exposed(),
   GEMINI_API_KEY: exposed(),
   CONTEXT_MODE: exposed(),
   SEMIDEX_STORAGE_BACKEND: exposed(),

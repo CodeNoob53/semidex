@@ -64,6 +64,7 @@
 // first place.
 import { RESERVED_HEADROOM_TOKENS } from './prompt.js';
 import { sanitiseErrorMessage } from '../../shared/core/doctor-checks.js';
+import { outputTokenCapFromCharLimit } from './budget-ledger.js';
 
 // This module's own generationProvider.generate() call is a SEPARATE LLM
 // invocation from the main answer call, consuming caller-controlled input:
@@ -92,7 +93,11 @@ import { sanitiseErrorMessage } from '../../shared/core/doctor-checks.js';
 const DEFAULT_THRESHOLD = 8;
 const DEFAULT_RETAINED_MESSAGES = 4;
 const DEFAULT_TIMEOUT_MS = 6000;
-const SUMMARY_OUTPUT_CAP_CHARS = 4000;
+export const SUMMARY_OUTPUT_CAP_CHARS = 4000;
+// This call's provider-side maxOutputTokens reservation (spend/token
+// ceiling feature) — derived from SUMMARY_OUTPUT_CAP_CHARS above, see
+// query-rewrite.js's own identical REWRITE_MAX_OUTPUT_TOKENS derivation.
+export const SUMMARY_MAX_OUTPUT_TOKENS = outputTokenCapFromCharLimit(SUMMARY_OUTPUT_CAP_CHARS);
 
 export const SUMMARY_COMPACTION_SYSTEM_PROMPT = [
   'You maintain a bounded rolling summary of an ongoing conversation between',
@@ -170,6 +175,11 @@ export function buildCompactionPrompt({ priorSummary, recentMessages }) {
  *   numCtx: number,  // same generationProvider.ready().numCtx already
  *     resolved once in coordinator-v2.js — reused, not re-fetched.
  *   generationProvider, settingsService, timeoutMs?: number,
+ *   budget?: ReturnType<typeof import('./budget-ledger.js').createRequestBudgetLedger>,
+ *     optional — omitted, or a denied reservation, degrades this call
+ *     exactly like a timeout/doesn't-fit skip already does (changed:false);
+ *     a compaction budget denial must never fail the whole Ask request,
+ *     which has already completed successfully by the time this runs.
  * }} args
  * @returns {Promise<{ changed: boolean, summary?: string, compactedMessageCount?: number }>}
  *   Never throws. changed:false (no `summary`/`compactedMessageCount` keys)
@@ -192,7 +202,18 @@ export function buildCompactionPrompt({ priorSummary, recentMessages }) {
  *   exactly once (it was never part of the summarization input, so it must
  *   always still be appended raw).
  */
-export async function compactSummaryIfNeeded({ conversation, question, answer, countTokens, numCtx, generationProvider, settingsService, timeoutMs }) {
+export async function compactSummaryIfNeeded(args) {
+  try {
+    return await compactSummaryIfNeededUnsafe(args);
+  } catch (err) {
+    const conversationId = args?.conversation?.id ?? 'unknown';
+    const reason = sanitiseErrorMessage(err?.message ?? String(err), [process.env.QDRANT_KEY, process.env.GEMINI_API_KEY]);
+    console.warn(`[ask-v2] summary compaction failed for conversation ${conversationId}: ${reason}`);
+    return { changed: false };
+  }
+}
+
+async function compactSummaryIfNeededUnsafe({ conversation, question, answer, countTokens, numCtx, generationProvider, settingsService, timeoutMs, budget }) {
   if (!conversation || !conversation.id) {
     return { changed: false };
   }
@@ -293,6 +314,30 @@ export async function compactSummaryIfNeeded({ conversation, question, answer, c
     return { changed: false };
   }
 
+  // Spend/token budget reservation (best-effort, mirrors this function's
+  // own existing degrade-to-skip philosophy) — see coordinator.js's
+  // equivalent block for the full reserve-before-call rationale.
+  // estimatedInputTokens reuses systemPromptTokens/modelInputTokens already
+  // computed above for the context-fit check — the SAME real, measured
+  // count, never a second independent estimate.
+  let reservation = null;
+  if (budget) {
+    const caps = generationProvider.capabilities();
+    if (caps.hardOutputCap !== true) {
+      console.warn(`[ask-v2] summary compaction skipped for conversation ${conversation.id}: generation provider cannot enforce an output-token cap`);
+      return { changed: false };
+    }
+    reservation = budget.reserve({
+      label: 'compaction',
+      estimatedInputTokens: systemPromptTokens + modelInputTokens,
+      maxOutputTokens: SUMMARY_MAX_OUTPUT_TOKENS,
+    });
+    if (!reservation.ok) {
+      console.warn(`[ask-v2] summary compaction skipped for conversation ${conversation.id}: ${reservation.message}`);
+      return { changed: false };
+    }
+  }
+
   // Timeout/failure handling — own internal AbortController, separate from
   // any caller signal (compaction runs after the main answer has already
   // completed; it is never itself abortable by the client's own request
@@ -305,8 +350,12 @@ export async function compactSummaryIfNeeded({ conversation, question, answer, c
     const result = await generationProvider.generate({
       systemPrompt: SUMMARY_COMPACTION_SYSTEM_PROMPT,
       prompt: modelInput,
+      options: reservation ? { maxOutputTokens: reservation.maxOutputTokens } : undefined,
       signal: controller.signal,
     });
+    if (reservation) {
+      budget.reconcile(reservation.reservationId, { tokensIn: result?.tokensIn, tokensOut: result?.tokensOut });
+    }
     const rawSummary = (result?.text ?? '').trim();
     if (rawSummary === '') {
       return { changed: false };

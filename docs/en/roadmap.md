@@ -52,7 +52,7 @@ edition-specific composition belongs in separate Full and Lite roots.
 | Generation | Ollama in Full; Gemini in Lite; provider seam exists for additional backends |
 | Operations | Typed settings, collection embedding profiles, health probes, device-aware indexing, managed Windows CUDA installer |
 | Distribution | `semidex-lite` is published on npm; Full does not yet have a supported public package |
-| Public API security | Host/Origin/CSRF hardening, bearer-key auth with per-key collection scopes and rate limiting on Ask, fail-closed indexing-root allow-list, security response headers, route-aware `Cache-Control`, an egress/SSRF policy for Qdrant and Ollama URLs, and structured local audit logging of security decisions and admin mutations all ship. The Admin surface (settings, jobs, collections, `/api/search`) is still intentionally unauthenticated and loopback-only by design, not yet by omission. |
+| Public API security | Host/Origin/CSRF hardening, bearer-key auth with per-key collection scopes and rate limiting on Ask, a spend/token cost ceiling on Ask (per-request ledger + per-key aggregate budget, provider-neutral output cap), fail-closed indexing-root allow-list, security response headers, route-aware `Cache-Control`, an egress/SSRF policy for Qdrant and Ollama URLs, and structured local audit logging of security decisions and admin mutations all ship. The Admin surface (settings, jobs, collections, `/api/search`) is still intentionally unauthenticated and loopback-only by design, not yet by omission. |
 
 ## Shipped foundation
 
@@ -156,6 +156,20 @@ they do not by themselves prove superiority over other RAG products.
   fields only), not redacted after the fact. See
   `docs/security/audit-logging-design-2026-08.md` for the event taxonomy,
   privacy model, and operator reference (location, rotation, disabling).
+- A spend/token cost ceiling for `POST /api/v1/ask`/`v2/ask`, distinct from
+  the request-rate limit above: one request-scoped ledger shared by every
+  generation call one request can make (v2's query rewrite, final answer,
+  summary compaction), a provider-neutral hard output-token cap mapped to
+  each backend's own official option (Gemini `maxOutputTokens`, Ollama
+  `num_predict`), and a per-key aggregate rolling token budget layered on
+  the existing bearer-key/rate-limit identity
+  (`key add --token-budget-per-hour/--token-budget-burst`). Reservation is
+  conservative (estimated input + max output, before the provider call);
+  reconciliation only ever refunds, using real provider-reported usage when
+  trustworthy and retaining the full reservation otherwise. Process-local
+  MVP guard, explicitly not a durable/distributed quota — see
+  `docs/security/ask-spend-token-budget-design-2026-08.md` for the full
+  design record, enforcement order, and named limitations.
 
 Known limitation, by design rather than oversight: the Admin surface
 (settings, jobs, collections including `DELETE`, unversioned
@@ -217,8 +231,6 @@ a fully reusable assistant backend:
   no code-level backstop. Still open: provenance tracking, a groundedness/
   entailment check between a claim and its citation, and a systematic
   red-team evaluation across real generation models/providers);
-- spend/token cost ceilings for billed Ask calls, distinct from the request
-  *rate* limit that already ships;
 - a real session/authentication model for remote Admin access, if remote
   Admin is ever made a supported deployment shape (it is loopback-only
   today, by design);

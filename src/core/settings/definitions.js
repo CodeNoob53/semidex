@@ -386,6 +386,31 @@ export const DEFINITIONS = {
     advanced: true, appliesAt: 'next_search', requiresReindex: false, requiresBackfill: false,
     ...intField({ envVar: 'ASK_SUMMARY_COMPACTION_TIMEOUT_MS', defaultVal: 6000, min: 500, max: 120000 }),
   },
+  // ── ai (spend/token budget ceiling — Ask v1/v2) ─────────────────────────
+  // See docs/security/ask-spend-token-budget-design-2026-08.md. Per-key
+  // aggregate limits (tokenBudgetPerHour/tokenBudgetBurst) live on the key
+  // itself (core/auth/key-store.js, `key add --token-budget-per-hour/
+  // --token-budget-burst`), NOT here — mirroring how requestsPerMinute/burst
+  // are per-key, not global settings. These three settings are the
+  // operator-tunable REQUEST-shaped defaults every key shares.
+  ASK_MAX_OUTPUT_TOKENS: {
+    category: 'ai', label: 'Ask: max answer output tokens', type: 'number', envVar: 'ASK_MAX_OUTPUT_TOKENS',
+    description: 'Hard ceiling on output tokens for the final Ask answer, enforced by the generation provider itself (Gemini generationConfig.maxOutputTokens / Ollama options.num_predict) — an ESTIMATED/RESERVED budget, not exact billing. Defaults to the same figure already reserved as generation headroom when fitting evidence to the model\'s context window.',
+    advanced: true, appliesAt: 'next_search', requiresReindex: false, requiresBackfill: false,
+    ...intField({ envVar: 'ASK_MAX_OUTPUT_TOKENS', defaultVal: 1024, min: 64, max: 32768 }),
+  },
+  ASK_MAX_CALLS_PER_REQUEST: {
+    category: 'ai', label: 'Ask: max generation calls per request', type: 'number', envVar: 'ASK_MAX_CALLS_PER_REQUEST',
+    description: 'Maximum number of billable generation-provider calls one Ask v1/v2 request may reserve (v2 can make up to 3: query rewrite, answer, summary compaction). A request that would exceed this is denied before the call that would cross it.',
+    advanced: true, appliesAt: 'next_search', requiresReindex: false, requiresBackfill: false,
+    ...intField({ envVar: 'ASK_MAX_CALLS_PER_REQUEST', defaultVal: 5, min: 1, max: 20 }),
+  },
+  ASK_MAX_RESERVED_TOKENS_PER_REQUEST: {
+    category: 'ai', label: 'Ask: max reserved tokens per request', type: 'number', envVar: 'ASK_MAX_RESERVED_TOKENS_PER_REQUEST',
+    description: 'Maximum total ESTIMATED/RESERVED tokens (estimated input plus allowed output, summed across every generation call) one Ask v1/v2 request may reserve, independent of the per-key aggregate budget. Protects against one pathological request regardless of how much headroom the calling key otherwise has.',
+    advanced: true, appliesAt: 'next_search', requiresReindex: false, requiresBackfill: false,
+    ...intField({ envVar: 'ASK_MAX_RESERVED_TOKENS_PER_REQUEST', defaultVal: 60000, min: 1000, max: 2000000 }),
+  },
   OLLAMA_URL: {
     category: 'ai', label: 'Ollama URL', type: 'string', envVar: 'OLLAMA_URL',
     description: 'Base URL of the Ollama server used for generation and tagging.', advanced: false,

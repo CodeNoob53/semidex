@@ -317,6 +317,12 @@ What is protected as of this version:
   keys configured, the Integration API fails closed with `503`.
 - **Ask is rate limited per key.** Both Ask versions share the same token
   bucket for a key. See [Rate limiting](#rate-limiting) below.
+- **Ask has a spend/token budget ceiling, separate from the rate limit.**
+  A request-scoped ledger bounds the estimated tokens one Ask request may
+  reserve across all its generation calls, every generation call receives
+  a real provider-enforced output-token cap, and a per-key aggregate
+  rolling token budget bounds usage over time. See
+  [Spend/token budget](#spendtoken-budget) below.
 - **`QDRANT_URL` cannot be pointed at a cloud-metadata address, and changing
   it over HTTP requires a direct loopback connection.** Every Qdrant client
   construction rejects a non-`http(s)` scheme, embedded userinfo, or a
@@ -561,6 +567,13 @@ Options:
   [Rate limiting](#rate-limiting) below.
 - `--burst` — token-bucket burst capacity for this key, an integer from 1 to
   1000. Omit for the default (5).
+- `--token-budget-per-hour` — sustained **spend/token** ceiling for this
+  key (estimated tokens across every Ask v1/v2 generation call), an
+  integer from 1,000 to 50,000,000. Omit for the default (200,000/hour).
+  See [Spend/token budget](#spendtoken-budget) below — distinct from the
+  request-*rate* limit above.
+- `--token-budget-burst` — burst capacity for the spend/token ceiling, an
+  integer from 1,000 to 5,000,000. Omit for the default (40,000).
 
 The token is printed once. Store it in your backend's secret manager — never
 in browser JavaScript, `localStorage`, a URL, or version control.
@@ -608,6 +621,9 @@ assistants: give each backend its own key, scoped to its own collections.
 | `401` | `unauthorized` | Missing, malformed, unknown, wrong, revoked or expired token. Deliberately indistinguishable — no key enumeration. |
 | `429` | `rate_limited` | Authenticated, but this key has exceeded its rate limit. See [Rate limiting](#rate-limiting) below. |
 | `403` | `forbidden` | Authenticated, but this key is not scoped to that collection or operation. |
+| `429` | `budget_exceeded` | This key's rolling aggregate token budget is temporarily exhausted. Retryable; includes `Retry-After`. |
+| `429` | `budget_limit_exceeded` | This request exceeds a structural request/key token ceiling. Not retryable without changing the request or key configuration. |
+| `503` | `budget_unenforceable` | The configured generation provider cannot enforce an output-token cap, so the request was refused rather than run unbounded. An operator/configuration issue, not a client one. |
 | `200` | — | Authorized; the SSE stream begins. |
 
 A `401`, `429`, or `403` is decided before any Qdrant query, any embedding,
@@ -669,9 +685,62 @@ configured limit.
   unauthenticated traffic (rejected earlier, at `401`/`503`, before this
   stage runs) and does not stop someone with operator access from minting
   more keys.
-- **No spend guarantee.** A request-count limit is not a cost cap — Ask
-  requests vary in Gemini/Qdrant Cloud cost per call. Use your provider's own
-  billing alerts for an actual spend ceiling.
+- **Not a spend cap by itself.** A request-*count* limit alone is not a
+  cost cap — Ask requests vary in Gemini cost per call, and one `/api/v2/ask`
+  request can invoke Gemini up to three times. See
+  [Spend/token budget](#spendtoken-budget) below for the control that
+  actually bounds that.
+
+### Spend/token budget
+
+Rate limiting bounds how *often* a key may call Ask. It does not bound how
+much billable generation *work* one accepted request causes — a single
+`POST /api/v2/ask` call can invoke Gemini up to three times (query
+rewrite, the answer, and summary compaction). A separate, request-scoped
+budget ledger closes that gap, layered on top of rate limiting, not a
+replacement for it.
+
+**What it does:**
+
+- Reserves an **estimated** token cost (measured input tokens + a hard
+  output-token cap) **before** every Gemini call in a request — a call
+  that would exceed the budget is denied before Gemini is ever invoked,
+  never billed and then refunded after the fact.
+- Sets a real, provider-enforced ceiling on output length for every call
+  (Gemini's own `maxOutputTokens` request option) — not a local stream
+  cutoff, which would not stop Gemini from having already generated (and
+  billed) more than semidex-lite chose to keep reading.
+- Tracks a **per-key aggregate** rolling token budget, independent of and
+  in addition to the per-request check — a key that stays within its
+  request-rate limit can still be denied once its own aggregate token
+  budget is exhausted.
+
+**On a budget denial**, transient aggregate exhaustion returns
+`429 budget_exceeded` with `Retry-After`; a structural request/key ceiling
+returns non-retryable `429 budget_limit_exceeded`; and a provider that
+cannot enforce an output cap returns `503 budget_unenforceable`. None of
+these responses reveals the question, the
+retrieved evidence, or the key's current remaining/used amount — only the
+denial reason and, where applicable, the operator-configured ceiling
+itself.
+
+Set a per-key budget at creation (see `--token-budget-per-hour`/
+`--token-budget-burst` above); omit either flag for the default
+(200,000 tokens/hour, burst 40,000).
+
+**Reset semantics — read before relying on this for capacity planning:**
+
+Exactly the same as [Rate limiting](#rate-limiting)'s own reset/rotation
+rules: budget state lives only in server memory and resets on
+`semidex-lite serve` restart, is per-process (no cross-replica sharing —
+running N processes behind a load balancer gives a key
+`N × tokenBudgetBurst` of real aggregate headroom, not one shared
+ceiling), and a revoked key's state is simply never touched again. This is
+an **estimated/reserved** budget, never exact billing — use your
+provider's own billing dashboard/alerts for a true accounting of spend.
+Full design record, including every named limitation:
+[`docs/security/ask-spend-token-budget-design-2026-08.md`](https://github.com/CodeNoob53/semidex/blob/main/docs/security/ask-spend-token-budget-design-2026-08.md)
+in the semidex source repository.
 
 ### What semidex-lite still does not own
 

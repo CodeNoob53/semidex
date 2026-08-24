@@ -31,6 +31,7 @@ import { buildEvidence, fitEvidenceToContextBudget, DEFAULT_TOP } from './eviden
 import { buildPromptParts, RESERVED_HEADROOM_TOKENS, REFUSAL_SENTINEL } from './prompt.js';
 import { validateCitations } from './citations.js';
 import { createSingleFlightGate } from './single-flight-gate.js';
+import { resolveAnswerMaxOutputTokens } from './budget-ledger.js';
 
 // Holds back streamed tokens until the accumulated text can no longer be a
 // prefix of REFUSAL_SENTINEL — the model is instructed to emit that exact
@@ -139,6 +140,7 @@ export function createAskCore({ adapter, embedQuery, countTokens, generationProv
    *   conversationContext?: { summary?: string, recentMessages?: Array<{role,content}> },
    *   readiness?: { ok: boolean, reason?: string, model?: string, numCtx?: number },
    *   signal?: AbortSignal,
+   *   budget?: ReturnType<typeof import('./budget-ledger.js').createRequestBudgetLedger>,
    *   onSources: (payload: { searchMode: string|null, sources: Array<Object> }) => void,
    *   onToken: (text: string) => void,
    * }} req retrievalQuery/conversationContext/readiness are Ask v2
@@ -167,13 +169,20 @@ export function createAskCore({ adapter, embedQuery, countTokens, generationProv
    *       evidenceCount: number, elapsedMs: number }
    *   | { status: 'aborted', elapsedMs: number }
    *   | { status: 'provider_unavailable', reason: string }
-   *   | { status: 'error', code?: string, message: string }
+   *   | { status: 'error', code?: string, message: string, retryAfterSeconds?: number }
    * >}
+   *   A `budget`-denied final answer surfaces as
+   *   `{ status: 'error', code: 'budget_exceeded'|'budget_limit_exceeded'|'budget_unenforceable', message, retryAfterSeconds? }` —
+   *   see budget-ledger.js's reserve() for the exact denial codes it
+   *   produces. Transient aggregate exhaustion uses `budget_exceeded` and
+   *   carries Retry-After; structural request/key ceilings use
+   *   `budget_limit_exceeded`; the provider capability check below uses
+   *   `budget_unenforceable`.
    *   Never returns { status: 'busy' } — this function has no gate of its
    *   own; that status is produced only by createAskCoordinator()'s own
    *   ask() wrapper below.
    */
-  return async function askCore({ collection, question, sourceFile, top = DEFAULT_TOP, retrievalQuery, conversationContext, readiness: suppliedReadiness, signal, onSources, onToken }) {
+  return async function askCore({ collection, question, sourceFile, top = DEFAULT_TOP, retrievalQuery, conversationContext, readiness: suppliedReadiness, signal, budget, onSources, onToken }) {
     const startedAt = Date.now();
 
     const readiness = suppliedReadiness ?? await generationProvider.ready();
@@ -208,13 +217,13 @@ export function createAskCore({ adapter, embedQuery, countTokens, generationProv
     // own header comment for the full explanation).
     const fitted = await fitEvidenceToContextBudget(evidence.sources, question, readiness.numCtx, countTokens, conversationContext);
     const sources = fitted.sources;
-    // Awaited for the same reason onToken's return value is awaited below
-    // — onSources may return a backpressure-drain promise (the sources
-    // payload can be large), and not awaiting it would let this coroutine
-    // race ahead into generation before the write actually drained.
-    await onSources({ searchMode, sources });
 
     if (sources.length === 0) {
+      // Awaited for the same reason onToken's return value is awaited below
+      // — onSources may return a backpressure-drain promise (the sources
+      // payload can be large), and not awaiting it would let this coroutine
+      // race ahead before the write actually drained.
+      await onSources({ searchMode, sources });
       return { status: 'refused', reason: 'no_evidence', evidenceCount: 0, sources: [] };
     }
 
@@ -224,6 +233,64 @@ export function createAskCore({ adapter, embedQuery, countTokens, generationProv
     // every case (v1 and v2 alike) — never augmented, never history-bearing.
     const { systemPrompt, userPrompt } = buildPromptParts(sources, question, conversationContext);
     const sentinelGuard = createSentinelGuard(onToken);
+
+    // Spend/token budget reservation — reserve BEFORE calling the provider
+    // AND before onSources() streams anything to the client, using a
+    // conservative worst-case estimate (the REAL rendered prompt's token
+    // count — never a hand-summed estimate, same "measure the actual
+    // payload" discipline fitEvidenceToContextBudget() above already
+    // follows — plus this call's hard output cap). A denial here therefore
+    // produces a clean pre-stream failure with no `sources` event ever
+    // sent, exactly like `busy`/`provider_unavailable` — not a partial SSE
+    // stream that errors out midway. Ordering note (task requirement:
+    // "document exact ordering"): the ONE unavoidable exception is Qdrant
+    // retrieval itself (evidence.js, fitEvidenceToContextBudget above) —
+    // reserving BEFORE retrieval would mean estimating input tokens from
+    // nothing (no evidence yet exists to measure), which is exactly the
+    // kind of ungrounded guess this codebase's own evidence-budgeting
+    // discipline deliberately avoids. Retrieval is read-only, non-billed
+    // Qdrant work, distinct from the billed generation-provider call this
+    // ledger exists to gate — see the design doc's "enforcement order"
+    // section for the full reasoning.
+    //
+    // `budget` is optional: production route.js (v1/v2) always supplies
+    // one (every Ask route is `audience: integration`, so an authenticated
+    // principal — and therefore a keyId to ledger against — always
+    // exists); a caller with no budget concept (a future non-billed entry
+    // point, or a test exercising unrelated behavior) simply gets no
+    // enforcement here, same as before this feature existed.
+    let reservation = null;
+    if (budget) {
+      const caps = generationProvider.capabilities();
+      if (caps.hardOutputCap !== true) {
+        // Fail closed: this ledger's entire guarantee depends on the
+        // provider actually enforcing options.maxOutputTokens server-side.
+        // A provider that cannot (or an unverified future one) must never
+        // be allowed to run a "budgeted" call uncapped — that would silently
+        // claim enforcement this codebase cannot actually provide.
+        return {
+          status: 'error',
+          code: 'budget_unenforceable',
+          message: 'The configured generation provider cannot enforce an output-token cap, so this protected Ask request was denied rather than run unbounded.',
+        };
+      }
+      const estimatedInputTokens = await countTokens(`${systemPrompt ?? ''}\n${userPrompt}`);
+      const maxOutputTokens = resolveAnswerMaxOutputTokens(settingsService);
+      reservation = budget.reserve({ label: 'answer', estimatedInputTokens, maxOutputTokens });
+      if (!reservation.ok) {
+        return {
+          status: 'error',
+          code: Number.isFinite(reservation.retryAfterSeconds) ? 'budget_exceeded' : 'budget_limit_exceeded',
+          message: reservation.message,
+          ...(Number.isFinite(reservation.retryAfterSeconds) ? { retryAfterSeconds: reservation.retryAfterSeconds } : {}),
+        };
+      }
+    }
+
+    // Only reached once the reservation (if any) succeeded — a denied
+    // request never streams sources, matching this function's own
+    // pre-provider fail-closed contract above.
+    await onSources({ searchMode, sources });
 
     let genResult;
     try {
@@ -238,17 +305,41 @@ export function createAskCore({ adapter, embedQuery, countTokens, generationProv
         // that context size (code review finding: readiness.numCtx and
         // the live request were previously decoupled, so Ollama could run
         // at its own smaller default regardless of what was budgeted for).
-        options: Number.isFinite(readiness.numCtx) ? { num_ctx: readiness.numCtx } : undefined,
+        // maxOutputTokens (provider-neutral, see generation/provider.js) is
+        // only set when a reservation exists — an unbudgeted caller keeps
+        // each provider's own prior uncapped default behavior exactly,
+        // including passing `undefined` (not `{}`) when there is neither a
+        // numCtx nor a reservation to report.
+        options: (Number.isFinite(readiness.numCtx) || reservation)
+          ? {
+              ...(Number.isFinite(readiness.numCtx) ? { num_ctx: readiness.numCtx } : {}),
+              ...(reservation ? { maxOutputTokens: reservation.maxOutputTokens } : {}),
+            }
+          : undefined,
         signal,
         onToken: (token) => sentinelGuard.push(token),
       });
     } catch (err) {
+      // No reconcile() on either return below: a provider error/exception
+      // gives no trustworthy usage figure, and the call may already have
+      // incurred real, billed upstream work (explicitly true for Gemini —
+      // see gemini-provider.js's own capabilities() comment) — the
+      // reservation stays fully charged, the conservative default.
       if (signal?.aborted) return { status: 'aborted', elapsedMs: Date.now() - startedAt };
       return { status: 'error', message: `Generation failed: ${err.message}` };
     }
 
     if (genResult.aborted) {
+      // Same reasoning as the catch block above: an abort gives no
+      // trustworthy usage figure (Gemini's abortSignal is documented
+      // client-only — upstream generation/billing may continue regardless
+      // of this process observing `aborted: true`), so the reservation is
+      // never reconciled/refunded here either.
       return { status: 'aborted', elapsedMs: Date.now() - startedAt };
+    }
+
+    if (reservation) {
+      budget.reconcile(reservation.reservationId, { tokensIn: genResult.tokensIn, tokensOut: genResult.tokensOut });
     }
 
     await sentinelGuard.finalize(genResult.text ?? '');

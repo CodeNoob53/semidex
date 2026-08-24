@@ -63,7 +63,7 @@ const countTokensStub = (text) => (text ?? '').split(/\s+/).filter(Boolean).leng
 function makeStubProvider(overrides = {}) {
   return {
     name: () => 'ollama',
-    capabilities: () => ({ streaming: true, clientAbort: true, upstreamCancellation: true }),
+    capabilities: () => ({ streaming: true, clientAbort: true, upstreamCancellation: true, hardOutputCap: true }),
     ready: async () => ({ ok: true, model: 'gemma3:4b', numCtx: 8192 }),
     generate: async ({ onToken, systemPrompt }) => {
       // Distinguish a rewrite/compaction-shaped call (short, non-streamed,

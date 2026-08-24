@@ -39,6 +39,11 @@ import {
   MIN_REQUESTS_PER_MINUTE, MAX_REQUESTS_PER_MINUTE, MIN_BURST, MAX_BURST,
   isValidLimitValue,
 } from './rate-limiter.js';
+import {
+  DEFAULT_TOKEN_BUDGET_PER_HOUR, DEFAULT_TOKEN_BUDGET_BURST_TOKENS,
+  MIN_TOKEN_BUDGET_PER_HOUR, MAX_TOKEN_BUDGET_PER_HOUR, MIN_TOKEN_BUDGET_BURST_TOKENS, MAX_TOKEN_BUDGET_BURST_TOKENS,
+  isValidTokenBudgetValue,
+} from './token-budget.js';
 
 export const TOKEN_PREFIX = 'sdx_v1_';
 export const SCHEMA_VERSION = 1;
@@ -173,6 +178,24 @@ function validateRecord(record, index) {
       fail(`has an invalid "${field}" (expected an integer in [${min}, ${max}], or null/absent for the default)`);
     }
   }
+
+  // Per-key spend/token budget ceiling (Ask v1/v2 — see
+  // docs/security/ask-spend-token-budget-design-2026-08.md). IDENTICAL
+  // optional/null-default/fail-closed-on-malformed contract as
+  // requestsPerMinute/burst above: absent means "use the tracker's
+  // configured default" (a legacy key predating this field, or one never
+  // customized, gets a real, finite, protective ceiling — never
+  // "unlimited"); present-but-invalid is a corrupt store.
+  for (const [field, min, max] of [
+    ['tokenBudgetPerHour', MIN_TOKEN_BUDGET_PER_HOUR, MAX_TOKEN_BUDGET_PER_HOUR],
+    ['tokenBudgetBurst', MIN_TOKEN_BUDGET_BURST_TOKENS, MAX_TOKEN_BUDGET_BURST_TOKENS],
+  ]) {
+    const v = record[field];
+    if (v === null || v === undefined) continue;
+    if (!isValidTokenBudgetValue(v, min, max)) {
+      fail(`has an invalid "${field}" (expected an integer in [${min}, ${max}], or null/absent for the default)`);
+    }
+  }
 }
 
 /**
@@ -229,6 +252,8 @@ export function toPublicKey(record) {
     revokedAt: record.revokedAt ?? null,
     requestsPerMinute: record.requestsPerMinute ?? DEFAULT_REQUESTS_PER_MINUTE,
     burst: record.burst ?? DEFAULT_BURST,
+    tokenBudgetPerHour: record.tokenBudgetPerHour ?? DEFAULT_TOKEN_BUDGET_PER_HOUR,
+    tokenBudgetBurst: record.tokenBudgetBurst ?? DEFAULT_TOKEN_BUDGET_BURST_TOKENS,
   };
 }
 
@@ -320,7 +345,7 @@ export function createKeyStore({
      * Creates a key and returns { key, token }. The raw token is returned
      * exactly once and never persisted — only its digest is stored.
      */
-    createKey({ name, collections, operations = ['generate'], expiresAt = null, requestsPerMinute = null, burst = null }) {
+    createKey({ name, collections, operations = ['generate'], expiresAt = null, requestsPerMinute = null, burst = null, tokenBudgetPerHour = null, tokenBudgetBurst = null }) {
       if (typeof name !== 'string' || name.trim().length === 0) {
         throw new KeyStoreError('invalid_argument', 'A key name is required.');
       }
@@ -352,6 +377,14 @@ export function createKeyStore({
         throw new KeyStoreError('invalid_argument',
           `burst must be an integer in [${MIN_BURST}, ${MAX_BURST}], or null for the default (${DEFAULT_BURST}).`);
       }
+      if (tokenBudgetPerHour !== null && !isValidTokenBudgetValue(tokenBudgetPerHour, MIN_TOKEN_BUDGET_PER_HOUR, MAX_TOKEN_BUDGET_PER_HOUR)) {
+        throw new KeyStoreError('invalid_argument',
+          `tokenBudgetPerHour must be an integer in [${MIN_TOKEN_BUDGET_PER_HOUR}, ${MAX_TOKEN_BUDGET_PER_HOUR}], or null for the default (${DEFAULT_TOKEN_BUDGET_PER_HOUR}).`);
+      }
+      if (tokenBudgetBurst !== null && !isValidTokenBudgetValue(tokenBudgetBurst, MIN_TOKEN_BUDGET_BURST_TOKENS, MAX_TOKEN_BUDGET_BURST_TOKENS)) {
+        throw new KeyStoreError('invalid_argument',
+          `tokenBudgetBurst must be an integer in [${MIN_TOKEN_BUDGET_BURST_TOKENS}, ${MAX_TOKEN_BUDGET_BURST_TOKENS}], or null for the default (${DEFAULT_TOKEN_BUDGET_BURST_TOKENS}).`);
+      }
 
       const { keyId, token, digest } = generateToken();
       const record = {
@@ -365,6 +398,8 @@ export function createKeyStore({
         revokedAt: null,
         requestsPerMinute,
         burst,
+        tokenBudgetPerHour,
+        tokenBudgetBurst,
       };
 
       return mutate((store) => ({
@@ -461,6 +496,8 @@ function buildPrincipal(record) {
     expiresAt: record.expiresAt ?? null,
     requestsPerMinute: record.requestsPerMinute ?? DEFAULT_REQUESTS_PER_MINUTE,
     burst: record.burst ?? DEFAULT_BURST,
+    tokenBudgetPerHour: record.tokenBudgetPerHour ?? DEFAULT_TOKEN_BUDGET_PER_HOUR,
+    tokenBudgetBurst: record.tokenBudgetBurst ?? DEFAULT_TOKEN_BUDGET_BURST_TOKENS,
   };
 }
 

@@ -325,7 +325,7 @@ describe('Ask SSE stream (POST /api/v2/ask) — success also carries no-store', 
   function makeAskStubProvider() {
     return {
       name: () => 'ollama',
-      capabilities: () => ({ streaming: true, clientAbort: true, upstreamCancellation: true }),
+      capabilities: () => ({ streaming: true, clientAbort: true, upstreamCancellation: true, hardOutputCap: true }),
       ready: async () => ({ ok: true, model: 'gemma3:4b', numCtx: 8192 }),
       generate: async ({ onToken, systemPrompt }) => {
         if (systemPrompt?.includes('standalone search query')) return { text: 'rewritten standalone query' };

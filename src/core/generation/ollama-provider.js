@@ -116,7 +116,12 @@ export function createOllamaProvider({
     // caller's signal straight to Ollama's own HTTP request (see below),
     // so aborting it genuinely tears down that connection and Ollama
     // itself stops generating, not just this process's own consumption.
-    capabilities: () => ({ streaming: true, clientAbort: true, upstreamCancellation: true }),
+    // hardOutputCap: true — generate() below maps options.maxOutputTokens
+    // onto Ollama's own native options.num_predict request field (its
+    // documented max-tokens-to-predict option), enforced by Ollama itself
+    // during generation, not a client-side truncation of an
+    // already-generated stream.
+    capabilities: () => ({ streaming: true, clientAbort: true, upstreamCancellation: true, hardOutputCap: true }),
 
     async ready() {
       const reachable = await isOllamaReachableFn(baseUrl);
@@ -164,6 +169,18 @@ export function createOllamaProvider({
       // whatever undocumented runtime default Ollama itself applies,
       // decoupling the request from any budget guarantee.
       const resolvedOptions = { num_ctx: askNumCtx, ...options };
+      // options.maxOutputTokens is the provider-neutral field name (see
+      // provider.js's own JSDoc) — Ollama's REST API has no field by that
+      // name; it uses options.num_predict (a positive integer = a hard cap
+      // on tokens to predict, per Ollama's own API reference). Mapped here,
+      // then removed so the raw provider-neutral key is never sent to
+      // Ollama's HTTP API, where an unrecognized options field would simply
+      // be silently ignored rather than erroring — leaving it in would look
+      // wired while doing nothing.
+      if (Number.isFinite(resolvedOptions.maxOutputTokens)) {
+        resolvedOptions.num_predict = resolvedOptions.maxOutputTokens;
+        delete resolvedOptions.maxOutputTokens;
+      }
       // systemPrompt forwards straight to generateStream()'s own `system`
       // option, which maps onto Ollama's native top-level `system` request
       // field — never concatenated into `prompt` here or in generateStream()

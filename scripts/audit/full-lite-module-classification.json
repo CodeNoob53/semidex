@@ -14,7 +14,7 @@
     "mixed": 3,
     "tooling": 62,
     "cloud": 8,
-    "shared": 175,
+    "shared": 177,
     "local": 29
   },
   "modules": [
@@ -331,6 +331,7 @@
       "directDependencies": [
         "src/core/ask-api/v1/contract.js",
         "src/core/ask-api/v1/request.js",
+        "src/core/ask/budget-ledger.js",
         "src/core/http/authorize.js",
         "src/core/http/http.js",
         "src/core/http/route-audience.js",
@@ -369,11 +370,24 @@
       "directDependencies": [
         "src/core/ask-api/v2/contract.js",
         "src/core/ask-api/v2/request.js",
+        "src/core/ask/budget-ledger.js",
         "src/core/http/authorize.js",
         "src/core/http/http.js",
         "src/core/http/route-audience.js",
         "src/core/http/sse.js",
         "src/shared/core/doctor-checks.js"
+      ]
+    },
+    {
+      "path": "src/core/ask/budget-ledger.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/audit/event.js",
+        "src/core/audit/sink.js"
       ]
     },
     {
@@ -422,6 +436,7 @@
       "fullReachable": true,
       "liteReachable": true,
       "directDependencies": [
+        "src/core/ask/budget-ledger.js",
         "src/core/ask/citations.js",
         "src/core/ask/evidence.js",
         "src/core/ask/prompt.js",
@@ -458,6 +473,7 @@
       "fullReachable": true,
       "liteReachable": true,
       "directDependencies": [
+        "src/core/ask/budget-ledger.js",
         "src/shared/core/doctor-checks.js"
       ]
     },
@@ -478,6 +494,7 @@
       "fullReachable": true,
       "liteReachable": true,
       "directDependencies": [
+        "src/core/ask/budget-ledger.js",
         "src/core/ask/prompt.js",
         "src/shared/core/doctor-checks.js"
       ]
@@ -601,7 +618,8 @@
         "src/core/audit/event.js",
         "src/core/audit/sink.js",
         "src/core/auth/key-store.js",
-        "src/core/auth/rate-limiter.js"
+        "src/core/auth/rate-limiter.js",
+        "src/core/auth/token-budget.js"
       ]
     },
     {
@@ -612,7 +630,8 @@
       "fullReachable": true,
       "liteReachable": true,
       "directDependencies": [
-        "src/core/auth/rate-limiter.js"
+        "src/core/auth/rate-limiter.js",
+        "src/core/auth/token-budget.js"
       ]
     },
     {
@@ -636,6 +655,15 @@
         "src/core/auth/key-store.js",
         "src/core/auth/rate-limiter.js"
       ]
+    },
+    {
+      "path": "src/core/auth/token-budget.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
     },
     {
       "path": "src/core/ce-rerank-worker.js",
@@ -1967,6 +1995,7 @@
         "src/core/ask-api/v1/route.js",
         "src/core/ask-api/v2/route.js",
         "src/core/ask/coordinator-v2.js",
+        "src/core/auth/token-budget.js",
         "src/core/generation/runtime.js",
         "src/core/http/cache-policy.js",
         "src/core/http/request-security.js",

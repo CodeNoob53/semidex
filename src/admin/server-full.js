@@ -47,7 +47,7 @@ export function createApp({
   discoverOllamaModelsFn, discoverGeminiModelsFn, runOnnxProbeFn, runQdrantCloudProbeFn,
   resolveNewCollectionProfileFn, diagnoseCudaFailureFn,
   resolveEffectiveOnnxRuntimePathFn, writeVerificationResultFn, onnxManagedRuntimeListingCache,
-  onnxEmbedCapability, securityPolicy, integrationPolicy, allowedRootsGuard, uiDir, auditSink,
+  onnxEmbedCapability, securityPolicy, integrationPolicy, allowedRootsGuard, uiDir, auditSink, budgetTracker,
 } = {}) {
   // core/embeddings.js's applyEmbeddingCapabilities() (the process-wide
   // module-scope fallback) is deliberately NEVER called from this function
@@ -203,7 +203,7 @@ export function createApp({
   registerOllamaModelsRoutes(router, { settingsService: settings, ...(discoverOllamaModelsFn ? { discoverOllamaModelsFn } : {}) });
   registerNeutralRoutes(router, {
     adapter, embedQuery: resolvedEmbedQuery, cloudEmbed, jobRegistry: resolvedJobRegistry, taskRegistry, assemblyLogFn, pickFolderFn,
-    generationRuntime: resolvedGenerationRuntime, askCoordinator, askCoordinators, countTokens, settingsService: settings,
+    generationRuntime: resolvedGenerationRuntime, askCoordinator, askCoordinators, countTokens, settingsService: settings, budgetTracker,
     runQdrantCloudProbeFn, resolveNewCollectionProfileFn,
     registerQdrantCloudRoutesFn: registerQdrantCloudRoutes,
     generationModelsFn: (r, deps) => registerGenerationModelsRoutes(r, {

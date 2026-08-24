@@ -36,6 +36,7 @@ export const AUDIT_EVENT_TYPE = Object.freeze({
   AUTH_INTEGRATION_DENIED: 'auth.integration_denied',
   AUTH_RATE_LIMITED: 'auth.rate_limited',
   AUTHZ_COLLECTION_DENIED: 'authz.collection_denied',
+  BUDGET_RESERVATION_DENIED: 'budget.reservation_denied',
   INDEX_ROOT_DENIED: 'index.root_denied',
   INDEX_JOB_STARTED: 'index.job_started',
   INDEX_JOB_CANCEL_REQUESTED: 'index.job_cancel_requested',
@@ -141,6 +142,21 @@ const EVENT_FIELD_SCHEMAS = {
   [AUDIT_EVENT_TYPE.AUTHZ_COLLECTION_DENIED]: {
     keyId: { required: false, validate: KEY_ID_VALIDATE },
     collection: { required: true, validate: COLLECTION_VALIDATE },
+  },
+  // Spend/token budget ceiling (Ask v1/v2) — `reason` (envelope field,
+  // above) carries the ledger's own denial code (e.g.
+  // 'request_call_ceiling_exceeded', 'key_budget_exceeded',
+  // 'key_budget_ceiling_too_small'); `label` identifies WHICH of the up to
+  // three generation calls one Ask v2 request may attempt was denied.
+  // Deliberately no reservation-success/reconciliation event — mirrors
+  // AUTH_RATE_LIMITED's own "only the denial is audited" precedent, not a
+  // per-successful-call log line.
+  [AUDIT_EVENT_TYPE.BUDGET_RESERVATION_DENIED]: {
+    keyId: { required: true, validate: KEY_ID_VALIDATE },
+    label: { required: true, validate: isEnum(new Set(['rewrite', 'answer', 'compaction'])) },
+    estimatedInputTokens: { required: true, validate: isFiniteNumber },
+    maxOutputTokens: { required: true, validate: isFiniteNumber },
+    retryAfterSeconds: { required: false, validate: isFiniteNumber },
   },
   [AUDIT_EVENT_TYPE.INDEX_ROOT_DENIED]: {
     pathHash: { required: true, validate: PATH_HASH_VALIDATE },
