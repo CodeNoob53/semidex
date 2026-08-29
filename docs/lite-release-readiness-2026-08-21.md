@@ -8,6 +8,46 @@ security posture. Nothing in this file changes the package version, creates
 a tag, or publishes anything; it only records what was verified and what
 still needs a human/live step before either happens.
 
+## Semidex Lite 0.1.7 candidate addendum (2026-08-29)
+
+This candidate adds the expanded `semidex-lite/client` SDK: injected `fetch`,
+typed Ask v1/v2 events and guards, `askText()`, conservative operation-aware
+retry controls, stricter TypeScript consumer checks, and backend integration
+examples that cancel upstream generation when the downstream client
+disconnects. The admin-dashboard v2 work in the same development cycle is
+documentation and design only; its implementation is not part of 0.1.7.
+
+- Public Search v1 and Ask v1/v2 were exercised offline through the real Lite
+  composition root and the shipped client, not matching hand-written mocks:
+  **83/83 tests passed**. This includes authentication and collection scope,
+  Search result projection, Ask SSE framing, v2 conversation flow, abort/gate
+  release, summary compaction, and grounded source/citation projection.
+- The complete unit suite passed **4716/4720**, with **0 failures** and the same
+  **4 expected skips** for POSIX file-mode behavior on Windows. TypeScript
+  consumer checking runs from `pretest` and passed.
+- Smoke passed **1316/1316** assertions. Explicit Full and Lite Vite builds
+  succeeded with 227 and 226 transformed modules respectively.
+- `npm pack --dry-run` built `semidex-lite@0.1.7`; the five-part closure
+  validator accepted 161 staged source files. The resulting manifest contains
+  184 files (677.5 kB packed / 2.2 MB unpacked), including both backend
+  examples, SDK declarations, and retry runtime, with no maintainer harness,
+  internal report, local-only runtime, or secret added.
+- Packed clean-install acceptance passed **14/14** as part of the complete
+  suite. It verifies the installed CLI, read-only package behavior, public
+  client export, both shipped backend examples, wire contracts, and package
+  boundary from a fresh consumer directory.
+- The opt-in packed-artifact live acceptance remains **pending for this
+  candidate**. It sends a controlled fixture and prompts to the configured
+  Qdrant Cloud and Gemini services, creates one exact-owned disposable
+  collection, and removes only that collection. Do not treat the previous
+  0.1.6 live result as verification of the new 0.1.7 SDK surface.
+
+The Lite package version is `0.1.7`. References in generated comments and
+documentation to a root Semidex `2.0.0` release originated as an AI-generation
+error during the early prototype stage and remained as technical debt. The
+issue was identified during review and corrected before this release; only the
+Lite package has a release version here.
+
 ## Semidex Lite 0.1.6 addendum (2026-08-24)
 
 This addendum records the release gate for the Integration Search API and the
@@ -39,8 +79,7 @@ written. The historical 2026-08-21 results remain unchanged.
   The generated schema-v2 JSON report is stored under ignored `.tmp/` state
   and is not part of the package or Git diff.
 
-The Lite package version is now `0.1.6`; the repository root version remains
-`2.0.0`. Nothing was tagged, pushed, published, or released during this gate.
+The Lite package version is now `0.1.6`.
 
 ## How Lite is actually released
 
