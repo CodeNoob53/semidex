@@ -108,6 +108,22 @@ export function extractBetween(src, startMarker, endMarker) {
   return src.slice(start, end);
 }
 
+// Real (not stubbed) shared/api/contracts/operations.js validators, for any
+// harness that concatenates the real operation-store.js source and needs its
+// new validateOperationsListResponse() contract-validation seam to actually
+// run against the harness's stubbed apiGet() responses, not just bypass it.
+// Only the ApiError class is pulled from shared/api/client.js — the rest of
+// that module calls fetch()/AbortController, unavailable in these harnesses'
+// minimal vm contexts, and is exercised for real only by
+// tests/unit/admin/ui-api-client.test.js itself.
+function realOperationsContractSrc() {
+  const clientSrc = readUiSource('shared/api/client.js');
+  const apiErrorSrc = extractBetween(clientSrc, 'export class ApiError', 'function kindForStatus')
+    .replace('export class ApiError', 'class ApiError');
+  const contractsSrc = stripExports(readUiSource('shared/api/contracts/operations.js')).replace(/^import .*$/gm, '');
+  return apiErrorSrc + contractsSrc;
+}
+
 // Strips ES module `export` keywords before running source in a vm context
 // — vm.runInContext evaluates as a plain script, not a module, so `export`
 // statements are a SyntaxError there. Only the keyword is stripped (not the
@@ -703,8 +719,9 @@ export function loadOperationStoreHelpers({ apiImpl } = {}) {
     clearTimeout: () => { scheduled = null; },
   };
   vm.createContext(context);
-  const src = stripExports(readUiSource('operation-store.js')).replace(/^import .*$/gm, '')
-    + '\nconst api = __apiImpl;\n';
+  const src = realOperationsContractSrc()
+    + stripExports(readUiSource('operation-store.js')).replace(/^import .*$/gm, '')
+    + '\nconst apiGet = __apiImpl;\n';
   vm.runInContext(src, context);
   // Runs whatever the store's poll loop most recently scheduled via
   // setTimeout, then waits for the resulting api()/notify chain to settle —
@@ -758,11 +775,16 @@ export function loadOperationModalHelpers(html, { apiImpl, apiPostImpl } = {}) {
   };
   vm.createContext(context);
   const src = stripExports(readUiSource('dom.js')).replace(/^import .*$/gm, '')
+    + realOperationsContractSrc()
     + stripExports(readUiSource('operation-store.js')).replace(/^import .*$/gm, '')
     + stripExports(readUiSource('operation-render.js')).replace(/^import .*$/gm, '')
     + stripExports(readUiSource('toasts.js')).replace(/^import .*$/gm, '')
     + stripExports(readUiSource('operation-modal.js')).replace(/^import .*$/gm, '')
-    + '\nconst api = __apiImpl; const apiPost = __apiPostImpl;\n';
+    // operation-store.js's own fetch now goes through apiGet() (validated by
+    // the real validateOperationsListResponse() concatenated above); every
+    // OTHER call site here — operation-modal.js's own detail fetch/cancel
+    // POST — is unchanged and still goes through the old api()/apiPost().
+    + '\nconst api = __apiImpl; const apiPost = __apiPostImpl; const apiGet = __apiImpl;\n';
   vm.runInContext(src, context);
   context.__runTimeouts = () => { const t = timeouts.splice(0); t.forEach(fn => fn()); };
   context.__tickElapsed = () => { intervals.forEach(fn => fn()); };
@@ -810,6 +832,7 @@ export function loadSettingsRepairHelpers(html, { apiPostImpl, apiImpl } = {}) {
   vm.createContext(context);
   const settingsShellHtml = readUiSource('partials/full/settings-shell.html');
   const src = stripExports(readUiSource('dom.js')).replace(/^import .*$/gm, '')
+    + realOperationsContractSrc()
     + stripExports(readUiSource('operation-store.js')).replace(/^import .*$/gm, '')
     + stripExports(readUiSource('operation-render.js')).replace(/^import .*$/gm, '')
     + stripExports(readUiSource('toasts.js')).replace(/^import .*$/gm, '')
@@ -820,7 +843,9 @@ export function loadSettingsRepairHelpers(html, { apiPostImpl, apiImpl } = {}) {
       .replace(/\bloadSidebar\(\)/g, '__loadSidebarImpl()')
       .replace(/\bgetExpandedCollection\(\)/g, '__getExpandedCollectionImpl()')
       .replace(/\bsetExpandedCollection\(/g, '__setExpandedCollectionImpl(')
-    + '\nconst api = __apiImpl; const apiPost = __apiPostImpl;\n';
+    // operation-store.js's own fetch now goes through apiGet() — see the
+    // matching comment in loadOperationModalHelpers above.
+    + '\nconst api = __apiImpl; const apiPost = __apiPostImpl; const apiGet = __apiImpl;\n';
   // settings-view.js's own top-level runSettingsRepair (a `function`
   // declaration, hoisted, sloppy-mode global attach) is reachable as
   // context.runSettingsRepair directly after vm.runInContext — same

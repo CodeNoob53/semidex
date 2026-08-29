@@ -14,7 +14,7 @@
     "mixed": 3,
     "tooling": 62,
     "cloud": 8,
-    "shared": 181,
+    "shared": 184,
     "local": 29
   },
   "modules": [
@@ -2141,6 +2141,7 @@
         "src/shared/admin/ui-src/operation-modal.js",
         "src/shared/admin/ui-src/operation-store.js",
         "src/shared/admin/ui-src/router.js",
+        "src/shared/admin/ui-src/shared/lifecycle/view.js",
         "src/shared/admin/ui-src/sidebar-resize.js",
         "src/shared/admin/ui-src/sidebar.js",
         "src/shared/admin/ui-src/topbar.js"
@@ -2281,7 +2282,8 @@
       "fullReachable": true,
       "liteReachable": true,
       "directDependencies": [
-        "src/shared/admin/ui-src/api.js"
+        "src/shared/admin/ui-src/shared/api/client.js",
+        "src/shared/admin/ui-src/shared/api/contracts/operations.js"
       ]
     },
     {
@@ -2344,6 +2346,35 @@
         "src/shared/admin/ui-src/sidebar.js",
         "src/shared/admin/ui-src/state.js"
       ]
+    },
+    {
+      "path": "src/shared/admin/ui-src/shared/api/client.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/shared/admin/ui-src/shared/api/contracts/operations.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/shared/admin/ui-src/shared/api/client.js"
+      ]
+    },
+    {
+      "path": "src/shared/admin/ui-src/shared/lifecycle/view.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
     },
     {
       "path": "src/shared/admin/ui-src/sidebar-resize.js",

@@ -23,7 +23,7 @@ describe('runSettingsRepair() opens the operation modal and fires a completion t
           if (url.startsWith('/api/operations')) {
             return {
               operations: [{
-                id: 'repair-1', kind: 'repair', collection: 'my-docs', state: 'succeeded',
+                id: 'repair-1', kind: 'repair', collection: 'my-docs', path: null, state: 'succeeded',
                 startedAt: new Date().toISOString(), finishedAt: new Date().toISOString(),
                 cancellable: false, progress: null, error: null,
               }],
@@ -59,7 +59,7 @@ describe('runSettingsRepair() opens the operation modal and fires a completion t
           if (url.startsWith('/api/operations')) {
             return {
               operations: [{
-                id: 'repair-2', kind: 'repair', collection: 'my-docs', state: 'failed',
+                id: 'repair-2', kind: 'repair', collection: 'my-docs', path: null, state: 'failed',
                 startedAt: new Date().toISOString(), finishedAt: new Date().toISOString(),
                 cancellable: false, progress: null, error: 'Qdrant unreachable',
               }],
@@ -103,7 +103,7 @@ describe('runSettingsRepair() opens the operation modal and fires a completion t
           if (url.startsWith('/api/operations')) {
             return {
               operations: [{
-                id: 'fast-repair', kind: 'repair', collection: 'my-docs', state: 'succeeded',
+                id: 'fast-repair', kind: 'repair', collection: 'my-docs', path: null, state: 'succeeded',
                 startedAt: new Date().toISOString(), finishedAt: new Date().toISOString(),
                 cancellable: false, progress: null, error: null,
               }],
@@ -148,7 +148,7 @@ describe('runSettingsRepair() opens the operation modal and fires a completion t
             operationsCallCount += 1;
             return {
               operations: [{
-                id: 'race-repair', kind: 'repair', collection: 'my-docs', state: 'failed',
+                id: 'race-repair', kind: 'repair', collection: 'my-docs', path: null, state: 'failed',
                 startedAt: new Date().toISOString(), finishedAt: new Date().toISOString(),
                 cancellable: false, progress: null, error: 'Qdrant unreachable',
               }],

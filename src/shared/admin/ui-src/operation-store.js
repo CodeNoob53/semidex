@@ -10,7 +10,8 @@
 // independent of which route is currently rendered, which is exactly what
 // lets an operation survive navigation (requirement 1: "preserve its state
 // while the user navigates").
-import { api } from './api.js';
+import { apiGet } from './shared/api/client.js';
+import { validateOperationsListResponse } from './shared/api/contracts/operations.js';
 
 const ACTIVE_STATES = new Set(['queued', 'running', 'cancelling']);
 const ACTIVE_POLL_MS = 1500;
@@ -129,7 +130,7 @@ async function pollOnce() {
   const myGeneration = pollGeneration;
   inFlight = true;
   try {
-    const body = await api('/api/operations');
+    const body = validateOperationsListResponse(await apiGet('/api/operations'));
     if (myGeneration !== pollGeneration) return; // stopPolling() ran while this fetch was in flight — drop the stale result, do not reschedule
     const previous = operations;
     operations = body.operations;

@@ -30,7 +30,7 @@ describe('operation-store.js — polling and subscription', () => {
 
   it('schedules the next tick at the fast interval while an operation is active, slow interval otherwise', async () => {
     const { startPolling, __flushTimers, __lastScheduledDelay } = loadOperationStoreHelpers({
-      apiImpl: async () => ({ operations: [{ id: '1', kind: 'index', collection: 'a', state: 'running' }] }),
+      apiImpl: async () => ({ operations: [{ id: '1', kind: 'index', collection: 'a', path: null, state: 'running', startedAt: '2026-01-01T00:00:00.000Z', finishedAt: null, cancellable: true, progress: null, error: null, }] }),
     });
     startPolling();
     await __flushTimers();
@@ -39,7 +39,7 @@ describe('operation-store.js — polling and subscription', () => {
 
   it('schedules the next tick at the slow interval once nothing is active', async () => {
     const { startPolling, __flushTimers, __lastScheduledDelay } = loadOperationStoreHelpers({
-      apiImpl: async () => ({ operations: [{ id: '1', kind: 'index', collection: 'a', state: 'succeeded' }] }),
+      apiImpl: async () => ({ operations: [{ id: '1', kind: 'index', collection: 'a', path: null, state: 'succeeded', startedAt: '2026-01-01T00:00:00.000Z', finishedAt: '2026-01-01T00:01:00.000Z', cancellable: false, progress: null, error: null, }] }),
     });
     startPolling();
     await __flushTimers();
@@ -49,8 +49,8 @@ describe('operation-store.js — polling and subscription', () => {
   it('getOperations()/getOperation(id)/getActiveOperation() reflect the last successful poll', async () => {
     const { startPolling, __flushTimers, getOperations, getOperation, getActiveOperation } = loadOperationStoreHelpers({
       apiImpl: async () => ({ operations: [
-        { id: '1', kind: 'index', collection: 'a', state: 'running' },
-        { id: '2', kind: 'repair', collection: 'b', state: 'succeeded' },
+        { id: '1', kind: 'index', collection: 'a', path: null, state: 'running', startedAt: '2026-01-01T00:00:00.000Z', finishedAt: null, cancellable: true, progress: null, error: null, },
+        { id: '2', kind: 'repair', collection: 'b', path: null, state: 'succeeded', startedAt: '2026-01-01T00:00:00.000Z', finishedAt: '2026-01-01T00:01:00.000Z', cancellable: false, progress: null, error: null, },
       ] }),
     });
     startPolling();
@@ -66,7 +66,7 @@ describe('operation-store.js — polling and subscription', () => {
     const { startPolling, __flushTimers, getOperations } = loadOperationStoreHelpers({
       apiImpl: async () => {
         if (shouldFail) throw new Error('network error');
-        return { operations: [{ id: '1', kind: 'index', collection: 'a', state: 'running' }] };
+        return { operations: [{ id: '1', kind: 'index', collection: 'a', path: null, state: 'running', startedAt: '2026-01-01T00:00:00.000Z', finishedAt: null, cancellable: true, progress: null, error: null, }] };
       },
     });
     startPolling();
@@ -92,7 +92,7 @@ describe('operation-store.js — polling and subscription', () => {
   it('fires a "transition" event exactly once when an operation changes state, not once per poll tick', async () => {
     let state = 'running';
     const { startPolling, __flushTimers, subscribe } = loadOperationStoreHelpers({
-      apiImpl: async () => ({ operations: [{ id: '1', kind: 'index', collection: 'a', state }] }),
+      apiImpl: async () => ({ operations: [{ id: '1', kind: 'index', collection: 'a', path: null, state, startedAt: '2026-01-01T00:00:00.000Z', finishedAt: state === 'succeeded' ? '2026-01-01T00:01:00.000Z' : null, cancellable: state === 'running', progress: null, error: null, }] }),
     });
     const transitions = [];
     subscribe((e) => { if (e.type === 'transition') transitions.push(e); });
@@ -209,7 +209,7 @@ describe('operation-store.js — polling and subscription', () => {
     const { pollNow, getOperations } = loadOperationStoreHelpers({
       apiImpl: async () => {
         if (servedGeneration === 'stale') { await pending; }
-        return { operations: [{ id: servedGeneration, kind: 'repair', collection: 'x', state: 'succeeded' }] };
+        return { operations: [{ id: servedGeneration, kind: 'repair', collection: 'x', path: null, state: 'succeeded', startedAt: '2026-01-01T00:00:00.000Z', finishedAt: '2026-01-01T00:01:00.000Z', cancellable: false, progress: null, error: null, }] };
       },
     });
 
@@ -225,7 +225,7 @@ describe('operation-store.js — polling and subscription', () => {
     // pollNow()'s FIRST call directly) would already be settled by now,
     // but freshPollDone must NOT be, since the deferred follow-up it's
     // actually waiting on hasn't run yet.
-    resolveFirst({ operations: [{ id: 'stale', kind: 'repair', collection: 'x', state: 'succeeded' }] });
+    resolveFirst({ operations: [{ id: 'stale', kind: 'repair', collection: 'x', path: null, state: 'succeeded', startedAt: '2026-01-01T00:00:00.000Z', finishedAt: '2026-01-01T00:01:00.000Z', cancellable: false, progress: null, error: null, }] });
     await new Promise((resolve) => setImmediate(resolve));
     await new Promise((resolve) => setImmediate(resolve));
 
@@ -236,9 +236,9 @@ describe('operation-store.js — polling and subscription', () => {
   it('findLatestOperation({ collection, kind }) returns the newest match', async () => {
     const { startPolling, getOperations, findLatestOperation } = loadOperationStoreHelpers({
       apiImpl: async () => ({ operations: [
-        { id: 'newer', kind: 'repair', collection: 'my-docs', state: 'succeeded', startedAt: '2026-01-02T00:00:00Z' },
-        { id: 'older', kind: 'repair', collection: 'my-docs', state: 'succeeded', startedAt: '2026-01-01T00:00:00Z' },
-        { id: 'other-kind', kind: 'index', collection: 'my-docs', state: 'succeeded' },
+        { id: 'newer', kind: 'repair', collection: 'my-docs', path: null, state: 'succeeded', startedAt: '2026-01-02T00:00:00Z', finishedAt: '2026-01-02T00:01:00Z', cancellable: false, progress: null, error: null, },
+        { id: 'older', kind: 'repair', collection: 'my-docs', path: null, state: 'succeeded', startedAt: '2026-01-01T00:00:00Z', finishedAt: '2026-01-01T00:01:00Z', cancellable: false, progress: null, error: null, },
+        { id: 'other-kind', kind: 'index', collection: 'my-docs', path: null, state: 'succeeded', startedAt: '2026-01-01T00:00:00Z', finishedAt: '2026-01-01T00:01:00Z', cancellable: false, progress: null, error: null, },
       ] }),
     });
     startPolling();
@@ -260,7 +260,7 @@ describe('operation-store.js — polling and subscription', () => {
   // never fire for a repair that happened to finish fast.
   it('seedOperationAsRunning() makes the NEXT poll of that id a real transition even if it is already terminal', async () => {
     const { seedOperationAsRunning, subscribe, startPolling } = loadOperationStoreHelpers({
-      apiImpl: async () => ({ operations: [{ id: 'fast-repair', kind: 'repair', collection: 'my-docs', state: 'succeeded' }] }),
+      apiImpl: async () => ({ operations: [{ id: 'fast-repair', kind: 'repair', collection: 'my-docs', path: null, state: 'succeeded', startedAt: '2026-01-01T00:00:00.000Z', finishedAt: '2026-01-01T00:01:00.000Z', cancellable: false, progress: null, error: null, }] }),
     });
     const transitions = [];
     subscribe((e) => { if (e.type === 'transition') transitions.push(e); });

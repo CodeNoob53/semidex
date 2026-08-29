@@ -51,7 +51,7 @@ describe('operation modal — open/close/escape/focus', () => {
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
       const { document, mountOperationModal, openOperationModal, __settle } = loadOperationModalHelpers(html, {
-        apiImpl: async () => ({ operations: [{ id: 'op1', kind: 'index', collection: 'demo', state: 'running', startedAt: new Date().toISOString(), finishedAt: null, cancellable: true, progress: null }] }),
+        apiImpl: async () => ({ operations: [{ id: 'op1', kind: 'index', collection: 'demo', path: null, state: 'running', startedAt: new Date().toISOString(), finishedAt: null, cancellable: true, progress: null, error: null, }] }),
       });
       mountOperationModal(document.getElementById('operation-modal-host'));
       // linkedom does not implement document.activeElement at all (confirmed
@@ -72,7 +72,7 @@ describe('operation modal — open/close/escape/focus', () => {
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
       const { document, mountOperationModal, openOperationModal, closeOperationModal, __settle } = loadOperationModalHelpers(html, {
-        apiImpl: async () => ({ operations: [{ id: 'op1', kind: 'index', collection: 'demo', state: 'running', startedAt: new Date().toISOString(), finishedAt: null, cancellable: true, progress: null }] }),
+        apiImpl: async () => ({ operations: [{ id: 'op1', kind: 'index', collection: 'demo', path: null, state: 'running', startedAt: new Date().toISOString(), finishedAt: null, cancellable: true, progress: null, error: null, }] }),
       });
       mountOperationModal(document.getElementById('operation-modal-host'));
       const trigger = document.createElement('button');
@@ -94,7 +94,7 @@ describe('operation modal — open/close/escape/focus', () => {
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
       const { document, mountOperationModal, openOperationModal, __settle } = loadOperationModalHelpers(html, {
-        apiImpl: async () => ({ operations: [{ id: 'op1', kind: 'index', collection: 'demo', state: 'running', startedAt: new Date().toISOString(), finishedAt: null, cancellable: true, progress: null }] }),
+        apiImpl: async () => ({ operations: [{ id: 'op1', kind: 'index', collection: 'demo', path: null, state: 'running', startedAt: new Date().toISOString(), finishedAt: null, cancellable: true, progress: null, error: null, }] }),
       });
       mountOperationModal(document.getElementById('operation-modal-host'));
       openOperationModal('op1');
@@ -108,7 +108,7 @@ describe('operation modal — open/close/escape/focus', () => {
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
       const { document, mountOperationModal, openOperationModal, __settle } = loadOperationModalHelpers(html, {
-        apiImpl: async () => ({ operations: [{ id: 'op1', kind: 'index', collection: 'demo', state: 'running', startedAt: new Date().toISOString(), finishedAt: null, cancellable: true, progress: null }] }),
+        apiImpl: async () => ({ operations: [{ id: 'op1', kind: 'index', collection: 'demo', path: null, state: 'running', startedAt: new Date().toISOString(), finishedAt: null, cancellable: true, progress: null, error: null, }] }),
       });
       mountOperationModal(document.getElementById('operation-modal-host'));
       openOperationModal('op1');
@@ -129,7 +129,7 @@ describe('operation modal — open/close/escape/focus', () => {
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
       const { document, mountOperationModal, openOperationModal, __settle } = loadOperationModalHelpers(html, {
-        apiImpl: async () => ({ operations: [{ id: 'op1', kind: 'index', collection: 'demo', state: 'running', startedAt: new Date().toISOString(), finishedAt: null, cancellable: true, progress: null }] }),
+        apiImpl: async () => ({ operations: [{ id: 'op1', kind: 'index', collection: 'demo', path: null, state: 'running', startedAt: new Date().toISOString(), finishedAt: null, cancellable: true, progress: null, error: null, }] }),
       });
       mountOperationModal(document.getElementById('operation-modal-host'));
       openOperationModal('op1');
@@ -184,13 +184,13 @@ describe('operation modal — a specific id not yet in the store\'s snapshot sho
             // Simulates the store already having a snapshot from before
             // this openOperationModal() call — the FIRST synchronous
             // render() inside openOperationModal() reads this.
-            return { operations: [{ id: 'op-old', kind: 'index', collection: 'old-docs', state: 'succeeded', startedAt: new Date(Date.now() - 60000).toISOString(), finishedAt: new Date(Date.now() - 55000).toISOString(), cancellable: false, progress: null }] };
+            return { operations: [{ id: 'op-old', kind: 'index', collection: 'old-docs', path: null, state: 'succeeded', startedAt: new Date(Date.now() - 60000).toISOString(), finishedAt: new Date(Date.now() - 55000).toISOString(), cancellable: false, progress: null, error: null, }] };
           }
           // From the second poll onward, the new operation is visible —
           // simulating the concurrent pollNow() finally resolving.
           return { operations: [
-            { id: 'op-new', kind: 'index', collection: 'new-docs', state: 'running', startedAt: new Date().toISOString(), finishedAt: null, cancellable: true, progress: null },
-            { id: 'op-old', kind: 'index', collection: 'old-docs', state: 'succeeded', startedAt: new Date(Date.now() - 60000).toISOString(), finishedAt: new Date(Date.now() - 55000).toISOString(), cancellable: false, progress: null },
+            { id: 'op-new', kind: 'index', collection: 'new-docs', path: null, state: 'running', startedAt: new Date().toISOString(), finishedAt: null, cancellable: true, progress: null, error: null, },
+            { id: 'op-old', kind: 'index', collection: 'old-docs', path: null, state: 'succeeded', startedAt: new Date(Date.now() - 60000).toISOString(), finishedAt: new Date(Date.now() - 55000).toISOString(), cancellable: false, progress: null, error: null, },
           ] };
         },
       });
@@ -224,7 +224,7 @@ describe('operation modal — a specific id not yet in the store\'s snapshot sho
         // backend genuinely never created it, or it was evicted) — the
         // modal must keep showing "loading", never silently swap to
         // whatever operation happens to be in the list.
-        apiImpl: async () => ({ operations: [{ id: 'unrelated', kind: 'repair', collection: 'other', state: 'succeeded', startedAt: new Date().toISOString(), finishedAt: new Date().toISOString(), cancellable: false, progress: null }] }),
+        apiImpl: async () => ({ operations: [{ id: 'unrelated', kind: 'repair', collection: 'other', path: null, state: 'succeeded', startedAt: new Date().toISOString(), finishedAt: new Date().toISOString(), cancellable: false, progress: null, error: null, }] }),
       });
       mountOperationModal(document.getElementById('operation-modal-host'));
       openOperationModal('never-appears');
@@ -242,10 +242,10 @@ describe('operation modal — rendering', () => {
       const html = await (await fetch(base + '/')).text();
       const { document, mountOperationModal, openOperationModal, __settle } = loadOperationModalHelpers(html, {
         apiImpl: async () => ({ operations: [{
-          id: 'op1', kind: 'index', collection: 'demo', state: 'running',
+          id: 'op1', kind: 'index', collection: 'demo', path: null, state: 'running',
           startedAt: new Date().toISOString(), finishedAt: null, cancellable: true,
           progress: { percent: 55, phase: 'Embedding chunks', currentFile: 'b.md', processedFiles: 2, totalFiles: 4 },
-        }] }),
+        error: null, }] }),
       });
       mountOperationModal(document.getElementById('operation-modal-host'));
       openOperationModal('op1');
@@ -262,9 +262,9 @@ describe('operation modal — rendering', () => {
       const html = await (await fetch(base + '/')).text();
       const { document, mountOperationModal, openOperationModal, __settle } = loadOperationModalHelpers(html, {
         apiImpl: async () => ({ operations: [{
-          id: 'op1', kind: 'repair', collection: 'demo', state: 'running',
+          id: 'op1', kind: 'repair', collection: 'demo', path: null, state: 'running',
           startedAt: new Date().toISOString(), finishedAt: null, cancellable: false, progress: null,
-        }] }),
+        error: null, }] }),
       });
       mountOperationModal(document.getElementById('operation-modal-host'));
       openOperationModal('op1');
@@ -280,9 +280,9 @@ describe('operation modal — rendering', () => {
       const html = await (await fetch(base + '/')).text();
       const { document, mountOperationModal, openOperationModal, __settle } = loadOperationModalHelpers(html, {
         apiImpl: async () => ({ operations: [{
-          id: 'op1', kind: 'repair', collection: 'demo', state: 'running',
+          id: 'op1', kind: 'repair', collection: 'demo', path: null, state: 'running',
           startedAt: new Date().toISOString(), finishedAt: null, cancellable: false, progress: null,
-        }] }),
+        error: null, }] }),
       });
       mountOperationModal(document.getElementById('operation-modal-host'));
       openOperationModal('op1');
@@ -298,9 +298,9 @@ describe('operation modal — rendering', () => {
       const posted = [];
       const { document, mountOperationModal, openOperationModal, __settle } = loadOperationModalHelpers(html, {
         apiImpl: async () => ({ operations: [{
-          id: 'op1', kind: 'index', collection: 'demo', state: 'running',
+          id: 'op1', kind: 'index', collection: 'demo', path: null, state: 'running',
           startedAt: new Date().toISOString(), finishedAt: null, cancellable: true, progress: null,
-        }] }),
+        error: null, }] }),
         apiPostImpl: async (url) => { posted.push(url); return {}; },
       });
       mountOperationModal(document.getElementById('operation-modal-host'));
@@ -317,8 +317,8 @@ describe('operation modal — rendering', () => {
       const html = await (await fetch(base + '/')).text();
       const { document, mountOperationModal, openOperationModal, __settle } = loadOperationModalHelpers(html, {
         apiImpl: async () => ({ operations: [
-          { id: 'op1', kind: 'index', collection: 'demo', state: 'running', startedAt: new Date().toISOString(), finishedAt: null, cancellable: true, progress: null },
-          { id: 'op2', kind: 'repair', collection: 'other', state: 'succeeded', startedAt: new Date(Date.now() - 5000).toISOString(), finishedAt: new Date().toISOString(), cancellable: false, progress: null },
+          { id: 'op1', kind: 'index', collection: 'demo', path: null, state: 'running', startedAt: new Date().toISOString(), finishedAt: null, cancellable: true, progress: null, error: null, },
+          { id: 'op2', kind: 'repair', collection: 'other', path: null, state: 'succeeded', startedAt: new Date(Date.now() - 5000).toISOString(), finishedAt: new Date().toISOString(), cancellable: false, progress: null, error: null, },
         ] }),
       });
       mountOperationModal(document.getElementById('operation-modal-host'));
@@ -337,8 +337,8 @@ describe('operation modal — rendering', () => {
       const html = await (await fetch(base + '/')).text();
       const { document, mountOperationModal, openOperationModal, __settle } = loadOperationModalHelpers(html, {
         apiImpl: async () => ({ operations: [
-          { id: 'op1', kind: 'index', collection: 'demo', state: 'running', startedAt: new Date().toISOString(), finishedAt: null, cancellable: true, progress: null },
-          { id: 'op2', kind: 'repair', collection: 'other', state: 'succeeded', startedAt: new Date(Date.now() - 5000).toISOString(), finishedAt: new Date().toISOString(), cancellable: false, progress: null },
+          { id: 'op1', kind: 'index', collection: 'demo', path: null, state: 'running', startedAt: new Date().toISOString(), finishedAt: null, cancellable: true, progress: null, error: null, },
+          { id: 'op2', kind: 'repair', collection: 'other', path: null, state: 'succeeded', startedAt: new Date(Date.now() - 5000).toISOString(), finishedAt: new Date().toISOString(), cancellable: false, progress: null, error: null, },
         ] }),
       });
       mountOperationModal(document.getElementById('operation-modal-host'));
@@ -356,10 +356,10 @@ describe('operation modal — manual "Show details" state survives polling (port
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
       const op = {
-        id: 'op1', kind: 'index', collection: 'demo', state: 'running',
+        id: 'op1', kind: 'index', collection: 'demo', path: null, state: 'running',
         startedAt: new Date().toISOString(), finishedAt: null, cancellable: true,
         progress: { percent: 20, phase: null, currentFile: 'a.md', processedFiles: 1, totalFiles: 5 },
-      };
+      error: null, };
       const { document, mountOperationModal, openOperationModal, __settle, __runTimeouts } = loadOperationModalHelpers(html, {
         apiImpl: async (url) => (url.includes('/api/operations/') ? { operation: { ...op, sourcePath: './docs', log: [] } } : { operations: [op] }),
       });
@@ -380,10 +380,10 @@ describe('operation modal — manual "Show details" state survives polling (port
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
       const op = {
-        id: 'op1', kind: 'index', collection: 'demo', state: 'running',
+        id: 'op1', kind: 'index', collection: 'demo', path: null, state: 'running',
         startedAt: new Date().toISOString(), finishedAt: null, cancellable: true,
         progress: { percent: 20, phase: null, currentFile: 'a.md', processedFiles: 1, totalFiles: 5 },
-      };
+      error: null, };
       const { document, mountOperationModal, openOperationModal, __settle, __runTimeouts } = loadOperationModalHelpers(html, {
         apiImpl: async (url) => (url.includes('/api/operations/') ? { operation: { ...op, sourcePath: './docs', log: ['line one'] } } : { operations: [op] }),
       });
@@ -406,7 +406,7 @@ describe('operation modal — manual "Show details" state survives polling (port
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
       const op = {
-        id: 'op1', kind: 'index', collection: 'demo', state: 'failed',
+        id: 'op1', kind: 'index', collection: 'demo', path: null, state: 'failed',
         startedAt: new Date(Date.now() - 5000).toISOString(), finishedAt: new Date().toISOString(), cancellable: false,
         progress: null, error: 'boom',
       };
@@ -425,7 +425,7 @@ describe('operation modal — manual "Show details" state survives polling (port
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
       const op = {
-        id: 'op1', kind: 'index', collection: 'demo', state: 'failed',
+        id: 'op1', kind: 'index', collection: 'demo', path: null, state: 'failed',
         startedAt: new Date(Date.now() - 5000).toISOString(), finishedAt: new Date().toISOString(), cancellable: false,
         progress: null, error: 'boom',
       };
@@ -454,10 +454,10 @@ describe('operation modal — completion toast', () => {
       let state = 'running';
       const { document, mountOperationModal, openOperationModal, __settle, __runTimeouts } = loadOperationModalHelpers(html, {
         apiImpl: async () => ({ operations: [{
-          id: 'op1', kind: 'index', collection: 'demo', state,
+          id: 'op1', kind: 'index', collection: 'demo', path: null, state,
           startedAt: new Date().toISOString(), finishedAt: state === 'succeeded' ? new Date().toISOString() : null,
           cancellable: state === 'running', progress: null,
-        }] }),
+        error: null, }] }),
       });
       // #toast-host already exists in the real built index.html this test
       // parses (see index.html) — reused directly rather than creating a
@@ -503,7 +503,7 @@ describe('operation modal — completion toast', () => {
       const secretLog = 'connecting to https://user:sk-super-secret-token@qdrant.example.com/collections';
       const { document, mountOperationModal, openOperationModal, __settle, __runTimeouts } = loadOperationModalHelpers(html, {
         apiImpl: async () => ({ operations: [{
-          id: 'op1', kind: 'index', collection: 'demo', state,
+          id: 'op1', kind: 'index', collection: 'demo', path: null, state,
           startedAt: new Date().toISOString(), finishedAt: state === 'failed' ? new Date().toISOString() : null,
           cancellable: state === 'running', progress: null,
           error: state === 'failed' ? 'Qdrant unreachable' : null, // the sanitised field the backend actually exposes — see api/operations.js
@@ -531,10 +531,10 @@ describe('operation modal — completion toast', () => {
       let state = 'running';
       const { document, mountOperationModal, openOperationModal, closeOperationModal, __settle, __runTimeouts } = loadOperationModalHelpers(html, {
         apiImpl: async () => ({ operations: [{
-          id: 'op1', kind: 'index', collection: 'demo', state,
+          id: 'op1', kind: 'index', collection: 'demo', path: null, state,
           startedAt: new Date().toISOString(), finishedAt: state === 'succeeded' ? new Date().toISOString() : null,
           cancellable: state === 'running', progress: null,
-        }] }),
+        error: null, }] }),
       });
       const toastHost = document.getElementById('toast-host');
 
@@ -559,10 +559,10 @@ describe('operation modal — stable DOM across poll updates for the same operat
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
       const op = {
-        id: 'op1', kind: 'index', collection: 'demo', state: 'running',
+        id: 'op1', kind: 'index', collection: 'demo', path: null, state: 'running',
         startedAt: new Date().toISOString(), finishedAt: null, cancellable: true,
         progress: { percent: 20, phase: null, currentFile: 'a.md', processedFiles: 1, totalFiles: 5 },
-      };
+      error: null, };
       const { document, mountOperationModal, openOperationModal, __settle, __runTimeouts } = loadOperationModalHelpers(html, {
         apiImpl: async (url) => (url.includes('/api/operations/') ? { operation: { ...op, sourcePath: './docs', log: [] } } : { operations: [op] }),
       });
@@ -590,10 +590,10 @@ describe('operation modal — stable DOM across poll updates for the same operat
       const html = await (await fetch(base + '/')).text();
       const { document, mountOperationModal, openOperationModal, __settle } = loadOperationModalHelpers(html, {
         apiImpl: async (url) => {
-          if (url.includes('/api/operations/')) return { operation: { id: 'op1', kind: 'index', collection: 'demo', state: 'running', startedAt: new Date().toISOString(), finishedAt: null, cancellable: true, progress: null, sourcePath: '.', log: [] } };
+          if (url.includes('/api/operations/')) return { operation: { id: 'op1', kind: 'index', collection: 'demo', path: null, state: 'running', startedAt: new Date().toISOString(), finishedAt: null, cancellable: true, progress: null, sourcePath: '.', log: [], error: null, } };
           return { operations: [
-            { id: 'op1', kind: 'index', collection: 'demo', state: 'running', startedAt: new Date().toISOString(), finishedAt: null, cancellable: true, progress: null },
-            { id: 'op2', kind: 'repair', collection: 'other', state: 'succeeded', startedAt: new Date(Date.now() - 5000).toISOString(), finishedAt: new Date().toISOString(), cancellable: false, progress: null },
+            { id: 'op1', kind: 'index', collection: 'demo', path: null, state: 'running', startedAt: new Date().toISOString(), finishedAt: null, cancellable: true, progress: null, error: null, },
+            { id: 'op2', kind: 'repair', collection: 'other', path: null, state: 'succeeded', startedAt: new Date(Date.now() - 5000).toISOString(), finishedAt: new Date().toISOString(), cancellable: false, progress: null, error: null, },
           ] };
         },
       });
@@ -614,10 +614,10 @@ describe('operation modal — stable DOM across poll updates for the same operat
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
       const op = {
-        id: 'op1', kind: 'index', collection: 'demo', state: 'running',
+        id: 'op1', kind: 'index', collection: 'demo', path: null, state: 'running',
         startedAt: new Date().toISOString(), finishedAt: null, cancellable: true,
         progress: { percent: 10, phase: null, currentFile: null, processedFiles: 0, totalFiles: 5 },
-      };
+      error: null, };
       const posted = [];
       const { document, mountOperationModal, openOperationModal, __settle, __runTimeouts } = loadOperationModalHelpers(html, {
         apiImpl: async (url) => (url.includes('/api/operations/') ? { operation: { ...op, sourcePath: '.', log: [] } } : { operations: [op] }),
@@ -644,9 +644,9 @@ describe('operation modal — stable DOM across poll updates for the same operat
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
       const op = {
-        id: 'op1', kind: 'index', collection: 'demo', state: 'running',
+        id: 'op1', kind: 'index', collection: 'demo', path: null, state: 'running',
         startedAt: new Date().toISOString(), finishedAt: null, cancellable: true, progress: null,
-      };
+      error: null, };
       const posted = [];
       const { document, mountOperationModal, openOperationModal, __settle, __runTimeouts } = loadOperationModalHelpers(html, {
         apiImpl: async (url) => (url.includes('/api/operations/') ? { operation: { ...op, sourcePath: '.', log: [] } } : { operations: [op] }),
@@ -673,9 +673,9 @@ describe('operation modal — log scroll preservation', () => {
       const html = await (await fetch(base + '/')).text();
       let logLines = ['line 1', 'line 2', 'line 3'];
       const op = {
-        id: 'op1', kind: 'index', collection: 'demo', state: 'running',
+        id: 'op1', kind: 'index', collection: 'demo', path: null, state: 'running',
         startedAt: new Date().toISOString(), finishedAt: null, cancellable: true, progress: null,
-      };
+      error: null, };
       const { document, mountOperationModal, openOperationModal, __settle, __runTimeouts } = loadOperationModalHelpers(html, {
         apiImpl: async (url) => (url.includes('/api/operations/') ? { operation: { ...op, sourcePath: '.', log: logLines } } : { operations: [op] }),
       });
@@ -701,9 +701,9 @@ describe('operation modal — log scroll preservation', () => {
       const html = await (await fetch(base + '/')).text();
       let logLines = ['line 1', 'line 2', 'line 3'];
       const op = {
-        id: 'op1', kind: 'index', collection: 'demo', state: 'running',
+        id: 'op1', kind: 'index', collection: 'demo', path: null, state: 'running',
         startedAt: new Date().toISOString(), finishedAt: null, cancellable: true, progress: null,
-      };
+      error: null, };
       const { document, mountOperationModal, openOperationModal, __settle, __runTimeouts } = loadOperationModalHelpers(html, {
         apiImpl: async (url) => (url.includes('/api/operations/') ? { operation: { ...op, sourcePath: '.', log: logLines } } : { operations: [op] }),
       });
@@ -734,10 +734,10 @@ describe('operation modal — log scroll preservation', () => {
       const html = await (await fetch(base + '/')).text();
       const logLines = ['line 1', 'line 2'];
       const op = {
-        id: 'op1', kind: 'index', collection: 'demo', state: 'running',
+        id: 'op1', kind: 'index', collection: 'demo', path: null, state: 'running',
         startedAt: new Date().toISOString(), finishedAt: null, cancellable: true,
         progress: { percent: 10, phase: null, currentFile: null, processedFiles: 0, totalFiles: 5 },
-      };
+      error: null, };
       const { document, mountOperationModal, openOperationModal, __settle, __runTimeouts } = loadOperationModalHelpers(html, {
         apiImpl: async (url) => (url.includes('/api/operations/') ? { operation: { ...op, sourcePath: '.', log: logLines } } : { operations: [op] }),
       });
@@ -784,14 +784,14 @@ describe('operation modal — stale async log response protection', () => {
         apiImpl: async (url) => {
           if (url.includes('/api/operations/op1')) {
             await op1DetailPromise; // never resolves until the test says so — simulates a slow in-flight detail fetch
-            return { operation: { id: 'op1', kind: 'index', collection: 'demo', state: 'running', startedAt: new Date().toISOString(), finishedAt: null, cancellable: true, progress: null, sourcePath: '.', log: ['op1 stale log line'] } };
+            return { operation: { id: 'op1', kind: 'index', collection: 'demo', path: null, state: 'running', startedAt: new Date().toISOString(), finishedAt: null, cancellable: true, progress: null, sourcePath: '.', log: ['op1 stale log line'], error: null, } };
           }
           if (url.includes('/api/operations/op2')) {
-            return { operation: { id: 'op2', kind: 'index', collection: 'other', state: 'running', startedAt: new Date().toISOString(), finishedAt: null, cancellable: true, progress: null, sourcePath: '.', log: ['op2 fresh log line'] } };
+            return { operation: { id: 'op2', kind: 'index', collection: 'other', path: null, state: 'running', startedAt: new Date().toISOString(), finishedAt: null, cancellable: true, progress: null, sourcePath: '.', log: ['op2 fresh log line'], error: null, } };
           }
           return { operations: [
-            { id: 'op1', kind: 'index', collection: 'demo', state: 'running', startedAt: new Date().toISOString(), finishedAt: null, cancellable: true, progress: null },
-            { id: 'op2', kind: 'index', collection: 'other', state: 'running', startedAt: new Date().toISOString(), finishedAt: null, cancellable: true, progress: null },
+            { id: 'op1', kind: 'index', collection: 'demo', path: null, state: 'running', startedAt: new Date().toISOString(), finishedAt: null, cancellable: true, progress: null, error: null, },
+            { id: 'op2', kind: 'index', collection: 'other', path: null, state: 'running', startedAt: new Date().toISOString(), finishedAt: null, cancellable: true, progress: null, error: null, },
           ] };
         },
       });
@@ -827,9 +827,9 @@ describe('operation modal — stale async log response protection', () => {
         apiImpl: async (url) => {
           if (url.includes('/api/operations/op1')) {
             await detailPromise;
-            return { operation: { id: 'op1', kind: 'index', collection: 'demo', state: 'running', startedAt: new Date().toISOString(), finishedAt: null, cancellable: true, progress: null, sourcePath: '.', log: ['late log line'] } };
+            return { operation: { id: 'op1', kind: 'index', collection: 'demo', path: null, state: 'running', startedAt: new Date().toISOString(), finishedAt: null, cancellable: true, progress: null, sourcePath: '.', log: ['late log line'], error: null, } };
           }
-          return { operations: [{ id: 'op1', kind: 'index', collection: 'demo', state: 'running', startedAt: new Date().toISOString(), finishedAt: null, cancellable: true, progress: null }] };
+          return { operations: [{ id: 'op1', kind: 'index', collection: 'demo', path: null, state: 'running', startedAt: new Date().toISOString(), finishedAt: null, cancellable: true, progress: null, error: null, }] };
         },
       });
       mountOperationModal(document.getElementById('operation-modal-host'));
@@ -854,8 +854,8 @@ describe('operation modal — recent operations history isolation', () => {
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
       const ops = [
-        { id: 'op1', kind: 'index', collection: 'demo', state: 'running', startedAt: new Date().toISOString(), finishedAt: null, cancellable: true, progress: { percent: 10, phase: null, currentFile: null, processedFiles: 0, totalFiles: 5 } },
-        { id: 'op2', kind: 'repair', collection: 'other', state: 'succeeded', startedAt: new Date(Date.now() - 5000).toISOString(), finishedAt: new Date().toISOString(), cancellable: false, progress: null },
+        { id: 'op1', kind: 'index', collection: 'demo', path: null, state: 'running', startedAt: new Date().toISOString(), finishedAt: null, cancellable: true, progress: { percent: 10, phase: null, currentFile: null, processedFiles: 0, totalFiles: 5 }, error: null, },
+        { id: 'op2', kind: 'repair', collection: 'other', path: null, state: 'succeeded', startedAt: new Date(Date.now() - 5000).toISOString(), finishedAt: new Date().toISOString(), cancellable: false, progress: null, error: null, },
       ];
       const { document, mountOperationModal, openOperationModal, __settle, __runTimeouts } = loadOperationModalHelpers(html, {
         apiImpl: async (url) => (url.includes('/api/operations/') ? { operation: { ...ops[0], sourcePath: '.', log: [] } } : { operations: ops }),
@@ -881,8 +881,8 @@ describe('operation modal — recent operations history isolation', () => {
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
       const ops = [
-        { id: 'op1', kind: 'index', collection: 'demo', state: 'running', startedAt: new Date().toISOString(), finishedAt: null, cancellable: true, progress: null },
-        { id: 'op2', kind: 'repair', collection: 'other', state: 'running', startedAt: new Date(Date.now() - 5000).toISOString(), finishedAt: null, cancellable: false, progress: null },
+        { id: 'op1', kind: 'index', collection: 'demo', path: null, state: 'running', startedAt: new Date().toISOString(), finishedAt: null, cancellable: true, progress: null, error: null, },
+        { id: 'op2', kind: 'repair', collection: 'other', path: null, state: 'running', startedAt: new Date(Date.now() - 5000).toISOString(), finishedAt: null, cancellable: false, progress: null, error: null, },
       ];
       const { document, mountOperationModal, openOperationModal, __settle, __runTimeouts } = loadOperationModalHelpers(html, {
         apiImpl: async (url) => (url.includes('/api/operations/') ? { operation: { ...ops[0], sourcePath: '.', log: ['a line'] } } : { operations: ops }),
