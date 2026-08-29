@@ -3,23 +3,34 @@
    No external fonts: this tool must render identically offline. */
 
 :root {
-  --bg:        #131519;
-  --bg-raise:  #1a1d23;
-  --bg-inset:  #0e1013;
-  --line:      #2a2e36;
-  --line-soft: #22252c;
-  --ink:       #d6d3cb;
-  --ink-dim:   #8b8878;
-  /* Brightened from #5c5a4f (2.6:1 on --bg, 2.4:1 on --bg-raise — fails
-     WCAG AA's 4.5:1 for normal text). This value clears 4.5:1 on --bg
-     (4.91:1) and --bg-raise (4.54:1), the harder of the two, while
-     staying visibly dimmer than --ink-dim. */
-  --ink-faint: #888572;
-  --amber:     #e8a33d;
-  --amber-dim: #a67425;
-  --ok:        #6fbf73;
-  --warn:      #e8a33d;
-  --fail:      #e05d5d;
+  --surface-page:    #131519;
+  --surface-panel:   #1a1d23;
+  --surface-sunken:  #0e1013;
+  --border-strong:   #2a2e36;
+  --border-subtle:   #22252c;
+  --text-primary:    #d6d3cb;
+  --text-secondary:  #8b8878;
+  /* Brightened from #5c5a4f (2.6:1 on --surface-page, 2.4:1 on
+     --surface-panel — fails WCAG AA's 4.5:1 for normal text). This value
+     clears 4.5:1 on --surface-page (4.91:1) and --surface-panel (4.54:1),
+     the harder of the two, while staying visibly dimmer than
+     --text-secondary. */
+  --text-muted:      #888572;
+  --accent:          #e8a33d;
+  --accent-muted:    #a67425;
+  --status-ok:       #6fbf73;
+  --status-warn:     #e8a33d;
+  --status-fail:     #e05d5d;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --radius-sm: 3px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+
   --mono: "IBM Plex Mono", "Cascadia Code", "JetBrains Mono", "Fira Code", Consolas, "SF Mono", monospace;
   --sans: "IBM Plex Sans", "Segoe UI", "Helvetica Neue", sans-serif;
 }
@@ -35,27 +46,27 @@ html, body {
   margin: 0; height: 100%;
   background:
     radial-gradient(1200px 500px at 85% -10%, rgba(232,163,61,.05), transparent 60%),
-    var(--bg);
-  color: var(--ink);
+    var(--surface-page);
+  color: var(--text-primary);
   font-family: var(--sans);
   font-size: 14px;
   line-height: 1.5;
 }
 
 .mono { font-family: var(--mono); font-size: 12px; }
-.muted { color: var(--ink-dim); }
+.muted { color: var(--text-secondary); }
 
 /* ── Top bar ────────────────────────────────────────────────────────────── */
 .topbar {
   display: flex; align-items: center; justify-content: space-between;
   gap: 10px; padding: 0 20px; height: 52px;
-  border-bottom: 1px solid var(--line);
-  background: var(--bg-raise);
+  border-bottom: 1px solid var(--border-strong);
+  background: var(--surface-panel);
 }
 .brand {
   display: inline-flex; align-items: baseline;
   font-family: var(--mono); font-size: 16px; letter-spacing: .02em;
-  color: var(--ink); text-decoration: none;
+  color: var(--text-primary); text-decoration: none;
   /* Phase 4A.5b code review: .brand and .topbar-status previously had no
      min-width/shrink handling at all — on a narrow viewport with the gear
      link added, the row had no slack left and would force horizontal
@@ -65,18 +76,18 @@ html, body {
      width instead of refusing to, which text-overflow below depends on. */
   min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
 }
-.brand:hover { color: var(--amber); }
-.brand:hover .brand-bracket { color: var(--amber); }
-.brand-bracket { color: var(--amber); }
+.brand:hover { color: var(--accent); }
+.brand:hover .brand-bracket { color: var(--accent); }
+.brand-bracket { color: var(--accent); }
 .brand-sub {
   margin-left: 10px; font-size: 10px; text-transform: uppercase;
-  letter-spacing: .22em; color: var(--ink-dim);
+  letter-spacing: .22em; color: var(--text-secondary);
 }
 .topbar-status {
-  display: flex; align-items: center; gap: 10px; color: var(--ink-dim);
+  display: flex; align-items: center; gap: 10px; color: var(--text-secondary);
   flex-shrink: 0;
 }
-.cap-summary { color: var(--ink-faint); }
+.cap-summary { color: var(--text-muted); }
 
 /* Narrow viewports (Phase 4A.5b code review — the topbar previously had NO
    narrow-viewport handling at all, unlike .layout/.main below): shed
@@ -99,12 +110,12 @@ html, body {
 /* status lamp with glow — the one instrument-panel flourish */
 .lamp {
   width: 9px; height: 9px; border-radius: 50%;
-  background: var(--ink-faint); display: inline-block;
+  background: var(--text-muted); display: inline-block;
   transition: background .3s, box-shadow .3s;
 }
-.lamp-ok   { background: var(--ok);   box-shadow: 0 0 8px 1px rgba(111,191,115,.55); }
-.lamp-fail { background: var(--fail); box-shadow: 0 0 8px 1px rgba(224,93,93,.55); }
-.lamp-unknown { background: var(--ink-faint); }
+.lamp-ok   { background: var(--status-ok);   box-shadow: 0 0 8px 1px rgba(111,191,115,.55); }
+.lamp-fail { background: var(--status-fail); box-shadow: 0 0 8px 1px rgba(224,93,93,.55); }
+.lamp-unknown { background: var(--text-muted); }
 
 /* Active-job chip (Phase 3C): a small always-reachable-from-any-route
    indicator, not a full job center — that stays at #/index. Hidden with
@@ -118,9 +129,9 @@ html, body {
    space and being interactive. */
 .job-chip {
   display: flex; align-items: center; gap: 6px;
-  background: var(--bg-inset); border: 1px solid var(--line-soft);
+  background: var(--surface-sunken); border: 1px solid var(--border-subtle);
   border-radius: 999px; padding: 3px 10px 3px 8px;
-  font: inherit; font-size: 11px; color: var(--ink);
+  font: inherit; font-size: 11px; color: var(--text-primary);
   cursor: pointer;
   /* Phase 4A.5b code review, round 2: an active operation's collection name
      is user-controlled with no length limit (the API only rejects "/" and
@@ -133,7 +144,7 @@ html, body {
   max-width: 220px; min-width: 0;
 }
 .job-chip[hidden] { display: none; }
-.job-chip:hover { border-color: var(--amber); }
+.job-chip:hover { border-color: var(--accent); }
 .job-chip-text {
   overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
   min-width: 0;
@@ -148,13 +159,13 @@ html, body {
 .topbar-gear-link {
   display: flex; align-items: center; justify-content: center;
   width: 26px; height: 26px; border-radius: 4px;
-  color: var(--ink-dim); text-decoration: none;
+  color: var(--text-secondary); text-decoration: none;
   border: 1px solid transparent;
 }
-.topbar-gear-link:hover { color: var(--ink); border-color: var(--line-soft); }
-.topbar-gear-link.active { color: var(--amber); border-color: var(--amber-dim); }
+.topbar-gear-link:hover { color: var(--text-primary); border-color: var(--border-subtle); }
+.topbar-gear-link.active { color: var(--accent); border-color: var(--accent-muted); }
 .job-chip-dot {
-  width: 6px; height: 6px; border-radius: 50%; background: var(--amber);
+  width: 6px; height: 6px; border-radius: 50%; background: var(--accent);
   box-shadow: 0 0 6px 1px rgba(224,166,74,.5);
   animation: job-progress-sweep-dot 1.2s ease-in-out infinite;
 }
@@ -177,7 +188,7 @@ html, body {
   .main { padding: 14px 12px; }
 }
 .sidebar {
-  background: var(--bg-raise);
+  background: var(--surface-panel);
   display: flex; flex-direction: column;
   overflow-y: auto;
 }
@@ -196,11 +207,11 @@ html, body {
   content: '';
   position: absolute;
   top: 0; bottom: 0; left: 2px; width: 2px;
-  background: var(--line);
+  background: var(--border-strong);
 }
 .sidebar-resize-handle:hover::after,
 .sidebar-resize-handle.is-dragging::after {
-  background: var(--ink-dim);
+  background: var(--text-secondary);
 }
 /* Keyboard-focus indicator — accent-colored divider line, no outline/
    layout shift, so it reads as "this control is active" without adding
@@ -212,7 +223,7 @@ html, body {
 }
 .sidebar-resize-handle:focus-visible::after {
   left: 1px; width: 4px;
-  background: var(--amber);
+  background: var(--accent);
 }
 
 /* Global keyboard-focus indicator for every other interactive control
@@ -227,22 +238,22 @@ input:focus-visible,
 select:focus-visible,
 .tree-row:focus-visible,
 .tree-caret[data-caret]:focus-visible {
-  outline: 2px solid var(--amber);
+  outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
 .main { min-width: 0; padding: 22px 26px; overflow-y: auto; }
 
 .panel-label {
   font-size: 10px; text-transform: uppercase; letter-spacing: .22em;
-  color: var(--ink-dim); padding: 16px 16px 8px;
+  color: var(--text-secondary); padding: 16px 16px 8px;
 }
 
 .collection-list { list-style: none; margin: 0; padding: 0 8px; flex: 1; }
-.collection-list li.muted { padding: 6px 8px; color: var(--ink-faint); font-size: 12px; }
+.collection-list li.muted { padding: 6px 8px; color: var(--text-muted); font-size: 12px; }
 
 .sidebar-foot {
-  padding: 12px 16px; color: var(--ink-faint); font-size: 10px;
-  border-top: 1px solid var(--line-soft);
+  padding: 12px 16px; color: var(--text-muted); font-size: 10px;
+  border-top: 1px solid var(--border-subtle);
 }
 
 /* ── Panels / cards ─────────────────────────────────────────────────────── */
@@ -250,17 +261,17 @@ select:focus-visible,
   font-size: 18px; font-weight: 600; margin: 0 0 4px;
   font-family: var(--mono); letter-spacing: .01em;
 }
-.view-sub { color: var(--ink-dim); margin: 0 0 20px; font-size: 13px; }
+.view-sub { color: var(--text-secondary); margin: 0 0 20px; font-size: 13px; }
 
 .panel {
-  border: 1px solid var(--line); border-radius: 4px;
-  background: var(--bg-raise); margin-bottom: 18px;
+  border: 1px solid var(--border-strong); border-radius: 4px;
+  background: var(--surface-panel); margin-bottom: 18px;
 }
 .panel-head {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 10px 14px; border-bottom: 1px solid var(--line-soft);
+  padding: 10px 14px; border-bottom: 1px solid var(--border-subtle);
   font-size: 10px; text-transform: uppercase; letter-spacing: .22em;
-  color: var(--ink-dim);
+  color: var(--text-secondary);
 }
 .panel-body { padding: 14px; }
 
@@ -269,20 +280,20 @@ select:focus-visible,
 
 /* key/value metadata rows */
 .kv { display: grid; grid-template-columns: 180px 1fr; row-gap: 6px; column-gap: 12px; }
-.kv dt { color: var(--ink-dim); font-size: 12px; }
+.kv dt { color: var(--text-secondary); font-size: 12px; }
 .kv dd { margin: 0; font-family: var(--mono); font-size: 12px; word-break: break-all; }
 
 /* data table */
 table.data { width: 100%; border-collapse: collapse; font-size: 13px; }
 table.data th {
   text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: .18em;
-  color: var(--ink-dim); font-weight: 500;
-  padding: 6px 10px; border-bottom: 1px solid var(--line);
+  color: var(--text-secondary); font-weight: 500;
+  padding: 6px 10px; border-bottom: 1px solid var(--border-strong);
 }
-table.data td { padding: 7px 10px; border-bottom: 1px solid var(--line-soft); }
+table.data td { padding: 7px 10px; border-bottom: 1px solid var(--border-subtle); }
 table.data tr:last-child td { border-bottom: 0; }
 table.data tr.rowlink { cursor: pointer; }
-table.data tr.rowlink:hover td { background: var(--bg-inset); }
+table.data tr.rowlink:hover td { background: var(--surface-sunken); }
 td.num, th.num { text-align: right; font-family: var(--mono); font-size: 12px; }
 td.mono { font-family: var(--mono); font-size: 12px; }
 
@@ -290,22 +301,22 @@ td.mono { font-family: var(--mono); font-size: 12px; }
 .badge {
   display: inline-block; padding: 1px 8px; border-radius: 3px;
   font-family: var(--mono); font-size: 11px;
-  border: 1px solid var(--line); color: var(--ink-dim);
+  border: 1px solid var(--border-strong); color: var(--text-secondary);
 }
-.badge-ok   { color: var(--ok);   border-color: rgba(111,191,115,.4); }
-.badge-warn { color: var(--warn); border-color: rgba(232,163,61,.4); }
-.badge-fail { color: var(--fail); border-color: rgba(224,93,93,.4); }
-.badge-amber { color: var(--amber); border-color: var(--amber-dim); }
+.badge-ok   { color: var(--status-ok);   border-color: rgba(111,191,115,.4); }
+.badge-warn { color: var(--status-warn); border-color: rgba(232,163,61,.4); }
+.badge-fail { color: var(--status-fail); border-color: rgba(224,93,93,.4); }
+.badge-amber { color: var(--accent); border-color: var(--accent-muted); }
 
 /* capability chips */
 .caps { display: flex; flex-wrap: wrap; gap: 6px; }
 .cap {
   font-family: var(--mono); font-size: 11px; padding: 2px 8px;
-  border-radius: 3px; border: 1px solid var(--line-soft); color: var(--ink-faint);
+  border-radius: 3px; border: 1px solid var(--border-subtle); color: var(--text-muted);
 }
-.cap.on { color: var(--ok); border-color: rgba(111,191,115,.35); }
+.cap.on { color: var(--status-ok); border-color: rgba(111,191,115,.35); }
 
-.skel-note { font-size: 11px; color: var(--ink-faint); margin-top: 10px; }
+.skel-note { font-size: 11px; color: var(--text-muted); margin-top: 10px; }
 
 /* File/section browse header (Phase 3H): sits above the chunk cards inside
    #collection-content, distinct from the small uppercase .panel-head label
@@ -314,11 +325,11 @@ td.mono { font-family: var(--mono); font-size: 12px; }
    replacement for the panel's own head row. */
 .file-view-header { margin-bottom: 14px; }
 .file-view-title-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.file-view-icon { flex: none; width: 16px; display: inline-flex; color: var(--ink-dim); }
+.file-view-icon { flex: none; width: 16px; display: inline-flex; color: var(--text-secondary); }
 .file-view-icon svg { width: 16px; height: 16px; }
-.file-view-name { font-size: 14px; color: var(--ink); overflow-wrap: anywhere; }
+.file-view-name { font-size: 14px; color: var(--text-primary); overflow-wrap: anywhere; }
 .file-view-count { flex: none; }
-.file-view-meta { font-size: 11px; color: var(--ink-dim); margin-top: 4px; }
+.file-view-meta { font-size: 11px; color: var(--text-secondary); margin-top: 4px; }
 
 /* ── document reader (Phase 3W) ─────────────────────────────────────────────
    Continuous assembled document: unframed prose at a restrained reading
@@ -328,17 +339,17 @@ td.mono { font-family: var(--mono); font-size: 12px; }
    language so the header stays quiet. */
 .reader-mode-toggle {
   display: inline-flex; margin-left: auto;
-  border: 1px solid var(--line); border-radius: 3px; overflow: hidden;
+  border: 1px solid var(--border-strong); border-radius: 3px; overflow: hidden;
 }
 .reader-mode-btn {
-  background: transparent; border: 0; color: var(--ink-dim);
+  background: transparent; border: 0; color: var(--text-secondary);
   font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: .05em;
   padding: 3px 9px; cursor: pointer;
 }
-.reader-mode-btn + .reader-mode-btn { border-left: 1px solid var(--line); }
-.reader-mode-btn:hover { color: var(--ink); background: var(--bg-inset); }
-.reader-mode-btn.active { color: var(--amber); background: var(--bg-inset); }
-.reader-mode-btn:focus-visible { outline: 2px solid var(--amber-dim); outline-offset: -2px; }
+.reader-mode-btn + .reader-mode-btn { border-left: 1px solid var(--border-strong); }
+.reader-mode-btn:hover { color: var(--text-primary); background: var(--surface-sunken); }
+.reader-mode-btn.active { color: var(--accent); background: var(--surface-sunken); }
+.reader-mode-btn:focus-visible { outline: 2px solid var(--accent-muted); outline-offset: -2px; }
 
 .assembly-doc { max-width: 72ch; }
 .assembly-segment { position: relative; padding-left: 10px; }
@@ -349,21 +360,21 @@ td.mono { font-family: var(--mono); font-size: 12px; }
   content: ""; position: absolute; left: 0; top: 2px; bottom: 2px; width: 2px;
   background: transparent; border-radius: 1px;
 }
-.assembly-segment:hover::before { background: var(--line); }
+.assembly-segment:hover::before { background: var(--border-strong); }
 .assembly-prose .assembly-segment-body {
   white-space: pre-wrap; overflow-wrap: anywhere;
-  font-size: 14px; line-height: 1.65; color: var(--ink);
+  font-size: 14px; line-height: 1.65; color: var(--text-primary);
   margin: 0 0 14px;
 }
 .assembly-entity { margin: 4px 0 18px; }
 .assembly-target { background: rgba(232, 163, 61, .06); border-radius: 3px; }
-.assembly-target::before { background: var(--amber); }
+.assembly-target::before { background: var(--accent); }
 
 .assembly-warning {
   max-width: 72ch; margin: 0 0 12px; padding: 6px 10px;
-  border: 1px solid var(--line); border-left: 3px solid var(--warn);
-  border-radius: 3px; font-size: 12px; color: var(--ink-dim);
-  background: var(--bg-inset);
+  border: 1px solid var(--border-strong); border-left: 3px solid var(--status-warn);
+  border-radius: 3px; font-size: 12px; color: var(--text-secondary);
+  background: var(--surface-sunken);
 }
 
 /* chunk preview (Phase 3P: three tiers, quiet-to-loud in the opposite order
@@ -379,7 +390,7 @@ td.mono { font-family: var(--mono); font-size: 12px; }
      .chunk-meta     — the chunk index, secondary and small at the bottom
                        — implementation detail, not a headline. */
 .chunk {
-  border: 1px solid var(--line-soft); border-radius: 3px;
+  border: 1px solid var(--border-subtle); border-radius: 3px;
   margin-bottom: 10px; overflow: hidden;
 }
 /* Marks the one chunk a section click actually resolved to (Phase 3F) — a
@@ -390,24 +401,24 @@ td.mono { font-family: var(--mono); font-size: 12px; }
    reads as "this one" without fighting the amber accent already used for
    active sidebar rows — kept deliberately subtle (Phase 3P: not made any
    louder), the ask was "improve without making it noisy." */
-.chunk-target { border-color: var(--amber-dim); border-left: 3px solid var(--amber); }
+.chunk-target { border-color: var(--accent-muted); border-left: 3px solid var(--accent); }
 .chunk-primary {
   padding: 8px 10px 4px;
-  font-size: 12px; color: var(--ink-dim);
+  font-size: 12px; color: var(--text-secondary);
   display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
 }
 .chunk-evidence { padding: 0 10px 8px; }
 .chunk-evidence .chunk-context {
   margin: 0 0 6px; padding: 0; border: 0;
-  color: var(--ink-dim); font-size: 12px; font-style: italic;
+  color: var(--text-secondary); font-size: 12px; font-style: italic;
 }
 .chunk-context-label {
   font-style: normal; font-weight: 600; text-transform: uppercase;
-  letter-spacing: .03em; font-size: 10px; color: var(--ink-faint); margin-right: 4px;
+  letter-spacing: .03em; font-size: 10px; color: var(--text-muted); margin-right: 4px;
 }
 .chunk-text {
   margin: 0; padding: 10px; white-space: pre-wrap; word-break: break-word;
-  font-family: var(--mono); font-size: 12px; color: var(--ink);
+  font-family: var(--mono); font-size: 12px; color: var(--text-primary);
   max-height: 300px; overflow-y: auto;
 }
 /* .chunk-text is shared with tpl-search-result (search.js's evidence
@@ -417,18 +428,18 @@ td.mono { font-family: var(--mono); font-size: 12px; }
    .result-evidence has no horizontal padding of its own. */
 .chunk-evidence .chunk-text { padding: 0; }
 .chunk-meta {
-  padding: 5px 10px; font-size: 11px; color: var(--ink-faint);
-  border-top: 1px dashed var(--line-soft);
+  padding: 5px 10px; font-size: 11px; color: var(--text-muted);
+  border-top: 1px dashed var(--border-subtle);
 }
 
 /* states */
 .error-box {
   border: 1px solid rgba(224,93,93,.4); border-radius: 4px;
-  background: rgba(224,93,93,.06); color: var(--fail);
+  background: rgba(224,93,93,.06); color: var(--status-fail);
   padding: 10px 14px; font-family: var(--mono); font-size: 12px;
   margin-bottom: 18px; word-break: break-word;
 }
-.empty { color: var(--ink-faint); font-size: 12px; padding: 6px 0; }
+.empty { color: var(--text-muted); font-size: 12px; padding: 6px 0; }
 
 /* Minimal toast host — one shared instance, mounted outside #main so it
    survives every main.innerHTML view swap. Deliberately small (no queueing
@@ -441,28 +452,28 @@ td.mono { font-family: var(--mono); font-size: 12px; }
 }
 .toast {
   border: 1px solid rgba(232,163,61,.4); border-radius: 4px;
-  background: var(--bg-raise); color: var(--ink);
+  background: var(--surface-panel); color: var(--text-primary);
   padding: 10px 14px; font-size: 12px; box-shadow: 0 4px 16px rgba(0,0,0,.28);
   word-break: break-word;
   display: flex; align-items: center; gap: 10px;
 }
 .toast-text { flex: 1; }
 .toast-warn { border-color: rgba(232,163,61,.4); }
-.toast-warn .toast-text::before { content: '⚠ '; color: var(--warn); }
+.toast-warn .toast-text::before { content: '⚠ '; color: var(--status-warn); }
 /* Phase 3S: success/error variants for operation completion toasts —
    .toast-warn's existing border/icon pattern extended with two more, same
    visual language (border-tint + a leading glyph on the text), not a new
    toast shape. */
 .toast-success { border-color: rgba(111,191,115,.4); }
-.toast-success .toast-text::before { content: '✓ '; color: var(--ok); }
+.toast-success .toast-text::before { content: '✓ '; color: var(--status-ok); }
 .toast-error { border-color: rgba(224,93,93,.4); }
-.toast-error .toast-text::before { content: '✕ '; color: var(--fail); }
+.toast-error .toast-text::before { content: '✕ '; color: var(--status-fail); }
 .toast-action {
-  flex: none; background: transparent; border: 1px solid var(--line);
-  border-radius: 3px; color: var(--amber); font-size: 11px;
+  flex: none; background: transparent; border: 1px solid var(--border-strong);
+  border-radius: 3px; color: var(--accent); font-size: 11px;
   padding: 4px 10px; cursor: pointer;
 }
-.toast-action:hover { background: var(--bg-inset); }
+.toast-action:hover { background: var(--surface-sunken); }
 
 /* staggered load-in for panels */
 @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
@@ -487,15 +498,15 @@ td.mono { font-family: var(--mono); font-size: 12px; }
 .search-form { display: flex; flex-direction: column; gap: 10px; }
 .q-input {
   width: 100%; padding: 9px 12px;
-  background: var(--bg-inset); border: 1px solid var(--line); border-radius: 3px;
-  color: var(--ink); font-family: var(--mono); font-size: 13px;
+  background: var(--surface-sunken); border: 1px solid var(--border-strong); border-radius: 3px;
+  color: var(--text-primary); font-family: var(--mono); font-size: 13px;
 }
-.q-input:focus { outline: none; border-color: var(--amber-dim); }
-.q-input::placeholder { color: var(--ink-faint); }
+.q-input:focus { outline: none; border-color: var(--accent-muted); }
+.q-input::placeholder { color: var(--text-muted); }
 
 .btn-amber {
-  background: transparent; color: var(--amber);
-  border: 1px solid var(--amber-dim); border-radius: 3px;
+  background: transparent; color: var(--accent);
+  border: 1px solid var(--accent-muted); border-radius: 3px;
   font-family: var(--mono); font-size: 12px; padding: 6px 16px; cursor: pointer;
   margin-left: auto;
 }
@@ -504,21 +515,21 @@ td.mono { font-family: var(--mono); font-size: 12px; }
 
 .filter-chip {
   display: inline-flex; align-items: center; gap: 6px;
-  padding: 3px 6px 3px 10px; border: 1px dashed var(--amber-dim); border-radius: 3px;
-  color: var(--amber); font-size: 11px; max-width: 340px;
+  padding: 3px 6px 3px 10px; border: 1px dashed var(--accent-muted); border-radius: 3px;
+  color: var(--accent); font-size: 11px; max-width: 340px;
 }
 .filter-chip .mono { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .filter-chip button {
-  background: none; border: 0; color: var(--amber); cursor: pointer;
+  background: none; border: 0; color: var(--accent); cursor: pointer;
   font-size: 14px; line-height: 1; padding: 0 2px;
 }
 
 .mini-btn {
-  background: transparent; color: var(--ink-dim);
-  border: 1px solid var(--line); border-radius: 3px;
+  background: transparent; color: var(--text-secondary);
+  border: 1px solid var(--border-strong); border-radius: 3px;
   font-family: var(--mono); font-size: 10px; padding: 2px 8px; cursor: pointer;
 }
-.mini-btn:hover { color: var(--amber); border-color: var(--amber-dim); }
+.mini-btn:hover { color: var(--accent); border-color: var(--accent-muted); }
 td.actions { text-align: right; }
 
 #search-status { margin-top: 12px; }
@@ -539,16 +550,16 @@ td.actions { text-align: right; }
                          score/score-bar last — a ranking signal, not the
                          headline. Small, muted, easy to skim past. */
 .result-card {
-  border: 1px solid var(--line-soft); border-radius: 3px;
+  border: 1px solid var(--border-subtle); border-radius: 3px;
   margin-top: 10px; overflow: hidden;
 }
 .result-primary {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-  padding: 7px 10px; background: var(--bg-inset);
-  border-bottom: 1px solid var(--line-soft); font-size: 12px;
+  padding: 7px 10px; background: var(--surface-sunken);
+  border-bottom: 1px solid var(--border-subtle); font-size: 12px;
 }
 .rank {
-  font-family: var(--mono); font-size: 12px; color: var(--amber);
+  font-family: var(--mono); font-size: 12px; color: var(--accent);
   min-width: 26px;
 }
 .result-primary .result-open { margin-left: auto; }
@@ -560,20 +571,20 @@ td.actions { text-align: right; }
    already separates "identity" from "evidence" cleanly). */
 .result-evidence .chunk-context {
   margin: 8px 10px 0; padding: 0; border: 0;
-  color: var(--ink-dim); font-size: 12px; font-style: italic;
+  color: var(--text-secondary); font-size: 12px; font-style: italic;
 }
 
 .result-meta {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-  padding: 5px 10px; font-size: 11px; color: var(--ink-dim);
-  border-top: 1px dashed var(--line-soft);
+  padding: 5px 10px; font-size: 11px; color: var(--text-secondary);
+  border-top: 1px dashed var(--border-subtle);
 }
 .result-structural-hint {
   font-size: 10px; text-transform: uppercase; letter-spacing: .03em;
-  color: var(--ink-faint);
+  color: var(--text-muted);
 }
 .result-meta-spacer { flex: 1; }
-.score { color: var(--ink-dim); }
+.score { color: var(--text-secondary); }
 /* Normalized relative to the top-1 result's score (never an absolute
    confidence reading — same "used for ranking, compare order not absolute
    value" framing as the numeric .score span's tooltip, repeated here since
@@ -582,9 +593,9 @@ td.actions { text-align: right; }
    signal, not the headline. */
 .score-bar {
   display: inline-block; width: 48px; height: 6px; border-radius: 3px;
-  background: var(--bg-inset); border: 1px solid var(--line-soft); overflow: hidden;
+  background: var(--surface-sunken); border: 1px solid var(--border-subtle); overflow: hidden;
 }
-.score-bar-fill { display: block; height: 100%; background: var(--amber-dim); }
+.score-bar-fill { display: block; height: 100%; background: var(--accent-muted); }
 
 /* "Show more" — reveals more of an already-fetched result batch (search
    always requests a fixed larger limit up front; this never re-runs
@@ -598,14 +609,14 @@ td.actions { text-align: right; }
 .nav-list { list-style: none; margin: 12px 0 0; padding: 0 8px; }
 .nav-list a {
   display: block; padding: 6px 8px; border-radius: 3px;
-  color: var(--amber); text-decoration: none;
+  color: var(--accent); text-decoration: none;
   font-size: 12px; letter-spacing: .02em;
   border-left: 2px solid transparent;
 }
-.nav-list a:hover { background: var(--bg-inset); }
-.nav-list a.active { background: var(--bg-inset); border-left-color: var(--amber); }
+.nav-list a:hover { background: var(--surface-sunken); }
+.nav-list a.active { background: var(--surface-sunken); border-left-color: var(--accent); }
 
-.form-row { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; font-size: 11px; color: var(--ink-dim); }
+.form-row { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; font-size: 11px; color: var(--text-secondary); }
 .form-row .q-input { font-size: 13px; }
 
 .path-picker-row { display: flex; gap: 8px; align-items: center; }
@@ -614,21 +625,21 @@ td.actions { text-align: right; }
 .idx-options { display: flex; flex-wrap: wrap; gap: 14px; margin: 4px 0 10px; }
 .idx-check {
   display: flex; align-items: center; gap: 6px;
-  font-size: 12px; color: var(--ink);
+  font-size: 12px; color: var(--text-primary);
 }
-.idx-check input { accent-color: var(--amber); }
-.idx-check.warn { color: var(--warn); }
+.idx-check input { accent-color: var(--accent); }
+.idx-check.warn { color: var(--status-warn); }
 
 #idx-status { margin-top: 10px; }
 
 .job-card {
-  border: 1px solid var(--line-soft); border-radius: 3px;
+  border: 1px solid var(--border-subtle); border-radius: 3px;
   margin-bottom: 10px; overflow: hidden;
 }
 .job-head {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-  padding: 7px 10px; background: var(--bg-inset);
-  border-bottom: 1px solid var(--line-soft); font-size: 12px;
+  padding: 7px 10px; background: var(--surface-sunken);
+  border-bottom: 1px solid var(--border-subtle); font-size: 12px;
 }
 .job-title { font-weight: 600; }
 .job-head .mini-btn { margin-left: auto; }
@@ -638,7 +649,7 @@ td.actions { text-align: right; }
   display: flex; justify-content: space-between; align-items: baseline;
   gap: 10px; font-size: 12px; margin-bottom: 6px;
 }
-.job-progress-count { color: var(--ink); }
+.job-progress-count { color: var(--text-primary); }
 .job-progress-current {
   font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   max-width: 60%;
@@ -650,22 +661,22 @@ td.actions { text-align: right; }
 
 /* Determinate progress: a percentage bar (task's "[████░░░░] 30%" made real). */
 .job-progress-bar {
-  height: 6px; border-radius: 3px; background: var(--bg-inset);
-  border: 1px solid var(--line-soft); overflow: hidden; margin-bottom: 8px;
+  height: 6px; border-radius: 3px; background: var(--surface-sunken);
+  border: 1px solid var(--border-subtle); overflow: hidden; margin-bottom: 8px;
 }
 .job-progress-fill {
-  height: 100%; background: var(--amber); border-radius: 2px;
+  height: 100%; background: var(--accent); border-radius: 2px;
   transition: width .2s ease;
 }
 
 /* Indeterminate progress: total unknown yet — a moving band, not a fake percent. */
 .job-progress-indeterminate {
-  height: 6px; border-radius: 3px; background: var(--bg-inset);
-  border: 1px solid var(--line-soft); overflow: hidden; margin-bottom: 8px;
+  height: 6px; border-radius: 3px; background: var(--surface-sunken);
+  border: 1px solid var(--border-subtle); overflow: hidden; margin-bottom: 8px;
   position: relative;
 }
 .job-progress-indeterminate-fill {
-  position: absolute; top: 0; bottom: 0; width: 30%; background: var(--amber);
+  position: absolute; top: 0; bottom: 0; width: 30%; background: var(--accent);
   border-radius: 2px; animation: job-progress-sweep 1.2s ease-in-out infinite;
 }
 @keyframes job-progress-sweep {
@@ -676,19 +687,19 @@ td.actions { text-align: right; }
 .job-status-line { font-size: 11px; }
 .job-error-summary { margin-top: 8px; font-size: 12px; }
 
-.job-details { border-top: 1px solid var(--line-soft); }
+.job-details { border-top: 1px solid var(--border-subtle); }
 .job-details summary {
-  cursor: pointer; padding: 6px 10px; font-size: 11px; color: var(--ink-dim);
-  background: var(--bg-inset);
+  cursor: pointer; padding: 6px 10px; font-size: 11px; color: var(--text-secondary);
+  background: var(--surface-sunken);
 }
 .job-details summary::-webkit-details-marker { display: none; }
 .job-details .job-path { padding: 6px 10px 0; }
 .job-times { padding: 2px 10px 6px; font-size: 11px; }
 .job-log {
   margin: 0; padding: 8px 10px; white-space: pre-wrap; word-break: break-word;
-  font-family: var(--mono); font-size: 11px; color: var(--ink-dim);
+  font-family: var(--mono); font-size: 11px; color: var(--text-secondary);
   max-height: 220px; overflow-y: auto;
-  border-top: 1px dashed var(--line-soft);
+  border-top: 1px dashed var(--border-subtle);
 }
 
 /* ── Phase 2E: navigation-first dashboard ─────────────────────────────────── */
@@ -704,18 +715,18 @@ td.actions { text-align: right; }
      of the tree relies on. */
   padding: 7px 8px 7px calc(8px + var(--depth, 0) * 14px);
   border-radius: 3px; cursor: pointer;
-  color: var(--ink); text-decoration: none; font-size: 12px;
+  color: var(--text-primary); text-decoration: none; font-size: 12px;
   border-left: 2px solid transparent;
 }
-.tree-row:hover { background: var(--bg-inset); }
-.tree-collection-row.active { background: var(--bg-inset); border-left-color: var(--amber); }
+.tree-row:hover { background: var(--surface-sunken); }
+.tree-collection-row.active { background: var(--surface-sunken); border-left-color: var(--accent); }
 /* .tree-file/.tree-node.active are set by sidebar.js's markActive() (added
    for Phase 3A) but had no styling at all until now — same treatment as
    .tree-collection-row.active (background + left border, not color alone)
    so the open file/section row is actually visible in the tree. */
 .tree-file.active,
-.tree-node.active { background: var(--bg-inset); border-left-color: var(--amber); }
-.tree-caret { width: 12px; flex: none; color: var(--ink-faint); font-size: 10px; }
+.tree-node.active { background: var(--surface-sunken); border-left-color: var(--accent); }
+.tree-caret { width: 12px; flex: none; color: var(--text-muted); font-size: 10px; }
 /* Clickable carets (directory / file-with-sections rows — Phase 3D) are
    their own expand/collapse target, separate from the row's open/navigate
    click — a bare 12px glyph is too small a mouse target, so pad the
@@ -724,15 +735,15 @@ td.actions { text-align: right; }
 .tree-caret[data-caret] {
   cursor: pointer; padding: 4px; margin: -4px; border-radius: 3px;
 }
-.tree-caret[data-caret]:hover { background: var(--bg-inset); color: var(--ink); }
+.tree-caret[data-caret]:hover { background: var(--surface-sunken); color: var(--text-primary); }
 /* Icon column (Phase 3C): fixed width so caret/icon/label stay aligned
    across rows regardless of which icon (or none) a given node has; the SVG
    itself inherits row color via stroke="currentColor", dimmed slightly so it
    doesn't outweigh the label text next to it. */
-.tree-icon { flex: none; width: 14px; display: inline-flex; color: var(--ink-dim); }
+.tree-icon { flex: none; width: 14px; display: inline-flex; color: var(--text-secondary); }
 .tree-icon-svg { display: block; }
 .tree-row.active .tree-icon,
-.tree-row:hover .tree-icon { color: var(--ink); }
+.tree-row:hover .tree-icon { color: var(--text-primary); }
 .tree-label {
   /* min-width: 0 — a flex item's default min-width is its intrinsic
      (unwrapped) content width, not 0, which overrides overflow:hidden/
@@ -745,16 +756,16 @@ td.actions { text-align: right; }
   flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .tree-collection-row .tree-label { font-size: 13px; }
-.tree-collection .count { font-family: var(--mono); font-size: 10px; color: var(--ink-dim); flex: none; }
+.tree-collection .count { font-family: var(--mono); font-size: 10px; color: var(--text-secondary); flex: none; }
 .tree-children { padding: 2px 0 4px; }
-.tree-loading { padding: 4px 8px calc(4px) calc(8px + 14px); color: var(--ink-faint); font-size: 11px; }
+.tree-loading { padding: 4px 8px calc(4px) calc(8px + 14px); color: var(--text-muted); font-size: 11px; }
 /* A failed fetch inside the sidebar tree — visually distinct from
    .tree-loading (used for both the loading state and legitimate empty
    states like "No documents.") so a broken load doesn't look identical to
    an empty collection. Muted warm-red tone (not the full .error-box
    treatment, which is sized for the main content panel, not this dense
    list) — enough to read as "something went wrong," not a wall of red. */
-.tree-error { color: var(--fail); }
+.tree-error { color: var(--status-fail); }
 .tree-leaf .tree-caret { visibility: hidden; }
 .tree-subtree { padding: 0; }
 
@@ -770,20 +781,20 @@ td.actions { text-align: right; }
    (a single long word/token, common in non-Latin scripts) that
    word-break's default line-breaking rules would otherwise let overflow. */
 .col-header-top .view-title { margin: 0; flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
-.col-header-desc { color: var(--ink-dim); margin: 6px 0 0; font-size: 13px; }
+.col-header-desc { color: var(--text-secondary); margin: 6px 0 0; font-size: 13px; }
 /* Phase 3G: quiet empty state when no skeleton/config summary exists yet —
    italic + dimmer than a real summary so it reads as "nothing here yet",
    not as an error or as real collection content. */
-.col-header-desc-empty { color: var(--ink-faint); font-style: italic; }
+.col-header-desc-empty { color: var(--text-muted); font-style: italic; }
 .col-header-facts { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
 /* Reuses the same visual language as .cap (capability chips on the overview
    page) — a plain fact chip, not an action/filter control. */
 .chip {
   font-size: 11px; padding: 2px 8px;
-  border-radius: 3px; border: 1px solid var(--line-soft); color: var(--ink-dim);
+  border-radius: 3px; border: 1px solid var(--border-subtle); color: var(--text-secondary);
 }
-.chip-ok   { color: var(--ok);   border-color: rgba(111,191,115,.4); }
-.chip-warn { color: var(--warn); border-color: rgba(232,163,61,.4); }
+.chip-ok   { color: var(--status-ok);   border-color: rgba(111,191,115,.4); }
+.chip-warn { color: var(--status-warn); border-color: rgba(232,163,61,.4); }
 
 /* Details disclosure sub-sections (Phase 3Q) — groups the technical fact
    rows under a small uppercase label (Overview/Indexing/Storage) instead of
@@ -792,21 +803,21 @@ td.actions { text-align: right; }
 .details-subsection + .details-subsection { margin-top: 14px; }
 .details-subsection-label {
   font-size: 10px; text-transform: uppercase; letter-spacing: .18em;
-  color: var(--ink-faint); margin-bottom: 6px;
+  color: var(--text-muted); margin-bottom: 6px;
 }
 
 .btn-ghost {
-  background: transparent; color: var(--ink-dim);
-  border: 1px solid var(--line); border-radius: 3px;
+  background: transparent; color: var(--text-secondary);
+  border: 1px solid var(--border-strong); border-radius: 3px;
   font-family: var(--mono); font-size: 11px; padding: 5px 12px; cursor: pointer;
   text-decoration: none; display: inline-block;
 }
-.btn-ghost:hover { color: var(--ink); border-color: var(--ink-dim); }
+.btn-ghost:hover { color: var(--text-primary); border-color: var(--text-secondary); }
 
 /* advanced/details disclosure (collection header diagnostics panel) */
 .advanced-panel summary.panel-head { cursor: pointer; }
 .advanced-panel summary.panel-head::-webkit-details-marker { display: none; }
-.advanced-panel[open] summary.panel-head { border-bottom: 1px solid var(--line-soft); }
+.advanced-panel[open] summary.panel-head { border-bottom: 1px solid var(--border-subtle); }
 
 /* Global runtime settings (#/settings, Phase 4A.5b) — an actionable-detail
    line (e.g. an unavailable-provider reason) and a secondary details
@@ -814,16 +825,16 @@ td.actions { text-align: right; }
    read as a small status summary, not a diagnostics dump. Long model/
    reason/endpoint strings must wrap, never force horizontal scroll. */
 .gs-detail {
-  margin: 10px 0 0; font-size: 12px; color: var(--fail);
+  margin: 10px 0 0; font-size: 12px; color: var(--status-fail);
   overflow-wrap: anywhere;
 }
 .gs-detail-sub {
-  margin: 4px 0 0; font-size: 11px; color: var(--ink-dim);
+  margin: 4px 0 0; font-size: 11px; color: var(--text-secondary);
   font-family: var(--mono); overflow-wrap: anywhere;
 }
 .gs-provenance { margin-top: 12px; }
 .gs-provenance summary {
-  cursor: pointer; font-size: 11px; color: var(--ink-dim);
+  cursor: pointer; font-size: 11px; color: var(--text-secondary);
   list-style: none;
 }
 .gs-provenance summary::-webkit-details-marker { display: none; }
@@ -836,25 +847,25 @@ td.actions { text-align: right; }
    driven by GET/PATCH /api/settings. Each row is intentionally flat (no
    nested cards): label, control, description, source line, impact line. */
 .gs-field {
-  padding: 12px 0; border-bottom: 1px solid var(--line-soft);
+  padding: 12px 0; border-bottom: 1px solid var(--border-subtle);
 }
 .gs-field:last-child { border-bottom: none; }
 .gs-field-label {
-  display: block; font-size: 13px; color: var(--ink); margin-bottom: 6px;
+  display: block; font-size: 13px; color: var(--text-primary); margin-bottom: 6px;
 }
 .gs-field-value { margin: 0 0 6px; font-size: 12px; }
 .gs-field-desc {
-  margin: 6px 0 0; font-size: 12px; color: var(--ink-dim);
+  margin: 6px 0 0; font-size: 12px; color: var(--text-secondary);
 }
 .gs-field-source {
-  margin: 4px 0 0; font-size: 11px; color: var(--ink-faint);
+  margin: 4px 0 0; font-size: 11px; color: var(--text-muted);
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
 }
 .gs-field-pending-restart {
-  margin: 4px 0 0; font-size: 11px; color: var(--warn);
+  margin: 4px 0 0; font-size: 11px; color: var(--status-warn);
 }
 .gs-field-impact {
-  display: block; margin-top: 4px; font-size: 11px; color: var(--ink-faint);
+  display: block; margin-top: 4px; font-size: 11px; color: var(--text-muted);
 }
 
 /* Filesystem-path field with a Browse button (e.g. ONNXRUNTIME_NODE_PATH) —
@@ -876,20 +887,20 @@ td.actions { text-align: right; }
   font-size: 11px; padding: 2px 8px;
 }
 .gs-placeholder {
-  padding: 12px 0; border-bottom: 1px solid var(--line-soft); font-size: 12px;
+  padding: 12px 0; border-bottom: 1px solid var(--border-subtle); font-size: 12px;
 }
 .gs-placeholder p { margin: 0 0 4px; }
 .gs-advanced { margin-top: 8px; }
 .gs-advanced summary {
-  cursor: pointer; font-size: 11px; color: var(--ink-dim); list-style: none;
+  cursor: pointer; font-size: 11px; color: var(--text-secondary); list-style: none;
 }
 .gs-advanced summary::-webkit-details-marker { display: none; }
 .gs-advanced summary::before { content: '▸ '; }
 .gs-advanced[open] summary::before { content: '▾ '; }
 .gs-save-bar {
   position: sticky; bottom: 0; display: flex; align-items: center; gap: 10px;
-  padding: 12px 0; margin-top: 8px; background: var(--bg);
-  border-top: 1px solid var(--line-soft);
+  padding: 12px 0; margin-top: 8px; background: var(--surface-page);
+  border-top: 1px solid var(--border-subtle);
 }
 
 /* Settings sidebar navigation — flat rows, same visual language as
@@ -927,18 +938,18 @@ td.actions { text-align: right; }
 .opt-group { margin-bottom: 14px; }
 .opt-group-label {
   font-size: 10px; text-transform: uppercase; letter-spacing: .18em;
-  color: var(--ink-faint); margin-bottom: 6px;
+  color: var(--text-muted); margin-bottom: 6px;
 }
 .opt-group .idx-check { margin-bottom: 4px; }
 .idx-check {
   display: flex; align-items: center; gap: 6px;
-  font-size: 12px; color: var(--ink);
+  font-size: 12px; color: var(--text-primary);
 }
-.idx-check input { accent-color: var(--amber); }
-.idx-check.warn { color: var(--warn); }
+.idx-check input { accent-color: var(--accent); }
+.idx-check.warn { color: var(--status-warn); }
 
 .btn-danger {
-  background: transparent; color: var(--fail);
+  background: transparent; color: var(--status-fail);
   border: 1px solid rgba(224,93,93,.4); border-radius: 3px;
   font-family: var(--mono); font-size: 12px; padding: 6px 16px; cursor: pointer;
 }
@@ -948,7 +959,7 @@ td.actions { text-align: right; }
 .maint-danger { border-color: rgba(224,93,93,.3); }
 
 #settings-reindex-result, #settings-repair-result, #settings-delete-result { margin-top: 10px; }
-#settings-reindex-result a { color: var(--amber); }
+#settings-reindex-result a { color: var(--accent); }
 
 /* delete confirmation modal */
 .modal-backdrop {
@@ -957,10 +968,10 @@ td.actions { text-align: right; }
   z-index: 50;
 }
 .modal {
-  background: var(--bg-raise); border: 1px solid var(--line); border-radius: 6px;
+  background: var(--surface-panel); border: 1px solid var(--border-strong); border-radius: 6px;
   padding: 20px; max-width: 420px; width: 90%;
 }
-.modal-title { margin: 0 0 10px; font-size: 15px; font-family: var(--mono); color: var(--fail); }
+.modal-title { margin: 0 0 10px; font-size: 15px; font-family: var(--mono); color: var(--status-fail); }
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; }
 
 /* global operation status modal (Phase 3S) — mounted at the shell level
@@ -969,23 +980,23 @@ td.actions { text-align: right; }
    confirmation dialog) and needs its own title color (not the delete
    modal's danger red — most operations here are routine, not destructive). */
 .op-modal { max-width: 480px; }
-.op-modal .modal-title { color: var(--ink); }
+.op-modal .modal-title { color: var(--text-primary); }
 .op-modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
 .op-modal-head .modal-title { margin: 0; }
 .op-modal-close {
   font-size: 18px; line-height: 1; padding: 2px 8px; margin-left: 10px;
 }
-.op-modal-history { margin-top: 16px; border-top: 1px solid var(--line-soft); padding-top: 12px; }
+.op-modal-history { margin-top: 16px; border-top: 1px solid var(--border-subtle); padding-top: 12px; }
 .op-modal-history-label {
   font-size: 10px; text-transform: uppercase; letter-spacing: .18em;
-  color: var(--ink-faint); margin-bottom: 6px;
+  color: var(--text-muted); margin-bottom: 6px;
 }
 .op-history-list { list-style: none; margin: 0; padding: 0; max-height: 160px; overflow-y: auto; }
 .op-history-row {
   display: flex; align-items: center; gap: 8px;
   padding: 6px 4px; border-radius: 3px; cursor: pointer; font-size: 12px;
 }
-.op-history-row:hover, .op-history-row:focus-visible { background: var(--bg-inset); }
+.op-history-row:hover, .op-history-row:focus-visible { background: var(--surface-sunken); }
 .op-history-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 
 /* ── Phase 3T: shared structural entity renderer (table/code) ───────────── */
@@ -998,37 +1009,37 @@ td.actions { text-align: right; }
 
 .structural-toggle {
   display: inline-flex; align-self: flex-start;
-  border: 1px solid var(--line); border-radius: 3px; overflow: hidden;
+  border: 1px solid var(--border-strong); border-radius: 3px; overflow: hidden;
 }
 .structural-toggle-btn {
-  background: transparent; border: 0; color: var(--ink-dim);
+  background: transparent; border: 0; color: var(--text-secondary);
   font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: .05em;
   padding: 3px 9px; cursor: pointer;
 }
-.structural-toggle-btn + .structural-toggle-btn { border-left: 1px solid var(--line); }
-.structural-toggle-btn:hover { color: var(--ink); background: var(--bg-inset); }
-.structural-toggle-btn.active { color: var(--amber); background: var(--bg-inset); }
-.structural-toggle-btn:focus-visible { outline: 2px solid var(--amber-dim); outline-offset: -2px; }
+.structural-toggle-btn + .structural-toggle-btn { border-left: 1px solid var(--border-strong); }
+.structural-toggle-btn:hover { color: var(--text-primary); background: var(--surface-sunken); }
+.structural-toggle-btn.active { color: var(--accent); background: var(--surface-sunken); }
+.structural-toggle-btn:focus-visible { outline: 2px solid var(--accent-muted); outline-offset: -2px; }
 
 .structural-raw { margin: 0; }
 
 /* Table */
 .structural-table-wrapper {
   overflow-x: auto; max-width: 100%;
-  border: 1px solid var(--line-soft); border-radius: 3px;
+  border: 1px solid var(--border-subtle); border-radius: 3px;
 }
 .structural-table {
   border-collapse: collapse; width: 100%; font-size: 12px; font-family: var(--mono);
 }
 .structural-table th, .structural-table td {
-  padding: 5px 10px; border-bottom: 1px solid var(--line-soft);
+  padding: 5px 10px; border-bottom: 1px solid var(--border-subtle);
   white-space: nowrap;
 }
 .structural-table th {
-  background: var(--bg-inset); color: var(--ink); font-weight: 600;
-  text-align: left; border-bottom: 1px solid var(--line);
+  background: var(--surface-sunken); color: var(--text-primary); font-weight: 600;
+  text-align: left; border-bottom: 1px solid var(--border-strong);
 }
-.structural-table td { color: var(--ink-dim); }
+.structural-table td { color: var(--text-secondary); }
 .structural-table tbody tr:last-child td { border-bottom: 0; }
 
 /* Code */
@@ -1036,30 +1047,30 @@ td.actions { text-align: right; }
 .structural-code-lang-badge {
   align-self: flex-start;
   font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: .05em;
-  padding: 1px 8px; border-radius: 3px; border: 1px solid var(--line);
+  padding: 1px 8px; border-radius: 3px; border: 1px solid var(--border-strong);
 }
-.structural-code-lang-explicit { color: var(--amber); border-color: var(--amber-dim); }
-.structural-code-lang-guessed { color: var(--ink-faint); }
+.structural-code-lang-explicit { color: var(--accent); border-color: var(--accent-muted); }
+.structural-code-lang-guessed { color: var(--text-muted); }
 .structural-code-wrapper pre {
-  margin: 0; padding: 10px; border-radius: 3px; background: var(--bg-inset);
+  margin: 0; padding: 10px; border-radius: 3px; background: var(--surface-sunken);
   overflow-x: auto; max-width: 100%;
 }
 .structural-code-wrapper code {
-  font-family: var(--mono); font-size: 12px; color: var(--ink); white-space: pre;
+  font-family: var(--mono); font-size: 12px; color: var(--text-primary); white-space: pre;
 }
 
 /* highlight.js token colors mapped onto the existing dark/amber palette —
    deliberately not a stock highlight.js theme stylesheet import, to avoid
    pulling in an unrelated color system next to this tool's own. */
-.hljs-comment, .hljs-quote { color: var(--ink-faint); font-style: italic; }
+.hljs-comment, .hljs-quote { color: var(--text-muted); font-style: italic; }
 .hljs-keyword, .hljs-selector-tag, .hljs-literal, .hljs-section, .hljs-link {
-  color: var(--amber);
+  color: var(--accent);
 }
-.hljs-string, .hljs-attr, .hljs-template-tag, .hljs-addition { color: var(--ok); }
-.hljs-number, .hljs-symbol, .hljs-bullet { color: var(--warn); }
-.hljs-title, .hljs-name, .hljs-selector-id, .hljs-selector-class, .hljs-type { color: var(--ink); font-weight: 600; }
-.hljs-variable, .hljs-template-variable, .hljs-attribute { color: var(--ink-dim); }
-.hljs-deletion, .hljs-regexp, .hljs-meta { color: var(--fail); }
+.hljs-string, .hljs-attr, .hljs-template-tag, .hljs-addition { color: var(--status-ok); }
+.hljs-number, .hljs-symbol, .hljs-bullet { color: var(--status-warn); }
+.hljs-title, .hljs-name, .hljs-selector-id, .hljs-selector-class, .hljs-type { color: var(--text-primary); font-weight: 600; }
+.hljs-variable, .hljs-template-variable, .hljs-attribute { color: var(--text-secondary); }
+.hljs-deletion, .hljs-regexp, .hljs-meta { color: var(--status-fail); }
 .hljs-emphasis { font-style: italic; }
 .hljs-strong { font-weight: 700; }
 
@@ -1071,37 +1082,6 @@ td.actions { text-align: right; }
   .structural-toggle-btn { transition: none; }
 }
 .op-history-duration { flex: none; }
-
-/* ── v2 design tokens (admin dashboard v2 plan §7.1) ───────────────────────
-   Layer 1 (primitives, above in :root) already exists — this formalizes
-   Layer 2 (semantic aliases). New v2 components (Overview, and every slice
-   after it) consume ONLY these aliases, never a Layer-1 variable directly;
-   old, unmigrated surfaces keep using the Layer-1 names above unchanged, so
-   nothing regresses. A second theme becomes a token file, not a rewrite. */
-:root {
-  --surface-page:    var(--bg);
-  --surface-panel:   var(--bg-raise);
-  --surface-sunken:  var(--bg-inset);
-  --border-strong:   var(--line);
-  --border-subtle:   var(--line-soft);
-  --text-primary:    var(--ink);
-  --text-secondary:  var(--ink-dim);
-  --text-muted:      var(--ink-faint);
-  --accent:          var(--amber);
-  --accent-muted:    var(--amber-dim);
-  --status-ok:       var(--ok);
-  --status-warn:     var(--warn);
-  --status-fail:     var(--fail);
-  --status-running:  var(--amber);
-  --focus-ring:      var(--amber);
-
-  /* Spacing/radius/elevation steps (design plan §7.1) — new for v2; no
-     existing rule referenced these names before, so introducing them here
-     changes nothing for old surfaces. Radius is capped at 8px throughout v2
-     (design plan §13 S1: "Keep cards at 8px radius or less"). */
-  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 24px;
-  --radius-sm: 3px; --radius-md: 6px; --radius-lg: 8px;
-}
 
 /* Screen-reader-only content (design plan §11.5 live regions, §5's status
    vocabulary) — visually hidden but still reachable by assistive tech,
@@ -1160,7 +1140,7 @@ td.actions { text-align: right; }
   border-radius: var(--radius-sm); cursor: pointer;
 }
 .ov-op-row:hover { background: var(--surface-sunken); }
-.ov-op-row:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.ov-op-row:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 #ov-collections { max-width: 100%; overflow-x: auto; }
 
 /* Reflow at 320 CSS px / 200% zoom (design plan §7.3, §13 S1): Overview's

@@ -421,30 +421,25 @@ chat-first navigation, and command-palette-only navigation (the palette is
 
 ### 7.1 Design tokens
 
-The current stylesheet already defines a dark, amber-accented, IBM Plex system
-(`src/shared/admin/ui-src/app.css:6-24`). v2 keeps that identity and formalizes
-it into two layers.
-
-**Layer 1 — primitives** (values): the existing `--bg`, `--bg-raise`,
-`--bg-inset`, `--line`, `--line-soft`, `--ink`, `--ink-dim`, `--ink-faint`,
-`--amber`, `--amber-dim`, `--ok`, `--warn`, `--fail`, `--mono`, `--sans`, plus
-new spacing/radius/elevation steps.
-
-**Layer 2 — semantic aliases** (roles): `--surface-page`, `--surface-panel`,
+The current stylesheet defines a dark, amber-accented, IBM Plex system
+(`src/shared/admin/ui-src/app.css:5-36`). v2 keeps that identity with one
+canonical semantic token set: `--surface-page`, `--surface-panel`,
 `--surface-sunken`, `--border-strong`, `--border-subtle`, `--text-primary`,
 `--text-secondary`, `--text-muted`, `--accent`, `--accent-muted`,
-`--status-ok`, `--status-warn`, `--status-fail`, `--status-running`,
-`--focus-ring`.
+`--status-ok`, `--status-warn`, `--status-fail`, `--mono`, and `--sans`, plus
+spacing/radius steps.
 
-Components consume **only layer 2**. That is what makes a second theme a token
-file rather than a rewrite.
+There is deliberately no second alias layer such as
+`--surface-page: var(--bg)`. Two names for the same value create a mixed CSS
+vocabulary without adding a capability. Components use the canonical semantic
+names directly. A future theme overrides their values in a separate token set.
 
 ### 7.2 Light/dark strategy
 
 The UI is **dark-only today**; there is no `prefers-color-scheme` handling in
 `app.css`. This plan does **not** treat a light theme as free.
 
-- Slice 1 formalizes the two token layers and ships dark only.
+- Slice 1 formalizes the canonical semantic token set and ships dark only.
 - A light theme is added as a second **token set** (not a filter/inversion),
   with independent contrast verification, once the semantic layer is stable and
   the component inventory has stopped moving.
@@ -464,7 +459,7 @@ The UI is **dark-only today**; there is no `prefers-color-scheme` handling in
 
 ### 7.4 Color and status
 
-- Neutral base; a single accent (`--amber`) for selection and focus; semantic
+- Neutral base; a single accent (`--accent`) for selection and focus; semantic
   colors used only for state.
 - **Status is never colour alone.** Every status is icon + text + colour, with
   an accessible name. This is already a project rule
@@ -1163,7 +1158,7 @@ A screen is done when **all** of the following hold:
 
 | Slice | Workflow delivered | Contents | Exit gate |
 |---|---|---|---|
-| **S1 — Shell + status** | W1 | Two-layer tokens; view-controller lifecycle (`mount`/`dispose`/signal/generation); API client with timeout, abort, normalized error and contract validation; capability boot object; router extension preserving all existing routes; global status strip; shared primitives (table, dialog, drawer, inspector, form-field, status-badge, live-region, empty/error) | Overview meets DoD; every existing route still resolves; leak soak green; validation mechanism decided and CSP-compatible |
+| **S1 — Shell + status** | W1 | Canonical semantic tokens; view-controller lifecycle (`mount`/`dispose`/signal/generation); API client with timeout, abort, normalized error and contract validation; capability boot object; router extension preserving all existing routes; global status strip; shared primitives (table, dialog, drawer, inspector, form-field, status-badge, live-region, empty/error) | Overview meets DoD; every existing route still resolves; leak soak green; validation mechanism decided and CSP-compatible |
 | **S2 — Collections + reader** | W5, W6 | Collections list, collection home, Documents, Structure, and re-hosting of the existing file/section reader and structural renderer inside the workbench | Both reader surfaces meet DoD; existing reader tests still green; long-path and Cyrillic rendering verified |
 | **S3 — Operations** | W2, W3, W4, part of W9 | Operations list, `#/operations/:id` route, index form with preflight, cancel, repair-as-tracked-operation; the existing operation store/modal is reused, not duplicated | Full job lifecycle (start → progress → complete/fail → cancel) meets DoD; indeterminate progress renders honestly; denial paths (allowed-roots, `not_available_in_lite`, `JOB_ALREADY_RUNNING`) each render specifically |
 | **S4 — Search** | W5 | Search workbench with the preserved `?q=` contract, result inspector, anchored hand-off to the reader, ownership-checked submissions | Stale-response test green; permalink round-trips; DoD met |

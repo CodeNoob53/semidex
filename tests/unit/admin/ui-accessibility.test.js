@@ -30,20 +30,20 @@ describe('HTML hidden contract', () => {
 });
 
 describe('text contrast (WCAG AA, 4.5:1 for normal text)', () => {
-  it('--ink-faint clears 4.5:1 against both --bg and --bg-raise', () => {
+  it('--text-muted clears 4.5:1 against both --surface-page and --surface-panel', () => {
     const src = css();
-    const faint = src.match(/--ink-faint:\s*#([0-9a-f]{6})/i)?.[1];
-    const bg = src.match(/--bg:\s*#([0-9a-f]{6})/i)?.[1];
-    const bgRaise = src.match(/--bg-raise:\s*#([0-9a-f]{6})/i)?.[1];
-    assert.ok(faint && bg && bgRaise, 'expected to find --ink-faint/--bg/--bg-raise declarations');
-    assert.ok(contrast(faint, bg) >= 4.5, `--ink-faint vs --bg must be >=4.5:1, got ${contrast(faint, bg).toFixed(2)}`);
-    assert.ok(contrast(faint, bgRaise) >= 4.5, `--ink-faint vs --bg-raise must be >=4.5:1, got ${contrast(faint, bgRaise).toFixed(2)}`);
+    const faint = src.match(/--text-muted:\s*#([0-9a-f]{6})/i)?.[1];
+    const bg = src.match(/--surface-page:\s*#([0-9a-f]{6})/i)?.[1];
+    const bgRaise = src.match(/--surface-panel:\s*#([0-9a-f]{6})/i)?.[1];
+    assert.ok(faint && bg && bgRaise, 'expected to find --text-muted/--surface-page/--surface-panel declarations');
+    assert.ok(contrast(faint, bg) >= 4.5, `--text-muted vs --surface-page must be >=4.5:1, got ${contrast(faint, bg).toFixed(2)}`);
+    assert.ok(contrast(faint, bgRaise) >= 4.5, `--text-muted vs --surface-panel must be >=4.5:1, got ${contrast(faint, bgRaise).toFixed(2)}`);
   });
 
-  it('--ink-dim still clears 4.5:1 (regression guard — was already correct)', () => {
+  it('--text-secondary still clears 4.5:1 (regression guard — was already correct)', () => {
     const src = css();
-    const dim = src.match(/--ink-dim:\s*#([0-9a-f]{6})/i)?.[1];
-    const bg = src.match(/--bg:\s*#([0-9a-f]{6})/i)?.[1];
+    const dim = src.match(/--text-secondary:\s*#([0-9a-f]{6})/i)?.[1];
+    const bg = src.match(/--surface-page:\s*#([0-9a-f]{6})/i)?.[1];
     assert.ok(contrast(dim, bg) >= 4.5);
   });
 });
