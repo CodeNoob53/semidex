@@ -92,12 +92,13 @@ describe('createSemidexClient() — timeoutMs validation', () => {
 });
 
 describe('createSemidexClient() — returned surface', () => {
-  it('exposes exactly search/askV1/askV2', () => {
+  it('exposes exactly search/askV1/askV2/askText', () => {
     const client = createSemidexClient(VALID);
-    assert.deepEqual(Object.keys(client).sort(), ['askV1', 'askV2', 'search']);
+    assert.deepEqual(Object.keys(client).sort(), ['askText', 'askV1', 'askV2', 'search']);
     assert.equal(typeof client.search, 'function');
     assert.equal(typeof client.askV1, 'function');
     assert.equal(typeof client.askV2, 'function');
+    assert.equal(typeof client.askText, 'function');
   });
 
   it('askV1()/askV2() return async generators without making a request until iterated', () => {

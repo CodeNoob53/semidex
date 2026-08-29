@@ -229,17 +229,20 @@ describe('clean-install acceptance — no relative import escapes the package ro
 // (bearer header, typed errors, redirect rejection, SSE async-iterator
 // shape) survives being loaded from the ACTUAL installed location.
 //
-// No TypeScript compiler is invoked here to type-check lite-src/client/
-// index.d.ts against a consumer fixture: this repository has no `typescript`
-// dependency anywhere (root or Lite), and adding one solely for this one
-// gate would be exactly the "heavyweight compiler dependency added only for
-// this gate" the release-readiness task explicitly says not to add. The
-// runtime/export-shape checks below (declared `exports` map, real
-// ERR_PACKAGE_PATH_NOT_EXPORTED enforcement, and the full read-only
-// http.test.js-equivalent wire-contract run against the installed file) are
-// the strongest verification available without that new dependency — they
-// prove every field docs/types describe is actually present and behaves as
-// specified at runtime, which a type-only check could not do on its own.
+// No TypeScript compiler is invoked here against the INSTALLED tarball: a
+// strict `tsc --noEmit` consumer fixture (tests/types/, `npm run
+// typecheck:lite-client`) now exists and type-checks lite-src/client/
+// index.d.ts against a real consumer, but it runs against the repo's own
+// lite-src/ tree — it does not (and does not need to) re-verify the packed
+// artifact's file layout, since index.d.ts/index.js ship byte-for-byte
+// unchanged into the tarball (see the "runtime client files ... present at
+// their documented locations" check below). The runtime/export-shape checks
+// below (declared `exports` map, real ERR_PACKAGE_PATH_NOT_EXPORTED
+// enforcement, and the full read-only http.test.js-equivalent wire-contract
+// run against the installed file, including both isKnownAskV1Event()/
+// isKnownAskV2Event() guards) are what actually prove packaging didn't
+// silently drop or rename something the types document — a type-only check
+// against the repo tree could not catch that on its own.
 
 const EXCLUDED_BUILD_PATHS = [
   // Mirrors packages/lite/build.mjs's own EXCLUDE_DIRS/EXCLUDE_FILES lists —
@@ -276,11 +279,13 @@ describe('installed package — semidex-lite/client export surface', () => {
     }
   });
 
-  it('examples/backend-integration-server.mjs is shipped and imports the client from a path inside the package', () => {
-    const examplePath = join(packageDir, 'examples', 'backend-integration-server.mjs');
-    assert.ok(existsSync(examplePath), 'installed package must ship examples/backend-integration-server.mjs');
-    const source = readFileSync(examplePath, 'utf-8');
-    assert.match(source, /from ['"]\.\.\/lite-src\/client\/index\.js['"]/, 'the shipped example must import createSemidexClient from the shipped client, not a repo-relative path');
+  it('both backend integration examples are shipped and import the client from inside the package', () => {
+    for (const filename of ['backend-integration-server.mjs', 'backend-chat-server.mjs']) {
+      const examplePath = join(packageDir, 'examples', filename);
+      assert.ok(existsSync(examplePath), `installed package must ship examples/${filename}`);
+      const source = readFileSync(examplePath, 'utf-8');
+      assert.match(source, /from ['"]\.\.\/lite-src\/client\/index\.js['"]/, `${filename} must import createSemidexClient from the shipped client, not a repo-relative path`);
+    }
   });
 
   it('package.json declares exactly one export subpath, "./client" — no unintended internal module is exposed', () => {
@@ -289,14 +294,28 @@ describe('installed package — semidex-lite/client export surface', () => {
     assert.deepEqual(pkg.exports['./client'], { types: './lite-src/client/index.d.ts', default: './lite-src/client/index.js' });
   });
 
-  it('`import "semidex-lite/client"` resolves from a separate consumer directory and exposes createSemidexClient + SemidexApiError', () => {
+  it('`import "semidex-lite/client"` resolves from a separate consumer directory and exposes createSemidexClient + SemidexApiError + both known-event guards', () => {
+    // isKnownAskV1Event()/isKnownAskV2Event() are checked here specifically
+    // so declarations (index.d.ts) and runtime packaging (what actually
+    // ships in the tarball) cannot drift apart silently: a .d.ts that
+    // documents a guard the packed runtime no longer exports would still
+    // pass every repo-relative unit test (which imports lite-src/client/
+    // index.js directly, not through "semidex-lite/client" resolution) but
+    // fail a real installed consumer — this is exactly that real-consumer
+    // check.
     const consumerScript = join(installDir, 'consumer-import-check.mjs');
     writeFileSync(consumerScript, `
-      import { createSemidexClient, SemidexApiError } from 'semidex-lite/client';
+      import { createSemidexClient, SemidexApiError, isKnownAskV1Event, isKnownAskV2Event } from 'semidex-lite/client';
       import assert from 'node:assert/strict';
       assert.equal(typeof createSemidexClient, 'function');
       assert.equal(typeof SemidexApiError, 'function');
       assert.equal(SemidexApiError.prototype instanceof Error, true);
+      assert.equal(typeof isKnownAskV1Event, 'function');
+      assert.equal(typeof isKnownAskV2Event, 'function');
+      assert.equal(isKnownAskV1Event({ type: 'done' }), true);
+      assert.equal(isKnownAskV2Event({ type: 'done' }), true);
+      assert.equal(isKnownAskV1Event({ type: 'unknown_future_event' }), false);
+      assert.equal(isKnownAskV2Event(null), false);
       console.log('OK');
     `, 'utf-8');
     const out = execFileSync(process.execPath, [consumerScript], { encoding: 'utf-8' });

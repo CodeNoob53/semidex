@@ -16,7 +16,8 @@ The package currently provides:
 - dense and sparse embeddings through Qdrant Cloud Inference;
 - hybrid retrieval and the versioned `POST /api/v1/search` endpoint;
 - single-turn and multi-turn Ask APIs with source citations;
-- `semidex-lite/client` for Search, Ask v1, and Ask v2 in JavaScript/TypeScript;
+- `semidex-lite/client` for Search, Ask v1, and Ask v2 in JavaScript/TypeScript,
+  with opt-in retries and an `askText()` convenience helper;
 - an indexing CLI and an operator-facing admin dashboard.
 
 > [!IMPORTANT]
@@ -867,6 +868,199 @@ for await (const event of semidex.askV2({
 }
 ```
 
+### TypeScript: narrowing known events
+
+`askV1()`/`askV2()` yield a union of the known event shapes plus a
+forward-compatible `AskUnknownEvent` for any future SSE event name. Narrow
+with the matching version's guard **first**, then switch on `event.type`; an
+unrecognized event is simply skipped, not rejected:
+
+```ts
+import { createSemidexClient, isKnownAskV1Event } from 'semidex-lite/client';
+
+const semidex = createSemidexClient({ baseUrl, apiKey });
+
+for await (const event of semidex.askV1({ collection: 'my-docs', question })) {
+  if (!isKnownAskV1Event(event)) continue; // forward-compat: a future event type, ignored
+
+  switch (event.type) {
+    case 'sources': console.log(event.sources); break;
+    case 'answer_delta': process.stdout.write(event.text); break;
+    case 'done': console.log(event.answer, event.citations); break; // no `.conversation` on v1
+  }
+}
+```
+
+Use `isKnownAskV2Event` the same way for `askV2()` — its `done` case also
+carries an optional `event.conversation`. A plain `event.type === 'done'`
+check *without* the guard does not narrow soundly (`AskUnknownEvent.type` is
+`string`, not a literal — see `index.d.ts`'s own doc comment); always guard
+first.
+
+### Streaming vs convenience: which Ask API do you want?
+
+Both consume the same endpoints and enforce the same contracts; they differ
+only in what you receive.
+
+| | `askV1()` / `askV2()` | `askText()` |
+| --- | --- | --- |
+| Returns | an async generator of events | one `Promise` of a finished result |
+| Use when | you want token-by-token output — a chat UI, an SSE endpoint you proxy to a browser | you only want the finished answer — a tool call, a batch job, a non-streaming HTTP handler |
+| You write | a `for await` loop that accumulates `answer_delta` yourself | nothing; the accumulation is done for you |
+| Errors | `SemidexApiError` thrown out of the loop | the same `SemidexApiError`, rejected |
+
+`askText()` is a pure consumer of the streaming methods — it adds no request
+behavior of its own, and the streaming methods are unchanged.
+
+```js
+// Ask v1 — one finished answer.
+const { answer, sources, citations, done } = await semidex.askText({
+  collection: 'my-docs',
+  question: 'What is the return window?',
+});
+console.log(answer);              // the complete answer text
+console.log(citations);           // e.g. [1, 3] — 1-based indices into `sources`
+console.log(done.usage);          // the full terminal `done` event is available too
+
+// Ask v2 — same, plus the conversation confirmation from the `done` event.
+const result = await semidex.askText({
+  version: 'v2',
+  collection: 'my-docs',
+  question: 'What about exceptions?',
+  conversation: { conversationId, summary, recentMessages },
+});
+if (result.conversation?.summaryChanged) {
+  await saveSummary(conversationId, result.conversation.updatedSummary);
+}
+```
+
+`askText()` resolves with exactly:
+
+```ts
+{
+  answer: string,        // the `done` event's answer, or the concatenated deltas if it sent none
+  sources: AskSource[],  // [] when the stream carried no `sources` event
+  citations: number[],
+  done: AskDoneEventV1 | AskDoneEventV2,  // the whole terminal event, for usage/timing/provider/refused
+  conversation: AskConversationDoneBlock | null,  // ALWAYS null for Ask v1
+}
+```
+
+In TypeScript this is two distinct, overloaded result types — `AskTextResultV1`
+(`done: AskDoneEventV1`, `conversation` statically `null`) and
+`AskTextResultV2` (`done: AskDoneEventV2`, `conversation:
+AskConversationDoneBlock | null`) — selected by `version`, so a v1 call can
+never be typed as if it returned v2 data and `conversation.updatedSummary`
+(optional — omitted, never `null`, when the server did not recompute the
+summary) cannot be read without a presence check.
+
+A failed generation never resolves with a partial answer: a terminal SSE
+`error` event, a pre-stream failure, a timeout, an abort, or a malformed
+frame all **reject** with `SemidexApiError`, even if some `answer_delta`
+text had already arrived. A stream that ends without its terminal `done`
+event is likewise an error (`client_incomplete_stream`), not a silent
+partial result.
+
+### Retries
+
+The client can retry a failed request with bounded exponential backoff.
+**Retries are opt-in** — the default is `attempts: 1`, meaning no retry at
+all, so upgrading the package never silently turns one request into several
+or multiplies your spend against a rate-limited server.
+
+```js
+const semidex = createSemidexClient({
+  baseUrl: 'http://127.0.0.1:8642',
+  apiKey: process.env.SEMIDEX_TOKEN,
+  timeoutMs: 45_000,          // TOTAL budget for a call, retries and backoff included
+  retry: {
+    attempts: 3,              // total attempts, not extra ones. 1 = no retry (default)
+    initialDelayMs: 250,      // base of the exponential schedule
+    maxDelayMs: 8000,         // hard ceiling on ANY single wait, Retry-After included
+    backoffFactor: 2,
+    jitter: true,             // randomize over [half, full] of the computed delay
+    onRetry: (info) => console.warn(`retry ${info.nextAttempt} in ${info.delayMs}ms (status ${info.status})`),
+  },
+});
+
+// Per-call, layering onto the client-level policy (unspecified keys inherit):
+await semidex.search({ collection: 'my-docs', query: 'x', retry: { attempts: 5 } });
+```
+
+**`search()` and Ask are retried by DIFFERENT rules, because Ask is not
+idempotent.** A second Ask attempt re-runs retrieval *and* re-generates
+tokens, spending budget again — so the two rules resolve the same kind of
+failure differently on purpose:
+
+| | `search()` | `askV1()` / `askV2()` / `askText()` |
+| --- | --- | --- |
+| HTTP `429`, `502`, `503`, `504` | Retried | Never retried, UNLESS the response body is a recognized Semidex JSON error that itself says `retryable: true` |
+| Network/connection error before any response | Retried | **Never retried** |
+| HTTP `400`, `401`, `403`, `404` | Never retried | Never retried |
+| HTTP `500` | Never retried | Never retried |
+| Anything at all once the Ask SSE stream has started | n/a | **Never retried** |
+
+`search()` is read-only, so a network failure before any response is
+unambiguously safe to retry — nothing on the server was ever spent. Ask is
+not: a connection lost before a response (or even before its headers) is
+genuinely ambiguous — the server may never have seen the request, or it may
+already have accepted it and started generating before the connection died
+— and there is no way to tell those apart from the client side. Retrying
+would risk exactly the duplicate-generation harm this whole policy exists to
+prevent, so Ask resolves that ambiguity by never retrying a bare network
+failure, at any status, full stop. **Receiving response headers is not the
+same thing as "the server hadn't started generating yet"** — it only marks
+the point where THIS client stops seeing "no bytes" and starts seeing
+bytes; it says nothing about server-side state before that.
+
+The one thing Ask *can* retry is narrower and different in kind: a
+genuinely RECEIVED pre-stream JSON error body whose own payload explicitly
+says `retryable: true` — i.e. Semidex itself, having already confirmed it
+replied without ever opening a stream, vouching that trying again is safe.
+A generic reverse-proxy `502`/`504` with no JSON body, or a JSON body with
+no `retryable` field, does not qualify. This is a deliberate reversal of the
+"don't trust a server-sent `retryable: true`" rule that governs
+`search()`'s own status-code decision above (a future server marking some
+`400` retryable still cannot turn a Search validation bug into a retry
+storm) — for Ask, an explicit, received `retryable: true` is the ONLY signal
+strong enough to outweigh the non-idempotency risk, precisely because it
+proves a response actually arrived before any stream began.
+
+The last row of the table is the most important one regardless of endpoint.
+Once the server has begun streaming a generation, no failure re-enters the
+retry loop — not a terminal `error` event, not a malformed frame, not a
+socket reset mid-answer. A request that has already produced bytes is never
+re-sent, so you are never billed twice for one question and never shown a
+duplicated partial answer.
+
+**`Retry-After` is respected, but capped.** When a server sends a valid
+`Retry-After`, it is used as a *floor* for the next wait — the server knows
+its own capacity window better than a client-side formula. But it is never
+honored beyond `maxDelayMs`: a `Retry-After: 3600` does not hang your
+request for an hour. Instead the client stops retrying and surfaces the
+error with `err.retryAfterSeconds` intact, so *you* decide whether to
+reschedule an hour later — a scheduling decision, not an HTTP one.
+
+**Timeouts and aborts cancel backoff.** `timeoutMs` is a total wall-clock
+budget for the whole call, covering every attempt *and* every backoff sleep;
+opting into retries can never make a call outlive it. For `askV1()`/`askV2()`
+this budget also covers **consuming the entire SSE stream to completion** —
+not just connecting and getting the first byte. A slow or unusually long
+generation is bounded by the same `timeoutMs`, so raise it (or pass a larger
+per-call `timeoutMs`) for a model/prompt combination you expect to run long,
+rather than relying on the 60s default. An `AbortSignal` or a timeout that
+fires while the client is waiting in backoff ends the call immediately with
+the usual `client_timeout_or_abort` error, rather than sleeping out the
+remaining delay.
+
+**Observability.** Retry activity is visible without a callback and without
+exposing anything sensitive: a successful result carries `result.retries`
+and a thrown error carries `err.retries` (both non-enumerable, so response
+and error shapes are unchanged). The optional `onRetry` callback receives
+`{ attempt, nextAttempt, delayMs, delaySource, status, code,
+retryAfterSeconds, reason }` — status codes and timings only, never a
+header, a request body, or the bearer token.
+
 **Error handling.** Every failure — a non-2xx response, a terminal SSE
 `error` event, a timeout, an aborted request, a network error — surfaces as
 the SAME typed `SemidexApiError`, never a bare status-code check or a
@@ -892,28 +1086,96 @@ in front of it) replies with a 3xx, the client rejects with a
 whatever second location a `Location` header points at, on any origin,
 including the same one.
 
-**A complete worked example** — a minimal backend that a browser calls,
-which owns the Semidex key and an explicit topic-to-collection mapping,
-calls `semidex-lite/client`, and streams one Ask v2 conversation back to the
-browser as its own Server-Sent Events — is shipped at
-[`examples/backend-integration-server.mjs`](examples/backend-integration-server.mjs).
-It demonstrates, concretely, the architecture every integration in this
-README assumes:
+### Integrating from a browser app: the required architecture
 
 ```text
 browser (no secrets)  -->  YOUR backend (holds SEMIDEX_TOKEN, owns collection mapping)  -->  Semidex Lite
 ```
 
-Run it against your own `semidex-lite serve`:
+> **Never put a Semidex API key in browser code.** Not in a `<script>` tag,
+> not in a bundler-exposed environment variable (`VITE_*`, `NEXT_PUBLIC_*`,
+> `REACT_APP_*`), not in a mobile app binary, not in a "temporary" debug
+> build. Anything shipped to a client device is public: anyone who opens
+> devtools then owns your collection's entire read and generation budget,
+> and rotating the key is your only remedy. The Integration API is a
+> **backend-to-backend** interface. Your browser code calls *your* server;
+> only your server holds the key and calls Semidex.
+
+Two things follow from that, and both are demonstrated in the shipped
+examples:
+
+**1. Map an application-level `assistantId` to a collection on the backend.**
+The browser must never send a collection name, and never learn one. It sends
+an identifier meaningful to *your* app; your backend owns an explicit,
+closed mapping to the real collection:
+
+```js
+const ASSISTANTS = Object.freeze({
+  support:  { collection: process.env.SEMIDEX_SUPPORT_COLLECTION,  label: 'Customer support' },
+  handbook: { collection: process.env.SEMIDEX_HANDBOOK_COLLECTION, label: 'Employee handbook' },
+});
+
+function resolveAssistant(assistantId) {
+  // hasOwnProperty, not a bare lookup: "__proto__"/"constructor" would
+  // otherwise resolve to a truthy non-collection value.
+  if (typeof assistantId !== 'string' || !Object.prototype.hasOwnProperty.call(ASSISTANTS, assistantId)) {
+    throw Object.assign(new Error('Unknown assistantId'), { status: 400 });
+  }
+  return ASSISTANTS[assistantId];
+}
+```
+
+Accepting a raw `collection` from the browser would let any caller read
+every collection the key is scoped to — a data-exposure bug even with a
+perfectly secret key. A production app resolves this from the
+**authenticated** user's own permissions rather than a hardcoded map; the
+point is that the mapping is server-side, explicit, and closed.
+
+**2. Persist conversation state yourself.** Semidex Lite stores nothing
+between requests. Ask v2's `summary`/`recentMessages` come from you on every
+turn, and the `done` event hands back what to store for the next one — see
+the Ask v2 section below for the full ownership contract. The examples use
+an in-process `Map`, clearly marked **demo only**: it is lost on restart,
+never shared across replicas, and grows without bound. In production,
+replace it with whatever already holds your user data (PostgreSQL, Redis,
+SQLite, ...), keyed by your own user/session identifiers, with your own
+retention and deletion policy. Keep your own bound on the recent-message
+window, too: every message you store is re-sent on every turn, so an
+unbounded window silently grows each request's prompt cost.
+
+**Two complete worked examples** ship in this package, identical in key
+handling, collection mapping, and conversation ownership — they differ only
+in streaming:
+
+| Example | Ask API | Browser gets |
+| --- | --- | --- |
+| [`examples/backend-integration-server.mjs`](examples/backend-integration-server.mjs) | `askV2()` | a Server-Sent Events stream, token by token |
+| [`examples/backend-chat-server.mjs`](examples/backend-chat-server.mjs) | `askText()` | one JSON response per turn |
+
+Run either against your own `semidex-lite serve`:
 
 ```bash
 npx semidex-lite key add --name demo-backend --collection my-docs --operation search --operation generate
+
+# Streamed (SSE) variant — POST /api/chat, POST /api/search
 SEMIDEX_TOKEN=<token> SEMIDEX_BASE_URL=http://127.0.0.1:8642 SEMIDEX_DOCS_COLLECTION=my-docs \
   node examples/backend-integration-server.mjs
+
+# Non-streaming askText() variant — POST /chat, GET /assistants
+SEMIDEX_TOKEN=<token> SEMIDEX_BASE_URL=http://127.0.0.1:8642 SEMIDEX_SUPPORT_COLLECTION=my-docs \
+  node examples/backend-chat-server.mjs
 ```
 
+Environment variables both examples read: `SEMIDEX_TOKEN` (required),
+`SEMIDEX_BASE_URL` (default `http://127.0.0.1:8642`), `PORT`, and one
+`SEMIDEX_*_COLLECTION` variable per configured assistant.
+
 Type declarations (`.d.ts`) ship alongside the client for editor/`tsc`
-consumers — no build step, no TypeScript compilation of this repository.
+consumers — no build step, no TypeScript compilation of this repository. The
+repo's own test suite guards those declarations against drift: a strict
+`tsc --noEmit` consumer fixture (`tests/types/`) exercises `askV1()`,
+`askV2()`, event narrowing, and v2 conversation optionality, and fails the
+build on any regression — see `npm run typecheck:lite-client`.
 
 ## Search: `POST /api/v1/search`
 
