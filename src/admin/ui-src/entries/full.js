@@ -18,4 +18,4 @@ import * as localFeatures from '../../../local/admin/ui-src/local-features.js';
 setLocalSettingsCapabilities(localFeatures);
 setJobsLocalCapabilities(localFeatures);
 setSettingsLocalCapabilities(localFeatures);
-startAdminApp();
+startAdminApp({ edition: 'full' });

@@ -1,8 +1,9 @@
-// ── top-level main-panel views: overview (no collection selected) and the
-// selected collection's overview (header + search + file/section content) ──
-import overviewShell from './partials/shared/overview-shell.html?raw';
+// ── top-level main-panel views: the selected collection's overview (header
+// + search + file/section content). `#/` Overview itself is now owned by
+// features/overview/view.js (design plan §5.1, §13 S1) — a lifecycle-owned
+// v2 view controller, not this module.
 import collectionShell from './partials/shared/collection-shell.html?raw';
-import { $, esc, errorBox, emptyBox } from './dom.js';
+import { $, esc, errorBox } from './dom.js';
 import { api } from './api.js';
 import { getExpandedCollection, setExpandedCollection } from './state.js';
 import { refreshSidebarList } from './sidebar.js';
@@ -20,59 +21,6 @@ import { showCollectionWarnings } from './toasts.js';
 // navigation" was reading a value already advanced to the new collection
 // name before the DOM/search panel had actually been reset for it.
 let renderedCollectionName = null;
-
-async function renderOverview(main) {
-  renderedCollectionName = null;
-  main.innerHTML = overviewShell;
-
-  try {
-    const health = await api('/api/health');
-    $('#ov-health').innerHTML = `
-      <dl class="kv">
-        <dt>backend</dt><dd>${esc(health.storage.backend)}</dd>
-        <dt>status</dt><dd><span class="badge ${health.ok ? 'badge-ok' : 'badge-fail'}">${health.ok ? 'reachable' : 'unreachable'}</span></dd>
-        <dt>detail</dt><dd>${esc(health.storage.detail ?? '—')}</dd>
-      </dl>`;
-  } catch (err) { $('#ov-health').innerHTML = errorBox(err); }
-
-  try {
-    const { backend, capabilities } = await api('/api/capabilities');
-    $('#ov-caps').innerHTML = `
-      <div class="caps">${Object.entries(capabilities).map(([k, v]) =>
-        `<span class="cap ${v ? 'on' : ''}">${esc(k)}</span>`).join('')}</div>
-      <p class="skel-note">Capabilities describe what the <b>${esc(backend)}</b> storage backend supports.
-      Backend-specific panels appear only when their capability is on.</p>`;
-  } catch (err) { $('#ov-caps').innerHTML = errorBox(err); }
-
-  try {
-    const { collections } = await api('/api/collections');
-    if (!collections.length) {
-      $('#ov-collections').innerHTML = emptyBox('No collections indexed yet.');
-      return;
-    }
-    $('#ov-collections').innerHTML = `
-      <table class="data"><thead><tr>
-        <th>name</th><th class="num">points</th><th>schema</th>
-      </tr></thead><tbody>
-      ${collections.map(c => `
-        <tr class="rowlink" data-href="#/c/${encodeURIComponent(c.name)}">
-          <td class="mono">${esc(c.name)}</td>
-          <td class="num">${Number(c.pointCount ?? 0).toLocaleString('en-US')}</td>
-          <td>${schemaBadge(c.vectorSchema)}</td>
-        </tr>`).join('')}
-      </tbody></table>`;
-    for (const row of document.querySelectorAll('tr.rowlink')) {
-      row.addEventListener('click', () => { location.hash = row.dataset.href; });
-    }
-  } catch (err) { $('#ov-collections').innerHTML = errorBox(err); }
-}
-
-function schemaBadge(schema) {
-  if (schema === 'named') return '<span class="badge badge-ok">named</span>';
-  if (schema === 'flat') return '<span class="badge badge-warn">legacy flat</span>';
-  if (schema === 'empty') return '<span class="badge badge-fail">empty</span>';
-  return `<span class="badge">${esc(schema ?? '?')}</span>`;
-}
 
 // ── collection overview (main panel default for a selected collection) ───
 // Header (Phase 3E, reworked Phase 3G into a "library overview"):
@@ -325,4 +273,4 @@ function renderCollectionHeader(name, detail) {
   });
 }
 
-export { renderOverview, renderCollection };
+export { renderCollection };

@@ -223,6 +223,13 @@ export function resetForTests() {
   listeners.clear();
 }
 
+/** Test-only: current subscriber count — used by leak-soak tests (e.g. the
+ * Overview v2 view controller's) to prove repeated mount/dispose of a
+ * subscribing view does not grow this store's listener set. */
+export function listenerCount() {
+  return listeners.size;
+}
+
 // Forces the very next poll tick to run immediately instead of waiting out
 // whatever delay the last tick scheduled — used right after starting a new
 // operation (indexing/reindex/repair) so the modal shows real queued/running

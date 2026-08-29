@@ -72,6 +72,39 @@ export function iconSearch() {
   </svg>`;
 }
 
+// Status-badge glyphs (design plan §7.4/§8.1: "icon + text + color, never
+// color alone" — the shape difference between these four is the
+// non-color signal; status-badge.js pairs each with a text label too).
+// Same hand-authored stroke-icon language as every icon above.
+export function iconStatusOk() {
+  return `<svg ${ICON_ATTRS} data-icon="status_ok">
+    <circle cx="8" cy="8" r="6"/>
+    <path d="M5.2 8.2l2 2 3.6-4.4"/>
+  </svg>`;
+}
+
+export function iconStatusWarn() {
+  return `<svg ${ICON_ATTRS} data-icon="status_warn">
+    <path d="M8 2.4 14 13.2H2z"/>
+    <path d="M8 6.6v3M8 11.6v.1"/>
+  </svg>`;
+}
+
+export function iconStatusFail() {
+  return `<svg ${ICON_ATTRS} data-icon="status_fail">
+    <circle cx="8" cy="8" r="6"/>
+    <path d="M5.6 5.6l4.8 4.8M10.4 5.6l-4.8 4.8"/>
+  </svg>`;
+}
+
+export function iconStatusUnknown() {
+  return `<svg ${ICON_ATTRS} data-icon="status_unknown">
+    <circle cx="8" cy="8" r="6"/>
+    <path d="M6.1 6.3a2 2 0 1 1 2.9 1.8c-.7.4-1 .8-1 1.5"/>
+    <path d="M8 11.6v.1"/>
+  </svg>`;
+}
+
 export function iconGear() {
   return `<svg ${ICON_ATTRS} data-icon="gear">
     <circle cx="8" cy="8" r="2.2"/>

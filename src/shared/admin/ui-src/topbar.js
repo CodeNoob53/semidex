@@ -1,9 +1,10 @@
 // ── top bar: health + capabilities + active-operation chip ────────────────
 import { $, esc } from './dom.js';
-import { api } from './api.js';
 import { subscribe, getActiveOperation } from './operation-store.js';
 import { openOperationModal } from './operation-modal.js';
 import { iconGear } from './icons.js';
+import { subscribe as subscribeStatus, getStatus, startPolling as startStatusPolling } from './shared/status/store.js';
+import { whenCapabilitiesReady, capabilities as getBootCapabilities, capabilityEdition } from './shared/capabilities/boot.js';
 
 // Renders the existing iconGear() SVG into the static topbar link (Phase
 // 4A.5b) — the icon markup itself lives in icons.js (one source of truth,
@@ -14,25 +15,42 @@ export function initGlobalSettingsLink() {
   if (link) link.innerHTML = iconGear();
 }
 
-export async function loadTopbar() {
+// Renders the health lamp + edition/capability summary from the shared
+// shell-owned status store (design plan §8.3, §13 S1) and the boot
+// capability object (design plan §6) — never its own independent fetch.
+// Overview (features/overview/view.js) subscribes to the SAME store, so
+// the two surfaces never start duplicate polling/fetch loops.
+function renderHealthAndEdition({ health, healthError }) {
   const lamp = $('#health-lamp');
   const text = $('#health-text');
-  try {
-    const health = await api('/api/health');
+  if (healthError) {
+    lamp.className = 'lamp lamp-fail';
+    text.textContent = health ? 'status check failed' : 'local api error';
+    text.title = healthError.message;
+  } else if (health) {
     lamp.className = `lamp ${health.ok ? 'lamp-ok' : 'lamp-fail'}`;
     text.textContent = `${health.storage.backend} · ${health.ok ? 'reachable' : 'unreachable'}`;
     text.title = health.storage.detail ?? '';
-  } catch (err) {
-    lamp.className = 'lamp lamp-fail';
-    text.textContent = 'local api error';
-    text.title = err.message;
   }
-  try {
-    const caps = await api('/api/capabilities');
-    const on = Object.entries(caps.capabilities).filter(([, v]) => v).map(([k]) => k);
-    $('#cap-summary').textContent = on.length ? `caps: ${on.length} on` : '';
-    $('#cap-summary').title = on.join(', ');
-  } catch { /* capability summary is decorative; health already reported */ }
+  const caps = getBootCapabilities();
+  const summary = $('#cap-summary');
+  if (!caps) {
+    summary.textContent = capabilityEdition() ?? '';
+    summary.title = '';
+    return;
+  }
+  const on = Object.entries(caps.storage.capabilities).filter(([, v]) => v).map(([k]) => k);
+  summary.textContent = on.length ? `${caps.edition} · caps: ${on.length} on` : caps.edition;
+  summary.title = on.join(', ');
+}
+
+export function loadTopbar() {
+  renderHealthAndEdition(getStatus());
+  subscribeStatus(renderHealthAndEdition);
+  startStatusPolling(); // idempotent — safe regardless of whether another subscriber already started it
+  whenCapabilitiesReady()
+    .then(() => renderHealthAndEdition(getStatus()))
+    .catch(() => { /* edition/capability summary is decorative; health already reported independently */ });
 }
 
 const KIND_CHIP_LABEL = { index: 'Indexing', reindex: 'Reindexing', repair: 'Repairing' };

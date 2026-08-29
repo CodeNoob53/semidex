@@ -13,4 +13,4 @@
 import '../../../shared/admin/ui-src/app.css';
 import { startAdminApp } from '../../../shared/admin/ui-src/app.js';
 
-startAdminApp();
+startAdminApp({ edition: 'lite' });

@@ -3,14 +3,29 @@ import { $, errorBox } from './dom.js';
 import { api } from './api.js';
 import { openFileView, openSectionView, hideCollectionContent } from './file-view.js';
 import { markActive, syncSidebarMode } from './sidebar.js';
-import { renderCollection, renderOverview } from './collection-view.js';
+import { renderCollection } from './collection-view.js';
 import { renderSettingsView } from './settings-view.js';
 import { renderGlobalSettingsView, invalidateGlobalSettingsRender } from './global-settings-view.js';
 import { renderIndexingView } from './jobs-view.js';
 import { applySearchStateFromUrl, syncSearchStateFromUrl } from './search.js';
 import { currentRoute } from './routes.js';
+import { mount as mountOverview } from './features/overview/view.js';
 
 export { currentRoute };
+
+// The currently-mounted v2 view controller (design plan §8.4), if any —
+// Overview is the only v2 lifecycle view in this slice. Tracked here (not
+// inside collection-view.js/settings-view.js, which are still the old,
+// non-disposable style) so route() can dispose it before mounting whatever
+// comes next, regardless of which branch below actually runs.
+let currentView = null;
+
+function disposeCurrentView() {
+  if (currentView) {
+    currentView.dispose();
+    currentView = null;
+  }
+}
 
 // Resolves a bare nodePath (arrived via URL/back-forward, no live sidebar
 // DOM node to hand off) into a full skeleton node object, then reuses the
@@ -36,6 +51,14 @@ export async function route() {
   if (r.view !== 'global-settings') invalidateGlobalSettingsRender();
   syncSidebarMode(r);
   markActive(r);
+  // Dispose the outgoing v2 controller (Overview, today) BEFORE doing any
+  // work for the next route — synchronously, so its in-flight fetches abort
+  // and its generation invalidates before any other branch below starts
+  // rendering. This is what stops a superseded Overview mount from ever
+  // painting over whatever screen a later route() call is navigating to
+  // (design plan §8.4/§13 S1: "Repeated route() calls and rapid hash
+  // changes must not let an old Overview paint over another screen").
+  disposeCurrentView();
   if (r.view === 'settings') await renderSettingsView(main, r.name);
   else if (r.view === 'global-settings') await renderGlobalSettingsView(main, r.category);
   else if (r.view === 'collection') {
@@ -73,7 +96,7 @@ export async function route() {
       syncSearchStateFromUrl(r.name);
     }
   } else if (r.view === 'index') await renderIndexingView(main);
-  else await renderOverview(main);
+  else currentView = mountOverview(main, {});
   // Re-run after the branch above resolves: the sidebar's skeleton-tree/
   // file-list rows for the target collection render asynchronously
   // (loadSidebarTree), so the first markActive(r) call above (made before

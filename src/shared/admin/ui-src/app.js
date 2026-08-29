@@ -11,6 +11,7 @@ import { route } from './router.js';
 import { mountOperationModal } from './operation-modal.js';
 import { startPolling } from './operation-store.js';
 import { createViewController } from './shared/lifecycle/view.js';
+import { bootCapabilities } from './shared/capabilities/boot.js';
 
 // The shell's own top-level view controller (design plan §8.4/§8.6) — never
 // disposed today (the shell itself never unmounts before a full page
@@ -19,7 +20,13 @@ import { createViewController } from './shared/lifecycle/view.js';
 // convention every per-feature view controller will use from S2 onward.
 const shellView = createViewController();
 
-export function startAdminApp() {
+/**
+ * @param {{ edition: 'full'|'lite' }} opts — build-time edition constant,
+ *   supplied ONLY by the Full/Lite composition entry point (entries/full.js
+ *   -> 'full', entries/lite.js -> 'lite'). Kept at this one call site
+ *   (design plan §6) rather than scattered through views.
+ */
+export function startAdminApp({ edition } = {}) {
   initSidebarResize();
   window.addEventListener('hashchange', route, { signal: shellView.signal });
 
@@ -30,6 +37,13 @@ export function startAdminApp() {
   // happened to start it staying mounted.
   mountOperationModal($('#operation-modal-host'));
   startPolling();
+
+  // Boot capability object (design plan §6): resolved once, here, from the
+  // real GET /api/capabilities response plus this entry's own edition
+  // constant. A rejected boot fetch is not fatal to the rest of the app —
+  // every reader (topbar, Overview) treats a still-null capabilities()
+  // as "checking…" and degrades honestly rather than throwing.
+  bootCapabilities({ edition }).catch(() => {});
 
   loadTopbar();
   initJobChip();

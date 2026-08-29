@@ -625,17 +625,21 @@ export function loadRouteIntegrationHelpers(html, { hash = '#/', apiResponses = 
     // collection-view.js's ?raw partial imports become plain consts —
     // real partial content, so markup-dependent behavior (e.g. #col-header,
     // #search-panel existing after mount) matches production exactly.
-    `const overviewShell = ${JSON.stringify(readUiSource('partials/shared/overview-shell.html'))};`,
     `const collectionShell = ${JSON.stringify(readUiSource('partials/shared/collection-shell.html'))};`,
     stripImports(readUiSource('collection-view.js')),
     stripImports(readUiSource('router.js'))
       // router.js imports renderSettingsView/renderGlobalSettingsView/
       // renderIndexingView for the 'settings'/'global-settings'/'index'
-      // route views — not exercised by these collection-route tests,
-      // stubbed to avoid pulling in their modules.
+      // route views, and mountOverview (features/overview/view.js, a real
+      // ES module using fetch/document that this vm-context harness never
+      // concatenates) for the default '#/' route — none of these are
+      // exercised by these collection-route tests (every call site here
+      // passes an explicit '#/c/...' hash), stubbed to avoid pulling in
+      // their modules.
       .replace(/renderSettingsView\(/g, '(async()=>{})(')
       .replace(/renderGlobalSettingsView\(/g, '(async()=>{})(')
-      .replace(/renderIndexingView\(/g, '(async()=>{})('),
+      .replace(/renderIndexingView\(/g, '(async()=>{})(')
+      .replace(/mountOverview\(main, \{\}\)/g, '{ dispose(){} }'),
   ].join('\n');
   vm.runInContext(src, context);
   return context;

@@ -230,7 +230,7 @@ select:focus-visible,
   outline: 2px solid var(--amber);
   outline-offset: 1px;
 }
-.main { padding: 22px 26px; overflow-y: auto; }
+.main { min-width: 0; padding: 22px 26px; overflow-y: auto; }
 
 .panel-label {
   font-size: 10px; text-transform: uppercase; letter-spacing: .22em;
@@ -1071,3 +1071,114 @@ td.actions { text-align: right; }
   .structural-toggle-btn { transition: none; }
 }
 .op-history-duration { flex: none; }
+
+/* ── v2 design tokens (admin dashboard v2 plan §7.1) ───────────────────────
+   Layer 1 (primitives, above in :root) already exists — this formalizes
+   Layer 2 (semantic aliases). New v2 components (Overview, and every slice
+   after it) consume ONLY these aliases, never a Layer-1 variable directly;
+   old, unmigrated surfaces keep using the Layer-1 names above unchanged, so
+   nothing regresses. A second theme becomes a token file, not a rewrite. */
+:root {
+  --surface-page:    var(--bg);
+  --surface-panel:   var(--bg-raise);
+  --surface-sunken:  var(--bg-inset);
+  --border-strong:   var(--line);
+  --border-subtle:   var(--line-soft);
+  --text-primary:    var(--ink);
+  --text-secondary:  var(--ink-dim);
+  --text-muted:      var(--ink-faint);
+  --accent:          var(--amber);
+  --accent-muted:    var(--amber-dim);
+  --status-ok:       var(--ok);
+  --status-warn:     var(--warn);
+  --status-fail:     var(--fail);
+  --status-running:  var(--amber);
+  --focus-ring:      var(--amber);
+
+  /* Spacing/radius/elevation steps (design plan §7.1) — new for v2; no
+     existing rule referenced these names before, so introducing them here
+     changes nothing for old surfaces. Radius is capped at 8px throughout v2
+     (design plan §13 S1: "Keep cards at 8px radius or less"). */
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 24px;
+  --radius-sm: 3px; --radius-md: 6px; --radius-lg: 8px;
+}
+
+/* Screen-reader-only content (design plan §11.5 live regions, §5's status
+   vocabulary) — visually hidden but still reachable by assistive tech,
+   the standard clip-based technique (display:none would remove it from the
+   accessibility tree entirely). */
+.visually-hidden {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+
+/* ── status badge (design plan §7.4, §12.3 DoD #10): icon + text + colour,
+   never colour alone ────────────────────────────────────────────────────── */
+.status-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-family: var(--mono); font-size: 12px; color: var(--text-secondary);
+}
+.status-badge-icon { display: inline-flex; flex: none; }
+.status-badge-icon svg { width: 13px; height: 13px; }
+.status-badge-text { overflow-wrap: anywhere; }
+.status-badge-ok      { color: var(--status-ok); }
+.status-badge-warn    { color: var(--status-warn); }
+.status-badge-fail    { color: var(--status-fail); }
+.status-badge-unknown { color: var(--text-muted); }
+
+/* ── loading/empty/error/partial state primitives (design plan §5, §8.1) ── */
+.state-box {
+  padding: var(--space-3) var(--space-2);
+  font-size: 13px; color: var(--text-secondary);
+  min-height: 2.4em; /* reserved geometry — avoids layout shift when a
+                         loading placeholder resolves into real content */
+}
+.state-message { margin: 0 0 var(--space-2); }
+.state-error .state-message { color: var(--status-fail); }
+.state-partial { border-left: 3px solid var(--status-warn); background: var(--surface-sunken); border-radius: var(--radius-sm); }
+.state-action, .state-retry { display: inline-block; margin-top: var(--space-1); }
+
+/* ── Overview v2 (design plan §5.1) ───────────────────────────────────────── */
+.ov-banner { display: flex; flex-direction: column; gap: var(--space-1); margin-bottom: var(--space-4); }
+.ov-banner-row {
+  display: flex; align-items: center; gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-subtle); border-left: 3px solid var(--status-warn);
+  border-radius: var(--radius-sm); background: var(--surface-sunken);
+}
+.ov-banner-row a { color: var(--text-secondary); font-size: 12px; margin-left: auto; flex: none; }
+.ov-status-list { display: flex; flex-direction: column; gap: var(--space-2); }
+.ov-status-row { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-2); }
+.ov-status-label { color: var(--text-secondary); font-size: 12px; flex: none; }
+.ov-status-value { min-width: 0; overflow-wrap: anywhere; text-align: right; }
+.ov-status-link { color: inherit; text-decoration: none; }
+.ov-status-link:hover .status-badge-text { text-decoration: underline; }
+.ov-op-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.ov-op-row {
+  padding: var(--space-2) var(--space-2);
+  border-radius: var(--radius-sm); cursor: pointer;
+}
+.ov-op-row:hover { background: var(--surface-sunken); }
+.ov-op-row:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+#ov-collections { max-width: 100%; overflow-x: auto; }
+
+/* Reflow at 320 CSS px / 200% zoom (design plan §7.3, §13 S1): Overview's
+   two-column status/operations strip collapses to one column, and long
+   collection names/status text already wrap via overflow-wrap: anywhere
+   above rather than clipping or overlapping. */
+/* The content column becomes narrow well before the viewport itself reaches
+   phone width because the persistent sidebar still occupies up to 38vw.
+   Stack label/value rows at the shell breakpoint so provider/model names do
+   not collapse into one-word columns. */
+@media (max-width: 720px) {
+  .ov-status-row { flex-direction: column; align-items: flex-start; }
+  .ov-status-value { text-align: left; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* No animation is used by the Overview v2 status strip/state primitives
+     (badge/state swaps are instant DOM replacements) — documented for the
+     same reason as the structural-renderer rule above. */
+  .status-badge, .state-box { transition: none; }
+}
