@@ -127,7 +127,7 @@ const tools = [search, collections, getChunk, findByTag, listFiles, listTags, li
 const toolMap = Object.fromEntries(tools.map(t => [t.schema.name, t.handle]));
 
 const server = new Server(
-  { name: 'qdrant-indexer-mcp', version: '2.0.0' },
+  { name: 'qdrant-indexer-mcp', version: 'unreleased' },
   { capabilities: { tools: {} } }
 );
 
