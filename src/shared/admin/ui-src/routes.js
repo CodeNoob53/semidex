@@ -31,15 +31,14 @@ export function currentRoute(hash = location.hash || '#/') {
   if (m) return { view: 'collection', name: decodeURIComponent(m[1]), openFile: decodeURIComponent(m[2]), ...(search && { search }) };
   m = path.match(/^#\/c\/([^/]+)\/n\/(.+)$/);
   if (m) return { view: 'collection', name: decodeURIComponent(m[1]), openNodePath: decodeURIComponent(m[2]), ...(search && { search }) };
+  // Bare collection route only (S1-style Collection Home, design plan
+  // §5.3, §13) — a distinct `view` value from the f/n sub-routes above, so
+  // router.js can route it to the lifecycle-owned features/collection-home
+  // controller while #/c/:name/f/... and #/c/:name/n/... keep resolving to
+  // 'collection' (collection-view.js/file-view.js, unchanged).
   m = path.match(/^#\/c\/(.+)$/);
-  if (m) return { view: 'collection', name: decodeURIComponent(m[1]), ...(search && { search }) };
+  if (m) return { view: 'collection-home', name: decodeURIComponent(m[1]), ...(search && { search }) };
   if (path === '#/index') return { view: 'index' };
-  // S2A: the collections directory (design plan §4.2/§5.2) — deliberately
-  // an EXACT match. "#/collections/foo" is not this route (there is no
-  // sub-path form); it falls through to the final `return` below, same as
-  // any other unrecognized hash, so a stray trailing segment never silently
-  // resolves to the directory.
-  if (path === '#/collections') return { view: 'collections' };
   // Phase 4A.5b: the global runtime-settings screen — distinct `view` value
   // ('global-settings') from collection settings ('settings' above), so
   // router.js/sidebar.js's active-state logic never conflates the two.

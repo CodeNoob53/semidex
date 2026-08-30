@@ -190,7 +190,7 @@ export function loadSidebarActiveStateHelpers() {
       </div>
     </li>
   </ul><nav id="nav-index"></nav><a id="nav-global-settings"></a>
-  <a id="nav-overview" href="#/"></a><a id="nav-collections" href="#/collections"></a>`);
+  <a id="nav-overview" href="#/"></a>`);
   const context = {
     document,
     $: (sel, root = document) => root.querySelector(sel),
@@ -631,16 +631,18 @@ export function loadRouteIntegrationHelpers(html, { hash = '#/', apiResponses = 
     stripImports(readUiSource('router.js'))
       // router.js imports renderSettingsView/renderGlobalSettingsView/
       // renderIndexingView for the 'settings'/'global-settings'/'index'
-      // route views, and mountOverview (features/overview/view.js, a real
-      // ES module using fetch/document that this vm-context harness never
-      // concatenates) for the default '#/' route — none of these are
-      // exercised by these collection-route tests (every call site here
-      // passes an explicit '#/c/...' hash), stubbed to avoid pulling in
-      // their modules.
+      // route views, and mountOverview/mountCollectionHome (features/
+      // overview/view.js, features/collection-home/view.js — real ES
+      // modules using fetch/document that this vm-context harness never
+      // concatenates) for the '#/' and bare '#/c/:name' routes — none of
+      // these are exercised by these collection-route tests (every call
+      // site here passes an explicit '#/c/.../f|n/...' hash), stubbed to
+      // avoid pulling in their modules.
       .replace(/renderSettingsView\(/g, '(async()=>{})(')
       .replace(/renderGlobalSettingsView\(/g, '(async()=>{})(')
       .replace(/renderIndexingView\(/g, '(async()=>{})(')
-      .replace(/mountOverview\(main, \{\}\)/g, '{ dispose(){} }'),
+      .replace(/mountOverview\(main, \{\}\)/g, '{ dispose(){} }')
+      .replace(/mountCollectionHome\(main, \{ name: r\.name \}\)/g, '{ dispose(){} }'),
   ].join('\n');
   vm.runInContext(src, context);
   return context;

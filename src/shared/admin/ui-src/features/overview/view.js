@@ -1,9 +1,17 @@
-// Overview v2 (design plan §5.1, §13 S1). The v2 replacement for
+// Overview v2 (design plan §5.1, §13 S1/S2B). The v2 replacement for
 // collection-view.js's old renderOverview(): answers exactly one question —
 // "is this instance working, and what is running?" — via a status strip
-// (storage, generation, edition), a collections summary, and a bounded
-// active/recent operations list. No charts, no promotional copy, no nested
-// cards, no fake metrics (design plan §2.1, §5.1).
+// (storage, generation, edition), a bounded active/recent operations list,
+// and a Collections panel. No charts, no promotional copy, no nested cards,
+// no fake metrics (design plan §2.1, §5.1).
+//
+// S2B correction: the standalone #/collections directory duplicated both
+// the sidebar and this screen — it has been removed, and its richer
+// Collections table/state-machine (name/points/vector schema/embedding
+// profile/dense provider-model columns, delegated row activation, a visible
+// "Index a folder" action, and the full loading/ready/empty/error/
+// known-storage-down-unavailable/partial-degraded state set) now lives here
+// instead of Overview's old, simpler 3-column table.
 //
 // A lifecycle-owned view controller: mount(host, params) -> { dispose() }
 // (design plan §8.1/§8.4). Every fetch this module starts is either (a) the
@@ -40,6 +48,9 @@ const STATE_TONE = {
   succeeded: 'ok', failed: 'fail', cancelled: 'unknown',
 };
 
+const SCHEMA_TONE = { named: 'ok', flat: 'warn', empty: 'fail' };
+const PROFILE_TONE = { valid: 'ok', missing: 'warn', invalid: 'fail', schema_mismatch: 'fail', unsupported_schema_version: 'fail' };
+
 // Static shell markup only — no interpolated data anywhere in this string,
 // so assigning it via innerHTML is safe by construction (same convention
 // collection-view.js's own `main.innerHTML = overviewShell` already uses
@@ -53,7 +64,14 @@ const SHELL_HTML = `
     <div class="panel"><div class="panel-head">Status</div><div class="panel-body" id="ov-status"></div></div>
     <div class="panel"><div class="panel-head">Active &amp; recent operations</div><div class="panel-body" id="ov-operations"></div></div>
   </div>
-  <div class="panel"><div class="panel-head">Collections</div><div class="panel-body" id="ov-collections"></div></div>
+  <div class="panel">
+    <div class="panel-head">
+      <span>Collections</span>
+      <a class="btn-amber" href="#/index" id="ov-index-cta">Index a folder</a>
+    </div>
+    <div class="ov-banner" id="ov-collections-banner" hidden></div>
+    <div class="panel-body" id="ov-collections"></div>
+  </div>
 `;
 
 /**
@@ -69,16 +87,35 @@ export function mount(host, _params = {}) {
     banner: host.querySelector('#ov-banner'),
     status: host.querySelector('#ov-status'),
     operations: host.querySelector('#ov-operations'),
+    collectionsBanner: host.querySelector('#ov-collections-banner'),
     collections: host.querySelector('#ov-collections'),
   };
   const live = createLiveRegion();
   host.appendChild(live.el);
 
+  // ── collections panel local state — combined with the shared status
+  // store's live snapshot on every render, since either can change
+  // independently (the collections fetch resolves once; the status store
+  // keeps polling for the lifetime of the page).
+  let collectionsPhase = 'loading'; // 'loading' | 'ready' | 'error'
+  let collections = [];
+  let collectionsError = null;
+
+  const renderCollectionsUi = () => renderCollectionsPanel(els, live, {
+    phase: collectionsPhase,
+    collections,
+    error: collectionsError,
+    status: getStatus(),
+    retry: () => loadCollections(),
+  });
+
   // ── status strip: storage + generation + edition, from the shared
   // shell-owned status store — never a second poller (design plan §8.3,
   // §13 S1 exit gate: "topbar and Overview share status data without
-  // duplicate polling/fetch loops"). Updates touch only #ov-status/
-  // #ov-banner, never navigation DOM.
+  // duplicate polling/fetch loops"). A status tick also re-classifies the
+  // Collections panel below (its unavailable/partial-banner states depend
+  // on the same shared storage/generation health), never a second poller
+  // of its own.
   const renderStatus = () => renderStatusStrip(
     els,
     live,
@@ -87,8 +124,9 @@ export function mount(host, _params = {}) {
     capabilityEdition(),
     capabilityError(),
   );
+  const renderOnStatusChange = () => { renderStatus(); renderCollectionsUi(); };
   renderStatus();
-  view.onDispose(subscribeStatus(renderStatus));
+  view.onDispose(subscribeStatus(renderOnStatusChange));
   startStatusPolling(); // idempotent — already running from app boot; safe to call from any subscriber
 
   whenCapabilitiesReady().then(() => {
@@ -121,26 +159,29 @@ export function mount(host, _params = {}) {
   // ── collections: one-shot fetch per mount, ownership-checked (design
   // plan §8.7) so a navigation-away or a second overlapping mount's later
   // response can never commit into a stale/detached view.
-  loadCollections(view, els, live, { showLoadingState: true });
+  function loadCollections() {
+    collectionsPhase = 'loading';
+    renderCollectionsUi();
+    const gen = view.nextGeneration();
+    apiGet('/api/collections', { signal: view.signal })
+      .then(validateCollectionsListResponse)
+      .then((body) => {
+        if (!view.isCurrent(gen)) return; // superseded by dispose()/a later request — discard, do not render
+        collectionsPhase = 'ready';
+        collections = body.collections;
+        collectionsError = null;
+        renderCollectionsUi();
+      })
+      .catch((err) => {
+        if (!view.isCurrent(gen)) return;
+        collectionsPhase = 'error';
+        collectionsError = err;
+        renderCollectionsUi();
+      });
+  }
+  loadCollections();
 
   return { dispose: () => view.dispose() };
-}
-
-function loadCollections(view, els, live, { showLoadingState }) {
-  if (showLoadingState) els.collections.replaceChildren(createLoadingState('Loading collections…'));
-  const gen = view.nextGeneration();
-  apiGet('/api/collections', { signal: view.signal })
-    .then(validateCollectionsListResponse)
-    .then((body) => {
-      if (!view.isCurrent(gen)) return; // superseded by dispose()/a later mount — discard, do not render
-      renderCollections(els.collections, body.collections);
-      live.announce(body.collections.length ? `Loaded ${body.collections.length} collections.` : 'No collections indexed yet.');
-    })
-    .catch((err) => {
-      if (!view.isCurrent(gen)) return;
-      renderCollectionsError(els.collections, err, () => loadCollections(view, els, live, { showLoadingState: true }));
-      live.announce(`Collections could not be loaded: ${err.message}`);
-    });
 }
 
 // ── status strip ────────────────────────────────────────────────────────
@@ -271,33 +312,175 @@ function renderOperations(host, operations) {
   host.replaceChildren(list);
 }
 
-// ── collections panel ───────────────────────────────────────────────────
+// ── collections panel: classification (design plan §5's fixed state
+// vocabulary) — ported from the removed features/collections/view.js
+// (S2A), which owned this exact state machine for the standalone directory
+// before it was folded into this screen (S2B). ──────────────────────────
 
-function schemaTone(vectorSchema) {
-  if (vectorSchema === 'named') return 'ok';
-  if (vectorSchema === 'flat') return 'warn';
-  if (vectorSchema === 'empty') return 'fail';
-  return 'unknown';
+// "Shared status polling currently reports an error" (design plan §5.2's
+// `partial` state) is not just the storage/health poll — the same shared
+// store also polls GET /api/generation/status (design plan §8.3), and a
+// failure there is just as much "a subsystem this panel depends on for its
+// banner is currently unknown" as a failed health poll. Each subsystem is
+// named honestly and independently — a generation-status failure must never
+// be reported as a "Storage" problem, and vice versa (both can fail at once).
+function collectionsPartialBanners(status) {
+  const storageDown = !!(status.health && status.health.ok === false);
+  const banners = [];
+  if (storageDown) {
+    banners.push({ subsystem: 'storage', href: '#/settings/storage', message: 'Storage is reported unreachable — this list may be out of date.' });
+  } else if (status.healthError) {
+    banners.push({ subsystem: 'storage', href: '#/settings/storage', message: 'Storage status check is currently failing — reachability is unknown.' });
+  }
+  if (status.generationError) {
+    banners.push({ subsystem: 'generation', href: '#/settings/ai', message: 'Generation status check is currently failing — readiness is unknown.' });
+  }
+  return banners;
 }
 
-function renderCollections(host, collections) {
-  if (!collections.length) {
-    host.replaceChildren(createEmptyState('No collections indexed yet.', { href: '#/index', label: 'Index a folder' }));
+function classifyCollections({ phase, collections: rows, status }) {
+  const storageDown = !!(status.health && status.health.ok === false);
+
+  if (phase === 'loading') return { kind: 'loading' };
+
+  const isEmpty = phase === 'ready' && rows.length === 0;
+  const isFailed = phase === 'error';
+
+  // "degraded/unavailable when storage health is known to be down, without
+  // presenting an empty list as if there were zero collections" — only
+  // overrides when the collections fetch itself has nothing trustworthy to
+  // show (failed, or genuinely empty); a real, non-empty result is trusted
+  // over a possibly-racy separate health poll (still bannered below).
+  if (storageDown && (isFailed || isEmpty)) return { kind: 'unavailable' };
+  if (isFailed) return { kind: 'error' };
+  if (isEmpty) return { kind: 'empty' };
+  return { kind: 'ready', banners: collectionsPartialBanners(status) };
+}
+
+function renderCollectionsPanel(els, live, state) {
+  const result = classifyCollections(state);
+
+  if (result.kind === 'loading') {
+    els.collections.replaceChildren(createLoadingState('Loading collections…'));
+    renderCollectionsBanner(els.collectionsBanner, null);
     return;
   }
-  const table = createDataTable({
+
+  if (result.kind === 'error') {
+    els.collections.replaceChildren(createErrorState(state.error, { retry: state.retry }));
+    renderCollectionsBanner(els.collectionsBanner, null);
+    live.announce(`Collections could not be loaded: ${state.error?.message ?? 'unknown error'}`);
+    return;
+  }
+
+  if (result.kind === 'unavailable') {
+    els.collections.replaceChildren(createUnavailableState(state.retry));
+    renderCollectionsBanner(els.collectionsBanner, null);
+    live.announce('Storage is unreachable; collections cannot be listed right now.');
+    return;
+  }
+
+  if (result.kind === 'empty') {
+    els.collections.replaceChildren(createEmptyState('No collections indexed yet.', { href: '#/index', label: 'Index a folder' }));
+    renderCollectionsBanner(els.collectionsBanner, null);
+    live.announce('No collections indexed yet.');
+    return;
+  }
+
+  // ready, non-empty. Rebuilding the table is keyed off the `collections`
+  // array's own identity, not just phase/kind — a status-store tick that
+  // leaves the classification at 'ready' with the SAME already-fetched data
+  // (e.g. a routine health/generation poll while nothing about the list
+  // itself changed) must only refresh the banner, never tear down and
+  // recreate the whole table (which would drop focus/hover state and
+  // re-register delegated listeners for no reason). A genuinely new fetch
+  // (initial load, Retry, a later poll tick) always hands in a fresh array
+  // from JSON.parse, so real data changes still rebuild.
+  if (els.lastRenderedCollections !== state.collections) {
+    els.collections.replaceChildren(createCollectionsTable(state.collections));
+    els.lastRenderedCollections = state.collections;
+  }
+  renderCollectionsBanner(els.collectionsBanner, result.banners);
+  const count = state.collections.length;
+  // Deterministic from state alone (no timestamps/object identity) so the
+  // shared live-region primitive's own de-dupe (identical consecutive
+  // message -> no-op, see shared/ui/live-region.js) actually holds across
+  // unrelated status-store ticks that change nothing this panel cares about.
+  const suffix = result.banners.length ? ` ${result.banners.map((b) => b.message).join(' ')}` : '';
+  live.announce(`Loaded ${count} ${count === 1 ? 'collection' : 'collections'}.${suffix}`);
+}
+
+function renderCollectionsBanner(bannerEl, banners) {
+  bannerEl.replaceChildren();
+  if (!banners || !banners.length) {
+    bannerEl.hidden = true;
+    return;
+  }
+  bannerEl.hidden = false;
+  for (const b of banners) {
+    const row = document.createElement('div');
+    row.className = 'ov-banner-row';
+    row.appendChild(createStatusBadge('warn', b.message));
+    const a = document.createElement('a');
+    a.href = b.href;
+    a.textContent = 'Open settings';
+    row.appendChild(a);
+    bannerEl.appendChild(row);
+  }
+}
+
+// A confirmed-down storage backend gets its own explicit panel — never the
+// plain empty state (which would read as "zero collections exist, index
+// one"), and never the plain error state (this isn't our own request
+// failing; it's a known cause). Built with the same shared-primitive visual
+// language (state-box/state-partial) as shared/ui/states.js's own
+// createPartialState(), plus a Retry action since the operator's next step
+// really is "try again once storage is back."
+function createUnavailableState(retry) {
+  const el = document.createElement('div');
+  el.className = 'state-box state-partial';
+  el.setAttribute('role', 'status');
+  const p = document.createElement('p');
+  p.className = 'state-message';
+  p.textContent = 'Storage is unreachable. Collections cannot be listed until it recovers.';
+  el.appendChild(p);
+  if (retry) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn-ghost state-retry';
+    btn.textContent = 'Retry';
+    btn.addEventListener('click', retry);
+    el.appendChild(btn);
+  }
+  return el;
+}
+
+// ── collections table ───────────────────────────────────────────────────
+
+function schemaTone(vectorSchema) {
+  return SCHEMA_TONE[vectorSchema] ?? 'unknown';
+}
+
+function profileTone(embeddingProfileState) {
+  return PROFILE_TONE[embeddingProfileState] ?? 'unknown';
+}
+
+function providerText(provider) {
+  const parts = [provider.denseProvider, provider.denseModel].filter(Boolean);
+  return parts.length ? parts.join(' · ') : '—';
+}
+
+function createCollectionsTable(collections) {
+  return createDataTable({
     columns: [
       { label: 'name', mono: true, key: 'name' },
       { label: 'points', numeric: true, render: (c) => Number(c.pointCount ?? 0).toLocaleString('en-US') },
-      { label: 'schema', render: (c) => createStatusBadge(schemaTone(c.vectorSchema), c.vectorSchema) },
+      { label: 'vector schema', render: (c) => createStatusBadge(schemaTone(c.vectorSchema), c.vectorSchema) },
+      { label: 'embedding profile', render: (c) => createStatusBadge(profileTone(c.embeddingProfileState), c.embeddingProfileState) },
+      { label: 'dense provider / model', mono: true, render: (c) => providerText(c.provider) },
     ],
     rows: collections,
     getRowKey: (c) => c.name,
     onActivateRow: (name) => { location.hash = `#/c/${encodeURIComponent(name)}`; },
   });
-  host.replaceChildren(table);
-}
-
-function renderCollectionsError(host, err, retry) {
-  host.replaceChildren(createErrorState(err, { retry }));
 }

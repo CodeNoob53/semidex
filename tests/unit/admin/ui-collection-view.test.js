@@ -1,6 +1,13 @@
-// Tests for src/admin/ui-src/collection-view.js (renderOverview,
-// renderCollection, renderCollectionHeader) and general regression guards
-// that the old flat technical panels stay removed.
+// Tests for src/admin/ui-src/collection-view.js (renderCollection,
+// renderCollectionHeader) and general regression guards that the old flat
+// technical panels stay removed. collection-view.js now only renders the
+// #/c/:name/f/... and #/c/:name/n/... sub-routes (the bare #/c/:name route
+// is features/collection-home/view.js, see ui-collection-home-view.test.js)
+// — every hash below opens a file so these tests keep exercising the real,
+// still-reachable renderCollection()/renderCollectionHeader() code path;
+// the opened file itself has no stub response and is irrelevant to what
+// these tests assert on (#col-header), so it simply renders a swallowed
+// error into #collection-content, same as any other unstubbed endpoint.
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { readUiSource, loadRouteIntegrationHelpers, withServer } from './ui-test-helpers.js';
@@ -13,7 +20,7 @@ describe('collection header — top line (always visible)', () => {
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
       const helpers = loadRouteIntegrationHelpers(html, {
-        hash: '#/c/my-docs',
+        hash: '#/c/my-docs/f/probe.md',
         apiResponses: {
           '/api/collections/my-docs': { collection: { pointCount: 42, warnings: [] } },
           '/api/collections?': { collections: [] },
@@ -39,7 +46,7 @@ describe('collection header — top line (always visible)', () => {
       const html = await (await fetch(base + '/')).text();
       const longName = 'НадзвичайноДовгаНазваКолекціїБезПробілівЯкаМожеЗламатиМакетГоловноїСторінки';
       const helpers = loadRouteIntegrationHelpers(html, {
-        hash: `#/c/${encodeURIComponent(longName)}`,
+        hash: `#/c/${encodeURIComponent(longName)}/f/probe.md`,
         apiResponses: {
           [`/api/collections/${encodeURIComponent(longName)}`]: { collection: { pointCount: 1, warnings: [] } },
           '/api/collections?': { collections: [] },
@@ -65,7 +72,7 @@ describe('collection header — top line (always visible)', () => {
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
       const helpers = loadRouteIntegrationHelpers(html, {
-        hash: '#/c/my-docs',
+        hash: '#/c/my-docs/f/probe.md',
         apiResponses: {
           '/api/collections/my-docs': { collection: { pointCount: 1, warnings: ['legacy flat vector schema'] } },
           '/api/collections?': { collections: [] },
@@ -88,7 +95,7 @@ describe('collection header — top line (always visible)', () => {
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
       const helpers = loadRouteIntegrationHelpers(html, {
-        hash: '#/c/my-docs',
+        hash: '#/c/my-docs/f/probe.md',
         apiResponses: {
           '/api/collections/my-docs': { collection: { pointCount: 1, warnings: [] } },
           '/api/collections?': { collections: [] },
@@ -106,7 +113,7 @@ describe('collection header — summary block (Phase 3G: skeleton overview > con
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
       const helpers = loadRouteIntegrationHelpers(html, {
-        hash: '#/c/my-docs',
+        hash: '#/c/my-docs/f/probe.md',
         apiResponses: {
           '/api/collections/my-docs': {
             collection: { pointCount: 1, warnings: [], overviewSummary: 'A library of internal API reference docs.', description: 'stale config text' },
@@ -126,7 +133,7 @@ describe('collection header — summary block (Phase 3G: skeleton overview > con
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
       const helpers = loadRouteIntegrationHelpers(html, {
-        hash: '#/c/my-docs',
+        hash: '#/c/my-docs/f/probe.md',
         apiResponses: {
           '/api/collections/my-docs': { collection: { pointCount: 1, warnings: [], overviewSummary: null, description: 'Internal API reference docs' } },
           '/api/collections?': { collections: [] },
@@ -143,7 +150,7 @@ describe('collection header — summary block (Phase 3G: skeleton overview > con
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
       const helpers = loadRouteIntegrationHelpers(html, {
-        hash: '#/c/my-docs',
+        hash: '#/c/my-docs/f/probe.md',
         apiResponses: {
           '/api/collections/my-docs': { collection: { pointCount: 1, warnings: [], overviewSummary: null, description: null } },
           '/api/collections?': { collections: [] },
@@ -163,7 +170,7 @@ describe('collection header — compact fact chips (Phase 3G: semidex vocabulary
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
       const helpers = loadRouteIntegrationHelpers(html, {
-        hash: '#/c/my-docs',
+        hash: '#/c/my-docs/f/probe.md',
         apiResponses: {
           '/api/collections/my-docs': { collection: { pointCount: 0, chunkCount: 0, warnings: [] } },
           '/api/collections?': { collections: [] },
@@ -180,7 +187,7 @@ describe('collection header — compact fact chips (Phase 3G: semidex vocabulary
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
       const helpers = loadRouteIntegrationHelpers(html, {
-        hash: '#/c/my-docs',
+        hash: '#/c/my-docs/f/probe.md',
         apiResponses: {
           // A collection with skeleton nav on: pointCount (raw Qdrant total)
           // includes nav points, chunkCount (server-side nav-excluded count)
@@ -201,7 +208,7 @@ describe('collection header — compact fact chips (Phase 3G: semidex vocabulary
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
       const helpers = loadRouteIntegrationHelpers(html, {
-        hash: '#/c/my-docs',
+        hash: '#/c/my-docs/f/probe.md',
         apiResponses: {
           '/api/collections/my-docs': {
             collection: {
@@ -225,7 +232,7 @@ describe('collection header — compact fact chips (Phase 3G: semidex vocabulary
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
       const helpers = loadRouteIntegrationHelpers(html, {
-        hash: '#/c/my-docs',
+        hash: '#/c/my-docs/f/probe.md',
         apiResponses: {
           '/api/collections/my-docs': {
             collection: {
@@ -248,7 +255,7 @@ describe('collection header — compact fact chips (Phase 3G: semidex vocabulary
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
       const helpers = loadRouteIntegrationHelpers(html, {
-        hash: '#/c/my-docs',
+        hash: '#/c/my-docs/f/probe.md',
         apiResponses: {
           '/api/collections/my-docs': {
             collection: {
@@ -272,7 +279,7 @@ describe('collection header — compact fact chips (Phase 3G: semidex vocabulary
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
       const helpers = loadRouteIntegrationHelpers(html, {
-        hash: '#/c/my-docs',
+        hash: '#/c/my-docs/f/probe.md',
         apiResponses: {
           '/api/collections/my-docs': { collection: { pointCount: 1, chunkCount: 1, warnings: [], hasSkeleton: true } },
           '/api/collections?': { collections: [] },
@@ -288,7 +295,7 @@ describe('collection header — compact fact chips (Phase 3G: semidex vocabulary
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
       const helpers = loadRouteIntegrationHelpers(html, {
-        hash: '#/c/my-docs',
+        hash: '#/c/my-docs/f/probe.md',
         apiResponses: {
           // Deliberately sparse — no description, no provider, no vectorSchema.
           '/api/collections/my-docs': { collection: { pointCount: 0, warnings: [] } },
@@ -312,7 +319,7 @@ describe('collection header — compact fact chips (Phase 3G: semidex vocabulary
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
       const helpers = loadRouteIntegrationHelpers(html, {
-        hash: '#/c/my-docs',
+        hash: '#/c/my-docs/f/probe.md',
         apiResponses: {
           '/api/collections/my-docs': { collection: {} },
           '/api/collections?': { collections: [] },
@@ -332,7 +339,7 @@ describe('collection header — Details disclosure (collapsed, technical facts o
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
       const helpers = loadRouteIntegrationHelpers(html, {
-        hash: '#/c/my-docs',
+        hash: '#/c/my-docs/f/probe.md',
         apiResponses: {
           '/api/collections/my-docs': { collection: { pointCount: 1, warnings: [] } },
           '/api/collections?': { collections: [] },
@@ -349,7 +356,7 @@ describe('collection header — Details disclosure (collapsed, technical facts o
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
       const helpers = loadRouteIntegrationHelpers(html, {
-        hash: '#/c/my-docs',
+        hash: '#/c/my-docs/f/probe.md',
         apiResponses: {
           '/api/collections/my-docs': {
             collection: {
@@ -387,7 +394,7 @@ describe('collection header — Details disclosure (collapsed, technical facts o
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
       const helpers = loadRouteIntegrationHelpers(html, {
-        hash: '#/c/my-docs',
+        hash: '#/c/my-docs/f/probe.md',
         apiResponses: {
           '/api/collections/my-docs': {
             collection: {
@@ -420,7 +427,7 @@ describe('collection header — Details disclosure (Phase 3Q: grouped sub-sectio
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
       const helpers = loadRouteIntegrationHelpers(html, {
-        hash: '#/c/my-docs',
+        hash: '#/c/my-docs/f/probe.md',
         apiResponses: {
           '/api/collections/my-docs': {
             collection: {
@@ -455,7 +462,7 @@ describe('collection header — Details disclosure (Phase 3Q: grouped sub-sectio
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
       const helpers = loadRouteIntegrationHelpers(html, {
-        hash: '#/c/my-docs',
+        hash: '#/c/my-docs/f/probe.md',
         apiResponses: {
           '/api/collections/my-docs': {
             collection: { pointCount: 1, warnings: [], overviewSummary: 'A library of internal API reference docs.' },
@@ -477,7 +484,7 @@ describe('collection header — Details disclosure (Phase 3Q: grouped sub-sectio
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
       const helpers = loadRouteIntegrationHelpers(html, {
-        hash: '#/c/my-docs',
+        hash: '#/c/my-docs/f/probe.md',
         apiResponses: {
           '/api/collections/my-docs': { collection: { pointCount: 1, warnings: [], overviewSummary: null, description: null } },
           '/api/collections?': { collections: [] },
@@ -496,7 +503,7 @@ describe('collection header — Details disclosure (Phase 3Q: grouped sub-sectio
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
       const helpers = loadRouteIntegrationHelpers(html, {
-        hash: '#/c/my-docs',
+        hash: '#/c/my-docs/f/probe.md',
         apiResponses: {
           '/api/collections/my-docs': { collection: { pointCount: 1, warnings: [], overviewSummary: 'A summary.' } },
           '/api/collections?': { collections: [] },
@@ -516,7 +523,7 @@ describe('collection header — Phase 3I: name and summary are escaped, never pa
       const html = await (await fetch(base + '/')).text();
       const malicious = '<img src=x onerror="window.__pwned=true">';
       const helpers = loadRouteIntegrationHelpers(html, {
-        hash: `#/c/${encodeURIComponent(malicious)}`,
+        hash: `#/c/${encodeURIComponent(malicious)}/f/probe.md`,
         apiResponses: {
           [`/api/collections/${encodeURIComponent(malicious)}`]: { collection: { pointCount: 1, warnings: [] } },
           '/api/collections?': { collections: [] },
@@ -535,7 +542,7 @@ describe('collection header — Phase 3I: name and summary are escaped, never pa
       const html = await (await fetch(base + '/')).text();
       const malicious = '<img src=x onerror="window.__pwned=true">';
       const helpers = loadRouteIntegrationHelpers(html, {
-        hash: '#/c/my-docs',
+        hash: '#/c/my-docs/f/probe.md',
         apiResponses: {
           '/api/collections/my-docs': { collection: { pointCount: 1, warnings: [], overviewSummary: malicious } },
           '/api/collections?': { collections: [] },
@@ -555,7 +562,7 @@ describe('collection header — Phase 3G library-overview acceptance checks', ()
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
       const helpers = loadRouteIntegrationHelpers(html, {
-        hash: '#/c/my-docs',
+        hash: '#/c/my-docs/f/probe.md',
         apiResponses: {
           '/api/collections/my-docs': {
             collection: {
@@ -581,7 +588,7 @@ describe('collection header — Phase 3G library-overview acceptance checks', ()
       const html = await (await fetch(base + '/')).text();
       const name = 'Курсова робота';
       const helpers = loadRouteIntegrationHelpers(html, {
-        hash: `#/c/${encodeURIComponent(name)}`,
+        hash: `#/c/${encodeURIComponent(name)}/f/probe.md`,
         apiResponses: {
           [`/api/collections/${encodeURIComponent(name)}`]: {
             collection: { pointCount: 296, warnings: [], overviewSummary: 'Матеріали курсової роботи.' },
@@ -601,7 +608,7 @@ describe('collection header — Phase 3G library-overview acceptance checks', ()
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
       const helpers = loadRouteIntegrationHelpers(html, {
-        hash: '#/c/docs-a',
+        hash: '#/c/docs-a/f/probe.md',
         apiResponses: {
           '/api/collections/docs-a': { collection: { pointCount: 10, chunkCount: 10, warnings: [], overviewSummary: 'Docs A summary.' } },
           '/api/collections/docs-b': { collection: { pointCount: 20, chunkCount: 20, warnings: [], overviewSummary: 'Docs B summary.' } },
@@ -611,7 +618,7 @@ describe('collection header — Phase 3G library-overview acceptance checks', ()
       await helpers.route();
       assert.match(helpers.document.querySelector('#col-header .col-header-desc').textContent, /Docs A summary\./);
 
-      helpers.location.hash = '#/c/docs-b';
+      helpers.location.hash = '#/c/docs-b/f/probe.md';
       await helpers.route();
       const desc = helpers.document.querySelector('#col-header .col-header-desc').textContent;
       assert.match(desc, /Docs B summary\./);
@@ -626,7 +633,7 @@ describe('collection header — search-availability chip (Part F/G)', () => {
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
       const helpers = loadRouteIntegrationHelpers(html, {
-        hash: '#/c/my-docs',
+        hash: '#/c/my-docs/f/probe.md',
         apiResponses: {
           '/api/collections/my-docs': {
             collection: { pointCount: 1, chunkCount: 1, warnings: [], availability: { status: 'available', aggregate: { hybridSearchAvailable: true, searchAttemptable: true, browsingAvailable: true } } },
@@ -644,7 +651,7 @@ describe('collection header — search-availability chip (Part F/G)', () => {
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
       const helpers = loadRouteIntegrationHelpers(html, {
-        hash: '#/c/my-docs',
+        hash: '#/c/my-docs/f/probe.md',
         apiResponses: {
           '/api/collections/my-docs': {
             collection: {
@@ -669,7 +676,7 @@ describe('collection header — search-availability chip (Part F/G)', () => {
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
       const helpers = loadRouteIntegrationHelpers(html, {
-        hash: '#/c/my-docs',
+        hash: '#/c/my-docs/f/probe.md',
         apiResponses: {
           '/api/collections/my-docs': {
             collection: { pointCount: 1, chunkCount: 1, warnings: [], availability: { status: 'runtime_unverified', aggregate: { hybridSearchAvailable: false, searchAttemptable: true, browsingAvailable: true } } },
@@ -688,7 +695,7 @@ describe('collection header — search-availability chip (Part F/G)', () => {
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
       const helpers = loadRouteIntegrationHelpers(html, {
-        hash: '#/c/my-docs',
+        hash: '#/c/my-docs/f/probe.md',
         apiResponses: {
           '/api/collections/my-docs': {
             collection: { pointCount: 1, chunkCount: 1, warnings: [], availability: { status: 'download_required', aggregate: { hybridSearchAvailable: false, searchAttemptable: true, browsingAvailable: true } } },
@@ -707,7 +714,7 @@ describe('collection header — search-availability chip (Part F/G)', () => {
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
       const helpers = loadRouteIntegrationHelpers(html, {
-        hash: '#/c/my-docs',
+        hash: '#/c/my-docs/f/probe.md',
         apiResponses: {
           '/api/collections/my-docs': { collection: { pointCount: 1, chunkCount: 1, warnings: [] } },
           '/api/collections?': { collections: [] },
@@ -755,7 +762,7 @@ describe('search panel stays present and default-simple alongside the redesigned
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
       const helpers = loadRouteIntegrationHelpers(html, {
-        hash: '#/c/my-docs',
+        hash: '#/c/my-docs/f/probe.md',
         apiResponses: {
           '/api/collections/my-docs': { collection: { pointCount: 1, warnings: [] } },
           '/api/collections?': { collections: [] },

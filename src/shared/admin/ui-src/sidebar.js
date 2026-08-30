@@ -355,15 +355,14 @@ export function markActive(route = currentRoute()) {
   }
   $('#nav-index')?.classList.toggle('active', route.view === 'index');
   // S2A shell-level navigation (design plan §4.1/§4.2): distinct from the
-  // topbar brand link (#nav-home, always "#/") — these are the sidebar's
-  // own Overview/Collections entries, kept in sync the same way every other
-  // nav row already is. aria-current="page" is set/removed alongside the
-  // .active class (not just the class alone) so assistive tech gets the
-  // same "this is where you are" signal a sighted user gets from the
-  // active row's background/border/weight — and is explicitly removed
-  // (not merely left stale) on every inactive link.
+  // topbar brand link (#nav-home, always "#/") — this is the sidebar's own
+  // Overview entry, kept in sync the same way every other nav row already
+  // is. aria-current="page" is set/removed alongside the .active class (not
+  // just the class alone) so assistive tech gets the same "this is where
+  // you are" signal a sighted user gets from the active row's background/
+  // border/weight — and is explicitly removed (not merely left stale) on
+  // every inactive link.
   setShellNavActive($('#nav-overview'), route.view === 'overview');
-  setShellNavActive($('#nav-collections'), route.view === 'collections');
   // Phase 4A.5b: topbar gear link -> #/settings (global runtime settings) —
   // lives outside the sidebar tree but shares this same active-state pass
   // since router.js already calls markActive() on every navigation. Now

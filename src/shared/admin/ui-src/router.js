@@ -1,22 +1,22 @@
 // ── router ────────────────────────────────────────────────────────────────
 import { $, errorBox } from './dom.js';
 import { api } from './api.js';
-import { openFileView, openSectionView, hideCollectionContent } from './file-view.js';
+import { openFileView, openSectionView } from './file-view.js';
 import { markActive, syncSidebarMode } from './sidebar.js';
 import { renderCollection } from './collection-view.js';
 import { renderSettingsView } from './settings-view.js';
 import { renderGlobalSettingsView, invalidateGlobalSettingsRender } from './global-settings-view.js';
 import { renderIndexingView } from './jobs-view.js';
-import { applySearchStateFromUrl, syncSearchStateFromUrl } from './search.js';
+import { applySearchStateFromUrl } from './search.js';
 import { currentRoute } from './routes.js';
 import { mount as mountOverview } from './features/overview/view.js';
-import { mount as mountCollections } from './features/collections/view.js';
+import { mount as mountCollectionHome } from './features/collection-home/view.js';
 
 export { currentRoute };
 
 // The currently-mounted v2 view controller (design plan §8.4), if any —
-// Overview and the Collections directory are the v2 lifecycle views in this
-// slice. Tracked here (not inside collection-view.js/settings-view.js,
+// Overview and the bare-route Collection Home are the v2 lifecycle views in
+// this slice. Tracked here (not inside collection-view.js/settings-view.js,
 // which are still the old, non-disposable style) so route() can dispose it
 // before mounting whatever comes next, regardless of which branch below
 // actually runs.
@@ -64,6 +64,12 @@ export async function route() {
   if (r.view === 'settings') await renderSettingsView(main, r.name);
   else if (r.view === 'global-settings') await renderGlobalSettingsView(main, r.category);
   else if (r.view === 'collection') {
+    // File/section sub-routes only now (routes.js) — the bare route is
+    // 'collection-home' below. renderCollection() still owns these because
+    // it also renders #col-header for them; the shared collectionShell
+    // reset it performs on a genuine collection switch is unaffected by
+    // whichever controller rendered the PREVIOUS route, since disposeCurrentView()
+    // above already tore down any v2 controller before this branch runs.
     await renderCollection(main, r.name);
     if (r.openFile) {
       await openFileView(r.name, r.openFile);
@@ -76,29 +82,9 @@ export async function route() {
     } else if (r.openNodePath) {
       await openNodeFromPath(r.name, r.openNodePath);
       applySearchStateFromUrl(r.name);
-    } else {
-      // Bare collection route: no open file/section to protect, so a
-      // genuinely new "?q=..." should actually run the search.
-      // syncSearchStateFromUrl no-ops if the URL's search params haven't
-      // changed since search.js last saw them, so this is safe on every
-      // bare-collection navigation, not just the first mount.
-      //
-      // But syncSearchStateFromUrl() only clears the file/section view as a
-      // side effect of actually running a search (runSearch() calls
-      // hideCollectionContent()) — it never runs one when the URL has no
-      // "?q=" at all. Without this, navigating back (browser Back, or a
-      // sidebar click to the bare collection) from an open file/section to
-      // a query-less bare collection route left the previous file/section
-      // content on screen indefinitely, since renderCollection() itself
-      // deliberately skips resetting #collection-content while staying on
-      // the same collection (to avoid wiping an in-progress search on every
-      // file/section click). Explicitly clear it here for the one case
-      // syncSearchStateFromUrl doesn't cover.
-      if (!currentRoute().search?.q) hideCollectionContent();
-      syncSearchStateFromUrl(r.name);
     }
-  } else if (r.view === 'index') await renderIndexingView(main);
-  else if (r.view === 'collections') currentView = mountCollections(main, {});
+  } else if (r.view === 'collection-home') currentView = mountCollectionHome(main, { name: r.name });
+  else if (r.view === 'index') await renderIndexingView(main);
   else currentView = mountOverview(main, {});
   // Re-run after the branch above resolves: the sidebar's skeleton-tree/
   // file-list rows for the target collection render asynchronously

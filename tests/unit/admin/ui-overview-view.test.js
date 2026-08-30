@@ -24,6 +24,30 @@ const GEN_READY = { backend: 'ollama', model: 'qwen2.5', ready: true, reason: nu
 const GEN_NOT_READY = { backend: 'ollama', model: null, ready: false, reason: 'Ollama is not reachable', numCtx: null, capabilities: {}, devicePolicy: { value: 'auto', supported: ['auto'] }, configuration: null };
 const CAPS_OK = { backend: 'qdrant', capabilities: { namedVectors: true, aliases: false } };
 
+// A fresh Response per call — a `fetch` Response body can only be read
+// once, and this shape is spread into a brand-new stub map in every `it()`
+// below, so each test needs its own unconsumed instances.
+function baseStubs() {
+  return {
+    '/api/health': jsonResponse(200, HEALTH_OK),
+    '/api/generation/status': jsonResponse(200, GEN_READY),
+    '/api/capabilities': jsonResponse(200, CAPS_OK),
+    '/api/operations': jsonResponse(200, { operations: [] }),
+  };
+}
+
+function collection(overrides = {}) {
+  return {
+    name: 'my-docs',
+    pointCount: 12,
+    vectorSchema: 'named',
+    provider: { denseProvider: 'ollama', denseModel: 'bge-m3', sparseProvider: null },
+    embeddingProfileState: 'valid',
+    description: null,
+    ...overrides,
+  };
+}
+
 function jsonResponse(status, body) {
   return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 }
@@ -416,5 +440,272 @@ describe('Overview v2 — leak soak (mount/dispose ×20)', () => {
     }
     assert.equal(signals.length, 5);
     assert.ok(signals.every((s) => s.aborted), 'every mount cycle\'s collections request must be aborted by its own dispose()');
+  });
+});
+
+// ── S2B: the removed features/collections/view.js's Collections-directory
+// test suite, migrated here — Overview's own Collections panel now owns
+// this exact state machine (name/points/vector schema/embedding profile/
+// dense provider-model columns, delegated row activation, the "Index a
+// folder" action, and the full loading/ready/empty/error/
+// known-storage-down-unavailable/partial-degraded state set). ────────────
+describe('Overview v2 — Collections panel: richer table (name/points/vector schema/embedding profile/provider)', () => {
+  it('renders a table with all 5 columns, and shows "—" for a collection with no dense provider/model', async () => {
+    const host = makeHost();
+    globalThis.fetch = routedFetch({
+      ...baseStubs(),
+      '/api/collections': jsonResponse(200, { collections: [
+        collection(),
+        collection({ name: 'no-provider', provider: { denseProvider: null, denseModel: null, sparseProvider: null } }),
+      ] }),
+    });
+    const { dispose } = mountOverview(host);
+    await settle(6);
+
+    const table = host.querySelector('#ov-collections table.data');
+    assert.ok(table, 'a collections table must render once data resolves');
+    assert.match(table.textContent, /my-docs/);
+    assert.match(table.textContent, /named/);
+    assert.match(table.textContent, /valid/);
+    assert.match(table.textContent, /ollama/);
+    assert.match(table.textContent, /bge-m3/);
+    assert.match(table.textContent, /—/, 'a collection with no dense provider/model must render an em-dash placeholder');
+    const headers = [...table.querySelectorAll('th')].map((th) => th.textContent);
+    assert.ok(headers.some((h) => /name/i.test(h)));
+    assert.ok(headers.some((h) => /points/i.test(h)));
+    assert.ok(headers.some((h) => /vector schema/i.test(h)));
+    assert.ok(headers.some((h) => /embedding profile/i.test(h)));
+    assert.ok(headers.some((h) => /provider/i.test(h)));
+    dispose();
+  });
+
+  it('always renders the "Index a folder" primary panel action (.btn-amber), not only in the empty state', async () => {
+    const host = makeHost();
+    globalThis.fetch = routedFetch({
+      ...baseStubs(),
+      '/api/collections': jsonResponse(200, { collections: [collection()] }),
+    });
+    const { dispose } = mountOverview(host);
+    await settle(6);
+    const cta = host.querySelector('#ov-index-cta');
+    assert.ok(cta);
+    assert.equal(cta.getAttribute('href'), '#/index');
+    assert.ok(cta.classList.contains('btn-amber'), 'the primary panel action must use .btn-amber, the same treatment as Search submit / Settings Save');
+    dispose();
+  });
+
+  it('renders a hostile provider/model string as inert text, never markup', async () => {
+    const host = makeHost();
+    const malicious = '<script>window.__pwned=true</script>';
+    globalThis.fetch = routedFetch({
+      ...baseStubs(),
+      '/api/collections': jsonResponse(200, { collections: [collection({ provider: { denseProvider: malicious, denseModel: null, sparseProvider: null } })] }),
+    });
+    const { dispose } = mountOverview(host);
+    await settle(6);
+    assert.equal(host.querySelectorAll('script').length, 0);
+    assert.match(host.querySelector('#ov-collections').textContent, /<script>/);
+    dispose();
+  });
+
+  it('renders a long, unbroken Cyrillic collection name fully (no truncation) and routes correctly on activation', async () => {
+    const host = makeHost();
+    const name = 'Основи-Node.js-та-асинхронного-програмування-повний-курс-для-початківців-2026';
+    globalThis.fetch = routedFetch({
+      ...baseStubs(),
+      '/api/collections': jsonResponse(200, { collections: [collection({ name })] }),
+    });
+    const { dispose } = mountOverview(host);
+    await settle(6);
+    const cell = [...host.querySelectorAll('#ov-collections td.mono')].find((td) => td.textContent === name);
+    assert.ok(cell, 'the full Cyrillic name must be present in the DOM, not truncated');
+
+    const row = cell.closest('tr[data-row-key]');
+    row.dispatchEvent(new Event('click', { bubbles: true }));
+    assert.equal(location.hash, `#/c/${encodeURIComponent(name)}`);
+    dispose();
+  });
+
+  it('registers exactly the click+keydown listeners once on the table body, not scaling with row count, and activates via Enter/Space/click', async () => {
+    const host = makeHost();
+    const many = Array.from({ length: 15 }, (_, i) => collection({ name: `c${i}` }));
+    globalThis.fetch = routedFetch({
+      ...baseStubs(),
+      '/api/collections': jsonResponse(200, { collections: many }),
+    });
+    const elementProto = Object.getPrototypeOf(document.createElement('div'));
+    const original = elementProto.addEventListener;
+    let calls = 0;
+    elementProto.addEventListener = function patched(...args) {
+      if (this.tagName === 'TBODY') calls++;
+      return original.apply(this, args);
+    };
+    let dispose;
+    try {
+      ({ dispose } = mountOverview(host));
+      await settle(6);
+    } finally {
+      elementProto.addEventListener = original;
+    }
+    assert.equal(calls, 2, `expected exactly 2 delegated listeners regardless of the 15 rows, got ${calls}`);
+    const rows = host.querySelectorAll('#ov-collections tr[data-row-key]');
+    assert.equal(rows.length, 15);
+
+    rows[0].dispatchEvent(new Event('click', { bubbles: true, cancelable: true }));
+    assert.equal(location.hash, `#/c/${encodeURIComponent('c0')}`);
+
+    location.hash = '#/';
+    const enterEvent = new Event('keydown', { bubbles: true, cancelable: true });
+    enterEvent.key = 'Enter';
+    rows[1].dispatchEvent(enterEvent);
+    assert.equal(location.hash, `#/c/${encodeURIComponent('c1')}`);
+
+    location.hash = '#/';
+    const spaceEvent = new Event('keydown', { bubbles: true, cancelable: true });
+    spaceEvent.key = ' ';
+    rows[2].dispatchEvent(spaceEvent);
+    assert.equal(location.hash, `#/c/${encodeURIComponent('c2')}`);
+    dispose();
+  });
+});
+
+describe('Overview v2 — Collections panel: degraded/unavailable (storage known down)', () => {
+  it('renders an explicit "storage unavailable" panel, not the empty state, when storage is down and the list is empty', async () => {
+    const host = makeHost();
+    globalThis.fetch = routedFetch({
+      '/api/health': jsonResponse(200, HEALTH_FAIL),
+      '/api/generation/status': jsonResponse(200, GEN_READY),
+      '/api/capabilities': jsonResponse(200, CAPS_OK),
+      '/api/operations': jsonResponse(200, { operations: [] }),
+      '/api/collections': jsonResponse(200, { collections: [] }),
+    });
+    const { dispose } = mountOverview(host);
+    await settle(6);
+    // assert.ok(... === null), not assert.equal(..., null) — assert.equal's
+    // failure diff calls util.inspect() on the actual value, and a linkedom
+    // DOM node's circular parent/document references can balloon memory
+    // catastrophically if this ever does fail (confirmed in
+    // ui-collection-home-view.test.js's own equivalent regression).
+    assert.ok(host.querySelector('#ov-collections .state-empty') === null, 'must never present a known-down storage backend as "zero collections"');
+    const unavailable = host.querySelector('#ov-collections .state-partial');
+    assert.ok(unavailable);
+    assert.match(unavailable.textContent, /[Uu]nreachable/);
+    dispose();
+  });
+
+  it('renders the "storage unavailable" panel (not a raw fetch-error box) when storage is down and the collections fetch also fails', async () => {
+    const host = makeHost();
+    globalThis.fetch = routedFetch({
+      '/api/health': jsonResponse(200, HEALTH_FAIL),
+      '/api/generation/status': jsonResponse(200, GEN_READY),
+      '/api/capabilities': jsonResponse(200, CAPS_OK),
+      '/api/operations': jsonResponse(200, { operations: [] }),
+      '/api/collections': new TypeError('fetch failed'),
+    });
+    const { dispose } = mountOverview(host);
+    await settle(6);
+    assert.ok(host.querySelector('#ov-collections .state-error') === null);
+    assert.ok(host.querySelector('#ov-collections .state-partial'));
+    dispose();
+  });
+
+  it('still renders real, non-empty data with a banner when storage is reported down but the collections fetch actually succeeded', async () => {
+    const host = makeHost();
+    globalThis.fetch = routedFetch({
+      '/api/health': jsonResponse(200, HEALTH_FAIL),
+      '/api/generation/status': jsonResponse(200, GEN_READY),
+      '/api/capabilities': jsonResponse(200, CAPS_OK),
+      '/api/operations': jsonResponse(200, { operations: [] }),
+      '/api/collections': jsonResponse(200, { collections: [collection()] }),
+    });
+    const { dispose } = mountOverview(host);
+    await settle(6);
+    assert.ok(host.querySelector('#ov-collections table.data'), 'real data must not be discarded just because a separate health poll disagrees');
+    assert.equal(host.querySelector('#ov-collections-banner').hidden, false);
+    assert.match(host.querySelector('#ov-collections-banner').textContent, /[Uu]nreachable/);
+    dispose();
+  });
+});
+
+describe('Overview v2 — Collections panel: partial (status polling itself is failing)', () => {
+  it('renders the table plus a collections-panel banner naming Storage when the health check request failed', async () => {
+    const host = makeHost();
+    globalThis.fetch = routedFetch({
+      '/api/health': new TypeError('fetch failed'),
+      '/api/generation/status': jsonResponse(200, GEN_READY),
+      '/api/capabilities': jsonResponse(200, CAPS_OK),
+      '/api/operations': jsonResponse(200, { operations: [] }),
+      '/api/collections': jsonResponse(200, { collections: [collection()] }),
+    });
+    const { dispose } = mountOverview(host);
+    await settle(6);
+    assert.ok(host.querySelector('#ov-collections table.data'));
+    const banner = host.querySelector('#ov-collections-banner');
+    assert.equal(banner.hidden, false);
+    assert.match(banner.textContent, /status check/i);
+    assert.match(banner.textContent, /Storage/, 'a failed health poll must be named honestly as a storage problem');
+    dispose();
+  });
+
+  it('renders a collections-panel banner naming Generation when the generation-status poll fails, even though health succeeded', async () => {
+    const host = makeHost();
+    globalThis.fetch = routedFetch({
+      '/api/health': jsonResponse(200, HEALTH_OK),
+      '/api/generation/status': new TypeError('fetch failed'),
+      '/api/capabilities': jsonResponse(200, CAPS_OK),
+      '/api/operations': jsonResponse(200, { operations: [] }),
+      '/api/collections': jsonResponse(200, { collections: [collection()] }),
+    });
+    const { dispose } = mountOverview(host);
+    await settle(6);
+    const banner = host.querySelector('#ov-collections-banner');
+    assert.equal(banner.hidden, false);
+    assert.match(banner.textContent, /[Gg]eneration/, 'a failed generation-status poll must be named honestly, not attributed to storage');
+    assert.doesNotMatch(banner.textContent, /Storage status check/i, 'a generation-only failure must not be mislabeled as a storage problem');
+    dispose();
+  });
+
+  it('names both subsystems in the collections-panel banner when both the health and generation-status polls fail at once', async () => {
+    const host = makeHost();
+    globalThis.fetch = routedFetch({
+      '/api/health': new TypeError('fetch failed'),
+      '/api/generation/status': new TypeError('fetch failed'),
+      '/api/capabilities': jsonResponse(200, CAPS_OK),
+      '/api/operations': jsonResponse(200, { operations: [] }),
+      '/api/collections': jsonResponse(200, { collections: [collection()] }),
+    });
+    const { dispose } = mountOverview(host);
+    await settle(6);
+    const banner = host.querySelector('#ov-collections-banner');
+    assert.equal(banner.hidden, false);
+    assert.match(banner.textContent, /Storage/);
+    assert.match(banner.textContent, /[Gg]eneration/);
+    dispose();
+  });
+});
+
+describe('Overview v2 — Collections panel: retry issues exactly one owned request', () => {
+  it('clicking Retry once issues exactly one new /api/collections request, and its result replaces the error state', async () => {
+    const host = makeHost();
+    let collectionsCalls = 0;
+    globalThis.fetch = routedFetch({
+      ...baseStubs(),
+      '/api/collections': () => {
+        collectionsCalls += 1;
+        if (collectionsCalls === 1) return jsonResponse(200, { collections: 'not-an-array' });
+        return jsonResponse(200, { collections: [collection({ name: 'after-retry' })] });
+      },
+    });
+    const { dispose } = mountOverview(host);
+    await settle(6);
+    assert.equal(collectionsCalls, 1);
+    const retryBtn = host.querySelector('#ov-collections .state-error button.state-retry');
+    assert.ok(retryBtn);
+
+    retryBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    await settle(6);
+    assert.equal(collectionsCalls, 2, 'exactly one new request must be issued per Retry click');
+    assert.match(host.querySelector('#ov-collections').textContent, /after-retry/);
+    dispose();
   });
 });

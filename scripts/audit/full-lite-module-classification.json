@@ -14,7 +14,7 @@
     "mixed": 3,
     "tooling": 62,
     "cloud": 8,
-    "shared": 197,
+    "shared": 198,
     "local": 29
   },
   "modules": [
@@ -2187,21 +2187,22 @@
       "directDependencies": []
     },
     {
-      "path": "src/shared/admin/ui-src/features/collections/view.js",
+      "path": "src/shared/admin/ui-src/features/collection-home/view.js",
       "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
       "fullReachable": true,
       "liteReachable": true,
       "directDependencies": [
+        "src/shared/admin/ui-src/search.js",
         "src/shared/admin/ui-src/shared/api/client.js",
-        "src/shared/admin/ui-src/shared/api/contracts/collections.js",
+        "src/shared/admin/ui-src/shared/api/contracts/collection-detail.js",
         "src/shared/admin/ui-src/shared/lifecycle/view.js",
-        "src/shared/admin/ui-src/shared/status/store.js",
         "src/shared/admin/ui-src/shared/ui/live-region.js",
         "src/shared/admin/ui-src/shared/ui/states.js",
         "src/shared/admin/ui-src/shared/ui/status-badge.js",
-        "src/shared/admin/ui-src/shared/ui/table.js"
+        "src/shared/admin/ui-src/sidebar.js",
+        "src/shared/admin/ui-src/state.js"
       ]
     },
     {
@@ -2338,7 +2339,7 @@
         "src/shared/admin/ui-src/api.js",
         "src/shared/admin/ui-src/collection-view.js",
         "src/shared/admin/ui-src/dom.js",
-        "src/shared/admin/ui-src/features/collections/view.js",
+        "src/shared/admin/ui-src/features/collection-home/view.js",
         "src/shared/admin/ui-src/features/overview/view.js",
         "src/shared/admin/ui-src/file-view.js",
         "src/shared/admin/ui-src/global-settings-view.js",
@@ -2401,6 +2402,17 @@
     },
     {
       "path": "src/shared/admin/ui-src/shared/api/contracts/capabilities.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/shared/admin/ui-src/shared/api/client.js"
+      ]
+    },
+    {
+      "path": "src/shared/admin/ui-src/shared/api/contracts/collection-detail.js",
       "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,

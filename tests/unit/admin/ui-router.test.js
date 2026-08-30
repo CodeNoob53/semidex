@@ -4,9 +4,9 @@ import assert from 'node:assert/strict';
 import { loadRouterHelper, readUiSource, loadRouteIntegrationHelpers, withServer } from './ui-test-helpers.js';
 
 describe('router — currentRoute() (ui-src/router.js source, evaluated behavior)', () => {
-  it('parses collection home: #/c/:name', () => {
+  it('parses collection home: #/c/:name (S1-style v2 view, design plan §5.3)', () => {
     const { currentRoute } = loadRouterHelper();
-    assert.deepEqual(currentRoute('#/c/my-docs'), { view: 'collection', name: 'my-docs' });
+    assert.deepEqual(currentRoute('#/c/my-docs'), { view: 'collection-home', name: 'my-docs' });
   });
 
   it('parses file view: #/c/:name/f/:sourceFile, including an encoded slash in the path', () => {
@@ -44,40 +44,24 @@ describe('router — currentRoute() (ui-src/router.js source, evaluated behavior
   it('decodes a URI-encoded Cyrillic collection name', () => {
     const { currentRoute } = loadRouterHelper();
     const r = currentRoute(`#/c/${encodeURIComponent('Основи Node.js')}`);
-    assert.deepEqual(r, { view: 'collection', name: 'Основи Node.js' });
+    assert.deepEqual(r, { view: 'collection-home', name: 'Основи Node.js' });
   });
 
   it('no longer recognizes the old #/collections/:name scheme (falls through to overview)', () => {
     const { currentRoute } = loadRouterHelper();
     assert.deepEqual(currentRoute('#/collections/my-docs'), { view: 'overview' });
   });
-});
 
-// ── S2A: the collections directory route ────────────────────────────────
-describe('router — #/collections (design plan §4.2/§5.2, S2A)', () => {
-  it('parses the exact "#/collections" hash to the collections directory view', () => {
+  // The standalone #/collections directory route (S2A) was removed — its
+  // richer collections table moved into Overview's own Collections panel
+  // (see features/overview/view.js) — so "#/collections" itself now falls
+  // through to the final `return` below, same as any other unrecognized
+  // hash, consistent with the pre-existing fallback behavior above.
+  it('"#/collections" (exact, and any sub-path) falls through to overview — no standalone directory route', () => {
     const { currentRoute } = loadRouterHelper();
-    assert.deepEqual(currentRoute('#/collections'), { view: 'collections' });
-  });
-
-  it('does not match a sub-path — "#/collections/foo" still falls through to overview, not the directory', () => {
-    const { currentRoute } = loadRouterHelper();
+    assert.deepEqual(currentRoute('#/collections'), { view: 'overview' });
     assert.deepEqual(currentRoute('#/collections/foo'), { view: 'overview' });
-  });
-
-  it('does not match a trailing slash or query-only variant beyond the exact path', () => {
-    const { currentRoute } = loadRouterHelper();
     assert.deepEqual(currentRoute('#/collections/'), { view: 'overview' });
-  });
-
-  it('every pre-existing route still resolves exactly as before alongside the new #/collections route', () => {
-    const { currentRoute } = loadRouterHelper();
-    assert.deepEqual(currentRoute('#/'), { view: 'overview' });
-    assert.deepEqual(currentRoute('#/index'), { view: 'index' });
-    assert.deepEqual(currentRoute('#/c/my-docs'), { view: 'collection', name: 'my-docs' });
-    assert.deepEqual(currentRoute('#/c/my-docs/settings'), { view: 'settings', name: 'my-docs' });
-    assert.deepEqual(currentRoute('#/settings'), { view: 'global-settings', category: null });
-    assert.deepEqual(currentRoute('#/settings/storage'), { view: 'global-settings', category: 'storage' });
   });
 });
 
@@ -87,7 +71,7 @@ describe('currentRoute() — search permalink query string (?q=&top=&window=&for
     const { currentRoute } = loadRouterHelper();
     const r = currentRoute('#/c/my-docs?q=refund&top=5&window=1&format=full');
     assert.deepEqual(r, {
-      view: 'collection', name: 'my-docs',
+      view: 'collection-home', name: 'my-docs',
       search: { q: 'refund', top: 5, window: 1, format: 'full' },
     });
   });
@@ -104,7 +88,7 @@ describe('currentRoute() — search permalink query string (?q=&top=&window=&for
   it('the file-filter query param decodes into search.sourceFile, distinct from an open file path segment', () => {
     const { currentRoute } = loadRouterHelper();
     const r = currentRoute('#/c/my-docs?q=refund&file=other.md');
-    assert.deepEqual(r, { view: 'collection', name: 'my-docs', search: { q: 'refund', sourceFile: 'other.md' } });
+    assert.deepEqual(r, { view: 'collection-home', name: 'my-docs', search: { q: 'refund', sourceFile: 'other.md' } });
   });
 
   it('a route with no query string has no `search` key at all (not an empty object)', () => {
@@ -128,27 +112,33 @@ describe('currentRoute() — search permalink query string (?q=&top=&window=&for
 });
 
 // ── Phase 3B follow-up: search-state sync must not clobber file/section views ─
+// Collection Home migration note: the bare-collection "else" branch that
+// used to live here (calling syncSearchStateFromUrl()) moved into
+// features/collection-home/view.js's mount() — router.js's 'collection'
+// branch is now ONLY reachable for the f/n sub-routes. See
+// ui-collection-home-view.test.js's "search permalink" describe block for
+// the equivalent syncSearchStateFromUrl coverage on the new view.
 describe('route() search-state sync (applySearchStateFromUrl vs syncSearchStateFromUrl)', () => {
   it('applySearchStateFromUrl (form-only, never runs a search) is called for both openFile and openNodePath branches', () => {
     const js = readUiSource('router.js');
     const start = js.indexOf('else if (r.view === \'collection\')');
-    const end = js.indexOf('} else if (r.view === \'index\')');
+    const end = js.indexOf('} else if (r.view === \'collection-home\')');
     const branch = js.slice(start, end);
     assert.match(branch, /openFileView\(r\.name, r\.openFile\);[\s\S]{0,400}applySearchStateFromUrl\(r\.name\)/,
       'the openFile branch must call applySearchStateFromUrl (form sync only), not syncSearchStateFromUrl (which would re-run a search and hide the file view)');
     assert.match(branch, /openNodeFromPath\(r\.name, r\.openNodePath\);[\s\S]{0,400}applySearchStateFromUrl\(r\.name\)/,
       'the openNodePath branch must call applySearchStateFromUrl for the same reason');
+    assert.ok(!/syncSearchStateFromUrl/.test(branch),
+      'the f/n \'collection\' branch must never call syncSearchStateFromUrl (that would re-run a search and hide the file/section view)');
   });
 
-  it('syncSearchStateFromUrl (which can run a search) is reserved for the bare-collection else branch', () => {
+  it('the bare-route \'collection-home\' branch mounts the v2 controller, not the legacy renderCollection()', () => {
     const js = readUiSource('router.js');
-    const start = js.indexOf('else if (r.view === \'collection\')');
-    const end = js.indexOf('} else if (r.view === \'index\')');
+    const start = js.indexOf('} else if (r.view === \'collection-home\')');
+    const end = js.indexOf('else if (r.view === \'index\')');
     const branch = js.slice(start, end);
-    const elseBranch = branch.slice(branch.lastIndexOf('} else {'));
-    assert.match(elseBranch, /syncSearchStateFromUrl\(r\.name\)/);
-    assert.ok(!/openFileView|openNodeFromPath/.test(elseBranch),
-      'syncSearchStateFromUrl must only be reachable when neither openFile nor openNodePath is set');
+    assert.match(branch, /mountCollectionHome\(main, \{ name: r\.name \}\)/);
+    assert.ok(!/renderCollection\(/.test(branch), 'collection-home must not call the legacy renderCollection()');
   });
 });
 
@@ -198,111 +188,17 @@ describe('route() end-to-end: navigating straight to a file route with ?q= (firs
     });
   });
 
-  it('a bare collection route with ?q= DOES call /api/search (contrast case — sync is not disabled entirely)', async () => {
-    await withServer(async (base) => {
-      const html = await (await fetch(base + '/')).text();
-      const helpers = loadRouteIntegrationHelpers(html, {
-        hash: '#/c/my-docs?q=dogs',
-        apiResponses: {
-          '/api/collections/my-docs': { collection: { pointCount: 1, warnings: [] } },
-          '/api/collections?': { collections: [] },
-        },
-      });
-      await helpers.route();
-      assert.ok(helpers.__apiCalls.some(url => url.includes('/api/search')),
-        'a bare collection route with ?q= must still run the search — only file/section routes are protected');
-    });
-  });
-});
-
-// ── Phase 3D: browser-verified regressions ──────────────────────────────────
-describe('route() end-to-end: returning to a bare (query-less) collection route from an open section', () => {
-  it('clears the previously-open section/file content — does not leave stale chunks on screen', async () => {
-    // Regression, found via a real-browser Playwright pass: clicking a
-    // section, then browser Back to the bare "#/c/name" route (no "?q="),
-    // left the section's chunk cards on screen indefinitely. The bare-route
-    // branch in router.js only clears #collection-content as a side effect
-    // of syncSearchStateFromUrl() actually running a search — which it
-    // never does when there's no "?q=" at all — so that case was silently
-    // never handled.
-    await withServer(async (base) => {
-      const html = await (await fetch(base + '/')).text();
-      const helpers = loadRouteIntegrationHelpers(html, {
-        hash: '#/c/my-docs/n/readme.md%23intro',
-        apiResponses: {
-          // Order matters: the test helper's api() stub matches by substring
-          // in insertion order, so the more specific "/skeleton/..." and
-          // "/assembly" keys must come before the bare
-          // "/api/collections/my-docs" key (which would otherwise
-          // substring-match those URLs too and win first).
-          '/skeleton/node?': { node: { nodePath: 'readme.md#intro', nodeType: 'section', sourceFile: 'readme.md' } },
-          '/assembly?': {
-            collection: 'my-docs', scope: 'section', sourceFile: 'readme.md', nodePath: 'readme.md#intro',
-            assemblyMode: 'entity_refs', warnings: [],
-            segments: [{ kind: 'prose', chunkIndex: 0, nodeType: 'paragraph', text: 'hi' }],
-          },
-          '/api/collections/my-docs': { collection: { pointCount: 1, warnings: [] } },
-          '/api/collections?': { collections: [] },
-        },
-      });
-      await helpers.route();
-      assert.equal(helpers.document.querySelectorAll('.assembly-segment').length, 1,
-        'sanity: the section view opened with one assembled segment (Phase 3W Document reader)');
-
-      helpers.location.hash = '#/c/my-docs';
-      await helpers.route();
-      const panel = helpers.document.querySelector('#collection-content-panel');
-      assert.equal(panel?.style.display, 'none', 'the file/section content panel must be hidden on a bare-route return');
-    });
-  });
-});
-
-describe('route() end-to-end: switching collections via two sequential route() calls', () => {
-  it('resets the search form and results — a stale query/results from the previous collection must not leak', async () => {
-    // Regression, found via a real-browser Playwright pass: sidebar.js's
-    // collection-row click handler sets location.hash (async hashchange ->
-    // route()) and then immediately calls toggleSidebarTree() ->
-    // setExpandedCollection(name) SYNCHRONOUSLY, ahead of route()'s own
-    // async renderCollection(). renderCollection() used
-    // getExpandedCollection() to decide "is this the same collection
-    // already on screen" — but by the time it ran, that value had already
-    // advanced to the NEW collection name, while #main still held the OLD
-    // collection's shell. That made a genuine collection switch look like a
-    // same-collection re-render, so initSearchPanel() (which resets the
-    // query input and #search-results) was skipped entirely.
-    await withServer(async (base) => {
-      const html = await (await fetch(base + '/')).text();
-      const helpers = loadRouteIntegrationHelpers(html, {
-        hash: '#/c/docs-a?q=hello',
-        apiResponses: {
-          '/api/collections/docs-a': { collection: { pointCount: 1, warnings: [] } },
-          '/api/collections/docs-b': { collection: { pointCount: 1, warnings: [] } },
-          '/api/collections?': { collections: [] },
-        },
-      });
-      await helpers.route();
-      assert.equal(helpers.document.querySelector('#q-input').value, 'hello', 'sanity: query synced from ?q= on first collection');
-      // Simulate a search having actually rendered results (apiPost is a
-      // fixed stub in this helper, not per-collection-aware, so drive the
-      // "stale results on screen" state directly — the router/search-panel
-      // reset behavior under test doesn't depend on what's inside them).
-      helpers.document.querySelector('#search-results').innerHTML = '<div class="result-card">stale result from docs-a</div>';
-
-      // Reproduce the exact race: sidebar.js's collection-row click handler
-      // sets location.hash (fires hashchange -> route() asynchronously) and
-      // then calls toggleSidebarTree() -> setExpandedCollection(name)
-      // SYNCHRONOUSLY, immediately after — so by the time route()'s async
-      // renderCollection() actually runs, getExpandedCollection() has
-      // already advanced to the new collection name, even though #main
-      // still holds the OLD collection's shell.
-      helpers.location.hash = '#/c/docs-b';
-      helpers.setExpandedCollection('docs-b');
-      await helpers.route();
-
-      assert.equal(helpers.document.querySelector('#q-input').value, '', 'switching collections must reset the query input, not carry over docs-a\'s query');
-      assert.equal(helpers.document.querySelector('#search-results').innerHTML, '', 'switching collections must clear stale results from the previous collection');
-    });
-  });
+  // The bare-route ?q= permalink case (previously tested here) now mounts
+  // features/collection-home/view.js — a real ES module this vm-context
+  // harness deliberately never concatenates (loadRouteIntegrationHelpers
+  // stubs mountCollectionHome() the same way it already stubbed
+  // mountOverview()). See ui-collection-home-view.test.js's "search
+  // permalink" describe block for the real-module equivalent of this case,
+  // plus the "returning to a bare route clears stale content" and
+  // "switching collections resets the search form" regressions that used
+  // to live here as vm-harness end-to-end tests too — both are now
+  // structural (mount() always does a full, unconditional shell reset, see
+  // that module's own comment), and are asserted for real there.
 });
 
 // ── import-cycle guard ────────────────────────────────────────────────────

@@ -335,46 +335,34 @@ describe('markActive() — global settings gear link (#nav-global-settings, Phas
   });
 });
 
-// ── S2A: shell-level Overview/Collections nav (design plan §4.1/§4.2) ──────
-describe('markActive() — shell Overview/Collections nav (#nav-overview/#nav-collections, S2A)', () => {
-  it('marks #nav-overview active and aria-current="page" on the overview route, leaving #nav-collections inactive with no aria-current', () => {
+// ── S2A: shell-level Overview nav (design plan §4.1/§4.2) ──────────────────
+// The standalone #/collections directory (and its #nav-collections sidebar
+// entry) was removed — its richer collections table moved into Overview's
+// own Collections panel (see features/overview/view.js) — so #nav-overview
+// is now the only shell-level nav row markActive() owns here.
+describe('markActive() — shell Overview nav (#nav-overview, S2A)', () => {
+  it('marks #nav-overview active and aria-current="page" on the overview route', () => {
     const { document, markActive } = loadSidebarActiveStateHelpers();
     markActive({ view: 'overview' });
     const overview = document.getElementById('nav-overview');
-    const collections = document.getElementById('nav-collections');
     assert.ok(overview.classList.contains('active'));
     assert.equal(overview.getAttribute('aria-current'), 'page');
-    assert.ok(!collections.classList.contains('active'));
-    assert.equal(collections.hasAttribute('aria-current'), false);
   });
 
-  it('marks #nav-collections active and aria-current="page" on the collections route, leaving #nav-overview inactive with no aria-current', () => {
-    const { document, markActive } = loadSidebarActiveStateHelpers();
-    markActive({ view: 'collections' });
-    const overview = document.getElementById('nav-overview');
-    const collections = document.getElementById('nav-collections');
-    assert.ok(collections.classList.contains('active'));
-    assert.equal(collections.getAttribute('aria-current'), 'page');
-    assert.ok(!overview.classList.contains('active'));
-    assert.equal(overview.hasAttribute('aria-current'), false);
-  });
-
-  it('removes aria-current from the previously-active link (not merely left stale) when navigating between the two', () => {
+  it('removes aria-current from #nav-overview (not merely left stale) when navigating away', () => {
     const { document, markActive } = loadSidebarActiveStateHelpers();
     markActive({ view: 'overview' });
-    markActive({ view: 'collections' });
+    markActive({ view: 'index' });
     assert.equal(document.getElementById('nav-overview').hasAttribute('aria-current'), false);
-    assert.equal(document.getElementById('nav-collections').getAttribute('aria-current'), 'page');
+    assert.ok(!document.getElementById('nav-overview').classList.contains('active'));
   });
 
-  it('neither link is active/aria-current on an unrelated route (e.g. a collection route)', () => {
+  it('#nav-overview is not active/aria-current on an unrelated route (e.g. a collection route)', () => {
     const { document, markActive } = loadSidebarActiveStateHelpers();
     markActive({ view: 'collection', name: 'my-docs' });
-    for (const id of ['nav-overview', 'nav-collections']) {
-      const el = document.getElementById(id);
-      assert.ok(!el.classList.contains('active'));
-      assert.equal(el.hasAttribute('aria-current'), false);
-    }
+    const overview = document.getElementById('nav-overview');
+    assert.ok(!overview.classList.contains('active'));
+    assert.equal(overview.hasAttribute('aria-current'), false);
   });
 });
 
