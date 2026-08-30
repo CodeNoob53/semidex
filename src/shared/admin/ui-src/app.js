@@ -12,6 +12,7 @@ import { mountOperationModal } from './operation-modal.js';
 import { startPolling } from './operation-store.js';
 import { createViewController } from './shared/lifecycle/view.js';
 import { bootCapabilities } from './shared/capabilities/boot.js';
+import { initTheme, initThemeControl } from './shared/theme.js';
 
 // The shell's own top-level view controller (design plan §8.4/§8.6) — never
 // disposed today (the shell itself never unmounts before a full page
@@ -27,6 +28,7 @@ const shellView = createViewController();
  *   (design plan §6) rather than scattered through views.
  */
 export function startAdminApp({ edition } = {}) {
+  const initialTheme = initTheme();
   initSidebarResize();
   window.addEventListener('hashchange', route, { signal: shellView.signal });
 
@@ -48,6 +50,7 @@ export function startAdminApp({ edition } = {}) {
   loadTopbar();
   initJobChip();
   initGlobalSettingsLink();
+  initThemeControl($('#theme-select'), { initialTheme, signal: shellView.signal });
   loadSidebar();
   route();
 }

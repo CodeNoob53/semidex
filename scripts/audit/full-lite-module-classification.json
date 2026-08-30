@@ -14,7 +14,7 @@
     "mixed": 3,
     "tooling": 62,
     "cloud": 8,
-    "shared": 195,
+    "shared": 196,
     "local": 29
   },
   "modules": [
@@ -2143,6 +2143,7 @@
         "src/shared/admin/ui-src/router.js",
         "src/shared/admin/ui-src/shared/capabilities/boot.js",
         "src/shared/admin/ui-src/shared/lifecycle/view.js",
+        "src/shared/admin/ui-src/shared/theme.js",
         "src/shared/admin/ui-src/sidebar-resize.js",
         "src/shared/admin/ui-src/sidebar.js",
         "src/shared/admin/ui-src/topbar.js"
@@ -2467,6 +2468,15 @@
         "src/shared/admin/ui-src/shared/api/contracts/generation.js",
         "src/shared/admin/ui-src/shared/api/contracts/health.js"
       ]
+    },
+    {
+      "path": "src/shared/admin/ui-src/shared/theme.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
     },
     {
       "path": "src/shared/admin/ui-src/shared/ui/live-region.js",

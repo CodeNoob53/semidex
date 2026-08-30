@@ -23,6 +23,13 @@ function contrast(hex1, hex2) {
   return (l1 + 0.05) / (l2 + 0.05);
 }
 
+function themeColors(src, token) {
+  const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const match = src.match(new RegExp(`${escaped}:\\s*light-dark\\(#([0-9a-f]{6}),\\s*#([0-9a-f]{6})\\)`, 'i'));
+  assert.ok(match, `expected ${token} to define light and dark values with light-dark()`);
+  return { light: match[1], dark: match[2] };
+}
+
 describe('HTML hidden contract', () => {
   it('wins over component display rules such as .badge and .btn-ghost', () => {
     assert.match(css(), /\[hidden\]\s*\{\s*display:\s*none\s*!important;\s*\}/);
@@ -30,21 +37,27 @@ describe('HTML hidden contract', () => {
 });
 
 describe('text contrast (WCAG AA, 4.5:1 for normal text)', () => {
-  it('--text-muted clears 4.5:1 against both --surface-page and --surface-panel', () => {
+  it('--text-muted clears 4.5:1 against page and panel in both themes', () => {
     const src = css();
-    const faint = src.match(/--text-muted:\s*#([0-9a-f]{6})/i)?.[1];
-    const bg = src.match(/--surface-page:\s*#([0-9a-f]{6})/i)?.[1];
-    const bgRaise = src.match(/--surface-panel:\s*#([0-9a-f]{6})/i)?.[1];
-    assert.ok(faint && bg && bgRaise, 'expected to find --text-muted/--surface-page/--surface-panel declarations');
-    assert.ok(contrast(faint, bg) >= 4.5, `--text-muted vs --surface-page must be >=4.5:1, got ${contrast(faint, bg).toFixed(2)}`);
-    assert.ok(contrast(faint, bgRaise) >= 4.5, `--text-muted vs --surface-panel must be >=4.5:1, got ${contrast(faint, bgRaise).toFixed(2)}`);
+    const muted = themeColors(src, '--text-muted');
+    const page = themeColors(src, '--surface-page');
+    const panel = themeColors(src, '--surface-panel');
+    for (const theme of ['light', 'dark']) {
+      assert.ok(contrast(muted[theme], page[theme]) >= 4.5,
+        `${theme}: --text-muted vs --surface-page must be >=4.5:1`);
+      assert.ok(contrast(muted[theme], panel[theme]) >= 4.5,
+        `${theme}: --text-muted vs --surface-panel must be >=4.5:1`);
+    }
   });
 
-  it('--text-secondary still clears 4.5:1 (regression guard — was already correct)', () => {
+  it('--text-secondary clears 4.5:1 in both themes', () => {
     const src = css();
-    const dim = src.match(/--text-secondary:\s*#([0-9a-f]{6})/i)?.[1];
-    const bg = src.match(/--surface-page:\s*#([0-9a-f]{6})/i)?.[1];
-    assert.ok(contrast(dim, bg) >= 4.5);
+    const secondary = themeColors(src, '--text-secondary');
+    const page = themeColors(src, '--surface-page');
+    for (const theme of ['light', 'dark']) {
+      assert.ok(contrast(secondary[theme], page[theme]) >= 4.5,
+        `${theme}: --text-secondary vs --surface-page must be >=4.5:1`);
+    }
   });
 });
 

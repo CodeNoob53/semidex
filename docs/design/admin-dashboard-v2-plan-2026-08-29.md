@@ -432,19 +432,21 @@ spacing/radius steps.
 There is deliberately no second alias layer such as
 `--surface-page: var(--bg)`. Two names for the same value create a mixed CSS
 vocabulary without adding a capability. Components use the canonical semantic
-names directly. A future theme overrides their values in a separate token set.
+names directly. Theme-dependent values use `light-dark(light, dark)` in that
+same canonical declaration; themes do not introduce a second variable vocabulary.
 
 ### 7.2 Light/dark strategy
 
-The UI is **dark-only today**; there is no `prefers-color-scheme` handling in
-`app.css`. This plan does **not** treat a light theme as free.
+The UI ships light and dark palettes from Slice 1. The default is `system`,
+implemented by `color-scheme: light dark` and canonical `light-dark()` token
+values. Explicit `light` and `dark` choices set `data-theme` on the document
+root and constrain `color-scheme`; they never duplicate component rules.
 
-- Slice 1 formalizes the canonical semantic token set and ships dark only.
-- A light theme is added as a second **token set** (not a filter/inversion),
-  with independent contrast verification, once the semantic layer is stable and
-  the component inventory has stopped moving.
-- `prefers-color-scheme` is respected once both sets exist; an explicit override
-  is stored in a UI-preference key (never a cookie, never anything sensitive).
+The explicit preference is the non-sensitive local key `semidex.ui.theme`.
+Choosing `system` removes that key, so future operating-system changes take
+effect automatically. Theme state is never sent to the API, stored in a cookie,
+or mixed with credentials or operational state. Both palettes require their own
+contrast verification.
 
 ### 7.3 Density and typography
 
@@ -1166,9 +1168,8 @@ A screen is done when **all** of the following hold:
 | **S6 — Settings** | W8, W9 | Settings driven entirely by the server inventory; provenance and `pendingRestart` display; secret handling; destination-field loopback error; collection danger zone with typed confirmation | Secret-leak test green across every settings flow; each settings error code renders distinctly; DoD met |
 | **S7 — Parity, retirement, tightening** | — | Per-surface parity sign-off and deletion of the replaced old surfaces; removal of inline `style` attributes and tightening of `style-src` to `'self'`; profiling on real collections; replacement of every provisional bound with a measured value or an explicit "measured, keeping" note | Old surfaces deleted, not hidden; `style-src 'self'` shipped; every provisional number resolved; full test suite + smoke green |
 
-Cross-cutting, unscheduled and additive after S7: light theme token set,
-localization, command palette — each dependent on decisions in §16 or on gaps in
-§14.
+Cross-cutting, unscheduled and additive after S7: localization and command
+palette — each dependent on decisions in §16 or on gaps in §14.
 
 ---
 
@@ -1218,7 +1219,7 @@ global search (`FUT-05`) · collection create/configure (`FUT-06`) ·
 multi-user/RBAC (`FUT-09`) · telemetry (`FUT-10`, rejected on principle) ·
 MCP management UI (`FUT-11`) · Ask-run trace/timeline (`FUT-12`) ·
 metrics/dashboards/vector visualization (`FUT-17`) · admin UI localization
-(`FUT-16`) · light theme (§7.2).
+(`FUT-16`).
 
 No screen in §5 depends on anything in list C.
 
@@ -1288,7 +1289,7 @@ any token refactor, any change to `structural-renderer.js`, and any change to
 | `D-2` | Validation mechanism: hand-written validators vs build-time-compiled schemas. Constraint is fixed (no runtime `Function` under `script-src 'self'`) | Frontend | S1 |
 | `D-3` | SDK parser reuse strategy — extract shared module (a), import by path (b), or tested copy (c). Depends on `VER-07` | Frontend + Lite packaging | S5 |
 | `D-4` | Whether to introduce browser-driver E2E, visual regression and automated axe scanning at all, given the current `node:test` + `linkedom` setup | Whole team | S7 |
-| `D-5` | Whether a light theme is a product requirement or an optional token set | Product | after S2 |
+| `D-5` | **Resolved:** light and dark are product requirements; `system` is the default and explicit overrides remain local UI state (§7.2) | Product | S1 |
 | `D-6` | Whether admin UI localization (`FUT-16`) is in scope for v2 at all | Product | before S6 (settings copy is the largest string surface) |
 | `D-7` | Whether `#/index` folds into Collections → Index or stays a top-level route | Frontend | S3 |
 | `D-8` | Whether to emit `X-Request-Id` (`GAP-02`) so error surfaces can carry a correlation id | Backend | S1 (nice to have), S5 (most useful) |

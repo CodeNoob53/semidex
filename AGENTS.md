@@ -23,6 +23,24 @@ Do not run `npm run index` without `COLLECTION` set.
 
 Use MCP tools for indexed-knowledge questions. Read repository files directly only for implementation work.
 
+## Admin UI CSS and theme rules
+
+- Keep one canonical semantic token set in
+  `src/shared/admin/ui-src/app.css`; components reference those tokens directly.
+- Do not create alias variables whose value is only another token with the same
+  role (for example `--surface-page: var(--background)`). Rename the canonical
+  token instead when its name is unclear.
+- Put theme-affecting color literals in the root token declarations only. Reuse
+  canonical spacing, radius, typography, and stable-size tokens when a design
+  value repeats across components.
+- Do not tokenize structural literals such as `0`, `auto`, `100%`, `1fr`, or a
+  genuinely one-off component measurement merely to eliminate every literal.
+- The supported theme contract is `system | light | dark`. System is the
+  default; explicit overrides use `data-theme` and the local-only
+  `semidex.ui.theme` preference. Theme preferences never cross the API boundary.
+- Verify contrast and Full/Lite parity whenever theme tokens or shared UI CSS
+  change.
+
 ## Recommended MCP Workflow
 
 Start every investigation with:
