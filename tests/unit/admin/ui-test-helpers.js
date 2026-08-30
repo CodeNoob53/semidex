@@ -189,7 +189,8 @@ export function loadSidebarActiveStateHelpers() {
         <div class="tree-row tree-node" data-path="readme.md#intro"></div>
       </div>
     </li>
-  </ul><nav id="nav-index"></nav><a id="nav-global-settings"></a>`);
+  </ul><nav id="nav-index"></nav><a id="nav-global-settings"></a>
+  <a id="nav-overview" href="#/"></a><a id="nav-collections" href="#/collections"></a>`);
   const context = {
     document,
     $: (sel, root = document) => root.querySelector(sel),

@@ -10,14 +10,16 @@ import { renderIndexingView } from './jobs-view.js';
 import { applySearchStateFromUrl, syncSearchStateFromUrl } from './search.js';
 import { currentRoute } from './routes.js';
 import { mount as mountOverview } from './features/overview/view.js';
+import { mount as mountCollections } from './features/collections/view.js';
 
 export { currentRoute };
 
 // The currently-mounted v2 view controller (design plan §8.4), if any —
-// Overview is the only v2 lifecycle view in this slice. Tracked here (not
-// inside collection-view.js/settings-view.js, which are still the old,
-// non-disposable style) so route() can dispose it before mounting whatever
-// comes next, regardless of which branch below actually runs.
+// Overview and the Collections directory are the v2 lifecycle views in this
+// slice. Tracked here (not inside collection-view.js/settings-view.js,
+// which are still the old, non-disposable style) so route() can dispose it
+// before mounting whatever comes next, regardless of which branch below
+// actually runs.
 let currentView = null;
 
 function disposeCurrentView() {
@@ -96,6 +98,7 @@ export async function route() {
       syncSearchStateFromUrl(r.name);
     }
   } else if (r.view === 'index') await renderIndexingView(main);
+  else if (r.view === 'collections') currentView = mountCollections(main, {});
   else currentView = mountOverview(main, {});
   // Re-run after the branch above resolves: the sidebar's skeleton-tree/
   // file-list rows for the target collection render asynchronously

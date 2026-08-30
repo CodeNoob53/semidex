@@ -301,6 +301,15 @@ select:focus-visible,
 }
 .view-sub { color: var(--text-secondary); margin: 0 0 20px; font-size: var(--font-size-ui); }
 
+/* A view's top row when it carries a primary page action next to the title
+   (e.g. Collections' "Index a folder") — same min-width:0/overflow-wrap fix
+   already applied to .col-header-top .view-title, so a long title wraps
+   instead of pushing the action off-screen. */
+.view-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.view-head > div { flex: 1 1 auto; min-width: 0; }
+.view-head .view-title { overflow-wrap: anywhere; }
+.view-head .btn-amber { flex: none; }
+
 .panel {
   border: 1px solid var(--border-strong); border-radius: var(--radius-md);
   background: var(--surface-panel); margin-bottom: 18px;
@@ -333,7 +342,7 @@ table.data tr:last-child td { border-bottom: 0; }
 table.data tr.rowlink { cursor: pointer; }
 table.data tr.rowlink:hover td { background: var(--surface-sunken); }
 td.num, th.num { text-align: right; font-family: var(--mono); font-size: var(--font-size-md); }
-td.mono { font-family: var(--mono); font-size: var(--font-size-md); }
+td.mono { font-family: var(--mono); font-size: var(--font-size-md); overflow-wrap: anywhere; }
 
 /* badges */
 .badge {
@@ -652,7 +661,12 @@ td.actions { text-align: right; }
   border-left: 2px solid transparent;
 }
 .nav-list a:hover { background: var(--surface-sunken); }
-.nav-list a.active { background: var(--surface-sunken); border-left-color: var(--accent); }
+/* S2A correction: the active row must read as active beyond colour alone
+   (background tint + a coloured left border are both still colour signals).
+   font-weight is a shape/weight difference a colour-blind or low-contrast
+   viewer can still see, on top of aria-current="page" for assistive tech
+   (set/cleared by sidebar.js's markActive()). */
+.nav-list a.active { background: var(--surface-sunken); border-left-color: var(--accent); font-weight: 600; }
 
 .form-row { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; font-size: var(--font-size-sm); color: var(--text-secondary); }
 .form-row .q-input { font-size: var(--font-size-ui); }

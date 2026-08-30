@@ -338,11 +338,32 @@ export function syncSidebarMode(route) {
   document.querySelector('.layout')?.classList.toggle('settings-compact', isSettings);
 }
 
+// Toggles both the visual .active class and aria-current="page" together —
+// aria-current must be genuinely absent on an inactive link, not just set
+// to a falsy string, so it is removed via removeAttribute() rather than
+// setAttribute(..., 'false').
+function setShellNavActive(el, isActive) {
+  if (!el) return;
+  el.classList.toggle('active', isActive);
+  if (isActive) el.setAttribute('aria-current', 'page');
+  else el.removeAttribute('aria-current');
+}
+
 export function markActive(route = currentRoute()) {
   for (const a of document.querySelectorAll('.tree-collection-row')) {
     a.classList.toggle('active', route.view !== 'index' && a.dataset.name === route.name);
   }
   $('#nav-index')?.classList.toggle('active', route.view === 'index');
+  // S2A shell-level navigation (design plan §4.1/§4.2): distinct from the
+  // topbar brand link (#nav-home, always "#/") — these are the sidebar's
+  // own Overview/Collections entries, kept in sync the same way every other
+  // nav row already is. aria-current="page" is set/removed alongside the
+  // .active class (not just the class alone) so assistive tech gets the
+  // same "this is where you are" signal a sighted user gets from the
+  // active row's background/border/weight — and is explicitly removed
+  // (not merely left stale) on every inactive link.
+  setShellNavActive($('#nav-overview'), route.view === 'overview');
+  setShellNavActive($('#nav-collections'), route.view === 'collections');
   // Phase 4A.5b: topbar gear link -> #/settings (global runtime settings) —
   // lives outside the sidebar tree but shares this same active-state pass
   // since router.js already calls markActive() on every navigation. Now

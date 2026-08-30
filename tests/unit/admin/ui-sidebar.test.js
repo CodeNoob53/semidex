@@ -335,6 +335,67 @@ describe('markActive() — global settings gear link (#nav-global-settings, Phas
   });
 });
 
+// ── S2A: shell-level Overview/Collections nav (design plan §4.1/§4.2) ──────
+describe('markActive() — shell Overview/Collections nav (#nav-overview/#nav-collections, S2A)', () => {
+  it('marks #nav-overview active and aria-current="page" on the overview route, leaving #nav-collections inactive with no aria-current', () => {
+    const { document, markActive } = loadSidebarActiveStateHelpers();
+    markActive({ view: 'overview' });
+    const overview = document.getElementById('nav-overview');
+    const collections = document.getElementById('nav-collections');
+    assert.ok(overview.classList.contains('active'));
+    assert.equal(overview.getAttribute('aria-current'), 'page');
+    assert.ok(!collections.classList.contains('active'));
+    assert.equal(collections.hasAttribute('aria-current'), false);
+  });
+
+  it('marks #nav-collections active and aria-current="page" on the collections route, leaving #nav-overview inactive with no aria-current', () => {
+    const { document, markActive } = loadSidebarActiveStateHelpers();
+    markActive({ view: 'collections' });
+    const overview = document.getElementById('nav-overview');
+    const collections = document.getElementById('nav-collections');
+    assert.ok(collections.classList.contains('active'));
+    assert.equal(collections.getAttribute('aria-current'), 'page');
+    assert.ok(!overview.classList.contains('active'));
+    assert.equal(overview.hasAttribute('aria-current'), false);
+  });
+
+  it('removes aria-current from the previously-active link (not merely left stale) when navigating between the two', () => {
+    const { document, markActive } = loadSidebarActiveStateHelpers();
+    markActive({ view: 'overview' });
+    markActive({ view: 'collections' });
+    assert.equal(document.getElementById('nav-overview').hasAttribute('aria-current'), false);
+    assert.equal(document.getElementById('nav-collections').getAttribute('aria-current'), 'page');
+  });
+
+  it('neither link is active/aria-current on an unrelated route (e.g. a collection route)', () => {
+    const { document, markActive } = loadSidebarActiveStateHelpers();
+    markActive({ view: 'collection', name: 'my-docs' });
+    for (const id of ['nav-overview', 'nav-collections']) {
+      const el = document.getElementById(id);
+      assert.ok(!el.classList.contains('active'));
+      assert.equal(el.hasAttribute('aria-current'), false);
+    }
+  });
+});
+
+// The active-state distinction must survive without colour as the only
+// signal (WCAG 1.4.1) — .nav-list a.active already added a background tint
+// and a coloured left border, but both of those are themselves colour
+// changes; this pins a non-colour (font-weight) difference too, on top of
+// aria-current="page" (asserted above) for assistive tech.
+describe('app.css: .nav-list a.active is distinguishable beyond colour alone', () => {
+  it('.nav-list a.active sets a font-weight distinct from the base .nav-list a rule', () => {
+    const css = readUiSource('app.css');
+    const baseRule = css.match(/\.nav-list a\s*\{([^}]*)\}/)?.[1] ?? '';
+    const activeRule = css.match(/\.nav-list a\.active\s*\{([^}]*)\}/)?.[1] ?? '';
+    assert.ok(activeRule, '.nav-list a.active must exist as its own rule');
+    const activeWeight = activeRule.match(/font-weight:\s*(\d+)/)?.[1];
+    assert.ok(activeWeight, '.nav-list a.active must set an explicit font-weight beyond the shared background/border-colour treatment');
+    const baseWeight = baseRule.match(/font-weight:\s*(\d+)/)?.[1] ?? '400';
+    assert.notEqual(activeWeight, baseWeight, 'the active link\'s font-weight must differ from the inactive/base weight');
+  });
+});
+
 describe('markActive() highlights the open file/section row, not just the collection row', () => {
   it('highlights the .tree-file row matching route.openFile', () => {
     const { document, markActive } = loadSidebarActiveStateHelpers();

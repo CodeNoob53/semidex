@@ -53,6 +53,34 @@ describe('router — currentRoute() (ui-src/router.js source, evaluated behavior
   });
 });
 
+// ── S2A: the collections directory route ────────────────────────────────
+describe('router — #/collections (design plan §4.2/§5.2, S2A)', () => {
+  it('parses the exact "#/collections" hash to the collections directory view', () => {
+    const { currentRoute } = loadRouterHelper();
+    assert.deepEqual(currentRoute('#/collections'), { view: 'collections' });
+  });
+
+  it('does not match a sub-path — "#/collections/foo" still falls through to overview, not the directory', () => {
+    const { currentRoute } = loadRouterHelper();
+    assert.deepEqual(currentRoute('#/collections/foo'), { view: 'overview' });
+  });
+
+  it('does not match a trailing slash or query-only variant beyond the exact path', () => {
+    const { currentRoute } = loadRouterHelper();
+    assert.deepEqual(currentRoute('#/collections/'), { view: 'overview' });
+  });
+
+  it('every pre-existing route still resolves exactly as before alongside the new #/collections route', () => {
+    const { currentRoute } = loadRouterHelper();
+    assert.deepEqual(currentRoute('#/'), { view: 'overview' });
+    assert.deepEqual(currentRoute('#/index'), { view: 'index' });
+    assert.deepEqual(currentRoute('#/c/my-docs'), { view: 'collection', name: 'my-docs' });
+    assert.deepEqual(currentRoute('#/c/my-docs/settings'), { view: 'settings', name: 'my-docs' });
+    assert.deepEqual(currentRoute('#/settings'), { view: 'global-settings', category: null });
+    assert.deepEqual(currentRoute('#/settings/storage'), { view: 'global-settings', category: 'storage' });
+  });
+});
+
 // ── Phase 3B: search-state query string on top of the collection route ─────
 describe('currentRoute() — search permalink query string (?q=&top=&window=&format=&file=)', () => {
   it('parses q/top/window/format off a bare collection route', () => {

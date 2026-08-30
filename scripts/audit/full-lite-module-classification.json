@@ -14,7 +14,7 @@
     "mixed": 3,
     "tooling": 62,
     "cloud": 8,
-    "shared": 196,
+    "shared": 197,
     "local": 29
   },
   "modules": [
@@ -2187,6 +2187,24 @@
       "directDependencies": []
     },
     {
+      "path": "src/shared/admin/ui-src/features/collections/view.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/shared/admin/ui-src/shared/api/client.js",
+        "src/shared/admin/ui-src/shared/api/contracts/collections.js",
+        "src/shared/admin/ui-src/shared/lifecycle/view.js",
+        "src/shared/admin/ui-src/shared/status/store.js",
+        "src/shared/admin/ui-src/shared/ui/live-region.js",
+        "src/shared/admin/ui-src/shared/ui/states.js",
+        "src/shared/admin/ui-src/shared/ui/status-badge.js",
+        "src/shared/admin/ui-src/shared/ui/table.js"
+      ]
+    },
+    {
       "path": "src/shared/admin/ui-src/features/overview/view.js",
       "declaredCategory": "shared",
       "category": "shared",
@@ -2320,6 +2338,7 @@
         "src/shared/admin/ui-src/api.js",
         "src/shared/admin/ui-src/collection-view.js",
         "src/shared/admin/ui-src/dom.js",
+        "src/shared/admin/ui-src/features/collections/view.js",
         "src/shared/admin/ui-src/features/overview/view.js",
         "src/shared/admin/ui-src/file-view.js",
         "src/shared/admin/ui-src/global-settings-view.js",
