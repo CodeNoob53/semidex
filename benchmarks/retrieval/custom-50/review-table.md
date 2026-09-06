@@ -1,6 +1,6 @@
 # custom-50 qrel semantic review (Stage B, 2026-09-07)
 
-Judged against `corpus.frozen.json` (skeleton-v1 chunker, 102 chunks, corpusHash `ff3999bb0f3539c6…`).
+Judged against `corpus.frozen.json` (skeleton-v1 chunker, 102 chunks, corpusHash `c1f2915300793b52…`).
 
 Method: determine the answer from the frozen corpus text first, then pick the chunk(s) that contain it. Labels are never set to "whatever the old retriever returned".
 

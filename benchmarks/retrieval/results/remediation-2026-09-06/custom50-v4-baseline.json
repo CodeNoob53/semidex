@@ -1,0 +1,2232 @@
+{
+  "schemaVersion": 4,
+  "corpusHash": "c1f2915300793b52c03298e89f958ee3827543eabfa782772c792ae57244be90",
+  "chunkingModel": "skeleton-v1",
+  "top": 10,
+  "note": "Regression/tuning set. Not an independent held-out benchmark. Old audit diagnostic numbers are not a baseline for this corpus.",
+  "aggregate": {
+    "nPositive": 49,
+    "nNegative": 1,
+    "nError": 0,
+    "hit@1": 0.7959183673469388,
+    "hit@3": 0.9795918367346939,
+    "hit@5": 0.9795918367346939,
+    "hit@10": 0.9795918367346939,
+    "recall@5": 0.9489795918367347,
+    "recall@10": 0.9591836734693877,
+    "supportHit@10": 0.9795918367346939,
+    "gradedNDCG@10": 0.8797637316796416,
+    "MRR@10": 0.8843537414965985,
+    "requiredEvidenceCoverage@10": {
+      "n": 3,
+      "rate": 1
+    },
+    "negativeTokenAbsence@1": {
+      "n": 1,
+      "rate": 1,
+      "caveat": "token-absence only — NOT abstention/no-answer quality (needs a live-generation Ask eval)"
+    }
+  },
+  "perQuery": [
+    {
+      "id": "c01",
+      "type": "exact-token",
+      "verdict": "valid",
+      "isNegative": false,
+      "hitAt1": true,
+      "hitAt3": true,
+      "hitAt5": true,
+      "hitAt10": true,
+      "recallAt5": 1,
+      "recallAt10": 1,
+      "supportHitAt10": true,
+      "ndcgAt10": 1,
+      "mrrAt10": 1,
+      "requiredEvidenceCoverageAt10": null,
+      "negativeTokenAbsenceAt1": null,
+      "top5": [
+        {
+          "chunkId": "providers.md#3",
+          "relevance": 3,
+          "score": 0.033333335
+        },
+        {
+          "chunkId": "providers.md#1",
+          "relevance": 2,
+          "score": 0.031778056
+        },
+        {
+          "chunkId": "sync.md#2",
+          "relevance": 0,
+          "score": 0.03175403
+        },
+        {
+          "chunkId": "providers.md#2",
+          "relevance": 0,
+          "score": 0.03175403
+        },
+        {
+          "chunkId": "providers.md#5",
+          "relevance": 0,
+          "score": 0.031257633
+        }
+      ]
+    },
+    {
+      "id": "c02",
+      "type": "conceptual",
+      "verdict": "valid",
+      "isNegative": false,
+      "hitAt1": false,
+      "hitAt3": true,
+      "hitAt5": true,
+      "hitAt10": true,
+      "recallAt5": 0.5,
+      "recallAt10": 0.5,
+      "supportHitAt10": true,
+      "ndcgAt10": 0.3216825973574267,
+      "mrrAt10": 0.3333333333333333,
+      "requiredEvidenceCoverageAt10": null,
+      "negativeTokenAbsenceAt1": null,
+      "top5": [
+        {
+          "chunkId": "providers.md#4",
+          "relevance": 0,
+          "score": 0.032522473
+        },
+        {
+          "chunkId": "providers.md#0",
+          "relevance": 0,
+          "score": 0.03226646
+        },
+        {
+          "chunkId": "config-env.md#3",
+          "relevance": 3,
+          "score": 0.032051284
+        },
+        {
+          "chunkId": "multilingual.md#1",
+          "relevance": 0,
+          "score": 0.03159204
+        },
+        {
+          "chunkId": "providers.md#1",
+          "relevance": 0,
+          "score": 0.03125
+        }
+      ]
+    },
+    {
+      "id": "c03",
+      "type": "provider-activation",
+      "verdict": "valid",
+      "isNegative": false,
+      "hitAt1": false,
+      "hitAt3": true,
+      "hitAt5": true,
+      "hitAt10": true,
+      "recallAt5": 1,
+      "recallAt10": 1,
+      "supportHitAt10": true,
+      "ndcgAt10": 0.8231817979910552,
+      "mrrAt10": 0.5,
+      "requiredEvidenceCoverageAt10": null,
+      "negativeTokenAbsenceAt1": null,
+      "top5": [
+        {
+          "chunkId": "config-env.md#2",
+          "relevance": 2,
+          "score": 0.033333335
+        },
+        {
+          "chunkId": "providers.md#2",
+          "relevance": 3,
+          "score": 0.032258064
+        },
+        {
+          "chunkId": "config-env.md#3",
+          "relevance": 0,
+          "score": 0.031778056
+        },
+        {
+          "chunkId": "multilingual.md#2",
+          "relevance": 0,
+          "score": 0.03125
+        },
+        {
+          "chunkId": "sync.md#5",
+          "relevance": 0,
+          "score": 0.030679155
+        }
+      ]
+    },
+    {
+      "id": "c04",
+      "type": "exact-token",
+      "verdict": "valid",
+      "isNegative": false,
+      "hitAt1": false,
+      "hitAt3": true,
+      "hitAt5": true,
+      "hitAt10": true,
+      "recallAt5": 1,
+      "recallAt10": 1,
+      "supportHitAt10": true,
+      "ndcgAt10": 0.8579514172105233,
+      "mrrAt10": 0.5,
+      "requiredEvidenceCoverageAt10": null,
+      "negativeTokenAbsenceAt1": null,
+      "top5": [
+        {
+          "chunkId": "project-structure.md#3",
+          "relevance": 2,
+          "score": 0.033333335
+        },
+        {
+          "chunkId": "providers.md#5",
+          "relevance": 3,
+          "score": 0.032522473
+        },
+        {
+          "chunkId": "qdrant.md#8",
+          "relevance": 2,
+          "score": 0.032522473
+        },
+        {
+          "chunkId": "providers.md#4",
+          "relevance": 0,
+          "score": 0.031498015
+        },
+        {
+          "chunkId": "config-env.md#15",
+          "relevance": 0,
+          "score": 0.031257633
+        }
+      ]
+    },
+    {
+      "id": "c05",
+      "type": "conceptual",
+      "verdict": "valid",
+      "isNegative": false,
+      "hitAt1": false,
+      "hitAt3": true,
+      "hitAt5": true,
+      "hitAt10": true,
+      "recallAt5": 1,
+      "recallAt10": 1,
+      "supportHitAt10": true,
+      "ndcgAt10": 0.47020199776783905,
+      "mrrAt10": 0.5,
+      "requiredEvidenceCoverageAt10": null,
+      "negativeTokenAbsenceAt1": null,
+      "top5": [
+        {
+          "chunkId": "config-env.md#15",
+          "relevance": 0,
+          "score": 0.033333335
+        },
+        {
+          "chunkId": "providers.md#5",
+          "relevance": 3,
+          "score": 0.032522473
+        },
+        {
+          "chunkId": "sync.md#2",
+          "relevance": 0,
+          "score": 0.03175403
+        },
+        {
+          "chunkId": "providers.md#2",
+          "relevance": 0,
+          "score": 0.031318814
+        },
+        {
+          "chunkId": "config-env.md#14",
+          "relevance": 0,
+          "score": 0.031257633
+        }
+      ]
+    },
+    {
+      "id": "c06",
+      "type": "exact-token",
+      "verdict": "valid",
+      "isNegative": false,
+      "hitAt1": true,
+      "hitAt3": true,
+      "hitAt5": true,
+      "hitAt10": true,
+      "recallAt5": 1,
+      "recallAt10": 1,
+      "supportHitAt10": true,
+      "ndcgAt10": 0.9594535145926796,
+      "mrrAt10": 1,
+      "requiredEvidenceCoverageAt10": null,
+      "negativeTokenAbsenceAt1": null,
+      "top5": [
+        {
+          "chunkId": "project-structure.md#2",
+          "relevance": 3,
+          "score": 0.033333335
+        },
+        {
+          "chunkId": "providers.md#4",
+          "relevance": 2,
+          "score": 0.032522473
+        },
+        {
+          "chunkId": "providers.md#3",
+          "relevance": 3,
+          "score": 0.032522473
+        },
+        {
+          "chunkId": "project-structure.md#1",
+          "relevance": 0,
+          "score": 0.031746034
+        },
+        {
+          "chunkId": "sync.md#2",
+          "relevance": 0,
+          "score": 0.030550372
+        }
+      ]
+    },
+    {
+      "id": "c07",
+      "type": "troubleshooting",
+      "verdict": "valid",
+      "isNegative": false,
+      "hitAt1": true,
+      "hitAt3": true,
+      "hitAt5": true,
+      "hitAt10": true,
+      "recallAt5": 1,
+      "recallAt10": 1,
+      "supportHitAt10": true,
+      "ndcgAt10": 0.8838695436828513,
+      "mrrAt10": 1,
+      "requiredEvidenceCoverageAt10": null,
+      "negativeTokenAbsenceAt1": null,
+      "top5": [
+        {
+          "chunkId": "config-env.md#3",
+          "relevance": 3,
+          "score": 0.033333335
+        },
+        {
+          "chunkId": "providers.md#3",
+          "relevance": 3,
+          "score": 0.032786883
+        },
+        {
+          "chunkId": "benchmarking.md#12",
+          "relevance": 0,
+          "score": 0.031280547
+        },
+        {
+          "chunkId": "sync.md#5",
+          "relevance": 0,
+          "score": 0.031257633
+        },
+        {
+          "chunkId": "providers.md#1",
+          "relevance": 0,
+          "score": 0.03125
+        }
+      ]
+    },
+    {
+      "id": "c08",
+      "type": "exact-token",
+      "verdict": "valid",
+      "isNegative": false,
+      "hitAt1": true,
+      "hitAt3": true,
+      "hitAt5": true,
+      "hitAt10": true,
+      "recallAt5": 1,
+      "recallAt10": 1,
+      "supportHitAt10": true,
+      "ndcgAt10": 0.929544338806268,
+      "mrrAt10": 1,
+      "requiredEvidenceCoverageAt10": null,
+      "negativeTokenAbsenceAt1": null,
+      "top5": [
+        {
+          "chunkId": "qdrant.md#3",
+          "relevance": 3,
+          "score": 0.03306011
+        },
+        {
+          "chunkId": "qdrant.md#4",
+          "relevance": 0,
+          "score": 0.03306011
+        },
+        {
+          "chunkId": "qdrant.md#2",
+          "relevance": 2,
+          "score": 0.032258064
+        },
+        {
+          "chunkId": "qdrant.md#5",
+          "relevance": 0,
+          "score": 0.031746034
+        },
+        {
+          "chunkId": "config-env.md#9",
+          "relevance": 2,
+          "score": 0.03125
+        }
+      ]
+    },
+    {
+      "id": "c09",
+      "type": "config-env",
+      "verdict": "corrected",
+      "isNegative": false,
+      "hitAt1": true,
+      "hitAt3": true,
+      "hitAt5": true,
+      "hitAt10": true,
+      "recallAt5": 1,
+      "recallAt10": 1,
+      "supportHitAt10": true,
+      "ndcgAt10": 0.9631405415421672,
+      "mrrAt10": 1,
+      "requiredEvidenceCoverageAt10": null,
+      "negativeTokenAbsenceAt1": null,
+      "top5": [
+        {
+          "chunkId": "qdrant.md#5",
+          "relevance": 3,
+          "score": 0.033333335
+        },
+        {
+          "chunkId": "config-env.md#10",
+          "relevance": 2,
+          "score": 0.032786883
+        },
+        {
+          "chunkId": "qdrant.md#9",
+          "relevance": 3,
+          "score": 0.032002047
+        },
+        {
+          "chunkId": "config-env.md#9",
+          "relevance": 2,
+          "score": 0.032002047
+        },
+        {
+          "chunkId": "qdrant.md#4",
+          "relevance": 0,
+          "score": 0.031009614
+        }
+      ]
+    },
+    {
+      "id": "c10",
+      "type": "troubleshooting",
+      "verdict": "valid",
+      "isNegative": false,
+      "hitAt1": true,
+      "hitAt3": true,
+      "hitAt5": true,
+      "hitAt10": true,
+      "recallAt5": 1,
+      "recallAt10": 1,
+      "supportHitAt10": true,
+      "ndcgAt10": 0.9173194127129571,
+      "mrrAt10": 1,
+      "requiredEvidenceCoverageAt10": null,
+      "negativeTokenAbsenceAt1": null,
+      "top5": [
+        {
+          "chunkId": "qdrant.md#6",
+          "relevance": 3,
+          "score": 0.033333335
+        },
+        {
+          "chunkId": "providers.md#3",
+          "relevance": 0,
+          "score": 0.031257633
+        },
+        {
+          "chunkId": "project-structure.md#4",
+          "relevance": 0,
+          "score": 0.030886196
+        },
+        {
+          "chunkId": "project-structure.md#3",
+          "relevance": 0,
+          "score": 0.030834913
+        },
+        {
+          "chunkId": "qdrant.md#2",
+          "relevance": 0,
+          "score": 0.030477948
+        }
+      ]
+    },
+    {
+      "id": "c11",
+      "type": "exact-token",
+      "verdict": "valid",
+      "isNegative": false,
+      "hitAt1": true,
+      "hitAt3": true,
+      "hitAt5": true,
+      "hitAt10": true,
+      "recallAt5": 1,
+      "recallAt10": 1,
+      "supportHitAt10": true,
+      "ndcgAt10": 1,
+      "mrrAt10": 1,
+      "requiredEvidenceCoverageAt10": null,
+      "negativeTokenAbsenceAt1": null,
+      "top5": [
+        {
+          "chunkId": "qdrant.md#8",
+          "relevance": 3,
+          "score": 0.033333335
+        },
+        {
+          "chunkId": "qdrant.md#7",
+          "relevance": 2,
+          "score": 0.032786883
+        },
+        {
+          "chunkId": "project-structure.md#4",
+          "relevance": 1,
+          "score": 0.032258064
+        },
+        {
+          "chunkId": "benchmarking.md#6",
+          "relevance": 0,
+          "score": 0.031257633
+        },
+        {
+          "chunkId": "project-structure.md#3",
+          "relevance": 0,
+          "score": 0.0305789
+        }
+      ]
+    },
+    {
+      "id": "c12",
+      "type": "exact-token",
+      "verdict": "valid",
+      "isNegative": false,
+      "hitAt1": true,
+      "hitAt3": true,
+      "hitAt5": true,
+      "hitAt10": true,
+      "recallAt5": 1,
+      "recallAt10": 1,
+      "supportHitAt10": true,
+      "ndcgAt10": 0.9173194127129571,
+      "mrrAt10": 1,
+      "requiredEvidenceCoverageAt10": null,
+      "negativeTokenAbsenceAt1": null,
+      "top5": [
+        {
+          "chunkId": "qdrant.md#1",
+          "relevance": 3,
+          "score": 0.033333335
+        },
+        {
+          "chunkId": "qdrant.md#6",
+          "relevance": 0,
+          "score": 0.032522473
+        },
+        {
+          "chunkId": "project-structure.md#4",
+          "relevance": 0,
+          "score": 0.032002047
+        },
+        {
+          "chunkId": "project-structure.md#3",
+          "relevance": 0,
+          "score": 0.031544957
+        },
+        {
+          "chunkId": "config-env.md#15",
+          "relevance": 0,
+          "score": 0.031257633
+        }
+      ]
+    },
+    {
+      "id": "c13",
+      "type": "exact-token",
+      "verdict": "valid",
+      "isNegative": false,
+      "hitAt1": true,
+      "hitAt3": true,
+      "hitAt5": true,
+      "hitAt10": true,
+      "recallAt5": 1,
+      "recallAt10": 1,
+      "supportHitAt10": true,
+      "ndcgAt10": 0.9002091001789945,
+      "mrrAt10": 1,
+      "requiredEvidenceCoverageAt10": null,
+      "negativeTokenAbsenceAt1": null,
+      "top5": [
+        {
+          "chunkId": "qdrant.md#7",
+          "relevance": 3,
+          "score": 0.033333335
+        },
+        {
+          "chunkId": "obsidian.md#6",
+          "relevance": 0,
+          "score": 0.032786883
+        },
+        {
+          "chunkId": "mcp-workflow.md#5",
+          "relevance": 0,
+          "score": 0.03175403
+        },
+        {
+          "chunkId": "obsidian.md#5",
+          "relevance": 0,
+          "score": 0.03175403
+        },
+        {
+          "chunkId": "qdrant.md#8",
+          "relevance": 1,
+          "score": 0.031257633
+        }
+      ]
+    },
+    {
+      "id": "c14",
+      "type": "exact-token",
+      "verdict": "valid",
+      "isNegative": false,
+      "hitAt1": false,
+      "hitAt3": true,
+      "hitAt5": true,
+      "hitAt10": true,
+      "recallAt5": 1,
+      "recallAt10": 1,
+      "supportHitAt10": true,
+      "ndcgAt10": 0.8579514172105233,
+      "mrrAt10": 0.5,
+      "requiredEvidenceCoverageAt10": true,
+      "negativeTokenAbsenceAt1": null,
+      "top5": [
+        {
+          "chunkId": "qdrant.md#2",
+          "relevance": 2,
+          "score": 0.032795697
+        },
+        {
+          "chunkId": "qdrant.md#4",
+          "relevance": 3,
+          "score": 0.032539684
+        },
+        {
+          "chunkId": "qdrant.md#3",
+          "relevance": 2,
+          "score": 0.032522473
+        },
+        {
+          "chunkId": "qdrant.md#5",
+          "relevance": 0,
+          "score": 0.03226646
+        },
+        {
+          "chunkId": "project-structure.md#4",
+          "relevance": 0,
+          "score": 0.03125
+        }
+      ]
+    },
+    {
+      "id": "c15",
+      "type": "config-env",
+      "verdict": "corrected",
+      "isNegative": false,
+      "hitAt1": false,
+      "hitAt3": true,
+      "hitAt5": true,
+      "hitAt10": true,
+      "recallAt5": 0.5,
+      "recallAt10": 1,
+      "supportHitAt10": true,
+      "ndcgAt10": 0.7541145650562945,
+      "mrrAt10": 0.5,
+      "requiredEvidenceCoverageAt10": null,
+      "negativeTokenAbsenceAt1": null,
+      "top5": [
+        {
+          "chunkId": "chunking.md#4",
+          "relevance": 2,
+          "score": 0.033333335
+        },
+        {
+          "chunkId": "config-env.md#7",
+          "relevance": 3,
+          "score": 0.032522473
+        },
+        {
+          "chunkId": "chunking.md#6",
+          "relevance": 0,
+          "score": 0.032522473
+        },
+        {
+          "chunkId": "config-env.md#8",
+          "relevance": 0,
+          "score": 0.031257633
+        },
+        {
+          "chunkId": "chunking.md#5",
+          "relevance": 0,
+          "score": 0.031257633
+        }
+      ]
+    },
+    {
+      "id": "c16",
+      "type": "troubleshooting",
+      "verdict": "valid",
+      "isNegative": false,
+      "hitAt1": true,
+      "hitAt3": true,
+      "hitAt5": true,
+      "hitAt10": true,
+      "recallAt5": 1,
+      "recallAt10": 1,
+      "supportHitAt10": true,
+      "ndcgAt10": 0.9639988080961093,
+      "mrrAt10": 1,
+      "requiredEvidenceCoverageAt10": null,
+      "negativeTokenAbsenceAt1": null,
+      "top5": [
+        {
+          "chunkId": "chunking.md#6",
+          "relevance": 3,
+          "score": 0.016666668
+        },
+        {
+          "chunkId": "config-env.md#7",
+          "relevance": 0,
+          "score": 0.016393442
+        },
+        {
+          "chunkId": "chunking.md#1",
+          "relevance": 0,
+          "score": 0.016129032
+        },
+        {
+          "chunkId": "chunking.md#7",
+          "relevance": 0,
+          "score": 0.015873017
+        },
+        {
+          "chunkId": "chunking.md#5",
+          "relevance": 0,
+          "score": 0.015625
+        }
+      ]
+    },
+    {
+      "id": "c17",
+      "type": "conceptual",
+      "verdict": "valid",
+      "isNegative": false,
+      "hitAt1": true,
+      "hitAt3": true,
+      "hitAt5": true,
+      "hitAt10": true,
+      "recallAt5": 1,
+      "recallAt10": 1,
+      "supportHitAt10": true,
+      "ndcgAt10": 1,
+      "mrrAt10": 1,
+      "requiredEvidenceCoverageAt10": null,
+      "negativeTokenAbsenceAt1": null,
+      "top5": [
+        {
+          "chunkId": "chunking.md#5",
+          "relevance": 3,
+          "score": 0.033333335
+        },
+        {
+          "chunkId": "chunking.md#4",
+          "relevance": 2,
+          "score": 0.032522473
+        },
+        {
+          "chunkId": "chunking.md#7",
+          "relevance": 0,
+          "score": 0.03201844
+        },
+        {
+          "chunkId": "config-env.md#7",
+          "relevance": 0,
+          "score": 0.031054404
+        },
+        {
+          "chunkId": "chunking.md#8",
+          "relevance": 0,
+          "score": 0.031009614
+        }
+      ]
+    },
+    {
+      "id": "c18",
+      "type": "exact-token",
+      "verdict": "valid",
+      "isNegative": false,
+      "hitAt1": true,
+      "hitAt3": true,
+      "hitAt5": true,
+      "hitAt10": true,
+      "recallAt5": 1,
+      "recallAt10": 1,
+      "supportHitAt10": true,
+      "ndcgAt10": 1,
+      "mrrAt10": 1,
+      "requiredEvidenceCoverageAt10": null,
+      "negativeTokenAbsenceAt1": null,
+      "top5": [
+        {
+          "chunkId": "chunking.md#3",
+          "relevance": 3,
+          "score": 0.033333335
+        },
+        {
+          "chunkId": "multilingual.md#4",
+          "relevance": 1,
+          "score": 0.032522473
+        },
+        {
+          "chunkId": "chunking.md#7",
+          "relevance": 0,
+          "score": 0.032522473
+        },
+        {
+          "chunkId": "chunking.md#0",
+          "relevance": 0,
+          "score": 0.031257633
+        },
+        {
+          "chunkId": "project-structure.md#0",
+          "relevance": 0,
+          "score": 0.029709507
+        }
+      ]
+    },
+    {
+      "id": "c19",
+      "type": "exact-token",
+      "verdict": "valid",
+      "isNegative": false,
+      "hitAt1": true,
+      "hitAt3": true,
+      "hitAt5": true,
+      "hitAt10": true,
+      "recallAt5": 1,
+      "recallAt10": 1,
+      "supportHitAt10": true,
+      "ndcgAt10": 1,
+      "mrrAt10": 1,
+      "requiredEvidenceCoverageAt10": null,
+      "negativeTokenAbsenceAt1": null,
+      "top5": [
+        {
+          "chunkId": "chunking.md#8",
+          "relevance": 3,
+          "score": 0.033333335
+        },
+        {
+          "chunkId": "chunking.md#9",
+          "relevance": 1,
+          "score": 0.032786883
+        },
+        {
+          "chunkId": "chunking.md#7",
+          "relevance": 0,
+          "score": 0.032258064
+        },
+        {
+          "chunkId": "project-structure.md#1",
+          "relevance": 0,
+          "score": 0.029761907
+        },
+        {
+          "chunkId": "providers.md#2",
+          "relevance": 0,
+          "score": 0.02741784
+        }
+      ]
+    },
+    {
+      "id": "c20",
+      "type": "config-env",
+      "verdict": "valid",
+      "isNegative": false,
+      "hitAt1": true,
+      "hitAt3": true,
+      "hitAt5": true,
+      "hitAt10": true,
+      "recallAt5": 1,
+      "recallAt10": 1,
+      "supportHitAt10": true,
+      "ndcgAt10": 0.9076035217023793,
+      "mrrAt10": 1,
+      "requiredEvidenceCoverageAt10": null,
+      "negativeTokenAbsenceAt1": null,
+      "top5": [
+        {
+          "chunkId": "config-env.md#7",
+          "relevance": 3,
+          "score": 0.032522473
+        },
+        {
+          "chunkId": "project-structure.md#5",
+          "relevance": 0,
+          "score": 0.032291666
+        },
+        {
+          "chunkId": "chunking.md#1",
+          "relevance": 3,
+          "score": 0.032291666
+        },
+        {
+          "chunkId": "config-env.md#8",
+          "relevance": 0,
+          "score": 0.03226646
+        },
+        {
+          "chunkId": "chunking.md#2",
+          "relevance": 0,
+          "score": 0.031513646
+        }
+      ]
+    },
+    {
+      "id": "c21",
+      "type": "conceptual",
+      "verdict": "valid",
+      "isNegative": false,
+      "hitAt1": true,
+      "hitAt3": true,
+      "hitAt5": true,
+      "hitAt10": true,
+      "recallAt5": 1,
+      "recallAt10": 1,
+      "supportHitAt10": true,
+      "ndcgAt10": 0.8935773014954859,
+      "mrrAt10": 1,
+      "requiredEvidenceCoverageAt10": null,
+      "negativeTokenAbsenceAt1": null,
+      "top5": [
+        {
+          "chunkId": "sync.md#0",
+          "relevance": 3,
+          "score": 0.033333335
+        },
+        {
+          "chunkId": "config-env.md#13",
+          "relevance": 0,
+          "score": 0.032522473
+        },
+        {
+          "chunkId": "config-env.md#14",
+          "relevance": 0,
+          "score": 0.032522473
+        },
+        {
+          "chunkId": "sync.md#3",
+          "relevance": 0,
+          "score": 0.031498015
+        },
+        {
+          "chunkId": "sync.md#5",
+          "relevance": 0,
+          "score": 0.031009614
+        }
+      ]
+    },
+    {
+      "id": "c22",
+      "type": "exact-token",
+      "verdict": "valid",
+      "isNegative": false,
+      "hitAt1": true,
+      "hitAt3": true,
+      "hitAt5": true,
+      "hitAt10": true,
+      "recallAt5": 1,
+      "recallAt10": 1,
+      "supportHitAt10": true,
+      "ndcgAt10": 1,
+      "mrrAt10": 1,
+      "requiredEvidenceCoverageAt10": null,
+      "negativeTokenAbsenceAt1": null,
+      "top5": [
+        {
+          "chunkId": "sync.md#2",
+          "relevance": 3,
+          "score": 0.033333335
+        },
+        {
+          "chunkId": "sync.md#1",
+          "relevance": 2,
+          "score": 0.032522473
+        },
+        {
+          "chunkId": "providers.md#3",
+          "relevance": 0,
+          "score": 0.032522473
+        },
+        {
+          "chunkId": "providers.md#1",
+          "relevance": 0,
+          "score": 0.031498015
+        },
+        {
+          "chunkId": "providers.md#2",
+          "relevance": 0,
+          "score": 0.030550372
+        }
+      ]
+    },
+    {
+      "id": "c23",
+      "type": "conceptual",
+      "verdict": "valid",
+      "isNegative": false,
+      "hitAt1": true,
+      "hitAt3": true,
+      "hitAt5": true,
+      "hitAt10": true,
+      "recallAt5": 1,
+      "recallAt10": 1,
+      "supportHitAt10": true,
+      "ndcgAt10": 0.7871546029909718,
+      "mrrAt10": 1,
+      "requiredEvidenceCoverageAt10": null,
+      "negativeTokenAbsenceAt1": null,
+      "top5": [
+        {
+          "chunkId": "sync.md#3",
+          "relevance": 3,
+          "score": 0.033333335
+        },
+        {
+          "chunkId": "project-structure.md#1",
+          "relevance": 0,
+          "score": 0.032002047
+        },
+        {
+          "chunkId": "sync.md#0",
+          "relevance": 0,
+          "score": 0.031544957
+        },
+        {
+          "chunkId": "project-structure.md#0",
+          "relevance": 0,
+          "score": 0.031099323
+        },
+        {
+          "chunkId": "providers.md#0",
+          "relevance": 0,
+          "score": 0.029910713
+        }
+      ]
+    },
+    {
+      "id": "c24",
+      "type": "conceptual",
+      "verdict": "valid",
+      "isNegative": false,
+      "hitAt1": true,
+      "hitAt3": true,
+      "hitAt5": true,
+      "hitAt10": true,
+      "recallAt5": 1,
+      "recallAt10": 1,
+      "supportHitAt10": true,
+      "ndcgAt10": 1,
+      "mrrAt10": 1,
+      "requiredEvidenceCoverageAt10": null,
+      "negativeTokenAbsenceAt1": null,
+      "top5": [
+        {
+          "chunkId": "sync.md#5",
+          "relevance": 3,
+          "score": 0.03306011
+        },
+        {
+          "chunkId": "sync.md#0",
+          "relevance": 0,
+          "score": 0.032795697
+        },
+        {
+          "chunkId": "sync.md#2",
+          "relevance": 0,
+          "score": 0.03201844
+        },
+        {
+          "chunkId": "sync.md#1",
+          "relevance": 0,
+          "score": 0.03175403
+        },
+        {
+          "chunkId": "sync.md#3",
+          "relevance": 0,
+          "score": 0.031024532
+        }
+      ]
+    },
+    {
+      "id": "c25",
+      "type": "conceptual",
+      "verdict": "valid",
+      "isNegative": false,
+      "hitAt1": false,
+      "hitAt3": true,
+      "hitAt5": true,
+      "hitAt10": true,
+      "recallAt5": 1,
+      "recallAt10": 1,
+      "supportHitAt10": true,
+      "ndcgAt10": 0.8339912323981488,
+      "mrrAt10": 0.5,
+      "requiredEvidenceCoverageAt10": null,
+      "negativeTokenAbsenceAt1": null,
+      "top5": [
+        {
+          "chunkId": "sync.md#0",
+          "relevance": 2,
+          "score": 0.03306011
+        },
+        {
+          "chunkId": "sync.md#4",
+          "relevance": 3,
+          "score": 0.032539684
+        },
+        {
+          "chunkId": "config-env.md#14",
+          "relevance": 0,
+          "score": 0.03201844
+        },
+        {
+          "chunkId": "config-env.md#13",
+          "relevance": 0,
+          "score": 0.032002047
+        },
+        {
+          "chunkId": "sync.md#5",
+          "relevance": 0,
+          "score": 0.03175403
+        }
+      ]
+    },
+    {
+      "id": "c26",
+      "type": "conceptual",
+      "verdict": "valid",
+      "isNegative": false,
+      "hitAt1": true,
+      "hitAt3": true,
+      "hitAt5": true,
+      "hitAt10": true,
+      "recallAt5": 1,
+      "recallAt10": 1,
+      "supportHitAt10": true,
+      "ndcgAt10": 1,
+      "mrrAt10": 1,
+      "requiredEvidenceCoverageAt10": null,
+      "negativeTokenAbsenceAt1": null,
+      "top5": [
+        {
+          "chunkId": "mcp-workflow.md#1",
+          "relevance": 3,
+          "score": 0.03306011
+        },
+        {
+          "chunkId": "mcp-workflow.md#0",
+          "relevance": 2,
+          "score": 0.03306011
+        },
+        {
+          "chunkId": "project-structure.md#6",
+          "relevance": 0,
+          "score": 0.032002047
+        },
+        {
+          "chunkId": "project-structure.md#0",
+          "relevance": 0,
+          "score": 0.032002047
+        },
+        {
+          "chunkId": "project-structure.md#1",
+          "relevance": 0,
+          "score": 0.03125
+        }
+      ]
+    },
+    {
+      "id": "c27",
+      "type": "exact-token",
+      "verdict": "valid",
+      "isNegative": false,
+      "hitAt1": true,
+      "hitAt3": true,
+      "hitAt5": true,
+      "hitAt10": true,
+      "recallAt5": 1,
+      "recallAt10": 1,
+      "supportHitAt10": true,
+      "ndcgAt10": 0.9721212198129313,
+      "mrrAt10": 1,
+      "requiredEvidenceCoverageAt10": null,
+      "negativeTokenAbsenceAt1": null,
+      "top5": [
+        {
+          "chunkId": "mcp-workflow.md#6",
+          "relevance": 3,
+          "score": 0.033333335
+        },
+        {
+          "chunkId": "mcp-workflow.md#4",
+          "relevance": 1,
+          "score": 0.032786883
+        },
+        {
+          "chunkId": "mcp-workflow.md#2",
+          "relevance": 2,
+          "score": 0.032002047
+        },
+        {
+          "chunkId": "qdrant.md#4",
+          "relevance": 0,
+          "score": 0.031024532
+        },
+        {
+          "chunkId": "qdrant.md#3",
+          "relevance": 0,
+          "score": 0.031009614
+        }
+      ]
+    },
+    {
+      "id": "c28",
+      "type": "exact-token",
+      "verdict": "valid",
+      "isNegative": false,
+      "hitAt1": true,
+      "hitAt3": true,
+      "hitAt5": true,
+      "hitAt10": true,
+      "recallAt5": 1,
+      "recallAt10": 1,
+      "supportHitAt10": true,
+      "ndcgAt10": 0.9085714055416104,
+      "mrrAt10": 1,
+      "requiredEvidenceCoverageAt10": null,
+      "negativeTokenAbsenceAt1": null,
+      "top5": [
+        {
+          "chunkId": "mcp-workflow.md#8",
+          "relevance": 3,
+          "score": 0.033333335
+        },
+        {
+          "chunkId": "mcp-workflow.md#5",
+          "relevance": 1,
+          "score": 0.032786883
+        },
+        {
+          "chunkId": "qdrant.md#7",
+          "relevance": 0,
+          "score": 0.032258064
+        },
+        {
+          "chunkId": "obsidian.md#2",
+          "relevance": 0,
+          "score": 0.031257633
+        },
+        {
+          "chunkId": "mcp-workflow.md#3",
+          "relevance": 0,
+          "score": 0.031009614
+        }
+      ]
+    },
+    {
+      "id": "c29",
+      "type": "conceptual",
+      "verdict": "valid",
+      "isNegative": false,
+      "hitAt1": false,
+      "hitAt3": false,
+      "hitAt5": false,
+      "hitAt10": false,
+      "recallAt5": 0,
+      "recallAt10": 0,
+      "supportHitAt10": false,
+      "ndcgAt10": 0,
+      "mrrAt10": 0,
+      "requiredEvidenceCoverageAt10": null,
+      "negativeTokenAbsenceAt1": null,
+      "top5": [
+        {
+          "chunkId": "mcp-workflow.md#0",
+          "relevance": 0,
+          "score": 0.03306011
+        },
+        {
+          "chunkId": "mcp-workflow.md#1",
+          "relevance": 0,
+          "score": 0.032539684
+        },
+        {
+          "chunkId": "project-structure.md#6",
+          "relevance": 0,
+          "score": 0.032258064
+        },
+        {
+          "chunkId": "project-structure.md#0",
+          "relevance": 0,
+          "score": 0.03201844
+        },
+        {
+          "chunkId": "project-structure.md#1",
+          "relevance": 0,
+          "score": 0.031009614
+        }
+      ]
+    },
+    {
+      "id": "c30",
+      "type": "exact-token",
+      "verdict": "valid",
+      "isNegative": false,
+      "hitAt1": true,
+      "hitAt3": true,
+      "hitAt5": true,
+      "hitAt10": true,
+      "recallAt5": 1,
+      "recallAt10": 1,
+      "supportHitAt10": true,
+      "ndcgAt10": 0.8940842964404986,
+      "mrrAt10": 1,
+      "requiredEvidenceCoverageAt10": null,
+      "negativeTokenAbsenceAt1": null,
+      "top5": [
+        {
+          "chunkId": "mcp-workflow.md#7",
+          "relevance": 3,
+          "score": 0.033333335
+        },
+        {
+          "chunkId": "obsidian.md#1",
+          "relevance": 0,
+          "score": 0.032786883
+        },
+        {
+          "chunkId": "mcp-workflow.md#3",
+          "relevance": 0,
+          "score": 0.031257633
+        },
+        {
+          "chunkId": "obsidian.md#0",
+          "relevance": 2,
+          "score": 0.03125
+        },
+        {
+          "chunkId": "obsidian.md#4",
+          "relevance": 0,
+          "score": 0.03079839
+        }
+      ]
+    },
+    {
+      "id": "c31",
+      "type": "exact-token",
+      "verdict": "valid",
+      "isNegative": false,
+      "hitAt1": true,
+      "hitAt3": true,
+      "hitAt5": true,
+      "hitAt10": true,
+      "recallAt5": 1,
+      "recallAt10": 1,
+      "supportHitAt10": true,
+      "ndcgAt10": 0.9721212198129313,
+      "mrrAt10": 1,
+      "requiredEvidenceCoverageAt10": null,
+      "negativeTokenAbsenceAt1": null,
+      "top5": [
+        {
+          "chunkId": "obsidian.md#1",
+          "relevance": 3,
+          "score": 0.033333335
+        },
+        {
+          "chunkId": "mcp-workflow.md#7",
+          "relevance": 1,
+          "score": 0.032786883
+        },
+        {
+          "chunkId": "obsidian.md#7",
+          "relevance": 2,
+          "score": 0.031513646
+        },
+        {
+          "chunkId": "obsidian.md#0",
+          "relevance": 0,
+          "score": 0.031513646
+        },
+        {
+          "chunkId": "obsidian.md#3",
+          "relevance": 0,
+          "score": 0.031498015
+        }
+      ]
+    },
+    {
+      "id": "c32",
+      "type": "exact-token",
+      "verdict": "valid",
+      "isNegative": false,
+      "hitAt1": true,
+      "hitAt3": true,
+      "hitAt5": true,
+      "hitAt10": true,
+      "recallAt5": 1,
+      "recallAt10": 1,
+      "supportHitAt10": true,
+      "ndcgAt10": 0.9799889788426707,
+      "mrrAt10": 1,
+      "requiredEvidenceCoverageAt10": null,
+      "negativeTokenAbsenceAt1": null,
+      "top5": [
+        {
+          "chunkId": "obsidian.md#2",
+          "relevance": 3,
+          "score": 0.033333335
+        },
+        {
+          "chunkId": "obsidian.md#3",
+          "relevance": 2,
+          "score": 0.032786883
+        },
+        {
+          "chunkId": "obsidian.md#1",
+          "relevance": 0,
+          "score": 0.032258064
+        },
+        {
+          "chunkId": "obsidian.md#4",
+          "relevance": 2,
+          "score": 0.031498015
+        },
+        {
+          "chunkId": "mcp-workflow.md#7",
+          "relevance": 0,
+          "score": 0.031498015
+        }
+      ]
+    },
+    {
+      "id": "c33",
+      "type": "conceptual",
+      "verdict": "valid",
+      "isNegative": false,
+      "hitAt1": true,
+      "hitAt3": true,
+      "hitAt5": true,
+      "hitAt10": true,
+      "recallAt5": 1,
+      "recallAt10": 1,
+      "supportHitAt10": true,
+      "ndcgAt10": 0.95583058934618,
+      "mrrAt10": 1,
+      "requiredEvidenceCoverageAt10": null,
+      "negativeTokenAbsenceAt1": null,
+      "top5": [
+        {
+          "chunkId": "obsidian.md#5",
+          "relevance": 3,
+          "score": 0.033333335
+        },
+        {
+          "chunkId": "benchmarking.md#6",
+          "relevance": 0,
+          "score": 0.032786883
+        },
+        {
+          "chunkId": "obsidian.md#6",
+          "relevance": 2,
+          "score": 0.032258064
+        },
+        {
+          "chunkId": "qdrant.md#7",
+          "relevance": 0,
+          "score": 0.031746034
+        },
+        {
+          "chunkId": "project-structure.md#5",
+          "relevance": 0,
+          "score": 0.03125
+        }
+      ]
+    },
+    {
+      "id": "c34",
+      "type": "conceptual",
+      "verdict": "valid",
+      "isNegative": false,
+      "hitAt1": true,
+      "hitAt3": true,
+      "hitAt5": true,
+      "hitAt10": true,
+      "recallAt5": 1,
+      "recallAt10": 1,
+      "supportHitAt10": true,
+      "ndcgAt10": 0.9828422279067397,
+      "mrrAt10": 1,
+      "requiredEvidenceCoverageAt10": null,
+      "negativeTokenAbsenceAt1": null,
+      "top5": [
+        {
+          "chunkId": "obsidian.md#8",
+          "relevance": 3,
+          "score": 0.03306011
+        },
+        {
+          "chunkId": "mcp-workflow.md#2",
+          "relevance": 0,
+          "score": 0.03175403
+        },
+        {
+          "chunkId": "obsidian.md#7",
+          "relevance": 1,
+          "score": 0.03076923
+        },
+        {
+          "chunkId": "mcp-workflow.md#8",
+          "relevance": 0,
+          "score": 0.0305789
+        },
+        {
+          "chunkId": "obsidian.md#4",
+          "relevance": 0,
+          "score": 0.03028233
+        }
+      ]
+    },
+    {
+      "id": "c35",
+      "type": "source-navigation",
+      "verdict": "corrected",
+      "isNegative": false,
+      "hitAt1": true,
+      "hitAt3": true,
+      "hitAt5": true,
+      "hitAt10": true,
+      "recallAt5": 1,
+      "recallAt10": 1,
+      "supportHitAt10": true,
+      "ndcgAt10": 0.9499797323370371,
+      "mrrAt10": 1,
+      "requiredEvidenceCoverageAt10": null,
+      "negativeTokenAbsenceAt1": null,
+      "top5": [
+        {
+          "chunkId": "project-structure.md#4",
+          "relevance": 3,
+          "score": 0.033333335
+        },
+        {
+          "chunkId": "qdrant.md#0",
+          "relevance": 1,
+          "score": 0.032786883
+        },
+        {
+          "chunkId": "project-structure.md#6",
+          "relevance": 0,
+          "score": 0.03175403
+        },
+        {
+          "chunkId": "project-structure.md#1",
+          "relevance": 2,
+          "score": 0.031746034
+        },
+        {
+          "chunkId": "project-structure.md#7",
+          "relevance": 0,
+          "score": 0.031513646
+        }
+      ]
+    },
+    {
+      "id": "c36",
+      "type": "source-navigation",
+      "verdict": "valid",
+      "isNegative": false,
+      "hitAt1": false,
+      "hitAt3": true,
+      "hitAt5": true,
+      "hitAt10": true,
+      "recallAt5": 0.5,
+      "recallAt10": 0.5,
+      "supportHitAt10": true,
+      "ndcgAt10": 0.40308460929883105,
+      "mrrAt10": 0.5,
+      "requiredEvidenceCoverageAt10": null,
+      "negativeTokenAbsenceAt1": null,
+      "top5": [
+        {
+          "chunkId": "chunking.md#7",
+          "relevance": 0,
+          "score": 0.033333335
+        },
+        {
+          "chunkId": "project-structure.md#5",
+          "relevance": 3,
+          "score": 0.032258064
+        },
+        {
+          "chunkId": "chunking.md#8",
+          "relevance": 0,
+          "score": 0.03201844
+        },
+        {
+          "chunkId": "benchmarking.md#6",
+          "relevance": 0,
+          "score": 0.031024532
+        },
+        {
+          "chunkId": "chunking.md#0",
+          "relevance": 1,
+          "score": 0.030886196
+        }
+      ]
+    },
+    {
+      "id": "c37",
+      "type": "source-navigation",
+      "verdict": "corrected",
+      "isNegative": false,
+      "hitAt1": true,
+      "hitAt3": true,
+      "hitAt5": true,
+      "hitAt10": true,
+      "recallAt5": 1,
+      "recallAt10": 1,
+      "supportHitAt10": true,
+      "ndcgAt10": 0.9871901582936081,
+      "mrrAt10": 1,
+      "requiredEvidenceCoverageAt10": null,
+      "negativeTokenAbsenceAt1": null,
+      "top5": [
+        {
+          "chunkId": "project-structure.md#7",
+          "relevance": 3,
+          "score": 0.033333335
+        },
+        {
+          "chunkId": "benchmarking.md#12",
+          "relevance": 2,
+          "score": 0.032786883
+        },
+        {
+          "chunkId": "benchmarking.md#2",
+          "relevance": 1,
+          "score": 0.03175403
+        },
+        {
+          "chunkId": "project-structure.md#1",
+          "relevance": 2,
+          "score": 0.03175403
+        },
+        {
+          "chunkId": "sync.md#0",
+          "relevance": 0,
+          "score": 0.03036577
+        }
+      ]
+    },
+    {
+      "id": "c38",
+      "type": "exact-token",
+      "verdict": "corrected",
+      "isNegative": false,
+      "hitAt1": true,
+      "hitAt3": true,
+      "hitAt5": true,
+      "hitAt10": true,
+      "recallAt5": 1,
+      "recallAt10": 1,
+      "supportHitAt10": true,
+      "ndcgAt10": 0.9131818191432831,
+      "mrrAt10": 1,
+      "requiredEvidenceCoverageAt10": null,
+      "negativeTokenAbsenceAt1": null,
+      "top5": [
+        {
+          "chunkId": "project-structure.md#3",
+          "relevance": 3,
+          "score": 0.033333335
+        },
+        {
+          "chunkId": "providers.md#5",
+          "relevance": 1,
+          "score": 0.032786883
+        },
+        {
+          "chunkId": "config-env.md#15",
+          "relevance": 0,
+          "score": 0.032258064
+        },
+        {
+          "chunkId": "qdrant.md#8",
+          "relevance": 0,
+          "score": 0.031257633
+        },
+        {
+          "chunkId": "providers.md#0",
+          "relevance": 0,
+          "score": 0.0305789
+        }
+      ]
+    },
+    {
+      "id": "c39",
+      "type": "exact-token",
+      "verdict": "corrected",
+      "isNegative": false,
+      "hitAt1": true,
+      "hitAt3": true,
+      "hitAt5": true,
+      "hitAt10": true,
+      "recallAt5": 1,
+      "recallAt10": 1,
+      "supportHitAt10": true,
+      "ndcgAt10": 0.8206726450938913,
+      "mrrAt10": 1,
+      "requiredEvidenceCoverageAt10": null,
+      "negativeTokenAbsenceAt1": null,
+      "top5": [
+        {
+          "chunkId": "benchmarking.md#8",
+          "relevance": 3,
+          "score": 0.03306011
+        },
+        {
+          "chunkId": "benchmarking.md#2",
+          "relevance": 0,
+          "score": 0.032795697
+        },
+        {
+          "chunkId": "benchmarking.md#9",
+          "relevance": 3,
+          "score": 0.032522473
+        },
+        {
+          "chunkId": "benchmarking.md#6",
+          "relevance": 0,
+          "score": 0.031498015
+        },
+        {
+          "chunkId": "benchmarking.md#5",
+          "relevance": 2,
+          "score": 0.031024532
+        }
+      ]
+    },
+    {
+      "id": "c40",
+      "type": "exact-token",
+      "verdict": "corrected",
+      "isNegative": false,
+      "hitAt1": true,
+      "hitAt3": true,
+      "hitAt5": true,
+      "hitAt10": true,
+      "recallAt5": 1,
+      "recallAt10": 1,
+      "supportHitAt10": true,
+      "ndcgAt10": 0.8787642368078041,
+      "mrrAt10": 1,
+      "requiredEvidenceCoverageAt10": null,
+      "negativeTokenAbsenceAt1": null,
+      "top5": [
+        {
+          "chunkId": "benchmarking.md#6",
+          "relevance": 3,
+          "score": 0.033333335
+        },
+        {
+          "chunkId": "project-structure.md#5",
+          "relevance": 0,
+          "score": 0.032786883
+        },
+        {
+          "chunkId": "mcp-workflow.md#4",
+          "relevance": 0,
+          "score": 0.032002047
+        },
+        {
+          "chunkId": "mcp-workflow.md#6",
+          "relevance": 0,
+          "score": 0.031513646
+        },
+        {
+          "chunkId": "obsidian.md#5",
+          "relevance": 1,
+          "score": 0.031009614
+        }
+      ]
+    },
+    {
+      "id": "c41",
+      "type": "conceptual",
+      "verdict": "valid",
+      "isNegative": false,
+      "hitAt1": true,
+      "hitAt3": true,
+      "hitAt5": true,
+      "hitAt10": true,
+      "recallAt5": 1,
+      "recallAt10": 1,
+      "supportHitAt10": true,
+      "ndcgAt10": 0.9510080040539186,
+      "mrrAt10": 1,
+      "requiredEvidenceCoverageAt10": true,
+      "negativeTokenAbsenceAt1": null,
+      "top5": [
+        {
+          "chunkId": "benchmarking.md#2",
+          "relevance": 3,
+          "score": 0.03306011
+        },
+        {
+          "chunkId": "benchmarking.md#1",
+          "relevance": 3,
+          "score": 0.032539684
+        },
+        {
+          "chunkId": "benchmarking.md#14",
+          "relevance": 0,
+          "score": 0.032522473
+        },
+        {
+          "chunkId": "multilingual.md#6",
+          "relevance": 0,
+          "score": 0.031498015
+        },
+        {
+          "chunkId": "benchmarking.md#12",
+          "relevance": 0,
+          "score": 0.031054404
+        }
+      ]
+    },
+    {
+      "id": "c42",
+      "type": "exact-token",
+      "verdict": "valid",
+      "isNegative": false,
+      "hitAt1": true,
+      "hitAt3": true,
+      "hitAt5": true,
+      "hitAt10": true,
+      "recallAt5": 1,
+      "recallAt10": 1,
+      "supportHitAt10": true,
+      "ndcgAt10": 0.9207314910704657,
+      "mrrAt10": 1,
+      "requiredEvidenceCoverageAt10": null,
+      "negativeTokenAbsenceAt1": null,
+      "top5": [
+        {
+          "chunkId": "benchmarking.md#16",
+          "relevance": 3,
+          "score": 0.033333335
+        },
+        {
+          "chunkId": "providers.md#4",
+          "relevance": 0,
+          "score": 0.032786883
+        },
+        {
+          "chunkId": "sync.md#2",
+          "relevance": 0,
+          "score": 0.031513646
+        },
+        {
+          "chunkId": "config-env.md#12",
+          "relevance": 2,
+          "score": 0.031513646
+        },
+        {
+          "chunkId": "providers.md#3",
+          "relevance": 0,
+          "score": 0.0305789
+        }
+      ]
+    },
+    {
+      "id": "c43",
+      "type": "config-env",
+      "verdict": "valid",
+      "isNegative": false,
+      "hitAt1": false,
+      "hitAt3": true,
+      "hitAt5": true,
+      "hitAt10": true,
+      "recallAt5": 1,
+      "recallAt10": 1,
+      "supportHitAt10": true,
+      "ndcgAt10": 0.8339912323981488,
+      "mrrAt10": 0.5,
+      "requiredEvidenceCoverageAt10": null,
+      "negativeTokenAbsenceAt1": null,
+      "top5": [
+        {
+          "chunkId": "config-env.md#0",
+          "relevance": 2,
+          "score": 0.03306011
+        },
+        {
+          "chunkId": "config-env.md#1",
+          "relevance": 3,
+          "score": 0.03306011
+        },
+        {
+          "chunkId": "qdrant.md#0",
+          "relevance": 0,
+          "score": 0.032258064
+        },
+        {
+          "chunkId": "qdrant.md#4",
+          "relevance": 0,
+          "score": 0.03079839
+        },
+        {
+          "chunkId": "qdrant.md#3",
+          "relevance": 0,
+          "score": 0.030776516
+        }
+      ]
+    },
+    {
+      "id": "c44",
+      "type": "config-env",
+      "verdict": "corrected",
+      "isNegative": false,
+      "hitAt1": true,
+      "hitAt3": true,
+      "hitAt5": true,
+      "hitAt10": true,
+      "recallAt5": 1,
+      "recallAt10": 1,
+      "supportHitAt10": true,
+      "ndcgAt10": 1,
+      "mrrAt10": 1,
+      "requiredEvidenceCoverageAt10": true,
+      "negativeTokenAbsenceAt1": null,
+      "top5": [
+        {
+          "chunkId": "config-env.md#11",
+          "relevance": 3,
+          "score": 0.033333335
+        },
+        {
+          "chunkId": "config-env.md#12",
+          "relevance": 0,
+          "score": 0.031778056
+        },
+        {
+          "chunkId": "benchmarking.md#9",
+          "relevance": 0,
+          "score": 0.03175403
+        },
+        {
+          "chunkId": "benchmarking.md#10",
+          "relevance": 0,
+          "score": 0.031746034
+        },
+        {
+          "chunkId": "config-env.md#2",
+          "relevance": 0,
+          "score": 0.030090498
+        }
+      ]
+    },
+    {
+      "id": "c45",
+      "type": "config-env",
+      "verdict": "valid",
+      "isNegative": false,
+      "hitAt1": true,
+      "hitAt3": true,
+      "hitAt5": true,
+      "hitAt10": true,
+      "recallAt5": 1,
+      "recallAt10": 1,
+      "supportHitAt10": true,
+      "ndcgAt10": 0.8876167507410939,
+      "mrrAt10": 1,
+      "requiredEvidenceCoverageAt10": null,
+      "negativeTokenAbsenceAt1": null,
+      "top5": [
+        {
+          "chunkId": "config-env.md#15",
+          "relevance": 3,
+          "score": 0.03306011
+        },
+        {
+          "chunkId": "providers.md#5",
+          "relevance": 3,
+          "score": 0.03306011
+        },
+        {
+          "chunkId": "providers.md#3",
+          "relevance": 0,
+          "score": 0.031513646
+        },
+        {
+          "chunkId": "qdrant.md#8",
+          "relevance": 1,
+          "score": 0.030776516
+        },
+        {
+          "chunkId": "providers.md#2",
+          "relevance": 0,
+          "score": 0.030621786
+        }
+      ]
+    },
+    {
+      "id": "c46",
+      "type": "config-env",
+      "verdict": "valid",
+      "isNegative": false,
+      "hitAt1": true,
+      "hitAt3": true,
+      "hitAt5": true,
+      "hitAt10": true,
+      "recallAt5": 1,
+      "recallAt10": 1,
+      "supportHitAt10": true,
+      "ndcgAt10": 1,
+      "mrrAt10": 1,
+      "requiredEvidenceCoverageAt10": null,
+      "negativeTokenAbsenceAt1": null,
+      "top5": [
+        {
+          "chunkId": "config-env.md#6",
+          "relevance": 3,
+          "score": 0.033333335
+        },
+        {
+          "chunkId": "config-env.md#5",
+          "relevance": 2,
+          "score": 0.032786883
+        },
+        {
+          "chunkId": "obsidian.md#5",
+          "relevance": 1,
+          "score": 0.03175403
+        },
+        {
+          "chunkId": "config-env.md#11",
+          "relevance": 0,
+          "score": 0.028612014
+        },
+        {
+          "chunkId": "obsidian.md#1",
+          "relevance": 0,
+          "score": 0.028006267
+        }
+      ]
+    },
+    {
+      "id": "c47",
+      "type": "exact-token",
+      "verdict": "valid",
+      "isNegative": false,
+      "hitAt1": true,
+      "hitAt3": true,
+      "hitAt5": true,
+      "hitAt10": true,
+      "recallAt5": 1,
+      "recallAt10": 1,
+      "supportHitAt10": true,
+      "ndcgAt10": 1,
+      "mrrAt10": 1,
+      "requiredEvidenceCoverageAt10": null,
+      "negativeTokenAbsenceAt1": null,
+      "top5": [
+        {
+          "chunkId": "multilingual.md#2",
+          "relevance": 3,
+          "score": 0.03306011
+        },
+        {
+          "chunkId": "multilingual.md#8",
+          "relevance": 2,
+          "score": 0.03306011
+        },
+        {
+          "chunkId": "multilingual.md#1",
+          "relevance": 2,
+          "score": 0.032258064
+        },
+        {
+          "chunkId": "providers.md#2",
+          "relevance": 0,
+          "score": 0.031257633
+        },
+        {
+          "chunkId": "multilingual.md#6",
+          "relevance": 0,
+          "score": 0.031009614
+        }
+      ]
+    },
+    {
+      "id": "c48",
+      "type": "cross-lingual-ua-en",
+      "verdict": "valid",
+      "isNegative": false,
+      "hitAt1": true,
+      "hitAt3": true,
+      "hitAt5": true,
+      "hitAt10": true,
+      "recallAt5": 1,
+      "recallAt10": 1,
+      "supportHitAt10": true,
+      "ndcgAt10": 0.9721212198129313,
+      "mrrAt10": 1,
+      "requiredEvidenceCoverageAt10": null,
+      "negativeTokenAbsenceAt1": null,
+      "top5": [
+        {
+          "chunkId": "multilingual.md#3",
+          "relevance": 3,
+          "score": 0.033333335
+        },
+        {
+          "chunkId": "multilingual.md#5",
+          "relevance": 1,
+          "score": 0.032522473
+        },
+        {
+          "chunkId": "multilingual.md#0",
+          "relevance": 2,
+          "score": 0.032522473
+        },
+        {
+          "chunkId": "multilingual.md#1",
+          "relevance": 0,
+          "score": 0.031257633
+        },
+        {
+          "chunkId": "multilingual.md#2",
+          "relevance": 0,
+          "score": 0.03125
+        }
+      ]
+    },
+    {
+      "id": "c49",
+      "type": "config-env",
+      "verdict": "valid",
+      "isNegative": false,
+      "hitAt1": true,
+      "hitAt3": true,
+      "hitAt5": true,
+      "hitAt10": true,
+      "recallAt5": 1,
+      "recallAt10": 1,
+      "supportHitAt10": true,
+      "ndcgAt10": 0.9822558920422334,
+      "mrrAt10": 1,
+      "requiredEvidenceCoverageAt10": null,
+      "negativeTokenAbsenceAt1": null,
+      "top5": [
+        {
+          "chunkId": "multilingual.md#8",
+          "relevance": 3,
+          "score": 0.032795697
+        },
+        {
+          "chunkId": "multilingual.md#2",
+          "relevance": 2,
+          "score": 0.032539684
+        },
+        {
+          "chunkId": "multilingual.md#6",
+          "relevance": 0,
+          "score": 0.032522473
+        },
+        {
+          "chunkId": "multilingual.md#0",
+          "relevance": 0,
+          "score": 0.03201844
+        },
+        {
+          "chunkId": "config-env.md#3",
+          "relevance": 0,
+          "score": 0.031257633
+        }
+      ]
+    },
+    {
+      "id": "c50",
+      "type": "negative",
+      "verdict": "valid-negative",
+      "isNegative": true,
+      "hitAt1": null,
+      "hitAt3": null,
+      "hitAt5": null,
+      "hitAt10": null,
+      "recallAt5": null,
+      "recallAt10": null,
+      "supportHitAt10": null,
+      "ndcgAt10": null,
+      "mrrAt10": null,
+      "requiredEvidenceCoverageAt10": null,
+      "negativeTokenAbsenceAt1": true,
+      "top5": [
+        {
+          "chunkId": "project-structure.md#0",
+          "relevance": 0,
+          "score": 0.03306011
+        },
+        {
+          "chunkId": "mcp-workflow.md#0",
+          "relevance": 0,
+          "score": 0.032002047
+        },
+        {
+          "chunkId": "mcp-workflow.md#1",
+          "relevance": 0,
+          "score": 0.03125
+        },
+        {
+          "chunkId": "qdrant.md#0",
+          "relevance": 0,
+          "score": 0.031159421
+        },
+        {
+          "chunkId": "providers.md#0",
+          "relevance": 0,
+          "score": 0.031054404
+        }
+      ]
+    }
+  ]
+}

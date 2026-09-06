@@ -1,0 +1,134 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-09-06T23:06:56.391Z",
+  "corpus": {
+    "ref": "corpus.manifest.json",
+    "corpusHash": "c1f2915300793b52c03298e89f958ee3827543eabfa782772c792ae57244be90",
+    "chunkingModel": "skeleton-v1",
+    "totalChunks": 102,
+    "embeddingProfile": {
+      "denseProvider": "bge-m3-onnx",
+      "denseModel": "aapot/bge-m3-onnx",
+      "sparseProvider": "bge-m3-onnx",
+      "embeddingSchemaVersion": 2,
+      "vectorSize": 1024,
+      "execution": "client"
+    },
+    "deterministicIndexEnv": {
+      "TAG_GEN": "0",
+      "SKELETON_SUMMARY": "deterministic",
+      "PIPELINE_MODE": "0",
+      "STAGEA_CONCURRENCY": "1",
+      "OLLAMA_STAGE_CONCURRENCY": "1",
+      "EMBED_STAGE_CONCURRENCY": "1",
+      "MAX_CHUNK_TOKENS": "512",
+      "MIN_CHUNK_TOKENS": "160",
+      "CHUNK_OVERLAP_TOKENS": "80",
+      "SKELETON_CARRYOVER_CHARS": "500",
+      "PRUNE_STALE": "0",
+      "COMBINED_LLM": "0",
+      "FORCE_REINDEX": "0",
+      "ONNX_EMBED": "1",
+      "DENSE_PROVIDER": "bge-m3-onnx",
+      "SPARSE_PROVIDER": "bge-m3-onnx",
+      "ONNX_EXECUTION_PROVIDER": "cpu"
+    }
+  },
+  "queries": {
+    "file": "queries.v4.json",
+    "fileHash": "1740cf155696649fe81fffe1e044bb5f9ef2eb2971389f8ec00135f5c42cfab0",
+    "schemaVersion": 4,
+    "count": 50,
+    "corpusHashInQrels": "c1f2915300793b52c03298e89f958ee3827543eabfa782772c792ae57244be90",
+    "verdictCounts": {
+      "valid": 41,
+      "corrected": 8,
+      "valid-negative": 1
+    },
+    "correctedQueries": [
+      "c09",
+      "c15",
+      "c35",
+      "c37",
+      "c38",
+      "c39",
+      "c40",
+      "c44"
+    ],
+    "multiEvidenceQueries": [
+      "c14",
+      "c41",
+      "c44"
+    ]
+  },
+  "reviewArtifacts": {
+    "reviewScript": "qrels-review.mjs",
+    "reviewScriptHash": "393ad780958e8bfdced14b7a7a6b8bb85e01b3b012aa3c2649b7bcd2e6d0d551",
+    "reviewTable": "review-table.md",
+    "reviewTableHash": "d8a64777e681ee5ea7c6357e61d9f2b12c4db30f74aea0bca4ae0ed921919232",
+    "negativeFixtures": "negative-fixtures.json",
+    "negativeFixturesHash": "1dac203657623bdbe7e7689d25698de69ebcfc967e637135ffd6edeeb69f55be"
+  },
+  "metrics": {
+    "module": "metrics-v4.mjs",
+    "moduleHash": "78daf7d2ccf49a50b5e299095733bf7c6af76c9b277fa0f2b6afb2d54a8c06c3",
+    "naming": {
+      "hit@K": "was v3 \"chunkRecall@K\" — at least one rel>=3 chunk in top K",
+      "recall@K": "genuinely |retrieved ∩ relevant| / |relevant| at rel>=3",
+      "gradedNDCG@K": "gain(rel) = 2^rel - 1, discount = 1/log2(rank+1)",
+      "requiredEvidenceCoverage@K": "every requiredEvidence group has a member in top K",
+      "negativeTokenAbsence@1": "token-absence at rank 1 — NOT abstention/no-answer quality"
+    },
+    "compatibilityAliases": {
+      "chunkRecallAtK": "exact alias of hitAtK; never present as \"recall\""
+    }
+  },
+  "validation": {
+    "module": "validate-qrels.mjs",
+    "moduleHash": "b3465794e8655d2321868133748a72a80099764b4a9094789e4c6058e698c8cb",
+    "checks": [
+      "every qrel chunkId exists in corpus.frozen.json",
+      "every qrel contentHash still equals the frozen chunk contentHash (content corruption at a stable chunkId fails)",
+      "qrels.corpusHash == corpus.manifest corpusHash",
+      "skip-index run: live collection per-file content-hash sequence == frozen corpus (else refuse)"
+    ]
+  },
+  "runtimeCodeIdentity": {
+    "gitHead": "464b0d6d26d1ce1acc4bc29ed506a8dc9b6be303",
+    "node": "v25.2.1",
+    "platform": "win32",
+    "corpusBuiltAtGitHead": "464b0d6d26d1ce1acc4bc29ed506a8dc9b6be303",
+    "corpusBuildDirtyPaths": [
+      "M src/admin/composition/lite.js",
+      "M src/admin/server-full.js",
+      "M src/admin/ui-src/partials/lite/index-view.html",
+      "M src/core/audit/event.js",
+      "M src/core/settings/definitions.js",
+      "M src/local/admin/ui-src/partials/full/index-view.html",
+      "M src/shared/admin/api/jobs.js",
+      "M src/shared/admin/jobs/allowed-roots-guard.js",
+      "M src/shared/admin/jobs/registry.js",
+      "M src/shared/admin/server.js",
+      "M src/shared/admin/ui-src/assembly-view.js",
+      "D src/shared/admin/ui-src/collection-view.js",
+      "M src/shared/admin/ui-src/features/collection-home/view.js",
+      "M src/shared/admin/ui-src/file-view.js",
+      "M src/shared/admin/ui-src/jobs-view.js",
+      "M src/shared/admin/ui-src/router.js",
+      "M src/shared/admin/ui-src/routes.js",
+      "M src/shared/admin/ui-src/search.js",
+      "M src/shared/admin/ui-src/structural-renderer.js",
+      "?? src/shared/admin/ui-src/features/reader/",
+      "?? src/shared/admin/ui-src/shared/api/contracts/reader.js"
+    ]
+  },
+  "executionPaths": {
+    "buildCorpus": "node benchmarks/retrieval/custom-50/build-corpus.mjs   # rebuild + freeze corpus (real indexer CLI)",
+    "checkCorpus": "node benchmarks/retrieval/custom-50/build-corpus.mjs --check",
+    "review": "node benchmarks/retrieval/custom-50/qrels-review.mjs   # regenerate queries.v4.json + review-table.md",
+    "validate": "node benchmarks/retrieval/custom-50/validate-qrels.mjs",
+    "run": "node benchmarks/retrieval/custom-50/run-v4.mjs [--reindex] [--json] [--top=K]   # npm run bench:custom50",
+    "legacyV3": "node benchmarks/retrieval/custom-50/run-v3.js   # npm run bench:custom50:v3-legacy — kept for archival only"
+  },
+  "scope": "Regression / tuning set. NOT an independent held-out benchmark. The 2026-09-06 audit diagnostic matrix used the legacy-chunker corpus and its numbers are not a baseline for this corpus. A new quality baseline requires a run recorded with this manifest."
+}

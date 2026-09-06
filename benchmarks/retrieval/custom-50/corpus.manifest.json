@@ -1,20 +1,20 @@
 {
   "schemaVersion": 1,
-  "builtAt": "2026-09-06T22:50:59.207Z",
-  "corpusHash": "ff3999bb0f3539c6a7c47bb97b2309f6d6c3bc6bf5f6c9ceb3a472837eb123eb",
+  "builtAt": "2026-09-06T23:06:39.302Z",
+  "corpusHash": "c1f2915300793b52c03298e89f958ee3827543eabfa782772c792ae57244be90",
   "totalChunks": 102,
   "chunkingModel": "skeleton-v1",
   "fileContentHashes": {
-    "providers.md": "9c18a8cca437c3ab7ad0387e9e95b28cf116591f380d8acb144c48340c7c40f9",
-    "qdrant.md": "2d95a5f72607950709cfd84368f926797b41251b56df54c22241f2cca40c5eb8",
-    "chunking.md": "663d1b8e8aff585afa7faa82b10026e5242dbed86022e230c02da1be20e65c1c",
-    "sync.md": "62f5782de018a2a0c833808a4ebef499dfa0627b703b29f00a890556b7b7aa9b",
-    "mcp-workflow.md": "4166bae93f2d584fe3c4b3ef7726551b05d67094dfe0ce328434893323982b45",
-    "obsidian.md": "59ff3c079acb8d10309fb4503576ebf902eafd23ffd2edf69d8f634aa2e9d42f",
-    "project-structure.md": "b54b31da8df4fddc28d55e76c477f998568dcf55d0d4c031c9d5c211093c5888",
-    "benchmarking.md": "0e8ba28c33be6ab9e5513fc44330d91d10e7bfddb00032fe213c180928290d2f",
-    "config-env.md": "f833d5bd92742f70e37a732db1ae08cb7959876d48a2b42dbb22714c361fed64",
-    "multilingual.md": "68165946a74650f486de3b6e39999926e0bca052e51b0566ee954892c9e3a92f"
+    "providers.md": "0065d8f03d4a936883417c5dd0184057ce5ef6a505fc3a8a3c48c82ca7727078",
+    "qdrant.md": "a716e95f2b0cabe5ca1bdac6e1e5f1d32325f3bd1f3f7f2ade65442e65067180",
+    "chunking.md": "f637df8c30634baba04d8e63a06373493b94bc8f9b79d244289985267a522d59",
+    "sync.md": "4b4213032aa86e7db16d4f60fa6fb6aed63df2e2d99af2b0286b3709ee6651db",
+    "mcp-workflow.md": "adaa01600e5ff1a59acf470d085a86640e2c1682a62a305599e0fdc331bdbce1",
+    "obsidian.md": "f3338c7af06d7c4c053b0191e107d92734d55cd41c3798f40665cfbee11f45e0",
+    "project-structure.md": "206f3c0b33832420c45876e711a154684b571f3ff36665a08d585dcfe5aebde6",
+    "benchmarking.md": "486a221bedfab8c8fcf33a2c66034242b68ea41da20ab22c549f22c89612ceab",
+    "config-env.md": "22edc1426b168697c359d51a140e24d4511902739f76850f38a9eb811451d07b",
+    "multilingual.md": "dbcaf50280fb4e174bf2d73a880cac67e82ede6f0eba171d06853036125ff9e9"
   },
   "fixtureFileHashes": {
     "providers.md": "afbf6de3754f113795dbdc83fb9ebddcfa37c5cc9182870b3363c6f5c28f9a9e",
@@ -56,7 +56,7 @@
     "ONNX_EXECUTION_PROVIDER": "cpu"
   },
   "indexerCodeIdentity": {
-    "gitHead": "293d2851f2569d6d1d1b56ac7b24f0d06a181402",
+    "gitHead": "464b0d6d26d1ce1acc4bc29ed506a8dc9b6be303",
     "dirtyPaths": [
       "M src/admin/composition/lite.js",
       "M src/admin/server-full.js",

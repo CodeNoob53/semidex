@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "corpusHash": "ff3999bb0f3539c6a7c47bb97b2309f6d6c3bc6bf5f6c9ceb3a472837eb123eb",
+  "corpusHash": "c1f2915300793b52c03298e89f958ee3827543eabfa782772c792ae57244be90",
   "note": "Typed retrieval-negative and scope-sensitive fixtures for custom-50, judged against corpus.frozen.json (skeleton-v1). These replace the single token-absence 'negativePassRate' signal (audit 2026-09-06, P2). Each fixture states EXACTLY what behaviour it checks. A retrieval-negative always returns nearest neighbours — the corpus has no empty-result mode — so the check is about the RANK-1 chunk's scope/content, never about an empty list. None of these prove abstention quality: that needs a live-generation Ask eval, out of scope for this bench.",
   "categories": {
     "unknown-fact": "The corpus contains no information on the subject at all. Correct retrieval behaviour: the top chunk is off-topic (does not contain the expected token). Correct Ask behaviour (not tested here): abstain / say the corpus doesn't cover it.",
