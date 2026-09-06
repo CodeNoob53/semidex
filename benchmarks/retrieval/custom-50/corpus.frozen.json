@@ -1,0 +1,2119 @@
+{
+  "schemaVersion": 1,
+  "builtAt": "2026-09-06T22:50:59.207Z",
+  "chunkingModel": "skeleton-v1",
+  "totalChunks": 102,
+  "files": {
+    "providers.md": {
+      "chunkCount": 6,
+      "fileContentHash": "9c18a8cca437c3ab7ad0387e9e95b28cf116591f380d8acb144c48340c7c40f9",
+      "chunks": [
+        {
+          "chunkId": "providers.md#0",
+          "sourceFile": "providers.md",
+          "chunkIndex": 0,
+          "nodeId": "1a95b42a-da0c-5855-987b-f3a58c1c6282",
+          "nodePath": "providers.md#embedding-providers/paragraph-1",
+          "parentId": "0a6f0708-4c4f-5bac-8ecc-6f99b2567432",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "Embedding Providers",
+          "headingPath": [
+            "Embedding Providers"
+          ],
+          "lang": null,
+          "context": "Embedding Providers",
+          "text": "semidex supports two embedding provider combinations. Each collection stores its provider\nconfiguration in config.json so that re-indexing is triggered automatically when the\nprovider changes.",
+          "rawContent": "semidex supports two embedding provider combinations. Each collection stores its provider\nconfiguration in config.json so that re-indexing is triggered automatically when the\nprovider changes.",
+          "contentHash": "a08898f0425a65216af7a869d64e9f38f31d12ac8a98cbe6de3128d30187517c"
+        },
+        {
+          "chunkId": "providers.md#1",
+          "sourceFile": "providers.md",
+          "chunkIndex": 1,
+          "nodeId": "a7901ebc-4a5b-5d11-ab80-6f1e67573138",
+          "nodePath": "providers.md#embedding-providers/ollama-hashed-tf-default/paragraph-1",
+          "parentId": "30841000-ea48-561a-9606-dcc8be12da71",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "ollama + hashed-tf (default)",
+          "headingPath": [
+            "Embedding Providers",
+            "ollama + hashed-tf (default)"
+          ],
+          "lang": null,
+          "context": "Embedding Providers › ollama + hashed-tf (default)",
+          "text": "The default combination uses Ollama for dense embeddings and hashed-tf for sparse embeddings.\nOllama runs a local model server; the model is configured via EMBED_MODEL (default: bge-m3).\nhashed-tf is a zero-dependency sparse encoder that produces term-frequency vectors using\na deterministic hash function. It does not require a running service.\n\nConfiguration in config.json:\n\n`{ \"denseProvider\": \"ollama\", \"denseModel\": \"bge-m3\", \"sparseProvider\": \"hashed-tf\" }`\n\nTo use this combination set DENSE_PROVIDER=ollama and SPARSE_PROVIDER=hashed-tf, or\nleave both unset since it is the default.",
+          "rawContent": "The default combination uses Ollama for dense embeddings and hashed-tf for sparse embeddings.\nOllama runs a local model server; the model is configured via EMBED_MODEL (default: bge-m3).\nhashed-tf is a zero-dependency sparse encoder that produces term-frequency vectors using\na deterministic hash function. It does not require a running service.\n\nConfiguration in config.json:\n\n`{ \"denseProvider\": \"ollama\", \"denseModel\": \"bge-m3\", \"sparseProvider\": \"hashed-tf\" }`\n\nTo use this combination set DENSE_PROVIDER=ollama and SPARSE_PROVIDER=hashed-tf, or\nleave both unset since it is the default.",
+          "contentHash": "e0a839c04fa2a34e6d2bf23d98706ff5a113faf8a1f2313de01ded0816bdb521"
+        },
+        {
+          "chunkId": "providers.md#2",
+          "sourceFile": "providers.md",
+          "chunkIndex": 2,
+          "nodeId": "e7bf3b77-fc55-5383-95a7-833bd9827db3",
+          "nodePath": "providers.md#embedding-providers/bge-m3-onnx-bge-m3-onnx/paragraph-1",
+          "parentId": "4e88293e-4cd0-5af9-881a-d6bd476e59d1",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "bge-m3-onnx + bge-m3-onnx",
+          "headingPath": [
+            "Embedding Providers",
+            "bge-m3-onnx + bge-m3-onnx"
+          ],
+          "lang": null,
+          "context": "Embedding Providers › bge-m3-onnx + bge-m3-onnx",
+          "text": "The ONNX combination runs the BGE-M3 model locally via ONNX Runtime. It produces both\ndense and sparse vectors from the same model pass. The model is downloaded from Hugging\nFace on first use (~2.3 GB) and cached in ./models/.\n\nConfiguration in config.json:\n\n`{ \"denseProvider\": \"bge-m3-onnx\", \"denseModel\": \"aapot/bge-m3-onnx\", \"sparseProvider\": \"bge-m3-onnx\" }`\n\nEnable with ONNX_EMBED=1 (shorthand) or explicitly with\nDENSE_PROVIDER=bge-m3-onnx SPARSE_PROVIDER=bge-m3-onnx.",
+          "rawContent": "The ONNX combination runs the BGE-M3 model locally via ONNX Runtime. It produces both\ndense and sparse vectors from the same model pass. The model is downloaded from Hugging\nFace on first use (~2.3 GB) and cached in ./models/.\n\nConfiguration in config.json:\n\n`{ \"denseProvider\": \"bge-m3-onnx\", \"denseModel\": \"aapot/bge-m3-onnx\", \"sparseProvider\": \"bge-m3-onnx\" }`\n\nEnable with ONNX_EMBED=1 (shorthand) or explicitly with\nDENSE_PROVIDER=bge-m3-onnx SPARSE_PROVIDER=bge-m3-onnx.",
+          "contentHash": "748d65842ad16faf3cabc986e8609d34be9446b65e8448212aab257d6ffba2bf"
+        },
+        {
+          "chunkId": "providers.md#3",
+          "sourceFile": "providers.md",
+          "chunkIndex": 3,
+          "nodeId": "882f6d74-6e28-57d7-976b-54cba5cbb4be",
+          "nodePath": "providers.md#embedding-providers/sparseprovider-configuration/paragraph-1",
+          "parentId": "caffacf5-b94b-5d99-9ea7-4d24a8936c89",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "sparseProvider configuration",
+          "headingPath": [
+            "Embedding Providers",
+            "sparseProvider configuration"
+          ],
+          "lang": null,
+          "context": "Embedding Providers › sparseProvider configuration",
+          "text": "The sparseProvider field in config.json controls which sparse encoder is used for a\ncollection. Valid values are hashed-tf (default, no external dependency) and\nbge-m3-onnx (requires ONNX model). Mixed combinations such as\nollama + bge-m3-onnx or bge-m3-onnx + hashed-tf are rejected at runtime with an\nInvalid provider combination error.\n\nThe resolveEnvProviders() function in src/core/config.js is the single source of\ntruth for mapping environment variables to provider names. It is called by the indexer\nwhen creating a new collection and by sync when backfilling existing entries.",
+          "rawContent": "The sparseProvider field in config.json controls which sparse encoder is used for a\ncollection. Valid values are hashed-tf (default, no external dependency) and\nbge-m3-onnx (requires ONNX model). Mixed combinations such as\nollama + bge-m3-onnx or bge-m3-onnx + hashed-tf are rejected at runtime with an\nInvalid provider combination error.\n\nThe resolveEnvProviders() function in src/core/config.js is the single source of\ntruth for mapping environment variables to provider names. It is called by the indexer\nwhen creating a new collection and by sync when backfilling existing entries.",
+          "contentHash": "1d51762ae556cb9d4dcf4c01f54226bf41ab0dc03926a860600b21e96256dd3e"
+        },
+        {
+          "chunkId": "providers.md#4",
+          "sourceFile": "providers.md",
+          "chunkIndex": 4,
+          "nodeId": "cf3eed94-8743-52d5-948b-1af318fc8979",
+          "nodePath": "providers.md#embedding-providers/provider-validation/paragraph-1",
+          "parentId": "963f43d2-2b3a-5ef6-8eb1-9048e1397291",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "Provider validation",
+          "headingPath": [
+            "Embedding Providers",
+            "Provider validation"
+          ],
+          "lang": null,
+          "context": "Embedding Providers › Provider validation",
+          "text": "Both resolveEnvProviders() (env-time) and _embed() in src/core/embeddings.js\n(runtime) validate the provider combination before any embedding work is done. This\nensures that metadata stored in Qdrant payloads always matches the vectors actually\nstored, which is required for correct reindex detection.",
+          "rawContent": "Both resolveEnvProviders() (env-time) and _embed() in src/core/embeddings.js\n(runtime) validate the provider combination before any embedding work is done. This\nensures that metadata stored in Qdrant payloads always matches the vectors actually\nstored, which is required for correct reindex detection.",
+          "contentHash": "5608413dee2bdafc40614c659a405a09c589e6b7f9a94cd24101c5a071997ffc"
+        },
+        {
+          "chunkId": "providers.md#5",
+          "sourceFile": "providers.md",
+          "chunkIndex": 5,
+          "nodeId": "61c76264-838a-5101-85d7-0353bf8bf760",
+          "nodePath": "providers.md#embedding-providers/reindex-triggers/paragraph-1",
+          "parentId": "32dd3b5e-1a1f-500e-a25d-cab4dcac4c1b",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "Reindex triggers",
+          "headingPath": [
+            "Embedding Providers",
+            "Reindex triggers"
+          ],
+          "lang": null,
+          "context": "Embedding Providers › Reindex triggers",
+          "text": "Changing sparseProvider, denseProvider, denseModel, or embeddingSchemaVersion\nin config.json for a collection will cause every file in that collection to be reindexed\non the next npm run index run. The six reindex discriminators are: file hash,\ndenseProvider, denseModel, sparseProvider, embeddingSchemaVersion, vectorSize.",
+          "rawContent": "Changing sparseProvider, denseProvider, denseModel, or embeddingSchemaVersion\nin config.json for a collection will cause every file in that collection to be reindexed\non the next npm run index run. The six reindex discriminators are: file hash,\ndenseProvider, denseModel, sparseProvider, embeddingSchemaVersion, vectorSize.",
+          "contentHash": "d641ba7b1036a2fc4de141b7e0a9f74db6a71d3c8692718606c51acf6dd204b5"
+        }
+      ]
+    },
+    "qdrant.md": {
+      "chunkCount": 11,
+      "fileContentHash": "2d95a5f72607950709cfd84368f926797b41251b56df54c22241f2cca40c5eb8",
+      "chunks": [
+        {
+          "chunkId": "qdrant.md#0",
+          "sourceFile": "qdrant.md",
+          "chunkIndex": 0,
+          "nodeId": "2919c637-e1cd-5542-873a-c74f3cee06f0",
+          "nodePath": "qdrant.md#qdrant-integration/paragraph-1",
+          "parentId": "af6d34f9-8763-51b9-85de-3da42e4152b2",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "Qdrant Integration",
+          "headingPath": [
+            "Qdrant Integration"
+          ],
+          "lang": null,
+          "context": "Qdrant Integration",
+          "text": "semidex uses Qdrant as its vector database. All Qdrant calls go through\nsrc/core/qdrant.js. The module reads QDRANT_URL and QDRANT_KEY from the\nenvironment and exposes typed functions for collections, points, and search.",
+          "rawContent": "semidex uses Qdrant as its vector database. All Qdrant calls go through\nsrc/core/qdrant.js. The module reads QDRANT_URL and QDRANT_KEY from the\nenvironment and exposes typed functions for collections, points, and search.",
+          "contentHash": "2aaa02db9fd242615c453c74cfb95bd209ca26b95dead16ce407e033ccb61acd"
+        },
+        {
+          "chunkId": "qdrant.md#1",
+          "sourceFile": "qdrant.md",
+          "chunkIndex": 1,
+          "nodeId": "f84fe784-bb2d-560e-8a88-a2ed633b905f",
+          "nodePath": "qdrant.md#qdrant-integration/collections/paragraph-1",
+          "parentId": "112c8380-ed51-54c2-8a0e-c633082a2fc2",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "Collections",
+          "headingPath": [
+            "Qdrant Integration",
+            "Collections"
+          ],
+          "lang": null,
+          "context": "Qdrant Integration › Collections",
+          "text": "Each collection stores named vectors: a dense vector (cosine distance) and a sparse\nvector. Collections are created via createCollection(name, size) which also creates\npayload indexes on source_file and tags for efficient filtering.",
+          "rawContent": "Each collection stores named vectors: a dense vector (cosine distance) and a sparse\nvector. Collections are created via createCollection(name, size) which also creates\npayload indexes on source_file and tags for efficient filtering.",
+          "contentHash": "af83ccdf89f5c2729177e6f6577b4e6d8c62c436157f14695523a645854f3169"
+        },
+        {
+          "chunkId": "qdrant.md#2",
+          "sourceFile": "qdrant.md",
+          "chunkIndex": 2,
+          "nodeId": "3181474f-6b99-5c41-8b8d-7187165edcf6",
+          "nodePath": "qdrant.md#qdrant-integration/hybrid-search-and-rrf/paragraph-1",
+          "parentId": "df8d81cf-335a-54ed-9c84-14307c48c51f",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "Hybrid Search and RRF",
+          "headingPath": [
+            "Qdrant Integration",
+            "Hybrid Search and RRF"
+          ],
+          "lang": null,
+          "context": "Qdrant Integration › Hybrid Search and RRF",
+          "text": "Hybrid search combines dense and sparse retrieval using Reciprocal Rank Fusion (RRF).\nThe implementation uses the Qdrant Query API (/points/query) with two prefetch legs\nfollowed by an RRF fusion step.\n\nThe RRF formula scores each result as the sum of 1 / (k + rank_i) across all retrieval\nlegs, where k is a smoothing constant. A higher k makes the ranking smoother\n(differences between adjacent ranks matter less). The default value is 60, which is the\nstandard RRF constant from the original paper.",
+          "rawContent": "Hybrid search combines dense and sparse retrieval using Reciprocal Rank Fusion (RRF).\nThe implementation uses the Qdrant Query API (/points/query) with two prefetch legs\nfollowed by an RRF fusion step.\n\nThe RRF formula scores each result as the sum of 1 / (k + rank_i) across all retrieval\nlegs, where k is a smoothing constant. A higher k makes the ranking smoother\n(differences between adjacent ranks matter less). The default value is 60, which is the\nstandard RRF constant from the original paper.",
+          "contentHash": "408d4d75d0d7404164e74a515c4258c91b316d0743ffd008ffd2e0c5891c0f0a"
+        },
+        {
+          "chunkId": "qdrant.md#3",
+          "sourceFile": "qdrant.md",
+          "chunkIndex": 3,
+          "nodeId": "c4077ef3-2ce8-588c-8c71-945b450616eb",
+          "nodePath": "qdrant.md#qdrant-integration/hybrid-search-and-rrf/rrf-k-parameter/paragraph-1",
+          "parentId": "06fc0fb1-fd1f-5d42-a9da-61825c780432",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "RRF k parameter",
+          "headingPath": [
+            "Qdrant Integration",
+            "Hybrid Search and RRF",
+            "RRF k parameter"
+          ],
+          "lang": null,
+          "context": "Qdrant Integration › Hybrid Search and RRF › RRF k parameter",
+          "text": "The k parameter in RRF controls rank sensitivity. It is configured via the RRF_K\nenvironment variable (default: 60, range: 1–10000). Lower values give more weight to\ntop-ranked results from each leg; higher values smooth the fusion across more results.\n\nThe Qdrant request body shape for RRF (available since Qdrant 1.16.0):\n\n[code block node: qdrant.md#qdrant-integration/hybrid-search-and-rrf/rrf-k-parameter/code_block-1 — {]",
+          "rawContent": "The k parameter in RRF controls rank sensitivity. It is configured via the RRF_K\nenvironment variable (default: 60, range: 1–10000). Lower values give more weight to\ntop-ranked results from each leg; higher values smooth the fusion across more results.\n\nThe Qdrant request body shape for RRF (available since Qdrant 1.16.0):\n\n[code block node: qdrant.md#qdrant-integration/hybrid-search-and-rrf/rrf-k-parameter/code_block-1 — {]",
+          "contentHash": "94d3fd423ae4afb56864e508cbe8e392f782df461414ea1bc4483ad953ceff3f"
+        },
+        {
+          "chunkId": "qdrant.md#4",
+          "sourceFile": "qdrant.md",
+          "chunkIndex": 4,
+          "nodeId": "92650807-91a8-5de5-83a5-dd76a37b9b83",
+          "nodePath": "qdrant.md#qdrant-integration/hybrid-search-and-rrf/rrf-k-parameter/code_block-1",
+          "parentId": "06fc0fb1-fd1f-5d42-a9da-61825c780432",
+          "nodeType": "code_block",
+          "pointKind": "retrieval_content",
+          "section": "RRF k parameter",
+          "headingPath": [
+            "Qdrant Integration",
+            "Hybrid Search and RRF",
+            "RRF k parameter"
+          ],
+          "lang": "json",
+          "context": "Qdrant Integration › Hybrid Search and RRF › RRF k parameter — code block — The k parameter in RRF controls rank sensitivity. It is configured via the RRF_K environment variable (default: 60, range: 1–10000). Lower values give more weight to top-ranked results from each leg; higher values smooth the fusion across more results. The Qdrant request body shape for RRF (available since Qdrant 1.16.0):",
+          "text": "```json\n{\n  \"prefetch\": [\n    { \"query\": \"<sparse_vector>\", \"using\": \"sparse\", \"limit\": 10 },\n    { \"query\": \"<dense_vector>\",  \"using\": \"dense\",  \"limit\": 10 }\n  ],\n  \"query\": { \"rrf\": { \"k\": 60 } },\n  \"limit\": 5,\n  \"with_payload\": true\n}\n```",
+          "rawContent": "```json\n{\n  \"prefetch\": [\n    { \"query\": \"<sparse_vector>\", \"using\": \"sparse\", \"limit\": 10 },\n    { \"query\": \"<dense_vector>\",  \"using\": \"dense\",  \"limit\": 10 }\n  ],\n  \"query\": { \"rrf\": { \"k\": 60 } },\n  \"limit\": 5,\n  \"with_payload\": true\n}\n```",
+          "contentHash": "0e34dce6cdcfb7e0a66530d73248dbab0f6eaff829cb1cd91e041599cc64218f"
+        },
+        {
+          "chunkId": "qdrant.md#5",
+          "sourceFile": "qdrant.md",
+          "chunkIndex": 5,
+          "nodeId": "393abe88-4b0c-54cc-9b2b-5fba7224047b",
+          "nodePath": "qdrant.md#qdrant-integration/hybrid-search-and-rrf/rrf-k-parameter/paragraph-2",
+          "parentId": "06fc0fb1-fd1f-5d42-a9da-61825c780432",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "RRF k parameter",
+          "headingPath": [
+            "Qdrant Integration",
+            "Hybrid Search and RRF",
+            "RRF k parameter"
+          ],
+          "lang": null,
+          "context": "Qdrant Integration › Hybrid Search and RRF › RRF k parameter",
+          "text": "The prefetch limit for each leg is max(limit * HYBRID_PREFETCH_LIMIT, limit + 1) where\nHYBRID_PREFETCH_LIMIT defaults to 2. This ensures each leg fetches enough candidates\nfor RRF to have meaningful re-ranking material.",
+          "rawContent": "The prefetch limit for each leg is max(limit * HYBRID_PREFETCH_LIMIT, limit + 1) where\nHYBRID_PREFETCH_LIMIT defaults to 2. This ensures each leg fetches enough candidates\nfor RRF to have meaningful re-ranking material.",
+          "contentHash": "75c58d4d325c0a3c8562aec0d0b900b18c3f565fd026cd35f1ded8115262bc27"
+        },
+        {
+          "chunkId": "qdrant.md#6",
+          "sourceFile": "qdrant.md",
+          "chunkIndex": 6,
+          "nodeId": "e8ba4f4e-470d-54bc-b74d-62f27c37c5b0",
+          "nodePath": "qdrant.md#qdrant-integration/hybrid-search-and-rrf/fallback-to-dense-only/paragraph-1",
+          "parentId": "acd00fab-ad46-54af-a877-c95193a31e31",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "Fallback to dense-only",
+          "headingPath": [
+            "Qdrant Integration",
+            "Hybrid Search and RRF",
+            "Fallback to dense-only"
+          ],
+          "lang": null,
+          "context": "Qdrant Integration › Hybrid Search and RRF › Fallback to dense-only",
+          "text": "If a collection has no sparse vectors yet (e.g. old index before sparse support was\nadded), hybridSearch falls back to search (dense-only) automatically. The fallback\nis triggered when the Qdrant response contains \"sparse\" or \"Wrong input\" in the\nerror message.",
+          "rawContent": "If a collection has no sparse vectors yet (e.g. old index before sparse support was\nadded), hybridSearch falls back to search (dense-only) automatically. The fallback\nis triggered when the Qdrant response contains \"sparse\" or \"Wrong input\" in the\nerror message.",
+          "contentHash": "2118f678e80988dedc0955171c01dca7676ae0789b75036d67a3bec868de86a2"
+        },
+        {
+          "chunkId": "qdrant.md#7",
+          "sourceFile": "qdrant.md",
+          "chunkIndex": 7,
+          "nodeId": "7bdae2a4-2ed3-5fae-8f08-e1efc774539d",
+          "nodePath": "qdrant.md#qdrant-integration/payload-indexes/paragraph-1",
+          "parentId": "8a37c640-f51a-5ff9-8c80-5ff4fa21df4a",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "Payload Indexes",
+          "headingPath": [
+            "Qdrant Integration",
+            "Payload Indexes"
+          ],
+          "lang": null,
+          "context": "Qdrant Integration › Payload Indexes",
+          "text": "Two payload indexes are created on every collection: source_file (keyword) and tags\n(keyword). These allow Qdrant to filter points efficiently without scanning all vectors.\nThe source_file index is used by getStoredMeta and deleteBySourceFile.",
+          "rawContent": "Two payload indexes are created on every collection: source_file (keyword) and tags\n(keyword). These allow Qdrant to filter points efficiently without scanning all vectors.\nThe source_file index is used by getStoredMeta and deleteBySourceFile.",
+          "contentHash": "2bc6b0f5362a9b3b0dae2b1872087a41b73814840723888b914db7e6317831cb"
+        },
+        {
+          "chunkId": "qdrant.md#8",
+          "sourceFile": "qdrant.md",
+          "chunkIndex": 8,
+          "nodeId": "2185229c-6be3-57a0-82e6-b0b1d85d7a43",
+          "nodePath": "qdrant.md#qdrant-integration/getstoredmeta/paragraph-1",
+          "parentId": "ab06e0b7-a695-51ba-8c8c-90e4048190c7",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "getStoredMeta",
+          "headingPath": [
+            "Qdrant Integration",
+            "getStoredMeta"
+          ],
+          "lang": null,
+          "context": "Qdrant Integration › getStoredMeta",
+          "text": "getStoredMeta(collection, sourceFile) scrolls one point matching the given source file\nand returns the six reindex discriminator fields from its payload:\nfile_hash, dense_provider, dense_model, sparse_provider,\nembedding_schema_version, and vector_size.",
+          "rawContent": "getStoredMeta(collection, sourceFile) scrolls one point matching the given source file\nand returns the six reindex discriminator fields from its payload:\nfile_hash, dense_provider, dense_model, sparse_provider,\nembedding_schema_version, and vector_size.",
+          "contentHash": "e2167231fadd3bca9b5d3774db0e2c12bf946a40df09b41c32af238da73f517a"
+        },
+        {
+          "chunkId": "qdrant.md#9",
+          "sourceFile": "qdrant.md",
+          "chunkIndex": 9,
+          "nodeId": "ab992bc2-f832-5092-bda1-984e834b5fea",
+          "nodePath": "qdrant.md#qdrant-integration/env-tuning/table-1",
+          "parentId": "90991fdf-37ce-5b68-9c08-88ad4a84c8b6",
+          "nodeType": "table",
+          "pointKind": "retrieval_content",
+          "section": "Env tuning",
+          "headingPath": [
+            "Qdrant Integration",
+            "Env tuning"
+          ],
+          "lang": null,
+          "context": "Qdrant Integration › Env tuning — table",
+          "text": "| Variable               | Default | Range      | Effect                              |\n|------------------------|---------|------------|-------------------------------------|\n| `HYBRID_PREFETCH_LIMIT`| 2       | 1–100      | Prefetch multiplier per RRF leg     |\n| `RRF_K`                | 60      | 1–10000    | RRF smoothing constant              |",
+          "rawContent": "| Variable               | Default | Range      | Effect                              |\n|------------------------|---------|------------|-------------------------------------|\n| `HYBRID_PREFETCH_LIMIT`| 2       | 1–100      | Prefetch multiplier per RRF leg     |\n| `RRF_K`                | 60      | 1–10000    | RRF smoothing constant              |",
+          "contentHash": "035c7f3a22840f09798e67ee692e06ae214406319594f227bec3f33f34b5b349"
+        },
+        {
+          "chunkId": "qdrant.md#10",
+          "sourceFile": "qdrant.md",
+          "chunkIndex": 10,
+          "nodeId": "7d3aaf1c-fc97-5fdb-80cc-38709737665b",
+          "nodePath": "qdrant.md#qdrant-integration/env-tuning/paragraph-1",
+          "parentId": "90991fdf-37ce-5b68-9c08-88ad4a84c8b6",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "Env tuning",
+          "headingPath": [
+            "Qdrant Integration",
+            "Env tuning"
+          ],
+          "lang": null,
+          "context": "Qdrant Integration › Env tuning",
+          "text": "[table node: qdrant.md#qdrant-integration/env-tuning/table-1 — VariableDefaultRangeEffectHYBRID_PREFETCH_LIMIT21–100Prefetc]\n\nInvalid values produce a warning and fall back to the default.",
+          "rawContent": "[table node: qdrant.md#qdrant-integration/env-tuning/table-1 — VariableDefaultRangeEffectHYBRID_PREFETCH_LIMIT21–100Prefetc]\n\nInvalid values produce a warning and fall back to the default.",
+          "contentHash": "5fbed44cf4aabf76ab75b12084e0a2e0ae24b26b9de9ab62d7c1554a61de0566"
+        }
+      ]
+    },
+    "chunking.md": {
+      "chunkCount": 10,
+      "fileContentHash": "663d1b8e8aff585afa7faa82b10026e5242dbed86022e230c02da1be20e65c1c",
+      "chunks": [
+        {
+          "chunkId": "chunking.md#0",
+          "sourceFile": "chunking.md",
+          "chunkIndex": 0,
+          "nodeId": "a1922f28-5dec-5b1b-935c-2b96392dc12c",
+          "nodePath": "chunking.md#chunking/paragraph-1",
+          "parentId": "189e6a14-8eef-5287-be45-e1daea6c1fa8",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "Chunking",
+          "headingPath": [
+            "Chunking"
+          ],
+          "lang": null,
+          "context": "Chunking",
+          "text": "semidex splits documents into chunks before embedding. The chunking logic lives in\nsrc/indexer/phases/chunk.js and is controlled by three environment variables.",
+          "rawContent": "semidex splits documents into chunks before embedding. The chunking logic lives in\nsrc/indexer/phases/chunk.js and is controlled by three environment variables.",
+          "contentHash": "916f8f68ec05512eb8731a8bf48fb9deb9bff09b1817a47c4414939a77b26e4a"
+        },
+        {
+          "chunkId": "chunking.md#1",
+          "sourceFile": "chunking.md",
+          "chunkIndex": 1,
+          "nodeId": "81b8f35e-590e-5a8b-8b40-7de83a8c9fa5",
+          "nodePath": "chunking.md#chunking/parameters/table-1",
+          "parentId": "4c50508a-7897-5a72-a8ad-c4e1d94f2892",
+          "nodeType": "table",
+          "pointKind": "retrieval_content",
+          "section": "Parameters",
+          "headingPath": [
+            "Chunking",
+            "Parameters"
+          ],
+          "lang": null,
+          "context": "Chunking › Parameters — table",
+          "text": "| Variable           | Default | Range       | Meaning                                    |\n|--------------------|---------|-------------|--------------------------------------------|\n| `MAX_CHUNK_TOKENS` | 400     | 1–100000    | Maximum tokens per chunk                   |\n| `MIN_CHUNK_TOKENS` | 30      | 0–100000    | Minimum tokens for a section to be included|\n| `OVERLAP_SENTENCES`| 2       | 0–100       | Sentences carried from chunk N into N+1    |",
+          "rawContent": "| Variable           | Default | Range       | Meaning                                    |\n|--------------------|---------|-------------|--------------------------------------------|\n| `MAX_CHUNK_TOKENS` | 400     | 1–100000    | Maximum tokens per chunk                   |\n| `MIN_CHUNK_TOKENS` | 30      | 0–100000    | Minimum tokens for a section to be included|\n| `OVERLAP_SENTENCES`| 2       | 0–100       | Sentences carried from chunk N into N+1    |",
+          "contentHash": "1f4ba251e63f1e5557d46562951430b44eb60597a4fe8f0ffb43c3cb472977b5"
+        },
+        {
+          "chunkId": "chunking.md#2",
+          "sourceFile": "chunking.md",
+          "chunkIndex": 2,
+          "nodeId": "6ed9f6be-8e41-5a00-8d1c-17c8fb28428b",
+          "nodePath": "chunking.md#chunking/parameters/paragraph-1",
+          "parentId": "4c50508a-7897-5a72-a8ad-c4e1d94f2892",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "Parameters",
+          "headingPath": [
+            "Chunking",
+            "Parameters"
+          ],
+          "lang": null,
+          "context": "Chunking › Parameters",
+          "text": "[table node: chunking.md#chunking/parameters/table-1 — VariableDefaultRangeMeaningMAX_CHUNK_TOKENS4001–100000Maximu]\n\nAll three are validated with envInt() on startup; invalid values produce a warning and\nfall back to the default.",
+          "rawContent": "[table node: chunking.md#chunking/parameters/table-1 — VariableDefaultRangeMeaningMAX_CHUNK_TOKENS4001–100000Maximu]\n\nAll three are validated with envInt() on startup; invalid values produce a warning and\nfall back to the default.",
+          "contentHash": "41f03fc16995df013ac5140dbcd90115477765d40ce6282ae90c7b0c645da3ae"
+        },
+        {
+          "chunkId": "chunking.md#3",
+          "sourceFile": "chunking.md",
+          "chunkIndex": 3,
+          "nodeId": "d21f314b-0d77-5988-8a1c-f7edde8002fc",
+          "nodePath": "chunking.md#chunking/sentence-splitting/paragraph-1",
+          "parentId": "84901d03-99cd-5786-8945-596fea52c076",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "Sentence splitting",
+          "headingPath": [
+            "Chunking",
+            "Sentence splitting"
+          ],
+          "lang": null,
+          "context": "Chunking › Sentence splitting",
+          "text": "splitSentences(text) uses the regex /[^.!?\\n]+[.!?\\n]+|[^.!?\\n]+$/g to split on\nsentence-ending punctuation while also capturing any trailing fragment without a\nterminator. This ensures text like \"Hello world\" (no period) is never silently dropped.",
+          "rawContent": "splitSentences(text) uses the regex /[^.!?\\n]+[.!?\\n]+|[^.!?\\n]+$/g to split on\nsentence-ending punctuation while also capturing any trailing fragment without a\nterminator. This ensures text like \"Hello world\" (no period) is never silently dropped.",
+          "contentHash": "43859adf62164bb63c448703811b08dd7a33977eca340321334fffeac3f40bb6"
+        },
+        {
+          "chunkId": "chunking.md#4",
+          "sourceFile": "chunking.md",
+          "chunkIndex": 4,
+          "nodeId": "9e5921a9-ff7f-5fa4-8f93-021f06613000",
+          "nodePath": "chunking.md#chunking/overlap/paragraph-1",
+          "parentId": "3d0ebfc9-9bd9-55d8-a55c-26f6ac73dcb9",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "Overlap",
+          "headingPath": [
+            "Chunking",
+            "Overlap"
+          ],
+          "lang": null,
+          "context": "Chunking › Overlap",
+          "text": "OVERLAP_SENTENCES controls how many sentences from the end of chunk N are prepended to\nchunk N+1. This gives each chunk context from the previous one and helps retrieval when a\nquery spans a chunk boundary.",
+          "rawContent": "OVERLAP_SENTENCES controls how many sentences from the end of chunk N are prepended to\nchunk N+1. This gives each chunk context from the previous one and helps retrieval when a\nquery spans a chunk boundary.",
+          "contentHash": "dc49bb8bdeaf3eef39c35f233ad8c97a381e9dd4e8c9ea1b9ac3815b987f60ae"
+        },
+        {
+          "chunkId": "chunking.md#5",
+          "sourceFile": "chunking.md",
+          "chunkIndex": 5,
+          "nodeId": "f5fe3000-f1a3-5052-b0db-d534e40ebedb",
+          "nodePath": "chunking.md#chunking/overlap/why-overlap-must-not-cross-section-boundaries/paragraph-1",
+          "parentId": "a2a176b0-2c0a-531d-9980-0083d7a9c63e",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "Why overlap must not cross section boundaries",
+          "headingPath": [
+            "Chunking",
+            "Overlap",
+            "Why overlap must not cross section boundaries"
+          ],
+          "lang": null,
+          "context": "Chunking › Overlap › Why overlap must not cross section boundaries",
+          "text": "Overlap carries semantic context from one chunk to the next. If overlap crosses a markdown\nheading boundary, the first chunk of section B will contain sentences from section A.\nThis contaminates the embedding for section B — queries about section B content will pull\nin section A text, and vice versa. The payload section field will say \"B\" but the\nembedding will partially represent \"A\", causing misleading search results.\n\nsemidex resets the overlap accumulator to an empty list at each new heading, so overlap\nis always contained within a single section. This means the first chunk of each section\nstarts clean, and its embedding accurately represents only that section's content.",
+          "rawContent": "Overlap carries semantic context from one chunk to the next. If overlap crosses a markdown\nheading boundary, the first chunk of section B will contain sentences from section A.\nThis contaminates the embedding for section B — queries about section B content will pull\nin section A text, and vice versa. The payload section field will say \"B\" but the\nembedding will partially represent \"A\", causing misleading search results.\n\nsemidex resets the overlap accumulator to an empty list at each new heading, so overlap\nis always contained within a single section. This means the first chunk of each section\nstarts clean, and its embedding accurately represents only that section's content.",
+          "contentHash": "5069ff45a35209dc6d5d867e31f81032d2d277583e7bfb655e71dd7453b041e0"
+        },
+        {
+          "chunkId": "chunking.md#6",
+          "sourceFile": "chunking.md",
+          "chunkIndex": 6,
+          "nodeId": "f847ad76-7a7d-5e56-a00b-f1b6d849f35f",
+          "nodePath": "chunking.md#chunking/flushing-the-final-chunk/paragraph-1",
+          "parentId": "3f60a9fe-c9cd-599f-b52d-f7c728ed8545",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "Flushing the final chunk",
+          "headingPath": [
+            "Chunking",
+            "Flushing the final chunk"
+          ],
+          "lang": null,
+          "context": "Chunking › Flushing the final chunk",
+          "text": "After all sentences have been processed, any remaining sentences are always flushed as a\nfinal chunk — even if the remaining count is less than or equal to OVERLAP_SENTENCES.\nThe previous implementation skipped the final chunk when current.length <= OVERLAP_SENTENCES,\nwhich silently dropped content from short documents or short terminal sections.\n\nThe flush is conditional on pending > 0, where pending counts new sentences added\nsince the last chunk was emitted. This prevents emitting an overlap-only chunk after a\nfull chunk has just been flushed.",
+          "rawContent": "After all sentences have been processed, any remaining sentences are always flushed as a\nfinal chunk — even if the remaining count is less than or equal to OVERLAP_SENTENCES.\nThe previous implementation skipped the final chunk when current.length <= OVERLAP_SENTENCES,\nwhich silently dropped content from short documents or short terminal sections.\n\nThe flush is conditional on pending > 0, where pending counts new sentences added\nsince the last chunk was emitted. This prevents emitting an overlap-only chunk after a\nfull chunk has just been flushed.",
+          "contentHash": "d407e828a68c31eb90e5ae44bb80571387929f38ce1b54b83625b6da5314316d"
+        },
+        {
+          "chunkId": "chunking.md#7",
+          "sourceFile": "chunking.md",
+          "chunkIndex": 7,
+          "nodeId": "bf515577-9af5-51f4-804e-5e5aac81cd79",
+          "nodePath": "chunking.md#chunking/markdown-sections/paragraph-1",
+          "parentId": "f621c4b4-3597-50a4-83a1-d4346bdb19af",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "Markdown sections",
+          "headingPath": [
+            "Chunking",
+            "Markdown sections"
+          ],
+          "lang": null,
+          "context": "Chunking › Markdown sections",
+          "text": "parseMarkdown splits a document on #, ##, and ### headings that pass the\nisStructuralHeading heuristic (length ≤ 120, no sentence-ending punctuation).\nEach section becomes an independent chunking unit. Sections shorter than MIN_CHUNK_TOKENS\nare skipped unless they have a heading (headings alone are kept as context anchors).",
+          "rawContent": "parseMarkdown splits a document on #, ##, and ### headings that pass the\nisStructuralHeading heuristic (length ≤ 120, no sentence-ending punctuation).\nEach section becomes an independent chunking unit. Sections shorter than MIN_CHUNK_TOKENS\nare skipped unless they have a heading (headings alone are kept as context anchors).",
+          "contentHash": "16a5008daee57a00d9680e120c4331e55bc3f129dca9e9073c377a973e8cc871"
+        },
+        {
+          "chunkId": "chunking.md#8",
+          "sourceFile": "chunking.md",
+          "chunkIndex": 8,
+          "nodeId": "47bd2e53-03a5-592e-a933-6951376bbf7b",
+          "nodePath": "chunking.md#chunking/pandoc-formats/paragraph-1",
+          "parentId": "2dc75811-0a42-58a7-b98c-f7e6012156a1",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "Pandoc formats",
+          "headingPath": [
+            "Chunking",
+            "Pandoc formats"
+          ],
+          "lang": null,
+          "context": "Chunking › Pandoc formats",
+          "text": ".docx, .odt, .rtf, .epub, .html, and .htm files are converted to Markdown\nvia pandoc before chunking. The converted output is processed through parseMarkdown\nso that heading structure from the original document is preserved. This is achieved by\npassing a synthetic .md path to chunkFile regardless of the original file extension.",
+          "rawContent": ".docx, .odt, .rtf, .epub, .html, and .htm files are converted to Markdown\nvia pandoc before chunking. The converted output is processed through parseMarkdown\nso that heading structure from the original document is preserved. This is achieved by\npassing a synthetic .md path to chunkFile regardless of the original file extension.",
+          "contentHash": "fc78dcdb916b2adbf7f552ed2a3b52dc323c1fe170f3305a129d179a118d6342"
+        },
+        {
+          "chunkId": "chunking.md#9",
+          "sourceFile": "chunking.md",
+          "chunkIndex": 9,
+          "nodeId": "2bba19db-f9f2-5365-b22f-71989f25821c",
+          "nodePath": "chunking.md#chunking/pdf/paragraph-1",
+          "parentId": "cadb10bf-0a36-5142-b926-4b6efd139268",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "PDF",
+          "headingPath": [
+            "Chunking",
+            "PDF"
+          ],
+          "lang": null,
+          "context": "Chunking › PDF",
+          "text": "PDF files are converted to Markdown by @opendocsg/pdf2md, then chunked through the same\nparseMarkdown path as .md files. Headings (H1–H6) found in the Markdown output become\nsection values on chunks. Digitally-created PDFs with a text layer typically yield real\nsection headings. Scanned or image-only PDFs may produce weak structure and default to\nsection: \"\".",
+          "rawContent": "PDF files are converted to Markdown by @opendocsg/pdf2md, then chunked through the same\nparseMarkdown path as .md files. Headings (H1–H6) found in the Markdown output become\nsection values on chunks. Digitally-created PDFs with a text layer typically yield real\nsection headings. Scanned or image-only PDFs may produce weak structure and default to\nsection: \"\".",
+          "contentHash": "c575cec0cd763aaeba8098903f846ebf871ce2f42183e5d883d6ad4c40d76b40"
+        }
+      ]
+    },
+    "sync.md": {
+      "chunkCount": 6,
+      "fileContentHash": "62f5782de018a2a0c833808a4ebef499dfa0627b703b29f00a890556b7b7aa9b",
+      "chunks": [
+        {
+          "chunkId": "sync.md#0",
+          "sourceFile": "sync.md",
+          "chunkIndex": 0,
+          "nodeId": "09ceabe0-bd2f-54c1-abdc-207af373ecd4",
+          "nodePath": "sync.md#sync/paragraph-1",
+          "parentId": "8854fdd2-f185-55f4-bfb2-7e91a9771cc4",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "Sync",
+          "headingPath": [
+            "Sync"
+          ],
+          "lang": null,
+          "context": "Sync",
+          "text": "npm run sync (or node src/sync.js) synchronises config.json with the live\ncollections in Qdrant. It does not index any files — it only updates the local config.",
+          "rawContent": "npm run sync (or node src/sync.js) synchronises config.json with the live\ncollections in Qdrant. It does not index any files — it only updates the local config.",
+          "contentHash": "fed78efd35b416b5e1512d13fad1a94973a790475262e7e7d19b65c06617e892"
+        },
+        {
+          "chunkId": "sync.md#1",
+          "sourceFile": "sync.md",
+          "chunkIndex": 1,
+          "nodeId": "35dbc821-aec5-58af-8935-65e87292c50f",
+          "nodePath": "sync.md#sync/what-sync-does/paragraph-1",
+          "parentId": "b8e20382-392f-5974-bc62-92615ba844d5",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "What sync does",
+          "headingPath": [
+            "Sync",
+            "What sync does"
+          ],
+          "lang": null,
+          "context": "Sync › What sync does",
+          "text": "Fetches the list of all collections from Qdrant via listCollections().For each collection, fetches collection info via getCollectionInfo().For new collections (not yet in config.json), writes a full provider entry using\nresolveEnvProviders() to determine the current provider configuration.For existing collections, backfills any missing provider fields introduced by schema\nupgrades (e.g. denseProvider, denseModel, sparseProvider,\nembeddingSchemaVersion).",
+          "rawContent": "Fetches the list of all collections from Qdrant via listCollections().For each collection, fetches collection info via getCollectionInfo().For new collections (not yet in config.json), writes a full provider entry using\nresolveEnvProviders() to determine the current provider configuration.For existing collections, backfills any missing provider fields introduced by schema\nupgrades (e.g. denseProvider, denseModel, sparseProvider,\nembeddingSchemaVersion).",
+          "contentHash": "21a9a857af996b2dc9d3b3e6f05843a79726a276b4c94398c50faddff407a50f"
+        },
+        {
+          "chunkId": "sync.md#2",
+          "sourceFile": "sync.md",
+          "chunkIndex": 2,
+          "nodeId": "259e33ae-c7dc-5e3c-ae7a-a8a942f52af8",
+          "nodePath": "sync.md#sync/backfill-logic/paragraph-1",
+          "parentId": "ff3d5fe2-af07-5f87-ae6f-197f6d4004ae",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "Backfill logic",
+          "headingPath": [
+            "Sync",
+            "Backfill logic"
+          ],
+          "lang": null,
+          "context": "Sync › Backfill logic",
+          "text": "When an existing config entry is missing the new provider fields, sync infers them from\ncontext:\n\nIf sparseProvider is already bge-m3-onnx, then denseProvider is set to\nbge-m3-onnx and denseModel to aapot/bge-m3-onnx.Otherwise, denseProvider, denseModel, and sparseProvider are copied from the\ncurrent env provider resolution (i.e. what resolveEnvProviders() returns).embeddingSchemaVersion defaults to the current SCHEMA_VERSION constant.\n\nThis backfill is safe because it only fills in fields that are undefined — it never\noverwrites values that were explicitly set.",
+          "rawContent": "When an existing config entry is missing the new provider fields, sync infers them from\ncontext:\n\nIf sparseProvider is already bge-m3-onnx, then denseProvider is set to\nbge-m3-onnx and denseModel to aapot/bge-m3-onnx.Otherwise, denseProvider, denseModel, and sparseProvider are copied from the\ncurrent env provider resolution (i.e. what resolveEnvProviders() returns).embeddingSchemaVersion defaults to the current SCHEMA_VERSION constant.\n\nThis backfill is safe because it only fills in fields that are undefined — it never\noverwrites values that were explicitly set.",
+          "contentHash": "32ea55b78281bce80aaa714fb9793acbae19badb8e71cd38571d5b057550c9b3"
+        },
+        {
+          "chunkId": "sync.md#3",
+          "sourceFile": "sync.md",
+          "chunkIndex": 3,
+          "nodeId": "c619ee5c-5bb7-526e-8aa3-ea75c05e57f7",
+          "nodePath": "sync.md#sync/when-to-run-sync/paragraph-1",
+          "parentId": "053110b3-be54-538d-812d-57690cb0db49",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "When to run sync",
+          "headingPath": [
+            "Sync",
+            "When to run sync"
+          ],
+          "lang": null,
+          "context": "Sync › When to run sync",
+          "text": "Run sync after:\n\nCreating a new Qdrant collection manually.Upgrading semidex to a version that adds new config.json fields.Switching provider configuration and wanting to record the change in config.json\nwithout re-indexing.",
+          "rawContent": "Run sync after:\n\nCreating a new Qdrant collection manually.Upgrading semidex to a version that adds new config.json fields.Switching provider configuration and wanting to record the change in config.json\nwithout re-indexing.",
+          "contentHash": "cf4a03c2d5c4562651496cd91c0e6238e6a3482c6d2b00507557bab6d76b8df9"
+        },
+        {
+          "chunkId": "sync.md#4",
+          "sourceFile": "sync.md",
+          "chunkIndex": 4,
+          "nodeId": "a9327362-3c2e-5260-91d9-01f10d86f280",
+          "nodePath": "sync.md#sync/relationship-to-indexer/paragraph-1",
+          "parentId": "8278ceb3-d1a0-5a2a-98c5-1427fd36ae9b",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "Relationship to indexer",
+          "headingPath": [
+            "Sync",
+            "Relationship to indexer"
+          ],
+          "lang": null,
+          "context": "Sync › Relationship to indexer",
+          "text": "The indexer also updates config.json when it creates a new collection. Sync is only\nneeded for collections that were created outside the indexer (e.g. manually via the\nQdrant API or dashboard), or to repair a config.json that has drifted from the live\nQdrant state.",
+          "rawContent": "The indexer also updates config.json when it creates a new collection. Sync is only\nneeded for collections that were created outside the indexer (e.g. manually via the\nQdrant API or dashboard), or to repair a config.json that has drifted from the live\nQdrant state.",
+          "contentHash": "3a76c9dc8341a9c55f6ef95876df419e87f8f7240919ed2cf36725d1039350c5"
+        },
+        {
+          "chunkId": "sync.md#5",
+          "sourceFile": "sync.md",
+          "chunkIndex": 5,
+          "nodeId": "49223f34-4a2a-5403-bd1f-86907606ac7b",
+          "nodePath": "sync.md#sync/provider-recorded-by-sync/paragraph-1",
+          "parentId": "4cde47e8-eeab-5a2a-89a6-962b4adea7f1",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "Provider recorded by sync",
+          "headingPath": [
+            "Sync",
+            "Provider recorded by sync"
+          ],
+          "lang": null,
+          "context": "Sync › Provider recorded by sync",
+          "text": "The provider written by sync reflects the environment at the time sync is run, not the\nenvironment at the time the collection was originally indexed. If you run sync with\nONNX_EMBED=1 on a collection that was indexed with the default Ollama provider, the\nconfig entry will be updated to bge-m3-onnx. This is intentional: sync is a\ndeclaration of current intent, not a historical record.",
+          "rawContent": "The provider written by sync reflects the environment at the time sync is run, not the\nenvironment at the time the collection was originally indexed. If you run sync with\nONNX_EMBED=1 on a collection that was indexed with the default Ollama provider, the\nconfig entry will be updated to bge-m3-onnx. This is intentional: sync is a\ndeclaration of current intent, not a historical record.",
+          "contentHash": "24517dac73f64b9fe6415d9b9fe674153204a5fbbfb573e4cfe5723595e76fba"
+        }
+      ]
+    },
+    "mcp-workflow.md": {
+      "chunkCount": 10,
+      "fileContentHash": "4166bae93f2d584fe3c4b3ef7726551b05d67094dfe0ce328434893323982b45",
+      "chunks": [
+        {
+          "chunkId": "mcp-workflow.md#0",
+          "sourceFile": "mcp-workflow.md",
+          "chunkIndex": 0,
+          "nodeId": "f8d232b0-d377-5d0e-9601-a20cf2de2078",
+          "nodePath": "mcp-workflow.md#mcp-tools-and-agent-workflow/paragraph-1",
+          "parentId": "3012f7e1-bd7a-51f0-a764-b87638922f70",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "MCP Tools and Agent Workflow",
+          "headingPath": [
+            "MCP Tools and Agent Workflow"
+          ],
+          "lang": null,
+          "context": "MCP Tools and Agent Workflow",
+          "text": "semidex exposes a read-only MCP server that lets AI agents search indexed collections\nwithout reading whole files. The server is registered as an MCP tool provider under\nthe name qdrant in Claude Code (the internal name is an implementation detail —\nthe project is called semidex).",
+          "rawContent": "semidex exposes a read-only MCP server that lets AI agents search indexed collections\nwithout reading whole files. The server is registered as an MCP tool provider under\nthe name qdrant in Claude Code (the internal name is an implementation detail —\nthe project is called semidex).",
+          "contentHash": "9470beca48cf97bc31186b71a4978bca5eab03184a30dedad9d290aa7b3687cd"
+        },
+        {
+          "chunkId": "mcp-workflow.md#1",
+          "sourceFile": "mcp-workflow.md",
+          "chunkIndex": 1,
+          "nodeId": "a77aa880-aa88-5d0d-bc15-afddf3063626",
+          "nodePath": "mcp-workflow.md#mcp-tools-and-agent-workflow/registering-the-mcp-server/paragraph-1",
+          "parentId": "cbe04ffa-22e7-58f5-af09-21945f439682",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "Registering the MCP Server",
+          "headingPath": [
+            "MCP Tools and Agent Workflow",
+            "Registering the MCP Server"
+          ],
+          "lang": null,
+          "context": "MCP Tools and Agent Workflow › Registering the MCP Server",
+          "text": "Linux / macOS:\n\n`claude mcp add --scope user semidex -- node /absolute/path/to/semidex/src/mcp/server.js`\n\nWindows:\n\n`claude mcp add --scope user semidex -- node C:\\absolute\\path\\to\\semidex\\src\\mcp\\server.js`\n\nAfter registering, run /mcp in Claude Code to verify the connection.\nThe server must be running (i.e., the node process must be alive) for tools to work.",
+          "rawContent": "Linux / macOS:\n\n`claude mcp add --scope user semidex -- node /absolute/path/to/semidex/src/mcp/server.js`\n\nWindows:\n\n`claude mcp add --scope user semidex -- node C:\\absolute\\path\\to\\semidex\\src\\mcp\\server.js`\n\nAfter registering, run /mcp in Claude Code to verify the connection.\nThe server must be running (i.e., the node process must be alive) for tools to work.",
+          "contentHash": "28daf430ac7fb30aafd28782d198da98523ba9e69b1a26c6a96565b16e3a382f"
+        },
+        {
+          "chunkId": "mcp-workflow.md#2",
+          "sourceFile": "mcp-workflow.md",
+          "chunkIndex": 2,
+          "nodeId": "339c67f8-c77d-5f29-b159-545160e542fc",
+          "nodePath": "mcp-workflow.md#mcp-tools-and-agent-workflow/tool-reference/table-1",
+          "parentId": "07fcd7d7-baec-5097-bcc2-6b1179362254",
+          "nodeType": "table",
+          "pointKind": "retrieval_content",
+          "section": "Tool Reference",
+          "headingPath": [
+            "MCP Tools and Agent Workflow",
+            "Tool Reference"
+          ],
+          "lang": null,
+          "context": "MCP Tools and Agent Workflow › Tool Reference — table",
+          "text": "| Tool | Arguments | Description |\n|------|-----------|-------------|\n| `qdrant_search` | `query`, `collection`, `top?`, `tags?[]`, `source_file?` | Hybrid search with optional tag/source filters |\n| `qdrant_collection_info` | none | Lists collections with point counts, provider metadata, descriptions |\n| `qdrant_get_chunk` | `collection`, `source_file`, `chunk_index`, `window?` | Retrieves one chunk and optional neighbors |\n| `qdrant_list_files` | `collection`, `directory?` | Lists indexed files, optionally scoped to a directory |\n| `qdrant_list_directories` | `collection` | Lists top-level directories present in the collection |\n| `qdrant_find_by_tag` | `collection`, `tag`, `limit?` | Lists chunks matching a tag, grouped by file |",
+          "rawContent": "| Tool | Arguments | Description |\n|------|-----------|-------------|\n| `qdrant_search` | `query`, `collection`, `top?`, `tags?[]`, `source_file?` | Hybrid search with optional tag/source filters |\n| `qdrant_collection_info` | none | Lists collections with point counts, provider metadata, descriptions |\n| `qdrant_get_chunk` | `collection`, `source_file`, `chunk_index`, `window?` | Retrieves one chunk and optional neighbors |\n| `qdrant_list_files` | `collection`, `directory?` | Lists indexed files, optionally scoped to a directory |\n| `qdrant_list_directories` | `collection` | Lists top-level directories present in the collection |\n| `qdrant_find_by_tag` | `collection`, `tag`, `limit?` | Lists chunks matching a tag, grouped by file |",
+          "contentHash": "d34cff0f5f9c07f7ff6d0c6bc0634877aa206601bb28a3eb1daabe05dff7441c"
+        },
+        {
+          "chunkId": "mcp-workflow.md#3",
+          "sourceFile": "mcp-workflow.md",
+          "chunkIndex": 3,
+          "nodeId": "8fbdbf60-fc54-51c6-962b-094b6c34b3ef",
+          "nodePath": "mcp-workflow.md#mcp-tools-and-agent-workflow/recommended-workflow/code_block-1",
+          "parentId": "3d6d7d8c-33dd-5c56-98db-5c1fc4520e9f",
+          "nodeType": "code_block",
+          "pointKind": "retrieval_content",
+          "section": "Recommended Workflow",
+          "headingPath": [
+            "MCP Tools and Agent Workflow",
+            "Recommended Workflow"
+          ],
+          "lang": "text",
+          "context": "MCP Tools and Agent Workflow › Recommended Workflow — code block",
+          "text": "```text\nqdrant_collection_info\n  -> qdrant_search(query, collection, top=5)\n  -> qdrant_get_chunk(collection, source_file, chunk_index, window=1)\n  -> qdrant_list_files(collection, directory)\n  -> qdrant_find_by_tag(collection, tag)\n```",
+          "rawContent": "```text\nqdrant_collection_info\n  -> qdrant_search(query, collection, top=5)\n  -> qdrant_get_chunk(collection, source_file, chunk_index, window=1)\n  -> qdrant_list_files(collection, directory)\n  -> qdrant_find_by_tag(collection, tag)\n```",
+          "contentHash": "05ce8e8f276c8084b1218151bbbe896f6b25777c17dabead8b6919a7a71cbeab"
+        },
+        {
+          "chunkId": "mcp-workflow.md#4",
+          "sourceFile": "mcp-workflow.md",
+          "chunkIndex": 4,
+          "nodeId": "cfa5e500-0f79-5f45-a60c-13ad34ce99d6",
+          "nodePath": "mcp-workflow.md#mcp-tools-and-agent-workflow/recommended-workflow/paragraph-1",
+          "parentId": "3d6d7d8c-33dd-5c56-98db-5c1fc4520e9f",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "Recommended Workflow",
+          "headingPath": [
+            "MCP Tools and Agent Workflow",
+            "Recommended Workflow"
+          ],
+          "lang": null,
+          "context": "MCP Tools and Agent Workflow › Recommended Workflow",
+          "text": "[code block node: mcp-workflow.md#mcp-tools-and-agent-workflow/recommended-workflow/code_block-1 — qdrant_collection_info]\n\nSearch results include the matched chunk text, source_file, and chunk_index.\nUse source_file and chunk_index from search results as direct inputs to\nqdrant_get_chunk. Set window=1 or window=2 to retrieve adjacent chunks when\nmore context is needed.",
+          "rawContent": "[code block node: mcp-workflow.md#mcp-tools-and-agent-workflow/recommended-workflow/code_block-1 — qdrant_collection_info]\n\nSearch results include the matched chunk text, source_file, and chunk_index.\nUse source_file and chunk_index from search results as direct inputs to\nqdrant_get_chunk. Set window=1 or window=2 to retrieve adjacent chunks when\nmore context is needed.",
+          "contentHash": "419d92e4cb0348ee1f5eab5bf32de4e9af29bd86377515c3406bfeda21d574a8"
+        },
+        {
+          "chunkId": "mcp-workflow.md#5",
+          "sourceFile": "mcp-workflow.md",
+          "chunkIndex": 5,
+          "nodeId": "2c4a395a-bd41-577e-86de-ce1eb0761eb5",
+          "nodePath": "mcp-workflow.md#mcp-tools-and-agent-workflow/qdrant-search-filters/paragraph-1",
+          "parentId": "5d85d5bd-cf6f-5b6a-a513-dad6005a9bce",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "qdrant_search Filters",
+          "headingPath": [
+            "MCP Tools and Agent Workflow",
+            "qdrant_search Filters"
+          ],
+          "lang": null,
+          "context": "MCP Tools and Agent Workflow › qdrant_search Filters",
+          "text": "qdrant_search supports three optional filters:\n\ntags: OR across requested tags — returns chunks matching any of the given tags.source_file: restricts search to one specific file.Combined tag + file: both filters can be used together.\n\nFilters are passed to Qdrant as payload filter conditions. The source_file and\ntags payload indexes must exist for filtering to be efficient. They are created\nautomatically by npm run index for new collections.",
+          "rawContent": "qdrant_search supports three optional filters:\n\ntags: OR across requested tags — returns chunks matching any of the given tags.source_file: restricts search to one specific file.Combined tag + file: both filters can be used together.\n\nFilters are passed to Qdrant as payload filter conditions. The source_file and\ntags payload indexes must exist for filtering to be efficient. They are created\nautomatically by npm run index for new collections.",
+          "contentHash": "d761aa581a6cac43a542ff92ee247f6f7ee1071ddf66a71b95f9303dc219daa8"
+        },
+        {
+          "chunkId": "mcp-workflow.md#6",
+          "sourceFile": "mcp-workflow.md",
+          "chunkIndex": 6,
+          "nodeId": "5533a64c-b527-52f7-8ced-f527f5f5cdb1",
+          "nodePath": "mcp-workflow.md#mcp-tools-and-agent-workflow/qdrant-get-chunk-and-context-windows/paragraph-1",
+          "parentId": "ac8be99e-7d43-51b2-a403-f4de17dbd49e",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "qdrant_get_chunk and Context Windows",
+          "headingPath": [
+            "MCP Tools and Agent Workflow",
+            "qdrant_get_chunk and Context Windows"
+          ],
+          "lang": null,
+          "context": "MCP Tools and Agent Workflow › qdrant_get_chunk and Context Windows",
+          "text": "qdrant_get_chunk retrieves a chunk by its stable address: collection, source_file,\nand chunk_index. The window parameter controls how many neighboring chunks to\nreturn on each side. For example, window=1 returns the previous chunk, the target\nchunk, and the next chunk.\n\nThis is useful when a search result mentions a concept that spans a chunk boundary.\nRetrieving the window avoids re-embedding and re-searching for the adjacent content.",
+          "rawContent": "qdrant_get_chunk retrieves a chunk by its stable address: collection, source_file,\nand chunk_index. The window parameter controls how many neighboring chunks to\nreturn on each side. For example, window=1 returns the previous chunk, the target\nchunk, and the next chunk.\n\nThis is useful when a search result mentions a concept that spans a chunk boundary.\nRetrieving the window avoids re-embedding and re-searching for the adjacent content.",
+          "contentHash": "f88fa99e13603c3d476fefd1314c17a582b9a55a7b42f73fc4c29731c94d4f1f"
+        },
+        {
+          "chunkId": "mcp-workflow.md#7",
+          "sourceFile": "mcp-workflow.md",
+          "chunkIndex": 7,
+          "nodeId": "0f8b1e3a-3db5-5457-af4d-0d455ba9d4c9",
+          "nodePath": "mcp-workflow.md#mcp-tools-and-agent-workflow/qdrant-list-files-and-qdrant-list-directories/paragraph-1",
+          "parentId": "49b8e340-85be-5fb1-ab6f-a043b6807d00",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "qdrant_list_files and qdrant_list_directories",
+          "headingPath": [
+            "MCP Tools and Agent Workflow",
+            "qdrant_list_files and qdrant_list_directories"
+          ],
+          "lang": null,
+          "context": "MCP Tools and Agent Workflow › qdrant_list_files and qdrant_list_directories",
+          "text": "qdrant_list_files returns all files indexed in a collection, optionally filtered to a\nspecific directory prefix. qdrant_list_directories returns the top-level directories\npresent in the collection.\n\nBoth tools operate at the file level. They are most useful for navigating the corpus\nstructure: qdrant_list_directories shows the layout, while qdrant_list_files lets\nthe agent scope a follow-up search to a specific subdirectory or list all files for\ninspection.",
+          "rawContent": "qdrant_list_files returns all files indexed in a collection, optionally filtered to a\nspecific directory prefix. qdrant_list_directories returns the top-level directories\npresent in the collection.\n\nBoth tools operate at the file level. They are most useful for navigating the corpus\nstructure: qdrant_list_directories shows the layout, while qdrant_list_files lets\nthe agent scope a follow-up search to a specific subdirectory or list all files for\ninspection.",
+          "contentHash": "84eb8c99fea22a7adef4318dd012033382caeb8caafd3b99427632d9d151e57a"
+        },
+        {
+          "chunkId": "mcp-workflow.md#8",
+          "sourceFile": "mcp-workflow.md",
+          "chunkIndex": 8,
+          "nodeId": "607b6e63-4c6b-52d9-9138-128dd1cb6563",
+          "nodePath": "mcp-workflow.md#mcp-tools-and-agent-workflow/qdrant-find-by-tag/paragraph-1",
+          "parentId": "3354207b-4643-5257-8b11-dde17a0369ae",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "qdrant_find_by_tag",
+          "headingPath": [
+            "MCP Tools and Agent Workflow",
+            "qdrant_find_by_tag"
+          ],
+          "lang": null,
+          "context": "MCP Tools and Agent Workflow › qdrant_find_by_tag",
+          "text": "qdrant_find_by_tag returns all chunks in a collection that carry a specific tag.\nResults are grouped by source_file. This is useful for narrow topic exploration\nwhen the user knows the conceptual label (e.g., reranking, chunking, provider).\n\nTags are generated by the LLM context phase during indexing (CONTEXT_MODEL env var).\nNot all indexed documents have tags unless the LLM phase was enabled during indexing.",
+          "rawContent": "qdrant_find_by_tag returns all chunks in a collection that carry a specific tag.\nResults are grouped by source_file. This is useful for narrow topic exploration\nwhen the user knows the conceptual label (e.g., reranking, chunking, provider).\n\nTags are generated by the LLM context phase during indexing (CONTEXT_MODEL env var).\nNot all indexed documents have tags unless the LLM phase was enabled during indexing.",
+          "contentHash": "4df17b70adf7b1a7c2bc8ec44724896081db367d97dbe1cbf7227368f41d517e"
+        },
+        {
+          "chunkId": "mcp-workflow.md#9",
+          "sourceFile": "mcp-workflow.md",
+          "chunkIndex": 9,
+          "nodeId": "bb5bf123-683b-5cfa-9780-876dc794017a",
+          "nodePath": "mcp-workflow.md#mcp-tools-and-agent-workflow/collection-discovery/paragraph-1",
+          "parentId": "7794aee6-d446-553c-b9a8-722b83eda74a",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "Collection Discovery",
+          "headingPath": [
+            "MCP Tools and Agent Workflow",
+            "Collection Discovery"
+          ],
+          "lang": null,
+          "context": "MCP Tools and Agent Workflow › Collection Discovery",
+          "text": "Run qdrant_collection_info at the start of a session to discover available\ncollections, their point counts, the embedding provider used, and any description\nset in config.json. This avoids guessing collection names and lets the agent\npick the most relevant collection for the user's query.",
+          "rawContent": "Run qdrant_collection_info at the start of a session to discover available\ncollections, their point counts, the embedding provider used, and any description\nset in config.json. This avoids guessing collection names and lets the agent\npick the most relevant collection for the user's query.",
+          "contentHash": "0b4b651ee2f38e23c4d3eb03be4daaee15eb53a07f8da1b9d019b553e909ddae"
+        }
+      ]
+    },
+    "obsidian.md": {
+      "chunkCount": 9,
+      "fileContentHash": "59ff3c079acb8d10309fb4503576ebf902eafd23ffd2edf69d8f634aa2e9d42f",
+      "chunks": [
+        {
+          "chunkId": "obsidian.md#0",
+          "sourceFile": "obsidian.md",
+          "chunkIndex": 0,
+          "nodeId": "96e3b52a-aaaf-576a-ba4d-b7b9943eb52f",
+          "nodePath": "obsidian.md#file-and-directory-navigation/paragraph-1",
+          "parentId": "2c52257c-5dce-56af-bf8f-1ce0fec53712",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "File and Directory Navigation",
+          "headingPath": [
+            "File and Directory Navigation"
+          ],
+          "lang": null,
+          "context": "File and Directory Navigation",
+          "text": "semidex indexes files into Qdrant and exposes tools for navigating the indexed\ncorpus without issuing a semantic query. The primary tools are qdrant_list_files\nand qdrant_list_directories.",
+          "rawContent": "semidex indexes files into Qdrant and exposes tools for navigating the indexed\ncorpus without issuing a semantic query. The primary tools are qdrant_list_files\nand qdrant_list_directories.",
+          "contentHash": "8cec8a7d1879acf5ab609dc60d5bc18d87ad8c21d6e98db80ad913fd19f5bb89"
+        },
+        {
+          "chunkId": "obsidian.md#1",
+          "sourceFile": "obsidian.md",
+          "chunkIndex": 1,
+          "nodeId": "c4626181-1e0a-5cf1-9a3c-fbfa720662ff",
+          "nodePath": "obsidian.md#file-and-directory-navigation/qdrant-list-directories/paragraph-1",
+          "parentId": "33779961-aee8-5828-85d7-52e356af3ef1",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "qdrant_list_directories",
+          "headingPath": [
+            "File and Directory Navigation",
+            "qdrant_list_directories"
+          ],
+          "lang": null,
+          "context": "File and Directory Navigation › qdrant_list_directories",
+          "text": "qdrant_list_directories returns the distinct top-level directory paths present\nin a collection. It uses a scroll over the source_file payload field to derive\nthe prefix set. No arguments are required beyond the collection name.\n\n`# Example MCP call qdrant_list_directories(collection=\"my-notes\") # Returns: [\"docs/\", \"src/\", \"notes/\", ...]`\n\nThis is the recommended first step when the agent does not know the corpus layout.",
+          "rawContent": "qdrant_list_directories returns the distinct top-level directory paths present\nin a collection. It uses a scroll over the source_file payload field to derive\nthe prefix set. No arguments are required beyond the collection name.\n\n`# Example MCP call qdrant_list_directories(collection=\"my-notes\") # Returns: [\"docs/\", \"src/\", \"notes/\", ...]`\n\nThis is the recommended first step when the agent does not know the corpus layout.",
+          "contentHash": "d3e778eb0160ffb7870b7bc5b0f44f1b86f0f15cbe47b2777cffc2b8c920c09d"
+        },
+        {
+          "chunkId": "obsidian.md#2",
+          "sourceFile": "obsidian.md",
+          "chunkIndex": 2,
+          "nodeId": "517d839c-a2bd-57ff-92ae-1d1fffa696a3",
+          "nodePath": "obsidian.md#file-and-directory-navigation/qdrant-list-files/paragraph-1",
+          "parentId": "1ad951a2-02c0-5ddc-bbe0-7c503bb91a48",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "qdrant_list_files",
+          "headingPath": [
+            "File and Directory Navigation",
+            "qdrant_list_files"
+          ],
+          "lang": null,
+          "context": "File and Directory Navigation › qdrant_list_files",
+          "text": "qdrant_list_files returns all source_file values in a collection, optionally\nfiltered to a directory prefix. Results are returned in alphabetical order.\n\n[code block node: obsidian.md#file-and-directory-navigation/qdrant-list-files/code_block-1 — # List all files]",
+          "rawContent": "qdrant_list_files returns all source_file values in a collection, optionally\nfiltered to a directory prefix. Results are returned in alphabetical order.\n\n[code block node: obsidian.md#file-and-directory-navigation/qdrant-list-files/code_block-1 — # List all files]",
+          "contentHash": "0d6366177fa855d40a50a0398cdf3ce1cc4978796a9eb44a6cdcb56e94736d77"
+        },
+        {
+          "chunkId": "obsidian.md#3",
+          "sourceFile": "obsidian.md",
+          "chunkIndex": 3,
+          "nodeId": "68f74aba-fe81-53be-884d-35c5d6ffce42",
+          "nodePath": "obsidian.md#file-and-directory-navigation/qdrant-list-files/code_block-1",
+          "parentId": "1ad951a2-02c0-5ddc-bbe0-7c503bb91a48",
+          "nodeType": "code_block",
+          "pointKind": "retrieval_content",
+          "section": "qdrant_list_files",
+          "headingPath": [
+            "File and Directory Navigation",
+            "qdrant_list_files"
+          ],
+          "lang": "bash",
+          "context": "File and Directory Navigation › qdrant_list_files — code block — qdrant_list_files returns all source_file values in a collection, optionally filtered to a directory prefix. Results are returned in alphabetical order.",
+          "text": "```bash\n# List all files\nqdrant_list_files(collection=\"my-notes\")\n\n# Scope to a subdirectory\nqdrant_list_files(collection=\"my-notes\", directory=\"docs/\")\n```",
+          "rawContent": "```bash\n# List all files\nqdrant_list_files(collection=\"my-notes\")\n\n# Scope to a subdirectory\nqdrant_list_files(collection=\"my-notes\", directory=\"docs/\")\n```",
+          "contentHash": "5ec43c3d3e8d9d3fd9796317ed75027c767fa5f849fdb3c47db4c992d203d9ed"
+        },
+        {
+          "chunkId": "obsidian.md#4",
+          "sourceFile": "obsidian.md",
+          "chunkIndex": 4,
+          "nodeId": "282f3045-cf7f-5375-a359-8b7695398295",
+          "nodePath": "obsidian.md#file-and-directory-navigation/qdrant-list-files/paragraph-2",
+          "parentId": "1ad951a2-02c0-5ddc-bbe0-7c503bb91a48",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "qdrant_list_files",
+          "headingPath": [
+            "File and Directory Navigation",
+            "qdrant_list_files"
+          ],
+          "lang": null,
+          "context": "File and Directory Navigation › qdrant_list_files",
+          "text": "Use qdrant_list_files when you need to enumerate files before calling\nqdrant_get_chunk or when checking whether a specific document is indexed.",
+          "rawContent": "Use qdrant_list_files when you need to enumerate files before calling\nqdrant_get_chunk or when checking whether a specific document is indexed.",
+          "contentHash": "bab5cd130630883d9b43d7e3eca097bbcf32910ef0b29e40abff06eb5832f9d6"
+        },
+        {
+          "chunkId": "obsidian.md#5",
+          "sourceFile": "obsidian.md",
+          "chunkIndex": 5,
+          "nodeId": "41cd0782-e936-57e0-837b-932ae721cd72",
+          "nodePath": "obsidian.md#file-and-directory-navigation/payload-fields-used-for-navigation/table-1",
+          "parentId": "2ea97180-e769-52bc-8097-33b32489f5cf",
+          "nodeType": "table",
+          "pointKind": "retrieval_content",
+          "section": "Payload Fields Used for Navigation",
+          "headingPath": [
+            "File and Directory Navigation",
+            "Payload Fields Used for Navigation"
+          ],
+          "lang": null,
+          "context": "File and Directory Navigation › Payload Fields Used for Navigation — table",
+          "text": "| Field | Type | Description |\n|-------|------|-------------|\n| `source_file` | string | Stable file identifier relative to `SOURCE_ROOT` |\n| `chunk_index` | integer | Zero-based position within the source file |\n| `section` | string | Markdown heading of the containing section |\n| `total_chunks` | integer | Total chunk count for this source file |\n| `tags` | string[] | LLM-generated topic tags |",
+          "rawContent": "| Field | Type | Description |\n|-------|------|-------------|\n| `source_file` | string | Stable file identifier relative to `SOURCE_ROOT` |\n| `chunk_index` | integer | Zero-based position within the source file |\n| `section` | string | Markdown heading of the containing section |\n| `total_chunks` | integer | Total chunk count for this source file |\n| `tags` | string[] | LLM-generated topic tags |",
+          "contentHash": "72a180c541a566e18fe2d785b0278f40c7cac29e09ca9bf124e464484203b652"
+        },
+        {
+          "chunkId": "obsidian.md#6",
+          "sourceFile": "obsidian.md",
+          "chunkIndex": 6,
+          "nodeId": "cae051f8-885a-542b-9ae2-2a48e2a15d41",
+          "nodePath": "obsidian.md#file-and-directory-navigation/payload-fields-used-for-navigation/paragraph-1",
+          "parentId": "2ea97180-e769-52bc-8097-33b32489f5cf",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "Payload Fields Used for Navigation",
+          "headingPath": [
+            "File and Directory Navigation",
+            "Payload Fields Used for Navigation"
+          ],
+          "lang": null,
+          "context": "File and Directory Navigation › Payload Fields Used for Navigation",
+          "text": "[table node: obsidian.md#file-and-directory-navigation/payload-fields-used-for-navigation/table-1 — FieldTypeDescriptionsource_filestringStable file identifier ]\n\nsource_file and tags are payload-indexed for efficient filtering. They are\ncreated automatically by npm run index for new collections.",
+          "rawContent": "[table node: obsidian.md#file-and-directory-navigation/payload-fields-used-for-navigation/table-1 — FieldTypeDescriptionsource_filestringStable file identifier ]\n\nsource_file and tags are payload-indexed for efficient filtering. They are\ncreated automatically by npm run index for new collections.",
+          "contentHash": "9173f2d8462cf63e39bd3a86526589479568b5ca3c6885abf775079764796015"
+        },
+        {
+          "chunkId": "obsidian.md#7",
+          "sourceFile": "obsidian.md",
+          "chunkIndex": 7,
+          "nodeId": "6b7dbc66-0e03-54d3-a065-97308b40afea",
+          "nodePath": "obsidian.md#file-and-directory-navigation/combining-navigation-with-search/paragraph-1",
+          "parentId": "5bc481cd-2966-53b0-86f2-a387d6795a58",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "Combining Navigation with Search",
+          "headingPath": [
+            "File and Directory Navigation",
+            "Combining Navigation with Search"
+          ],
+          "lang": null,
+          "context": "File and Directory Navigation › Combining Navigation with Search",
+          "text": "The typical agent workflow combines navigation and search:\n\nqdrant_collection_info — discover available collections.qdrant_list_directories — map the corpus layout.qdrant_search(source_file=...) — scope search to a known file.qdrant_get_chunk(window=1) — expand context around a result.\n\nUse source_file from search results as a direct input to qdrant_list_files\nto find neighboring documents in the same directory.",
+          "rawContent": "The typical agent workflow combines navigation and search:\n\nqdrant_collection_info — discover available collections.qdrant_list_directories — map the corpus layout.qdrant_search(source_file=...) — scope search to a known file.qdrant_get_chunk(window=1) — expand context around a result.\n\nUse source_file from search results as a direct input to qdrant_list_files\nto find neighboring documents in the same directory.",
+          "contentHash": "bef35c1ec7b188572e702ab3248576f195d39f84eb487cb0de5417409fc30228"
+        },
+        {
+          "chunkId": "obsidian.md#8",
+          "sourceFile": "obsidian.md",
+          "chunkIndex": 8,
+          "nodeId": "93f8d872-32b6-58e5-a648-81a6df1fd982",
+          "nodePath": "obsidian.md#file-and-directory-navigation/use-cases/paragraph-1",
+          "parentId": "a0d46bce-c6bb-5d50-9503-329ca081253d",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "Use Cases",
+          "headingPath": [
+            "File and Directory Navigation",
+            "Use Cases"
+          ],
+          "lang": null,
+          "context": "File and Directory Navigation › Use Cases",
+          "text": "Listing all indexed documents before a benchmark run to verify coverage.Auditing LLM-generated tags for a collection with qdrant_find_by_tag.Scoping a search to a known subdirectory using the source_file filter.Confirming that a specific file was indexed after running npm run index.Navigating the directory structure of a large documentation corpus.",
+          "rawContent": "Listing all indexed documents before a benchmark run to verify coverage.Auditing LLM-generated tags for a collection with qdrant_find_by_tag.Scoping a search to a known subdirectory using the source_file filter.Confirming that a specific file was indexed after running npm run index.Navigating the directory structure of a large documentation corpus.",
+          "contentHash": "c468d119416624e3d4edf567050383120bac58dbe1fb55dc99deb568c4451c75"
+        }
+      ]
+    },
+    "project-structure.md": {
+      "chunkCount": 8,
+      "fileContentHash": "b54b31da8df4fddc28d55e76c477f998568dcf55d0d4c031c9d5c211093c5888",
+      "chunks": [
+        {
+          "chunkId": "project-structure.md#0",
+          "sourceFile": "project-structure.md",
+          "chunkIndex": 0,
+          "nodeId": "377a48ae-1ec1-5006-8377-fda85a649371",
+          "nodePath": "project-structure.md#project-structure/paragraph-1",
+          "parentId": "35121456-1d2e-5ab2-83d5-3f9af30e8c25",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "Project Structure",
+          "headingPath": [
+            "Project Structure"
+          ],
+          "lang": null,
+          "context": "Project Structure",
+          "text": "semidex is a local-first RAG memory system. The codebase is split into a core\nlibrary, an indexer pipeline, an MCP server, and a benchmark harness.",
+          "rawContent": "semidex is a local-first RAG memory system. The codebase is split into a core\nlibrary, an indexer pipeline, an MCP server, and a benchmark harness.",
+          "contentHash": "4f75cd9163b79a78a9e4f423a5ea24dd32c9984bd7f2cfc1092c73f7f75e3180"
+        },
+        {
+          "chunkId": "project-structure.md#1",
+          "sourceFile": "project-structure.md",
+          "chunkIndex": 1,
+          "nodeId": "f3a7f020-9331-53ee-bc59-6ad0674dce6f",
+          "nodePath": "project-structure.md#project-structure/source-tree/code_block-1",
+          "parentId": "ab53db24-274f-5d5a-8adc-ebaef58e3a51",
+          "nodeType": "code_block",
+          "pointKind": "retrieval_content",
+          "section": "Source Tree",
+          "headingPath": [
+            "Project Structure",
+            "Source Tree"
+          ],
+          "lang": null,
+          "context": "Project Structure › Source Tree — code block",
+          "text": "```\nsemidex/\n├── src/\n│   ├── core/\n│   │   ├── config.js          # config.json read/write, resolveEnvProviders()\n│   │   ├── embeddings.js      # embedForIndex(), embedForSearch(), SCHEMA_VERSION\n│   │   ├── onnx-embed.js      # BGE-M3 ONNX tokenizer and session\n│   │   ├── qdrant.js          # Qdrant REST client (search, upsert, scroll, etc.)\n│   │   ├── rerank.js          # BM25 local reranker, rerankResults()\n│   │   └── smoke.js           # Connectivity smoke test for Qdrant + providers\n│   ├── indexer/\n│   │   ├── index.js           # CLI entry point: parse args, iterate files\n│   │   └── phases/\n│   │       ├── chunk.js       # chunkFile(), splitSentences(), parseMarkdown()\n│   │       ├── context.js     # LLM chunk contextualization\n│   │       ├── embed.js       # Batch embedding phase\n│   │       └── tag.js         # LLM tag generation phase\n│   ├── mcp/\n│   │   ├── server.js          # MCP server entry point\n│   │   └── tools/\n│   │       ├── search.js      # qdrant_search, qdrant_get_chunk, qdrant_find_by_tag\n│   │       ├── list.js        # qdrant_list_files, qdrant_list_directories\n│   │       └── info.js        # qdrant_collection_info\n│   └── sync.js                # Sync config.json with live Qdrant collections\n├── benchmarks/\n│   ├── retrieval/\n│   │   ├── run.js             # 21-query regression benchmark (v1/v2 schema)\n│   │   ├── compare.js         # Side-by-side ollama vs onnx\n│   │   ├── rerank-matrix.js   # 4-variant rerank matrix\n│   │   ├── mmr-matrix.js      # MMR diversity matrix\n│   │   ├── queries.json       # Stable 21-query regression set\n│   │   └── fixtures/docs/     # 4 fixture docs: providers, qdrant, chunking, sync\n│   └── retrieval/custom-50/\n│       ├── run-v3.js          # Quality benchmark runner (v3 schema, graded qrels)\n│       ├── queries.json       # 50-query evaluation set\n│       └── fixtures/docs/     # 8-10 fixture docs covering all semidex subsystems\n├── docs/\n│   ├── README.md              # Language selector (EN / UA)\n│   └── en/\n│       ├── README.md          # EN documentation entry point\n│       ├── architecture.md    # Pipeline overview, data flow\n│       ├── configuration.md   # All environment variables and config.json\n│       ├── retrieval.md       # Hybrid search, RRF, MMR, reranking\n│       ├── benchmarking.md    # Benchmark harness guide\n│       ├── mcp-tools.md       # MCP server tool reference\n│       ├── operations.md      # Day-to-day operations guide\n│       └── project-structure.md # Full source tree reference\n├── models/                    # ONNX model cache (git-ignored)\n├── config.json                # Per-collection provider metadata (git-ignored)\n├── .env                       # Environment variables (git-ignored)\n├── package.json\n└── AGENTS.md                  # AI agent instructions for semidex development\n```",
+          "rawContent": "```\nsemidex/\n├── src/\n│   ├── core/\n│   │   ├── config.js          # config.json read/write, resolveEnvProviders()\n│   │   ├── embeddings.js      # embedForIndex(), embedForSearch(), SCHEMA_VERSION\n│   │   ├── onnx-embed.js      # BGE-M3 ONNX tokenizer and session\n│   │   ├── qdrant.js          # Qdrant REST client (search, upsert, scroll, etc.)\n│   │   ├── rerank.js          # BM25 local reranker, rerankResults()\n│   │   └── smoke.js           # Connectivity smoke test for Qdrant + providers\n│   ├── indexer/\n│   │   ├── index.js           # CLI entry point: parse args, iterate files\n│   │   └── phases/\n│   │       ├── chunk.js       # chunkFile(), splitSentences(), parseMarkdown()\n│   │       ├── context.js     # LLM chunk contextualization\n│   │       ├── embed.js       # Batch embedding phase\n│   │       └── tag.js         # LLM tag generation phase\n│   ├── mcp/\n│   │   ├── server.js          # MCP server entry point\n│   │   └── tools/\n│   │       ├── search.js      # qdrant_search, qdrant_get_chunk, qdrant_find_by_tag\n│   │       ├── list.js        # qdrant_list_files, qdrant_list_directories\n│   │       └── info.js        # qdrant_collection_info\n│   └── sync.js                # Sync config.json with live Qdrant collections\n├── benchmarks/\n│   ├── retrieval/\n│   │   ├── run.js             # 21-query regression benchmark (v1/v2 schema)\n│   │   ├── compare.js         # Side-by-side ollama vs onnx\n│   │   ├── rerank-matrix.js   # 4-variant rerank matrix\n│   │   ├── mmr-matrix.js      # MMR diversity matrix\n│   │   ├── queries.json       # Stable 21-query regression set\n│   │   └── fixtures/docs/     # 4 fixture docs: providers, qdrant, chunking, sync\n│   └── retrieval/custom-50/\n│       ├── run-v3.js          # Quality benchmark runner (v3 schema, graded qrels)\n│       ├── queries.json       # 50-query evaluation set\n│       └── fixtures/docs/     # 8-10 fixture docs covering all semidex subsystems\n├── docs/\n│   ├── README.md              # Language selector (EN / UA)\n│   └── en/\n│       ├── README.md          # EN documentation entry point\n│       ├── architecture.md    # Pipeline overview, data flow\n│       ├── configuration.md   # All environment variables and config.json\n│       ├── retrieval.md       # Hybrid search, RRF, MMR, reranking\n│       ├── benchmarking.md    # Benchmark harness guide\n│       ├── mcp-tools.md       # MCP server tool reference\n│       ├── operations.md      # Day-to-day operations guide\n│       └── project-structure.md # Full source tree reference\n├── models/                    # ONNX model cache (git-ignored)\n├── config.json                # Per-collection provider metadata (git-ignored)\n├── .env                       # Environment variables (git-ignored)\n├── package.json\n└── AGENTS.md                  # AI agent instructions for semidex development\n```",
+          "contentHash": "9a3dd6f00e2d3b941a2c7afcf2fdb0767ff2e8ad4caacd5f85be95b301422a3a"
+        },
+        {
+          "chunkId": "project-structure.md#2",
+          "sourceFile": "project-structure.md",
+          "chunkIndex": 2,
+          "nodeId": "25a0e8d3-b0ae-50fb-ba36-3436f3cc9b2a",
+          "nodePath": "project-structure.md#project-structure/key-modules/src-core-config-js/paragraph-1",
+          "parentId": "98a2ae5c-d9fa-5e38-b18b-45d3d5d0ecce",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "src/core/config.js",
+          "headingPath": [
+            "Project Structure",
+            "Key Modules",
+            "src/core/config.js"
+          ],
+          "lang": null,
+          "context": "Project Structure › Key Modules › src/core/config.js",
+          "text": "Reads and writes config.json. Exports resolveEnvProviders() which maps\nenvironment variables (ONNX_EMBED, DENSE_PROVIDER, SPARSE_PROVIDER, DENSE_MODEL)\nto canonical provider names. This is the single source of truth for provider resolution.",
+          "rawContent": "Reads and writes config.json. Exports resolveEnvProviders() which maps\nenvironment variables (ONNX_EMBED, DENSE_PROVIDER, SPARSE_PROVIDER, DENSE_MODEL)\nto canonical provider names. This is the single source of truth for provider resolution.",
+          "contentHash": "671f88a581167bcb30b567346e52f2fa4046b1a439e2600d4c4262f0fb297ed9"
+        },
+        {
+          "chunkId": "project-structure.md#3",
+          "sourceFile": "project-structure.md",
+          "chunkIndex": 3,
+          "nodeId": "2a0ffa63-f584-5c10-a456-4339caa9b9bf",
+          "nodePath": "project-structure.md#project-structure/key-modules/src-core-embeddings-js/paragraph-1",
+          "parentId": "84f498ef-4b5a-569b-ac68-bac8d45904a4",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "src/core/embeddings.js",
+          "headingPath": [
+            "Project Structure",
+            "Key Modules",
+            "src/core/embeddings.js"
+          ],
+          "lang": null,
+          "context": "Project Structure › Key Modules › src/core/embeddings.js",
+          "text": "Exports embedForIndex(collection, text) and embedForSearch(collection, text).\nBoth return { dense, sparse, meta }. SCHEMA_VERSION is a constant incremented\nwhen the embedding schema changes; it is stored in Qdrant payloads as\nembedding_schema_version and used as a reindex discriminator.",
+          "rawContent": "Exports embedForIndex(collection, text) and embedForSearch(collection, text).\nBoth return { dense, sparse, meta }. SCHEMA_VERSION is a constant incremented\nwhen the embedding schema changes; it is stored in Qdrant payloads as\nembedding_schema_version and used as a reindex discriminator.",
+          "contentHash": "1d1de7a07979a52e9206665dc6aa6908b9d80e28be2306be74f6cb7412aeb771"
+        },
+        {
+          "chunkId": "project-structure.md#4",
+          "sourceFile": "project-structure.md",
+          "chunkIndex": 4,
+          "nodeId": "1f637942-8c00-5a0c-bbdf-42410e990958",
+          "nodePath": "project-structure.md#project-structure/key-modules/src-core-qdrant-js/paragraph-1",
+          "parentId": "c7e6a348-6c50-5be9-a083-0cf7e722db92",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "src/core/qdrant.js",
+          "headingPath": [
+            "Project Structure",
+            "Key Modules",
+            "src/core/qdrant.js"
+          ],
+          "lang": null,
+          "context": "Project Structure › Key Modules › src/core/qdrant.js",
+          "text": "All Qdrant REST calls go through this module. Key exports:\n\nhybridSearch(collection, dense, sparse, limit, filter) — RRF fusion querymmrSearch(collection, dense, limit, filter, opts) — dense MMR queryscroll(collection, filter, limit, withPayload) — paginated point retrievalgetStoredMeta(collection, sourceFile) — reads six reindex discriminator fieldscreateCollection(name, size) — creates collection with dense + sparse vectors",
+          "rawContent": "All Qdrant REST calls go through this module. Key exports:\n\nhybridSearch(collection, dense, sparse, limit, filter) — RRF fusion querymmrSearch(collection, dense, limit, filter, opts) — dense MMR queryscroll(collection, filter, limit, withPayload) — paginated point retrievalgetStoredMeta(collection, sourceFile) — reads six reindex discriminator fieldscreateCollection(name, size) — creates collection with dense + sparse vectors",
+          "contentHash": "b296304be1c6f2ff211f14922fce38579dd81b58b72e2bccb960a95fe4dca9cc"
+        },
+        {
+          "chunkId": "project-structure.md#5",
+          "sourceFile": "project-structure.md",
+          "chunkIndex": 5,
+          "nodeId": "07c4b153-b223-5a22-843a-82c752fb9bcc",
+          "nodePath": "project-structure.md#project-structure/key-modules/src-indexer-phases-chunk-js/paragraph-1",
+          "parentId": "d41d2383-248d-5443-8024-8a831a5f907a",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "src/indexer/phases/chunk.js",
+          "headingPath": [
+            "Project Structure",
+            "Key Modules",
+            "src/indexer/phases/chunk.js"
+          ],
+          "lang": null,
+          "context": "Project Structure › Key Modules › src/indexer/phases/chunk.js",
+          "text": "Exports chunkFile(filePath, text, sourceFile). Returns an array of chunk objects\nwith text, section, chunkIndex, totalChunks. Controlled by MAX_CHUNK_TOKENS,\nMIN_CHUNK_TOKENS, and OVERLAP_SENTENCES env vars.",
+          "rawContent": "Exports chunkFile(filePath, text, sourceFile). Returns an array of chunk objects\nwith text, section, chunkIndex, totalChunks. Controlled by MAX_CHUNK_TOKENS,\nMIN_CHUNK_TOKENS, and OVERLAP_SENTENCES env vars.",
+          "contentHash": "7e5d8b143ed9c365b18df790131f33e990d82928391c0f51ba3e48dbc41d8537"
+        },
+        {
+          "chunkId": "project-structure.md#6",
+          "sourceFile": "project-structure.md",
+          "chunkIndex": 6,
+          "nodeId": "d08c4f5e-0c39-53e1-b1a1-361a20ff8130",
+          "nodePath": "project-structure.md#project-structure/key-modules/src-mcp-server-js/paragraph-1",
+          "parentId": "c9f3a357-0a27-531b-89e5-67c09f9fcd7a",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "src/mcp/server.js",
+          "headingPath": [
+            "Project Structure",
+            "Key Modules",
+            "src/mcp/server.js"
+          ],
+          "lang": null,
+          "context": "Project Structure › Key Modules › src/mcp/server.js",
+          "text": "Entry point for the MCP server. Tools are implemented in src/mcp/tools/:\nqdrant_search, qdrant_collection_info, qdrant_get_chunk,\nqdrant_list_files, qdrant_list_directories, qdrant_find_by_tag.\nThe server name registered in MCP clients is qdrant (legacy name), but the\nproject is called semidex.",
+          "rawContent": "Entry point for the MCP server. Tools are implemented in src/mcp/tools/:\nqdrant_search, qdrant_collection_info, qdrant_get_chunk,\nqdrant_list_files, qdrant_list_directories, qdrant_find_by_tag.\nThe server name registered in MCP clients is qdrant (legacy name), but the\nproject is called semidex.",
+          "contentHash": "e7cea8a171bf787009ca5a45053fb39902f7bc316cd41e3305b3570439178e6b"
+        },
+        {
+          "chunkId": "project-structure.md#7",
+          "sourceFile": "project-structure.md",
+          "chunkIndex": 7,
+          "nodeId": "647299f9-258a-55a0-bacd-981b42a01c82",
+          "nodePath": "project-structure.md#project-structure/entry-points/table-1",
+          "parentId": "86e365d2-c268-5067-a2c5-3aa7d3a56d14",
+          "nodeType": "table",
+          "pointKind": "retrieval_content",
+          "section": "Entry Points",
+          "headingPath": [
+            "Project Structure",
+            "Entry Points"
+          ],
+          "lang": null,
+          "context": "Project Structure › Entry Points — table",
+          "text": "| Command | Module | Purpose |\n|---------|--------|---------|\n| `npm run index` | `src/indexer/index.js` | Index files into Qdrant |\n| `npm run sync` | `src/sync.js` | Sync config.json with Qdrant |\n| `npm run smoke` | `src/core/smoke.js` | Verify connectivity |\n| `npm run mcp` | `src/mcp/server.js` | Start MCP server |\n| `npm run bench:retrieval` | `benchmarks/retrieval/run.js` | Run 21q regression benchmark |\n| `npm run bench:custom50` | `benchmarks/retrieval/custom-50/run-v3.js` | Run 50q quality benchmark |",
+          "rawContent": "| Command | Module | Purpose |\n|---------|--------|---------|\n| `npm run index` | `src/indexer/index.js` | Index files into Qdrant |\n| `npm run sync` | `src/sync.js` | Sync config.json with Qdrant |\n| `npm run smoke` | `src/core/smoke.js` | Verify connectivity |\n| `npm run mcp` | `src/mcp/server.js` | Start MCP server |\n| `npm run bench:retrieval` | `benchmarks/retrieval/run.js` | Run 21q regression benchmark |\n| `npm run bench:custom50` | `benchmarks/retrieval/custom-50/run-v3.js` | Run 50q quality benchmark |",
+          "contentHash": "8c32032769ad34fdd3154c472c1873a404785d26699ef89b3d11cb0b21792c16"
+        }
+      ]
+    },
+    "benchmarking.md": {
+      "chunkCount": 17,
+      "fileContentHash": "0e8ba28c33be6ab9e5513fc44330d91d10e7bfddb00032fe213c180928290d2f",
+      "chunks": [
+        {
+          "chunkId": "benchmarking.md#0",
+          "sourceFile": "benchmarking.md",
+          "chunkIndex": 0,
+          "nodeId": "06f68113-ac21-5a80-809f-6e79d42f7379",
+          "nodePath": "benchmarking.md#benchmarking/paragraph-1",
+          "parentId": "b4f93dd4-19ed-51b5-a98d-c2aced585b70",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "Benchmarking",
+          "headingPath": [
+            "Benchmarking"
+          ],
+          "lang": null,
+          "context": "Benchmarking",
+          "text": "semidex includes a retrieval benchmark harness that measures search quality\nagainst a fixed corpus of fixture documents. There are two benchmark tiers:",
+          "rawContent": "semidex includes a retrieval benchmark harness that measures search quality\nagainst a fixed corpus of fixture documents. There are two benchmark tiers:",
+          "contentHash": "174af17fd52627009223c234e36bc6f6e1f45366d1bf788f8d14ba3a3fe2ee8e"
+        },
+        {
+          "chunkId": "benchmarking.md#1",
+          "sourceFile": "benchmarking.md",
+          "chunkIndex": 1,
+          "nodeId": "a3df9418-7872-599a-8bf6-93a1526a0ae9",
+          "nodePath": "benchmarking.md#benchmarking/benchmark-tiers/21-query-regression-benchmark-benchmarks-retrieval/paragraph-1",
+          "parentId": "486aa1f1-0f1d-56ee-a36f-4cf19336c20d",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "21-query regression benchmark (benchmarks/retrieval/)",
+          "headingPath": [
+            "Benchmarking",
+            "Benchmark Tiers",
+            "21-query regression benchmark (benchmarks/retrieval/)"
+          ],
+          "lang": null,
+          "context": "Benchmarking › Benchmark Tiers › 21-query regression benchmark (benchmarks/retrieval/)",
+          "text": "The stable regression smoke benchmark. It uses 4 fixture docs and 21 queries in v1/v2\nschema. It is run before merges to detect retrieval regressions. The collection name is\nbench-retrieval.",
+          "rawContent": "The stable regression smoke benchmark. It uses 4 fixture docs and 21 queries in v1/v2\nschema. It is run before merges to detect retrieval regressions. The collection name is\nbench-retrieval.",
+          "contentHash": "db7951e0f7b7de410fe506c087b6365f55e7f7a2f613170b63331fa11b4544b7"
+        },
+        {
+          "chunkId": "benchmarking.md#2",
+          "sourceFile": "benchmarking.md",
+          "chunkIndex": 2,
+          "nodeId": "a6497b4b-7347-5775-8da5-c317f319e990",
+          "nodePath": "benchmarking.md#benchmarking/benchmark-tiers/50-query-quality-benchmark-benchmarks-retrieval-custom-50/paragraph-1",
+          "parentId": "e5ef5a1d-d68f-5c21-bd1c-01c8f1fff049",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "50-query quality benchmark (benchmarks/retrieval/custom-50/)",
+          "headingPath": [
+            "Benchmarking",
+            "Benchmark Tiers",
+            "50-query quality benchmark (benchmarks/retrieval/custom-50/)"
+          ],
+          "lang": null,
+          "context": "Benchmarking › Benchmark Tiers › 50-query quality benchmark (benchmarks/retrieval/custom-50/)",
+          "text": "A richer evaluation harness using 8-10 fixture docs and 50 queries in v3 schema\nwith graded relevance (relevantChunks, relevance: 1/2/3). Metrics include\nchunk-level recall, graded nDCG, and support recall. The collection name is\nbench-retrieval-custom-50.",
+          "rawContent": "A richer evaluation harness using 8-10 fixture docs and 50 queries in v3 schema\nwith graded relevance (relevantChunks, relevance: 1/2/3). Metrics include\nchunk-level recall, graded nDCG, and support recall. The collection name is\nbench-retrieval-custom-50.",
+          "contentHash": "d28fd2cd62c1df4d4913d6df733039f501f9921902b2ed9abcdd340d118dadbd"
+        },
+        {
+          "chunkId": "benchmarking.md#3",
+          "sourceFile": "benchmarking.md",
+          "chunkIndex": 3,
+          "nodeId": "e9fcb273-7785-5fbe-b5ae-3ff785af3823",
+          "nodePath": "benchmarking.md#benchmarking/query-schema-versions/v1-minimal/paragraph-1",
+          "parentId": "b1bbf442-752c-5b21-89ed-2095a62fad3c",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "v1 (minimal)",
+          "headingPath": [
+            "Benchmarking",
+            "Query Schema Versions",
+            "v1 (minimal)"
+          ],
+          "lang": null,
+          "context": "Benchmarking › Query Schema Versions › v1 (minimal)",
+          "text": "`{ \"id\": \"q1\", \"query\": \"...\", \"expected\": [\"file.md\"], \"note\": \"...\" }`",
+          "rawContent": "`{ \"id\": \"q1\", \"query\": \"...\", \"expected\": [\"file.md\"], \"note\": \"...\" }`",
+          "contentHash": "fcb1c58751fef2c466a2268a705aa2a22008d7e3ebe50d5e00d7442242b494cd"
+        },
+        {
+          "chunkId": "benchmarking.md#4",
+          "sourceFile": "benchmarking.md",
+          "chunkIndex": 4,
+          "nodeId": "fc3534be-2ebc-5ad2-b658-650f767931c0",
+          "nodePath": "benchmarking.md#benchmarking/query-schema-versions/v2-extended-file-level/code_block-1",
+          "parentId": "f9f42730-27ac-5d42-87ba-12f697e54e49",
+          "nodeType": "code_block",
+          "pointKind": "retrieval_content",
+          "section": "v2 (extended file-level)",
+          "headingPath": [
+            "Benchmarking",
+            "Query Schema Versions",
+            "v2 (extended file-level)"
+          ],
+          "lang": "json",
+          "context": "Benchmarking › Query Schema Versions › v2 (extended file-level) — code block",
+          "text": "```json\n{\n  \"id\": \"q1\", \"type\": \"exact-token\", \"query\": \"...\",\n  \"expectedFiles\": [\"file.md\"],\n  \"expectedSections\": [\"Section heading\"],\n  \"expectedAllTokens\": [\"token\"],\n  \"expectedAnyTokens\": [\"alt_token\"],\n  \"expectedAnyTokenGroups\": [\"bge-m3-onnx\"],\n  \"shouldHaveNoStrongHit\": false,\n  \"note\": \"...\"\n}\n```",
+          "rawContent": "```json\n{\n  \"id\": \"q1\", \"type\": \"exact-token\", \"query\": \"...\",\n  \"expectedFiles\": [\"file.md\"],\n  \"expectedSections\": [\"Section heading\"],\n  \"expectedAllTokens\": [\"token\"],\n  \"expectedAnyTokens\": [\"alt_token\"],\n  \"expectedAnyTokenGroups\": [\"bge-m3-onnx\"],\n  \"shouldHaveNoStrongHit\": false,\n  \"note\": \"...\"\n}\n```",
+          "contentHash": "355b7e677ea87fdec3b5fde379dac178da667f0817ef4221619b3335ea3d7d36"
+        },
+        {
+          "chunkId": "benchmarking.md#5",
+          "sourceFile": "benchmarking.md",
+          "chunkIndex": 5,
+          "nodeId": "7a774889-a0f4-57ee-965d-668d8dea3041",
+          "nodePath": "benchmarking.md#benchmarking/query-schema-versions/v3-graded-chunk-level/code_block-1",
+          "parentId": "2a01b459-c9a1-5751-ad62-2c8b1f6f8ad2",
+          "nodeType": "code_block",
+          "pointKind": "retrieval_content",
+          "section": "v3 (graded chunk-level)",
+          "headingPath": [
+            "Benchmarking",
+            "Query Schema Versions",
+            "v3 (graded chunk-level)"
+          ],
+          "lang": "json",
+          "context": "Benchmarking › Query Schema Versions › v3 (graded chunk-level) — code block",
+          "text": "```json\n{\n  \"schemaVersion\": 3,\n  \"queries\": [{\n    \"id\": \"c01\", \"type\": \"exact-token\", \"query\": \"...\",\n    \"expectedFiles\": [\"file.md\"],\n    \"relevantChunks\": [\n      { \"chunkId\": \"file.md#2\", \"relevance\": 3 },\n      { \"chunkId\": \"file.md#3\", \"relevance\": 2 }\n    ],\n    \"expectedTokens\": [\"token\"],\n    \"note\": \"...\"\n  }]\n}\n```",
+          "rawContent": "```json\n{\n  \"schemaVersion\": 3,\n  \"queries\": [{\n    \"id\": \"c01\", \"type\": \"exact-token\", \"query\": \"...\",\n    \"expectedFiles\": [\"file.md\"],\n    \"relevantChunks\": [\n      { \"chunkId\": \"file.md#2\", \"relevance\": 3 },\n      { \"chunkId\": \"file.md#3\", \"relevance\": 2 }\n    ],\n    \"expectedTokens\": [\"token\"],\n    \"note\": \"...\"\n  }]\n}\n```",
+          "contentHash": "de25de76fa76f8b11279fb52c827537cb6d3156715a8a6c41ed16050e4ebb060"
+        },
+        {
+          "chunkId": "benchmarking.md#6",
+          "sourceFile": "benchmarking.md",
+          "chunkIndex": 6,
+          "nodeId": "6077e81c-f653-5c5c-a257-370caf7773e2",
+          "nodePath": "benchmarking.md#benchmarking/query-schema-versions/v3-graded-chunk-level/paragraph-1",
+          "parentId": "2a01b459-c9a1-5751-ad62-2c8b1f6f8ad2",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "v3 (graded chunk-level)",
+          "headingPath": [
+            "Benchmarking",
+            "Query Schema Versions",
+            "v3 (graded chunk-level)"
+          ],
+          "lang": null,
+          "context": "Benchmarking › Query Schema Versions › v3 (graded chunk-level)",
+          "text": "[code block node: benchmarking.md#benchmarking/query-schema-versions/v3-graded-chunk-level/code_block-1 — {]\n\nchunkId format is source_file#chunk_index (zero-based). This matches the\nsource_file and chunk_index fields in Qdrant payloads.",
+          "rawContent": "[code block node: benchmarking.md#benchmarking/query-schema-versions/v3-graded-chunk-level/code_block-1 — {]\n\nchunkId format is source_file#chunk_index (zero-based). This matches the\nsource_file and chunk_index fields in Qdrant payloads.",
+          "contentHash": "a2794f690d35a5252e877d56ba227480169a3c52ea5ad15b936106e05b439d4e"
+        },
+        {
+          "chunkId": "benchmarking.md#7",
+          "sourceFile": "benchmarking.md",
+          "chunkIndex": 7,
+          "nodeId": "fd526569-58b2-5dee-b8ba-4c7b16c309d2",
+          "nodePath": "benchmarking.md#benchmarking/relevance-scale/table-1",
+          "parentId": "abbe5361-e797-5348-a07e-86c624e88a6a",
+          "nodeType": "table",
+          "pointKind": "retrieval_content",
+          "section": "Relevance Scale",
+          "headingPath": [
+            "Benchmarking",
+            "Relevance Scale"
+          ],
+          "lang": null,
+          "context": "Benchmarking › Relevance Scale — table",
+          "text": "| Score | Meaning |\n|-------|---------|\n| 3 | Exact answer — chunk contains the direct answer |\n| 2 | Supporting context — useful for multi-hop or neighboring section |\n| 1 | Same-topic / same-file, not sufficient alone |\n| 0 | Irrelevant |",
+          "rawContent": "| Score | Meaning |\n|-------|---------|\n| 3 | Exact answer — chunk contains the direct answer |\n| 2 | Supporting context — useful for multi-hop or neighboring section |\n| 1 | Same-topic / same-file, not sufficient alone |\n| 0 | Irrelevant |",
+          "contentHash": "ca38c55fabd4406945d2272a290225e6471983baa2632a142214634a6e730c3f"
+        },
+        {
+          "chunkId": "benchmarking.md#8",
+          "sourceFile": "benchmarking.md",
+          "chunkIndex": 8,
+          "nodeId": "6c5e2df1-f7c2-5ba5-b861-8c0a9cd02d84",
+          "nodePath": "benchmarking.md#benchmarking/relevance-scale/paragraph-1",
+          "parentId": "abbe5361-e797-5348-a07e-86c624e88a6a",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "Relevance Scale",
+          "headingPath": [
+            "Benchmarking",
+            "Relevance Scale"
+          ],
+          "lang": null,
+          "context": "Benchmarking › Relevance Scale",
+          "text": "[table node: benchmarking.md#benchmarking/relevance-scale/table-1 — ScoreMeaning3Exact answer — chunk contains the direct answer]\n\nGrades are used for:\n\nnDCG@K with gain formula 2^relevance − 1chunkRecall@K: counts only relevance >= 3supportRecall@K: counts relevance >= 2",
+          "rawContent": "[table node: benchmarking.md#benchmarking/relevance-scale/table-1 — ScoreMeaning3Exact answer — chunk contains the direct answer]\n\nGrades are used for:\n\nnDCG@K with gain formula 2^relevance − 1chunkRecall@K: counts only relevance >= 3supportRecall@K: counts relevance >= 2",
+          "contentHash": "c61d894b917ef5bd33a2a1f9e1077b390ab58b3c9bdc474c812e70a470128b0a"
+        },
+        {
+          "chunkId": "benchmarking.md#9",
+          "sourceFile": "benchmarking.md",
+          "chunkIndex": 9,
+          "nodeId": "62ac3b52-fb99-5c3c-bc30-a9572227509e",
+          "nodePath": "benchmarking.md#benchmarking/metrics/chunk-level-v3-only/table-1",
+          "parentId": "8117ac6c-3159-52a8-b671-469d59630191",
+          "nodeType": "table",
+          "pointKind": "retrieval_content",
+          "section": "Chunk-level (v3 only)",
+          "headingPath": [
+            "Benchmarking",
+            "Metrics",
+            "Chunk-level (v3 only)"
+          ],
+          "lang": null,
+          "context": "Benchmarking › Metrics › Chunk-level (v3 only) — table",
+          "text": "| Metric | Description |\n|--------|-------------|\n| `chunkRecall@3` | Fraction of queries with a rel≥3 chunk in top-3 |\n| `chunkRecall@5` | Fraction of queries with a rel≥3 chunk in top-5 |\n| `supportRecall@K` | Fraction of queries with a rel≥2 chunk in top-K |\n| `nDCG@K` | Normalised Discounted Cumulative Gain with graded relevance |\n| `MRR@10` | Reciprocal rank of the first rel≥3 chunk across top-10 |",
+          "rawContent": "| Metric | Description |\n|--------|-------------|\n| `chunkRecall@3` | Fraction of queries with a rel≥3 chunk in top-3 |\n| `chunkRecall@5` | Fraction of queries with a rel≥3 chunk in top-5 |\n| `supportRecall@K` | Fraction of queries with a rel≥2 chunk in top-K |\n| `nDCG@K` | Normalised Discounted Cumulative Gain with graded relevance |\n| `MRR@10` | Reciprocal rank of the first rel≥3 chunk across top-10 |",
+          "contentHash": "634f4663e465a30254cacb1e4b80535127e34344a1c35ece4739bd47bfb2fc9d"
+        },
+        {
+          "chunkId": "benchmarking.md#10",
+          "sourceFile": "benchmarking.md",
+          "chunkIndex": 10,
+          "nodeId": "7a895fc7-ac25-50ed-9feb-abbc16ecdb9c",
+          "nodePath": "benchmarking.md#benchmarking/metrics/file-level-backward-compatible/table-1",
+          "parentId": "c440b84e-0e2c-5d23-94f9-542995cd3908",
+          "nodeType": "table",
+          "pointKind": "retrieval_content",
+          "section": "File-level (backward-compatible)",
+          "headingPath": [
+            "Benchmarking",
+            "Metrics",
+            "File-level (backward-compatible)"
+          ],
+          "lang": null,
+          "context": "Benchmarking › Metrics › File-level (backward-compatible) — table",
+          "text": "| Metric | Description |\n|--------|-------------|\n| `fileRecall@1` | Expected file appears at rank 1 |\n| `fileRecall@K` | Expected file appears in top-K |",
+          "rawContent": "| Metric | Description |\n|--------|-------------|\n| `fileRecall@1` | Expected file appears at rank 1 |\n| `fileRecall@K` | Expected file appears in top-K |",
+          "contentHash": "ac08073fa7ec992d3355979ad6180c1d38796cdd3dc7c1ead9f36b5867a8547b"
+        },
+        {
+          "chunkId": "benchmarking.md#11",
+          "sourceFile": "benchmarking.md",
+          "chunkIndex": 11,
+          "nodeId": "0e8f1b8e-50b3-5218-a239-d82ef5b4bb2a",
+          "nodePath": "benchmarking.md#benchmarking/metrics/latency/table-1",
+          "parentId": "6cadc5e6-71c5-5d19-9c11-d2ee44dc7550",
+          "nodeType": "table",
+          "pointKind": "retrieval_content",
+          "section": "Latency",
+          "headingPath": [
+            "Benchmarking",
+            "Metrics",
+            "Latency"
+          ],
+          "lang": null,
+          "context": "Benchmarking › Metrics › Latency — table",
+          "text": "| Metric | Description |\n|--------|-------------|\n| `p50` | Median query latency (ms) |\n| `p95` | 95th-percentile query latency (ms) |\n| `avgLatency` | Mean query latency (ms) |",
+          "rawContent": "| Metric | Description |\n|--------|-------------|\n| `p50` | Median query latency (ms) |\n| `p95` | 95th-percentile query latency (ms) |\n| `avgLatency` | Mean query latency (ms) |",
+          "contentHash": "8e75a6724cb64a52e3b20347454790a4f8a72b88bb6fe3e0e84564d4070ca8de"
+        },
+        {
+          "chunkId": "benchmarking.md#12",
+          "sourceFile": "benchmarking.md",
+          "chunkIndex": 12,
+          "nodeId": "3f69be84-9ef9-510d-80b0-5bef28e03226",
+          "nodePath": "benchmarking.md#benchmarking/running-benchmarks/code_block-1",
+          "parentId": "c6c80097-6674-577f-aae7-b39a12f21512",
+          "nodeType": "code_block",
+          "pointKind": "retrieval_content",
+          "section": "Running Benchmarks",
+          "headingPath": [
+            "Benchmarking",
+            "Running Benchmarks"
+          ],
+          "lang": "bash",
+          "context": "Benchmarking › Running Benchmarks — code block",
+          "text": "```bash\n# Stable 21q regression benchmark\nnpm run bench:retrieval\n\n# Quality 50q benchmark\nnpm run bench:custom50\n\n# Force ONNX provider\nBENCH_PROVIDER=onnx npm run bench:custom50\n\n# Skip reindex (reuse existing collection)\nBENCH_SKIP_INDEX=1 npm run bench:custom50\n\n# Dense MMR instead of hybrid RRF\nBENCH_SEARCH_MODE=dense-mmr npm run bench:custom50\n\n# Comparison: ollama vs onnx (two runs)\nnpm run bench:retrieval:compare\n\n# MMR diversity matrix\nnpm run bench:retrieval:mmr\n\n# Rerank matrix (4 combinations)\nnpm run bench:retrieval:rerank\n```",
+          "rawContent": "```bash\n# Stable 21q regression benchmark\nnpm run bench:retrieval\n\n# Quality 50q benchmark\nnpm run bench:custom50\n\n# Force ONNX provider\nBENCH_PROVIDER=onnx npm run bench:custom50\n\n# Skip reindex (reuse existing collection)\nBENCH_SKIP_INDEX=1 npm run bench:custom50\n\n# Dense MMR instead of hybrid RRF\nBENCH_SEARCH_MODE=dense-mmr npm run bench:custom50\n\n# Comparison: ollama vs onnx (two runs)\nnpm run bench:retrieval:compare\n\n# MMR diversity matrix\nnpm run bench:retrieval:mmr\n\n# Rerank matrix (4 combinations)\nnpm run bench:retrieval:rerank\n```",
+          "contentHash": "73e2d4e129ddd9283d5566673c689058c44ea27b345b7e4535339b752d3c510c"
+        },
+        {
+          "chunkId": "benchmarking.md#13",
+          "sourceFile": "benchmarking.md",
+          "chunkIndex": 13,
+          "nodeId": "f68fd546-0f6a-5b7d-b527-bca10c6eead7",
+          "nodePath": "benchmarking.md#benchmarking/collection-isolation/paragraph-1",
+          "parentId": "e3f5c827-b872-5a5f-88b8-584a03d2e773",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "Collection Isolation",
+          "headingPath": [
+            "Benchmarking",
+            "Collection Isolation"
+          ],
+          "lang": null,
+          "context": "Benchmarking › Collection Isolation",
+          "text": "Each benchmark tier uses a dedicated Qdrant collection:\n\n[table node: benchmarking.md#benchmarking/collection-isolation/table-1 — BenchmarkCollection21q regressionbench-retrieval50q qualityb]",
+          "rawContent": "Each benchmark tier uses a dedicated Qdrant collection:\n\n[table node: benchmarking.md#benchmarking/collection-isolation/table-1 — BenchmarkCollection21q regressionbench-retrieval50q qualityb]",
+          "contentHash": "131a6148d681b617c971ba1c481c18abb69769447e52262a640e56262bd95dde"
+        },
+        {
+          "chunkId": "benchmarking.md#14",
+          "sourceFile": "benchmarking.md",
+          "chunkIndex": 14,
+          "nodeId": "13898ae1-fa3a-5d3d-b7e6-d808e8dc463c",
+          "nodePath": "benchmarking.md#benchmarking/collection-isolation/table-1",
+          "parentId": "e3f5c827-b872-5a5f-88b8-584a03d2e773",
+          "nodeType": "table",
+          "pointKind": "retrieval_content",
+          "section": "Collection Isolation",
+          "headingPath": [
+            "Benchmarking",
+            "Collection Isolation"
+          ],
+          "lang": null,
+          "context": "Benchmarking › Collection Isolation — table — Each benchmark tier uses a dedicated Qdrant collection:",
+          "text": "| Benchmark | Collection |\n|-----------|-----------|\n| 21q regression | `bench-retrieval` |\n| 50q quality | `bench-retrieval-custom-50` |",
+          "rawContent": "| Benchmark | Collection |\n|-----------|-----------|\n| 21q regression | `bench-retrieval` |\n| 50q quality | `bench-retrieval-custom-50` |",
+          "contentHash": "082bc00218aeea655f3adf016e844180f4e9b8686efd874ea053be142e534c02"
+        },
+        {
+          "chunkId": "benchmarking.md#15",
+          "sourceFile": "benchmarking.md",
+          "chunkIndex": 15,
+          "nodeId": "9e0628a5-73cf-57da-aa15-db3eee975c4f",
+          "nodePath": "benchmarking.md#benchmarking/collection-isolation/paragraph-2",
+          "parentId": "e3f5c827-b872-5a5f-88b8-584a03d2e773",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "Collection Isolation",
+          "headingPath": [
+            "Benchmarking",
+            "Collection Isolation"
+          ],
+          "lang": null,
+          "context": "Benchmarking › Collection Isolation",
+          "text": "This isolation ensures that running one benchmark does not affect the other.\nBoth collections are created automatically on first run.",
+          "rawContent": "This isolation ensures that running one benchmark does not affect the other.\nBoth collections are created automatically on first run.",
+          "contentHash": "093343ffa5adc73f0b3af276c72c666df8e647123bb5093b484bf8cdc4af925b"
+        },
+        {
+          "chunkId": "benchmarking.md#16",
+          "sourceFile": "benchmarking.md",
+          "chunkIndex": 16,
+          "nodeId": "7102fde0-4095-5e9c-882b-551b2a080585",
+          "nodePath": "benchmarking.md#benchmarking/bench-skip-index/paragraph-1",
+          "parentId": "37263c30-684b-5732-85c5-7fcebaadd0e4",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "BENCH_SKIP_INDEX",
+          "headingPath": [
+            "Benchmarking",
+            "BENCH_SKIP_INDEX"
+          ],
+          "lang": null,
+          "context": "Benchmarking › BENCH_SKIP_INDEX",
+          "text": "When BENCH_SKIP_INDEX=1 is set, the runner skips re-indexing and reuses\nthe existing collection. The stored provider is validated against the current\nenv provider — if they differ, the run fails with an explicit error.\n\nThis flag is used by matrix scripts (mmr-matrix.js, rerank-matrix.js) to\nrun multiple search-mode variants on the same index without measuring reindex\nvariance between runs.",
+          "rawContent": "When BENCH_SKIP_INDEX=1 is set, the runner skips re-indexing and reuses\nthe existing collection. The stored provider is validated against the current\nenv provider — if they differ, the run fails with an explicit error.\n\nThis flag is used by matrix scripts (mmr-matrix.js, rerank-matrix.js) to\nrun multiple search-mode variants on the same index without measuring reindex\nvariance between runs.",
+          "contentHash": "4daabffafae1d795c108d57e46d70353bd0fd44197bff3ff7fa6302f8ea93f84"
+        }
+      ]
+    },
+    "config-env.md": {
+      "chunkCount": 16,
+      "fileContentHash": "f833d5bd92742f70e37a732db1ae08cb7959876d48a2b42dbb22714c361fed64",
+      "chunks": [
+        {
+          "chunkId": "config-env.md#0",
+          "sourceFile": "config-env.md",
+          "chunkIndex": 0,
+          "nodeId": "fda79df7-eba6-540d-9b51-0087c4abe5f9",
+          "nodePath": "config-env.md#configuration-and-environment-variables/paragraph-1",
+          "parentId": "c31847a1-3a56-5f56-9668-dd5d294b71c2",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "Configuration and Environment Variables",
+          "headingPath": [
+            "Configuration and Environment Variables"
+          ],
+          "lang": null,
+          "context": "Configuration and Environment Variables",
+          "text": "semidex is configured through .env file variables and per-collection metadata\nin config.json. Most variables have sensible defaults; only QDRANT_URL and\nQDRANT_KEY are required.",
+          "rawContent": "semidex is configured through .env file variables and per-collection metadata\nin config.json. Most variables have sensible defaults; only QDRANT_URL and\nQDRANT_KEY are required.",
+          "contentHash": "3c43b2d8b175c9d26761fc219e544b3980c3537976c7abff632429c4ea282452"
+        },
+        {
+          "chunkId": "config-env.md#1",
+          "sourceFile": "config-env.md",
+          "chunkIndex": 1,
+          "nodeId": "2b157e88-4373-570b-9bb8-aab3709e28ff",
+          "nodePath": "config-env.md#configuration-and-environment-variables/required/table-1",
+          "parentId": "04655ce1-354b-5273-be6d-144a3042875d",
+          "nodeType": "table",
+          "pointKind": "retrieval_content",
+          "section": "Required",
+          "headingPath": [
+            "Configuration and Environment Variables",
+            "Required"
+          ],
+          "lang": null,
+          "context": "Configuration and Environment Variables › Required — table",
+          "text": "| Variable | Description |\n|----------|-------------|\n| `QDRANT_URL` | Qdrant instance URL (e.g. `http://localhost:6333`) |\n| `QDRANT_KEY` | Qdrant API key (can be any string for local instances) |",
+          "rawContent": "| Variable | Description |\n|----------|-------------|\n| `QDRANT_URL` | Qdrant instance URL (e.g. `http://localhost:6333`) |\n| `QDRANT_KEY` | Qdrant API key (can be any string for local instances) |",
+          "contentHash": "26ec52a63999c2c2437f71a291b3910cd575ff85f70f9a28c87c0c9c21032bfc"
+        },
+        {
+          "chunkId": "config-env.md#2",
+          "sourceFile": "config-env.md",
+          "chunkIndex": 2,
+          "nodeId": "4e4a6e2e-783f-53df-bfc7-416c1b62f3f9",
+          "nodePath": "config-env.md#configuration-and-environment-variables/embedding-providers/table-1",
+          "parentId": "3b3b2ce9-fe01-591d-9bad-2ccf5752693f",
+          "nodeType": "table",
+          "pointKind": "retrieval_content",
+          "section": "Embedding Providers",
+          "headingPath": [
+            "Configuration and Environment Variables",
+            "Embedding Providers"
+          ],
+          "lang": null,
+          "context": "Configuration and Environment Variables › Embedding Providers — table",
+          "text": "| Variable | Default | Description |\n|----------|---------|-------------|\n| `ONNX_EMBED` | `0` | Shorthand to enable `bge-m3-onnx` for both dense and sparse |\n| `DENSE_PROVIDER` | unset | Explicit override: `ollama` or `bge-m3-onnx` |\n| `SPARSE_PROVIDER` | unset | Explicit override: `hashed-tf` or `bge-m3-onnx` |\n| `DENSE_MODEL` | unset | Dense model for Ollama (`bge-m3` is default if Ollama selected) |",
+          "rawContent": "| Variable | Default | Description |\n|----------|---------|-------------|\n| `ONNX_EMBED` | `0` | Shorthand to enable `bge-m3-onnx` for both dense and sparse |\n| `DENSE_PROVIDER` | unset | Explicit override: `ollama` or `bge-m3-onnx` |\n| `SPARSE_PROVIDER` | unset | Explicit override: `hashed-tf` or `bge-m3-onnx` |\n| `DENSE_MODEL` | unset | Dense model for Ollama (`bge-m3` is default if Ollama selected) |",
+          "contentHash": "d33ec17fe8040d8e5d63243593060aca8745f1988afabdbd3e032474e576ead2"
+        },
+        {
+          "chunkId": "config-env.md#3",
+          "sourceFile": "config-env.md",
+          "chunkIndex": 3,
+          "nodeId": "ab054e4b-1acb-523d-92d2-8a2d8020490b",
+          "nodePath": "config-env.md#configuration-and-environment-variables/embedding-providers/paragraph-1",
+          "parentId": "3b3b2ce9-fe01-591d-9bad-2ccf5752693f",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "Embedding Providers",
+          "headingPath": [
+            "Configuration and Environment Variables",
+            "Embedding Providers"
+          ],
+          "lang": null,
+          "context": "Configuration and Environment Variables › Embedding Providers",
+          "text": "[table node: config-env.md#configuration-and-environment-variables/embedding-providers/table-1 — VariableDefaultDescriptionONNX_EMBED0Shorthand to enable bge]\n\nValid provider combinations:\n\nollama + hashed-tf (default, no ONNX required)bge-m3-onnx + bge-m3-onnx (requires ~2.3 GB ONNX model download)\n\nMixed combinations (ollama + bge-m3-onnx or bge-m3-onnx + hashed-tf) are\nrejected at runtime with an Invalid provider combination error.",
+          "rawContent": "[table node: config-env.md#configuration-and-environment-variables/embedding-providers/table-1 — VariableDefaultDescriptionONNX_EMBED0Shorthand to enable bge]\n\nValid provider combinations:\n\nollama + hashed-tf (default, no ONNX required)bge-m3-onnx + bge-m3-onnx (requires ~2.3 GB ONNX model download)\n\nMixed combinations (ollama + bge-m3-onnx or bge-m3-onnx + hashed-tf) are\nrejected at runtime with an Invalid provider combination error.",
+          "contentHash": "2722d6bfbcaa6c599f37c713a5030f0423544921ea153cf6f2c5b688644ab4cc"
+        },
+        {
+          "chunkId": "config-env.md#4",
+          "sourceFile": "config-env.md",
+          "chunkIndex": 4,
+          "nodeId": "cfd7394b-1f43-5027-b4f6-c1195a54954e",
+          "nodePath": "config-env.md#configuration-and-environment-variables/ollama-models/table-1",
+          "parentId": "e48cb764-f4c4-52b6-b407-94b7a09e3ea1",
+          "nodeType": "table",
+          "pointKind": "retrieval_content",
+          "section": "Ollama Models",
+          "headingPath": [
+            "Configuration and Environment Variables",
+            "Ollama Models"
+          ],
+          "lang": null,
+          "context": "Configuration and Environment Variables › Ollama Models — table",
+          "text": "| Variable | Default | Description |\n|----------|---------|-------------|\n| `OLLAMA_URL` | `http://localhost:11434` | Ollama base URL |\n| `EMBED_MODEL` | `bge-m3` | Dense embedding model |\n| `CONTEXT_MODEL` | `gemma3:4b` | Model for LLM chunk contextualization |\n| `TAG_MODEL` | `gemma3:4b` | Model for LLM tag generation |",
+          "rawContent": "| Variable | Default | Description |\n|----------|---------|-------------|\n| `OLLAMA_URL` | `http://localhost:11434` | Ollama base URL |\n| `EMBED_MODEL` | `bge-m3` | Dense embedding model |\n| `CONTEXT_MODEL` | `gemma3:4b` | Model for LLM chunk contextualization |\n| `TAG_MODEL` | `gemma3:4b` | Model for LLM tag generation |",
+          "contentHash": "922fe8b80ec8464c910814be7b3353f33db34ec34dc1b4bb2001e8873de3c104"
+        },
+        {
+          "chunkId": "config-env.md#5",
+          "sourceFile": "config-env.md",
+          "chunkIndex": 5,
+          "nodeId": "83ee97eb-fe67-5340-92e4-70ccde8c1d5e",
+          "nodePath": "config-env.md#configuration-and-environment-variables/indexing-per-run-passed-on-cli-not-env/table-1",
+          "parentId": "aced9aa0-2572-5317-94c3-a44864fb6453",
+          "nodeType": "table",
+          "pointKind": "retrieval_content",
+          "section": "Indexing (per-run, passed on CLI not .env)",
+          "headingPath": [
+            "Configuration and Environment Variables",
+            "Indexing (per-run, passed on CLI not .env)"
+          ],
+          "lang": null,
+          "context": "Configuration and Environment Variables › Indexing (per-run, passed on CLI not .env) — table",
+          "text": "| Variable | Description |\n|----------|-------------|\n| `COLLECTION` | Target Qdrant collection name |\n| `SOURCE_ROOT` | Root path used to compute stable `source_file` IDs |",
+          "rawContent": "| Variable | Description |\n|----------|-------------|\n| `COLLECTION` | Target Qdrant collection name |\n| `SOURCE_ROOT` | Root path used to compute stable `source_file` IDs |",
+          "contentHash": "4fd7b42eeff2029ee8764e4599258de75ca01bd74dbe1fc0f1aee6c0627f6bbe"
+        },
+        {
+          "chunkId": "config-env.md#6",
+          "sourceFile": "config-env.md",
+          "chunkIndex": 6,
+          "nodeId": "04814710-5b4d-5a26-a4f3-83dda345e90c",
+          "nodePath": "config-env.md#configuration-and-environment-variables/indexing-per-run-passed-on-cli-not-env/paragraph-1",
+          "parentId": "aced9aa0-2572-5317-94c3-a44864fb6453",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "Indexing (per-run, passed on CLI not .env)",
+          "headingPath": [
+            "Configuration and Environment Variables",
+            "Indexing (per-run, passed on CLI not .env)"
+          ],
+          "lang": null,
+          "context": "Configuration and Environment Variables › Indexing (per-run, passed on CLI not .env)",
+          "text": "[table node: config-env.md#configuration-and-environment-variables/indexing-per-run-passed-on-cli-not-env/table-1 — VariableDescriptionCOLLECTIONTarget Qdrant collection nameSO]\n\nSOURCE_ROOT should be set to the root of the documents directory so that\nsource_file values are stable across machines and across runs from different\nworking directories.",
+          "rawContent": "[table node: config-env.md#configuration-and-environment-variables/indexing-per-run-passed-on-cli-not-env/table-1 — VariableDescriptionCOLLECTIONTarget Qdrant collection nameSO]\n\nSOURCE_ROOT should be set to the root of the documents directory so that\nsource_file values are stable across machines and across runs from different\nworking directories.",
+          "contentHash": "168a344f131bc435c58a21c36f4fc0322e4adece5bee9f6fcc461982d43aecf6"
+        },
+        {
+          "chunkId": "config-env.md#7",
+          "sourceFile": "config-env.md",
+          "chunkIndex": 7,
+          "nodeId": "51f0654e-f2a8-516c-ad7e-f1b2ac980e92",
+          "nodePath": "config-env.md#configuration-and-environment-variables/chunking/table-1",
+          "parentId": "b217795c-ca6c-5b42-b423-a9c2155feed6",
+          "nodeType": "table",
+          "pointKind": "retrieval_content",
+          "section": "Chunking",
+          "headingPath": [
+            "Configuration and Environment Variables",
+            "Chunking"
+          ],
+          "lang": null,
+          "context": "Configuration and Environment Variables › Chunking — table",
+          "text": "| Variable | Default | Range | Description |\n|----------|---------|-------|-------------|\n| `MAX_CHUNK_TOKENS` | `400` | 1–100000 | Maximum tokens per chunk |\n| `MIN_CHUNK_TOKENS` | `30` | 0–100000 | Minimum tokens; smaller sections may be skipped |\n| `OVERLAP_SENTENCES` | `2` | 0–100 | Sentence overlap between consecutive chunks |\n| `LLM_BATCH_SIZE` | `3` | — | Chunks per LLM call for context/tag phases |",
+          "rawContent": "| Variable | Default | Range | Description |\n|----------|---------|-------|-------------|\n| `MAX_CHUNK_TOKENS` | `400` | 1–100000 | Maximum tokens per chunk |\n| `MIN_CHUNK_TOKENS` | `30` | 0–100000 | Minimum tokens; smaller sections may be skipped |\n| `OVERLAP_SENTENCES` | `2` | 0–100 | Sentence overlap between consecutive chunks |\n| `LLM_BATCH_SIZE` | `3` | — | Chunks per LLM call for context/tag phases |",
+          "contentHash": "48f7eee00af9bf0aa0b9ab52631327f9c45f48205765e129b96c21474f95af2f"
+        },
+        {
+          "chunkId": "config-env.md#8",
+          "sourceFile": "config-env.md",
+          "chunkIndex": 8,
+          "nodeId": "e339f5a6-1503-5b02-93ae-167d2bf72797",
+          "nodePath": "config-env.md#configuration-and-environment-variables/chunking/paragraph-1",
+          "parentId": "b217795c-ca6c-5b42-b423-a9c2155feed6",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "Chunking",
+          "headingPath": [
+            "Configuration and Environment Variables",
+            "Chunking"
+          ],
+          "lang": null,
+          "context": "Configuration and Environment Variables › Chunking",
+          "text": "[table node: config-env.md#configuration-and-environment-variables/chunking/table-1 — VariableDefaultRangeDescriptionMAX_CHUNK_TOKENS4001–100000Ma]\n\nAll chunking vars are validated on startup with envInt(). Invalid values produce\na warning and fall back to the default.",
+          "rawContent": "[table node: config-env.md#configuration-and-environment-variables/chunking/table-1 — VariableDefaultRangeDescriptionMAX_CHUNK_TOKENS4001–100000Ma]\n\nAll chunking vars are validated on startup with envInt(). Invalid values produce\na warning and fall back to the default.",
+          "contentHash": "e38331b5d2f455e0074008858d1ba3ee09c943e5511e3ef86e81e9a847d09456"
+        },
+        {
+          "chunkId": "config-env.md#9",
+          "sourceFile": "config-env.md",
+          "chunkIndex": 9,
+          "nodeId": "2502b672-f7e1-5b61-9df7-74b26e0abae9",
+          "nodePath": "config-env.md#configuration-and-environment-variables/hybrid-search/table-1",
+          "parentId": "257e3bd2-43e3-54dc-95e7-b43c773bb9f1",
+          "nodeType": "table",
+          "pointKind": "retrieval_content",
+          "section": "Hybrid Search",
+          "headingPath": [
+            "Configuration and Environment Variables",
+            "Hybrid Search"
+          ],
+          "lang": null,
+          "context": "Configuration and Environment Variables › Hybrid Search — table",
+          "text": "| Variable | Default | Range | Description |\n|----------|---------|-------|-------------|\n| `RRF_K` | `60` | 1–10000 | RRF smoothing constant |\n| `HYBRID_PREFETCH_LIMIT` | `2` | 1–100 | Prefetch multiplier per dense/sparse RRF leg |",
+          "rawContent": "| Variable | Default | Range | Description |\n|----------|---------|-------|-------------|\n| `RRF_K` | `60` | 1–10000 | RRF smoothing constant |\n| `HYBRID_PREFETCH_LIMIT` | `2` | 1–100 | Prefetch multiplier per dense/sparse RRF leg |",
+          "contentHash": "7bbdfa1f45fb8e95af29486bb2fffecbef4f2eecedeb61e0eaa661bf13d0a6f1"
+        },
+        {
+          "chunkId": "config-env.md#10",
+          "sourceFile": "config-env.md",
+          "chunkIndex": 10,
+          "nodeId": "bd55c1bd-f226-505e-860f-468490c909e8",
+          "nodePath": "config-env.md#configuration-and-environment-variables/hybrid-search/paragraph-1",
+          "parentId": "257e3bd2-43e3-54dc-95e7-b43c773bb9f1",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "Hybrid Search",
+          "headingPath": [
+            "Configuration and Environment Variables",
+            "Hybrid Search"
+          ],
+          "lang": null,
+          "context": "Configuration and Environment Variables › Hybrid Search",
+          "text": "[table node: config-env.md#configuration-and-environment-variables/hybrid-search/table-1 — VariableDefaultRangeDescriptionRRF_K601–10000RRF smoothing c]\n\nHYBRID_PREFETCH_LIMIT controls how many candidates each leg fetches before RRF fusion.\nThe actual prefetch count is max(limit * HYBRID_PREFETCH_LIMIT, limit + 1).",
+          "rawContent": "[table node: config-env.md#configuration-and-environment-variables/hybrid-search/table-1 — VariableDefaultRangeDescriptionRRF_K601–10000RRF smoothing c]\n\nHYBRID_PREFETCH_LIMIT controls how many candidates each leg fetches before RRF fusion.\nThe actual prefetch count is max(limit * HYBRID_PREFETCH_LIMIT, limit + 1).",
+          "contentHash": "052ca6909d79077c64a14a53cec8980485ed918056cfaf540661f28ac1953982"
+        },
+        {
+          "chunkId": "config-env.md#11",
+          "sourceFile": "config-env.md",
+          "chunkIndex": 11,
+          "nodeId": "31957f57-3640-5d6e-bf3d-d04bd74f3370",
+          "nodePath": "config-env.md#configuration-and-environment-variables/reranking-experimental/table-1",
+          "parentId": "5ee4c99b-48f1-53b5-93be-92f84a82eacc",
+          "nodeType": "table",
+          "pointKind": "retrieval_content",
+          "section": "Reranking (experimental)",
+          "headingPath": [
+            "Configuration and Environment Variables",
+            "Reranking (experimental)"
+          ],
+          "lang": null,
+          "context": "Configuration and Environment Variables › Reranking (experimental) — table",
+          "text": "| Variable | Default | Description |\n|----------|---------|-------------|\n| `RERANK_ENABLED` | `0` | Enable local BM25 reranker |\n| `RERANK_PREFETCH_MULT` | `4` | Candidate multiplier before reranking |\n| `RERANK_DEBUG` | `0` | Print per-result scoring details |\n| `RERANK_BOOST_SOURCE_FILE` | `0.08` | Score boost per token hit in source filename |\n| `RERANK_BOOST_SECTION` | `0.06` | Score boost per token hit in section heading |\n| `RERANK_BOOST_TAGS` | `0.05` | Score boost per token hit in tags |\n| `RERANK_BOOST_TEXT` | `0.01` | Score boost per token hit in body text |\n| `RERANK_PROTECT_TOP1_DELTA` | `0.05` | Minimum advantage required to displace RRF rank-0 |",
+          "rawContent": "| Variable | Default | Description |\n|----------|---------|-------------|\n| `RERANK_ENABLED` | `0` | Enable local BM25 reranker |\n| `RERANK_PREFETCH_MULT` | `4` | Candidate multiplier before reranking |\n| `RERANK_DEBUG` | `0` | Print per-result scoring details |\n| `RERANK_BOOST_SOURCE_FILE` | `0.08` | Score boost per token hit in source filename |\n| `RERANK_BOOST_SECTION` | `0.06` | Score boost per token hit in section heading |\n| `RERANK_BOOST_TAGS` | `0.05` | Score boost per token hit in tags |\n| `RERANK_BOOST_TEXT` | `0.01` | Score boost per token hit in body text |\n| `RERANK_PROTECT_TOP1_DELTA` | `0.05` | Minimum advantage required to displace RRF rank-0 |",
+          "contentHash": "9ba2507c76f090f1134ded914f4581050570dbcb0c67e32eede04143b510e7b7"
+        },
+        {
+          "chunkId": "config-env.md#12",
+          "sourceFile": "config-env.md",
+          "chunkIndex": 12,
+          "nodeId": "6996c6ae-d1b3-5ede-95cd-576cc49fc806",
+          "nodePath": "config-env.md#configuration-and-environment-variables/benchmark-variables/table-1",
+          "parentId": "909a99b3-5c7e-5cc8-b788-81c014ed99ca",
+          "nodeType": "table",
+          "pointKind": "retrieval_content",
+          "section": "Benchmark Variables",
+          "headingPath": [
+            "Configuration and Environment Variables",
+            "Benchmark Variables"
+          ],
+          "lang": null,
+          "context": "Configuration and Environment Variables › Benchmark Variables — table",
+          "text": "| Variable | Default | Description |\n|----------|---------|-------------|\n| `BENCH_TOP_K` | `5` | Search depth (top-K results) |\n| `BENCH_PROVIDER` | env | Force provider: `onnx` or use env defaults |\n| `BENCH_SKIP_INDEX` | unset | Reuse existing bench collection; skip reindexing |\n| `BENCH_JSON` | unset | Emit JSON summary on stdout |\n| `BENCH_SEARCH_MODE` | `hybrid` | `hybrid` or `dense-mmr` |\n| `MMR_DIVERSITY` | `0.5` | Dense MMR diversity balance (0–1) |\n| `MMR_CANDIDATES_LIMIT` | `100` | Dense MMR preselect candidate count |\n| `MMR_DIVERSITIES` | `0.3,0.5,0.7` | Comma-separated diversity values for mmr-matrix |\n| `RERANK_PREFETCH_MULT` | `4` | Candidate multiplier for rerank phase in benchmark |",
+          "rawContent": "| Variable | Default | Description |\n|----------|---------|-------------|\n| `BENCH_TOP_K` | `5` | Search depth (top-K results) |\n| `BENCH_PROVIDER` | env | Force provider: `onnx` or use env defaults |\n| `BENCH_SKIP_INDEX` | unset | Reuse existing bench collection; skip reindexing |\n| `BENCH_JSON` | unset | Emit JSON summary on stdout |\n| `BENCH_SEARCH_MODE` | `hybrid` | `hybrid` or `dense-mmr` |\n| `MMR_DIVERSITY` | `0.5` | Dense MMR diversity balance (0–1) |\n| `MMR_CANDIDATES_LIMIT` | `100` | Dense MMR preselect candidate count |\n| `MMR_DIVERSITIES` | `0.3,0.5,0.7` | Comma-separated diversity values for mmr-matrix |\n| `RERANK_PREFETCH_MULT` | `4` | Candidate multiplier for rerank phase in benchmark |",
+          "contentHash": "d260fefe9df3c39b70ec23aad9ccb089b054f0c43e2e285016bf9f4988a5d780"
+        },
+        {
+          "chunkId": "config-env.md#13",
+          "sourceFile": "config-env.md",
+          "chunkIndex": 13,
+          "nodeId": "4d605bb3-04b3-589c-af95-0cd639853dd9",
+          "nodePath": "config-env.md#configuration-and-environment-variables/config-json/paragraph-1",
+          "parentId": "f565a4d9-8313-5f58-bb95-e8dbb7f0f281",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "config.json",
+          "headingPath": [
+            "Configuration and Environment Variables",
+            "config.json"
+          ],
+          "lang": null,
+          "context": "Configuration and Environment Variables › config.json",
+          "text": "config.json is written by npm run sync and updated by npm run index when\na new collection is created. It is git-ignored.\n\nExample structure:\n\n[code block node: config-env.md#configuration-and-environment-variables/config-json/code_block-1 — {]",
+          "rawContent": "config.json is written by npm run sync and updated by npm run index when\na new collection is created. It is git-ignored.\n\nExample structure:\n\n[code block node: config-env.md#configuration-and-environment-variables/config-json/code_block-1 — {]",
+          "contentHash": "2000dbdbefcd1d9feca2152af05979abbc63e106ad8f34eb1a39ce57d86914cd"
+        },
+        {
+          "chunkId": "config-env.md#14",
+          "sourceFile": "config-env.md",
+          "chunkIndex": 14,
+          "nodeId": "5951ef0d-816c-5e89-84e3-4d1fdfd692de",
+          "nodePath": "config-env.md#configuration-and-environment-variables/config-json/code_block-1",
+          "parentId": "f565a4d9-8313-5f58-bb95-e8dbb7f0f281",
+          "nodeType": "code_block",
+          "pointKind": "retrieval_content",
+          "section": "config.json",
+          "headingPath": [
+            "Configuration and Environment Variables",
+            "config.json"
+          ],
+          "lang": "json",
+          "context": "Configuration and Environment Variables › config.json — code block — config.json is written by npm run sync and updated by npm run index when a new collection is created. It is git-ignored. Example structure:",
+          "text": "```json\n{\n  \"collections\": {\n    \"my-notes\": {\n      \"denseProvider\": \"bge-m3-onnx\",\n      \"denseModel\": \"aapot/bge-m3-onnx\",\n      \"sparseProvider\": \"bge-m3-onnx\",\n      \"embeddingSchemaVersion\": 2,\n      \"vectorSize\": 1024,\n      \"description\": \"Personal knowledge base\"\n    }\n  }\n}\n```",
+          "rawContent": "```json\n{\n  \"collections\": {\n    \"my-notes\": {\n      \"denseProvider\": \"bge-m3-onnx\",\n      \"denseModel\": \"aapot/bge-m3-onnx\",\n      \"sparseProvider\": \"bge-m3-onnx\",\n      \"embeddingSchemaVersion\": 2,\n      \"vectorSize\": 1024,\n      \"description\": \"Personal knowledge base\"\n    }\n  }\n}\n```",
+          "contentHash": "bd2bd3476741caf52736af049a36d7019fa62df78a353bfcf0bafa3aba2e879d"
+        },
+        {
+          "chunkId": "config-env.md#15",
+          "sourceFile": "config-env.md",
+          "chunkIndex": 15,
+          "nodeId": "0be9a7bf-9592-5707-b376-9a66a0519340",
+          "nodePath": "config-env.md#configuration-and-environment-variables/config-json/paragraph-2",
+          "parentId": "f565a4d9-8313-5f58-bb95-e8dbb7f0f281",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "config.json",
+          "headingPath": [
+            "Configuration and Environment Variables",
+            "config.json"
+          ],
+          "lang": null,
+          "context": "Configuration and Environment Variables › config.json",
+          "text": "The six reindex discriminators stored in config.json per collection are:\ndenseProvider, denseModel, sparseProvider, embeddingSchemaVersion,\nvectorSize, and implicitly file_hash (stored per-point in Qdrant, not config).\nChanging any of these triggers a full reindex of all files in that collection.",
+          "rawContent": "The six reindex discriminators stored in config.json per collection are:\ndenseProvider, denseModel, sparseProvider, embeddingSchemaVersion,\nvectorSize, and implicitly file_hash (stored per-point in Qdrant, not config).\nChanging any of these triggers a full reindex of all files in that collection.",
+          "contentHash": "4b748e69bbc04bd19e5f28402e147e8a77566c5ad9e492dd1a849483809f9c81"
+        }
+      ]
+    },
+    "multilingual.md": {
+      "chunkCount": 9,
+      "fileContentHash": "68165946a74650f486de3b6e39999926e0bca052e51b0566ee954892c9e3a92f",
+      "chunks": [
+        {
+          "chunkId": "multilingual.md#0",
+          "sourceFile": "multilingual.md",
+          "chunkIndex": 0,
+          "nodeId": "efee05c9-3433-58f0-bcad-d8de9dc37ae3",
+          "nodePath": "multilingual.md#multilingual-support/paragraph-1",
+          "parentId": "b8edaf42-195d-5040-8bbd-9fb45a7f6cb7",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "Multilingual Support",
+          "headingPath": [
+            "Multilingual Support"
+          ],
+          "lang": null,
+          "context": "Multilingual Support",
+          "text": "semidex is designed to work with Ukrainian, English, and mixed-language content.\nThe BGE-M3 model (both Ollama and ONNX variants) supports over 100 languages and\nproduces high-quality embeddings for cross-lingual retrieval.",
+          "rawContent": "semidex is designed to work with Ukrainian, English, and mixed-language content.\nThe BGE-M3 model (both Ollama and ONNX variants) supports over 100 languages and\nproduces high-quality embeddings for cross-lingual retrieval.",
+          "contentHash": "7b490627492b043a5b4a5181e16bdbd56316ec3f986cdab6dc66e88d040fec0a"
+        },
+        {
+          "chunkId": "multilingual.md#1",
+          "sourceFile": "multilingual.md",
+          "chunkIndex": 1,
+          "nodeId": "2146523b-b49b-5916-811c-aa88f5811361",
+          "nodePath": "multilingual.md#multilingual-support/language-support-by-provider/ollama-hashed-tf-default/paragraph-1",
+          "parentId": "34b35e6a-7d95-586c-b5d8-27a9f94c8c4c",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "ollama + hashed-tf (default)",
+          "headingPath": [
+            "Multilingual Support",
+            "Language Support by Provider",
+            "ollama + hashed-tf (default)"
+          ],
+          "lang": null,
+          "context": "Multilingual Support › Language Support by Provider › ollama + hashed-tf (default)",
+          "text": "Dense embeddings are produced by bge-m3 via Ollama. BGE-M3 is multilingual\nand handles Ukrainian well. Sparse embeddings use hashed-tf — a term-frequency\nencoder that works on any language but does not carry semantic weight for rare\nor morphologically complex words.\n\nFor Ukrainian content, hashed-tf assigns uniform weight to all tokens based\non frequency. This means that a rare Ukrainian technical term like\nвбудований_провайдер gets the same sparse weight as a common word, which can\nreduce retrieval precision for exact technical lookups.",
+          "rawContent": "Dense embeddings are produced by bge-m3 via Ollama. BGE-M3 is multilingual\nand handles Ukrainian well. Sparse embeddings use hashed-tf — a term-frequency\nencoder that works on any language but does not carry semantic weight for rare\nor morphologically complex words.\n\nFor Ukrainian content, hashed-tf assigns uniform weight to all tokens based\non frequency. This means that a rare Ukrainian technical term like\nвбудований_провайдер gets the same sparse weight as a common word, which can\nreduce retrieval precision for exact technical lookups.",
+          "contentHash": "b490a47cf9a8164a8821dcfafc706e5d7a824563c8a857ae539987f2bdc7c81a"
+        },
+        {
+          "chunkId": "multilingual.md#2",
+          "sourceFile": "multilingual.md",
+          "chunkIndex": 2,
+          "nodeId": "081a01ee-2ef9-5001-a636-b34b262cc2ea",
+          "nodePath": "multilingual.md#multilingual-support/language-support-by-provider/bge-m3-onnx-bge-m3-onnx/paragraph-1",
+          "parentId": "aaf01bef-6617-563b-a42e-38672393e9d2",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "bge-m3-onnx + bge-m3-onnx",
+          "headingPath": [
+            "Multilingual Support",
+            "Language Support by Provider",
+            "bge-m3-onnx + bge-m3-onnx"
+          ],
+          "lang": null,
+          "context": "Multilingual Support › Language Support by Provider › bge-m3-onnx + bge-m3-onnx",
+          "text": "Both dense and sparse embeddings are produced by the BGE-M3 ONNX model.\nThe sparse embeddings are neural sparse — the model learns token importance,\nnot just frequency. For Ukrainian and mixed-language content, this produces\nbetter sparse weights for technical terms and rare vocabulary.\n\nEnable with ONNX_EMBED=1.",
+          "rawContent": "Both dense and sparse embeddings are produced by the BGE-M3 ONNX model.\nThe sparse embeddings are neural sparse — the model learns token importance,\nnot just frequency. For Ukrainian and mixed-language content, this produces\nbetter sparse weights for technical terms and rare vocabulary.\n\nEnable with ONNX_EMBED=1.",
+          "contentHash": "5687f8114d6d62376bb5541356141256c2f1f42119089ce662cfab9ae0460cb7"
+        },
+        {
+          "chunkId": "multilingual.md#3",
+          "sourceFile": "multilingual.md",
+          "chunkIndex": 3,
+          "nodeId": "a7ed94a1-1560-506e-a41d-21c8da096b33",
+          "nodePath": "multilingual.md#multilingual-support/query-language-vs-document-language/paragraph-1",
+          "parentId": "29172309-fa23-55df-bc1d-7c9f75ab7491",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "Query Language vs Document Language",
+          "headingPath": [
+            "Multilingual Support",
+            "Query Language vs Document Language"
+          ],
+          "lang": null,
+          "context": "Multilingual Support › Query Language vs Document Language",
+          "text": "semidex supports cross-lingual retrieval: a Ukrainian query can match an\nEnglish document and vice versa. BGE-M3 maps both to the same semantic space,\nso language mismatch does not require separate indexes or translation.\n\nExample cross-lingual retrieval patterns that work:\n\nUkrainian query → English document: \"як налаштувати провайдер\" → providers.mdEnglish query → Ukrainian documentMixed-language query → any document",
+          "rawContent": "semidex supports cross-lingual retrieval: a Ukrainian query can match an\nEnglish document and vice versa. BGE-M3 maps both to the same semantic space,\nso language mismatch does not require separate indexes or translation.\n\nExample cross-lingual retrieval patterns that work:\n\nUkrainian query → English document: \"як налаштувати провайдер\" → providers.mdEnglish query → Ukrainian documentMixed-language query → any document",
+          "contentHash": "4d128501acd3b70e29cc2bf7a89b896261060355100740f63b48cbb9f47f1083"
+        },
+        {
+          "chunkId": "multilingual.md#4",
+          "sourceFile": "multilingual.md",
+          "chunkIndex": 4,
+          "nodeId": "1979709b-039e-5db8-99b9-a3994ee738c5",
+          "nodePath": "multilingual.md#multilingual-support/ukrainian-specific-chunking-notes/paragraph-1",
+          "parentId": "8ad54f4f-2a69-5d46-aef4-21448ca42176",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "Ukrainian-Specific Chunking Notes",
+          "headingPath": [
+            "Multilingual Support",
+            "Ukrainian-Specific Chunking Notes"
+          ],
+          "lang": null,
+          "context": "Multilingual Support › Ukrainian-Specific Chunking Notes",
+          "text": "The chunking logic uses Unicode-aware sentence splitting:\n/[^.!?\\n]+[.!?\\n]+|[^.!?\\n]+$/g. This regex handles Cyrillic text correctly\nbecause it does not assume ASCII sentence boundaries.\n\nMarkdown headings in Ukrainian are parsed identically to English headings.\nSection detection is based on #/##/### prefix, not language-specific patterns.",
+          "rawContent": "The chunking logic uses Unicode-aware sentence splitting:\n/[^.!?\\n]+[.!?\\n]+|[^.!?\\n]+$/g. This regex handles Cyrillic text correctly\nbecause it does not assume ASCII sentence boundaries.\n\nMarkdown headings in Ukrainian are parsed identically to English headings.\nSection detection is based on #/##/### prefix, not language-specific patterns.",
+          "contentHash": "558cbd429db90b73692a0f82eac8d8a373e7eec122ac3ea56823f16fee0936c7"
+        },
+        {
+          "chunkId": "multilingual.md#5",
+          "sourceFile": "multilingual.md",
+          "chunkIndex": 5,
+          "nodeId": "c9a0ece1-d603-565e-bf3f-50c274363267",
+          "nodePath": "multilingual.md#multilingual-support/mixed-language-documents/paragraph-1",
+          "parentId": "0cfd255d-83f0-5a1b-b5ae-7bb41a88f02d",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "Mixed-Language Documents",
+          "headingPath": [
+            "Multilingual Support",
+            "Mixed-Language Documents"
+          ],
+          "lang": null,
+          "context": "Multilingual Support › Mixed-Language Documents",
+          "text": "Documents that mix Ukrainian and English (e.g., technical documentation with English\ncode blocks and Ukrainian prose) are chunked as a single document. The embedding\ncovers both languages within each chunk. This is the normal case for semidex\ndocumentation and works well with BGE-M3.",
+          "rawContent": "Documents that mix Ukrainian and English (e.g., technical documentation with English\ncode blocks and Ukrainian prose) are chunked as a single document. The embedding\ncovers both languages within each chunk. This is the normal case for semidex\ndocumentation and works well with BGE-M3.",
+          "contentHash": "797f21c3ac37c488c99a629357da6085b9c42ba92ce4e419a4a522578541279d"
+        },
+        {
+          "chunkId": "multilingual.md#6",
+          "sourceFile": "multilingual.md",
+          "chunkIndex": 6,
+          "nodeId": "c03200fa-bea4-5724-b3f6-4bd5d1655420",
+          "nodePath": "multilingual.md#multilingual-support/benchmark-coverage/paragraph-1",
+          "parentId": "0cabbb7d-55cb-5554-a8d1-d96edaa04e98",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "Benchmark Coverage",
+          "headingPath": [
+            "Multilingual Support",
+            "Benchmark Coverage"
+          ],
+          "lang": null,
+          "context": "Multilingual Support › Benchmark Coverage",
+          "text": "The custom-50 benchmark includes:\n\nUkrainian-only queries (e.g., \"де налаштовується sparseProvider\")English-only queries (e.g., \"valid provider combinations for embedding\")Mixed-language queries (e.g., queries mentioning ONNX_EMBED in a Ukrainian sentence)Cross-file queries that require understanding concepts across multiple documents",
+          "rawContent": "The custom-50 benchmark includes:\n\nUkrainian-only queries (e.g., \"де налаштовується sparseProvider\")English-only queries (e.g., \"valid provider combinations for embedding\")Mixed-language queries (e.g., queries mentioning ONNX_EMBED in a Ukrainian sentence)Cross-file queries that require understanding concepts across multiple documents",
+          "contentHash": "f44d5eccfa0bf3d9d16aceeb17d36ffcefef4883ee46fc98e8280ba89eb0a737"
+        },
+        {
+          "chunkId": "multilingual.md#7",
+          "sourceFile": "multilingual.md",
+          "chunkIndex": 7,
+          "nodeId": "aca3689c-a229-5843-a34c-836bfec00092",
+          "nodePath": "multilingual.md#multilingual-support/llm-phases-and-language/paragraph-1",
+          "parentId": "e9a5c534-cf73-568a-b842-4441ae5344da",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "LLM Phases and Language",
+          "headingPath": [
+            "Multilingual Support",
+            "LLM Phases and Language"
+          ],
+          "lang": null,
+          "context": "Multilingual Support › LLM Phases and Language",
+          "text": "The context and tag LLM phases use the model specified by CONTEXT_MODEL and\nTAG_MODEL (default: gemma3:4b). The prompt is in English but the model\nprocesses Ukrainian content correctly. Tags generated for Ukrainian documents\nmay be in English, Ukrainian, or a mix depending on the model.",
+          "rawContent": "The context and tag LLM phases use the model specified by CONTEXT_MODEL and\nTAG_MODEL (default: gemma3:4b). The prompt is in English but the model\nprocesses Ukrainian content correctly. Tags generated for Ukrainian documents\nmay be in English, Ukrainian, or a mix depending on the model.",
+          "contentHash": "ea95f68c1d1590dffcc9a3be2b8ba4a6b955eb3719416a97d02e318f386a0b65"
+        },
+        {
+          "chunkId": "multilingual.md#8",
+          "sourceFile": "multilingual.md",
+          "chunkIndex": 8,
+          "nodeId": "26ee280e-8f2a-5f37-b97f-3377dca4979f",
+          "nodePath": "multilingual.md#multilingual-support/recommended-provider-for-multilingual-use/paragraph-1",
+          "parentId": "6941c693-0443-56c3-a680-a169876dee2f",
+          "nodeType": "paragraph",
+          "pointKind": "retrieval_content",
+          "section": "Recommended Provider for Multilingual Use",
+          "headingPath": [
+            "Multilingual Support",
+            "Recommended Provider for Multilingual Use"
+          ],
+          "lang": null,
+          "context": "Multilingual Support › Recommended Provider for Multilingual Use",
+          "text": "For best results with Ukrainian or mixed-language content, use bge-m3-onnx:\n\n`ONNX_EMBED=1 COLLECTION=my-notes SOURCE_ROOT=./notes npm run index`\n\nThe neural sparse encoder consistently outperforms hashed-tf on rare and\ntechnical Ukrainian terms, especially for exact-token queries where the correct\nresult depends on a low-frequency word being given high sparse weight.",
+          "rawContent": "For best results with Ukrainian or mixed-language content, use bge-m3-onnx:\n\n`ONNX_EMBED=1 COLLECTION=my-notes SOURCE_ROOT=./notes npm run index`\n\nThe neural sparse encoder consistently outperforms hashed-tf on rare and\ntechnical Ukrainian terms, especially for exact-token queries where the correct\nresult depends on a low-frequency word being given high sparse weight.",
+          "contentHash": "7ce6f148226855ffd09d1afa5cd62488d80f661af62358008aee8eeb1debd85b"
+        }
+      ]
+    }
+  }
+}

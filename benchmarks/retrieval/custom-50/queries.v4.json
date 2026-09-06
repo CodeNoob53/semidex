@@ -1,0 +1,1607 @@
+{
+  "schemaVersion": 4,
+  "corpusHash": "ff3999bb0f3539c6a7c47bb97b2309f6d6c3bc6bf5f6c9ceb3a472837eb123eb",
+  "chunkingModel": "skeleton-v1",
+  "note": "v4 qrels — judged against corpus.frozen.json (skeleton-v1 chunker). The 2026-09-06 audit diagnostic numbers used the legacy-chunker corpus and are NOT a baseline for this set. This is a regression/tuning set, not an independent held-out benchmark.",
+  "queries": [
+    {
+      "id": "c01",
+      "type": "exact-token",
+      "query": "де налаштовується sparseProvider",
+      "expectedFiles": [
+        "providers.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "providers.md#3",
+          "relevance": 3,
+          "contentHash": "1d51762ae556cb9d4dcf4c01f54226bf41ab0dc03926a860600b21e96256dd3e",
+          "evidence": "The `sparseProvider` field in config.json controls which sparse encoder is used for a collection. Valid values are `hashed-tf` … and `bge-m3-onnx`."
+        },
+        {
+          "chunkId": "providers.md#1",
+          "relevance": 2,
+          "contentHash": "e0a839c04fa2a34e6d2bf23d98706ff5a113faf8a1f2313de01ded0816bdb521",
+          "evidence": "default combination … hashed-tf for sparse embeddings — establishes what sparseProvider selects."
+        }
+      ],
+      "expectedTokens": [
+        "sparseProvider"
+      ],
+      "reviewVerdict": "valid",
+      "answer": "providers.md#3 (\"sparseProvider configuration\") describes the sparseProvider field in config.json, its valid values, and where it lives. providers.md#5 (Reindex triggers) lists sparseProvider among the discriminators."
+    },
+    {
+      "id": "c02",
+      "type": "conceptual",
+      "query": "які є валідні комбінації провайдерів embeddings",
+      "expectedFiles": [
+        "providers.md",
+        "config-env.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "providers.md#3",
+          "relevance": 3,
+          "contentHash": "1d51762ae556cb9d4dcf4c01f54226bf41ab0dc03926a860600b21e96256dd3e",
+          "evidence": "Valid values are `hashed-tf` (default…) and `bge-m3-onnx`… Mixed combinations such as `ollama + bge-m3-onnx` or `bge-m3-onnx + hashed-tf` are rejected."
+        },
+        {
+          "chunkId": "config-env.md#3",
+          "relevance": 3,
+          "contentHash": "2722d6bfbcaa6c599f37c713a5030f0423544921ea153cf6f2c5b688644ab4cc",
+          "evidence": "Valid provider combinations: ollama + hashed-tf (default…) / bge-m3-onnx + bge-m3-onnx …"
+        },
+        {
+          "chunkId": "providers.md#5",
+          "relevance": 1,
+          "contentHash": "d641ba7b1036a2fc4de141b7e0a9f74db6a71d3c8692718606c51acf6dd204b5",
+          "evidence": "Reindex triggers — same-topic, not a combination list."
+        }
+      ],
+      "expectedTokens": [
+        "provider"
+      ],
+      "reviewVerdict": "valid",
+      "answer": "providers.md#3 states the valid values; config-env.md#3 lists the two valid provider combinations explicitly."
+    },
+    {
+      "id": "c03",
+      "type": "provider-activation",
+      "query": "як увімкнути bge-m3-onnx без Ollama",
+      "expectedFiles": [
+        "providers.md",
+        "config-env.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "providers.md#2",
+          "relevance": 3,
+          "contentHash": "748d65842ad16faf3cabc986e8609d34be9446b65e8448212aab257d6ffba2bf",
+          "evidence": "Enable with `ONNX_EMBED=1` (shorthand) or explicitly with `DENSE_PROVIDER=bge-m3-onnx SPARSE_PROVIDER=bge-m3-onnx`."
+        },
+        {
+          "chunkId": "config-env.md#2",
+          "relevance": 2,
+          "contentHash": "d33ec17fe8040d8e5d63243593060aca8745f1988afabdbd3e032474e576ead2",
+          "evidence": "ONNX_EMBED | 0 | Shorthand to enable bge-m3-onnx for both dense and sparse."
+        },
+        {
+          "chunkId": "providers.md#3",
+          "relevance": 1,
+          "contentHash": "1d51762ae556cb9d4dcf4c01f54226bf41ab0dc03926a860600b21e96256dd3e",
+          "evidence": "same-topic sparseProvider values."
+        }
+      ],
+      "expectedTokens": [
+        "ONNX_EMBED"
+      ],
+      "reviewVerdict": "valid",
+      "answer": "providers.md#2 (bge-m3-onnx section) gives the ONNX_EMBED=1 shorthand and the explicit DENSE/SPARSE_PROVIDER form; config-env.md#3 also states it."
+    },
+    {
+      "id": "c04",
+      "type": "exact-token",
+      "query": "embedding_schema_version reindex discriminator payload field",
+      "expectedFiles": [
+        "providers.md",
+        "qdrant.md",
+        "project-structure.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "providers.md#5",
+          "relevance": 3,
+          "contentHash": "d641ba7b1036a2fc4de141b7e0a9f74db6a71d3c8692718606c51acf6dd204b5",
+          "evidence": "Changing `sparseProvider`, `denseProvider`, `denseModel`, or `embeddingSchemaVersion` … will cause every file … to be reindexed. The six reindex discriminators are: file hash, denseProvider, denseModel, sparseProvider, embeddingSchemaVersion, vectorSize."
+        },
+        {
+          "chunkId": "qdrant.md#8",
+          "relevance": 2,
+          "contentHash": "e2167231fadd3bca9b5d3774db0e2c12bf946a40df09b41c32af238da73f517a",
+          "evidence": "getStoredMeta … returns the six reindex discriminator fields … embedding_schema_version …"
+        },
+        {
+          "chunkId": "project-structure.md#3",
+          "relevance": 2,
+          "contentHash": "1d1de7a07979a52e9206665dc6aa6908b9d80e28be2306be74f6cb7412aeb771",
+          "evidence": "`SCHEMA_VERSION` … stored in Qdrant payloads as `embedding_schema_version` and used as a reindex discriminator."
+        }
+      ],
+      "expectedTokens": [
+        "embedding_schema_version"
+      ],
+      "reviewVerdict": "valid",
+      "answer": "providers.md#5 (Reindex triggers) names embeddingSchemaVersion as a discriminator; project-structure.md#3 explains SCHEMA_VERSION -> embedding_schema_version payload field. The query mixes the payload field name (embedding_schema_version) with the concept."
+    },
+    {
+      "id": "c05",
+      "type": "conceptual",
+      "query": "що станеться якщо змінити denseModel у config.json",
+      "expectedFiles": [
+        "providers.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "providers.md#5",
+          "relevance": 3,
+          "contentHash": "d641ba7b1036a2fc4de141b7e0a9f74db6a71d3c8692718606c51acf6dd204b5",
+          "evidence": "Changing `sparseProvider`, `denseProvider`, `denseModel`, or `embeddingSchemaVersion` in config.json for a collection will cause every file in that collection to be reindexed on the next `npm run index` run."
+        },
+        {
+          "chunkId": "providers.md#0",
+          "relevance": 2,
+          "contentHash": "a08898f0425a65216af7a869d64e9f38f31d12ac8a98cbe6de3128d30187517c",
+          "evidence": "re-indexing is triggered automatically when the provider changes."
+        },
+        {
+          "chunkId": "providers.md#4",
+          "relevance": 1,
+          "contentHash": "5608413dee2bdafc40614c659a405a09c589e6b7f9a94cd24101c5a071997ffc",
+          "evidence": "provider validation, same topic."
+        }
+      ],
+      "expectedTokens": [
+        "reindex"
+      ],
+      "reviewVerdict": "valid",
+      "answer": "providers.md#5 states changing denseModel triggers a full reindex of every file in the collection."
+    },
+    {
+      "id": "c06",
+      "type": "exact-token",
+      "query": "resolveEnvProviders single source of truth provider mapping",
+      "expectedFiles": [
+        "providers.md",
+        "project-structure.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "providers.md#3",
+          "relevance": 3,
+          "contentHash": "1d51762ae556cb9d4dcf4c01f54226bf41ab0dc03926a860600b21e96256dd3e",
+          "evidence": "The `resolveEnvProviders()` function in `src/core/config.js` is the single source of truth for mapping environment variables to provider names."
+        },
+        {
+          "chunkId": "project-structure.md#2",
+          "relevance": 3,
+          "contentHash": "671f88a581167bcb30b567346e52f2fa4046b1a439e2600d4c4262f0fb297ed9",
+          "evidence": "Exports `resolveEnvProviders()` which maps environment variables … to canonical provider names. This is the single source of truth for provider resolution."
+        },
+        {
+          "chunkId": "providers.md#4",
+          "relevance": 2,
+          "contentHash": "5608413dee2bdafc40614c659a405a09c589e6b7f9a94cd24101c5a071997ffc",
+          "evidence": "Both `resolveEnvProviders()` (env-time) and `_embed()` … validate the provider combination."
+        }
+      ],
+      "expectedTokens": [
+        "resolveEnvProviders"
+      ],
+      "reviewVerdict": "valid",
+      "answer": "providers.md#4 names resolveEnvProviders() as one of the two validators; the \"single source of truth\" phrasing is in providers.md#3 and project-structure.md#2."
+    },
+    {
+      "id": "c07",
+      "type": "troubleshooting",
+      "query": "Invalid provider combination error mixed ollama onnx",
+      "expectedFiles": [
+        "providers.md",
+        "config-env.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "providers.md#3",
+          "relevance": 3,
+          "contentHash": "1d51762ae556cb9d4dcf4c01f54226bf41ab0dc03926a860600b21e96256dd3e",
+          "evidence": "Mixed combinations such as `ollama + bge-m3-onnx` or `bge-m3-onnx + hashed-tf` are rejected at runtime with an `Invalid provider combination` error."
+        },
+        {
+          "chunkId": "config-env.md#3",
+          "relevance": 3,
+          "contentHash": "2722d6bfbcaa6c599f37c713a5030f0423544921ea153cf6f2c5b688644ab4cc",
+          "evidence": "Mixed combinations (`ollama + bge-m3-onnx` or `bge-m3-onnx + hashed-tf`) are rejected at runtime with an `Invalid provider combination` error."
+        },
+        {
+          "chunkId": "providers.md#4",
+          "relevance": 2,
+          "contentHash": "5608413dee2bdafc40614c659a405a09c589e6b7f9a94cd24101c5a071997ffc",
+          "evidence": "validate the provider combination before any embedding work is done."
+        }
+      ],
+      "expectedTokens": [
+        "Invalid"
+      ],
+      "reviewVerdict": "valid",
+      "answer": "providers.md#3 and config-env.md#3 both name the \"Invalid provider combination\" error for mixed ollama+onnx."
+    },
+    {
+      "id": "c08",
+      "type": "exact-token",
+      "query": "як працює RRF k параметр у гібридному пошуку",
+      "expectedFiles": [
+        "qdrant.md",
+        "config-env.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "qdrant.md#3",
+          "relevance": 3,
+          "contentHash": "94d3fd423ae4afb56864e508cbe8e392f782df461414ea1bc4483ad953ceff3f",
+          "evidence": "The `k` parameter in RRF controls rank sensitivity. It is configured via the `RRF_K` environment variable (default: 60, range: 1–10000)."
+        },
+        {
+          "chunkId": "qdrant.md#2",
+          "relevance": 2,
+          "contentHash": "408d4d75d0d7404164e74a515c4258c91b316d0743ffd008ffd2e0c5891c0f0a",
+          "evidence": "The RRF formula scores each result as the sum of `1 / (k + rank_i)` … The default value is 60, which is the standard RRF constant from the original paper."
+        },
+        {
+          "chunkId": "config-env.md#9",
+          "relevance": 2,
+          "contentHash": "7bbdfa1f45fb8e95af29486bb2fffecbef4f2eecedeb61e0eaa661bf13d0a6f1",
+          "evidence": "RRF_K | 60 | 1–10000 | RRF smoothing constant (Hybrid Search table)."
+        }
+      ],
+      "expectedTokens": [
+        "RRF_K"
+      ],
+      "reviewVerdict": "valid",
+      "answer": "qdrant.md#3 (\"RRF k parameter\") is the direct explanation of the k parameter and RRF_K env var; qdrant.md#2 gives the RRF formula and default 60."
+    },
+    {
+      "id": "c09",
+      "type": "config-env",
+      "query": "HYBRID_PREFETCH_LIMIT prefetch per RRF leg",
+      "expectedFiles": [
+        "qdrant.md",
+        "config-env.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "qdrant.md#5",
+          "relevance": 3,
+          "contentHash": "75c58d4d325c0a3c8562aec0d0b900b18c3f565fd026cd35f1ded8115262bc27",
+          "evidence": "The prefetch limit for each leg is `max(limit * HYBRID_PREFETCH_LIMIT, limit + 1)` where `HYBRID_PREFETCH_LIMIT` defaults to 2."
+        },
+        {
+          "chunkId": "qdrant.md#9",
+          "relevance": 3,
+          "contentHash": "035c7f3a22840f09798e67ee692e06ae214406319594f227bec3f33f34b5b349",
+          "evidence": "Env tuning table: `HYBRID_PREFETCH_LIMIT` | 2 | 1–100 | Prefetch multiplier per RRF leg."
+        },
+        {
+          "chunkId": "config-env.md#10",
+          "relevance": 2,
+          "contentHash": "052ca6909d79077c64a14a53cec8980485ed918056cfaf540661f28ac1953982",
+          "evidence": "`HYBRID_PREFETCH_LIMIT` controls how many candidates each leg fetches before RRF fusion. The actual prefetch count is `max(limit * HYBRID_PREFETCH_LIMIT, limit + 1)`."
+        },
+        {
+          "chunkId": "config-env.md#9",
+          "relevance": 2,
+          "contentHash": "7bbdfa1f45fb8e95af29486bb2fffecbef4f2eecedeb61e0eaa661bf13d0a6f1",
+          "evidence": "Hybrid Search table row: HYBRID_PREFETCH_LIMIT | 2 | 1–100 | Prefetch multiplier per dense/sparse RRF leg."
+        }
+      ],
+      "expectedTokens": [
+        "HYBRID_PREFETCH_LIMIT"
+      ],
+      "reviewVerdict": "corrected",
+      "answer": "HYBRID_PREFETCH_LIMIT and its prefetch formula are in qdrant.md#5 (RRF k parameter section, 2nd prose chunk) and the qdrant.md#9 \"Env tuning\" table; config-env.md#9/#10 (Hybrid Search) also give it with the formula.",
+      "auditNote": "Audit 2026-09-06: legacy qrel put HYBRID_PREFETCH_LIMIT at qdrant.md#2 (rel 3) and qdrant.md#6 (rel 2) — neither contains the parameter under the skeleton chunker."
+    },
+    {
+      "id": "c10",
+      "type": "troubleshooting",
+      "query": "чому hybridSearch падає коли нема sparse векторів",
+      "expectedFiles": [
+        "qdrant.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "qdrant.md#6",
+          "relevance": 3,
+          "contentHash": "2118f678e80988dedc0955171c01dca7676ae0789b75036d67a3bec868de86a2",
+          "evidence": "If a collection has no sparse vectors yet …, `hybridSearch` falls back to `search` (dense-only) automatically. The fallback is triggered when the Qdrant response contains `\"sparse\"` or `\"Wrong input\"` in the error message."
+        },
+        {
+          "chunkId": "qdrant.md#1",
+          "relevance": 1,
+          "contentHash": "af83ccdf89f5c2729177e6f6577b4e6d8c62c436157f14695523a645854f3169",
+          "evidence": "Each collection stores named vectors: a dense … and a sparse vector — establishes the precondition."
+        }
+      ],
+      "expectedTokens": [
+        "fallback"
+      ],
+      "reviewVerdict": "valid",
+      "answer": "qdrant.md#6 (\"Fallback to dense-only\") directly answers why hybridSearch falls back when there are no sparse vectors."
+    },
+    {
+      "id": "c11",
+      "type": "exact-token",
+      "query": "getStoredMeta які поля читає з Qdrant payload",
+      "expectedFiles": [
+        "qdrant.md",
+        "project-structure.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "qdrant.md#8",
+          "relevance": 3,
+          "contentHash": "e2167231fadd3bca9b5d3774db0e2c12bf946a40df09b41c32af238da73f517a",
+          "evidence": "`getStoredMeta(collection, sourceFile)` scrolls one point … and returns the six reindex discriminator fields from its payload: `file_hash`, `dense_provider`, `dense_model`, `sparse_provider`, `embedding_schema_version`, and `vector_size`."
+        },
+        {
+          "chunkId": "qdrant.md#7",
+          "relevance": 2,
+          "contentHash": "2bc6b0f5362a9b3b0dae2b1872087a41b73814840723888b914db7e6317831cb",
+          "evidence": "The `source_file` index is used by `getStoredMeta` and `deleteBySourceFile`."
+        },
+        {
+          "chunkId": "project-structure.md#4",
+          "relevance": 1,
+          "contentHash": "b296304be1c6f2ff211f14922fce38579dd81b58b72e2bccb960a95fe4dca9cc",
+          "evidence": "`getStoredMeta(collection, sourceFile)` — reads six reindex discriminator fields (module list)."
+        }
+      ],
+      "expectedTokens": [
+        "getStoredMeta"
+      ],
+      "reviewVerdict": "valid",
+      "answer": "qdrant.md#8 is the getStoredMeta section — lists exactly the fields it reads."
+    },
+    {
+      "id": "c12",
+      "type": "exact-token",
+      "query": "як Qdrant зберігає named vectors dense sparse",
+      "expectedFiles": [
+        "qdrant.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "qdrant.md#1",
+          "relevance": 3,
+          "contentHash": "af83ccdf89f5c2729177e6f6577b4e6d8c62c436157f14695523a645854f3169",
+          "evidence": "Each collection stores named vectors: a `dense` vector (cosine distance) and a `sparse` vector."
+        },
+        {
+          "chunkId": "qdrant.md#0",
+          "relevance": 1,
+          "contentHash": "2aaa02db9fd242615c453c74cfb95bd209ca26b95dead16ce407e033ccb61acd",
+          "evidence": "Qdrant as vector database, typed functions for collections/points/search."
+        }
+      ],
+      "expectedTokens": [
+        "dense"
+      ],
+      "reviewVerdict": "valid",
+      "answer": "qdrant.md#1 (\"Collections\") states each collection stores a dense (cosine) and a sparse named vector."
+    },
+    {
+      "id": "c13",
+      "type": "exact-token",
+      "query": "source_file payload index efficient filtering deleteBySourceFile",
+      "expectedFiles": [
+        "qdrant.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "qdrant.md#7",
+          "relevance": 3,
+          "contentHash": "2bc6b0f5362a9b3b0dae2b1872087a41b73814840723888b914db7e6317831cb",
+          "evidence": "Two payload indexes are created on every collection: `source_file` (keyword) and `tags` (keyword). These allow Qdrant to filter points efficiently … The `source_file` index is used by `getStoredMeta` and `deleteBySourceFile`."
+        },
+        {
+          "chunkId": "qdrant.md#1",
+          "relevance": 2,
+          "contentHash": "af83ccdf89f5c2729177e6f6577b4e6d8c62c436157f14695523a645854f3169",
+          "evidence": "createCollection … also creates payload indexes on `source_file` and `tags` for efficient filtering."
+        },
+        {
+          "chunkId": "qdrant.md#8",
+          "relevance": 1,
+          "contentHash": "e2167231fadd3bca9b5d3774db0e2c12bf946a40df09b41c32af238da73f517a",
+          "evidence": "getStoredMeta scrolls one point matching the given source file."
+        }
+      ],
+      "expectedTokens": [
+        "source_file"
+      ],
+      "reviewVerdict": "valid",
+      "answer": "qdrant.md#7 (\"Payload Indexes\") states source_file is a keyword index used by getStoredMeta and deleteBySourceFile."
+    },
+    {
+      "id": "c14",
+      "type": "exact-token",
+      "query": "Qdrant Query API body shape for RRF fusion with prefetch",
+      "expectedFiles": [
+        "qdrant.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "qdrant.md#4",
+          "relevance": 3,
+          "contentHash": "0e34dce6cdcfb7e0a66530d73248dbab0f6eaff829cb1cd91e041599cc64218f",
+          "evidence": "code block: { \"prefetch\": [ {sparse}, {dense} ], \"query\": { \"rrf\": { \"k\": 60 } }, \"limit\": 5, \"with_payload\": true }"
+        },
+        {
+          "chunkId": "qdrant.md#3",
+          "relevance": 2,
+          "contentHash": "94d3fd423ae4afb56864e508cbe8e392f782df461414ea1bc4483ad953ceff3f",
+          "evidence": "The Qdrant request body shape for RRF (available since Qdrant 1.16.0): …"
+        },
+        {
+          "chunkId": "qdrant.md#2",
+          "relevance": 2,
+          "contentHash": "408d4d75d0d7404164e74a515c4258c91b316d0743ffd008ffd2e0c5891c0f0a",
+          "evidence": "uses the Qdrant Query API (`/points/query`) with two prefetch legs followed by an RRF fusion step."
+        }
+      ],
+      "requiredEvidence": [
+        [
+          "qdrant.md#4"
+        ]
+      ],
+      "expectedTokens": [
+        "prefetch"
+      ],
+      "reviewVerdict": "valid",
+      "answer": "The Qdrant Query API RRF body shape is the code block qdrant.md#4; qdrant.md#3 introduces it, qdrant.md#2 describes the two-prefetch-leg structure."
+    },
+    {
+      "id": "c15",
+      "type": "config-env",
+      "query": "OVERLAP_SENTENCES default value sentence overlap chunking",
+      "expectedFiles": [
+        "chunking.md",
+        "config-env.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "chunking.md#1",
+          "relevance": 3,
+          "contentHash": "1f4ba251e63f1e5557d46562951430b44eb60597a4fe8f0ffb43c3cb472977b5",
+          "evidence": "Parameters table: `OVERLAP_SENTENCES` | 2 | 0–100 | Sentences carried from chunk N into N+1."
+        },
+        {
+          "chunkId": "config-env.md#7",
+          "relevance": 3,
+          "contentHash": "48f7eee00af9bf0aa0b9ab52631327f9c45f48205765e129b96c21474f95af2f",
+          "evidence": "Chunking table: `OVERLAP_SENTENCES` | `2` | 0–100 | Sentence overlap between consecutive chunks."
+        },
+        {
+          "chunkId": "chunking.md#4",
+          "relevance": 2,
+          "contentHash": "dc49bb8bdeaf3eef39c35f233ad8c97a381e9dd4e8c9ea1b9ac3815b987f60ae",
+          "evidence": "`OVERLAP_SENTENCES` controls how many sentences from the end of chunk N are prepended to chunk N+1."
+        },
+        {
+          "chunkId": "chunking.md#2",
+          "relevance": 1,
+          "contentHash": "41f03fc16995df013ac5140dbcd90115477765d40ce6282ae90c7b0c645da3ae",
+          "evidence": "prose sibling of the Parameters table (placeholder + \"All three are validated with envInt()\")."
+        }
+      ],
+      "expectedTokens": [
+        "OVERLAP_SENTENCES"
+      ],
+      "reviewVerdict": "corrected",
+      "answer": "OVERLAP_SENTENCES default = 2 is in the chunking.md#1 Parameters table and the config-env.md#7 Chunking table; chunking.md#4 (Overlap section) explains what it does.",
+      "auditNote": "Legacy qrel: chunking.md#1 (rel 3) + chunking.md#3 (rel 2). Under the skeleton chunker chunking.md#1 is the Parameters TABLE (rawContent) and #2 the prose sibling; the OVERLAP_SENTENCES default (2) is a row in that table. config-env.md#7 also has the row."
+    },
+    {
+      "id": "c16",
+      "type": "troubleshooting",
+      "query": "чому фінальний чанк може губитись при малій кількості речень",
+      "expectedFiles": [
+        "chunking.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "chunking.md#6",
+          "relevance": 3,
+          "contentHash": "d407e828a68c31eb90e5ae44bb80571387929f38ce1b54b83625b6da5314316d",
+          "evidence": "The previous implementation skipped the final chunk when `current.length <= OVERLAP_SENTENCES`, which silently dropped content from short documents or short terminal sections. The flush is conditional on `pending > 0` …"
+        },
+        {
+          "chunkId": "chunking.md#4",
+          "relevance": 1,
+          "contentHash": "dc49bb8bdeaf3eef39c35f233ad8c97a381e9dd4e8c9ea1b9ac3815b987f60ae",
+          "evidence": "Overlap section, same topic."
+        }
+      ],
+      "expectedTokens": [
+        "pending"
+      ],
+      "reviewVerdict": "valid",
+      "answer": "chunking.md#6 (\"Flushing the final chunk\") directly explains the dropped-final-chunk bug and the `pending > 0` guard."
+    },
+    {
+      "id": "c17",
+      "type": "conceptual",
+      "query": "чому overlap не переноситься між markdown секціями",
+      "expectedFiles": [
+        "chunking.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "chunking.md#5",
+          "relevance": 3,
+          "contentHash": "5069ff45a35209dc6d5d867e31f81032d2d277583e7bfb655e71dd7453b041e0",
+          "evidence": "If overlap crosses a markdown heading boundary, the first chunk of section B will contain sentences from section A. This contaminates the embedding … semidex resets the overlap accumulator … at each new heading."
+        },
+        {
+          "chunkId": "chunking.md#4",
+          "relevance": 2,
+          "contentHash": "dc49bb8bdeaf3eef39c35f233ad8c97a381e9dd4e8c9ea1b9ac3815b987f60ae",
+          "evidence": "Overlap section — establishes the mechanism the boundary reset applies to."
+        }
+      ],
+      "expectedTokens": [
+        "section"
+      ],
+      "reviewVerdict": "valid",
+      "answer": "chunking.md#5 (\"Why overlap must not cross section boundaries\") is the direct answer."
+    },
+    {
+      "id": "c18",
+      "type": "exact-token",
+      "query": "splitSentences regex trailing text without period",
+      "expectedFiles": [
+        "chunking.md",
+        "multilingual.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "chunking.md#3",
+          "relevance": 3,
+          "contentHash": "43859adf62164bb63c448703811b08dd7a33977eca340321334fffeac3f40bb6",
+          "evidence": "`splitSentences(text)` uses the regex `/[^.!?\\n]+[.!?\\n]+|[^.!?\\n]+$/g` to split … while also capturing any trailing fragment without a terminator."
+        },
+        {
+          "chunkId": "multilingual.md#4",
+          "relevance": 1,
+          "contentHash": "558cbd429db90b73692a0f82eac8d8a373e7eec122ac3ea56823f16fee0936c7",
+          "evidence": "same regex quoted in the Ukrainian chunking-notes context."
+        }
+      ],
+      "expectedTokens": [
+        "splitSentences"
+      ],
+      "reviewVerdict": "valid",
+      "answer": "chunking.md#3 (\"Sentence splitting\") gives the splitSentences regex and the trailing-fragment behaviour."
+    },
+    {
+      "id": "c19",
+      "type": "exact-token",
+      "query": "як pandoc конвертує docx epub rtf у markdown",
+      "expectedFiles": [
+        "chunking.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "chunking.md#8",
+          "relevance": 3,
+          "contentHash": "fc78dcdb916b2adbf7f552ed2a3b52dc323c1fe170f3305a129d179a118d6342",
+          "evidence": "`.docx`, `.odt`, `.rtf`, `.epub`, `.html`, and `.htm` files are converted to Markdown via `pandoc` before chunking. … passing a synthetic `.md` path to `chunkFile` …"
+        },
+        {
+          "chunkId": "chunking.md#9",
+          "relevance": 1,
+          "contentHash": "c575cec0cd763aaeba8098903f846ebf871ce2f42183e5d883d6ad4c40d76b40",
+          "evidence": "PDF conversion — adjacent format-conversion topic, not pandoc."
+        }
+      ],
+      "expectedTokens": [
+        "pandoc"
+      ],
+      "reviewVerdict": "valid",
+      "answer": "chunking.md#8 (\"Pandoc formats\") lists docx/odt/rtf/epub/html and the synthetic-.md-path mechanism."
+    },
+    {
+      "id": "c20",
+      "type": "config-env",
+      "query": "MAX_CHUNK_TOKENS MIN_CHUNK_TOKENS chunking parameters range",
+      "expectedFiles": [
+        "chunking.md",
+        "config-env.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "chunking.md#1",
+          "relevance": 3,
+          "contentHash": "1f4ba251e63f1e5557d46562951430b44eb60597a4fe8f0ffb43c3cb472977b5",
+          "evidence": "Parameters table: MAX_CHUNK_TOKENS | 400 | 1–100000; MIN_CHUNK_TOKENS | 30 | 0–100000."
+        },
+        {
+          "chunkId": "config-env.md#7",
+          "relevance": 3,
+          "contentHash": "48f7eee00af9bf0aa0b9ab52631327f9c45f48205765e129b96c21474f95af2f",
+          "evidence": "Chunking table: MAX_CHUNK_TOKENS | 400 | 1–100000; MIN_CHUNK_TOKENS | 30 | 0–100000."
+        },
+        {
+          "chunkId": "chunking.md#0",
+          "relevance": 1,
+          "contentHash": "916f8f68ec05512eb8731a8bf48fb9deb9bff09b1817a47c4414939a77b26e4a",
+          "evidence": "controlled by three environment variables — same topic."
+        }
+      ],
+      "expectedTokens": [
+        "MAX_CHUNK_TOKENS"
+      ],
+      "reviewVerdict": "valid",
+      "answer": "MAX_CHUNK_TOKENS/MIN_CHUNK_TOKENS with ranges are in the chunking.md#1 Parameters table and config-env.md#7 Chunking table."
+    },
+    {
+      "id": "c21",
+      "type": "conceptual",
+      "query": "що робить npm run sync з config.json",
+      "expectedFiles": [
+        "sync.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "sync.md#0",
+          "relevance": 3,
+          "contentHash": "fed78efd35b416b5e1512d13fad1a94973a790475262e7e7d19b65c06617e892",
+          "evidence": "`npm run sync` … synchronises `config.json` with the live collections in Qdrant. It does not index any files — it only updates the local config."
+        },
+        {
+          "chunkId": "sync.md#1",
+          "relevance": 2,
+          "contentHash": "21a9a857af996b2dc9d3b3e6f05843a79726a276b4c94398c50faddff407a50f",
+          "evidence": "What sync does: fetches collections … writes a full provider entry … backfills any missing provider fields."
+        }
+      ],
+      "expectedTokens": [
+        "sync"
+      ],
+      "reviewVerdict": "valid",
+      "answer": "sync.md#0 states what `npm run sync` does with config.json; sync.md#1 enumerates the steps."
+    },
+    {
+      "id": "c22",
+      "type": "exact-token",
+      "query": "sync backfill logic for missing denseProvider field",
+      "expectedFiles": [
+        "sync.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "sync.md#2",
+          "relevance": 3,
+          "contentHash": "32ea55b78281bce80aaa714fb9793acbae19badb8e71cd38571d5b057550c9b3",
+          "evidence": "When an existing config entry is missing the new provider fields, sync infers them from context: If `sparseProvider` is already `bge-m3-onnx` … Otherwise, `denseProvider`, `denseModel`, and `sparseProvider` are copied from the current env provider resolution …"
+        },
+        {
+          "chunkId": "sync.md#1",
+          "relevance": 2,
+          "contentHash": "21a9a857af996b2dc9d3b3e6f05843a79726a276b4c94398c50faddff407a50f",
+          "evidence": "For existing collections, backfills any missing provider fields introduced by schema upgrades."
+        }
+      ],
+      "expectedTokens": [
+        "backfill"
+      ],
+      "reviewVerdict": "valid",
+      "answer": "sync.md#2 (\"Backfill logic\") is the direct answer for how sync fills missing provider fields."
+    },
+    {
+      "id": "c23",
+      "type": "conceptual",
+      "query": "коли потрібно запускати sync після апгрейду semidex",
+      "expectedFiles": [
+        "sync.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "sync.md#3",
+          "relevance": 3,
+          "contentHash": "cf4a03c2d5c4562651496cd91c0e6238e6a3482c6d2b00507557bab6d76b8df9",
+          "evidence": "Run sync after: Creating a new Qdrant collection manually. Upgrading semidex to a version that adds new config.json fields. Switching provider configuration …"
+        },
+        {
+          "chunkId": "sync.md#4",
+          "relevance": 2,
+          "contentHash": "3a76c9dc8341a9c55f6ef95876df419e87f8f7240919ed2cf36725d1039350c5",
+          "evidence": "Relationship to indexer — when sync is needed vs the indexer."
+        }
+      ],
+      "expectedTokens": [
+        "sync"
+      ],
+      "reviewVerdict": "valid",
+      "answer": "sync.md#3 (\"When to run sync\") lists \"Upgrading semidex to a version that adds new config.json fields\"."
+    },
+    {
+      "id": "c24",
+      "type": "conceptual",
+      "query": "sync записує поточний провайдер а не той що був при індексації",
+      "expectedFiles": [
+        "sync.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "sync.md#5",
+          "relevance": 3,
+          "contentHash": "24517dac73f64b9fe6415d9b9fe674153204a5fbbfb573e4cfe5723595e76fba",
+          "evidence": "The provider written by sync reflects the environment at the time sync is run, not the environment at the time the collection was originally indexed. … sync is a declaration of current intent, not a historical record."
+        }
+      ],
+      "expectedTokens": [
+        "provider"
+      ],
+      "reviewVerdict": "valid",
+      "answer": "sync.md#5 (\"Provider recorded by sync\") states sync records the current env provider, not the historical one."
+    },
+    {
+      "id": "c25",
+      "type": "conceptual",
+      "query": "відмінність між sync та indexer стосовно config.json",
+      "expectedFiles": [
+        "sync.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "sync.md#4",
+          "relevance": 3,
+          "contentHash": "3a76c9dc8341a9c55f6ef95876df419e87f8f7240919ed2cf36725d1039350c5",
+          "evidence": "The indexer also updates config.json when it creates a new collection. Sync is only needed for collections that were created outside the indexer …, or to repair a config.json that has drifted."
+        },
+        {
+          "chunkId": "sync.md#0",
+          "relevance": 2,
+          "contentHash": "fed78efd35b416b5e1512d13fad1a94973a790475262e7e7d19b65c06617e892",
+          "evidence": "sync … does not index any files — it only updates the local config."
+        }
+      ],
+      "expectedTokens": [
+        "indexer"
+      ],
+      "reviewVerdict": "valid",
+      "answer": "sync.md#4 (\"Relationship to indexer\") directly contrasts sync and the indexer w.r.t. config.json."
+    },
+    {
+      "id": "c26",
+      "type": "conceptual",
+      "query": "як зареєструвати MCP сервер semidex у Claude Code",
+      "expectedFiles": [
+        "mcp-workflow.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "mcp-workflow.md#1",
+          "relevance": 3,
+          "contentHash": "28daf430ac7fb30aafd28782d198da98523ba9e69b1a26c6a96565b16e3a382f",
+          "evidence": "`claude mcp add --scope user semidex -- node /absolute/path/to/semidex/src/mcp/server.js` … After registering, run `/mcp` in Claude Code to verify the connection."
+        },
+        {
+          "chunkId": "mcp-workflow.md#0",
+          "relevance": 2,
+          "contentHash": "9470beca48cf97bc31186b71a4978bca5eab03184a30dedad9d290aa7b3687cd",
+          "evidence": "read-only MCP server … registered as an MCP tool provider under the name `qdrant` in Claude Code."
+        }
+      ],
+      "expectedTokens": [
+        "claude"
+      ],
+      "reviewVerdict": "valid",
+      "answer": "mcp-workflow.md#1 (\"Registering the MCP Server\") has the `claude mcp add` command for both OSes."
+    },
+    {
+      "id": "c27",
+      "type": "exact-token",
+      "query": "qdrant_get_chunk window parameter context neighbors",
+      "expectedFiles": [
+        "mcp-workflow.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "mcp-workflow.md#6",
+          "relevance": 3,
+          "contentHash": "f88fa99e13603c3d476fefd1314c17a582b9a55a7b42f73fc4c29731c94d4f1f",
+          "evidence": "The `window` parameter controls how many neighboring chunks to return on each side. For example, `window=1` returns the previous chunk, the target chunk, and the next chunk."
+        },
+        {
+          "chunkId": "mcp-workflow.md#2",
+          "relevance": 2,
+          "contentHash": "d34cff0f5f9c07f7ff6d0c6bc0634877aa206601bb28a3eb1daabe05dff7441c",
+          "evidence": "Tool Reference table row: `qdrant_get_chunk` | `collection`, `source_file`, `chunk_index`, `window?` | Retrieves one chunk and optional neighbors."
+        },
+        {
+          "chunkId": "mcp-workflow.md#4",
+          "relevance": 1,
+          "contentHash": "419d92e4cb0348ee1f5eab5bf32de4e9af29bd86377515c3406bfeda21d574a8",
+          "evidence": "Set `window=1` or `window=2` to retrieve adjacent chunks when more context is needed."
+        }
+      ],
+      "expectedTokens": [
+        "window"
+      ],
+      "reviewVerdict": "valid",
+      "answer": "mcp-workflow.md#6 (\"qdrant_get_chunk and Context Windows\") explains the window parameter directly."
+    },
+    {
+      "id": "c28",
+      "type": "exact-token",
+      "query": "qdrant_find_by_tag groups results by source_file tags filter",
+      "expectedFiles": [
+        "mcp-workflow.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "mcp-workflow.md#8",
+          "relevance": 3,
+          "contentHash": "4df17b70adf7b1a7c2bc8ec44724896081db367d97dbe1cbf7227368f41d517e",
+          "evidence": "`qdrant_find_by_tag` returns all chunks in a collection that carry a specific tag. Results are grouped by `source_file`."
+        },
+        {
+          "chunkId": "mcp-workflow.md#2",
+          "relevance": 2,
+          "contentHash": "d34cff0f5f9c07f7ff6d0c6bc0634877aa206601bb28a3eb1daabe05dff7441c",
+          "evidence": "Tool Reference table row: `qdrant_find_by_tag` | `collection`, `tag`, `limit?` | Lists chunks matching a tag, grouped by file."
+        },
+        {
+          "chunkId": "mcp-workflow.md#5",
+          "relevance": 1,
+          "contentHash": "d761aa581a6cac43a542ff92ee247f6f7ee1071ddf66a71b95f9303dc219daa8",
+          "evidence": "qdrant_search filters (tags/source_file) — adjacent filtering topic."
+        }
+      ],
+      "expectedTokens": [
+        "tag"
+      ],
+      "reviewVerdict": "valid",
+      "answer": "mcp-workflow.md#8 (\"qdrant_find_by_tag\") states results are grouped by source_file; the Tool Reference table (mcp-workflow.md#2) gives the signature."
+    },
+    {
+      "id": "c29",
+      "type": "conceptual",
+      "query": "як агент повинен починати сесію з semidex MCP",
+      "expectedFiles": [
+        "mcp-workflow.md",
+        "obsidian.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "mcp-workflow.md#9",
+          "relevance": 3,
+          "contentHash": "0b4b651ee2f38e23c4d3eb03be4daaee15eb53a07f8da1b9d019b553e909ddae",
+          "evidence": "Run `qdrant_collection_info` at the start of a session to discover available collections … lets the agent pick the most relevant collection."
+        },
+        {
+          "chunkId": "mcp-workflow.md#3",
+          "relevance": 3,
+          "contentHash": "05ce8e8f276c8084b1218151bbbe896f6b25777c17dabead8b6919a7a71cbeab",
+          "evidence": "Recommended Workflow: qdrant_collection_info -> qdrant_search(query, collection, top=5) -> qdrant_get_chunk(…) -> …"
+        },
+        {
+          "chunkId": "obsidian.md#7",
+          "relevance": 2,
+          "contentHash": "bef35c1ec7b188572e702ab3248576f195d39f84eb487cb0de5417409fc30228",
+          "evidence": "The typical agent workflow combines navigation and search: qdrant_collection_info … qdrant_list_directories … qdrant_search … qdrant_get_chunk."
+        }
+      ],
+      "expectedTokens": [
+        "collection"
+      ],
+      "reviewVerdict": "valid",
+      "answer": "mcp-workflow.md#9 (\"Collection Discovery\") + the Recommended Workflow code block (mcp-workflow.md#3) describe how an agent should start a session."
+    },
+    {
+      "id": "c30",
+      "type": "exact-token",
+      "query": "qdrant_list_files qdrant_list_directories corpus navigation MCP tool",
+      "expectedFiles": [
+        "mcp-workflow.md",
+        "obsidian.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "mcp-workflow.md#7",
+          "relevance": 3,
+          "contentHash": "84eb8c99fea22a7adef4318dd012033382caeb8caafd3b99427632d9d151e57a",
+          "evidence": "`qdrant_list_files` returns all files indexed in a collection … `qdrant_list_directories` returns the top-level directories … most useful for navigating the corpus structure."
+        },
+        {
+          "chunkId": "mcp-workflow.md#2",
+          "relevance": 2,
+          "contentHash": "d34cff0f5f9c07f7ff6d0c6bc0634877aa206601bb28a3eb1daabe05dff7441c",
+          "evidence": "Tool Reference table rows for qdrant_list_files / qdrant_list_directories."
+        },
+        {
+          "chunkId": "obsidian.md#0",
+          "relevance": 2,
+          "contentHash": "8cec8a7d1879acf5ab609dc60d5bc18d87ad8c21d6e98db80ad913fd19f5bb89",
+          "evidence": "The primary tools are `qdrant_list_files` and `qdrant_list_directories`."
+        }
+      ],
+      "expectedTokens": [
+        "qdrant_list_files",
+        "qdrant_list_directories"
+      ],
+      "reviewVerdict": "valid",
+      "answer": "mcp-workflow.md#7 (\"qdrant_list_files and qdrant_list_directories\") describes both tools for corpus navigation."
+    },
+    {
+      "id": "c31",
+      "type": "exact-token",
+      "query": "qdrant_list_directories recommended first step corpus layout collection",
+      "expectedFiles": [
+        "obsidian.md",
+        "mcp-workflow.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "obsidian.md#1",
+          "relevance": 3,
+          "contentHash": "d3e778eb0160ffb7870b7bc5b0f44f1b86f0f15cbe47b2777cffc2b8c920c09d",
+          "evidence": "`qdrant_list_directories` returns the distinct top-level directory paths … This is the recommended first step when the agent does not know the corpus layout."
+        },
+        {
+          "chunkId": "obsidian.md#7",
+          "relevance": 2,
+          "contentHash": "bef35c1ec7b188572e702ab3248576f195d39f84eb487cb0de5417409fc30228",
+          "evidence": "Combining Navigation with Search — qdrant_list_directories — map the corpus layout (step 2)."
+        },
+        {
+          "chunkId": "mcp-workflow.md#7",
+          "relevance": 1,
+          "contentHash": "84eb8c99fea22a7adef4318dd012033382caeb8caafd3b99427632d9d151e57a",
+          "evidence": "both tools operate at the file level … navigating the corpus structure."
+        }
+      ],
+      "expectedTokens": [
+        "qdrant_list_directories"
+      ],
+      "reviewVerdict": "valid",
+      "answer": "obsidian.md#1 (\"qdrant_list_directories\") states it is the recommended first step when the corpus layout is unknown."
+    },
+    {
+      "id": "c32",
+      "type": "exact-token",
+      "query": "qdrant_list_files directory prefix alphabetical source_file enumeration",
+      "expectedFiles": [
+        "obsidian.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "obsidian.md#2",
+          "relevance": 3,
+          "contentHash": "0d6366177fa855d40a50a0398cdf3ce1cc4978796a9eb44a6cdcb56e94736d77",
+          "evidence": "`qdrant_list_files` returns all `source_file` values in a collection, optionally filtered to a directory prefix. Results are returned in alphabetical order."
+        },
+        {
+          "chunkId": "obsidian.md#4",
+          "relevance": 2,
+          "contentHash": "bab5cd130630883d9b43d7e3eca097bbcf32910ef0b29e40abff06eb5832f9d6",
+          "evidence": "Use `qdrant_list_files` when you need to enumerate files before calling `qdrant_get_chunk` …"
+        },
+        {
+          "chunkId": "obsidian.md#3",
+          "relevance": 2,
+          "contentHash": "5ec43c3d3e8d9d3fd9796317ed75027c767fa5f849fdb3c47db4c992d203d9ed",
+          "evidence": "code block: qdrant_list_files(collection=\"my-notes\", directory=\"docs/\")"
+        }
+      ],
+      "expectedTokens": [
+        "qdrant_list_files"
+      ],
+      "reviewVerdict": "valid",
+      "answer": "obsidian.md#2 (\"qdrant_list_files\") states it returns all source_file values, optionally directory-filtered, in alphabetical order."
+    },
+    {
+      "id": "c33",
+      "type": "conceptual",
+      "query": "які payload-поля доступні для навігації по колекції chunk_index section tags",
+      "expectedFiles": [
+        "obsidian.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "obsidian.md#5",
+          "relevance": 3,
+          "contentHash": "72a180c541a566e18fe2d785b0278f40c7cac29e09ca9bf124e464484203b652",
+          "evidence": "Payload Fields table: source_file | chunk_index | section | total_chunks | tags — with types and descriptions."
+        },
+        {
+          "chunkId": "obsidian.md#6",
+          "relevance": 2,
+          "contentHash": "9173f2d8462cf63e39bd3a86526589479568b5ca3c6885abf775079764796015",
+          "evidence": "source_file and tags are payload-indexed for efficient filtering."
+        }
+      ],
+      "expectedTokens": [
+        "source_file",
+        "chunk_index"
+      ],
+      "reviewVerdict": "valid",
+      "answer": "obsidian.md#5 is the \"Payload Fields Used for Navigation\" TABLE (source_file, chunk_index, section, total_chunks, tags); obsidian.md#6 is its prose sibling."
+    },
+    {
+      "id": "c34",
+      "type": "conceptual",
+      "query": "use cases for listing indexed files verifying coverage tag audit scope search",
+      "expectedFiles": [
+        "obsidian.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "obsidian.md#8",
+          "relevance": 3,
+          "contentHash": "c468d119416624e3d4edf567050383120bac58dbe1fb55dc99deb568c4451c75",
+          "evidence": "Use Cases: Listing all indexed documents before a benchmark run to verify coverage. Auditing LLM-generated tags … Scoping a search to a known subdirectory using the source_file filter. …"
+        },
+        {
+          "chunkId": "obsidian.md#7",
+          "relevance": 1,
+          "contentHash": "bef35c1ec7b188572e702ab3248576f195d39f84eb487cb0de5417409fc30228",
+          "evidence": "Combining Navigation with Search — adjacent workflow context."
+        }
+      ],
+      "expectedTokens": [
+        "qdrant_find_by_tag"
+      ],
+      "reviewVerdict": "valid",
+      "answer": "obsidian.md#8 (\"Use Cases\") is the list of listing-files use cases (verify coverage, audit tags, scope search)."
+    },
+    {
+      "id": "c35",
+      "type": "source-navigation",
+      "query": "де знаходиться src/core/qdrant.js і що він експортує",
+      "expectedFiles": [
+        "project-structure.md",
+        "qdrant.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "project-structure.md#4",
+          "relevance": 3,
+          "contentHash": "b296304be1c6f2ff211f14922fce38579dd81b58b72e2bccb960a95fe4dca9cc",
+          "evidence": "### src/core/qdrant.js … All Qdrant REST calls go through this module. Key exports: hybridSearch … mmrSearch … scroll … getStoredMeta … createCollection …"
+        },
+        {
+          "chunkId": "project-structure.md#1",
+          "relevance": 2,
+          "contentHash": "9a3dd6f00e2d3b941a2c7afcf2fdb0767ff2e8ad4caacd5f85be95b301422a3a",
+          "evidence": "Source Tree code block: `qdrant.js  # Qdrant REST client (search, upsert, scroll, etc.)`."
+        },
+        {
+          "chunkId": "qdrant.md#0",
+          "relevance": 1,
+          "contentHash": "2aaa02db9fd242615c453c74cfb95bd209ca26b95dead16ce407e033ccb61acd",
+          "evidence": "All Qdrant calls go through `src/core/qdrant.js` (from the Qdrant doc, cross-file)."
+        }
+      ],
+      "expectedTokens": [
+        "qdrant"
+      ],
+      "reviewVerdict": "corrected",
+      "answer": "project-structure.md#4 is the \"src/core/qdrant.js\" section listing its exports (hybridSearch, mmrSearch, scroll, getStoredMeta, createCollection); the Source Tree code block #1 shows its path and one-line role.",
+      "auditNote": "Legacy qrel: project-structure.md#5 (rel 3) + #1 (rel 2). Under the skeleton chunker the `src/core/qdrant.js` module section is project-structure.md#4, and the Source Tree code block is #1."
+    },
+    {
+      "id": "c36",
+      "type": "source-navigation",
+      "query": "chunkFile splitSentences parseMarkdown location in source",
+      "expectedFiles": [
+        "project-structure.md",
+        "chunking.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "project-structure.md#1",
+          "relevance": 3,
+          "contentHash": "9a3dd6f00e2d3b941a2c7afcf2fdb0767ff2e8ad4caacd5f85be95b301422a3a",
+          "evidence": "Source Tree: `chunk.js       # chunkFile(), splitSentences(), parseMarkdown()`."
+        },
+        {
+          "chunkId": "project-structure.md#5",
+          "relevance": 3,
+          "contentHash": "7e5d8b143ed9c365b18df790131f33e990d82928391c0f51ba3e48dbc41d8537",
+          "evidence": "### src/indexer/phases/chunk.js … Exports `chunkFile(filePath, text, sourceFile)`. … Controlled by `MAX_CHUNK_TOKENS`, `MIN_CHUNK_TOKENS`, and `OVERLAP_SENTENCES`."
+        },
+        {
+          "chunkId": "chunking.md#0",
+          "relevance": 1,
+          "contentHash": "916f8f68ec05512eb8731a8bf48fb9deb9bff09b1817a47c4414939a77b26e4a",
+          "evidence": "The chunking logic lives in `src/indexer/phases/chunk.js` (cross-file)."
+        }
+      ],
+      "expectedTokens": [
+        "chunkFile"
+      ],
+      "reviewVerdict": "valid",
+      "answer": "chunkFile/splitSentences/parseMarkdown location: project-structure.md#1 Source Tree lists `chunk.js  # chunkFile(), splitSentences(), parseMarkdown()`; project-structure.md#5 is the chunk.js module section."
+    },
+    {
+      "id": "c37",
+      "type": "source-navigation",
+      "query": "npm run bench:custom50 entry point run-v3.js",
+      "expectedFiles": [
+        "project-structure.md",
+        "benchmarking.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "project-structure.md#7",
+          "relevance": 3,
+          "contentHash": "8c32032769ad34fdd3154c472c1873a404785d26699ef89b3d11cb0b21792c16",
+          "evidence": "Entry Points table: `npm run bench:custom50` | `benchmarks/retrieval/custom-50/run-v3.js` | Run 50q quality benchmark."
+        },
+        {
+          "chunkId": "project-structure.md#1",
+          "relevance": 2,
+          "contentHash": "9a3dd6f00e2d3b941a2c7afcf2fdb0767ff2e8ad4caacd5f85be95b301422a3a",
+          "evidence": "Source Tree: `run-v3.js          # Quality benchmark runner (v3 schema, graded qrels)`."
+        },
+        {
+          "chunkId": "benchmarking.md#12",
+          "relevance": 2,
+          "contentHash": "73e2d4e129ddd9283d5566673c689058c44ea27b345b7e4535339b752d3c510c",
+          "evidence": "Running Benchmarks code block: `# Quality 50q benchmark` / `npm run bench:custom50`."
+        },
+        {
+          "chunkId": "benchmarking.md#2",
+          "relevance": 1,
+          "contentHash": "d28fd2cd62c1df4d4913d6df733039f501f9921902b2ed9abcdd340d118dadbd",
+          "evidence": "50-query quality benchmark … The collection name is bench-retrieval-custom-50."
+        }
+      ],
+      "expectedTokens": [
+        "bench"
+      ],
+      "reviewVerdict": "corrected",
+      "answer": "project-structure.md#7 is the \"Entry Points\" table, whose last row is `npm run bench:custom50 | benchmarks/retrieval/custom-50/run-v3.js | Run 50q quality benchmark`. The Source Tree code block #1 also names run-v3.js. benchmarking.md#2 describes the custom-50 harness.",
+      "auditNote": "Audit 2026-09-06: legacy qrel put the answer at project-structure.md#8 (rel 3) which was the src/mcp/server.js section. The bench:custom50 -> run-v3.js mapping is in the Entry Points table."
+    },
+    {
+      "id": "c38",
+      "type": "exact-token",
+      "query": "SCHEMA_VERSION constant embeddings.js reindex discriminator",
+      "expectedFiles": [
+        "project-structure.md",
+        "providers.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "project-structure.md#3",
+          "relevance": 3,
+          "contentHash": "1d1de7a07979a52e9206665dc6aa6908b9d80e28be2306be74f6cb7412aeb771",
+          "evidence": "### src/core/embeddings.js … `SCHEMA_VERSION` is a constant incremented when the embedding schema changes; it is stored in Qdrant payloads as `embedding_schema_version` and used as a reindex discriminator."
+        },
+        {
+          "chunkId": "project-structure.md#1",
+          "relevance": 2,
+          "contentHash": "9a3dd6f00e2d3b941a2c7afcf2fdb0767ff2e8ad4caacd5f85be95b301422a3a",
+          "evidence": "Source Tree: `embeddings.js      # embedForIndex(), embedForSearch(), SCHEMA_VERSION`."
+        },
+        {
+          "chunkId": "providers.md#5",
+          "relevance": 1,
+          "contentHash": "d641ba7b1036a2fc4de141b7e0a9f74db6a71d3c8692718606c51acf6dd204b5",
+          "evidence": "The six reindex discriminators are: … embeddingSchemaVersion … (cross-file, concept not the constant)."
+        }
+      ],
+      "expectedTokens": [
+        "SCHEMA_VERSION"
+      ],
+      "reviewVerdict": "corrected",
+      "answer": "project-structure.md#3 is the \"src/core/embeddings.js\" section, which defines SCHEMA_VERSION and its role as a reindex discriminator stored as embedding_schema_version. The Source Tree #1 also names it. providers.md#5 lists embeddingSchemaVersion among discriminators (cross-file).",
+      "auditNote": "Audit 2026-09-06: legacy qrel put SCHEMA_VERSION at project-structure.md#4 (rel 3) which was the src/core/config.js section. Under the skeleton chunker the embeddings.js section is project-structure.md#3."
+    },
+    {
+      "id": "c39",
+      "type": "exact-token",
+      "query": "chunkRecall nDCG graded relevance benchmark v3 schema",
+      "expectedFiles": [
+        "benchmarking.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "benchmarking.md#8",
+          "relevance": 3,
+          "contentHash": "c61d894b917ef5bd33a2a1f9e1077b390ab58b3c9bdc474c812e70a470128b0a",
+          "evidence": "Grades are used for: nDCG@K with gain formula `2^relevance − 1`; chunkRecall@K: counts only `relevance >= 3`; supportRecall@K: counts `relevance >= 2`."
+        },
+        {
+          "chunkId": "benchmarking.md#9",
+          "relevance": 3,
+          "contentHash": "634f4663e465a30254cacb1e4b80535127e34344a1c35ece4739bd47bfb2fc9d",
+          "evidence": "Chunk-level (v3 only) table: `chunkRecall@3` … `chunkRecall@5` … `supportRecall@K` … `nDCG@K` … `MRR@10`."
+        },
+        {
+          "chunkId": "benchmarking.md#5",
+          "relevance": 2,
+          "contentHash": "de25de76fa76f8b11279fb52c827537cb6d3156715a8a6c41ed16050e4ebb060",
+          "evidence": "v3 (graded chunk-level) code block: schemaVersion 3, relevantChunks with relevance 3/2 …"
+        },
+        {
+          "chunkId": "benchmarking.md#7",
+          "relevance": 2,
+          "contentHash": "ca38c55fabd4406945d2272a290225e6471983baa2632a142214634a6e730c3f",
+          "evidence": "Relevance Scale table: 3 = Exact answer … 2 = Supporting context … 1 = Same-topic … 0 = Irrelevant."
+        }
+      ],
+      "expectedTokens": [
+        "chunkRecall"
+      ],
+      "reviewVerdict": "corrected",
+      "answer": "benchmarking.md#8 defines the gain formula 2^relevance-1, chunkRecall@K (rel>=3), supportRecall@K (rel>=2). benchmarking.md#9 is the Chunk-level metrics table. benchmarking.md#5 is the v3 schema code block.",
+      "auditNote": "Legacy qrel: benchmarking.md#7 (rel 3) + #6 (rel 2). Under the skeleton chunker #7 is the Relevance Scale table and #6 is the v3 chunkId-format prose. The chunkRecall/nDCG/graded-relevance definitions are in benchmarking.md#8 (Relevance Scale prose) and #9 (Chunk-level metrics table); the v3 schema example is #5."
+    },
+    {
+      "id": "c40",
+      "type": "exact-token",
+      "query": "relevantChunks chunkId format source_file#chunk_index",
+      "expectedFiles": [
+        "benchmarking.md",
+        "obsidian.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "benchmarking.md#6",
+          "relevance": 3,
+          "contentHash": "a2794f690d35a5252e877d56ba227480169a3c52ea5ad15b936106e05b439d4e",
+          "evidence": "`chunkId` format is `source_file#chunk_index` (zero-based). This matches the `source_file` and `chunk_index` fields in Qdrant payloads."
+        },
+        {
+          "chunkId": "benchmarking.md#5",
+          "relevance": 2,
+          "contentHash": "de25de76fa76f8b11279fb52c827537cb6d3156715a8a6c41ed16050e4ebb060",
+          "evidence": "v3 code block: `\"chunkId\": \"file.md#2\"` inside relevantChunks."
+        },
+        {
+          "chunkId": "obsidian.md#5",
+          "relevance": 1,
+          "contentHash": "72a180c541a566e18fe2d785b0278f40c7cac29e09ca9bf124e464484203b652",
+          "evidence": "Payload Fields table: `chunk_index` | integer | Zero-based position within the source file (cross-file)."
+        }
+      ],
+      "expectedTokens": [
+        "chunkId"
+      ],
+      "reviewVerdict": "corrected",
+      "answer": "benchmarking.md#6 states `chunkId` format is `source_file#chunk_index` (zero-based) and that it matches Qdrant payload fields. The v3 schema code block #5 shows a relevantChunks example with that chunkId form.",
+      "auditNote": "Legacy qrel: benchmarking.md#5 (rel 3) + #2 (rel 2). Under the skeleton chunker the chunkId-format sentence is benchmarking.md#6 (prose sibling of the v3 code block); the code block itself is #5."
+    },
+    {
+      "id": "c41",
+      "type": "conceptual",
+      "query": "яка різниця між 21-query regression і custom-50 quality benchmark",
+      "expectedFiles": [
+        "benchmarking.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "benchmarking.md#1",
+          "relevance": 3,
+          "contentHash": "db7951e0f7b7de410fe506c087b6365f55e7f7a2f613170b63331fa11b4544b7",
+          "evidence": "21-query regression benchmark … The stable regression smoke benchmark. It uses 4 fixture docs and 21 queries … run before merges to detect retrieval regressions."
+        },
+        {
+          "chunkId": "benchmarking.md#2",
+          "relevance": 3,
+          "contentHash": "d28fd2cd62c1df4d4913d6df733039f501f9921902b2ed9abcdd340d118dadbd",
+          "evidence": "50-query quality benchmark … A richer evaluation harness using 8-10 fixture docs and 50 queries in v3 schema with graded relevance …"
+        },
+        {
+          "chunkId": "benchmarking.md#0",
+          "relevance": 2,
+          "contentHash": "174af17fd52627009223c234e36bc6f6e1f45366d1bf788f8d14ba3a3fe2ee8e",
+          "evidence": "There are two benchmark tiers:"
+        }
+      ],
+      "requiredEvidence": [
+        [
+          "benchmarking.md#1",
+          "benchmarking.md#2"
+        ]
+      ],
+      "expectedTokens": [
+        "regression"
+      ],
+      "reviewVerdict": "valid",
+      "answer": "benchmarking.md#0 states there are two tiers; #1 and #2 describe the 21q regression and 50q quality benchmarks respectively."
+    },
+    {
+      "id": "c42",
+      "type": "exact-token",
+      "query": "BENCH_SKIP_INDEX validates stored provider matches current env",
+      "expectedFiles": [
+        "benchmarking.md",
+        "config-env.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "benchmarking.md#16",
+          "relevance": 3,
+          "contentHash": "4daabffafae1d795c108d57e46d70353bd0fd44197bff3ff7fa6302f8ea93f84",
+          "evidence": "When `BENCH_SKIP_INDEX=1` is set, the runner skips re-indexing and reuses the existing collection. The stored provider is validated against the current env provider — if they differ, the run fails with an explicit error."
+        },
+        {
+          "chunkId": "config-env.md#12",
+          "relevance": 2,
+          "contentHash": "d260fefe9df3c39b70ec23aad9ccb089b054f0c43e2e285016bf9f4988a5d780",
+          "evidence": "Benchmark Variables table: `BENCH_SKIP_INDEX` | unset | Reuse existing bench collection; skip reindexing."
+        },
+        {
+          "chunkId": "benchmarking.md#12",
+          "relevance": 1,
+          "contentHash": "73e2d4e129ddd9283d5566673c689058c44ea27b345b7e4535339b752d3c510c",
+          "evidence": "Running Benchmarks: `# Skip reindex (reuse existing collection)` / `BENCH_SKIP_INDEX=1 npm run bench:custom50`."
+        }
+      ],
+      "expectedTokens": [
+        "BENCH_SKIP_INDEX"
+      ],
+      "reviewVerdict": "valid",
+      "answer": "benchmarking.md#16 (\"BENCH_SKIP_INDEX\") states the stored provider is validated against the current env provider and the run fails if they differ."
+    },
+    {
+      "id": "c43",
+      "type": "config-env",
+      "query": "QDRANT_URL QDRANT_KEY required environment variables",
+      "expectedFiles": [
+        "config-env.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "config-env.md#1",
+          "relevance": 3,
+          "contentHash": "26ec52a63999c2c2437f71a291b3910cd575ff85f70f9a28c87c0c9c21032bfc",
+          "evidence": "Required table: `QDRANT_URL` | Qdrant instance URL …; `QDRANT_KEY` | Qdrant API key …"
+        },
+        {
+          "chunkId": "config-env.md#0",
+          "relevance": 2,
+          "contentHash": "3c43b2d8b175c9d26761fc219e544b3980c3537976c7abff632429c4ea282452",
+          "evidence": "Most variables have sensible defaults; only `QDRANT_URL` and `QDRANT_KEY` are required."
+        }
+      ],
+      "expectedTokens": [
+        "QDRANT_URL"
+      ],
+      "reviewVerdict": "valid",
+      "answer": "config-env.md#1 is the \"Required\" table (QDRANT_URL, QDRANT_KEY); config-env.md#0 states only these two are required."
+    },
+    {
+      "id": "c44",
+      "type": "config-env",
+      "query": "RERANK_PROTECT_TOP1_DELTA minimum advantage to displace rank-0",
+      "expectedFiles": [
+        "config-env.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "config-env.md#11",
+          "relevance": 3,
+          "contentHash": "9ba2507c76f090f1134ded914f4581050570dbcb0c67e32eede04143b510e7b7",
+          "evidence": "Reranking (experimental) table: `RERANK_PROTECT_TOP1_DELTA` | `0.05` | Minimum advantage required to displace RRF rank-0."
+        }
+      ],
+      "requiredEvidence": [
+        [
+          "config-env.md#11"
+        ]
+      ],
+      "expectedTokens": [
+        "RERANK_PROTECT_TOP1_DELTA"
+      ],
+      "reviewVerdict": "corrected",
+      "answer": "RERANK_PROTECT_TOP1_DELTA (default 0.05, \"Minimum advantage required to displace RRF rank-0\") is a row in the config-env.md#11 \"Reranking (experimental)\" table. No prose sibling elaborates it, so this is a single-chunk answer.",
+      "auditNote": "Audit 2026-09-06: legacy qrel put RERANK_PROTECT_TOP1_DELTA at config-env.md#9 (rel 3) which was the config.json section. Under the skeleton chunker the value is a row in the Reranking table config-env.md#11."
+    },
+    {
+      "id": "c45",
+      "type": "config-env",
+      "query": "config.json six reindex discriminators denseProvider denseModel sparseProvider",
+      "expectedFiles": [
+        "config-env.md",
+        "providers.md",
+        "qdrant.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "config-env.md#15",
+          "relevance": 3,
+          "contentHash": "4b748e69bbc04bd19e5f28402e147e8a77566c5ad9e492dd1a849483809f9c81",
+          "evidence": "The six reindex discriminators stored in `config.json` per collection are: `denseProvider`, `denseModel`, `sparseProvider`, `embeddingSchemaVersion`, `vectorSize`, and implicitly `file_hash` …"
+        },
+        {
+          "chunkId": "providers.md#5",
+          "relevance": 3,
+          "contentHash": "d641ba7b1036a2fc4de141b7e0a9f74db6a71d3c8692718606c51acf6dd204b5",
+          "evidence": "The six reindex discriminators are: file hash, denseProvider, denseModel, sparseProvider, embeddingSchemaVersion, vectorSize."
+        },
+        {
+          "chunkId": "config-env.md#14",
+          "relevance": 2,
+          "contentHash": "bd2bd3476741caf52736af049a36d7019fa62df78a353bfcf0bafa3aba2e879d",
+          "evidence": "config.json code block: denseProvider / denseModel / sparseProvider / embeddingSchemaVersion / vectorSize."
+        },
+        {
+          "chunkId": "qdrant.md#8",
+          "relevance": 1,
+          "contentHash": "e2167231fadd3bca9b5d3774db0e2c12bf946a40df09b41c32af238da73f517a",
+          "evidence": "getStoredMeta returns the six reindex discriminator fields (payload field names, cross-file)."
+        }
+      ],
+      "expectedTokens": [
+        "discriminator"
+      ],
+      "reviewVerdict": "valid",
+      "answer": "config-env.md#15 (\"config.json\" prose, 2nd chunk) lists the six reindex discriminators; the code block #14 is the example structure; providers.md#5 also lists them (cross-file)."
+    },
+    {
+      "id": "c46",
+      "type": "config-env",
+      "query": "що таке SOURCE_ROOT і навіщо він потрібен при індексації",
+      "expectedFiles": [
+        "config-env.md",
+        "obsidian.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "config-env.md#6",
+          "relevance": 3,
+          "contentHash": "168a344f131bc435c58a21c36f4fc0322e4adece5bee9f6fcc461982d43aecf6",
+          "evidence": "`SOURCE_ROOT` should be set to the root of the documents directory so that `source_file` values are stable across machines and across runs from different working directories."
+        },
+        {
+          "chunkId": "config-env.md#5",
+          "relevance": 2,
+          "contentHash": "4fd7b42eeff2029ee8764e4599258de75ca01bd74dbe1fc0f1aee6c0627f6bbe",
+          "evidence": "Indexing table: `SOURCE_ROOT` | Root path used to compute stable `source_file` IDs."
+        },
+        {
+          "chunkId": "obsidian.md#5",
+          "relevance": 1,
+          "contentHash": "72a180c541a566e18fe2d785b0278f40c7cac29e09ca9bf124e464484203b652",
+          "evidence": "Payload Fields table: `source_file` | string | Stable file identifier relative to `SOURCE_ROOT` (cross-file)."
+        }
+      ],
+      "expectedTokens": [
+        "SOURCE_ROOT"
+      ],
+      "reviewVerdict": "valid",
+      "answer": "config-env.md#6 (\"Indexing\" prose sibling) explains SOURCE_ROOT is for stable source_file IDs across machines/runs; the #5 table row defines it."
+    },
+    {
+      "id": "c47",
+      "type": "exact-token",
+      "query": "bge-m3-onnx neural sparse weights for rare Ukrainian terms",
+      "expectedFiles": [
+        "multilingual.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "multilingual.md#2",
+          "relevance": 3,
+          "contentHash": "5687f8114d6d62376bb5541356141256c2f1f42119089ce662cfab9ae0460cb7",
+          "evidence": "The sparse embeddings are neural sparse — the model learns token importance, not just frequency. For Ukrainian and mixed-language content, this produces better sparse weights for technical terms and rare vocabulary."
+        },
+        {
+          "chunkId": "multilingual.md#1",
+          "relevance": 2,
+          "contentHash": "b490a47cf9a8164a8821dcfafc706e5d7a824563c8a857ae539987f2bdc7c81a",
+          "evidence": "For Ukrainian content, `hashed-tf` assigns uniform weight … a rare Ukrainian technical term … gets the same sparse weight as a common word, which can reduce retrieval precision."
+        },
+        {
+          "chunkId": "multilingual.md#8",
+          "relevance": 2,
+          "contentHash": "7ce6f148226855ffd09d1afa5cd62488d80f661af62358008aee8eeb1debd85b",
+          "evidence": "The neural sparse encoder consistently outperforms `hashed-tf` on rare and technical Ukrainian terms, especially for exact-token queries."
+        }
+      ],
+      "expectedTokens": [
+        "neural"
+      ],
+      "reviewVerdict": "valid",
+      "answer": "multilingual.md#2 (\"bge-m3-onnx + bge-m3-onnx\") states the ONNX sparse embeddings are neural (learned token importance) and better for Ukrainian/rare vocabulary; #1 gives the hashed-tf contrast."
+    },
+    {
+      "id": "c48",
+      "type": "cross-lingual-ua-en",
+      "query": "cross-lingual retrieval Ukrainian query English document BGE-M3",
+      "expectedFiles": [
+        "multilingual.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "multilingual.md#3",
+          "relevance": 3,
+          "contentHash": "4d128501acd3b70e29cc2bf7a89b896261060355100740f63b48cbb9f47f1083",
+          "evidence": "semidex supports cross-lingual retrieval: a Ukrainian query can match an English document and vice versa. BGE-M3 maps both to the same semantic space, so language mismatch does not require separate indexes or translation."
+        },
+        {
+          "chunkId": "multilingual.md#0",
+          "relevance": 2,
+          "contentHash": "7b490627492b043a5b4a5181e16bdbd56316ec3f986cdab6dc66e88d040fec0a",
+          "evidence": "The BGE-M3 model … supports over 100 languages and produces high-quality embeddings for cross-lingual retrieval."
+        },
+        {
+          "chunkId": "multilingual.md#5",
+          "relevance": 1,
+          "contentHash": "797f21c3ac37c488c99a629357da6085b9c42ba92ce4e419a4a522578541279d",
+          "evidence": "Mixed-Language Documents — adjacent topic."
+        }
+      ],
+      "expectedTokens": [
+        "cross"
+      ],
+      "reviewVerdict": "valid",
+      "answer": "multilingual.md#3 (\"Query Language vs Document Language\") is the direct answer for cross-lingual UA-query/EN-document retrieval with BGE-M3."
+    },
+    {
+      "id": "c49",
+      "type": "config-env",
+      "query": "ONNX_EMBED=1 recommended provider for multilingual Ukrainian content",
+      "expectedFiles": [
+        "multilingual.md",
+        "providers.md"
+      ],
+      "relevantChunks": [
+        {
+          "chunkId": "multilingual.md#8",
+          "relevance": 3,
+          "contentHash": "7ce6f148226855ffd09d1afa5cd62488d80f661af62358008aee8eeb1debd85b",
+          "evidence": "For best results with Ukrainian or mixed-language content, use `bge-m3-onnx`: `ONNX_EMBED=1 COLLECTION=my-notes SOURCE_ROOT=./notes npm run index`."
+        },
+        {
+          "chunkId": "multilingual.md#2",
+          "relevance": 2,
+          "contentHash": "5687f8114d6d62376bb5541356141256c2f1f42119089ce662cfab9ae0460cb7",
+          "evidence": "bge-m3-onnx … Enable with `ONNX_EMBED=1` … better sparse weights for technical terms and rare vocabulary."
+        },
+        {
+          "chunkId": "providers.md#2",
+          "relevance": 1,
+          "contentHash": "748d65842ad16faf3cabc986e8609d34be9446b65e8448212aab257d6ffba2bf",
+          "evidence": "Enable with `ONNX_EMBED=1` (shorthand) (cross-file, not multilingual-specific)."
+        }
+      ],
+      "expectedTokens": [
+        "ONNX_EMBED"
+      ],
+      "reviewVerdict": "valid",
+      "answer": "multilingual.md#8 (\"Recommended Provider for Multilingual Use\") recommends bge-m3-onnx (ONNX_EMBED=1) for Ukrainian/mixed content."
+    },
+    {
+      "id": "c50",
+      "type": "negative",
+      "query": "semidex підключення до PostgreSQL бази даних connection pool",
+      "expectedFiles": [],
+      "relevantChunks": [],
+      "expectedTokens": [
+        "postgres"
+      ],
+      "shouldHaveNoStrongHit": true,
+      "negativeKind": "unknown-fact",
+      "reviewVerdict": "valid-negative",
+      "answer": "No chunk in the frozen corpus mentions PostgreSQL, connection pooling, or any relational database. semidex uses only Qdrant. Correct behaviour: no strong hit / abstain.",
+      "negativeNote": "semidex has no PostgreSQL support anywhere in the corpus. A retriever will still return its nearest neighbours (likely qdrant.md / config-env.md); the test is that no returned top-1 chunk contains the expected token \"postgres\" and that Ask would abstain. This is a token-absence diagnostic, NOT proof of abstention quality — see negative-fixtures.json for the typed negative set."
+    }
+  ]
+}
