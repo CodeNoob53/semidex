@@ -26,6 +26,7 @@ import {
 import { redact } from './redact.mjs';
 import { RUNS_DIR_PATH } from './run-paths.mjs';
 import { probeOnnxProvider } from '../../../../src/local/core/onnx-provider-probe.js';
+import { createBenchmarkQueryEmbedder } from '../../../lib/embedding-capabilities.mjs';
 
 function deterministicEnvHash() {
   return JSON.stringify(DETERMINISTIC_INDEXING_ENV_BASE);
@@ -56,14 +57,24 @@ function serializeError(err) {
  *   adapter: Object,
  *   runIndexer: Function,
  *   queryOne: Function,
+ *   queryEmbedderFactory?: () => { embedQuery: Function, cloudEmbed: Object, shutdown: () => Promise<void> },
  *   log?: Function,
  * }} params
+ *   `queryEmbedderFactory` builds the run's real query-embedding
+ *   capabilities (BGE-M3 ONNX for local, Qdrant Cloud Inference for cloud)
+ *   ONCE for the whole suite; its `embedQuery`/`cloudEmbed` are threaded to
+ *   every queryOne() call and its `shutdown()` runs in this function's own
+ *   finally. Defaults to the benchmark-owned createBenchmarkQueryEmbedder().
+ *   Offline tests inject their own queryOne (which ignores these), so the
+ *   default factory's constructed capabilities are never actually
+ *   exercised there — it stays cheap (the ONNX session is lazy, built only
+ *   on a real bge-m3-onnx query).
  * @returns {Promise<Object>} the final checkpoint state
  */
 export async function runSuiteAcrossProfiles({
   suiteId, datasetFingerprint, corpus, queries, qrels, toMarkdown,
   smoke = false, resume = false, restart = false, cudaRequested = false,
-  adapter, runIndexer, queryOne, log = () => {},
+  adapter, runIndexer, queryOne, queryEmbedderFactory = createBenchmarkQueryEmbedder, log = () => {},
   probeOnnxProviderFn = probeOnnxProvider,
 }) {
   if (!adapter || !runIndexer || !queryOne) {
@@ -93,7 +104,7 @@ export async function runSuiteAcrossProfiles({
   const previous = loadCheckpointIfExists(checkpointPath);
   if (resume) {
     if (!previous) throw new Error(`No checkpoint exists at ${checkpointPath}. Start without resume.`);
-    validateResumeCheckpoint(previous, contract);
+    validateResumeCheckpoint(previous, contract, { queryCount: queries.size });
     state = { ...previous, benchmarkContract: contract, resumeEvents: [...(previous.resumeEvents ?? []), { resumedAt: new Date().toISOString() }], verdict: null };
   } else {
     if (previous && !restart) {
@@ -105,28 +116,41 @@ export async function runSuiteAcrossProfiles({
   const runSuffixBase = randomBytes(4).toString('hex');
   const rankedRunsByProfile = {}; // profileId -> Map<queryId, string[]> — NOT JSON-serialized into the checkpoint; returned separately for bootstrap CI
 
-  for (const profile of [LOCAL_PROFILE, CLOUD_PROFILE]) {
-    if (resume && isCompletedProfileRun(state.profiles[profile.id], { queryCount: queries.size })) {
-      log(`[${suiteId}] --- profile: ${profile.id} (checkpoint complete, skipping) ---`);
-      continue;
+  // The run's real query-embedding capabilities — built once, shut down in
+  // the finally below no matter how the loop exits.
+  const queryEmbedder = queryEmbedderFactory();
+
+  try {
+    for (const profile of [LOCAL_PROFILE, CLOUD_PROFILE]) {
+      if (resume && isCompletedProfileRun(state.profiles[profile.id], { queryCount: queries.size })) {
+        log(`[${suiteId}] --- profile: ${profile.id} (checkpoint complete, skipping) ---`);
+        continue;
+      }
+      // An invalid/incomplete profile run is ALWAYS retried as a full rerun
+      // (never a partial "retry only the errored query IDs" resume) —
+      // cleanup already deleted the collection unconditionally on the prior
+      // attempt, so there is no partial indexed state to resume against.
+      log(`[${suiteId}] --- profile: ${profile.id} ---`);
+      const { profileReport, rankedRun } = await runOneProfile({
+        suiteId, profileId: profile.id, profile, runSuffix: `${runSuffixBase}-${profile.id}`,
+        corpus, queries, qrels, toMarkdown, cudaRequested,
+        adapter, runIndexer, queryOne, queryEmbedder, log, probeOnnxProviderFn,
+      });
+      state.profiles[profile.id] = profileReport;
+      if (rankedRun) rankedRunsByProfile[profile.id] = rankedRun;
+      writeCheckpointAtomic(checkpointPath, state);
     }
-    // An invalid/incomplete profile run is ALWAYS retried as a full rerun
-    // (never a partial "retry only the errored query IDs" resume) —
-    // cleanup already deleted the collection unconditionally on the prior
-    // attempt, so there is no partial indexed state to resume against.
-    log(`[${suiteId}] --- profile: ${profile.id} ---`);
-    const { profileReport, rankedRun } = await runOneProfile({
-      suiteId, profileId: profile.id, profile, runSuffix: `${runSuffixBase}-${profile.id}`,
-      corpus, queries, qrels, toMarkdown, cudaRequested,
-      adapter, runIndexer, queryOne, log, probeOnnxProviderFn,
-    });
-    state.profiles[profile.id] = profileReport;
-    if (rankedRun) rankedRunsByProfile[profile.id] = rankedRun;
-    writeCheckpointAtomic(checkpointPath, state);
+  } finally {
+    await queryEmbedder.shutdown();
   }
 
   state.finishedAt = new Date().toISOString();
-  const allComplete = Object.values(state.profiles).every((p) => isCompletedProfileRun(p, {}));
+  // COMPLETE requires BOTH profiles present AND each one passing every gate
+  // in isCompletedProfileRun — including an exact queryCount match, so a
+  // run that silently skipped or lost a query can never read as COMPLETE.
+  const bothProfilesPresent = ['local', 'cloud'].every((id) => state.profiles[id]);
+  const allComplete = bothProfilesPresent
+    && Object.values(state.profiles).every((p) => isCompletedProfileRun(p, { queryCount: queries.size }));
   state.verdict = allComplete ? 'COMPLETE' : 'INCOMPLETE';
   writeCheckpointAtomic(checkpointPath, state);
   return { state, rankedRunsByProfile };
@@ -134,7 +158,7 @@ export async function runSuiteAcrossProfiles({
 
 async function runOneProfile({
   suiteId, profileId, profile, runSuffix, corpus, queries, qrels, toMarkdown, cudaRequested,
-  adapter, runIndexer, queryOne, log, probeOnnxProviderFn,
+  adapter, runIndexer, queryOne, queryEmbedder, log, probeOnnxProviderFn,
 }) {
   const collection = collectionName(suiteId, profileId, runSuffix);
   const profileReport = {
@@ -201,7 +225,13 @@ async function runOneProfile({
     let queriesWithInsufficientDepth = 0;
 
     for (const [qid, queryText] of queries.entries()) {
-      const result = await queryOne({ adapter, collection, query: queryText });
+      const result = await queryOne({
+        adapter, collection, query: queryText,
+        ...(queryEmbedder && {
+          embedQuery: queryEmbedder.embedQuery,
+          cloudEmbed: queryEmbedder.cloudEmbed,
+        }),
+      });
       latenciesMs.push(result.ms);
       if (!result.ok) {
         queryErrorCount += 1;

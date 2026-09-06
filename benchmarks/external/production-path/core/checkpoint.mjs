@@ -22,13 +22,25 @@ export function checkpointPathFor(suiteId, { smoke = false } = {}) {
 }
 
 /**
- * A profile run only counts as "complete" (resumable-skip-eligible) when
- * it has zero errors, zero unmapped hits, zero query errors, confirmed
- * cleanup, and full metric coverage — matching the strict discipline
- * beir/run-scifact.mjs's own isCompletedProfileRun-equivalent already
- * established, extended here with the two production-path-specific gates
- * (unmappedHitCount, queryErrorCount) that don't exist in the raw-client
- * suites at all.
+ * A profile run only counts as "complete" (resumable-skip-eligible, and
+ * COMPLETE-verdict-eligible) when EVERY gate below passes:
+ *  - zero errors, zero unmapped hits, zero query errors, zero indexing errors;
+ *  - confirmed cleanup;
+ *  - a finite ndcgAt10 AND a finite mapAt100 (both claimed metrics must be
+ *    real numbers, not null from an all-errored run);
+ *  - zero queriesWithInsufficientDepth — a run that could not reach
+ *    DOCUMENT_METRIC_DEPTH for some query has NOT actually measured
+ *    Recall@100/MAP@100 for that query, so it must not silently pass as
+ *    COMPLETE (audit 2026-09-06, P1 — the previous version omitted this
+ *    field entirely, so a block with queriesWithInsufficientDepth: 3 still
+ *    returned true);
+ *  - when `expected.queryCount` is supplied, metrics.queryCount must match
+ *    it exactly (every query in the dataset actually ran).
+ *
+ * `expected.queryCount` is REQUIRED for the final COMPLETE verdict (the
+ * suite runner passes it) and for a resume-skip decision — passing `{}`
+ * only checks the intrinsic gates and is reserved for a read-only
+ * "describe this checkpoint" inspection.
  */
 export function isCompletedProfileRun(profileBlock, expected) {
   if (!profileBlock) return false;
@@ -36,9 +48,11 @@ export function isCompletedProfileRun(profileBlock, expected) {
   if (profileBlock.cleanup?.deleted !== true) return false;
   if ((profileBlock.unmappedHitCount ?? -1) !== 0) return false;
   if ((profileBlock.queryErrorCount ?? -1) !== 0) return false;
+  if ((profileBlock.queriesWithInsufficientDepth ?? -1) !== 0) return false;
   if (profileBlock.indexing?.errors && profileBlock.indexing.errors !== 0) return false;
   const metrics = profileBlock.metrics;
   if (!metrics || typeof metrics.ndcgAt10 !== 'number' || !Number.isFinite(metrics.ndcgAt10)) return false;
+  if (typeof metrics.mapAt100 !== 'number' || !Number.isFinite(metrics.mapAt100)) return false;
   if (expected?.queryCount !== undefined && metrics.queryCount !== expected.queryCount) return false;
   return true;
 }
@@ -83,7 +97,7 @@ function sha256Hex(text) {
  * core/run-suite.mjs's own step-0 orphan sweep, the real safety net for
  * a hard-killed process that never wrote a checkpoint update at all).
  */
-export function validateResumeCheckpoint(previous, contract) {
+export function validateResumeCheckpoint(previous, contract, { queryCount } = {}) {
   if (!previous || typeof previous !== 'object') {
     throw new Error('Resume checkpoint is not a JSON object.');
   }
@@ -91,7 +105,15 @@ export function validateResumeCheckpoint(previous, contract) {
     throw new Error('Resume checkpoint contract does not match the current dataset/profile/env configuration.');
   }
   for (const [profileId, block] of Object.entries(previous.profiles ?? {})) {
-    const completed = isCompletedProfileRun(block, { queryCount: block?.metrics?.queryCount });
+    // A profile block that CLAIMS completion is re-validated against the
+    // CURRENT expected query count — a checkpoint written for a different
+    // dataset size (queries added/removed) must not let a
+    // resume skip that profile as "already done" (audit 2026-09-06, P1:
+    // a stored completed result must not pass after the evaluation set
+    // changed). The self-referential `block.metrics.queryCount` check the
+    // previous version used could never catch this.
+    const expected = queryCount !== undefined ? { queryCount } : { queryCount: block?.metrics?.queryCount };
+    const completed = isCompletedProfileRun(block, expected);
     if (!completed && block?.cleanup?.deleted !== true) {
       throw new Error(`Incomplete profile run "${profileId}" does not have confirmed cleanup; refusing to resume.`);
     }

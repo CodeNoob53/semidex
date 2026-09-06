@@ -16,6 +16,7 @@ import { runStructuralSuite } from './run-structural-prodpath.mjs';
 import { runScifactSuite } from './run-scifact-prodpath.mjs';
 import { runMiraclRuSuite } from './run-miracl-ru-prodpath.mjs';
 import { runSlavicSuite, SLAVIC_CAVEAT } from './run-slavic-prodpath.mjs';
+import { exitCodeForManySuiteStates } from './core/cli-exit.mjs';
 
 async function main() {
   const smoke = process.argv.includes('--smoke');
@@ -46,12 +47,18 @@ async function main() {
 
   console.log(`\n${SLAVIC_CAVEAT}`);
   console.log('\n=== summary ===');
-  console.log(`structural: ${results.structural?.verdict}`);
-  console.log(`scifact: ${results.scifact?.verdict}`);
-  console.log(`miracl-ru: ${results['miracl-ru']?.verdict}`);
-  for (const [lang, state] of Object.entries(results.slavic ?? {})) {
-    console.log(`slavic/${lang}: ${state?.verdict}`);
-  }
+  const verdicts = [
+    ['structural', results.structural?.verdict],
+    ['scifact', results.scifact?.verdict],
+    ['miracl-ru', results['miracl-ru']?.verdict],
+    ...Object.entries(results.slavic ?? {}).map(([lang, state]) => [`slavic/${lang}`, state?.verdict]),
+  ];
+  for (const [name, verdict] of verdicts) console.log(`${name}: ${verdict}`);
+  // Any non-COMPLETE suite fails the whole run with a nonzero exit.
+  process.exitCode = exitCodeForManySuiteStates([
+    results.structural, results.scifact, results['miracl-ru'],
+    ...Object.values(results.slavic ?? {}),
+  ]);
 }
 
 const isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);

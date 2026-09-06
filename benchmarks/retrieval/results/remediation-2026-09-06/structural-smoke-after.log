@@ -1,0 +1,41 @@
+[structural] --- profile: local ---
+[structural/local] indexing 4 documents...
+[structural/local] querying 3 queries...
+[onnx] loading tokenizer...
+[onnx] cached: tokenizer.json (17 MB)
+[onnx] cached: tokenizer_config.json (0 MB)
+[onnx] cached: model.onnx (0 MB)
+[onnx] cached: model.onnx.data (2271 MB)
+[onnx] creating inference session (providers: cpu)...
+[onnx] ready. outputs: dense_vecs,sparse_vecs,colbert_vecs
+[structural] --- profile: cloud ---
+[structural/cloud] indexing 4 documents...
+[structural/cloud] querying 3 queries...
+✓ structural suite --smoke ran for both profiles — COMPLETE
+✓ local profile: zero errors
+✓ local profile: cleanup confirmed deleted
+✓ local profile: zero unmapped hits
+✓ local profile: zero query errors
+✓ cloud profile: zero errors
+✓ cloud profile: cleanup confirmed deleted
+✓ cloud profile: zero unmapped hits
+✓ cloud profile: zero query errors
+✓ cloud profile: telemetry captured indexing-phase dense inference events — 35
+✓ cloud profile: telemetry captured query-phase dense inference events — 3
+✓ cloud profile: telemetry captured real qdrant_sdk_op events — 49
+
+Running a dedicated live entity_raw / retrievability probe (fresh collection)...
+✓ probe: indexed the structural fixture into a fresh cloud-profile collection
+✓ probe: at least one entity_raw canonical point exists server-side — found 3
+✓ probe: query "q-table" — the fixture doc is retrievable in top-20
+✓ probe: query "q-code" — the fixture doc is retrievable in top-20
+✓ probe: query "q-checklist" — the fixture doc is retrievable in top-20
+✓ probe: exact identifier "ORDER-88213-XR" (table) found verbatim in a returned chunk
+✓ probe: exact identifier "sku_final_v9_do_not_delete" (codeBlock) found verbatim in a returned chunk
+✓ probe: exact identifier "RELEASE-CHECKLIST-Q3-REV2" (checklist) found verbatim in a returned chunk
+✓ probe: collection cleaned up
+
+Running the cleanup-verification sweep...
+✓ cleanup sweep found zero orphaned collections after this smoke run — scanned 22, owned 0
+
+verdict: ACCEPT

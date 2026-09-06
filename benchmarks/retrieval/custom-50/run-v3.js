@@ -67,12 +67,19 @@ import {
   deleteBySourceFile,
   upsertPoints, hybridSearch, mmrSearch, scroll,
 } from '../../../src/shared/core/qdrant.js';
-import { embedForIndex, embedForSearch } from '../../../src/shared/core/embeddings.js';
+import { embedForIndex } from '../../../src/shared/core/embeddings.js';
 import { rerankResults } from '../../../src/core/rerank.js';
 import { createStorageAdapter } from '../../../src/core/storage/factory.js';
 import { resolveBenchProfile } from '../../lib/resolve-profile.js';
+import { createBenchmarkQueryEmbedder } from '../../lib/embedding-capabilities.mjs';
 
 const storageAdapter = createStorageAdapter();
+// The run's real query-embedding capabilities — built once in main(),
+// shut down in main()'s finally. Before this, run-v3 called
+// embedForSearch(PROFILE, queryText) with NO capabilities, so a BENCH_SKIP_INDEX
+// run (which never constructs an indexer composition root) died on the
+// first query with "no onnxEmbed capability available" (audit 2026-09-06, P1).
+let QUERY_EMBEDDER = null;
 // Resolved once in main() before indexing/search — embedForIndex/embedForSearch
 // require a resolved profile object, not a bare collection name (see
 // benchmarks/lib/resolve-profile.js's header comment).
@@ -214,7 +221,9 @@ async function indexFixtures() {
       const cid = `${sourceFile}#${chunk.chunkIndex}`;
       indexedIds.add(cid);
       if (isEmptyChunkText(chunk.text)) emptyChunkIds.add(cid);
-      const { dense, sparse, meta } = await embedForIndex(PROFILE, chunk.text);
+      const { dense, sparse, meta } = await embedForIndex(PROFILE, chunk.text, {
+        capabilities: QUERY_EMBEDDER.getClientCapabilities(PROFILE),
+      });
       points.push({
         id: randomUUID(),
         vector: { dense, sparse },
@@ -256,7 +265,9 @@ async function fetchIndexedChunkIds() {
 }
 
 // Fail-fast validation: check every chunkId in relevantChunks exists in the index.
-// Prints all bad IDs grouped by query before exiting.
+// Throws (rather than process.exit) so main()'s finally still runs the
+// QUERY_EMBEDDER.shutdown() — an ONNX session may already be open by this
+// point on the non-skip-index path.
 function validateQrels(queries, indexedIds) {
   const errors = [];
   for (const q of queries) {
@@ -268,13 +279,12 @@ function validateQrels(queries, indexedIds) {
     }
   }
   if (errors.length) {
-    process.stderr.write(
-      `\nError: ${errors.length} qrel chunkId(s) not found in index "${COLLECTION}":\n` +
+    throw new Error(
+      `${errors.length} qrel chunkId(s) not found in index "${COLLECTION}":\n` +
       errors.join('\n') + '\n' +
-      `\nFix the chunkIds in queries.json or re-run without BENCH_SKIP_INDEX=1.\n` +
-      `Valid chunkIds: ${[...indexedIds].sort().slice(0, 10).join(', ')}${indexedIds.size > 10 ? ` ... (+${indexedIds.size - 10} more)` : ''}\n`
+      `Fix the chunkIds in queries.json or re-run without BENCH_SKIP_INDEX=1.\n` +
+      `Valid chunkIds: ${[...indexedIds].sort().slice(0, 10).join(', ')}${indexedIds.size > 10 ? ` ... (+${indexedIds.size - 10} more)` : ''}`
     );
-    process.exit(1);
   }
 }
 
@@ -282,7 +292,7 @@ function validateQrels(queries, indexedIds) {
 
 async function runQuery(queryText) {
   const t0 = Date.now();
-  const { dense, sparse } = await embedForSearch(PROFILE, queryText);
+  const { dense, sparse } = await QUERY_EMBEDDER.embedQuery(PROFILE, queryText);
 
   let results;
   if (SEARCH_MODE === 'dense-mmr') {
@@ -667,6 +677,8 @@ async function main() {
     for (const w of typeWarnings) process.stderr.write(`[bench-v3] type warning: ${w}\n`);
   }
 
+  QUERY_EMBEDDER = createBenchmarkQueryEmbedder();
+
   log('\n[1/2] Setup collection...');
   // Resolves PROFILE from the collection's own native metadata if it already
   // exists, or from current env (BENCH_PROVIDER's override) if creating it
@@ -768,4 +780,6 @@ async function main() {
   }
 }
 
-main().catch(err => { console.error(err); process.exit(1); });
+main()
+  .catch(err => { console.error(err); process.exitCode = 1; })
+  .finally(async () => { if (QUERY_EMBEDDER) await QUERY_EMBEDDER.shutdown(); });

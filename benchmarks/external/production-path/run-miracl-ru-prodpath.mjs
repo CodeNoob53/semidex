@@ -18,6 +18,7 @@ import { runSuiteAcrossProfiles } from './core/run-suite.mjs';
 import { runIndexer } from './core/index-via-cli.mjs';
 import { queryOne } from './core/query-via-search.mjs';
 import { checkpointPathFor, loadCheckpointIfExists, isCompletedProfileRun } from './core/checkpoint.mjs';
+import { exitCodeForSuiteState } from './core/cli-exit.mjs';
 import { redact } from './core/redact.mjs';
 
 export const SUITE_ID = 'miracl-ru';
@@ -101,6 +102,7 @@ async function main() {
     console.log(`\nverdict: ${state.verdict}`);
     if (state.bootstrapComparison) console.log('bootstrap comparison:', JSON.stringify(state.bootstrapComparison, null, 2));
   }
+  process.exitCode = exitCodeForSuiteState(state, { resumeCheck });
 }
 
 const isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);

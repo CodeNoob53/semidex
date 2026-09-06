@@ -42,12 +42,26 @@ describe('isCompletedProfileRun()', () => {
     cleanup: { deleted: true },
     unmappedHitCount: 0,
     queryErrorCount: 0,
+    queriesWithInsufficientDepth: 0,
     indexing: { errors: 0 },
-    metrics: { ndcgAt10: 0.42, queryCount: 10 },
+    metrics: { ndcgAt10: 0.42, mapAt100: 0.4, queryCount: 10 },
   };
 
   it('true for a fully clean, fully-scored profile run', () => {
     assert.equal(isCompletedProfileRun(goodBlock, { queryCount: 10 }), true);
+  });
+
+  it('false when queriesWithInsufficientDepth is nonzero — a query that never reached DOCUMENT_METRIC_DEPTH has not actually measured Recall@100/MAP@100 (audit 2026-09-06, P1)', () => {
+    assert.equal(isCompletedProfileRun({ ...goodBlock, queriesWithInsufficientDepth: 3 }, { queryCount: 10 }), false);
+  });
+
+  it('false when queriesWithInsufficientDepth is entirely absent — a checkpoint predating this gate must not pass vacuously', () => {
+    const { queriesWithInsufficientDepth, ...withoutField } = goodBlock;
+    assert.equal(isCompletedProfileRun(withoutField, { queryCount: 10 }), false);
+  });
+
+  it('false when mapAt100 is not a finite number — both claimed metrics must be real', () => {
+    assert.equal(isCompletedProfileRun({ ...goodBlock, metrics: { ndcgAt10: 0.42, mapAt100: null, queryCount: 10 } }, { queryCount: 10 }), false);
   });
 
   it('false when errors is non-empty', () => {
@@ -99,10 +113,10 @@ describe('buildBenchmarkContract() / validateResumeCheckpoint()', () => {
     const previous = {
       benchmarkContract: contract,
       profiles: {
-        local: { errors: [], cleanup: { deleted: true }, unmappedHitCount: 0, queryErrorCount: 0, metrics: { ndcgAt10: 0.5, queryCount: 5 } },
+        local: { errors: [], cleanup: { deleted: true }, unmappedHitCount: 0, queryErrorCount: 0, queriesWithInsufficientDepth: 0, indexing: { errors: 0 }, metrics: { ndcgAt10: 0.5, mapAt100: 0.5, queryCount: 5 } },
       },
     };
-    assert.equal(validateResumeCheckpoint(previous, contract), true);
+    assert.equal(validateResumeCheckpoint(previous, contract, { queryCount: 5 }), true);
   });
 
   it('rejects a resume whose contract differs (e.g. a changed dataset fingerprint)', () => {
@@ -140,6 +154,21 @@ describe('buildBenchmarkContract() / validateResumeCheckpoint()', () => {
   it('rejects a checkpoint that is not an object', () => {
     assert.throws(() => validateResumeCheckpoint(null, {}), /not a JSON object/);
     assert.throws(() => validateResumeCheckpoint('a string', {}), /not a JSON object/);
+  });
+
+  it('a stored "complete" profile whose queryCount no longer matches the current dataset is NOT rejected outright, but is no longer treated as complete — the suite runner reruns it rather than skipping (audit 2026-09-06, P1)', () => {
+    const contract = buildBenchmarkContract(baseArgs);
+    const previous = {
+      benchmarkContract: contract,
+      profiles: {
+        // Was "complete" for a 5-query dataset; the current dataset now has 8.
+        local: { errors: [], cleanup: { deleted: true }, unmappedHitCount: 0, queryErrorCount: 0, queriesWithInsufficientDepth: 0, indexing: { errors: 0 }, metrics: { ndcgAt10: 0.5, mapAt100: 0.5, queryCount: 5 } },
+      },
+    };
+    // Does not throw (cleanup was confirmed), but isCompletedProfileRun
+    // against the new count is false, so the runner will rerun this profile.
+    assert.equal(validateResumeCheckpoint(previous, contract, { queryCount: 8 }), true);
+    assert.equal(isCompletedProfileRun(previous.profiles.local, { queryCount: 8 }), false);
   });
 });
 

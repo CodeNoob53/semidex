@@ -88,12 +88,19 @@ async function runEntityRawAndRetrievabilityProbe() {
   const { buildIndexEnv, CLOUD_PROFILE, collectionName } = await import('./core/profiles.mjs');
   const { cleanupCollection } = await import('./core/cleanup.mjs');
   const { buildStructuralFixtureCorpus } = await import('./fixtures/structural-fixture.mjs');
+  const { createBenchmarkQueryEmbedder } = await import('../../lib/embedding-capabilities.mjs');
   const { randomBytes } = await import('node:crypto');
 
   const adapter = createStorageAdapter();
   const runSuffix = `probe-${randomBytes(4).toString('hex')}`;
   const collection = collectionName('structural', 'cloud', runSuffix);
   const corpus = buildStructuralFixtureCorpus();
+
+  // This probe indexes into a CLOUD-profile collection, so runHybridSearch()
+  // takes its QDRANT_CLOUD branch and needs a real cloudEmbed capability —
+  // without it every query here returns embedding_failed / empty hits and
+  // every assertion below fails vacuously (audit 2026-09-06, P1).
+  const queryEmbedder = createBenchmarkQueryEmbedder();
 
   try {
     const { dir: materializedDirPath } = materializeDataset({
@@ -126,19 +133,22 @@ async function runEntityRawAndRetrievabilityProbe() {
     // also null (the canonical entity_raw shape) rather than a
     // point_kind check that wouldn't exist on this shape anyway.
     for (const q of STRUCTURAL_FIXTURE_QUERIES) {
-      const result = await runHybridSearch({ adapter, collection, query: q.text, top: 20 });
+      const result = await runHybridSearch({ adapter, collection, query: q.text, top: 20, embedQuery: queryEmbedder.embedQuery, cloudEmbed: queryEmbedder.cloudEmbed });
+      if (result?.error) throw new Error(`probe query "${q.id}" failed: ${result.error} — ${result.message}`);
       const hits = result?.hits ?? [];
       const sourceFileHit = hits.some((h) => h.sourceFile === 'doc-structural-fixture-001.md');
       steps.push(step(`probe: query "${q.id}" — the fixture doc is retrievable in top-20`, sourceFileHit));
     }
 
     for (const [key, identifier] of Object.entries(STRUCTURAL_FIXTURE_EXACT_IDENTIFIERS)) {
-      const result = await runHybridSearch({ adapter, collection, query: identifier, top: 20 });
+      const result = await runHybridSearch({ adapter, collection, query: identifier, top: 20, embedQuery: queryEmbedder.embedQuery, cloudEmbed: queryEmbedder.cloudEmbed });
+      if (result?.error) throw new Error(`probe identifier "${identifier}" query failed: ${result.error} — ${result.message}`);
       const hits = result?.hits ?? [];
       const found = hits.some((h) => (h.text ?? '').includes(identifier) || (h.rawContent ?? '').includes(identifier));
       steps.push(step(`probe: exact identifier "${identifier}" (${key}) found verbatim in a returned chunk`, found));
     }
   } finally {
+    await queryEmbedder.shutdown();
     const cleanupResult = await cleanupCollection(adapter, collection);
     steps.push(step('probe: collection cleaned up', cleanupResult.deleted === true));
   }

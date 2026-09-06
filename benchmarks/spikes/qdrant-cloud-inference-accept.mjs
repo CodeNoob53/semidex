@@ -37,6 +37,7 @@ import { spawn } from 'node:child_process';
 import { createStorageAdapter } from '../../src/core/storage/factory.js';
 import { resolveExistingCollectionProfile } from '../../src/core/embedding-profile/resolve.js';
 import { runHybridSearch } from '../../src/core/retrieval/search.js';
+import { createBenchmarkQueryEmbedder } from '../lib/embedding-capabilities.mjs';
 import { sanitiseErrorMessage } from '../../src/shared/core/doctor-checks.js';
 import { getFileChunks, getContentNodeById } from '../../src/core/qdrant/store.js';
 
@@ -125,6 +126,9 @@ async function main() {
 
   const adapter = createStorageAdapter();
   const collectionName = `${COLLECTION_PREFIX}${randomBytes(4).toString('hex')}`;
+  // runHybridSearch() on a qdrant-cloud collection needs a real cloudEmbed
+  // capability — see benchmarks/lib/embedding-capabilities.mjs.
+  const queryEmbedder = createBenchmarkQueryEmbedder();
   let created = false;
   let fixtureDir = null;
 
@@ -250,7 +254,7 @@ async function main() {
 
       // And confirm it's excluded from vector search — a hybrid query
       // should never surface the canonical point itself as a hit.
-      const searchResult = await runHybridSearch({ adapter, collection: collectionName, query: 'configuration settings table', top: 10 });
+      const searchResult = await runHybridSearch({ adapter, collection: collectionName, query: 'configuration settings table', top: 10, embedQuery: queryEmbedder.embedQuery, cloudEmbed: queryEmbedder.cloudEmbed });
       const canonicalInSearchResults = searchResult.hits?.some((h) => h.nodeId === entityId) ?? false;
       step('the canonical entity_raw point never appears in hybrid search results (vector: {} correctly excludes it)', !canonicalInSearchResults);
     }
@@ -272,6 +276,7 @@ async function main() {
     console.error('REJECT:', redact(err));
     writeReport({ verdict: 'REJECT', reason: redact(err), steps });
   } finally {
+    await queryEmbedder.shutdown();
     if (fixtureDir) {
       try { rmSync(fixtureDir, { recursive: true, force: true }); } catch { /* best-effort */ }
     }

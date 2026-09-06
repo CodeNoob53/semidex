@@ -16,6 +16,7 @@ import { runSuiteAcrossProfiles } from './core/run-suite.mjs';
 import { runIndexer } from './core/index-via-cli.mjs';
 import { queryOne } from './core/query-via-search.mjs';
 import { checkpointPathFor, loadCheckpointIfExists, isCompletedProfileRun } from './core/checkpoint.mjs';
+import { exitCodeForSuiteState } from './core/cli-exit.mjs';
 import { redact } from './core/redact.mjs';
 import {
   buildStructuralFixtureCorpus, buildStructuralFixtureQueriesMap, buildStructuralFixtureQrels,
@@ -72,6 +73,9 @@ async function main() {
 
   const state = await runStructuralSuite({ smoke, resume, restart, resumeCheck, cudaRequested });
   if (state) console.log(`\nverdict: ${state.verdict}`);
+  // A non-COMPLETE verdict is a FAILED run — CI (and a human) must see a
+  // nonzero exit, never a silent exit 0 on INCOMPLETE (audit 2026-09-06, P1).
+  process.exitCode = exitCodeForSuiteState(state, { resumeCheck });
 }
 
 const isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);

@@ -132,7 +132,10 @@ describe('runSuiteAcrossProfiles() — resume/checkpoint correctness', () => {
       indexerCalls.push(targetPath);
       return { stdout: '', stderr: '', exitCode: 0, peakChildRssBytes: null, ms: 1 };
     };
-    const queryOne = async () => ({ ok: true, hits: [], ms: 1, error: null });
+    // A real Chunk-shaped hit for doc-0 — enough for the collapsed ranking
+    // to reach full depth against a 1-document corpus, so the run is a
+    // genuine COMPLETE (finite metrics, zero insufficient-depth queries).
+    const queryOne = async () => ({ ok: true, hits: [{ sourceFile: 'doc-doc-0.md', score: 0.9, text: 't' }], ms: 1, error: null });
 
     const first = await runSuiteAcrossProfiles({
       suiteId, datasetFingerprint: 'fp3', ...tinyDataset({ docCount: 1, queryCount: 1 }),

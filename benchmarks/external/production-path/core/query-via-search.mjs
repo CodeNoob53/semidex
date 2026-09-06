@@ -35,17 +35,27 @@ export function checkDepthSufficient(rankedDocs, corpusSize) {
  * system searched and found nothing" — it must never be scored as an
  * empty/zero ranking for nDCG/Recall purposes (see run-suite.mjs's
  * queryErrorCount gate).
- * `embedQuery` is optional DI (forwarded to runHybridSearch() as-is) —
- * real suite runs never pass it, letting runHybridSearch() use its own
- * real default (embedForSearch); it exists here purely so offline tests
- * of THIS wrapper can inject a fake embed function instead of hitting a
- * real Ollama/ONNX call.
- * @param {{ adapter, collection: string, query: string, top?: number, embedQuery?: Function }} params
+ * `embedQuery` / `cloudEmbed` are the real embedding capabilities this
+ * wrapper's caller composed for the run (see
+ * benchmarks/lib/embedding-capabilities.mjs — the ONE benchmark-owned
+ * factory). A real suite run MUST pass them: runHybridSearch() constructs
+ * no capability of its own, so without `embedQuery` every local (BGE-M3
+ * ONNX / Ollama) query fails with "no onnxEmbed capability available" and
+ * without `cloudEmbed` every qdrant-cloud query fails with "no cloudEmbed
+ * capability was supplied" (audit 2026-09-06, P1). Both stay optional in
+ * the signature purely so offline tests of THIS wrapper can inject a fake
+ * embed function (or omit `cloudEmbed` entirely for a client-only fake
+ * profile) instead of composing the real thing.
+ * @param {{ adapter, collection: string, query: string, top?: number, embedQuery?: Function, cloudEmbed?: Object }} params
  * @returns {Promise<{ ok: boolean, hits: Array, ms: number, error: {error:string, message:string}|null }>}
  */
-export async function queryOne({ adapter, collection, query, top = CHUNK_CANDIDATE_LIMIT, embedQuery }) {
+export async function queryOne({ adapter, collection, query, top = CHUNK_CANDIDATE_LIMIT, embedQuery, cloudEmbed }) {
   const t0 = process.hrtime.bigint();
-  const result = await runHybridSearch({ adapter, collection, query, top, ...(embedQuery && { embedQuery }) });
+  const result = await runHybridSearch({
+    adapter, collection, query, top,
+    ...(embedQuery && { embedQuery }),
+    ...(cloudEmbed && { cloudEmbed }),
+  });
   const ms = Number(process.hrtime.bigint() - t0) / 1e6;
   if (result?.error) {
     return { ok: false, hits: [], ms, error: { error: result.error, message: result.message } };
