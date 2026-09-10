@@ -187,8 +187,8 @@ route-by-route inventory and status of every finding.
 
 Build a deployable assistant that demonstrates Semidex as the retrieval and
 grounding core rather than as an isolated admin console. The preferred first
-case is a retail/knowledge assistant suitable for both the Silpo AI Factory
-application and a Qdrant-facing technical demonstration.
+case is a retail/knowledge assistant suitable for a real commerce integration
+and a Qdrant-facing technical demonstration.
 
 Required outcome:
 

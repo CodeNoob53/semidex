@@ -308,6 +308,45 @@ Ollama instance all report `ready: false` with a reason — Ask returns a
 pre-stream `503` in that state; semidex itself never crashes or fails to
 start over a generation-backend misconfiguration.
 
+#### Checking whether a Gemini model still works
+
+For Gemini, the model list is **not** a reliable availability signal, and
+semidex deliberately does not pretend otherwise.
+
+The Gemini API exposes no deprecation, retirement or lifecycle field on a
+model (confirmed against
+[the Model resource reference](https://ai.google.dev/api/models),
+[the models guide](https://ai.google.dev/gemini-api/docs/models) and
+[the deprecations page](https://ai.google.dev/gemini-api/docs/deprecations)),
+and `models.list()` keeps returning models that no longer work. Verified live
+on 2026-09-10: `gemini-2.5-flash` is listed with the description
+"Stable version of Gemini 2.5 Flash …" and `generateContent` support, yet
+calling it returns
+`404 "This model … is no longer available to new users. Please update your
+code to use models/gemini-3.6-flash"`.
+
+Because there is no honest way to pre-filter that list — hiding models by
+name or generation would be a guess that breaks on the next release, and
+probing every listed model on page load would turn one render into dozens of
+billed calls — the Settings UI keeps the full list and adds a **Check**
+button next to the Ask answer model selector. It runs
+`POST /api/generation/model-probe`, a single minimal (1-output-token)
+`generateContent` call, and reports:
+
+| Status | Meaning |
+|---|---|
+| Available | a real call succeeded |
+| Not available | the API says the model is gone; the toast quotes its message, which names the replacement |
+| Not usable here | reachable, but served by a different API surface (e.g. Interactions-only models) |
+| Key rejected | the API key was refused — a statement about the key, not the model |
+| Could not verify | quota, network or an unrecognized error — **not** a verdict |
+
+The check is never automatic: it is a billed request, so it only runs when
+clicked, and the status stays blank until then. Quota (`429`) and transient
+failures are reported as "could not verify" rather than as a dead model —
+throttling says nothing about whether a model exists, and reporting it as
+unavailable would hide a perfectly good one.
+
 ### Ask spend/token budget ceiling
 
 `POST /api/v1/ask` and `POST /api/v2/ask` are protected by a request-scoped
@@ -595,20 +634,33 @@ your own probe/indexing/search cycle confirms it.
 
 ## Admin API indexing roots
 
-`POST /api/jobs/index` is fail-closed behind `INDEX_ALLOWED_ROOTS` in both
-Full Semidex and Semidex Lite. The value is a JSON array of absolute,
-existing directory paths:
+`INDEX_ALLOWED_ROOTS` controls filesystem containment for
+`POST /api/jobs/index` in both Full Semidex and Semidex Lite. The value is a
+JSON array of absolute, existing directory paths:
 
 ```bash
 INDEX_ALLOWED_ROOTS=["C:\\Users\\me\\Documents\\knowledge","D:\\shared"]
 ```
 
 The Global Settings UI exposes the same setting under **System** as a
-one-absolute-path-per-line textarea. Changes apply immediately. An empty,
-malformed, or wholly invalid value leaves HTTP/dashboard indexing disabled;
-the API never interprets an empty list as unrestricted access. Settings
-writes reject nonexistent paths, non-directories, and entries that resolve to
-the same real directory.
+one-absolute-path-per-line textarea. Changes apply immediately. The runtime
+policy has three cases:
+
+- With one or more valid roots, the API accepts only targets contained by a
+  configured root.
+- With an intentionally empty list and an actively loopback-only Admin
+  server (`ADMIN_ALLOW_REMOTE` active value is `false`), the dashboard/API
+  may index any existing local file or directory. This is the personal-use
+  default; normal Host/Origin request checks still apply.
+- With an intentionally empty list and remote access active,
+  HTTP/dashboard indexing fails closed until at least one root is configured.
+
+A malformed value, or a non-empty configured list whose entries are all
+missing or inaccessible, fails closed in every deployment mode. It never
+falls back to the local unrestricted case. Settings writes reject nonexistent
+paths, non-directories, and entries that resolve to the same real directory.
+`ADMIN_ALLOW_REMOTE` is a restart-applied setting, so the dashboard reports
+its `activeValue`, not a newly saved value that is still pending restart.
 
 Before a job starts, Semidex resolves both roots and the requested target via
 the real filesystem and performs component-aware containment comparison.

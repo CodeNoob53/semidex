@@ -50,7 +50,7 @@ and proof):**
 | No authentication anywhere | 🟡 FIXED for `POST /api/v1/search`, `POST /api/v1/ask`, `POST /api/v2/ask` only (bearer keys, §12n); the Admin surface (settings, jobs, collections incl. `DELETE`, `POST /api/search`, schema sync, Qdrant Cloud probe, static UI) remains exactly as originally audited — no authentication at all, by design — P1-1 residual, §12d, §12e, §12n |
 | No collection scoping | 🟡 FIXED for Search v1/Ask v1/v2 only (per-key `collections` scope, §12n); every Admin read/write route still performs zero collection-level scoping — P1-2 STATUS |
 | No rate limiting anywhere | 🟡 FIXED for Search v1/Ask v1/v2 only (per-key token bucket, shared across all three — §12n — **and**, for Ask specifically, a per-request/per-key spend-token-budget ceiling, §12m); the Admin surface, including `POST /api/search`, still has no rate limit of any kind — P2-1 STATUS |
-| Unscoped local filesystem indexing | 🟢 FIXED, `INDEX_ALLOWED_ROOTS` fail-closed — P1-3 |
+| Unscoped local filesystem indexing | 🟢 FIXED: configured-root containment; intentional empty roots are local-only unrestricted and remote-enabled fail-closed — P1-3, §12 |
 | `settings.json` default OS permissions | 🟢 FIXED on POSIX (0o600, fail-closed pre-rename); Windows unaddressed by design — P2-2 STATUS |
 | No security response headers | 🟢 FIXED, every response, Full and Lite — §12h |
 
@@ -1557,12 +1557,51 @@ Available today directly from Qdrant Cloud (see §13) — this was never
 something Semidex's own code needed to ship, and still isn't; it is an
 operator configuration choice.
 
-**4. 🟢 SHIPPED (2026-08-19) — Indexing allowed roots.**
-`INDEX_ALLOWED_ROOTS` is checked before `startIndexJob()` and resolved with
-`realpath`, so ordinary symlink/junction escapes are rejected.
-Component-aware win32/UNC semantics are covered by platform-independent
-tests; residual TOCTOU is documented in P1-3 rather than hidden behind a
-sandbox claim.
+**4. 🟢 SHIPPED (2026-08-19; empty-roots policy updated 2026-09) — Indexing
+allowed roots.** `INDEX_ALLOWED_ROOTS` is checked before `startIndexJob()`
+and resolved with `realpath`, so ordinary symlink/junction escapes are
+rejected. Component-aware win32/UNC semantics are covered by
+platform-independent tests; residual TOCTOU is documented in P1-3 rather
+than hidden behind a sandbox claim.
+
+A truly empty `INDEX_ALLOWED_ROOTS` (2026-09 update) is now a three-way
+policy, resolved by `allowed-roots-guard.js`'s `checkTarget()` against the
+ONE `resolveDeploymentPolicy()` result (`shared/admin/server.js`) both Full
+and Lite construct their guard from:
+- **Intentional empty, local-only** (`ADMIN_ALLOW_REMOTE` active value
+  `false` — this Admin process is bound to loopback only): any existing
+  local file/directory may be indexed via the dashboard/API. The only
+  caller who can reach a loopback-only server at all is already the
+  trusted local operator, so requiring a configured root here was pure
+  friction for the common single-operator case. Still realpath/stat
+  validated exactly like a configured-root target; only the "must fall
+  under a configured root" requirement is skipped.
+- **Intentional empty, remote-capable** (`ADMIN_ALLOW_REMOTE` active value
+  `true`): unchanged fail-closed behavior — `403
+  allowed_roots_not_configured`, before any filesystem access to the
+  caller-supplied path.
+- **Non-empty configured value whose every entry was dropped during
+  canonicalization** (deleted/inaccessible/corrupt/malformed, e.g. an
+  externally-edited `settings.json`): fails closed in **every** deployment
+  mode, local-only included. This is deliberately NOT the same case as
+  "intentional empty" — `getCanonicalRoots()`'s `rawIsEmpty` flag
+  distinguishes "operator never configured anything" from "operator
+  configured something and all of it is now unusable", so a
+  misconfiguration can never silently degrade into "any local path
+  allowed".
+
+`ADMIN_ALLOW_REMOTE` is `appliesAt: 'next_restart'` — the guard, and the
+Admin UI's own `#/index` effective-state text, both read its *active*
+(currently-running) value, never the merely-configured pending value, so a
+just-saved-but-not-yet-restarted change never misreports which policy is
+actually enforced right now.
+
+`index.job_started` audit events carry a bounded `rootMode` enum
+(`'allowed_root' | 'local_unrestricted' | null`) recording which policy
+branch accepted the job, validated against a real allow-list in
+`core/audit/event.js` (not the generic free-text `reason` envelope field) —
+so the audit trail can distinguish the local-only convenience from an
+explicit configured-root match without ever logging the raw indexed path.
 
 **5. 🟡 PARTIALLY SHIPPED (§12m, 2026-08-24) — Per-key and per-route
 limits.** Per-key **request-rate** limiting (token bucket, `429` +

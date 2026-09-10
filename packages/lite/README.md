@@ -371,11 +371,13 @@ What is protected as of this version:
   those addresses is a normal, supported target, not a risk this check
   guards against. See the linked audit's §12j for the full scope and its
   limitations.
-- **Dashboard/API indexing is scoped to operator-approved directories.**
-  `POST /api/jobs/index` resolves the requested path through the real
-  filesystem and accepts it only inside `INDEX_ALLOWED_ROOTS`. With no roots
-  configured, HTTP/dashboard indexing is disabled. Direct trusted CLI
-  indexing is intentionally unaffected.
+- **Dashboard/API indexing is scoped according to the active deployment
+  mode.** With configured `INDEX_ALLOWED_ROOTS`, `POST /api/jobs/index`
+  resolves the requested path through the real filesystem and accepts it
+  only inside those directories. With an intentionally empty list, a
+  loopback-only Admin server may index any existing local file or directory;
+  a remote-enabled server remains disabled until at least one root is
+  configured. Direct trusted CLI indexing is intentionally unaffected.
 - Request-ingestion timeouts and header-count ceilings are set.
 - **Every response carries security headers**, including a
   `Content-Security-Policy`, `X-Frame-Options: DENY`, `Referrer-Policy:
@@ -426,18 +428,29 @@ in the repository.
 
 ### Allowed indexing roots
 
-Before starting an indexing job from the dashboard or `POST /api/jobs/index`,
-configure the directories that the Admin API may read. In an environment
-file, use a JSON array (Windows backslashes must be escaped):
+For a remote-enabled Admin deployment, configure the directories that
+`POST /api/jobs/index` may read. Configuring roots is also available as an
+optional containment boundary for local-only use. In an environment file,
+use a JSON array (Windows backslashes must be escaped):
 
 ```bash
 INDEX_ALLOWED_ROOTS=["C:\\Users\\me\\Documents\\knowledge","D:\\shared-docs"]
 ```
 
 In **Settings → System**, enter one absolute directory per line. The setting
-applies immediately to Full and Lite; an empty list fails closed and disables
-HTTP/dashboard indexing. The folder picker only fills the target field and
-never adds a directory to the allow-list.
+applies immediately to Full and Lite. Its effective behavior is:
+
+- one or more valid roots: indexing is restricted to those roots;
+- intentionally empty while Admin is loopback-only: any existing local file
+  or directory may be indexed;
+- intentionally empty while remote access is active: HTTP/dashboard indexing
+  is disabled until a root is configured.
+
+A non-empty setting whose entries have become invalid or inaccessible fails
+closed in every mode; it is never treated as an intentionally empty list.
+`ADMIN_ALLOW_REMOTE` applies after restart, and the dashboard reports its
+active value. The folder picker only fills the target field and never adds a
+directory to the allow-list.
 
 Both configured roots and requested targets must exist. Semidex resolves them
 with the real filesystem before comparing path components, so a symlink or
