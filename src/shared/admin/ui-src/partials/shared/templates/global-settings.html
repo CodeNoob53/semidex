@@ -132,6 +132,19 @@
   <button type="button" class="btn-ghost" id="gs-refresh-models">Refresh models</button>
 </template>
 
+<!-- Inline "is this model actually usable?" control, rendered next to a
+     generation-model <select>. The Gemini API exposes no deprecation field
+     and models.list() keeps returning retired models, so the ONLY reliable
+     answer is a real call — which is billed, and therefore only ever made
+     when the operator clicks this button. The status icon starts blank and
+     is never inferred from the model list. -->
+<template id="tpl-gs-model-check">
+  <span class="gs-model-check">
+    <button type="button" class="btn-secondary gs-model-check-button">Check</button>
+    <span class="gs-model-check-status" role="status" aria-live="polite" hidden></span>
+  </span>
+</template>
+
 <template id="tpl-gs-qdrant-cloud-probe-panel">
   <div class="panel gs-qdrant-cloud-probe-panel">
     <div class="panel-head">Qdrant Cloud Inference status</div>

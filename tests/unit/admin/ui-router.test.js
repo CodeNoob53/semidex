@@ -118,23 +118,20 @@ describe('currentRoute() — search permalink query string (?q=&top=&window=&for
 // branch is now ONLY reachable for the f/n sub-routes. See
 // ui-collection-home-view.test.js's "search permalink" describe block for
 // the equivalent syncSearchStateFromUrl coverage on the new view.
-describe('route() search-state sync (applySearchStateFromUrl vs syncSearchStateFromUrl)', () => {
-  it('applySearchStateFromUrl (form-only, never runs a search) is called for both openFile and openNodePath branches', () => {
+describe('route() lifecycle reader ownership', () => {
+  it('both openFile and openNodePath are passed to the lifecycle-owned reader mount', () => {
     const js = readUiSource('router.js');
     const start = js.indexOf('else if (r.view === \'collection\')');
     const end = js.indexOf('} else if (r.view === \'collection-home\')');
     const branch = js.slice(start, end);
-    assert.match(branch, /openFileView\(r\.name, r\.openFile\);[\s\S]{0,400}applySearchStateFromUrl\(r\.name\)/,
-      'the openFile branch must call applySearchStateFromUrl (form sync only), not syncSearchStateFromUrl (which would re-run a search and hide the file view)');
-    assert.match(branch, /openNodeFromPath\(r\.name, r\.openNodePath\);[\s\S]{0,400}applySearchStateFromUrl\(r\.name\)/,
-      'the openNodePath branch must call applySearchStateFromUrl for the same reason');
-    assert.ok(!/syncSearchStateFromUrl/.test(branch),
-      'the f/n \'collection\' branch must never call syncSearchStateFromUrl (that would re-run a search and hide the file/section view)');
+    assert.match(branch, /mountReader\(main, \{[\s\S]*name: r\.name,[\s\S]*sourceFile: r\.openFile,[\s\S]*nodePath: r\.openNodePath/);
+    assert.ok(!/openFileView|openSectionView|openNodeFromPath|renderCollection/.test(branch),
+      'the production route must not reach the legacy reader or collection renderer');
   });
 
   it('the bare-route \'collection-home\' branch mounts the v2 controller, not the legacy renderCollection()', () => {
     const js = readUiSource('router.js');
-    const start = js.indexOf('} else if (r.view === \'collection-home\')');
+    const start = js.indexOf('else if (r.view === \'collection-home\')');
     const end = js.indexOf('else if (r.view === \'index\')');
     const branch = js.slice(start, end);
     assert.match(branch, /mountCollectionHome\(main, \{ name: r\.name \}\)/);

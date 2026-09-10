@@ -43,6 +43,31 @@ export function resolvePortConfig(env = process.env, { settingsService } = {}) {
 }
 
 /**
+ * Resolves the ONE `allowRemote` flag both the request-security policy
+ * (below) and the indexing allowed-roots guard (allowed-roots-guard.js)
+ * key their fail-open/fail-closed behavior on. Extracted so both consult
+ * the exact same ADMIN_ALLOW_REMOTE resolution — a composition root that
+ * read it twice, independently, could in principle drift (e.g. one call
+ * site checking settingsService and the other checking env) and let the
+ * indexing guard believe it is loopback-only while the request-security
+ * policy already allows remote hosts, or vice versa. ADMIN_ALLOW_REMOTE is
+ * `appliesAt: 'next_restart'` (core/settings/definitions.js), so — like
+ * ADMIN_HOST/ADMIN_PORT — resolving it once at composition-root
+ * construction time, not per request, is correct: it cannot change under a
+ * running process.
+ *
+ * @param {NodeJS.ProcessEnv} [env]
+ * @param {{ settingsService?: Object }} [opts]
+ * @returns {{ allowRemote: boolean }}
+ */
+export function resolveDeploymentPolicy(env = process.env, { settingsService } = {}) {
+  const allowRemote = settingsService
+    ? Boolean(settingsService.getActiveValue('ADMIN_ALLOW_REMOTE'))
+    : env.ADMIN_ALLOW_REMOTE === '1';
+  return { allowRemote };
+}
+
+/**
  * Builds the router's request-security policy from the same resolved bind
  * configuration the listener uses — the ONE place both composition roots
  * (server-full.js's createApp() and composition/lite.js's createLiteApp())
@@ -63,9 +88,7 @@ export function resolveRequestSecurityPolicy(env = process.env, { settingsServic
     port = resolvePortConfig(env, { settingsService });
   } catch { /* an invalid port fails at bind time with a clearer message */ }
 
-  const allowRemote = settingsService
-    ? Boolean(settingsService.getActiveValue('ADMIN_ALLOW_REMOTE'))
-    : env.ADMIN_ALLOW_REMOTE === '1';
+  const { allowRemote } = resolveDeploymentPolicy(env, { settingsService });
 
   return createRequestSecurityPolicy({
     port,

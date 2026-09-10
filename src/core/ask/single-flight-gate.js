@@ -13,10 +13,23 @@
 // owning an independent, un-coordinated boolean.
 
 /**
+ * `tryAcquire()` (added for agent mode) is the same mutual exclusion with an
+ * explicit, caller-held lifetime instead of a callback-scoped one. Agent
+ * mode needs the SLOT decided BEFORE it claims a continuation or reserves
+ * tokens — with run(), a `busy` refusal could only be discovered after those
+ * had already happened, which destroyed a valid continuation and spent
+ * budget for zero generations (code review). Ask v1/v2 keep using run() and
+ * are completely unaffected; both share the one `busy` flag, so the two
+ * styles still exclude each other.
+ *
  * @returns {{
  *   isBusy: () => boolean,
  *   run: <T>(fn: () => Promise<T>) => Promise<{ ok: true, value: T } | { ok: false }>,
+ *   tryAcquire: () => (() => void) | null,
  * }}
+ *   tryAcquire() returns a release function when the slot was free, or null
+ *   when it is already held. The caller MUST call the returned release in a
+ *   finally; it is idempotent, so releasing twice is safe.
  *   run() returns { ok: false } immediately (never calls fn) if the gate is
  *   already held — callers translate that into their own {status:'busy'}
  *   result shape. { ok: true, value } wraps whatever fn() resolved to, once
@@ -35,5 +48,18 @@ export function createSingleFlightGate() {
     }
   }
 
-  return { isBusy: () => busy, run };
+  function tryAcquire() {
+    if (busy) return null;
+    busy = true;
+    let released = false;
+    // Idempotent: a caller that releases in a finally AND on an early return
+    // path must not free a slot someone else has since taken.
+    return () => {
+      if (released) return;
+      released = true;
+      busy = false;
+    };
+  }
+
+  return { isBusy: () => busy, run, tryAcquire };
 }

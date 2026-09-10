@@ -92,13 +92,18 @@ describe('createSemidexClient() — timeoutMs validation', () => {
 });
 
 describe('createSemidexClient() — returned surface', () => {
-  it('exposes exactly search/askV1/askV2/askText', () => {
+  it('exposes exactly search/askV1/askV2/askText/askAgent/agentStep', () => {
     const client = createSemidexClient(VALID);
-    assert.deepEqual(Object.keys(client).sort(), ['askText', 'askV1', 'askV2', 'search']);
+    // askAgent/agentStep were added for agent mode (POST /api/v3/ask).
+    // Growing this surface is deliberate: the assertion is exhaustive so a
+    // new public method cannot appear without a decision recorded here.
+    assert.deepEqual(Object.keys(client).sort(), ['agentStep', 'askAgent', 'askText', 'askV1', 'askV2', 'search']);
     assert.equal(typeof client.search, 'function');
     assert.equal(typeof client.askV1, 'function');
     assert.equal(typeof client.askV2, 'function');
     assert.equal(typeof client.askText, 'function');
+    assert.equal(typeof client.askAgent, 'function');
+    assert.equal(typeof client.agentStep, 'function');
   });
 
   it('askV1()/askV2() return async generators without making a request until iterated', () => {

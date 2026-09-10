@@ -297,7 +297,10 @@ export function registerJobsRoutes(router, registry, { checkOllamaFn, jobPolicy 
 
     let started;
     try {
-      started = registry.startIndexJob({ collection, path: canonicalPath, options, kind, requestId: auth?.requestId ?? null });
+      started = registry.startIndexJob({
+        collection, path: canonicalPath, options, kind, requestId: auth?.requestId ?? null,
+        rootMode: scopeCheck.mode,
+      });
     } catch (err) {
       if (err.code === 'JOB_ALREADY_RUNNING') throw conflict(err.message);
       throw err;

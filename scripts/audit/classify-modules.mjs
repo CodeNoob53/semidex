@@ -343,6 +343,18 @@ export const CLOUD_ONLY_PATH_PATTERNS = [
   /^src\/cloud\/embedding\/qdrant-cloud/, /^src\/cloud\/admin\/qdrant-cloud-system\.js$/,
   /^src\/cloud\/admin\/qdrant-cloud-api\.js$/, /^src\/cloud\/generation\/gemini-models\.js$/,
   /^src\/cloud\/generation\/gemini-provider\.js$/, /^src\/cloud\/embedding\/cloud-embedding-provider\.js$/,
+  // gemini-agent-step.js — the Gemini-native mapping for agent mode's
+  // agentStep() capability. Cloud-only for exactly the same reason
+  // gemini-provider.js is: it exists solely to speak @google/genai's
+  // function-calling shape. The neutral half of that contract lives in
+  // src/core/generation/agent-step.js and stays 'shared'.
+  /^src\/cloud\/generation\/gemini-agent-step\.js$/,
+  // gemini-model-probe.js / gemini-model-probe-api.js — Gemini-only model
+  // availability verification (the API exposes no deprecation field, so the
+  // only reliable signal is a real call). Cloud-only for the same reason
+  // gemini-provider.js is.
+  /^src\/cloud\/generation\/gemini-model-probe\.js$/,
+  /^src\/cloud\/admin\/gemini-model-probe-api\.js$/,
   /^src\/cloud\/generation\/cloud-generation-provider\.js$/,
 ];
 // packages/lite/build.mjs's REAL, COMPLETE EXCLUDE_DIRS and EXCLUDE_FILES —

@@ -25,7 +25,7 @@ import { discoverOllamaModels } from '../local/core/ollama-models.js';
 import { checkOllama } from '../local/admin/system/ollama.js';
 import { createSettingsService } from '../core/settings/service.js';
 import { registerNeutralRoutes, createHttpServer } from '../shared/admin/register-neutral-routes.js';
-import { resolveRequestSecurityPolicy } from '../shared/admin/server.js';
+import { resolveRequestSecurityPolicy, resolveDeploymentPolicy } from '../shared/admin/server.js';
 import { resolveIntegrationPolicy } from '../core/auth/resolve-policy.js';
 import { resolveAuditSink } from '../core/audit/resolve-sink.js';
 import { ensureEditionTag } from '../core/audit/sink.js';
@@ -38,6 +38,7 @@ import { createOnnxEmbeddingCapability } from '../local/core/onnx-embed.js';
 import { createCloudEmbeddingCapability } from '../cloud/embedding/cloud-embedding-provider.js';
 import { createCloudGenerationCapability } from '../cloud/generation/cloud-generation-provider.js';
 import { registerQdrantCloudRoutes } from '../cloud/admin/qdrant-cloud-api.js';
+import { registerGeminiModelProbeRoutes } from '../cloud/admin/gemini-model-probe-api.js';
 import { createGenerationRuntime } from '../core/generation/runtime.js';
 import { createGenerationProvider } from '../core/generation/registry.js';
 
@@ -47,7 +48,7 @@ export function createApp({
   discoverOllamaModelsFn, discoverGeminiModelsFn, runOnnxProbeFn, runQdrantCloudProbeFn,
   resolveNewCollectionProfileFn, diagnoseCudaFailureFn,
   resolveEffectiveOnnxRuntimePathFn, writeVerificationResultFn, onnxManagedRuntimeListingCache,
-  onnxEmbedCapability, securityPolicy, integrationPolicy, allowedRootsGuard, uiDir, auditSink, budgetTracker,
+  onnxEmbedCapability, securityPolicy, integrationPolicy, allowedRootsGuard, uiDir, auditSink, budgetTracker, agentRuntime, probeGeminiModelFn,
 } = {}) {
   // core/embeddings.js's applyEmbeddingCapabilities() (the process-wide
   // module-scope fallback) is deliberately NEVER called from this function
@@ -180,7 +181,13 @@ export function createApp({
   // tests) gets its own guard bound to its own settingsService, never a
   // shared/module-global one. Tests inject their own fake directly (shaped
   // `{ checkTarget(path) }`) when path-scoping isn't what they're testing.
-  const resolvedAllowedRootsGuard = allowedRootsGuard ?? createAllowedRootsGuard({ settingsService: settings });
+  // deploymentPolicy is resolved via the SAME resolveDeploymentPolicy()
+  // helper resolvedSecurityPolicy below derives its own allowRemote from —
+  // Full and Lite must never see two different answers to "is this
+  // deployment loopback-only" for the two features that key off it.
+  const resolvedDeploymentPolicy = resolveDeploymentPolicy(process.env, { settingsService: settings });
+  const resolvedAllowedRootsGuard = allowedRootsGuard
+    ?? createAllowedRootsGuard({ settingsService: settings, deploymentPolicy: resolvedDeploymentPolicy });
   // Same shared policy resolution Lite uses (shared/admin/server.js) — Host
   // allow-list + cross-site rejection, applied before route dispatch. Full
   // and Lite must never drift apart here, which is why both derive it from
@@ -203,14 +210,25 @@ export function createApp({
   registerOllamaModelsRoutes(router, { settingsService: settings, ...(discoverOllamaModelsFn ? { discoverOllamaModelsFn } : {}) });
   registerNeutralRoutes(router, {
     adapter, embedQuery: resolvedEmbedQuery, cloudEmbed, jobRegistry: resolvedJobRegistry, taskRegistry, assemblyLogFn, pickFolderFn,
-    generationRuntime: resolvedGenerationRuntime, askCoordinator, askCoordinators, countTokens, settingsService: settings, budgetTracker,
+    generationRuntime: resolvedGenerationRuntime, askCoordinator, askCoordinators, countTokens, settingsService: settings, budgetTracker, agentRuntime,
     runQdrantCloudProbeFn, resolveNewCollectionProfileFn,
     registerQdrantCloudRoutesFn: registerQdrantCloudRoutes,
-    generationModelsFn: (r, deps) => registerGenerationModelsRoutes(r, {
-      ...deps,
-      discoverOllamaModelsFn: discoverOllamaModelsFn ?? discoverOllamaModels,
-      discoverGeminiModelsFn: discoverGeminiModelsFn ?? cloudGeneration.discoverModels,
-    }),
+    generationModelsFn: (r, deps) => {
+      registerGenerationModelsRoutes(r, {
+        ...deps,
+        discoverOllamaModelsFn: discoverOllamaModelsFn ?? discoverOllamaModels,
+        discoverGeminiModelsFn: discoverGeminiModelsFn ?? cloudGeneration.discoverModels,
+      });
+      // POST /api/generation/model-probe — explicit, billed verification
+      // that a Gemini model is callable right now. Registered from the
+      // composition root (not the shared file) so no shared -> cloud
+      // implementation edge is created, exactly like
+      // registerQdrantCloudRoutesFn above.
+      registerGeminiModelProbeRoutes(r, {
+        settingsService: deps.settingsService,
+        ...(probeGeminiModelFn ? { probeModelFn: probeGeminiModelFn } : {}),
+      });
+    },
     jobsFn: (r, jobs) => registerJobsRoutes(r, jobs, {
       jobPolicy: FULL_JOB_POLICY,
       checkOllamaFn: checkOllamaFn ?? checkOllama,

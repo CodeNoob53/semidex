@@ -33,22 +33,10 @@ describe('sidebar navigation tree (ui-src/sidebar.js source)', () => {
     assert.match(js, /location\.hash = `#\/c\//);
   });
 
-  it('an empty section (404 from skeleton/anchor) does not auto-open chunk 0 — it requires an explicit click', () => {
-    // This behavior lives in file-view.js's openSectionView (sidebar.js only
-    // routes through the hash; file-view.js is what resolves the anchor).
-    const js = readUiSource('file-view.js');
-    const start = js.indexOf('async function openSectionView');
-    assert.ok(start !== -1, 'openSectionView should be defined');
-    // file-view.js exports openFileView directly ('export async function
-    // openFileView'), unlike the old monolithic app.js where it was a bare
-    // top-level declaration — match on the substring after 'export '.
-    const end = js.indexOf('async function openFileView', start);
-    assert.ok(end !== -1 && end > start, 'openFileView should follow openSectionView');
-    const fn = js.slice(start, end);
-    assert.match(fn, /section-open-file-start/);
-    assert.match(fn, /addEventListener\(["']click["'], \(\) => openFileView/);
-    assert.ok(!/return openFileView\(name, node\.sourceFile, node\.nodePath, 0\);/.test(fn),
-      'a 404 from skeleton/anchor must not automatically open chunk 0 of the file');
+  it('section navigation uses exact node identity and never the legacy anchor/chunk-0 fallback', () => {
+    const reader = readUiSource('features/reader/view.js');
+    assert.match(reader, /scope=section&nodePath=/);
+    assert.doesNotMatch(reader, /skeleton\/anchor|chunkIndex\s*:\s*0/);
   });
 });
 

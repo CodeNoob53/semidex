@@ -507,6 +507,89 @@ function dynamicOptionsControl(entry, value, disabled, { discovery, backend, una
   return { control: select, extras };
 }
 
+// Inline "Check" control for a Gemini generation model.
+//
+// WHY THIS IS A BUTTON AND NOT A FILTER
+// -------------------------------------
+// The Gemini API exposes no deprecation/lifecycle field on a Model
+// (confirmed against ai.google.dev/api/models, /docs/models and
+// /docs/deprecations on 2026-09-10), and models.list() keeps returning
+// models that fail with 404 "no longer available to new users" when
+// actually called — verified live: `gemini-2.5-flash` lists as a healthy
+// "Stable version …" with generateContent support and still 404s.
+//
+// So there is no honest way to pre-filter the list: hiding models by name
+// or generation would be a guess that breaks on the next release, and
+// probing every listed model on render would turn a page load into ~27
+// billed API calls. Instead the list stays complete and the operator can
+// verify the one model they actually care about, on demand.
+//
+// The status starts BLANK. An unchecked model must never look verified.
+function modelCheckControl(entry, value, disabled, backend) {
+  if (backend !== 'gemini') return null;
+  if (!value) return null;
+  const root = templateRoot('tpl-gs-model-check');
+  const button = root.querySelector('.gs-model-check-button');
+  button.dataset.model = value;
+  button.dataset.key = entry.key;
+  button.disabled = disabled;
+  return root;
+}
+
+// Maps a probe outcome onto operator-facing copy. `unknown` is deliberately
+// NEITHER ok nor fail: a quota error or a network blip says nothing about
+// the model, and colouring it red would hide a perfectly good one.
+const MODEL_PROBE_PRESENTATION = {
+  available: { icon: '✓', tone: 'is-ok', toast: 'success', text: 'Available' },
+  retired: { icon: '✗', tone: 'is-fail', toast: 'error', text: 'Not available' },
+  unsupported: { icon: '✗', tone: 'is-fail', toast: 'error', text: 'Not usable here' },
+  unauthorized: { icon: '!', tone: 'is-warn', toast: 'error', text: 'Key rejected' },
+  unknown: { icon: '?', tone: 'is-warn', toast: 'warn', text: 'Could not verify' },
+};
+
+function wireModelCheckButtons(container) {
+  for (const button of container.querySelectorAll('.gs-model-check-button')) {
+    button.addEventListener('click', () => runModelCheck(button));
+  }
+}
+
+async function runModelCheck(button) {
+  const root = button.closest('.gs-model-check');
+  const status = root.querySelector('.gs-model-check-status');
+  // Read the model from the LIVE sibling select, not the dataset snapshot
+  // taken at render time — an operator who changes the selection and clicks
+  // Check must verify what they can now see, not what was rendered.
+  const select = root.parentElement?.querySelector(`select[data-key="${button.dataset.key}"]`);
+  const model = select?.value || button.dataset.model;
+  if (!model) return;
+
+  const originalLabel = button.textContent;
+  button.disabled = true;
+  button.textContent = 'Checking…';
+  status.hidden = false;
+  status.className = 'gs-model-check-status';
+  status.textContent = 'Checking…';
+
+  try {
+    const result = await apiPost('/api/generation/model-probe', { model });
+    const presentation = MODEL_PROBE_PRESENTATION[result.status] ?? MODEL_PROBE_PRESENTATION.unknown;
+    status.classList.add(presentation.tone);
+    status.textContent = `${presentation.icon} ${presentation.text}`;
+    // The API's own message is the useful part for a retired model: it
+    // names the replacement. Surfaced verbatim rather than paraphrased.
+    const detail = result.detail ? ` — ${result.detail}` : '';
+    showToast(`${model}: ${presentation.text}${detail}`, { variant: presentation.toast });
+  } catch (err) {
+    // A failed REQUEST is not a verdict about the model.
+    status.classList.add('is-warn');
+    status.textContent = '? Could not verify';
+    showToast(`Could not check ${model}: ${err?.message ?? 'the request failed.'}`, { variant: 'warn' });
+  } finally {
+    button.disabled = false;
+    button.textContent = originalLabel;
+  }
+}
+
 // Builds a <select> for ONNX_MANAGED_RUNTIME — deliberately its OWN
 // function, NOT a routing through dynamicOptionsControl() (per the design
 // review's own requirement: that function is purpose-built around
@@ -576,12 +659,20 @@ function fieldControl(category, entry) {
     });
   } else if (entry.dynamicOptions?.source === 'generation_models') {
     const backend = currentGenerationBackend();
-    return dynamicOptionsControl(entry, value, disabled, {
+    const built = dynamicOptionsControl(entry, value, disabled, {
       discovery: lastGenerationModelsBackend === backend ? lastGenerationModels : null,
       backend,
       unavailableLabel: backend === 'gemini' ? 'Gemini unavailable — models unknown' : 'Ollama unreachable — models unknown',
       unavailableReason: backend === 'gemini' ? 'Gemini models are unknown.' : 'Ollama models are unknown.',
     });
+    // Gemini only: models.list() is not a reliable availability signal for
+    // this backend (it keeps returning retired models — see
+    // cloud/generation/gemini-model-probe.js), so an explicit per-model
+    // check is offered. Ollama's own list IS authoritative for what is
+    // installed locally, so it gets no such button.
+    const checkControl = modelCheckControl(entry, value, disabled, backend);
+    if (checkControl) built.extras.push(checkControl);
+    return built;
   } else if (entry.dynamicOptions?.source === 'managed_onnx_runtimes') {
     // Never hardcodes the sibling explicit-path field's key as a literal
     // string (that string is Lite-forbidden — see packages/lite/build.mjs's
@@ -908,6 +999,7 @@ function renderEditableCategory(container, category) {
   wireCategoryEvents(container, category);
   wireOnnxProbePanel(container, category);
   wireQdrantCloudProbePanel(container, category);
+  wireModelCheckButtons(container);
 
   const refreshBtn = container.querySelector('#gs-refresh-models');
   if (refreshBtn) {

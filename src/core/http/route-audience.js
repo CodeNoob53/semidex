@@ -50,6 +50,13 @@ export const OPERATION = Object.freeze({
   READ: 'read',
   SEARCH: 'search',
   GENERATE: 'generate',
+  // `agent` is deliberately distinct from `generate`: agent mode
+  // (/api/v3/ask) lets the caller supply the model's system instructions and
+  // the tool surface it may request, which is a materially wider authority
+  // than asking a grounded question. Sharing one scope would have silently
+  // granted it to every existing Ask key — see key-store.js's
+  // SUPPORTED_OPERATIONS note.
+  AGENT: 'agent',
   INDEX: 'index',
   MUTATE: 'mutate',
   DELETE: 'delete',

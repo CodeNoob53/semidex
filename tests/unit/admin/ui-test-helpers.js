@@ -551,10 +551,10 @@ export function loadTopbarHelpers(html, { apiImpl, openOperationModalImpl } = {}
   return context;
 }
 
-// Evaluates the REAL route()/renderCollection()/openFileView()/
-// initSearchPanel() call graph together (dom.js, api.js, format.js,
-// state.js, toasts.js, routes.js, file-view.js, search.js, sidebar.js,
-// collection-view.js, router.js) against a minimal shell, so tests can
+// Evaluates the route/search integration against a minimal shell. The real
+// lifecycle reader and Collection Home have direct-ESM suites of their own;
+// this harness stubs their mount boundary so router permalink behavior can
+// be checked without duplicating those modules in one vm scope.
 // assert on the actual end-to-end flow a URL navigation triggers — not
 // just source-text regex matches, which (by construction) can't see across
 // module boundaries and previously missed a real bug: initSearchPanel()
@@ -575,10 +575,6 @@ export function loadRouteIntegrationHelpers(html, { hash = '#/', apiResponses = 
     localStorage: { getItem: () => null, setItem: () => {}, removeItem: () => {} },
     matchMedia: undefined,
     location: { hash },
-    // renderCollection() -> showCollectionWarnings() -> showToast() schedules
-    // an 8s auto-dismiss via setTimeout whenever a collection has warnings —
-    // unstubbed, that's a ReferenceError in this vm context (no real timers
-    // exist here at all, unlike a browser).
     setTimeout: () => 0, clearTimeout: () => {},
     history: {
       pushState: (_s, _t, url) => { context.location.hash = url; },
@@ -599,13 +595,23 @@ export function loadRouteIntegrationHelpers(html, { hash = '#/', apiResponses = 
     // global-settings-view.js is outside this collection-route harness, but
     // router.js invalidates its async render token on non-settings routes.
     invalidateGlobalSettingsRender: () => {},
+    mountReader: (main, params) => {
+      main.innerHTML = readUiSource('partials/shared/collection-shell.html');
+      context.initSearchPanel(params.name);
+      context.applySearchStateFromUrl(params.name);
+      const panel = main.querySelector('#collection-content-panel');
+      if (panel) panel.style.display = '';
+      const title = main.querySelector('#content-title');
+      if (title) title.textContent = params.sourceFile ?? params.nodePath ?? 'Document';
+      return { dispose() {} };
+    },
     __apiCalls: apiCalls,
     renderChunkContent: renderChunkContentImpl ?? renderChunkContentPlain,
   };
   vm.createContext(context);
   // stripExports only strips the `export` keyword off individual
-  // declarations (export function/const/etc.) — collection-view.js and
-  // router.js also end with a trailing re-export statement
+  // declarations (export function/const/etc.) — router.js also ends with a
+  // trailing re-export statement
   // ("export { a, b };"), a form vm.runInContext still can't parse, so
   // strip that separately here.
   const stripImports = (src) => stripExports(src).replace(/^import .*$/gm, '').replace(/^export \{[^}]*\};?\s*$/gm, '');
@@ -623,11 +629,7 @@ export function loadRouteIntegrationHelpers(html, { hash = '#/', apiResponses = 
     stripImports(readUiSource('file-view.js')),
     stripImports(readUiSource('search.js')),
     stripImports(readUiSource('sidebar.js')),
-    // collection-view.js's ?raw partial imports become plain consts —
-    // real partial content, so markup-dependent behavior (e.g. #col-header,
-    // #search-panel existing after mount) matches production exactly.
     `const collectionShell = ${JSON.stringify(readUiSource('partials/shared/collection-shell.html'))};`,
-    stripImports(readUiSource('collection-view.js')),
     stripImports(readUiSource('router.js'))
       // router.js imports renderSettingsView/renderGlobalSettingsView/
       // renderIndexingView for the 'settings'/'global-settings'/'index'
@@ -799,6 +801,37 @@ export function loadOperationModalHelpers(html, { apiImpl, apiPostImpl } = {}) {
     await new Promise((resolve) => setImmediate(resolve));
     await new Promise((resolve) => setImmediate(resolve));
   };
+  return context;
+}
+
+// Evaluates the real jobs-view.js (indexing-root effective-state text)
+// against a real index.html shell + the real full/index-view.html partial,
+// with api()/apiPost()/openOperationModal()/pollNow() stubbed — so tests can
+// assert on what renderRootsState() actually paints into #idx-roots-state
+// for a given GET /api/settings response, not just source-text regex
+// matches (which cannot see whether activeValue vs configuredValue is what
+// actually reaches the DOM). Only the effective-state text is exercised by
+// these tests; startIndexJob()'s own POST/modal flow has its own coverage
+// elsewhere in this file, so operation-modal.js/operation-store.js are
+// stubbed rather than concatenated for real, the same way loadTopbarHelpers
+// stubs openOperationModal.
+export function loadJobsViewHelpers(html, { apiImpl } = {}) {
+  const { document } = parseHTML(html);
+  const context = {
+    document,
+    __apiImpl: apiImpl ?? (async () => ({ settings: [] })),
+    __apiPostImpl: async () => ({}),
+    __openOperationModalImpl: () => {},
+    __pollNowImpl: () => {},
+  };
+  vm.createContext(context);
+  const stripImports = (src) => stripExports(src).replace(/^import .*$/gm, '');
+  const src = stripImports(readUiSource('dom.js'))
+    + `const indexViewShell = ${JSON.stringify(readUiSource('partials/full/index-view.html'))};\n`
+    + stripImports(readUiSource('jobs-view.js'))
+    + '\nconst api = __apiImpl; const apiPost = __apiPostImpl;'
+    + ' const openOperationModal = __openOperationModalImpl; const pollNow = __pollNowImpl;\n';
+  vm.runInContext(src, context);
   return context;
 }
 

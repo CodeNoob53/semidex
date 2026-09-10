@@ -120,7 +120,15 @@ export function createGenerationRuntime({
   return {
     name: () => provider?.name() ?? backendName ?? 'unknown',
 
-    capabilities: () => provider?.capabilities() ?? { streaming: false, clientAbort: false, upstreamCancellation: false },
+    // toolCalling defaults to FALSE for any provider that does not declare
+    // it (Ollama today) — the agent runtime refuses such a backend up front
+    // with capability_unavailable rather than attempting a tool-calling
+    // request it cannot honor. An unconfigured runtime is likewise not
+    // tool-calling capable.
+    capabilities: () => {
+      const caps = provider?.capabilities() ?? { streaming: false, clientAbort: false, upstreamCancellation: false };
+      return { toolCalling: false, ...caps };
+    },
 
     async ready() {
       if (configError) return { ok: false, reason: configError.message };
@@ -133,6 +141,14 @@ export function createGenerationRuntime({
       }
       return provider.generate(opts);
     },
+
+    // Forwarded verbatim ONLY when the active provider genuinely implements
+    // it. Absent otherwise, so supportsAgentStep() (core/generation/
+    // agent-step.js) reports false for an Ollama or misconfigured runtime
+    // and the agent route refuses before any billed work.
+    ...(typeof provider?.agentStep === 'function'
+      ? { agentStep: (opts) => provider.agentStep(opts) }
+      : {}),
 
     /**
      * Resolved configuration with provenance, independent of provider

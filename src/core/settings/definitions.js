@@ -917,18 +917,32 @@ export const DEFINITIONS = {
   },
   // Governs POST /api/jobs/index (dashboard "Index a folder" and any other
   // HTTP caller) only — see docs/security/semidex-lite-public-api-audit-2026-08.md,
-  // Finding P1-3. Direct CLI indexing (`semidex-lite index <path>` / Full's
+  // Finding P1-3 and its "Indexing allowed roots" empty-roots-policy update
+  // (2026-09). Direct CLI indexing (`semidex-lite index <path>` / Full's
   // equivalent) has no HTTP boundary and is intentionally NOT gated by this
   // setting; a trusted local operator running the CLI already has whatever
-  // filesystem access the CLI grants by other means. An empty list (the
-  // default) means HTTP/dashboard indexing is disabled entirely — fail
-  // closed, never "no roots configured" silently meaning "any path
-  // allowed". Each entry must be an absolute directory path; a request
-  // path is accepted only when it resolves (after following symlinks/
-  // junctions) to one of these directories or something inside them.
+  // filesystem access the CLI grants by other means. Each entry must be an
+  // absolute directory path; a request path is accepted only when it
+  // resolves (after following symlinks/junctions) to one of these
+  // directories or something inside them.
+  //
+  // Empty list (the default) is no longer an unconditional fail-closed —
+  // see allowed-roots-guard.js's checkTarget(). Its meaning now depends on
+  // ADMIN_ALLOW_REMOTE (shared/admin/jobs/allowed-roots-guard.js's own
+  // `deploymentPolicy` input, resolved once via resolveDeploymentPolicy() in
+  // shared/admin/server.js):
+  //   - ADMIN_ALLOW_REMOTE=false (default; Admin bound to loopback only):
+  //     empty roots means HTTP/dashboard indexing is allowed for any
+  //     existing local file/directory — a personal-use convenience, since
+  //     the only caller who can reach a loopback-only server at all is
+  //     already the trusted local operator.
+  //   - ADMIN_ALLOW_REMOTE=true (remote/LAN/reverse-proxied): empty roots
+  //     still fails closed exactly as before — "no roots configured" never
+  //     silently means "any path allowed" once this server is reachable
+  //     beyond this machine.
   INDEX_ALLOWED_ROOTS: {
     category: 'system', label: 'Allowed indexing roots (API)', type: 'string-array', envVar: 'INDEX_ALLOWED_ROOTS',
-    description: 'Directories POST /api/jobs/index (dashboard and any other HTTP caller) may index from. JSON array of absolute paths, e.g. ["C:\\\\Users\\\\me\\\\Documents\\\\kb"]. Empty (default) disables HTTP/dashboard indexing entirely. Does not affect direct CLI indexing.',
+    description: 'Directories POST /api/jobs/index (dashboard and any other HTTP caller) may index from. JSON array of absolute paths, e.g. ["C:\\\\Users\\\\me\\\\Documents\\\\kb"]. Empty (default): while Admin is loopback-only (ADMIN_ALLOW_REMOTE off), any existing local file/directory may be indexed via the dashboard/API; once ADMIN_ALLOW_REMOTE is on, HTTP/dashboard indexing requires at least one configured root here. Configured entries always restrict indexing to those directories (and anything inside them), in every mode. Does not affect direct CLI indexing.',
     advanced: false,
     appliesAt: 'immediate', requiresReindex: false, requiresBackfill: false,
     ...stringArrayPathField({ envVar: 'INDEX_ALLOWED_ROOTS', warnPrefix: '[settings] ' }),

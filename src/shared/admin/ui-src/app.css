@@ -899,6 +899,20 @@ td.actions { text-align: right; }
 .gs-field-desc {
   margin: 6px 0 0; font-size: var(--font-size-md); color: var(--text-secondary);
 }
+/* Inline model-availability check (generation model selects). The status
+   span carries no colour until a real probe has run — an unchecked model
+   must never look verified. Reuses the canonical --status-* tokens rather
+   than introducing a parallel colour set. */
+.gs-model-check {
+  display: inline-flex; align-items: center; gap: 8px; margin-top: 6px;
+}
+.gs-model-check-status {
+  font-size: var(--font-size-sm); color: var(--text-muted);
+}
+.gs-model-check-status.is-ok      { color: var(--status-ok); }
+.gs-model-check-status.is-warn    { color: var(--status-warn); }
+.gs-model-check-status.is-fail    { color: var(--status-fail); }
+
 .gs-field-source {
   margin: 4px 0 0; font-size: var(--font-size-sm); color: var(--text-muted);
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;

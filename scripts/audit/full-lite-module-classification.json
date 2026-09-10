@@ -13,8 +13,8 @@
     "composition": 12,
     "mixed": 3,
     "tooling": 62,
-    "cloud": 8,
-    "shared": 198,
+    "cloud": 11,
+    "shared": 206,
     "local": 29
   },
   "modules": [
@@ -50,6 +50,7 @@
       "liteReachable": true,
       "directDependencies": [
         "src/admin/jobs/spawn-indexer-lite.js",
+        "src/cloud/admin/gemini-model-probe-api.js",
         "src/cloud/admin/qdrant-cloud-api.js",
         "src/cloud/embedding/cloud-embedding-provider.js",
         "src/cloud/generation/cloud-generation-provider.js",
@@ -103,6 +104,7 @@
       "liteReachable": false,
       "directDependencies": [
         "src/admin/jobs/spawn-indexer-full.js",
+        "src/cloud/admin/gemini-model-probe-api.js",
         "src/cloud/admin/qdrant-cloud-api.js",
         "src/cloud/embedding/cloud-embedding-provider.js",
         "src/cloud/generation/cloud-generation-provider.js",
@@ -206,6 +208,19 @@
       ]
     },
     {
+      "path": "src/cloud/admin/gemini-model-probe-api.js",
+      "declaredCategory": "cloud",
+      "category": "cloud",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/cloud/generation/gemini-model-probe.js",
+        "src/core/http/http.js",
+        "src/core/http/route-audience.js"
+      ]
+    },
+    {
       "path": "src/cloud/admin/qdrant-cloud-api.js",
       "declaredCategory": "cloud",
       "category": "cloud",
@@ -282,6 +297,29 @@
       ]
     },
     {
+      "path": "src/cloud/generation/gemini-agent-step.js",
+      "declaredCategory": "cloud",
+      "category": "cloud",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/agent/tool-schema.js",
+        "src/core/generation/agent-step.js"
+      ]
+    },
+    {
+      "path": "src/cloud/generation/gemini-model-probe.js",
+      "declaredCategory": "cloud",
+      "category": "cloud",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/shared/core/doctor-checks.js"
+      ]
+    },
+    {
       "path": "src/cloud/generation/gemini-models.js",
       "declaredCategory": "cloud",
       "category": "cloud",
@@ -298,8 +336,78 @@
       "fullReachable": true,
       "liteReachable": true,
       "directDependencies": [
+        "src/cloud/generation/gemini-agent-step.js",
         "src/core/generation/config.js"
       ]
+    },
+    {
+      "path": "src/core/agent-api/v3/contract.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/core/agent-api/v3/request.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/agent-api/v3/contract.js",
+        "src/core/http/http.js"
+      ]
+    },
+    {
+      "path": "src/core/agent-api/v3/route.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/agent-api/v3/contract.js",
+        "src/core/agent-api/v3/request.js",
+        "src/core/ask/budget-ledger.js",
+        "src/core/http/http.js",
+        "src/core/http/route-audience.js",
+        "src/core/http/sse.js",
+        "src/shared/core/doctor-checks.js"
+      ]
+    },
+    {
+      "path": "src/core/agent/continuation-store.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/core/agent/runtime.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/core/agent/continuation-store.js",
+        "src/core/agent/tool-schema.js",
+        "src/core/generation/agent-step.js"
+      ]
+    },
+    {
+      "path": "src/core/agent/tool-schema.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
     },
     {
       "path": "src/core/ask-api/v1/contract.js",
@@ -765,6 +873,15 @@
     },
     {
       "path": "src/core/embedding-profile/schema.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": []
+    },
+    {
+      "path": "src/core/generation/agent-step.js",
       "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,
@@ -2044,6 +2161,8 @@
       "fullReachable": true,
       "liteReachable": true,
       "directDependencies": [
+        "src/core/agent-api/v3/route.js",
+        "src/core/agent/runtime.js",
         "src/core/ask-api/v1/route.js",
         "src/core/ask-api/v2/route.js",
         "src/core/ask/coordinator-v2.js",
@@ -2162,22 +2281,6 @@
       ]
     },
     {
-      "path": "src/shared/admin/ui-src/collection-view.js",
-      "declaredCategory": "shared",
-      "category": "shared",
-      "compositionEdition": null,
-      "fullReachable": true,
-      "liteReachable": true,
-      "directDependencies": [
-        "src/shared/admin/ui-src/api.js",
-        "src/shared/admin/ui-src/dom.js",
-        "src/shared/admin/ui-src/search.js",
-        "src/shared/admin/ui-src/sidebar.js",
-        "src/shared/admin/ui-src/state.js",
-        "src/shared/admin/ui-src/toasts.js"
-      ]
-    },
-    {
       "path": "src/shared/admin/ui-src/dom.js",
       "declaredCategory": "shared",
       "category": "shared",
@@ -2227,6 +2330,26 @@
       ]
     },
     {
+      "path": "src/shared/admin/ui-src/features/reader/view.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/shared/admin/ui-src/assembly-view.js",
+        "src/shared/admin/ui-src/dom.js",
+        "src/shared/admin/ui-src/features/collection-home/view.js",
+        "src/shared/admin/ui-src/file-view.js",
+        "src/shared/admin/ui-src/format.js",
+        "src/shared/admin/ui-src/shared/api/client.js",
+        "src/shared/admin/ui-src/shared/api/contracts/reader.js",
+        "src/shared/admin/ui-src/shared/lifecycle/view.js",
+        "src/shared/admin/ui-src/shared/ui/states.js",
+        "src/shared/admin/ui-src/toasts.js"
+      ]
+    },
+    {
       "path": "src/shared/admin/ui-src/file-view.js",
       "declaredCategory": "shared",
       "category": "shared",
@@ -2234,13 +2357,9 @@
       "fullReachable": true,
       "liteReachable": true,
       "directDependencies": [
-        "src/shared/admin/ui-src/api.js",
-        "src/shared/admin/ui-src/assembly-view.js",
         "src/shared/admin/ui-src/dom.js",
-        "src/shared/admin/ui-src/format.js",
         "src/shared/admin/ui-src/icons.js",
-        "src/shared/admin/ui-src/structural-renderer.js",
-        "src/shared/admin/ui-src/toasts.js"
+        "src/shared/admin/ui-src/structural-renderer.js"
       ]
     },
     {
@@ -2336,16 +2455,13 @@
       "fullReachable": true,
       "liteReachable": true,
       "directDependencies": [
-        "src/shared/admin/ui-src/api.js",
-        "src/shared/admin/ui-src/collection-view.js",
         "src/shared/admin/ui-src/dom.js",
         "src/shared/admin/ui-src/features/collection-home/view.js",
         "src/shared/admin/ui-src/features/overview/view.js",
-        "src/shared/admin/ui-src/file-view.js",
+        "src/shared/admin/ui-src/features/reader/view.js",
         "src/shared/admin/ui-src/global-settings-view.js",
         "src/shared/admin/ui-src/jobs-view.js",
         "src/shared/admin/ui-src/routes.js",
-        "src/shared/admin/ui-src/search.js",
         "src/shared/admin/ui-src/settings-view.js",
         "src/shared/admin/ui-src/sidebar.js"
       ]
@@ -2457,6 +2573,17 @@
     },
     {
       "path": "src/shared/admin/ui-src/shared/api/contracts/operations.js",
+      "declaredCategory": "shared",
+      "category": "shared",
+      "compositionEdition": null,
+      "fullReachable": true,
+      "liteReachable": true,
+      "directDependencies": [
+        "src/shared/admin/ui-src/shared/api/client.js"
+      ]
+    },
+    {
+      "path": "src/shared/admin/ui-src/shared/api/contracts/reader.js",
       "declaredCategory": "shared",
       "category": "shared",
       "compositionEdition": null,

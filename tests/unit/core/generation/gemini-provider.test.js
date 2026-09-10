@@ -28,7 +28,9 @@ describe('createGeminiProvider', () => {
     // config.abortSignal is SDK-documented as client-only (see
     // gemini-provider.js's own capabilities() comment); only Ollama's
     // fetch-based abort genuinely tears down the upstream connection.
-    assert.deepEqual(provider.capabilities(), { streaming: true, clientAbort: true, upstreamCancellation: false, hardOutputCap: true });
+    // toolCalling: true was added alongside agentStep() (agent mode) — the
+    // provider genuinely implements the AgentStepCapability contract.
+    assert.deepEqual(provider.capabilities(), { streaming: true, clientAbort: true, upstreamCancellation: false, hardOutputCap: true, toolCalling: true });
   });
 
   test('never reads process.env directly', async () => {

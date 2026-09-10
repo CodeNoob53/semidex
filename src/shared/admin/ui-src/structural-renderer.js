@@ -227,7 +227,7 @@ function buildCodeElement(doc, code, explicitLang) {
 // Builds the compact segmented Rendered/Raw control. `onSwitch` is called
 // with 'rendered' | 'raw' — no network request happens on either branch,
 // both are pure DOM swaps between two already-built subtrees.
-function buildToggle(doc, initialMode, onSwitch) {
+function buildToggle(doc, initialMode, onSwitch, signal) {
   const toggle = doc.createElement('div');
   toggle.className = 'structural-toggle';
   toggle.setAttribute('role', 'group');
@@ -251,8 +251,9 @@ function buildToggle(doc, initialMode, onSwitch) {
   }
   setActive(initialMode);
 
-  renderedBtn.addEventListener('click', () => { setActive('rendered'); onSwitch('rendered'); });
-  rawBtn.addEventListener('click', () => { setActive('raw'); onSwitch('raw'); });
+  const listenerOptions = signal ? { signal } : undefined;
+  renderedBtn.addEventListener('click', () => { setActive('rendered'); onSwitch('rendered'); }, listenerOptions);
+  rawBtn.addEventListener('click', () => { setActive('raw'); onSwitch('raw'); }, listenerOptions);
 
   toggle.appendChild(renderedBtn);
   toggle.appendChild(rawBtn);
@@ -323,7 +324,7 @@ export function renderChunkContent(container, chunk, options = {}) {
   if (rendered) {
     const toggle = buildToggle(doc, renderedOk ? 'rendered' : 'raw', (mode) => {
       if (mode === 'rendered') showRendered(); else showRaw();
-    });
+    }, options.signal);
     root.appendChild(toggle);
     root.appendChild(contentSlot);
     if (renderedOk) showRendered(); else showRaw();

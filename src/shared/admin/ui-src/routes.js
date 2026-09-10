@@ -34,8 +34,8 @@ export function currentRoute(hash = location.hash || '#/') {
   // Bare collection route only (S1-style Collection Home, design plan
   // §5.3, §13) — a distinct `view` value from the f/n sub-routes above, so
   // router.js can route it to the lifecycle-owned features/collection-home
-  // controller while #/c/:name/f/... and #/c/:name/n/... keep resolving to
-  // 'collection' (collection-view.js/file-view.js, unchanged).
+  // controller while #/c/:name/f/... and #/c/:name/n/... resolve to the
+  // lifecycle-owned reader controller.
   m = path.match(/^#\/c\/(.+)$/);
   if (m) return { view: 'collection-home', name: decodeURIComponent(m[1]), ...(search && { search }) };
   if (path === '#/index') return { view: 'index' };

@@ -23,7 +23,7 @@ import { registerJobsRoutes } from '../../shared/admin/api/jobs.js';
 import { registerGenerationModelsRoutesGeminiOnly } from '../../shared/admin/api/generation-models.js';
 import { createSettingsService } from '../../core/settings/service.js';
 import { registerNeutralRoutes, createHttpServer } from '../../shared/admin/register-neutral-routes.js';
-import { resolveRequestSecurityPolicy } from '../../shared/admin/server.js';
+import { resolveRequestSecurityPolicy, resolveDeploymentPolicy } from '../../shared/admin/server.js';
 import { resolveIntegrationPolicy } from '../../core/auth/resolve-policy.js';
 import { resolveAuditSink } from '../../core/audit/resolve-sink.js';
 import { ensureEditionTag } from '../../core/audit/sink.js';
@@ -36,6 +36,7 @@ import { REQUIRED_ONNX_EMBED_CAPABILITY_METHODS } from '../../shared/core/onnx-e
 import { createCloudEmbeddingCapability } from '../../cloud/embedding/cloud-embedding-provider.js';
 import { createCloudGenerationCapability } from '../../cloud/generation/cloud-generation-provider.js';
 import { registerQdrantCloudRoutes } from '../../cloud/admin/qdrant-cloud-api.js';
+import { registerGeminiModelProbeRoutes } from '../../cloud/admin/gemini-model-probe-api.js';
 import { createGenerationRuntime } from '../../core/generation/runtime.js';
 import { createGenerationProvider } from '../../core/generation/registry.js';
 
@@ -139,7 +140,7 @@ export function createLiteApp({
   adapter = createStorageAdapter(), embedQuery, jobRegistry, taskRegistry,
   assemblyLogFn, generationRuntime, askCoordinator, askCoordinators, countTokens, settingsService, jobBaseEnv,
   discoverGeminiModelsFn, runQdrantCloudProbeFn, resolveNewCollectionProfileFn, jobPolicy = LITE_JOB_POLICY,
-  securityPolicy, integrationPolicy, allowedRootsGuard, uiDir, auditSink, budgetTracker,
+  securityPolicy, integrationPolicy, allowedRootsGuard, uiDir, auditSink, budgetTracker, agentRuntime, probeGeminiModelFn,
 } = {}) {
   const ollamaCapability = unavailableOllamaEmbedCapability();
   const onnxEmbedCapability = unavailableOnnxEmbedCapability();
@@ -208,7 +209,13 @@ export function createLiteApp({
   // guard constructed here can never see or be affected by a Full guard
   // constructed elsewhere in the same process, since each closes over its
   // own settingsService, never a shared/module-global one.
-  const resolvedAllowedRootsGuard = allowedRootsGuard ?? createAllowedRootsGuard({ settingsService: settings });
+  // deploymentPolicy mirrors server-full.js's own equivalent — resolved via
+  // the SAME resolveDeploymentPolicy() helper resolvedSecurityPolicy below
+  // derives its own allowRemote from, so Full and Lite can never disagree
+  // about whether this deployment is loopback-only.
+  const resolvedDeploymentPolicy = resolveDeploymentPolicy(process.env, { settingsService: settings });
+  const resolvedAllowedRootsGuard = allowedRootsGuard
+    ?? createAllowedRootsGuard({ settingsService: settings, deploymentPolicy: resolvedDeploymentPolicy });
   // Same shared policy resolution Full uses (shared/admin/server.js) — Host
   // allow-list + cross-site rejection, applied before route dispatch. Passing
   // the caller's settingsService keeps ADMIN_PORT/ADMIN_ALLOW_REMOTE
@@ -226,13 +233,21 @@ export function createLiteApp({
   });
   registerNeutralRoutes(router, {
     adapter, embedQuery: resolvedEmbedQuery, cloudEmbed, jobRegistry: resolvedJobRegistry, taskRegistry, assemblyLogFn,
-    generationRuntime: resolvedGenerationRuntime, askCoordinator, askCoordinators, countTokens, settingsService: settings, budgetTracker,
+    generationRuntime: resolvedGenerationRuntime, askCoordinator, askCoordinators, countTokens, settingsService: settings, budgetTracker, agentRuntime,
     runQdrantCloudProbeFn, resolveNewCollectionProfileFn,
     registerQdrantCloudRoutesFn: registerQdrantCloudRoutes,
-    generationModelsFn: (r, deps) => registerGenerationModelsRoutesGeminiOnly(r, {
-      ...deps,
-      discoverGeminiModelsFn: discoverGeminiModelsFn ?? cloudGeneration.discoverModels,
-    }),
+    generationModelsFn: (r, deps) => {
+      registerGenerationModelsRoutesGeminiOnly(r, {
+        ...deps,
+        discoverGeminiModelsFn: discoverGeminiModelsFn ?? cloudGeneration.discoverModels,
+      });
+      // See server-full.js's identical registration for why this lives in
+      // the composition root rather than the shared route file.
+      registerGeminiModelProbeRoutes(r, {
+        settingsService: deps.settingsService,
+        ...(probeGeminiModelFn ? { probeModelFn: probeGeminiModelFn } : {}),
+      });
+    },
     jobsFn: (r, jobs) => registerJobsRoutes(r, jobs, { jobPolicy, allowedRootsGuard: resolvedAllowedRootsGuard }),
   });
   // uiDir is optional DI (default undefined -> dist/admin-ui/, see

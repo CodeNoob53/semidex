@@ -121,6 +121,16 @@ const COLLECTION_VALIDATE = isBoundedString(512);
 const PATH_HASH_VALIDATE = (v) => typeof v === 'string' && /^[0-9a-f]{16}$/.test(v);
 const JOB_ID_VALIDATE = isNonEmptyString;
 const JOB_KIND_VALIDATE = isEnum(new Set(['index', 'reindex']));
+// Which branch of allowed-roots-guard.js's checkTarget() accepted this
+// job's target — a bounded, machine-readable enum, deliberately NOT the
+// generic free-text `reason` envelope field (isNullableBoundedString(128)
+// above accepts any string up to 128 chars, which is fine for a ledger
+// denial code but far too permissive for a field whose whole purpose is to
+// prove indexing was authorized by one of exactly two known policy
+// branches). null covers callers that never ran the guard at all (e.g. a
+// composition root wiring a test fake without a `mode`), never an
+// arbitrary caller-supplied string.
+const ROOT_MODE_VALIDATE = isNullableEnum(new Set(['allowed_root', 'local_unrestricted']));
 
 // Per-type extra fields, ON TOP of the envelope above. Every field named
 // here is the complete allow-list for that event type — buildAuditEvent()
@@ -166,6 +176,7 @@ const EVENT_FIELD_SCHEMAS = {
     collection: { required: true, validate: COLLECTION_VALIDATE },
     pathHash: { required: true, validate: PATH_HASH_VALIDATE },
     kind: { required: true, validate: JOB_KIND_VALIDATE },
+    rootMode: { required: false, validate: ROOT_MODE_VALIDATE },
   },
   [AUDIT_EVENT_TYPE.INDEX_JOB_CANCEL_REQUESTED]: {
     jobId: { required: true, validate: JOB_ID_VALIDATE },

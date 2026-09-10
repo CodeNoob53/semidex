@@ -47,11 +47,14 @@ describe('Phase 4 — canonical ownership of createLiteApp/LITE_JOB_POLICY', () 
     // the SAME resolved bind configuration the listener uses, so it belongs
     // with the other bind-config resolvers rather than in either composition
     // root (where Full and Lite could drift into different Host policies).
-    // The guard itself is unchanged in spirit — this list must stay limited
-    // to config resolution, never composition.
+    // resolveDeploymentPolicy joined in the 2026-09 empty-roots UX fix: the
+    // ONE place ADMIN_ALLOW_REMOTE is resolved for both the request-security
+    // policy above and the indexing allowed-roots guard, so it belongs here
+    // too, for the same reason. This list must stay limited to config
+    // resolution, never composition.
     assert.deepEqual(
       Object.keys(serverModule).sort(),
-      ['resolveHostConfig', 'resolvePortConfig', 'resolveRequestSecurityPolicy']
+      ['resolveDeploymentPolicy', 'resolveHostConfig', 'resolvePortConfig', 'resolveRequestSecurityPolicy']
     );
   });
 });

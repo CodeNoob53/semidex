@@ -70,7 +70,7 @@ describe('entries/lite.js — import-graph isolation from local-only UI code (re
     }
   });
 
-  it('reaches every genuinely shared module (app.js, router.js, global-settings-view.js, jobs-view.js, settings-view.js) — proves this isn\'t isolated by accident (e.g. a broken import), only local-features.js is excluded', () => {
+  it('reaches every genuinely shared module (including lifecycle reader) — proves this isn\'t isolated by accident, only local-features.js is excluded', () => {
     const reachable = reachableFrom(LITE_ENTRY);
     for (const shared of [
       'src/shared/admin/ui-src/app.js',
@@ -78,7 +78,7 @@ describe('entries/lite.js — import-graph isolation from local-only UI code (re
       'src/shared/admin/ui-src/global-settings-view.js',
       'src/shared/admin/ui-src/jobs-view.js',
       'src/shared/admin/ui-src/settings-view.js',
-      'src/shared/admin/ui-src/collection-view.js',
+      'src/shared/admin/ui-src/features/reader/view.js',
       'src/shared/admin/ui-src/search.js',
     ]) {
       assert.ok(reachable.has(shared), `expected entries/lite.js to reach ${shared} (shared code must still be shared) — reachable set: ${JSON.stringify([...reachable])}`);
@@ -111,13 +111,13 @@ describe('entries/full.js — import-graph reaches local-features.js (the mirror
 describe('shared modules never import Full or Lite composition roots', () => {
   const SHARED_MODULES = [
     'src/shared/admin/ui-src/app.js', 'src/shared/admin/ui-src/router.js', 'src/shared/admin/ui-src/global-settings-view.js',
-    'src/shared/admin/ui-src/jobs-view.js', 'src/shared/admin/ui-src/settings-view.js', 'src/shared/admin/ui-src/collection-view.js',
+    'src/shared/admin/ui-src/jobs-view.js', 'src/shared/admin/ui-src/settings-view.js', 'src/shared/admin/ui-src/features/collection-home/view.js',
     'src/shared/admin/ui-src/dom.js', 'src/shared/admin/ui-src/api.js', 'src/shared/admin/ui-src/sidebar.js',
   ];
 
   it('no shared module imports entries/full.js or entries/lite.js', () => {
     // .filter(Boolean): a relative .html?raw specifier (e.g.
-    // collection-view.js's own overview-shell.html?raw import) resolves to
+    // a Vite .html?raw import resolves to
     // `null` in this shared graph tool (it does not strip Vite's ?raw
     // query before checking the file exists on disk) — a real, pre-
     // existing quirk of the tool unrelated to this phase, not a signal

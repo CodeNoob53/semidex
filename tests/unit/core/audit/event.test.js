@@ -120,6 +120,39 @@ describe('buildAuditEvent — pathHash', () => {
   });
 });
 
+describe('buildAuditEvent — index.job_started rootMode (bounded, not the generic reason field)', () => {
+  const base = { outcome: 'started', jobId: 'job-1', collection: 'c', pathHash: hashIdentifier('/a/b'), kind: 'index' };
+
+  it('accepts each real allowed-roots-guard mode value', () => {
+    for (const mode of ['allowed_root', 'local_unrestricted']) {
+      const event = buildAuditEvent(AUDIT_EVENT_TYPE.INDEX_JOB_STARTED, { ...base, rootMode: mode });
+      assert.equal(event.rootMode, mode);
+    }
+  });
+
+  it('accepts null (a caller — e.g. direct CLI indexing — that never ran the guard at all)', () => {
+    const event = buildAuditEvent(AUDIT_EVENT_TYPE.INDEX_JOB_STARTED, { ...base, rootMode: null });
+    assert.equal(event.rootMode, null);
+  });
+
+  it('omitting rootMode entirely is valid (optional field, not present in the built event)', () => {
+    const event = buildAuditEvent(AUDIT_EVENT_TYPE.INDEX_JOB_STARTED, { ...base });
+    assert.ok(!('rootMode' in event));
+  });
+
+  it('rejects an arbitrary caller-supplied string, not just the two real modes', () => {
+    assert.throws(() => buildAuditEvent(AUDIT_EVENT_TYPE.INDEX_JOB_STARTED, {
+      ...base, rootMode: 'trust_me_it_was_fine',
+    }), TypeError);
+  });
+
+  it('rejects the field being reused for a ledger-style free-text reason', () => {
+    assert.throws(() => buildAuditEvent(AUDIT_EVENT_TYPE.INDEX_JOB_STARTED, {
+      ...base, rootMode: 'request_call_ceiling_exceeded',
+    }), TypeError);
+  });
+});
+
 describe('buildAuditEvent — admin.settings_changed field allow-list', () => {
   it('accepts UPPER_SNAKE_CASE keys with set/delete actions', () => {
     const event = buildAuditEvent(AUDIT_EVENT_TYPE.ADMIN_SETTINGS_CHANGED, {

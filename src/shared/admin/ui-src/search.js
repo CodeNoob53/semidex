@@ -20,7 +20,7 @@
 // never asks for one).
 import { $, esc, cloneTemplate, prefersReducedMotion } from './dom.js';
 import { apiPost } from './api.js';
-import { openFileView, hideCollectionContent, nodeTypeBadgeIcon, STRUCTURAL_NODE_TYPES } from './file-view.js';
+import { hideCollectionContent, nodeTypeBadgeIcon, STRUCTURAL_NODE_TYPES } from './file-view.js';
 import { currentRoute } from './routes.js';
 import { markActive, revealSidebarPath } from './sidebar.js';
 import { renderChunkContent } from './structural-renderer.js';
@@ -269,8 +269,10 @@ function updateSearchUrl(name, { query, sourceFile }) {
 // with nothing extra to highlight, same as before this fix existed.
 async function openResultInFileView(name, sourceFile, chunkIndex) {
   const url = `#/c/${encodeURIComponent(name)}/f/${encodeURIComponent(sourceFile)}`;
-  history.pushState(null, '', url);
-  openFileView(name, sourceFile, null, chunkIndex);
+  history.pushState({ semidexReader: { chunkIndex } }, '', url);
+  if (typeof globalThis.dispatchEvent === 'function') {
+    globalThis.dispatchEvent(new Event('hashchange'));
+  }
   await revealSidebarPath(name, sourceFile);
   markActive();
 }

@@ -39,6 +39,39 @@
 // attacker who can race the indexer's own file reads. Documented rather
 // than silently assumed away; see the audit doc's "Indexing allowed roots"
 // section for the same statement in the security design record.
+// EMPTY-ROOTS POLICY (personal-use UX fix, 2026-09) — see
+// docs/security/semidex-lite-public-api-audit-2026-08.md's "Indexing
+// allowed roots" section for the updated design record. Failing closed on
+// an empty INDEX_ALLOWED_ROOTS unconditionally was too much friction for
+// the common case: a single operator running Semidex entirely on their own
+// machine, Admin bound to loopback only, with no roots ever configured.
+// checkTarget() now branches on the injected `deploymentPolicy.allowRemote`
+// flag (see resolveDeploymentPolicy() in shared/admin/server.js — the ONE
+// place ADMIN_ALLOW_REMOTE is resolved, reused here rather than read again
+// from env/settings inside this module) when roots are empty:
+//   - allowRemote === true (or the caller passed no deploymentPolicy at
+//     all — see the default below): unchanged fail-closed behavior. A
+//     remote/LAN/reverse-proxied deployment must never silently infer
+//     "no roots configured" as "any path allowed".
+//   - allowRemote === false: this Admin server is bound to loopback only,
+//     so the one operator who can reach it at all is already the trusted
+//     local user. An existing local file/directory is realpath-validated
+//     exactly as a configured-roots target is (denied() stays the one
+//     generic, existence-oracle-free rejection shape) but is not required
+//     to fall under any configured root. This is a convenience for the
+//     single-user local case, not a broadened authorization rule — it
+//     never consults Host/Origin headers, and remote mode is untouched.
+// This local-only convenience applies ONLY to a genuinely, intentionally
+// empty INDEX_ALLOWED_ROOTS (nothing was ever configured). A NON-empty
+// configured value whose every entry gets dropped during canonicalization
+// (deleted/inaccessible/corrupt/malformed by something outside
+// SettingsService) still resolves to zero usable roots, but is NEVER
+// treated as the intentional empty-list case — it fails closed in every
+// deployment mode, local-only included. See getCanonicalRoots()'s
+// `rawIsEmpty` and checkTarget()'s fail-closed branch below for the
+// distinction; conflating the two would let a misconfiguration (or an
+// externally-corrupted settings.json) silently degrade "restricted to
+// these roots" into "any local path allowed".
 import { realpathSync, statSync } from 'node:fs';
 import nodePath from 'node:path';
 import { resolveAllowedRoots } from '../../../core/security/allowed-roots.js';
@@ -55,11 +88,20 @@ const NUL_CHAR = String.fromCharCode(0);
  *   path?: import('node:path').PlatformPath,
  *   platform?: string,
  *   log?: (message: string) => void,
+ *   deploymentPolicy?: { allowRemote: boolean },
  * }} opts
+ *   deploymentPolicy (optional DI — construct via resolveDeploymentPolicy()
+ *   in shared/admin/server.js, the one place ADMIN_ALLOW_REMOTE is
+ *   resolved) governs ONLY the empty-INDEX_ALLOWED_ROOTS branch of
+ *   checkTarget() below; see the module header comment. Defaults to
+ *   `{ allowRemote: true }` — the fail-closed assumption — so any existing
+ *   or test-constructed guard that does not explicitly pass a deployment
+ *   policy keeps today's exact behavior (empty roots always denied) rather
+ *   than silently becoming permissive.
  */
 export function createAllowedRootsGuard({
   settingsService, fs = { realpathSync, statSync }, path = nodePath, platform = process.platform,
-  log = (msg) => console.warn(msg),
+  log = (msg) => console.warn(msg), deploymentPolicy = { allowRemote: true },
 } = {}) {
   if (!settingsService) {
     throw new TypeError('createAllowedRootsGuard: settingsService is required.');
@@ -70,13 +112,21 @@ export function createAllowedRootsGuard({
   // INDEX_ALLOWED_ROOTS must take effect for the very next indexing
   // request, with no restart and no guard-recreation required (matches the
   // setting's own appliesAt: 'immediate' contract).
+  //
+  // rawIsEmpty distinguishes "operator never configured anything" (a
+  // genuinely empty array — the ONLY shape checkTarget() may treat as the
+  // intentional local-only convenience) from "something was configured but
+  // every entry was dropped" (a non-empty array, or a malformed non-array
+  // value from an externally-edited settings.json) — the latter must always
+  // fail closed, in every deployment mode, per the module header comment.
   function getCanonicalRoots() {
     const raw = settingsService.getActiveValue('INDEX_ALLOWED_ROOTS') ?? [];
     const { roots, dropped } = resolveAllowedRoots(raw, { fs, platform });
     for (const { raw: rawRoot, reason } of dropped) {
       log(`[allowed-roots] configured root "${rawRoot}" was ignored: ${reason}`);
     }
-    return roots;
+    const rawIsEmpty = Array.isArray(raw) && raw.length === 0;
+    return { roots, rawIsEmpty };
   }
 
   // ONE generic denial shape for every post-configuration rejection —
@@ -94,7 +144,7 @@ export function createAllowedRootsGuard({
 
   /**
    * @param {string} rawTarget
-   * @returns {{ ok: true, canonicalPath: string } | { ok: false, status: number, code: string, message: string }}
+   * @returns {{ ok: true, canonicalPath: string, mode: 'allowed_root' | 'local_unrestricted' } | { ok: false, status: number, code: string, message: string }}
    */
   function checkTarget(rawTarget) {
     if (typeof rawTarget !== 'string' || rawTarget.trim() === '') {
@@ -104,11 +154,28 @@ export function createAllowedRootsGuard({
       return { ok: false, status: 400, code: 'bad_request', message: 'Body field "path" must not contain NUL characters.' };
     }
 
-    const roots = getCanonicalRoots();
-    if (roots.length === 0) {
+    const { roots, rawIsEmpty } = getCanonicalRoots();
+
+    // Fail closed BEFORE any filesystem work on the caller-supplied path
+    // (a denial that never depended on the target's real filesystem state
+    // should never pay for, or leak timing about, resolving one) whenever
+    // roots resolved to nothing AND either:
+    //   - something WAS configured but none of it survived canonicalization
+    //     (deleted/inaccessible/corrupt/malformed — !rawIsEmpty). This must
+    //     NEVER be mistaken for the intentional empty-list local
+    //     convenience, in ANY deployment mode — a misconfiguration that
+    //     silently degrades to "any path allowed" would be far worse than
+    //     one that degrades to "indexing disabled".
+    //   - roots are genuinely, intentionally empty AND this deployment
+    //     allows remote/non-loopback access — remote/LAN/reverse-proxied
+    //     deployments must never infer "no roots configured" as "any path
+    //     allowed".
+    if (roots.length === 0 && (!rawIsEmpty || deploymentPolicy.allowRemote)) {
       return {
         ok: false, status: 403, code: 'allowed_roots_not_configured',
-        message: 'Indexing via this API is disabled: no allowed indexing roots are configured. An operator must configure at least one allowed root in Settings before indexing can be started from this API.',
+        message: rawIsEmpty
+          ? 'Indexing via this API is disabled: no allowed indexing roots are configured, and this deployment allows remote/non-loopback access. An operator must configure at least one allowed root in Settings before indexing can be started from this API.'
+          : 'Indexing via this API is disabled: the configured allowed indexing roots could not be resolved (every configured entry was dropped — deleted, inaccessible, or invalid). An operator must fix the configured roots in Settings before indexing can be started from this API.',
       };
     }
 
@@ -134,12 +201,24 @@ export function createAllowedRootsGuard({
       return denied(); // FIFO, socket, block/character device, etc. — not a supported indexing target
     }
 
+    if (roots.length === 0) {
+      // The fail-closed branch above already returned for every other
+      // combination — reaching here means rawIsEmpty is true (nothing was
+      // ever configured, not "configured but all dropped") AND
+      // deploymentPolicy.allowRemote is false: strictly loopback-only
+      // Admin, no roots configured: personal-use convenience, not a
+      // containment check. The realpath/stat validation above still
+      // applies in full; only the "must fall under a configured root"
+      // requirement is skipped.
+      return { ok: true, canonicalPath, mode: 'local_unrestricted' };
+    }
+
     const contained = roots.some((root) => isPathContained(root, canonicalPath, { path, caseInsensitive }));
     if (!contained) {
       return denied();
     }
 
-    return { ok: true, canonicalPath };
+    return { ok: true, canonicalPath, mode: 'allowed_root' };
   }
 
   return { checkTarget, getCanonicalRoots };

@@ -70,6 +70,40 @@ describe('INDEX_ALLOWED_ROOTS settings contract', () => {
     }
   });
 
+  // Real SettingsService-backed regression (2026-09 empty-roots UX fix) —
+  // proves the "non-empty configured value whose every entry gets dropped
+  // during canonicalization must fail closed, never the intentional
+  // empty-list local convenience" rule against the ACTUAL SettingsService
+  // (setMany() validation, getActiveValue() resolution), not just a fake
+  // `{ getActiveValue }` object shaped like one. See allowed-roots-guard.js's
+  // header comment and path-containment.test.js's fake-settingsService
+  // version of the same rule.
+  it('a validly-configured root that is later deleted from disk fails closed in local-only mode too — never local_unrestricted', async () => {
+    const { home, service } = fixture();
+    const root = path.join(home, 'root');
+    fs.mkdirSync(root);
+    try {
+      await service.setMany({ INDEX_ALLOWED_ROOTS: [root] });
+      assert.deepEqual(service.getActiveValue('INDEX_ALLOWED_ROOTS'), [root]);
+
+      // External deletion after configuration succeeded — a genuinely valid
+      // configured root that stopped existing (deleted drive/folder), not a
+      // setMany() rejection and not a malformed settings.json.
+      fs.rmSync(root, { recursive: true, force: true });
+
+      for (const allowRemote of [false, true]) {
+        const guard = createAllowedRootsGuard({
+          settingsService: service, deploymentPolicy: { allowRemote }, log: () => {},
+        });
+        const result = guard.checkTarget(home);
+        assert.equal(result.ok, false, `allowRemote=${allowRemote} must still fail closed, not fall back to local_unrestricted`);
+        assert.equal(result.code, 'allowed_roots_not_configured');
+      }
+    } finally {
+      fs.rmSync(home, { recursive: true, force: true });
+    }
+  });
+
   it('OS environment retains precedence and locks out persisted writes', async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'semidex-env-root-'));
     const { home, service } = fixture(undefined, { INDEX_ALLOWED_ROOTS: JSON.stringify([root]) });

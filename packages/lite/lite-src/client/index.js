@@ -54,6 +54,7 @@ export const isKnownAskV2Event = isKnownAskEventType;
 const SEARCH_PATH = '/api/v1/search';
 const ASK_V1_PATH = '/api/v1/ask';
 const ASK_V2_PATH = '/api/v2/ask';
+const AGENT_V3_PATH = '/api/v3/ask';
 
 const DEFAULT_TIMEOUT_MS = 60_000;
 
@@ -696,5 +697,119 @@ export function createSemidexClient({
     });
   }
 
-  return { search, askV1, askV2, askText };
+  /**
+   * Agent mode — ONE model step per call. The stream ends in exactly one
+   * terminal `done` event whose `status` is either 'completed' (with
+   * `answer`) or 'requires_action' (with `continuationId` and verified
+   * `toolCalls`); any failure throws a typed SemidexApiError instead.
+   *
+   * THIS CLIENT DOES NOT EXECUTE TOOLS AND DOES NOT LOOP. When you receive
+   * `requires_action` it is YOUR backend that decides whether a requested
+   * tool is allowed to run, runs it, and calls askAgent() again with
+   * `{ continuationId, toolResults }`. Semidex never executes a tool and
+   * never connects to your MCP servers.
+   *
+   * A continuation carries ONLY continuationId + toolResults: instructions,
+   * tools, model and budget are frozen for the life of a run, and sending
+   * them again is rejected rather than silently ignored.
+   *
+   * There is NO automatic retry once a stream has been committed — the same
+   * rule askV1/askV2 already follow, and it matters more here: a lost
+   * response after a tool has already run must never cause your executor to
+   * run it a second time just because Semidex was unreachable.
+   *
+   * @param {{
+   *   input?: string, systemInstructions?: string, tools?: Array<Object>, model?: string,
+   *   maxModelSteps?: number, maxToolCalls?: number, maxOutputTokens?: number,
+   *   continuationId?: string,
+   *   toolResults?: Array<{ callId: string, ok: boolean, output?: unknown, error?: unknown }>,
+   *   signal?: AbortSignal, timeoutMs?: number, retry?: Object,
+   * }} args
+   * @returns {AsyncGenerator<Object>} yields { type: 'answer_delta'|'done', ... }
+   */
+  function askAgent({
+    input, systemInstructions, tools, model,
+    maxModelSteps, maxToolCalls, maxOutputTokens,
+    continuationId, toolResults,
+    signal, timeoutMs: perCallTimeoutMs, retry: perCallRetry,
+  } = {}) {
+    const isContinuation = continuationId !== undefined;
+    if (isContinuation && (input !== undefined || tools !== undefined || systemInstructions !== undefined || model !== undefined)) {
+      throw new TypeError(
+        'askAgent(): a continuation carries only { continuationId, toolResults }. '
+        + 'Instructions, tools and model are frozen for the life of a run — start a new run for a new task.'
+      );
+    }
+    if (!isContinuation && toolResults !== undefined) {
+      throw new TypeError('askAgent(): toolResults may only be sent together with a continuationId.');
+    }
+
+    const body = isContinuation
+      ? { continuationId, toolResults }
+      : {
+        input, tools,
+        ...(systemInstructions !== undefined ? { systemInstructions } : {}),
+        ...(model !== undefined ? { model } : {}),
+        ...(maxModelSteps !== undefined ? { maxModelSteps } : {}),
+        ...(maxToolCalls !== undefined ? { maxToolCalls } : {}),
+        ...(maxOutputTokens !== undefined ? { maxOutputTokens } : {}),
+      };
+
+    return streamAsk(AGENT_V3_PATH, body, { signal, timeoutMs: perCallTimeoutMs, retry: perCallRetry });
+  }
+
+  /**
+   * Convenience consumer for ONE agent step: runs askAgent() to its terminal
+   * event and resolves with a discriminated result. Still one STEP, not a
+   * loop — the tool-execution decision stays with your backend.
+   *
+   * An unknown SSE event never becomes a terminal success: if the stream
+   * ends without a `done`, this rejects.
+   *
+   * @returns {Promise<{ status: 'completed', answer: string, usage: Object, steps: number|null }
+   *          | { status: 'requires_action', continuationId: string, text: string, toolCalls: Array<Object>, usage: Object, steps: number|null }>}
+   */
+  async function agentStep(args = {}) {
+    let doneEvent = null;
+    const deltas = [];
+    for await (const event of askAgent(args)) {
+      if (event.type === 'answer_delta') {
+        if (typeof event.text === 'string') deltas.push(event.text);
+      } else if (event.type === 'done') {
+        doneEvent = event;
+      }
+      // Any other/unknown event type is ignored, never treated as terminal.
+    }
+    if (doneEvent === null) {
+      throw new SemidexApiError('The agent stream ended without a terminal `done` event.', {
+        code: 'client_incomplete_stream', retryable: false,
+      });
+    }
+    if (doneEvent.status === 'requires_action') {
+      return deepFreeze({
+        status: 'requires_action',
+        continuationId: doneEvent.continuationId,
+        text: typeof doneEvent.text === 'string' ? doneEvent.text : deltas.join(''),
+        toolCalls: doneEvent.toolCalls ?? [],
+        usage: doneEvent.usage ?? {},
+        steps: doneEvent.steps ?? null,
+      });
+    }
+    if (doneEvent.status === 'completed') {
+      return deepFreeze({
+        status: 'completed',
+        answer: typeof doneEvent.answer === 'string' ? doneEvent.answer : deltas.join(''),
+        usage: doneEvent.usage ?? {},
+        steps: doneEvent.steps ?? null,
+      });
+    }
+    // A `done` with an unrecognized status is NOT a success — a future
+    // status this client does not understand must never be rendered as a
+    // finished answer.
+    throw new SemidexApiError(`The agent stream ended with an unrecognized status "${doneEvent.status}".`, {
+      code: 'client_unknown_status', retryable: false,
+    });
+  }
+
+  return { search, askV1, askV2, askText, askAgent, agentStep };
 }

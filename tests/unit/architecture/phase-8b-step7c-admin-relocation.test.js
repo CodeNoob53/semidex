@@ -59,7 +59,7 @@ const SHARED_MOVED_API = [
 ];
 const SHARED_MOVED_JOBS = ['registry.js', 'task-registry.js'];
 const SHARED_MOVED_UI_JS = [
-  'api.js', 'app.js', 'assembly-view.js', 'collection-view.js', 'dom.js', 'file-view.js', 'format.js',
+  'api.js', 'app.js', 'assembly-view.js', 'dom.js', 'file-view.js', 'format.js',
   'global-settings-view.js', 'icons.js', 'jobs-view.js', 'operation-modal.js', 'operation-render.js',
   'operation-store.js', 'router.js', 'routes.js', 'search.js', 'settings-view.js', 'sidebar-resize.js',
   'sidebar.js', 'state.js', 'structural-renderer.js', 'toasts.js', 'topbar.js',

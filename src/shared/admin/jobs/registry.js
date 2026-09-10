@@ -208,11 +208,11 @@ export function createJobRegistry({ spawnIndexer, baseEnv = process.env, auditSi
   }
 
   /**
-   * @param {{ collection: string, path: string, options?: object, kind?: 'index' | 'reindex' }} params
+   * @param {{ collection: string, path: string, options?: object, kind?: 'index' | 'reindex', rootMode?: 'allowed_root' | 'local_unrestricted' }} params
    * @returns {{ id: string }}
    * @throws if a job is already queued/running
    */
-  function startIndexJob({ collection, path, options = {}, kind = 'index', requestId = null }) {
+  function startIndexJob({ collection, path, options = {}, kind = 'index', requestId = null, rootMode = null }) {
     const active = getActiveJob();
     if (active) {
       const err = new Error(`An indexing job is already ${active.state} (id: ${active.id}). Only one job may run at a time.`);
@@ -262,6 +262,20 @@ export function createJobRegistry({ spawnIndexer, baseEnv = process.env, auditSi
     job.state = STATES.RUNNING;
     recordAuditEvent(auditSink, AUDIT_EVENT_TYPE.INDEX_JOB_STARTED, {
       outcome: 'started', requestId: job.requestId,
+      // rootMode carries WHICH allowed-roots policy branch accepted this
+      // target ('allowed_root' | 'local_unrestricted', or null when the
+      // caller — e.g. a direct CLI invocation, which never goes through
+      // registerJobsRoutes()'s allowedRootsGuard at all — didn't pass one)
+      // so the personal-use empty-roots convenience
+      // (allowed-roots-guard.js's checkTarget()) is distinguishable in the
+      // audit trail from an explicit configured-root match, WITHOUT ever
+      // logging the raw indexed path (pathHash only, below, per the audit
+      // contract — see hashIdentifier()'s own doc comment). A dedicated,
+      // bounded enum field (core/audit/event.js's ROOT_MODE_VALIDATE) —
+      // NOT the generic free-text `reason` envelope field, which accepts
+      // any string up to 128 chars and must never carry a value that
+      // claims to prove an authorization decision.
+      rootMode,
       jobId: job.id, collection: job.collection, pathHash: hashIdentifier(job.path), kind: job.kind,
     });
 

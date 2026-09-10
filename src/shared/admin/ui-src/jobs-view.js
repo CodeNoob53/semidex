@@ -35,7 +35,7 @@
 // is exactly Lite's real, permanent state, not a temporary fallback.
 import indexViewShell from 'edition/index-view.html?raw';
 import { $, errorBox, esc } from './dom.js';
-import { apiPost } from './api.js';
+import { api, apiPost } from './api.js';
 import { openOperationModal } from './operation-modal.js';
 import { pollNow } from './operation-store.js';
 
@@ -45,9 +45,49 @@ export function setJobsLocalCapabilities(capabilities) {
   localCapabilities = capabilities;
 }
 
+// Effective indexing-root state, computed from the SAME GET /api/settings
+// payload global-settings-view.js's own Save flow re-fetches after a PATCH
+// — never a locally-cached copy. Called fresh on every renderIndexingView()
+// (the router re-invokes that on every navigation to #/index, never a
+// cached re-render — see router.js), so the very next visit to this route
+// after saving INDEX_ALLOWED_ROOTS in Settings reflects the new value with
+// no full page reload required.
+//
+// Reads ADMIN_ALLOW_REMOTE's activeValue, deliberately NOT configuredValue.
+// ADMIN_ALLOW_REMOTE is appliesAt: 'next_restart' (core/settings/
+// definitions.js) — right after an operator flips it in Settings and saves,
+// configuredValue is already the new value but activeValue (what
+// allowed-roots-guard.js's checkTarget() actually keys its empty-roots
+// branch on, via resolveDeploymentPolicy() in shared/admin/server.js) is
+// still the OLD value until an actual restart. Reading configuredValue here
+// would tell an operator indexing is disabled (or open) when the currently
+// running server is still enforcing the opposite policy. INDEX_ALLOWED_ROOTS
+// is appliesAt: 'immediate', so configuredValue and activeValue never
+// differ for it — activeValue is used for both fields anyway, for one
+// consistent "what is this server doing right now" read.
+async function renderRootsState() {
+  const el = $('#idx-roots-state');
+  if (!el) return;
+  try {
+    const { settings } = await api('/api/settings');
+    const roots = settings.find((s) => s.key === 'INDEX_ALLOWED_ROOTS')?.activeValue ?? [];
+    const allowRemote = Boolean(settings.find((s) => s.key === 'ADMIN_ALLOW_REMOTE')?.activeValue);
+    if (roots.length > 0) {
+      el.textContent = `Indexing is restricted to ${roots.length} configured root${roots.length === 1 ? '' : 's'} (Settings → System).`;
+    } else if (allowRemote) {
+      el.textContent = 'Indexing via this form is disabled: this deployment allows remote access and no allowed roots are configured (Settings → System).';
+    } else {
+      el.textContent = 'No allowed roots configured — since this Admin server is local-only, any existing folder on this computer may be indexed.';
+    }
+  } catch {
+    el.textContent = '';
+  }
+}
+
 export async function renderIndexingView(main) {
   main.innerHTML = indexViewShell;
   const form = $('#index-form');
+  renderRootsState();
 
   $('#opt-prune').addEventListener('change', (e) => {
     e.target.closest('label').classList.toggle('warn', e.target.checked);

@@ -12,6 +12,9 @@ demo/
 .bench-combined-probe-corpus/
 dist/
 
+# Standalone local projects that are intentionally not part of Semidex.
+/.local-projects/
+
 # Semidex Lite package staging and npm pack output.
 packages/lite/src/
 packages/lite/dist/

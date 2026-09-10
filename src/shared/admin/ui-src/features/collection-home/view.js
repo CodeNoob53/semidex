@@ -7,10 +7,9 @@
 // Documents/Structure — neither has a v2 route yet, so neither gets a
 // cross-link button here; a dead link is worse than no link).
 //
-// `#/c/:name/f/:sourceFile` and `#/c/:name/n/:nodePath` are NOT this module
-// — they stay on collection-view.js/file-view.js unchanged (router.js keeps
-// routing them to `view: 'collection'`, only the bare route now resolves to
-// `view: 'collection-home'`, see routes.js).
+// `#/c/:name/f/:sourceFile` and `#/c/:name/n/:nodePath` are owned by the
+// reader feature. It composes this shell with searchRestore:'form', so a
+// reader permalink restores search controls without issuing a search.
 //
 // A lifecycle-owned view controller: mount(host, params) -> { dispose() }
 // (design plan §8.1/§8.4), matching features/overview/view.js's shape. The
@@ -39,7 +38,7 @@ import { createLiveRegion } from '../../shared/ui/live-region.js';
 import { createLoadingState, createEmptyState, createErrorState } from '../../shared/ui/states.js';
 import { getExpandedCollection, setExpandedCollection } from '../../state.js';
 import { refreshSidebarList } from '../../sidebar.js';
-import { initSearchPanel, syncSearchStateFromUrl } from '../../search.js';
+import { applySearchStateFromUrl, initSearchPanel, syncSearchStateFromUrl } from '../../search.js';
 
 const AVAILABILITY_LABEL = {
   available: 'Search available',
@@ -94,11 +93,11 @@ const SHELL_HTML = `
 
 /**
  * @param {HTMLElement} host
- * @param {{ name: string }} params
+ * @param {{ name: string, searchRestore?: 'run'|'form' }} params
  * @returns {{ dispose(): void }}
  */
 export function mount(host, params = {}) {
-  const { name } = params;
+  const { name, searchRestore = 'run' } = params;
   const view = createViewController();
 
   if (getExpandedCollection() !== name) {
@@ -125,7 +124,8 @@ export function mount(host, params = {}) {
   // used, including the "?q=..." permalink: syncSearchStateFromUrl() re-runs
   // the search when the URL carries one, and is a no-op otherwise.
   initSearchPanel(name);
-  syncSearchStateFromUrl(name);
+  if (searchRestore === 'form') applySearchStateFromUrl(name);
+  else syncSearchStateFromUrl(name);
 
   loadDetail(view, els, live, name, { showLoadingState: true });
 

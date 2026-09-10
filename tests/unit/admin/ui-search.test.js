@@ -509,14 +509,12 @@ describe('"Show more" — batched rendering of an already-fetched result set', (
     });
   });
 
-  it('open buttons on results revealed by "Show more" are wired the same as the first page', async () => {
+  it('open buttons on results revealed by "Show more" navigate through the file route', async () => {
     await withServer(async (base) => {
       const html = await (await fetch(base + '/')).text();
-      let openedWith = null;
       const helpers = loadSearchRenderHelpers(html, {
         hash: '#/c/my-docs',
         apiPostImpl: async () => ({ results: makeResults(10) }),
-        openFileViewImpl: (name, sf, nodePath, ci) => { openedWith = { name, sf, ci }; },
       });
       helpers.initSearchPanel('my-docs');
       helpers.document.querySelector('#q-input').value = 'test';
@@ -525,9 +523,8 @@ describe('"Show more" — batched rendering of an already-fetched result set', (
 
       const cards = helpers.document.querySelectorAll('.result-card');
       cards[9].querySelector('.result-open').click();
-      assert.ok(openedWith, 'the open button on a "Show more"-revealed card must be wired');
-      assert.equal(openedWith.sf, 'file-9.md');
-      assert.equal(openedWith.ci, 9);
+      assert.equal(helpers.location.hash, `#/c/my-docs/f/${encodeURIComponent('file-9.md')}`,
+        'the open button on a "Show more"-revealed card must use the same reader route');
     });
   });
 

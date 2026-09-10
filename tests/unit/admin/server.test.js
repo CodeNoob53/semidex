@@ -5,7 +5,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { resolveHostConfig, resolvePortConfig } from '../../../src/shared/admin/server.js';
+import { resolveHostConfig, resolvePortConfig, resolveDeploymentPolicy } from '../../../src/shared/admin/server.js';
 import { createApp } from '../../../src/admin/server-full.js';
 
 function makeStubAdapter(overrides = {}) {
@@ -675,6 +675,50 @@ describe('resolvePortConfig', () => {
 
   it('rejects an out-of-range port', () => {
     assert.throws(() => resolvePortConfig({ ADMIN_PORT: '70000' }), /not a valid port/);
+  });
+});
+
+// resolveDeploymentPolicy() is the ONE place ADMIN_ALLOW_REMOTE is resolved
+// for both resolveRequestSecurityPolicy (above) and the indexing
+// allowed-roots guard (allowed-roots-guard.js) — see its own header comment.
+// Full/Lite composition-root wiring of the result into a real
+// createAllowedRootsGuard(), plus cross-instance isolation, is covered
+// end-to-end in tests/unit/admin/jobs-deployment-policy-wiring.test.js; this
+// block pins the helper's own resolution logic in isolation.
+describe('resolveDeploymentPolicy', () => {
+  it('env-only (no settingsService): defaults allowRemote to false', () => {
+    assert.deepEqual(resolveDeploymentPolicy({}), { allowRemote: false });
+  });
+
+  it('env-only: allowRemote is true only for the exact string "1"', () => {
+    assert.equal(resolveDeploymentPolicy({ ADMIN_ALLOW_REMOTE: '1' }).allowRemote, true);
+    assert.equal(resolveDeploymentPolicy({ ADMIN_ALLOW_REMOTE: 'true' }).allowRemote, false);
+    assert.equal(resolveDeploymentPolicy({ ADMIN_ALLOW_REMOTE: '0' }).allowRemote, false);
+    assert.equal(resolveDeploymentPolicy({}).allowRemote, false);
+  });
+
+  it('settingsService present: uses its getActiveValue(\'ADMIN_ALLOW_REMOTE\') instead of reading env directly', () => {
+    const settingsService = { getActiveValue: (key) => key === 'ADMIN_ALLOW_REMOTE' ? true : undefined };
+    // Even with a contradictory env value, the settingsService answer wins —
+    // this is the ONE resolution both callers must share, so it must never
+    // silently fall back to env when a settingsService was actually passed.
+    assert.equal(resolveDeploymentPolicy({ ADMIN_ALLOW_REMOTE: '0' }, { settingsService }).allowRemote, true);
+  });
+
+  it('settingsService present: coerces a falsy/truthy non-boolean getActiveValue result with Boolean(), never returns the raw value', () => {
+    assert.equal(resolveDeploymentPolicy({}, { settingsService: { getActiveValue: () => 1 } }).allowRemote, true);
+    assert.equal(resolveDeploymentPolicy({}, { settingsService: { getActiveValue: () => 0 } }).allowRemote, false);
+    assert.equal(resolveDeploymentPolicy({}, { settingsService: { getActiveValue: () => undefined } }).allowRemote, false);
+  });
+
+  it('two independent calls with different settingsService instances never share or leak state', () => {
+    const remoteService = { getActiveValue: () => true };
+    const localService = { getActiveValue: () => false };
+    assert.equal(resolveDeploymentPolicy({}, { settingsService: remoteService }).allowRemote, true);
+    assert.equal(resolveDeploymentPolicy({}, { settingsService: localService }).allowRemote, false);
+    // Re-checking the first after resolving the second proves no shared
+    // module-level cache mutated the first call's already-returned result.
+    assert.equal(resolveDeploymentPolicy({}, { settingsService: remoteService }).allowRemote, true);
   });
 });
 

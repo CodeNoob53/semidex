@@ -28,7 +28,11 @@ describe('createGenerationRuntime — happy path, conforms to GenerationProvider
       createGenerationProviderFn: (opts) => { capturedOptions = opts; return fakeProvider(); },
     });
     assert.equal(runtime.name(), 'ollama');
-    assert.deepEqual(runtime.capabilities(), { streaming: true, clientAbort: true, upstreamCancellation: true, hardOutputCap: true });
+    // toolCalling defaults to FALSE for any provider that does not declare
+    // it (Ollama does not) — the agent route then refuses with
+    // capability_unavailable BEFORE any billed work, rather than attempting
+    // a tool-calling request the backend cannot honor.
+    assert.deepEqual(runtime.capabilities(), { toolCalling: false, streaming: true, clientAbort: true, upstreamCancellation: true, hardOutputCap: true });
     const readiness = await runtime.ready();
     assert.deepEqual(readiness, { ok: true, model: 'gemma3:4b', numCtx: 8192 });
     const genResult = await runtime.generate({ prompt: 'hi' });

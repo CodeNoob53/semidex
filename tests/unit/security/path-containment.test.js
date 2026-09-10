@@ -66,9 +66,9 @@ describe('allowed-roots guard against a real temporary filesystem', () => {
         path: { ...nodePath, resolve: (_cwd, value) => nodePath.resolve(root, value) },
         log: () => {},
       });
-      assert.deepEqual(guard.checkTarget(dir), { ok: true, canonicalPath: fs.realpathSync(dir) });
-      assert.deepEqual(guard.checkTarget(file), { ok: true, canonicalPath: fs.realpathSync(file) });
-      assert.deepEqual(guard.checkTarget('nested/file.md'), { ok: true, canonicalPath: fs.realpathSync(file) });
+      assert.deepEqual(guard.checkTarget(dir), { ok: true, canonicalPath: fs.realpathSync(dir), mode: 'allowed_root' });
+      assert.deepEqual(guard.checkTarget(file), { ok: true, canonicalPath: fs.realpathSync(file), mode: 'allowed_root' });
+      assert.deepEqual(guard.checkTarget('nested/file.md'), { ok: true, canonicalPath: fs.realpathSync(file), mode: 'allowed_root' });
     } finally {
       fs.rmSync(base, { recursive: true, force: true });
     }
@@ -201,5 +201,107 @@ describe('allowed-roots guard against a real temporary filesystem', () => {
     } finally {
       fs.rmSync(base, { recursive: true, force: true });
     }
+  });
+
+  it('a partially valid roots list (one good, one dropped) uses the valid root and stays strictly contained', () => {
+    const { base, root, outside } = tempTree();
+    try {
+      const deletedRoot = nodePath.join(base, 'never-created-root');
+      const guard = createAllowedRootsGuard({ settingsService: settingsFor([root, deletedRoot]), log: () => {} });
+      assert.deepEqual(guard.checkTarget(root), { ok: true, canonicalPath: fs.realpathSync(root), mode: 'allowed_root' });
+      assert.equal(guard.checkTarget(outside).ok, false, 'a path outside the one surviving root must still be denied');
+    } finally {
+      fs.rmSync(base, { recursive: true, force: true });
+    }
+  });
+});
+
+// ── empty-roots policy (2026-09 personal-use UX fix) ─────────────────────
+// See allowed-roots-guard.js's own header comment for the full design
+// record. These pin the three-way policy the task requires:
+//   1. truly empty roots is unrestricted ONLY when deploymentPolicy says
+//      this deployment is loopback-only (allowRemote: false);
+//   2. truly empty roots in remote mode fails closed, before any
+//      filesystem access;
+//   3. a NON-empty configured value whose every entry gets dropped during
+//      canonicalization must NEVER be mistaken for case 1's intentional
+//      empty list — it fails closed in EVERY deployment mode.
+describe('allowed-roots guard — empty-roots policy (local-only convenience vs. remote fail-closed vs. configured-but-invalid)', () => {
+  it('local-only (allowRemote:false) + intentional empty roots accepts an existing file and directory', () => {
+    const { base, root } = tempTree();
+    try {
+      const file = nodePath.join(root, 'file.md');
+      fs.writeFileSync(file, 'x');
+      const guard = createAllowedRootsGuard({
+        settingsService: settingsFor([]), deploymentPolicy: { allowRemote: false }, log: () => {},
+      });
+      assert.deepEqual(guard.checkTarget(root), { ok: true, canonicalPath: fs.realpathSync(root), mode: 'local_unrestricted' });
+      assert.deepEqual(guard.checkTarget(file), { ok: true, canonicalPath: fs.realpathSync(file), mode: 'local_unrestricted' });
+    } finally {
+      fs.rmSync(base, { recursive: true, force: true });
+    }
+  });
+
+  it('local-only + intentional empty roots generically rejects a missing path — same denial shape a configured-roots miss uses', () => {
+    const guard = createAllowedRootsGuard({
+      settingsService: settingsFor([]), deploymentPolicy: { allowRemote: false }, log: () => {},
+    });
+    const result = guard.checkTarget(nodePath.join(os.tmpdir(), `semidex-does-not-exist-${Date.now()}`));
+    assert.equal(result.ok, false);
+    assert.equal(result.status, 403);
+    assert.equal(result.code, 'path_not_allowed');
+  });
+
+  it('remote (allowRemote:true) + empty roots denies BEFORE any filesystem access to the target', () => {
+    let touched = false;
+    const fakeFs = {
+      realpathSync: () => { touched = true; throw new Error('must not be called'); },
+      statSync: () => { touched = true; throw new Error('must not be called'); },
+    };
+    const guard = createAllowedRootsGuard({
+      settingsService: settingsFor([]), fs: fakeFs, deploymentPolicy: { allowRemote: true }, log: () => {},
+    });
+    const result = guard.checkTarget('/some/existing/path');
+    assert.equal(result.ok, false);
+    assert.equal(result.code, 'allowed_roots_not_configured');
+    assert.equal(touched, false, 'must fail closed before ever touching the filesystem');
+  });
+
+  it('a non-empty configured roots list whose every entry is dropped fails closed in BOTH deployment modes — never the intentional-empty-list convenience', () => {
+    const { base } = tempTree();
+    try {
+      const deletedRoot = nodePath.join(base, 'never-created-root');
+      for (const allowRemote of [true, false]) {
+        const guard = createAllowedRootsGuard({
+          settingsService: settingsFor([deletedRoot]), deploymentPolicy: { allowRemote }, log: () => {},
+        });
+        const result = guard.checkTarget(process.cwd());
+        assert.equal(result.ok, false, `allowRemote=${allowRemote} must still fail closed`);
+        assert.equal(result.status, 403);
+        assert.equal(result.code, 'allowed_roots_not_configured');
+      }
+    } finally {
+      fs.rmSync(base, { recursive: true, force: true });
+    }
+  });
+
+  it('a malformed (non-array) configured value also fails closed in local-only mode — not just the remote default', () => {
+    // Mirrors settings-index-allowed-roots.test.js's "malformed persisted
+    // values fail closed" case, but with allowRemote explicitly false: an
+    // externally-corrupted settings.json ('.' instead of an array) must not
+    // be silently reinterpreted as "operator never configured anything".
+    const guard = createAllowedRootsGuard({
+      settingsService: settingsFor('.'), deploymentPolicy: { allowRemote: false }, log: () => {},
+    });
+    const result = guard.checkTarget(process.cwd());
+    assert.equal(result.ok, false);
+    assert.equal(result.code, 'allowed_roots_not_configured');
+  });
+
+  it('defaults deploymentPolicy to allowRemote:true when omitted — a guard constructed without one keeps today\'s fail-closed-on-empty behavior', () => {
+    const guard = createAllowedRootsGuard({ settingsService: settingsFor([]), log: () => {} });
+    const result = guard.checkTarget(process.cwd());
+    assert.equal(result.ok, false);
+    assert.equal(result.code, 'allowed_roots_not_configured');
   });
 });

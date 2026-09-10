@@ -60,13 +60,22 @@ const WILDCARD = '*';
 /**
  * Operations an integration key may be scoped to. Mirrors OPERATION in
  * route-audience.js. 'generate' is Ask v1/v2 (billed LLM generation);
- * 'search' is /api/v1/search (Qdrant-only, no generation call). A key may
- * be scoped to either, or both — createKey()'s own default (['generate'])
- * is unchanged, so an EXISTING key predating 'search' is never silently
- * widened to cover it: only a key explicitly created (or re-created) with
- * `--operation search` gets Search access.
+ * 'search' is /api/v1/search (Qdrant-only, no generation call); 'agent' is
+ * /api/v3/ask (agent mode: billed generation PLUS caller-supplied system
+ * instructions and tool definitions). A key may be scoped to any
+ * combination — createKey()'s own default (['generate']) is unchanged, so
+ * an EXISTING key predating 'search'/'agent' is never silently widened to
+ * cover them: only a key explicitly created (or re-created) with
+ * `--operation search` / `--operation agent` gets that access.
+ *
+ * 'agent' is deliberately SEPARATE from 'generate' rather than folded into
+ * it. Agent mode lets the caller supply the model's system instructions and
+ * the tool surface it may request — a materially wider authority than asking
+ * a grounded question against an allow-listed collection. Reusing
+ * 'generate' would have silently handed that authority to every existing
+ * Ask key the moment this endpoint shipped.
  */
-export const SUPPORTED_OPERATIONS = Object.freeze(['generate', 'search']);
+export const SUPPORTED_OPERATIONS = Object.freeze(['generate', 'search', 'agent']);
 
 /**
  * Typed outcomes. `authenticateToken()` never throws for an auth failure —

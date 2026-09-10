@@ -242,6 +242,10 @@ describe('Indexing boundary events', () => {
     assert.equal(started.collection, 'my-collection');
     assert.match(started.pathHash, /^[0-9a-f]{16}$/);
     assert.doesNotMatch(JSON.stringify(started), /\/allowed\/root\/docs/, 'the raw indexing path must never appear');
+    // This test's checkTarget stub returns no `mode` at all — the same
+    // shape a caller that never ran the real allowed-roots guard produces —
+    // so rootMode must land as null, never an arbitrary/undefined value.
+    assert.equal(started.rootMode, null);
 
     child.emit('exit', 0, null);
     await new Promise((r) => setImmediate(r));
@@ -249,6 +253,24 @@ describe('Indexing boundary events', () => {
     assert.ok(succeeded);
     assert.equal(succeeded.jobId, started.jobId);
     assert.equal(succeeded.exitCode, 0);
+  });
+
+  it('index.job_started carries the allowed-roots guard\'s bounded mode (allowed_root / local_unrestricted), never an arbitrary string', async () => {
+    const sink = fakeSink();
+    for (const mode of ['allowed_root', 'local_unrestricted']) {
+      const { router } = buildJobsRouter({
+        sink,
+        checkTarget: (p) => ({ ok: true, canonicalPath: p, mode }),
+        spawnIndexer: () => fakeChild(),
+      });
+      const res = fakeRes();
+      await router.handleRequest(fakeReq('POST', '/api/jobs/index', {
+        body: JSON.stringify({ collection: 'c', path: '/x' }),
+      }), res);
+      assert.equal(res.statusCode, 202);
+      const started = sink.events.filter((e) => e.type === AUDIT_EVENT_TYPE.INDEX_JOB_STARTED).at(-1);
+      assert.equal(started.rootMode, mode);
+    }
   });
 
   it('a failed job emits index.job_failed with the exit code', async () => {

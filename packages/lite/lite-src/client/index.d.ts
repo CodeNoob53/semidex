@@ -468,6 +468,134 @@ export type AskDoneConversation = AskConversationDoneBlock;
 /** @deprecated Use `AskTextResultV1`/`AskTextResultV2` for a version-specific type (precise `done`/`conversation` shape). This alias covers both. */
 export type AskTextResult = AskTextResultV1 | AskTextResultV2;
 
+
+/* ── Agent mode (POST /api/v3/ask) ─────────────────────────────────────── */
+
+/**
+ * A JSON Schema subset describing one tool's arguments. Only the constructs
+ * Semidex actually enforces are permitted: object/properties/required/
+ * additionalProperties, array/items, the scalar types, and enum on scalars.
+ * Anything else (`$ref`, `allOf`, `const`, `format`, `pattern`, `minimum`, …)
+ * is REJECTED by the server rather than ignored, so a constraint you declare
+ * is always one that is actually applied.
+ */
+export interface AgentToolInputSchema {
+  type: 'object';
+  description?: string;
+  properties?: Record<string, AgentToolSchemaNode>;
+  required?: string[];
+  additionalProperties?: boolean;
+}
+
+export type AgentToolSchemaNode =
+  | { type: 'string'; description?: string; enum?: string[] }
+  | { type: 'number'; description?: string; enum?: number[] }
+  | { type: 'integer'; description?: string; enum?: number[] }
+  | { type: 'boolean'; description?: string; enum?: boolean[] }
+  | { type: 'array'; description?: string; items: AgentToolSchemaNode }
+  | AgentToolInputSchema;
+
+/** One tool the model may REQUEST. Semidex never executes it — your backend does. */
+export interface AgentToolDefinition {
+  name: string;
+  description?: string;
+  inputSchema: AgentToolInputSchema;
+}
+
+/** A tool call the model produced. Already name-allowlisted and schema-validated by the server. */
+export interface AgentToolCall {
+  id: string;
+  name: string;
+  arguments: Record<string, unknown>;
+}
+
+/**
+ * One tool's outcome, discriminated on `ok`. An executor failure is sent as
+ * `{ ok: false, error }` and reaches the model as a real error result — never
+ * dressed up as a successful output.
+ */
+export type AgentToolResult =
+  | { callId: string; ok: true; output?: unknown }
+  | { callId: string; ok: false; error: unknown };
+
+export interface AgentUsage {
+  tokensIn: number | null;
+  tokensOut: number | null;
+}
+
+/** Streaming text delta for the model text of THIS step. */
+export interface AgentAnswerDeltaEvent {
+  type: 'answer_delta';
+  text: string;
+}
+
+/** Terminal event: the model finished. */
+export interface AgentDoneCompletedEvent {
+  type: 'done';
+  status: 'completed';
+  answer: string;
+  steps: number | null;
+  usage: AgentUsage;
+}
+
+/**
+ * Terminal event: the model wants tools run. `text` is whatever the model
+ * said before requesting them — deliberately NOT called `answer`, because it
+ * is not a finished answer and must not be rendered as one.
+ */
+export interface AgentDoneRequiresActionEvent {
+  type: 'done';
+  status: 'requires_action';
+  continuationId: string;
+  text: string;
+  toolCalls: AgentToolCall[];
+  steps: number | null;
+  usage: AgentUsage;
+}
+
+export type AgentDoneEvent = AgentDoneCompletedEvent | AgentDoneRequiresActionEvent;
+
+/** A future/unrecognized event. Never terminal, never a success. */
+export interface AgentUnknownEvent {
+  type: string;
+  [key: string]: unknown;
+}
+
+export type AgentEvent = AgentAnswerDeltaEvent | AgentDoneEvent | AgentUnknownEvent;
+
+/** Starts a run. `tools` is required — agent mode exists to expose YOUR tools. */
+export interface AgentStartArgs {
+  input: string;
+  tools: AgentToolDefinition[];
+  systemInstructions?: string;
+  model?: string;
+  maxModelSteps?: number;
+  maxToolCalls?: number;
+  maxOutputTokens?: number;
+  signal?: AbortSignal;
+  timeoutMs?: number;
+  retry?: RetryOptions;
+}
+
+/**
+ * Continues a run. Carries ONLY the continuation id and the COMPLETE set of
+ * results for the calls that run is waiting on — instructions, tools, model
+ * and budget are frozen, and partial continuation is not supported.
+ */
+export interface AgentContinueArgs {
+  continuationId: string;
+  toolResults: AgentToolResult[];
+  signal?: AbortSignal;
+  timeoutMs?: number;
+  retry?: RetryOptions;
+}
+
+export type AgentArgs = AgentStartArgs | AgentContinueArgs;
+
+export type AgentStepResult =
+  | { status: 'completed'; answer: string; usage: AgentUsage; steps: number | null }
+  | { status: 'requires_action'; continuationId: string; text: string; toolCalls: AgentToolCall[]; usage: AgentUsage; steps: number | null };
+
 export interface SemidexClient {
   /** POST /api/v1/search — resolves with the parsed, deep-frozen response body. Rejects with SemidexApiError on any failure. */
   search(args: SearchArgs): Promise<SearchResponse>;
@@ -522,6 +650,38 @@ export interface SemidexClient {
   askText(args: AskTextArgsV1): Promise<AskTextResultV1>;
   askText(args: AskTextArgsV2): Promise<AskTextResultV2>;
   askText(args: AskTextArgs): Promise<AskTextResultV1 | AskTextResultV2>;
+
+  /**
+   * POST /api/v3/ask — agent mode. ONE model step per call.
+   *
+   * Yields `answer_delta` events, then exactly one terminal `done` whose
+   * `status` discriminates the outcome. Any failure throws SemidexApiError;
+   * a terminal SSE `error` is never yielded as an event.
+   *
+   * This client NEVER executes a tool and NEVER loops. On `requires_action`
+   * your backend decides whether each requested tool may run, runs it, and
+   * calls askAgent({ continuationId, toolResults }) again. Semidex does not
+   * connect to your MCP servers and holds none of their credentials.
+   *
+   * There is no automatic retry once a stream is committed: a lost response
+   * after a tool already ran must not cause your executor to run it twice.
+   */
+  askAgent(args: AgentStartArgs): AsyncGenerator<AgentEvent, void, void>;
+  askAgent(args: AgentContinueArgs): AsyncGenerator<AgentEvent, void, void>;
+  askAgent(args: AgentArgs): AsyncGenerator<AgentEvent, void, void>;
+
+  /**
+   * Convenience consumer for ONE agent step: runs askAgent() to its terminal
+   * event and resolves with a discriminated result. Still one step, not a
+   * loop — the tool-execution decision stays with your backend.
+   *
+   * Rejects if the stream ends without a terminal `done`, or with a `status`
+   * this client version does not recognize: a future status is never
+   * rendered as a finished answer.
+   */
+  agentStep(args: AgentStartArgs): Promise<AgentStepResult>;
+  agentStep(args: AgentContinueArgs): Promise<AgentStepResult>;
+  agentStep(args: AgentArgs): Promise<AgentStepResult>;
 }
 
 /**

@@ -23,6 +23,7 @@
 // underlying HTTP request via `signal`), reported honestly rather than
 // papered over.
 import { DEFAULT_MODEL_BY_BACKEND } from '../../core/generation/config.js';
+import { createGeminiAgentStep } from './gemini-agent-step.js';
 
 // Keep direct provider construction aligned with the runtime and Settings.
 const FALLBACK_MODEL = DEFAULT_MODEL_BY_BACKEND.gemini;
@@ -114,7 +115,12 @@ export function createGeminiProvider({
     // hard ceiling on generated output tokens (ai.google.dev/api/
     // generate-content), enforced server-side before/during generation, not
     // a client-side truncation after the fact.
-    capabilities: () => ({ streaming: true, clientAbort: true, upstreamCancellation: false, hardOutputCap: true }),
+    // toolCalling: true — this provider implements agentStep() below
+    // (src/core/generation/agent-step.js's capability contract) on top of
+    // @google/genai's native function calling. Declared here so the agent
+    // runtime can refuse an unsupported backend BEFORE any retrieval or
+    // billed generation, rather than discovering it mid-stream.
+    capabilities: () => ({ streaming: true, clientAbort: true, upstreamCancellation: false, hardOutputCap: true, toolCalling: true }),
 
     async ready() {
       if (!apiKey) {
@@ -246,5 +252,19 @@ export function createGeminiProvider({
 
       return { text, tokensIn, tokensOut, aborted: false };
     },
+
+    // ── Agent mode (tool calling) ───────────────────────────────────────
+    // One structured model step that may end in `requires_action` with
+    // verified tool calls. Deliberately a SEPARATE method from generate()
+    // above: a tool-call outcome is a different terminal shape, not a
+    // variant of text (see core/generation/agent-step.js's header).
+    // Delegates the whole native mapping to gemini-agent-step.js so the
+    // mapping is unit-testable against a fake SDK client in isolation.
+    agentStep: createGeminiAgentStep({
+      getClient,
+      apiKey,
+      defaultModel: model,
+      clientInitError: () => clientInitError,
+    }),
   };
 }

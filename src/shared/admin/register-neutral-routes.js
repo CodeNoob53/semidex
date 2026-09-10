@@ -33,6 +33,8 @@ import { registerSearchRoutes } from './api/search.js';
 import { registerSearchRoutesV1 } from '../../core/search-api/v1/route.js';
 import { registerAskRoutesV1 } from '../../core/ask-api/v1/route.js';
 import { registerAskRoutesV2 } from '../../core/ask-api/v2/route.js';
+import { registerAgentRoutesV3 } from '../../core/agent-api/v3/route.js';
+import { createAgentRuntime } from '../../core/agent/runtime.js';
 import { createAskCoordinatorBundle } from '../../core/ask/coordinator-v2.js';
 import { createTokenBudgetTracker } from '../../core/auth/token-budget.js';
 import { registerGenerationRoutes } from './api/generation.js';
@@ -67,7 +69,7 @@ async function defaultCountTokens(text) {
 // by registerOperationsRoutes below rather than constructed twice.
 export function registerNeutralRoutes(router, {
   adapter, embedQuery, cloudEmbed, jobRegistry, taskRegistry, assemblyLogFn, pickFolderFn,
-  generationRuntime, askCoordinator, askCoordinators, countTokens, settingsService, budgetTracker,
+  generationRuntime, askCoordinator, askCoordinators, countTokens, settingsService, budgetTracker, agentRuntime,
   runQdrantCloudProbeFn, resolveNewCollectionProfileFn, generationModelsFn, jobsFn, registerQdrantCloudRoutesFn,
 }) {
   registerSettingsRoutes(router, { settingsService });
@@ -132,6 +134,10 @@ export function registerNeutralRoutes(router, {
   const resolvedCountTokens = countTokens ?? defaultCountTokens;
   let ask;
   let askV2;
+  // The SHARED single-flight generation gate. Only the default bundle path
+  // constructs one; a caller supplying its own coordinators owns its gate
+  // and passes its own agentRuntime if it wants agent mode to share it.
+  let generationGate;
 
   if (askCoordinators) {
     // Caller supplies its own pre-wired { v1, v2, gate } — trusted as-is,
@@ -151,7 +157,7 @@ export function registerNeutralRoutes(router, {
     // createAskCoordinatorBundle(), the one factory that constructs
     // gate/core/v1/v2 together so there is no seam where they could end up
     // mismatched.
-    ({ v1: ask, v2: askV2 } = createAskCoordinatorBundle({
+    ({ v1: ask, v2: askV2, gate: generationGate } = createAskCoordinatorBundle({
       adapter, embedQuery, countTokens: resolvedCountTokens, generationProvider: generation, settingsService, cloudEmbed,
     }));
   }
@@ -178,6 +184,29 @@ export function registerNeutralRoutes(router, {
   if (askV2) {
     registerAskRoutesV2(router, adapter, { askCoordinatorV2: askV2, budgetTracker: resolvedBudgetTracker, settingsService });
   }
+  // POST /api/v3/ask — agent mode (application-controlled tool calling).
+  // Instance-scoped exactly like resolvedBudgetTracker above: constructed
+  // HERE, once per registerNeutralRoutes() call, so its in-memory
+  // continuation store is never a module-level singleton shared across two
+  // independently-composed apps in one process. Tests inject their own
+  // runtime (fake provider + deterministic store) through the same DI seam.
+  //
+  // The route is registered UNCONDITIONALLY, even when the active backend
+  // cannot do tool calling: the runtime's own capability gate then answers
+  // 501 capability_unavailable BEFORE any billed work, which is a far
+  // clearer contract than a 404 that looks like a missing build.
+  // The agent runtime shares the SAME single-flight gate as Ask v1/v2, so a
+  // v3 model step and an Ask generation can never run concurrently — agent
+  // mode previously bypassed that policy entirely (reproduced: two parallel
+  // start() calls ran two real generations at once). The gate is held only
+  // for the model step itself, never while a run waits for tool results.
+  const resolvedAgentRuntime = agentRuntime
+    ?? createAgentRuntime({ generationProvider: generation, gate: generationGate });
+  registerAgentRoutesV3(router, {
+    agentRuntime: resolvedAgentRuntime,
+    budgetTracker: resolvedBudgetTracker,
+    settingsService,
+  });
   // jobRegistry is a REQUIRED dependency (code review, round 4 — no
   // fallback default here anymore): createJobRegistry() itself now
   // requires a spawnIndexer callback with no safe generic default (Full

@@ -108,9 +108,9 @@ describe('prefers-reduced-motion', () => {
   });
 
   it('every scrollIntoView({behavior:"smooth"}) call site is guarded by prefersReducedMotion()', () => {
-    for (const file of ['file-view.js', 'search.js']) {
+    for (const file of ['features/reader/view.js', 'search.js']) {
       const src = readUiSource(file);
-      const calls = src.match(/scrollIntoView\(\{[^}]*\}\)/g) ?? [];
+      const calls = src.match(/scrollIntoView(?:\?\.)?\(\{[^}]*\}\)/g) ?? [];
       assert.ok(calls.length > 0, `expected at least one scrollIntoView call in ${file}`);
       for (const call of calls) {
         assert.match(call, /behavior:\s*prefersReducedMotion\(\)/, `${file}: ${call} must branch on prefersReducedMotion()`);

@@ -8,8 +8,8 @@
 // structural-renderer.js — this module owns no second table/code/checklist
 // renderer of its own.
 //
-// file-view.js owns fetching, reader state, mode switching, and header
-// integration; this module only builds DOM from an already-fetched assembly.
+// features/reader/view.js owns fetching, reader state, mode switching, and
+// lifecycle; this module only builds DOM from an already-fetched assembly.
 import { cloneTemplate } from './dom.js';
 import { renderChunkContent } from './structural-renderer.js';
 
@@ -54,7 +54,7 @@ function buildBanner(text, kind) {
 // Returns { root, target } — target is the first highlighted element (or
 // null), so the caller can scrollIntoView() after insertion without
 // re-querying.
-export function renderAssemblySegments(assembly, { targetChunkIndex = null } = {}) {
+export function renderAssemblySegments(assembly, { targetChunkIndex = null, signal } = {}) {
   const doc = globalThis.document;
   const root = doc.createElement('div');
   root.className = 'assembly-doc';
@@ -81,7 +81,7 @@ export function renderAssemblySegments(assembly, { targetChunkIndex = null } = {
         text: segment.rawContent,
         lang: segment.lang,
         context: segment.context,
-      });
+      }, { signal });
     } else {
       // Prose is text, only ever text: assigned via textContent (CSS
       // pre-wrap preserves the paragraphs/line breaks already in the

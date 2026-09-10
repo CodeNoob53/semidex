@@ -35,30 +35,16 @@ describe('collection warning delivery (ui-src/toasts.js source, evaluated behavi
     assert.equal(toasts.length, 2, 'dedupe key must be scoped per collection, not warning text alone');
   });
 
-  it('collection-view.js\'s renderCollection() triggers warning toasts on collection open', () => {
-    const js = readUiSource('collection-view.js');
-    assert.match(js, /showCollectionWarnings\(name, detail\.warnings\)/,
-      'opening a collection must route its warnings through the toast dedupe path, not render them ad hoc');
-  });
-
-  it('the collapsed Details panel is not the only place warning text appears — toasts exist as a separate delivery path', () => {
+  it('Collection Home keeps warnings outside its collapsed Details panel', () => {
     const toastsJs = readUiSource('toasts.js');
     assert.match(toastsJs, /function showToast/, 'a toast mechanism must exist');
     const indexHtml = readUiSource('index.html');
     assert.match(indexHtml, /toast-host/, 'a toast host must be wired');
-    // The badge itself (health summary) must still be visible outside Details
-    // — regression guard for the Phase 3A header collapsibility this builds
-    // on. Phase 3E moved the Details markup into its own
-    // collectionDetailsPanel() function (called from renderCollectionHeader,
-    // not inlined there), so this checks the call graph rather than raw
-    // byte-offsets within renderCollectionHeader's own body.
-    const collectionViewJs = readUiSource('collection-view.js');
-    const headerStart = collectionViewJs.indexOf('function renderCollectionHeader');
-    const headerFn = collectionViewJs.slice(headerStart, collectionViewJs.indexOf('export {', headerStart));
-    const detailsCallIdx = headerFn.indexOf('collectionDetailsPanel(detail)');
-    const badgeIdx = headerFn.indexOf('healthBadge');
-    assert.ok(badgeIdx > -1 && detailsCallIdx > -1 && badgeIdx < detailsCallIdx,
-      'health badge must render before/outside the Details disclosure');
+    const collectionHome = readUiSource('features/collection-home/view.js');
+    const renderStart = collectionHome.indexOf('function renderHeader');
+    const renderFn = collectionHome.slice(renderStart);
+    assert.match(renderFn, /buildWarningsBanner\(warnings\)[\s\S]*detailsPanel\(detail\)/,
+      'the visible warning banner must render before and outside Details');
   });
 
   it('#toast-host is announced to assistive tech via aria-live="polite" (Phase 3B audit)', () => {

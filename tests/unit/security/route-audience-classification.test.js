@@ -57,10 +57,18 @@ function fullRoutes() {
   return app.listRoutes();
 }
 
+// Growing this list is a DELIBERATE product/security decision, never an
+// accident of wiring — that is the whole point of asserting it exhaustively.
+// POST /api/v3/ask (agent mode) was added knowingly: it is
+// application-facing, bearer-authenticated, and billed, so it belongs on the
+// integration surface. It is scoped to its OWN operation ('agent'), not
+// 'generate', because it hands the caller control of the model's system
+// instructions and tool surface — see key-store.js's SUPPORTED_OPERATIONS.
 const INTEGRATION_ROUTES = [
   'POST /api/v1/search',
   'POST /api/v1/ask',
   'POST /api/v2/ask',
+  'POST /api/v3/ask',
 ];
 
 const key = (r) => `${r.method} ${r.path}`;
@@ -90,20 +98,41 @@ describe('Part A — every route carries explicit, valid metadata (exhaustive, n
 });
 
 describe('Part C — the Admin/Integration classification is exactly as designed', () => {
-  it('Search v1 and Ask v1/v2 are the ONLY integration routes', () => {
+  it('Search v1, Ask v1/v2 and Agent v3 are the ONLY integration routes', () => {
     const integration = liteRoutes().filter((r) => r.audience === AUDIENCE.INTEGRATION).map(key).sort();
     assert.deepEqual(integration, INTEGRATION_ROUTES.slice().sort(),
       'the integration surface must not grow without an explicit decision — see the audit\'s classification note');
   });
 
-  it('Ask routes are classified as billed generation against a body-supplied collection', () => {
-    for (const r of liteRoutes().filter((r) => r.audience === AUDIENCE.INTEGRATION && r.path !== '/api/v1/search')) {
+  it('Ask v1/v2 are classified as billed generation against a body-supplied collection', () => {
+    for (const r of liteRoutes().filter((r) => r.audience === AUDIENCE.INTEGRATION
+      && r.path !== '/api/v1/search' && r.path !== '/api/v3/ask')) {
       assert.equal(r.operation, OPERATION.GENERATE, `${key(r)} should be a generate operation`);
       assert.equal(r.costClass, COST_CLASS.LLM, `${key(r)} is billed generation`);
       // This is what the next phase's object-level authorization (OWASP
       // API1:2023) keys off: the collection identifier arrives in the body.
       assert.equal(r.collectionSource, COLLECTION_SOURCE.BODY, `${key(r)} takes its collection from the request body`);
     }
+  });
+
+  it('Agent v3 is billed generation under its OWN scope, and names no collection', () => {
+    const agent = liteRoutes().find((r) => key(r) === 'POST /api/v3/ask');
+    assert.ok(agent, 'expected POST /api/v3/ask to be registered');
+    assert.equal(agent.audience, AUDIENCE.INTEGRATION);
+    // NOT OPERATION.GENERATE: agent mode lets the caller supply the model's
+    // system instructions and tool surface, a materially wider authority
+    // than grounded Ask. Sharing the 'generate' scope would have silently
+    // granted it to every existing Ask key the moment this endpoint shipped.
+    assert.equal(agent.operation, OPERATION.AGENT,
+      'agent mode must have its own scope so existing Ask keys do not silently gain instruction/tool control');
+    assert.equal(agent.costClass, COST_CLASS.LLM, 'agent mode calls a billed generation provider');
+    // Agent mode performs NO retrieval of its own, so it names no
+    // collection. Retrieval reaches a run only through an
+    // application-declared tool, whose own Search/Content call passes
+    // through the ordinary stage-2 collection authorization. A collection
+    // name inside tool arguments therefore grants nothing.
+    assert.equal(agent.collectionSource, COLLECTION_SOURCE.NONE,
+      'agent mode does no retrieval itself; collection access is authorized per Search/Content call');
   });
 
   it('Search v1 is classified as a Qdrant-only operation against a body-supplied collection — never billed generation', () => {

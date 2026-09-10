@@ -9,7 +9,7 @@
 // tests instead (see docs/admin-ui-phase3s-unified-operation-status-2026-07-11.md).
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { readUiSource, readUiModuleWithPartial } from './ui-test-helpers.js';
+import { readUiSource, readUiModuleWithPartial, loadJobsViewHelpers } from './ui-test-helpers.js';
 
 describe('collection-creation form (ui-src/jobs-view.js source)', () => {
   it('posts to /api/jobs/index; pruneStale is read directly, the other three options are collected via the local-features.js capability seam (Phase 6 — jobs-view.js itself no longer names onnxEmbed/llmSummaries/tagGen, since those string literals must be physically absent from the Lite bundle)', () => {
@@ -193,5 +193,90 @@ describe('LLM summaries — Ollama dependency status (Phase 6: this behavior now
     const fn = js.slice(start, end);
     assert.match(fn, /err\.status === 503/);
     assert.match(fn, /localCapabilities\?\.retryOllamaStatus/);
+  });
+});
+
+// ── effective indexing-root policy state (#/index) ──────────────────────
+// Behavioral (real DOM, real jobs-view.js source run in a vm context) —
+// not source-regex — because the bug these tests exist to catch is exactly
+// "renderRootsState() computed the right-looking text from the WRONG
+// settings field (configuredValue instead of activeValue)", which a regex
+// over the source text cannot distinguish (both are five-character-ish
+// property-access strings that "look right" either way; only actually
+// running the function against a mocked GET /api/settings response proves
+// which one it read).
+describe('effective indexing-root policy state (#/index, ui-src/jobs-view.js behavior)', () => {
+  async function settle() {
+    await new Promise((r) => setImmediate(r));
+    await new Promise((r) => setImmediate(r));
+    await new Promise((r) => setImmediate(r));
+  }
+
+  function settingsResponse({ rootsActive, rootsConfigured = rootsActive, remoteActive, remoteConfigured = remoteActive }) {
+    return {
+      settings: [
+        { key: 'INDEX_ALLOWED_ROOTS', configuredValue: rootsConfigured, activeValue: rootsActive },
+        { key: 'ADMIN_ALLOW_REMOTE', configuredValue: remoteConfigured, activeValue: remoteActive },
+      ],
+    };
+  }
+
+  async function renderAndRead(apiResponse) {
+    const shellHtml = readUiSource('index.html');
+    const context = loadJobsViewHelpers(shellHtml, { apiImpl: async () => apiResponse });
+    const main = context.document.getElementById('main');
+    await context.renderIndexingView(main);
+    await settle();
+    return context.document.getElementById('idx-roots-state').textContent;
+  }
+
+  it('empty roots + active local-only: states any existing local file/folder may be indexed', async () => {
+    const text = await renderAndRead(settingsResponse({ rootsActive: [], remoteActive: false }));
+    assert.match(text, /local-only/);
+    assert.match(text, /any existing folder on this computer may be indexed/);
+  });
+
+  it('empty roots + active remote: states HTTP/dashboard indexing is disabled', async () => {
+    const text = await renderAndRead(settingsResponse({ rootsActive: [], remoteActive: true }));
+    assert.match(text, /disabled/);
+    assert.match(text, /allows remote access/);
+  });
+
+  it('non-empty roots: states indexing is restricted to the configured roots', async () => {
+    const text = await renderAndRead(settingsResponse({ rootsActive: ['/a/b', '/c/d'], remoteActive: false }));
+    assert.match(text, /restricted to 2 configured roots/);
+  });
+
+  it('configured remote=true but active remote=false (pending restart): reports the ACTIVE mode, not the pending one', async () => {
+    // ADMIN_ALLOW_REMOTE is appliesAt: 'next_restart' — an operator who just
+    // flipped it on and saved sees configuredValue=true immediately, but the
+    // running server is still enforcing activeValue=false until an actual
+    // restart. The indexing page must describe what THIS server is doing
+    // right now, not the pending change.
+    const text = await renderAndRead(settingsResponse({
+      rootsActive: [], remoteConfigured: true, remoteActive: false,
+    }));
+    assert.match(text, /local-only/, 'must report the still-active local-only policy, not the pending remote change');
+    assert.ok(!/disabled/.test(text), 'must not report indexing as disabled based on a not-yet-active setting');
+  });
+
+  it('route revisit after a settings update reflects fresh state, in the same document, with no full reload', async () => {
+    const shellHtml = readUiSource('index.html');
+    let response = settingsResponse({ rootsActive: [], remoteActive: false });
+    const context = loadJobsViewHelpers(shellHtml, { apiImpl: async () => response });
+    const main = context.document.getElementById('main');
+
+    await context.renderIndexingView(main);
+    await settle();
+    assert.match(context.document.getElementById('idx-roots-state').textContent, /local-only/);
+
+    // Simulate: operator navigates to Settings, saves a new INDEX_ALLOWED_ROOTS,
+    // then navigates back to #/index — the router calls renderIndexingView()
+    // again on the SAME document/main element (see router.js's route()), never
+    // reloading the page.
+    response = settingsResponse({ rootsActive: ['/kb'], remoteActive: false });
+    await context.renderIndexingView(main);
+    await settle();
+    assert.match(context.document.getElementById('idx-roots-state').textContent, /restricted to 1 configured root\b/);
   });
 });
