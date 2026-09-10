@@ -1,0 +1,504 @@
+{
+  "caveat": "read-only existing custom-50, legacy corpus; not fresh production indexing or held-out evaluation",
+  "n": 49,
+  "summaries": {
+    "prod-top3": {
+      "1": {
+        "hit": 0.5306122448979592,
+        "recall": 0.5306122448979592,
+        "ndcg": 0.5481049562682215,
+        "mrr": 0.5306122448979592,
+        "distinctSources": 1
+      },
+      "3": {
+        "hit": 0.7551020408163265,
+        "recall": 0.7551020408163265,
+        "ndcg": 0.6364020372004502,
+        "mrr": 0.6360544217687074,
+        "distinctSources": 1.9795918367346939
+      },
+      "retrievalMs": {
+        "p50": 296.0313000000024,
+        "p95": 349.4892,
+        "note": "Embedding cached; sequential interleaved modes, diagnostic not load benchmark."
+      }
+    },
+    "prod-top5": {
+      "1": {
+        "hit": 0.5102040816326531,
+        "recall": 0.5102040816326531,
+        "ndcg": 0.5276967930029155,
+        "mrr": 0.5102040816326531,
+        "distinctSources": 1
+      },
+      "3": {
+        "hit": 0.7551020408163265,
+        "recall": 0.7551020408163265,
+        "ndcg": 0.6313745691871968,
+        "mrr": 0.6258503401360543,
+        "distinctSources": 2.020408163265306
+      },
+      "5": {
+        "hit": 0.8367346938775511,
+        "recall": 0.8367346938775511,
+        "ndcg": 0.6635709605932628,
+        "mrr": 0.6442176870748298,
+        "distinctSources": 2.836734693877551
+      },
+      "retrievalMs": {
+        "p50": 283.6536999999953,
+        "p95": 358.02429999999913,
+        "note": "Embedding cached; sequential interleaved modes, diagnostic not load benchmark."
+      }
+    },
+    "prod-top10": {
+      "1": {
+        "hit": 0.5102040816326531,
+        "recall": 0.5102040816326531,
+        "ndcg": 0.553935860058309,
+        "mrr": 0.5102040816326531,
+        "distinctSources": 1
+      },
+      "3": {
+        "hit": 0.7551020408163265,
+        "recall": 0.7551020408163265,
+        "ndcg": 0.6398988373047066,
+        "mrr": 0.6258503401360543,
+        "distinctSources": 2
+      },
+      "5": {
+        "hit": 0.8367346938775511,
+        "recall": 0.8367346938775511,
+        "ndcg": 0.6720952287107728,
+        "mrr": 0.6442176870748298,
+        "distinctSources": 2.795918367346939
+      },
+      "10": {
+        "hit": 0.8571428571428571,
+        "recall": 0.8571428571428571,
+        "ndcg": 0.6912759858382548,
+        "mrr": 0.6476190476190475,
+        "distinctSources": 4.775510204081633
+      },
+      "retrievalMs": {
+        "p50": 289.83770000000004,
+        "p95": 319.64279999999417,
+        "note": "Embedding cached; sequential interleaved modes, diagnostic not load benchmark."
+      }
+    },
+    "prod-top50": {
+      "1": {
+        "hit": 0.5306122448979592,
+        "recall": 0.5306122448979592,
+        "ndcg": 0.5481049562682215,
+        "mrr": 0.5306122448979592,
+        "distinctSources": 1
+      },
+      "3": {
+        "hit": 0.7551020408163265,
+        "recall": 0.7551020408163265,
+        "ndcg": 0.6382048702883611,
+        "mrr": 0.6360544217687074,
+        "distinctSources": 2
+      },
+      "5": {
+        "hit": 0.8367346938775511,
+        "recall": 0.8367346938775511,
+        "ndcg": 0.6704012616944274,
+        "mrr": 0.6544217687074829,
+        "distinctSources": 2.7755102040816326
+      },
+      "10": {
+        "hit": 0.8571428571428571,
+        "recall": 0.8571428571428571,
+        "ndcg": 0.6895820188219094,
+        "mrr": 0.6578231292517007,
+        "distinctSources": 4.714285714285714
+      },
+      "retrievalMs": {
+        "p50": 290.22389999999905,
+        "p95": 359.3298999999997,
+        "note": "Embedding cached; sequential interleaved modes, diagnostic not load benchmark."
+      }
+    },
+    "rrf-k2-top10": {
+      "1": {
+        "hit": 0.5510204081632653,
+        "recall": 0.5510204081632653,
+        "ndcg": 0.5772594752186588,
+        "mrr": 0.5510204081632653,
+        "distinctSources": 1
+      },
+      "3": {
+        "hit": 0.7551020408163265,
+        "recall": 0.7551020408163265,
+        "ndcg": 0.6414295052137035,
+        "mrr": 0.6462585034013605,
+        "distinctSources": 2.0408163265306123
+      },
+      "5": {
+        "hit": 0.7959183673469388,
+        "recall": 0.7959183673469388,
+        "ndcg": 0.6668252682186684,
+        "mrr": 0.6564625850340136,
+        "distinctSources": 2.795918367346939
+      },
+      "10": {
+        "hit": 0.8775510204081632,
+        "recall": 0.8775510204081632,
+        "ndcg": 0.7014698524460784,
+        "mrr": 0.6682215743440234,
+        "distinctSources": 4.73469387755102
+      },
+      "retrievalMs": {
+        "p50": 295.7129999999961,
+        "p95": 347.091499999995,
+        "note": "Embedding cached; sequential interleaved modes, diagnostic not load benchmark."
+      }
+    },
+    "dense-top10": {
+      "1": {
+        "hit": 0.5714285714285714,
+        "recall": 0.5714285714285714,
+        "ndcg": 0.5801749271137027,
+        "mrr": 0.5714285714285714,
+        "distinctSources": 1
+      },
+      "3": {
+        "hit": 0.7551020408163265,
+        "recall": 0.7551020408163265,
+        "ndcg": 0.6357608133032328,
+        "mrr": 0.6564625850340137,
+        "distinctSources": 2
+      },
+      "5": {
+        "hit": 0.8163265306122449,
+        "recall": 0.8163265306122449,
+        "ndcg": 0.6762664074774467,
+        "mrr": 0.6707482993197279,
+        "distinctSources": 2.877551020408163
+      },
+      "10": {
+        "hit": 0.8775510204081632,
+        "recall": 0.8673469387755102,
+        "ndcg": 0.7044497288182866,
+        "mrr": 0.6798185941043083,
+        "distinctSources": 4.571428571428571
+      },
+      "retrievalMs": {
+        "p50": 60.49439999999959,
+        "p95": 62.78259999999864,
+        "note": "Embedding cached; sequential interleaved modes, diagnostic not load benchmark."
+      }
+    },
+    "sparse-top10": {
+      "1": {
+        "hit": 0.4489795918367347,
+        "recall": 0.4489795918367347,
+        "ndcg": 0.4927113702623906,
+        "mrr": 0.4489795918367347,
+        "distinctSources": 0.9795918367346939
+      },
+      "3": {
+        "hit": 0.7142857142857143,
+        "recall": 0.7142857142857143,
+        "ndcg": 0.5816610089784815,
+        "mrr": 0.5714285714285714,
+        "distinctSources": 2.0408163265306123
+      },
+      "5": {
+        "hit": 0.8163265306122449,
+        "recall": 0.8163265306122449,
+        "ndcg": 0.6296712329250855,
+        "mrr": 0.5948979591836734,
+        "distinctSources": 2.7755102040816326
+      },
+      "10": {
+        "hit": 0.8571428571428571,
+        "recall": 0.8469387755102041,
+        "ndcg": 0.6469341704888764,
+        "mrr": 0.5992063492063492,
+        "distinctSources": 4.836734693877551
+      },
+      "retrievalMs": {
+        "p50": 47.21679999999469,
+        "p95": 60.51940000000468,
+        "note": "Embedding cached; sequential interleaved modes, diagnostic not load benchmark."
+      }
+    }
+  },
+  "comparisons": {
+    "prod-top50": {
+      "n": 49,
+      "meanDelta": -0.0016939670163454185,
+      "wins": 3,
+      "losses": 4,
+      "ties": 42,
+      "ciLow": -0.021229020740100545,
+      "ciHigh": 0.017677787600061313,
+      "excludesZero": false,
+      "verdict": "MIXED",
+      "seed": "semidex-miracl-ru-bootstrap-v1",
+      "iterations": 5000
+    },
+    "rrf-k2-top10": {
+      "n": 49,
+      "meanDelta": 0.01019386660782358,
+      "wins": 6,
+      "losses": 5,
+      "ties": 38,
+      "ciLow": -0.011162777961873468,
+      "ciHigh": 0.03140556547794266,
+      "excludesZero": false,
+      "verdict": "MIXED",
+      "seed": "semidex-miracl-ru-bootstrap-v1",
+      "iterations": 5000
+    },
+    "dense-top10": {
+      "n": 49,
+      "meanDelta": 0.013173742980031745,
+      "wins": 14,
+      "losses": 10,
+      "ties": 25,
+      "ciLow": -0.025447240577827598,
+      "ciHigh": 0.05206346028915584,
+      "excludesZero": false,
+      "verdict": "MIXED",
+      "seed": "semidex-miracl-ru-bootstrap-v1",
+      "iterations": 5000
+    },
+    "sparse-top10": {
+      "n": 49,
+      "meanDelta": -0.04434181534937854,
+      "wins": 7,
+      "losses": 18,
+      "ties": 24,
+      "ciLow": -0.09641070259767448,
+      "ciHigh": -0.00009088984728399286,
+      "excludesZero": true,
+      "verdict": "A_BETTER",
+      "seed": "semidex-miracl-ru-bootstrap-v1",
+      "iterations": 5000
+    }
+  },
+  "failures": [
+    {
+      "id": "c02",
+      "query": "які є валідні комбінації провайдерів embeddings"
+    },
+    {
+      "id": "c09",
+      "query": "HYBRID_PREFETCH_LIMIT prefetch per RRF leg"
+    },
+    {
+      "id": "c12",
+      "query": "як Qdrant зберігає named vectors dense sparse"
+    },
+    {
+      "id": "c15",
+      "query": "OVERLAP_SENTENCES default value sentence overlap chunking"
+    },
+    {
+      "id": "c29",
+      "query": "як агент повинен починати сесію з semidex MCP"
+    },
+    {
+      "id": "c31",
+      "query": "qdrant_list_directories recommended first step corpus layout collection"
+    },
+    {
+      "id": "c35",
+      "query": "де знаходиться src/core/qdrant.js і що він експортує"
+    },
+    {
+      "id": "c36",
+      "query": "chunkFile splitSentences parseMarkdown location in source"
+    },
+    {
+      "id": "c37",
+      "query": "npm run bench:custom50 entry point run-v3.js"
+    },
+    {
+      "id": "c38",
+      "query": "SCHEMA_VERSION constant embeddings.js reindex discriminator"
+    },
+    {
+      "id": "c41",
+      "query": "яка різниця між 21-query regression і custom-50 quality benchmark"
+    },
+    {
+      "id": "c44",
+      "query": "RERANK_PROTECT_TOP1_DELTA minimum advantage to displace rank-0"
+    }
+  ],
+  "top3Changes": [
+    {
+      "id": "c02",
+      "nativeTop3": "providers.md#0|providers.md#4|providers.md#1",
+      "deepTop3": "providers.md#0|providers.md#4|multilingual.md#1",
+      "hitBefore": 0,
+      "hitAfter": 0
+    },
+    {
+      "id": "c09",
+      "nativeTop3": "config-env.md#6|qdrant.md#7|qdrant.md#3",
+      "deepTop3": "qdrant.md#7|config-env.md#6|qdrant.md#3",
+      "hitBefore": 0,
+      "hitAfter": 0
+    },
+    {
+      "id": "c10",
+      "nativeTop3": "qdrant.md#4|project-structure.md#6|qdrant.md#2",
+      "deepTop3": "qdrant.md#4|qdrant.md#2|project-structure.md#6",
+      "hitBefore": 1,
+      "hitAfter": 1
+    },
+    {
+      "id": "c17",
+      "nativeTop3": "chunking.md#4|chunking.md#6|chunking.md#7",
+      "deepTop3": "chunking.md#4|chunking.md#6|chunking.md#5",
+      "hitBefore": 1,
+      "hitAfter": 1
+    },
+    {
+      "id": "c18",
+      "nativeTop3": "chunking.md#2|chunking.md#6|multilingual.md#4",
+      "deepTop3": "chunking.md#2|multilingual.md#4|chunking.md#6",
+      "hitBefore": 1,
+      "hitAfter": 1
+    },
+    {
+      "id": "c23",
+      "nativeTop3": "sync.md#3|config-env.md#0|providers.md#0",
+      "deepTop3": "sync.md#3|project-structure.md#0|providers.md#0",
+      "hitBefore": 1,
+      "hitAfter": 1
+    },
+    {
+      "id": "c26",
+      "nativeTop3": "mcp-workflow.md#0|mcp-workflow.md#1|project-structure.md#8",
+      "deepTop3": "mcp-workflow.md#1|mcp-workflow.md#0|project-structure.md#8",
+      "hitBefore": 1,
+      "hitAfter": 1
+    },
+    {
+      "id": "c33",
+      "nativeTop3": "obsidian.md#7|benchmarking.md#5|mcp-workflow.md#3",
+      "deepTop3": "obsidian.md#7|benchmarking.md#5|qdrant.md#5",
+      "hitBefore": 1,
+      "hitAfter": 1
+    },
+    {
+      "id": "c34",
+      "nativeTop3": "obsidian.md#9|mcp-workflow.md#2|mcp-workflow.md#6",
+      "deepTop3": "obsidian.md#9|mcp-workflow.md#2|obsidian.md#6",
+      "hitBefore": 1,
+      "hitAfter": 1
+    },
+    {
+      "id": "c39",
+      "nativeTop3": "benchmarking.md#7|benchmarking.md#2|benchmarking.md#6",
+      "deepTop3": "benchmarking.md#2|benchmarking.md#7|benchmarking.md#6",
+      "hitBefore": 1,
+      "hitAfter": 1
+    },
+    {
+      "id": "c41",
+      "nativeTop3": "benchmarking.md#19|multilingual.md#6|benchmarking.md#12",
+      "deepTop3": "benchmarking.md#19|multilingual.md#6|project-structure.md#2",
+      "hitBefore": 0,
+      "hitAfter": 0
+    },
+    {
+      "id": "c43",
+      "nativeTop3": "config-env.md#1|config-env.md#0|qdrant.md#0",
+      "deepTop3": "config-env.md#0|config-env.md#1|qdrant.md#0",
+      "hitBefore": 1,
+      "hitAfter": 1
+    },
+    {
+      "id": "c46",
+      "nativeTop3": "config-env.md#4|obsidian.md#7|qdrant.md#5",
+      "deepTop3": "config-env.md#4|obsidian.md#7|config-env.md#7",
+      "hitBefore": 1,
+      "hitAfter": 1
+    },
+    {
+      "id": "c47",
+      "nativeTop3": "multilingual.md#8|multilingual.md#2|multilingual.md#1",
+      "deepTop3": "multilingual.md#2|multilingual.md#8|multilingual.md#1",
+      "hitBefore": 1,
+      "hitAfter": 1
+    },
+    {
+      "id": "c48",
+      "nativeTop3": "multilingual.md#3|multilingual.md#5|multilingual.md#0",
+      "deepTop3": "multilingual.md#3|multilingual.md#0|multilingual.md#5",
+      "hitBefore": 1,
+      "hitAfter": 1
+    }
+  ],
+  "qrelTokenWarnings": [
+    {
+      "id": "c04",
+      "query": "embedding_schema_version reindex discriminator payload field",
+      "absent": [
+        "embedding_schema_version"
+      ],
+      "note": "Review hint only; tokens absent does not prove incorrect qrel."
+    },
+    {
+      "id": "c08",
+      "query": "як працює RRF k параметр у гібридному пошуку",
+      "absent": [
+        "RRF_K"
+      ],
+      "note": "Review hint only; tokens absent does not prove incorrect qrel."
+    },
+    {
+      "id": "c09",
+      "query": "HYBRID_PREFETCH_LIMIT prefetch per RRF leg",
+      "absent": [
+        "HYBRID_PREFETCH_LIMIT"
+      ],
+      "note": "Review hint only; tokens absent does not prove incorrect qrel."
+    },
+    {
+      "id": "c37",
+      "query": "npm run bench:custom50 entry point run-v3.js",
+      "absent": [
+        "bench"
+      ],
+      "note": "Review hint only; tokens absent does not prove incorrect qrel."
+    },
+    {
+      "id": "c38",
+      "query": "SCHEMA_VERSION constant embeddings.js reindex discriminator",
+      "absent": [
+        "SCHEMA_VERSION"
+      ],
+      "note": "Review hint only; tokens absent does not prove incorrect qrel."
+    },
+    {
+      "id": "c44",
+      "query": "RERANK_PROTECT_TOP1_DELTA minimum advantage to displace rank-0",
+      "absent": [
+        "RERANK_PROTECT_TOP1_DELTA"
+      ],
+      "note": "Review hint only; tokens absent does not prove incorrect qrel."
+    }
+  ],
+  "negatives": [
+    {
+      "id": "c50",
+      "query": "semidex підключення до PostgreSQL бази даних connection pool",
+      "expectedTokens": [
+        "postgres"
+      ],
+      "top1": {
+        "chunkId": "mcp-workflow.md#1",
+        "score": 0.032291666
+      }
+    }
+  ]
+}

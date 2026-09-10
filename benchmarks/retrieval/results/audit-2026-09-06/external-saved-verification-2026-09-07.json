@@ -1,0 +1,742 @@
+{
+  "date": "2026-09-06T22:50:45.551Z",
+  "scope": "offline saved-run metric verification, not current live benchmark",
+  "runs": [
+    {
+      "suite": "beir",
+      "id": "local-common-512",
+      "mode": "dense",
+      "path": "benchmarks/external/beir/.runs/local-common-512-dense.trec",
+      "metrics": {
+        "queryCount": 300,
+        "ndcgAt10": 0.638008622054435,
+        "mapAt100": 0.595761519749069,
+        "recallAt10": 0.7717777777777777,
+        "recallAt100": 0.907,
+        "precisionAt10": 0.08666666666666692,
+        "mrrAt10": 0.6044060846560848,
+        "skippedForRecallMap": 0
+      },
+      "sha256": "76e522f620a565becf163a7752033a686ca2f77c1057fb94e92349ed3e42c8c4",
+      "status": "PASS"
+    },
+    {
+      "suite": "beir",
+      "id": "local-common-512",
+      "mode": "sparse",
+      "path": "benchmarks/external/beir/.runs/local-common-512-sparse.trec",
+      "metrics": {
+        "queryCount": 300,
+        "ndcgAt10": 0.6344486539915977,
+        "mapAt100": 0.5920669435184844,
+        "recallAt10": 0.7662777777777777,
+        "recallAt100": 0.9035555555555556,
+        "precisionAt10": 0.0853333333333336,
+        "mrrAt10": 0.6007539682539683,
+        "skippedForRecallMap": 0
+      },
+      "sha256": "9b0b495ae06e5cc4bc181a72e7324710c716431506dadccffeb28b4decb52e6a",
+      "status": "PASS"
+    },
+    {
+      "suite": "beir",
+      "id": "local-common-512",
+      "mode": "hybrid_k60",
+      "path": "benchmarks/external/beir/.runs/local-common-512-hybrid_k60.trec",
+      "metrics": {
+        "queryCount": 300,
+        "ndcgAt10": 0.6777751165773274,
+        "mapAt100": 0.6422680838884036,
+        "recallAt10": 0.7919444444444443,
+        "recallAt100": 0.9303333333333335,
+        "precisionAt10": 0.0890000000000003,
+        "mrrAt10": 0.6507645502645503,
+        "skippedForRecallMap": 0
+      },
+      "sha256": "f6219f534e8cf45e2649a0a981d5020bedfce7021b0fba427563f1232f24897d",
+      "status": "PASS"
+    },
+    {
+      "suite": "beir",
+      "id": "local-native",
+      "mode": "dense",
+      "path": "benchmarks/external/beir/.runs/local-native-dense.trec",
+      "metrics": {
+        "queryCount": 300,
+        "ndcgAt10": 0.6422268186024246,
+        "mapAt100": 0.5981997658058601,
+        "recallAt10": 0.780111111111111,
+        "recallAt100": 0.9036666666666667,
+        "precisionAt10": 0.08766666666666695,
+        "mrrAt10": 0.6074378306878307,
+        "skippedForRecallMap": 0
+      },
+      "sha256": "0fe7fdd516c5f4e0aa31f10ef49b459faebd43877318559261331de2d7fb461b",
+      "status": "PASS"
+    },
+    {
+      "suite": "beir",
+      "id": "local-native",
+      "mode": "sparse",
+      "path": "benchmarks/external/beir/.runs/local-native-sparse.trec",
+      "metrics": {
+        "queryCount": 300,
+        "ndcgAt10": 0.6362785887088243,
+        "mapAt100": 0.5921244263110707,
+        "recallAt10": 0.7721111111111111,
+        "recallAt100": 0.9002222222222223,
+        "precisionAt10": 0.0863333333333336,
+        "mrrAt10": 0.6015066137566139,
+        "skippedForRecallMap": 0
+      },
+      "sha256": "a9c1be196c085a7c6be576488873874610e5ac5b3233c9d03941c1358c9c22ab",
+      "status": "PASS"
+    },
+    {
+      "suite": "beir",
+      "id": "local-native",
+      "mode": "hybrid_k60",
+      "path": "benchmarks/external/beir/.runs/local-native-hybrid_k60.trec",
+      "metrics": {
+        "queryCount": 300,
+        "ndcgAt10": 0.6821795304355459,
+        "mapAt100": 0.6445064035458451,
+        "recallAt10": 0.8019444444444443,
+        "recallAt100": 0.937,
+        "precisionAt10": 0.09000000000000032,
+        "mrrAt10": 0.6536031746031745,
+        "skippedForRecallMap": 0
+      },
+      "sha256": "7b8c19a92faed331603beca6f75afd50f4df1237bd7ecde779af694c5ec5207f",
+      "status": "PASS"
+    },
+    {
+      "suite": "beir",
+      "id": "cloud-common-512",
+      "mode": "dense",
+      "path": "benchmarks/external/beir/.runs/cloud-common-512-dense.trec",
+      "metrics": {
+        "queryCount": 300,
+        "ndcgAt10": 0.6785471883000563,
+        "mapAt100": 0.6370986444732518,
+        "recallAt10": 0.8065555555555556,
+        "recallAt100": 0.9243333333333333,
+        "precisionAt10": 0.09033333333333364,
+        "mrrAt10": 0.6472129629629628,
+        "skippedForRecallMap": 0
+      },
+      "sha256": "6d37eef9608ffaf659fcf35f4e6cf58c93a880369598a9b086524e51877e051c",
+      "status": "PASS"
+    },
+    {
+      "suite": "beir",
+      "id": "cloud-common-512",
+      "mode": "sparse",
+      "path": "benchmarks/external/beir/.runs/cloud-common-512-sparse.trec",
+      "metrics": {
+        "queryCount": 300,
+        "ndcgAt10": 0.6585122907270147,
+        "mapAt100": 0.6169228305581281,
+        "recallAt10": 0.7889999999999999,
+        "recallAt100": 0.8852222222222222,
+        "precisionAt10": 0.08700000000000027,
+        "mrrAt10": 0.6225105820105822,
+        "skippedForRecallMap": 0
+      },
+      "sha256": "118192f147edefd6675948eab541ced8988bec0bf80d313a8b026fc95ac7cb0a",
+      "status": "PASS"
+    },
+    {
+      "suite": "beir",
+      "id": "cloud-common-512",
+      "mode": "hybrid_k2",
+      "path": "benchmarks/external/beir/.runs/cloud-common-512-hybrid_k2.trec",
+      "metrics": {
+        "queryCount": 300,
+        "ndcgAt10": 0.7078020868092388,
+        "mapAt100": 0.6641084634794404,
+        "recallAt10": 0.8458888888888889,
+        "recallAt100": 0.9536666666666668,
+        "precisionAt10": 0.09433333333333369,
+        "mrrAt10": 0.6717341269841268,
+        "skippedForRecallMap": 0
+      },
+      "sha256": "bb5fff94efd9829010eb7d4a834243222347f697fc2c18c5c5d83c932f8ccc06",
+      "status": "PASS"
+    },
+    {
+      "suite": "beir",
+      "id": "cloud-common-512",
+      "mode": "hybrid_k60",
+      "path": "benchmarks/external/beir/.runs/cloud-common-512-hybrid_k60.trec",
+      "metrics": {
+        "queryCount": 300,
+        "ndcgAt10": 0.6977298765720883,
+        "mapAt100": 0.6601239058365104,
+        "recallAt10": 0.8209444444444445,
+        "recallAt100": 0.955,
+        "precisionAt10": 0.09233333333333366,
+        "mrrAt10": 0.6657685185185185,
+        "skippedForRecallMap": 0
+      },
+      "sha256": "2f18b229e97ffc2fd3013f49d8234b2806ada6d5e40b29f5bc52c2e50036b9ee",
+      "status": "PASS"
+    },
+    {
+      "suite": "beir",
+      "id": "cloud-native",
+      "mode": "dense",
+      "path": "benchmarks/external/beir/.runs/cloud-native-dense.trec",
+      "status": "FAIL",
+      "error": "[analyze-fusion] TREC validation failed for benchmarks/external/beir/.runs/cloud-native-dense.trec:\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 5\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 13\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 36\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 42\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 48\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 49\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 50\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 51\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 53\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 54\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 56\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 57\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 70\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 72\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 75\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 94\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 99\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 100\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 113\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 115\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 118\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 124\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 127\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 128\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 129\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 130\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 132\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 133\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 137\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 141\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 142\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 143\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 146\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 148\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 163\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 171\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 179\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 180\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 183\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 185\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 198\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 208\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 212\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 213\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 216\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 217\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 218\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 219\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 230\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 232\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 233\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 236\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 237\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 238\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 239\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 248\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 249\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 261\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 268\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 269\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 274\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 275\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 279\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 294\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 295\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 298\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 300\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 303\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 312\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 314\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 324\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 327\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 338\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 343\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 350\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 354\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 362\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 380\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 384\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 385\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 386\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 388\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 399\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 410\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 411\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 415\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 421\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 431\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 436\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 437\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 439\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 440\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 443\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 452\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 475\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 478\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 491\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 501\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 502\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 507\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 508\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 513\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 514\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 516\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 517\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 521\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 525\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 527\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 528\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 532\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 533\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 535\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 536\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 539\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 540\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 544\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 549\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 551\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 552\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 554\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 560\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 569\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 575\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 577\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 578\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 587\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 589\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 593\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 597\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 598\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 613\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 619\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 623\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 628\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 636\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 637\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 641\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 644\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 649\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 659\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 660\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 674\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 684\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 690\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 691\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 692\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 693\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 700\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 702\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 715\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 716\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 718\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 721\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 723\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 727\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 728\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 729\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 742\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 743\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 744\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 756\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 759\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 768\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 770\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 775\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 781\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 783\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 784\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 785\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 793\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 800\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 805\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 808\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 811\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 814\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 820\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 821\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 823\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 830\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 831\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 832\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 834\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 837\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 839\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 845\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 847\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 852\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 859\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 870\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 873\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 879\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 880\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 882\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 887\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 903\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 904\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 907\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 911\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 913\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 914\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 921\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 922\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 936\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 956\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 957\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 960\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 967\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 971\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 975\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 982\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 985\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 993\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1012\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1014\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1019\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1020\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1021\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1024\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1029\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1041\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1049\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1062\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1086\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1088\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1089\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1099\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1100\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1104\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1107\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1110\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1121\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1130\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1132\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1137\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1140\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1144\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1146\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1150\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1163\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1175\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1179\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1180\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1185\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1187\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1191\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1194\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1196\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1197\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1199\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1200\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1202\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1204\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1207\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1213\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1216\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1221\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1225\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1226\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1232\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1241\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1245\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1259\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1262\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1266\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1270\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1271\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1272\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1273\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1274\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1278\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1279\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1280\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1281\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1282\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1290\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1292\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1298\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1303\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1316\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1319\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1320\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1332\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1335\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1336\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1337\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1339\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1344\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1352\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1359\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1362\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1363\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1368\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1370\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1379\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1382\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1385\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1389\n  - benchmarks/external/beir/.runs/cloud-native-dense.trec: missing query 1395"
+    },
+    {
+      "suite": "beir",
+      "id": "cloud-native",
+      "mode": "sparse",
+      "path": "benchmarks/external/beir/.runs/cloud-native-sparse.trec",
+      "status": "FAIL",
+      "error": "[analyze-fusion] TREC validation failed for benchmarks/external/beir/.runs/cloud-native-sparse.trec:\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 5\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 13\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 36\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 42\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 48\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 49\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 50\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 51\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 53\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 54\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 56\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 57\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 70\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 72\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 75\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 94\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 99\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 100\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 113\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 115\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 118\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 124\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 127\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 128\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 129\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 130\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 132\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 133\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 137\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 141\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 142\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 143\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 146\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 148\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 163\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 171\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 179\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 180\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 183\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 185\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 198\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 208\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 212\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 213\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 216\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 217\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 218\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 219\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 230\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 232\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 233\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 236\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 237\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 238\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 239\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 248\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 249\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 261\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 268\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 269\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 274\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 275\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 279\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 294\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 295\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 298\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 300\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 303\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 312\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 314\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 324\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 327\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 338\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 343\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 350\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 354\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 362\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 380\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 384\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 385\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 386\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 388\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 399\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 410\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 411\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 415\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 421\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 431\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 436\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 437\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 439\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 440\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 443\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 452\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 475\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 478\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 491\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 501\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 502\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 507\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 508\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 513\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 514\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 516\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 517\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 521\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 525\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 527\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 528\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 532\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 533\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 535\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 536\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 539\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 540\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 544\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 549\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 551\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 552\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 554\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 560\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 569\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 575\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 577\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 578\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 587\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 589\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 593\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 597\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 598\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 613\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 619\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 623\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 628\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 636\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 637\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 641\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 644\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 649\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 659\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 660\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 674\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 684\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 690\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 691\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 692\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 693\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 700\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 702\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 715\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 716\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 718\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 721\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 723\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 727\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 728\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 729\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 742\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 743\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 744\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 756\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 759\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 768\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 770\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 775\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 781\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 783\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 784\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 785\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 793\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 800\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 805\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 808\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 811\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 814\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 820\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 821\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 823\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 830\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 831\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 832\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 834\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 837\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 839\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 845\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 847\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 852\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 859\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 870\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 873\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 879\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 880\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 882\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 887\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 903\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 904\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 907\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 911\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 913\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 914\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 921\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 922\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 936\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 956\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 957\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 960\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 967\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 971\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 975\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 982\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 985\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 993\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1012\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1014\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1019\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1020\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1021\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1024\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1029\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1041\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1049\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1062\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1086\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1088\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1089\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1099\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1100\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1104\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1107\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1110\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1121\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1130\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1132\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1137\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1140\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1144\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1146\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1150\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1163\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1175\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1179\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1180\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1185\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1187\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1191\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1194\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1196\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1197\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1199\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1200\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1202\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1204\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1207\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1213\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1216\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1221\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1225\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1226\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1232\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1241\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1245\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1259\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1262\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1266\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1270\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1271\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1272\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1273\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1274\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1278\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1279\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1280\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1281\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1282\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1290\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1292\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1298\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1303\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1316\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1319\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1320\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1332\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1335\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1336\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1337\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1339\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1344\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1352\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1359\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1362\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1363\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1368\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1370\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1379\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1382\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1385\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1389\n  - benchmarks/external/beir/.runs/cloud-native-sparse.trec: missing query 1395"
+    },
+    {
+      "suite": "beir",
+      "id": "cloud-native",
+      "mode": "hybrid_k2",
+      "path": "benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec",
+      "status": "FAIL",
+      "error": "[analyze-fusion] TREC validation failed for benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec:\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 5\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 13\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 36\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 42\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 48\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 49\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 50\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 51\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 53\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 54\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 56\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 57\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 70\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 72\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 75\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 94\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 99\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 100\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 113\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 115\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 118\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 124\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 127\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 128\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 129\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 130\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 132\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 133\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 137\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 141\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 142\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 143\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 146\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 148\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 163\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 171\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 179\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 180\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 183\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 185\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 198\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 208\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 212\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 213\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 216\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 217\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 218\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 219\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 230\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 232\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 233\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 236\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 237\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 238\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 239\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 248\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 249\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 261\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 268\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 269\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 274\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 275\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 279\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 294\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 295\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 298\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 300\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 303\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 312\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 314\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 324\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 327\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 338\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 343\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 350\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 354\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 362\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 380\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 384\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 385\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 386\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 388\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 399\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 410\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 411\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 415\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 421\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 431\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 436\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 437\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 439\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 440\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 443\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 452\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 475\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 478\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 491\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 501\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 502\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 507\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 508\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 513\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 514\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 516\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 517\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 521\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 525\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 527\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 528\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 532\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 533\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 535\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 536\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 539\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 540\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 544\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 549\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 551\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 552\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 554\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 560\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 569\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 575\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 577\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 578\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 587\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 589\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 593\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 597\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 598\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 613\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 619\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 623\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 628\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 636\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 637\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 641\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 644\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 649\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 659\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 660\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 674\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 684\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 690\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 691\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 692\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 693\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 700\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 702\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 715\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 716\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 718\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 721\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 723\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 727\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 728\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 729\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 742\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 743\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 744\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 756\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 759\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 768\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 770\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 775\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 781\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 783\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 784\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 785\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 793\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 800\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 805\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 808\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 811\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 814\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 820\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 821\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 823\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 830\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 831\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 832\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 834\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 837\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 839\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 845\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 847\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 852\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 859\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 870\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 873\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 879\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 880\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 882\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 887\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 903\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 904\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 907\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 911\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 913\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 914\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 921\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 922\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 936\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 956\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 957\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 960\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 967\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 971\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 975\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 982\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 985\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 993\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1012\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1014\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1019\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1020\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1021\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1024\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1029\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1041\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1049\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1062\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1086\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1088\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1089\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1099\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1100\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1104\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1107\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1110\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1121\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1130\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1132\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1137\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1140\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1144\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1146\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1150\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1163\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1175\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1179\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1180\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1185\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1187\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1191\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1194\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1196\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1197\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1199\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1200\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1202\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1204\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1207\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1213\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1216\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1221\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1225\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1226\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1232\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1241\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1245\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1259\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1262\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1266\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1270\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1271\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1272\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1273\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1274\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1278\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1279\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1280\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1281\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1282\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1290\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1292\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1298\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1303\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1316\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1319\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1320\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1332\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1335\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1336\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1337\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1339\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1344\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1352\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1359\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1362\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1363\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1368\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1370\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1379\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1382\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1385\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1389\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k2.trec: missing query 1395"
+    },
+    {
+      "suite": "beir",
+      "id": "cloud-native",
+      "mode": "hybrid_k60",
+      "path": "benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec",
+      "status": "FAIL",
+      "error": "[analyze-fusion] TREC validation failed for benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec:\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 5\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 13\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 36\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 42\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 48\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 49\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 50\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 51\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 53\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 54\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 56\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 57\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 70\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 72\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 75\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 94\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 99\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 100\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 113\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 115\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 118\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 124\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 127\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 128\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 129\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 130\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 132\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 133\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 137\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 141\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 142\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 143\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 146\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 148\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 163\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 171\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 179\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 180\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 183\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 185\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 198\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 208\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 212\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 213\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 216\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 217\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 218\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 219\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 230\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 232\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 233\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 236\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 237\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 238\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 239\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 248\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 249\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 261\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 268\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 269\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 274\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 275\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 279\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 294\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 295\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 298\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 300\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 303\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 312\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 314\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 324\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 327\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 338\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 343\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 350\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 354\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 362\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 380\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 384\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 385\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 386\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 388\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 399\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 410\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 411\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 415\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 421\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 431\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 436\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 437\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 439\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 440\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 443\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 452\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 475\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 478\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 491\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 501\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 502\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 507\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 508\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 513\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 514\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 516\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 517\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 521\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 525\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 527\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 528\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 532\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 533\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 535\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 536\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 539\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 540\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 544\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 549\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 551\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 552\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 554\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 560\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 569\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 575\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 577\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 578\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 587\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 589\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 593\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 597\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 598\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 613\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 619\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 623\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 628\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 636\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 637\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 641\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 644\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 649\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 659\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 660\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 674\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 684\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 690\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 691\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 692\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 693\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 700\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 702\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 715\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 716\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 718\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 721\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 723\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 727\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 728\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 729\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 742\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 743\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 744\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 756\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 759\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 768\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 770\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 775\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 781\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 783\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 784\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 785\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 793\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 800\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 805\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 808\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 811\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 814\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 820\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 821\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 823\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 830\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 831\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 832\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 834\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 837\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 839\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 845\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 847\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 852\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 859\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 870\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 873\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 879\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 880\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 882\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 887\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 903\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 904\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 907\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 911\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 913\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 914\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 921\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 922\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 936\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 956\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 957\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 960\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 967\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 971\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 975\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 982\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 985\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 993\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1012\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1014\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1019\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1020\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1021\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1024\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1029\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1041\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1049\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1062\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1086\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1088\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1089\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1099\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1100\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1104\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1107\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1110\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1121\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1130\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1132\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1137\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1140\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1144\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1146\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1150\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1163\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1175\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1179\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1180\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1185\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1187\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1191\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1194\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1196\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1197\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1199\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1200\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1202\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1204\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1207\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1213\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1216\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1221\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1225\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1226\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1232\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1241\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1245\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1259\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1262\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1266\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1270\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1271\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1272\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1273\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1274\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1278\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1279\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1280\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1281\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1282\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1290\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1292\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1298\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1303\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1316\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1319\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1320\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1332\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1335\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1336\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1337\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1339\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1344\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1352\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1359\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1362\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1363\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1368\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1370\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1379\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1382\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1385\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1389\n  - benchmarks/external/beir/.runs/cloud-native-hybrid_k60.trec: missing query 1395"
+    },
+    {
+      "suite": "miracl",
+      "id": "local",
+      "mode": "dense",
+      "path": "benchmarks/external/miracl/.runs/local-dense.trec",
+      "metrics": {
+        "queryCount": 100,
+        "ndcgAt10": 0.8994643904107014,
+        "mapAt100": 0.8385013051131318,
+        "recallAt10": 0.9851388888888887,
+        "recallAt100": 1,
+        "precisionAt10": 0.28300000000000003,
+        "mrrAt10": 0.91625,
+        "skippedForRecallMap": 0
+      },
+      "sha256": "2841ca17e29a6a7e94f7d8661079a592c78993e91e85c7c953f62b28c3e39ec7",
+      "status": "PASS"
+    },
+    {
+      "suite": "miracl",
+      "id": "local",
+      "mode": "sparse",
+      "path": "benchmarks/external/miracl/.runs/local-sparse.trec",
+      "metrics": {
+        "queryCount": 100,
+        "ndcgAt10": 0.7525545496101045,
+        "mapAt100": 0.6793651502787678,
+        "recallAt10": 0.8897658730158728,
+        "recallAt100": 0.9816666666666666,
+        "precisionAt10": 0.259,
+        "mrrAt10": 0.7465833333333335,
+        "skippedForRecallMap": 0
+      },
+      "sha256": "0f6515cef5caf4ef7297aea9feb573a0813f353d880442ce0f6bf21e547986d4",
+      "status": "PASS"
+    },
+    {
+      "suite": "miracl",
+      "id": "local",
+      "mode": "hybrid_k2",
+      "path": "benchmarks/external/miracl/.runs/local-hybrid_k2.trec",
+      "metrics": {
+        "queryCount": 100,
+        "ndcgAt10": 0.8460430928260724,
+        "mapAt100": 0.7704620579701092,
+        "recallAt10": 0.9802222222222221,
+        "recallAt100": 1,
+        "precisionAt10": 0.281,
+        "mrrAt10": 0.8283333333333335,
+        "skippedForRecallMap": 0
+      },
+      "sha256": "603a0a73648006de965b429fe7cd6783845d3e655a8e2298a1e304e6d6ccdbd8",
+      "status": "PASS"
+    },
+    {
+      "suite": "miracl",
+      "id": "local",
+      "mode": "hybrid_k60",
+      "path": "benchmarks/external/miracl/.runs/local-hybrid_k60.trec",
+      "metrics": {
+        "queryCount": 100,
+        "ndcgAt10": 0.8345766113637991,
+        "mapAt100": 0.7602483756949067,
+        "recallAt10": 0.9652222222222221,
+        "recallAt100": 1,
+        "precisionAt10": 0.277,
+        "mrrAt10": 0.8277500000000001,
+        "skippedForRecallMap": 0
+      },
+      "sha256": "d2fef0780b1299be3b17a5dc6ce7bca65830f1a9c73a8809d8ebae14866b6a85",
+      "status": "PASS"
+    },
+    {
+      "suite": "miracl",
+      "id": "cloud",
+      "mode": "dense",
+      "path": "benchmarks/external/miracl/.runs/cloud-dense.trec",
+      "metrics": {
+        "queryCount": 100,
+        "ndcgAt10": 0.8419516227359408,
+        "mapAt100": 0.7629626363825771,
+        "recallAt10": 0.980222222222222,
+        "recallAt100": 1,
+        "precisionAt10": 0.2809999999999999,
+        "mrrAt10": 0.8322777777777776,
+        "skippedForRecallMap": 0
+      },
+      "sha256": "5ff853c6b3c895dfacb7bbfa5ca4c1c23a8c950aedb1fcaed23bbe01b2224f32",
+      "status": "PASS"
+    },
+    {
+      "suite": "miracl",
+      "id": "cloud",
+      "mode": "sparse",
+      "path": "benchmarks/external/miracl/.runs/cloud-sparse.trec",
+      "metrics": {
+        "queryCount": 100,
+        "ndcgAt10": 0.5696414015365933,
+        "mapAt100": 0.47787720480559864,
+        "recallAt10": 0.7372777777777777,
+        "recallAt100": 0.8554166666666666,
+        "precisionAt10": 0.215,
+        "mrrAt10": 0.5766468253968255,
+        "skippedForRecallMap": 0
+      },
+      "sha256": "46fbfa6c2bc672eeeaad2af56e11a2ae8ca789f039136d567617c126d59b186f",
+      "status": "PASS"
+    },
+    {
+      "suite": "miracl",
+      "id": "cloud",
+      "mode": "hybrid_k2",
+      "path": "benchmarks/external/miracl/.runs/cloud-hybrid_k2.trec",
+      "metrics": {
+        "queryCount": 100,
+        "ndcgAt10": 0.7613020189338792,
+        "mapAt100": 0.6702646459117326,
+        "recallAt10": 0.9521944444444443,
+        "recallAt100": 1,
+        "precisionAt10": 0.269,
+        "mrrAt10": 0.7213333333333335,
+        "skippedForRecallMap": 0
+      },
+      "sha256": "f3c4aa079055c61df2d313e2d96bb7287b94f9603eb9d466caec47e45504a8d3",
+      "status": "PASS"
+    },
+    {
+      "suite": "miracl",
+      "id": "cloud",
+      "mode": "hybrid_k60",
+      "path": "benchmarks/external/miracl/.runs/cloud-hybrid_k60.trec",
+      "metrics": {
+        "queryCount": 100,
+        "ndcgAt10": 0.713018786204495,
+        "mapAt100": 0.6328099368349247,
+        "recallAt10": 0.8603888888888889,
+        "recallAt100": 1,
+        "precisionAt10": 0.247,
+        "mrrAt10": 0.7276190476190476,
+        "skippedForRecallMap": 0
+      },
+      "sha256": "2cc76bc9a54ce4f4a419e069e85aec1429f2e21c3dc5f60c6bf4757682558b39",
+      "status": "PASS"
+    },
+    {
+      "suite": "slavic",
+      "id": "ukr_Cyrl",
+      "mode": "dense",
+      "path": "benchmarks/external/slavic/.runs/ukr_Cyrl-dense.trec",
+      "metrics": {
+        "queryCount": 900,
+        "ndcgAt10": 0.9372236770094906,
+        "mapAt100": 0.9217271757796933,
+        "recallAt10": 0.9855555555555555,
+        "recallAt100": 0.9988888888888889,
+        "precisionAt10": 0.0985555555555547,
+        "mrrAt10": 0.9212151675485013,
+        "skippedForRecallMap": 0
+      },
+      "sha256": "72eb1000a0e2d3bed13da4dd3abeb5d76d865aa24a00137ce4a267ccc1058413",
+      "status": "PASS"
+    },
+    {
+      "suite": "slavic",
+      "id": "ukr_Cyrl",
+      "mode": "sparse",
+      "path": "benchmarks/external/slavic/.runs/ukr_Cyrl-sparse.trec",
+      "metrics": {
+        "queryCount": 900,
+        "ndcgAt10": 0.8596406000004702,
+        "mapAt100": 0.8380789092935399,
+        "recallAt10": 0.9311111111111111,
+        "recallAt100": 0.97,
+        "precisionAt10": 0.09311111111111058,
+        "mrrAt10": 0.83643253968254,
+        "skippedForRecallMap": 0
+      },
+      "sha256": "dbf6872e3bd249918cc812f6c42cdaf5d0b1f493e19cad86a5a3d84e5bc462a9",
+      "status": "PASS"
+    },
+    {
+      "suite": "slavic",
+      "id": "ukr_Cyrl",
+      "mode": "hybrid",
+      "path": "benchmarks/external/slavic/.runs/ukr_Cyrl-hybrid.trec",
+      "metrics": {
+        "queryCount": 900,
+        "ndcgAt10": 0.9274126878376143,
+        "mapAt100": 0.9142975354359029,
+        "recallAt10": 0.97,
+        "recallAt100": 0.9966666666666667,
+        "precisionAt10": 0.09699999999999924,
+        "mrrAt10": 0.9134056437389769,
+        "skippedForRecallMap": 0
+      },
+      "sha256": "4b8073bd75ad1be713a7da352ae9bacf14865a99f00ad66f740fc67e8e09af40",
+      "status": "PASS"
+    },
+    {
+      "suite": "slavic",
+      "id": "rus_Cyrl",
+      "mode": "dense",
+      "path": "benchmarks/external/slavic/.runs/rus_Cyrl-dense.trec",
+      "metrics": {
+        "queryCount": 900,
+        "ndcgAt10": 0.9465545185647777,
+        "mapAt100": 0.9330359570620365,
+        "recallAt10": 0.9888888888888889,
+        "recallAt100": 0.9966666666666667,
+        "precisionAt10": 0.09888888888888803,
+        "mrrAt10": 0.9327116402116403,
+        "skippedForRecallMap": 0
+      },
+      "sha256": "420c75619ffa0f37ce959a863f6d8ff94a1b1f348a43a32a1df6eb21d9a705ef",
+      "status": "PASS"
+    },
+    {
+      "suite": "slavic",
+      "id": "rus_Cyrl",
+      "mode": "sparse",
+      "path": "benchmarks/external/slavic/.runs/rus_Cyrl-sparse.trec",
+      "metrics": {
+        "queryCount": 900,
+        "ndcgAt10": 0.8873244719996494,
+        "mapAt100": 0.8709422289242278,
+        "recallAt10": 0.9422222222222222,
+        "recallAt100": 0.9733333333333334,
+        "precisionAt10": 0.09422222222222162,
+        "mrrAt10": 0.8695480599647266,
+        "skippedForRecallMap": 0
+      },
+      "sha256": "f183ec02404190f6e8589006145aad0ccafe168fb9ea0906239ef69ebb674017",
+      "status": "PASS"
+    },
+    {
+      "suite": "slavic",
+      "id": "rus_Cyrl",
+      "mode": "hybrid",
+      "path": "benchmarks/external/slavic/.runs/rus_Cyrl-hybrid.trec",
+      "metrics": {
+        "queryCount": 900,
+        "ndcgAt10": 0.9353576870223318,
+        "mapAt100": 0.923153020975512,
+        "recallAt10": 0.9744444444444444,
+        "recallAt100": 0.9955555555555555,
+        "precisionAt10": 0.09744444444444365,
+        "mrrAt10": 0.9222821869488537,
+        "skippedForRecallMap": 0
+      },
+      "sha256": "4239ffea73f7fe817d6ef71f41ac9e7e70951c9ba6337984bc11edf1ea84a5a4",
+      "status": "PASS"
+    },
+    {
+      "suite": "slavic",
+      "id": "bul_Cyrl",
+      "mode": "dense",
+      "path": "benchmarks/external/slavic/.runs/bul_Cyrl-dense.trec",
+      "metrics": {
+        "queryCount": 900,
+        "ndcgAt10": 0.9332938792597326,
+        "mapAt100": 0.9191935430057953,
+        "recallAt10": 0.98,
+        "recallAt100": 0.9977777777777778,
+        "precisionAt10": 0.09799999999999918,
+        "mrrAt10": 0.9181097883597888,
+        "skippedForRecallMap": 0
+      },
+      "sha256": "b0fe8feec08bdee3e569187c3389e787503e1234c378f00cb3075797c7adbd14",
+      "status": "PASS"
+    },
+    {
+      "suite": "slavic",
+      "id": "bul_Cyrl",
+      "mode": "sparse",
+      "path": "benchmarks/external/slavic/.runs/bul_Cyrl-sparse.trec",
+      "metrics": {
+        "queryCount": 900,
+        "ndcgAt10": 0.8789424012498803,
+        "mapAt100": 0.863220458201783,
+        "recallAt10": 0.9322222222222222,
+        "recallAt100": 0.9677777777777777,
+        "precisionAt10": 0.09322222222222168,
+        "mrrAt10": 0.8617460317460318,
+        "skippedForRecallMap": 0
+      },
+      "sha256": "60250cbee961ee2ce1404d39c0d8484459e5b5e989c2446ba908688a767e64bf",
+      "status": "PASS"
+    },
+    {
+      "suite": "slavic",
+      "id": "bul_Cyrl",
+      "mode": "hybrid",
+      "path": "benchmarks/external/slavic/.runs/bul_Cyrl-hybrid.trec",
+      "metrics": {
+        "queryCount": 900,
+        "ndcgAt10": 0.928682768812201,
+        "mapAt100": 0.9159069183392325,
+        "recallAt10": 0.97,
+        "recallAt100": 0.9966666666666667,
+        "precisionAt10": 0.09699999999999924,
+        "mrrAt10": 0.9150445326278661,
+        "skippedForRecallMap": 0
+      },
+      "sha256": "1df5895ed511c03d0204ab2209b10588a2d5ed065e1faf790cbd461f54465dc1",
+      "status": "PASS"
+    },
+    {
+      "suite": "slavic",
+      "id": "pol_Latn",
+      "mode": "dense",
+      "path": "benchmarks/external/slavic/.runs/pol_Latn-dense.trec",
+      "metrics": {
+        "queryCount": 900,
+        "ndcgAt10": 0.9401295267061661,
+        "mapAt100": 0.9284945953582283,
+        "recallAt10": 0.9788888888888889,
+        "recallAt100": 0.9966666666666667,
+        "precisionAt10": 0.09788888888888808,
+        "mrrAt10": 0.9274947089947091,
+        "skippedForRecallMap": 0
+      },
+      "sha256": "207ed13562c3c780325eea1ad1ac452ba0697e43d0eaf7d24b4d4715e040505e",
+      "status": "PASS"
+    },
+    {
+      "suite": "slavic",
+      "id": "pol_Latn",
+      "mode": "sparse",
+      "path": "benchmarks/external/slavic/.runs/pol_Latn-sparse.trec",
+      "metrics": {
+        "queryCount": 900,
+        "ndcgAt10": 0.8506688264246801,
+        "mapAt100": 0.8316842970271108,
+        "recallAt10": 0.9133333333333333,
+        "recallAt100": 0.9477777777777778,
+        "precisionAt10": 0.09133333333333289,
+        "mrrAt10": 0.8304087301587303,
+        "skippedForRecallMap": 0
+      },
+      "sha256": "1ea06cea2d10c31295d5a79da330182c88261e975d72f4cbb1be3027f7d839c6",
+      "status": "PASS"
+    },
+    {
+      "suite": "slavic",
+      "id": "pol_Latn",
+      "mode": "hybrid",
+      "path": "benchmarks/external/slavic/.runs/pol_Latn-hybrid.trec",
+      "metrics": {
+        "queryCount": 900,
+        "ndcgAt10": 0.9057443925961338,
+        "mapAt100": 0.8941643045497664,
+        "recallAt10": 0.9477777777777778,
+        "recallAt100": 0.9977777777777778,
+        "precisionAt10": 0.09477777777777714,
+        "mrrAt10": 0.8921181657848326,
+        "skippedForRecallMap": 0
+      },
+      "sha256": "06fa011c5e512dd938aa04d9036420eb7ebe76a3c040cb4a14e57953b8f965ba",
+      "status": "PASS"
+    },
+    {
+      "suite": "slavic",
+      "id": "ces_Latn",
+      "mode": "dense",
+      "path": "benchmarks/external/slavic/.runs/ces_Latn-dense.trec",
+      "metrics": {
+        "queryCount": 900,
+        "ndcgAt10": 0.9403455314040658,
+        "mapAt100": 0.9252986133685619,
+        "recallAt10": 0.9877777777777778,
+        "recallAt100": 0.9977777777777778,
+        "precisionAt10": 0.09877777777777691,
+        "mrrAt10": 0.9247971781305115,
+        "skippedForRecallMap": 0
+      },
+      "sha256": "169a0aefb2168556669ebdd44fc6518ad0ea45a926087bab6941d1e6aefa352b",
+      "status": "PASS"
+    },
+    {
+      "suite": "slavic",
+      "id": "ces_Latn",
+      "mode": "sparse",
+      "path": "benchmarks/external/slavic/.runs/ces_Latn-sparse.trec",
+      "metrics": {
+        "queryCount": 900,
+        "ndcgAt10": 0.8868392910788669,
+        "mapAt100": 0.8728266523646598,
+        "recallAt10": 0.9344444444444444,
+        "recallAt100": 0.9733333333333334,
+        "precisionAt10": 0.09344444444444389,
+        "mrrAt10": 0.8714572310405646,
+        "skippedForRecallMap": 0
+      },
+      "sha256": "30a440cc9b2996147a887c0314d97c627199781a01a33e7a1d2f9d6b2aa1e84f",
+      "status": "PASS"
+    },
+    {
+      "suite": "slavic",
+      "id": "ces_Latn",
+      "mode": "hybrid",
+      "path": "benchmarks/external/slavic/.runs/ces_Latn-hybrid.trec",
+      "metrics": {
+        "queryCount": 900,
+        "ndcgAt10": 0.9288520027646202,
+        "mapAt100": 0.9174411787581009,
+        "recallAt10": 0.9677777777777777,
+        "recallAt100": 0.9966666666666667,
+        "precisionAt10": 0.09677777777777703,
+        "mrrAt10": 0.916196208112875,
+        "skippedForRecallMap": 0
+      },
+      "sha256": "f3bca735a41b5c7f1f0cc0a4ff9ba2b322b72e3cccd30e3692e3114f9b3634cb",
+      "status": "PASS"
+    },
+    {
+      "suite": "slavic",
+      "id": "slk_Latn",
+      "mode": "dense",
+      "path": "benchmarks/external/slavic/.runs/slk_Latn-dense.trec",
+      "metrics": {
+        "queryCount": 900,
+        "ndcgAt10": 0.9441493222713776,
+        "mapAt100": 0.9324463345840798,
+        "recallAt10": 0.9822222222222222,
+        "recallAt100": 0.9955555555555555,
+        "precisionAt10": 0.09822222222222139,
+        "mrrAt10": 0.9316878306878309,
+        "skippedForRecallMap": 0
+      },
+      "sha256": "8829918263a848ff8c2eb10805e66a9a1fa2b610565b0e841aff99214e8473c1",
+      "status": "PASS"
+    },
+    {
+      "suite": "slavic",
+      "id": "slk_Latn",
+      "mode": "sparse",
+      "path": "benchmarks/external/slavic/.runs/slk_Latn-sparse.trec",
+      "metrics": {
+        "queryCount": 900,
+        "ndcgAt10": 0.8803455484119158,
+        "mapAt100": 0.8648936527355577,
+        "recallAt10": 0.9322222222222222,
+        "recallAt100": 0.9677777777777777,
+        "precisionAt10": 0.09322222222222168,
+        "mrrAt10": 0.863535273368607,
+        "skippedForRecallMap": 0
+      },
+      "sha256": "baba445a6d98daf49d100748460d34b05c066135bb61558095633703220e48e1",
+      "status": "PASS"
+    },
+    {
+      "suite": "slavic",
+      "id": "slk_Latn",
+      "mode": "hybrid",
+      "path": "benchmarks/external/slavic/.runs/slk_Latn-hybrid.trec",
+      "metrics": {
+        "queryCount": 900,
+        "ndcgAt10": 0.9249377799679518,
+        "mapAt100": 0.9140408069250028,
+        "recallAt10": 0.9622222222222222,
+        "recallAt100": 0.9955555555555555,
+        "precisionAt10": 0.0962222222222215,
+        "mrrAt10": 0.9125533509700174,
+        "skippedForRecallMap": 0
+      },
+      "sha256": "78a6c5cb6a244443eab36a3900aa470862ec9488f6d7156eb03126adc43d8434",
+      "status": "PASS"
+    },
+    {
+      "suite": "slavic",
+      "id": "eng_Latn",
+      "mode": "dense",
+      "path": "benchmarks/external/slavic/.runs/eng_Latn-dense.trec",
+      "metrics": {
+        "queryCount": 900,
+        "ndcgAt10": 0.9554678519151519,
+        "mapAt100": 0.9448112970745295,
+        "recallAt10": 0.9888888888888889,
+        "recallAt100": 0.9977777777777778,
+        "precisionAt10": 0.09888888888888803,
+        "mrrAt10": 0.9442623456790126,
+        "skippedForRecallMap": 0
+      },
+      "sha256": "6469cead180172071546d20e20dbf23da71794ed100fb29ed9887af2987cee67",
+      "status": "PASS"
+    },
+    {
+      "suite": "slavic",
+      "id": "eng_Latn",
+      "mode": "sparse",
+      "path": "benchmarks/external/slavic/.runs/eng_Latn-sparse.trec",
+      "metrics": {
+        "queryCount": 900,
+        "ndcgAt10": 0.9222203847962809,
+        "mapAt100": 0.9099342468397617,
+        "recallAt10": 0.9633333333333334,
+        "recallAt100": 0.9811111111111112,
+        "precisionAt10": 0.0963333333333326,
+        "mrrAt10": 0.9090044091710759,
+        "skippedForRecallMap": 0
+      },
+      "sha256": "3917209ed0474e6b05970fcdb606e199e9f2ab7aa67e8d848d8a1400d6fe7bea",
+      "status": "PASS"
+    },
+    {
+      "suite": "slavic",
+      "id": "eng_Latn",
+      "mode": "hybrid",
+      "path": "benchmarks/external/slavic/.runs/eng_Latn-hybrid.trec",
+      "metrics": {
+        "queryCount": 900,
+        "ndcgAt10": 0.9519100827635905,
+        "mapAt100": 0.9433796797672028,
+        "recallAt10": 0.98,
+        "recallAt100": 0.9966666666666667,
+        "precisionAt10": 0.09799999999999918,
+        "mrrAt10": 0.9425617283950618,
+        "skippedForRecallMap": 0
+      },
+      "sha256": "118602bd09b0fdf8ea4b379771917601af8c806c9cd753515b76526aeb5c2f9f",
+      "status": "PASS"
+    }
+  ],
+  "passed": 39,
+  "failed": 4
+}

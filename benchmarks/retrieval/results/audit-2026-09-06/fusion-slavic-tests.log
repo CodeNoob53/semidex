@@ -1,0 +1,857 @@
+▶ validateTrecRun: strict structural checks
+  ✔ accepts a well-formed run whose query set matches the expected contract exactly (2.0143ms)
+  ✔ rejects a run missing an expected query (0.504ms)
+  ✔ rejects a run with an unexpected extra query not in the benchmark contract (0.3039ms)
+  ✔ rejects a duplicate rank within one query (rank corruption) (0.313ms)
+  ✔ rejects a duplicate doc ID within one query (0.4586ms)
+  ✔ rejects a non-positive rank (0.3255ms)
+  ✔ rejects a non-integer rank (0.3355ms)
+  ✔ reports every problem at once, not just the first (actionable multi-error message) (0.4442ms)
+✔ validateTrecRun: strict structural checks (6.6647ms)
+▶ loadTrecRunAsRanked
+  ✔ throws a clear error for a missing file rather than silently returning an empty run (0.5225ms)
+✔ loadTrecRunAsRanked (0.8588ms)
+▶ strictCheckRawTrecLines: catches rows parseTrecRun() would silently drop
+  ✔ accepts a well-formed 6-field TREC file (0.6954ms)
+  ✔ throws on a truncated row with fewer than 6 fields (the exact row parseTrecRun() would silently skip) (0.3872ms)
+  ✔ throws on a row with extra fields (7 instead of 6) (0.2317ms)
+  ✔ ignores genuinely blank lines (trailing newline, blank line between rows) (0.2119ms)
+  ✔ reports the correct 1-based line number for the malformed row (0.1707ms)
+✔ strictCheckRawTrecLines: catches rows parseTrecRun() would silently drop (2.1595ms)
+▶ loadTrecRunAsRanked: rejects a real file with a malformed row instead of silently under-loading it
+  ✔ throws when the file on disk contains a truncated TREC row (10.6324ms)
+  ✔ loads successfully when every row on disk is well-formed (11.1753ms)
+✔ loadTrecRunAsRanked: rejects a real file with a malformed row instead of silently under-loading it (21.9863ms)
+▶ assertMetricParity
+  ✔ passes silently within tolerance (0.3123ms)
+  ✔ fails when a field differs beyond the strict tolerance (0.2164ms)
+  ✔ a difference within a looser explicit tolerance passes (0.1538ms)
+  ✔ treats null vs null as matching (both undefined for a zero-relevant query) (0.1632ms)
+  ✔ flags null vs a real number as a mismatch (0.1953ms)
+  ✔ is skipped (not failed) when no reported metrics are supplied (0.1476ms)
+✔ assertMetricParity (1.4657ms)
+▶ computeDenseSparseOverlap
+  ✔ full overlap when dense and sparse return the identical ranked list (0.4465ms)
+  ✔ zero overlap when dense and sparse share no documents (0.6144ms)
+  ✔ partial overlap is computed correctly (0.1927ms)
+  ✔ averages correctly across multiple queries (0.1454ms)
+✔ computeDenseSparseOverlap (1.6229ms)
+▶ computeRelevantOverlap
+  ✔ classifies relevant docs into dense-only, sparse-only, both, and neither (0.3796ms)
+  ✔ a query missing from qrels is skipped, not crashed on (0.1929ms)
+  ✔ respects the k cutoff — a relevant doc ranked beyond k does not count as a hit (0.1781ms)
+✔ computeRelevantOverlap (0.8929ms)
+▶ classifyRescueHarm
+  ✔ classifies a query as rescue when hybrid nDCG@10 exceeds dense nDCG@10 (0.4525ms)
+  ✔ classifies a query as harm when hybrid nDCG@10 is below dense nDCG@10 (0.1993ms)
+  ✔ classifies identical dense/hybrid nDCG@10 as a tie, not a spurious rescue/harm (0.2065ms)
+  ✔ counts rescue/harm/tie correctly across a mixed set of queries (0.2467ms)
+✔ classifyRescueHarm (1.3312ms)
+▶ computeOracleMaxNdcg
+  ✔ takes the max of dense and sparse nDCG@10 per query (0.2785ms)
+  ✔ returns null for an empty query list rather than dividing by zero (0.1044ms)
+✔ computeOracleMaxNdcg (1.7405ms)
+▶ pickRepresentativeCases
+  ✔ returns up to n rescues and n harms, sorted by |delta| descending (0.3931ms)
+  ✔ never includes a query ID from a private/local path or passage text — only qid + numeric fields (0.1589ms)
+✔ pickRepresentativeCases (0.6926ms)
+▶ analyzeScope: comparison sign direction
+  ✔ k2_vs_k60.meanDelta is positive when k2 is the constructed winner (must be k2 − k60, not k60 − k2) (33.1551ms)
+  ✔ hybrid_vs_dense.meanDelta is positive when hybrid is unambiguously better than dense (21.965ms)
+  ✔ hybrid_vs_sparse.meanDelta is positive when hybrid is unambiguously better than sparse (21.9359ms)
+  ✔ dense_vs_sparse.meanDelta is (sparse − dense): positive when sparse is the constructed winner (2.2998ms)
+  ✔ reversing which side wins flips the sign, proving the comparison is not order-independent by accident (21.0178ms)
+✔ analyzeScope: comparison sign direction (100.7281ms)
+▶ determinism
+  ✔ analyzeScope on identical inputs produces byte-identical comparisons (same bootstrap seed) (19.8133ms)
+  ✔ computeOverallVerdict is a pure function of its inputs — same scopes always produce the same verdict (0.3596ms)
+✔ determinism (20.2951ms)
+▶ computeOverallVerdict
+  ✔ FUSION_COMPLEMENTARY when every significant comparison favors hybrid (0.2183ms)
+  ✔ FUSION_SPARSE_DEGRADES when every significant comparison favors dense over hybrid (0.113ms)
+  ✔ FUSION_DATASET_DEPENDENT when different scopes disagree in direction (0.1127ms)
+  ✔ FUSION_ANALYSIS_INCONCLUSIVE when no comparison excludes zero (0.1072ms)
+  ✔ FUSION_ANALYSIS_INCONCLUSIVE when there are no scopes/comparisons at all (0.0697ms)
+✔ computeOverallVerdict (0.7499ms)
+▶ offline safety: no network call is ever reached
+  ✔ buildAllScopes() succeeds end-to-end even when global.fetch throws on every call (1016.6919ms)
+  ✔ a full analyzeScope() pass over every scope succeeds with fetch blocked, including metric parity against the committed reports (6365.2985ms)
+✔ offline safety: no network call is ever reached (7382.1404ms)
+▶ scope separation between full and mini datasets
+  ✔ beir_full_local and beir_mini_local are distinct scopes with different query counts, never merged (651.2198ms)
+  ✔ MIRACL local and cloud scopes are distinct, each with their own TREC modes (716.4317ms)
+  ✔ the mini scope never appears as, or gets merged into, "full SciFact" in scope labels (887.0501ms)
+  ✔ BEIR full local has no hybrid_k2 mode (the full harness never ran local at k=2) (796.2119ms)
+✔ scope separation between full and mini datasets (3051.1826ms)
+▶ metric parity against the real committed reports
+  ✔ every scope with a committed report passes metric parity within strict tolerance (6233.0199ms)
+  ✔ deliberately corrupting a reported metric causes assertMetricParity to fail loudly, proving the check is not a no-op (706.8072ms)
+✔ metric parity against the real committed reports (6939.9752ms)
+▶ real-data rescue/harm and oracle sanity (regression guard on the actual committed runs)
+  ✔ MIRACL local/cloud scopes show more harm than rescue for hybrid vs dense (matches the observed dataset behavior) (2053.1337ms)
+  ✔ BEIR full cloud shows a nonzero rescue count for hybrid vs dense (hybrid contributes something on SciFact) (2661.5341ms)
+  ✔ oracle max(dense, sparse) nDCG@10 is always >= both dense and sparse aggregate nDCG@10 for every scope (5627.9214ms)
+✔ real-data rescue/harm and oracle sanity (regression guard on the actual committed runs) (10342.8405ms)
+▶ weightedRrfContribution: exact Qdrant 1.17+ formula
+  ✔ matches 1 / (k + (rank+1)/weight - 1), never weight/(k+rank) (0.6193ms)
+  ✔ is NOT the naive incorrect formula weight/(k+rank) (0.1492ms)
+  ✔ weight=1 (equal RRF) reduces to the standard RRF formula 1/(k+rank) (0.1598ms)
+✔ weightedRrfContribution: exact Qdrant 1.17+ formula (1.8033ms)
+▶ zero-based rank behavior
+  ✔ rank=0 (the very first result) yields the maximum possible contribution for a given weight/k (0.1587ms)
+  ✔ rank-1 contribution in the task's rho definition means rank=0 (zero-based first rank), not rank=1 (0.4962ms)
+✔ zero-based rank behavior (0.7927ms)
+▶ sparseWeightFromRho: exact expected examples for k=2 and k=60
+  ✔ k=2 rho=0.1 -> sparseWeight≈0.0526316 (0.3749ms)
+  ✔ k=2 rho=0.25 -> sparseWeight≈0.1428571 (0.1125ms)
+  ✔ k=2 rho=0.5 -> sparseWeight≈0.3333333 (0.0945ms)
+  ✔ k=2 rho=0.75 -> sparseWeight≈0.6 (0.0903ms)
+  ✔ k=2 rho=1 -> sparseWeight≈1 (0.1217ms)
+  ✔ k=60 rho=0.1 -> sparseWeight≈0.0018484 (0.0661ms)
+  ✔ k=60 rho=0.25 -> sparseWeight≈0.0055249 (0.0482ms)
+  ✔ k=60 rho=0.5 -> sparseWeight≈0.0163934 (0.049ms)
+  ✔ k=60 rho=0.75 -> sparseWeight≈0.047619 (0.0415ms)
+  ✔ k=60 rho=1 -> sparseWeight≈1 (0.06ms)
+  ✔ the converted sparseWeight reproduces rho exactly at rank=0 (round-trip property) (0.1584ms)
+  ✔ rho=1.00 always yields sparseWeight=1.00 regardless of k (equal RRF) (0.0966ms)
+✔ sparseWeightFromRho: exact expected examples for k=2 and k=60 (1.7153ms)
+▶ dense-only is a separate baseline, never emulated via sparse weight 0
+  ✔ analyze-weighted-rrf.mjs never constructs a config with sparseWeight: 0 (0.6626ms)
+  ✔ the dense config in analyzeScopeWeightedRrf() is evaluated from the raw dense TREC ranking, not a fused ranking (0.8875ms)
+✔ dense-only is a separate baseline, never emulated via sparse weight 0 (1.6535ms)
+▶ buildQdrantPayload: weight array order
+  ✔ weights array is [denseWeight, sparseWeight], never reversed (0.6263ms)
+  ✔ payload never uses prefetch.weight — weights live only in query.rrf.weights (0.0803ms)
+  ✔ payload k matches the config's k (0.153ms)
+✔ buildQdrantPayload: weight array order (0.9771ms)
+▶ fuseWeightedRrf: document appearing in one or both channels
+  ✔ a document present in both lanes gets the SUM of both contributions (0.2922ms)
+  ✔ a document present in ONLY the dense lane receives ONLY the dense contribution (no fabricated sparse contribution) (0.0949ms)
+  ✔ a document present in ONLY the sparse lane receives ONLY the sparse contribution (0.1007ms)
+  ✔ a doc in both lanes always outranks an equally-ranked doc in only one lane (sum > single contribution) (0.1244ms)
+  ✔ fuseWeightedRrfAllQueries processes every query independently and never merges cross-query results (0.2195ms)
+✔ fuseWeightedRrf: document appearing in one or both channels (0.9996ms)
+▶ fuseWeightedRrf: deterministic tie-break
+  ✔ a genuine score tie (both docs absent from one lane, identical rank in the other) breaks by lower dense rank first (0.1524ms)
+  ✔ when dense rank is genuinely equal, sparse rank breaks the tie (0.1123ms)
+  ✔ final tiebreaker is doc ID string sort order when dense and sparse ranks are identical (both absent from both, impossible for merged docs) — verified via explicit equal-score construction (0.3964ms)
+  ✔ the tie-break rule is fixed BEFORE evaluation — the same fixture always produces the same fused order across repeated calls (no randomness, no qrels dependency) (0.1142ms)
+  ✔ the analyzer module never imports qrels into the tie-break function's own scope (fuseWeightedRrf has no qrels parameter) (0.0704ms)
+✔ fuseWeightedRrf: deterministic tie-break (0.9726ms)
+▶ fuseWeightedRrf: evaluates the final top-100 depth
+  ✔ respects the depth parameter and truncates to exactly that many results when more are available (0.1685ms)
+  ✔ TOP_K constant is 100, matching the task's required evaluation depth (0.0741ms)
+✔ fuseWeightedRrf: evaluates the final top-100 depth (0.3045ms)
+▶ malformed TREC rejection (reused strict validator)
+  ✔ strictCheckRawTrecLines throws on a line with fewer than 6 fields (0.4242ms)
+  ✔ loadTrecRunAsRanked throws on a missing file (0.2031ms)
+✔ malformed TREC rejection (reused strict validator) (0.6886ms)
+▶ missing-file rejection
+  ✔ buildScope throws for an unknown scope id (0.1948ms)
+  ✔ buildScope throws for an unknown Belebele language (0.0911ms)
+✔ missing-file rejection (0.3536ms)
+▶ qrel/run query ID mismatch (reused strict validator)
+  ✔ validateTrecRun throws when the run is missing a query the qrels contract expects (0.2284ms)
+  ✔ validateTrecRun throws when the run has an unexpected extra query not in qrels (0.1432ms)
+✔ qrel/run query ID mismatch (reused strict validator) (0.4511ms)
+▶ checkParity
+  ✔ reports unavailable when no real hybrid run exists for that k (0.3449ms)
+  ✔ reports available:true and a faithful verdict when the reconstruction exactly matches a hand-built equal-RRF run (0.5177ms)
+  ✔ reports NOT faithful (and never silently calls it exact) when the real run diverges substantially from the reconstruction (0.1936ms)
+  ✔ includes the prefetch=200-vs-top100 caveat in every available parity result (0.1407ms)
+✔ checkParity (1.3083ms)
+▶ selectCandidates: rule-based, not subjective
+  ✔ selects at most 4 total configurations: 2 distinct weighted candidates (dense-heavy + balanced) + 2 equal-RRF controls, never a repeated config (0.9149ms)
+  ✔ returns NO_WEIGHTED_RRF_CANDIDATE when every weighted config shows a significant regression vs dense everywhere (0.2479ms)
+  ✔ MIRACL is explicitly labeled diagnostic/validation evidence, not a blind holdout, in every result (0.284ms)
+  ✔ a config with a positive SciFact benefit and zero regressions anywhere is eligible for the dense-heavy slot (0.2745ms)
+  ✔ a config with a statistically significant MIRACL regression is NEVER selected as dense-heavy, even with a strong SciFact benefit and zero Belebele regressions (0.722ms)
+  ✔ dense-heavy picks the SMALLEST eligible rho among safe-everywhere configs with a SciFact benefit, not the one with fewest Belebele regressions (0.2817ms)
+  ✔ a config with a real metric but NO vsDense entry at all for some scope is never selected for either candidate slot (0.4349ms)
+  ✔ a scope missing from scopeResults entirely (e.g. never ran) forces NO_WEIGHTED_RRF_CANDIDATE, never a silent partial evaluation (0.2275ms)
+  ✔ a scope set with one EXTRA unrecognized scope id also forces NO_WEIGHTED_RRF_CANDIDATE (exact-set match, not merely "at least the required scopes") (0.2678ms)
+  ✔ when the single best balanced/quality config is identical to dense-heavy, balanced falls through to the next-best DISTINCT eligible config (0.3634ms)
+  ✔ when NO distinct eligible config exists for balanced besides dense-heavy itself, balanced is null (never duplicates dense-heavy) (0.4255ms)
+  ✔ a config missing metrics.ndcgAt10 for even one required scope is never selected as balanced, even if its average over the OTHER scopes would be the best (0.3929ms)
+  ✔ balancedCollidedWithDenseHeavy is false when denseHeavy is merely PRESENT in the eligible list but NOT the top-ranked balanced pick (0.3413ms)
+  ✔ a scopeResults array with a DUPLICATED scope entry (same unique-id count, extra length) forces NO_WEIGHTED_RRF_CANDIDATE (0.3365ms)
+  ✔ real committed data: the live -3.31pp MIRACL regression on k2_rho0.75 is confirmed present and would disqualify it (9.2354ms)
+  ✔ selection never inspects raw score inspection helpers — only predefined numeric rules over vsDense/metrics fields (0.7397ms)
+✔ selectCandidates: rule-based, not subjective (15.9899ms)
+▶ NO_WEIGHTED_RRF_CANDIDATE is returned, never a forced winner
+  ✔ when no config is eligible for either the dense-heavy or balanced rule (full, complete scope set), both candidates are null and verdict is NO_WEIGHTED_RRF_CANDIDATE (0.6272ms)
+✔ NO_WEIGHTED_RRF_CANDIDATE is returned, never a forced winner (0.6978ms)
+▶ offline safety: no network access
+  ✔ replacing global.fetch with a throwing stub does not break loadCachedBelebeleQrels() or buildScope() for an already-cached scope (228.8545ms)
+  ✔ analyze-weighted-rrf.mjs's actual import statements never bring in downloadLanguageFile or fetchAndValidateLanguage (the network-capable Belebele loaders — module-header PROSE may still name them, to explain what is deliberately avoided) (0.7336ms)
+  ✔ analyze-weighted-rrf.mjs's actual import statements never bring in downloadTo, fetchAndValidateScifact, or fetchAndValidateMiraclTopicsQrels (network-capable loaders in other harnesses) (0.5554ms)
+✔ offline safety: no network access (230.3161ms)
+▶ offline safety: no Qdrant client import
+  ✔ analyze-weighted-rrf.mjs's actual import statements never bring in @qdrant/js-client-rest or any Qdrant client-construction helper (the report text MAY cite the client version number in prose) (0.4761ms)
+✔ offline safety: no Qdrant client import (0.5435ms)
+▶ offline safety: no ONNX/embedding import
+  ✔ analyze-weighted-rrf.mjs never imports onnx-embed.js, onnxruntime-node, or @huggingface/transformers (2.5742ms)
+✔ offline safety: no ONNX/embedding import (2.8264ms)
+▶ no secret or private-path leakage
+  ✔ analyze-weighted-rrf.mjs source contains no hardcoded credentials, API keys, or QDRANT_URL literal (0.8327ms)
+  ✔ renderMarkdownReport never includes an absolute local filesystem path in its output (2.0492ms)
+✔ no secret or private-path leakage (3.0428ms)
+▶ renderMarkdownReport: limitations section cites the real measured parity faithfulness count
+  ✔ reports "0/N were sufficiently faithful" style text computed from report.scopes, never a hardcoded/generic claim (0.8567ms)
+  ✔ when parity IS faithful for a fixture, the count reflects that too (never hardcoded to "always fails") (0.4555ms)
+  ✔ a MIXED result (some faithful, some not) never claims "EVERY ... failed" (0.3088ms)
+  ✔ a fixture whose real diff percentage is 50% (outside the old hardcoded "15-30%" range) is reported as 50.0-50.0%, not a stale fixed range (0.3407ms)
+  ✔ zero available parity checks (no real hybrid runs at all) is reported honestly as unvalidated, never as "faithful" or a fabricated percentage (0.2585ms)
+  ✔ the report also documents the no-held-out-validation-split limitation (P2: same eval set used for selection and evaluation) (0.2393ms)
+✔ renderMarkdownReport: limitations section cites the real measured parity faithfulness count (2.7038ms)
+▶ SCOPE_IDS and buildScope against real committed data
+  ✔ SCOPE_IDS is exactly scifact_local, miracl_local, and 7 belebele_* scopes (1.3195ms)
+  ✔ buildScope("scifact_local") loads real committed TREC data with matching query IDs (248.359ms)
+  ✔ buildScope("miracl_local") loads real committed TREC data with matching query IDs (97.7029ms)
+  ✔ buildScope("belebele_ukr_Cyrl") loads real cached Belebele data with exactly 1 relevant doc per query (747.0717ms)
+  ✔ analyzeScopeWeightedRrf runs end-to-end on a real scope and produces all 12 configs (dense, sparse, 2k x 5rho) (6513.0308ms)
+✔ SCOPE_IDS and buildScope against real committed data (7608.66ms)
+[rrf-sweep] [scifact-local] indexing complete: 3 docs in 0ms
+[rrf-sweep] [scifact-local] indexing complete: 3 docs in 0ms
+[rrf-sweep] [scifact-local] indexing complete: 3 docs in 0ms
+[rrf-sweep] [scifact-local] indexing complete: 3 docs in 0ms
+[rrf-sweep] [scifact-local] indexing complete: 3 docs in 0ms
+[rrf-sweep] [scifact-local] indexing complete: 3 docs in 0ms
+[rrf-sweep] [scifact-local] indexing complete: 3 docs in 0ms
+[rrf-sweep] [scifact-local] indexing complete: 3 docs in 0ms
+[rrf-sweep] [scifact-local] indexing complete: 3 docs in 0ms
+[rrf-sweep] [scifact-local] indexing complete: 3 docs in 0ms
+[rrf-sweep] [scifact-local] found an orphaned collection from an interrupted run: semidex-rrf-sweep-scifact-local-abc123 — deleting before re-running
+[rrf-sweep] [scifact-local] found an orphaned collection from an interrupted run: semidex-rrf-sweep-scifact-local-orphan1 — deleting before re-running
+[rrf-sweep] [scifact-local] found an orphaned collection from an interrupted run: semidex-rrf-sweep-scifact-local-orphan2 — deleting before re-running
+[rrf-sweep] [scifact-local] failed to delete orphaned collection semidex-rrf-sweep-scifact-local-orphan2: simulated delete failure
+[rrf-sweep] [scifact-local] indexing complete: 3 docs in 0ms
+[rrf-sweep] [scifact-local] found an orphaned collection from an interrupted run: semidex-rrf-sweep-scifact-local-planned-never-created — deleting before re-running
+[rrf-sweep] [scifact-local] found an orphaned collection from an interrupted run: semidex-rrf-sweep-scifact-local-real-failure — deleting before re-running
+[rrf-sweep] [scifact-local] failed to delete orphaned collection semidex-rrf-sweep-scifact-local-real-failure: unauthorized
+[rrf-sweep] [scifact-local] indexing complete: 3 docs in 0ms
+[rrf-sweep] [scifact-local] indexing complete: 3 docs in 0ms
+▶ SWEEP_KS
+  ✔ is exactly [1, 2, 5, 10, 30, 60], in order (2.106ms)
+✔ SWEEP_KS (3.6801ms)
+▶ SCOPES
+  ✔ defines exactly the four required (dataset, provider) scopes (0.4413ms)
+  ✔ scifact and miracl scopes never share a dataset field (0.3504ms)
+  ✔ local scopes use the ONNX/local provider, cloud scopes use E5+BM25 (0.1948ms)
+  ✔ parseScopesFlag with no value returns all four scopes in canonical order (0.3542ms)
+  ✔ parseScopesFlag reorders requested scopes to canonical order (0.3691ms)
+  ✔ parseScopesFlag rejects an unknown scope id (1.6892ms)
+  ✔ collectionName always starts with the owned prefix (0.3524ms)
+✔ SCOPES (4.4619ms)
+▶ dataset normalization
+  ✔ preserves MIRACL titles because they are part of the embedding input (0.3716ms)
+✔ dataset normalization (0.6156ms)
+▶ executeScope: call-count and request-shape invariants
+  ✔ creates exactly one collection and issues exactly one upsert batch for a 3-doc corpus (68.1682ms)
+  ✔ issues exactly 1 dense + 1 sparse + 6 hybrid queries per benchmark query (2 queries -> 16 total) (40.3047ms)
+  ✔ the six hybrid requests for one query differ ONLY in rrf.k — same prefetch, same limits (41.4478ms)
+  ✔ every hybrid request uses prefetch limit 200 per lane and final limit 100 (37.3838ms)
+  ✔ dense and sparse query vectors are computed exactly once per query (embedBatch call count) (38.7521ms)
+  ✔ cleanup always deletes the exact collection created, even on success (41.5123ms)
+  ✔ never deletes a collection whose name does not start with the owned prefix (0.2547ms)
+✔ executeScope: call-count and request-shape invariants (268.2679ms)
+▶ computeScopeComparisons: sign direction
+  ✔ hybrid_k<k>_vs_dense.meanDelta is positive when hybrid is the constructed winner (3.9805ms)
+  ✔ hybrid_k<k>_vs_dense.meanDelta is negative when dense is the constructed winner (3.2312ms)
+  ✔ hybrid_k<k>_vs_k60.meanDelta is positive when k is the constructed winner (must be k − k60, not k60 − k) (12.0191ms)
+  ✔ reversing which k wins flips the sign of hybrid_k<k>_vs_k60 (16.5266ms)
+  ✔ hybrid_k<k>_vs_k2 uses k2 as baseline (comparison=k, baseline=k2) (7.158ms)
+  ✔ no comparisons at all when dense mode is absent (0.2788ms)
+  ✔ a k value never compares against itself (no hybrid_k60_vs_k60 key) (0.7989ms)
+✔ computeScopeComparisons: sign direction (44.3996ms)
+▶ isCompletedScopeCheckpoint / validateResumeCheckpoint
+  ✔ a fully measured, zero-error, cleaned scope is complete (0.3617ms)
+  ✔ a scope missing one k value is not complete (0.1397ms)
+  ✔ a scope with unconfirmed cleanup is not complete (0.2135ms)
+  ✔ a partially-run scope (ran < total) is not complete (0.1236ms)
+  ✔ missing scope report is not complete (0.0976ms)
+  ✔ validateResumeCheckpoint rejects a checkpoint with no benchmarkContract (0.1944ms)
+  ✔ validateResumeCheckpoint rejects a mismatched contract (0.1692ms)
+  ✔ validateResumeCheckpoint rejects a checkpoint referencing an unknown scope (0.1683ms)
+  ✔ validateResumeCheckpoint accepts a matching contract (0.1046ms)
+✔ isCompletedScopeCheckpoint / validateResumeCheckpoint (1.8343ms)
+▶ owned-collection prefix guard
+  ✔ a scope-report-recorded collection name from a real run always matches the prefix (26.1291ms)
+  ✔ an arbitrary user collection name never matches the owned prefix (0.1553ms)
+✔ owned-collection prefix guard (26.3962ms)
+▶ offline safety: loadScopeDataset never reaches the network
+  ✔ run-rrf-sweep.mjs imports only loadCachedMiniSet/loadCachedMiraclSubset, never the fetch-and-build variants (0.8546ms)
+  ✔ executeScope() and shrinkForSmoke() never call fetch — replacing global.fetch with a throwing stub does not break them (20.3683ms)
+✔ offline safety: loadScopeDataset never reaches the network (21.323ms)
+▶ redaction: report content never leaks secrets or local paths
+  ✔ redact() strips a fake API key out of an error message (0.8598ms)
+  ✔ a scope report built from a failing client never contains the raw secret (0.5602ms)
+✔ redaction: report content never leaks secrets or local paths (1.5272ms)
+▶ smoke vs real report path separation
+  ✔ run-rrf-sweep.mjs computes a distinct report path for --smoke (0.4734ms)
+  ✔ shrinkForSmoke never returns the full 100-query/1000-doc dataset (0.6382ms)
+  ✔ shrinkForSmoke preserves every relevant document required by its selected queries qrels (0.1386ms)
+✔ smoke vs real report path separation (1.3609ms)
+▶ computeVerdict
+  ✔ BLOCKED when a requested scope never produced a report (0.2562ms)
+  ✔ ACCEPT when every scope has full metrics, zero errors, and cleanup succeeded (0.2462ms)
+  ✔ REJECT when metrics are missing entirely (0.1159ms)
+✔ computeVerdict (0.7217ms)
+▶ computePriorComparison
+  ✔ returns a row per reference k for every scope regardless of whether prior files exist (1.7221ms)
+  ✔ scifact-cloud is always non-comparable — no compatible prior report exists (1.8025ms)
+  ✔ scifact-local rows never carry the shape of the incompatible full-SciFact report (no runId lookup) (0.393ms)
+  ✔ a comparable row always includes comparable: true alongside its numbers (1.3347ms)
+  ✔ miracl-local is non-comparable when the ONNX execution provider changed (1.4564ms)
+✔ computePriorComparison (6.8543ms)
+▶ P1 fix: executeScope uses a pre-generated collection name, not one it invents after creation
+  ✔ executeScope creates exactly the collection name passed in via the collection param (18.401ms)
+  ✔ executeScope generates its own valid, prefixed collection name when none is passed (unit-test convenience default) (22.789ms)
+  ✔ a checkpoint written before createCollection() (main()'s pre-flight write) is recognized by cleanupOrphanedCollection as an orphan to delete, and by isCompletedScopeCheckpoint as NOT complete (0.3686ms)
+✔ P1 fix: executeScope uses a pre-generated collection name, not one it invents after creation (41.7007ms)
+▶ P1 fix: cleanupOrphanedCollection reports failure instead of only logging it
+  ✔ returns { ok: true, collection: null } when there is nothing to clean up (0.2003ms)
+  ✔ returns { ok: true, collection: null } when the prior scope already confirmed cleanup.deleted (0.1347ms)
+  ✔ returns { ok: true, collection: <name> } when a real orphan is found and successfully deleted (0.1896ms)
+  ✔ returns { ok: false, collection, error } (not silently swallowed) when Qdrant deleteCollection fails (0.4407ms)
+  ✔ run-rrf-sweep.mjs stops the run (throws) instead of overwriting the checkpoint when orphan cleanup fails (0.7606ms)
+✔ P1 fix: cleanupOrphanedCollection reports failure instead of only logging it (1.9171ms)
+▶ P1 fix: smoke and real runs use separate .runs directories
+  ✔ executeScope writes TREC paths under the injected runsDir/runsDirLabel, not a hardcoded shared directory (23.9002ms)
+  ✔ run-rrf-sweep.mjs defines a distinct SMOKE_RUNS_DIR constant and selects it only when --smoke is set (0.7455ms)
+✔ P1 fix: smoke and real runs use separate .runs directories (24.7477ms)
+▶ P1 fix: renderMarkdownReport answers the 6 required questions, not a placeholder
+  ✔ computeSweepAnswers reports a concrete curve shape and best/worst k, not a placeholder (48.6275ms)
+  ✔ rendered markdown contains an "## Answers" section with all 6 numbered sub-answers, and no dangling reference to a companion report (49.4798ms)
+  ✔ rendered markdown reports the actual best k found in the fixture (k30), not a generic statement (56.7513ms)
+  ✔ a scope with two k values tied at the max reports BOTH in bestKs, not just the first found (32.5595ms)
+  ✔ stableKsAcrossScopes is the INTERSECTION of each scope's tied-best sets, not a single arbitrary winner (38.8207ms)
+  ✔ stableKsAcrossScopes is empty (not null, not an arbitrary pick) when tied-best sets do not overlap at all (34.0852ms)
+  ✔ rendered markdown for a tied-best scope lists all tied k values, not one (41.3296ms)
+  ✔ the k=2 vs k=60 answer cites real wins/losses/meanDelta from the fixture, not a placeholder (48.7279ms)
+✔ P1 fix: renderMarkdownReport answers the 6 required questions, not a placeholder (350.8161ms)
+▶ P2 fix: per-scope provenance is attached to each scope report
+  ✔ reports the requested ONNX EP only for local scopes; cloud inference is n/a (203.6162ms)
+  ✔ executeScope callers attach provenance with peakRssBytes, models, and dataset identity distinct per scope (0.6301ms)
+  ✔ rendered markdown includes a "## Per-scope provenance" table with commit/SDK/models/manifest seed (0.9338ms)
+✔ P2 fix: per-scope provenance is attached to each scope report (205.2961ms)
+▶ P2 fix: parseScopesFlag rejects an explicit empty value
+  ✔ null (flag never passed) defaults to all scopes (0.1085ms)
+  ✔ empty string (explicit --scopes= with nothing after it) throws, does NOT default to all scopes (0.0911ms)
+  ✔ whitespace/comma-only value throws the same way (0.0808ms)
+  ✔ a valid non-empty value still works normally (0.0871ms)
+✔ P2 fix: parseScopesFlag rejects an explicit empty value (0.4556ms)
+▶ P1 fix: rebuildReportAggregates recomputes from current scopes, never accumulates stale entries
+  ✔ a scope that failed cleanup on attempt 1 but succeeded on attempt 2 (after --resume) is not counted as failed (0.1824ms)
+  ✔ a scope with a real current-attempt error IS still counted after rebuild (0.1152ms)
+  ✔ a status:"planned"/"running" placeholder (cleanup.attempted: false) contributes zero to cleanupSummary/errors (0.073ms)
+  ✔ run-rrf-sweep.mjs calls rebuildReportAggregates on the loaded checkpoint immediately after --resume, and after every scope completes (never accumulates manually) (0.5694ms)
+✔ P1 fix: rebuildReportAggregates recomputes from current scopes, never accumulates stale entries (1.0301ms)
+▶ P1 fix: checkpoint writes go through writeJsonAtomic, not a direct writeFileSync to the real path
+  ✔ run-rrf-sweep.mjs writes the checkpoint via writeJsonAtomic everywhere, never a direct writeFileSync(REPORT_JSON_PATH, ...) (0.6572ms)
+  ✔ writeJsonAtomic never leaves a corrupted real file behind, even conceptually (write-to-temp-then-rename) (0.439ms)
+  ✔ writeJsonAtomic actually produces a valid, complete JSON file at the target path (integration, real temp dir) (7.2612ms)
+✔ P1 fix: checkpoint writes go through writeJsonAtomic, not a direct writeFileSync to the real path (8.5096ms)
+▶ P1 fix: MIXED/INCONCLUSIVE is never described as hybrid "matching" dense
+  ✔ an INCONCLUSIVE comparison (identical values, zero-width CI at zero) is never rendered as "matches" (27.194ms)
+  ✔ the rendered text explicitly states equivalence would require a pre-registered non-inferiority margin (32.0597ms)
+  ✔ MIXED and INCONCLUSIVE are labeled distinctly, never collapsed into one undifferentiated bucket (0.8544ms)
+✔ P1 fix: MIXED/INCONCLUSIVE is never described as hybrid "matching" dense (60.2429ms)
+▶ P1 fix: a 404 (collection already gone) counts as successful cleanup, not a failure
+  ✔ cleanupOrphanedCollection treats a 404 as ok: true, not ok: false (0.3506ms)
+  ✔ a genuinely different failure (e.g. 401 unauthorized) still reports ok: false (0.3009ms)
+  ✔ executeScope's finally-block cleanup treats a 404 as scopeReport.cleanup.deleted = true, not a reported cleanup failure (36.2064ms)
+  ✔ executeScope still reports a genuine (non-404) cleanup failure correctly (46.7612ms)
+  ✔ a scope whose collection was never created (createCollection itself failed) still reports cleanup.deleted: true when the delete 404s, instead of a spurious cleanup failure (0.8647ms)
+✔ P1 fix: a 404 (collection already gone) counts as successful cleanup, not a failure (84.7185ms)
+▶ P2 fix: betterKs/worseKs/mixedKs/inconclusiveKs never produce a false "none worse" claim
+  ✔ computeSweepAnswers partitions k1 into worseKs and k2 into mixedKs, never conflating them (93.025ms)
+  ✔ rendered markdown never claims "none is bootstrap-significantly worse" when a k is genuinely worse (100.7044ms)
+  ✔ rendered markdown explicitly states hybrid is WORSE than dense at k1 for this fixture (81.6731ms)
+✔ P2 fix: betterKs/worseKs/mixedKs/inconclusiveKs never produce a false "none worse" claim (275.6113ms)
+▶ P2 fix: --resume carries the previous process's peak RSS forward instead of losing it
+  ✔ run-rrf-sweep.mjs sets environment.priorPeakRssBytes from the previous checkpoint's peakRssBytes when resuming (1.1356ms)
+  ✔ Math.max(peakRss.bytes, priorPeakRssBytes) at finalization would correctly preserve a higher prior peak (arithmetic sanity check) (0.1559ms)
+✔ P2 fix: --resume carries the previous process's peak RSS forward instead of losing it (1.4409ms)
+[weighted-rrf-live] [scifact-local] indexing complete: 3 docs in 0ms
+[weighted-rrf-live] [scifact-local] indexing complete: 3 docs in 0ms
+[weighted-rrf-live] [scifact-local] indexing complete: 3 docs in 0ms
+[weighted-rrf-live] [scifact-local] indexing complete: 3 docs in 0ms
+[weighted-rrf-live] [scifact-local] indexing complete: 3 docs in 0ms
+[weighted-rrf-live] [scifact-local] indexing complete: 3 docs in 0ms
+[weighted-rrf-live] [scifact-local] indexing complete: 3 docs in 0ms
+[weighted-rrf-live] [scifact-local] indexing complete: 3 docs in 0ms
+[weighted-rrf-live] [scifact-local] indexing complete: 3 docs in 1ms
+[weighted-rrf-live] [scifact-local] indexing complete: 3 docs in 0ms
+[weighted-rrf-live] [scifact-local] found an orphaned collection from an interrupted run: semidex-weighted-rrf-live-scifact-local-orphan — deleting before re-running
+[weighted-rrf-live] [scifact-local] found an orphaned collection from an interrupted run: semidex-weighted-rrf-live-scifact-local-gone — deleting before re-running
+[weighted-rrf-live] [scifact-local] found an orphaned collection from an interrupted run: semidex-weighted-rrf-live-scifact-local-broken — deleting before re-running
+[weighted-rrf-live] [scifact-local] failed to delete orphaned collection semidex-weighted-rrf-live-scifact-local-broken: unauthorized
+[weighted-rrf-live] [scifact-local] indexing complete: 3 docs in 0ms
+[weighted-rrf-live] [scifact-local] indexing complete: 3 docs in 0ms
+[weighted-rrf-live] [scifact-local] indexing complete: 3 docs in 0ms
+▶ FUSION_MODES: locked configuration
+  ✔ is exactly the 6 required modes, in order (2.1846ms)
+  ✔ dense and sparse are single-lane (no rrf) (2.0848ms)
+  ✔ equal_k2 is k=2, weights=[1.0, 1.0] (0.3098ms)
+  ✔ equal_k60 is k=60, weights=[1.0, 1.0] (0.218ms)
+  ✔ k2_rho0.10 (primary candidate) is k=2, weights=[1.0, 0.05263157894736842] (0.3808ms)
+  ✔ k2_rho0.25 (diagnostic) is k=2, weights=[1.0, 0.14285714285714285] (0.2317ms)
+  ✔ the two weighted-candidate sparse weights match the offline analyzer's exact sparseWeightFromRho formula (0.1732ms)
+  ✔ equal RRF controls are exactly equal_k2 and equal_k60 (0.1535ms)
+  ✔ every rrf mode's weights array is deep-frozen and cannot be mutated (1.2573ms)
+  ✔ four scopes match the completed CUDA k-sweep exactly (0.4147ms)
+  ✔ parseScopesFlag with no value returns all four scopes in canonical order (0.3564ms)
+  ✔ parseScopesFlag rejects an unknown scope id (0.2868ms)
+  ✔ parseScopesFlag rejects an explicit but empty flag rather than silently running all scopes (0.2002ms)
+  ✔ collectionName always starts with the owned prefix (1.7468ms)
+✔ FUSION_MODES: locked configuration (13.3599ms)
+▶ dataset normalization
+  ✔ preserves MIRACL titles because they are part of the embedding input (0.3404ms)
+✔ dataset normalization (0.4688ms)
+▶ executeScope: call-count and request-shape invariants
+  ✔ creates exactly one collection and issues exactly one upsert batch for a 3-doc corpus (38.2084ms)
+  ✔ issues exactly 1 dense + 1 sparse + 4 hybrid queries per benchmark query (2 queries -> 12 total) (22.0273ms)
+  ✔ every hybrid request body has weights INSIDE query.rrf.weights, in [dense, sparse] order (24.3138ms)
+  ✔ no hybrid request ever sets weight on a prefetch entry — that is not the weighted-RRF contract (24.6716ms)
+  ✔ the exact request body for the primary candidate matches the real Qdrant weighted-RRF contract (26.4767ms)
+  ✔ every hybrid request uses prefetch limit 200 per lane and final limit 100 (23.389ms)
+  ✔ the four hybrid requests for one query share the same prefetch vectors — only rrf.k/weights differ (22.356ms)
+  ✔ dense and sparse query vectors are computed exactly once per query (embedBatch call count) (20.7459ms)
+  ✔ cleanup always deletes the exact collection created, even on success (24.6432ms)
+✔ executeScope: call-count and request-shape invariants (227.6472ms)
+▶ computeScopeComparisons: sign direction and required comparison labels
+  ✔ produces exactly the required comparison labels when all modes are present (18.7284ms)
+  ✔ k2_rho0.10_vs_dense.meanDelta is positive when the candidate is the constructed winner (3.5738ms)
+  ✔ k2_rho0.10_vs_dense.meanDelta is negative when dense is the constructed winner (8.8944ms)
+  ✔ k2_rho0.10_vs_equal_k2 uses equal_k2 as baseline (comparison=candidate, baseline=equal_k2) (8.7035ms)
+  ✔ k2_rho0.10_vs_equal_k60 uses equal_k60 as baseline (7.2399ms)
+  ✔ k2_rho0.25_vs_dense (diagnostic) is computed independently of the primary candidate (2.2834ms)
+  ✔ no comparisons at all when dense mode is absent (0.1549ms)
+✔ computeScopeComparisons: sign direction and required comparison labels (50.0472ms)
+▶ isCompletedScopeCheckpoint / validateResumeCheckpoint
+  ✔ a fully measured, zero-error, cleaned scope is complete (0.4156ms)
+  ✔ a scope missing one fusion mode is not complete (0.1419ms)
+  ✔ a scope with unconfirmed cleanup is not complete (0.2229ms)
+  ✔ a partially-run scope (ran < total) is not complete (0.2054ms)
+  ✔ missing scope report is not complete (0.0992ms)
+  ✔ a local scope whose CUDA verification failed is never considered complete, even with full metrics (0.1707ms)
+  ✔ a local scope whose CUDA verification passed remains complete (0.1103ms)
+  ✔ validateResumeCheckpoint rejects a checkpoint with no benchmarkContract (0.2214ms)
+  ✔ validateResumeCheckpoint rejects a mismatched contract (0.1953ms)
+  ✔ validateResumeCheckpoint rejects a checkpoint referencing an unknown scope (0.2184ms)
+  ✔ validateResumeCheckpoint accepts a matching contract (0.101ms)
+  ✔ atomic checkpoint recovery: rebuildReportAggregates recomputes from CURRENT scopes, never accumulates stale failures (0.2491ms)
+✔ isCompletedScopeCheckpoint / validateResumeCheckpoint (2.9103ms)
+▶ owned-collection prefix guard and cleanupOrphanedCollection
+  ✔ a scope-report-recorded collection name from a real run always matches the prefix (12.3724ms)
+  ✔ an arbitrary user collection name never matches the owned prefix (0.1537ms)
+  ✔ cleanupOrphanedCollection no-ops when there is no prior record (0.2616ms)
+  ✔ cleanupOrphanedCollection no-ops when the prior record is already confirmed deleted (0.1362ms)
+  ✔ cleanupOrphanedCollection deletes an orphan and reports it (0.1905ms)
+  ✔ cleanupOrphanedCollection refuses to touch a name outside the owned prefix (0.0837ms)
+  ✔ cleanupOrphanedCollection treats a 404 delete response as a successful cleanup, not a failure (0.2152ms)
+  ✔ cleanupOrphanedCollection reports failure for a real non-404 error (0.2591ms)
+  ✔ executeScope's own cleanup treats a 404 delete response as successful, never a reported failure (7.2126ms)
+✔ owned-collection prefix guard and cleanupOrphanedCollection (21.1473ms)
+▶ redaction: report content never leaks secrets or local paths
+  ✔ redact() strips a fake API key out of an error message (0.8531ms)
+  ✔ a scope report built from a failing client never contains the raw secret (0.42ms)
+  ✔ run-weighted-rrf-live.mjs source contains no hardcoded credentials, API keys, or QDRANT_URL literal (0.486ms)
+  ✔ renderMarkdownReport never includes an absolute local filesystem path (0.4941ms)
+✔ redaction: report content never leaks secrets or local paths (2.3977ms)
+▶ smoke vs real report path separation
+  ✔ run-weighted-rrf-live.mjs computes a distinct report path for --smoke (0.3727ms)
+  ✔ run-weighted-rrf-live.mjs writes smoke TREC runs to a dedicated subdirectory, never the real .runs dir (0.3633ms)
+  ✔ shrinkForSmoke never returns the full 100-query/1000-doc dataset (0.6802ms)
+  ✔ shrinkForSmoke preserves every relevant document required by its selected queries qrels (0.127ms)
+  ✔ computeCandidateVerdict never produces a scientific verdict for a smoke report (would require monkeypatching SMOKE) — documented via source guard instead (0.3052ms)
+✔ smoke vs real report path separation (1.9775ms)
+▶ verifyStrictCudaConfigured: pre-flight gate before any indexing happens
+  ✔ ok when there are no local scopes at all (cloud-only run needs no CUDA) (0.1812ms)
+  ✔ REJECTS a local scope when ONNX_EXECUTION_PROVIDER is unset entirely (0.0896ms)
+  ✔ REJECTS a local scope when ONNX_EXECUTION_PROVIDER=cpu (the exact case the smoke run exposed) (0.0739ms)
+  ✔ REJECTS a local scope when ONNX_EXECUTION_PROVIDER=cuda but ONNX_CUDA_STRICT is not "1" (0.109ms)
+  ✔ REJECTS a local scope when ONNX_CUDA_STRICT=1 but ONNX_EXECUTION_PROVIDER is not cuda (0.0657ms)
+  ✔ ok when ONNX_EXECUTION_PROVIDER=cuda AND ONNX_CUDA_STRICT=1 are both set (0.0671ms)
+  ✔ reports every local scope id that requires the gate, in a mixed local+cloud run (0.0753ms)
+  ✔ main() calls the gate before any scope work, and skips it for --smoke and --resume-check (0.308ms)
+✔ verifyStrictCudaConfigured: pre-flight gate before any indexing happens (1.1294ms)
+▶ verdict computation order: harness verdict before candidate verdict
+  ✔ main() assigns report.verdict before report.candidateVerdict (0.4796ms)
+  ✔ computeCandidateVerdict never spuriously REJECTs merely because report.verdict was read as null (proves why the order matters) (0.5223ms)
+✔ verdict computation order: harness verdict before candidate verdict (1.1183ms)
+▶ verifyCudaProvenance: reject local runs where CUDA was requested but not effective
+  ✔ cloud scopes are always ok — CUDA verification is not applicable (0.1883ms)
+  ✔ a local scope that never requested CUDA is ok regardless of effective provider (0.0689ms)
+  ✔ a local scope that requested CUDA and got CUDA is ok (0.0595ms)
+  ✔ REJECTS a local scope that requested CUDA but silently fell back to CPU (0.0701ms)
+  ✔ REJECTS a local scope with no ONNX provenance at all (no embedding call ever completed) (0.0747ms)
+  ✔ buildScopeProvenance records requested, strict-mode-configured, and effective provider for local scopes (87.6128ms)
+  ✔ buildScopeProvenance never reads onnxProviderState (fell back silently) as if it were the requested value (96.3732ms)
+  ✔ computeVerdict rejects the whole harness run when any scope's CUDA verification failed (0.6187ms)
+✔ verifyCudaProvenance: reject local runs where CUDA was requested but not effective (185.376ms)
+▶ cloud scopes report ONNX provenance as not applicable
+  ✔ buildScopeProvenance sets onnx: null for a cloud scope (149.3478ms)
+  ✔ verifyCudaProvenance is a pure pass for cloud regardless of any stray onnxProvenance value (0.1954ms)
+  ✔ renderMarkdownReport prints "n/a (cloud)" for a cloud scope's CUDA provenance row (0.2507ms)
+✔ cloud scopes report ONNX provenance as not applicable (149.9606ms)
+▶ computeCandidateVerdict: decision rules
+  ✔ REJECT when the harness verdict itself was not an ACCEPT (0.3283ms)
+  ✔ ACCEPT when the primary candidate materially reduces MIRACL regression on both MIRACL scopes with no significant regression anywhere (0.373ms)
+  ✔ REJECT when the primary candidate is significantly worse than dense on a MIRACL scope (0.247ms)
+  ✔ REJECT when the primary candidate is significantly worse than dense on SciFact (0.2906ms)
+  ✔ MIXED when the candidate does not materially reduce the MIRACL regression (delta too close to the BETTER equal-RRF control) (0.2908ms)
+  ✔ MIXED (never ACCEPT) when the candidate beats the worse equal-RRF control but remains worse than the better one (0.3808ms)
+  ✔ perScope reports bestEqualRrfDelta and reductionVsBestEqualRrf (not the old worst-control field names) (0.2147ms)
+  ✔ MIXED when local and cloud diverge in direction vs dense on the same dataset (0.1985ms)
+  ✔ MIXED when only one dataset type is present (cannot judge cross-dataset rules) (0.1533ms)
+  ✔ smoke mode never produces a scientific verdict (0.112ms)
+  ✔ never calls the candidate globally optimal — miraclNote-equivalent language appears in the report reasons/markdown (0.3692ms)
+✔ computeCandidateVerdict: decision rules (3.5118ms)
+▶ no production configuration changes
+  ✔ run-weighted-rrf-live.mjs never imports or writes core/settings/service.js or definitions.js (5.0806ms)
+  ✔ weighted-rrf-live-config.mjs never mutates a shared/production constant object (0.4124ms)
+✔ no production configuration changes (5.6308ms)
+▶ offline safety: loadScopeDataset never reaches the network
+  ✔ run-weighted-rrf-live.mjs imports only loadCachedMiniSet/loadCachedMiraclSubset, never the fetch-and-build variants (0.7725ms)
+  ✔ executeScope() and shrinkForSmoke() never call fetch — replacing global.fetch with a throwing stub does not break them (16.372ms)
+✔ offline safety: loadScopeDataset never reaches the network (17.3565ms)
+▶ computeVerdict
+  ✔ BLOCKED when a requested scope never produced a report (0.3138ms)
+  ✔ ACCEPT when every scope has full metrics, zero errors, cleanup succeeded, and CUDA verification passed (0.2838ms)
+  ✔ REJECT when metrics are missing entirely (0.1564ms)
+✔ computeVerdict (0.9339ms)
+▶ executeScope uses a pre-generated collection name, not one it invents after creation
+  ✔ executeScope creates exactly the collection name passed in via the collection param (22.2672ms)
+✔ executeScope uses a pre-generated collection name, not one it invents after creation (22.3688ms)
+▶ dataset revision and license are pinned constants
+  ✔ BELEBELE_REPO is the public, ungated mteb/belebele — never the gated mteb/BelebeleRetrieval (1.1048ms)
+  ✔ BELEBELE_REVISION is a specific pinned commit hash, not "main" (0.7208ms)
+  ✔ BELEBELE_LICENSE is documented (0.2105ms)
+✔ dataset revision and license are pinned constants (3.8943ms)
+▶ parseJsonlRows
+  ✔ parses one JSON object per line (0.4787ms)
+  ✔ skips blank lines (0.2038ms)
+  ✔ throws on a malformed JSON line, quoting the line number — never silently drops it (0.6905ms)
+✔ parseJsonlRows (1.6723ms)
+▶ validateRowSchema
+  ✔ accepts rows with exactly the expected field set and matching dialect (4.6701ms)
+  ✔ rejects a row count that does not match EXPECTED_ROW_COUNT (0.5202ms)
+  ✔ rejects a row missing a required content field (e.g. flores_passage) (5.0039ms)
+  ✔ rejects a row with an unexpected EXTRA field (schema drift detection) (3.2237ms)
+  ✔ rejects a dialect field mismatch (catches a mixed-up download/cache) (3.0157ms)
+✔ validateRowSchema (16.9969ms)
+▶ synthesizeRetrievalTask
+  ✔ deduplicates corpus by link — multiple questions sharing a passage produce ONE corpus doc (2.7124ms)
+  ✔ every query has exactly one relevant document (MRC-derived qrels contract) (0.2976ms)
+  ✔ never invents a qrels row beyond exactly what the raw rows specify (0.2303ms)
+  ✔ throws if the same link has inconsistent flores_passage text across rows (data integrity check) (1.5863ms)
+  ✔ never produces dangling qrels references (0.3034ms)
+  ✔ preserves the full flores_passage text VERBATIM as the corpus doc text, never truncated or reformatted (0.212ms)
+  ✔ title is always the empty string (Belebele/FLORES passages carry no separate title field) — never fabricated (0.1303ms)
+  ✔ preserves the exact question text verbatim, including Unicode combining characters and punctuation (0.1253ms)
+  ✔ IDs are deterministic hashes of content, not array indices — same input always produces the same IDs (1.7943ms)
+  ✔ two different passages never collide onto the same doc ID (0.4509ms)
+✔ synthesizeRetrievalTask (8.8442ms)
+▶ validateRetrievalTask
+  ✔ accepts a fixture matching EXPECTED_CORPUS_SIZE with valid 1-relevant-doc-per-query qrels (11.9598ms)
+  ✔ rejects a corpus size that does not match EXPECTED_CORPUS_SIZE (2.0937ms)
+  ✔ rejects dangling qrels references (9.0181ms)
+  ✔ rejects empty corpus text (10.0483ms)
+  ✔ rejects empty query text (10.3678ms)
+  ✔ rejects a query with more than one relevant document (violates this dataset's MRC-derived contract) (6.8011ms)
+  ✔ rejects a query with zero relevant documents (6.0686ms)
+✔ validateRetrievalTask (56.8919ms)
+▶ isValidCacheHit / downloadTo
+  ✔ a file with no manifest is treated as an invalid cache hit (3.241ms)
+
+[fetch-belebele] 0.0 / 0.0 MB — lang.jsonl
+  ✔ downloadTo writes the final file and a matching manifest atomically (50.0296ms)
+  ✔ downloadTo never leaves a partial file at the final path on failure (1.5513ms)
+
+[fetch-belebele] 0.0 / 0.0 MB — lang.jsonl
+  ✔ isValidCacheHit rejects a manifest for a different URL (revision/source mismatch guard) (19.3685ms)
+✔ isValidCacheHit / downloadTo (74.649ms)
+▶ LANGUAGE_CODES
+  ✔ is exactly the 7-language matrix (1.7834ms)
+✔ LANGUAGE_CODES (3.1472ms)
+[slavic-belebele] [ukr_Cyrl] indexing complete: 3 docs in 0ms
+[slavic-belebele] [ukr_Cyrl] indexing complete: 3 docs in 0ms
+[slavic-belebele] [ukr_Cyrl] indexing complete: 3 docs in 0ms
+[slavic-belebele] [ukr_Cyrl] indexing complete: 3 docs in 0ms
+[slavic-belebele] [ukr_Cyrl] indexing complete: 3 docs in 0ms
+[slavic-belebele] [ukr_Cyrl] indexing complete: 3 docs in 0ms
+[slavic-belebele] [ukr_Cyrl] indexing complete: 3 docs in 0ms
+[slavic-belebele] [ukr_Cyrl] indexing complete: 3 docs in 0ms
+[slavic-belebele] [ukr_Cyrl] indexing complete: 3 docs in 0ms
+[slavic-belebele] [ukr_Cyrl] indexing complete: 3 docs in 0ms
+[slavic-belebele] [ukr_Cyrl] indexing complete: 3 docs in 0ms
+[slavic-belebele] [ukr_Cyrl] indexing complete: 3 docs in 0ms
+[slavic-belebele] [ukr_Cyrl] indexing complete: 3 docs in 0ms
+[slavic-belebele] [ukr_Cyrl] indexing complete: 3 docs in 0ms
+[slavic-belebele] [ukr_Cyrl] indexing complete: 3 docs in 0ms
+[slavic-belebele] [ukr_Cyrl] found an orphaned collection from an interrupted run: semidex-slavic-belebele-ukr_Cyrl-orphan — deleting before re-running
+[slavic-belebele] [ukr_Cyrl] found an orphaned collection from an interrupted run: semidex-slavic-belebele-ukr_Cyrl-orphan2 — deleting before re-running
+[slavic-belebele] [ukr_Cyrl] failed to delete orphaned collection semidex-slavic-belebele-ukr_Cyrl-orphan2: unauthorized
+[slavic-belebele] [ukr_Cyrl] indexing complete: 3 docs in 0ms
+[slavic-belebele] [ukr_Cyrl] indexing complete: 50 docs in 0ms
+[slavic-belebele] [ukr_Cyrl] indexing complete: 1 docs in 0ms
+▶ executeLanguage: call-count and request-shape invariants
+  ✔ creates exactly one collection and issues exactly one upsert batch for a 3-doc corpus (756.3297ms)
+  ✔ issues exactly 1 dense + 1 sparse + 1 hybrid query per benchmark query (2 queries -> 6 total, never a 6-way k-sweep) (8.9714ms)
+  ✔ the hybrid query uses the single fixed RRF_K (60), never a different or swept value (9.0132ms)
+  ✔ every hybrid request uses prefetch limit 200 per lane and final limit 100 (8.1307ms)
+  ✔ dense and sparse query vectors for one query come from the SAME embedBatch() call (one embedding pass, not two) (6.9922ms)
+  ✔ dense, sparse, and hybrid queries for the same benchmark query all use the identical dense+sparse vectors (same input per channel) (8.1788ms)
+  ✔ writes exactly 3 separate TREC files per language (dense, sparse, hybrid) — never merged (8.0013ms)
+  ✔ cleanup always deletes the exact collection created (7.2421ms)
+  ✔ uses BGE-M3 learned sparse schema (no idf modifier) — never the BM25 cloud schema (6.2646ms)
+✔ executeLanguage: call-count and request-shape invariants (820.0876ms)
+▶ executeLanguage: metrics correctness
+  ✔ computes dense/sparse/hybrid metrics with the correct query count (7.8782ms)
+  ✔ rescueHarm classifies rescues/harms/ties summing to the total query count (6.2704ms)
+✔ executeLanguage: metrics correctness (14.3498ms)
+▶ executeLanguage: bootstrap comparison sign direction
+  ✔ dense_vs_sparse.meanDelta = sparse − dense (baseline=dense, comparison=sparse) (6.5718ms)
+  ✔ hybrid_vs_dense uses baseline=dense, comparison=hybrid (meanDelta = hybrid − dense) (4.5585ms)
+  ✔ a constructed fixture with a known sparse winner produces a positive dense_vs_sparse.meanDelta (9.3566ms)
+✔ executeLanguage: bootstrap comparison sign direction (20.7236ms)
+▶ isCompletedLanguageCheckpoint / validateResumeCheckpoint
+  ✔ a fully measured, zero-error, cleaned language is complete (0.5257ms)
+  ✔ a language missing the hybrid mode is not complete (0.138ms)
+  ✔ a language with unconfirmed cleanup is not complete (0.1245ms)
+  ✔ a "planned" checkpoint placeholder (before indexing) is not complete (0.1152ms)
+  ✔ validateResumeCheckpoint rejects a checkpoint with no benchmarkContract (0.6849ms)
+  ✔ validateResumeCheckpoint rejects a mismatched contract (0.1926ms)
+  ✔ validateResumeCheckpoint rejects a checkpoint referencing an unknown language (0.1595ms)
+  ✔ validateResumeCheckpoint accepts a matching contract (0.0972ms)
+  ✔ checkpoint contract includes execution provider so --resume cannot mix CPU and DML (0.1887ms)
+  ✔ execution-provider normalization mirrors the runtime CPU fallback for invalid values (0.1242ms)
+  ✔ a checkpoint with one completed language and one pending correctly identifies which is which (0.1675ms)
+✔ isCompletedLanguageCheckpoint / validateResumeCheckpoint (2.9757ms)
+▶ owned-collection prefix guard / cleanupOrphanedCollection
+  ✔ a language-report-recorded collection name from a real run always matches the prefix (5.8366ms)
+  ✔ an arbitrary user collection name never matches the owned prefix (0.2306ms)
+  ✔ cleanupOrphanedCollection returns { ok: true, collection: null } when nothing to clean up (0.4943ms)
+  ✔ cleanupOrphanedCollection treats a 404 (already gone) as successful cleanup (0.4011ms)
+  ✔ cleanupOrphanedCollection reports a genuine failure (not 404) as ok: false (0.6395ms)
+✔ owned-collection prefix guard / cleanupOrphanedCollection (7.8665ms)
+▶ redaction: report content never leaks secrets or local paths
+  ✔ a language report built from a failing client never contains the raw secret (2.7038ms)
+✔ redaction: report content never leaks secrets or local paths (2.8184ms)
+▶ smoke vs real report path separation
+  ✔ run-slavic-benchmark.mjs computes a distinct report path for --smoke (0.8322ms)
+  ✔ run-slavic-benchmark.mjs uses a distinct SMOKE_RUNS_DIR for TREC files, never sharing the real .runs directory (0.6785ms)
+  ✔ shrinkForSmoke never returns the full 488-doc/900-query dataset (2.1464ms)
+  ✔ shrinkForSmoke preserves every relevant document required by its selected queries' qrels (0.2439ms)
+✔ smoke vs real report path separation (4.1409ms)
+▶ offline safety and bounded concurrency
+  ✔ run-slavic-benchmark.mjs never calls Promise.all/allSettled across languages (sequential execution) (1.2022ms)
+  ✔ executeLanguage() never calls fetch — replacing global.fetch with a throwing stub does not break it (7.8704ms)
+  ✔ indexing uses INDEX_BATCH_SIZE-bounded batches, never one giant upsert for the whole corpus (7.5639ms)
+  ✔ query embedding is bounded to INDEX_BATCH_SIZE instead of one inference call per query (138.3554ms)
+✔ offline safety and bounded concurrency (155.2734ms)
+▶ computeMacroSummary
+  ✔ is descriptive only and never replaces per-language results (0.6085ms)
+✔ computeMacroSummary (0.7341ms)
+▶ computeVerdict
+  ✔ BLOCKED when a requested language never produced a report (0.3537ms)
+  ✔ ACCEPT when the language has full metrics, zero errors, and cleanup succeeded (0.3076ms)
+  ✔ REJECT when metrics are missing entirely (0.1495ms)
+✔ computeVerdict (0.9532ms)
+▶ rebuildReportAggregates
+  ✔ a language that failed cleanup on attempt 1 but succeeded on attempt 2 is not counted as failed (0.3212ms)
+  ✔ a "planned" placeholder contributes zero to cleanupSummary (0.1342ms)
+✔ rebuildReportAggregates (0.5604ms)
+▶ renderMarkdownReport
+  ✔ mentions MRC-derived qrels caveat explicitly (0.8392ms)
+  ✔ mentions the confirmed-unavailable bel_Cyrl/srp_Latn languages (0.1603ms)
+  ✔ never claims a production RRF_K or sparse-default recommendation from this run alone (0.259ms)
+  ✔ macro summary section explicitly says descriptive only, never statistical evidence (0.3058ms)
+✔ renderMarkdownReport (1.7192ms)
+[slavic-weighted-rrf] [ukr_Cyrl] indexing complete: 3 docs in 0ms
+[slavic-weighted-rrf] [ukr_Cyrl] indexing complete: 3 docs in 0ms
+[slavic-weighted-rrf] [ukr_Cyrl] indexing complete: 3 docs in 0ms
+[slavic-weighted-rrf] [ukr_Cyrl] indexing complete: 3 docs in 0ms
+[slavic-weighted-rrf] [ukr_Cyrl] indexing complete: 3 docs in 0ms
+[slavic-weighted-rrf] [ukr_Cyrl] indexing complete: 3 docs in 0ms
+[slavic-weighted-rrf] [ukr_Cyrl] indexing complete: 3 docs in 0ms
+[slavic-weighted-rrf] [ukr_Cyrl] indexing complete: 3 docs in 0ms
+[slavic-weighted-rrf] [ukr_Cyrl] indexing complete: 3 docs in 0ms
+[slavic-weighted-rrf] [ukr_Cyrl] found an orphaned collection from an interrupted run: semidex-slavic-weighted-rrf-ukr_Cyrl-orphan — deleting before re-running
+[slavic-weighted-rrf] [ukr_Cyrl] found an orphaned collection from an interrupted run: semidex-slavic-weighted-rrf-ukr_Cyrl-gone — deleting before re-running
+[slavic-weighted-rrf] [ukr_Cyrl] found an orphaned collection from an interrupted run: semidex-slavic-weighted-rrf-ukr_Cyrl-broken — deleting before re-running
+[slavic-weighted-rrf] [ukr_Cyrl] failed to delete orphaned collection semidex-slavic-weighted-rrf-ukr_Cyrl-broken: unauthorized
+[slavic-weighted-rrf] [ukr_Cyrl] indexing complete: 3 docs in 0ms
+[slavic-weighted-rrf] [ukr_Cyrl] indexing complete: 3 docs in 0ms
+▶ LANGUAGES / LANGUAGE_CODES
+  ✔ is exactly the 7-language matrix, in order (2.1072ms)
+  ✔ is identical to slavic-profiles.mjs's LANGUAGES (code/script/label), so both benchmarks share the same matrix (0.232ms)
+  ✔ parseLanguagesFlag with no value returns all seven in canonical order (0.2287ms)
+  ✔ parseLanguagesFlag rejects an unknown language code (0.533ms)
+  ✔ parseLanguagesFlag rejects an explicit but empty flag rather than silently running all languages (0.1744ms)
+  ✔ collectionName always starts with the owned prefix (0.1943ms)
+  ✔ the owned prefix differs from the non-weighted Slavic benchmark's prefix and the SciFact/MIRACL weighted benchmark's prefix (0.1974ms)
+✔ LANGUAGES / LANGUAGE_CODES (5.2498ms)
+▶ GROUPS: Cyrillic Slavic / Latin Slavic / English control
+  ✔ cyrillic group is exactly ukr_Cyrl, rus_Cyrl, bul_Cyrl (0.3023ms)
+  ✔ latin_slavic group is exactly pol_Latn, ces_Latn, slk_Latn (0.1955ms)
+  ✔ english_control group is exactly eng_Latn (0.2472ms)
+  ✔ every language code appears in exactly one group (0.19ms)
+✔ GROUPS: Cyrillic Slavic / Latin Slavic / English control (1.3932ms)
+▶ FUSION_MODES: locked configuration, shared with the SciFact/MIRACL weighted benchmark
+  ✔ is exactly the 6 required modes, in order (0.1594ms)
+  ✔ equal_k2 is k=2, weights=[1.0, 1.0] (0.1395ms)
+  ✔ equal_k60 is k=60, weights=[1.0, 1.0] (0.1506ms)
+  ✔ k2_rho0.10 (primary) is k=2, weights=[1.0, 0.05263157894736842] (0.111ms)
+  ✔ k2_rho0.25 (diagnostic) is k=2, weights=[1.0, 0.14285714285714285] (0.0909ms)
+  ✔ sparseWeightFromRho formula matches: sparseWeight = 1 / (k * (1/rho - 1) + 1) (0.1072ms)
+  ✔ equal RRF controls are exactly equal_k2 and equal_k60 (0.0784ms)
+  ✔ every rrf mode's weights array is deep-frozen and cannot be mutated (0.2872ms)
+  ✔ is imported from the shared ../fusion/weighted-rrf-fusion-modes.mjs module, not redefined locally (0.5363ms)
+  ✔ the SciFact/MIRACL weighted benchmark and this Slavic benchmark import the exact same FUSION_MODES object reference (2.7376ms)
+✔ FUSION_MODES: locked configuration, shared with the SciFact/MIRACL weighted benchmark (4.7433ms)
+▶ executeLanguage: call-count and request-shape invariants
+  ✔ creates exactly one collection and issues exactly one upsert batch for a 3-doc corpus (758.8811ms)
+  ✔ issues exactly 1 dense + 1 sparse + 4 hybrid queries per benchmark query (2 queries -> 12 total) (20.2009ms)
+  ✔ every hybrid request body has weights INSIDE query.rrf.weights, in [dense, sparse] order, and never on a prefetch entry (42.9714ms)
+  ✔ every hybrid request uses prefetch limit 200 per lane and final limit 100 (18.3978ms)
+  ✔ the four hybrid requests for one query share the same prefetch vectors — only rrf.k/weights differ (18.7162ms)
+  ✔ one embedBatch call per document batch AND per query batch, reused across all six modes (never one embed call per mode) (18.3124ms)
+  ✔ dense AND sparse vectors for one document come from the SAME embedBatch() call (single BGE-M3 inference pass) (14.1913ms)
+  ✔ cleanup always deletes the exact collection created, even on success (16.8473ms)
+  ✔ executeLanguage creates exactly the collection name passed in via the collection param (16.4434ms)
+✔ executeLanguage: call-count and request-shape invariants (925.5145ms)
+▶ computeLanguageComparisons: sign direction and required comparison labels
+  ✔ produces exactly the seven required comparison labels when all modes are present (13.6116ms)
+  ✔ sparse_vs_dense.meanDelta is positive when sparse is the constructed winner (comparison − baseline) (3.9267ms)
+  ✔ sparse_vs_dense.meanDelta is negative when dense is the constructed winner (3.8149ms)
+  ✔ k2_rho0.10_vs_equal_k2 uses equal_k2 as baseline (comparison=candidate, baseline=equal_k2) (8.9601ms)
+  ✔ k2_rho0.10_vs_equal_k60 uses equal_k60 as baseline (10.4941ms)
+  ✔ k2_rho0.25_vs_dense (diagnostic) is computed independently of the primary candidate (3.6259ms)
+  ✔ no comparisons at all when dense mode is absent (0.2024ms)
+✔ computeLanguageComparisons: sign direction and required comparison labels (45.0093ms)
+▶ paired-bootstrap determinism (fixed seed, >= 2000 iterations)
+  ✔ DEFAULT_BOOTSTRAP_SEED/ITERATIONS from miracl/bootstrap.mjs are reused unchanged (documented seed, >= 2000 iterations) (0.432ms)
+  ✔ the exact same input arrays produce the exact same comparison output on repeated calls (43.4018ms)
+✔ paired-bootstrap determinism (fixed seed, >= 2000 iterations) (43.9405ms)
+▶ computeGroupSummaries: descriptive-only macro averages
+  ✔ macro average for Cyrillic is the mean of exactly the 3 Cyrillic languages' dense nDCG@10 (1.2903ms)
+  ✔ a group with a missing language reports languagesPresent < languagesExpected, never fabricates a value (0.216ms)
+  ✔ english_control group always has exactly 1 expected member (0.2571ms)
+  ✔ the summary carries an explicit descriptive-only disclaimer note (0.2084ms)
+  ✔ a completely empty languages object produces null macro averages, never zero or a fabricated number (0.1295ms)
+✔ computeGroupSummaries: descriptive-only macro averages (2.3749ms)
+▶ classifyLanguageDecisions: per-language decision classification
+  ✔ sparse_helps only when the comparison is statistically B_BETTER (significant) (0.5837ms)
+  ✔ sparse_significantly_hurts only when the comparison is statistically A_BETTER (significant) (0.2072ms)
+  ✔ sparse_neutral_mixed when the comparison is MIXED (real wins on both sides, not significant) (0.1709ms)
+  ✔ sparse_neutral_mixed (never "helps"/"hurts") when the comparison is INCONCLUSIVE (insufficient evidence) (0.1286ms)
+  ▶ "restores dense quality" — three-state non-inferiority test
+    ✔ RESTORES_DENSE_QUALITY_MARGIN is a fixed, documented, pre-registered constant (0.1181ms)
+    ✔ classifies "restored" when the CI excludes any regression worse than the margin (ciLow > -margin) (0.1235ms)
+    ✔ classifies "regressed" when the ENTIRE CI is a regression worse than the margin (ciHigh < -margin) (0.117ms)
+    ✔ classifies "inconclusive" (never "restored") for a MIXED/INCONCLUSIVE comparison whose CI straddles the margin boundary (0.1028ms)
+    ✔ classifies "inconclusive" when ciLow/ciHigh are unavailable (n=0 bootstrap result), never fabricates restored/regressed (0.1055ms)
+    ✔ rho=0.25 diagnostic candidate is classified independently of rho=0.10 (0.1119ms)
+  ✔ "restores dense quality" — three-state non-inferiority test (0.8509ms)
+  ✔ a language with no comparisons at all classifies as neutral/n/a, never fabricates a verdict (0.1169ms)
+  ✔ classifyLanguageDecisions never reads group/macro data — only per-language comparisons (source guard) (0.8254ms)
+✔ classifyLanguageDecisions: per-language decision classification (3.2013ms)
+▶ isCompletedLanguageCheckpoint / validateResumeCheckpoint
+  ✔ a fully measured, zero-error, cleaned, CUDA-verified language is complete (0.4567ms)
+  ✔ a language missing one fusion mode is not complete (0.2139ms)
+  ✔ a language whose CUDA verification failed is never considered complete, even with full metrics (0.1126ms)
+  ✔ a language with unconfirmed cleanup is not complete (0.096ms)
+  ✔ missing language report is not complete (0.0773ms)
+  ✔ validateResumeCheckpoint rejects a checkpoint with no benchmarkContract (0.2257ms)
+  ✔ validateResumeCheckpoint rejects a mismatched contract (different fusion mode set) (0.1926ms)
+  ✔ validateResumeCheckpoint rejects a checkpoint referencing an unknown language (0.1738ms)
+  ✔ validateResumeCheckpoint accepts a matching contract (0.1239ms)
+  ✔ atomic checkpoint recovery: rebuildReportAggregates recomputes from CURRENT languages, never accumulates stale failures (0.3084ms)
+✔ isCompletedLanguageCheckpoint / validateResumeCheckpoint (2.3381ms)
+▶ owned-collection prefix guard and cleanupOrphanedCollection
+  ✔ an arbitrary user collection name never matches the owned prefix (0.2113ms)
+  ✔ cleanupOrphanedCollection no-ops when there is no prior record (0.2114ms)
+  ✔ cleanupOrphanedCollection deletes an orphan and reports it (0.4107ms)
+  ✔ cleanupOrphanedCollection refuses to touch a name outside the owned prefix (0.1781ms)
+  ✔ cleanupOrphanedCollection treats a 404 delete response as a successful cleanup, not a failure (0.5737ms)
+  ✔ cleanupOrphanedCollection reports failure for a real non-404 error (0.4605ms)
+  ✔ executeLanguage's own cleanup treats a 404 delete response as successful, never a reported failure (16.9389ms)
+✔ owned-collection prefix guard and cleanupOrphanedCollection (19.2585ms)
+▶ redaction: report content never leaks secrets or local paths
+  ✔ a language report built from a failing client never contains the raw secret (3.4672ms)
+  ✔ run-slavic-weighted-rrf.mjs source contains no hardcoded credentials, API keys, or QDRANT_URL literal (1.0619ms)
+  ✔ renderMarkdownReport never includes an absolute local filesystem path (1.0501ms)
+✔ redaction: report content never leaks secrets or local paths (5.7986ms)
+▶ smoke vs real report path separation
+  ✔ run-slavic-weighted-rrf.mjs computes a distinct report path for --smoke (0.5688ms)
+  ✔ run-slavic-weighted-rrf.mjs writes smoke TREC runs to a dedicated subdirectory, never the real runs dir (0.6105ms)
+  ✔ shrinkForSmoke never returns the full 900-query/488-doc dataset (1.8783ms)
+  ✔ shrinkForSmoke preserves every relevant document required by its selected queries qrels (0.2139ms)
+✔ smoke vs real report path separation (3.4862ms)
+▶ verifyStrictCudaConfigured / verifyCudaProvenance: strict CUDA is an accelerator only, mandatory pre-flight for local runs
+  ✔ REJECTS a run when ONNX_EXECUTION_PROVIDER is unset entirely (every language here is local) (0.4447ms)
+  ✔ REJECTS when ONNX_EXECUTION_PROVIDER=cpu (must not silently benchmark on CPU) (0.1595ms)
+  ✔ ok when ONNX_EXECUTION_PROVIDER=cuda AND ONNX_CUDA_STRICT=1 are both set (0.1424ms)
+  ✔ main() calls the gate before any language work, and skips it for --smoke and --resume-check (0.6433ms)
+  ✔ REJECTS provenance when CUDA was requested but the effective provider fell back to CPU (0.2185ms)
+  ✔ computeVerdict REJECTs the whole harness run when any language's CUDA verification failed (0.8343ms)
+  ✔ CUDA verification is never used to compare retrieval quality — no mention of ndcg/metrics inside the CUDA helper source (0.4703ms)
+✔ verifyStrictCudaConfigured / verifyCudaProvenance: strict CUDA is an accelerator only, mandatory pre-flight for local runs (3.355ms)
+▶ offline safety: fetchAndValidateLanguage never reaches the network when cache is valid
+  ✔ run-slavic-weighted-rrf.mjs imports only fetchAndValidateLanguage, never a raw download helper directly (0.399ms)
+  ✔ executeLanguage() and shrinkForSmoke() never call fetch directly — replacing global.fetch with a throwing stub does not break them (they never invoke fetchAndValidateLanguage(); that happens earlier in main()) (16.5532ms)
+  ▶ fetchAndValidateLanguage() itself, against a real valid cache fixture
+    ✔ fetchAndValidateLanguage() succeeds using ONLY the cache, with zero network calls, when a real valid manifest+checksum exist (45.241ms)
+    ✔ fetchAndValidateLanguage() DOES reach the network (throws, since the stub throws) when the cache is genuinely absent — proving the prior test is not vacuously true (1.5595ms)
+  ✔ fetchAndValidateLanguage() itself, against a real valid cache fixture (46.9718ms)
+✔ offline safety: fetchAndValidateLanguage never reaches the network when cache is valid (64.0755ms)
+▶ computeVerdict
+  ✔ BLOCKED when a requested language never produced a report (0.5563ms)
+  ✔ ACCEPT when every language has full metrics, zero errors, cleanup succeeded, and CUDA verification passed (0.5535ms)
+  ✔ REJECT when metrics are missing entirely (0.1741ms)
+✔ computeVerdict (1.5462ms)
+▶ no production configuration changes
+  ✔ run-slavic-weighted-rrf.mjs never imports or writes core/settings/service.js or definitions.js (0.7424ms)
+  ✔ diagnostic token counting does not import transformers and register the project ORT before the custom CUDA runtime (0.5381ms)
+✔ no production configuration changes (1.384ms)
+▶ LANGUAGES: exact matrix
+  ✔ is exactly the 7 user-decided languages, in order (1.9382ms)
+  ✔ exactly 3 Cyrillic, 3 Latin (incl. English control) (0.3415ms)
+  ✔ eng_Latn is present as the control (0.338ms)
+  ✔ bel_Cyrl and srp_Latn are NOT in LANGUAGES — confirmed unavailable, never silently substituted (0.1633ms)
+  ✔ CONFIRMED_UNAVAILABLE documents exactly bel_Cyrl and srp_Latn with a reason each (0.2627ms)
+  ✔ RESERVED_FOR_LATER_EXPANSION lists mkd_Cyrl/srp_Cyrl/hrv_Latn/slv_Latn and is disjoint from LANGUAGES (0.2499ms)
+  ✔ languageByCode resolves every code in LANGUAGES (0.3336ms)
+  ✔ languageByCode throws on an unknown code (0.5406ms)
+✔ LANGUAGES: exact matrix (6.3908ms)
+▶ parseLanguagesFlag: monolingual language-config selection
+  ✔ null (flag never passed) defaults to all 7 languages in canonical order (0.4889ms)
+  ✔ reorders requested languages to canonical order regardless of CLI order (0.3432ms)
+  ✔ rejects an unknown language code (1.5909ms)
+  ✔ rejects a code from RESERVED_FOR_LATER_EXPANSION (not part of this run's scope) (0.1954ms)
+  ✔ empty string (explicit --languages= with nothing after it) throws, does NOT default to all (0.2824ms)
+  ✔ whitespace/comma-only value throws the same way (0.1926ms)
+  ✔ a valid single-language value works normally (0.2022ms)
+✔ parseLanguagesFlag: monolingual language-config selection (3.8093ms)
+▶ collectionName / COLLECTION_PREFIX
+  ✔ collectionName always starts with the owned prefix (0.1605ms)
+  ✔ COLLECTION_PREFIX is distinct from every other benchmark harness's prefix (0.1153ms)
+✔ collectionName / COLLECTION_PREFIX (0.3838ms)
+▶ PROVIDER: locked to BGE-M3 ONNX only
+  ✔ provider kind is local (no Qdrant Cloud E5/BM25 in this benchmark) (0.091ms)
+  ✔ dense size is 1024 (BGE-M3's real output dimension) (0.1334ms)
+✔ PROVIDER: locked to BGE-M3 ONNX only (0.328ms)
+▶ RRF_K: single fixed equal mode, no sweep
+  ✔ is exactly 60 (Semidex production default) (0.1046ms)
+✔ RRF_K: single fixed equal mode, no sweep (0.203ms)
+ℹ tests 532
+ℹ suites 120
+ℹ pass 532
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 45861.2108

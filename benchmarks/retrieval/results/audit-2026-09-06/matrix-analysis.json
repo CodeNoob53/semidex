@@ -1,0 +1,1102 @@
+{
+  "caveat": "read-only existing custom-50, legacy corpus; not fresh production indexing or held-out evaluation",
+  "n": 49,
+  "summaries": {
+    "prod-top3": {
+      "1": {
+        "hit": 0.5306122448979592,
+        "recall": 0.5306122448979592,
+        "ndcg": 0.5481049562682215,
+        "mrr": 0.5306122448979592,
+        "distinctSources": 1
+      },
+      "3": {
+        "hit": 0.7551020408163265,
+        "recall": 0.7551020408163265,
+        "ndcg": 0.6364020372004502,
+        "mrr": 0.6360544217687074,
+        "distinctSources": 1.9795918367346939
+      },
+      "retrievalMs": {
+        "p50": 296.0313000000024,
+        "p95": 349.4892,
+        "note": "Embedding cached; sequential interleaved modes, diagnostic not load benchmark."
+      }
+    },
+    "prod-top5": {
+      "1": {
+        "hit": 0.5102040816326531,
+        "recall": 0.5102040816326531,
+        "ndcg": 0.5276967930029155,
+        "mrr": 0.5102040816326531,
+        "distinctSources": 1
+      },
+      "3": {
+        "hit": 0.7551020408163265,
+        "recall": 0.7551020408163265,
+        "ndcg": 0.6313745691871968,
+        "mrr": 0.6258503401360543,
+        "distinctSources": 2.020408163265306
+      },
+      "5": {
+        "hit": 0.8367346938775511,
+        "recall": 0.8367346938775511,
+        "ndcg": 0.6635709605932628,
+        "mrr": 0.6442176870748298,
+        "distinctSources": 2.836734693877551
+      },
+      "retrievalMs": {
+        "p50": 283.6536999999953,
+        "p95": 358.02429999999913,
+        "note": "Embedding cached; sequential interleaved modes, diagnostic not load benchmark."
+      }
+    },
+    "prod-top10": {
+      "1": {
+        "hit": 0.5102040816326531,
+        "recall": 0.5102040816326531,
+        "ndcg": 0.553935860058309,
+        "mrr": 0.5102040816326531,
+        "distinctSources": 1
+      },
+      "3": {
+        "hit": 0.7551020408163265,
+        "recall": 0.7551020408163265,
+        "ndcg": 0.6398988373047066,
+        "mrr": 0.6258503401360543,
+        "distinctSources": 2
+      },
+      "5": {
+        "hit": 0.8367346938775511,
+        "recall": 0.8367346938775511,
+        "ndcg": 0.6720952287107728,
+        "mrr": 0.6442176870748298,
+        "distinctSources": 2.795918367346939
+      },
+      "10": {
+        "hit": 0.8571428571428571,
+        "recall": 0.8571428571428571,
+        "ndcg": 0.6912759858382548,
+        "mrr": 0.6476190476190475,
+        "distinctSources": 4.775510204081633
+      },
+      "retrievalMs": {
+        "p50": 289.83770000000004,
+        "p95": 319.64279999999417,
+        "note": "Embedding cached; sequential interleaved modes, diagnostic not load benchmark."
+      }
+    },
+    "prod-top50": {
+      "1": {
+        "hit": 0.5306122448979592,
+        "recall": 0.5306122448979592,
+        "ndcg": 0.5481049562682215,
+        "mrr": 0.5306122448979592,
+        "distinctSources": 1
+      },
+      "3": {
+        "hit": 0.7551020408163265,
+        "recall": 0.7551020408163265,
+        "ndcg": 0.6382048702883611,
+        "mrr": 0.6360544217687074,
+        "distinctSources": 2
+      },
+      "5": {
+        "hit": 0.8367346938775511,
+        "recall": 0.8367346938775511,
+        "ndcg": 0.6704012616944274,
+        "mrr": 0.6544217687074829,
+        "distinctSources": 2.7755102040816326
+      },
+      "10": {
+        "hit": 0.8571428571428571,
+        "recall": 0.8571428571428571,
+        "ndcg": 0.6895820188219094,
+        "mrr": 0.6578231292517007,
+        "distinctSources": 4.714285714285714
+      },
+      "retrievalMs": {
+        "p50": 290.22389999999905,
+        "p95": 359.3298999999997,
+        "note": "Embedding cached; sequential interleaved modes, diagnostic not load benchmark."
+      }
+    },
+    "rrf-k2-top10": {
+      "1": {
+        "hit": 0.5510204081632653,
+        "recall": 0.5510204081632653,
+        "ndcg": 0.5772594752186588,
+        "mrr": 0.5510204081632653,
+        "distinctSources": 1
+      },
+      "3": {
+        "hit": 0.7551020408163265,
+        "recall": 0.7551020408163265,
+        "ndcg": 0.6414295052137035,
+        "mrr": 0.6462585034013605,
+        "distinctSources": 2.0408163265306123
+      },
+      "5": {
+        "hit": 0.7959183673469388,
+        "recall": 0.7959183673469388,
+        "ndcg": 0.6668252682186684,
+        "mrr": 0.6564625850340136,
+        "distinctSources": 2.795918367346939
+      },
+      "10": {
+        "hit": 0.8775510204081632,
+        "recall": 0.8775510204081632,
+        "ndcg": 0.7014698524460784,
+        "mrr": 0.6682215743440234,
+        "distinctSources": 4.73469387755102
+      },
+      "retrievalMs": {
+        "p50": 295.7129999999961,
+        "p95": 347.091499999995,
+        "note": "Embedding cached; sequential interleaved modes, diagnostic not load benchmark."
+      }
+    },
+    "dense-top10": {
+      "1": {
+        "hit": 0.5714285714285714,
+        "recall": 0.5714285714285714,
+        "ndcg": 0.5801749271137027,
+        "mrr": 0.5714285714285714,
+        "distinctSources": 1
+      },
+      "3": {
+        "hit": 0.7551020408163265,
+        "recall": 0.7551020408163265,
+        "ndcg": 0.6357608133032328,
+        "mrr": 0.6564625850340137,
+        "distinctSources": 2
+      },
+      "5": {
+        "hit": 0.8163265306122449,
+        "recall": 0.8163265306122449,
+        "ndcg": 0.6762664074774467,
+        "mrr": 0.6707482993197279,
+        "distinctSources": 2.877551020408163
+      },
+      "10": {
+        "hit": 0.8775510204081632,
+        "recall": 0.8673469387755102,
+        "ndcg": 0.7044497288182866,
+        "mrr": 0.6798185941043083,
+        "distinctSources": 4.571428571428571
+      },
+      "retrievalMs": {
+        "p50": 60.49439999999959,
+        "p95": 62.78259999999864,
+        "note": "Embedding cached; sequential interleaved modes, diagnostic not load benchmark."
+      }
+    },
+    "sparse-top10": {
+      "1": {
+        "hit": 0.4489795918367347,
+        "recall": 0.4489795918367347,
+        "ndcg": 0.4927113702623906,
+        "mrr": 0.4489795918367347,
+        "distinctSources": 0.9795918367346939
+      },
+      "3": {
+        "hit": 0.7142857142857143,
+        "recall": 0.7142857142857143,
+        "ndcg": 0.5816610089784815,
+        "mrr": 0.5714285714285714,
+        "distinctSources": 2.0408163265306123
+      },
+      "5": {
+        "hit": 0.8163265306122449,
+        "recall": 0.8163265306122449,
+        "ndcg": 0.6296712329250855,
+        "mrr": 0.5948979591836734,
+        "distinctSources": 2.7755102040816326
+      },
+      "10": {
+        "hit": 0.8571428571428571,
+        "recall": 0.8469387755102041,
+        "ndcg": 0.6469341704888764,
+        "mrr": 0.5992063492063492,
+        "distinctSources": 4.836734693877551
+      },
+      "retrievalMs": {
+        "p50": 47.21679999999469,
+        "p95": 60.51940000000468,
+        "note": "Embedding cached; sequential interleaved modes, diagnostic not load benchmark."
+      }
+    }
+  },
+  "comparisons": {
+    "prod-top50": {
+      "n": 49,
+      "meanDelta": -0.0016939670163454185,
+      "wins": 3,
+      "losses": 4,
+      "ties": 42,
+      "ciLow": -0.021229020740100545,
+      "ciHigh": 0.017677787600061313,
+      "excludesZero": false,
+      "verdict": "MIXED",
+      "seed": "semidex-miracl-ru-bootstrap-v1",
+      "iterations": 5000
+    },
+    "rrf-k2-top10": {
+      "n": 49,
+      "meanDelta": 0.01019386660782358,
+      "wins": 6,
+      "losses": 5,
+      "ties": 38,
+      "ciLow": -0.011162777961873468,
+      "ciHigh": 0.03140556547794266,
+      "excludesZero": false,
+      "verdict": "MIXED",
+      "seed": "semidex-miracl-ru-bootstrap-v1",
+      "iterations": 5000
+    },
+    "dense-top10": {
+      "n": 49,
+      "meanDelta": 0.013173742980031745,
+      "wins": 14,
+      "losses": 10,
+      "ties": 25,
+      "ciLow": -0.025447240577827598,
+      "ciHigh": 0.05206346028915584,
+      "excludesZero": false,
+      "verdict": "MIXED",
+      "seed": "semidex-miracl-ru-bootstrap-v1",
+      "iterations": 5000
+    },
+    "sparse-top10": {
+      "n": 49,
+      "meanDelta": -0.04434181534937854,
+      "wins": 7,
+      "losses": 18,
+      "ties": 24,
+      "ciLow": -0.09641070259767448,
+      "ciHigh": -0.00009088984728399286,
+      "excludesZero": true,
+      "verdict": "A_BETTER",
+      "seed": "semidex-miracl-ru-bootstrap-v1",
+      "iterations": 5000
+    }
+  },
+  "failures": [
+    {
+      "id": "c02",
+      "query": "які є валідні комбінації провайдерів embeddings",
+      "expected": [
+        {
+          "chunkId": "providers.md#3",
+          "relevance": 3
+        },
+        {
+          "chunkId": "providers.md#4",
+          "relevance": 2
+        }
+      ],
+      "top3": [
+        {
+          "chunkId": "providers.md#0",
+          "score": 0.032539684,
+          "section": "Embedding Providers",
+          "text": "semidex supports two embedding provider combinations. Each collection stores its provider\nconfiguration in config.json so that re-indexing is triggered automatically when the\nprovider changes."
+        },
+        {
+          "chunkId": "providers.md#4",
+          "score": 0.032522473,
+          "section": "Provider validation",
+          "text": "Both `resolveEnvProviders()` (env-time) and `_embed()` in `src/core/embeddings.js`\n(runtime) validate the provider combination before any embedding work is done. This\nensures that metadata stored in Qdrant payloads always matches the vectors actually\nstored, which is required for correct reindex detection."
+        },
+        {
+          "chunkId": "providers.md#1",
+          "score": 0.03175403,
+          "section": "ollama + hashed-tf (default)",
+          "text": "The default combination uses Ollama for dense embeddings and hashed-tf for sparse embeddings.\nOllama runs a local model server; the model is configured via `EMBED_MODEL` (default: bge-m3).\nhashed-tf is a zero-dependency sparse encoder that produces term-frequency vectors using\na deterministic hash function. It does not require a running service.\n\nConfiguration in config.json:\n\n```json\n{\n  \"denseProvider\": \"ollama\",\n  \"denseModel\": \"bge-m3\",\n  \"sparseProvider\": \"hashed-tf\"\n}\n```\n\nTo use this combination set `DENSE_PROVIDER=ollama` and `SPARSE_PROVIDER=hashed-tf`, or\nleave both unset since it is the default."
+        }
+      ],
+      "deepTop3": [
+        {
+          "chunkId": "providers.md#0",
+          "score": 0.032539684,
+          "section": "Embedding Providers",
+          "text": "semidex supports two embedding provider combinations. Each collection stores its provider\nconfiguration in config.json so that re-indexing is triggered automatically when the\nprovider changes."
+        },
+        {
+          "chunkId": "providers.md#4",
+          "score": 0.032522473,
+          "section": "Provider validation",
+          "text": "Both `resolveEnvProviders()` (env-time) and `_embed()` in `src/core/embeddings.js`\n(runtime) validate the provider combination before any embedding work is done. This\nensures that metadata stored in Qdrant payloads always matches the vectors actually\nstored, which is required for correct reindex detection."
+        },
+        {
+          "chunkId": "multilingual.md#1",
+          "score": 0.03181818,
+          "section": "ollama + hashed-tf (default)",
+          "text": "Dense embeddings are produced by `bge-m3` via Ollama. BGE-M3 is multilingual\nand handles Ukrainian well. Sparse embeddings use `hashed-tf` — a term-frequency\nencoder that works on any language but does not carry semantic weight for rare\nor morphologically complex words.\n\nFor Ukrainian content, `hashed-tf` assigns uniform weight to all tokens based\non frequency. This means that a rare Ukrainian technical term like\n`вбудований_провайдер` gets the same sparse weight as a common word, which can\nreduce retrieval precision for exact technical lookups."
+        }
+      ]
+    },
+    {
+      "id": "c09",
+      "query": "HYBRID_PREFETCH_LIMIT prefetch per RRF leg",
+      "expected": [
+        {
+          "chunkId": "qdrant.md#2",
+          "relevance": 3
+        },
+        {
+          "chunkId": "qdrant.md#6",
+          "relevance": 2
+        }
+      ],
+      "top3": [
+        {
+          "chunkId": "config-env.md#6",
+          "score": 0.03306011,
+          "section": "Hybrid Search",
+          "text": "| Variable | Default | Range | Description |\n|----------|---------|-------|-------------|\n| `RRF_K` | `60` | 1–10000 | RRF smoothing constant |\n| `HYBRID_PREFETCH_LIMIT` | `2` | 1–100 | Prefetch multiplier per dense/sparse RRF leg |\n\n`HYBRID_PREFETCH_LIMIT` controls how many candidates each leg fetches before RRF fusion.\nThe actual prefetch count is `max(limit * HYBRID_PREFETCH_LIMIT, limit + 1)`."
+        },
+        {
+          "chunkId": "qdrant.md#7",
+          "score": 0.03306011,
+          "section": "Env tuning",
+          "text": "| Variable               | Default | Range      | Effect                              |\n|------------------------|---------|------------|-------------------------------------|\n| `HYBRID_PREFETCH_LIMIT`| 2       | 1–100      | Prefetch multiplier per RRF leg     |\n| `RRF_K`                | 60      | 1–10000    | RRF smoothing constant              |\n\nInvalid values produce a warning and fall back to the default."
+        },
+        {
+          "chunkId": "qdrant.md#3",
+          "score": 0.032258064,
+          "section": "RRF k parameter",
+          "text": "The `k` parameter in RRF controls rank sensitivity. It is configured via the `RRF_K`\nenvironment variable (default: 60, range: 1–10000). Lower values give more weight to\ntop-ranked results from each leg; higher values smooth the fusion across more results.\n\nThe Qdrant request body shape for RRF (available since Qdrant 1.16.0):\n\n```json\n{\n  \"prefetch\": [\n    { \"query\": \"<sparse_vector>\", \"using\": \"sparse\", \"limit\": 10 },\n    { \"query\": \"<dense_vector>\",  \"using\": \"dense\",  \"limit\": 10 }\n  ],\n  \"query\": { \"rrf\": { \"k\": 60 } },\n  \"limit\": 5,\n  \"with_payload\": true\n}\n```\n\nThe prefetch limit for each leg is `max(limit * HYBRID_PREFETCH_LIMIT, limit + 1)` where\n`HYBRID_PREFETCH_LIMIT` defaults to 2. This ensures each leg fetches enough candidates\nfor RRF to have meaningful re-ranking material."
+        }
+      ],
+      "deepTop3": [
+        {
+          "chunkId": "qdrant.md#7",
+          "score": 0.03306011,
+          "section": "Env tuning",
+          "text": "| Variable               | Default | Range      | Effect                              |\n|------------------------|---------|------------|-------------------------------------|\n| `HYBRID_PREFETCH_LIMIT`| 2       | 1–100      | Prefetch multiplier per RRF leg     |\n| `RRF_K`                | 60      | 1–10000    | RRF smoothing constant              |\n\nInvalid values produce a warning and fall back to the default."
+        },
+        {
+          "chunkId": "config-env.md#6",
+          "score": 0.03306011,
+          "section": "Hybrid Search",
+          "text": "| Variable | Default | Range | Description |\n|----------|---------|-------|-------------|\n| `RRF_K` | `60` | 1–10000 | RRF smoothing constant |\n| `HYBRID_PREFETCH_LIMIT` | `2` | 1–100 | Prefetch multiplier per dense/sparse RRF leg |\n\n`HYBRID_PREFETCH_LIMIT` controls how many candidates each leg fetches before RRF fusion.\nThe actual prefetch count is `max(limit * HYBRID_PREFETCH_LIMIT, limit + 1)`."
+        },
+        {
+          "chunkId": "qdrant.md#3",
+          "score": 0.032258064,
+          "section": "RRF k parameter",
+          "text": "The `k` parameter in RRF controls rank sensitivity. It is configured via the `RRF_K`\nenvironment variable (default: 60, range: 1–10000). Lower values give more weight to\ntop-ranked results from each leg; higher values smooth the fusion across more results.\n\nThe Qdrant request body shape for RRF (available since Qdrant 1.16.0):\n\n```json\n{\n  \"prefetch\": [\n    { \"query\": \"<sparse_vector>\", \"using\": \"sparse\", \"limit\": 10 },\n    { \"query\": \"<dense_vector>\",  \"using\": \"dense\",  \"limit\": 10 }\n  ],\n  \"query\": { \"rrf\": { \"k\": 60 } },\n  \"limit\": 5,\n  \"with_payload\": true\n}\n```\n\nThe prefetch limit for each leg is `max(limit * HYBRID_PREFETCH_LIMIT, limit + 1)` where\n`HYBRID_PREFETCH_LIMIT` defaults to 2. This ensures each leg fetches enough candidates\nfor RRF to have meaningful re-ranking material."
+        }
+      ]
+    },
+    {
+      "id": "c12",
+      "query": "як Qdrant зберігає named vectors dense sparse",
+      "expected": [
+        {
+          "chunkId": "qdrant.md#1",
+          "relevance": 3
+        },
+        {
+          "chunkId": "qdrant.md#0",
+          "relevance": 2
+        }
+      ],
+      "top3": [
+        {
+          "chunkId": "project-structure.md#6",
+          "score": 0.03306011,
+          "section": "src/core/qdrant.js",
+          "text": "All Qdrant REST calls go through this module. Key exports:\n- `hybridSearch(collection, dense, sparse, limit, filter)` — RRF fusion query\n- `mmrSearch(collection, dense, limit, filter, opts)` — dense MMR query\n- `scroll(collection, filter, limit, withPayload)` — paginated point retrieval\n- `getStoredMeta(collection, sourceFile)` — reads six reindex discriminator fields\n- `createCollection(name, size)` — creates collection with dense + sparse vectors"
+        },
+        {
+          "chunkId": "qdrant.md#4",
+          "score": 0.032522473,
+          "section": "Fallback to dense-only",
+          "text": "If a collection has no sparse vectors yet (e.g. old index before sparse support was\nadded), `hybridSearch` falls back to `search` (dense-only) automatically. The fallback\nis triggered when the Qdrant response contains `\"sparse\"` or `\"Wrong input\"` in the\nerror message."
+        },
+        {
+          "chunkId": "project-structure.md#5",
+          "score": 0.032291666,
+          "section": "src/core/embeddings.js",
+          "text": "Exports `embedForIndex(collection, text)` and `embedForSearch(collection, text)`.\nBoth return `{ dense, sparse, meta }`. `SCHEMA_VERSION` is a constant incremented\nwhen the embedding schema changes; it is stored in Qdrant payloads as\n`embedding_schema_version` and used as a reindex discriminator."
+        }
+      ],
+      "deepTop3": [
+        {
+          "chunkId": "project-structure.md#6",
+          "score": 0.03306011,
+          "section": "src/core/qdrant.js",
+          "text": "All Qdrant REST calls go through this module. Key exports:\n- `hybridSearch(collection, dense, sparse, limit, filter)` — RRF fusion query\n- `mmrSearch(collection, dense, limit, filter, opts)` — dense MMR query\n- `scroll(collection, filter, limit, withPayload)` — paginated point retrieval\n- `getStoredMeta(collection, sourceFile)` — reads six reindex discriminator fields\n- `createCollection(name, size)` — creates collection with dense + sparse vectors"
+        },
+        {
+          "chunkId": "qdrant.md#4",
+          "score": 0.032522473,
+          "section": "Fallback to dense-only",
+          "text": "If a collection has no sparse vectors yet (e.g. old index before sparse support was\nadded), `hybridSearch` falls back to `search` (dense-only) automatically. The fallback\nis triggered when the Qdrant response contains `\"sparse\"` or `\"Wrong input\"` in the\nerror message."
+        },
+        {
+          "chunkId": "project-structure.md#5",
+          "score": 0.032291666,
+          "section": "src/core/embeddings.js",
+          "text": "Exports `embedForIndex(collection, text)` and `embedForSearch(collection, text)`.\nBoth return `{ dense, sparse, meta }`. `SCHEMA_VERSION` is a constant incremented\nwhen the embedding schema changes; it is stored in Qdrant payloads as\n`embedding_schema_version` and used as a reindex discriminator."
+        }
+      ]
+    },
+    {
+      "id": "c15",
+      "query": "OVERLAP_SENTENCES default value sentence overlap chunking",
+      "expected": [
+        {
+          "chunkId": "chunking.md#1",
+          "relevance": 3
+        },
+        {
+          "chunkId": "chunking.md#3",
+          "relevance": 2
+        }
+      ],
+      "top3": [
+        {
+          "chunkId": "config-env.md#5",
+          "score": 0.03306011,
+          "section": "Chunking",
+          "text": "| Variable | Default | Range | Description |\n|----------|---------|-------|-------------|\n| `MAX_CHUNK_TOKENS` | `400` | 1–100000 | Maximum tokens per chunk |\n| `MIN_CHUNK_TOKENS` | `30` | 0–100000 | Minimum tokens; smaller sections may be skipped |\n| `OVERLAP_SENTENCES` | `2` | 0–100 | Sentence overlap between consecutive chunks |\n| `LLM_BATCH_SIZE` | `3` | — | Chunks per LLM call for context/tag phases |\n\nAll chunking vars are validated on startup with `envInt()`. Invalid values produce\na warning and fall back to the default."
+        },
+        {
+          "chunkId": "chunking.md#3",
+          "score": 0.032795697,
+          "section": "Overlap",
+          "text": "`OVERLAP_SENTENCES` controls how many sentences from the end of chunk N are prepended to\nchunk N+1. This gives each chunk context from the previous one and helps retrieval when a\nquery spans a chunk boundary."
+        },
+        {
+          "chunkId": "chunking.md#5",
+          "score": 0.032522473,
+          "section": "Flushing the final chunk",
+          "text": "After all sentences have been processed, any remaining sentences are always flushed as a\nfinal chunk — even if the remaining count is less than or equal to `OVERLAP_SENTENCES`.\nThe previous implementation skipped the final chunk when `current.length <= OVERLAP_SENTENCES`,\nwhich silently dropped content from short documents or short terminal sections.\n\nThe flush is conditional on `pending > 0`, where `pending` counts new sentences added\nsince the last chunk was emitted. This prevents emitting an overlap-only chunk after a\nfull chunk has just been flushed."
+        }
+      ],
+      "deepTop3": [
+        {
+          "chunkId": "config-env.md#5",
+          "score": 0.03306011,
+          "section": "Chunking",
+          "text": "| Variable | Default | Range | Description |\n|----------|---------|-------|-------------|\n| `MAX_CHUNK_TOKENS` | `400` | 1–100000 | Maximum tokens per chunk |\n| `MIN_CHUNK_TOKENS` | `30` | 0–100000 | Minimum tokens; smaller sections may be skipped |\n| `OVERLAP_SENTENCES` | `2` | 0–100 | Sentence overlap between consecutive chunks |\n| `LLM_BATCH_SIZE` | `3` | — | Chunks per LLM call for context/tag phases |\n\nAll chunking vars are validated on startup with `envInt()`. Invalid values produce\na warning and fall back to the default."
+        },
+        {
+          "chunkId": "chunking.md#3",
+          "score": 0.032795697,
+          "section": "Overlap",
+          "text": "`OVERLAP_SENTENCES` controls how many sentences from the end of chunk N are prepended to\nchunk N+1. This gives each chunk context from the previous one and helps retrieval when a\nquery spans a chunk boundary."
+        },
+        {
+          "chunkId": "chunking.md#5",
+          "score": 0.032522473,
+          "section": "Flushing the final chunk",
+          "text": "After all sentences have been processed, any remaining sentences are always flushed as a\nfinal chunk — even if the remaining count is less than or equal to `OVERLAP_SENTENCES`.\nThe previous implementation skipped the final chunk when `current.length <= OVERLAP_SENTENCES`,\nwhich silently dropped content from short documents or short terminal sections.\n\nThe flush is conditional on `pending > 0`, where `pending` counts new sentences added\nsince the last chunk was emitted. This prevents emitting an overlap-only chunk after a\nfull chunk has just been flushed."
+        }
+      ]
+    },
+    {
+      "id": "c29",
+      "query": "як агент повинен починати сесію з semidex MCP",
+      "expected": [
+        {
+          "chunkId": "mcp-workflow.md#8",
+          "relevance": 3
+        },
+        {
+          "chunkId": "mcp-workflow.md#3",
+          "relevance": 2
+        }
+      ],
+      "top3": [
+        {
+          "chunkId": "mcp-workflow.md#0",
+          "score": 0.033333335,
+          "section": "MCP Tools and Agent Workflow",
+          "text": "semidex exposes a read-only MCP server that lets AI agents search indexed collections\nwithout reading whole files. The server is registered as an MCP tool provider under\nthe name `qdrant` in Claude Code (the internal name is an implementation detail —\nthe project is called semidex)."
+        },
+        {
+          "chunkId": "project-structure.md#8",
+          "score": 0.032258064,
+          "section": "src/mcp/server.js",
+          "text": "Entry point for the MCP server. Tools are implemented in `src/mcp/tools/`:\n`qdrant_search`, `qdrant_collection_info`, `qdrant_get_chunk`,\n`qdrant_list_files`, `qdrant_list_directories`, `qdrant_find_by_tag`.\nThe server name registered in MCP clients is `qdrant` (legacy name), but the\nproject is called semidex."
+        },
+        {
+          "chunkId": "project-structure.md#0",
+          "score": 0.03201844,
+          "section": "Project Structure",
+          "text": "semidex is a local-first RAG memory system. The codebase is split into a core\nlibrary, an indexer pipeline, an MCP server, and a benchmark harness."
+        }
+      ],
+      "deepTop3": [
+        {
+          "chunkId": "mcp-workflow.md#0",
+          "score": 0.033333335,
+          "section": "MCP Tools and Agent Workflow",
+          "text": "semidex exposes a read-only MCP server that lets AI agents search indexed collections\nwithout reading whole files. The server is registered as an MCP tool provider under\nthe name `qdrant` in Claude Code (the internal name is an implementation detail —\nthe project is called semidex)."
+        },
+        {
+          "chunkId": "project-structure.md#8",
+          "score": 0.032258064,
+          "section": "src/mcp/server.js",
+          "text": "Entry point for the MCP server. Tools are implemented in `src/mcp/tools/`:\n`qdrant_search`, `qdrant_collection_info`, `qdrant_get_chunk`,\n`qdrant_list_files`, `qdrant_list_directories`, `qdrant_find_by_tag`.\nThe server name registered in MCP clients is `qdrant` (legacy name), but the\nproject is called semidex."
+        },
+        {
+          "chunkId": "project-structure.md#0",
+          "score": 0.03201844,
+          "section": "Project Structure",
+          "text": "semidex is a local-first RAG memory system. The codebase is split into a core\nlibrary, an indexer pipeline, an MCP server, and a benchmark harness."
+        }
+      ]
+    },
+    {
+      "id": "c31",
+      "query": "qdrant_list_directories recommended first step corpus layout collection",
+      "expected": [
+        {
+          "chunkId": "obsidian.md#1",
+          "relevance": 3
+        },
+        {
+          "chunkId": "obsidian.md#8",
+          "relevance": 2
+        }
+      ],
+      "top3": [
+        {
+          "chunkId": "mcp-workflow.md#6",
+          "score": 0.03306011,
+          "section": "qdrant_list_files and qdrant_list_directories",
+          "text": "`qdrant_list_files` returns all files indexed in a collection, optionally filtered to a\nspecific directory prefix. `qdrant_list_directories` returns the top-level directories\npresent in the collection.\n\nBoth tools operate at the file level. They are most useful for navigating the corpus\nstructure: `qdrant_list_directories` shows the layout, while `qdrant_list_files` lets\nthe agent scope a follow-up search to a specific subdirectory or list all files for\ninspection."
+        },
+        {
+          "chunkId": "obsidian.md#3",
+          "score": 0.032258064,
+          "section": "Returns: [\"docs/\", \"src/\", \"notes/\", ...]",
+          "text": "```\n\nThis is the recommended first step when the agent does not know the corpus layout."
+        },
+        {
+          "chunkId": "obsidian.md#2",
+          "score": 0.032051284,
+          "section": "Example MCP call",
+          "text": "qdrant_list_directories(collection=\"my-notes\")"
+        }
+      ],
+      "deepTop3": [
+        {
+          "chunkId": "mcp-workflow.md#6",
+          "score": 0.03306011,
+          "section": "qdrant_list_files and qdrant_list_directories",
+          "text": "`qdrant_list_files` returns all files indexed in a collection, optionally filtered to a\nspecific directory prefix. `qdrant_list_directories` returns the top-level directories\npresent in the collection.\n\nBoth tools operate at the file level. They are most useful for navigating the corpus\nstructure: `qdrant_list_directories` shows the layout, while `qdrant_list_files` lets\nthe agent scope a follow-up search to a specific subdirectory or list all files for\ninspection."
+        },
+        {
+          "chunkId": "obsidian.md#3",
+          "score": 0.032258064,
+          "section": "Returns: [\"docs/\", \"src/\", \"notes/\", ...]",
+          "text": "```\n\nThis is the recommended first step when the agent does not know the corpus layout."
+        },
+        {
+          "chunkId": "obsidian.md#2",
+          "score": 0.032051284,
+          "section": "Example MCP call",
+          "text": "qdrant_list_directories(collection=\"my-notes\")"
+        }
+      ]
+    },
+    {
+      "id": "c35",
+      "query": "де знаходиться src/core/qdrant.js і що він експортує",
+      "expected": [
+        {
+          "chunkId": "project-structure.md#5",
+          "relevance": 3
+        },
+        {
+          "chunkId": "project-structure.md#1",
+          "relevance": 2
+        }
+      ],
+      "top3": [
+        {
+          "chunkId": "qdrant.md#0",
+          "score": 0.033333335,
+          "section": "Qdrant Integration",
+          "text": "semidex uses Qdrant as its vector database. All Qdrant calls go through\n`src/core/qdrant.js`. The module reads `QDRANT_URL` and `QDRANT_KEY` from the\nenvironment and exposes typed functions for collections, points, and search."
+        },
+        {
+          "chunkId": "sync.md#0",
+          "score": 0.031746034,
+          "section": "Sync",
+          "text": "`npm run sync` (or `node src/sync.js`) synchronises `config.json` with the live\ncollections in Qdrant. It does not index any files — it only updates the local config."
+        },
+        {
+          "chunkId": "project-structure.md#9",
+          "score": 0.016393442,
+          "section": "Entry Points",
+          "text": "| Command | Module | Purpose |\n|---------|--------|---------|\n| `npm run index` | `src/indexer/index.js` | Index files into Qdrant |\n| `npm run sync` | `src/sync.js` | Sync config.json with Qdrant |\n| `npm run smoke` | `src/core/smoke.js` | Verify connectivity |\n| `npm run mcp` | `src/mcp/server.js` | Start MCP server |\n| `npm run bench:retrieval` | `benchmarks/retrieval/run.js` | Run 21q regression benchmark |\n| `npm run bench:custom50` | `benchmarks/retrieval/custom-50/run-v3.js` | Run 50q quality benchmark |"
+        }
+      ],
+      "deepTop3": [
+        {
+          "chunkId": "qdrant.md#0",
+          "score": 0.033333335,
+          "section": "Qdrant Integration",
+          "text": "semidex uses Qdrant as its vector database. All Qdrant calls go through\n`src/core/qdrant.js`. The module reads `QDRANT_URL` and `QDRANT_KEY` from the\nenvironment and exposes typed functions for collections, points, and search."
+        },
+        {
+          "chunkId": "sync.md#0",
+          "score": 0.031746034,
+          "section": "Sync",
+          "text": "`npm run sync` (or `node src/sync.js`) synchronises `config.json` with the live\ncollections in Qdrant. It does not index any files — it only updates the local config."
+        },
+        {
+          "chunkId": "project-structure.md#9",
+          "score": 0.031544957,
+          "section": "Entry Points",
+          "text": "| Command | Module | Purpose |\n|---------|--------|---------|\n| `npm run index` | `src/indexer/index.js` | Index files into Qdrant |\n| `npm run sync` | `src/sync.js` | Sync config.json with Qdrant |\n| `npm run smoke` | `src/core/smoke.js` | Verify connectivity |\n| `npm run mcp` | `src/mcp/server.js` | Start MCP server |\n| `npm run bench:retrieval` | `benchmarks/retrieval/run.js` | Run 21q regression benchmark |\n| `npm run bench:custom50` | `benchmarks/retrieval/custom-50/run-v3.js` | Run 50q quality benchmark |"
+        }
+      ]
+    },
+    {
+      "id": "c36",
+      "query": "chunkFile splitSentences parseMarkdown location in source",
+      "expected": [
+        {
+          "chunkId": "project-structure.md#6",
+          "relevance": 3
+        },
+        {
+          "chunkId": "project-structure.md#1",
+          "relevance": 3
+        }
+      ],
+      "top3": [
+        {
+          "chunkId": "chunking.md#6",
+          "score": 0.032786883,
+          "section": "Markdown sections",
+          "text": "`parseMarkdown` splits a document on `#`, `##`, and `###` headings that pass the\n`isStructuralHeading` heuristic (length ≤ 120, no sentence-ending punctuation).\nEach section becomes an independent chunking unit. Sections shorter than `MIN_CHUNK_TOKENS`\nare skipped unless they have a heading (headings alone are kept as context anchors)."
+        },
+        {
+          "chunkId": "project-structure.md#7",
+          "score": 0.032539684,
+          "section": "src/indexer/phases/chunk.js",
+          "text": "Exports `chunkFile(filePath, text, sourceFile)`. Returns an array of chunk objects\nwith `text`, `section`, `chunkIndex`, `totalChunks`. Controlled by `MAX_CHUNK_TOKENS`,\n`MIN_CHUNK_TOKENS`, and `OVERLAP_SENTENCES` env vars."
+        },
+        {
+          "chunkId": "chunking.md#7",
+          "score": 0.032258064,
+          "section": "Pandoc formats",
+          "text": "`.docx`, `.odt`, `.rtf`, `.epub`, `.html`, and `.htm` files are converted to Markdown\nvia `pandoc` before chunking. The converted output is processed through `parseMarkdown`\nso that heading structure from the original document is preserved. This is achieved by\npassing a synthetic `.md` path to `chunkFile` regardless of the original file extension."
+        }
+      ],
+      "deepTop3": [
+        {
+          "chunkId": "chunking.md#6",
+          "score": 0.032786883,
+          "section": "Markdown sections",
+          "text": "`parseMarkdown` splits a document on `#`, `##`, and `###` headings that pass the\n`isStructuralHeading` heuristic (length ≤ 120, no sentence-ending punctuation).\nEach section becomes an independent chunking unit. Sections shorter than `MIN_CHUNK_TOKENS`\nare skipped unless they have a heading (headings alone are kept as context anchors)."
+        },
+        {
+          "chunkId": "project-structure.md#7",
+          "score": 0.032539684,
+          "section": "src/indexer/phases/chunk.js",
+          "text": "Exports `chunkFile(filePath, text, sourceFile)`. Returns an array of chunk objects\nwith `text`, `section`, `chunkIndex`, `totalChunks`. Controlled by `MAX_CHUNK_TOKENS`,\n`MIN_CHUNK_TOKENS`, and `OVERLAP_SENTENCES` env vars."
+        },
+        {
+          "chunkId": "chunking.md#7",
+          "score": 0.032258064,
+          "section": "Pandoc formats",
+          "text": "`.docx`, `.odt`, `.rtf`, `.epub`, `.html`, and `.htm` files are converted to Markdown\nvia `pandoc` before chunking. The converted output is processed through `parseMarkdown`\nso that heading structure from the original document is preserved. This is achieved by\npassing a synthetic `.md` path to `chunkFile` regardless of the original file extension."
+        }
+      ]
+    },
+    {
+      "id": "c37",
+      "query": "npm run bench:custom50 entry point run-v3.js",
+      "expected": [
+        {
+          "chunkId": "project-structure.md#8",
+          "relevance": 3
+        },
+        {
+          "chunkId": "project-structure.md#2",
+          "relevance": 2
+        }
+      ],
+      "top3": [
+        {
+          "chunkId": "benchmarking.md#14",
+          "score": 0.03306011,
+          "section": "Skip reindex (reuse existing collection)",
+          "text": "BENCH_SKIP_INDEX=1 npm run bench:custom50"
+        },
+        {
+          "chunkId": "benchmarking.md#12",
+          "score": 0.032539684,
+          "section": "Quality 50q benchmark",
+          "text": "npm run bench:custom50"
+        },
+        {
+          "chunkId": "benchmarking.md#15",
+          "score": 0.03226646,
+          "section": "Dense MMR instead of hybrid RRF",
+          "text": "BENCH_SEARCH_MODE=dense-mmr npm run bench:custom50"
+        }
+      ],
+      "deepTop3": [
+        {
+          "chunkId": "benchmarking.md#14",
+          "score": 0.03306011,
+          "section": "Skip reindex (reuse existing collection)",
+          "text": "BENCH_SKIP_INDEX=1 npm run bench:custom50"
+        },
+        {
+          "chunkId": "benchmarking.md#12",
+          "score": 0.032539684,
+          "section": "Quality 50q benchmark",
+          "text": "npm run bench:custom50"
+        },
+        {
+          "chunkId": "benchmarking.md#15",
+          "score": 0.03226646,
+          "section": "Dense MMR instead of hybrid RRF",
+          "text": "BENCH_SEARCH_MODE=dense-mmr npm run bench:custom50"
+        }
+      ]
+    },
+    {
+      "id": "c38",
+      "query": "SCHEMA_VERSION constant embeddings.js reindex discriminator",
+      "expected": [
+        {
+          "chunkId": "project-structure.md#4",
+          "relevance": 3
+        },
+        {
+          "chunkId": "project-structure.md#5",
+          "relevance": 2
+        }
+      ],
+      "top3": [
+        {
+          "chunkId": "providers.md#5",
+          "score": 0.03306011,
+          "section": "Reindex triggers",
+          "text": "Changing `sparseProvider`, `denseProvider`, `denseModel`, or `embeddingSchemaVersion`\nin config.json for a collection will cause every file in that collection to be reindexed\non the next `npm run index` run. The six reindex discriminators are: file hash,\ndenseProvider, denseModel, sparseProvider, embeddingSchemaVersion, vectorSize."
+        },
+        {
+          "chunkId": "project-structure.md#5",
+          "score": 0.03306011,
+          "section": "src/core/embeddings.js",
+          "text": "Exports `embedForIndex(collection, text)` and `embedForSearch(collection, text)`.\nBoth return `{ dense, sparse, meta }`. `SCHEMA_VERSION` is a constant incremented\nwhen the embedding schema changes; it is stored in Qdrant payloads as\n`embedding_schema_version` and used as a reindex discriminator."
+        },
+        {
+          "chunkId": "qdrant.md#6",
+          "score": 0.032258064,
+          "section": "getStoredMeta",
+          "text": "`getStoredMeta(collection, sourceFile)` scrolls one point matching the given source file\nand returns the six reindex discriminator fields from its payload:\n`file_hash`, `dense_provider`, `dense_model`, `sparse_provider`,\n`embedding_schema_version`, and `vector_size`."
+        }
+      ],
+      "deepTop3": [
+        {
+          "chunkId": "providers.md#5",
+          "score": 0.03306011,
+          "section": "Reindex triggers",
+          "text": "Changing `sparseProvider`, `denseProvider`, `denseModel`, or `embeddingSchemaVersion`\nin config.json for a collection will cause every file in that collection to be reindexed\non the next `npm run index` run. The six reindex discriminators are: file hash,\ndenseProvider, denseModel, sparseProvider, embeddingSchemaVersion, vectorSize."
+        },
+        {
+          "chunkId": "project-structure.md#5",
+          "score": 0.03306011,
+          "section": "src/core/embeddings.js",
+          "text": "Exports `embedForIndex(collection, text)` and `embedForSearch(collection, text)`.\nBoth return `{ dense, sparse, meta }`. `SCHEMA_VERSION` is a constant incremented\nwhen the embedding schema changes; it is stored in Qdrant payloads as\n`embedding_schema_version` and used as a reindex discriminator."
+        },
+        {
+          "chunkId": "qdrant.md#6",
+          "score": 0.032258064,
+          "section": "getStoredMeta",
+          "text": "`getStoredMeta(collection, sourceFile)` scrolls one point matching the given source file\nand returns the six reindex discriminator fields from its payload:\n`file_hash`, `dense_provider`, `dense_model`, `sparse_provider`,\n`embedding_schema_version`, and `vector_size`."
+        }
+      ]
+    },
+    {
+      "id": "c41",
+      "query": "яка різниця між 21-query regression і custom-50 quality benchmark",
+      "expected": [
+        {
+          "chunkId": "benchmarking.md#1",
+          "relevance": 3
+        },
+        {
+          "chunkId": "benchmarking.md#2",
+          "relevance": 2
+        }
+      ],
+      "top3": [
+        {
+          "chunkId": "benchmarking.md#19",
+          "score": 0.033333335,
+          "section": "Collection Isolation",
+          "text": "Each benchmark tier uses a dedicated Qdrant collection:\n\n| Benchmark | Collection |\n|-----------|-----------|\n| 21q regression | `bench-retrieval` |\n| 50q quality | `bench-retrieval-custom-50` |\n\nThis isolation ensures that running one benchmark does not affect the other.\nBoth collections are created automatically on first run."
+        },
+        {
+          "chunkId": "multilingual.md#6",
+          "score": 0.032522473,
+          "section": "Benchmark Coverage",
+          "text": "The custom-50 benchmark includes:\n- Ukrainian-only queries (e.g., `\"де налаштовується sparseProvider\"`)\n- English-only queries (e.g., `\"valid provider combinations for embedding\"`)\n- Mixed-language queries (e.g., queries mentioning `ONNX_EMBED` in a Ukrainian sentence)\n- Cross-file queries that require understanding concepts across multiple documents"
+        },
+        {
+          "chunkId": "benchmarking.md#12",
+          "score": 0.016393442,
+          "section": "Quality 50q benchmark",
+          "text": "npm run bench:custom50"
+        }
+      ],
+      "deepTop3": [
+        {
+          "chunkId": "benchmarking.md#19",
+          "score": 0.033333335,
+          "section": "Collection Isolation",
+          "text": "Each benchmark tier uses a dedicated Qdrant collection:\n\n| Benchmark | Collection |\n|-----------|-----------|\n| 21q regression | `bench-retrieval` |\n| 50q quality | `bench-retrieval-custom-50` |\n\nThis isolation ensures that running one benchmark does not affect the other.\nBoth collections are created automatically on first run."
+        },
+        {
+          "chunkId": "multilingual.md#6",
+          "score": 0.032522473,
+          "section": "Benchmark Coverage",
+          "text": "The custom-50 benchmark includes:\n- Ukrainian-only queries (e.g., `\"де налаштовується sparseProvider\"`)\n- English-only queries (e.g., `\"valid provider combinations for embedding\"`)\n- Mixed-language queries (e.g., queries mentioning `ONNX_EMBED` in a Ukrainian sentence)\n- Cross-file queries that require understanding concepts across multiple documents"
+        },
+        {
+          "chunkId": "project-structure.md#2",
+          "score": 0.031280547,
+          "section": "Source Tree",
+          "text": "│   │       ├── embed. js       # Batch embedding phase │   │       └── tag. js         # LLM tag generation phase │   ├── mcp/ │   │   ├── server. js          # MCP server entry point │   │   └── tools/ │   │       ├── search. js      # qdrant_search, qdrant_get_chunk, qdrant_find_by_tag │   │       ├── list. js        # qdrant_list_files, qdrant_list_directories │   │       └── info. js        # qdrant_collection_info │   └── sync. js                # Sync config. json with live Qdrant collections ├── benchmarks/ │   ├── retrieval/ │   │   ├── run. js             # 21-query regression benchmark (v1/v2 schema) │   │   ├── compare. js         # Side-by-side ollama vs onnx │   │   ├── rerank-matrix. js   # 4-variant rerank matrix │   │   ├── mmr-matrix. js      # MMR diversity matrix │   │   ├── queries. json       # Stable 21-query regression set │   │   └── fixtures/docs/     # 4 fixture docs: providers, qdrant, chunking, sync │   └── retrieval/custom-50/ │       ├── run-v3. js          # Quality benchmark runner (v3 schema, graded qrels) │       ├── queries. json       # 50-query evaluation set │       └── fixtures/docs/     # 8-10 fixture docs covering all semidex subsystems ├── docs/"
+        }
+      ]
+    },
+    {
+      "id": "c44",
+      "query": "RERANK_PROTECT_TOP1_DELTA minimum advantage to displace rank-0",
+      "expected": [
+        {
+          "chunkId": "config-env.md#9",
+          "relevance": 3
+        }
+      ],
+      "top3": [
+        {
+          "chunkId": "config-env.md#7",
+          "score": 0.033333335,
+          "section": "Reranking (experimental)",
+          "text": "| Variable | Default | Description |\n|----------|---------|-------------|\n| `RERANK_ENABLED` | `0` | Enable local BM25 reranker |\n| `RERANK_PREFETCH_MULT` | `4` | Candidate multiplier before reranking |\n| `RERANK_DEBUG` | `0` | Print per-result scoring details |\n| `RERANK_BOOST_SOURCE_FILE` | `0.08` | Score boost per token hit in source filename |\n| `RERANK_BOOST_SECTION` | `0.06` | Score boost per token hit in section heading |\n| `RERANK_BOOST_TAGS` | `0.05` | Score boost per token hit in tags |\n| `RERANK_BOOST_TEXT` | `0.01` | Score boost per token hit in body text |\n| `RERANK_PROTECT_TOP1_DELTA` | `0.05` | Minimum advantage required to displace RRF rank-0 |"
+        },
+        {
+          "chunkId": "config-env.md#8",
+          "score": 0.03175403,
+          "section": "Benchmark Variables",
+          "text": "| Variable | Default | Description |\n|----------|---------|-------------|\n| `BENCH_TOP_K` | `5` | Search depth (top-K results) |\n| `BENCH_PROVIDER` | env | Force provider: `onnx` or use env defaults |\n| `BENCH_SKIP_INDEX` | unset | Reuse existing bench collection; skip reindexing |\n| `BENCH_JSON` | unset | Emit JSON summary on stdout |\n| `BENCH_SEARCH_MODE` | `hybrid` | `hybrid` or `dense-mmr` |\n| `MMR_DIVERSITY` | `0.5` | Dense MMR diversity balance (0–1) |\n| `MMR_CANDIDATES_LIMIT` | `100` | Dense MMR preselect candidate count |\n| `MMR_DIVERSITIES` | `0.3,0.5,0.7` | Comma-separated diversity values for mmr-matrix |\n| `RERANK_PREFETCH_MULT` | `4` | Candidate multiplier for rerank phase in benchmark |"
+        },
+        {
+          "chunkId": "benchmarking.md#7",
+          "score": 0.031746034,
+          "section": "Chunk-level (v3 only)",
+          "text": "| Metric | Description |\n|--------|-------------|\n| `chunkRecall@3` | Fraction of queries with a rel≥3 chunk in top-3 |\n| `chunkRecall@5` | Fraction of queries with a rel≥3 chunk in top-5 |\n| `supportRecall@K` | Fraction of queries with a rel≥2 chunk in top-K |\n| `nDCG@K` | Normalised Discounted Cumulative Gain with graded relevance |\n| `MRR@10` | Reciprocal rank of the first rel≥3 chunk across top-10 |"
+        }
+      ],
+      "deepTop3": [
+        {
+          "chunkId": "config-env.md#7",
+          "score": 0.033333335,
+          "section": "Reranking (experimental)",
+          "text": "| Variable | Default | Description |\n|----------|---------|-------------|\n| `RERANK_ENABLED` | `0` | Enable local BM25 reranker |\n| `RERANK_PREFETCH_MULT` | `4` | Candidate multiplier before reranking |\n| `RERANK_DEBUG` | `0` | Print per-result scoring details |\n| `RERANK_BOOST_SOURCE_FILE` | `0.08` | Score boost per token hit in source filename |\n| `RERANK_BOOST_SECTION` | `0.06` | Score boost per token hit in section heading |\n| `RERANK_BOOST_TAGS` | `0.05` | Score boost per token hit in tags |\n| `RERANK_BOOST_TEXT` | `0.01` | Score boost per token hit in body text |\n| `RERANK_PROTECT_TOP1_DELTA` | `0.05` | Minimum advantage required to displace RRF rank-0 |"
+        },
+        {
+          "chunkId": "config-env.md#8",
+          "score": 0.03175403,
+          "section": "Benchmark Variables",
+          "text": "| Variable | Default | Description |\n|----------|---------|-------------|\n| `BENCH_TOP_K` | `5` | Search depth (top-K results) |\n| `BENCH_PROVIDER` | env | Force provider: `onnx` or use env defaults |\n| `BENCH_SKIP_INDEX` | unset | Reuse existing bench collection; skip reindexing |\n| `BENCH_JSON` | unset | Emit JSON summary on stdout |\n| `BENCH_SEARCH_MODE` | `hybrid` | `hybrid` or `dense-mmr` |\n| `MMR_DIVERSITY` | `0.5` | Dense MMR diversity balance (0–1) |\n| `MMR_CANDIDATES_LIMIT` | `100` | Dense MMR preselect candidate count |\n| `MMR_DIVERSITIES` | `0.3,0.5,0.7` | Comma-separated diversity values for mmr-matrix |\n| `RERANK_PREFETCH_MULT` | `4` | Candidate multiplier for rerank phase in benchmark |"
+        },
+        {
+          "chunkId": "benchmarking.md#7",
+          "score": 0.031746034,
+          "section": "Chunk-level (v3 only)",
+          "text": "| Metric | Description |\n|--------|-------------|\n| `chunkRecall@3` | Fraction of queries with a rel≥3 chunk in top-3 |\n| `chunkRecall@5` | Fraction of queries with a rel≥3 chunk in top-5 |\n| `supportRecall@K` | Fraction of queries with a rel≥2 chunk in top-K |\n| `nDCG@K` | Normalised Discounted Cumulative Gain with graded relevance |\n| `MRR@10` | Reciprocal rank of the first rel≥3 chunk across top-10 |"
+        }
+      ]
+    }
+  ],
+  "top3Changes": [
+    {
+      "id": "c02",
+      "nativeTop3": "providers.md#0|providers.md#4|providers.md#1",
+      "deepTop3": "providers.md#0|providers.md#4|multilingual.md#1",
+      "hitBefore": 0,
+      "hitAfter": 0
+    },
+    {
+      "id": "c09",
+      "nativeTop3": "config-env.md#6|qdrant.md#7|qdrant.md#3",
+      "deepTop3": "qdrant.md#7|config-env.md#6|qdrant.md#3",
+      "hitBefore": 0,
+      "hitAfter": 0
+    },
+    {
+      "id": "c10",
+      "nativeTop3": "qdrant.md#4|project-structure.md#6|qdrant.md#2",
+      "deepTop3": "qdrant.md#4|qdrant.md#2|project-structure.md#6",
+      "hitBefore": 1,
+      "hitAfter": 1
+    },
+    {
+      "id": "c17",
+      "nativeTop3": "chunking.md#4|chunking.md#6|chunking.md#7",
+      "deepTop3": "chunking.md#4|chunking.md#6|chunking.md#5",
+      "hitBefore": 1,
+      "hitAfter": 1
+    },
+    {
+      "id": "c18",
+      "nativeTop3": "chunking.md#2|chunking.md#6|multilingual.md#4",
+      "deepTop3": "chunking.md#2|multilingual.md#4|chunking.md#6",
+      "hitBefore": 1,
+      "hitAfter": 1
+    },
+    {
+      "id": "c23",
+      "nativeTop3": "sync.md#3|config-env.md#0|providers.md#0",
+      "deepTop3": "sync.md#3|project-structure.md#0|providers.md#0",
+      "hitBefore": 1,
+      "hitAfter": 1
+    },
+    {
+      "id": "c26",
+      "nativeTop3": "mcp-workflow.md#0|mcp-workflow.md#1|project-structure.md#8",
+      "deepTop3": "mcp-workflow.md#1|mcp-workflow.md#0|project-structure.md#8",
+      "hitBefore": 1,
+      "hitAfter": 1
+    },
+    {
+      "id": "c33",
+      "nativeTop3": "obsidian.md#7|benchmarking.md#5|mcp-workflow.md#3",
+      "deepTop3": "obsidian.md#7|benchmarking.md#5|qdrant.md#5",
+      "hitBefore": 1,
+      "hitAfter": 1
+    },
+    {
+      "id": "c34",
+      "nativeTop3": "obsidian.md#9|mcp-workflow.md#2|mcp-workflow.md#6",
+      "deepTop3": "obsidian.md#9|mcp-workflow.md#2|obsidian.md#6",
+      "hitBefore": 1,
+      "hitAfter": 1
+    },
+    {
+      "id": "c39",
+      "nativeTop3": "benchmarking.md#7|benchmarking.md#2|benchmarking.md#6",
+      "deepTop3": "benchmarking.md#2|benchmarking.md#7|benchmarking.md#6",
+      "hitBefore": 1,
+      "hitAfter": 1
+    },
+    {
+      "id": "c41",
+      "nativeTop3": "benchmarking.md#19|multilingual.md#6|benchmarking.md#12",
+      "deepTop3": "benchmarking.md#19|multilingual.md#6|project-structure.md#2",
+      "hitBefore": 0,
+      "hitAfter": 0
+    },
+    {
+      "id": "c43",
+      "nativeTop3": "config-env.md#1|config-env.md#0|qdrant.md#0",
+      "deepTop3": "config-env.md#0|config-env.md#1|qdrant.md#0",
+      "hitBefore": 1,
+      "hitAfter": 1
+    },
+    {
+      "id": "c46",
+      "nativeTop3": "config-env.md#4|obsidian.md#7|qdrant.md#5",
+      "deepTop3": "config-env.md#4|obsidian.md#7|config-env.md#7",
+      "hitBefore": 1,
+      "hitAfter": 1
+    },
+    {
+      "id": "c47",
+      "nativeTop3": "multilingual.md#8|multilingual.md#2|multilingual.md#1",
+      "deepTop3": "multilingual.md#2|multilingual.md#8|multilingual.md#1",
+      "hitBefore": 1,
+      "hitAfter": 1
+    },
+    {
+      "id": "c48",
+      "nativeTop3": "multilingual.md#3|multilingual.md#5|multilingual.md#0",
+      "deepTop3": "multilingual.md#3|multilingual.md#0|multilingual.md#5",
+      "hitBefore": 1,
+      "hitAfter": 1
+    }
+  ],
+  "qrelTokenWarnings": [
+    {
+      "id": "c04",
+      "query": "embedding_schema_version reindex discriminator payload field",
+      "absent": [
+        "embedding_schema_version"
+      ],
+      "note": "Review hint only; tokens absent does not prove incorrect qrel."
+    },
+    {
+      "id": "c08",
+      "query": "як працює RRF k параметр у гібридному пошуку",
+      "absent": [
+        "RRF_K"
+      ],
+      "note": "Review hint only; tokens absent does not prove incorrect qrel."
+    },
+    {
+      "id": "c09",
+      "query": "HYBRID_PREFETCH_LIMIT prefetch per RRF leg",
+      "absent": [
+        "HYBRID_PREFETCH_LIMIT"
+      ],
+      "note": "Review hint only; tokens absent does not prove incorrect qrel."
+    },
+    {
+      "id": "c37",
+      "query": "npm run bench:custom50 entry point run-v3.js",
+      "absent": [
+        "bench"
+      ],
+      "note": "Review hint only; tokens absent does not prove incorrect qrel."
+    },
+    {
+      "id": "c38",
+      "query": "SCHEMA_VERSION constant embeddings.js reindex discriminator",
+      "absent": [
+        "SCHEMA_VERSION"
+      ],
+      "note": "Review hint only; tokens absent does not prove incorrect qrel."
+    },
+    {
+      "id": "c44",
+      "query": "RERANK_PROTECT_TOP1_DELTA minimum advantage to displace rank-0",
+      "absent": [
+        "RERANK_PROTECT_TOP1_DELTA"
+      ],
+      "note": "Review hint only; tokens absent does not prove incorrect qrel."
+    }
+  ],
+  "negatives": [
+    {
+      "id": "c50",
+      "query": "semidex підключення до PostgreSQL бази даних connection pool",
+      "expectedTokens": [
+        "postgres"
+      ],
+      "top1": {
+        "chunkId": "mcp-workflow.md#1",
+        "score": 0.032291666,
+        "section": "Registering the MCP Server",
+        "text": "Linux / macOS:\n\n```bash\nclaude mcp add --scope user semidex -- node /absolute/path/to/semidex/src/mcp/server.js\n```\n\nWindows:\n\n```bash\nclaude mcp add --scope user semidex -- node C:\\absolute\\path\\to\\semidex\\src\\mcp\\server.js\n```\n\nAfter registering, run `/mcp` in Claude Code to verify the connection.\nThe server must be running (i.e., the node process must be alive) for tools to work."
+      }
+    }
+  ]
+}

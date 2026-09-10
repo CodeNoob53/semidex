@@ -1,0 +1,215 @@
+{
+  "note": "Same stored-vector replay through core vs raw hybrid; no embedding, no quality claim, alternating order; concurrent indexing may affect latency.",
+  "rows": [
+    {
+      "round": 0,
+      "mode": "core",
+      "ms": 350.24339999999995,
+      "events": [
+        {
+          "method": "getCollections",
+          "ms": 54.108799999999974
+        },
+        {
+          "method": "getCollection",
+          "ms": 60.851
+        },
+        {
+          "method": "scroll",
+          "ms": 48.02660000000003
+        },
+        {
+          "method": "scroll",
+          "ms": 62.2364
+        },
+        {
+          "method": "count",
+          "ms": 59.260099999999966
+        },
+        {
+          "method": "query",
+          "ms": 59.49950000000001
+        }
+      ]
+    },
+    {
+      "round": 0,
+      "mode": "raw",
+      "ms": 60.458099999999945,
+      "events": [
+        {
+          "method": "query",
+          "ms": 60.42909999999995
+        }
+      ]
+    },
+    {
+      "round": 1,
+      "mode": "raw",
+      "ms": 62.5326,
+      "events": [
+        {
+          "method": "query",
+          "ms": 62.480999999999995
+        }
+      ]
+    },
+    {
+      "round": 1,
+      "mode": "core",
+      "ms": 294.6432000000002,
+      "events": [
+        {
+          "method": "getCollections",
+          "ms": 58.94439999999986
+        },
+        {
+          "method": "getCollection",
+          "ms": 44.85570000000007
+        },
+        {
+          "method": "scroll",
+          "ms": 48.49289999999996
+        },
+        {
+          "method": "scroll",
+          "ms": 48.876199999999926
+        },
+        {
+          "method": "count",
+          "ms": 44.42169999999987
+        },
+        {
+          "method": "query",
+          "ms": 47.86740000000009
+        }
+      ]
+    },
+    {
+      "round": 2,
+      "mode": "core",
+      "ms": 283.8995,
+      "events": [
+        {
+          "method": "getCollections",
+          "ms": 47.233999999999924
+        },
+        {
+          "method": "getCollection",
+          "ms": 44.3762999999999
+        },
+        {
+          "method": "scroll",
+          "ms": 43.344699999999875
+        },
+        {
+          "method": "scroll",
+          "ms": 51.897500000000036
+        },
+        {
+          "method": "count",
+          "ms": 47.82479999999987
+        },
+        {
+          "method": "query",
+          "ms": 48.34660000000008
+        }
+      ]
+    },
+    {
+      "round": 2,
+      "mode": "raw",
+      "ms": 48.72830000000022,
+      "events": [
+        {
+          "method": "query",
+          "ms": 48.70330000000013
+        }
+      ]
+    },
+    {
+      "round": 3,
+      "mode": "raw",
+      "ms": 61.14630000000011,
+      "events": [
+        {
+          "method": "query",
+          "ms": 61.12030000000004
+        }
+      ]
+    },
+    {
+      "round": 3,
+      "mode": "core",
+      "ms": 293.34000000000015,
+      "events": [
+        {
+          "method": "getCollections",
+          "ms": 43.739900000000034
+        },
+        {
+          "method": "getCollection",
+          "ms": 45.61959999999999
+        },
+        {
+          "method": "scroll",
+          "ms": 46.76760000000013
+        },
+        {
+          "method": "scroll",
+          "ms": 47.462800000000016
+        },
+        {
+          "method": "count",
+          "ms": 48.052200000000084
+        },
+        {
+          "method": "query",
+          "ms": 60.66449999999986
+        }
+      ]
+    },
+    {
+      "round": 4,
+      "mode": "core",
+      "ms": 281.65959999999995,
+      "events": [
+        {
+          "method": "getCollections",
+          "ms": 44.19520000000011
+        },
+        {
+          "method": "getCollection",
+          "ms": 48.93010000000004
+        },
+        {
+          "method": "scroll",
+          "ms": 44.94999999999982
+        },
+        {
+          "method": "scroll",
+          "ms": 46.67380000000003
+        },
+        {
+          "method": "count",
+          "ms": 45.78560000000016
+        },
+        {
+          "method": "query",
+          "ms": 50.242699999999786
+        }
+      ]
+    },
+    {
+      "round": 4,
+      "mode": "raw",
+      "ms": 46.40869999999995,
+      "events": [
+        {
+          "method": "query",
+          "ms": 46.383400000000165
+        }
+      ]
+    }
+  ]
+}

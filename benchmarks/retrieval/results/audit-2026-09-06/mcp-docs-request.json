@@ -1,0 +1,5 @@
+[
+ {"name":"qdrant_get_skeleton","arguments":{"collection":"Qdrant Web Documentation"}},
+ {"name":"qdrant_search","arguments":{"collection":"Qdrant Web Documentation","query":"hybrid search RRF prefetch limit evaluation","top":3,"window":1,"window_format":"compact"}},
+ {"name":"qdrant_list_directories","arguments":{"collection":"bench-retrieval-custom-50","depth":1}}
+]

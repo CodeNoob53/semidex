@@ -1,0 +1,19 @@
+
+[1/2] Setup collection...
+
+=== semidex custom-50 quality benchmark ===
+Provider  : env  (bge-m3-onnx/bge-m3-onnx)
+Search    : hybrid
+Top-K     : 10
+Queries   : 50 (49 positive, 1 negative)
+Types     : exact-token=21  conceptual=12  config-env=8  troubleshooting=3  source-navigation=3  provider-activation=1  cross-lingual-ua-en=1  negative=1
+[2/2] Skipping index (BENCH_SKIP_INDEX=1) — fetching chunk IDs for qrel validation...
+Validating qrels...
+
+Running queries...
+  c01: де налаштовується sparseProvider... Error: embeddings.js: no onnxEmbed capability available — pass { capabilities: { onnxEmbed } } or call applyEmbeddingCapabilities() first.
+    at _embed (file:///C:/Users/Aorus/Documents/Projects/semidex/src/shared/core/embeddings.js:420:27)
+    at embedForSearch (file:///C:/Users/Aorus/Documents/Projects/semidex/src/shared/core/embeddings.js:391:10)
+    at runQuery (file:///C:/Users/Aorus/Documents/Projects/semidex/benchmarks/retrieval/custom-50/run-v3.js:285:35)
+    at main (file:///C:/Users/Aorus/Documents/Projects/semidex/benchmarks/retrieval/custom-50/run-v3.js:720:40)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)

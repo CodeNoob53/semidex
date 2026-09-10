@@ -1,0 +1,294 @@
+[
+  {
+    "name": "shortFacts",
+    "source": "# Defaults\n\nTimeout: 30s.\n\n# Security\n\nTLS required.",
+    "sourceChars": 52,
+    "nodes": [
+      {
+        "type": "section",
+        "path": "defaults",
+        "text": "Defaults"
+      },
+      {
+        "type": "paragraph",
+        "path": "defaults/paragraph",
+        "text": "Timeout: 30s."
+      },
+      {
+        "type": "section",
+        "path": "security",
+        "text": "Security"
+      },
+      {
+        "type": "paragraph",
+        "path": "security/paragraph",
+        "text": "TLS required."
+      }
+    ],
+    "chunks": [],
+    "rawCount": 0,
+    "navCount": 3,
+    "uniqueNavIds": 3
+  },
+  {
+    "name": "list",
+    "source": "# Steps\n\n- Set the production host\n- Disable the debug logging\n- Restart the application service",
+    "sourceChars": 96,
+    "nodes": [
+      {
+        "type": "section",
+        "path": "steps",
+        "text": "Steps"
+      },
+      {
+        "type": "list",
+        "path": "steps/list",
+        "text": "Set the production hostDisable the debug loggingRestart the application service"
+      }
+    ],
+    "chunks": [
+      {
+        "type": "paragraph",
+        "text": "Set the production hostDisable the debug loggingRestart the application service",
+        "tokens": null,
+        "chars": 79,
+        "context": "Steps",
+        "parent": "88b2ccc0-6f74-5019-b4ef-dd32ec2bc009"
+      }
+    ],
+    "rawCount": 0,
+    "navCount": 2,
+    "uniqueNavIds": 2
+  },
+  {
+    "name": "tinyCode",
+    "source": "# Example\n\nRun these commands in this order.\n\n```sh\nmkdir sample\ncd sample\n```",
+    "sourceChars": 78,
+    "nodes": [
+      {
+        "type": "section",
+        "path": "example",
+        "text": "Example"
+      },
+      {
+        "type": "paragraph",
+        "path": "example/paragraph",
+        "text": "Run these commands in this order."
+      },
+      {
+        "type": "code_block",
+        "path": "example/code_block",
+        "text": "mkdir sample\ncd sample"
+      }
+    ],
+    "chunks": [
+      {
+        "type": "paragraph",
+        "text": "Run these commands in this order.\n\n`mkdir sample cd sample`",
+        "tokens": null,
+        "chars": 59,
+        "context": "Example",
+        "parent": "63bb07cd-7136-5f53-af49-a96e37a6b2b3"
+      }
+    ],
+    "rawCount": 0,
+    "navCount": 2,
+    "uniqueNavIds": 2
+  },
+  {
+    "name": "duplicateHeadings",
+    "source": "# API\n\n## Settings\n\nProduction uses the first configuration.\n\n## Settings\n\nStaging uses the second configuration.",
+    "sourceChars": 113,
+    "nodes": [
+      {
+        "type": "section",
+        "path": "api",
+        "text": "API"
+      },
+      {
+        "type": "section",
+        "path": "api/settings",
+        "text": "Settings"
+      },
+      {
+        "type": "paragraph",
+        "path": "api/settings/paragraph",
+        "text": "Production uses the first configuration."
+      },
+      {
+        "type": "section",
+        "path": "api/settings",
+        "text": "Settings"
+      },
+      {
+        "type": "paragraph",
+        "path": "api/settings/paragraph",
+        "text": "Staging uses the second configuration."
+      }
+    ],
+    "chunks": [
+      {
+        "type": "paragraph",
+        "text": "Production uses the first configuration.",
+        "tokens": null,
+        "chars": 40,
+        "context": "API › Settings",
+        "parent": "6f994a0e-701c-5daf-a54c-e04f047dd6fa"
+      },
+      {
+        "type": "paragraph",
+        "text": "Staging uses the second configuration.",
+        "tokens": null,
+        "chars": 38,
+        "context": "API › Settings",
+        "parent": "6f994a0e-701c-5daf-a54c-e04f047dd6fa"
+      }
+    ],
+    "rawCount": 0,
+    "navCount": 4,
+    "uniqueNavIds": 3
+  },
+  {
+    "name": "largeEntity",
+    "source": "# Commands\n\n```sh\nexport VARIABLE=value # repeated configuration command\nexport VARIABLE=value # repeated configuration …",
+    "sourceChars": 121021,
+    "nodes": [
+      {
+        "type": "section",
+        "path": "commands",
+        "text": "Commands"
+      },
+      {
+        "type": "code_block",
+        "path": "commands/code_block",
+        "text": "export VARIABLE=value # repeated configuration command\nexport VARIABLE=value # repeated configuration command\nexport VARIABLE=value # repeated configuration command\nexport VARIABLE"
+      }
+    ],
+    "chunks": [
+      {
+        "type": "code_block",
+        "text": "```sh\nexport VARIABLE=value # repeated configuration command\nexport VARIABLE=value # repeated configuration command\nexport VARIABLE=value # repeated configurati…",
+        "tokens": null,
+        "chars": 121009,
+        "context": "Commands — code block",
+        "parent": "85c8dbdf-b1fd-55c2-ad4f-567a413635e9"
+      }
+    ],
+    "rawCount": 0,
+    "navCount": 2,
+    "uniqueNavIds": 2
+  },
+  {
+    "name": "minifiedCode",
+    "source": "# JSON\n\nThis is the application configuration object.\n\n```json\n{\"x\":\"valuevaluevaluevaluevaluevaluevaluevaluevaluevaluev…",
+    "sourceChars": 5075,
+    "nodes": [
+      {
+        "type": "section",
+        "path": "json",
+        "text": "JSON"
+      },
+      {
+        "type": "paragraph",
+        "path": "json/paragraph",
+        "text": "This is the application configuration object."
+      },
+      {
+        "type": "code_block",
+        "path": "json/code_block",
+        "text": "{\"x\":\"valuevaluevaluevaluevaluevaluevaluevaluevaluevaluevaluevaluevaluevaluevaluevaluevaluevaluevaluevaluevaluevaluevaluevaluevaluevaluevaluevaluevaluevaluevaluevaluevaluevaluevalu"
+      }
+    ],
+    "chunks": [
+      {
+        "type": "paragraph",
+        "text": "This is the application configuration object.",
+        "tokens": null,
+        "chars": 45,
+        "context": "JSON",
+        "parent": "e8880190-0527-54b0-a3c8-aa0bf3f7a0a6"
+      }
+    ],
+    "rawCount": 0,
+    "navCount": 2,
+    "uniqueNavIds": 2
+  },
+  {
+    "name": "nestedCode",
+    "source": "# Install\n\n- Run the setup command:\n\n  ```sh\n  export HOST=production\n  export PORT=443\n  ```\n\n- Restart the running service now.",
+    "sourceChars": 129,
+    "nodes": [
+      {
+        "type": "section",
+        "path": "install",
+        "text": "Install"
+      },
+      {
+        "type": "list",
+        "path": "install/list",
+        "text": "Run the setup command:export HOST=production\nexport PORT=443Restart the running service now."
+      }
+    ],
+    "chunks": [
+      {
+        "type": "paragraph",
+        "text": "Run the setup command:export HOST=production\nexport PORT=443Restart the running service now.",
+        "tokens": null,
+        "chars": 92,
+        "context": "Install",
+        "parent": "a723bfad-82ed-53cb-bedd-82ecbfd87b99"
+      }
+    ],
+    "rawCount": 0,
+    "navCount": 2,
+    "uniqueNavIds": 2
+  },
+  {
+    "name": "ordinary",
+    "source": "# Service\n\n## Timeout\n\nThe default request timeout is thirty seconds.\n\n| Key | Value |\n| --- | --- |\n| timeout | 30 |",
+    "sourceChars": 117,
+    "nodes": [
+      {
+        "type": "section",
+        "path": "service",
+        "text": "Service"
+      },
+      {
+        "type": "section",
+        "path": "service/timeout",
+        "text": "Timeout"
+      },
+      {
+        "type": "paragraph",
+        "path": "service/timeout/paragraph",
+        "text": "The default request timeout is thirty seconds."
+      },
+      {
+        "type": "table",
+        "path": "service/timeout/table",
+        "text": "KeyValuetimeout30"
+      }
+    ],
+    "chunks": [
+      {
+        "type": "paragraph",
+        "text": "The default request timeout is thirty seconds.\n\n[table node: ordinary.md#service/timeout/table-1 — KeyValuetimeout30]",
+        "tokens": null,
+        "chars": 117,
+        "context": "Service › Timeout",
+        "parent": "cb4bec85-0175-58d0-93b1-b716f5940d1b"
+      },
+      {
+        "type": "table",
+        "text": "| Key | Value |\n| --- | --- |\n| timeout | 30 |",
+        "tokens": null,
+        "chars": 46,
+        "context": "Service › Timeout — table — The default request timeout is thirty seconds.",
+        "parent": "cb4bec85-0175-58d0-93b1-b716f5940d1b"
+      }
+    ],
+    "rawCount": 0,
+    "navCount": 3,
+    "uniqueNavIds": 3
+  }
+]

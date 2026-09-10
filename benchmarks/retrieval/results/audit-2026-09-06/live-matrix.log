@@ -1,0 +1,25 @@
+[onnx] loading tokenizer...
+[onnx] cached: tokenizer.json (17 MB)
+[onnx] cached: tokenizer_config.json (0 MB)
+[onnx] cached: model.onnx (0 MB)
+[onnx] cached: model.onnx.data (2271 MB)
+[onnx] creating inference session (providers: cpu)...
+[onnx] ready. outputs: dense_vecs,sparse_vecs,colbert_vecs
+c01 1/50 embed=2241ms
+c02 2/50 embed=52ms
+c03 3/50 embed=53ms
+c04 4/50 embed=49ms
+c05 5/50 embed=50ms
+c06 6/50 embed=48ms
+c07 7/50 embed=55ms
+c08 8/50 embed=48ms
+c09 9/50 embed=58ms
+c10 10/50 embed=48ms
+c11 11/50 embed=52ms
+c12 12/50 embed=49ms
+c13 13/50 embed=48ms
+c14 14/50 embed=54ms
+c15 15/50 embed=118ms
+c16 16/50 embed=54ms
+c17 17/50 embed=48ms
+c18 18/50 embed=46ms

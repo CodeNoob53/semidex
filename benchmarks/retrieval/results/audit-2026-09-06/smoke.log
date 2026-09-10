@@ -1,0 +1,1469 @@
+
+> smoke
+> node src/smoke.js
+
+
+[1] Default provider (no env overrides)
+  ✓ denseProvider = ollama
+  ✓ sparseProvider = hashed-tf
+  ✓ denseModel = bge-m3
+
+[2] ONNX_EMBED=1 shorthand
+  ✓ denseProvider = bge-m3-onnx
+  ✓ sparseProvider = bge-m3-onnx
+  ✓ denseModel = aapot/bge-m3-onnx
+
+[3] Invalid provider combo — resolveEnvProviders
+  ✓ ollama + bge-m3-onnx throws
+  ✓ bge-m3-onnx + hashed-tf throws
+  ✓ unknown denseProvider throws
+
+[4] Invalid provider combo — embedForSearch runtime guard
+  ✓ SCHEMA_VERSION is 2
+  ✓ embedForSearch with an invalid dense/sparse provider combo throws
+
+[5] Reindex detection — storedMeta mismatch
+  ✓ identical meta → skip
+  ✓ denseProvider changed → reindex
+  ✓ denseModel changed → reindex
+  ✓ sparseProvider changed → reindex
+  ✓ schemaVersion changed → reindex
+  ✓ missing chunkingSchemaVersion → reindex
+  ✓ chunkingSchemaVersion changed → reindex
+  ✓ missing tokenCountMode → reindex
+  ✓ tokenCountMode changed → reindex
+  ✓ vectorSize changed → reindex
+  ✓ file hash changed → reindex
+  ✓ null vectorSize in stored → treated as current → skip
+  ✓ FORCE_REINDEX=true bypasses unchanged skip
+  ✓ storedHash present → pre-delete would run without flag
+  ✓ SKIP_PRE_DELETE=true → pre-delete suppressed
+  ✓ no storedHash (new file) → pre-delete skipped regardless
+
+[6] Chunking edge cases
+  ✓ 1-sentence .txt → 1 chunk
+  ✓ 1-sentence chunk has text
+  ✓ 2-sentence .txt → 1 chunk
+  ✓ 2-sentence chunk text unchanged
+  ✓ trailing text without dot preserved
+  ✓ section B has no text from section A
+  ✓ no overlap-only final chunk after full emit
+  ✓ no consecutive duplicate chunks
+  ✓ chunkIndex + totalChunks set correctly
+  ✓ short split tail merged by MIN_CHUNK_TOKENS
+  ✓ short headed section is not merged across section boundary
+  ✓ same-named adjacent headings are not merged by section label alone
+  ✓ internal split group is not exposed on finalized chunks
+  ✓ _split_boundary is not exposed on finalized chunks
+
+[7] Reranker top-1 protection
+  ✓ top-1 protection keeps original RRF rank-0 when advantage < delta
+
+[8] Compact window chunk formatting (no Qdrant)
+  ✓ compact: two window chunks returned
+  ✓ compact: matched chunk is_match=true
+  ✓ compact: neighbor chunk is_match=false
+  ✓ compact: matched chunk has text_snippet
+  ✓ compact: neighbor chunk has text_snippet
+  ✓ compact: matched chunk has no .text field
+  ✓ compact: neighbor has no .text field
+  ✓ compact: neighbor snippet ≤ 153 chars (150 + "...")
+  ✓ compact: neighbor snippet ends with "..."
+  ✓ compact: neighbor snippet contains file_hash
+  ✓ compact: neighbor snippet contains dense_provider
+  ✓ compact: neighbor snippet contains dense_model
+  ✓ compact: neighbor snippet contains sparse_provider
+  ✓ compact: neighbor snippet contains embedding_schema_version
+  ✓ compact: neighbor snippet contains vector_size
+  ✓ full: neighbor has .text field
+  ✓ full: neighbor .text is untruncated
+  ✓ full: neighbor has no text_snippet field
+  ✓ assembleWindowChunks: empty input → empty array
+  ✓ deduplication: duplicate non-match neighbor emitted once
+
+[9] computeStaleSourceFiles (no Qdrant)
+  ✓ empty indexed + empty stored → []
+  ✓ stored has extra c.md → stale = [c.md]
+  ✓ renamed: old.md stale, renamed-new.md kept
+  ✓ equal sets → []
+  ✓ inputs not mutated
+
+[11] recursiveChunkText (no Qdrant)
+  ✓ page markers stripped — no chunk contains "of 50"
+  ✓ page markers stripped — both paragraphs present
+  ✓ three half-MAX paragraphs → at least 2 chunks
+  ✓ no chunk exceeds MAX_TOKENS + join overhead
+  ✓ oversized paragraph split by sentences → ≥ 2 chunks
+  ✓ sentence-split chunks within MAX_TOKENS
+  ✓ oversized no-sentence text split by words → ≥ 2 chunks
+  ✓ word-split chunks within MAX_TOKENS
+  ✓ tiny final chunk preserved
+  ✓ empty string → []
+  ✓ whitespace-only → []
+  ✓ short text → exactly 1 chunk
+  ✓ short text chunk content preserved
+  ✓ stripPageMarkers=false — marker text preserved
+  ✓ unsplittable oversized word returned as-is (not dropped)
+  ✓ unsplittable word content intact
+  ✓ markdown: section A chunk exists
+  ✓ markdown: section B chunk exists
+  ✓ markdown: no cross-section bleed
+  ✓ .txt: PDF page marker preserved (not on recursive PDF path)
+  ✓ H4 (####) becomes section name
+  ✓ H5 (#####) becomes section name
+  ✓ two H5 sections are distinct
+  ✓ H6 (######) becomes section name
+  ✓ H1 still works after #{1,6} expansion
+  ✓ H2 still works after #{1,6} expansion
+  ✓ H3 still works after #{1,6} expansion
+  ✓ 3 headings → hasPdfStructure true
+  ✓ 2 headings → hasPdfStructure false
+  ✓ no headings → hasPdfStructure false
+  ✓ null input → hasPdfStructure false
+  ✓ regression guard: hasPdfStructure true for 3 headings (was false before /gm fix)
+  ✓ pdf2md PAGE_BREAK cleanup preserves structure
+  ✓ cleaned pdf2md output → sections assigned
+  ✓ cleaned pdf2md output → multiple distinct sections
+
+[12] resolveOnnxExecutionProviders (no model load)
+  ✓ unset → [cpu]
+  ✓ empty string → [cpu]
+  ✓ 'cpu' → [cpu]
+  ✓ 'dml' → includes dml
+  ✓ 'dml' → includes cpu fallback
+  ✓ 'cuda' → [cuda]
+  ✓ invalid value → [cpu]
+  ✓ 'DML' uppercase → includes dml
+[onnx] ONNX_EXECUTION_PROVIDER="webgpu" is not recognised — falling back to cpu
+
+[13] isSemidexPayload (pure, no Qdrant)
+  ✓ full semidex payload → true
+  ✓ missing source_file → false
+  ✓ missing chunk_index → false
+  ✓ missing file_hash → false
+  ✓ missing dense_provider → false
+  ✓ missing dense_model → false
+  ✓ missing sparse_provider → false
+  ✓ missing embedding_schema_version → false
+  ✓ missing vector_size → false
+  ✓ missing chunking_schema_version → false
+  ✓ missing token_count_mode → false
+  ✓ null → false
+  ✓ undefined → false
+  ✓ foreign payload without semidex fields → false
+  ✓ empty object → false
+  ✓ empty-payload sentinel {} → false (non-empty foreign with no payload)
+  ✓ full payload still true after fixing return contract
+
+[14] Profiler (pure, no I/O)
+  ✓ disabled when unset: enabled=false
+  ✓ disabled: mark() is no-op (no marks stored)
+  ✓ disabled when INDEX_PROFILE=0: enabled=false
+  ✓ enabled when INDEX_PROFILE=1: enabled=true
+  ✓ three marks recorded
+  ✓ marks in order: chunk/context/tag
+  ✓ report output contains [profile]
+  ✓ report output contains chunk label
+  ✓ report output contains context label
+  ✓ report output contains tag label
+  ✓ report output contains total
+  ✓ report output contains chunks/s
+  ✓ single mark: output contains only label
+  ✓ single mark: output contains total
+  ✓ zero chunks: output does not contain NaN
+  ✓ zero chunks: output does not contain Infinity
+  ✓ zero chunks: cps reported as em-dash
+  ✓ totalMs≤0 with chunks: no Infinity
+  ✓ totalMs≤0 with chunks: cps is em-dash
+  ✓ markAt: mark stored
+  ✓ markAt: startOverride set
+  ✓ markAt: duration uses startOverride (>0)
+  ✓ markAt: duration uses startOverride (<5000)
+
+[15] bootstrap-docs helpers (pure, no Qdrant)
+  ✓ resolveRepoRoot returns absolute path
+  ✓ bootstrap sources include README.md
+  ✓ bootstrap sources include AGENTS.md
+  ✓ bootstrap sources include docs/en
+  ✓ bootstrap sources has exactly 3 entries
+  ✓ all source entries are non-empty strings
+  ✓ buildIndexerEnv default sets ONNX_EMBED=1
+  ✓ buildIndexerEnv sets COLLECTION=semidex-docs
+  ✓ buildIndexerEnv sets SOURCE_ROOT to repo root
+  ✓ buildIndexerEnv respects ONNX_EMBED=0 opt-out
+  ✓ applyManagedConfig writes semidexManaged:true
+  ✓ applyManagedConfig writes ONNX denseProvider by default
+  ✓ applyManagedConfig writes ONNX sparseProvider by default
+  ✓ applyManagedConfig respects ONNX_EMBED=0 dense fallback
+  ✓ applyManagedConfig respects ONNX_EMBED=0 sparse fallback
+  ✓ semidexManaged:true survives loadConfig round-trip
+  ✓ non-managed existing collection → returns error string
+  ✓ error string mentions semidex-docs
+  ✓ error string mentions semidexManaged
+  ✓ collection absent → no collision (null)
+  ✓ semidexManaged:true existing collection → no collision (null)
+
+[16] extractJsonArray (tag batch parser)
+  ✓ flat array → returned as-is
+  ✓ object wrapper {"tags":[[...]],"tags2":[[...]]} → flattened
+  ✓ flat strings per chunk {"c0":["a"],"c1":["b"]} → flattened
+  ✓ wrong length → null
+  ✓ empty object → null
+  ✓ markdown fenced → parsed
+  ✓ 16g: numbered-key object with empty tag group → [[], ["a","b"]]
+  ✓ 16h: three numbered keys, middle empty → [["a"], [], ["c"]]
+  ✓ 16i: object array containing objects → null (not accepted)
+  ✓ 16j: object array containing numbers → null (not accepted)
+
+[17] chunkFileFromPath PDF fixture (no Qdrant)
+[chunk] token counter: bge-m3 tokenizer
+  ✓ PDF fixture → more than 1 chunk
+  ✓ PDF fixture → at least 2 chunks have non-empty section
+  ✓ PDF fixture → section "Chapter One" present
+  ✓ PDF fixture → section "Chapter Two" present
+  ✓ PDF fixture → section "Chapter Three" present
+  ✓ PDF fixture → source_file is original .pdf path (no .md leak)
+  ✓ PDF fixture → chunkIndex assigned
+  ✓ PDF fixture → totalChunks consistent
+
+[18] validateOllamaModels (pure, no network)
+  ✓ all present (exact) → null
+  ✓ exact-only: gemma3 not satisfied by gemma3:4b (missing)
+  ✓ exact-only: gemma3:4b satisfied by gemma3:4b → null
+  ✓ one missing → non-null result
+  ✓ one missing → reports llama3
+  ✓ one missing → does not report gemma3:4b
+  ✓ both missing → 2 entries
+  ✓ same model missing twice → reported once (deduped)
+  ✓ no required models → null
+  ✓ no required, no available → null
+
+[19] doctor-checks (pure helpers)
+  ✓ redactKey present 8-char value
+  ✓ redactKey empty string → missing
+  ✓ redactKey null → missing
+  ✓ redactKey undefined → missing
+  ✓ redactKey long key → correct count
+  ✓ redactUrl strips path
+  ✓ redactUrl strips port in URL with explicit port
+  ✓ redactUrl strips credentials
+  ✓ redactUrl null → (not set)
+  ✓ redactUrl undefined → (not set)
+  ✓ redactUrl invalid → (invalid URL)
+  ✓ sanitise replaces key in message
+  ✓ sanitise no key → message unchanged
+  ✓ sanitise null secret → message unchanged
+  ✓ sanitise null message → empty string
+  ✓ sanitise replaces multiple occurrences
+  ✓ sanitise strips URL credentials (user:pass@host)
+  ✓ sanitise strips URL query string with token
+  ✓ sanitise strips URL path beyond root
+  ✓ sanitise leaves bare host URL untouched
+  ✓ sanitise: key + URL credentials both redacted in same message
+  ✓ all PASS → exit 0
+  ✓ any FAIL → exit 1
+  ✓ only SKIP → exit 0
+  ✓ empty array → exit 0
+  ✓ formatResult PASS contains ✓
+  ✓ formatResult PASS contains label
+  ✓ formatResult FAIL contains ✗
+  ✓ formatResult FAIL detail line contains →
+  ✓ formatResult FAIL detail contains rotate key
+  ✓ formatResult WARN contains ⚠
+  ✓ formatResult SKIP contains ~
+  ✓ v25 → PASS
+  ✓ v20 → PASS
+  ✓ v18 → WARN
+  ✓ v17 → FAIL
+  ✓ v0 → FAIL
+  ✓ flat schema: size is number → flat
+  ✓ named schema: dense object → named
+  ✓ empty object → empty
+  ✓ null → empty
+  ✓ agreement: matching → PASS
+  ✓ agreement: mismatch → WARN
+  ✓ agreement: null sample → SKIP
+  ✓ schema version: current → PASS
+  ✓ schema version: stale → WARN
+  ✓ schema version: missing field → WARN
+  ✓ schema version: null sample → SKIP
+  ✓ missing llama3 → one command
+  ✓ command is ollama pull llama3
+  ✓ all present → no commands
+  ✓ duplicate required model → deduped to one command
+  ✓ empty required list → no commands
+  ✓ 19k: Windows guidance mentions dml
+  ✓ 19k: Windows guidance mentions cpu fallback
+  ✓ 19k: Windows guidance mentions configuration.md
+  ✓ 19k: Linux guidance mentions CUDA 12.x
+  ✓ 19k: Linux guidance mentions cuDNN 9
+  ✓ 19k: Linux guidance mentions LD_LIBRARY_PATH
+  ✓ 19k: Linux guidance mentions cpu fallback
+  ✓ 19k: Linux guidance mentions configuration.md
+  ✓ 19l: error message included in output
+  ✓ 19l: guidance included when error present
+  ✓ 19l: Windows path includes dml hint
+  ✓ 19l: empty errMessage → guidance only, no leading blank
+  ✓ 19l: first line contains the one-line error message
+  ✓ 19m: ONNX_CUDA_STRICT=1 → true
+  ✓ 19m: ONNX_CUDA_STRICT=0 → false
+  ✓ 19m: ONNX_CUDA_STRICT unset → false
+  ✓ 19m: ONNX_CUDA_STRICT=true → false
+  ✓ 19m: ONNX_CUDA_STRICT=false → false
+  ✓ 19n: Linux strict error mentions ONNX_EXECUTION_PROVIDER=cuda
+  ✓ 19n: Linux strict error mentions ONNX_CUDA_STRICT=1
+  ✓ 19n: Linux strict error includes the ORT error message
+  ✓ 19n: Linux strict error mentions CUDA 12.x
+  ✓ 19n: Linux strict error mentions cuDNN 9
+  ✓ 19n: Linux strict error mentions LD_LIBRARY_PATH
+  ✓ 19n: Linux strict error mentions cpu fallback option
+  ✓ 19n: Linux strict error mentions configuration.md
+  ✓ 19n: Windows strict error mentions dml
+  ✓ 19n: Windows strict error mentions ONNX_CUDA_STRICT=1
+  ✓ 19n: Windows strict error includes the ORT error message
+  ✓ 19n: Windows strict error mentions cpu fallback option
+  ✓ 19n: empty errMessage → no available backend found fallback
+  ✓ 19n: output starts with [onnx] prefix
+  ✓ 19o: disabled by default (unset)
+  ✓ 19o: model falls back to default
+  ✓ 19o: no warning when disabled
+  ✓ 19o: COMBINED_LLM=0 → disabled
+  ✓ 19o: COMBINED_LLM=yes → disabled (only "1" enables)
+  ✓ 19o: COMBINED_LLM=1 → enabled
+  ✓ 19o: model is default CONTEXT_MODEL
+  ✓ 19o: no warning when TAG_MODEL unset (same default)
+  ✓ 19o: same models → no warning
+  ✓ 19o: model is CONTEXT_MODEL
+  ✓ 19o: different TAG_MODEL → warning non-empty
+  ✓ 19o: warning mentions TAG_MODEL ignored
+  ✓ 19o: model is still CONTEXT_MODEL
+  ✓ 19o: CONTEXT_MODEL set, TAG_MODEL unset → model is CONTEXT_MODEL
+  ✓ 19o: TAG_MODEL unset → no warning (not explicitly different)
+
+[20] ColBERT math — pure helpers (no model load)
+  ✓ l2Norm unit vector = 1
+  ✓ l2Norm zero vector = 0
+  ✓ l2Norm [3,4] = 5
+  ✓ dot orthogonal = 0
+  ✓ dot same unit = 1
+  ✓ MaxSim identical = 1
+  ✓ MaxSim orthogonal = 0
+  ✓ MaxSim avg 2 query tokens
+  ✓ relevant > off-topic
+  ✓ empty query returns 0
+  ✓ empty doc returns 0
+  ✓ MaxSim non-norm parallel = 1
+  ✓ MaxSim non-norm anti-parallel = -1
+  ✓ extractTokenVecs(off=0): 2 live tokens
+  ✓ extractTokenVecs(off=0): first vec = hello
+  ✓ extractTokenVecs(off=0): second vec = world
+  ✓ extractTokenVecs(off=0): all-special → empty
+  ✓ extractTokenVecs(off=0): all-padding → empty
+  ✓ extractTokenVecsBGE(off=1, official): 4 live tokens (a,b,c,EOS)
+  ✓ extractTokenVecsBGE(off=1, official): first = a
+  ✓ extractTokenVecsBGE(off=1, official): EOS kept
+  ✓ extractTokenVecsBGE(off=1, no-eos): 3 live tokens (a,b,c)
+  ✓ extractTokenVecsBGE(off=1, no-eos): last = c
+  ✓ extractTokenVecsBGE(off=0): 3 live tokens
+  ✓ extractTokenVecsBGE: shape mismatch throws
+  ✓ official token count == attn.sum()-1
+  ✓ no-eos token count == attn.sum()-2
+  ✓ MaxSim average != sum (asymmetric query)
+  ✓ MaxSim average is sum/|Q|, not raw sum
+  ✓ SPECIAL_TOKENS contains pad(0)
+  ✓ SPECIAL_TOKENS contains bos(1)
+  ✓ SPECIAL_TOKENS contains eos(2)
+  ✓ SPECIAL_TOKENS contains mask(250001)
+  ✓ SPECIAL_TOKENS excludes normal id
+
+[23] length-bucket — pure helpers
+  ✓ estimateTokens("")   = 0
+  ✓ estimateTokens("ab") = 1
+  ✓ estimateTokens("abcd") = 1
+  ✓ estimateTokens("abcde") = 2
+  ✓ estimateTokens(64 chars) = 16
+  ✓ estimateTokens(65 chars) = 17
+  ✓ bucketIndex(0)   → bucket 0 (<=16)
+  ✓ bucketIndex(16)  → bucket 0 (<=16)
+  ✓ bucketIndex(17)  → bucket 1 (<=32)
+  ✓ bucketIndex(32)  → bucket 1 (<=32)
+  ✓ bucketIndex(33)  → bucket 2 (<=64)
+  ✓ bucketIndex(128) → bucket 3 (<=128)
+  ✓ bucketIndex(129) → bucket 4 (<=256)
+  ✓ bucketIndex(256) → bucket 4 (<=256)
+  ✓ bucketIndex(257) → bucket 5 (>256)
+  ✓ bucketIndex boundaries count
+  ✓ empty input → no batches
+  ✓ single item → one batch
+  ✓ single item → one index
+  ✓ single item → index is 0
+  ✓ single item → text preserved
+  ✓ 5 items maxBatch=2 → 3 batches
+  ✓ batch sizes 2+2+1
+  ✓ all 5 indices covered
+  ✓ order restoration: pos 0 is short
+  ✓ order restoration: pos 1 is long
+  ✓ order restoration: pos 4 is short
+  ✓ embedBucketed returns correct length
+  ✓ embedBucketed order: pos 0
+  ✓ embedBucketed order: pos 1
+  ✓ embedBucketed order: pos 2
+  ✓ embedBucketed empty → []
+
+[24] dml-batching-gate — pure config helpers
+  ✓ shouldUseOnnxBatching({}) === false
+  ✓ ONNX_EMBED=1, no provider === false
+  ✓ ONNX_EMBED=1, cpu === false
+  ✓ ONNX_EMBED=1, dml === true
+  ✓ ONNX_EMBED=1, DML (uppercase) === true
+  ✓ ONNX_EMBED=1, cuda === false
+  ✓ ONNX_EMBED=0, dml === false
+  ✓ resolveOnnxBatchSize({}) === 4
+  ✓ resolveOnnxBatchSize("1") === 1
+  ✓ resolveOnnxBatchSize("4") === 4
+  ✓ resolveOnnxBatchSize("8") === 8
+  ✓ resolveOnnxBatchSize("64") === 64
+  ✓ resolveOnnxBatchSize("0") === 4 (invalid)
+[onnx] ONNX_BATCH_SIZE="0" invalid — using 4
+  ✓ resolveOnnxBatchSize("65") === 4 (out of range)
+[onnx] ONNX_BATCH_SIZE="65" invalid — using 4
+[onnx] ONNX_BATCH_SIZE="abc" invalid — using 4
+  ✓ resolveOnnxBatchSize("abc") === 4 (non-numeric)
+
+[26] extractContextTagsArray (combined context+tags parser)
+  ✓ direct array, length 2 → normalized items
+  ✓ wrapper object {"items":[...]} → unwrapped
+  ✓ single object {context, tags} when expectedLength=1 → wrapped
+  ✓ markdown fenced JSON → parsed
+  ✓ tags normalized: spaces→hyphens, uppercase→lowercase, deduped
+  ✓ tags with length < 2 filtered out
+  ✓ tags with length > 40 filtered out
+  ✓ wrong length → null
+  ✓ missing context field → null
+  ✓ empty context string → null
+  ✓ missing tags field → null
+  ✓ empty string → null
+  ✓ invalid JSON → null
+  ✓ empty object → null
+
+[27] combined context+tags phase (pure parser + guard)
+  ✓ 27a: direct {context,tags} → parsed
+  ✓ 27a: tags normalized from direct object
+  ✓ 27b: single-element array [{...}] → parsed
+  ✓ 27c: markdown fenced JSON → parsed
+  ✓ 27d: tags lowercase + hyphenated + deduped
+  ✓ 27d: tag shorter than 2 chars filtered
+  ✓ 27d: tag longer than 40 chars filtered
+  ✓ 27e: missing context → null
+  ✓ 27e: empty context string → null
+  ✓ 27e: missing tags field → null
+  ✓ 27e: empty string → null
+  ✓ 27e: invalid JSON → null
+  ✓ 27e: empty object → null
+  ✓ 27f: COMBINED_MIN_CHARS is a positive integer
+
+[28] Setext heading support in parseMarkdown
+  ✓ setext h1 (===) creates named section
+  ✓ setext h1 content lands in section
+  ✓ setext h2 (---) creates named section
+  ✓ setext h2 content lands in section
+  ✓ multi setext: Alpha section exists
+  ✓ multi setext: Beta section exists
+  ✓ multi setext: Alpha has no Beta text
+  ✓ multi setext: Beta has no Alpha text
+  ✓ frontmatter --- not parsed as setext section
+  ✓ frontmatter --- real heading still works
+  ✓ horizontal rule does not create spurious section
+  ✓ setext heading > 120 chars ignored
+  ✓ ATX heading still parsed when setext present
+  ✓ setext heading still parsed when ATX present
+
+[29] .semidexignore — collectFiles exclusion
+  ✓ .semidexignore: a.md included
+  ✓ .semidexignore: sub/d.md included
+  ✓ .semidexignore: raw/b.md excluded
+  ✓ .semidexignore: assets/img/c.md excluded
+  ✓ .semidexignore: total 2 files
+  ✓ no .semidexignore: all files collected
+  ✓ .semidexignore: comment line not in patterns
+  ✓ .semidexignore: blank lines not in patterns
+  ✓ .semidexignore: raw pattern parsed
+  ✓ .semidexignore: assets pattern parsed
+  ✓ isIgnored: "raw/" pattern matches entry "raw"
+  ✓ isIgnored: "assets/" pattern matches entry "assets"
+  ✓ isIgnored: "raw" pattern matches entry "raw"
+  ✓ isIgnored: non-ignored entry not matched
+  ✓ isIgnored: *.txt matches file.txt
+  ✓ isIgnored: *.txt does not match file.md
+  ✓ isIgnored: **/*.txt matches sub/file.txt
+  ✓ isIgnored: drafts/*.md matches drafts/x.md
+  ✓ isIgnored: drafts/*.md does not match sub/x.md
+  ✓ isIgnored: path pattern sub/deep.md matches
+  ✓ glob: keep.md included
+  ✓ glob: skip.txt excluded
+  ✓ glob: sub/a.md included
+
+[30] TAG_GEN=1 opt-in flag (shouldGenerateTags helper)
+  ✓ 30a: unset env → disabled
+  ✓ 30b: TAG_GEN=1 → enabled
+  ✓ 30c: TAG_GEN=false → disabled
+  ✓ 30d: TAG_GEN=0 → disabled
+  ✓ 30e: TAG_GEN="" → disabled
+  ✓ 30f: TAG_GEN=00 → disabled (only exact "1" enables)
+  ✓ 30g: tag model default -> gemma3:4b
+  ✓ 30h: tag model inherits CONTEXT_MODEL
+  ✓ 30i: TAG_MODEL overrides CONTEXT_MODEL
+
+[31] empty-section suppression
+  ✓ 31a: exact placeholder → true
+  ✓ 31b: surrounding whitespace → true
+  ✓ 31c: normal text → false
+  ✓ 31d: phrase embedded in longer text → false
+  ✓ 31e: empty string → false
+  ✓ 31f: missing text field → false
+  ✓ 31g: heading-only parent produces no chunk
+  ✓ 31h: no (empty section: ...) text in any chunk
+  ✓ 31i: child chunk A exists
+  ✓ 31j: child chunk B exists
+  ✓ 31k: exactly 2 chunks total (no empty parent)
+  ✓ 31l: chunkIndex values are 0-based contiguous
+  ✓ 31m: totalChunks equals real chunk count
+  ✓ 31n: non-empty short section is preserved
+  ✓ 31o: multiple empty headings produce no chunks
+
+[32] Deterministic point IDs
+  ✓ same inputs → same ID
+  ✓ result is a UUID string
+  ✓ version nibble is 5
+  ✓ variant bits are set (8, 9, a, or b)
+  ✓ different chunkIndex → different ID
+  ✓ different sourceFile → different ID
+  ✓ different collection → different ID
+  ✓ different embeddingSchemaVersion → different ID
+  ✓ file_hash excluded — does not affect ID
+  ✓ tags excluded — does not affect ID
+  ✓ context excluded — does not affect ID
+  ✓ backslash path == forward-slash path (Windows normalisation)
+
+[33] Duplicate repair helpers
+  ✓ hashPath returns 16-char hex string
+  ✓ hashPath is stable (same input → same hash)
+  ✓ hashPath differs for different inputs
+  ✓ hashPath handles empty string
+  ✓ hashPath handles null/undefined
+  ✓ safeResolveFile resolves file under root
+  ✓ safeResolveFile: SOURCE_ROOT=. works (relative root resolves correctly)
+  ✓ safeResolveFile rejects ../ traversal
+  ✓ safeResolveFile rejects encoded traversal attempt
+  ✓ buildDuplicateGroups finds one duplicate group
+  ✓ buildDuplicateGroups identifies one affected file
+  ✓ buildDuplicateGroups calculates extra points correctly
+  ✓ buildDuplicateGroups excludes clean chunks — dup group is file-a.md
+  ✓ buildDuplicateGroups returns empty when no duplicates
+  ✓ buildDuplicateGroups handles multiple dup groups
+  ✓ buildDuplicateGroups counts extra points across groups
+  ✓ buildDuplicateGroups finds two affected files
+  ✓ buildDryRunSummary: no raw paths in affectedFileHashes
+  ✓ buildDryRunSummary: duplicateGroups count matches
+  ✓ buildDryRunSummary: affectedSourceFiles count matches
+  ✓ buildDryRunSummary: estimatedExtraPoints is correct
+  ✓ buildDryRunSummary: no field contains raw array of source paths (privacy)
+  ✓ buildDryRunSummary: missing files hashed, not raw
+  ✓ buildDryRunSummary: missingFilesCount correct
+  ✓ computeDeterministicId matches makePointId output
+  ✓ computeDeterministicId is stable across calls
+  ✓ computeDeterministicId differs for different chunkIndex
+  ✓ computeDeterministicId differs for different sourceFile
+  ✓ computeDeterministicId differs for different embeddingSchemaVersion
+  ✓ computeDeterministicId normalises Windows backslash paths
+  ✓ buildCleanupPlan: orphanIds contains the random-UUID point from chunk 0
+  ✓ buildCleanupPlan: keeper (deterministic ID) is NOT in orphanIds
+  ✓ buildCleanupPlan: chunk 1 has no deterministic ID → missingDeterministicIdGroups
+  ✓ buildCleanupPlan: missing group chunkIndex is 1
+  ✓ buildCleanupPlan: missing group actualIds contains both orphan IDs
+  ✓ buildCleanupPlan: no missing groups when all deterministic IDs present
+  ✓ buildCleanupPlan: orphan collected when all deterministic IDs present
+  ✓ post-reindex: deterministic ID confirmed in fresh scan
+  ✓ post-reindex correct: old randomUUID IDs included in toDelete
+  ✓ post-reindex buggy filter: would produce empty toDelete (demonstrates the bug)
+  ✓ post-reindex: correct toDelete is non-empty while buggy toDelete is empty
+  ✓ resolveOllamaModelsToCheck: defaults to [gemma3:4b]
+  ✓ resolveOllamaModelsToCheck: CONTEXT_MODEL only (no TAG_MODEL set)
+  ✓ resolveOllamaModelsToCheck: default tags disabled → TAG_MODEL not needed
+  ✓ resolveOllamaModelsToCheck: TAG_GEN=1 includes separate TAG_MODEL
+  ✓ resolveOllamaModelsToCheck: TAG_GEN=1 without TAG_MODEL uses CONTEXT_MODEL
+  ✓ resolveOllamaModelsToCheck: COMBINED_LLM=1 → TAG_MODEL ignored, only context model
+  ✓ resolveOllamaModelsToCheck: TAG_GEN=0 → TAG_MODEL not needed
+  ✓ resolveOllamaModelsToCheck: deduplicates when context=tag model
+  ✓ sanitizeErrorForReport: strips Windows path without spaces
+  ✓ sanitizeErrorForReport: strips Windows path with spaces
+  ✓ sanitizeErrorForReport: strips Windows drive+slash variant
+  ✓ sanitizeErrorForReport: strips UNC path
+  ✓ sanitizeErrorForReport: strips POSIX absolute path
+  ✓ sanitizeErrorForReport: preserves Ollama error text
+  ✓ sanitizeErrorForReport: preserves http URL (not stripped as POSIX path)
+  ✓ sanitizeErrorForReport: handles null
+  ✓ sanitizeErrorForReport: handles undefined
+  ✓ sanitizeErrorForReport: output capped at 300 chars
+
+[34] MCP navigation tools — listFiles / listTags
+  ✓ aggregateFiles: deduplicates into unique files
+  ✓ aggregateFiles: counts chunks per file correctly
+  ✓ aggregateFiles: single-chunk file has count 1
+  ✓ aggregateFiles: sorted alphabetically
+  ✓ aggregateFiles: firstSection from chunk_index 0
+  ✓ aggregateFiles: empty section falls back to "intro"
+  ✓ aggregateFiles: source_prefix filters to matching files only
+  ✓ aggregateFiles: non-matching source_prefix returns empty
+  ✓ aggregateFiles: normalises Windows backslash paths for prefix matching
+  ✓ aggregateFiles: normalised path uses forward slashes
+  ✓ aggregateFiles: empty input returns empty array
+  ✓ aggregateFiles: points without source_file are skipped
+  ✓ aggregateFiles tags any: returns files with any matching tag
+  ✓ aggregateFiles tags any: excludes files with no matching tag
+  ✓ aggregateFiles tags any: tagHitCount = matching chunks (1 chunk has beta in file1)
+  ✓ aggregateFiles tags any multi: file1 chunk0 has both alpha+beta → 1 matching chunk
+  ✓ aggregateFiles tags any: sorted by tagHitCount desc then path asc (tie → alpha order)
+  ✓ aggregateFiles tags density: tagHitCount counts matching chunks not unique tags
+  ✓ aggregateFiles tags density: dense file sorts above sparse file
+  ✓ aggregateFiles tags all: only files with all requested tags present
+  ✓ aggregateFiles tags all: file with only one of the two tags excluded
+  ✓ aggregateFiles: no tagHitCount when no tags filter
+  ✓ aggregateFiles: tagHitCount present when tags filter active
+  ✓ aggregateTags: counts chunk occurrences per tag
+  ✓ aggregateTags: counts unique files per tag
+  ✓ aggregateTags: overview appears in 2 chunks across 2 files
+  ✓ aggregateTags: sorted by chunk count descending
+  ✓ aggregateTags: tiebreak alphabetical (overview before advanced if equal)
+  ✓ aggregateTags: empty tags arrays are ignored
+  ✓ aggregateTags: null tags field skipped without error
+  ✓ aggregateTags: source_prefix restricts to files starting with a/
+  ✓ aggregateTags: setup still 2 files within a/ source_prefix
+  ✓ aggregateTags: overview only 1 file within a/ source_prefix
+  ✓ aggregateTags: min_count=2 excludes tags with fewer chunks
+  ✓ aggregateTags: advanced (1 chunk) excluded by min_count=2
+  ✓ aggregateTags: returns all tags before limit is applied by handle()
+  ✓ aggregateTags: normalises Windows backslash paths for source_prefix filtering
+  ✓ aggregateTags: tag_prefix=release keeps only release-* tags
+  ✓ aggregateTags: tag_prefix is case-insensitive match
+  ✓ aggregateTags: contains=media keeps social-media and media-kit
+  ✓ aggregateTags: contains is case-insensitive
+  ✓ aggregateTags: tag_prefix + contains: only social-media matches both
+
+[35] MCP UX polish — listDirectories / findByTag grouping / getChunk heading
+  ✓ dirPrefix depth=1: top-level dir
+  ✓ dirPrefix depth=2: two-level dir
+  ✓ dirPrefix depth=3: deeper than file depth uses dirname
+  ✓ dirPrefix: file at root (no slash) returns empty string
+  ✓ dirPrefix depth=1: two-part path
+  ✓ aggregateDirectories: root-level files produce "(root)" dir entry
+  ✓ aggregateDirectories: (root) has correct file count
+  ✓ aggregateDirectories: subdirectory still present alongside (root)
+  ✓ aggregateDirectories depth=1: finds 3 top-level dirs
+  ✓ aggregateDirectories depth=1: genres/ present
+  ✓ aggregateDirectories depth=1: reference/ present
+  ✓ aggregateDirectories depth=1: templates/ present
+  ✓ aggregateDirectories depth=1: sorted alphabetically
+  ✓ aggregateDirectories depth=1: genres/ has 3 files
+  ✓ aggregateDirectories depth=1: genres/ chunk count = 3
+  ✓ aggregateDirectories depth=1: reference/ has 1 file (same file, 2 chunks)
+  ✓ aggregateDirectories depth=1: reference/ chunk count = 2
+  ✓ aggregateDirectories depth=2: genres/metal/ present
+  ✓ aggregateDirectories depth=2: genres/pop/ present
+  ✓ aggregateDirectories depth=2: genres/metal/ has 2 files
+  ✓ aggregateDirectories source_prefix: only genres/ subdirs returned
+  ✓ aggregateDirectories source_prefix: genres/metal/ present in scoped
+  ✓ aggregateDirectories source_prefix: reference/ not in scoped
+  ✓ aggregateDirectories: non-matching prefix returns empty
+  ✓ aggregateDirectories: empty points returns empty
+  ✓ aggregateDirectories: normalises Windows backslash paths
+  ✓ aggregateDirectories: normalised dirs use forward slashes
+  ✓ aggregateDirectories: source_prefix works with Windows backslash source_files
+  ✓ groupByFile: two distinct files
+  ✓ groupByFile: ref/a.md has 3 chunks
+  ✓ groupByFile: ref/a.md sections deduplicated
+  ✓ groupByFile: skills/b.md has 2 chunks
+  ✓ groupByFile: empty section becomes "intro"
+  ✓ formatChunkHeading: starts with ###
+  ✓ formatChunkHeading: contains chunk_index: 0
+  ✓ formatChunkHeading: contains display: 1/20
+  ✓ formatChunkHeading: contains section name
+  ✓ formatChunkHeading: chunk_index 4 → display 5/20
+  ✓ formatChunkHeading: empty section falls back to intro
+  ✓ formatChunkHeading: null section falls back to intro
+
+[36] token-count.js and production BGE-M3 chunking
+  ✓ CHUNKING_SCHEMA_VERSION === 4
+  ✓ resolveTokenCountMode default → bge-m3
+  ✓ resolveTokenCountMode bge-m3 → bge-m3
+  ✓ resolveTokenCountMode heuristic → heuristic
+  ✓ resolveTokenCountMode invalid throws
+  ✓ heuristicTokenCount("") === 0
+  ✓ heuristicTokenCount("abc") === 1
+  ✓ heuristicTokenCount("abcd") === 1
+  ✓ heuristicTokenCount("abcde") === 2
+  ✓ heuristicTokenCount agrees with Math.ceil(len/4)
+  ✓ getTokenCounter({mode:"heuristic"}) returns a function
+  ✓ heuristic counter("hello") === 2
+  ✓ heuristic counter returns a number (not a Promise)
+  ✓ countTokens heuristic returns number
+  ✓ countTokens heuristic agrees with Math.ceil(len/4)
+  ✓ takeLastTokens returns string
+  ✓ takeLastTokens suffix fits within maxTokens (heuristic)
+  ✓ takeLastTokens is a suffix of original
+  ✓ takeLastTokens empty text returns ""
+  ✓ takeLastTokens maxTokens=0 returns ""
+  ✓ takeLastTokens short text (fits) returns full text
+  [36] tokenizer cache found — running tokenizer-dependent tests
+  ✓ bge-m3 counter is a function
+  ✓ bge-m3 counter returns a number
+  ✓ bge-m3 count > 0 for non-empty text
+  ✓ bge-m3 count plausible for ASCII (within 3× of heuristic)
+  ✓ getTokenCounter bge-m3 second call produces consistent token count
+  ✓ chunkFileAsync is exported for production tokenizer path
+  ✓ sync chunkFile still works with async path present
+  ✓ bge-m3 chunkFileFromPath returns chunks array
+  ✓ bge-m3 chunks have text field
+  ✓ bge-m3 chunks: no chunk exceeds 1.5× MAX_CHUNK_TOKENS in real tokens
+  ✓ default chunkFile: section Alpha present
+  ✓ default chunkFile: section Beta present
+  ✓ default chunkFile: chunkIndex assigned
+
+[37] Pipeline primitives (Semaphore + SerialQueue)
+  ✓ semaphore: returns task value
+  ✓ semaphore limit=1: sequential order
+  ✓ semaphore limit=2: both tasks started
+  ✓ semaphore: error propagates
+  ✓ semaphore: usable after error (no deadlock)
+  ✓ serial-queue: returns task value
+  ✓ serial-queue: strict serial order
+  ✓ serial-queue: error propagates to caller
+  ✓ serial-queue: queue continues after error
+  ✓ serial-queue: no deadlock after rejection
+
+[38] TAG_PROVIDER=onnx provider detection
+  ✓ onnx provider: TAG_PROVIDER=onnx → true
+  ✓ onnx provider: TAG_PROVIDER=ollama → false
+  ✓ onnx provider: TAG_PROVIDER unset → false
+  ✓ onnx provider: TAG_PROVIDER=ONNX → false
+
+[39] Dynamic token-budgeted overlap
+  ✓ 39a: forced split produces ≥ 2 chunks
+  ✓ 39a: first chunk within MAX
+  ✓ 39a: second chunk within MAX
+  ✓ 39a: second chunk starts with overlap from first chunk body
+  ✓ 39b: long section produces multiple chunks
+  ✓ 39b: zero mid-word cuts across all split boundaries
+  ✓ 39c: dense section produces multiple chunks
+  ✓ 39c: no chunk exceeds MAX_CHUNK_TOKENS
+  ✓ 39c: first-in-section chunks (body-only) do not exceed MAX
+  ✓ 39d: SectionB chunks exist
+  ✓ 39d: SectionB chunks contain no SectionA-only words
+  ✓ 39d: SectionA chunks contain no SectionB-only words
+
+[40] ColBERT guard — blend, top-1 protection, trigger (pure helpers)
+  ✓ normalize empty → []
+  ✓ normalize constant → all 0.5
+  ✓ normalize min → 0
+  ✓ normalize mid → 0.5
+  ✓ normalize max → 1
+  ✓ protection keeps hybrid #1 when advantage < delta
+  ✓ challenger wins when advantage >= delta
+  ✓ protectDelta=0 disables protection
+  ✓ alpha=0 reproduces hybrid order
+  ✓ alpha=1 reproduces ColBERT order
+  ✓ topK trims output
+  ✓ input pool not mutated
+  ✓ output carries blend score, not raw MaxSim
+  ✓ empty pool → []
+  ✓ gap null on short pool
+  ✓ gap null on zero score
+  ✓ gap computed correctly
+  ✓ low gap triggers rerank
+  ✓ high gap keeps hybrid order
+  ✓ unknown confidence triggers
+
+[41] CE rerank — stubbed worker, timeout, load-failure, numLabels
+  ✓ passage text
+  ✓ passage text+section
+  ✓ passage text+meta
+  ✓ passage null payload safe
+  ✓ CE flips order by mocked scores
+  ✓ CE score attached
+  ✓ numLabels=2 detected
+  ✓ numLabels=1 path works
+  ✓ empty pool → [] without load
+  ✓ timeout resolves fast (<1000ms)
+  ✓ timeout returns pre-CE candidates
+  ✓ fast path wins the race
+  ✓ load failure returns pre-CE list (1st)
+  ✓ load failure returns pre-CE list (2nd)
+  ✓ _ceModelFailed set after load failure
+  ✓ failure logged exactly once (no retry)
+  ✓ numLabels=3 rejected at load
+  ✓ _ceModelFailed set on bad numLabels
+  ✓ subsequent ceRerank returns pre-CE list
+  ✓ hung worker round-trip falls back to pre-CE for this call
+  ✓ hung worker IS marked permanently failed (matches the unexpected-exit contract, prevents piling more work onto a stuck worker)
+  ✓ timeout logged
+
+[42] skeleton — parseSkeleton structure (AST, positions, ordinals)
+  ✓ frontmatter recognized
+  ✓ frontmatter meta parsed
+  ✓ 3 sections (Install, Steps, Appendix)
+  ✓ table recognized
+  ✓ code_block recognized
+  ✓ checklist vs list split
+  ✓ blockquote recognized
+  ✓ html → unknown
+  ✓ thematicBreak dropped
+  ✓ table raw kept whole (all rows)
+  ✓ table raw is exact source slice
+  ✓ fenced code with .!? stays whole
+  ✓ code lang captured
+  ✓ code raw includes fences
+  ✓ nested headingPath
+  ✓ section structuralPath
+  ✓ h1 after h2 resets stack
+  ✓ table under Install
+  ✓ document order strictly increasing
+  ✓ positions carry line numbers
+  ✓ ordinals 1-based per (parent,type)
+  ✓ CRLF input yields identical node types
+  ✓ CRLF frontmatter still recognized
+  ✓ makeNodeId deterministic
+  ✓ makeNodeId is a UUID
+  ✓ makeNodeId changes with ordinal
+  ✓ empty input → []
+  ✓ whitespace input → []
+
+[43] skeleton — node policy mapping + isContentBearing gate
+  ✓ paragraph → chunk_text / retrieval_content
+  ✓ list → chunk_text / retrieval_content
+  ✓ blockquote → chunk_text / retrieval_content
+  ✓ table → payload_raw_embed_context / retrieval_content
+  ✓ code_block → payload_raw_embed_context / retrieval_content
+  ✓ checklist → payload_raw_embed_context / retrieval_content
+  ✓ section → nav_summary / skeleton_nav
+  ✓ file → nav_summary / skeleton_nav
+  ✓ collection → nav_summary / skeleton_nav
+  ✓ image → future_processor / skeleton_nav
+  ✓ frontmatter → payload_metadata_only / no point
+  ✓ unknown → chunk_text / retrieval_content
+  ✓ one-word fence → merge_with_parent
+  ✓ short command → merge_with_parent
+  ✓ long one-liner (>=16 tok) stays entity
+  ✓ short one-liner (<16 tok) merges
+  ✓ two-line low-token pair merges
+  ✓ multi-line >=12 tokens stays entity
+  ✓ isTinyCodeBlock only matches code
+  ✓ tiny code never content-bearing alone
+  ✓ unmapped type degrades to unknown row
+  ✓ NODE_POLICY is frozen
+  ✓ unknown node carries warning
+  ✓ unknown node keeps its text
+  ✓ unknown is retrieval content after policy
+  ✓ structural: table always content-bearing
+  ✓ structural: code_block (real) content-bearing
+  ✓ nav: section never content-bearing
+  ✓ nav: image never content-bearing
+  ✓ frontmatter never content-bearing
+  ✓ prose with enough tokens passes
+  ✓ empty prose fails
+  ✓ whitespace prose fails
+  ✓ punctuation-only fails
+  ✓ short prose below MIN fails
+  ✓ placeholder-only prose fails
+  ✓ placeholder + real prose passes
+  ✓ bare heading line not counted
+  ✓ heading-only doc keeps sections in skeleton
+  ✓ heading-only doc emits zero retrieval nodes
+
+[44] skeleton — warnings JSONL writer
+  ✓ exactly one warning event collected
+  ✓ warning does not leak into clean nodes
+  ✓ JSONL file created
+  ✓ exactly one JSONL line written
+  ✓ record: source_file
+  ✓ record: kind
+  ✓ record: mdast_type
+  ✓ record: node_type
+  ✓ record: position lines
+  ✓ record: reason mentions mdast type
+  ✓ record: raw_excerpt truncated form
+  ✓ record: chunking_model
+  ✓ append adds a second line
+  ✓ write failure swallowed (no throw)
+
+[45] skeleton chunking — unconditional for Markdown, tiny-code merge, entities
+  ✓ legacy path still produces chunks
+  ✓ legacy chunks carry no skeleton fields
+  ✓ legacy CRLF input === LF input
+  ✓ legacy CRLF frontmatter parsed
+  ✓ skeleton produces chunks
+  ✓ chunkIndex sequential from 0
+  ✓ totalChunks consistent
+  ✓ all chunks are retrieval_content
+  ✓ chunking_model stamped
+  ✓ frontmatter meta propagated
+  ✓ tiny code merged into prose
+  ✓ tiny code is NOT an entity
+  ✓ table entity emitted whole
+  ✓ big code entity emitted
+  ✓ checklist entity emitted
+  ✓ entities carry node_id/parent_id
+  ✓ exactly one table placeholder
+  ✓ exactly one code placeholder
+  ✓ every chunk carries deterministic context
+  ✓ paragraph context = heading path
+  ✓ table context carries heading path
+  ✓ table context carries node type
+  ✓ table context carries nearby prose
+  ✓ table context has no placeholder lines
+  ✓ code_block context carries heading path
+  ✓ code_block context carries node type
+  ✓ code_block context carries nearby prose
+  ✓ code_block context has no placeholder lines
+  ✓ table text is raw markdown
+  ✓ table raw_content is raw markdown
+  ✓ code_block text is raw source
+  ✓ code_block raw_content is raw source
+  ✓ empty section emits nothing
+  ✓ node_ids deterministic across reindex
+  ✓ .md always produces skeleton chunks regardless of SKELETON_CHUNKING=undefined
+  ✓ .md always produces a table entity regardless of SKELETON_CHUNKING=undefined
+  ✓ .md always produces skeleton chunks regardless of SKELETON_CHUNKING=0
+  ✓ .md always produces a table entity regardless of SKELETON_CHUNKING=0
+  ✓ .md always produces skeleton chunks regardless of SKELETON_CHUNKING=1
+  ✓ .md always produces a table entity regardless of SKELETON_CHUNKING=1
+
+[46] skeleton payload — additive fields + B1 reindex meta
+  ✓ .md → skeleton meta, unconditionally (default: not budget-aware → BASE version)
+  ✓ .md with budgetAwareTopology:true → PROFILE_BUDGET (v6) version
+  ✓ .txt → legacy meta (null) when not budget-aware
+  ✓ .pdf → legacy meta (null) when not budget-aware
+  ✓ .txt with budgetAwareTopology:true → PROFILE_BUDGET (v6), not null (format-agnostic)
+  ✓ .pdf with budgetAwareTopology:true → PROFILE_BUDGET (v6), not null (format-agnostic)
+  ✓ reindex-detection: stored v5 under budget-aware .md profile is stale (mismatch)
+  ✓ reindex-detection: stored null under now-budget-aware .txt profile is stale (mismatch)
+  ✓ case-insensitive extension
+  ✓ setting SKELETON_CHUNKING as a raw OS env var has no effect on .md meta
+  ✓ B1: legacy stored vs current skeleton expectation → mismatch forces reindex
+  ✓ B1: matching skeleton meta → no spurious reindex
+  ✓ skeleton chunk → all additive fields present
+  ✓ indexing_schema_version stamped (default: BASE, not budget-aware)
+  ✓ indexing_schema_version respects budgetAwareTopology:true
+  ✓ chunking_model stamped
+  ✓ lang=null omitted
+  ✓ lang preserved when set
+  ✓ legacy chunk → empty object
+  ✓ isSkeletonChunk discriminates
+  ✓ skeleton point ID deterministic
+  ✓ skeleton point ID is a UUID
+  ✓ changes with collection
+  ✓ changes with node_id
+  ✓ changes with embedding schema
+  ✓ disjoint from makePointId space
+  ✓ every skeleton chunk yields payload fields
+  ✓ table chunk payload carries node_type=table
+
+[47] skeleton nav — buildFileSkeleton + inspect artifact
+  ✓ one file node emitted
+  ✓ section nav node per heading
+  ✓ all nav points are skeleton_nav
+  ✓ all nav points stamped skeleton-v1
+  ✓ file children = section paths
+  ✓ section summary carries heading + inventory
+  ✓ file summary carries title + totals
+  ✓ nested section headingPath
+  ✓ checklist listed among section children
+  ✓ nav node_id matches chunk parent_id (one graph)
+  ✓ nav node_ids deterministic
+  ✓ json flagged inspect-only
+  ✓ artifact written
+  ✓ artifact round-trips
+  ✓ artifact write failure swallowed
+  ✓ heading-less file → file node, zero sections
+
+[48] nav filter — withNavExcluded + aggregation guards
+  ✓ null filter → must_not excludes skeleton_nav
+  ✓ null filter → must_not excludes entity_raw
+  ✓ null filter → exactly 2 exclusion clauses
+  ✓ existing must preserved
+  ✓ exclusion appended
+  ✓ input not mutated
+  ✓ existing must_not preserved alongside both new exclusions
+  ✓ idempotent (no duplicate nav clause)
+  ✓ idempotent (no duplicate entity_raw clause)
+  ✓ other point_kind clause does not block nav exclusion
+  ✓ other point_kind clause preserved alongside nav exclusion
+  ✓ nav point detected
+  ✓ entity_raw point detected as excluded
+  ✓ retrieval point passes
+  ✓ legacy point passes (no field)
+  ✓ listFiles: nav + entity_raw excluded from chunkCount
+  ✓ listTags: nav + entity_raw excluded from tag counts
+  ✓ listDirectories: nav + entity_raw excluded from counts
+  ✓ findByTag: nav + entity_raw excluded from grouping
+
+[49] skeleton edge cases — placeholder placement, boundaries, splitting, warnings
+  ✓ entity-first: table chunk emitted
+  ✓ entity-first: placeholder in following prose
+  ✓ entity-first: table chunk has no placeholder
+  ✓ entity-last: placeholder in preceding prose
+  ✓ entity-last: table chunk still emitted
+  ✓ entity-after-entity: two table chunks emitted
+  ✓ entity-after-entity: exactly two placeholders total
+  ✓ section boundary: alpha chunks exist
+  ✓ section boundary: beta chunks exist
+  ✓ section boundary: no alpha text in beta chunks
+  ✓ section boundary: no beta text in alpha chunks
+  ✓ long prose: split into multiple paragraph chunks
+  ✓ long prose: chunkIndex sequential
+  ✓ long prose: totalChunks consistent
+  ✓ long prose: all chunks pass isContentBearing (no empty pieces)
+  ✓ heading stack: deep section has full path
+  ✓ heading stack: new h1 resets path to just itself
+  ✓ heading stack: new h1 structural path is just its slug
+  ✓ heading stack: deep content has heading_path length 3
+  ✓ heading stack: new root content has heading_path length 1
+  ✓ node_id: different sourceFile → different id
+  ✓ node_id: different collection → different id
+  ✓ node_id: fully deterministic
+  ✓ collectSkeletonWarnings: at least one event for unknown node
+  ✓ warning event has collection
+  ✓ warning event has source_file
+  ✓ warning event has kind
+  ✓ warning event has position
+  ✓ warning event has chunking_model
+  ✓ no warning for normal paragraph
+  ✓ image-only paragraph → image node
+  ✓ image node has alt text
+  ✓ image not emitted as retrieval chunk
+  ✓ artifact path: normal input accepted
+  ✓ artifact path: normal path ends with .skeleton.json
+  ✓ artifact path: contains collection segment
+  ✓ artifact path: ../ in sourceFile throws
+  ✓ artifact path: ../ in collection throws
+  ✓ artifact path: absolute sourceFile throws
+  ✓ frontmatter meta on all chunks
+  ✓ frontmatter title propagated
+
+[50] nav upsert — payload contracts (semidex fields, ranges, ids)
+  ✓ every nav payload passes isSemidexPayload
+  ✓ chunk_index is -1 on every nav payload
+  ✓ total_chunks is -1
+  ✓ isNavPoint catches every nav payload
+  ✓ file payload present with children
+  ✓ summary mirrored into text
+  ✓ section payload carries section name
+  ✓ source_file present (PRUNE_STALE coverage)
+  ✓ provider meta merged
+  ✓ chunking_model stamped
+  ✓ tags empty (nav carries no content tags)
+  ✓ nav point ids deterministic
+  ✓ nav point ids unique
+  ✓ nav points always pass through, unconditionally
+  ✓ side-channel is non-enumerable
+  ✓ directory nav nodes are emitted for nested folders
+  ✓ top children include top-level dirs and root files
+  ✓ directory children include subdirs and direct files
+  ✓ nested directory parent_id points to parent directory
+  ✓ directory payload source_file is empty (does not pollute file lists)
+  ✓ directory payloads pass semidex/nav contracts
+
+[51] skeleton summary — adaptive window rule + stubbed LLM
+  ✓ default window 8000
+  ✓ env override respected
+  ✓ invalid env falls back
+  ✓ full fits → full
+  ✓ full too big, parts fit → parts
+  ✓ huge parts → batched
+  ✓ batches respect budget
+  ✓ no part lost in batching
+  ✓ input navPoints not mutated
+  ✓ every nav node got a semantic summary
+  ✓ inventory preserved alongside
+  ✓ order preserved (file first)
+  ✓ one LLM call per nav node (small doc, full mode)
+[skeleton-summary] "section "Guide"" attempt 1 rejected — retrying
+[skeleton-summary] section "Guide" rejected after retry — keeping inventory
+[skeleton-summary] "section "Setup"" attempt 1 rejected — retrying
+[skeleton-summary] section "Setup" rejected after retry — keeping inventory
+[skeleton-summary] "the document "g.md"" attempt 1 rejected — retrying
+[skeleton-summary] file "g.md" rejected after retry — keeping inventory
+  ✓ section prompt carries section content
+  ✓ file prompt carries full document content
+  ✓ rules trail the content (content-first prompt)
+  ✓ english content never gets a Ukrainian rule
+  ✓ long english content → explicit English rule
+  ✓ short content falls back to generic same-language rule
+  ✓ LLM failure keeps inventory summary
+  ✓ latin estimate unchanged (chars/4)
+  ✓ cyrillic estimated ~2x denser
+  ✓ mixed text lands between
+  ✓ oversized section prompts carry real chunk content
+  ✓ ukrainian content → explicit Ukrainian language rule
+  ✓ short roll-up notes fall back to generic rule (no false lang)
+  ✓ SUMMARY_LANG=en forces English
+  ✓ SUMMARY_LANG=ukr ISO-3 accepted
+  ✓ SUMMARY_LANG free-form (excluded from auto whitelist) accepted
+  ✓ SUMMARY_LANG=auto → detection
+  ✓ forced language overrides detection on ukrainian content
+  ✓ oversized section never collapses to inventory-only prompt
+  ✓ clean summary passes
+  ✓ SUMMARY: echo stripped
+  ✓ wrapping quotes stripped
+  ✓ newlines collapsed
+  ✓ "This document..." opener allowed
+  ✓ conversational EN rejected
+  ✓ conversational "Here is" rejected
+  ✓ conversational UA rejected
+  ✓ markdown list answer rejected
+  ✓ markdown bold answer rejected
+  ✓ over-length blow-up rejected
+  ✓ degenerate loop rejected
+  ✓ empty/garbage rejected
+  ✓ too-short output rejected (single word like "uv")
+  ✓ too-short output rejected (< 20 chars)
+  ✓ 20-char boundary passes
+  ✓ rejected output keeps inventory summary
+  ✓ rejection logged per node
+  ✓ collection rejection falls back to inventory
+  ✓ inventory mode: count summary
+  ✓ children point to file nodes
+  ✓ llm mode: roll-up from file summaries
+  ✓ empty collection → inventory, no LLM call
+
+[52] resolveRunNumCtx — logic + index.js wiring
+  ✓ env override respected
+  ✓ too-small env ignored — falls through to model max
+  ✓ zero maxPromptTokens → env value
+  ✓ nextPow2Clamped math correct for all cases
+  ✓ 15% headroom applied before rounding
+  ✓ resolveNumCtx alias: env override flows through
+  ✓ numCtx forwarded to every generateFn call
+  ✓ all nav nodes processed (not short-circuited)
+  ✓ numCtx forwarded to buildCollectionSummary LLM call
+[skeleton-summary] "section "Guide"" attempt 1 rejected — retrying
+[skeleton-summary] section "Guide" rejected after retry — keeping inventory
+[skeleton-summary] "section "Setup"" attempt 1 rejected — retrying
+[skeleton-summary] section "Setup" rejected after retry — keeping inventory
+[skeleton-summary] "section "Operations"" attempt 1 rejected — retrying
+[skeleton-summary] section "Operations" rejected after retry — keeping inventory
+[skeleton-summary] "the document "g.md"" attempt 1 rejected — retrying
+[skeleton-summary] file "g.md" rejected after retry — keeping inventory
+[skeleton-summary] "section "Guide"" attempt 1 rejected — retrying
+[skeleton-summary] section "Guide" rejected after retry — keeping inventory
+[skeleton-summary] "section "Setup"" attempt 1 rejected — retrying
+[skeleton-summary] section "Setup" rejected after retry — keeping inventory
+[skeleton-summary] "section "Operations"" attempt 1 rejected — retrying
+[skeleton-summary] section "Operations" rejected after retry — keeping inventory
+[skeleton-summary] "the document "g.md"" attempt 1 rejected — retrying
+[skeleton-summary] file "g.md" rejected after retry — keeping inventory
+  ✓ run 1 uses its own numCtx throughout
+  ✓ run 2 uses its own numCtx throughout
+  ✓ runs are isolated (no cross-contamination)
+  ✓ retry: valid summary used after first rejection
+  ✓ retry: attempt-1-rejected logged
+  ✓ retry: no inventory fallback when retry succeeds
+
+[53] skeleton nav tools — getSkeleton / getSkeletonNode / getSkeletonChildren
+  ✓ validateNode: both ids → error
+  ✓ validateNode: neither id → error
+  ✓ validateNode: only node_id → ok
+  ✓ validateNode: only node_path → ok
+  ✓ validateNode: error message exact
+  ✓ validateChildren: both ids → error
+  ✓ validateChildren: neither id → error
+  ✓ validateChildren: only node_id → ok
+  ✓ validateChildren: only node_path → ok
+  ✓ formatSkeleton: returns node_type
+  ✓ formatSkeleton: returns node_id
+  ✓ formatSkeleton: returns summary
+  ✓ formatSkeleton: returns inventory
+  ✓ formatSkeleton: root child_count reflects collectionNode.children length
+  ✓ formatSkeleton: children array length matches resolved children
+  ✓ formatSkeleton: child has node_type
+  ✓ formatSkeleton: child has node_path
+  ✓ formatSkeleton: child has child_count
+  ✓ formatSkeleton: empty-children dir has child_count 0
+  ✓ formatSkeleton: returns null for null collection node
+  ✓ formatSkeleton: empty resolved children list is valid
+  ✓ formatSkeleton: child_count 0 when children field absent
+  ✓ formatNode: returns node_type
+  ✓ formatNode: returns node_id
+  ✓ formatNode: returns node_path
+  ✓ formatNode: returns parent_id
+  ✓ formatNode: returns summary
+  ✓ formatNode: returns source_file
+  ✓ formatNode: returns children arr
+  ✓ formatNode: heading_path null on file node
+  ✓ formatNode: heading_path populated on section node
+  ✓ formatNode: returns null for null input
+  ✓ formatNode: parent_id defaults to null
+  ✓ formatNode: summary defaults to empty string
+  ✓ formatChildren: parent node_type
+  ✓ formatChildren: parent node_id
+  ✓ formatChildren: children array length
+  ✓ formatChildren: total_children matches
+  ✓ formatChildren: returned_children matches
+  ✓ formatChildren: truncated false when all returned
+  ✓ formatChildren: child node_type
+  ✓ formatChildren: child source_file
+  ✓ formatChildren: child child_count from array length
+  ✓ formatChildren: leaf child has child_count 0
+  ✓ formatChildren: total_children = declared parent total
+  ✓ formatChildren: returned_children = actual returned
+  ✓ formatChildren: truncated true when returned < total
+  ✓ formatChildren: empty children gives total_children 0
+  ✓ formatChildren: empty children gives returned_children 0
+  ✓ formatChildren: empty children not truncated
+  ✓ formatChildren: empty children gives empty array
+  ✓ formatChildren: child summary defaults to empty string
+  ✓ formatChildren: child_count 0 when children field absent
+  ✓ formatChildren: omitting totalChildPaths falls back to children.length
+  ✓ formatNode: summary_kind present on adaptive node
+  ✓ formatNode: summary_version present on adaptive node
+  ✓ formatNode: key_topics present on adaptive node
+  ✓ formatNode: notable_terms present on adaptive node
+  ✓ formatNode: child_overview present on adaptive node
+  ✓ formatNode: inventory present on adaptive node
+  ✓ formatNode: summary_kind absent on inventory-only node
+  ✓ formatNode: summary_version absent on inventory-only node
+  ✓ formatNode: key_topics absent on inventory-only node
+  ✓ formatNode: notable_terms absent on inventory-only node
+  ✓ formatNode: child_overview absent on inventory-only node
+  ✓ formatChildren: child with adaptive — summary_kind present
+  ✓ formatChildren: child with adaptive — key_topics present
+  ✓ formatChildren: child with adaptive — notable_terms present
+  ✓ formatChildren: inventory-only child — summary_kind absent
+  ✓ formatChildren: child_overview absent from children output
+  ✓ formatSkeleton: collection summary_kind present
+  ✓ formatSkeleton: collection summary_version present
+  ✓ formatSkeleton: collection key_topics present
+  ✓ formatSkeleton: collection notable_terms present
+  ✓ formatSkeleton: child with summary_kind shows it
+  ✓ formatSkeleton: child without summary_kind — absent
+  ✓ formatSkeleton: summary_kind absent when undefined on collection
+  ✓ formatSkeleton: summary_version absent when undefined on collection
+  ✓ formatSkeleton: key_topics absent when undefined on collection
+  ✓ formatSkeleton: notable_terms absent when undefined on collection
+
+[54] adaptive skeleton summaries — tiers, structured output, payload shape
+  ✓ default small threshold = 300
+  ✓ default medium threshold = 1500
+  ✓ env override small
+  ✓ env override medium
+  ✓ invalid env ignored — small
+  ✓ invalid env ignored — medium
+  ✓ 0 tokens → short
+  ✓ 299 tokens → short
+  ✓ 300 tokens → medium
+  ✓ 1499 tokens → medium
+  ✓ 1500 tokens → structured
+  ✓ 9999 tokens → structured
+  ✓ custom thresholds: 50 → short
+  ✓ custom thresholds: 150 → medium
+  ✓ custom thresholds: 600 → structured
+  ✓ valid JSON parsed
+  ✓ summary extracted
+  ✓ key_topics extracted
+  ✓ notable_terms extracted
+  ✓ child_overview absent if not in input
+  ✓ child_overview present when in input
+  ✓ child_overview items preserved
+  ✓ key_topics capped at 6
+  ✓ notable_terms capped at 8
+  ✓ child_overview capped at 10
+  ✓ markdown-wrapped JSON parsed
+  ✓ JSON: prefix stripped
+  ✓ bad summary inside JSON → null
+  ✓ plain text → null
+  ✓ null input → null
+  ✓ empty string → null
+  ✓ short tier returns result
+  ✓ short tier summary_kind=llm_short
+  ✓ short tier no key_topics
+  ✓ medium tier returns result
+  ✓ medium tier summary_kind=llm_medium
+  ✓ structured tier returns result
+  ✓ structured summary_kind=llm_structured
+  ✓ structured has key_topics
+  ✓ structured has notable_terms
+  ✓ structured file node has child_overview
+  ✓ structured section has no child_overview
+  ✓ error → null (caller keeps inventory)
+  ✓ buildFileSkeleton stamps summary_kind=inventory on file node
+  ✓ buildFileSkeleton stamps summary_kind=inventory on section nodes
+  ✓ enriched nodes have summary_kind
+  ✓ enriched nodes have summary_version
+  ✓ inventory still preserved
+  ✓ summary changed from inventory
+  ✓ inventory mode: summary_kind=inventory
+  ✓ llm mode: summary_kind=collection_overview
+  ✓ llm mode: summary_version stamped
+  ✓ payload.summary_kind passes through
+  ✓ payload.summary_version passes through
+  ✓ payload.key_topics passes through
+  ✓ payload.notable_terms passes through
+  ✓ payload.child_overview passes through
+  ✓ payload.inventory passes through
+  ✓ payload.summary still present
+  ✓ minimal node: no key_topics in payload
+  ✓ minimal node: no notable_terms in payload
+  ✓ minimal node: no child_overview in payload
+  ✓ minimal node: no summary_version in payload (!summary_version → absent)
+
+[55] hierarchical skeleton summaries — directory rollups + collection overview
+  ✓ one-section: section gets LLM summary
+  ✓ one-section: file summary propagated from section
+  ✓ one-section: file summary_kind = propagated
+  ✓ one-section: file summary_version stamped
+  ✓ one-section: inventory preserved on file
+  ✓ one-section: only 1 LLM call (section only, file propagated)
+  ✓ two-section: file NOT propagated (summary_kind != propagated)
+  ✓ two-section: LLM called more than once
+  ✓ two-section: file inventory preserved
+[skeleton-summary] "section "Guide"" attempt 1 error: ollama down
+[skeleton-summary] "section "Guide"" attempt 1 rejected — retrying
+[skeleton-summary] "section "Guide"" attempt 2 error: ollama down
+[skeleton-summary] section "Guide" rejected after retry — keeping inventory
+[skeleton-summary] "the document "guide.md"" attempt 1 error: ollama down
+[skeleton-summary] "the document "guide.md"" attempt 1 rejected — retrying
+[skeleton-summary] "the document "guide.md"" attempt 2 error: ollama down
+[skeleton-summary] file "guide.md" rejected after retry — keeping inventory
+  ✓ one-section: if section LLM fails, file does NOT propagate (summary_kind != propagated)
+  ✓ preamble: file does NOT propagate when preamble chunks exist
+  ✓ preamble: file LLM was called (not skipped)
+  ✓ dir 1-file: summary propagated from child
+  ✓ dir 1-file: summary_kind = propagated
+  ✓ dir 1-file: summary_version stamped
+  ✓ dir 1-file: key_topics propagated
+  ✓ dir 1-file: notable_terms propagated
+  ✓ dir 1-file: inventory preserved
+  ✓ dir 1-file: no LLM call (propagation)
+  ✓ dir 1-file inventory-only: no propagation
+  ✓ dir 1-file inventory-only: no LLM call
+  ✓ dir multi-file: summary from LLM rollup
+  ✓ dir multi-file: summary_kind = rollup
+  ✓ dir multi-file: summary_version stamped
+  ✓ dir multi-file: inventory preserved
+  ✓ dir multi-file: LLM was called
+  ✓ dir no-children: inventory kept, no extra fields
+[skeleton-summary] rollup "directory "T"" attempt 1 error: ollama down
+[skeleton-summary] rollup "directory "T"" attempt 1 rejected — retrying
+[skeleton-summary] rollup "directory "T"" attempt 2 error: ollama down
+[skeleton-summary] directory "T" rollup rejected — keeping inventory
+  ✓ dir multi: LLM failure keeps inventory summary
+  ✓ dir multi: LLM failure — no summary_kind stamp
+  ✓ collection 1-dir: NOT propagated from child summary
+  ✓ collection 1-dir: summary_kind = collection_overview
+  ✓ collection 1-dir: summary_version stamped
+  ✓ collection 1-dir: key_topics parsed
+  ✓ collection 1-dir: notable_terms parsed
+  ✓ collection 1-dir: LLM called for collection root
+  ✓ collection 1-dir: prompt includes file notes
+  ✓ collection 1-dir inventory: collection overview
+  ✓ collection 1-dir inventory: LLM was called
+  ✓ collection multi-dir: collection overview
+  ✓ collection multi-dir: LLM called
+  ✓ collection multi-dir: summary_version stamped
+  ✓ collection 1-file: NOT propagated from file
+  ✓ collection 1-file: summary_kind = collection_overview
+  ✓ collection 1-file: LLM call made
+  ✓ collection no-llm: summary_kind = inventory
+  ✓ collection no-llm: no summary_version
+  ✓ collection empty: inventory
+  ✓ propagated: summary_kind passes through payload
+  ✓ propagated: summary_version passes through
+  ✓ propagated: key_topics passes through
+
+[56] qdrant_get_node — structural node resolver
+  ✓ validate: both ids → error
+  ✓ validate: neither id → error
+  ✓ validate: only node_id → ok
+  ✓ validate: only node_path → ok
+  ✓ validate: error message exact
+  ✓ table: found = true
+  ✓ table: collection set
+  ✓ table: node_type = table
+  ✓ table: node_id present
+  ✓ table: node_path present
+  ✓ table: parent_id present
+  ✓ table: source_file present
+  ✓ table: heading_path array
+  ✓ table: chunk_index present
+  ✓ table: section present
+  ✓ table: context present
+  ✓ table: preview = raw_content
+  ✓ table: raw_chars correct
+  ✓ table: truncated false (fits)
+  ✓ table: raw_available true
+  ✓ table: lang null
+  ✓ table: summary null
+  ✓ code: found = true
+  ✓ code: lang = python
+  ✓ code: preview from rawContent
+  ✓ code: raw_available true
+  ✓ text fallback: found = true
+  ✓ text fallback: preview from text
+  ✓ text fallback: raw_available
+  ✓ truncation: preview capped to 200
+  ✓ truncation: raw_chars = 5000
+  ✓ truncation: truncated = true
+  ✓ truncation: preview_chars = 200
+  ✓ clamp: below min clamped to 200
+  ✓ clamp: zero clamped to 200
+  ✓ clamp: negative clamped to 200
+  ✓ clamp: above max clamped to 8000
+  ✓ clamp helper: undefined uses default 2000
+  ✓ clamp helper: invalid string uses default 2000
+  ✓ no-raw: found = true
+  ✓ no-raw: preview = empty str
+  ✓ no-raw: raw_chars = 0
+  ✓ no-raw: raw_available = false
+  ✓ no-raw: truncated = false
+  ✓ minimal: found = true
+  ✓ minimal: node_id null
+  ✓ minimal: node_path null
+  ✓ minimal: parent_id null
+  ✓ minimal: source_file null
+  ✓ minimal: heading_path null
+  ✓ minimal: chunk_index null
+  ✓ minimal: section null
+  ✓ minimal: lang null
+  ✓ minimal: summary null
+  ✓ minimal: context null
+  ✓ minimal: preview = raw_content
+  ✓ nav rejection: found = false
+  ✓ nav rejection: reason = nav_node_not_content
+  ✓ nav rejection: collection set
+  ✓ nav rejection: no preview field
+  ✓ entity_raw: found = true (not rejected like skeleton_nav)
+  ✓ entity_raw: preview = full raw_content
+  ✓ entity_raw: raw_available true
+  ✓ resolveCanonicalEntity: fragment resolves to canonical entity_raw payload
+  ✓ resolveCanonicalEntity: looked up via the fragment's entity_id, not its own node_id
+  ✓ resolveCanonicalEntity: non-fragment content (no entity_id) passes through unchanged
+  ✓ resolveCanonicalEntity: null content passes through as null
+  ✓ resolveCanonicalEntity: falls back to the fragment itself if canonical lookup returns nothing
+
+[57] skeleton structural carryover — prose context, boundaries, caps
+  ✓ [1] table chunk context includes cleaned prose phrase
+  ✓ [1] table chunk text is raw markdown
+  ✓ [1] table raw_content is raw markdown
+  ✓ [2] code_block context includes prose carryover
+  ✓ [2] code_block text is raw source
+  ✓ [2] code_block raw_content is raw source
+  ✓ [3] table context has no placeholder lines
+  ✓ [3] code context has no placeholder lines
+  ✓ [4] table context does not carry prose from previous section
+  ✓ [5] second table context has no placeholder from first table
+  ✓ [6] carryover prose is capped at configured limit
+  ✓ [7a] SKELETON_CARRYOVER_CHARS=50 caps prose at 50 chars
+  ✓ [7b] invalid SKELETON_CARRYOVER_CHARS falls back to default
+  ✓ [7c] second entity in sequence gets prose from same section
+
+──────────────────────────────────────────────────
+Smoke tests: 1316 passed, 0 failed

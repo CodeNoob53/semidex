@@ -1,0 +1,200 @@
+{
+  "version": 1,
+  "benchmarkContract": {
+    "version": 1,
+    "suiteId": "structural",
+    "datasetFingerprint": "structural-fixture-v1",
+    "qdrantEndpointFingerprint": "8f9428ceda054cc5",
+    "collectionPrefix": "semidex-prodpath-bench-",
+    "hybridPrefetchLimit": "pinned(2)",
+    "rrfK": "pinned(60)",
+    "chunkCandidateLimit": 400,
+    "documentMetricDepth": 100,
+    "collapseStrategy": "max",
+    "cudaRequested": false,
+    "deterministicEnvHash": "{\"TAG_GEN\":\"0\",\"SKELETON_SUMMARY\":\"deterministic\",\"PIPELINE_MODE\":\"0\",\"STAGEA_CONCURRENCY\":\"1\",\"OLLAMA_STAGE_CONCURRENCY\":\"1\",\"EMBED_STAGE_CONCURRENCY\":\"1\",\"MAX_CHUNK_TOKENS\":\"512\",\"MIN_CHUNK_TOKENS\":\"160\",\"CHUNK_OVERLAP_TOKENS\":\"80\",\"SKELETON_CARRYOVER_CHARS\":\"500\",\"HYBRID_PREFETCH_LIMIT\":\"2\",\"RRF_K\":\"60\",\"PRUNE_STALE\":\"0\",\"COMBINED_LLM\":\"0\",\"FORCE_REINDEX\":\"0\",\"ONNX_EXECUTION_PROVIDER\":\"cpu\",\"ONNX_CUDA_STRICT\":\"0\"}"
+  },
+  "profiles": {
+    "local": {
+      "collection": "semidex-prodpath-bench-structural-local-d4f72be7-local",
+      "profileId": "local",
+      "errors": [
+        {
+          "queryId": "q-table",
+          "error": "embedding_failed",
+          "message": "Failed to embed query: embeddings.js: no onnxEmbed capability available — pass { capabilities: { onnxEmbed } } or call applyEmbeddingCapabilities() first."
+        },
+        {
+          "queryId": "q-code",
+          "error": "embedding_failed",
+          "message": "Failed to embed query: embeddings.js: no onnxEmbed capability available — pass { capabilities: { onnxEmbed } } or call applyEmbeddingCapabilities() first."
+        },
+        {
+          "queryId": "q-checklist",
+          "error": "embedding_failed",
+          "message": "Failed to embed query: embeddings.js: no onnxEmbed capability available — pass { capabilities: { onnxEmbed } } or call applyEmbeddingCapabilities() first."
+        }
+      ],
+      "cleanup": {
+        "attempted": true,
+        "deleted": true
+      },
+      "unmappedHitCount": 0,
+      "queryErrorCount": 3,
+      "indexing": {
+        "ms": 36162,
+        "exitCode": 0,
+        "peakChildRssBytes": null,
+        "documentsIndexed": 4,
+        "errors": 0
+      },
+      "metrics": {
+        "queryCount": 3,
+        "ndcgAt10": null,
+        "mapAt100": null,
+        "recallAt10": null,
+        "recallAt100": null,
+        "precisionAt10": null,
+        "mrrAt10": null,
+        "skippedForRecallMap": 0
+      },
+      "queriesWithInsufficientDepth": 0,
+      "latency": {
+        "count": 3,
+        "p50": 292.3574,
+        "p95": 353.3792
+      },
+      "telemetry": {
+        "qdrantSdkOps": {
+          "byLabel": {
+            "Qdrant listCollections failed": 4,
+            "Create collection failed": 1,
+            "Create index failed": 8,
+            "Qdrant scroll failed": 11,
+            "Qdrant upsert failed": 9,
+            "Qdrant deleteTrailingChunks failed": 4,
+            "Qdrant deleteByFilter failed": 1,
+            "updateCollectionMetadata failed": 1,
+            "Qdrant getCollectionInfo failed": 3,
+            "Qdrant count failed": 3
+          },
+          "total": 45
+        },
+        "denseInferenceItems": {
+          "indexing": 0,
+          "query": 0,
+          "total": 0
+        },
+        "sparseInferenceItems": {
+          "indexing": 0,
+          "query": 0,
+          "total": 0
+        },
+        "totalDenseChars": {
+          "indexing": 0,
+          "query": 0,
+          "total": 0
+        },
+        "totalSparseChars": {
+          "indexing": 0,
+          "query": 0,
+          "total": 0
+        },
+        "malformedLines": 0
+      }
+    },
+    "cloud": {
+      "collection": "semidex-prodpath-bench-structural-cloud-d4f72be7-cloud",
+      "profileId": "cloud",
+      "errors": [
+        {
+          "queryId": "q-table",
+          "error": "embedding_failed",
+          "message": "Collection \"semidex-prodpath-bench-structural-cloud-d4f72be7-cloud\" uses qdrant-cloud execution, but no cloudEmbed capability was supplied to runHybridSearch()."
+        },
+        {
+          "queryId": "q-code",
+          "error": "embedding_failed",
+          "message": "Collection \"semidex-prodpath-bench-structural-cloud-d4f72be7-cloud\" uses qdrant-cloud execution, but no cloudEmbed capability was supplied to runHybridSearch()."
+        },
+        {
+          "queryId": "q-checklist",
+          "error": "embedding_failed",
+          "message": "Collection \"semidex-prodpath-bench-structural-cloud-d4f72be7-cloud\" uses qdrant-cloud execution, but no cloudEmbed capability was supplied to runHybridSearch()."
+        }
+      ],
+      "cleanup": {
+        "attempted": true,
+        "deleted": true
+      },
+      "unmappedHitCount": 0,
+      "queryErrorCount": 3,
+      "indexing": {
+        "ms": 17038,
+        "exitCode": 0,
+        "peakChildRssBytes": null,
+        "documentsIndexed": 4,
+        "errors": 0
+      },
+      "metrics": {
+        "queryCount": 3,
+        "ndcgAt10": null,
+        "mapAt100": null,
+        "recallAt10": null,
+        "recallAt100": null,
+        "precisionAt10": null,
+        "mrrAt10": null,
+        "skippedForRecallMap": 0
+      },
+      "queriesWithInsufficientDepth": 0,
+      "latency": {
+        "count": 3,
+        "p50": 523.1256,
+        "p95": 682.832
+      },
+      "telemetry": {
+        "qdrantSdkOps": {
+          "byLabel": {
+            "Qdrant listCollections failed": 4,
+            "Create collection failed": 1,
+            "Create index failed": 8,
+            "Qdrant scroll failed": 11,
+            "Qdrant upsert failed": 9,
+            "Qdrant deleteTrailingChunks failed": 4,
+            "Qdrant upsert (vectorless) failed": 1,
+            "Qdrant deleteByFilter failed": 1,
+            "updateCollectionMetadata failed": 1,
+            "Qdrant getCollectionInfo failed": 3,
+            "Qdrant count failed": 3
+          },
+          "total": 46
+        },
+        "denseInferenceItems": {
+          "indexing": 35,
+          "query": 0,
+          "total": 35
+        },
+        "sparseInferenceItems": {
+          "indexing": 35,
+          "query": 0,
+          "total": 35
+        },
+        "totalDenseChars": {
+          "indexing": 19631,
+          "query": 0,
+          "total": 19631
+        },
+        "totalSparseChars": {
+          "indexing": 19631,
+          "query": 0,
+          "total": 19631
+        },
+        "malformedLines": 0
+      }
+    }
+  },
+  "resumeEvents": [],
+  "startedAt": "2026-09-06T16:18:36.874Z",
+  "finishedAt": "2026-09-06T16:19:33.061Z",
+  "verdict": "INCOMPLETE"
+}

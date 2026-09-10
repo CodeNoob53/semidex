@@ -1,0 +1,1570 @@
+[
+  {
+    "id": "039719de-060b-45ff-a844-dd436e9ae031",
+    "payload": {
+      "text": "The indexer also updates config.json when it creates a new collection. Sync is only\nneeded for collections that were created outside the indexer (e.g. manually via the\nQdrant API or dashboard), or to repair a config.json that has drifted from the live\nQdrant state.",
+      "section": "Relationship to indexer",
+      "source_file": "sync.md",
+      "chunk_index": 4,
+      "total_chunks": 6,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "055c27bc-eedf-4756-ab8b-25dedc71c176",
+    "payload": {
+      "text": "`parseMarkdown` splits a document on `#`, `##`, and `###` headings that pass the\n`isStructuralHeading` heuristic (length ≤ 120, no sentence-ending punctuation).\nEach section becomes an independent chunking unit. Sections shorter than `MIN_CHUNK_TOKENS`\nare skipped unless they have a heading (headings alone are kept as context anchors).",
+      "section": "Markdown sections",
+      "source_file": "chunking.md",
+      "chunk_index": 6,
+      "total_chunks": 9,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "08263a71-e9e0-417e-9517-403dbc4fb3d4",
+    "payload": {
+      "text": "All Qdrant REST calls go through this module. Key exports:\n- `hybridSearch(collection, dense, sparse, limit, filter)` — RRF fusion query\n- `mmrSearch(collection, dense, limit, filter, opts)` — dense MMR query\n- `scroll(collection, filter, limit, withPayload)` — paginated point retrieval\n- `getStoredMeta(collection, sourceFile)` — reads six reindex discriminator fields\n- `createCollection(name, size)` — creates collection with dense + sparse vectors",
+      "section": "src/core/qdrant.js",
+      "source_file": "project-structure.md",
+      "chunk_index": 6,
+      "total_chunks": 10,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "0985a758-2caa-4824-9888-fc3c49289148",
+    "payload": {
+      "text": "| Variable | Description |\n|----------|-------------|\n| `COLLECTION` | Target Qdrant collection name |\n| `SOURCE_ROOT` | Root path used to compute stable `source_file` IDs |\n\n`SOURCE_ROOT` should be set to the root of the documents directory so that\n`source_file` values are stable across machines and across runs from different\nworking directories.",
+      "section": "Indexing (per-run, passed on CLI not .env)",
+      "source_file": "config-env.md",
+      "chunk_index": 4,
+      "total_chunks": 10,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "09de288e-ac2a-44ab-9d97-6d18d946873e",
+    "payload": {
+      "text": "qdrant_list_files(collection=\"my-notes\")",
+      "section": "List all files",
+      "source_file": "obsidian.md",
+      "chunk_index": 5,
+      "total_chunks": 10,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "0bc6262b-228a-4d54-9963-9938ecd4e261",
+    "payload": {
+      "text": "```json\n{\n  \"schemaVersion\": 3,\n  \"queries\": [{\n    \"id\": \"c01\", \"type\": \"exact-token\", \"query\": \"...\",\n    \"expectedFiles\": [\"file.md\"],\n    \"relevantChunks\": [\n      { \"chunkId\": \"file.md#2\", \"relevance\": 3 },\n      { \"chunkId\": \"file.md#3\", \"relevance\": 2 }\n    ],\n    \"expectedTokens\": [\"token\"],\n    \"note\": \"...\"\n  }]\n}\n```\n\n`chunkId` format is `source_file#chunk_index` (zero-based). This matches the\n`source_file` and `chunk_index` fields in Qdrant payloads.",
+      "section": "v3 (graded chunk-level)",
+      "source_file": "benchmarking.md",
+      "chunk_index": 5,
+      "total_chunks": 21,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "0ce08f41-97d8-449f-82ab-f0e59e486c95",
+    "payload": {
+      "text": "`npm run sync` (or `node src/sync.js`) synchronises `config.json` with the live\ncollections in Qdrant. It does not index any files — it only updates the local config.",
+      "section": "Sync",
+      "source_file": "sync.md",
+      "chunk_index": 0,
+      "total_chunks": 6,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "0d1e9e57-9eab-4d5b-afc0-39a9ec4ca4f8",
+    "payload": {
+      "text": "Reads and writes `config.json`. Exports `resolveEnvProviders()` which maps\nenvironment variables (`ONNX_EMBED`, `DENSE_PROVIDER`, `SPARSE_PROVIDER`, `DENSE_MODEL`)\nto canonical provider names. This is the single source of truth for provider resolution.",
+      "section": "src/core/config.js",
+      "source_file": "project-structure.md",
+      "chunk_index": 4,
+      "total_chunks": 10,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "1000130f-0578-4ac3-b5e0-826d48fb9dcf",
+    "payload": {
+      "text": "| Field | Type | Description |\n|-------|------|-------------|\n| `source_file` | string | Stable file identifier relative to `SOURCE_ROOT` |\n| `chunk_index` | integer | Zero-based position within the source file |\n| `section` | string | Markdown heading of the containing section |\n| `total_chunks` | integer | Total chunk count for this source file |\n| `tags` | string[] | LLM-generated topic tags |\n\n`source_file` and `tags` are payload-indexed for efficient filtering. They are\ncreated automatically by `npm run index` for new collections.",
+      "section": "Payload Fields Used for Navigation",
+      "source_file": "obsidian.md",
+      "chunk_index": 7,
+      "total_chunks": 10,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "12884601-9ad9-467d-9bc9-bb62efe9ab47",
+    "payload": {
+      "text": "npm run bench:retrieval",
+      "section": "Stable 21q regression benchmark",
+      "source_file": "benchmarking.md",
+      "chunk_index": 11,
+      "total_chunks": 21,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "14fcf7f8-8075-430a-8fa3-963c9057eb85",
+    "payload": {
+      "text": "Both dense and sparse embeddings are produced by the BGE-M3 ONNX model.\nThe sparse embeddings are neural sparse — the model learns token importance,\nnot just frequency. For Ukrainian and mixed-language content, this produces\nbetter sparse weights for technical terms and rare vocabulary.\n\nEnable with `ONNX_EMBED=1`.",
+      "section": "bge-m3-onnx + bge-m3-onnx",
+      "source_file": "multilingual.md",
+      "chunk_index": 2,
+      "total_chunks": 9,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "178d4826-5309-4d52-92dd-14db7e4de358",
+    "payload": {
+      "text": "| Variable           | Default | Range       | Meaning                                    |\n|--------------------|---------|-------------|--------------------------------------------|\n| `MAX_CHUNK_TOKENS` | 400     | 1–100000    | Maximum tokens per chunk                   |\n| `MIN_CHUNK_TOKENS` | 30      | 0–100000    | Minimum tokens for a section to be included|\n| `OVERLAP_SENTENCES`| 2       | 0–100       | Sentences carried from chunk N into N+1    |\n\nAll three are validated with `envInt()` on startup; invalid values produce a warning and\nfall back to the default.",
+      "section": "Parameters",
+      "source_file": "chunking.md",
+      "chunk_index": 1,
+      "total_chunks": 9,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "1d45e75f-c09f-43aa-bd4f-430645520214",
+    "payload": {
+      "text": "│   │       ├── embed. js       # Batch embedding phase │   │       └── tag. js         # LLM tag generation phase │   ├── mcp/ │   │   ├── server. js          # MCP server entry point │   │   └── tools/ │   │       ├── search. js      # qdrant_search, qdrant_get_chunk, qdrant_find_by_tag │   │       ├── list. js        # qdrant_list_files, qdrant_list_directories │   │       └── info. js        # qdrant_collection_info │   └── sync. js                # Sync config. json with live Qdrant collections ├── benchmarks/ │   ├── retrieval/ │   │   ├── run. js             # 21-query regression benchmark (v1/v2 schema) │   │   ├── compare. js         # Side-by-side ollama vs onnx │   │   ├── rerank-matrix. js   # 4-variant rerank matrix │   │   ├── mmr-matrix. js      # MMR diversity matrix │   │   ├── queries. json       # Stable 21-query regression set │   │   └── fixtures/docs/     # 4 fixture docs: providers, qdrant, chunking, sync │   └── retrieval/custom-50/ │       ├── run-v3. js          # Quality benchmark runner (v3 schema, graded qrels) │       ├── queries. json       # 50-query evaluation set │       └── fixtures/docs/     # 8-10 fixture docs covering all semidex subsystems ├── docs/",
+      "section": "Source Tree",
+      "source_file": "project-structure.md",
+      "chunk_index": 2,
+      "total_chunks": 10,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "23749042-830d-4f6e-ab50-c7a04ff82940",
+    "payload": {
+      "text": "```text\nqdrant_collection_info\n  -> qdrant_search(query, collection, top=5)\n  -> qdrant_get_chunk(collection, source_file, chunk_index, window=1)\n  -> qdrant_list_files(collection, directory)\n  -> qdrant_find_by_tag(collection, tag)\n```\n\nSearch results include the matched chunk text, `source_file`, and `chunk_index`.\nUse `source_file` and `chunk_index` from search results as direct inputs to\n`qdrant_get_chunk`. Set `window=1` or `window=2` to retrieve adjacent chunks when\nmore context is needed.",
+      "section": "Recommended Workflow",
+      "source_file": "mcp-workflow.md",
+      "chunk_index": 3,
+      "total_chunks": 9,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "2b275146-8b3e-4b5e-a235-35626adc6fcd",
+    "payload": {
+      "text": "npm run bench:retrieval:compare",
+      "section": "Comparison: ollama vs onnx (two runs)",
+      "source_file": "benchmarking.md",
+      "chunk_index": 16,
+      "total_chunks": 21,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "2cc9b334-c089-4d2f-a8d0-f1c57bbfade9",
+    "payload": {
+      "text": "| Variable | Default | Description |\n|----------|---------|-------------|\n| `RERANK_ENABLED` | `0` | Enable local BM25 reranker |\n| `RERANK_PREFETCH_MULT` | `4` | Candidate multiplier before reranking |\n| `RERANK_DEBUG` | `0` | Print per-result scoring details |\n| `RERANK_BOOST_SOURCE_FILE` | `0.08` | Score boost per token hit in source filename |\n| `RERANK_BOOST_SECTION` | `0.06` | Score boost per token hit in section heading |\n| `RERANK_BOOST_TAGS` | `0.05` | Score boost per token hit in tags |\n| `RERANK_BOOST_TEXT` | `0.01` | Score boost per token hit in body text |\n| `RERANK_PROTECT_TOP1_DELTA` | `0.05` | Minimum advantage required to displace RRF rank-0 |",
+      "section": "Reranking (experimental)",
+      "source_file": "config-env.md",
+      "chunk_index": 7,
+      "total_chunks": 10,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "2d6267aa-dabb-4b7f-85d7-7eeaa67ae512",
+    "payload": {
+      "text": "Hybrid search combines dense and sparse retrieval using Reciprocal Rank Fusion (RRF).\nThe implementation uses the Qdrant Query API (`/points/query`) with two prefetch legs\nfollowed by an RRF fusion step.\n\nThe RRF formula scores each result as the sum of `1 / (k + rank_i)` across all retrieval\nlegs, where `k` is a smoothing constant. A higher `k` makes the ranking smoother\n(differences between adjacent ranks matter less). The default value is 60, which is the\nstandard RRF constant from the original paper.",
+      "section": "Hybrid Search and RRF",
+      "source_file": "qdrant.md",
+      "chunk_index": 2,
+      "total_chunks": 8,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "2d637c6e-b390-4dad-9f30-d12efd87c21e",
+    "payload": {
+      "text": "| Variable | Default | Description |\n|----------|---------|-------------|\n| `OLLAMA_URL` | `http://localhost:11434` | Ollama base URL |\n| `EMBED_MODEL` | `bge-m3` | Dense embedding model |\n| `CONTEXT_MODEL` | `gemma3:4b` | Model for LLM chunk contextualization |\n| `TAG_MODEL` | `gemma3:4b` | Model for LLM tag generation |",
+      "section": "Ollama Models",
+      "source_file": "config-env.md",
+      "chunk_index": 3,
+      "total_chunks": 10,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "2dbc8585-4dd3-4d3e-97c9-96c85b745018",
+    "payload": {
+      "text": "semidex indexes files into Qdrant and exposes tools for navigating the indexed\ncorpus without issuing a semantic query. The primary tools are `qdrant_list_files`\nand `qdrant_list_directories`.",
+      "section": "File and Directory Navigation",
+      "source_file": "obsidian.md",
+      "chunk_index": 0,
+      "total_chunks": 10,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "30b15be2-99d4-465f-8a0e-4987674965be",
+    "payload": {
+      "text": "Each benchmark tier uses a dedicated Qdrant collection:\n\n| Benchmark | Collection |\n|-----------|-----------|\n| 21q regression | `bench-retrieval` |\n| 50q quality | `bench-retrieval-custom-50` |\n\nThis isolation ensures that running one benchmark does not affect the other.\nBoth collections are created automatically on first run.",
+      "section": "Collection Isolation",
+      "source_file": "benchmarking.md",
+      "chunk_index": 19,
+      "total_chunks": 21,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "32d920b6-a1f4-417c-8694-51164eb62c41",
+    "payload": {
+      "text": "semidex is a local-first RAG memory system. The codebase is split into a core\nlibrary, an indexer pipeline, an MCP server, and a benchmark harness.",
+      "section": "Project Structure",
+      "source_file": "project-structure.md",
+      "chunk_index": 0,
+      "total_chunks": 10,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "331ffc4c-f6d9-4ed1-8298-d5fd5386c1a1",
+    "payload": {
+      "text": "`qdrant_list_files` returns all files indexed in a collection, optionally filtered to a\nspecific directory prefix. `qdrant_list_directories` returns the top-level directories\npresent in the collection.\n\nBoth tools operate at the file level. They are most useful for navigating the corpus\nstructure: `qdrant_list_directories` shows the layout, while `qdrant_list_files` lets\nthe agent scope a follow-up search to a specific subdirectory or list all files for\ninspection.",
+      "section": "qdrant_list_files and qdrant_list_directories",
+      "source_file": "mcp-workflow.md",
+      "chunk_index": 6,
+      "total_chunks": 9,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "362c1b97-b96d-413d-a2ad-804d81913855",
+    "payload": {
+      "text": "Exports `chunkFile(filePath, text, sourceFile)`. Returns an array of chunk objects\nwith `text`, `section`, `chunkIndex`, `totalChunks`. Controlled by `MAX_CHUNK_TOKENS`,\n`MIN_CHUNK_TOKENS`, and `OVERLAP_SENTENCES` env vars.",
+      "section": "src/indexer/phases/chunk.js",
+      "source_file": "project-structure.md",
+      "chunk_index": 7,
+      "total_chunks": 10,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "3936e1d7-2e1b-4194-baa2-335b70767ba4",
+    "payload": {
+      "text": "| Variable | Default | Description |\n|----------|---------|-------------|\n| `ONNX_EMBED` | `0` | Shorthand to enable `bge-m3-onnx` for both dense and sparse |\n| `DENSE_PROVIDER` | unset | Explicit override: `ollama` or `bge-m3-onnx` |\n| `SPARSE_PROVIDER` | unset | Explicit override: `hashed-tf` or `bge-m3-onnx` |\n| `DENSE_MODEL` | unset | Dense model for Ollama (`bge-m3` is default if Ollama selected) |\n\nValid provider combinations:\n- `ollama + hashed-tf` (default, no ONNX required)\n- `bge-m3-onnx + bge-m3-onnx` (requires ~2.3 GB ONNX model download)\n\nMixed combinations (`ollama + bge-m3-onnx` or `bge-m3-onnx + hashed-tf`) are\nrejected at runtime with an `Invalid provider combination` error.",
+      "section": "Embedding Providers",
+      "source_file": "config-env.md",
+      "chunk_index": 2,
+      "total_chunks": 10,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "3c96c904-a21d-4893-8070-79b572accb3a",
+    "payload": {
+      "text": "semidex supports cross-lingual retrieval: a Ukrainian query can match an\nEnglish document and vice versa. BGE-M3 maps both to the same semantic space,\nso language mismatch does not require separate indexes or translation.\n\nExample cross-lingual retrieval patterns that work:\n- Ukrainian query → English document: `\"як налаштувати провайдер\"` → `providers.md`\n- English query → Ukrainian document\n- Mixed-language query → any document",
+      "section": "Query Language vs Document Language",
+      "source_file": "multilingual.md",
+      "chunk_index": 3,
+      "total_chunks": 9,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "3d14926b-e97a-4b37-b7aa-f0b616aabcb7",
+    "payload": {
+      "text": "semidex is designed to work with Ukrainian, English, and mixed-language content.\nThe BGE-M3 model (both Ollama and ONNX variants) supports over 100 languages and\nproduces high-quality embeddings for cross-lingual retrieval.",
+      "section": "Multilingual Support",
+      "source_file": "multilingual.md",
+      "chunk_index": 0,
+      "total_chunks": 9,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "422c151a-b4f9-4895-b9d0-3b063ec75acd",
+    "payload": {
+      "text": "```bash",
+      "section": "Running Benchmarks",
+      "source_file": "benchmarking.md",
+      "chunk_index": 10,
+      "total_chunks": 21,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "461da75e-f667-4b1d-8002-f753241f8c90",
+    "payload": {
+      "text": "After all sentences have been processed, any remaining sentences are always flushed as a\nfinal chunk — even if the remaining count is less than or equal to `OVERLAP_SENTENCES`.\nThe previous implementation skipped the final chunk when `current.length <= OVERLAP_SENTENCES`,\nwhich silently dropped content from short documents or short terminal sections.\n\nThe flush is conditional on `pending > 0`, where `pending` counts new sentences added\nsince the last chunk was emitted. This prevents emitting an overlap-only chunk after a\nfull chunk has just been flushed.",
+      "section": "Flushing the final chunk",
+      "source_file": "chunking.md",
+      "chunk_index": 5,
+      "total_chunks": 9,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "57fa6aa2-1079-4082-a9f6-897c0911a900",
+    "payload": {
+      "text": "| Variable | Default | Range | Description |\n|----------|---------|-------|-------------|\n| `MAX_CHUNK_TOKENS` | `400` | 1–100000 | Maximum tokens per chunk |\n| `MIN_CHUNK_TOKENS` | `30` | 0–100000 | Minimum tokens; smaller sections may be skipped |\n| `OVERLAP_SENTENCES` | `2` | 0–100 | Sentence overlap between consecutive chunks |\n| `LLM_BATCH_SIZE` | `3` | — | Chunks per LLM call for context/tag phases |\n\nAll chunking vars are validated on startup with `envInt()`. Invalid values produce\na warning and fall back to the default.",
+      "section": "Chunking",
+      "source_file": "config-env.md",
+      "chunk_index": 5,
+      "total_chunks": 10,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "5b79e081-ca69-443c-904b-6b9bfc44f5ea",
+    "payload": {
+      "text": "For best results with Ukrainian or mixed-language content, use `bge-m3-onnx`:\n\n```bash\nONNX_EMBED=1 COLLECTION=my-notes SOURCE_ROOT=./notes npm run index\n```\n\nThe neural sparse encoder consistently outperforms `hashed-tf` on rare and\ntechnical Ukrainian terms, especially for exact-token queries where the correct\nresult depends on a low-frequency word being given high sparse weight.",
+      "section": "Recommended Provider for Multilingual Use",
+      "source_file": "multilingual.md",
+      "chunk_index": 8,
+      "total_chunks": 9,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "5cf03061-cf40-4831-b52f-95edf483e304",
+    "payload": {
+      "text": "The typical agent workflow combines navigation and search:\n\n1. `qdrant_collection_info` — discover available collections.\n2. `qdrant_list_directories` — map the corpus layout.\n3. `qdrant_search(source_file=...)` — scope search to a known file.\n4. `qdrant_get_chunk(window=1)` — expand context around a result.\n\nUse `source_file` from search results as a direct input to `qdrant_list_files`\nto find neighboring documents in the same directory.",
+      "section": "Combining Navigation with Search",
+      "source_file": "obsidian.md",
+      "chunk_index": 8,
+      "total_chunks": 10,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "5eb489d8-5722-4e24-9ec2-5545cbb92f95",
+    "payload": {
+      "text": "The chunking logic uses Unicode-aware sentence splitting:\n`/[^.!?\\n]+[.!?\\n]+|[^.!?\\n]+$/g`. This regex handles Cyrillic text correctly\nbecause it does not assume ASCII sentence boundaries.\n\nMarkdown headings in Ukrainian are parsed identically to English headings.\nSection detection is based on `#`/`##`/`###` prefix, not language-specific patterns.",
+      "section": "Ukrainian-Specific Chunking Notes",
+      "source_file": "multilingual.md",
+      "chunk_index": 4,
+      "total_chunks": 9,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "5ecd6445-d006-4b9d-98ab-4419f1972c37",
+    "payload": {
+      "text": "BENCH_PROVIDER=onnx npm run bench:custom50",
+      "section": "Force ONNX provider",
+      "source_file": "benchmarking.md",
+      "chunk_index": 13,
+      "total_chunks": 21,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "5f6834d7-3843-4c8d-a3aa-e0cb662e2bb8",
+    "payload": {
+      "text": "| Tool | Arguments | Description |\n|------|-----------|-------------|\n| `qdrant_search` | `query`, `collection`, `top?`, `tags?[]`, `source_file?` | Hybrid search with optional tag/source filters |\n| `qdrant_collection_info` | none | Lists collections with point counts, provider metadata, descriptions |\n| `qdrant_get_chunk` | `collection`, `source_file`, `chunk_index`, `window?` | Retrieves one chunk and optional neighbors |\n| `qdrant_list_files` | `collection`, `directory?` | Lists indexed files, optionally scoped to a directory |\n| `qdrant_list_directories` | `collection` | Lists top-level directories present in the collection |\n| `qdrant_find_by_tag` | `collection`, `tag`, `limit?` | Lists chunks matching a tag, grouped by file |",
+      "section": "Tool Reference",
+      "source_file": "mcp-workflow.md",
+      "chunk_index": 2,
+      "total_chunks": 9,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "6121a9d3-8f04-4439-b853-96eca8cb09f0",
+    "payload": {
+      "text": "qdrant_list_directories(collection=\"my-notes\")",
+      "section": "Example MCP call",
+      "source_file": "obsidian.md",
+      "chunk_index": 2,
+      "total_chunks": 10,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "61c2036f-44a2-4ab3-b63c-eb341e4f266d",
+    "payload": {
+      "text": "Dense embeddings are produced by `bge-m3` via Ollama. BGE-M3 is multilingual\nand handles Ukrainian well. Sparse embeddings use `hashed-tf` — a term-frequency\nencoder that works on any language but does not carry semantic weight for rare\nor morphologically complex words.\n\nFor Ukrainian content, `hashed-tf` assigns uniform weight to all tokens based\non frequency. This means that a rare Ukrainian technical term like\n`вбудований_провайдер` gets the same sparse weight as a common word, which can\nreduce retrieval precision for exact technical lookups.",
+      "section": "ollama + hashed-tf (default)",
+      "source_file": "multilingual.md",
+      "chunk_index": 1,
+      "total_chunks": 9,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "61e7ba50-3543-47e4-a7c7-cad71338932c",
+    "payload": {
+      "text": "```\n\nThis is the recommended first step when the agent does not know the corpus layout.",
+      "section": "Returns: [\"docs/\", \"src/\", \"notes/\", ...]",
+      "source_file": "obsidian.md",
+      "chunk_index": 3,
+      "total_chunks": 10,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "624692ba-8ba5-41a7-adce-ab67e51bf1fc",
+    "payload": {
+      "text": "`splitSentences(text)` uses the regex `/[^.!?\\n]+[.!?\\n]+|[^.!?\\n]+$/g` to split on\nsentence-ending punctuation while also capturing any trailing fragment without a\nterminator. This ensures text like `\"Hello world\"` (no period) is never silently dropped.",
+      "section": "Sentence splitting",
+      "source_file": "chunking.md",
+      "chunk_index": 2,
+      "total_chunks": 9,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "65d8814d-d4a8-4329-951d-593e63eb9fb9",
+    "payload": {
+      "text": "npm run bench:custom50",
+      "section": "Quality 50q benchmark",
+      "source_file": "benchmarking.md",
+      "chunk_index": 12,
+      "total_chunks": 21,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "68c4eb10-98be-4e12-96ad-184e02d94ae2",
+    "payload": {
+      "text": "`getStoredMeta(collection, sourceFile)` scrolls one point matching the given source file\nand returns the six reindex discriminator fields from its payload:\n`file_hash`, `dense_provider`, `dense_model`, `sparse_provider`,\n`embedding_schema_version`, and `vector_size`.",
+      "section": "getStoredMeta",
+      "source_file": "qdrant.md",
+      "chunk_index": 6,
+      "total_chunks": 8,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "6944c86f-79f5-4732-b631-f1ff70d90a60",
+    "payload": {
+      "text": "BENCH_SKIP_INDEX=1 npm run bench:custom50",
+      "section": "Skip reindex (reuse existing collection)",
+      "source_file": "benchmarking.md",
+      "chunk_index": 14,
+      "total_chunks": 21,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "698db5ff-d57a-425a-a09b-940540a2dfe0",
+    "payload": {
+      "text": "| Score | Meaning |\n|-------|---------|\n| 3 | Exact answer — chunk contains the direct answer |\n| 2 | Supporting context — useful for multi-hop or neighboring section |\n| 1 | Same-topic / same-file, not sufficient alone |\n| 0 | Irrelevant |\n\nGrades are used for:\n- `nDCG@K` with gain formula `2^relevance − 1`\n- `chunkRecall@K`: counts only `relevance >= 3`\n- `supportRecall@K`: counts `relevance >= 2`",
+      "section": "Relevance Scale",
+      "source_file": "benchmarking.md",
+      "chunk_index": 6,
+      "total_chunks": 21,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "6dd844d2-064b-44c5-b800-c1e1fb59d772",
+    "payload": {
+      "text": "`OVERLAP_SENTENCES` controls how many sentences from the end of chunk N are prepended to\nchunk N+1. This gives each chunk context from the previous one and helps retrieval when a\nquery spans a chunk boundary.",
+      "section": "Overlap",
+      "source_file": "chunking.md",
+      "chunk_index": 3,
+      "total_chunks": 9,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "6f9dc618-a731-4967-bbb5-e839197c0c64",
+    "payload": {
+      "text": "`.docx`, `.odt`, `.rtf`, `.epub`, `.html`, and `.htm` files are converted to Markdown\nvia `pandoc` before chunking. The converted output is processed through `parseMarkdown`\nso that heading structure from the original document is preserved. This is achieved by\npassing a synthetic `.md` path to `chunkFile` regardless of the original file extension.",
+      "section": "Pandoc formats",
+      "source_file": "chunking.md",
+      "chunk_index": 7,
+      "total_chunks": 9,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "73d550cc-f3e2-46fb-8658-3f7bd6b44bc4",
+    "payload": {
+      "text": "The ONNX combination runs the BGE-M3 model locally via ONNX Runtime. It produces both\ndense and sparse vectors from the same model pass. The model is downloaded from Hugging\nFace on first use (~2.3 GB) and cached in `./models/`.\n\nConfiguration in config.json:\n\n```json\n{\n  \"denseProvider\": \"bge-m3-onnx\",\n  \"denseModel\": \"aapot/bge-m3-onnx\",\n  \"sparseProvider\": \"bge-m3-onnx\"\n}\n```\n\nEnable with `ONNX_EMBED=1` (shorthand) or explicitly with\n`DENSE_PROVIDER=bge-m3-onnx SPARSE_PROVIDER=bge-m3-onnx`.",
+      "section": "bge-m3-onnx + bge-m3-onnx",
+      "source_file": "providers.md",
+      "chunk_index": 2,
+      "total_chunks": 6,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "768c76ba-9f4e-427d-a0f5-9ac8137a8726",
+    "payload": {
+      "text": "The `k` parameter in RRF controls rank sensitivity. It is configured via the `RRF_K`\nenvironment variable (default: 60, range: 1–10000). Lower values give more weight to\ntop-ranked results from each leg; higher values smooth the fusion across more results.\n\nThe Qdrant request body shape for RRF (available since Qdrant 1.16.0):\n\n```json\n{\n  \"prefetch\": [\n    { \"query\": \"<sparse_vector>\", \"using\": \"sparse\", \"limit\": 10 },\n    { \"query\": \"<dense_vector>\",  \"using\": \"dense\",  \"limit\": 10 }\n  ],\n  \"query\": { \"rrf\": { \"k\": 60 } },\n  \"limit\": 5,\n  \"with_payload\": true\n}\n```\n\nThe prefetch limit for each leg is `max(limit * HYBRID_PREFETCH_LIMIT, limit + 1)` where\n`HYBRID_PREFETCH_LIMIT` defaults to 2. This ensures each leg fetches enough candidates\nfor RRF to have meaningful re-ranking material.",
+      "section": "RRF k parameter",
+      "source_file": "qdrant.md",
+      "chunk_index": 3,
+      "total_chunks": 8,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "775b72bf-7103-4505-a183-58a0f7bc643f",
+    "payload": {
+      "text": "Run `qdrant_collection_info` at the start of a session to discover available\ncollections, their point counts, the embedding provider used, and any description\nset in `config.json`. This avoids guessing collection names and lets the agent\npick the most relevant collection for the user's query.",
+      "section": "Collection Discovery",
+      "source_file": "mcp-workflow.md",
+      "chunk_index": 8,
+      "total_chunks": 9,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "7925fcc5-a1c1-46ed-9c08-f07dc719792f",
+    "payload": {
+      "text": "The `sparseProvider` field in config.json controls which sparse encoder is used for a\ncollection. Valid values are `hashed-tf` (default, no external dependency) and\n`bge-m3-onnx` (requires ONNX model). Mixed combinations such as\n`ollama + bge-m3-onnx` or `bge-m3-onnx + hashed-tf` are rejected at runtime with an\n`Invalid provider combination` error.\n\nThe `resolveEnvProviders()` function in `src/core/config.js` is the single source of\ntruth for mapping environment variables to provider names. It is called by the indexer\nwhen creating a new collection and by sync when backfilling existing entries.",
+      "section": "sparseProvider configuration",
+      "source_file": "providers.md",
+      "chunk_index": 3,
+      "total_chunks": 6,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "79905f42-2ab1-48e6-83a0-0df0ab25898b",
+    "payload": {
+      "text": "Each collection stores named vectors: a `dense` vector (cosine distance) and a `sparse`\nvector. Collections are created via `createCollection(name, size)` which also creates\npayload indexes on `source_file` and `tags` for efficient filtering.",
+      "section": "Collections",
+      "source_file": "qdrant.md",
+      "chunk_index": 1,
+      "total_chunks": 8,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "82e4ef80-ea03-4c43-b7d8-153e5459d0bb",
+    "payload": {
+      "text": "```json\n{\n  \"id\": \"q1\", \"type\": \"exact-token\", \"query\": \"...\",\n  \"expectedFiles\": [\"file.md\"],\n  \"expectedSections\": [\"Section heading\"],\n  \"expectedAllTokens\": [\"token\"],\n  \"expectedAnyTokens\": [\"alt_token\"],\n  \"expectedAnyTokenGroups\": [\"bge-m3-onnx\"],\n  \"shouldHaveNoStrongHit\": false,\n  \"note\": \"...\"\n}\n```",
+      "section": "v2 (extended file-level)",
+      "source_file": "benchmarking.md",
+      "chunk_index": 4,
+      "total_chunks": 21,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "869ae17f-0dda-435a-b354-53df96e70651",
+    "payload": {
+      "text": "semidex exposes a read-only MCP server that lets AI agents search indexed collections\nwithout reading whole files. The server is registered as an MCP tool provider under\nthe name `qdrant` in Claude Code (the internal name is an implementation detail —\nthe project is called semidex).",
+      "section": "MCP Tools and Agent Workflow",
+      "source_file": "mcp-workflow.md",
+      "chunk_index": 0,
+      "total_chunks": 9,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "88e869f9-74dd-4116-85ae-6b66dcddfb83",
+    "payload": {
+      "text": "| Metric | Description |\n|--------|-------------|\n| `p50` | Median query latency (ms) |\n| `p95` | 95th-percentile query latency (ms) |\n| `avgLatency` | Mean query latency (ms) |",
+      "section": "Latency",
+      "source_file": "benchmarking.md",
+      "chunk_index": 9,
+      "total_chunks": 21,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "8b213d56-603b-4dcf-87df-24c7172f26ee",
+    "payload": {
+      "text": "When an existing config entry is missing the new provider fields, sync infers them from\ncontext:\n\n- If `sparseProvider` is already `bge-m3-onnx`, then `denseProvider` is set to\n  `bge-m3-onnx` and `denseModel` to `aapot/bge-m3-onnx`.\n- Otherwise, `denseProvider`, `denseModel`, and `sparseProvider` are copied from the\n  current env provider resolution (i.e. what `resolveEnvProviders()` returns).\n- `embeddingSchemaVersion` defaults to the current `SCHEMA_VERSION` constant.\n\nThis backfill is safe because it only fills in fields that are `undefined` — it never\noverwrites values that were explicitly set.",
+      "section": "Backfill logic",
+      "source_file": "sync.md",
+      "chunk_index": 2,
+      "total_chunks": 6,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "8c7311ef-bef1-43a9-875c-898147ab7d14",
+    "payload": {
+      "text": "Run sync after:\n- Creating a new Qdrant collection manually.\n- Upgrading semidex to a version that adds new config.json fields.\n- Switching provider configuration and wanting to record the change in config.json\n  without re-indexing.",
+      "section": "When to run sync",
+      "source_file": "sync.md",
+      "chunk_index": 3,
+      "total_chunks": 6,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "8cacd9b6-becb-478e-81ea-29d2b14fd530",
+    "payload": {
+      "text": "Changing `sparseProvider`, `denseProvider`, `denseModel`, or `embeddingSchemaVersion`\nin config.json for a collection will cause every file in that collection to be reindexed\non the next `npm run index` run. The six reindex discriminators are: file hash,\ndenseProvider, denseModel, sparseProvider, embeddingSchemaVersion, vectorSize.",
+      "section": "Reindex triggers",
+      "source_file": "providers.md",
+      "chunk_index": 5,
+      "total_chunks": 6,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "8feb05a1-e4f5-4a5b-beab-af197ed5f4a0",
+    "payload": {
+      "text": "`qdrant_list_files` returns all `source_file` values in a collection, optionally\nfiltered to a directory prefix. Results are returned in alphabetical order.\n\n```bash",
+      "section": "qdrant_list_files",
+      "source_file": "obsidian.md",
+      "chunk_index": 4,
+      "total_chunks": 10,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "94e12d96-9a50-4ce6-939c-d5a97d8b1eb2",
+    "payload": {
+      "text": "`qdrant_find_by_tag` returns all chunks in a collection that carry a specific tag.\nResults are grouped by `source_file`. This is useful for narrow topic exploration\nwhen the user knows the conceptual label (e.g., `reranking`, `chunking`, `provider`).\n\nTags are generated by the LLM context phase during indexing (`CONTEXT_MODEL` env var).\nNot all indexed documents have tags unless the LLM phase was enabled during indexing.",
+      "section": "qdrant_find_by_tag",
+      "source_file": "mcp-workflow.md",
+      "chunk_index": 7,
+      "total_chunks": 9,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "959ba7aa-5ad8-4057-a71e-68388ee8367e",
+    "payload": {
+      "text": "| Variable | Default | Description |\n|----------|---------|-------------|\n| `BENCH_TOP_K` | `5` | Search depth (top-K results) |\n| `BENCH_PROVIDER` | env | Force provider: `onnx` or use env defaults |\n| `BENCH_SKIP_INDEX` | unset | Reuse existing bench collection; skip reindexing |\n| `BENCH_JSON` | unset | Emit JSON summary on stdout |\n| `BENCH_SEARCH_MODE` | `hybrid` | `hybrid` or `dense-mmr` |\n| `MMR_DIVERSITY` | `0.5` | Dense MMR diversity balance (0–1) |\n| `MMR_CANDIDATES_LIMIT` | `100` | Dense MMR preselect candidate count |\n| `MMR_DIVERSITIES` | `0.3,0.5,0.7` | Comma-separated diversity values for mmr-matrix |\n| `RERANK_PREFETCH_MULT` | `4` | Candidate multiplier for rerank phase in benchmark |",
+      "section": "Benchmark Variables",
+      "source_file": "config-env.md",
+      "chunk_index": 8,
+      "total_chunks": 10,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "9c8b70c0-68c9-4a12-b1fe-947cf2e12035",
+    "payload": {
+      "text": "PDF files are converted to Markdown by `@opendocsg/pdf2md`, then chunked through the same\n`parseMarkdown` path as `.md` files. Headings (H1–H6) found in the Markdown output become\n`section` values on chunks. Digitally-created PDFs with a text layer typically yield real\nsection headings. Scanned or image-only PDFs may produce weak structure and default to\n`section: \"\"`.",
+      "section": "PDF",
+      "source_file": "chunking.md",
+      "chunk_index": 8,
+      "total_chunks": 9,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "9ffd86e5-d57d-48ed-99c9-e322068861f1",
+    "payload": {
+      "text": "```json\n{ \"id\": \"q1\", \"query\": \"...\", \"expected\": [\"file.md\"], \"note\": \"...\" }\n```",
+      "section": "v1 (minimal)",
+      "source_file": "benchmarking.md",
+      "chunk_index": 3,
+      "total_chunks": 21,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "a3c6ffa3-8ab7-4c73-b2bb-8258cd12d729",
+    "payload": {
+      "text": "Documents that mix Ukrainian and English (e.g., technical documentation with English\ncode blocks and Ukrainian prose) are chunked as a single document. The embedding\ncovers both languages within each chunk. This is the normal case for semidex\ndocumentation and works well with BGE-M3.",
+      "section": "Mixed-Language Documents",
+      "source_file": "multilingual.md",
+      "chunk_index": 5,
+      "total_chunks": 9,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "a5728dde-4498-4a81-a9ce-197fb83509fa",
+    "payload": {
+      "text": "``` semidex/ ├── src/ │   ├── core/ │   │   ├── config. js          # config. json read/write, resolveEnvProviders() │   │   ├── embeddings. js      # embedForIndex(), embedForSearch(), SCHEMA_VERSION │   │   ├── onnx-embed. js      # BGE-M3 ONNX tokenizer and session │   │   ├── qdrant. js          # Qdrant REST client (search, upsert, scroll, etc. ) │   │   ├── rerank. js          # BM25 local reranker, rerankResults() │   │   └── smoke. js           # Connectivity smoke test for Qdrant + providers │   ├── indexer/ │   │   ├── index. js           # CLI entry point: parse args, iterate files │   │   └── phases/ │   │       ├── chunk. js       # chunkFile(), splitSentences(), parseMarkdown() │   │       ├── context. js     # LLM chunk contextualization │   │       ├── embed. js       # Batch embedding phase │   │       └── tag. js         # LLM tag generation phase │   ├── mcp/ │   │   ├── server. js          # MCP server entry point │   │   └── tools/",
+      "section": "Source Tree",
+      "source_file": "project-structure.md",
+      "chunk_index": 1,
+      "total_chunks": 10,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "a750ca47-643b-46f8-9eb2-4e4b95570df5",
+    "payload": {
+      "text": "| Metric | Description |\n|--------|-------------|\n| `chunkRecall@3` | Fraction of queries with a rel≥3 chunk in top-3 |\n| `chunkRecall@5` | Fraction of queries with a rel≥3 chunk in top-5 |\n| `supportRecall@K` | Fraction of queries with a rel≥2 chunk in top-K |\n| `nDCG@K` | Normalised Discounted Cumulative Gain with graded relevance |\n| `MRR@10` | Reciprocal rank of the first rel≥3 chunk across top-10 |",
+      "section": "Chunk-level (v3 only)",
+      "source_file": "benchmarking.md",
+      "chunk_index": 7,
+      "total_chunks": 21,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "a7649aba-7a78-4ab5-8759-0dc5ec660d49",
+    "payload": {
+      "text": "`qdrant_get_chunk` retrieves a chunk by its stable address: `collection`, `source_file`,\nand `chunk_index`. The `window` parameter controls how many neighboring chunks to\nreturn on each side. For example, `window=1` returns the previous chunk, the target\nchunk, and the next chunk.\n\nThis is useful when a search result mentions a concept that spans a chunk boundary.\nRetrieving the window avoids re-embedding and re-searching for the adjacent content.",
+      "section": "qdrant_get_chunk and Context Windows",
+      "source_file": "mcp-workflow.md",
+      "chunk_index": 5,
+      "total_chunks": 9,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "a992fb9c-ba88-4614-bfba-23b11d061496",
+    "payload": {
+      "text": "Both `resolveEnvProviders()` (env-time) and `_embed()` in `src/core/embeddings.js`\n(runtime) validate the provider combination before any embedding work is done. This\nensures that metadata stored in Qdrant payloads always matches the vectors actually\nstored, which is required for correct reindex detection.",
+      "section": "Provider validation",
+      "source_file": "providers.md",
+      "chunk_index": 4,
+      "total_chunks": 6,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "ac031525-b2b9-4e7a-a792-94be7cd8b8bc",
+    "payload": {
+      "text": "Linux / macOS:\n\n```bash\nclaude mcp add --scope user semidex -- node /absolute/path/to/semidex/src/mcp/server.js\n```\n\nWindows:\n\n```bash\nclaude mcp add --scope user semidex -- node C:\\absolute\\path\\to\\semidex\\src\\mcp\\server.js\n```\n\nAfter registering, run `/mcp` in Claude Code to verify the connection.\nThe server must be running (i.e., the node process must be alive) for tools to work.",
+      "section": "Registering the MCP Server",
+      "source_file": "mcp-workflow.md",
+      "chunk_index": 1,
+      "total_chunks": 9,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "b1a0ab4e-6cfb-4a7d-9b37-bec7438cbe58",
+    "payload": {
+      "text": "The provider written by sync reflects the environment at the time sync is run, not the\nenvironment at the time the collection was originally indexed. If you run sync with\n`ONNX_EMBED=1` on a collection that was indexed with the default Ollama provider, the\nconfig entry will be updated to `bge-m3-onnx`. This is intentional: sync is a\ndeclaration of current intent, not a historical record.",
+      "section": "Provider recorded by sync",
+      "source_file": "sync.md",
+      "chunk_index": 5,
+      "total_chunks": 6,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "b3ffc620-7dd7-4666-a955-4f087e576a5f",
+    "payload": {
+      "text": "If a collection has no sparse vectors yet (e.g. old index before sparse support was\nadded), `hybridSearch` falls back to `search` (dense-only) automatically. The fallback\nis triggered when the Qdrant response contains `\"sparse\"` or `\"Wrong input\"` in the\nerror message.",
+      "section": "Fallback to dense-only",
+      "source_file": "qdrant.md",
+      "chunk_index": 4,
+      "total_chunks": 8,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "b6ee652b-27d9-4c9a-8950-cc3bf91481b2",
+    "payload": {
+      "text": "npm run bench:retrieval:mmr",
+      "section": "MMR diversity matrix",
+      "source_file": "benchmarking.md",
+      "chunk_index": 17,
+      "total_chunks": 21,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "b72164e4-fca3-49ac-8745-d2f948fc73bb",
+    "payload": {
+      "text": "| Variable | Description |\n|----------|-------------|\n| `QDRANT_URL` | Qdrant instance URL (e.g. `http://localhost:6333`) |\n| `QDRANT_KEY` | Qdrant API key (can be any string for local instances) |",
+      "section": "Required",
+      "source_file": "config-env.md",
+      "chunk_index": 1,
+      "total_chunks": 10,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "be8acc2d-6bf1-4d84-9386-f2a5f8a99303",
+    "payload": {
+      "text": "| Variable               | Default | Range      | Effect                              |\n|------------------------|---------|------------|-------------------------------------|\n| `HYBRID_PREFETCH_LIMIT`| 2       | 1–100      | Prefetch multiplier per RRF leg     |\n| `RRF_K`                | 60      | 1–10000    | RRF smoothing constant              |\n\nInvalid values produce a warning and fall back to the default.",
+      "section": "Env tuning",
+      "source_file": "qdrant.md",
+      "chunk_index": 7,
+      "total_chunks": 8,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "bf01d701-82aa-498c-982d-7787cbe80773",
+    "payload": {
+      "text": "- Listing all indexed documents before a benchmark run to verify coverage.\n- Auditing LLM-generated tags for a collection with `qdrant_find_by_tag`.\n- Scoping a search to a known subdirectory using the `source_file` filter.\n- Confirming that a specific file was indexed after running `npm run index`.\n- Navigating the directory structure of a large documentation corpus.",
+      "section": "Use Cases",
+      "source_file": "obsidian.md",
+      "chunk_index": 9,
+      "total_chunks": 10,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "c07c1c5a-1d02-4c80-9d29-2bdb90710617",
+    "payload": {
+      "text": "The default combination uses Ollama for dense embeddings and hashed-tf for sparse embeddings.\nOllama runs a local model server; the model is configured via `EMBED_MODEL` (default: bge-m3).\nhashed-tf is a zero-dependency sparse encoder that produces term-frequency vectors using\na deterministic hash function. It does not require a running service.\n\nConfiguration in config.json:\n\n```json\n{\n  \"denseProvider\": \"ollama\",\n  \"denseModel\": \"bge-m3\",\n  \"sparseProvider\": \"hashed-tf\"\n}\n```\n\nTo use this combination set `DENSE_PROVIDER=ollama` and `SPARSE_PROVIDER=hashed-tf`, or\nleave both unset since it is the default.",
+      "section": "ollama + hashed-tf (default)",
+      "source_file": "providers.md",
+      "chunk_index": 1,
+      "total_chunks": 6,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "c720a92e-c93b-4fbc-b960-539b9aa45eca",
+    "payload": {
+      "text": "│       ├── run-v3. js          # Quality benchmark runner (v3 schema, graded qrels) │       ├── queries. json       # 50-query evaluation set │       └── fixtures/docs/     # 8-10 fixture docs covering all semidex subsystems ├── docs/ │   ├── README. md              # Language selector (EN / UA) │   └── en/ │       ├── README. md          # EN documentation entry point │       ├── architecture. md    # Pipeline overview, data flow │       ├── configuration. md   # All environment variables and config. json │       ├── retrieval. md       # Hybrid search, RRF, MMR, reranking │       ├── benchmarking. md    # Benchmark harness guide │       ├── mcp-tools. md       # MCP server tool reference │       ├── operations. md      # Day-to-day operations guide │       └── project-structure. md # Full source tree reference ├── models/                    # ONNX model cache (git-ignored) ├── config. json                # Per-collection provider metadata (git-ignored) ├── . env                       # Environment variables (git-ignored) ├── package. json └── AGENTS. md                  # AI agent instructions for semidex development ```",
+      "section": "Source Tree",
+      "source_file": "project-structure.md",
+      "chunk_index": 3,
+      "total_chunks": 10,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "c76cfae4-3ce6-4da6-9695-c15ad871fa33",
+    "payload": {
+      "text": "The custom-50 benchmark includes:\n- Ukrainian-only queries (e.g., `\"де налаштовується sparseProvider\"`)\n- English-only queries (e.g., `\"valid provider combinations for embedding\"`)\n- Mixed-language queries (e.g., queries mentioning `ONNX_EMBED` in a Ukrainian sentence)\n- Cross-file queries that require understanding concepts across multiple documents",
+      "section": "Benchmark Coverage",
+      "source_file": "multilingual.md",
+      "chunk_index": 6,
+      "total_chunks": 9,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "c7871681-d6f3-44f3-b355-be57b9d5f594",
+    "payload": {
+      "text": "semidex includes a retrieval benchmark harness that measures search quality\nagainst a fixed corpus of fixture documents. There are two benchmark tiers:",
+      "section": "Benchmarking",
+      "source_file": "benchmarking.md",
+      "chunk_index": 0,
+      "total_chunks": 21,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "cc182061-a931-4469-9e97-f829d3408601",
+    "payload": {
+      "text": "BENCH_SEARCH_MODE=dense-mmr npm run bench:custom50",
+      "section": "Dense MMR instead of hybrid RRF",
+      "source_file": "benchmarking.md",
+      "chunk_index": 15,
+      "total_chunks": 21,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "ce1cf9ac-a643-41a0-bb84-61965655c97a",
+    "payload": {
+      "text": "Exports `embedForIndex(collection, text)` and `embedForSearch(collection, text)`.\nBoth return `{ dense, sparse, meta }`. `SCHEMA_VERSION` is a constant incremented\nwhen the embedding schema changes; it is stored in Qdrant payloads as\n`embedding_schema_version` and used as a reindex discriminator.",
+      "section": "src/core/embeddings.js",
+      "source_file": "project-structure.md",
+      "chunk_index": 5,
+      "total_chunks": 10,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "d012f733-4726-437b-a694-cda067810b3a",
+    "payload": {
+      "text": "Two payload indexes are created on every collection: `source_file` (keyword) and `tags`\n(keyword). These allow Qdrant to filter points efficiently without scanning all vectors.\nThe `source_file` index is used by `getStoredMeta` and `deleteBySourceFile`.",
+      "section": "Payload Indexes",
+      "source_file": "qdrant.md",
+      "chunk_index": 5,
+      "total_chunks": 8,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "d457b570-664d-4932-a064-3d1553aedbe5",
+    "payload": {
+      "text": "`config.json` is written by `npm run sync` and updated by `npm run index` when\na new collection is created. It is git-ignored.\n\nExample structure:\n\n```json\n{\n  \"collections\": {\n    \"my-notes\": {\n      \"denseProvider\": \"bge-m3-onnx\",\n      \"denseModel\": \"aapot/bge-m3-onnx\",\n      \"sparseProvider\": \"bge-m3-onnx\",\n      \"embeddingSchemaVersion\": 2,\n      \"vectorSize\": 1024,\n      \"description\": \"Personal knowledge base\"\n    }\n  }\n}\n```\n\nThe six reindex discriminators stored in `config.json` per collection are:\n`denseProvider`, `denseModel`, `sparseProvider`, `embeddingSchemaVersion`,\n`vectorSize`, and implicitly `file_hash` (stored per-point in Qdrant, not config).\nChanging any of these triggers a full reindex of all files in that collection.",
+      "section": "config.json",
+      "source_file": "config-env.md",
+      "chunk_index": 9,
+      "total_chunks": 10,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "d8bd4314-e051-4b0d-be97-808249d924f8",
+    "payload": {
+      "text": "semidex splits documents into chunks before embedding. The chunking logic lives in\n`src/indexer/phases/chunk.js` and is controlled by three environment variables.",
+      "section": "Chunking",
+      "source_file": "chunking.md",
+      "chunk_index": 0,
+      "total_chunks": 9,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "daa9f305-dba1-4f5d-99e1-7cd2a2b83e94",
+    "payload": {
+      "text": "npm run bench:retrieval:rerank\n```",
+      "section": "Rerank matrix (4 combinations)",
+      "source_file": "benchmarking.md",
+      "chunk_index": 18,
+      "total_chunks": 21,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "e1c3587d-7d12-41f7-baeb-7f693e275612",
+    "payload": {
+      "text": "`qdrant_search` supports three optional filters:\n\n- `tags`: OR across requested tags — returns chunks matching any of the given tags.\n- `source_file`: restricts search to one specific file.\n- Combined tag + file: both filters can be used together.\n\nFilters are passed to Qdrant as payload filter conditions. The `source_file` and\n`tags` payload indexes must exist for filtering to be efficient. They are created\nautomatically by `npm run index` for new collections.",
+      "section": "qdrant_search Filters",
+      "source_file": "mcp-workflow.md",
+      "chunk_index": 4,
+      "total_chunks": 9,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "e329779a-32e7-47c0-8ad1-62306de72d80",
+    "payload": {
+      "text": "semidex supports two embedding provider combinations. Each collection stores its provider\nconfiguration in config.json so that re-indexing is triggered automatically when the\nprovider changes.",
+      "section": "Embedding Providers",
+      "source_file": "providers.md",
+      "chunk_index": 0,
+      "total_chunks": 6,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "e4372b40-beb9-40ab-a12f-5357ea18d6ca",
+    "payload": {
+      "text": "semidex uses Qdrant as its vector database. All Qdrant calls go through\n`src/core/qdrant.js`. The module reads `QDRANT_URL` and `QDRANT_KEY` from the\nenvironment and exposes typed functions for collections, points, and search.",
+      "section": "Qdrant Integration",
+      "source_file": "qdrant.md",
+      "chunk_index": 0,
+      "total_chunks": 8,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "e62940d0-1a6f-48f2-a84f-e5620dbacf90",
+    "payload": {
+      "text": "A richer evaluation harness using 8-10 fixture docs and 50 queries in v3 schema\nwith graded relevance (`relevantChunks`, `relevance: 1/2/3`). Metrics include\nchunk-level recall, graded nDCG, and support recall. The collection name is\n`bench-retrieval-custom-50`.",
+      "section": "50-query quality benchmark (`benchmarks/retrieval/custom-50/`)",
+      "source_file": "benchmarking.md",
+      "chunk_index": 2,
+      "total_chunks": 21,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "eb159891-0b23-4875-a086-1786ea2d7527",
+    "payload": {
+      "text": "The stable regression smoke benchmark. It uses 4 fixture docs and 21 queries in v1/v2\nschema. It is run before merges to detect retrieval regressions. The collection name is\n`bench-retrieval`.",
+      "section": "21-query regression benchmark (`benchmarks/retrieval/`)",
+      "source_file": "benchmarking.md",
+      "chunk_index": 1,
+      "total_chunks": 21,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "ec96489b-46de-4387-a447-770a426a8c34",
+    "payload": {
+      "text": "1. Fetches the list of all collections from Qdrant via `listCollections()`.\n2. For each collection, fetches collection info via `getCollectionInfo()`.\n3. For new collections (not yet in config.json), writes a full provider entry using\n   `resolveEnvProviders()` to determine the current provider configuration.\n4. For existing collections, backfills any missing provider fields introduced by schema\n   upgrades (e.g. `denseProvider`, `denseModel`, `sparseProvider`,\n   `embeddingSchemaVersion`).",
+      "section": "What sync does",
+      "source_file": "sync.md",
+      "chunk_index": 1,
+      "total_chunks": 6,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "ee631fc9-1418-4c5b-b42b-0d42f3109e7e",
+    "payload": {
+      "text": "Entry point for the MCP server. Tools are implemented in `src/mcp/tools/`:\n`qdrant_search`, `qdrant_collection_info`, `qdrant_get_chunk`,\n`qdrant_list_files`, `qdrant_list_directories`, `qdrant_find_by_tag`.\nThe server name registered in MCP clients is `qdrant` (legacy name), but the\nproject is called semidex.",
+      "section": "src/mcp/server.js",
+      "source_file": "project-structure.md",
+      "chunk_index": 8,
+      "total_chunks": 10,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "ef4212ee-4df1-4463-bd4d-b636f91fd90c",
+    "payload": {
+      "text": "`qdrant_list_directories` returns the distinct top-level directory paths present\nin a collection. It uses a scroll over the `source_file` payload field to derive\nthe prefix set. No arguments are required beyond the collection name.\n\n```bash",
+      "section": "qdrant_list_directories",
+      "source_file": "obsidian.md",
+      "chunk_index": 1,
+      "total_chunks": 10,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "f296edb6-39d4-458a-8ab4-1dd186a346b4",
+    "payload": {
+      "text": "| Metric | Description |\n|--------|-------------|\n| `fileRecall@1` | Expected file appears at rank 1 |\n| `fileRecall@K` | Expected file appears in top-K |",
+      "section": "File-level (backward-compatible)",
+      "source_file": "benchmarking.md",
+      "chunk_index": 8,
+      "total_chunks": 21,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "f2a40404-db2c-4c44-9e31-8fdd6658e15e",
+    "payload": {
+      "text": "qdrant_list_files(collection=\"my-notes\", directory=\"docs/\")\n```\n\nUse `qdrant_list_files` when you need to enumerate files before calling\n`qdrant_get_chunk` or when checking whether a specific document is indexed.",
+      "section": "Scope to a subdirectory",
+      "source_file": "obsidian.md",
+      "chunk_index": 6,
+      "total_chunks": 10,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "f3cb9997-aea1-4658-9ef1-068e061f360e",
+    "payload": {
+      "text": "| Command | Module | Purpose |\n|---------|--------|---------|\n| `npm run index` | `src/indexer/index.js` | Index files into Qdrant |\n| `npm run sync` | `src/sync.js` | Sync config.json with Qdrant |\n| `npm run smoke` | `src/core/smoke.js` | Verify connectivity |\n| `npm run mcp` | `src/mcp/server.js` | Start MCP server |\n| `npm run bench:retrieval` | `benchmarks/retrieval/run.js` | Run 21q regression benchmark |\n| `npm run bench:custom50` | `benchmarks/retrieval/custom-50/run-v3.js` | Run 50q quality benchmark |",
+      "section": "Entry Points",
+      "source_file": "project-structure.md",
+      "chunk_index": 9,
+      "total_chunks": 10,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "f557ab03-4f95-4688-a9f3-5494cede7e9f",
+    "payload": {
+      "text": "| Variable | Default | Range | Description |\n|----------|---------|-------|-------------|\n| `RRF_K` | `60` | 1–10000 | RRF smoothing constant |\n| `HYBRID_PREFETCH_LIMIT` | `2` | 1–100 | Prefetch multiplier per dense/sparse RRF leg |\n\n`HYBRID_PREFETCH_LIMIT` controls how many candidates each leg fetches before RRF fusion.\nThe actual prefetch count is `max(limit * HYBRID_PREFETCH_LIMIT, limit + 1)`.",
+      "section": "Hybrid Search",
+      "source_file": "config-env.md",
+      "chunk_index": 6,
+      "total_chunks": 10,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "f888ebb8-3e32-44c6-9186-d2f268461ebe",
+    "payload": {
+      "text": "semidex is configured through `.env` file variables and per-collection metadata\nin `config.json`. Most variables have sensible defaults; only `QDRANT_URL` and\n`QDRANT_KEY` are required.",
+      "section": "Configuration and Environment Variables",
+      "source_file": "config-env.md",
+      "chunk_index": 0,
+      "total_chunks": 10,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "f9a87c45-3b0e-4f8d-9878-6437481d0674",
+    "payload": {
+      "text": "When `BENCH_SKIP_INDEX=1` is set, the runner skips re-indexing and reuses\nthe existing collection. The stored provider is validated against the current\nenv provider — if they differ, the run fails with an explicit error.\n\nThis flag is used by matrix scripts (`mmr-matrix.js`, `rerank-matrix.js`) to\nrun multiple search-mode variants on the same index without measuring reindex\nvariance between runs.",
+      "section": "BENCH_SKIP_INDEX",
+      "source_file": "benchmarking.md",
+      "chunk_index": 20,
+      "total_chunks": 21,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "fe76dfeb-75d4-48c2-88c0-4d2eb9583bd8",
+    "payload": {
+      "text": "The context and tag LLM phases use the model specified by `CONTEXT_MODEL` and\n`TAG_MODEL` (default: `gemma3:4b`). The prompt is in English but the model\nprocesses Ukrainian content correctly. Tags generated for Ukrainian documents\nmay be in English, Ukrainian, or a mix depending on the model.",
+      "section": "LLM Phases and Language",
+      "source_file": "multilingual.md",
+      "chunk_index": 7,
+      "total_chunks": 9,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  },
+  {
+    "id": "feacf48a-2c43-4320-b7c4-cf9c69aec327",
+    "payload": {
+      "text": "Overlap carries semantic context from one chunk to the next. If overlap crosses a markdown\nheading boundary, the first chunk of section B will contain sentences from section A.\nThis contaminates the embedding for section B — queries about section B content will pull\nin section A text, and vice versa. The payload `section` field will say \"B\" but the\nembedding will partially represent \"A\", causing misleading search results.\n\nsemidex resets the overlap accumulator to an empty list at each new heading, so overlap\nis always contained within a single section. This means the first chunk of each section\nstarts clean, and its embedding accurately represents only that section's content.",
+      "section": "Why overlap must not cross section boundaries",
+      "source_file": "chunking.md",
+      "chunk_index": 4,
+      "total_chunks": 9,
+      "file_hash": "bench-v3",
+      "vector_size": 1024,
+      "dense_provider": "bge-m3-onnx",
+      "dense_model": "aapot/bge-m3-onnx",
+      "sparse_provider": "bge-m3-onnx",
+      "embedding_schema_version": 2
+    }
+  }
+]

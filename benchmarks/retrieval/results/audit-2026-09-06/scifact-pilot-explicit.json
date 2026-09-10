@@ -1,0 +1,210 @@
+{
+  "version": 1,
+  "benchmarkContract": {
+    "version": 1,
+    "suiteId": "audit-20260906-scifact-pilot",
+    "datasetFingerprint": "3a2d82dac5dc22fd",
+    "qdrantEndpointFingerprint": "8f9428ceda054cc5",
+    "collectionPrefix": "semidex-prodpath-bench-",
+    "hybridPrefetchLimit": "pinned(2)",
+    "rrfK": "pinned(60)",
+    "chunkCandidateLimit": 400,
+    "documentMetricDepth": 100,
+    "collapseStrategy": "max",
+    "cudaRequested": false,
+    "deterministicEnvHash": "{\"TAG_GEN\":\"0\",\"SKELETON_SUMMARY\":\"deterministic\",\"PIPELINE_MODE\":\"0\",\"STAGEA_CONCURRENCY\":\"1\",\"OLLAMA_STAGE_CONCURRENCY\":\"1\",\"EMBED_STAGE_CONCURRENCY\":\"1\",\"MAX_CHUNK_TOKENS\":\"512\",\"MIN_CHUNK_TOKENS\":\"160\",\"CHUNK_OVERLAP_TOKENS\":\"80\",\"SKELETON_CARRYOVER_CHARS\":\"500\",\"HYBRID_PREFETCH_LIMIT\":\"2\",\"RRF_K\":\"60\",\"PRUNE_STALE\":\"0\",\"COMBINED_LLM\":\"0\",\"FORCE_REINDEX\":\"0\",\"ONNX_EXECUTION_PROVIDER\":\"cpu\",\"ONNX_CUDA_STRICT\":\"0\"}"
+  },
+  "profiles": {
+    "local": {
+      "collection": "semidex-prodpath-bench-audit-20260906-scifact-pilot-local-8d298c6a-local",
+      "profileId": "local",
+      "errors": [],
+      "cleanup": {
+        "attempted": true,
+        "deleted": true
+      },
+      "unmappedHitCount": 0,
+      "queryErrorCount": 0,
+      "indexing": {
+        "ms": 186290,
+        "exitCode": 0,
+        "peakChildRssBytes": null,
+        "documentsIndexed": 150,
+        "errors": 0
+      },
+      "metrics": {
+        "queryCount": 25,
+        "ndcgAt10": 0.9220369733384323,
+        "mapAt100": 0.8973333333333333,
+        "recallAt10": 1,
+        "recallAt100": 1,
+        "precisionAt10": 0.11200000000000004,
+        "mrrAt10": 0.8973333333333333,
+        "skippedForRecallMap": 0
+      },
+      "queriesWithInsufficientDepth": 0,
+      "latency": {
+        "count": 25,
+        "p50": 379.2776999999769,
+        "p95": 464.47239999999874
+      },
+      "telemetry": {
+        "qdrantSdkOps": {
+          "byLabel": {
+            "Qdrant listCollections failed": 26,
+            "Create collection failed": 1,
+            "Create index failed": 8,
+            "Qdrant scroll failed": 201,
+            "Qdrant upsert failed": 301,
+            "Qdrant deleteTrailingChunks failed": 150,
+            "Qdrant deleteByFilter failed": 1,
+            "updateCollectionMetadata failed": 1,
+            "Qdrant getCollectionInfo failed": 25,
+            "Qdrant count failed": 25,
+            "Qdrant hybridSearch failed": 25
+          },
+          "total": 764
+        },
+        "denseInferenceItems": {
+          "indexing": 0,
+          "query": 0,
+          "total": 0
+        },
+        "sparseInferenceItems": {
+          "indexing": 0,
+          "query": 0,
+          "total": 0
+        },
+        "totalDenseChars": {
+          "indexing": 0,
+          "query": 0,
+          "total": 0
+        },
+        "totalSparseChars": {
+          "indexing": 0,
+          "query": 0,
+          "total": 0
+        },
+        "malformedLines": 0
+      }
+    },
+    "cloud": {
+      "collection": "semidex-prodpath-bench-audit-20260906-scifact-pilot-cloud-8d298c6a-cloud",
+      "profileId": "cloud",
+      "errors": [],
+      "cleanup": {
+        "attempted": true,
+        "deleted": true
+      },
+      "unmappedHitCount": 0,
+      "queryErrorCount": 0,
+      "indexing": {
+        "ms": 96964,
+        "exitCode": 0,
+        "peakChildRssBytes": null,
+        "documentsIndexed": 150,
+        "errors": 0
+      },
+      "metrics": {
+        "queryCount": 25,
+        "ndcgAt10": 0.9252371901428583,
+        "mapAt100": 0.8999999999999999,
+        "recallAt10": 1,
+        "recallAt100": 1,
+        "precisionAt10": 0.11200000000000004,
+        "mrrAt10": 0.8999999999999999,
+        "skippedForRecallMap": 0
+      },
+      "queriesWithInsufficientDepth": 0,
+      "latency": {
+        "count": 25,
+        "p50": 427.6505999999936,
+        "p95": 588.0905999999959
+      },
+      "telemetry": {
+        "qdrantSdkOps": {
+          "byLabel": {
+            "Qdrant listCollections failed": 26,
+            "Create collection failed": 1,
+            "Create index failed": 8,
+            "Qdrant scroll failed": 201,
+            "Qdrant upsert failed": 301,
+            "Qdrant deleteTrailingChunks failed": 150,
+            "Qdrant deleteByFilter failed": 1,
+            "updateCollectionMetadata failed": 1,
+            "Qdrant getCollectionInfo failed": 25,
+            "Qdrant count failed": 25,
+            "Qdrant hybridSearchCloud failed (semidex-prodpath-bench-audit-20260906-scifact-pilot-cloud-8d298c6a-cloud)": 25
+          },
+          "total": 764
+        },
+        "denseInferenceItems": {
+          "indexing": 474,
+          "query": 25,
+          "total": 499
+        },
+        "sparseInferenceItems": {
+          "indexing": 474,
+          "query": 25,
+          "total": 499
+        },
+        "totalDenseChars": {
+          "indexing": 270691,
+          "query": 1975,
+          "total": 272666
+        },
+        "totalSparseChars": {
+          "indexing": 270691,
+          "query": 1975,
+          "total": 272666
+        },
+        "malformedLines": 0
+      }
+    }
+  },
+  "resumeEvents": [],
+  "startedAt": "2026-09-06T16:21:50.492Z",
+  "finishedAt": "2026-09-06T16:26:56.420Z",
+  "verdict": "COMPLETE",
+  "bootstrapComparison": {
+    "ndcgAt10": {
+      "n": 25,
+      "meanDelta": 0.0032002168044261837,
+      "wins": 1,
+      "losses": 3,
+      "ties": 21,
+      "ciLow": -0.0547628098571417,
+      "ciHigh": 0.07898681793199624,
+      "excludesZero": false,
+      "verdict": "MIXED",
+      "seed": "semidex-miracl-ru-bootstrap-v1",
+      "iterations": 2000
+    },
+    "recallAt10": {
+      "n": 25,
+      "meanDelta": 0,
+      "wins": 0,
+      "losses": 0,
+      "ties": 25,
+      "ciLow": 0,
+      "ciHigh": 0,
+      "excludesZero": false,
+      "verdict": "INCONCLUSIVE",
+      "seed": "semidex-miracl-ru-bootstrap-v1",
+      "iterations": 2000
+    },
+    "mrrAt10": {
+      "n": 25,
+      "meanDelta": 0.002666666666666666,
+      "wins": 1,
+      "losses": 3,
+      "ties": 21,
+      "ciLow": -0.07333333333333333,
+      "ciHigh": 0.09733333333333334,
+      "excludesZero": false,
+      "verdict": "MIXED",
+      "seed": "semidex-miracl-ru-bootstrap-v1",
+      "iterations": 2000
+    }
+  }
+}

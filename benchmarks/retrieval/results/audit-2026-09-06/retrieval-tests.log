@@ -1,0 +1,196 @@
+[ce-rerank] starting worker (model=cross-encoder/mmarco-mMiniLMv2-L12-H384-v1 device=cpu)...
+[ce-rerank] worker ready
+[ce-rerank] starting worker (model=cross-encoder/mmarco-mMiniLMv2-L12-H384-v1 device=cpu)...
+[ce-rerank] worker ready
+[ce-rerank] starting worker (model=cross-encoder/mmarco-mMiniLMv2-L12-H384-v1 device=cpu)...
+[ce-rerank] worker ready
+[ce-rerank] starting worker (model=cross-encoder/mmarco-mMiniLMv2-L12-H384-v1 device=cpu)...
+[ce-rerank] worker load failed: boom — CE disabled for this session
+[ce-rerank] starting worker (model=cross-encoder/mmarco-mMiniLMv2-L12-H384-v1 device=cpu)...
+[ce-rerank] starting worker (model=cross-encoder/mmarco-mMiniLMv2-L12-H384-v1 device=cpu)...
+[ce-rerank] starting worker (model=cross-encoder/mmarco-mMiniLMv2-L12-H384-v1 device=cpu)...
+[ce-rerank] starting worker (model=cross-encoder/mmarco-mMiniLMv2-L12-H384-v1 device=cpu)...
+[ce-rerank] starting worker (model=cross-encoder/mmarco-mMiniLMv2-L12-H384-v1 device=cpu)...
+[ce-rerank] worker ready
+[ce-rerank] worker request failed: ce-rerank worker is no longer available (exited or was shut down before this request could be sent) — returning pre-CE results for this call
+[ce-rerank] starting worker (model=cross-encoder/mmarco-mMiniLMv2-L12-H384-v1 device=cpu)...
+[ce-rerank] worker ready
+[ce-rerank] starting worker (model=cross-encoder/mmarco-mMiniLMv2-L12-H384-v1 device=cpu)...
+[ce-rerank] worker ready
+[ce-rerank] starting worker (model=cross-encoder/mmarco-mMiniLMv2-L12-H384-v1 device=cpu)...
+[ce-rerank] worker ready
+▶ applyCeRerankSettings — settingsService extraction for next_restart fields
+  ✔ overwrites RERANK_CE_MODEL/RERANK_CE_DEVICE/RERANK_CE_CACHE_DIR exports (0.9931ms)
+✔ applyCeRerankSettings — settingsService extraction for next_restart fields (1.9451ms)
+▶ ce-rerank worker coordinator
+  ✔ spawns exactly one worker for concurrent loadCEModel() callers (promise-guarded) (1.437ms)
+  ✔ ceRerank sends exactly one run request per call, with query/candidates/input/batchSize (0.7847ms)
+  ✔ ceRerank reorders candidates by worker-reported scores, descending (1.2248ms)
+  ✔ empty candidate pool short-circuits without spawning a worker (1.0826ms)
+  ✔ a worker that fails to reach ready (kind: error) marks the session failed and disables CE, never retrying (0.3594ms)
+  ✔ loadCEModel() throws when the worker fails to reach ready (0.7557ms)
+  ✔ a worker that exits (non-zero code) DURING its own init is rejected cleanly, not an uncaught TypeError (0.5495ms)
+  ✔ a worker that exits with code 0 DURING its own init (before ever posting ready) is rejected immediately, not left hanging until the 5-minute init timeout (0.3651ms)
+  ✔ a second loadCEModel() call after a load failure throws the "previously failed" error without re-spawning (0.5926ms)
+  ✔ an unexpected worker exit (non-zero code) rejects pending requests and marks the session failed (0.4909ms)
+  ✔ a worker exiting in the gap between loadCEModel() resolving and this request's own worker.send() call produces an informative error, not a raw TypeError (0.5098ms)
+  ✔ a clean worker exit (code 0) does not mark the session failed (0.2796ms)
+[ce-rerank] busy — skipping CE for this query
+[ce-rerank] starting worker (model=cross-encoder/mmarco-mMiniLMv2-L12-H384-v1 device=cpu)...
+[ce-rerank] worker ready
+  ✔ busy flag: a second concurrent ceRerank call skips CE and returns pre-CE candidates (16.1954ms)
+[ce-rerank] worker request failed: ce-rerank worker did not respond within 50ms — returning pre-CE results for this call
+[ce-rerank] starting worker (model=cross-encoder/mmarco-mMiniLMv2-L12-H384-v1 device=cpu)...
+[ce-rerank] worker ready
+[ce-rerank] starting worker (model=cross-encoder/mmarco-mMiniLMv2-L12-H384-v1 device=cpu)...
+[ce-rerank] worker ready
+  ✔ a worker that never replies to a run request times out, falls back to pre-CE for that call, terminates the worker, and disables CE for the rest of the session (63.4566ms)
+  ✔ shutdownCEWorker() kills the worker and allows a clean respawn afterward (0.6001ms)
+  ✔ buildPassage formats are unaffected by the worker migration (still a pure function) (0.1492ms)
+✔ ce-rerank worker coordinator (89.6253ms)
+Api key is used with unsecure connection.
+Api key is used with unsecure connection.
+Api key is used with unsecure connection.
+Api key is used with unsecure connection.
+Api key is used with unsecure connection.
+Api key is used with unsecure connection.
+Api key is used with unsecure connection.
+Api key is used with unsecure connection.
+Api key is used with unsecure connection.
+Api key is used with unsecure connection.
+Api key is used with unsecure connection.
+Api key is used with unsecure connection.
+Api key is used with unsecure connection.
+Api key is used with unsecure connection.
+▶ hybridSearchCloud() — exact Qdrant Query API request shape
+  ✔ builds two prefetch lanes carrying the caller-supplied inference descriptors verbatim, using: dense/sparse (11.3451ms)
+  ✔ top-level query is {rrf: {k}} — RRF fusion stays server-side, never computed in JS here (1.1135ms)
+  ✔ limit and with_payload:true are set on the top-level request (1.3212ms)
+  ✔ a supplied filter is threaded into BOTH prefetch entries (1.3436ms)
+  ✔ with no sparseQuery (dense-only), only ONE prefetch lane is built, still using: dense (1.3298ms)
+  ✔ resolves HYBRID_PREFETCH_LIMIT/RRF_K via the SAME settingsService-driven helpers as hybridSearch() (no drift between the two) (1.7516ms)
+  ✔ returns result.points straight through (result.hits mapping happens at the adapter layer, not here) (0.7809ms)
+✔ hybridSearchCloud() — exact Qdrant Query API request shape (20.0963ms)
+Api key is used with unsecure connection.
+Api key is used with unsecure connection.
+Api key is used with unsecure connection.
+Api key is used with unsecure connection.
+[qdrant] hybridSearch fallback to dense-only for "my-collection": Qdrant hybridSearch failed: Wrong sparse vector name: sparse
+Api key is used with unsecure connection.
+Api key is used with unsecure connection.
+▶ hybridSearch() — brought under qdrantCall telemetry coverage
+  ✔ a successful hybrid query emits exactly one qdrant_sdk_op event (21.9193ms)
+  ✔ preserves the existing dense-only fallback on "Wrong sparse vector name" — behavior unchanged by the qdrantCall wrapping (3.5127ms)
+  ✔ a real (non-fallback) failure still throws, with both the failed query() attempt and nothing else observed (9.3032ms)
+✔ hybridSearch() — brought under qdrantCall telemetry coverage (35.8764ms)
+▶ rerankResults — settingsService extraction (consumed, not copied)
+  ✔ without a settingsService, behavior is unchanged from the module-level env defaults (2.2327ms)
+  ✔ a settingsService-supplied RERANK_BOOST_SOURCE_FILE actually changes ranking output (0.3009ms)
+  ✔ a settingsService-supplied PROTECT_TOP1_DELTA of 0 allows displacing the original RRF rank-0 result (0.1756ms)
+✔ rerankResults — settingsService extraction (consumed, not copied) (4.0315ms)
+▶ resolveSearchMode
+  ✔ hybrid when both capabilities present (0.495ms)
+  ✔ null when either capability missing (0.1024ms)
+✔ resolveSearchMode (1.3157ms)
+▶ runHybridSearch
+  ✔ returns not_implemented when adapter lacks hybrid capabilities (0.4486ms)
+  ✔ returns collection_not_found when adapter.getCollection resolves null (0.3557ms)
+  ✔ returns embedding_failed when embedQuery rejects (0.311ms)
+  ✔ always sets excludeNav: true on the filter, even with no other filters (0.657ms)
+  ✔ merges sourceFile and tags filters alongside excludeNav (0.2037ms)
+  ✔ passes dense/sparse vectors and limit through to searchHybridVectors, returns hits and searchMode (0.228ms)
+  ✔ forwards a supplied settingsService through to searchHybridVectors (so HYBRID_PREFETCH_LIMIT/RRF_K apply to admin search and Ask, not just MCP) (0.1903ms)
+  ✔ passes the RESOLVED PROFILE (not a bare collection string) to embedQuery (0.2013ms)
+  ✔ resolution failure short-circuits BEFORE embedQuery is ever called — never invokes a local default model for an unresolved profile (0.149ms)
+  ✔ an "invalid" profile state also produces embedding_unresolved, never a silent fallback (0.1077ms)
+  ✔ a profile with a still-unimplemented execution mode (e.g. qdrant-cluster) produces embedding_unsupported, never invoking embedQuery (0.1174ms)
+  ✔ a collection whose stored dense model is no longer in the catalog blocks search with a clean embedding_unsupported error, before any inference descriptor is built (0.1596ms)
+  ✔ a collection whose stored dense model is status:planned (dedicated-tier, e.g. mxbai) also blocks search the same way — planned is not supported (0.1095ms)
+  ✔ a qdrant-cloud profile never calls embedQuery, builds inference descriptors, and calls searchHybridInference (not searchHybridVectors) (1.8516ms)
+  ✔ a global QDRANT_CLOUD_DENSE_MODEL setting change (e.g. to MiniLM) has ZERO effect on a search against an existing E5 collection (0.2825ms)
+  ✔ same-dimension-different-model is never accepted as compatible: two profiles with equal dimensions but different models are passed through distinctly, never cross-substituted (0.2189ms)
+  ✔ REGRESSION (P2 fix): an over-long query against a qdrant-cloud profile is rejected with a typed error BEFORE any inference descriptor is sent — never silently truncated by Qdrant (47.9264ms)
+  ✔ a short query against a qdrant-cloud profile still succeeds (the length check does not block normal queries) (0.3994ms)
+✔ runHybridSearch (54.5032ms)
+▶ runHybridSearch — query-side opt-in benchmark telemetry (SEMIDEX_BENCH_TELEMETRY_PATH)
+  ✔ a qdrant-cloud query emits exactly one dense and one sparse phase:"query" event (14.0377ms)
+  ✔ a CLIENT-execution (local) profile query emits NO telemetry — query-side cloud telemetry is cloud-only by construction (1.0533ms)
+  ✔ emits no telemetry when SEMIDEX_BENCH_TELEMETRY_PATH is unset (1.0759ms)
+  ✔ an over-long query rejected before any descriptor is built emits no telemetry (34.7034ms)
+✔ runHybridSearch — query-side opt-in benchmark telemetry (SEMIDEX_BENCH_TELEMETRY_PATH) (51.0663ms)
+▶ storage layering — qdrant-adapter.js never imports embedding-runtime code
+  ✔ src/core/storage/qdrant-adapter.js never imports embeddings.js/onnx-embed.js/ollama.js — a real source-level layering check, distinct from the banned "proves ONNX wasn't called" regex use (18.3787ms)
+  ✔ src/core/qdrant/store.js never imports embeddings.js/onnx-embed.js/ollama.js either (0.7929ms)
+✔ storage layering — qdrant-adapter.js never imports embedding-runtime code (19.3001ms)
+▶ mcp/tools/search.js — handle() routes through runHybridSearch()
+  ✔ an unresolved profile (state: missing) returns a graceful message, never throws (1.4113ms)
+  ✔ an "invalid" profile state also returns a graceful message, not a thrown error (0.2932ms)
+  ✔ a still-unimplemented execution mode (e.g. qdrant-cluster) returns a graceful message naming the mode (0.4962ms)
+  ✔ a qdrant-cloud profile is NOT rejected — it now returns "No results found." for a fake adapter's empty hits, not an unsupported-execution message (531.3304ms)
+  ✔ setStorageAdapter(null) resets to the lazy real-adapter default (does not throw when reset) (18.5879ms)
+✔ mcp/tools/search.js — handle() routes through runHybridSearch() (553.2458ms)
+▶ chunkToLegacyPoint() — Chunk -> raw Qdrant point shape for rerankResults()/ceRerank()
+  ✔ maps every field rerankResults()/ceRerank() actually read (0.8193ms)
+✔ chunkToLegacyPoint() — Chunk -> raw Qdrant point shape for rerankResults()/ceRerank() (0.9706ms)
+▶ mcp/tools/search.js — settingsService extraction (consumed, not copied)
+  ✔ with no settingsService set, resolvers fall back to direct env reads unchanged (1.5216ms)
+  ✔ setSettingsService() makes resolvers read from the service instead of process.env (0.2399ms)
+  ✔ setSettingsService(null) resets to env-fallback state (0.2966ms)
+✔ mcp/tools/search.js — settingsService extraction (consumed, not copied) (3.3536ms)
+▶ assembleWindowChunks — window chunk node identity (Phase 3X)
+  ✔ includes node_id/node_path/node_type when the payload carries them (skeleton-aware collection) (0.6431ms)
+  ✔ omits node identity entirely (not null) for a legacy collection with no node_id on the payload (0.12ms)
+  ✔ window chunk identity is present in BOTH full and compact window_format (0.2234ms)
+  ✔ a chunk with node_id but no node_path still exposes node_id/node_type, with node_path as null (defensive, not omitted) (0.1606ms)
+✔ assembleWindowChunks — window chunk node identity (Phase 3X) (2.1949ms)
+▶ search.js source — node identity surfaced on the primary hit, ranking untouched
+  ✔ formats a Node line only when the hit payload carries node_id (source-level pin: conditional, not unconditional) (0.4629ms)
+  ✔ the primary hit's Node line includes node_path as well as node_id/node_type — matching the documented node_id/node_path/node_type contract (0.2283ms)
+  ✔ does not touch runHybridSearch/rerank/CE call sites (ranking/retrieval behavior unchanged) (0.1128ms)
+✔ search.js source — node identity surfaced on the primary hit, ranking untouched (1.179ms)
+▶ primary-hit Node line — exact rendered contract
+  ✔ renders node_id, node_path, and node_type together when all three are present (0.2555ms)
+  ✔ omits the field entirely (not "node_path=undefined") when node_path is absent (0.1283ms)
+  ✔ renders nothing at all for a legacy hit with no node_id (0.1271ms)
+✔ primary-hit Node line — exact rendered contract (0.6881ms)
+▶ indirect prompt injection via indexed document content — attack corpus
+  ✔ [role override / jailbreak] reaches userPrompt as inert evidence text, never systemPrompt (1.5659ms)
+  ✔ [system prompt exfiltration] reaches userPrompt as inert evidence text, never systemPrompt (0.186ms)
+  ✔ [forged fake evidence block] reaches userPrompt as inert evidence text, never systemPrompt (0.1519ms)
+  ✔ [forged [node:] marker to an out-of-scope path] reaches userPrompt as inert evidence text, never systemPrompt (0.1353ms)
+  ✔ [refusal-sentinel bypass instruction] reaches userPrompt as inert evidence text, never systemPrompt (0.1596ms)
+  ✔ [sentinel spoofing (claims the real sentinel is fake)] reaches userPrompt as inert evidence text, never systemPrompt (0.1657ms)
+  ✔ [citation-omission request] reaches userPrompt as inert evidence text, never systemPrompt (0.1859ms)
+  ✔ [zero-width-character obfuscated override] reaches userPrompt as inert evidence text, never systemPrompt (0.1545ms)
+  ✔ [fake role turn embedded as plain text] reaches userPrompt as inert evidence text, never systemPrompt (0.7281ms)
+  ✔ the anti-injection system rule is present no matter which corpus attack is in evidence (defense is unconditional, not attack-triggered) (1.041ms)
+✔ indirect prompt injection via indexed document content — attack corpus (5.6568ms)
+▶ retrieval poisoning via document METADATA (sourceFile/section), end to end through buildEvidence
+  ✔ a section heading engineered to look like a second evidence header never starts its own line in the rendered prompt (0.4376ms)
+✔ retrieval poisoning via document METADATA (sourceFile/section), end to end through buildEvidence (0.5188ms)
+▶ retrieval poisoning via document METADATA (nodePath), end to end through buildEvidence
+  ✔ a nodePath engineered to look like a second evidence header never reaches the rendered prompt as a marker, and no forged header line appears (0.2712ms)
+  ✔ a non-string nodePath (malformed retrieval metadata) never throws and never renders a marker (0.2962ms)
+  ✔ a model that emits a marker reproducing the unsafe nodePath verbatim still has it stripped — the shared predicate closes the loophole in validateCitations() too (1.1175ms)
+✔ retrieval poisoning via document METADATA (nodePath), end to end through buildEvidence (1.8061ms)
+▶ structural defenses hold even when the model itself is fooled (worst case: a compromised model)
+  ✔ zero retrieved evidence -> deterministic refusal; the model is never even called, so no jailbreak instruction in the corpus can reach it (0.3383ms)
+  ✔ a model that complies with a forged "[7]" citation still has it flagged invalid — only real retrieved sources validate (0.227ms)
+  ✔ a model that complies with a forged [node: path] marker to an out-of-scope path has it stripped, never rendered (0.3221ms)
+  ✔ a model that emits the real refusal sentinel is treated as a refusal even when poisoned evidence tried to talk it out of refusing (0.2317ms)
+✔ structural defenses hold even when the model itself is fooled (worst case: a compromised model) (1.319ms)
+▶ residual risk, documented not fixed: attacker-controlled document BODY (not metadata) can still visually mimic an evidence header line
+  ✔ a forged "[2] (...)" header line embedded in snippet BODY text is NOT collapsed — this is an open residual risk, not a passing defense (0.212ms)
+✔ residual risk, documented not fixed: attacker-controlled document BODY (not metadata) can still visually mimic an evidence header line (0.2824ms)
+▶ v1/v2 parity — v1 and v2 share ONE createAskCore() instance (createAskCoordinatorBundle), so the hardened final-answer prompt applies identically to both; v2 additionally protects its own extra rewrite/compaction calls that v1 never makes
+  ✔ v1 (no conversation) and v2 (with conversation) both flag the SAME forged citation as invalid — proving the shared core, not a per-version reimplementation, enforces it (1.5552ms)
+  ✔ v2 threads real conversation history through the SAME buildSystemPrompt() hasHistory rule for its main-answer call; v1 never needs it because it never threads history at all (0.5607ms)
+✔ v1/v2 parity — v1 and v2 share ONE createAskCore() instance (createAskCoordinatorBundle), so the hardened final-answer prompt applies identically to both; v2 additionally protects its own extra rewrite/compaction calls that v1 never makes (2.1878ms)
+ℹ tests 96
+ℹ suites 21
+ℹ pass 96
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5400.2975

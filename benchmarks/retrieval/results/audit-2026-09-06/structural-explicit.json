@@ -1,0 +1,211 @@
+{
+  "version": 1,
+  "benchmarkContract": {
+    "version": 1,
+    "suiteId": "audit-20260906-structural",
+    "datasetFingerprint": "structural-fixture-v1",
+    "qdrantEndpointFingerprint": "8f9428ceda054cc5",
+    "collectionPrefix": "semidex-prodpath-bench-",
+    "hybridPrefetchLimit": "pinned(2)",
+    "rrfK": "pinned(60)",
+    "chunkCandidateLimit": 400,
+    "documentMetricDepth": 100,
+    "collapseStrategy": "max",
+    "cudaRequested": false,
+    "deterministicEnvHash": "{\"TAG_GEN\":\"0\",\"SKELETON_SUMMARY\":\"deterministic\",\"PIPELINE_MODE\":\"0\",\"STAGEA_CONCURRENCY\":\"1\",\"OLLAMA_STAGE_CONCURRENCY\":\"1\",\"EMBED_STAGE_CONCURRENCY\":\"1\",\"MAX_CHUNK_TOKENS\":\"512\",\"MIN_CHUNK_TOKENS\":\"160\",\"CHUNK_OVERLAP_TOKENS\":\"80\",\"SKELETON_CARRYOVER_CHARS\":\"500\",\"HYBRID_PREFETCH_LIMIT\":\"2\",\"RRF_K\":\"60\",\"PRUNE_STALE\":\"0\",\"COMBINED_LLM\":\"0\",\"FORCE_REINDEX\":\"0\",\"ONNX_EXECUTION_PROVIDER\":\"cpu\",\"ONNX_CUDA_STRICT\":\"0\"}"
+  },
+  "profiles": {
+    "local": {
+      "collection": "semidex-prodpath-bench-audit-20260906-structural-local-9bc1f755-local",
+      "profileId": "local",
+      "errors": [],
+      "cleanup": {
+        "attempted": true,
+        "deleted": true
+      },
+      "unmappedHitCount": 0,
+      "queryErrorCount": 0,
+      "indexing": {
+        "ms": 23696,
+        "exitCode": 0,
+        "peakChildRssBytes": null,
+        "documentsIndexed": 4,
+        "errors": 0
+      },
+      "metrics": {
+        "queryCount": 3,
+        "ndcgAt10": 1,
+        "mapAt100": 1,
+        "recallAt10": 1,
+        "recallAt100": 1,
+        "precisionAt10": 0.10000000000000002,
+        "mrrAt10": 1,
+        "skippedForRecallMap": 0
+      },
+      "queriesWithInsufficientDepth": 0,
+      "latency": {
+        "count": 3,
+        "p50": 360.42029999999795,
+        "p95": 2260.618599999998
+      },
+      "telemetry": {
+        "qdrantSdkOps": {
+          "byLabel": {
+            "Qdrant listCollections failed": 4,
+            "Create collection failed": 1,
+            "Create index failed": 8,
+            "Qdrant scroll failed": 11,
+            "Qdrant upsert failed": 9,
+            "Qdrant deleteTrailingChunks failed": 4,
+            "Qdrant deleteByFilter failed": 1,
+            "updateCollectionMetadata failed": 1,
+            "Qdrant getCollectionInfo failed": 3,
+            "Qdrant count failed": 3,
+            "Qdrant hybridSearch failed": 3
+          },
+          "total": 48
+        },
+        "denseInferenceItems": {
+          "indexing": 0,
+          "query": 0,
+          "total": 0
+        },
+        "sparseInferenceItems": {
+          "indexing": 0,
+          "query": 0,
+          "total": 0
+        },
+        "totalDenseChars": {
+          "indexing": 0,
+          "query": 0,
+          "total": 0
+        },
+        "totalSparseChars": {
+          "indexing": 0,
+          "query": 0,
+          "total": 0
+        },
+        "malformedLines": 0
+      }
+    },
+    "cloud": {
+      "collection": "semidex-prodpath-bench-audit-20260906-structural-cloud-9bc1f755-cloud",
+      "profileId": "cloud",
+      "errors": [],
+      "cleanup": {
+        "attempted": true,
+        "deleted": true
+      },
+      "unmappedHitCount": 0,
+      "queryErrorCount": 0,
+      "indexing": {
+        "ms": 10260,
+        "exitCode": 0,
+        "peakChildRssBytes": null,
+        "documentsIndexed": 4,
+        "errors": 0
+      },
+      "metrics": {
+        "queryCount": 3,
+        "ndcgAt10": 1,
+        "mapAt100": 1,
+        "recallAt10": 1,
+        "recallAt100": 1,
+        "precisionAt10": 0.10000000000000002,
+        "mrrAt10": 1,
+        "skippedForRecallMap": 0
+      },
+      "queriesWithInsufficientDepth": 0,
+      "latency": {
+        "count": 3,
+        "p50": 403.2002999999968,
+        "p95": 1007.7694999999949
+      },
+      "telemetry": {
+        "qdrantSdkOps": {
+          "byLabel": {
+            "Qdrant listCollections failed": 4,
+            "Create collection failed": 1,
+            "Create index failed": 8,
+            "Qdrant scroll failed": 11,
+            "Qdrant upsert failed": 9,
+            "Qdrant deleteTrailingChunks failed": 4,
+            "Qdrant upsert (vectorless) failed": 1,
+            "Qdrant deleteByFilter failed": 1,
+            "updateCollectionMetadata failed": 1,
+            "Qdrant getCollectionInfo failed": 3,
+            "Qdrant count failed": 3,
+            "Qdrant hybridSearchCloud failed (semidex-prodpath-bench-audit-20260906-structural-cloud-9bc1f755-cloud)": 3
+          },
+          "total": 49
+        },
+        "denseInferenceItems": {
+          "indexing": 35,
+          "query": 3,
+          "total": 38
+        },
+        "sparseInferenceItems": {
+          "indexing": 35,
+          "query": 3,
+          "total": 38
+        },
+        "totalDenseChars": {
+          "indexing": 19646,
+          "query": 130,
+          "total": 19776
+        },
+        "totalSparseChars": {
+          "indexing": 19646,
+          "query": 130,
+          "total": 19776
+        },
+        "malformedLines": 0
+      }
+    }
+  },
+  "resumeEvents": [],
+  "startedAt": "2026-09-06T16:21:11.067Z",
+  "finishedAt": "2026-09-06T16:21:50.148Z",
+  "verdict": "COMPLETE",
+  "bootstrapComparison": {
+    "ndcgAt10": {
+      "n": 3,
+      "meanDelta": 0,
+      "wins": 0,
+      "losses": 0,
+      "ties": 3,
+      "ciLow": 0,
+      "ciHigh": 0,
+      "excludesZero": false,
+      "verdict": "INCONCLUSIVE",
+      "seed": "semidex-miracl-ru-bootstrap-v1",
+      "iterations": 2000
+    },
+    "recallAt10": {
+      "n": 3,
+      "meanDelta": 0,
+      "wins": 0,
+      "losses": 0,
+      "ties": 3,
+      "ciLow": 0,
+      "ciHigh": 0,
+      "excludesZero": false,
+      "verdict": "INCONCLUSIVE",
+      "seed": "semidex-miracl-ru-bootstrap-v1",
+      "iterations": 2000
+    },
+    "mrrAt10": {
+      "n": 3,
+      "meanDelta": 0,
+      "wins": 0,
+      "losses": 0,
+      "ties": 3,
+      "ciLow": 0,
+      "ciHigh": 0,
+      "excludesZero": false,
+      "verdict": "INCONCLUSIVE",
+      "seed": "semidex-miracl-ru-bootstrap-v1",
+      "iterations": 2000
+    }
+  }
+}
