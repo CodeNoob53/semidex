@@ -2,6 +2,12 @@
 
 [Українська версія](./README.uk.md)
 
+**Cloud document search, grounded answers, and application-controlled agents.**
+
+[Installation](#installation) · [Configuration](#configuration) ·
+[Choose an API](#choose-an-api) · [JS/TS client](#js-client-semidex-liteclient) ·
+[Security](#security-status) · [CLI](#cli)
+
 **Semidex Lite is a cloud RAG core and JavaScript/TypeScript client for Node.js
 applications** that need to turn their own documents into a searchable,
 grounded knowledge base. It is the cloud edition of
@@ -16,7 +22,8 @@ The package currently provides:
 - dense and sparse embeddings through Qdrant Cloud Inference;
 - hybrid retrieval and the versioned `POST /api/v1/search` endpoint;
 - single-turn and multi-turn Ask APIs with source citations;
-- `semidex-lite/client` for Search, Ask v1, and Ask v2 in JavaScript/TypeScript,
+- experimental Ask v3 with application-owned instructions and native tool calling;
+- `semidex-lite/client` for Search and Ask v1/v2/v3 in JavaScript/TypeScript,
   with opt-in retries and an `askText()` convenience helper;
 - an indexing CLI and an operator-facing admin dashboard.
 
@@ -87,11 +94,61 @@ and business rules. Integrate through the HTTP Ask API behind your own
 backend; the current admin server is not intended to be exposed directly to
 the public Internet.
 
-The Ask system prompt in this MVP is internal and cannot be changed through the
-public API or settings. An outer application can manage context before and
-after an Ask call, but changing Gemini's internal instructions currently
-requires modifying or forking the package source. A configurable system prompt
-may be introduced later, but it is not part of the current public contract.
+Grounded Ask v1/v2 retain their internal system instructions. For your own
+system instructions and tools, use the separate **Ask v3 agent API** below.
+
+## Choose an API
+
+| Your application needs | Endpoint | Client method |
+| --- | --- | --- |
+| Relevant passages without generation | `POST /api/v1/search` | `search()` |
+| A grounded, single-turn answer with citations | `POST /api/v1/ask` | `askV1()` / `askText()` |
+| Grounded answers with bounded conversation context | `POST /api/v2/ask` | `askV2()` |
+| Your instructions and application-executed tools | `POST /api/v3/ask` | `askAgent()` / `agentStep()` |
+
+**Runtime boundary:** install the package in your project, run
+`npx semidex-lite serve` as a separate process, and call it from your backend.
+The exported client is an HTTP client, not an embedded indexing or retrieval
+engine. Your backend retains provider/tool permissions and user authentication;
+never put an integration key in browser code.
+
+### Application-controlled agents (0.1.8, experimental)
+
+Ask v3 uses Gemini's native function calling. Each request advances one model
+step; your application owns the loop:
+
+```text
+your backend -> input + systemInstructions + tool schemas
+Semidex     -> requires_action + toolCalls + continuationId
+your backend -> validate, authorize, execute; return toolResults
+Semidex     -> another tool request or completed answer
+```
+
+Semidex does not execute tools or connect to your MCP servers. There is no
+implicit retrieval or citation guarantee in agent mode. Expose search as an
+application tool when your agent needs indexed knowledge.
+
+With the server running and Gemini configured, create a dedicated key:
+
+```bash
+npx semidex-lite key add --name my-agent --collection "*" --operation agent
+```
+
+Set `SEMIDEX_URL` to your server URL (default `http://127.0.0.1:8642`) and
+`SEMIDEX_KEY` to the printed token in your backend environment, then run:
+
+```bash
+node node_modules/semidex-lite/examples/agent-tool-loop.mjs
+```
+
+The [example](./examples/agent-tool-loop.mjs) implements a bounded loop with a
+synthetic read-only lookup, not a live shopping integration. Existing Ask keys
+do not gain the `agent` scope automatically. Continuations are process-local,
+expire, and are lost on restart; your application must handle side effects and
+must not blindly retry a tool action after an ambiguous failure.
+
+See the [Ask v3 contract](https://github.com/CodeNoob53/semidex/blob/main/docs/en/agent-api-v3.md)
+for schemas, limits, streaming events and recovery rules.
 
 ## Direction and roadmap
 
@@ -1291,10 +1348,9 @@ indexed documents, and refuse to answer when the evidence is insufficient.
 This reduces hallucination and prompt-injection risk, but cannot eliminate it:
 you should still assess generated output against the cited sources.
 
-In the current version, the system prompt is an internal part of the Ask
-runtime. It cannot be changed through the dashboard, `.env`, or an Ask API
-request. Safe custom instructions may be added later together with validation
-and constraints, but are not currently part of the public contract.
+For grounded Ask v1/v2, this system prompt is internal and cannot be changed
+through the dashboard, `.env`, or the request. Ask v3 accepts application-owned
+`systemInstructions`, but does not inherit the grounded-answer contract above.
 
 ### Integrate Ask through your backend
 
